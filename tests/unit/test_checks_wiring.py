@@ -57,7 +57,11 @@ def test_a_good_set_passes_the_rules_it_owns(run_checks, work) -> None:
     # The synthetic set's pins and recipes are not this repository's, so these two must fail.
     assert checks["test_manifest_pins_match_the_pin_list"]["status"] == "fail"
     assert "stale artifact" in checks["test_manifest_recipes_match_the_tree"]["reason"]
-    assert checks["test_wheel_carries_the_artifact_set"]["need"] == "wheel"
+    wheel_check = checks["test_wheel_carries_the_artifact_set"]
+    if any(paths.DIST.glob("wasi_python-*.whl")):  # a release build has put the real wheel there
+        assert wheel_check["status"] == "fail", wheel_check  # it does not carry the synthetic set
+    else:
+        assert wheel_check["need"] == "wheel", wheel_check
 
 
 def test_a_set_without_its_snapshot_fails_completeness_and_blocks_the_snapshot(
