@@ -1,6 +1,8 @@
 # Constitution
 
-- **Status:** in force, 2026-10-16
+- **Status:** in force, 2026-10-16; amended the same day by the owner's
+  decision on profiles and on what the product is for (§2 "Beyond v1",
+  §3 first bullet)
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -40,9 +42,21 @@ Beyond v1, in order of value: matplotlib, then the stdlib modules WASI
 lacks (sqlite, bz2, lzma), then scipy. Nothing else is in scope until
 those are decided.
 
+Also beyond v1, by the owner's decision (2026-10-16): **build-time
+profiles of the core C libraries**, so an embedder carries only the
+compiled libraries it uses (a CPython-only core, and a data profile
+with numpy and pandas, for example). C extensions are linked in at
+build time on `wasm32-wasip1`, so a profile is its own artifact set,
+chosen by name, never assembled on a user's machine. Profiles stay
+few: each one is built, judged and published. v1 ships the one set
+§2 names. The question is held by
+`research/2026-10-16-build-time-profiles-of-the-core-c-libraries.md`.
+
 ## 3. What this project is not
 
-- Not a development environment. No pip, no venv, no package tracking.
+- Not a development environment. It is a drop-in, easy-to-use,
+  sealed Python for lightweight loads: an embedder runs a program and
+  gets its result. No pip, no venv, no package tracking.
   A release is one pinned set of versions. The project does not build
   every release of every supported package; it builds a new set when
   there is a reason to, and the old sets stay published.
