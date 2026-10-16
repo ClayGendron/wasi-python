@@ -220,7 +220,15 @@ def _place_stdlib(found: Artifacts, root: Path) -> None:
             for block in iter(lambda: src.read(1 << 20), b""):
                 out.write(block)
         os.chmod(tmp, 0o644)
-        os.replace(tmp, dest)  # replaces a link at dest itself, never what it points to
+        try:
+            os.replace(tmp, dest)  # replaces a link at dest itself, never what it points to
+        except PermissionError:
+            # Windows cannot rename over a file another call's guest has open; when that file
+            # is already the right zip (a concurrent call placed it), this copy is not needed.
+            st = os.lstat(dest)
+            if not (stat.S_ISREG(st.st_mode) and _hash_file(dest) == want):
+                raise
+            Path(tmp).unlink(missing_ok=True)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise

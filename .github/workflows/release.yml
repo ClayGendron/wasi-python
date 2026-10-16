@@ -97,8 +97,11 @@ jobs:
           uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
           echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
       - name: The v1.1 to v1.4 checks on these bytes
+        # Pass and fail only: the ratchet against the accepted state is the build job's. Fuel
+        # differs slightly between hosts, even on the same bytes (spec 004's landing notes), so
+        # this job compares with an empty baseline, which the scoreboard announces.
         run: >-
-          uv run pytest -p no:cacheprovider
+          uv run pytest -p no:cacheprovider --progress-dir "$RUNNER_TEMP/no-baseline"
           tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
           tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
       - name: The wheel, installed fresh, runs a program in one call
