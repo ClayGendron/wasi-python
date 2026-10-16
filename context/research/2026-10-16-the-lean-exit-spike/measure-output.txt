@@ -1,0 +1,25 @@
+== python-snapshot.wasm
+program                                          0               1               2               3               4               5               6
+pass                                   117.7M   ok      43.7M   ok      43.7M   ok      43.7M   ok      44.4M   ok      44.7M   ok      45.3M   ok
+print, no newline                      117.9M kept      43.8M kept      43.9M kept      43.9M kept      44.6M kept      44.8M kept      45.5M kept
+unclosed file in __main__              118.0M kept      43.9M LOST      44.0M LOST      44.0M kept      44.7M kept      45.1M kept      45.8M kept
+atexit handler                         118.2M kept      44.0M LOST      44.2M kept      44.2M kept      44.9M kept      45.2M kept      45.8M kept
+file held by an imported module        120.8M kept      46.4M LOST      46.5M LOST      46.6M LOST      47.4M kept      49.2M kept      49.9M kept
+file in a reference cycle (native loses it too)     118.5M LOST      44.4M LOST      44.4M LOST      44.5M LOST      45.2M LOST      45.6M LOST      46.3M LOST
+__del__ of an object in __main__       118.5M LOST      44.4M LOST      44.4M LOST      44.6M kept      45.3M kept      45.7M kept      46.3M kept
+__del__ of an object a module holds    121.3M LOST!      46.8M LOST      46.9M LOST      47.0M LOST      47.9M kept      49.5M LOST      50.1M LOST
+logging to a file                      118.6M kept      44.4M kept      44.5M kept      44.5M kept      45.2M kept      46.0M kept      46.6M kept
+pandas csv job                         788.8M   ok     709.5M   ok     709.6M   ok     711.5M   ok     714.2M   ok     722.0M   ok     722.7M   ok
+== python.wasm
+program                                          0               1               2               3               4               5               6
+pass                                   247.2M   ok     221.4M   ok     221.6M   ok     225.0M   ok    581.8M   ok!     257.8M   ok     230.3M   ok
+print, no newline                      247.4M kept     221.6M kept     221.8M kept     225.2M kept    582.0M kept!     258.0M kept     230.5M kept
+unclosed file in __main__              247.5M kept     221.7M LOST     221.9M LOST     225.3M kept    582.1M kept!     258.2M kept     230.6M kept
+atexit handler                         247.9M kept     222.0M LOST     222.1M kept     225.5M kept    582.3M kept!     258.3M kept     230.8M kept
+file held by an imported module        314.7M kept     283.7M LOST     284.0M LOST     288.3M LOST    317.5M kept!     325.8M kept     297.8M kept
+file in a reference cycle (native loses it too)     248.0M LOST     222.1M LOST     222.4M LOST     225.8M LOST    582.7M LOST!     258.6M LOST     231.1M LOST
+__del__ of an object in __main__      248.1M LOST!     222.1M LOST     222.4M LOST     225.9M kept    582.7M kept!     258.7M kept     231.2M kept
+__del__ of an object a module holds    315.3M LOST!     284.2M LOST     284.4M LOST     288.7M LOST    318.0M kept!     326.2M LOST     297.9M LOST
+logging to a file                      628.9M kept     580.5M kept     580.6M kept     588.5M kept    630.3M kept!     645.6M kept     617.2M kept
+pandas csv job                        5625.1M   ok    5333.5M   ok    5333.5M   ok    5382.5M   ok   5600.7M   ok!    5722.4M   ok    5675.6M   ok
+M = million instructions (fuel); ! = the run wrote to stderr
