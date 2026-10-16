@@ -62,6 +62,62 @@ def test_run_reads_argv_and_environment_each_call(guest, which) -> None:
         assert r.text.strip() == f"['{value}'] {value}", r.text
 
 
+NATIVE_MAIN = "['__builtins__', '__doc__', '__loader__', '__name__', '__package__', '__spec__']"
+NATIVE_TRACEBACK = (
+    "Traceback (most recent call last):\n"
+    '  File "<string>", line 1, in <module>\n'
+    "    1/0\n"
+    "    ~^~\n"
+    "ZeroDivisionError: division by zero\n"
+)
+
+
+@BINARY
+def test_main_starts_as_native(guest, which) -> None:
+    """A program's __main__ is CPython's, never holding the snapshot's build-time imports."""
+    r = guest(which, ["-c", "print(sorted(globals()))"])
+    assert r.exit_code == 0, r.describe()
+    assert r.text.strip() == NATIVE_MAIN, r.text
+
+
+@BINARY
+def test_uncaught_errors_print_as_native(guest, which) -> None:
+    """The user's frames only, through sys.excepthook, as CPython's -c prints them."""
+    hook = "import sys\nsys.excepthook = lambda t, e, tb: print('hook', t.__name__)\n1/0\n"
+    r = guest(which, ["-c", hook])
+    assert (r.exit_code, r.text.strip()) == (1, "hook ZeroDivisionError"), r.describe()
+    r = guest(which, ["-c", "1/0"])
+    assert r.exit_code == 1, r.describe()
+    assert r.stderr.decode(errors="replace") == NATIVE_TRACEBACK, r.stderr
+
+
+@BINARY
+def test_exit_status_is_a_process_status(guest, which) -> None:
+    """SystemExit's code comes back as a POSIX process status would: 0 to 255."""
+    codes = [guest(which, ["-c", f"raise SystemExit({c})"]).exit_code for c in (256, -1)]
+    assert codes == [0, 255], codes
+
+
+@BINARY
+def test_unbuffered_output_survives_a_hard_exit(guest, which) -> None:
+    """-u is honoured: what was printed is written before os._exit or a trap can lose it."""
+    r = guest(which, ["-u", "-Xutf8", "-c", "print('kept'); import os; os._exit(0)"])
+    assert (r.exit_code, r.text) == (0, "kept\n"), r.describe()
+
+
+@BINARY
+def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
+    """The constants the build pins while it snapshots never reach a program."""
+    code = (
+        "import os\n"
+        "st = os.stat('/w/f')\n"
+        "print(os.urandom(8) != bytes(8), st.st_ino != 0, st.st_mtime != 1767225600)\n"
+    )
+    r = guest(which, ["-c", code], files={"/w/f": b"x"})
+    assert r.exit_code == 0, r.describe()
+    assert r.text.split() == ["True", "True", "True"], r.text
+
+
 def _runner():
     needs.need("runner", "artifact dir")
     import wasi_python

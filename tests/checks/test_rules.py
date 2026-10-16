@@ -70,7 +70,7 @@ def test_ruff_format_is_clean() -> None:
 
 
 def test_build_scripts_call_python_only_through_uv_or_a_path() -> None:
-    scripts = [p for p in sorted((paths.REPO / "scripts").iterdir()) if p.is_file()]
+    scripts = scan.every_file(paths.REPO / "scripts")
     hits = scan.bare_python_hits(scripts, paths.REPO)
     assert not hits, scan.report(hits)
 
@@ -84,6 +84,20 @@ def test_specifications_have_no_open_question() -> None:
     docs = sorted(SPECS.glob("*.md")) + [paths.README, paths.REPO / "AGENTS.md"]
     hits = [h for d in docs for h in scan.open_question_hits(d)]
     assert not hits, scan.report(hits)
+
+
+def test_version_states_the_platform_semantics(guest) -> None:
+    """Constitution §4.11: the guest's -V states the platform's facts, and the README says the
+    same (spec 003, Decision 8)."""
+    r = guest("plain", ["-V"], record=False)
+    assert r.exit_code == 0, r.describe()
+    line = r.text.strip()
+    facts = ("32-bit", "no threads", "ctypes", "times slower than native")
+    missing = [f for f in facts if f not in line]
+    assert not missing, scan.report(missing, f"-V says {line!r}; it lacks")
+    sentence = line.split(" ", 2)[-1]  # after "Python X.Y.Z"
+    readme = " ".join(paths.README.read_text().split())
+    assert sentence in readme, f"README does not carry the version sentence {sentence!r}"
 
 
 def test_landed_specifications_cite_an_existing_review() -> None:

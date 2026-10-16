@@ -15,7 +15,8 @@ DOWNLOAD_SCRIPT = SCRIPTS / "00_download.sh"
 
 
 def _scripts():
-    return [p for p in sorted(SCRIPTS.iterdir()) if p.is_file()]
+    """Every file under scripts/, steps included (spec 003, Decision 13)."""
+    return scan.every_file(SCRIPTS)
 
 
 def test_pin_list_is_well_formed() -> None:
@@ -38,7 +39,7 @@ def test_no_build_script_fetches_outside_the_download_script() -> None:
 
 
 def test_every_repository_path_a_recipe_names_exists() -> None:
-    files = _scripts() + [p for p in sorted((paths.REPO / "recipes").iterdir()) if p.is_file()]
+    files = _scripts() + scan.every_file(paths.REPO / "recipes")
     errors = scan.recipe_path_errors(files, paths.REPO)
     assert not errors, scan.report(errors)
 

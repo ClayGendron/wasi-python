@@ -1,7 +1,8 @@
 """Where things are, and what the harness reads from the artifact directory (spec 002, Decision 12).
 
 The artifact directory is `$WASI_PYTHON_ARTIFACTS` when it is set, and nothing else; otherwise
-the wheel's `wasi_python.ARTIFACT_DIR` when it holds a MANIFEST; otherwise there is none.
+build/artifacts/ when it holds a MANIFEST (what scripts/build.sh writes: spec 003, Decision 10);
+otherwise the wheel's `wasi_python.ARTIFACT_DIR` when it holds one; otherwise there is none.
 """
 
 from __future__ import annotations
@@ -74,6 +75,8 @@ def artifact_dir() -> Path | None:
     env = os.environ.get(ARTIFACTS_ENV)
     if env is not None:
         return Path(env).resolve()
+    if (BUILD / "artifacts" / "MANIFEST").is_file():
+        return (BUILD / "artifacts").resolve()
     import wasi_python
 
     d = wasi_python.ARTIFACT_DIR

@@ -20,8 +20,8 @@ functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, the `host` door; `_initialize` once, `run` per call |
-| `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; starts in 3 to 5 ms |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, the `host` door; `_initialize`, then one `run` per instance |
+| `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
 | `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, toolchain and recipe hash the build used |
 
@@ -31,48 +31,83 @@ function that returns their paths.
 
 ## Measured (2026-10-16, arm64 macOS, wasmtime 49)
 
+From the first scripted build (spec 003; commands and outputs in its
+landing notes). Times are benchmark facts on one machine, not promises.
+
 | fact | value |
 |---|---|
-| upstream patches to CPython, numpy, pandas | **zero**; twelve small recipe files |
-| full build from pinned sources | about ten minutes |
+| upstream patches to CPython, numpy, pandas, zlib | **zero**; every adaptation is a recipe file |
+| build from pinned sources, downloads present | 4 min 19 s |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 29.8 MB / 62.3 MB / 10.5 MB |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| cold start per call, snapshot | 3.0 ms (numpy), 4.8 ms (numpy + pandas) |
-| cold start per call, plain reactor | 80 to 120 ms |
-| numpy kernels vs native | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
-| pandas groupby, 1e6 rows, vs native | 1.3 to 1.4 times slower |
-| memory after the pandas job | 108 MiB |
+| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter |
+| one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
+| one call, plain reactor, `-c pass` / `import pandas` | 33 ms / 720 ms |
+| numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
+| pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
+| numpy and pandas results vs native, same pins | byte-identical on three golden jobs |
 
-Two facts of the platform, documented rather than patched: numpy's default
-integer is 32-bit on wasm32, so `np.arange(1_000_000).sum()` wraps (use
-`dtype=np.int64`); and on the wasi-sdk 24 line a C++ `throw` aborts the
-guest (wasi-sdk 33 links real exceptions).
+The platform's facts, documented rather than patched, are what `python.wasm
+-V` prints after its version:
+
+> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, sqlite3, bz2 or lzma; compute about 1.3 to 2.3 times slower than native)
+
+So `np.arange(1_000_000).sum()` wraps (use `dtype=np.int64`). On the
+wasi-sdk 24 line a C++ `throw` aborts the guest (wasi-sdk 33 links real
+exceptions). A script's directory is not put on `sys.path`: the interpreter
+runs isolated. The snapshot runs only beside the exact stdlib zip it was built
+against (its `MANIFEST` names the zip's hash), because zipimport's file
+offsets are part of the snapshot.
+
+`run` treats its arguments as CPython's command line does for one program:
+`-c`, `-m`, a script, or `-` and no argument for stdin; `-u`; `-V`. Its return
+value is the exit status, masked to 0 to 255 as a POSIX process's is. Output is
+buffered as CPython's is without `-u`, so a program that ends in `os._exit` or
+is stopped by fuel loses what it printed since its last flush; run it with
+`-u`, or flush first. The snapshot adds three facts of its own:
+
+- its string hash secret is fixed (`sys.flags.hash_randomization == 0`), so
+  every snapshot instance hashes strings alike;
+- the modules it pre-imports were imported with an empty environment: `run`
+  re-reads what is known to matter (the `random` and numpy seeds, `logging`'s
+  start time, `zoneinfo`'s `PYTHONTZPATH`), and anything else a module read
+  from the environment at import keeps the build's value;
+- it is the same bytes on every build: while it initializes, the clocks,
+  entropy and file metadata answer constants, and no program ever sees them.
 
 ## How it is built
 
-Everything is a pinned source plus a recipe file. No source tree is patched.
+One command, from pinned inputs, with no source tree patched:
 
-1. `scripts/00_download.sh` fetches CPython, numpy, pandas, zlib, wasi-sdk,
-   Wizer and the wasmtime CLI and verifies every hash in
-   `downloads/SHA256SUMS`.
-2. `scripts/02_build_cpython_floor.sh` builds CPython with its own
-   `Tools/wasm/wasi` driver.
-3. `scripts/09_build_zlib.sh` builds zlib as a static archive.
-4. `scripts/03_numpy_build.sh` and `scripts/07_pandas_build.sh` cross-compile
-   with meson. The compiler wrapper `scripts/wasi-cc` turns every extension
-   module's shared link into a static archive, so the upstream `meson.build`
-   files never change.
-5. `scripts/gen_inittab.py` registers every module under its dotted name;
-   `scripts/04b_link_python_pandas.sh` writes `Modules/Setup.local` and links
-   one `python.wasm`.
-6. `scripts/08_build_vfsmain.sh` relinks it as a WASI reactor; Wizer snapshots
-   it with the stack pre-imported.
-7. `scripts/make_stdlib_zip.py` builds the zip.
+```
+scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
+scripts/build.sh         # ten steps, one line each; logs in build/logs/
+```
 
-The recipe files under `recipes/`: two meson cross files, two rename headers
+The steps (`scripts/steps/`): unpack the toolchain and a pinned host Python
+(CPython 3.14.8 from python-build-standalone) and install the build tools from
+hashed wheels, offline; build CPython with its own `Tools/wasm/wasi` driver;
+build zlib, numpy and pandas outside their source trees, cross-compiling with
+meson; link everything into one interpreter as builtin modules and relink it
+as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
+the reactor with Wizer, numpy and pandas pre-imported; assemble
+`build/artifacts/` with `MANIFEST`, `SHA256SUMS` and the licence notices of
+everything inside. The compiler wrapper `scripts/wasi-cc` turns every
+extension module's shared link into a static archive, so no `meson.build`
+changes.
+
+The recipe files under `recipes/`: two meson cross files, three rename headers
 for symbols that only collide in a static link, the reactor entry, the door
-module, the generated inittab, a C++-exception stub for the SDK-24 line, and
-one-function stand-ins for `ctypes` and `mmap` that pandas imports
-unconditionally.
+module, a host-side numpy stand-in for pandas' build, a C++-exception stub for
+the SDK-24 line, and one-function stand-ins for `ctypes` and `mmap` that pandas
+imports unconditionally.
+
+One host input is not pinned: the native C compiler and `make` that CPython's
+driver uses to build its own build-Python. Nothing it compiles is linked into
+the guest; a rebuild on a second host will test that it does not matter. The
+build also runs host tools that move or check bytes and are not pinned either:
+`curl`, `shasum`, `tar`, `xz`, `sed`, `uv` (it installs the pinned wheels,
+offline, by hash) and `git` (it lists the recipes for `MANIFEST`).
 
 ## Running it
 
@@ -114,16 +149,17 @@ lzma; pip inside the guest.
 Before a first release, in order. Each item is a specification or a
 research memo under `context/`:
 
-1. **The neutral host door and the runner**
-   (`context/specifications/001-…`): rename `vfs::ping` to `host::call`,
-   `vfs_run` to `run`, and ship `wasi_python.run`, which binds the door and
-   runs either binary in one call.
+1. **The runner** (`context/specifications/001-…`): `wasi_python.run`, which
+   binds the door and runs either binary in one call. The door, the reactor
+   and the build itself landed with spec 003; `uv run pytest` names what is
+   left (its `next:` line).
 2. **The CPython 3.15 + wasi-sdk 33 line** (`context/research/2026-10-16-…`,
    placeholder): re-run the recipe on the line that links C++ exceptions and
    pick the first release's pins on the result.
 3. **Reproducible builds on Linux** (`context/research/2026-10-16-…`,
-   placeholder): make the build-Python wrapper host-neutral, build in CI,
-   compare hashes with the macOS build.
+   placeholder): pin the Linux toolchain, build there, and compare hashes
+   with the macOS build. The reactor, the snapshot and the zip already
+   rebuild to the same bytes on one host.
 4. The release workflow: `workflow_dispatch` on demand, the
    zero-patch gate, verification runs with counted operations, the assets
    and the wheel.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import zipfile
+
 import pytest
 
 from harness import artifacts as rules
@@ -90,6 +92,28 @@ def test_stdlib_zip_is_bytecode_only_and_deflated(artifacts, metric) -> None:
     metric("bytes", z.stat().st_size)
     errors = rules.stdlib_zip_errors(z)
     assert not errors, scan.report(errors)
+
+
+def test_artifacts_carry_no_build_path(artifacts) -> None:
+    """No file in the set holds the checkout's path: it would publish the builder's home
+    directory and tie every hash to where the repository was cloned."""
+    needle = str(paths.REPO).encode()
+    hits = [
+        p.name for p in sorted(artifacts.dir.rglob("*")) if p.is_file() and needle in p.read_bytes()
+    ]
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:  # members are deflated
+        hits += [f"python-stdlib.zip:{n}" for n in z.namelist() if needle in z.read(n)]
+    assert not hits, scan.report(hits, f"files holding {paths.REPO}")
+
+
+def test_no_cpython_test_module_is_built_in(guest) -> None:
+    """CPython's _test* and xx* modules are test scaffolding, not part of the product."""
+    code = (
+        "import sys\n"
+        "print([m for m in sys.builtin_module_names if m.startswith(('_test', 'xx', '_xx'))])\n"
+    )
+    r = guest("snapshot", ["-c", code])
+    assert (r.exit_code, r.text.strip()) == (0, "[]"), r.text or r.describe()
 
 
 def test_wheel_carries_the_artifact_set(artifacts) -> None:

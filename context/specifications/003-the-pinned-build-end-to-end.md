@@ -1,8 +1,10 @@
 # 003 — The pinned build, end to end, with the neutral door
 
-- **Status:** draft, 2026-10-16; revised the same day to answer the
+- **Status:** landed, 2026-10-16. Revised the same day to answer the
   specification review
-  (`../reviews/003-the-pinned-build-end-to-end-spec-2026-10-16.md`).
+  (`../reviews/003-the-pinned-build-end-to-end-spec-2026-10-16.md`) and
+  amended after the build review
+  (`../reviews/003-the-pinned-build-end-to-end-2026-10-16.md`).
 - **Owner:** Clay Gendron
 - **Kind:** build recipe and guest (`scripts/`, `recipes/`,
   `downloads/SHA256SUMS`, `fixtures/`, `README.md`, judge edits in
@@ -54,8 +56,11 @@
      --require-hashes -r build/tools-requirements.txt` (`--offline` so a
      user's uv configuration cannot reach the network).
    - `steps/20_cpython.sh`: unpacks CPython 3.14.8 to
-     `build/Python-3.14.8/` and runs `Tools/wasm/wasi build` under the
-     host Python, with `WASI_SDK_PATH` and the wasmtime CLI on `PATH`.
+     `build/Python-3.14.8/` and runs `Tools/wasm/wasi build --
+     --disable-test-modules` under the host Python, with `WASI_SDK_PATH`
+     and the wasmtime CLI on `PATH` (CPython's `_test*` and `xx*`
+     modules are not part of the product; amended after the build
+     review, finding 14).
    - `steps/30_zlib.sh`: configures and builds zlib in
      `build/zlib-build/`, outside its source tree (zlib's configure
      supports it: the review READ it), installing to `build/zlib-wasi/`.
@@ -72,18 +77,27 @@
      `build/pandas-build/` and `build/pandas-install/`, with no tag
      filter (pandas' `install_subdir` carries no tag, so a tagged
      install leaves out its pure-Python package: the review's finding 2).
+     pandas is configured with `-Db_ndebug=if-release`, C asserts off as
+     in its own wheels, and both cross files map the repository root to
+     `/wasi-python-build` (`-ffile-prefix-map`), so no binary carries the
+     builder's path (amended after the build review, finding 3).
    - `steps/60_link.sh`: generates the inittab from both build trees
      into `build/link/inittab.c` (`scripts/gen_inittab.py <out>
      <build dir>…`); writes the build-directory copy of
      `Modules/Setup.local`; copies `hostmodule.c`, `cxa_stubs.c` and
      the generated `inittab.c` into `build/Python-3.14.8/Modules/`
      (makesetup mangles absolute source paths); runs `make`. It then
-     compiles `recipes/reactor_main.c` with the target's
+     compiles `recipes/reactor_bootstrap.py` to marshalled code with the
+     host Python (`scripts/freeze_bootstrap.py` writes
+     `build/link/reactor_bootstrap.h`; amended after the build review,
+     see the landing notes), compiles `recipes/reactor_main.c` with the target's
      `PY_CORE_CFLAGS` and include paths (read through
      `scripts/python-wasi-cross` and `sysconfig`), takes the link
      command from `make -n python.wasm` after deleting `python.wasm`,
      swaps `Programs/python.o` for the reactor object, adds
-     `-mexec-model=reactor`, links `build/out/python.wasm`, and strips
+     `-mexec-model=reactor` and the four `--wrap` flags of Decision 6,
+     links `build/out/python.wasm` (failing on a clash warning in this
+     link as in `make`'s: the build review's finding 16), and strips
      its DWARF sections (`llvm-strip --strip-debug`; the name section,
      which tracebacks use, stays).
    - `steps/70_zip.sh`: `build/out/python-stdlib.zip` (Decision 7).
@@ -91,11 +105,24 @@
      (the same bytes as `build/out/python-stdlib.zip`) and runs
      `wizer --allow-wasi --wasm-bulk-memory true --init-func
      wizer.initialize --mapdir /::build/wizer-root -o
-     build/out/python-snapshot.wasm build/out/python.wasm`. One preopen,
+     build/out/python-snapshot.wasm build/out/python.wasm`, and writes
+     that command, with the root named generically, to
+     `build/out/wizer-command.txt` for `MANIFEST`. One preopen,
      at `/`: wasi-libc's preopen table is snapshotted (READ: spike memo
      finding 7).
    - `steps/90_artifacts.sh`: assembles the artifact directory
-     (Decision 9). It refuses to run while any file under `recipes/`
+     (Decision 9).
+   - Every step that unpacks a download checks its SHA-256 again
+     against `SHA256SUMS` first (`pinned` in `steps/common.sh`), so a
+     step run on its own never uses bytes that changed after step `00`
+     (amended after the build review, finding 10). Every step runs with
+     `PYTHONDONTWRITEBYTECODE=1`, so no build tool leaves a bytecode
+     cache inside an upstream tree (Decision 4; finding 13). Steps 60
+     and 70, which marshal code, first remove any bytecode cache in the
+     host Python's own stdlib (`host_from_source`): marshal writes a
+     string as shared or not by its reference count in the compiling
+     process, which differs when the host loads its stdlib from caches
+     an outside run left (EXECUTED: the landing notes). It refuses to run while any file under `recipes/`
      or `scripts/` is untracked by git, so every recipe the build used
      has a `recipe` line.
 
@@ -137,41 +164,73 @@
    raises `ConnectionRefusedError` on −1 (no host bound), `OSError` on
    −2 (host fault), and `OSError("host door returned <n>")` on any other
    value. It zeroes the response pointer and length before the call, so
-   a host that returns 0 without writing yields `b""`. `_host.available()` is `True` only when the last call returned
-   0.
+   a host that returns 0 without writing yields `b""`. The host writes
+   the two out-addresses only when it answers 0, with a pointer from
+   `host_alloc` (NULL only with length 0); an answer of 0 with a
+   negative length, or with a NULL pointer and a length, raises
+   `OSError` and never hands unwritten guest memory to Python (amended
+   after the build review, finding 15). `_host.available()` is `True`
+   only when the last call returned 0.
 6. **The reactor** (`recipes/reactor_main.c`) exports `_initialize`
    (from the reactor model), `wizer.initialize` and `run`, plus
-   `memory` and `host_alloc`.
+   `memory` and `host_alloc`. Its argument handling is the Python
+   module `_reactor` (`recipes/reactor_bootstrap.py`), linked in as
+   marshalled code compiled at build time, so the plain reactor never
+   compiles it at start; the reactor checks the bytecode magic before
+   loading it.
+   - **Pinned while initializing** (amended after the build review,
+     finding 1): the reactor's link wraps four WASI calls
+     (`--wrap=__wasi_clock_time_get`, `__wasi_random_get`,
+     `__wasi_path_filestat_get`, `__wasi_fd_filestat_get`). While a flag
+     in the reactor is set, the clocks answer `SOURCE_DATE_EPOCH`
+     (realtime) and 0 (the others), entropy answers zeros, and file
+     metadata answers device 0, inode 0 and `SOURCE_DATE_EPOCH` for its
+     three times. The flag starts set, so the C runtime's constructors
+     (mimalloc's heap keys and start time, wasi-libc's process-clock
+     origin) capture constants; `run` clears it before Python starts,
+     and `wizer.initialize` clears it once the imports are done. A
+     program therefore never sees a pinned value, and the snapshot is
+     the same bytes on every build. This replaces the Python-level
+     clock and entropy stand-ins of the first build.
    - **`wizer.initialize`** initializes with an isolated config,
      `use_hash_seed = 1`, `hash_seed = 0`; pre-imports `encodings, io,
-     os, sys, json, csv, re, numpy, pandas`; then, so that the frozen
-     state is the same bytes on every build, seeds `random` and
-     numpy's global `RandomState` with 0 and sets `logging._startTime`
-     to 0; then `gc.freeze()`. A snapshot's hash secret is public in its
-     bytes anyway, so a fixed one costs nothing.
+     os, sys, json, csv, re, numpy, pandas` in a private namespace, so a
+     program's `__main__` starts as empty as CPython's (finding 2);
+     then `gc.collect()` and `gc.freeze()`; then zeroes the unused
+     shadow stack. A snapshot's hash secret is public in its bytes
+     anyway, so a fixed one costs nothing; the README states it.
    - **The plain reactor** (no `wizer.initialize`) initializes on the
      first `run` with an isolated config and a random hash secret
      (`random_get`, as CPython does).
    - **`run`, once per instance.** A second call prints an error and
      returns 70. On its one call it reads argv and the environment
-     through the WASI calls, sets `sys.argv`, replaces `os.environ`'s
-     contents (`clear`, then `update`, which also calls `putenv`),
-     reseeds `random` and numpy's global `RandomState` from
-     `os.urandom` and sets `logging._startTime` to now, each only when
-     that module is already imported (so no two calls of one snapshot
-     share draws, and the plain reactor imports nothing extra), and
-     runs:
-     `-c code`; `-m module` (`runpy.run_module(name, run_name="__main__",
-     alter_sys=True)`, as CPython's `-m` does);
-     a script path; or, with neither, the program on stdin. `-I`, `-u`,
-     `-E`, `-s`, `-B` and `-X <opt>` are accepted and ignored (the
-     config is already isolated, unbuffered and bytecode-free); `-V` and
+     through the WASI calls, sets `sys.orig_argv` and `sys.argv`,
+     replaces `os.environ`'s contents (`clear`, then `update`, which
+     also calls `putenv`), and then, for state a snapshot froze at build
+     time, each only when that module is already imported: reseeds
+     `random` and numpy's global `RandomState` from `os.urandom`, sets
+     `logging._startTime` to now, and re-reads `zoneinfo.TZPATH` when
+     `PYTHONTZPATH` is set (finding 7). It runs:
+     `-c code` (its source registered with `linecache`, as CPython's
+     `-c` does, so tracebacks show the line); `-m module`
+     (`runpy.run_module(name, run_name="__main__", alter_sys=True)`, as
+     CPython's `-m` does); a script path; `-` or no argument, the
+     program on stdin (`sys.argv[0]` is `-` or `''`). `-u` makes stdout
+     and stderr write straight through to the raw file, as CPython's
+     does (finding 6: the config is buffered, as CPython's is without
+     `-u`); on a terminal stdout is line-buffered. `-I`, `-E`, `-s`, `-B`,
+     `-X <opt>` and `-X<opt>` are accepted and ignored; `-V` and
      `--version` print the version line of Decision 8; any other flag
      prints `unknown option` and returns 2. The script's directory is
-     not put on `sys.path` (isolated mode); the README says so.
-     `SystemExit` becomes the return value: its code, 0 for `None`, 1
-     after printing a non-integer to stderr (CPython's rule); any other
-     uncaught exception prints its traceback and returns 1. Then `run`
+     not put on `sys.path` (isolated mode); the README says so. A
+     script that cannot be opened prints CPython's `can't open file`
+     line and returns 2. `SystemExit` becomes the return value: its
+     code masked to 0..255 as a POSIX process status is, 0 for `None`,
+     1 after printing a non-integer to stderr (CPython's rule; finding
+     9). Any other uncaught exception goes to `sys.excepthook` with the
+     reactor's frames (and `runpy`'s, for a script) removed, as
+     CPython's entry points show only the program's frames, and returns
+     1 (finding 8). Then `run`
      calls `Py_FinalizeEx()`, so `atexit` handlers run and every open
      file is flushed, as a native Python's exit does; if finalization
      fails, `run` returns 120 (CPython's code). Correctness comes first
@@ -187,7 +246,9 @@
    every member at level 9, sorts entries, gives each the timestamp
    1980-01-01 00:00 and mode 0644, and leaves out `*.dist-info`. It
    holds the stdlib (`Lib/`, without `ctypes` and the test, IDLE,
-   tkinter, turtledemo, ensurepip, venv and `site-packages` trees),
+   tkinter, turtledemo, ensurepip, venv and `site-packages` trees;
+   `_pyrepl` stays, since `pdb`, `pydoc` and `doctest` import it: the
+   build review's finding 4),
    numpy and pandas from their install trees (without `*.so`,
    `*.so.deps` and `tests` directories), python-dateutil, tzdata and
    six from their pinned wheels, the WASI `_sysconfigdata`, and the two
@@ -232,7 +293,8 @@
    `numpy`, `pandas`, `zlib`, `python-dateutil`, `tzdata`, `six`; a
    `pin` line for every download the build read; a `recipe` line for
    every tracked file under `recipes/` and `scripts/` except
-   `scripts/bench_*`; `x-wizer` with Wizer's command line;
+   `scripts/bench_*`; `x-wizer` with the Wizer command step 80 ran;
+   `x-source-date-epoch` with the constant every step saw;
    `x-preimport` with the pre-import list; `x-snapshot-zip <sha256>`,
    the zip the snapshot was built against. **The snapshot and the zip
    are a pair:** zipimport's directory offsets are frozen in the
@@ -281,6 +343,21 @@
       Decision 10's predicate;
     - the gaps it closes are removed.
 
+    Added after the build review (its findings 2 to 4, 6, 8, 9, 11 and
+    14), each a check that its fix holds:
+    - the fetch scan's exemption needs `uv pip` to be the line's one
+      fetch word and `--offline` as well; the script listing is
+      `scan.every_file`; unit tests cover the exemption, the recursion,
+      `get <url> <name>` lines and `@ROOT@` paths;
+    - v1.1: `test_artifacts_carry_no_build_path`,
+      `test_no_cpython_test_module_is_built_in`;
+    - v1.3: `test_stdlib_debugging_tools_import`;
+    - v1.4, on both binaries: `test_main_starts_as_native`,
+      `test_uncaught_errors_print_as_native`,
+      `test_exit_status_is_a_process_status`,
+      `test_unbuffered_output_survives_a_hard_exit`,
+      `test_a_program_sees_real_entropy_and_file_metadata`.
+
 ## Intent
 
 After this specification the first real artifact set exists, built by
@@ -299,11 +376,14 @@ scripts/
   python-wasi-cross   host-neutral; pylib and (pandas) numpy-host on its path
   wasi-cc, wasi-cxx   unchanged
   gen_inittab.py      gen_inittab.py <out.c> <build dir>…
+  freeze_bootstrap.py marshals recipes/reactor_bootstrap.py into a C header
+  compare_snapshots.py names where two snapshots differ (none should)
   make_stdlib_zip.py  pyc, deflate, deterministic, wheels and stand-ins as inputs
   bench_native.py, bench_native_pandas.py   unchanged
 recipes/
   hostmodule.c        _host and host_alloc
-  reactor_main.c      wizer.initialize and run
+  reactor_main.c      wizer.initialize, run, and the four wrapped WASI calls
+  reactor_bootstrap.py  the module _reactor: argument handling, frozen at build time
   numpy_host_shim.py  the host-side numpy stand-in (the spike's file)
   cxa_stubs.c, ctypes_stub.py, mmap_stub.py, *_rename.h, *.cross
 ```
@@ -354,4 +434,153 @@ line; anything the snapshot pre-imports beyond Decision 6.
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-16 by the author agent, reviewed by a fresh agent, and
+rebuilt after the review to answer its findings. The figures below are
+from the rebuild.
+
+**The build from an empty `build/`** (except `build/oracle/`, which is
+not a build output), downloads present (EXECUTED: `time
+scripts/build.sh`):
+
+```
+ok 00_download: llvm-26a1d660-compiler-rt-LICENSE.TXT: OK
+ok 10_tools: tools: python 3.14.8, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 28610092 bytes, 307b29e2fab15895
+ok 30_zlib: zlib: 101002 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.14/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29825059 bytes, 9bcc5bc015b6b46a
+ok 70_zip: python-stdlib.zip: 1060 pyc, 636 data files, 10474585 bytes
+ok 80_snapshot: snapshot: 62317618 bytes, d932674aed071cd1
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+scripts/build.sh  653.46s user 105.95s system 293% cpu 4:18.67 total
+```
+
+4 min 19 s wall (a benchmark fact). Inputs: 24 build pins (and 2
+research pins the build does not read), each verified by
+`scripts/00_download.sh` and again by every step that unpacks it.
+
+That build preceded one last change, the frozen bootstrap (below).
+Steps 60 to 90 were then rebuilt; the reactor is now
+`d77dc946962d2154…` and the snapshot `b450c7a6892bf9e3…`, and the zip is
+unchanged (`adf440a38f322674…`).
+
+**Criterion 2: every artifact rebuilds to the same bytes** (EXECUTED).
+Steps 60 to 90 were run again after the build from empty; `python.wasm`,
+`python-snapshot.wasm`, `python-stdlib.zip`, `MANIFEST` and
+`build/link/python.map` came out identical, and
+`scripts/compare_snapshots.py` found 0 differing bytes. The same held
+for two runs after the frozen bootstrap (all five files of the set
+compared with `cmp`). Two causes found during the review pass are
+fixed:
+- the snapshot captured the clocks, entropy and the Wizer root's file
+  metadata (inode, times) while it initialized. The reactor's link now
+  wraps the four WASI calls that report them (Decision 6, "Pinned while
+  initializing";
+  `../research/2026-10-16-what-makes-the-snapshot-differ.md`, findings
+  8 and 9; `../research/2026-10-16-making-the-snapshot-byte-reproducible.md`);
+- the zip's bytes depended on whether the host Python had bytecode
+  caches of its own (marshal marks a string as shared by its reference
+  count in the compiling process). A host left with 20 caches by an
+  outside run gave a zip that differed in one string of
+  `functools.pyc` (`z` against `\xda`: a plain string against an
+  interned, shared one); removing the caches restored the earlier
+  bytes. Steps 60 and 70 now remove them first, and a zip built after
+  deliberately leaving those caches in place matched (EXECUTED).
+
+**The harness against it** (EXECUTED: `uv run pytest -q -p
+no:cacheprovider`, no environment variable set): `wasi_python v1: 74/81
+pass · 2 gap · 5 blocked · 0 fail (unit suite 135/135)`; `209 passed, 5
+skipped, 2 xfailed`, exit 0 but for the ratchet's growth (below).
+Blocked: the three runner checks (001), the wheel, the three-systems
+check. Gaps: Linux toolchain pins, the release workflow. Thirteen checks
+are new: the eleven of Decision 13's review additions (seven of them on
+both binaries) and two unit tests.
+
+**Growth, accepted with its reason.** Against history line 3:
+- the zip grew 1.48% (10,321,907 to 10,474,585 bytes): `_pyrepl` is
+  kept, so `pdb`, `pydoc` and `doctest` import (finding 4);
+- snapshot runs grew about 0.12% (`-c pass` 117,591,488 to 117,727,435
+  instructions under the harness): `run` now does what CPython's
+  command line does (`sys.orig_argv`, the `-c` source registered with
+  `linecache`, the terminal check for line buffering, the `zoneinfo`
+  check).
+
+Everything else shrank: the plain reactor 6.0% in bytes (CPython's test
+modules are gone; pandas' asserts are off) and about 2.1% in fuel per
+start (the bootstrap is no longer compiled at start: compiling it cost
+17.9 million instructions, EXECUTED by compiling both versions in the
+guest); the snapshot 2.9% in bytes.
+
+**Acceptance.** History line 3 was written before this review, against
+AGENTS.md rule 6 (the review's finding 12). It stays, because the
+history is append-only; line 4 accepts the reviewed state and cites the
+review.
+
+**Criteria.**
+1. Met (the output above).
+2. Met for all three artifacts (above).
+3. Met: all v1.1 to v1.4 checks pass but the blocked ones named; all
+   three golden jobs match native byte for byte; the four source trees
+   match their tarballs, and none of numpy's, pandas' or zlib's trees
+   gains a bytecode cache now (EXECUTED: `find … -name __pycache__`
+   finds none).
+4. Met: the six gaps are removed; the two that stay keep their
+   closers.
+5. Met by history line 4, after the review (line 3 preceded it).
+6. Met.
+
+**Measured** (EXECUTED: the harness driver, five runs each, fuel as the
+count, wall time as a benchmark fact, Apple arm64):
+
+```
+snapshot -c pass                      fuel    117,641,834 (spread 0)   wall median  19.5 ms
+snapshot -c import numpy, pandas      fuel    117,708,520 (spread 0)   wall median  19.6 ms
+snapshot -c import os; os._exit(0)    fuel     43,622,864 (spread 0)   wall median   5.5 ms
+plain    -c pass                      fuel    246,651,122 (spread 40)  wall median  32.5 ms
+plain    -c import pandas             fuel  4,953,894,749 (spread 40)  wall median 719.5 ms
+```
+
+Finalization (Decision 6) is about 74 million of the snapshot call's
+117.6 million instructions, some 14 ms of 19.5; the README's start-up
+figures say so.
+
+**Where the build departs from the decisions above, and why.**
+- numpy is installed with `--tags python-runtime,devel`, not without a
+  tag filter: meson's installer on a macOS host runs `install_name_tool`
+  on installed `.so` files, ours are wasm archives, and numpy's test
+  modules (the only untagged runtime targets it would add) are not
+  shipped anyway. Its `*_tests` and `_simd` extension modules are left
+  out of the link for the same reason.
+- pandas is not `meson install`ed at all: it generates no Python file
+  at build time (its sdist ships the one meson-time file,
+  `_version_meson.py`), so its package is the sdist's `pandas/` tree plus
+  that file; a full install would hit the same `install_name_tool`
+  failure (`_cyutility`).
+- A third rename header, `recipes/npy_rename.h`: numpy and pandas both
+  define `get_datetime_metadata_from_dtype` with different return types
+  (a pointer and a struct), and in one static link wasm-ld kept one and
+  turned the other side's calls into a trap. The spike's link printed
+  the same warning; its jobs never reached the path. numpy's internal
+  copy is renamed (pandas uses the name in its C API's macros). Step 60
+  fails on any `signature mismatch` or `duplicate symbol` warning, in
+  `make`'s link and in the reactor's.
+- The reactor's reproducibility measures are the four wrapped WASI
+  calls and the zeroed unused shadow stack. The first build's
+  Python-level clock and entropy stand-ins and its direct reset of
+  mimalloc's random context are gone (the wrap covers them).
+- `wizer.initialize` runs `gc.collect()` before `gc.freeze()`.
+- `build.sh` exports `PYTHONHASHSEED=0` (and `PYTHONDONTWRITEBYTECODE=1`
+  through `steps/common.sh`) to every step, and deletes
+  `build/artifacts/` before any step from `10` on, not `20`.
+- The link writes `build/link/python.map`, which
+  `scripts/compare_snapshots.py` reads.
+- The spike-only files removed from the tree (Decision 11) are at
+  commit `e007a58`: `scripts/bench_startup.py`, `fixtures/hello.txt`,
+  `fixtures/job_numpy.py`, `fixtures/job_pandas.py`,
+  `fixtures/study04_script.py`, `fixtures/bench_guest.py`, and the
+  spike's numbered scripts.
+
+**Review.** `../reviews/003-the-pinned-build-end-to-end-2026-10-16.md`:
+"lands after the findings are answered". Every finding is fixed or
+answered there, and the reviewer confirmed the dispositions.

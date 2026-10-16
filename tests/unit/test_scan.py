@@ -53,6 +53,37 @@ def test_fetches_outside_the_download_script(work) -> None:
     ]
 
 
+def test_only_a_sole_offline_hash_checked_uv_install_is_exempt(work) -> None:
+    good = "uv pip install --target t --offline --no-index --require-hashes -r r.txt"
+    lines = {
+        "ok": good,
+        "chained": good + '; curl -fsSL -o x "$MIRROR"',
+        "online": good.replace("--offline ", ""),
+        "unhashed": good.replace("--require-hashes ", ""),
+        "url": good + " --find-links https://e.org/w",
+    }
+    for name, line in lines.items():
+        write(work, f"s/{name}.sh", f"#!/bin/sh\n{line}\n")
+    files = [work / "s" / f"{name}.sh" for name in lines]
+    assert [h.split(":")[0] for h in scan.fetch_hits(files, "00_download.sh", work)] == [
+        "s/chained.sh",
+        "s/online.sh",
+        "s/unhashed.sh",
+        "s/url.sh",
+    ]
+
+
+def test_scripts_are_found_at_any_depth(work) -> None:
+    top = write(work, "scripts/build.sh", "#!/bin/sh\n")
+    step = write(work, "scripts/steps/40_x.sh", "#!/bin/sh\ncurl -o x https://e.org/x\n")
+    write(work, "scripts/steps/__pycache__/x.pyc", "")
+    found = scan.every_file(work / "scripts")
+    assert found == [top, step]
+    assert scan.fetch_hits(found, "00_download.sh", work) == [
+        "scripts/steps/40_x.sh:2: curl -o x https://e.org/x"
+    ]
+
+
 def test_bare_python_is_found_and_paths_and_uv_are_not(work) -> None:
     ok = write(
         work,
@@ -70,6 +101,13 @@ def test_every_pin_needs_a_literal_url(work) -> None:
     assert scan.url_errors(dl, ["a-1.tar.gz", "b-2.tar.gz"]) == [
         "b-2.tar.gz: no literal URL ends in it in 00_download.sh"
     ]
+    named = write(
+        work,
+        "named.sh",
+        "get https://e.org/download?id=7 c-3.whl\nresearch https://e.org/r r.zip\n",
+    )
+    assert scan.url_errors(named, ["c-3.whl", "r.zip"]) == []
+    assert scan.url_errors(named, ["d-4.whl"]) == ["d-4.whl: no literal URL ends in it in named.sh"]
 
 
 def test_the_download_script_must_verify_and_not_write(work) -> None:
@@ -90,6 +128,10 @@ def test_recipe_paths_must_exist_outside_generated_roots(work) -> None:
         'cp "$HERE/recipes/x.h" "$HERE/build/y"\nsed @S12@/cross/x.h\nls $HERE/downloads/z.\n',
     )
     assert scan.recipe_path_errors([f], work) == ["s.sh:2: names cross/x.h, which does not exist"]
+    cross = write(work, "w.cross", "c = '@ROOT@/recipes/x.h'\nd = '@ROOT@/recipes/gone.h'\n")
+    assert scan.recipe_path_errors([cross], work) == [
+        "w.cross:2: names recipes/gone.h, which does not exist"
+    ]
 
 
 def test_toolchain_pins_for_both_hosts() -> None:

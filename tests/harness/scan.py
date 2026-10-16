@@ -112,6 +112,24 @@ def _code_lines(p: Path) -> list[tuple[int, str]]:
 FETCH = re.compile(r"\b(curl|wget|git\s+clone|uv\s+pip|uv\s+add|pip3?\s+install)\b")
 
 
+def offline_install(line: str) -> bool:
+    """An install that cannot fetch: from local, hash-checked files only (spec 003, Decision 13).
+    It exempts a line only when `uv pip` is the line's one fetch word."""
+    words = [m.group(1) for m in FETCH.finditer(line)]
+    return (
+        len(words) == 1
+        and re.fullmatch(r"uv\s+pip", words[0]) is not None
+        and re.search(r"\buv\s+pip\s+install\b", line) is not None
+        and all(flag in line.split() for flag in ("--offline", "--no-index", "--require-hashes"))
+        and "://" not in line
+    )
+
+
+def every_file(base: Path) -> list[Path]:
+    """Every file under a directory, at any depth, bytecode caches left out."""
+    return [p for p in sorted(base.rglob("*")) if p.is_file() and "__pycache__" not in p.parts]
+
+
 def fetch_hits(scripts: list[Path], allowed: str, root: Path) -> list[str]:
     hits = []
     for p in scripts:
@@ -119,7 +137,7 @@ def fetch_hits(scripts: list[Path], allowed: str, root: Path) -> list[str]:
             continue
         lines = _code_lines(p) if is_shell(p) else enumerate((_text(p) or "").splitlines(), 1)
         for n, line in lines:
-            if FETCH.search(line):
+            if FETCH.search(line) and not offline_install(line):
                 hits.append(f"{rel(p, root)}:{n}: {line.strip()[:100]}")
     return hits
 
@@ -139,11 +157,14 @@ def bare_python_hits(scripts: list[Path], root: Path) -> list[str]:
 
 
 URL = re.compile(r"https?://[^\s\"')]+")
+GET = re.compile(r"^\s*(?:get|research)\s+(https?://\S+)(?:\s+(\S+))?", re.M)
 
 
 def url_errors(download_script: Path, pinned: Iterable[str]) -> list[str]:
+    """Every pin is named on a `get <url> <name>` line (or is a literal URL's basename)."""
     text = _text(download_script) or ""
     basenames = {u.rstrip("/").rsplit("/", 1)[-1] for u in URL.findall(text)}
+    basenames |= {name for _, name in GET.findall(text) if name}
     return [
         f"{name}: no literal URL ends in it in {download_script.name}"
         for name in sorted(pinned)
@@ -161,7 +182,7 @@ def download_script_errors(download_script: Path) -> list[str]:
     return errors
 
 
-PATH_TOKEN = re.compile(r"(?:\$HERE|\$\{HERE\}|@S12@)/([A-Za-z0-9_.][\w./-]*)")
+PATH_TOKEN = re.compile(r"(?:\$HERE|\$\{HERE\}|@S12@|@ROOT@)/([A-Za-z0-9_.][\w./-]*)")
 GENERATED_ROOTS = {"build", "downloads", ".venv-build"}
 
 

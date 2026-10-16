@@ -1,14 +1,14 @@
-# Meson cross file: numpy 2.5.2 -> wasm32-wasip1 as static archives, written for spike s12.
-# Paths are rewritten by scripts/03_numpy_build.sh (the @S12@ token) so the file stays relocatable.
+# Meson cross file: pandas 3.0.6 -> wasm32-wasip1 as static archives (spec 003).
+# Paths are rewritten by the build steps (the @ROOT@ token, replaced by the repository root) so the file stays relocatable.
 [binaries]
-c = '@S12@/scripts/wasi-cc'
-cpp = '@S12@/scripts/wasi-cxx'
-ar = '@S12@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-ar'
-ranlib = '@S12@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-ranlib'
-strip = '@S12@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-strip'
-nm = '@S12@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-nm'
-python = '@S12@/scripts/python-wasi-cross'
-cython = '@S12@/.venv-build/bin/cython'
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-strip'
+nm = '@ROOT@/build/tools/wasi-sdk-24.0-arm64-macos/bin/llvm-nm'
+python = '@ROOT@/scripts/python-wasi-cross'
+cython = '@ROOT@/build/tools/pylib/bin/cython'
 pkg-config = 'false'
 
 [host_machine]
@@ -24,6 +24,7 @@ needs_exe_wrapper = true
 skip_sanity_check = true
 
 [built-in options]
-c_args = ['-include', '@S12@/cross/pandas_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
-cpp_args = ['-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
+# -ffile-prefix-map: no builder's path in __FILE__ strings, so the binary's hash does not depend on the checkout.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-include', '@ROOT@/recipes/pandas_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
 # No link args: every extension module becomes an archive, and the one real link is python.wasm's own (Setup.local carries the libs).

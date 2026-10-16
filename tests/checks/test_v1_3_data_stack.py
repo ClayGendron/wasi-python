@@ -64,6 +64,12 @@ def test_longdouble_parses(guest) -> None:
     assert r.text.strip() == "128 True 0.333333", r.text.strip()
 
 
+def test_stdlib_debugging_tools_import(guest) -> None:
+    """pdb, pydoc and doctest are pure Python and need _pyrepl, which the zip keeps."""
+    r = guest("snapshot", ["-c", "import pdb, pydoc, doctest; print('ok')"])
+    assert (r.exit_code, r.text.strip()) == (0, "ok"), r.describe()
+
+
 def test_gzip_round_trips(guest) -> None:
     code = (
         "import gzip, io, zipfile\n"
@@ -84,8 +90,10 @@ def test_default_integer_width_is_documented(guest) -> None:
     r = guest("plain", ["-c", "import numpy as np; print(np.dtype(np.int_).itemsize * 8)"])
     assert r.exit_code == 0, r.describe()
     bits = r.text.strip()
-    stated = re.findall(r"default integer is (\d+)-bit", paths.README.read_text())
-    assert stated == [bits], f"the guest's default integer is {bits}-bit; README says {stated}"
+    stated = re.findall(r"default\s+integer\s+is\s+(\d+)-bit", paths.README.read_text())
+    assert stated and set(stated) == {bits}, (
+        f"the guest's default integer is {bits}-bit; README says {stated}"
+    )
 
 
 def test_snapshot_preimports_the_stack(guest, metric) -> None:

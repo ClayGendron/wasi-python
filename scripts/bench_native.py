@@ -1,4 +1,5 @@
-"""Native comparison for step 7: same kernels as fixtures/bench_guest.py on this machine's CPython + pip numpy.
+"""Native comparison for the spike's step 7: the kernels of its fixtures/bench_guest.py
+(git show e007a58:fixtures/bench_guest.py), on this machine's CPython and pip's numpy.
     uv run --with numpy python scripts/bench_native.py"""
 import time, sys, numpy as np
 t0 = time.perf_counter(); a = np.arange(1_000_000); s = a.sum(); t1 = time.perf_counter()

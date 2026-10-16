@@ -1,12 +1,26 @@
 #!/bin/sh
-# The "target Python" meson introspects for the numpy cross build: the native build-python answering with the WASI
-# build's sysconfig data (the same trick CPython's own Makefile uses in PYTHON_FOR_BUILD).
+# The "target Python" meson introspects for the numpy and pandas cross builds: the native
+# build-Python CPython's driver built, answering with the WASI build's sysconfig data (the same trick
+# CPython's own Makefile uses for PYTHON_FOR_BUILD). Host-neutral: the build-Python is found under
+# cross-build/, not named by host triple (spec 003, Decision 3). Its PYTHONPATH adds the caller's,
+# which carries the build tools (Cython, versioneer) and, for pandas, the host-side numpy stand-in.
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 CP="$HERE/build/Python-3.14.8"
 W="$CP/cross-build/wasm32-wasip1"
+BUILD_PYTHON=""
+for dir in "$CP"/cross-build/*; do
+  [ "$dir" = "$W" ] && continue
+  for exe in "$dir/python.exe" "$dir/python"; do
+    if [ -f "$exe" ] && [ -x "$exe" ]; then BUILD_PYTHON=$exe; break 2; fi
+  done
+done
+if [ -z "$BUILD_PYTHON" ]; then
+  echo "python-wasi-cross: no build-Python under $CP/cross-build" >&2
+  exit 1
+fi
 export _PYTHON_PROJECT_BASE="$W"
 export _PYTHON_HOST_PLATFORM=wasi-wasm32-wasi
 export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
 export _PYTHON_SYSCONFIGDATA_PATH="$W/build/lib.wasi-wasm32-3.14"
-export PYTHONPATH="$CP/Lib:$_PYTHON_SYSCONFIGDATA_PATH:$HERE/build/host-pylib${PYTHONPATH:+:$PYTHONPATH}"   # host-pylib: Cython + versioneer for pandas' generators
-exec "$CP/cross-build/aarch64-apple-darwin/python.exe" "$@"
+export PYTHONPATH="$CP/Lib:$_PYTHON_SYSCONFIGDATA_PATH${PYTHONPATH:+:$PYTHONPATH}"
+exec "$BUILD_PYTHON" "$@"

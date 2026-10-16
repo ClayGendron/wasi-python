@@ -100,6 +100,7 @@ def _source_tree(component: str) -> Callable[[], bool]:
 
 
 SPEC_001 = "context/specifications/001-the-neutral-host-door-and-the-runner.md"
+SPEC_003 = "context/specifications/003-the-pinned-build-end-to-end.md"
 REPRO_MEMO = "context/research/2026-10-16-reproducible-builds-on-linux.md"
 SPEC_002 = "context/specifications/002-the-progress-harness.md"
 README_NEXT = "README.md (Next, item 4)"
@@ -109,11 +110,11 @@ SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib")
 VOCABULARY: dict[str, Need] = {
     n.name: n
     for n in [
-        Need("artifact dir", lambda: paths.artifact_dir() is not None, SPEC_001),
-        Need("plain binary", _artifact_file("python.wasm"), SPEC_001),
-        Need("snapshot binary", _artifact_file("python-snapshot.wasm"), SPEC_001),
-        Need("stdlib zip", _artifact_file("python-stdlib.zip"), SPEC_001),
-        Need("manifest", _artifact_file("MANIFEST"), SPEC_001),
+        Need("artifact dir", lambda: paths.artifact_dir() is not None, SPEC_003),
+        Need("plain binary", _artifact_file("python.wasm"), SPEC_003),
+        Need("snapshot binary", _artifact_file("python-snapshot.wasm"), SPEC_003),
+        Need("stdlib zip", _artifact_file("python-stdlib.zip"), SPEC_003),
+        Need("manifest", _artifact_file("MANIFEST"), SPEC_003),
         Need("wasmtime-py", _wasmtime, SPEC_002),
         Need("runner", _runner, SPEC_001),
         Need("wheel", _wheel, README_NEXT),
