@@ -23,7 +23,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-__version__ = "0.0.0"
+__version__ = "0.1.0a1"
 
 ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"

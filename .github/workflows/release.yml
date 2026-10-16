@@ -1,0 +1,160 @@
+# The release workflow (context/specifications/004-alpha-releases.md).
+#
+# A pushed tag v<version> builds the artifact set from its pins, judges it, checks the same bytes on
+# Linux, Windows and macOS, and publishes a GitHub release (and, once the owner enables it, the
+# wheel on PyPI). A manual run (workflow_dispatch) is a dry run: build and verify, never publish.
+# Third-party actions are pinned by commit, their release named beside each.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_DATE_EPOCH: "1767225600"
+  UV_VERSION: "0.9.22"
+
+jobs:
+  build:
+    name: build and judge (arm64 macOS)
+    # The pinned toolchain (wasi-sdk, Wizer, wasmtime, the host Python) is arm64 macOS.
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - name: The version, and the tag it is released under, agree
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            uv run python release/version.py check --tag "$GITHUB_REF_NAME"
+          else
+            uv run python release/version.py check
+          fi
+      - name: Download the pinned inputs
+        run: scripts/00_download.sh
+      - name: Build from the pins
+        run: scripts/build.sh
+      - name: The wheel
+        run: |
+          cp -R build/artifacts src/wasi_python/artifacts
+          uv build --wheel
+      - name: Zero-patch check (no upstream tree differs from its pinned tarball)
+        # All four trees must pass: a skipped check (a tree not unpacked) would exit 0 too.
+        run: |
+          uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
+            -k test_source_tree_matches_its_tarball | tee zero-patch.txt
+          grep -q "^4 passed" zero-patch.txt
+      - name: The judge
+        run: uv run pytest -p no:cacheprovider
+      - name: Release assets
+        run: uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: release-assets/
+          if-no-files-found: error
+      - name: Keep the build logs when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-logs
+          path: build/logs/
+          if-no-files-found: ignore
+
+  verify:
+    name: verify (${{ matrix.os }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Unpack the artifact set
+        run: |
+          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
+          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
+      - name: The v1.1 to v1.4 checks on these bytes
+        run: >-
+          uv run pytest -p no:cacheprovider
+          tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
+          tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
+      - name: The wheel, installed fresh, runs a program in one call
+        run: |
+          wheel="./$(ls release-assets/wasi_python-*.whl)"
+          uv run --isolated --no-project --with "wasmtime>=49,<50" --with "$wheel" python -c "
+          import tempfile, wasi_python
+          done = wasi_python.run(['-c', 'import pandas; print(pandas.Series([1, 2, 3]).sum())'], root=tempfile.mkdtemp())
+          print(done)
+          assert (done.exit_code, done.stdout) == (0, b'6\n'), done
+          "
+        env:
+          WASI_PYTHON_ARTIFACTS: ""
+
+  publish:
+    name: publish the GitHub release
+    if: github.ref_type == 'tag'
+    needs: [build, verify]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          uv run python release/version.py notes "$version" > notes.md
+          prerelease=""
+          case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --title "wasi-python $version" --notes-file notes.md --verify-tag $prerelease
+
+  pypi:
+    name: publish the wheel on PyPI
+    # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
+    # repository variable PYPI_PUBLISH to true.
+    if: github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+    needs: publish
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - name: Only the wheel goes to PyPI
+        run: mkdir dist && mv release-assets/*.whl dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

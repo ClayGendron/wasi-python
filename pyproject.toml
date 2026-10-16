@@ -1,6 +1,6 @@
 [project]
 name = "wasi-python"
-version = "0.0.0"
+dynamic = ["version"]
 description = "A statically linked CPython for WebAssembly hosts (wasm32-wasip1) with numpy and pandas compiled in."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -8,7 +8,7 @@ license = "Apache-2.0"
 authors = [{ name = "Clay Gendron" }]
 keywords = ["wasm", "wasi", "cpython", "numpy", "pandas", "sandbox", "wasmtime"]
 classifiers = [
-    "Development Status :: 1 - Planning",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Interpreters",
@@ -31,16 +31,21 @@ dev = ["pytest>=8", "ruff>=0.12", "wasmtime>=49,<50"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+# The one place the version is written (spec 004, Decision 1); release/version.py edits it.
+path = "src/wasi_python/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/wasi_python"]
-# The release workflow drops the artifacts into src/wasi_python/artifacts/ before `uv build`;
-# they are git-ignored and absent from a source checkout.
+# The release workflow copies the artifact set into src/wasi_python/artifacts/ before
+# `uv build`. It is git-ignored, which hatchling honours unless the path is named here.
+artifacts = ["src/wasi_python/artifacts"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
-extend-exclude = ["recipes", "fixtures", "scripts", "build", "downloads"]
+extend-exclude = ["recipes", "fixtures", "scripts", "build", "downloads", "context"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

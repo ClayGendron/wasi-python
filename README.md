@@ -109,6 +109,22 @@ build also runs host tools that move or check bytes and are not pinned either:
 `curl`, `shasum`, `tar`, `xz`, `sed`, `uv` (it installs the pinned wheels,
 offline, by hash) and `git` (it lists the recipes for `MANIFEST`).
 
+## Releasing
+
+Releases are alpha builds for now, numbered `0.1.0aN`. The version lives in one place,
+`src/wasi_python/__init__.py`, and `release/version.py` changes it:
+
+```
+uv run python release/version.py bump            # 0.1.0a1 -> 0.1.0a2, and a CHANGELOG.md section
+uv run python release/version.py release --push  # date the section, tag v0.1.0a2, push: the release runs
+```
+
+Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
+runs the zero-patch check and the whole judge, and checks the same bytes on Linux, Windows and
+macOS. Then it publishes a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
+their `SHA256SUMS`. PyPI upload is off until the trusted publisher is set up. A manual run of
+the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).
+
 ## Running it
 
 From Python, one call (`pip install "wasi-python[run]"`, which brings

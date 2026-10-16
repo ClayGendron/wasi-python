@@ -156,3 +156,19 @@ def test_progress_history_is_intact() -> None:
     accepted = paths.ACCEPTED.read_text() if paths.ACCEPTED.is_file() else None
     errors = scoreboard.history_errors(history, accepted, _committed(paths.HISTORY))
     assert not errors, scan.report(errors)
+
+
+def test_the_version_is_released_by_the_book() -> None:
+    """One version in __init__.py, read dynamically, with its changelog section (spec 004)."""
+    import importlib.util
+    import sys
+
+    path = paths.REPO / "release" / "version.py"
+    spec = importlib.util.spec_from_file_location("release_version", path)
+    version = importlib.util.module_from_spec(spec)
+    sys.modules["release_version"] = version  # dataclasses look their module up here
+    spec.loader.exec_module(version)
+    errors = version.check_errors(
+        version.INIT.read_text(), version.PYPROJECT.read_text(), version.CHANGELOG.read_text()
+    )
+    assert not errors, scan.report(errors)

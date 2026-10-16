@@ -1,0 +1,111 @@
+"""release/version.py: versions, the changelog, the tag check and the assets (spec 004)."""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+import tarfile
+from pathlib import Path
+
+import pytest
+
+from harness import paths
+
+_spec = importlib.util.spec_from_file_location(
+    "release_version", paths.REPO / "release" / "version.py"
+)
+version = importlib.util.module_from_spec(_spec)
+sys.modules["release_version"] = version  # dataclasses look their module up here
+_spec.loader.exec_module(version)
+V = version.Version.parse
+
+PYPROJECT = (
+    '[project]\nname = "wasi-python"\ndynamic = ["version"]\n\n'
+    '[tool.hatch.version]\npath = "src/wasi_python/__init__.py"\n'
+)
+INIT = '"""x"""\n\n__version__ = "0.1.0a1"\n'
+LOG = "# Changelog\n\n## 0.1.0a1 — unreleased\n\n- first\n"
+
+
+@pytest.mark.parametrize("text", ["0.1.0a1", "0.1.0b2", "0.1.0rc1", "1.2.3", "0.1.0a10"])
+def test_versions_round_trip(text) -> None:
+    assert str(V(text)) == text
+
+
+@pytest.mark.parametrize("text", ["0.1", "0.1.0a0", "0.1.0-a1", "v0.1.0a1", "0.1.0.dev1", "0.1.0a"])
+def test_other_forms_are_refused(text) -> None:
+    with pytest.raises(version.ReleaseError):
+        V(text)
+
+
+def test_order_is_pep_440s() -> None:
+    order = ["0.0.0", "0.1.0a1", "0.1.0a2", "0.1.0a10", "0.1.0b1", "0.1.0rc1", "0.1.0", "0.2.0a1"]
+    assert sorted(order, key=V) == order
+
+
+def test_the_next_alpha() -> None:
+    assert [
+        str(V(v).next_alpha()) for v in ("0.0.0", "0.1.0a1", "0.1.0a9", "0.1.0", "0.1.0b2")
+    ] == [
+        "0.1.0a1",
+        "0.1.0a2",
+        "0.1.0a10",
+        "0.2.0a1",
+        "0.2.0a1",
+    ]
+
+
+def test_the_version_line_is_read_and_written() -> None:
+    assert version.read_version(INIT) == "0.1.0a1"
+    assert version.read_version(version.write_version(INIT, V("0.1.0a2"))) == "0.1.0a2"
+
+
+def test_changelog_sections_are_added_dated_and_read() -> None:
+    log = version.add_section(LOG, V("0.1.0a2"))
+    assert list(version.sections(log)) == ["0.1.0a2", "0.1.0a1"]
+    with pytest.raises(version.ReleaseError, match="already has a section"):
+        version.add_section(log, V("0.1.0a2"))
+    dated = version.date_section(log, V("0.1.0a1"), "2026-10-17")
+    assert version.sections(dated)["0.1.0a1"] == "2026-10-17"
+    assert version.notes(dated, "0.1.0a1") == "- first\n"
+
+
+def test_check_passes_a_good_tree_and_names_each_fault() -> None:
+    dated = LOG.replace("unreleased", "2026-10-17")
+    assert version.check_errors(INIT, PYPROJECT, LOG) == []
+    assert version.check_errors(INIT, PYPROJECT, dated, tag="v0.1.0a1") == []
+    assert version.check_errors(INIT, PYPROJECT, dated, tag="v0.1.0a2") == [
+        "the tag v0.1.0a2 is not v0.1.0a1, the version it points to"
+    ]
+    assert version.check_errors(INIT, PYPROJECT, LOG, tag="v0.1.0a1") == [
+        "CHANGELOG.md's section for 0.1.0a1 is still unreleased"
+    ]
+    assert version.check_errors(INIT, PYPROJECT, "# Changelog\n") == [
+        "CHANGELOG.md has no section for 0.1.0a1"
+    ]
+    static = PYPROJECT.replace('dynamic = ["version"]', 'version = "0.1.0a1"')
+    assert version.check_errors(INIT, static, LOG) == [
+        'pyproject.toml must declare dynamic = ["version"]',
+        "pyproject.toml writes a static version; __init__.py is the only place",
+    ]
+
+
+def test_assets_are_deterministic(tmp_path: Path) -> None:
+    art = tmp_path / "artifacts"
+    (art / "LICENSES").mkdir(parents=True)
+    (art / "python.wasm").write_bytes(b"\0asm")
+    (art / "LICENSES" / "cpython.txt").write_text("PSF")
+    wheel = tmp_path / "wasi_python-0.1.0a1-py3-none-any.whl"
+    wheel.write_bytes(b"PK")
+    first = version.write_assets(art, wheel, tmp_path / "one", "0.1.0a1")
+    second = version.write_assets(art, wheel, tmp_path / "two", "0.1.0a1")
+    assert [p.read_bytes() for p in first] == [p.read_bytes() for p in second]
+    with tarfile.open(first[1]) as tar:
+        assert tar.getnames() == [
+            "wasi-python-0.1.0a1",
+            "wasi-python-0.1.0a1/LICENSES",
+            "wasi-python-0.1.0a1/LICENSES/cpython.txt",
+            "wasi-python-0.1.0a1/python.wasm",
+        ]
+        assert {m.mtime for m in tar.getmembers()} == {version.EPOCH}
+    assert first[2].read_text().count("  ") == 2

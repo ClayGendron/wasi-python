@@ -224,14 +224,19 @@ def _cache_probe(guest_workdir: Path, cache: Path) -> tuple[list, str]:
 
 
 def test_runner_refuses_a_cache_others_can_write(guest_workdir) -> None:
-    """A .cwasm is native code: a cache directory others can write is neither read nor written."""
+    """A .cwasm is native code: on POSIX a cache directory others can write is neither read
+    nor written. Windows has no such mode bits; there the cache under the user's own profile is
+    trusted (spec 001, Decision 3), and this check says so."""
     _runner()
     cache = Path(tempfile.mkdtemp(prefix="cache-", dir=guest_workdir))
     cache.chmod(0o777)
     seen, stderr = _cache_probe(guest_workdir, cache)
-    assert seen == [0, {"compiled": 1, "loaded": 0, "written": 0}], seen
-    assert "not using the module cache" in stderr, stderr
-    assert list(cache.iterdir()) == []
+    if os.name == "posix":
+        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 0}], seen
+        assert "not using the module cache" in stderr, stderr
+        assert list(cache.iterdir()) == []
+    else:
+        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 1}], seen
 
 
 ZIP = "/usr/local/lib/python314.zip"
@@ -259,13 +264,16 @@ def test_runner_never_follows_a_link_a_guest_left(guest_workdir, planted) -> Non
     root, outside = base / "root", base / "outside"
     outside.mkdir()
     if planted == "the zip":
-        code = f"import os; os.remove({ZIP!r}); os.symlink('../../../../outside/target', {ZIP!r})"
+        link, target, before = ZIP, "../../../../outside/target", f"os.remove({ZIP!r})"
     else:
-        code = (
-            "import os\n"
-            "os.rename('/usr/local/lib', '/usr/local/old')\n"
-            "os.symlink('../../../outside', '/usr/local/lib')\n"
-        )
+        link, target = "/usr/local/lib", "../../../outside"
+        before = "os.rename('/usr/local/lib', '/usr/local/old')"
+    # Where the host does not let a guest make a link (Windows without the privilege), the
+    # guest still removes the zip or its directory, and the next call must repair that.
+    code = (
+        f"import os\n{before}\n"
+        f"try:\n    os.symlink({target!r}, {link!r})\nexcept OSError:\n    pass\n"
+    )
     first = run(["-c", code], root=root)
     assert first.exit_code == 0, first
     second = run(["-c", "print('ok')"], root=root)
