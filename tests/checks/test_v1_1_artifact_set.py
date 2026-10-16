@@ -86,6 +86,13 @@ def test_licence_notices_cover_every_component(artifacts) -> None:
     assert not errors, scan.report(errors, f"licence notices ({scope})")
 
 
+def test_cpython_notice_covers_hacl(artifacts) -> None:
+    """HACL* is compiled into the binary and CPython's license.rst does not name it (review of
+    spec 004, finding 1), so its MIT notice must be in LICENSES/cpython.txt."""
+    text = artifacts.path("LICENSES/cpython.txt").read_text(errors="replace")
+    assert "HACL* Contributors" in text and "Permission is hereby granted" in text
+
+
 def test_stdlib_zip_is_bytecode_only_and_deflated(artifacts, metric) -> None:
     needs.need("stdlib zip")
     z = artifacts.path("python-stdlib.zip")

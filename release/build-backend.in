@@ -1,0 +1,3 @@
+# The wheel's build backend, pinned with hashes (spec 004; review finding 3).
+# Regenerate: uv pip compile release/build-backend.in --generate-hashes --python-version 3.14 -o release/build-constraints.txt
+hatchling==1.32.4

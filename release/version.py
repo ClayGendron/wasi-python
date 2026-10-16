@@ -222,8 +222,10 @@ def _bump(a: argparse.Namespace) -> int:
     new = Version.parse(a.to) if a.to else current.next_alpha()
     if new <= current:
         raise ReleaseError(f"{new} is not greater than {current}")
-    INIT.write_text(write_version(INIT.read_text(), new))
-    CHANGELOG.write_text(add_section(CHANGELOG.read_text(), new))
+    init_text = write_version(INIT.read_text(), new)
+    changelog = add_section(CHANGELOG.read_text(), new)  # raises before anything is written
+    INIT.write_text(init_text)
+    CHANGELOG.write_text(changelog)
     print(f"{current} -> {new}: edit CHANGELOG.md's section, then commit")
     return 0
 
@@ -240,8 +242,10 @@ def _check(a: argparse.Namespace) -> int:
 def _release(a: argparse.Namespace) -> int:
     version = Version.parse(read_version(INIT.read_text()))
     tag = f"v{version}"
-    if git("status", "--porcelain"):
-        raise ReleaseError("the working tree has uncommitted changes")
+    changed = git("status", "--porcelain", "--untracked-files=no")
+    if changed:
+        names = ", ".join(line[3:] for line in changed.splitlines()[:5])
+        raise ReleaseError(f"tracked files have uncommitted changes: {names}")
     if git("rev-parse", "--abbrev-ref", "HEAD") != "main":
         raise ReleaseError("releases are cut from main")
     git("fetch", "origin", "main", "--tags")

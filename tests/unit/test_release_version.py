@@ -109,3 +109,17 @@ def test_assets_are_deterministic(tmp_path: Path) -> None:
         ]
         assert {m.mtime for m in tar.getmembers()} == {version.EPOCH}
     assert first[2].read_text().count("  ") == 2
+
+
+def test_bump_writes_both_files_or_neither(tmp_path: Path, monkeypatch) -> None:
+    init, log = tmp_path / "__init__.py", tmp_path / "CHANGELOG.md"
+    init.write_text(INIT)
+    log.write_text(LOG.replace("0.1.0a1 —", "0.1.0a2 —"))  # a section for the next version already
+    monkeypatch.setattr(version, "INIT", init)
+    monkeypatch.setattr(version, "CHANGELOG", log)
+    assert version.main(["bump"]) == 1  # the changelog edit fails...
+    assert version.read_version(init.read_text()) == "0.1.0a1"  # ...and the version did not move
+    log.write_text(LOG)
+    assert version.main(["bump"]) == 0
+    assert version.read_version(init.read_text()) == "0.1.0a2"
+    assert list(version.sections(log.read_text())) == ["0.1.0a2", "0.1.0a1"]

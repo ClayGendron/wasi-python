@@ -17,7 +17,7 @@ dependencies = []
 
 [project.optional-dependencies]
 # The runner binds the host-call import and runs the reactor; plain `wasmtime run` cannot.
-run = ["wasmtime>=49"]
+run = ["wasmtime>=49,<50"]
 
 [project.urls]
 Homepage = "https://wasipython.dev"

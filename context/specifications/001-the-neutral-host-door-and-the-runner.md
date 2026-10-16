@@ -62,7 +62,10 @@
        removed and never followed;
      - replacing any file that is not byte for byte the artifact's zip,
        by renaming a fresh copy (made with a unique name in the same
-       directory) over it; a directory the guest left there is removed
+       directory) over it (where Windows refuses the rename because a
+       concurrent call's guest has the file open, the file in place is
+       kept when it is byte for byte the right zip, and the rename's
+       error stands otherwise); a directory the guest left there is removed
        first, without following links inside it. On POSIX a copy this
        process placed is recognised by its device, inode, size,
        modification and change times, and the change time is one a guest

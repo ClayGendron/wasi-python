@@ -74,6 +74,15 @@ def wheel_licences(wheel: Path) -> list[tuple[str, bytes]]:
         return [(f"{wheel.name}: {n}", z.read(n)) for n in names]
 
 
+def hacl_notice(cp: Path) -> bytes:
+    """The MIT notice at the head of HACL*'s sources, as CPython ships them."""
+    text = (cp / "Modules" / "_hacl" / "Hacl_Hash_SHA2.h").read_text()
+    end = text.index("*/")
+    if "MIT License" not in text[:end] or "Permission is hereby granted" not in text[:end]:
+        raise SystemExit("HACL*'s header no longer carries its MIT notice")
+    return (text[: end + 2] + "\n").encode()
+
+
 def main() -> None:
     root = Path(sys.argv[1]).resolve()
     b, d = root / "build", root / "downloads"
@@ -107,6 +116,9 @@ def main() -> None:
         "cpython": [
             ("CPython LICENSE", (cp / "LICENSE").read_bytes()),
             ("CPython Doc/license.rst", (cp / "Doc" / "license.rst").read_bytes()),
+            # HACL* (hashlib's hashes) is compiled in and license.rst does not cover it; its MIT
+            # notice is the header comment of each of its files.
+            ("CPython Modules/_hacl (HACL*), the header of Hacl_Hash_SHA2.h", hacl_notice(cp)),
         ],
         "numpy": [(f"numpy {f}", (np_src / f).read_bytes()) for f in numpy_files],
         "pandas": [("pandas LICENSE", (pd_src / "LICENSE").read_bytes())]

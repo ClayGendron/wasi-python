@@ -105,7 +105,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "wasmtime", marker = "extra == 'run'", specifier = ">=49" }]
+requires-dist = [{ name = "wasmtime", marker = "extra == 'run'", specifier = ">=49,<50" }]
 provides-extras = ["run"]
 
 [package.metadata.requires-dev]

@@ -21,6 +21,9 @@ concurrency:
 env:
   SOURCE_DATE_EPOCH: "1767225600"
   UV_VERSION: "0.9.22"
+  # The judge's own environment exactly as uv.lock pins it, on the Python it is developed with.
+  UV_LOCKED: "1"
+  UV_PYTHON: "3.14.2"
 
 jobs:
   build:
@@ -30,6 +33,9 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the tag's commit is checked against main's history
+          persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -37,6 +43,8 @@ jobs:
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             uv run python release/version.py check --tag "$GITHUB_REF_NAME"
+            # A release is cut from main: the tagged commit must be in main's history.
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
           else
             uv run python release/version.py check
           fi
@@ -47,13 +55,14 @@ jobs:
       - name: The wheel
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
-          uv build --wheel
+          uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
       - name: Zero-patch check (no upstream tree differs from its pinned tarball)
         # All four trees must pass: a skipped check (a tree not unpacked) would exit 0 too.
         run: |
+          set -o pipefail
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
-          grep -q "^4 passed" zero-patch.txt
+          grep -Eq "^4 passed, [0-9]+ deselected in" zero-patch.txt
       - name: The judge
         run: uv run pytest -p no:cacheprovider
       - name: Release assets
@@ -85,6 +94,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -104,10 +115,21 @@ jobs:
           uv run pytest -p no:cacheprovider --progress-dir "$RUNNER_TEMP/no-baseline"
           tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
           tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
+      - name: Nothing passed here is blocked but what this job cannot provide
+        # The empty baseline fails only on a failed check; a check that skipped for a missing
+        # need would pass unnoticed, so the needs that blocked anything are named here.
+        run: |
+          uv run python -c "
+          import json
+          checks = json.load(open('build/progress/latest.json'))['checks'].values()
+          blocked = {c['need'] for c in checks if c['status'] == 'blocked'}
+          print('blocked by:', sorted(blocked))
+          assert blocked <= {'oracle', 'three systems', 'wheel'}, blocked
+          "
       - name: The wheel, installed fresh, runs a program in one call
         run: |
-          wheel="./$(ls release-assets/wasi_python-*.whl)"
-          uv run --isolated --no-project --with "wasmtime>=49,<50" --with "$wheel" python -c "
+          wheel="$(ls release-assets/wasi_python-*.whl)"
+          uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" python -c "
           import tempfile, wasi_python
           done = wasi_python.run(['-c', 'import pandas; print(pandas.Series([1, 2, 3]).sum())'], root=tempfile.mkdtemp())
           print(done)
@@ -118,13 +140,16 @@ jobs:
 
   publish:
     name: publish the GitHub release
-    if: github.ref_type == 'tag'
+    # Only a pushed tag publishes; a manual run, even started on a tag, never does.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
@@ -137,7 +162,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          uv run python release/version.py notes "$version" > notes.md
+          uv run --no-project python release/version.py notes "$version" > notes.md
           prerelease=""
           case "$version" in *a*|*b*|*rc*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" release-assets/* \
@@ -147,7 +172,7 @@ jobs:
     name: publish the wheel on PyPI
     # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
     # repository variable PYPI_PUBLISH to true.
-    if: github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
+    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: publish
     runs-on: ubuntu-24.04
     environment: pypi

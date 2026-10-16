@@ -33,14 +33,15 @@
    outside `scripts/`, so release tooling never becomes one of the artifact set's `recipe`
    lines (003 Decision 9) and a version bump never makes a built set stale.
    - `show`: prints the version.
-   - `bump [--to <version>]`: the next alpha by default (`0.0.0` → `0.1.0a1`, `0.1.0aN` →
+   - `bump [--to <version>]` (it writes both files or neither): the next alpha by default (`0.0.0` → `0.1.0a1`, `0.1.0aN` →
      `0.1.0a(N+1)`), or the given version, which must be greater by PEP 440's order. It
      rewrites `__version__` and adds an `unreleased` section to `CHANGELOG.md`, editing both
      in place, so any other change in them is kept. It does not commit.
    - `check [--tag <tag>]`: the version is valid, `pyproject.toml` reads it dynamically from
      `__init__.py`, `CHANGELOG.md` has its section, and, with `--tag`, the tag is
      `v{version}`. The release workflow runs it first.
-   - `release [--push]`: for the version in the tree, with a clean working tree on `main`
+   - `release [--push]`: for the version in the tree, with no uncommitted change to a
+     tracked file (untracked files are left alone) on `main`
      level with `origin/main`: dates its `CHANGELOG.md` section today (UTC), commits
      `Release <version>`, and creates the annotated tag `v<version>`. With `--push` it pushes
      `main` and the tag, which starts the release workflow; without it, it prints that
@@ -48,21 +49,34 @@
    - `notes <version>`: prints that version's `CHANGELOG.md` section (the release notes).
    - `assets <artifact dir> <wheel> <out dir>`: writes the release's assets (Decision 6).
 5. **`.github/workflows/release.yml`** runs on a pushed tag `v*` and on `workflow_dispatch`
-   (a dry run: build and verify, never publish). Every third-party action is pinned by commit
+   (a dry run: build and verify, never publish, even when started on a tag: the publishing
+   jobs require `github.event_name == 'push'`). The judge's environment is the one
+   `uv.lock` pins (`UV_LOCKED=1`), on Python 3.14.2 (`UV_PYTHON`). Checkouts do not keep
+   the token (`persist-credentials: false`). Every third-party action is pinned by commit
    SHA, with its release named in a comment, and uv by version (`0.9.22`, the version this
    repository is developed with).
    - **build** (`macos-15`, Apple silicon: the pinned toolchain is arm64 macOS): `version.py
      check` (with `--tag` on a tag); `scripts/00_download.sh`; `scripts/build.sh`; the wheel
      (the artifact set copied to `src/wasi_python/artifacts/`, `uv build --wheel` with
      `SOURCE_DATE_EPOCH` fixed); the zero-patch check
-     (`test_source_tree_matches_its_tarball`, constitution §4.1) as its own step; then the
+     (`test_source_tree_matches_its_tarball`, constitution §4.1) as its own step, which
+     requires exactly four passes, so a skipped tree fails it; on a tag, the tagged commit
+     must be in `origin/main`'s history; the wheel's build backend is pinned with hashes
+     (`release/build-constraints.txt`, compiled from `release/build-backend.in`); then the
      whole judge, `uv run pytest -p no:cacheprovider`, which must exit 0 against the
      accepted state in `context/progress/`; then `version.py assets`. It uploads the assets
      for the jobs after it.
    - **verify** (`ubuntu-24.04`, `windows-2025`, `macos-15`): on each system, the v1.1 to v1.4
      checks against the built set (`$WASI_PYTHON_ARTIFACTS`), and the wheel installed into a
      fresh environment with the `run` extra, running `wasi_python.run` once. The build is not
-     repeated: the same bytes are checked on three systems.
+     repeated: the same bytes are checked on three systems. These runs judge pass and fail
+     only, against an empty baseline (`--progress-dir` pointed at an empty directory, which
+     the scoreboard announces): the ratchet against the accepted state is the build job's,
+     and fuel differs slightly between hosts even on the same bytes (the landing notes). A
+     following step reads `latest.json` and fails unless the only needs that blocked
+     anything are the oracle, the three systems and the wheel, which a verify job cannot
+     provide. The wheel is installed as `wasi-python[run] @ <wheel>`, so the `run` extra's
+     own pin (`wasmtime>=49,<50`) is what is tested.
    - **publish** (tags only, after build and verify): a GitHub release named for the tag,
      marked a pre-release for `a`, `b` and `rc` versions, with the assets and the version's
      `CHANGELOG.md` section as notes.
@@ -70,7 +84,8 @@
      `PYPI_PUBLISH` is `true`): the wheel uploaded by PyPI's trusted publishing (OpenID
      Connect, no stored token), from the `pypi` environment. The owner sets up the trusted
      publisher on PyPI and the variable; until then the job is skipped.
-6. **The release's assets**: the wheel; `wasi-python-<version>-wasm32-wasip1.tar.xz`, the
+6. **The release's assets** (the licence notices include HACL\*'s MIT notice, which CPython's
+   `Doc/license.rst` does not cover; a v1.1 check asserts it): the wheel; `wasi-python-<version>-wasm32-wasip1.tar.xz`, the
    artifact set under one top-level directory `wasi-python-<version>/`, written
    deterministically (sorted members, mode 0644, owner 0, the time `SOURCE_DATE_EPOCH`); and
    `SHA256SUMS` of those two. No `.cwasm` (constitution §4.6).
@@ -126,4 +141,48 @@ accepted); Linux and Windows builds (the reproducible-builds memo); signing.
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-16 by the author agent; review pending (see below).
+
+**The dry runs** (EXECUTED: `gh workflow run release.yml --ref main`, three runs):
+1. https://github.com/ClayGendron/wasi_python/actions/runs/38978211049, failed in the build
+   job's judge: the wiring self-test assumed no wheel in `dist/`, and the release build puts
+   one there. Fixed: the self-test now expects the wheel check to fail against its synthetic
+   set when a wheel is present, and to be blocked on the wheel need when not.
+2. https://github.com/ClayGendron/wasi_python/actions/runs/38979164440: build and Linux
+   passed. On macOS two checks spent more fuel than the accepted figures on the same bytes
+   (+0.032% and +0.0101%, against a tolerance of 0.01%), so verify now judges pass and fail
+   only (Decision 5). On Windows two first calls
+   sharing one root raced: Windows refuses a rename over a file another guest has open. The
+   runner now keeps the zip already in place when it is the right one (spec 001, amended).
+3. https://github.com/ClayGendron/wasi_python/actions/runs/38980695810: **every job passed.**
+   - build and judge (arm64 macOS, 12 min): every step `ok`; the zero-patch step `4 passed`;
+     the judge `89/93 pass · 1 gap · 3 blocked · 0 fail` (blocked: the oracle and the
+     prior-art clones, which are local, and the three-systems check), `238 passed, 8 skipped,
+     1 xfailed`.
+   - verify on ubuntu-24.04, windows-2025 and macos-15: `63/66 pass · 0 gap · 3 blocked · 0
+     fail` each, and the installed wheel ran `pandas.Series([1, 2, 3]).sum()` to
+     `Completed(exit_code=0, stdout=b'6\n', …)` on all three.
+   - publish and pypi: skipped, as a dry run must.
+
+**A second host rebuilt the binaries byte for byte** (EXECUTED: the build job's log): GitHub's
+macOS runner produced the reactor `d77dc946962d2154…` and the snapshot `b450c7a6892bf9e3…`,
+the accepted set's hashes. CPython's own interpreter from step 20, which is not shipped,
+differed (`64f94066…` there, `307b29e2…` here), so something host-specific reaches that build
+and not ours; the reproducible-builds memo takes it up.
+
+**Locally** (EXECUTED): `uv run pytest` with the release wheel in `dist/`: `91/93 pass · 1
+gap · 1 blocked · 0 fail`; `version.py bump` took the tree from `0.0.0` to `0.1.0a1`. The
+reviewer rebuilt run 3's wheel and `.tar.xz` locally from its commit and got CI's bytes
+exactly (`02f83128…`, `bc51b406…`). After the review the licence notices changed (HACL\*),
+so the wheel's hash changed with them; the pinned build backend gives the same wheel each
+time (`184048f4…` here).
+
+**Judge edits.** The gap `test_release_workflow_runs_the_zero_patch_check` is removed; the
+new rules check and the unit tests of Decision 8; `pyproject.toml` (the dynamic version);
+the wiring self-test (above); `test_runner_refuses_a_cache_others_can_write` and
+`test_runner_never_follows_a_link_a_guest_left` now hold on Windows: the first asserts the
+documented Windows behaviour (the profile cache is trusted) instead of the POSIX refusal,
+and the second lets the guest's link creation fail where the host forbids it, still
+requiring the next call to repair the root.
+
+**Review.** (to be filled in with the review's file and verdict)

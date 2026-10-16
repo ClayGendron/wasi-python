@@ -225,6 +225,8 @@ def _place_stdlib(found: Artifacts, root: Path) -> None:
         except PermissionError:
             # Windows cannot rename over a file another call's guest has open; when that file
             # is already the right zip (a concurrent call placed it), this copy is not needed.
+            if os.name != "nt":
+                raise
             st = os.lstat(dest)
             if not (stat.S_ISREG(st.st_mode) and _hash_file(dest) == want):
                 raise
