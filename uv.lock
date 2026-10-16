@@ -102,6 +102,7 @@ run = [
 dev = [
     { name = "pytest" },
     { name = "ruff" },
+    { name = "wasmtime" },
 ]
 
 [package.metadata]
@@ -112,6 +113,7 @@ provides-extras = ["run"]
 dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.12" },
+    { name = "wasmtime", specifier = ">=49,<50" },
 ]
 
 [[package]]

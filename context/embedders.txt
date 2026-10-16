@@ -1,0 +1,4 @@
+# Embedder names that no code, name, default or test in this repository may use
+# (constitution §4.5). Read by tests/checks/test_rules.py; one name per line, matched
+# case-insensitively as a word part. This file is data, not code.
+vfs

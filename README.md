@@ -136,7 +136,9 @@ integer is documented, not patched.
 ## How this repo is organized
 
 - `recipes/`, `scripts/`, `fixtures/`, `downloads/SHA256SUMS`: the build.
-- `src/wasi_python/`, `tests/`: the wheel.
+- `src/wasi_python/`: the wheel. `tests/`: its tests and the progress
+  harness; `uv run pytest` prints the v1 scoreboard and guards it with a
+  ratchet (`context/progress/README.md`).
 - `context/`: the project's memory. `prior_art/` holds shallow clones we
   study and never copy (git-ignored, indexed in its README); `research/`
   holds dated memos, executed or marked placeholder; `specifications/`

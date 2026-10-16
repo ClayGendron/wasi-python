@@ -19,7 +19,13 @@ context/
   research/            # RESEARCH — dated memos: executed experiments, study of precedent, placeholders for research still to do
   specifications/      # SPECIFY — numbered work packages to implement, retired on landing
   reviews/             # REVIEW — one record per review of a built change (or of a spec before build)
+  progress/            # the harness's accepted state: accepted.json and an append-only history.jsonl
+  embedders.txt        # names no code may use (constitution §4.5); data the harness reads
 ```
+
+Progress is measured, not reported: `uv run pytest` prints the v1
+scoreboard and compares it with `progress/accepted.json` (spec 002;
+`progress/README.md` says how to read it).
 
 Decisions are recorded in the specification that carries them, in a
 **Decisions** section at its head, and in `research/` when they rest on

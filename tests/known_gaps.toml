@@ -1,0 +1,55 @@
+# Known gaps (spec 002, Decision 4): checks that fail today in exactly the named way, each with
+# the document that will close it. A gap is an allowance, not a backlog.
+#
+# `match` names the exact set of findings: their count and the digest of the sorted list, as the
+# check prints them. One more finding, or one fewer, is a different failure and turns the run red,
+# so an allowance can only change through an edit here, which is a judge change and needs
+# `--accept-judge "<reason>"`. A gap whose check passes fails the run until it is removed.
+
+[[gap]]
+check = "tests/checks/test_rules.py::test_no_embedder_name_in_code"
+match = "55 finding(s), digest d5f800ada59e"
+reason = "the recipe files, scripts and inittab still carry the spike's names"
+closes_with = "context/specifications/001-the-neutral-host-door-and-the-runner.md"
+
+[[gap]]
+check = "tests/checks/test_rules.py::test_build_scripts_call_python_only_through_uv_or_a_path"
+match = "1 finding(s), digest a90a846ba63a"
+reason = "the download script pipes PyPI's JSON through a bare python3"
+closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_download_script_verifies_and_never_writes_the_pins"
+match = "2 finding(s), digest 9148590e153a"
+reason = "the spike's download script writes the pin list from what it fetched"
+closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_pin_is_fetched_from_a_literal_url"
+match = "3 finding(s), digest 05b2a252cb1b"
+reason = "the pandas URL is looked up at fetch time; zlib and wasi-sdk 33 are not fetched by the script"
+closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_repository_path_a_recipe_names_exists"
+match = "24 finding(s), digest fbcb6c134918"
+reason = "the scripts and cross files still name the spike's cross/ and outputs/ directories"
+closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos"
+match = "3 finding(s), digest 56621daa39fa"
+reason = "only the arm64 macOS toolchain is pinned"
+closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_pure_python_packages_are_pinned"
+match = "3 finding(s), digest e162fb4cb3aa"
+reason = "the zip's pure-Python packages were never pinned by hash"
+closes_with = "context/research/2026-10-16-the-cpython-3-15-and-wasi-sdk-33-line.md"
+
+[[gap]]
+check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_runs_the_zero_patch_check"
+match = "1 finding(s), digest abec30ee4c40"
+reason = "the release workflow is not written yet"
+closes_with = "README.md"

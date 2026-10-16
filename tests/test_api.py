@@ -1,4 +1,4 @@
-"""The package imports, and a source checkout says plainly that it holds no artifacts."""
+"""The package imports, and `artifacts()` tells the truth about where the artifacts are."""
 
 from __future__ import annotations
 
@@ -11,6 +11,10 @@ def test_version_is_a_string() -> None:
     assert isinstance(wasi_python.__version__, str)
 
 
-def test_source_checkout_has_no_artifacts() -> None:
-    with pytest.raises(wasi_python.ArtifactsMissing, match="source checkout"):
-        wasi_python.artifacts()
+def test_artifacts_are_found_or_explained() -> None:
+    if (wasi_python.ARTIFACT_DIR / "MANIFEST").is_file():  # an installed wheel
+        found = wasi_python.artifacts()
+        assert all(p.is_file() for p in (found.snapshot, found.plain, found.stdlib_zip))
+    else:  # a source checkout
+        with pytest.raises(wasi_python.ArtifactsMissing, match="source checkout"):
+            wasi_python.artifacts()

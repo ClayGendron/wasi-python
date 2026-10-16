@@ -1,8 +1,8 @@
 # 002 — The progress harness
 
-- **Status:** draft, 2026-10-16; revised the same day after the
-  specification review
-  (`../reviews/002-the-progress-harness-spec-2026-10-16.md`).
+- **Status:** landed, 2026-10-16 (drafted, reviewed as a
+  specification, revised, built, reviewed as a build, fixed, and
+  confirmed the same day; see the landing notes).
 - **Owner:** Clay Gendron
 - **Kind:** test infrastructure (`tests/`, `context/progress/`,
   `context/embedders.txt`, `.gitattributes`, `pyproject.toml` dev
@@ -38,14 +38,20 @@
      false. A goal check that skips any other way, or names a need
      whose predicate is true, is `fail`.
    - `deselected`: pytest deselected it (`-m`, `-k`, `--deselect`).
-4. **A gap names its case and its closer.** Each entry in
+4. **A gap names its exact case and its closer.** Each entry in
    `tests/known_gaps.toml` has `check` (a node id in the table),
    `raises` (an exception class name, default `AssertionError`),
-   `match` (a substring the failure message must contain), `reason`
-   (one line) and `closes_with` (an existing path under `context/` or
-   `README.md`). A failure of another type or message is `fail`. A gap
-   whose check passes is `fail` with "remove the gap" until the entry
-   is removed.
+   `match`, `reason` (one line) and `closes_with` (an existing path
+   under `context/` or `README.md`). Every check reports its findings
+   as `N finding(s), digest <12 hex>`, the digest being the SHA-256 of
+   the sorted findings with their line numbers removed (so an edit that
+   only moves a finding leaves its gap alone), and a gap's `match` must
+   contain that phrase.
+   So a gap admits exactly the findings it was written for: one more or
+   one fewer is a different failure, and `fail`. A failure of another
+   type is `fail`. A gap whose check passes is `fail` with "remove the
+   gap". An `xfail` marker or `pytest.xfail()` on a goal check with no
+   gap entry is `fail`.
 5. **Needs are a fixed vocabulary with predicates** (`tests/harness/needs.py`).
    Each has a predicate and the document that provides it:
 
@@ -57,6 +63,7 @@
    | `stdlib zip` | it holds `python-stdlib.zip` | spec 001 |
    | `manifest` | it holds `MANIFEST` | spec 001 |
    | `runner` | `wasi_python.run` exists | spec 001 |
+   | `wasmtime-py` | `import wasmtime` works | this specification |
    | `wheel` | `dist/` holds a `wasi_python` wheel | `README.md` (Next, item 4) |
    | `source tree <name>` | for `<name>` in `cpython`, `numpy`, `pandas`, `zlib`: its pinned tarball is in `downloads/` and the tarball's top directory exists under `build/` | the reproducible-builds memo |
    | `three systems` | `history.jsonl` holds accepted runs of this artifact's hash from `linux`, `darwin` and `win32` | `README.md` (Next, item 4) |
@@ -82,18 +89,27 @@
    run the plugin compares the run with `accepted.json` by node id; for
    each accepted `pass`:
    - now `fail` or `gap` → **lost**, red;
-   - now `blocked` → **unrun**, red unless the run says `--partial
-     "<why>"`, which the scoreboard prints;
+   - now `blocked` by a protected need (`artifact dir`, `plain
+     binary`, `snapshot binary`, `stdlib zip`, `manifest`, `runner`,
+     `wheel`) → **unrun**, red unless the run says `--partial
+     "<why>"`, which the scoreboard prints: a missing product is how a
+     regression would hide;
+   - now `blocked` by any other need (local tooling a fresh clone
+     lacks: clones, the oracle, source trees, git) → **unrun
+     locally**, reported;
    - now `deselected` → reported;
    - not run because its file was outside the paths this run was
      given, or because the run stopped early (`-x`, `--maxfail`) →
      reported;
-   - its file is gone, or its file was collected without it →
-     **absent**, red until `--retire` records it;
+   - its file is gone, or its file was collected (as a whole, not
+     narrowed to node ids) without it, including when its `goal`
+     marker was removed → **absent**, red until `--retire` records
+     it; `--retire` accepts only absent checks;
    - and for any check now `pass` that was not → **gained**, reported.
    **Metrics:** a `fuel` value above the accepted one by more than
    0.01% on the same platform and wasmtime version is red; a `bytes`
-   value above the accepted one at all is red. Fuel on a platform with
+   value above the accepted one at all is red; a metric a passing check
+   no longer records is red. Fuel on a platform with
    no accepted value is recorded, not compared. On a different wasmtime version fuel is
    not compared, and the change shows as a judge change (`uv.lock`).
    **Judge:** a judge hash different from the accepted one is reported
@@ -147,8 +163,9 @@
     python-dateutil 2.9.0.post0, tzdata 2026.5, six 1.17.0. Reason: the
     guest is built from these package pins, so the same pins natively
     are the only fair oracle. The interpreter is 3.14.2, not the
-    guest's 3.14.8, because 3.14.2 is the newest 3.14 the pinned uv
-    (0.9.22) can install and verify (EXECUTED: `uv python list
+    guest's 3.14.8, because 3.14.2 is the newest 3.14 that the installed
+    uv (0.9.22; uv itself is not pinned by this repository) can install
+    and verify (EXECUTED: `uv python list
     --all-versions` lists 3.14.1 and 3.14.2 at most; `uv lock` with the
     six pins resolves with 45 SHA-256 hashes). INFERRED: a CPython patch
     release changes nothing these jobs print. `tests/jobs/regen.py` runs it with
@@ -210,16 +227,30 @@
     more` line; and the ratchet result. The full record is
     `build/progress/latest.json` (git-ignored). The fast tier is
     `-m "not slow"`; `slow` marks the golden jobs and the oracle check.
-14. **The judging files** are `tests/conftest.py`, `tests/harness/`,
-    `tests/checks/`, `tests/jobs/`, `tests/known_gaps.toml`,
-    `context/embedders.txt`, `pyproject.toml` and `uv.lock`. Their
-    combined hash is the judge hash.
+14. **The judging files** are everything under `tests/`,
+    `context/embedders.txt`, `pyproject.toml`, `uv.lock`,
+    `.gitattributes`, any `pytest.ini`, `tox.ini`, `setup.cfg` at the
+    root, and any `conftest.py` anywhere outside build output,
+    downloads, clones and virtual environments: every file that can
+    decide a check or steer pytest from inside the repository. Their
+    combined hash is the judge hash, keyed by POSIX paths;
+    `.gitattributes` checks out every text file with LF endings, so the
+    hashes agree across hosts. What can steer pytest from outside the
+    repository is refused instead of hashed: in a run of this
+    repository, a configuration file other than `pyproject.toml`, or a
+    plugin that is neither pytest's own nor a judged file, turns the run
+    red; `PYTEST_ADDOPTS` and a non-default `--progress-dir`,
+    `--known-gaps` or `--progress-latest` are announced on the
+    scoreboard, and `--accept` refuses while `PYTEST_ADDOPTS` is set.
+    The harness guards against drift and mistakes, not against an agent
+    that rewrites the interpreter; review is the backstop for that.
 15. **Embedder names live in `context/embedders.txt`**, a data file the
     scanner reads, so no code or test names an embedder (§4.5).
 16. **Downloads stay under `downloads/` and `build/`.** Any check or
     self-test that unpacks one does it under `build/harness/`, never in
     the system temporary directory (§4.8).
-17. **Not checked by the harness, and said so on the scoreboard:**
+17. **Not checked by the harness, and said so on the scoreboard's last
+    two lines:**
     licence content for `wasi-libc` and `llvm-runtimes` (the wasi-sdk
     tarball carries them; their paths in it are not yet read) and for
     any component whose pin is missing (presence only); bundled
@@ -393,4 +424,88 @@ memo, lesson 15).
 
 ## Landing notes
 
-(Filled in on landing.)
+Built and landed 2026-10-16 by the author agent, after two reviews by
+fresh agents.
+
+**What exists.** `tests/harness/` (needs, paths, wasm, pins, guest,
+scan, scoreboard, jobs, plus two modules the Design did not list:
+`plugin.py`, the plugin itself, loaded by a three-line
+`tests/conftest.py`, and `artifacts.py`, the v1.1 rules as functions
+over a directory so criterion 7 can run them on synthetic sets);
+`tests/checks/` (67 goal checks over six files, every node id of the
+table); `tests/unit/` (113 self-tests); `tests/jobs/` (three jobs,
+their goldens, `regen.py`, the oracle project with its `uv.lock`);
+`tests/known_gaps.toml` (eight gaps); `context/progress/`;
+`context/embedders.txt`; `.gitattributes`.
+
+**Numbers (EXECUTED, this machine, `uv run pytest -q -p no:cacheprovider`):**
+`wasi_python v1: 14/67 pass · 8 gap · 45 blocked · 0 fail (unit suite
+133/133)`; `147 passed, 45 skipped, 8 xfailed`, exit 0. In a fresh
+`git clone` with the change overlaid (no downloads, build trees,
+clones or oracle): `12/67 pass · 8 gap · 47 blocked · 0 fail`,
+`unrun locally 2`, exit 0 on both tiers. Fast tier
+(`-m "not slow"`): 4 deselected, the accepted oracle pass reported as
+"not selected 1", exit 0. `--accept "initial baseline"` wrote
+`accepted.json` and history line 1 (14 passes protected). Hand-removing
+one entry from `accepted.json` turned the run red twice over
+(`test_progress_history_is_intact` failed, and the ratchet reported a
+lost pass); restoring the file made it green.
+
+**Criteria.**
+1. Exit 0 with no artifacts, here and in a fresh clone; 13 scoreboard
+   lines; `latest.json` written.
+2. All 67 node ids collected, none `fail`.
+3. Every blocked check names a need with a false predicate (enforced
+   by the plugin, shown by `test_unnamed_skip_and_a_skip_naming_a_met_need_are_failures`);
+   all eight gaps name existing closers (`test_known_gaps_are_well_formed`).
+4. Detectors both ways: `test_scan.py`, `test_wasm.py`, `test_pins.py`,
+   `test_artifact_rules.py`, `test_scoreboard.py`.
+5. `test_plugin.py`, 27 pytester cases end to end, including each
+   attack from the build review; `test_scoreboard.py` adds the pure
+   cases.
+6. `test_guest.py`: WAT modules for dispatch, the door (no host, host,
+   raising host), exits, the fuel cap, random and clock; Brett's build
+   for stdout, isolation, a fuel cap of 10⁹ that traps at exactly 10⁹,
+   and two `-I` runs within 0.01%.
+7. `test_artifact_rules.py` (each rule, good and bad) and
+   `test_checks_wiring.py` (the real v1.1 file in a subprocess against
+   a good set, a set missing its snapshot, and a set with a third
+   import).
+8. Goldens written by `regen.py --online`; `regen.py --check` and
+   `test_goldens_reproduce_under_the_pinned_oracle` reproduce them
+   offline, both hash seeds agreeing.
+9. `context/progress/accepted.json` and `history.jsonl` line 1.
+10. `ruff check src tests` and `ruff format --check src tests` clean.
+
+**Where the build departs from the text above, and why.**
+- The random job is `tests/jobs/numpy_random.py`, not `random.py`:
+  run natively, a script named `random.py` shadows the stdlib module
+  of that name.
+- `test_guest_sees_only_its_root` accepts `/..` being refused as well
+  as listing `/`: wasmtime refuses it (EXECUTED: `PermissionError:
+  [Errno 63] Operation not permitted: '/..'` on Brett's build).
+- `--accept` judges the ratchet inside `accept()` and, once it
+  succeeds, the run is re-judged against what was just accepted, so
+  `--retire` and `--accept-growth` can turn a red run green. A
+  self-test caught the first version refusing them.
+
+**Review.** Specification review:
+`../reviews/002-the-progress-harness-spec-2026-10-16.md` (18 findings,
+then 8 on the revision; all dispositioned before build). Build review:
+`../reviews/002-the-progress-harness-2026-10-16.md` (10 findings, then
+4 on the fixes; verdict **lands** after the reviewer re-ran its attacks
+on the final tree). The fixes it drove: gaps match an exact finding set
+by digest; the judge covers every file under `tests/`, any
+`conftest.py` and the pytest config files; pytest steered from outside
+the judge turns the run red; only a missing product (artifact, runner,
+wheel) makes a blocked pass red, so a fresh clone is green; absent
+checks are found across all collected files and only they can be
+retired; tarballs are checked against their pins.
+
+**Residuals, accepted in the review.** A plugin written to replace the
+judge's own functions inside the process is not detected (Decision 14:
+review is the backstop). Because digests drop line numbers, a finding
+removed from one line of a file and added on another line of the same
+file leaves a gap's digest unchanged; any net new finding still changes
+it. Windows was not executed; the three-systems check will be the
+evidence. The baseline protects 14 passes (history lines 1 and 2).

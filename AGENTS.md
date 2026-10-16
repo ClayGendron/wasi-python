@@ -46,6 +46,45 @@ the hard constraints, and it governs this file. Then `README.md` and
 - **All project knowledge lives in this repo** under `context/`; no
   out-of-repo memory.
 
+## Working autonomously
+
+How an agent works here alone, drawn from the ports that converged
+(`context/research/2026-10-16-how-autonomous-ports-were-run.md`).
+The judge is `uv run pytest`; its scoreboard is the progress signal
+(`context/specifications/002-the-progress-harness.md`).
+
+1. **Orient from the scoreboard, not from memory.** Start every session
+   with `uv run pytest -m "not slow"`. Read its last twenty lines: the
+   count per goal, the failures, the ratchet, and the `next:` line.
+   Then read the specification you are on.
+2. **Pick work by what it unblocks.** The `next:` line names the
+   prerequisite that blocks the most checks. Work on the
+   specification that provides it. One specification at a time.
+3. **Write the check before the code.** A new behaviour gets a check
+   (or a gap entry naming its closer) first. A new failure mode, once
+   seen, becomes a check, so it cannot come back.
+4. **Never weaken the judge to get a pass.** Do not edit a check, a
+   golden output, `tests/known_gaps.toml` or `context/progress/` to
+   turn a run green. Changing the judge is its own change, with a
+   reason, and the review sees the judge-hash line.
+5. **No pass is lost quietly.** A run that loses an accepted pass or
+   grows fuel or bytes is red. Fix it, or accept growth with a stated
+   reason (`--accept "<reason>" --accept-growth "<why it grew>"`). New
+   passes never pay for a lost one.
+6. **Accept only green, reviewed work.** `uv run pytest --accept
+   "<reason>"` records the state in `context/progress/`; the history
+   is append-only. A changed judge needs `--accept-judge "<reason>"`;
+   a machine without artifacts runs with `--partial "<reason>"`. See
+   `context/progress/README.md`.
+7. **Two strikes, then write it down.** After two failed attempts on
+   one hypothesis, stop. Record where you stood and why in the memo
+   or specification, and move to work that does not depend on it.
+8. **The implementer never reviews.** A fresh agent gets the
+   specification and the diff, re-runs the scoreboard, and writes the
+   review under `context/reviews/`.
+9. **Keep output short.** Logs go to files under `build/`; a failure is
+   one line with its reason.
+
 ## Explaining things
 
 Short sentences. One idea each. Define a term of art the first time it
