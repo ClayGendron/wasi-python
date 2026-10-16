@@ -1,0 +1,36 @@
+ scripts/steps/10_tools.sh        |  2 +-
+ scripts/steps/80_snapshot.sh     |  2 +-
+ tests/harness/jobs.py            |  3 +-
+ tests/jobs/numpy_csv.expected    |  2 +-
+ tests/jobs/numpy_random.expected |  2 +-
+ tests/jobs/oracle/pyproject.toml |  2 +-
+ tests/jobs/oracle/uv.lock        | 77 ++++++++++++++++++++--------------------
+ tests/jobs/pandas_csv.expected   |  2 +-
+ 8 files changed, 47 insertions(+), 45 deletions(-)
+diff --git a/tests/harness/jobs.py b/tests/harness/jobs.py
+index 1ca4a93..b921747 100644
+--- a/tests/harness/jobs.py
++++ b/tests/harness/jobs.py
+@@ -60,7 +60,8 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
+         UV_CACHE_DIR=str(ORACLE_HOME / "cache"),
+         UV_PYTHON_INSTALL_DIR=str(ORACLE_HOME / "python"),
+         UV_PROJECT_ENVIRONMENT=str(ORACLE_HOME / "venv"),
+-        UV_PYTHON_PREFERENCE="only-managed",
++        UV_PYTHON_PREFERENCE="only-system",
++        UV_PYTHON='<scratch>/repo/build/tools/python/bin/python3',  # EXPERIMENT: the 3.15.0 interpreter the build unpacked
+     )
+     env.pop("VIRTUAL_ENV", None)
+     if seed is not None:
+diff --git a/tests/jobs/oracle/pyproject.toml b/tests/jobs/oracle/pyproject.toml
+index 0183d3c..ee9467c 100644
+--- a/tests/jobs/oracle/pyproject.toml
++++ b/tests/jobs/oracle/pyproject.toml
+@@ -4,7 +4,7 @@
+ [project]
+ name = "wasi-python-oracle"
+ version = "0"
+-requires-python = "==3.14.2"
++requires-python = "==3.15.0"
+ dependencies = [
+     "numpy==2.5.2",
+     "pandas==3.0.6",

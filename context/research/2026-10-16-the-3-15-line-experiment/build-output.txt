@@ -1,0 +1,9 @@
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29601943 bytes, 48135a006a7070b2
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29801866 bytes, 1522cd8136fc40e5
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140661 bytes
+ERROR 80_snapshot: Error: failed to run main module `<scratch>/repo/ (log: build/logs/80_snapshot.log)
+scripts/build.sh 10 20 30 40 50 60 70 80 90  629.84s user 97.57s system 289% cpu 4:11.47 total
