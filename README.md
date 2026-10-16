@@ -149,11 +149,13 @@ integer is documented, not patched.
 ## Evidence
 
 `context/research/2026-10-16-the-spike-that-proved-the-build.md` is the
-executed spike this project grew from: every command, every number, every
-output file. It was run inside the
-[vfs](https://github.com/claygendron/vfs) repository, whose shell runs this
-runtime over a database-backed filesystem; the raw build logs and outputs
-live there under `context/research/studies/2026-10-15-agent-shell/experiments/s12/`.
+executed spike this project grew from: every command, every number.
+Its outputs, logs and generated link lines are in
+`context/research/2026-10-16-the-spike-that-proved-the-build/`, and
+`context/research/2026-10-16-the-spike-evidence-in-this-repository.md`
+maps the spike's paths to this repository's. The spike ran inside
+another repository, the first consumer of this runtime; nothing here
+needs it.
 
 ## Why WASI and not "wasm"
 

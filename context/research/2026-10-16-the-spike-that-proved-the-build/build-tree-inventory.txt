@@ -1,0 +1,193 @@
+# Inventory of the spike's build/ tree, taken 2026-10-16 with: find <dir> -maxdepth 2 (sizes: du -sh).
+# Large binaries and build trees stay out of git; this lists what each unscripted step produced.
+
+== host-pylib ( 12M)
+host-pylib
+host-pylib/.lock
+host-pylib/bin
+host-pylib/bin/cygdb
+host-pylib/bin/cython
+host-pylib/bin/cythonize
+host-pylib/bin/versioneer
+host-pylib/Cython
+host-pylib/cython-3.3.0.dist-info
+host-pylib/cython-3.3.0.dist-info/entry_points.txt
+host-pylib/cython-3.3.0.dist-info/INSTALLER
+host-pylib/cython-3.3.0.dist-info/METADATA
+host-pylib/cython-3.3.0.dist-info/RECORD
+host-pylib/cython-3.3.0.dist-info/REQUESTED
+host-pylib/cython-3.3.0.dist-info/top_level.txt
+host-pylib/cython-3.3.0.dist-info/WHEEL
+host-pylib/cython.py
+host-pylib/Cython/__init__.py
+host-pylib/Cython/_shared.cpython-314-darwin.so
+host-pylib/Cython/Build
+host-pylib/Cython/CodeWriter.py
+host-pylib/Cython/Compiler
+host-pylib/Cython/Coverage.py
+host-pylib/Cython/Debugger
+host-pylib/Cython/Debugging.py
+host-pylib/Cython/Distutils
+host-pylib/Cython/Includes
+host-pylib/Cython/LZSS.cpython-314-darwin.so
+host-pylib/Cython/LZSS.py
+host-pylib/Cython/Plex
+
+== numpy-host-shim (532K)
+numpy-host-shim
+numpy-host-shim/numpy
+numpy-host-shim/numpy/__init__.cython-30.pxd
+numpy-host-shim/numpy/__init__.pxd
+numpy-host-shim/numpy/__init__.py
+numpy-host-shim/numpy/_core
+
+== numpy-install ( 10M)
+numpy-install
+numpy-install/usr
+numpy-install/usr/local
+
+== pandas-install (536K)
+pandas-install
+pandas-install/usr
+pandas-install/usr/local
+
+== pandas-py (8.8M)
+pandas-py
+pandas-py/pandas
+pandas-py/pandas/__init__.py
+pandas-py/pandas/_config
+pandas-py/pandas/_libs
+pandas-py/pandas/_testing
+pandas-py/pandas/_typing.py
+pandas-py/pandas/_version.py
+pandas-py/pandas/api
+pandas-py/pandas/arrays
+pandas-py/pandas/compat
+pandas-py/pandas/conftest.py
+pandas-py/pandas/core
+pandas-py/pandas/errors
+pandas-py/pandas/io
+pandas-py/pandas/meson.build
+pandas-py/pandas/plotting
+pandas-py/pandas/testing.py
+pandas-py/pandas/tseries
+pandas-py/pandas/util
+
+== pandas-deps (3.2M)
+pandas-deps
+pandas-deps/.lock
+pandas-deps/dateutil
+pandas-deps/dateutil/__init__.py
+pandas-deps/dateutil/_common.py
+pandas-deps/dateutil/_version.py
+pandas-deps/dateutil/easter.py
+pandas-deps/dateutil/parser
+pandas-deps/dateutil/relativedelta.py
+pandas-deps/dateutil/rrule.py
+pandas-deps/dateutil/tz
+pandas-deps/dateutil/tzwin.py
+pandas-deps/dateutil/utils.py
+pandas-deps/dateutil/zoneinfo
+pandas-deps/python_dateutil-2.9.0.post0.dist-info
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/INSTALLER
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/LICENSE
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/METADATA
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/RECORD
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/REQUESTED
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/top_level.txt
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/WHEEL
+pandas-deps/python_dateutil-2.9.0.post0.dist-info/zip-safe
+pandas-deps/six-1.17.0.dist-info
+pandas-deps/six-1.17.0.dist-info/INSTALLER
+pandas-deps/six-1.17.0.dist-info/LICENSE
+pandas-deps/six-1.17.0.dist-info/METADATA
+pandas-deps/six-1.17.0.dist-info/RECORD
+pandas-deps/six-1.17.0.dist-info/REQUESTED
+pandas-deps/six-1.17.0.dist-info/top_level.txt
+
+== pandas-shims (8.0K)
+pandas-shims
+pandas-shims/ctypes.py
+pandas-shims/mmap.py
+
+== wizer-root ( 13M)
+wizer-root
+wizer-root/lib
+wizer-root/lib/python314.zip
+
+== wizer-root2 ( 13M)
+wizer-root2
+wizer-root2/usr
+wizer-root2/usr/local
+
+== numpy-archives ( 13M)
+numpy-archives
+numpy-archives/_bounded_integers.a
+numpy-archives/_common.a
+numpy-archives/_generator.a
+numpy-archives/_mt19937.a
+numpy-archives/_multiarray_umath.a
+numpy-archives/_pcg64.a
+numpy-archives/_philox.a
+numpy-archives/_pocketfft_umath.a
+numpy-archives/_sfc64.a
+numpy-archives/_umath_linalg.a
+numpy-archives/bit_generator.a
+numpy-archives/lapack_lite.a
+numpy-archives/mtrand.a
+
+== pandas-archives ( 33M)
+pandas-archives
+pandas-archives/numpy__bounded_integers.a
+pandas-archives/numpy__common.a
+pandas-archives/numpy__generator.a
+pandas-archives/numpy__mt19937.a
+pandas-archives/numpy__multiarray_umath.a
+pandas-archives/numpy__pcg64.a
+pandas-archives/numpy__philox.a
+pandas-archives/numpy__pocketfft_umath.a
+pandas-archives/numpy__sfc64.a
+pandas-archives/numpy__umath_linalg.a
+pandas-archives/numpy_bit_generator.a
+pandas-archives/numpy_lapack_lite.a
+pandas-archives/numpy_mtrand.a
+pandas-archives/pandas__cyutility.a
+pandas-archives/pandas_aggregations.a
+pandas-archives/pandas_algos.a
+pandas-archives/pandas_arrays.a
+pandas-archives/pandas_base.a
+pandas-archives/pandas_byteswap.a
+pandas-archives/pandas_ccalendar.a
+pandas-archives/pandas_conversion.a
+pandas-archives/pandas_dtypes.a
+pandas-archives/pandas_fields.a
+pandas-archives/pandas_groupby.a
+pandas-archives/pandas_hashing.a
+pandas-archives/pandas_hashtable.a
+pandas-archives/pandas_index.a
+pandas-archives/pandas_indexers.a
+pandas-archives/pandas_indexing.a
+
+== top-level files
+16452384 brett.cwasm
+16472344 floor.cwasm
+34321544 numpy.cwasm
+110614640 pandas-wizer.cwasm
+68035088 pandas.cwasm
+34321544 python-numpy.bench.cwasm
+39551987 python-numpy.wasm
+55412853 python-pandas-vfsmain.wasm
+110614640 python-pandas-wizer.bench.cwasm
+94501599 python-pandas-wizer.wasm
+55418328 python-pandas.wasm
+39546426 python-vfsmain.wasm
+55388896 python-wizer.bench.cwasm
+50635154 python-wizer.wasm
+9471478 python314-brett-src.zip
+14553786 python314-numpy-pyc.zip
+13494391 python314-numpy.zip
+6050752 python314-pandas-deflated.zip
+22974310 python314-pandas.zip
+9771926 python314-src.zip
+34302840 vfsmain.cwasm
+55388896 wizer.cwasm
