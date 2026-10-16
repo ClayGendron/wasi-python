@@ -16,8 +16,16 @@ first.
 
 ## What answers it
 
-1. Make `scripts/python-wasi-cross` derive the build-Python's platform
-   directory from `cross-build/` instead of a literal.
+1. Make the recipe run from this repository on any host. Spec 002's
+   checks name each piece as a known gap closed by this memo:
+   `scripts/python-wasi-cross` derives the build-Python's platform
+   directory from `cross-build/` instead of a literal; the cross files
+   and scripts name `recipes/` paths, not the spike's `cross/` and
+   `outputs/`; `scripts/00_download.sh` fetches every pin from a
+   literal URL (zlib and the pandas sdist included), verifies against
+   `downloads/SHA256SUMS` and never writes it, and calls Python only
+   through `uv run`; zlib is configured outside its source tree, so
+   the tree stays byte-identical to its tarball.
 2. Run the whole recipe on a Linux x86_64 host (a GitHub runner or a
    container) with the Linux wasi-sdk, Wizer and wasmtime pins added
    to `downloads/SHA256SUMS`.
