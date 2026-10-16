@@ -27,14 +27,18 @@
 2. **Every build carries the door.** There is no door-less variant. A
    runner binds it; the default binding answers every call with −1,
    so the artifact runs under `wasi_python.run` with nothing attached.
-   The plain wasmtime CLI cannot instantiate the binary, and the
-   README says so.
+   The plain wasmtime CLI refuses the binary's unknown import; with
+   `-W unknown-imports-default` it runs it, but the door then returns
+   0 with no response, which `_host` reads as an empty answer. The
+   README says to use a runner that binds the door.
 3. **The runner** is `wasi_python.run(argv, *, root, env=None,
    stdin=None, host=None, snapshot=True, fuel=None, deadline_s=None,
    memory_bytes=None, cache_dir=None) -> Completed`, over wasmtime-py
-   (the `run` extra). It preopens `root` at `/`, lays out the stdlib
-   zip at `/usr/local/lib/python3XY.zip` inside `root` when it is not
-   there (`3.XY` from `MANIFEST`'s `python` line), binds `host::call` to
+   (the `run` extra). It preopens `root` at `/`, always writes the
+   artifact set's own zip to `/usr/local/lib/python3XY.zip` inside
+   `root`, replacing what is there (`3.XY` from `MANIFEST`'s `python`
+   line; the snapshot runs only beside the zip it was built against:
+   003 Decision 9), binds `host::call` to
    `host` (a callable from request bytes to response bytes; an
    exception it raises answers −2) or to the default, calls
    `_initialize` then `run` for the plain binary and `run` alone for
