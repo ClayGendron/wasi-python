@@ -172,12 +172,14 @@ def run(
         alloc = caller.get("host_alloc")
         if memory is None or alloc is None:
             return HOST_FAULT
+        ptr, length = ptr & 0xFFFFFFFF, length & 0xFFFFFFFF  # i32 values; addresses are unsigned
+        out_ptr_ptr, out_len_ptr = out_ptr_ptr & 0xFFFFFFFF, out_len_ptr & 0xFFFFFFFF
         request = bytes(memory.read(caller, ptr, ptr + length))
         try:
             response = bytes(host(request))
         except Exception:
             return HOST_FAULT
-        p = alloc(caller, len(response))
+        p = alloc(caller, len(response)) & 0xFFFFFFFF
         memory.write(caller, response, p)
         memory.write(caller, struct.pack("<I", p), out_ptr_ptr)
         memory.write(caller, struct.pack("<I", len(response)), out_len_ptr)

@@ -14,6 +14,24 @@ import pytest
 from harness import needs, paths
 
 BINARIES = {"plain": "python.wasm", "snapshot": "python-snapshot.wasm"}
+CACHE_ENV = "WASI_PYTHON_CACHE"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def runner_cache_in_build():
+    """The runner's compiled-module cache lives under build/, never in the user's cache
+    (spec 001, Design)."""
+    import os
+
+    before = os.environ.get(CACHE_ENV)
+    os.environ[CACHE_ENV] = str(paths.BUILD / "cwasm-cache")
+    yield
+    if before is None:
+        os.environ.pop(CACHE_ENV, None)
+    else:
+        os.environ[CACHE_ENV] = before
+
+
 NEED_OF = {"plain": "plain binary", "snapshot": "snapshot binary"}
 
 

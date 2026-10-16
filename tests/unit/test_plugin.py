@@ -21,7 +21,12 @@ def test_ok(metric):
     metric("fuel", {fuel})
     metric("bytes", {size})
 
-def test_blocked():
+def unmet(monkeypatch):
+    # "runner" made unmet for this case, so it holds whatever this repository provides.
+    monkeypatch.setitem(needs.VOCABULARY, "runner", needs.Need("runner", lambda: False, "-"))
+
+def test_blocked(monkeypatch):
+    unmet(monkeypatch)
     needs.need("runner")
 
 def test_failing():
@@ -156,7 +161,8 @@ def test_a_lost_pass_is_red_and_cannot_be_accepted(inner) -> None:
 def test_a_blocked_pass_is_red_unless_partial(inner, monkeypatch) -> None:
     _accept_baseline(inner)
     source = INNER.format(fuel=1_000_000, size=100, fail=False).replace(
-        "def test_ok(metric):", "def test_ok(metric):\n    needs.need('runner')"
+        "def test_ok(metric):",
+        "def test_ok(metric, monkeypatch):\n    unmet(monkeypatch)\n    needs.need('runner')",
     )
     result, _ = inner(source=source)
     assert result.ret == 1

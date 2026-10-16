@@ -73,7 +73,7 @@ NOT_SOURCE = {"build", "downloads", "prior_art", ".venv", ".venv-build", ".git",
 
 def artifact_dir() -> Path | None:
     env = os.environ.get(ARTIFACTS_ENV)
-    if env is not None:
+    if env:  # set and not empty, as the runner reads it (spec 001, Decision 3)
         return Path(env).resolve()
     if (BUILD / "artifacts" / "MANIFEST").is_file():
         return (BUILD / "artifacts").resolve()

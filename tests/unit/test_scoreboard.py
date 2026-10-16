@@ -127,6 +127,14 @@ def _accept(rec, base, history="", **kw):
     return scoreboard.accept(rec, base, history, r, reason="because", **kw)
 
 
+def test_the_judge_changed_line_says_how_many_files_it_leaves_out() -> None:
+    changed = ["a.py", "b.py", "c.py", "d.py"]
+    line = scoreboard._ratchet_line(scoreboard.Ratchet(judge_changed=changed), None)
+    assert line.endswith("judge changed: a.py, b.py, c.py and 1 more"), line
+    line = scoreboard._ratchet_line(scoreboard.Ratchet(judge_changed=changed[:3]), None)
+    assert line.endswith("judge changed: a.py, b.py, c.py"), line
+
+
 @pytest.mark.parametrize(
     ("rec", "base", "kw", "refusal"),
     [

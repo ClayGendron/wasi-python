@@ -111,27 +111,53 @@ offline, by hash) and `git` (it lists the recipes for `MANIFEST`).
 
 ## Running it
 
-The binary declares one custom import, the **host door**: a single function
-the embedder binds, through which guest code reaches the host (for vfs, the
-filesystem verbs). A plain `wasmtime run` cannot define a custom import, so
-the plain CLI only runs a door-less build. The `wasi_python` wheel will ship
-a runner (`wasi_python.run`, over wasmtime-py) that binds the door to a
-default and calls the reactor entry; see *Next*.
+From Python, one call (`pip install "wasi-python[run]"`, which brings
+wasmtime-py):
 
-Layout the guest expects, so CPython's own prefix search finds the stdlib:
+```python
+from wasi_python import run
 
-```
-<root>/usr/local/bin/python.wasm     # argv0, the path only; the file need not exist there
-<root>/usr/local/lib/python314.zip   # the stdlib zip, found by the landmark search
+done = run(["-c", "import pandas as pd; print(pd.Series([1, 2, 3]).sum())"], root="/tmp/guest")
+done.exit_code, done.stdout        # (0, b'6\n')
 ```
 
-With a door-less build and the wasmtime CLI (verified with Brett Cannon's
-3.14.7 build and this project's zip):
+`root` is a host directory and becomes the guest's whole filesystem, at
+`/`. The runner copies the stdlib zip into it before each call and
+replaces anything the guest changed there, without following any link
+the guest left. `run` also takes `env`, `stdin`, `host` (a function from
+request bytes to response bytes, bound to the door), `snapshot` (the
+default; `False` runs the plain reactor), `fuel` (a cap on executed
+instructions), `deadline_s`, `memory_bytes`, `cache_dir` and `artifacts`.
+It returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
+`"deadline"`, or a trap's first line) and `fuel_used`.
 
-```
-wasmtime run --dir <root>::/ --argv0 /usr/local/bin/python.wasm python.wasm \
-    -I -X utf8 -c "import sys; print(sys.version)"
-```
+The compiled module is cached as a `.cwasm` in the user cache directory, or
+in `$WASI_PYTHON_CACHE`, only where no other user can write (a `.cwasm` is
+native code); `cache_dir=False` keeps it in memory only. Measured on Apple
+arm64 (spec 001's landing notes): the first call compiles for about 3 s, a
+first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
+one process about 20 to 25 ms. The runner finds the artifact set through
+`wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
+checkout's `build/artifacts/`, else the wheel's own copy.
+
+Any other embedder does the same three things:
+
+1. **Preopen a directory at `/`** holding the artifact set's stdlib zip at
+   `/usr/local/lib/python314.zip`. The snapshot runs only beside the zip it
+   was built against.
+2. **Bind the one custom import, `host::call(ptr, len, out_ptr_ptr,
+   out_len_ptr) -> i32`.** Answer −1 when there is no host. Otherwise read
+   the request from guest memory, get space from the exported `host_alloc`,
+   write the response, store its pointer and length at the two
+   out-addresses, and answer 0; answer −2 if the host fails. Frames are
+   opaque bytes: their meaning is the embedder's.
+3. **Call `_initialize`** (the plain reactor only) **and then `run`**,
+   once per instance, with argv (`argv[0]` is `/usr/local/bin/python.wasm`)
+   and the environment given through WASI. `run` returns the exit status.
+
+The plain `wasmtime run` CLI cannot bind a custom import and refuses the
+binary. With `-W unknown-imports-default` it runs it, but the door then
+answers 0 with no response, which guest code reads as an empty answer.
 
 ## Scope
 
@@ -147,23 +173,21 @@ lzma; pip inside the guest.
 ## Next
 
 Before a first release, in order. Each item is a specification or a
-research memo under `context/`:
+research memo under `context/`; `uv run pytest` names what blocks the most
+checks (its `next:` line). The runner, the door, the reactor and the build
+have landed (specs 001 and 003).
 
-1. **The runner** (`context/specifications/001-…`): `wasi_python.run`, which
-   binds the door and runs either binary in one call. The door, the reactor
-   and the build itself landed with spec 003; `uv run pytest` names what is
-   left (its `next:` line).
-2. **The CPython 3.15 + wasi-sdk 33 line** (`context/research/2026-10-16-…`,
+1. **The CPython 3.15 + wasi-sdk 33 line** (`context/research/2026-10-16-…`,
    placeholder): re-run the recipe on the line that links C++ exceptions and
    pick the first release's pins on the result.
-3. **Reproducible builds on Linux** (`context/research/2026-10-16-…`,
+2. **Reproducible builds on Linux** (`context/research/2026-10-16-…`,
    placeholder): pin the Linux toolchain, build there, and compare hashes
    with the macOS build. The reactor, the snapshot and the zip already
    rebuild to the same bytes on one host.
-4. The release workflow: `workflow_dispatch` on demand, the
+3. The release workflow: `workflow_dispatch` on demand, the
    zero-patch gate, verification runs with counted operations, the assets
    and the wheel.
-5. numpy's and pandas' own test subsets under the runtime.
+4. numpy's and pandas' own test subsets under the runtime.
 
 Decided already, without further study: both binaries ship, the snapshot
 first; the stdlib zip is bytecode-only and deflated; the int32 default

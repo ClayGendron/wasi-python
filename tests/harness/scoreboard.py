@@ -173,7 +173,8 @@ def accept(
         refusals.append("metrics grew; say --accept-growth with a reason")
     if accepted and ratchet.judge_changed and not judge_reason:
         refusals.append(
-            f"the judge changed ({', '.join(ratchet.judge_changed[:4])}); "
+            f"the judge changed ({', '.join(ratchet.judge_changed[:4])}"
+            f"{' and more' if len(ratchet.judge_changed) > 4 else ''}); "
             "say --accept-judge with a reason"
         )
     unknown = [n for n in retire if n not in ratchet.absent]
@@ -375,5 +376,7 @@ def _ratchet_line(r: Ratchet, partial: str | None) -> str:
     if r.fuel_not_compared:
         parts.append(f"fuel not compared (wasmtime changed) {len(r.fuel_not_compared)}")
     if r.judge_changed:
-        parts.append(f"judge changed: {', '.join(r.judge_changed[:3])}")
+        more = len(r.judge_changed) - 3
+        extra = f" and {more} more" if more > 0 else ""
+        parts.append(f"judge changed: {', '.join(r.judge_changed[:3])}{extra}")
     return base + " · ".join(parts)
