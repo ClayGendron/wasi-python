@@ -395,4 +395,7 @@ on `main` after the build review.
   `CANCEL_TICKS = 5`.
 - FastAPI itself was not run: the README example is the shape of an ASGI endpoint, and what it
   says about disconnects is from Starlette's documented behaviour (INFERRED).
-- Windows and Linux run these checks first in the release workflow's verify jobs.
+- **Criterion 3, the release dry run:** the first, 39038155556 on `bbeac1f`, failed only on
+  Windows: `test_a_forked_child_is_refused` skipped with no known need. A reviewed follow-up
+  (`aa426b3`) gives it a branch where there is no fork. The second, 39039835209 on `25f23a7`,
+  passed every job, Linux and Windows included.
