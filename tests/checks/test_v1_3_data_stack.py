@@ -118,7 +118,7 @@ print(np.allclose(np.fft.fft(np.ones(4)), [4, 0, 0, 0]))
 """
 
 
-def test_a_cpp_exception_reaches_python(guest_workdir, metric) -> None:
+def test_a_cpp_exception_reaches_python(guest_workdir) -> None:
     """A C++ `throw` inside numpy (pocketfft's allocation, under a memory cap) becomes a Python
     MemoryError, and the program goes on (spec 005, Decision 9). numpy's own array-allocation
     error carries a shape and a dtype; the bare MemoryError() is C++'s std::bad_alloc."""
@@ -126,8 +126,6 @@ def test_a_cpp_exception_reaches_python(guest_workdir, metric) -> None:
     import wasi_python
 
     root = Path(tempfile.mkdtemp(prefix="cpp-throw-", dir=guest_workdir))
-    # cache_dir=False: a module loaded from a .cwasm counts fewer instructions than one compiled
-    # here (context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md).
     done = wasi_python.run(
         ["-c", CPP_THROW],
         root=root,
@@ -137,7 +135,9 @@ def test_a_cpp_exception_reaches_python(guest_workdir, metric) -> None:
     )
     assert (done.exit_code, done.trapped) == (0, None), done
     assert done.stdout == b"caught MemoryError()\nTrue\n", done
-    metric("fuel", done.fuel_used)
+    # No fuel metric: the runner's clock is real, which spreads this count by about 96,000,
+    # wider than the ratchet's 0.01% (spec 008's review, N2). The judge's driver, whose clock is
+    # fixed, records the stack's fuel elsewhere.
 
 
 @pytest.mark.slow

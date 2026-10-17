@@ -82,7 +82,10 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
 8. **The implementer never reviews.** A fresh agent gets the
    specification and the diff, re-runs the scoreboard, and writes the
    review under `context/reviews/`.
-9. **Keep output short.** Logs go to files under `build/`; a failure is
+9. **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a
+   `git mv` or an earlier `git add` stays staged and rides along. A commit on `main` is green on
+   its own; when two pieces of work share the tree, check the commit in a clean clone.
+10. **Keep output short.** Logs go to files under `build/`; a failure is
    one line with its reason.
 
 ## Explaining things

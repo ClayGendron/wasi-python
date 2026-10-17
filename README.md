@@ -211,9 +211,10 @@ answers 0 with no response, which guest code reads as an empty answer.
 ## Safety
 
 Made for running code nobody reviewed, such as a model's. The policy:
-code planted in a root never runs in a later call, on either binary; data
-planted in a root a caller reuses is read by later calls, and only a fresh
-root closes that; a call that names no limit still has one.
+code planted in a root never runs at start-up or on import in a later call,
+on either binary; data planted in a root a caller reuses is read by later
+calls, and only a fresh root closes that; a call that names no limit still
+has one.
 
 **Enforced, and judged** (`tests/checks/test_v1_2_*.py`):
 
@@ -230,12 +231,22 @@ root closes that; a call that names no limit still has one.
 - **defaults** (`wasi_python.runner.DEFAULTS`): 1 GiB of memory, a 60 s
   deadline, 16 MiB of output per stream (the rest dropped and named in
   `truncated`); pass `None` for no limit. The guest's environment starts
-  from `TMPDIR=/tmp`, `HOME=/tmp` and `PYTHONTZPATH=` (`zoneinfo` on the
-  zip's tzdata); `env=` is laid over them.
+  from `TMPDIR=/tmp`, `PYTHONTZPATH=` (`zoneinfo` on the zip's tzdata) and
+  a `HOME` made fresh and empty for each call under `/tmp` and removed
+  after it; `env=` is laid over them;
+- each call's store is closed when it ends, trapped or not, so its memory
+  and open files are released at once; a call without `root` copies the
+  11 MB stdlib zip into its fresh root and removes the root afterwards.
 
-**Not protected:** disk use in a granted root; data planted in a reused
-root (dateutil's zone files, `mimetypes`' tables, any user file, and the
-plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); a program
+**Not protected:** disk use in a granted root; the host's file
+descriptors (a guest can hold thousands of open files, which the embedder's
+process shares; wasmtime-py offers no lower limit); data planted in a
+reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
+plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
+in the current directory, `/`, which pdb runs as code when a program starts
+pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
+from a reused root; concurrent calls on one root (a guest can hard-link or
+change the files another call uses, the stdlib zip included); a program
 damaging its own stdlib zip during its own run; timing (the clock is real
 and fine-grained); real entropy; the one-byte exit status.
 

@@ -186,14 +186,15 @@ def run(
             return HOST_FAULT
         ptr, length = ptr & 0xFFFFFFFF, length & 0xFFFFFFFF  # i32 values; addresses are unsigned
         out_ptr_ptr, out_len_ptr = out_ptr_ptr & 0xFFFFFFFF, out_len_ptr & 0xFFFFFFFF
-        if ptr + length > memory.data_len(caller):  # the runner's bound (spec 006, Decision 3)
+        size = memory.data_len(caller)  # the runner's bounds (spec 006, Decision 3)
+        if ptr + length > size or out_ptr_ptr + 4 > size or out_len_ptr + 4 > size:
             return HOST_FAULT
         request = bytes(memory.read(caller, ptr, ptr + length))
         try:
             response = bytes(host(request))
         except Exception:
             return HOST_FAULT
-        if len(response) > 0x7FFFFFFF:
+        if memoryview(response).nbytes > 0x7FFFFFFF:
             return HOST_FAULT
         p = alloc(caller, len(response)) & 0xFFFFFFFF
         if not p or p + len(response) > memory.data_len(caller):

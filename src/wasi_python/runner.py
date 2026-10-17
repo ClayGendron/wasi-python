@@ -20,6 +20,7 @@ import atexit
 import hashlib
 import math
 import os
+import secrets
 import shutil
 import stat
 import struct
@@ -47,7 +48,10 @@ TICK_S = 0.01
 NO_DEADLINE = 2**62
 MASK32 = 0xFFFFFFFF
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
-BASE_ENV = {"TMPDIR": "/tmp", "HOME": "/tmp", "PYTHONTZPATH": ""}
+# The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
+# directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
+# (pdb's .pdbrc, for one) is read by the next (spec 006, Decision 2).
+BASE_ENV = {"TMPDIR": "/tmp", "PYTHONTZPATH": ""}
 
 Host = Callable[[bytes], bytes]
 
@@ -104,7 +108,8 @@ def run(
     `root` is the host directory the guest sees as `/`; without one, a fresh private directory is
     made and removed after the call. `memory_bytes`, `deadline_s` and `output_bytes` default to
     `DEFAULTS`; `None` means no limit. The guest's environment starts from `BASE_ENV` (`/tmp` for
-    temporary files and `HOME`, and `zoneinfo` on the zip's tzdata), with `env` laid over it.
+    temporary files, `zoneinfo` on the zip's tzdata) and a `HOME` made fresh for the call, with
+    `env` laid over it.
     `cache_dir=False` keeps compiled modules in this process only, never on disk."""
     try:
         import wasmtime as wt
@@ -180,10 +185,81 @@ def _call(
     memory_bytes: int | None,
     output_bytes: int | None,
 ) -> Completed:
-    """One instance, one program; every wasmtime object it makes is released when it returns, so
-    a private root can be removed afterwards (Windows refuses to remove an open directory)."""
-    _real_dir(guest_root, ("tmp",))  # TMPDIR and HOME (BASE_ENV); a guest's link there is removed
+    """One instance, one program. The store is closed before this returns, trapped or not, so the
+    guest's memory and open files are released at once (a trapped store is otherwise kept alive by
+    a reference cycle until Python's collector runs) and a private root can be removed afterwards
+    (Windows refuses to remove an open directory)."""
+    tmp = _real_dir(guest_root, ("tmp",))  # TMPDIR; a guest's link there is removed
+    home = f".home-{secrets.token_hex(16)}"
+    # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
+    # link, so a guest running concurrently on the same root cannot turn /tmp into a link between
+    # the check and the mkdir (Windows has no dir_fd, and its guests cannot make links).
+    tmp_fd = _open_dir(tmp)
+    try:
+        if tmp_fd is not None:
+            os.mkdir(home, dir_fd=tmp_fd)
+        else:
+            (tmp / home).mkdir()
+    except BaseException:
+        _close(tmp_fd)
+        raise
     store = wt.Store(engine)
+    try:
+        return _instance(
+            wt,
+            engine,
+            module,
+            store,
+            guest_root,
+            f"/tmp/{home}",
+            argv,
+            env,
+            stdin,
+            host,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+        )
+    finally:
+        store.close()
+        if tmp_fd is not None:
+            shutil.rmtree(home, ignore_errors=True, dir_fd=tmp_fd)
+        else:
+            shutil.rmtree(tmp / home, ignore_errors=True)
+        _close(tmp_fd)
+
+
+def _open_dir(path: Path) -> int | None:
+    """A handle on a directory, opened without following a link; None where the platform has no
+    dir_fd support (Windows)."""
+    if os.mkdir not in os.supports_dir_fd or shutil.rmtree.avoids_symlink_attacks is False:
+        return None
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    return os.open(path, flags)
+
+
+def _close(fd: int | None) -> None:
+    if fd is not None:
+        os.close(fd)
+
+
+def _instance(
+    wt: Any,
+    engine: wasmtime.Engine,
+    module: wasmtime.Module,
+    store: wasmtime.Store,
+    guest_root: Path,
+    home: str,
+    argv: list[str],
+    env: Mapping[str, str] | None,
+    stdin: bytes | None,
+    host: Host | None,
+    fuel: int | None,
+    deadline_s: float | None,
+    memory_bytes: int | None,
+    output_bytes: int | None,
+) -> Completed:
     if fuel is not None:
         store.set_fuel(fuel)
     if memory_bytes is not None:
@@ -194,7 +270,7 @@ def _call(
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
-    wasi.env = sorted({**BASE_ENV, **(env or {})}.items())
+    wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
     wasi.stdout_custom = out.write
     wasi.stderr_custom = err.write
@@ -289,8 +365,8 @@ def _door(host: Host | None) -> Callable[..., int]:
         response = host(bytes(memory.read(caller, ptr, ptr + length)))
         if not isinstance(response, (bytes, bytearray, memoryview)):
             return HOST_FAULT
-        if len(response) > MAX_RESPONSE:
-            return HOST_FAULT  # checked before the copy
+        if memoryview(response).nbytes > MAX_RESPONSE:
+            return HOST_FAULT  # checked in bytes, before the copy
         response = bytes(response)
         p = alloc(caller, len(response)) & MASK32
         if not p or p + len(response) > memory.data_len(caller):

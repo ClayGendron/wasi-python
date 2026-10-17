@@ -1,8 +1,8 @@
 # 006 — Safe by default: the hostile guest, judged
 
-- **Status:** draft, 2026-10-17; revised the same day to answer its review
-  (`../reviews/006-safe-by-default-spec-2026-10-17.md`). It changes the guest (`recipes/`), the
-  runner (`src/`) and the judge, so it is reviewed again before it is built.
+- **Status:** landed, 2026-10-17. Reviewed before build
+  (`../reviews/006-safe-by-default-spec-2026-10-17.md`) and after
+  (`../reviews/006-safe-by-default-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the reactor (`recipes/reactor_main.c`),
   judge additions in `tests/` (checks, `tests/harness/guest.py`, `tests/harness/wat.py`),
@@ -22,9 +22,10 @@
 
 ## The policy, in three sentences
 
-Code planted in a root never runs in a later call, on either binary. Data planted in a root
-that a caller reuses is read by later calls (dateutil's zones, `mimetypes`' tables, any user
-file); only a fresh root closes that, and a call without `root` gets a fresh one. A call that
+Code planted in a root never runs at start-up or on import in a later call, on either binary.
+Data planted in a root that a caller reuses is read by later calls (dateutil's zones,
+`mimetypes`' tables, any user file), and one file is run as code when a program asks for it:
+pdb's `./.pdbrc` in the current directory, as native pdb does; only a fresh root closes those, and a call without `root` gets a fresh one. A call that
 names no limit still has one for memory, time and output.
 
 ## Decisions
@@ -109,9 +110,18 @@ names no limit still has one for memory, time and output.
      count written). The stream's name is added to `Completed.truncated`, a new last field
      with a default of `()`, so positional construction keeps working.
    - the environment: the runner creates `/tmp` in the root and starts from
-     `{"TMPDIR": "/tmp", "HOME": "/tmp", "PYTHONTZPATH": ""}`; the caller's `env` is laid over
-     it. The three can be overridden but not removed; the README and the CHANGELOG say so, since
-     `os.environ` no longer holds exactly what `env=` gave.
+     `{"TMPDIR": "/tmp", "PYTHONTZPATH": ""}` plus a `HOME` made fresh for the call
+     (`/tmp/.home-<32 random hex digits>`, removed after it), so a `.pdbrc` or anything else a
+     call leaves in its `HOME` is never read by the next (the build review's finding 2). The
+     `HOME` is made and removed through a handle on `/tmp` opened without following a link, so a
+     guest running concurrently on the same root cannot redirect it (the confirmation's C2).
+     The caller's `env` is laid over all of it: the variables can be overridden but not
+     removed, and the README and the CHANGELOG say so, since `os.environ` no longer holds
+     exactly what `env=` gave.
+   - the store is closed in a `finally` when the call ends, trapped or not, before the private
+     root is removed: a trapped store is otherwise kept alive by a reference cycle in
+     wasmtime-py until Python's collector runs, holding up to the memory cap and the root's open
+     files (the build review's finding 1, EXECUTED).
 
    The three numbers live in `wasi_python.runner.DEFAULTS`, a frozen dataclass that `run()`
    reads at call time (so `monkeypatch` reaches it). "Not given" is a private sentinel, so
@@ -160,10 +170,13 @@ names no limit still has one for memory, time and output.
 
 6. **The README says what is protected, and what is not.** A section "Safety" states the policy
    above, lists what the wall enforces (the threat model's EXECUTED rows), the defaults of
-   Decision 2, and what is not protected: disk use in a granted root; data planted in a reused
-   root (dateutil's zones, `mimetypes`, any user file, and the plain reactor's `sys.prefix` after
-   a planted `pyvenv.cfg`); a program damaging its own stdlib zip
-   during its own run; timing; the real clock and entropy; the one-byte exit status. A disk
+   Decision 2, and what is not protected: disk use in a granted root; the host's file
+   descriptors (a guest held 4,088 open files and the embedder's own `os.open` then failed; the
+   build review, EXECUTED; wasmtime-py cannot lower wasmtime's table limit); data planted in a
+   reused root (dateutil's zones, `mimetypes`, any user file, the plain reactor's `sys.prefix`
+   after a planted `pyvenv.cfg`, and pdb's `./.pdbrc` in the current directory); a script or
+   module the caller names to run from a reused root; concurrent calls on one root; a program
+   damaging its own stdlib zip during its own run; timing; the real clock and entropy; the one-byte exit status. A disk
    quota is out of scope here; it gets no check until a research memo names how one could be
    enforced.
 
@@ -214,7 +227,10 @@ the owner (`../questions-for-the-owner.md`) or on their own specifications.
 
 ## Landing notes
 
-Built 2026-10-17 by the author agent; build review pending.
+Built 2026-10-17 by the author agent (commit `46cbc2f`; the move of `tests/unit/wat.py` to
+`tests/harness/wat.py` landed one commit earlier, in `e51b438`, by mistake). Reviewed after build
+in `../reviews/006-safe-by-default-2026-10-17.md`; its fixes (the store closed in a `finally`, a
+fresh `HOME` per call, door parity, the two new checks) are below.
 
 **The first run, before any fix** (EXECUTED: the checks written first, on the spec 005 build and
 runner): 4 passed, 14 failed.
@@ -235,6 +251,14 @@ runner): 4 passed, 14 failed.
 
 The first run of 1.11 also failed on a bug in the check itself (`fileno()` on an in-memory
 stream); the probe was fixed to skip streams without a descriptor before any runtime change.
+
+**After the build review's fixes:** 20 checks; the two new ones
+(`test_a_trapped_call_without_a_root_is_removed`, `test_a_planted_pdbrc_in_home_never_runs`)
+guard the review's findings 1 and 2; the second fails with a fixed `HOME=/tmp` (EXECUTED).
+
+**The C++-exception check** no longer records a fuel metric: its runner fuel is on the real
+clock, which spreads it by about 96,000, wider than the ratchet's 0.01% band (spec 008's review,
+N2, EXECUTED).
 
 **After the fix:** all 18 pass. 1.2 first failed on the plain reactor's `sys.prefix`, which the
 revised spec had already said not to assert (Decision 4, N1); the assertion was removed.
@@ -260,3 +284,6 @@ reactor, `-c pass`, for the build and two variants built from it):
   the helpers replacing what `site.main()` left; the review's prototype C, which ran them through
   `PyRun_SimpleString` in `__main__`, measured −0.023% with its own harness, so the two figures
   are not from the same driver (INFERRED). The binaries grew 542 and 8,221 bytes.
+- Plain `import numpy, pandas` (the build review's finding 4): 4,996,044,326 with this spec,
+  4,991,298,112 without the helpers, 4,995,332,324 on spec 005 (EXECUTED, the judge's driver):
+  the helpers cost 4.75M, `site.main()`'s path work saved about 4.0M, net +0.71M (+0.014%).

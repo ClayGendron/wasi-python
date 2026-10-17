@@ -159,7 +159,7 @@ def test_a_call_without_a_root_shares_nothing(guest_workdir, monkeypatch) -> Non
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     write = "open('/left-behind', 'w').write('x'); print(sorted(__import__('os').listdir('/')))"
     first = run(["-c", write])
-    assert first.exit_code == 0, first
+    assert (first.exit_code, first.stdout) == (0, b"['left-behind', 'tmp', 'usr']\n"), first
     assert list(scratch.iterdir()) == []
     second = run(["-c", "import os; print(os.path.exists('/left-behind'))"])
     assert (second.exit_code, second.stdout) == (0, b"False\n"), second
@@ -302,3 +302,39 @@ def test_extra_preopens_work_on_the_snapshot(guest, guest_workdir, order) -> Non
     )
     assert r.exit_code == 0, r.describe()
     assert r.text.splitlines()[:3] == ["data root", "refused", "[0, 1, 2]"], r.text
+
+
+def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch) -> None:
+    """Guards a change: a call that ends in a trap still releases its store and removes its root."""
+    run = _run()
+    scratch = Path(tempfile.mkdtemp(prefix="trapped-", dir=guest_workdir))
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    code = "open('/x', 'w').write('x')\nwhile True:\n    pass\n"
+    fds = Path("/dev/fd")
+    run(["-c", "pass"])  # the engine and module are loaded once per process; count after that
+    before = len(list(fds.iterdir())) if fds.is_dir() else None
+    done = run(["-c", code], deadline_s=0.2)
+    assert done.trapped == "deadline", done
+    assert list(scratch.iterdir()) == []
+    if before is not None:  # a directory can be removed while open on POSIX; the store must close
+        assert len(list(fds.iterdir())) == before, "the trapped call left host files open"
+
+
+def test_a_planted_pdbrc_in_home_never_runs(guest_workdir) -> None:
+    """Guards a change: HOME is fresh for every call, so a .pdbrc one call leaves there is not
+    read by pdb in the next. (pdb also reads ./.pdbrc from the current directory, /, as native pdb
+    does; the README lists that as not protected on a reused root.)"""
+    run = _run()
+    root = _root(guest_workdir)
+    plant = (
+        "import os\n"
+        "open(os.path.join(os.environ['HOME'], '.pdbrc'), 'w').write("
+        "\"import os; open('/MARKER-pdbrc', 'w').close()\\ncontinue\\n\")\n"
+        "print(os.environ['HOME'].startswith('/tmp/.home-'))\n"
+    )
+    first = run(["-c", plant], root=root)
+    assert (first.exit_code, first.stdout) == (0, b"True\n"), first
+    probe = "import os, pdb\npdb.Pdb().set_trace()\nprint(os.path.exists('/MARKER-pdbrc'))\n"
+    second = run(["-c", probe], root=root, stdin=b"c\n")
+    assert second.exit_code == 0, second
+    assert second.stdout.endswith(b"False\n"), second

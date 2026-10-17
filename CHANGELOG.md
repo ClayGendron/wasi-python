@@ -29,8 +29,11 @@ package becomes a Python exception instead of ending the guest.
   - with no `root`, a call runs in a fresh private directory, removed afterwards;
   - a call has a 60 s deadline, a 1 GiB memory cap and a 16 MiB output cap per stream unless it
     passes others (`None` means no limit); a longer job now ends with `trapped == "deadline"`;
-  - the guest's environment starts from `TMPDIR=/tmp`, `HOME=/tmp`, `PYTHONTZPATH=`, with
-    `env=` laid over it, so `os.environ` is no longer exactly what `env=` gave;
+  - the guest's environment starts from `TMPDIR=/tmp`, `PYTHONTZPATH=` and a `HOME` made
+    fresh for each call (under `/tmp`, removed after it), with `env=` laid over it, so
+    `os.environ` is no longer exactly what `env=` gave;
+  - a call's store is closed when the call ends, trapped or not, so a trapped call no longer
+    holds its guest memory until Python's garbage collector runs;
   - `Completed` gains `truncated`, last, defaulting to `()`.
 - **Planted code never runs:** only the stdlib zip is on `sys.path` and `site` does not run
   (`sys.flags.no_site == 1`), so a module, `.pth` or `pyvenv.cfg` one call leaves in a root is
