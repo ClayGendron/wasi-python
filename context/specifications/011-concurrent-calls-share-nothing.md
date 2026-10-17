@@ -314,3 +314,12 @@ The next call worked in every case that did not abort.
 > And a `KeyboardInterrupt` delivered at the first line of `trampoline` is outside its `try`, and
 > the process aborts. A lock around the slabs, a per-thread or per-store exception slot, and a
 > `try` that covers the whole trampoline would fix these. A reproduction script is available.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39021025565,
+on `eb80c02`): build and judge, verify on macos-15 and ubuntu-24.04 passed; **verify on
+windows-2025 failed** on both cases of `test_ctrl_c_while_the_guest_runs_ends_the_call`, with the
+child's exit code 2 and no output. On Windows, `os.kill(pid, SIGINT)` ends the process with exit
+code 2; it delivers no signal. The check now raises SIGINT in-process with
+`signal.raise_signal`, which every platform delivers to Python's handler. EXECUTED on macOS: both
+cases pass 3 of 3, and the `computes` case still fails on the runner from before this
+specification (−6). The next dry run records Windows.

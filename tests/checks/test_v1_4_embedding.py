@@ -509,7 +509,7 @@ def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) ->
 
 
 CTRL_C = r"""
-import os, signal, threading, time
+import signal, threading, time
 signal.signal(signal.SIGINT, signal.default_int_handler)  # as in a plain script
 import wasi_python
 
@@ -517,7 +517,7 @@ import wasi_python
 def host(frame):
     def later():
         time.sleep(0.5)  # a trigger, not a measurement: the guest is computing by then
-        os.kill(os.getpid(), signal.SIGINT)
+        signal.raise_signal(signal.SIGINT)  # os.kill on Windows would end the process
 
     threading.Thread(target=later, daemon=True).start()
     return b"ok"
