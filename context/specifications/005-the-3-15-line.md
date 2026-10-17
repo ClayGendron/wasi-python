@@ -270,3 +270,14 @@ file, `scripts/line.sh` (sourced by `steps/common.sh` and `python-wasi-cross`, w
 source `common.sh`), so the grammar check lives in one place for the shell; and the `wheel` and
 `three systems` needs now name spec 004 as their provider, since the README's Next list no
 longer has the release workflow as an item.
+
+**The dry run** (EXECUTED, 2026-10-17: https://github.com/ClayGendron/wasi_python/actions/runs/39007135732,
+on `57913ac`, which carries specs 005, 006 and 008): **every job passed.** The build job rebuilt
+the reactor `4e2b2470314ee392…` and the snapshot `c6a791d3960c6398…`, the same bytes as the
+author's machine; the zero-patch step `4 passed`; the judge `118/122 pass · 1 gap · 3 blocked ·
+0 fail`, `277 passed, 8 skipped, 1 xfailed`. Verify on ubuntu-24.04, windows-2025 and macos-15:
+`71/74 pass · 0 gap · 3 blocked · 0 fail` each, and the installed wheel ran a program in one
+call to `Completed(exit_code=0, stdout=b'6\n', …)` on all three. Publish and PyPI were skipped,
+as a dry run must. Earlier dry runs were cancelled or failed for reasons recorded in spec 005's
+and 008's notes (a missing review citation; a staged file moved without its imports; the
+scoreboard keeping a dropped metric).

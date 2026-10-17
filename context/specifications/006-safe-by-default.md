@@ -287,3 +287,14 @@ reactor, `-c pass`, for the build and two variants built from it):
 - Plain `import numpy, pandas` (the build review's finding 4): 4,996,044,326 with this spec,
   4,991,298,112 without the helpers, 4,995,332,324 on spec 005 (EXECUTED, the judge's driver):
   the helpers cost 4.75M, `site.main()`'s path work saved about 4.0M, net +0.71M (+0.014%).
+
+**The dry run** (EXECUTED, 2026-10-17: https://github.com/ClayGendron/wasi_python/actions/runs/39007135732,
+on `57913ac`, which carries specs 005, 006 and 008): **every job passed.** The build job rebuilt
+the reactor `4e2b2470314ee392…` and the snapshot `c6a791d3960c6398…`, the same bytes as the
+author's machine; the zero-patch step `4 passed`; the judge `118/122 pass · 1 gap · 3 blocked ·
+0 fail`, `277 passed, 8 skipped, 1 xfailed`. Verify on ubuntu-24.04, windows-2025 and macos-15:
+`71/74 pass · 0 gap · 3 blocked · 0 fail` each, and the installed wheel ran a program in one
+call to `Completed(exit_code=0, stdout=b'6\n', …)` on all three. Publish and PyPI were skipped,
+as a dry run must. Earlier dry runs were cancelled or failed for reasons recorded in spec 005's
+and 008's notes (a missing review citation; a staged file moved without its imports; the
+scoreboard keeping a dropped metric).
