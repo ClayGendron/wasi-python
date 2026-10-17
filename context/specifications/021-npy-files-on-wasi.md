@@ -194,5 +194,6 @@ superseded line (2); the dry run, pending below (3); the commit on main's head, 
 
 ### Release dry run
 
-Pending: the run after this push covers 021 and 022, the arm64 Linux same-bytes rebuild
-included (criterion 4). Its result is recorded in the acceptance commit's notes.
+Run 39057562574 on `c35d222` (021 accepted; it covers 022 too): every job passed, the arm64
+Linux rebuild from the pins and "the same bytes from every host" included, and the wheel
+verified on Windows, Linux and macOS (criterion 4).
