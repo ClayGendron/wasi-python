@@ -22,6 +22,9 @@ SOURCE_PATTERNS = {
     "numpy": re.compile(r"numpy-[\w.]+\.tar\.gz"),
     "pandas": re.compile(r"pandas-[\w.]+\.tar\.gz"),
     "zlib": re.compile(r"zlib-[\w.]+\.tar\.gz"),
+    "bzip2": re.compile(r"bzip2-[\w.]+\.tar\.gz"),
+    "xz": re.compile(r"xz-[\w.]+\.tar\.gz"),
+    "sqlite": re.compile(r"sqlite-autoconf-\d+\.tar\.gz"),
 }
 
 

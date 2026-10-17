@@ -28,7 +28,7 @@ ORACLE_PROJECT = JOB_DIR / "oracle"
 ORACLE_HOME = paths.BUILD / "oracle"
 LINE_CONF = paths.REPO / "scripts" / "line.conf"
 LINE_PY = paths.REPO / "scripts" / "line.py"
-JOBS = ("numpy_csv", "pandas_csv", "numpy_random")
+JOBS = ("numpy_csv", "pandas_csv", "numpy_random", "compress", "sqlite")
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
 

@@ -318,6 +318,17 @@ A specification that adds them has to decide:
   `mkdir` lock behave there as on macOS is INFERRED from WASI's semantics, not seen.
 - Two guests running at once on one root were not run; the lock is a directory, so it is
   shared through the root (INFERRED).
+- **SQLite's randomness is weak in the guest** (added when spec 007 was built; found by the
+  specification's review, `../reviews/007-sqlite3-bz2-and-lzma-spec-2026-10-17.md`, finding 4,
+  EXECUTED there). `unixRandomness` in `sqlite3.c` reads `/dev/urandom`; a WASI root has none,
+  so it falls back to `time()` in whole seconds and `getpid()`, which is the constant 1 on WASI.
+  Five calls without `root`, back to back, printed two distinct `randomblob(16)` values; a
+  planted zero-byte `/dev/urandom` in a reused root made two calls print the same value. Python's
+  `random`, `secrets`, `os.urandom` and `tempfile` names are unaffected (real entropy through
+  WASI's `random_get`). The fix belongs upstream (constitution §4.1): SQLite could use
+  `getentropy()`, which wasi-libc provides, when `SQLITE_WASI` is set. A recipe-level fix would
+  replace SQLite's randomness hook through its OS-layer API, whose name the embedder-name rule
+  refuses in code; it was weighed and declined. The README states the limit.
 
 ## One line
 

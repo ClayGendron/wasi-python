@@ -24,6 +24,9 @@ PIN_FILES = {
     "numpy-2.5.2.tar.gz": b"numpy source",
     "pandas-3.0.6.tar.gz": b"pandas source",
     "zlib-1.3.1.tar.gz": b"zlib source",
+    "bzip2-1.0.8.tar.gz": b"bzip2 source",
+    "xz-5.8.4.tar.gz": b"xz source",
+    "sqlite-autoconf-3540100.tar.gz": b"sqlite source",
     "python_dateutil-2.9.0.post0-py2.py3-none-any.whl": b"dateutil wheel",
     "tzdata-2026.5-py2.py3-none-any.whl": b"tzdata wheel",
     "six-1.17.0-py2.py3-none-any.whl": b"six wheel",
@@ -35,6 +38,9 @@ PACKAGES = {
     "numpy": "2.5.2",
     "pandas": "3.0.6",
     "zlib": "1.3.1",
+    "bzip2": "1.0.8",
+    "xz": "5.8.4",
+    "sqlite-autoconf": "3540100",
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
@@ -242,6 +248,57 @@ def test_licences_are_checked_for_content_when_the_source_is_downloaded(
     (downloads / "SHA256SUMS").write_text(f"{'0' * 64}  zlib-1.3.1.tar.gz\n")
     errors = paths.licence_errors(good, m)[0]
     assert errors == ["LICENSES/zlib.txt: downloads/zlib-1.3.1.tar.gz does not match its pin"]
+
+
+def _tar(path: Path, top: str, files: dict[str, bytes]) -> None:
+    with tarfile.open(path, "w:gz") as t:
+        for name, data in files.items():
+            info = tarfile.TarInfo(f"{top}/{name}")
+            info.size = len(data)
+            t.addfile(info, io.BytesIO(data))
+
+
+def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeypatch) -> None:
+    """xz's library is under 0BSD, which its top-level COPYING only points to, and SQLite has no
+    licence file: their notices must also hold COPYING.0BSD and the blessing that heads
+    sqlite3.h, read from the pinned tarballs (spec 007's build review, finding 7). SQLite's pin
+    is named sqlite-autoconf, not sqlite."""
+    downloads = work / "downloads"
+    downloads.mkdir()
+    zero_bsd = b"BSD Zero Clause License\n"
+    blessing = b"/*\n** The author disclaims copyright to this source code.  In place of\n*/\n"
+    _tar(
+        downloads / "xz-5.8.4.tar.gz",
+        "xz-5.8.4",
+        {"COPYING": b"xz: see COPYING.0BSD\n", "COPYING.0BSD": zero_bsd},
+    )
+    _tar(
+        downloads / "sqlite-autoconf-3540100.tar.gz",
+        "sqlite-autoconf-3540100",
+        {"sqlite3.h": blessing},
+    )
+    sums = "".join(
+        f"{paths.sha256_file(f)}  {f.name}\n" for f in sorted(downloads.glob("*.tar.gz"))
+    )
+    (downloads / "SHA256SUMS").write_text(sums)
+    monkeypatch.setattr(paths, "DOWNLOADS", downloads)
+    m = paths.parse_manifest(manifest_text())
+    errors, content, presence = paths.licence_errors(good, m)
+    assert "xz" in content and "sqlite" in content and "sqlite" not in presence
+    assert "LICENSES/xz.txt does not contain the licence of xz-5.8.4.tar.gz" in errors
+    assert (
+        "LICENSES/sqlite.txt does not contain the licence of sqlite-autoconf-3540100.tar.gz"
+        in errors
+    )
+    (good / "LICENSES" / "xz.txt").write_bytes(b"xz: see COPYING.0BSD\n" + zero_bsd)
+    (good / "LICENSES" / "sqlite.txt").write_bytes(blessing)
+    errors = paths.licence_errors(good, m)[0]
+    assert not [e for e in errors if "xz" in e or "sqlite" in e], errors
+    (good / "LICENSES" / "xz.txt").write_bytes(b"xz: see COPYING.0BSD\n")  # 0BSD dropped
+    assert (
+        "LICENSES/xz.txt does not contain the licence of xz-5.8.4.tar.gz"
+        in paths.licence_errors(good, m)[0]
+    )
 
 
 def test_an_empty_licence_file_fails(good, work, monkeypatch) -> None:

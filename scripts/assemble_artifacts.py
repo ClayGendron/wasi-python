@@ -25,6 +25,9 @@ PACKAGES = {
     "numpy": "2.5.2",
     "pandas": "3.0.6",
     "zlib": "1.3.1",
+    "bzip2": "1.0.8",
+    "xz": "5.8.4",
+    "sqlite-autoconf": "3540100",  # SQLite 3.54.1, named as its pin names it (spec 007)
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
@@ -89,6 +92,15 @@ def hacl_notice(cp: Path) -> bytes:
     return (text[: end + 2] + "\n").encode()
 
 
+def sqlite_notice(b: Path) -> bytes:
+    """SQLite has no licence file: it is public domain, and its blessing heads each source file."""
+    text = (b / "sqlite-autoconf-3540100" / "sqlite3.h").read_text()
+    end = text.index("*/")
+    if "disclaims copyright" not in text[:end] or "May you do good" not in text[:end]:
+        raise SystemExit("sqlite3.h no longer opens with SQLite's blessing")
+    return (text[: end + 2] + "\n").encode()
+
+
 def main() -> None:
     root = Path(sys.argv[1]).resolve()
     b, d = root / "build", root / "downloads"
@@ -133,6 +145,12 @@ def main() -> None:
             for p in sorted((pd_src / "LICENSES").iterdir())
         ],
         "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
+        "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
+        # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
+        "xz": [
+            (f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")
+        ],
+        "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],

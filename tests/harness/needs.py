@@ -105,7 +105,7 @@ REPRO_MEMO = "context/research/2026-10-16-reproducible-builds-on-linux.md"
 SPEC_002 = "context/specifications/002-the-progress-harness.md"
 SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
 
-SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib")
+SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib", "bzip2", "xz", "sqlite")
 
 VOCABULARY: dict[str, Need] = {
     n.name: n

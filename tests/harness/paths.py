@@ -47,13 +47,27 @@ LICENCE_COMPONENTS = (
     "numpy",
     "pandas",
     "zlib",
+    "bzip2",
+    "xz",
+    "sqlite",  # public domain: its tarball has no licence file, so its blessing is checked
     "python-dateutil",
     "tzdata",
     "six",
     "wasi-libc",
     "llvm-runtimes",
 )
-PACKAGES = ("numpy", "pandas", "zlib", "python-dateutil", "tzdata", "six")
+# SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
+PACKAGES = (
+    "numpy",
+    "pandas",
+    "zlib",
+    "bzip2",
+    "xz",
+    "sqlite-autoconf",
+    "python-dateutil",
+    "tzdata",
+    "six",
+)
 
 # The judge: every file that decides a check's outcome or steers pytest (spec 002, Decision 14).
 JUDGE_PATHS = (
@@ -285,6 +299,28 @@ def _top_level_licence(archive: Path) -> bytes | None:
     return None
 
 
+# Licence text a notice must hold besides the top-level file, read from the same pinned archive
+# (spec 007's build review, finding 7): xz's library is under 0BSD, and SQLite's notice is the
+# blessing at the head of sqlite3.h.
+BLESSING = b"The author disclaims copyright to this source code."
+
+
+def _more_licence(component: str, archive: Path) -> list[bytes]:
+    if component not in ("xz", "sqlite") or archive.suffix in (".whl", ".zip"):
+        return []
+    want = "COPYING.0BSD" if component == "xz" else "sqlite3.h"
+    with tarfile.open(archive) as t:
+        for member in t:
+            parts = member.name.split("/")
+            if len(parts) == 2 and member.isfile() and parts[1] == want:
+                f = t.extractfile(member)
+                data = f.read() if f else b""
+                if component == "xz":
+                    return [data]
+                return [BLESSING] if BLESSING in data else []
+    return []
+
+
 def licence_source(component: str, m: Manifest | None) -> Path | None:
     """The pinned archive whose licence a component's notice must contain: the exact file the
     MANIFEST names, present in downloads/ and matching its pin. None means presence only."""
@@ -297,8 +333,9 @@ def licence_source(component: str, m: Manifest | None) -> Path | None:
     if component == "cpython":
         names = [cpython_pin_name(m.python)] if m.python else []
     else:
-        version = m.packages.get(component)
-        names = [f for f in sorted(pinned) if version and is_version_of(f, component, version)]
+        package = "sqlite-autoconf" if component == "sqlite" else component  # as its pin names it
+        version = m.packages.get(package)
+        names = [f for f in sorted(pinned) if version and is_version_of(f, package, version)]
     for name in names:
         f = DOWNLOADS / name
         if name in pinned and f.is_file():
@@ -322,13 +359,14 @@ def licence_errors(directory: Path, m: Manifest | None) -> tuple[list[str], list
             errors.append(f"LICENSES/{c}.txt: {e}")
             continue
         text = _top_level_licence(src) if src else None
-        if text is None:
+        wanted = ([text] if text is not None else []) + (_more_licence(c, src) if src else [])
+        if not wanted:
             presence.append(c)
-        elif text in f.read_bytes():
-            content.append(c)
-        else:
+            continue
+        content.append(c)
+        body = f.read_bytes()
+        if not all(w in body for w in wanted):
             errors.append(f"LICENSES/{c}.txt does not contain the licence of {src.name}")
-            content.append(c)
     return errors, content, presence
 
 

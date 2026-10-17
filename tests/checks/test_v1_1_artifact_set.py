@@ -143,6 +143,20 @@ def test_no_cpython_test_module_is_built_in(guest) -> None:
     assert (r.exit_code, r.text.strip()) == (0, "[]"), r.text or r.describe()
 
 
+@BINARY
+def test_stdlib_c_modules_are_builtin(guest, which) -> None:
+    """zlib, _bz2, _lzma and _sqlite3 are linked in as builtins (spec 007). A Setup.local line
+    holding `=` is read by makesetup as a Make variable and its module is dropped without an
+    error, so only the guest can say the module is there."""
+    code = (
+        "import sys\n"
+        "want = ('zlib', '_bz2', '_lzma', '_sqlite3')\n"
+        "print([m for m in want if m not in sys.builtin_module_names])\n"
+    )
+    r = guest(which, ["-c", code])
+    assert (r.exit_code, r.text.strip()) == (0, "[]"), r.text or r.describe()
+
+
 def test_wheel_carries_the_artifact_set(artifacts) -> None:
     needs.need("wheel")
     wheels = sorted(paths.DIST.glob("wasi_python-*.whl"))

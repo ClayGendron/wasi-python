@@ -20,7 +20,7 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
 | `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
@@ -38,21 +38,21 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches to CPython, numpy, pandas, zlib | **zero**; every adaptation is a recipe file |
-| build from pinned sources, downloads present | 4 min 19 s |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 29.8 MB / 63.5 MB / 11.1 MB (3.15 line) |
+| upstream patches to CPython, numpy, pandas, zlib, bzip2, xz, SQLite | **zero**; every adaptation is a recipe file |
+| build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.1 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 81.9M guest instructions on 3.15 |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
 | one call, plain reactor, `-c pass` / `import pandas` | 33 ms / 720 ms |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
-| numpy and pandas results vs native, same pins | byte-identical on three golden jobs |
+| numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on five golden jobs |
 
 The platform's facts, documented rather than patched, are what `python.wasm
 -V` prints after its version:
 
-> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, sqlite3, bz2 or lzma; compute about 1.3 to 2.3 times slower than native)
+> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
 
 So `np.arange(1_000_000).sum()` wraps (use `dtype=np.int64`). A C++
 `throw` inside a package (numpy's FFT, for one) is caught as in native
@@ -77,6 +77,50 @@ is stopped by fuel loses what it printed since its last flush; run it with
 - it is the same bytes on every build, from any supported build host: while
   it initializes, the clocks, entropy and file metadata (a directory's size
   and link count included) answer constants, and no program ever sees them.
+
+### sqlite3 in the guest
+
+`sqlite3`, `bz2` and `lzma` are built in. `bz2`, `lzma` and `tarfile`'s
+`bz2` and `xz` modes write the same bytes as native Python. `sqlite3` has
+native's feature set (FTS3/4/5, R-tree, Geopoly, math functions, dbstat,
+percentile) and gives native's results, except two kinds. SQLite's math
+functions follow the guest's C library, so their last digits can differ:
+over 199 inputs each, the trigonometric and hyperbolic functions, `atan2`,
+`log10` and one-argument `log` did, and `exp`, `ln` and `sqrt` did not.
+And what changed between SQLite releases (native's is 3.53.1) shows, such
+as JSON's float text. WASI has no file locks, so SQLite uses its own WASI default,
+and these facts follow from it:
+
+- one connection holds the database, through a `<db>.lock` directory beside
+  it, while it writes or has a statement open (an unfinished `SELECT`
+  included); a second connection, even in the same program, then gets
+  "database is locked" after its busy timeout (5 s by default);
+- `journal_mode=wal` silently stays `delete`, unless the connection first
+  sets `locking_mode=exclusive`;
+- a guest stopped inside a transaction (killed, out of fuel, past its
+  deadline, or by a hard exit such as `os._exit`) leaves `<db>.lock` and a hot journal; in a
+  reused root the embedder removes the lock directory, and SQLite then rolls
+  the journal back; a call without `root` never sees a stale lock, since its
+  root is fresh;
+- SQLite's own randomness (`random()`, `randomblob()`, its temporary file
+  names) is seeded from the time in whole seconds, because the guest has no
+  `/dev/urandom` (the process id is always 1 on WASI): two calls in the same
+  second repeat it, and a `/dev/urandom` planted in a reused root sets it;
+  use `secrets`, `uuid.uuid4()` or `os.urandom` for IDs, which use real
+  entropy;
+- a database in a read-only directory opens only through a URI that takes
+  no lock (`uri=True`), such as `file:<path>?immutable=1` or
+  `file:<path>?nolock=1`, because the lock is a directory made beside it;
+  `mode=ro` alone is not enough;
+- no `load_extension`; `sqlite3.threadsafety` is 0 (native: 3);
+- `sysconfig` reports `_bz2` and `_lzma` as missing, `_sqlite3` as
+  disabled and `PY_SQLITE_HAVE_SERIALIZE` as 0, because they are linked in
+  through `Setup.local`, which CPython's `configure` never sees; all three
+  import, and `Connection.serialize` works;
+- `shelve` and `dbm` now create `dbm.sqlite3` files, as native does, so a
+  shelf holds the lock directory too.
+
+Temporary data goes to files under `TMPDIR` (`/tmp` by default in `run`).
 
 ## Hosts
 
@@ -108,14 +152,15 @@ One command, from pinned inputs, with no source tree patched:
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # ten steps, one line each; logs in build/logs/
+scripts/build.sh         # eleven steps, one line each; logs in build/logs/
 ```
 
 The steps (`scripts/steps/`): unpack the toolchain and a pinned host Python
 (CPython 3.15.0 from python-build-standalone) and install the build tools from
 hashed wheels, offline; build CPython with its own `Platforms/WASI` driver;
 build zlib, numpy and pandas outside their source trees, cross-compiling with
-meson; link everything into one interpreter as builtin modules and relink it
+meson, and the C libraries behind `bz2`, `lzma` and `sqlite3` (bzip2, liblzma
+from xz with xz's own `configure`, and SQLite's one-file amalgamation); link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
 the reactor with the pinned wasmtime's own `wasmtime wizer`, numpy and pandas
 pre-imported; assemble
@@ -161,7 +206,10 @@ the guest, and Apple clang and gcc 14.2 give the same artifact bytes
 also runs host tools that move or check bytes and are not pinned either:
 `curl`, `shasum` (perl's), `tar`, `xz`, `sed`, `uv` (it installs the pinned
 wheels, offline, by hash) and `git` (it lists the recipes for `MANIFEST`). The
-release workflow prints each runner's versions of them.
+release workflow prints each runner's versions of them. xz's own `configure`,
+which configures liblzma, also runs the host's shell tools (`sh`, `sed`,
+`grep`, `awk`); the same-bytes gate is what shows they leave the artifacts
+alone.
 
 ## Releasing
 
@@ -350,7 +398,13 @@ same process using wasmtime-py directly, whose exceptions can reach a
 trapping `run` through wasmtime-py's shared exception slot; an `env=` that
 overrides `HOME` or `PYTHONTZPATH` on a reused root (pdb then reads a
 `.pdbrc`, and `zoneinfo` a zone file, that a guest may have planted there);
-`stdin`, which is written to a host temporary file of its size; an `argv`
+`stdin`, which is written to a host temporary file of its size; SQLite's own
+randomness (`random()`, `randomblob()`, its temporary names), which is seeded
+from the clock's whole second because the guest has no `/dev/urandom`, so two
+calls in the same second repeat it and a `/dev/urandom` planted in a reused
+root sets it (Python's `random`, `secrets`, `os.urandom` and `tempfile` names
+use real entropy); a stale SQLite lock and hot journal left in a reused root
+by a guest stopped inside a transaction (see *sqlite3 in the guest*); an `argv`
 or `env` larger than the guest's memory, which exits 1 with empty stderr;
 timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
@@ -358,13 +412,15 @@ timing
 ## Scope
 
 **In the first release:** CPython, numpy, pandas, zlib, python-dateutil,
-tzdata, six, the host door, the snapshot.
+tzdata, six, the host door, the snapshot. **Since then:** `sqlite3`, `bz2` and
+`lzma` (SQLite 3.54.1, bzip2 1.0.8, liblzma from xz 5.8.4).
 
 **Out, with the one fact that decides each:** matplotlib (its data folder
 needs a decision on the guest's filesystem; then FreeType, HarfBuzz, qhull,
 kiwisolver, contourpy, Pillow); scipy (Fortran: f2c as Pyodide does; months);
-threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`, `_sqlite3`, bz2,
-lzma; pip inside the guest.
+threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
+(`compression.zstd`: libzstd needs its own research and licence approval);
+SQLite's `load_extension` (WASI has no `dlopen`); pip inside the guest.
 
 ## Next
 

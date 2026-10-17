@@ -1,0 +1,38 @@
+versions python=3.15 pandas=3.0.6
+group north 12 1734.71 144.559167 169.65
+group south 12 1714.62 142.885 166.24
+group west 12 1697.32 141.443333 163.12
+rolled back IntegrityError
+after 36
+total 5149.65
+json [{'region': 'north', 'n': 12}, {'region': 'south', 'n': 12}, {'region': 'west', 'n': 12}]
+json_extract c
+window north 1 1 1 1 None
+window north 2 2 4 3 1
+window north 3 3 7 6 2
+window north 4 4 10 10 3
+window north 5 5 13 15 4
+window north 6 6 16 21 5
+moving north 1 126.62 126.62
+moving north 2 133.99 260.61
+moving north 3 155.21 415.82
+moving south 1 108.53 108.53
+moving south 2 146.48 255.01
+moving south 3 143.67 398.68
+moving west 1 113.51 113.51
+moving west 2 118.1 231.61
+moving west 3 110.5 342.11
+math 1.41421356 2.71828183 2.30258509 1.41421356 71.7610619
+fts5 'grew' [1, 3]
+fts5 'spring AND west' [3]
+fts5 'region NOT grew' [2]
+fts5 '"the spring"' [1, 3]
+spill 3000 2ac6265a7a409d07f725e4014d291539
+spill sum (3000, 3072000)
+to_sql 36
+  region   n    total  last
+0  north  12  1734.71    12
+1  south  12  1714.62    12
+2   west  12  1697.32    12
+frame equal True
+files ['jobs.db']

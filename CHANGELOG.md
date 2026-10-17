@@ -4,6 +4,31 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
+## 0.1.0a3 — unreleased
+
+- **sqlite3, bz2 and lzma are built in**, from three new pins (SQLite 3.54.1, bzip2 1.0.8,
+  liblzma from xz 5.8.4), with no upstream patch. `bz2`, `lzma` and `tarfile`'s `bz2` and `xz`
+  modes write the same bytes as native; `sqlite3` gives native's results, except the last digits
+  of its math functions (trigonometric, hyperbolic, `atan2`, `log10`, one-argument `log`), which
+  follow the guest's C library, and what changed since native's SQLite 3.53.1, such as JSON's
+  float text; it has the native feature set (FTS3/4/5, R-tree, Geopoly, math functions,
+  dbstat, percentile). `shelve` and `dbm` now create `dbm.sqlite3` files, as native does. `-V`
+  now says "no ctypes, mmap, sockets, ssl or zstd": `compression.zstd` is the compression module
+  still missing.
+- **SQLite's limits in the guest** (the README's *sqlite3 in the guest*): one connection holds
+  the database, through a `<db>.lock` directory beside it, while it writes or has a statement
+  open, so a second connection gets "database is locked" after its busy timeout (5 s by
+  default); `journal_mode=wal` stays `delete` unless `locking_mode=exclusive`; a guest stopped
+  inside a transaction (killed, out of fuel, past its deadline, or by `os._exit`) leaves the
+  lock and a hot journal in a reused root for the embedder to remove; SQLite's own
+  `random()`, `randomblob()` and temporary names are seeded from the clock's second, so use
+  `secrets`, `uuid.uuid4()` or `os.urandom` for IDs; a database in a read-only directory opens
+  only through a URI that takes no lock, such as `file:<path>?immutable=1`; no
+  `load_extension`; `sqlite3.threadsafety` is 0.
+- **Sizes:** the three libraries add about 2 MB to `python.wasm` (SQLite is most of it); the zip
+  is unchanged. `import bz2` and `import lzma` cost nothing more on the snapshot, which already
+  holds them; `import sqlite3` is not pre-imported.
+
 ## 0.1.0a2 — 2026-10-17
 
 The second alpha moves the line to CPython 3.15.0 and wasi-sdk 33, so a C++ exception inside a
@@ -81,7 +106,6 @@ package becomes a Python exception instead of ending the guest.
   host-neutral sysroot and builtins, and the build sorts in the C locale, so `python.wasm`'s hash
   changes. Inside the guest, `sysconfig` and `numpy.show_config()` name the build machine
   `build`. `MANIFEST`'s `pin` lines now list every supported build host's inputs.
-
 ## 0.1.0a1 — 2026-10-17
 
 The first alpha: CPython 3.14.8 for `wasm32-wasip1` with numpy 2.5.2 and pandas 3.0.6 compiled

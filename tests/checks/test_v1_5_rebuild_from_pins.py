@@ -60,7 +60,7 @@ def test_pure_python_packages_are_pinned() -> None:
     assert not errors, scan.report(errors)
 
 
-@pytest.mark.parametrize("component", ["cpython", "numpy", "pandas", "zlib"])
+@pytest.mark.parametrize("component", needs.SOURCE_COMPONENTS)
 def test_source_tree_matches_its_tarball(component) -> None:
     needs.need(f"source tree {component}")
     tarball, tree = pins.source_pair(component)

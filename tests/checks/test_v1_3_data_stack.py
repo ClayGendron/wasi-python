@@ -55,6 +55,72 @@ def test_random_matches_native(guest) -> None:
     assert why is None, why
 
 
+@pytest.mark.slow
+def test_compress_job_matches_native(guest) -> None:
+    """bz2, lzma and tarfile write the same bytes as native (spec 007)."""
+    why = jobs.compare(jobs.expected_path("compress").read_bytes(), _run_job(guest, "compress"))
+    assert why is None, why
+
+
+@pytest.mark.slow
+def test_sqlite_job_matches_native(guest) -> None:
+    """sqlite3 on a file, with a forced spill to temporary files, and pandas' to_sql and read_sql
+    give native's results (spec 007)."""
+    why = jobs.compare(jobs.expected_path("sqlite").read_bytes(), _run_job(guest, "sqlite"))
+    assert why is None, why
+
+
+SQLITE_LOCK = """
+import os, sqlite3
+db = "/work/t.db"
+os.makedirs("/work")
+a = sqlite3.connect(db, isolation_level=None)
+a.execute("create table t(x)")
+a.executemany("insert into t values (?)", [(i,) for i in range(10)])
+
+def probe(label):
+    b = sqlite3.connect(db, timeout=0, isolation_level=None)
+    try:
+        got = b.execute("select count(*) from t").fetchone()[0]
+        b.execute("insert into t values (-1)")
+    except sqlite3.OperationalError as e:
+        got = str(e)
+    b.close()
+    print(label, os.path.isdir(db + ".lock"), got)
+
+a.execute("begin immediate")
+a.execute("insert into t values (99)")
+probe("write")
+a.execute("commit")
+cur = a.execute("select x from t")
+cur.fetchone()
+probe("select")
+cur.close()
+probe("closed")
+print("first", a.execute("select count(*) from t").fetchone()[0])
+a.close()
+probe("after")
+"""
+
+
+def test_sqlite_holds_a_lock_while_it_writes(guest) -> None:
+    """SQLite's own default locking on WASI is a `<db>.lock` directory beside the database, held
+    while a connection writes or has a statement open; another connection then gets "database is
+    locked" (at once with timeout=0; after its busy timeout otherwise). The README states it
+    (spec 007, Decision 8), and this check holds that default: a future pin that chose another
+    locking would fail here."""
+    r = guest("snapshot", ["-c", SQLITE_LOCK])
+    assert r.exit_code == 0, r.describe()
+    want = (
+        "write True database is locked\n"
+        "select True database is locked\n"
+        "closed False 11\n"
+        "first 12\n"
+        "after False 12\n"
+    )
+    assert r.text == want, r.text
+
+
 def test_longdouble_parses(guest) -> None:
     code = (
         "import numpy as np\n"

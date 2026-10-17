@@ -31,7 +31,8 @@ STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
 FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy/pandas test subsets",
-    "licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · "
+    "licence content of wasi-libc, llvm-runtimes and unpinned components "
+    "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree",
 )
 # An accepted pass blocked by one of these is red: a product (artifact, runner, wheel) went missing,

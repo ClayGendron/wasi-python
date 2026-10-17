@@ -1,0 +1,13 @@
+versions python=3.15
+payload 97248 ee1e501663e5cc7967c6c4fbd9e3b347
+bz2 level 1 68382 191f7552d084c7f6021a13d1e0b3d71a round-trip True
+bz2 level 9 68382 f1d4fda3a8ccb898d367cf77dc7aece9 round-trip True
+bz2 incremental level 5 68382 e9d3bef78c1ff31dc068208116f4d23a round-trip True
+xz preset 6 crc64 66996 a3bd03c52cac8e28a1b871ba8512de72 round-trip True
+xz preset 9e sha256 67020 9ebfca735b4724f7cfd9e7cab778341e round-trip True
+xz preset 0 none 67052 5525daf3a0d634807021de01c5f538d5 round-trip True
+lzma alone 67031 eb9d1a06040662fc60f1c7d73b547fd3 round-trip True
+raw delta+lzma2 66872 dc61ea65cfbba0e5b92a16ee9df51451 round-trip True
+tar.bz2 66783 e12e42e115afa6208892d23977114c70 round-trip True
+tar.xz 66908 9f621e976f53abab375c430cb4474f1a round-trip True
+zip bzip2+lzma 135617 553022dae88dc29349001090737d2a0a round-trip True
