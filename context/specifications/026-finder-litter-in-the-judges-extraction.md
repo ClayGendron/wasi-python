@@ -1,6 +1,6 @@
 # 026 — Finder litter in the judge's own extraction
 
-- **Status:** built and reviewed 2026-10-17 (`../reviews/026-finder-litter-in-the-judges-extraction-2026-10-17.md`).
+- **Status:** landed 2026-10-17; reviewed (`../reviews/026-finder-litter-in-the-judges-extraction-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the judge's harness (`tests/harness/pins.py`), a unit check in
   `tests/unit/test_patches.py`.
@@ -64,3 +64,7 @@ failed first with `['.DS_Store: missing', 'sub/Thumbs.db: missing']` and passes 
 Revised against the build review: a tarball-shipped `.DS_Store` is still compared (a check, and
 the surviving mutant now fails it), and a patch may not touch a litter name (a new rule in
 `patch_shape_errors`, with its check). 39 passed.
+
+Run 39066694075 on `cb0c5a6` (025 and 026 accepted): every job passed, the arm64 Linux rebuild
+from the pins and "the same bytes from every host" included, and the wheel verified on Windows,
+Linux and macOS.

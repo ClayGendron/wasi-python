@@ -242,7 +242,7 @@ macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an ar
 and `same-bytes` requires its `SHA256SUMS` to equal the set's, byte for byte; nothing is signed
 or published until it passes. x86_64 Linux is not in this gate yet (above). Then it publishes
 a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
-their `SHA256SUMS`. PyPI upload is off until the trusted publisher is set up. A manual run of
+their `SHA256SUMS`, and uploads the wheel to PyPI as `wasi-python` through its trusted publisher (from 0.1.0a3). A manual run of
 the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).
 
 Before publishing, an `attest` job signs build provenance for every asset and verifies it

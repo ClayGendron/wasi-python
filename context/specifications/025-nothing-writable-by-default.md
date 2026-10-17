@@ -1,6 +1,6 @@
 # 025 — Nothing writable by default
 
-- **Status:** built and reviewed 2026-10-17 (`../reviews/025-nothing-writable-by-default-2026-10-17.md`, which is also §5.6's security review of this change).
+- **Status:** landed 2026-10-17; reviewed (`../reviews/025-nothing-writable-by-default-2026-10-17.md`, which is also §5.6's security review of this change).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: `run`, `run_async`, `_check_root`), the
   command line (`src/wasi_python/cli.py`), judge changes in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -123,4 +123,6 @@ Disposition: the dry run (below); the README's sqlite item (fixed); `--private-r
 
 ### Release dry run
 
-Pending: the run after this push, cited here when it finishes.
+Run 39066694075 on `cb0c5a6` (025 and 026 accepted): every job passed, the arm64 Linux rebuild
+from the pins and "the same bytes from every host" included, and the wheel verified on Windows,
+Linux and macOS. (criterion 4)
