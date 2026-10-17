@@ -1,0 +1,47 @@
+# sh check_modes.sh <shell> <work> [steps]: plain output vs the replayed final terminal screen, counting clock
+== /bin/dash, steps: a_fetch b_compile c_fails
+plain exit 1
+tty exit 1
+final screen == plain output (24 lines)
+redraws on the terminal: 27 carriage returns
+== /bin/dash, steps: a_fetch b_compile
+plain exit 0
+tty exit 0
+final screen == plain output (4 lines)
+redraws on the terminal: 6 carriage returns
+== /bin/bash, steps: a_fetch b_compile c_fails
+plain exit 1
+tty exit 1
+final screen == plain output (24 lines)
+redraws on the terminal: 93 carriage returns
+== /bin/bash, steps: a_fetch b_compile
+plain exit 0
+tty exit 0
+final screen == plain output (4 lines)
+redraws on the terminal: 67 carriage returns
+
+--- plain output of the failing build (dash), which the terminal's final screen equals:
+ok a_fetch: fetch: 3 pins verified [7s]
+ok b_compile: compile: 8 objects, 4096 bytes [7s]
+ERROR c_fails: exit 1 after 7s; the last 20 lines of logs/c_fails.log:
+  | noise line 12 mentions strerror
+  | noise line 13 mentions strerror
+  | noise line 14 mentions strerror
+  | noise line 15 mentions strerror
+  | noise line 16 mentions strerror
+  | noise line 17 mentions strerror
+  | noise line 18 mentions strerror
+  | noise line 19 mentions strerror
+  | noise line 20 mentions strerror
+  | noise line 21 mentions strerror
+  | noise line 22 mentions strerror
+  | noise line 23 mentions strerror
+  | noise line 24 mentions strerror
+  | noise line 25 mentions strerror
+  | noise line 26 mentions strerror
+  | noise line 27 mentions strerror
+  | noise line 28 mentions strerror
+  | noise line 29 mentions strerror
+  | noise line 30 mentions strerror
+  | ERROR: link failed: undefined symbol: __cxa_throw
+ERROR c_fails: ERROR: link failed: undefined symbol: __cxa_throw (log: logs/c_fails.log)

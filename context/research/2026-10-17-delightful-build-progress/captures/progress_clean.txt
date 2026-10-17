@@ -1,0 +1,4 @@
+# sh -c '. prototype/progress.sh; printf <line with ESC[31m and U+276F> | progress_clean | od -c'
+0000000    r   e   d       [   3   1   m   X   [   0   m       a   n   d
+0000020            m   a   k   e  \n                                    
+0000027

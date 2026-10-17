@@ -1,0 +1,9 @@
+<CR>
+[0/4] SLOW a<ESC>[K<CR>
+[1/4] SLOW a<ESC>[K<CR>
+[1/4] SLOW b<ESC>[K<CR>
+[2/4] SLOW b<ESC>[K<CR>
+[2/4] SLOW c<ESC>[K<CR>
+[3/4] SLOW c<ESC>[K<CR>
+[3/4] SLOW d<ESC>[K<CR>
+[4/4] SLOW d<ESC>[K

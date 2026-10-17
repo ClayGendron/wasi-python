@@ -1,0 +1,14 @@
+# stat -f '%m %N' build/logs/<step>.log (2026-10-17 build): each log's last write is its step's end;
+# a step's duration is its end minus the previous step's end (00_download has no earlier mark).
+00_download     -
+10_tools          17s
+20_cpython       182s
+30_zlib            2s
+35_stdlib_libs    36s
+40_numpy          41s
+50_pandas         43s
+60_link           14s
+70_zip             5s
+80_snapshot        5s
+90_artifacts       0s
+10..90 total: 345s

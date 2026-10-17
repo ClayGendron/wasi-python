@@ -1,0 +1,39 @@
+# What build.sh's failure line would quote for each of today's (successful) logs:
+#   grep -E 'ERROR|[Ee]rror' build/logs/<step>.log | tail -n 1 | cut -c1-160
+00_download     
+10_tools        
+20_cpython      
+30_zlib         Checking for strerror... Yes.
+35_stdlib_libs  
+40_numpy        
+50_pandas       
+60_link         
+70_zip          
+80_snapshot     
+90_artifacts    
+
+# Progress the step logs already carry (ninja's non-terminal '[n/N]' lines; CPython driver phase lines):
+00_download     ninja-lines=0 phase-lines=0
+10_tools        ninja-lines=0 phase-lines=0
+20_cpython      ninja-lines=0 phase-lines=7
+30_zlib         ninja-lines=0 phase-lines=0
+35_stdlib_libs  ninja-lines=0 phase-lines=0
+40_numpy        ninja-lines=331 phase-lines=0
+50_pandas       ninja-lines=154 phase-lines=0
+60_link         ninja-lines=0 phase-lines=0
+70_zip          ninja-lines=0 phase-lines=0
+80_snapshot     ninja-lines=0 phase-lines=0
+90_artifacts    ninja-lines=0 phase-lines=0
+
+# Bytes a live tail would send to a terminal: ESC bytes (tr -cd '\033' | wc -c) and lines with a byte >= 0x80 (LC_ALL=C awk)
+00_download     esc=0 non-ascii-lines=0
+10_tools        esc=0 non-ascii-lines=0
+20_cpython      esc=0 non-ascii-lines=31
+30_zlib         esc=0 non-ascii-lines=0
+35_stdlib_libs  esc=0 non-ascii-lines=0
+40_numpy        esc=0 non-ascii-lines=0
+50_pandas       esc=0 non-ascii-lines=0
+60_link         esc=0 non-ascii-lines=0
+70_zip          esc=0 non-ascii-lines=0
+80_snapshot     esc=0 non-ascii-lines=0
+90_artifacts    esc=0 non-ascii-lines=0

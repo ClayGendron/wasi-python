@@ -1,0 +1,67 @@
+<CR>
+<ESC>[K<ESC>[1m| a_fetch  0s    [1/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-1.tar.gz<ESC>[0m
+<ESC>[2A<CR>
+<ESC>[K<ESC>[1m/ a_fetch  0s    [1/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-1.tar.gz<ESC>[0m
+<ESC>[2A<CR>
+<ESC>[K<ESC>[1m- a_fetch  0s    [1/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-1.tar.gz<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-2.tar.gz<ESC>[0m
+<ESC>[3A<CR>
+<ESC>[K<ESC>[1m\ a_fetch  1s    [1/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-1.tar.gz<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-2.tar.gz<ESC>[0m
+<ESC>[K<ESC>[2m  | have pin-3.tar.gz<ESC>[0m
+<ESC>[4A<CR>
+<ESC>[J<ESC>[32mok<ESC>[0m a_fetch: fetch: 3 pins verified [7s]
+<CR>
+<ESC>[K<ESC>[1m| b_compile  0s  [1/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [1/8] Compiling C object lib/part1.c.o<ESC>[0m
+<ESC>[2A<CR>
+<ESC>[K<ESC>[1m/ b_compile  0s  [1/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [1/8] Compiling C object lib/part1.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [2/8] Compiling C object lib/part2.c.o<ESC>[0m
+<ESC>[3A<CR>
+<ESC>[K<ESC>[1m- b_compile  0s  [2/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [1/8] Compiling C object lib/part1.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [2/8] Compiling C object lib/part2.c.o<ESC>[0m
+<ESC>[3A<CR>
+<ESC>[K<ESC>[1m\ b_compile  1s  [3/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [1/8] Compiling C object lib/part1.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [2/8] Compiling C object lib/part2.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [3/8] Compiling C object lib/part3.c.o<ESC>[0m
+<ESC>[4A<CR>
+<ESC>[K<ESC>[1m| b_compile  1s  [4/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [1/8] Compiling C object lib/part1.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [2/8] Compiling C object lib/part2.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [3/8] Compiling C object lib/part3.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [4/8] Compiling C object lib/part4.c.o<ESC>[0m
+<ESC>[5A<CR>
+<ESC>[K<ESC>[1m/ b_compile  1s  [5/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [2/8] Compiling C object lib/part2.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [3/8] Compiling C object lib/part3.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [4/8] Compiling C object lib/part4.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [5/8] Compiling C object lib/part5.c.o<ESC>[0m
+<ESC>[5A<CR>
+<ESC>[K<ESC>[1m- b_compile  1s  [6/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [3/8] Compiling C object lib/part3.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [4/8] Compiling C object lib/part4.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [5/8] Compiling C object lib/part5.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [6/8] Compiling C object lib/part6.c.o<ESC>[0m
+<ESC>[5A<CR>
+<ESC>[K<ESC>[1m\ b_compile  2s  [7/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [4/8] Compiling C object lib/part4.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [5/8] Compiling C object lib/part5.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [6/8] Compiling C object lib/part6.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [7/8] Compiling C object lib/part7.c.o<ESC>[0m
+<ESC>[5A<CR>
+<ESC>[K<ESC>[1m| b_compile  2s  [8/8]  [2/2]<ESC>[0m
+<ESC>[K<ESC>[2m  | [5/8] Compiling C object lib/part5.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [6/8] Compiling C object lib/part6.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [7/8] Compiling C object lib/part7.c.o<ESC>[0m
+<ESC>[K<ESC>[2m  | [8/8] Compiling C object lib/part8.c.o<ESC>[0m
+<ESC>[5A<CR>
+<ESC>[J<ESC>[32mok<ESC>[0m b_compile: compile: 8 objects, 4096 bytes [7s]
+done: 2 steps in 35s
+next: uv run pytest -m "not slow"

@@ -1,0 +1,21 @@
+<ESC>[2mUsing Python 3.14.2 environment at: <scratch>/venv<ESC>[0m
+<ESC>[37m⠋<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠋<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠋<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2mResolving dependencies...                                                     <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2msix==1.17.0                                                                   <ESC>[0m<CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2m                                                                              <ESC>[0m<CR>
+<ESC>[2K<ESC>[2mResolved <ESC>[1m1 package<ESC>[0m <ESC>[2min 0.88ms<ESC>[0m<ESC>[0m
+<ESC>[37m⠋<ESC>[0m <ESC>[2mPreparing packages...<ESC>[0m (0/0)                                                   <CR>
+<ESC>[2K<ESC>[37m⠋<ESC>[0m <ESC>[2mPreparing packages...<ESC>[0m (0/1)                                                   <CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2mPreparing packages...<ESC>[0m (0/1)                                                   <CR>
+<ESC>[2K<ESC>[37m⠙<ESC>[0m <ESC>[2m<ESC>[0m (1/1)                                                                        <CR>
+<ESC>[2K<ESC>[2mPrepared <ESC>[1m1 package<ESC>[0m <ESC>[2min 2ms<ESC>[0m<ESC>[0m
+░░░░░░░░░░░░░░░░░░░░ [0/0] <ESC>[2mInstalling wheels...                                 <ESC>[0m<CR>
+<ESC>[2K░░░░░░░░░░░░░░░░░░░░ [0/1] <ESC>[2mInstalling wheels...                                 <ESC>[0m<CR>
+<ESC>[2K░░░░░░░░░░░░░░░░░░░░ [0/1] <ESC>[2msix==1.17.0 (from file:///Users/claygendron/Git/Repos<ESC>[0m<CR>
+<ESC>[2K████████████████████ [1/1] <ESC>[2msix==1.17.0 (from file:///Users/claygendron/Git/Repos<ESC>[0m<CR>
+<ESC>[2K<ESC>[2mInstalled <ESC>[1m1 package<ESC>[0m <ESC>[2min 1ms<ESC>[0m<ESC>[0m
+ <ESC>[32m+<ESC>[39m <ESC>[1msix<ESC>[0m<ESC>[2m==1.17.0 (from file://<repo>/downloads/six-1.17.0-py2.py3-none-any.whl)<ESC>[0m

@@ -29,6 +29,12 @@ the commit in the memo that cites it.
 | `wasi-virt` | virtualizing a component's filesystem; the post-preview1 direction | Apache-2.0 with LLVM exception | 448f6df |
 | `wasi-vfs` | a read-only file tree packed into a preview1 module: link-time override of wasi-libc's WASI imports, `pack` as a Wizer run | Apache-2.0 (`LICENSE`; `Cargo.toml` says Apache-2.0 WITH LLVM-exception) | 0f4db4b (v0.6.3) |
 | `openblas` (`develop`, cloned 2026-10-17, deepened to 470 commits) | C LAPACK's one return convention (pull requests #6008 to #6082), `ctest.c`, `common.h`, `driver/others/memory.c` | BSD-3-Clause | 0fee0ebe |
+| `ninja` (cloned 2026-10-17) | build progress: `src/line_printer.cc` (smart terminal, `NO_COLOR`), `src/status_printer.cc` (`NINJA_STATUS`, ETA from the previous run's `.ninja_log`) | Apache-2.0 (`COPYING`) | 48bfd165 |
+| `cargo` (cloned 2026-10-17, sparse) | build progress: `src/util/progress.rs` (the `Building [==>  ] n/N` bar, its throttle, OSC 9;4), `crates/cargo-util-terminal/src/shell.rs` (`progress_supported`), `crates/cargo-util/src/lib.rs` (`is_ci`) | MIT OR Apache-2.0 | 3022244f |
+| `uv` (cloned 2026-10-17, sparse) | build progress: `crates/uv-command-support/src/{printer,progress}.rs` (indicatif spinners and bars; plain lines when hidden), `crates/uv-install-operations/src/reporters.rs` | MIT OR Apache-2.0 | 968598af |
+| `buildkit` (cloned 2026-10-17, sparse) | build progress: `util/progress/progressui/` (auto, tty, plain, rawjson, quiet; the rolling log tail; the error-log replay) | Apache-2.0 | 64aefaef |
+| `brew` (cloned 2026-10-17, sparse) | build progress: `utils/output.rb` (`==>`), `utils/tty.rb` (colour, synchronized update), `download_queue.rb` (spinner, per-download bars), `env_config.rb` (`NO_EMOJI`, `INSTALL_BADGE`) | BSD-2-Clause | 013821de |
+| `pnpm` (cloned 2026-10-17, sparse) | build progress: `pnpm/crates/cli/src/cli_args/reporter.rs` (default, append-only, ndjson, silent), `pnpm/crates/default-reporter/src/` (append-only off a terminal, ten-line lifecycle tail) | MIT | e7cfcbb2 |
 
 Removed: `bashkit` (everruns/bashkit; no licence file in the clone).
 Its Wizer snapshot of CPython 3.14 and its HTTP door are studied

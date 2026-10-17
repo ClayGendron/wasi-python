@@ -1,0 +1,4 @@
+/bin/dash: background job died SIGINT
+/bin/sh: background job died SIGINT
+/bin/bash: background job died SIGINT
+/bin/zsh: background job survived SIGINT

@@ -1,0 +1,4 @@
+[1/4  25% eta 00:03 pred  24%] SLOW a
+[2/4  50% eta 00:02 pred  50%] SLOW b
+[3/4  75% eta 00:01 pred  75%] SLOW c
+[4/4 100% eta 00:00 pred 100%] SLOW d

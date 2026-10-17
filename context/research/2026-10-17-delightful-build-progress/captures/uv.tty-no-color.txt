@@ -1,0 +1,21 @@
+Using Python 3.14.2 environment at: <scratch>/venv
+⠋ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠙ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠋ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠙ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠋ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠙ Resolving dependencies...                                                     <CR>
+<ESC>[2K⠙ six==1.17.0                                                                   <CR>
+<ESC>[2K⠙                                                                               <CR>
+<ESC>[2KResolved 1 package in 0.81ms
+⠋ Preparing packages... (0/0)                                                   <CR>
+<ESC>[2K⠋ Preparing packages... (0/1)                                                   <CR>
+<ESC>[2K⠙ Preparing packages... (0/1)                                                   <CR>
+<ESC>[2K⠙  (1/1)                                                                        <CR>
+<ESC>[2KPrepared 1 package in 1ms
+░░░░░░░░░░░░░░░░░░░░ [0/0] Installing wheels...                                 <CR>
+<ESC>[2K░░░░░░░░░░░░░░░░░░░░ [0/1] Installing wheels...                                 <CR>
+<ESC>[2K░░░░░░░░░░░░░░░░░░░░ [0/1] six==1.17.0 (from file:///Users/claygendron/Git/Repos<CR>
+<ESC>[2K████████████████████ [1/1] six==1.17.0 (from file:///Users/claygendron/Git/Repos<CR>
+<ESC>[2KInstalled 1 package in 1ms
+ + six==1.17.0 (from file://<repo>/downloads/six-1.17.0-py2.py3-none-any.whl)

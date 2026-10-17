@@ -1,0 +1,9 @@
+# uv run --no-project python -I interrupt_probe.py <shell> demo.sh <work>: ^C on a real pty during a step
+/bin/dash: exit 130
+  last line: INTERRUPTED d_long (log: logs/d_long.log)
+  step's sleep left running: no
+  ticker left running: no
+/bin/bash: exit 130
+  last line: INTERRUPTED d_long (log: logs/d_long.log)
+  step's sleep left running: no
+  ticker left running: no
