@@ -439,23 +439,26 @@ def _instance(
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
     keys = _send_outputs(wasi, out, err)
+    scratch = tempfile.mkdtemp(prefix="wasi-python-")  # 0700, this user's own
     try:
-        with tempfile.TemporaryDirectory(prefix="wasi-python-") as scratch:
-            stdin_path = Path(scratch) / "stdin"
-            stdin_path.write_bytes(stdin or b"")
-            wasi.stdin_file = str(stdin_path)
-            store.set_wasi(wasi)
-            linker = _linker(
-                wt, engine
-            )  # held for the whole call: clearing the cache cannot free it
-            call = _Call(store, host, waits, origin_ns)
-            with _epoch_ticker(engine, deadline_s is not None):
-                done = _drive(wt, linker, store, module, call, fuel)
+        stdin_path = Path(scratch) / "stdin"
+        stdin_path.write_bytes(stdin or b"")
+        wasi.stdin_file = str(stdin_path)
+        store.set_wasi(wasi)
+        linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
+        call = _Call(store, host, waits, origin_ns)
+        with _epoch_ticker(engine, deadline_s is not None):
+            done = _drive(wt, linker, store, module, call, fuel)
+        fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
     finally:
+        # The store holds every descriptor the guest opened; a guest can open them until the
+        # host refuses. Close it first, so the clean-up below has descriptors to work with, and
+        # make that clean-up unable to raise (the 0.1.0a2 security review, F1).
+        store.close()
         with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
             for key in keys:
                 _outputs.pop(key, None)
-    fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
+        shutil.rmtree(scratch, ignore_errors=True)
     truncated = tuple(s.name for s in (out, err) if s.dropped)
     return Completed(
         done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated

@@ -161,3 +161,7 @@ or, for the lone surrogate, raised `UnicodeEncodeError` after preparing the root
 **After** (EXECUTED): all 49 pass. The author's probe, run again: every row of the defect table
 is refused with an error that names the argument; `bytearray` and `memoryview` stdin and a tuple
 `argv` work as before.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39027959144):
+every job it runs passed, including the arm64 Linux rebuild, `same-bytes`, and verify on
+ubuntu-24.04, windows-2025 and macos-15 (criterion 3).

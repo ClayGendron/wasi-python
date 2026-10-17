@@ -66,6 +66,9 @@ package becomes a Python exception instead of ending the guest.
   to the call that caused them; Ctrl-C while a guest computed could abort the whole process. A
   trap or exit inside the guest's allocator during a door call is that call's result, and its
   `fuel_used` is `None`. Concurrent first calls compile the module once.
+- **A guest cannot make `run` raise by exhausting host file descriptors:** the call's store,
+  which holds every descriptor the guest opened, is now closed before anything else is cleaned
+  up. Before, `run` raised `OSError` (Errno 24) and left the stdin scratch file behind.
 - **Release provenance:** from this release on, every asset is attested by the release workflow
   and verified before it is published; the notes say how to verify a download.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;

@@ -148,6 +148,11 @@ works.
     (no folder, no network, no host function); the runtime's own files
     are never in a writable grant. A change that loosens a default
     needs the owner's decision, not only a review (owner, 2026-10-17).
+    **Exception for the alpha line** (owner, 2026-10-17, from the 0.1.0a2
+    security review, F4): until typed grants land, the stdlib zip may sit
+    in the guest's writable root, verified and replaced before every call.
+    The typed-grants specification moves it to a read-only grant and ends
+    this exception.
 
 ## 5. How work is done
 

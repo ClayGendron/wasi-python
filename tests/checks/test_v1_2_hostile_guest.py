@@ -4,6 +4,8 @@ made or behaviour that already held."""
 
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -371,3 +373,38 @@ def test_a_sleeping_guest_ends_at_its_deadline(guest_workdir, how) -> None:
     run = _run()
     done = _returns(lambda: run(["-c", SLEEPERS[how]], root=_root(guest_workdir), deadline_s=0.2))
     assert (done.exit_code, done.trapped, done.stdout) == (None, "deadline", b""), done
+
+
+DESCRIPTORS = r"""
+import os, resource, sys, tempfile
+scratch = sys.argv[1]
+tempfile.tempdir = scratch
+resource.setrlimit(resource.RLIMIT_NOFILE, (256, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
+import wasi_python
+guest = (
+    "import os\nopen('/f', 'w').close()\nfs = []\n"
+    "try:\n    while True: fs.append(os.open('/f', os.O_RDONLY))\n"
+    "except OSError as e: print('refused', e.errno)\n"
+)
+done = wasi_python.run(["-c", guest], stdin=b"secret input")
+print(done.exit_code, done.stdout.decode().strip(), sorted(os.listdir(scratch)))
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no RLIMIT_NOFILE to lower on Windows")
+def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workdir) -> None:
+    """Guards a change: a guest that opened files until the host refused made run raise
+    OSError (Errno 24) and left its stdin behind (the 0.1.0a2 security review, F1). The store is
+    now closed, releasing the guest's descriptors, before anything else is cleaned up. In a child
+    process with a 256-descriptor limit, so the judge's own process is not starved."""
+    _run()
+    scratch = Path(tempfile.mkdtemp(prefix="descriptors-", dir=guest_workdir))
+    out = subprocess.run(
+        [sys.executable, "-c", DESCRIPTORS, str(scratch)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    exit_code, refused, _errno, left = out.stdout.split("\n")[0].split(" ", 3)
+    assert (exit_code, refused, left) == ("0", "refused", "[]"), out.stdout

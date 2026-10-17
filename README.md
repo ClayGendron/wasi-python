@@ -269,8 +269,10 @@ has one.
 
 **Enforced, and judged** (`tests/checks/test_v1_2_*.py`):
 
-- the guest sees only its root: no host path, no `..` out, no symbolic
-  link out (refused at creation or on open);
+- the guest sees only its root: no host path, no `..` out, and the guest
+  cannot follow a symbolic link out (refused on open). It can still
+  *create* a relative link that points out, which matters to host code that
+  reads its root afterwards (see "Not protected");
 - no network, no processes, no shared libraries; two imports only, WASI
   preview1 and the one door;
 - only the stdlib zip is on the import path, and `site` does not run, so
@@ -318,9 +320,18 @@ has one.
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
-**Not protected:** disk use in a granted root; the host's file
+**Not protected:** disk use in any root, the private one included (a guest
+can write as fast as the disk takes it until its deadline, tens of GiB in
+the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
+volume if that matters); links a guest leaves in a granted root that point
+outside it (host code that reads or writes the root after a call must not
+follow links: open with `O_NOFOLLOW`, or check `os.lstat` first);
+the stdlib zip in a reused root during a call (it is checked and replaced
+before each call, and moves to a read-only grant when typed grants land); the host's file
 descriptors (a guest can hold thousands of open files, which the embedder's
-process shares; wasmtime-py offers no lower limit); data planted in a
+process shares; wasmtime-py offers no lower limit; while one guest holds them
+all, the embedder's own code and other calls' `run` can fail with `OSError`,
+though that guest's own call ends cleanly); data planted in a
 reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts
