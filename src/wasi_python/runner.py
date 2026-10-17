@@ -199,6 +199,19 @@ def _place_stdlib(found: Artifacts, root: Path) -> None:
     lib = _real_dir(root, ("usr", "local", "lib"))
     dest = lib / f"python{_version_tag(found.manifest)}.zip"
     want = _digest(found.stdlib_zip)
+    # Calls in this process place one root's zip one at a time: on Windows a file being renamed
+    # over cannot be opened, so a second call checking it mid-rename would fail.
+    with _lock:
+        guard = _placing.setdefault(str(dest), threading.Lock())
+    with guard:
+        _place_checked(found, dest, want)
+
+
+_placing: dict[str, threading.Lock] = {}
+
+
+def _place_checked(found: Artifacts, dest: Path, want: str) -> None:
+    lib = dest.parent
     try:
         st = os.lstat(dest)
     except FileNotFoundError:

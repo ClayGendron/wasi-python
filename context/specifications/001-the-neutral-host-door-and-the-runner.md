@@ -75,7 +75,11 @@
 
      The snapshot runs only beside the zip it was built against (003
      Decision 9). Concurrent calls may share a root, and placing the zip
-     is safe among them, but not against a guest running at the same
+     is safe among them: calls in one process place one root's zip one
+     at a time (on Windows a file being renamed over cannot be opened, so
+     an unserialized second call failed: spec 004's fourth dry run), and
+     the rename fallback above covers other processes. It is not safe
+     against a guest running at the same
      time: one call's guest could change what another's sees, or swap
      in a link between the runner's check and its write and so make the
      runner write outside the root. An embedder gives each untrusted
