@@ -1004,7 +1004,12 @@ def _make_missing(where: str, walked: _Walked) -> _Walked:
 # component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
 # handle without FILE_SHARE_DELETE until the identity check, so no walked folder can be renamed,
 # removed or replaced in between, and no path string is ever compared.
-_FILE_READ_ATTRIBUTES = 0x80
+# Traverse access, not attributes alone: Windows runs share checks only for data, execute or
+# delete access (MS-FSA 2.1.5.1.2.2), so an attribute-only handle held without FILE_SHARE_DELETE
+# stops no rename. FILE_TRAVERSE is FILE_EXECUTE, which is checked, and needs only the permission
+# to pass through a folder, as POSIX's search does, not to list it.
+_WALK_ACCESS = 0x20 | 0x80  # FILE_TRAVERSE | FILE_READ_ATTRIBUTES
+_STAT_ACCESS = 0x80  # FILE_READ_ATTRIBUTES: an identity read that holds nothing
 _SHARE_READ_WRITE = 0x1 | 0x2
 _OPEN_EXISTING = 3
 _BACKUP_SEMANTICS = 0x02000000
@@ -1045,13 +1050,11 @@ class _ByHandle(ctypes.Structure):
     ]
 
 
-def _win_open(path: str, follow: bool) -> tuple[int, int, Identity]:
+def _win_open(path: str, follow: bool, access: int = _WALK_ACCESS) -> tuple[int, int, Identity]:
     """A held handle on `path`, its attributes and its identity, as wasmtime reads it."""
     k = _win()
     flags = _BACKUP_SEMANTICS | (0 if follow else _OPEN_REPARSE_POINT)
-    h = k.CreateFileW(
-        path, _FILE_READ_ATTRIBUTES, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None
-    )
+    h = k.CreateFileW(path, access, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None)
     if h is None or h == ctypes.c_void_p(-1).value:
         code = ctypes.get_last_error()  # type: ignore[attr-defined]
         raise ctypes.WinError(code)  # type: ignore[attr-defined]
@@ -1129,7 +1132,9 @@ def _identity_of(path: Path) -> Identity:
         if not stat.S_ISDIR(st.st_mode):
             raise NotADirectoryError(str(path))
         return (st.st_dev, st.st_ino)
-    h, _, identity = _win_open(str(path), follow=True)
+    # Attributes only: a runtime folder's chain must not be cut short by a folder one may not
+    # traverse, or by another handle's share mode (the follow-up review, F1).
+    h, _, identity = _win_open(str(path), follow=True, access=_STAT_ACCESS)
     _close_held(h)
     return identity
 

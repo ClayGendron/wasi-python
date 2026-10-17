@@ -45,8 +45,10 @@ def test_the_grant_identity_matches_wasmtimes(tmp_path) -> None:
     platform the formula misses, fails here first (and at run time refuses every grant)."""
     folders = _folders(tmp_path)
     walked = [runner._walk("t", str(f), judge=True) for f in folders]
+    stores: list[wt.Store] = []
     try:
         store, linker, engine = _store([(w.path, f"/g{i}") for i, w in enumerate(walked)])
+        stores.append(store)
         exports = linker.instantiate(store, wt.Module(engine, runner._CHECK_WAT)).exports(store)
         memory = exports["memory"]
         for i, w in enumerate(walked):
@@ -59,6 +61,8 @@ def test_the_grant_identity_matches_wasmtimes(tmp_path) -> None:
     finally:
         for w in walked:
             w.close()
+        for store in stores:  # Windows cannot remove a folder a store still holds open
+            store.close()
         for f in folders[1:]:
             f.rmdir()
 
