@@ -200,7 +200,9 @@ In: the above. Out: matplotlib and its libraries (their own specifications); the
 
 ## Landing notes
 
-Built 2026-10-17 by the author agent (commit `34952cf`); build review and dry run below.
+Built 2026-10-17 by the author agent (commit `34952cf`). Reviewed after build in
+`../reviews/005-the-3-15-line-2026-10-17.md` (its findings are answered there); the dry run is
+below.
 
 **The build** (EXECUTED: `scripts/build.sh` from a `build/` holding only the oracle and Brett's
 reference unpack; the 3.14 tree was moved aside):
