@@ -1,10 +1,11 @@
 # 021 — `.npy` files on WASI: the first carried patch
 
-- **Status:** drafted 2026-10-17, awaiting its pre-build review.
+- **Status:** drafted 2026-10-17 and revised against its pre-build review
+  (`../reviews/021-npy-files-on-wasi-spec-2026-10-17.md`), awaiting the reviewer's confirmation.
 - **Owner:** Clay Gendron
 - **Kind:** a carried patch (`recipes/patches/numpy-2.5.2/`), its pull request draft
-  (`context/upstream/patches/numpy-2.5.2/`), a judge addition in `tests/checks/`, `README.md`,
-  `CHANGELOG.md`.
+  (`context/upstream/patches/numpy-2.5.2/`), `context/upstream/README.md`, the research memo's
+  status, a judge addition in `tests/checks/`, `README.md`, `CHANGELOG.md`.
 - **Depends on:** 020 (carried patches: the applier, the rules, the patched zero-diff check),
   which must land first.
 - **Research it stands on:** `../research/2026-10-17-numpy-npy-files-need-dup.md` and
@@ -23,52 +24,76 @@ the owner (numpy's AI policy: the owner writes the pull request description). Un
 
 ## Decisions
 
-1. **The patch is the runtime half of the upstream fix.**
-   `recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch` changes one file,
-   `numpy/lib/_format_impl.py`: `import sys`, and in `isfileobj`, before its `fileno()` probe,
+1. **The patch is the upstream fix, made against the pinned tarball.**
+   `recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch` has the same added lines as
+   `../upstream/3-numpy-npy-wasi/fix.patch`, file for file:
+   - `numpy/lib/_format_impl.py`: `import sys`, and in `isfileobj`, before its `fileno()` probe,
+     a `sys.platform == "wasi"` test that returns False, with its two-line comment;
+   - `numpy/lib/tests/test_format.py`: `import errno` and the test `test_save_load_without_dup`.
 
-   ```python
-   if sys.platform == "wasi":
-       # `tofile` and `fromfile` need `os.dup`, which WASI does not
-       # support, so read and write real files like other file-likes.
-       return False
-   ```
-
-   It is `../upstream/3-numpy-npy-wasi/fix.patch`'s first file, re-made against the pinned
-   2.5.2 tarball (its hunks sit at lines 164 and 1029 there, against `ac61120`'s 165 and 1038), so
-   the applier takes it with no offset. The upstream pull request also adds a test to
-   `numpy/lib/tests/test_format.py`; tests are not built into the guest, so the carried patch
-   leaves it out, and the draft says so.
-2. **The pull request draft** is `context/upstream/patches/numpy-2.5.2/0001-npy-files-without-dup.md`,
-   with spec 020's six header lines (`Files: numpy/lib/_format_impl.py`; `Status: drafted`). Its
-   body does not write the pull request description: numpy's AI policy asks the contributor to
-   write it. The body points the owner to `../upstream/3-numpy-npy-wasi/pr.md` (the facts under
-   numpy's template headings), names the upstream base and the test the pull request adds, and
-   notes numpy's AI disclosure.
-3. **What it changes in the artifact set.** `_format_impl.py` is in the stdlib zip as bytecode,
-   so the zip changes, and with it the snapshot (it holds the zip's offsets and pre-imports
-   numpy). `python.wasm` does not change. `MANIFEST` gains the patch's `recipe` line. The
-   `.npy` path is not on any judge program's way, so the judge's fuel should not move
-   (INFERRED; any growth is accepted with its reason).
-4. **The check** (v1.3, `test_npy_files_round_trip`, both binaries): in the guest, `np.save` to a
-   path under `/tmp` and `np.load` of it, for a plain array, a record array, a 0-d array, a
-   Fortran-ordered array and an object array (`allow_pickle=True`), and `np.savez` /
-   `np.load` of an `.npz`; each loaded array equals the saved one. It is seen failing first on
-   the current artifact set (`OSError` 58).
-5. **Docs.** The README's data-stack facts: `np.save`/`np.load` of paths work, through a carried
-   patch until numpy releases the fix. The CHANGELOG names the patch's path (spec 020's rule) and
-   the README's count becomes 1.
+   It is made by editing a copy of the 2.5.2 files and running `git diff`, not by renumbering
+   `fix.patch` (whose first hunk's context line, `import operator`, is `import io` in 2.5.2;
+   renumbered alone it does not apply, EXECUTED by the pre-build review). Its context and `index`
+   lines differ from upstream's; its added lines do not. It applies at lines 164 and 1029 with no
+   offset. The test changes no artifact: tests are not installed and the zip skips `tests`
+   folders; it is carried so the patch is the pull request's code, whole.
+2. **Why a patch, not a recipe file** (§4.1, "a recipe file first"). A recipe could replace
+   `isfileobj` at start-up, as the evidence's probe did. But that runs numpy-specific code in the
+   runtime's bootstrap; the plain binary does not import numpy at start, so it would need an
+   import hook on every call; and it would differ from the change numpy is asked to take. The
+   patch is smaller, and it goes away by itself when numpy releases the fix.
+3. **The pull request draft** is
+   `context/upstream/patches/numpy-2.5.2/0001-npy-files-without-dup.md`, with spec 020's six
+   header lines (`Files: numpy/lib/_format_impl.py, numpy/lib/tests/test_format.py`, bare paths;
+   `Status: drafted`). **It departs from spec 020 Decision 2's prose on purpose:** numpy's AI
+   policy forbids AI-written pull request descriptions, so the body is not the description. It
+   points the owner to `../../3-numpy-npy-wasi/pr.md` (the facts under numpy's template
+   headings), names the upstream base, and names the policy's three clauses the owner weighs before
+   sending: the disclosure, "Code Quality" (no code "fully or mostly generated by AI" below their
+   standards) and "Copyright" (the submitter owns the code); all of `fix.patch` was written by an
+   agent. `context/upstream/README.md` gains a sentence: where a project forbids AI-written
+   descriptions, the draft's body is the facts for the owner, not the text.
+4. **What it changes in the artifact set, measured** (the pre-build review, EXECUTED): the zip
+   differs only in `numpy/lib/_format_impl.pyc` and grows 57 bytes; the snapshot (it holds
+   `numpy.lib._format_impl`) is 90 bytes smaller; `python.wasm` does not change (meson builds
+   nothing from `numpy/lib`). Every snapshot run costs about 24,000 more instructions (+0.03%,
+   repeated exactly; the cause, INFERRED a different snapshot heap and zip layout, is for the
+   build to trace or to name as untraced), past the ratchet's 0.01% for at least 13 accepted
+   snapshot checks; the plain binary moves less. So acceptance takes `--accept-growth` with
+   these numbers.
+5. **The check** (v1.3, `test_npy_files_round_trip`, both binaries). The judge's root has no
+   `/tmp`, so the program makes `/npy` first (`os.makedirs`). Then `np.save` to a path and
+   `np.load` of it for: a plain array; a record array; a 0-d array; a Fortran-ordered array; an
+   array over 256 KiB (40,000 `float64`, so the read loop runs more than once); a zero-size
+   array; an object array (`allow_pickle=True` for it alone). Then two arrays saved to one open
+   file and loaded back from it, and `np.savez`/`np.load` of an `.npz`. Each pair is equal by
+   `dtype`, `shape`, `tolist()` and `flags.f_contiguous`. Seen failing first on the current set
+   with `OSError` 58, by number, for the arrays that take the file path (plain, record, 0-d,
+   Fortran, the large one); the object array and `.npz` already work and guard.
+6. **Docs.** The README's platform paragraph (after the `-V` quote) says: `np.save` and `np.load`
+   of paths and open files work, through a carried patch until numpy releases the fix;
+   `ndarray.tofile` and `np.fromfile` on real files still fail (use `tobytes()`/`np.frombuffer`,
+   or `io.BytesIO`); memory maps are unavailable. The README's count becomes 1; the CHANGELOG
+   names the patch's path (spec 020's rule). The research memo's status says the fix is carried
+   by spec 021 and sent upstream by the owner.
+7. **Release.** This is a bug fix, so a release for it is the owner's call (§5.5 names security
+   fixes). The next §5.6 security review reads the patch and its draft, as spec 020 Decision 8
+   requires; its threat-model angle is small (INFERRED): the file path now takes the chunked
+   route `io.BytesIO` already takes, with no new channel or import, and `allow_pickle` stays
+   False by default.
 
 ## Intent
 
-`np.save` and `np.load` work in the guest today, by the exact change the project asks numpy to
-take, and the patch goes when numpy releases it.
+`np.save` and `np.load` work in the guest today, with the same added lines the project asks numpy
+to take, and the patch goes when numpy releases them.
 
 ## Design
 
 ```
 recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch
 context/upstream/patches/numpy-2.5.2/0001-npy-files-without-dup.md
+context/upstream/README.md          the sentence of Decision 3
+context/research/2026-10-17-numpy-npy-files-need-dup.md   its status
 tests/checks/test_v1_3_data_stack.py   test_npy_files_round_trip
 README.md, CHANGELOG.md
 ```
@@ -78,18 +103,20 @@ The artifact set is rebuilt from step 40 (numpy unpacks, the patch applies, then
 ## Scope
 
 In: the above. Out:
-- `np.memmap` and `open_memmap` of a path: they need `mmap`, which WASI does not have
-  (`../upstream/3-numpy-npy-wasi/evidence/guest-memmap-probe.txt`); a known gap, not this fix.
+- `ndarray.tofile` and `np.fromfile` on real files, and memory maps: a C change, and `mmap`,
+  which WASI does not have; the README names them.
 - Sending the pull request: the owner's (§7, and numpy's policy).
 
 ## Acceptance criteria
 
-1. The check exists and was seen failing on the current artifact set.
+1. The check exists and was seen failing on the current artifact set with `OSError` 58 for the
+   arrays named in Decision 5.
 2. A full build from pins in a clean clone applies the patch at step 40 (the step log names it)
    and makes a set whose `python.wasm` equals today's byte for byte, and whose zip differs from
    today's only in `numpy/lib/_format_impl.pyc` (and the snapshot with it).
-3. `uv run pytest` is green with `--accept-judge`; the rules check passes with the draft, the
-   CHANGELOG line and the README count.
+3. `uv run pytest` is green with `--accept "…" --accept-judge "<the new check>" --accept-growth
+   "<one carried .pyc: zip +57 bytes; snapshot fuel about +24k per run>"`; the rules check passes
+   with the draft, the CHANGELOG line and the README count.
 4. A release dry run passes every job, the same-bytes rebuild on arm64 Linux included.
 
 ## Landing notes
