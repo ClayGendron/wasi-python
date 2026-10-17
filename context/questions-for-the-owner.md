@@ -17,6 +17,17 @@ document.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
 
+### 41–42. The filesystem provider
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-a-filesystem-provider-for-the-runner.md`
+  (the guest's 26 file calls shadowed on a second linker used only when mounts are given; a
+  provider serves `stat`, `list`, `read`, and on a writable mount `write`, `mkdir`, `remove`,
+  `rmdir`, `rename`; `Mount(provider, "/work", writable=False)`; EXECUTED on both binaries).
+- **41. May a provider be mounted at `/`?** It would let an embedder like vfs be the guest's
+  whole filesystem; the zip stays at `/usr/local/lib` either way.
+- **42. The provider-call limit:** the memo suggests a default of 10,000 calls per run, after
+  which the run stops (vfs's own `VERB_CALL_BUDGET` is 10,000).
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

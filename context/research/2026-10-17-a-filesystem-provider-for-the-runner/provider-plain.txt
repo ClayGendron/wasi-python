@@ -1,0 +1,17 @@
+$ BINARY=python.wasm uv run --no-sync python shadow.py ART SCRATCH provider files.py
+binary=python.wasm mode=provider exit=0 fuel=443,518,797 seconds=0.099
+stdout: grant: [['a', 'b'], ['1', '2'], ['3', '4']]
+seed: from the provider
+listdir: ['out', 'seed.txt'] ['b.json']
+stat: 47 True
+roundtrip: True
+refused: /work/../data/in.csv 63 Operation not permitted
+refused: /work/out/../../etc 63 Operation not permitted
+write-back refused at close: 2 Permission denied
+read-only grant still read-only: 63
+after: ['seed.txt']
+shadowed calls: 471 {'fd_close': 62, 'fd_fdstat_get': 69, 'fd_filestat_get': 66, 'fd_read': 61, 'fd_readdir': 3, 'fd_seek': 57, 'fd_tell': 67, 'fd_write': 4, 'path_create_directory': 1, 'path_filestat_get': 13, 'path_open': 65, 'path_remove_directory': 1, 'path_rename': 1, 'path_unlink_file': 1}
+provider calls: {'stat': 10, 'read': 3, 'mkdir': 1, 'write': 3, 'rename': 1, 'list': 4, 'remove': 1, 'rmdir': 1}
+refused write-backs: [('denied.txt', 2)]
+provider files after: {'seed.txt': b'from the provider\n'}
+placeholder still empty: True

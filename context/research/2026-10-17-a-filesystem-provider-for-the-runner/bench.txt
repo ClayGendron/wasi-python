@@ -1,0 +1,9 @@
+mode=plain exit=0 fuel=318,971,925 seconds=0.170
+mode=passthru exit=0 fuel=318,971,789 seconds=0.156
+shadowed calls: 489 {'fd_close': 68, 'fd_fdstat_get': 69, 'fd_filestat_get': 68, 'fd_read': 68, 'fd_seek': 68, 'fd_tell': 68, 'fd_write': 1, 'path_filestat_get': 11, 'path_open': 68}
+mode=plain exit=0 fuel=318,960,069 seconds=0.107
+mode=passthru exit=0 fuel=318,886,687 seconds=0.152
+shadowed calls: 489 {'fd_close': 68, 'fd_fdstat_get': 69, 'fd_filestat_get': 68, 'fd_read': 68, 'fd_seek': 68, 'fd_tell': 68, 'fd_write': 1, 'path_filestat_get': 11, 'path_open': 68}
+mode=plain exit=0 fuel=318,914,633 seconds=0.097
+mode=passthru exit=0 fuel=319,016,327 seconds=0.151
+shadowed calls: 489 {'fd_close': 68, 'fd_fdstat_get': 69, 'fd_filestat_get': 68, 'fd_read': 68, 'fd_seek': 68, 'fd_tell': 68, 'fd_write': 1, 'path_filestat_get': 11, 'path_open': 68}

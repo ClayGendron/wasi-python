@@ -1,0 +1,7 @@
+N = 100,000 calls of fd_fdstat_get(1) from a wasm loop
+how       | errno | fuel/call | µs/call (benchmark fact)
+real      |     0 |      14.0 |    0.16
+empty     |     0 |      14.0 |    9.41
+provider  |     0 |      14.0 |   18.13
+forward   |     0 |      18.0 |   39.49
+fast      |     0 |      18.0 |   13.21

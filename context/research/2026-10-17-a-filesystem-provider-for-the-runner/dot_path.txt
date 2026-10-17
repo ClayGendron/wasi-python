@@ -1,0 +1,5 @@
+0 /usr/local/lib/python315.zip -> 11140635
+/usr/local/./lib/python315.zip -> 44 No such file or directory
+/usr/./local/lib/python315.zip -> 44 No such file or directory
+/usr/local/lib/../lib/python315.zip -> 63 Operation not permitted
+ 

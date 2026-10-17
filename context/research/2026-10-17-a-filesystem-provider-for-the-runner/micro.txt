@@ -1,0 +1,66 @@
+== mode=plain where=/data/in.csv N=0 rep=1
+mode=plain exit=0 fuel=83,219,968 seconds=0.025
+== mode=plain where=/data/in.csv N=0 rep=2
+mode=plain exit=0 fuel=83,220,927 seconds=0.026
+== mode=plain where=/data/in.csv N=0 rep=3
+mode=plain exit=0 fuel=83,257,281 seconds=0.023
+== mode=plain where=/data/in.csv N=20000 rep=1
+mode=plain exit=0 fuel=352,263,110 seconds=3.553
+== mode=plain where=/data/in.csv N=20000 rep=2
+mode=plain exit=0 fuel=352,264,044 seconds=1.609
+== mode=plain where=/data/in.csv N=20000 rep=3
+mode=plain exit=0 fuel=352,258,215 seconds=2.813
+== mode=passthru where=/data/in.csv N=0 rep=1
+mode=passthru exit=0 fuel=83,220,178 seconds=0.067
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=passthru where=/data/in.csv N=0 rep=2
+mode=passthru exit=0 fuel=83,204,491 seconds=0.056
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=passthru where=/data/in.csv N=0 rep=3
+mode=passthru exit=0 fuel=83,162,692 seconds=0.041
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=passthru where=/data/in.csv N=20000 rep=1
+mode=passthru exit=0 fuel=352,598,252 seconds=7.837
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=passthru where=/data/in.csv N=20000 rep=2
+mode=passthru exit=0 fuel=352,545,546 seconds=8.166
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=passthru where=/data/in.csv N=20000 rep=3
+mode=passthru exit=0 fuel=352,492,758 seconds=7.257
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/data/in.csv N=0 rep=1
+mode=provider exit=0 fuel=83,212,269 seconds=0.043
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/data/in.csv N=0 rep=2
+mode=provider exit=0 fuel=83,257,668 seconds=0.032
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/data/in.csv N=0 rep=3
+mode=provider exit=0 fuel=83,159,945 seconds=0.030
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/data/in.csv N=20000 rep=1
+mode=provider exit=0 fuel=354,906,348 seconds=7.940
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/data/in.csv N=20000 rep=2
+mode=provider exit=0 fuel=354,937,164 seconds=6.928
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/data/in.csv N=20000 rep=3
+mode=provider exit=0 fuel=354,994,690 seconds=7.675
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=0 rep=1
+mode=provider exit=0 fuel=83,166,607 seconds=0.049
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=0 rep=2
+mode=provider exit=0 fuel=83,213,599 seconds=0.031
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=0 rep=3
+mode=provider exit=0 fuel=83,214,196 seconds=0.041
+shadowed calls: 5 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_write': 1, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=20000 rep=1
+mode=provider exit=0 fuel=294,057,636 seconds=1.046
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=20000 rep=2
+mode=provider exit=0 fuel=294,055,923 seconds=1.016
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
+== mode=provider where=/work/seed.txt N=20000 rep=3
+mode=provider exit=0 fuel=294,036,207 seconds=1.072
+shadowed calls: 40005 {'fd_close': 1, 'fd_fdstat_get': 2, 'fd_pread': 20000, 'fd_write': 1, 'path_filestat_get': 20000, 'path_open': 1}
