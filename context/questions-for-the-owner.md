@@ -61,6 +61,15 @@ question moves to the bottom with the answer and the date.
 - *Recommended: yes, from 0.1.0a3.* `pip install wasi-python` is how most users would try it.
   0.1.0a2 stays GitHub-only; re-running its tag would rebuild, not republish.
 
+### 24. Should a call with no root and no grants become stricter?
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-typed-grants.md`, question 1.
+- **The question:** typed grants (spec 017) keep today's default: `run(argv)` gets a fresh,
+  private, writable `/`. A stricter default, a private `/tmp` only or nothing writable, is safer
+  but breaks callers that write a file. `root=False` gives the stricter run to anyone who asks.
+- *Recommended: keep the default for now;* revisit before 1.0. Nothing waits on this answer:
+  spec 017 changes no default.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
