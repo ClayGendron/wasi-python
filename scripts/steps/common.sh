@@ -28,6 +28,11 @@ host_from_source() {
   find "$T/python/lib" -name __pycache__ -type d -prune | while read -r d; do remove "$d"; done
 }
 
+# Apply a tree's carried patches right after its unpack, before anything reads it (spec 020).
+patch_tree() {
+  sh "$HERE/scripts/steps/apply_patches.sh" "$1" "$HERE/recipes/patches/$(basename "$1")"
+}
+
 # Fail the step with one line naming what is missing.
 die() {
   echo "ERROR: $*" >&2

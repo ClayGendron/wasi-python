@@ -63,10 +63,19 @@ def embedder_hits(root: Path, subdirs: Iterable[str], names: list[str]) -> list[
         if text is None:
             continue
         for n, line in enumerate(text.splitlines(), 1):
+            if p.suffix == ".patch" and not _our_patch_line(line):
+                continue  # a patch's context and removed lines are upstream's text (spec 020)
             low = line.lower()
             if any(name in low for name in names):
                 hits.append(f"{r}:{n}")
     return hits
+
+
+def _our_patch_line(line: str) -> bool:
+    """A patch line this project wrote: an added line, or one naming a file."""
+    if line.startswith(("+++", "---")):
+        return True
+    return line.startswith(("+", "diff --git "))
 
 
 # ---------------------------------------------------------------------------------------------
@@ -704,3 +713,184 @@ def duplicate_name_hits(files: Iterable[Path], root: Path) -> list[str]:
                     )
                 seen.setdefault(name, node.lineno)
     return hits
+
+
+# Constitution §4.1: carried patches, recorded and temporary (spec 020)
+
+PATCH_NAME = re.compile(r"(\d{4})-[A-Za-z0-9][A-Za-z0-9._-]*\.patch")
+DRAFT_FIELDS = ("Project", "Against", "Status", "Title", "Files", "Why we carry it")
+STATUS = re.compile(r"drafted|sent \S+|merged \S+|released (\S+)")
+AUTOTOOLS_INPUTS = {"configure.ac", "configure.in", "Makefile.am"}
+PATCH_SHAPES = {  # the line's start -> why it is refused
+    "new file mode 120000": "adds a link",
+    "new mode 120000": "makes a link",
+    "old mode": "changes a mode",
+    "new mode": "changes a mode",
+    "GIT binary patch": "has a binary hunk",
+    "Binary files": "has a binary hunk",
+    "rename from": "renames a file",
+    "copy from": "copies a file",
+}
+CARRIED_ROW = re.compile(r"upstream patches carried: (\d+)")
+
+
+def _version(text: str) -> tuple[int, ...] | None:
+    try:
+        return tuple(int(x) for x in text.split("."))
+    except ValueError:
+        return None
+
+
+def _git_reads(text: str) -> tuple[list[str], str, str]:
+    """What git itself would apply: the paths (`--numstat -z`), the summary (modes, creations,
+    deletions) and any error; outside any repository, with the caller's configuration cleared."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    git = shutil.which("git")
+    if git is None:
+        return [], "", "git is not on PATH, so the patch cannot be read as git reads it"
+    with tempfile.TemporaryDirectory() as home:
+        env = {"PATH": os.environ.get("PATH", ""), "HOME": home, "XDG_CONFIG_HOME": home}
+        env.update(
+            GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_CEILING_DIRECTORIES=home
+        )
+        work = Path(home) / "w"  # below the ceiling, so git never finds an enclosing repository
+        work.mkdir()
+        out = {}
+        for flag in ("--numstat", "--summary"):
+            cmd = [git, "-c", "core.quotePath=false", "apply", flag]
+            cmd += ["-z", "-"] if flag == "--numstat" else ["-"]
+            r = subprocess.run(cmd, input=text.encode(), capture_output=True, cwd=work, env=env)
+            if r.returncode != 0:
+                return [], "", r.stderr.decode(errors="replace").strip().splitlines()[0]
+            out[flag] = r.stdout.decode(errors="replace")
+    paths = [rec.split("\t", 2)[2] for rec in out["--numstat"].split("\0") if rec.count("\t") >= 2]
+    return paths, out["--summary"], ""
+
+
+def patch_shape_errors(text: str, where: str) -> tuple[list[str], set[str]]:
+    """What a patch may not contain (spec 020, Decision 6), and the paths it touches, as git reads
+    it: a plain `---`/`+++` section after a hunk, or names that differ from `diff --git`, are
+    applied by git and so are judged here too (the build review, finding 2)."""
+    errors: list[str] = []
+    for n, line in enumerate(text.splitlines(), 1):
+        for start, why in PATCH_SHAPES.items():
+            if line.startswith(start):
+                errors.append(f"{where}:{n}: {why}")
+        if line.startswith("new file mode ") and line.split()[-1] != "100644":
+            errors.append(f"{where}:{n}: adds a file with mode {line.split()[-1]}")
+    paths, summary, failed = _git_reads(text)
+    if failed:
+        return [*errors, f"{where}: git cannot read it: {failed}"], set()
+    for line in summary.splitlines():
+        words = line.split()
+        if words[:1] in (["create"], ["delete"]) and words[2] not in ("100644",):
+            errors.append(f"{where}: {line.strip()}: only plain files (mode 100644)")
+        elif words[:2] == ["mode", "change"] or words[:1] in (["rename"], ["copy"]):
+            errors.append(f"{where}: {line.strip()}")
+    touched = set()
+    for path in paths:
+        parts = path.split("/")
+        if path.startswith("/") or any(part in ("", ".", "..") for part in parts):
+            errors.append(f"{where}: {path!r} is outside the tree")
+            continue
+        touched.add(path)
+        if parts[-1] in AUTOTOOLS_INPUTS or parts[-1].endswith(".m4"):
+            errors.append(f"{where}: changes the autotools input {path}; patch its output")
+    if not touched:
+        errors.append(f"{where}: changes no file")
+    return errors, touched
+
+
+def _draft_errors(draft: Path, top: str, touched: set[str], where: str) -> list[str]:
+    lines = draft.read_text().splitlines()
+    errors, fields = [], {}
+    for i, field in enumerate(DRAFT_FIELDS):
+        m = re.fullmatch(rf"- \*\*{re.escape(field)}:\*\* (.+)", lines[i] if i < len(lines) else "")
+        if m is None:
+            errors.append(f"{where}: line {i + 1} must be '- **{field}:** …'")
+        else:
+            fields[field] = m[1].strip()
+    if not "".join(lines[len(DRAFT_FIELDS) :]).strip():
+        errors.append(f"{where}: no pull request text after the header")
+    status = STATUS.fullmatch(fields.get("Status", "drafted"))
+    if status is None:
+        errors.append(
+            f"{where}: status {fields['Status']!r} is not drafted, sent, merged or released"
+        )
+    elif status[1] is not None:
+        pinned = top.rsplit("-", 1)[-1]
+        have, fixed = _version(pinned), _version(status[1])
+        if have is None or fixed is None or len(have) != len(fixed):
+            errors.append(
+                f"{where}: write the released version as the pinned file name does ({pinned})"
+            )
+        elif have >= fixed:
+            errors.append(f"{where}: released in {status[1]}, which {top} has: delete the patch")
+    if "Files" in fields:
+        listed = {f.strip() for f in fields["Files"].split(",") if f.strip()}
+        if listed != touched:
+            errors.append(
+                f"{where}: Files lists {sorted(listed)}, the patch touches {sorted(touched)}"
+            )
+    return errors
+
+
+def patch_errors(root: Path, tops: Iterable[str]) -> list[str]:
+    """Every rule of spec 020, Decisions 6 and 7, on `recipes/patches/` and its drafts. `tops` are
+    the pinned source tarballs' top folders."""
+    tops = set(tops)
+    patches, drafts = root / "recipes" / "patches", root / "context" / "upstream" / "patches"
+    changelog = (root / "CHANGELOG.md").read_text() if (root / "CHANGELOG.md").is_file() else ""
+    errors, count, made = [], 0, set()
+    folders = sorted(p for p in patches.iterdir()) if patches.is_dir() else []
+    for d in folders:
+        if d.name in paths_os_litter():
+            continue  # Finder's or Explorer's, not ours (spec 018)
+        if not d.is_dir():
+            if d.name != "README.md":
+                errors.append(f"recipes/patches/{d.name}: only folders and README.md belong here")
+            continue
+        if d.name not in tops:
+            errors.append(f"recipes/patches/{d.name}: no pinned source tarball has this top folder")
+        numbers = set()
+        for f in sorted(d.iterdir()):
+            if f.name in paths_os_litter():
+                continue
+            where = f"recipes/patches/{d.name}/{f.name}"
+            m = PATCH_NAME.fullmatch(f.name)
+            if m is None:
+                errors.append(f"{where}: not named NNNN-<slug>.patch, so it would never be applied")
+                continue
+            if m[1] in numbers:
+                errors.append(f"{where}: another patch has the number {m[1]}")
+            numbers.add(m[1])
+            count += 1
+            made.add((d.name, f.stem))
+            if where not in changelog:
+                errors.append(f"{where}: not named in CHANGELOG.md")
+            shape, touched = patch_shape_errors(f.read_text(errors="replace"), where)
+            errors += shape
+            draft = drafts / d.name / f"{f.stem}.md"
+            if not draft.is_file():
+                errors.append(f"{where}: no pull request draft at {rel(draft, root)}")
+            else:
+                errors += _draft_errors(draft, d.name, touched, rel(draft, root))
+    if drafts.is_dir():
+        for draft in sorted(p for p in drafts.rglob("*.md") if p.name not in paths_os_litter()):
+            if (draft.parent.name, draft.stem) not in made:
+                errors.append(f"{rel(draft, root)}: a draft with no patch")
+    readme = (root / "README.md").read_text() if (root / "README.md").is_file() else ""
+    m = CARRIED_ROW.search(readme)
+    if m is None or int(m[1]) != count:
+        errors.append(f"README.md: must say 'upstream patches carried: {count}'")
+    return errors
+
+
+def paths_os_litter() -> set[str]:
+    from harness import paths
+
+    return set(paths.OS_LITTER)

@@ -26,6 +26,7 @@ mkdir -p "$LIBDIR/include" "$LIBDIR/lib"
 # bzip2: its Makefile builds inside the source tree, so the seven files of its `libbz2.a` target
 # are compiled here with the Makefile's own flags, less -g.
 tar -xzf "$BZIP2_TGZ" -C "$B"
+patch_tree "$B/bzip2-1.0.8"
 mkdir -p "$B/bzip2-build"
 BZ_OBJS=""
 for f in blocksort huffman crctable randtable compress decompress bzlib; do
@@ -39,6 +40,7 @@ cp "$B/bzip2-1.0.8/bzlib.h" "$LIBDIR/include/"
 # liblzma: xz's own configure, run from a separate build directory (an autotools VPATH build).
 # Only the library: no tools, scripts, docs or translations, and no threads on wasm32-wasip1.
 tar -xzf "$XZ_TGZ" -C "$B"
+patch_tree "$B/xz-5.8.4"
 mkdir -p "$B/xz-build"
 cd "$B/xz-build"
 clean CC="$CC" AR="$AR" RANLIB="$RANLIB" CFLAGS="-O2" "$B/xz-5.8.4/configure" \
@@ -60,6 +62,7 @@ cd "$HERE"
 # build is. The ENABLE_ options are the native host Python's SQLite feature set
 # (python-build-standalone 3.15.0's `PRAGMA compile_options`), so results compare with native.
 tar -xzf "$SQLITE_TGZ" -C "$B"
+patch_tree "$B/sqlite-autoconf-3540100"
 mkdir -p "$B/sqlite-build"
 SQLITE_OPTS="-DSQLITE_THREADSAFE=0 -DSQLITE_OMIT_LOAD_EXTENSION -DSQLITE_MAX_MMAP_SIZE=0
   -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4

@@ -18,10 +18,11 @@ the hard constraints, and it governs this file. Then `README.md` and
   `recipes/` first (a cross file, a compiler wrapper, a rename header,
   a stand-in module). An unavoidable source change is a patch file
   under `recipes/patches/`, reviewed, hashed in `MANIFEST`, named in the
-  CHANGELOG, with its upstream pull request drafted beside it for the
-  owner to send, and deleted once upstream releases the fix. Until the
-  specification that builds this lands, no patch is applied and the
-  release workflow still fails on any diff against the pinned tarball.
+  CHANGELOG, with its upstream pull request drafted under
+  `context/upstream/patches/` for the owner to send, and deleted once
+  upstream releases the fix. `scripts/steps/apply_patches.sh` applies
+  them, and the release fails on any difference from a pinned tarball
+  other than exactly the recorded patches (spec 020).
 - **Every input is pinned by URL and SHA-256** in `downloads/SHA256SUMS`
   and verified before use. Downloads are untrusted: they unpack under
   `downloads/` and `build/`, never into the system, and run only as

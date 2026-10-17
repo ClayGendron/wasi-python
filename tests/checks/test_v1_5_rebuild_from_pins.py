@@ -1,4 +1,5 @@
-"""v1.5: the whole thing rebuilds from pinned sources, with zero patches to any upstream tree."""
+"""v1.5: the whole thing rebuilds from pinned sources; each upstream tree is its tarball plus
+exactly the recorded patches (constitution §4.1, spec 020)."""
 
 from __future__ import annotations
 
@@ -67,6 +68,8 @@ def test_source_tree_matches_its_tarball(component) -> None:
     pinned = paths.read_pin_list()[tarball.name]
     actual = paths.sha256_file(tarball)
     assert actual == pinned, scan.report([f"{tarball.name}: sha256 {actual}, pinned {pinned}"])
+    top = re.sub(r"\.tar\.\w+$", "", tarball.name)
+    assert pins.top_dir(tarball) == top, f"{tarball.name}: its top folder is not {top}"
     drift = pins.tree_drift(tarball, tree)
     assert not drift, scan.report(drift)
 
@@ -80,7 +83,9 @@ def test_release_workflow_runs_the_zero_patch_check() -> None:
         and "test_source_tree_matches_its_tarball" in w.read_text()
     ]
     missing = (
-        [] if good else ["no release workflow with workflow_dispatch runs the zero-patch check"]
+        []
+        if good
+        else ["no release workflow with workflow_dispatch checks the trees against their tarballs"]
     )
     assert not missing, scan.report(missing)
 

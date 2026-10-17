@@ -1,8 +1,8 @@
 # 020 — Carried patches
 
-- **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/020-carried-patches-spec-2026-10-17.md`), ready to build, with the
-  confirmation's five conditions made.
+- **Status:** landed 2026-10-17. Reviewed before build
+  (`../reviews/020-carried-patches-spec-2026-10-17.md`) and after
+  (`../reviews/020-carried-patches-2026-10-17.md`, with its confirmation).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (a new `scripts/steps/apply_patches.sh`, each step that unpacks a
   source tarball), `.gitattributes`, the judge (`tests/harness/pins.py`, `tests/harness/scan.py`,
@@ -61,7 +61,8 @@ it, reviewed there.
    change rebased onto upstream's default branch in a scratch clone of upstream and hands the
    owner the branch and text; the owner opens the pull request, and the status records the link.
 3. **One applier, for the build and the judge.** A standalone `scripts/steps/apply_patches.sh
-   TREE PATCH_DIR` (it sources nothing, so the judge can run it alone). It first makes both
+   TREE PATCH_DIR` (it sources only spec 018's `remove.sh`, so the judge can run it alone). It
+   first makes both
    arguments absolute (`cd … && pwd -P`): a relative tree makes git ignore the ceiling.
    - for each `PATCH_DIR/[0-9][0-9][0-9][0-9]-*.patch` in name order (an empty or missing folder
      applies nothing), it runs, one patch at a time,
@@ -98,8 +99,11 @@ it, reviewed there.
    patched tree. No new kind of `MANIFEST` line is added (the parser refuses unknown ones).
 6. **What a patch may contain** (`scan.patch_errors`, run by a rules check):
    - no link (`new file mode 120000`, `new mode 120000`), no binary hunk (`GIT binary patch`,
-     `Binary files`), no mode change (`old mode`, `new mode`);
-   - every path with `a/` or `b/` prefixes and no `..` part;
+     `Binary files`), no mode change (`old mode`, `new mode`), no new file but a plain one (mode
+     100644), no rename or copy; the paths and modes are read as git reads the patch (`git apply
+     --numstat -z` and `--summary`), so a plain `---`/`+++` section after a hunk, or names that
+     differ from `diff --git`, are judged too;
+   - no path with a `..` part or outside the tree, as git reads the patch;
    - no change to an autotools input (`configure.ac`, `configure.in`, `Makefile.am`, `*.m4`):
      their outputs (`configure`, `Makefile.in`) are what the build runs, and a change to an input
      would need the host's autotools;
@@ -207,4 +211,89 @@ In: the mechanism, landed with no patch. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `067c765` (specs 017
+and 018 landed). **Not yet reviewed and not accepted.** Every claim below was run (EXECUTED) on
+macOS arm64 with git 2.50, unless it says otherwise.
+
+### What was built
+
+- `scripts/steps/apply_patches.sh` (Decision 3): absolute arguments first; each
+  `NNNN-*.patch` in name order through `env -i … git -C TREE apply --whitespace=nowarn --verbose`
+  with an empty `HOME`/`XDG_CONFIG_HOME`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`
+  and the ceiling; whole-line checks for `^Skipped patch '` and the offset line; a changed file
+  gets back its mtime (`touch -r` from a saved copy), an added one the newest file's; one ERROR
+  line on failure. It sources only spec 018's `remove.sh`, for its own clean-up.
+- `common.sh`'s `patch_tree TREE`, called right after each of the seven unpacks (steps 20, 30,
+  35 three times, 40, 50).
+- `.gitattributes`: `recipes/patches/** -text`. `recipes/patches/README.md`;
+  `context/upstream/README.md`'s section on drafts.
+- `tests/harness/pins.py`: `patch_files`, and `tree_drift(tarball, tree, patches=None)`, which,
+  when a tree has patches, extracts the tarball into a temporary folder, runs the same applier
+  and compares, deletions included; without patches it is the old check.
+- `tests/harness/scan.py`: `patch_shape_errors`, `patch_errors` (Decisions 6 and 7), and the
+  embedder rule's `.patch` handling (only added lines and file names).
+- Checks: `test_carried_patches_follow_the_rules` (rules); the v1.5 tree check also confirms each
+  tarball's top folder equals its file name; `tests/unit/test_patches.py` (29 cases).
+- README (the results row, *How it is built*, *Releasing*), the workflow step's title, the
+  docstrings, CHANGELOG.
+
+### Choices the specification left to the build
+
+- **Renames and copies** (`rename from`, `copy from`) are refused too: they would make the
+  applier's mtime bookkeeping and the draft's `Files:` line ambiguous, and no upstream fix needs
+  one.
+- The applier finds the newest file of the tree as unpacked with a `-nt` walk; it runs only when a
+  tree has patches.
+
+### Seen failing first
+
+- Against the scripts before this change: no applier, no `patch_errors`, and `tree_drift` takes no
+  patches (the unit file fails to import them).
+- Against a stand-in applier without `env -i`:
+  `test_the_callers_git_settings_change_nothing` fails (the hostile settings change the bytes).
+
+### Criterion 3: a full build from pins
+
+In a clean clone with this change (`scripts/00_download.sh`, then `scripts/build.sh`, all eleven
+steps ok): the three binaries, the zip and the licences are byte for byte the main tree's;
+`MANIFEST`'s non-recipe lines are equal and its `recipe` lines differ for exactly the six changed
+steps' files and the two added ones (`apply_patches.sh`, `recipes/patches/README.md`);
+`SHA256SUMS` only in `MANIFEST`'s line.
+
+### Criterion 4: the trial patch
+
+In that clone, with its `origin` removed and the build committed: a patch appending a comment to
+the end of `numpy/_core/src/multiarray/ctors.c`, with its draft, CHANGELOG line and README count,
+staged, never committed. Steps 40 to 90: step 40's log says `applied 0001-trial.patch`; the
+three binaries and the zip equal criterion 3's byte for byte. The whole judge ran on it and found
+two real faults in this build, which were then fixed: the unit file used an embedder's name as
+test data (the embedder rule), and the applier's clean-up was a bare `rm -rf` (spec 018's rule;
+it now uses `remove`). Re-run: 175/179 pass, 0 fail, the patched zero-diff check included. With the
+draft removed, the rules check failed: "…/0001-trial.patch: no pull request draft at …". The trial
+was then removed, and steps 40 to 90 re-run without it. (A copy of the clone could not run the
+trial: the toolchain under `build/tools` holds the clone's absolute paths.)
+
+### Left over
+
+- Windows runs no build step; the applier is POSIX `sh` and runs only on the build hosts (macOS,
+  Linux). The release's `rebuild` job on arm64 Linux runs it first in CI (no patches yet, so it
+  exits early there).
+
+### Revised against the build review
+
+The build review (`../reviews/020-carried-patches-2026-10-17.md`) found one high and three
+medium defects, and seven low points; its disposition answers each. In short (EXECUTED in the
+clone):
+
+- **High:** a patch that deleted a file left it as an empty file, and the judge agreed: the
+  applier's `touch -r` re-created it. It is `touch -c -r` now; the unit case asserts the file is
+  gone and that an empty file left in its place is drift. The stand-in with `touch -r` fails it.
+- **Medium:** the shape rules read paths and modes as git does (`git apply --numstat -z`,
+  `--summary`), so names that differ from `diff --git` and plain sections after a hunk are
+  judged (two cases); `tree_drift` extracts under `build/harness` with `filter="data"`, never the
+  system temporary folder (§4.8); Finder litter in `recipes/patches/` is skipped.
+- **Low:** the drafts are scanned for embedder names; the applier passes
+  `core.quotePath=false`, so a non-ASCII added file gets the newest time (a case); a new file must
+  be mode 100644 (a case); a released version in another form than the pinned name's is named as
+  such (a case); the header and Decision 3 say the applier sources `remove.sh`; `AGENTS.md`,
+  the README's row and the two READMEs are brought up to date.

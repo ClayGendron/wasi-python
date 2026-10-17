@@ -13,3 +13,22 @@ The issue texts and a reading guide are in the owner's "Upstream issue drafts" d
 Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the
 fix was found and checked. When a fix lands upstream and a pin moves past it, record that here
 and in the CHANGELOG, and drop any workaround in the runner.
+
+## Pull requests for carried patches
+
+Since §4.1's amendment (question 32), a fix the project cannot wait for is carried as a patch
+under `recipes/patches/<top>/` (specification 020). Its pull request lives here, at
+`patches/<top>/NNNN-<slug>.md`, the same name as the patch, starting with six header lines:
+
+```
+- **Project:** <name> (<repository URL>)
+- **Against:** <version> (the pinned tarball)
+- **Status:** drafted | sent <url> | merged <url> | released <version, as the pinned file name writes it>
+- **Title:** <the pull request's title>
+- **Files:** <every path the patch touches, comma-separated>
+- **Why we carry it:** <what fails without it, in this project>
+```
+
+The body is the text for the upstream maintainers, and says whether the project needs a
+contributor licence agreement, which the owner signs. The owner sends it; then the status records
+the link. A draft is not a build input, so recording the status changes no `MANIFEST` line.

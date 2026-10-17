@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches to CPython, numpy, pandas, zlib, bzip2, xz, SQLite | **zero**; every adaptation is a recipe file |
+| upstream patches | upstream patches carried: 0, each with an upstream pull request (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.1 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -148,7 +148,8 @@ without it is not built unless an embedder needs one.
 
 ## How it is built
 
-One command, from pinned inputs, with no source tree patched:
+One command, from pinned inputs; the source trees are their tarballs plus the
+recorded patches (`recipes/patches/`, none today):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
@@ -231,7 +232,7 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 ```
 
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
-runs the zero-patch check and the whole judge, and checks the same bytes on Linux, Windows and
+checks that the source trees are their tarballs plus the recorded patches, runs the whole judge, and checks the same bytes on Linux, Windows and
 macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an arm64 Linux runner,
 and `same-bytes` requires its `SHA256SUMS` to equal the set's, byte for byte; nothing is signed
 or published until it passes. x86_64 Linux is not in this gate yet (above). Then it publishes

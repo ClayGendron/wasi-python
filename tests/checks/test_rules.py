@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 import tomllib
@@ -24,6 +25,23 @@ def test_no_module_level_name_is_bound_twice() -> None:
     files = scan.files_under(paths.REPO, "tests", "src", "scripts", "release")
     hits = scan.duplicate_name_hits(files, paths.REPO)
     assert not hits, scan.report(hits)
+
+
+def test_carried_patches_follow_the_rules() -> None:
+    """Constitution §4.1 (spec 020): every carried patch has its pull request draft, its CHANGELOG
+    line and a safe shape, and the README counts them."""
+    from harness import pins
+
+    tops = {
+        re.sub(r"\.tar\.\w+$", "", name)
+        for name in paths.read_pin_list()
+        if any(p.fullmatch(name) for p in pins.SOURCE_PATTERNS.values())
+    }
+    errors = scan.patch_errors(paths.REPO, tops)
+    # The pull request drafts are this project's text, so no embedder's name either.
+    names = scan.read_names(paths.EMBEDDERS)
+    errors += scan.embedder_hits(paths.REPO, ["context/upstream/patches"], names)
+    assert not errors, scan.report(errors)
 
 
 def test_no_embedder_name_in_code() -> None:

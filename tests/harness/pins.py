@@ -1,8 +1,11 @@
-"""Zero upstream patches, mechanically (constitution §4.1).
+"""The source trees are their tarballs plus the recorded patches, mechanically (constitution §4.1,
+spec 020).
 
 A source tree under `build/` matches its pinned tarball when every file the tarball holds is
-present and byte-identical in the tree (symlinks: same target). Files the build adds are not
-judged (spec 002, Decision 17).
+present and byte-identical in the tree (symlinks: same target). A tree with carried patches under
+`recipes/patches/<top>/` must instead equal its tarball with exactly those applied, by the same
+`scripts/steps/apply_patches.sh` the build runs; a path a patch deletes must be absent. Files the
+build adds are not judged (spec 002, Decision 17).
 """
 
 from __future__ import annotations
@@ -10,7 +13,9 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import subprocess
 import tarfile
+import tempfile
 from pathlib import Path
 
 from harness import paths
@@ -54,8 +59,58 @@ def source_pair(
     return None
 
 
-def tree_drift(tarball: Path, tree: Path) -> list[str]:
-    """Every tarball file that is missing or different in the tree, as 'path: why'."""
+PATCHES = paths.REPO / "recipes" / "patches"
+APPLIER = paths.REPO / "scripts" / "steps" / "apply_patches.sh"
+
+
+def patch_files(top: str, patches: Path | None = None) -> list[Path]:
+    """A tree's carried patches, in the order the applier takes them."""
+    return sorted((patches or PATCHES).joinpath(top).glob("[0-9][0-9][0-9][0-9]-*.patch"))
+
+
+def tree_drift(tarball: Path, tree: Path, patches: Path | None = None) -> list[str]:
+    """Every file that is missing or different in the tree, as 'path: why': against the tarball,
+    or, when the tree has carried patches, against the tarball with them applied."""
+    if patch_files(tree.name, patches):
+        return _patched_drift(tarball, tree, (patches or PATCHES) / tree.name)
+    return _tarball_drift(tarball, tree)
+
+
+def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
+    # Under the project's own build/harness, never the system's temporary folder (§4.8): the
+    # applier's ceiling keeps git from taking the outer repository for the tree's.
+    paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="patched-", dir=paths.HARNESS_TMP) as d:
+        with tarfile.open(tarball) as t:
+            members = [m.name.split("/", 1)[1] for m in t if "/" in m.name.strip("/")]
+            t.extractall(d, filter="data")
+        result = Path(d) / tree.name
+        out = subprocess.run(
+            ["sh", str(APPLIER), str(result), str(patch_dir)], capture_output=True, text=True
+        )
+        if out.returncode != 0:
+            return [f"{tree.name}: the recorded patches do not apply: {out.stderr.strip()}"]
+        drift = []
+        for p in sorted(result.rglob("*")):
+            rel = p.relative_to(result).as_posix()
+            target = tree / rel
+            if p.is_symlink():
+                if not target.is_symlink() or os.readlink(target) != os.readlink(p):
+                    drift.append(f"{rel}: symlink changed or missing")
+            elif p.is_dir():
+                if not target.is_dir():
+                    drift.append(f"{rel}: directory missing")
+            elif not target.is_file() or target.is_symlink():
+                drift.append(f"{rel}: missing")
+            elif paths.sha256_file(target) != paths.sha256_file(p):
+                drift.append(f"{rel}: modified")
+        for rel in sorted(set(members)):
+            if not os.path.lexists(result / rel) and os.path.lexists(tree / rel):
+                drift.append(f"{rel}: a recorded patch deletes it")
+        return drift
+
+
+def _tarball_drift(tarball: Path, tree: Path) -> list[str]:
     drift = []
     with tarfile.open(tarball) as t:
         for member in t:

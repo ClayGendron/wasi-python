@@ -6,6 +6,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **Carried patches** (the owner's decision; constitution §4.1): a fix the project cannot wait
+  for may now be carried as a patch to a pinned project's source, under `recipes/patches/`, with
+  its upstream pull request drafted under `context/upstream/patches/`. Each is reviewed, hashed in
+  `MANIFEST`, named here, and deleted once upstream releases the fix. None is carried yet; the
+  release check is now "the source trees are their tarballs plus the recorded patches".
 - **Typed grants:** `run(grants=[Grant(host, guest, writable=False), ...])` gives the guest
   more host folders, each read-only unless it says `writable=True`, nested in any order;
   `root=False` gives it no `/`, only its grants. Every grant and `root` is walked folder by folder

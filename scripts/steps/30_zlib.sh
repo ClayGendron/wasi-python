@@ -7,6 +7,7 @@ set -eu
 TARBALL=$(pinned zlib-1.3.1.tar.gz)
 remove "$B/zlib-1.3.1" "$B/zlib-build" "$B/zlib-wasi"
 tar -xzf "$TARBALL" -C "$B"
+patch_tree "$B/zlib-1.3.1"
 mkdir -p "$B/zlib-build"
 cd "$B/zlib-build"
 CC="$SDK/bin/clang --target=wasm32-wasip1" AR="$SDK/bin/llvm-ar" RANLIB="$SDK/bin/llvm-ranlib" \

@@ -59,7 +59,7 @@ jobs:
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
-      - name: Zero-patch check (no upstream tree differs from its pinned tarball)
+      - name: The source trees are their tarballs plus the recorded patches (spec 020)
         # All seven trees must pass: a skipped check (a tree not unpacked) would exit 0 too.
         run: |
           set -o pipefail
