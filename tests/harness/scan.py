@@ -160,6 +160,39 @@ URL = re.compile(r"https?://[^\s\"')]+")
 GET = re.compile(r"^\s*(?:get|research)\s+(https?://\S+)(?:\s+(\S+))?", re.M)
 
 
+# `rm` as a word anywhere (after `if`, `!`, `xargs`, `command`, an assignment...), or `\rm`,
+# `/bin/rm`, `/usr/bin/rm`; a string or a trailing comment can match too, which fails closed.
+RM = re.compile(r"(?<![\w./-])(?:\\|/(?:usr/)?bin/)?rm((?:\s+-[-A-Za-z]+)+)")
+REMOVE_SH = "scripts/steps/remove.sh"
+
+
+def _recursive_force(flags: str) -> bool:
+    short = "".join(t[1:] for t in flags.split() if not t.startswith("--"))
+    long = {t for t in flags.split() if t.startswith("--")}
+    recursive = bool(set(short) & {"r", "R"}) or "--recursive" in long
+    return recursive and ("f" in short or "--force" in long)
+
+
+def bare_rm_hits(scripts: list[Path], root: Path) -> list[str]:
+    """A recursive, forced `rm` in a build script outside remove.sh, in any spelling (`-rf`,
+    `-fr`, `-Rf`, `-r -f`, `--recursive --force`): Finder can make it fail, so every removal goes
+    through `remove`, which retries (spec 018)."""
+    hits = []
+    for p in scripts:
+        if not is_shell(p) or rel(p, root) == REMOVE_SH:
+            continue
+        joined: list[tuple[int, str]] = []  # a line ending in `\` continues on the next
+        for n, line in _code_lines(p):
+            if joined and joined[-1][1].endswith("\\"):
+                joined[-1] = (joined[-1][0], joined[-1][1][:-1] + " " + line)
+            else:
+                joined.append((n, line.rstrip()))
+        for n, line in joined:
+            if any(_recursive_force(m.group(1)) for m in RM.finditer(line)):
+                hits.append(f"{rel(p, root)}:{n}: {line.strip()[:100]}")
+    return hits
+
+
 def url_errors(download_script: Path, pinned: Iterable[str]) -> list[str]:
     """Every pin is named on a `get <url> <name>` line (or is a literal URL's basename)."""
     text = _text(download_script) or ""

@@ -211,6 +211,15 @@ which configures liblzma, also runs the host's shell tools (`sh`, `sed`,
 `grep`, `awk`); the same-bytes gate is what shows they leave the artifacts
 alone.
 
+**Building on a Mac with Finder open.** Finder writes `.DS_Store` files into
+folders you browse, at any moment. Every shell step removes its old outputs
+through `remove` (`scripts/steps/remove.sh`), and step 90 through its own
+`_remove`; both retry. The zip, the licences
+and the artifact set never pack such a file (spec 018). One case is left: a
+`.DS_Store` written into the finished `build/artifacts/` makes the judge's
+`SHA256SUMS` check fail, naming the file, because a wheel built from that
+folder would carry it. Delete it with `find build/artifacts -name .DS_Store -delete`.
+
 ## Releasing
 
 Releases are alpha builds for now, numbered `0.1.0aN`. The version lives in one place,

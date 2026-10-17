@@ -13,7 +13,7 @@ RT_TGZ=$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")
 WHEELS="$CYTHON_WHEEL meson-1.12.1-py3-none-any.whl
 $NINJA_WHEEL versioneer-0.29-py3-none-any.whl"
 
-rm -rf "$T" "$B/wheelhouse"
+remove "$T" "$B/wheelhouse"
 mkdir -p "$T" "$B/wheelhouse"
 for archive in "$SDK_TGZ" "$WASMTIME_TXZ" "$PYTHON_TGZ"; do
   tar -xf "$archive" -C "$T"
@@ -27,12 +27,12 @@ set -- "$SDK"/lib/clang/*
 [ "$#" -eq 1 ] && [ -d "$1" ] || die "the SDK has $# lib/clang/* directories, not exactly one"
 BUILTINS="$1/lib/wasm32-unknown-wasip1"
 [ -d "$BUILTINS" ] || die "the SDK has no $BUILTINS"
-rm -rf "$SDK/share/wasi-sysroot" "$BUILTINS" "$B/neutral-rt"
+remove "$SDK/share/wasi-sysroot" "$BUILTINS" "$B/neutral-rt"
 mkdir -p "$SDK/share/wasi-sysroot" "$BUILTINS" "$B/neutral-rt"
 tar -xzf "$SYSROOT_TGZ" -C "$SDK/share/wasi-sysroot" --strip-components=1
 tar -xzf "$RT_TGZ" -C "$B/neutral-rt" --strip-components=1
 cp "$B/neutral-rt/wasm32-unknown-wasip1/"* "$BUILTINS/"
-rm -rf "$B/neutral-rt"
+remove "$B/neutral-rt"
 
 # Only the pinned wheels, and a requirements file carrying their pinned hashes.
 REQS="$B/tools-requirements.txt"

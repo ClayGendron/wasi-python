@@ -19,7 +19,7 @@ LIBDIR="$B/stdlib-libs"
 BZIP2_TGZ=$(pinned bzip2-1.0.8.tar.gz)
 XZ_TGZ=$(pinned xz-5.8.4.tar.gz)
 SQLITE_TGZ=$(pinned sqlite-autoconf-3540100.tar.gz)
-rm -rf "$B/bzip2-1.0.8" "$B/xz-5.8.4" "$B/sqlite-autoconf-3540100" \
+remove "$B/bzip2-1.0.8" "$B/xz-5.8.4" "$B/sqlite-autoconf-3540100" \
   "$B/bzip2-build" "$B/xz-build" "$B/sqlite-build" "$LIBDIR"
 mkdir -p "$LIBDIR/include" "$LIBDIR/lib"
 

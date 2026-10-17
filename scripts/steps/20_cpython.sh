@@ -6,7 +6,7 @@ set -eu
 . "$(dirname "$0")/common.sh"
 
 TARBALL=$(pinned "Python-$PYTHON_VERSION.tar.xz")
-rm -rf "$CP"
+remove "$CP"
 tar -xf "$TARBALL" -C "$B"
 cd "$CP"
 # The build-Python must not see the build tools' path; SOURCE_DATE_EPOCH comes from build.sh.

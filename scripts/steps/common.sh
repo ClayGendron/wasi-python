@@ -5,6 +5,7 @@ HERE=$(CDPATH= cd "$(dirname "$0")/../.." && pwd -P)
 D="$HERE/downloads"
 B="$HERE/build"
 . "$HERE/scripts/line.sh"
+. "$HERE/scripts/steps/remove.sh"
 T="$B/tools"
 SDK="$T/$WASI_SDK_DIR"
 HOSTPY="$T/python/bin/python3"
@@ -24,7 +25,7 @@ export PYTHONDONTWRITEBYTECODE=1
 # A step that marshals code (60, 70) first removes any cache an outside run of the host Python left,
 # so the same inputs always give the same bytes.
 host_from_source() {
-  find "$T/python/lib" -name __pycache__ -type d -prune -exec rm -rf {} +
+  find "$T/python/lib" -name __pycache__ -type d -prune | while read -r d; do remove "$d"; done
 }
 
 # Fail the step with one line naming what is missing.

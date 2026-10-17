@@ -13,6 +13,7 @@ export UV_CACHE_DIR="$HERE/build/uv-cache"
 export PYTHONHASHSEED=0
 export LC_ALL=C  # one collation on every host: each step's `sort` orders bytes alike (spec 012)
 mkdir -p "$HERE/build/logs"
+. "$HERE/scripts/steps/remove.sh"
 
 ALL="00_download 10_tools 20_cpython 30_zlib 35_stdlib_libs 40_numpy 50_pandas 60_link 70_zip 80_snapshot 90_artifacts"
 if [ "$#" -eq 0 ]; then
@@ -34,7 +35,7 @@ for step in $STEPS; do
     00_*) script="$HERE/scripts/00_download.sh";;
     *) script="$HERE/scripts/steps/$step.sh"
        # A rebuild never leaves an older set that looks current.
-       rm -rf "$HERE/build/artifacts" "$HERE/build/artifacts.new";;
+       remove "$HERE/build/artifacts" "$HERE/build/artifacts.new";;
   esac
   log="$HERE/build/logs/$step.log"
   if sh "$script" > "$log" 2>&1; then

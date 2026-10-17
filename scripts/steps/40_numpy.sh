@@ -8,7 +8,7 @@ set -eu
 TARBALL=$(pinned numpy-2.5.2.tar.gz)
 SRC="$B/numpy-2.5.2"
 BUILD="$B/numpy-build"
-rm -rf "$SRC" "$BUILD" "$B/numpy-install" "$B/numpy-host"
+remove "$SRC" "$BUILD" "$B/numpy-install" "$B/numpy-host"
 tar -xzf "$TARBALL" -C "$B"
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-numpy.cross" > "$B/wasi-numpy.cross"
 cd "$SRC"

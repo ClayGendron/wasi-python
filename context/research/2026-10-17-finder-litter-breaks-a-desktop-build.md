@@ -41,3 +41,8 @@ A small recipe change, with its own review:
 
 Until then, close any Finder window on `build/` while building, or run
 `find build -name .DS_Store -delete` and re-run the step that failed.
+
+**Since spec 018** (`../specifications/018-finder-litter-never-breaks-a-build.md`) the steps
+retry their removals and never pack litter. One case stays, by decision: a `.DS_Store` in the
+finished `build/artifacts/` fails the judge's `SHA256SUMS` check; delete it with
+`find build/artifacts -name .DS_Store -delete`.

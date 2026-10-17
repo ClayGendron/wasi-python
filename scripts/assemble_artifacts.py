@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path
 
 import line
+from litter import OS_LITTER
 
 LINE = line.read()
 PYTHON = LINE["PYTHON_VERSION"]
@@ -56,6 +57,40 @@ LLVM = [
 RESEARCH_PINS = {"python-3.14.7-wasi_sdk-24.zip"}
 PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
+
+
+def _remove(path: Path) -> None:
+    """Remove a folder, retrying as scripts/steps/remove.sh does: Finder can write into it while
+    it is emptied (spec 018). A path already gone is success."""
+    for _ in range(3):
+        if os.path.islink(path) or os.path.isfile(path):
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+        else:
+            shutil.rmtree(path, ignore_errors=True)  # goes on past an entry, as rm -rf does
+        if not os.path.lexists(path):
+            return
+    raise SystemExit(f"ERROR: cannot remove {path}")
+
+
+def drop_litter(folder: Path) -> None:
+    """Delete Finder and Explorer litter from a folder this script made, before it is listed."""
+    for p in sorted(folder.rglob("*")):
+        if p.name in OS_LITTER and p.is_file():
+            p.unlink()
+
+
+def listed_files(folder: Path) -> list[Path]:
+    """The set's files for SHA256SUMS. Litter written after drop_litter is never listed, so the
+    judge and the wheel rule see it as a file the set does not list (spec 018)."""
+    return sorted(p for p in folder.rglob("*") if p.is_file() and p.name not in OS_LITTER)
+
+
+def licence_files(folder: Path) -> list[Path]:
+    """A licence folder's files, without litter: each is packed into a LICENSES file."""
+    return sorted(p for p in folder.iterdir() if p.name not in OS_LITTER)
 
 
 def sha256(path: Path) -> str:
@@ -123,7 +158,7 @@ def main() -> None:
         raise SystemExit(f"untracked recipe files (stage them first): {', '.join(untracked)}")
 
     new, final = b / "artifacts.new", b / "artifacts"
-    shutil.rmtree(new, ignore_errors=True)
+    _remove(new)
     (new / "LICENSES").mkdir(parents=True)
     for name in ("python.wasm", "python-snapshot.wasm", "python-stdlib.zip"):
         shutil.copyfile(b / "out" / name, new / name)
@@ -142,7 +177,7 @@ def main() -> None:
         "pandas": [("pandas LICENSE", (pd_src / "LICENSE").read_bytes())]
         + [
             (f"pandas LICENSES/{p.name}", p.read_bytes())
-            for p in sorted((pd_src / "LICENSES").iterdir())
+            for p in licence_files(pd_src / "LICENSES")
         ],
         "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
         "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
@@ -188,11 +223,12 @@ def main() -> None:
     ]
     (new / "MANIFEST").write_text("\n".join(manifest) + "\n")
 
-    files = sorted(p for p in new.rglob("*") if p.is_file())
+    drop_litter(new)
+    files = listed_files(new)
     (new / "SHA256SUMS").write_text(
         "".join(f"{sha256(p)}  {p.relative_to(new).as_posix()}\n" for p in files)
     )
-    shutil.rmtree(final, ignore_errors=True)
+    _remove(final)
     new.rename(final)
     print(f"artifacts: {len(files) + 1} files in build/artifacts")
 

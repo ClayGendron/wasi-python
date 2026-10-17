@@ -5,7 +5,7 @@ set -eu
 . "$(dirname "$0")/common.sh"
 
 TARBALL=$(pinned zlib-1.3.1.tar.gz)
-rm -rf "$B/zlib-1.3.1" "$B/zlib-build" "$B/zlib-wasi"
+remove "$B/zlib-1.3.1" "$B/zlib-build" "$B/zlib-wasi"
 tar -xzf "$TARBALL" -C "$B"
 mkdir -p "$B/zlib-build"
 cd "$B/zlib-build"

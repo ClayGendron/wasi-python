@@ -30,6 +30,7 @@ from importlib._bootstrap_external import _code_to_hash_pyc
 from pathlib import Path, PurePosixPath
 
 import line
+from litter import OS_LITTER
 
 TARGET = line.target()
 SKIP_DIRS = {
@@ -44,7 +45,7 @@ SKIP_DIRS = {
     "site-packages",
 }
 SKIP_SUFFIXES = {".pyi", ".pxd", ".pyx", ".pxi", ".h", ".c", ".cpp", ".so", ".deps", ".a"}
-SKIP_NAMES = {"conftest.py", "meson.build"}
+SKIP_NAMES = {"conftest.py", "meson.build", *OS_LITTER}  # Finder litter too (spec 018)
 REWRITE = ("_sysconfigdata", "numpy/__config__.py")
 EPOCH = (1980, 1, 1, 0, 0, 0)
 # build_time_vars keys that record the build host's tools, and the value each is given. The

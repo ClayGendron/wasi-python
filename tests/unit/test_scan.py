@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import jobs, scan
+from harness import jobs, paths, scan
 
 
 def write(base: Path, rel: str, text: str) -> Path:
@@ -95,6 +95,44 @@ def test_bare_python_is_found_and_paths_and_uv_are_not(work) -> None:
     bad = write(work, "s/bad.sh", "#!/bin/sh\ncurl -s u | python3 -c 'print(1)'\npip install x\n")
     assert scan.bare_python_hits([ok], work) == []
     assert [h.split(":")[1] for h in scan.bare_python_hits([bad], work)] == ["2", "3"]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'rm -rf "$x"',
+        'rm -fr "$x"',
+        'rm -Rf "$x"',
+        'rm -r -f "$x"',
+        'rm --recursive --force "$x"',
+        "cd x && rm -rf y",
+        "find . -name z -exec rm -rf {} +",
+        'if true; then rm -rf "$x"; fi',
+        'if rm -rf "$x"; then :; fi',
+        "printf '%s\\0' a | xargs -0 rm -rf",
+        '\\rm -rf "$x"',
+        '/bin/rm -rf "$x"',
+        'x=1 rm -rf "$x"',
+        'rm \\\n  -rf "$x"',
+    ],
+)
+def test_a_recursive_forced_rm_is_found(work, line) -> None:
+    bad = write(work, "scripts/steps/x.sh", f"#!/bin/sh\n{line}\n")
+    assert [h.split(":")[1] for h in scan.bare_rm_hits([bad], work)] == ["2"]
+
+
+def test_rm_without_both_flags_and_remove_sh_are_not_hits(work) -> None:
+    ok = write(
+        work, "scripts/steps/ok.sh", '#!/bin/sh\nrm -f "$x"\nrm -r "$y"\nremove "$z"\n# rm -rf q\n'
+    )
+    sh = write(work, "scripts/steps/remove.sh", 'remove() { rm -rf "$1"; }\n')
+    assert scan.bare_rm_hits([ok, sh], work) == []
+
+
+def test_no_build_script_removes_without_retrying() -> None:
+    """Spec 018: every removal in a build script goes through `remove`."""
+    scripts = scan.files_under(paths.REPO, "scripts")
+    assert scan.bare_rm_hits(scripts, paths.REPO) == []
 
 
 def test_every_pin_needs_a_literal_url(work) -> None:

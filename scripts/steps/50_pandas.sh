@@ -9,7 +9,7 @@ set -eu
 TARBALL=$(pinned pandas-3.0.6.tar.gz)
 SRC="$B/pandas-3.0.6"
 BUILD="$B/pandas-build"
-rm -rf "$SRC" "$BUILD" "$B/pandas-install"
+remove "$SRC" "$BUILD" "$B/pandas-install"
 [ -d "$B/numpy-host/numpy" ] || die "no host-side numpy stand-in: run step 40 first"
 tar -xzf "$TARBALL" -C "$B"
 sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-pandas.cross" > "$B/wasi-pandas.cross"

@@ -11,7 +11,7 @@ L="$B/link"
 for lib in libbz2.a liblzma.a libsqlite3.a; do
   [ -s "$B/stdlib-libs/lib/$lib" ] || die "build/stdlib-libs/lib/$lib is missing: run step 35"
 done
-rm -rf "$L" "$OUT/python.wasm"
+remove "$L" "$OUT/python.wasm"
 mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build"
 

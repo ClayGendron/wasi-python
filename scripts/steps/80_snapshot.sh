@@ -12,7 +12,7 @@ set -eu
 
 ROOT="$B/wizer-root"
 ZIP="usr/local/lib/python$PYTHON_TAG.zip"
-rm -rf "$ROOT" "$OUT/python-snapshot.wasm"
+remove "$ROOT" "$OUT/python-snapshot.wasm"
 mkdir -p "$ROOT/usr/local/lib"
 cp "$OUT/python-stdlib.zip" "$ROOT/$ZIP"
 FLAGS="-W exceptions=y,unknown-imports-trap=y -S cli=y,inherit-stdin=n,inherit-stdout=n,inherit-stderr=n -C cache=n --init-func wizer.initialize"
