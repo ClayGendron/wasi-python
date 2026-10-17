@@ -379,13 +379,13 @@ RED: 32 metric(s) grew
 
 ### Left over
 
-- **Criterion 5, the release workflow's dry run,** runs after the push that lands this. The
-  zero-patch step's `^7 passed` was run locally (A4).
+- **Criterion 5, the release workflow's dry run:** run 39035741327 on `5abc972` passed every
+  job: build and judge, the arm64 Linux rebuild, the same-bytes gate, and verify on Ubuntu,
+  macOS and Windows (where the `sqlite` job first ran SQLite's unlink of an open temporary
+  file). The zero-patch step's `^7 passed` was also run locally (A4).
 - **Step 60 reads the environment** through CPython's own `configure` and `make` (`CPPFLAGS`
   changed the reactor, EXECUTED by the author while answering the review's confirmation). Steps 20 and 60 predate this spec;
   the same-bytes gate catches a difference. Sealing them like step 35 is a separate change.
-- **Windows** was not run here: SQLite's unlink of an open temporary file on a Windows host is
-  first exercised by the `sqlite` job in the release workflow's `windows-2025` verify job.
 - **Benchmarks** (time) were not re-measured beyond the build walls above and the README's
   build-time row (5 min 41 s, a full build from pins on this machine).
 - The research memo's "Where it stopped" gains SQLite's randomness and its upstream route
