@@ -17,7 +17,9 @@ and nothing a guest frame or a host function does makes `run` raise.
 from __future__ import annotations
 
 import atexit
+import ctypes
 import hashlib
+import itertools
 import math
 import os
 import secrets
@@ -29,10 +31,11 @@ import tempfile
 import threading
 import time
 import warnings
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import Artifacts
 from . import artifacts as find_artifacts
@@ -189,7 +192,40 @@ def _call(
     """One instance, one program. The store is closed before this returns, trapped or not, so the
     guest's memory and open files are released at once (a trapped store is otherwise kept alive by
     a reference cycle until Python's collector runs) and a private root can be removed afterwards
-    (Windows refuses to remove an open directory)."""
+    (Windows refuses to remove an open directory). Ctrl-C is deferred while the guest runs."""
+    with _deferred_ctrl_c():
+        return _call_deferred(
+            wt,
+            engine,
+            module,
+            found,
+            guest_root,
+            argv,
+            env,
+            stdin,
+            host,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+        )
+
+
+def _call_deferred(
+    wt: Any,
+    engine: wasmtime.Engine,
+    module: wasmtime.Module,
+    found: Artifacts,
+    guest_root: Path,
+    argv: list[str],
+    env: Mapping[str, str] | None,
+    stdin: bytes | None,
+    host: Host | None,
+    fuel: int | None,
+    deadline_s: float | None,
+    memory_bytes: int | None,
+    output_bytes: int | None,
+) -> Completed:
     tmp = _real_dir(guest_root, ("tmp",))  # TMPDIR; a guest's link there is removed
     home = f".home-{secrets.token_hex(16)}"
     # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
@@ -273,10 +309,13 @@ def _instance(
     # The ticker's count at which this store's deadline has passed, read after the deadline is set
     # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
     stop_at = _stop_at(_epoch_ticker.count(), ticks)
+    checks = [] if deadline_s is None else [lambda: _epoch_ticker.count() >= stop_at]
+    if _ctrl_c_watched():
+        checks.append(lambda: _ctrl_c["pending"])  # a wait on the main thread ends at Ctrl-C
     waits = _Waits(
         lambda: time.perf_counter(),
         time.sleep,
-        None if deadline_s is None else (lambda: _epoch_ticker.count() >= stop_at),
+        (lambda: any(check() for check in checks)) if checks else None,
     )
 
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
@@ -285,52 +324,253 @@ def _instance(
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
-    wasi.stdout_custom = out.write
-    wasi.stderr_custom = err.write
-    with tempfile.TemporaryDirectory(prefix="wasi-python-") as scratch:
-        stdin_path = Path(scratch) / "stdin"
-        stdin_path.write_bytes(stdin or b"")
-        wasi.stdin_file = str(stdin_path)
-        store.set_wasi(wasi)
-        linker = wt.Linker(engine)
-        linker.define_wasi()
-        i32 = wt.ValType.i32()
-        linker.allow_shadowing = True
-        linker.define_func(
-            "wasi_snapshot_preview1",
-            "poll_oneoff",
-            wt.FuncType([i32] * 4, [i32]),
-            _poll_oneoff(origin_ns, waits),
-            True,
-        )
-        door = _door(host)
-        linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
-
-        exit_code: int | None = None
-        trapped: str | None = None
-        metered = False  # the cap is set only once instantiation has succeeded
-        with _epoch_ticker(engine, deadline_s is not None):
-            try:
-                instance = linker.instantiate(store, module)
-                if fuel is not None:
-                    store.set_fuel(fuel)
-                    metered = True
-                exports = instance.exports(store)
-                if "_initialize" in exports:
-                    exports["_initialize"](store)
-                exit_code = exports["run"](store)
-            except wt.ExitTrap as e:
-                exit_code = e.code
-            except wt.Trap as e:
-                trapped = _trap_name(e)
-            except wt.WasmtimeError as e:
-                trapped = _first_line(str(e))
-    # After an epoch interrupt wasmtime's fuel counter is not brought up to date, so the count is
-    # meaningless then (spec 001 landing notes).
-    counted = fuel is not None and trapped != "deadline"
-    fuel_used = (fuel - store.get_fuel() if metered else 0) if counted else None
+    keys = _send_outputs(wasi, out, err)
+    try:
+        with tempfile.TemporaryDirectory(prefix="wasi-python-") as scratch:
+            stdin_path = Path(scratch) / "stdin"
+            stdin_path.write_bytes(stdin or b"")
+            wasi.stdin_file = str(stdin_path)
+            store.set_wasi(wasi)
+            linker = _linker(
+                wt, engine
+            )  # held for the whole call: clearing the cache cannot free it
+            call = _Call(store, host, waits, origin_ns)
+            with _epoch_ticker(engine, deadline_s is not None):
+                done = _drive(wt, linker, store, module, call, fuel)
+    finally:
+        with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
+            for key in keys:
+                _outputs.pop(key, None)
+    fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
     truncated = tuple(s.name for s in (out, err) if s.dropped)
-    return Completed(exit_code, bytes(out.data), bytes(err.data), trapped, fuel_used, truncated)
+    return Completed(
+        done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated
+    )
+
+
+def _fuel_used(
+    fuel: int | None, done: _Driven, call: _Call, remaining: Callable[[], int]
+) -> int | None:
+    """The instructions the guest ran, or None when the count is meaningless: after an epoch
+    interrupt wasmtime's fuel counter is not brought up to date (spec 001 landing notes), and a
+    stopped call ended on one (spec 011)."""
+    if fuel is None or done.trapped == "deadline" or call.stopped is not None:
+        return None
+    return fuel - remaining() if done.metered else 0
+
+
+class _Driven(NamedTuple):
+    exit_code: int | None
+    trapped: str | None
+    metered: bool  # the cap is set only once instantiation has succeeded
+    instance: Any
+
+
+def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int | None) -> _Driven:
+    """Instantiate and run the guest with its call on this thread's stack. What a host function
+    caught and recorded comes first: an exit or a trap is the call's result, and any other
+    exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call
+    (spec 011)."""
+    exit_code: int | None = None
+    trapped: str | None = None
+    metered = False
+    instance = None
+    stack = _stack()
+    stack.append(call)
+    try:
+        instance = linker.instantiate(store, module)
+        if fuel is not None:
+            store.set_fuel(fuel)
+            metered = True
+        exports = instance.exports(store)
+        if "_initialize" in exports:
+            exports["_initialize"](store)
+        exit_code = exports["run"](store)
+    except wt.ExitTrap as e:
+        exit_code = e.code
+    except wt.Trap as e:
+        trapped = _trap_name(e)
+    except wt.WasmtimeError as e:
+        trapped = _first_line(str(e))
+    finally:
+        stack.pop()
+    cause = call.stopped
+    if cause is not None:
+        exit_code, trapped = None, None
+        if isinstance(cause, wt.ExitTrap):
+            exit_code = cause.code
+        elif isinstance(cause, wt.Trap):
+            trapped = _trap_name(cause)
+        elif isinstance(cause, wt.WasmtimeError):
+            trapped = _first_line(str(cause))
+        else:
+            raise cause
+    return _Driven(exit_code, trapped, metered, instance)
+
+
+class _Call:
+    """One call's state, which the shared host functions find on the calling thread's stack: its
+    door, its poll_oneoff, its store's context address, and the first exception they caught."""
+
+    def __init__(self, store: Any, host: Host | None, waits: Any, origin_ns: int) -> None:
+        self.context = _context_address(store)
+        self.door = _door(host)
+        self.poll = _poll_oneoff(origin_ns, waits)
+        self.stopped: BaseException | None = None
+
+    def stop(self, caller: Any, cause: BaseException) -> None:
+        """Record the cause and stop the guest: an epoch deadline of 0, set through the caller's
+        context, traps it at its next function entry, with nothing raised through wasmtime-py."""
+        if self.stopped is None:
+            self.stopped = cause
+        from wasmtime import _ffi
+
+        _ffi.wasmtime_context_set_epoch_deadline(caller._context(), 0)
+
+
+_calls = threading.local()
+
+
+def _stack() -> list[_Call]:
+    stack = getattr(_calls, "stack", None)
+    if stack is None:
+        stack = _calls.stack = []
+    return stack
+
+
+def _context_address(storelike: Any) -> int:
+    return ctypes.addressof(storelike._context().contents)
+
+
+def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
+    """A host function defined once per engine. It serves the call on top of this thread's
+    stack, and only when the caller is that call's store; it never raises into wasmtime-py,
+    whose exceptions travel by a process-wide slot (spec 011)."""
+
+    def function(caller: Any, *args: int) -> int:
+        call = None
+        try:
+            stack = _stack()
+            call = stack[-1] if stack else None
+            if call is None or _context_address(caller) != call.context:
+                return refused
+            if call.stopped is None and _ctrl_c_watched() and _ctrl_c["pending"]:
+                _ctrl_c["pending"] = False
+                raise KeyboardInterrupt
+            if call.stopped is not None:
+                return stopped
+            answer = getattr(call, kind)(caller, *args)
+            if _ctrl_c_watched() and _ctrl_c["pending"]:  # Ctrl-C during a wait
+                _ctrl_c["pending"] = False
+                raise KeyboardInterrupt
+            return answer
+        except BaseException as cause:
+            try:
+                if call is not None:
+                    call.stop(caller, cause)
+            except BaseException:
+                pass
+            return stopped
+
+    return function
+
+
+_linkers: dict[Any, Any] = {}
+
+
+def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
+    """The engine's one linker: WASI, the shadowed poll_oneoff and the door, defined once, so a
+    call adds nothing to wasmtime-py's process-wide table of host functions (spec 011)."""
+    with _lock:
+        linker = _linkers.get(engine)
+        if linker is None:
+            linker = wt.Linker(engine)
+            linker.define_wasi()
+            linker.allow_shadowing = True
+            i32 = wt.ValType.i32()
+            ty = wt.FuncType([i32] * 4, [i32])
+            poll = _shared("poll", EINVAL, EINVAL)
+            linker.define_func("wasi_snapshot_preview1", "poll_oneoff", ty, poll, True)
+            linker.define_func("host", "call", ty, _shared("door", NO_HOST, HOST_FAULT), True)
+            _linkers[engine] = linker
+        return linker
+
+
+# The guest's stdout and stderr, by a key that is never reused. wasmtime calls the two functions
+# below on its own threads, and frees a key when it drops the stream; wasmtime-py's own table for
+# custom outputs is not used, since it has no lock (spec 011).
+_outputs: dict[int, _Stream] = {}
+_outputs_lock = threading.RLock()  # a finalizer the collector runs inside a locked block
+_output_keys = itertools.count(1)
+
+
+@ctypes.CFUNCTYPE(
+    ctypes.c_ssize_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t
+)
+def _output_write(key: int | None, data: Any, size: int) -> int:
+    try:
+        with _outputs_lock:
+            stream = _outputs.get(key or 0)
+        return size if stream is None else stream.write(ctypes.string_at(data, size))
+    except BaseException:
+        return size  # never raises, never prints: the bytes are dropped and the write succeeds
+
+
+@ctypes.CFUNCTYPE(None, ctypes.c_void_p)
+def _output_free(key: int | None) -> None:
+    with _outputs_lock:
+        _outputs.pop(key or 0, None)
+
+
+def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
+    from wasmtime import _ffi
+
+    with _outputs_lock:
+        keys = next(_output_keys), next(_output_keys)
+        _outputs[keys[0]], _outputs[keys[1]] = out, err
+    _ffi.wasi_config_set_stdout_custom(wasi.ptr(), _output_write, keys[0], _output_free)
+    _ffi.wasi_config_set_stderr_custom(wasi.ptr(), _output_write, keys[1], _output_free)
+    return keys
+
+
+# Ctrl-C while a guest runs on the main thread. Python's default handler raises KeyboardInterrupt
+# wherever the main thread next runs Python, and when that is the first line of wasmtime-py's
+# trampoline the exception cannot be caught and the process aborts (spec 011's review, EXECUTED:
+# exit 134). So while run() holds the main thread under the default handler, Ctrl-C only sets a
+# flag: the shared host functions turn it into a recorded stop, a wait ends at it, and a flag no
+# host function saw is raised once the call has ended.
+_ctrl_c = {"pending": False}
+
+
+def _note_ctrl_c(signum: int, frame: Any) -> None:
+    _ctrl_c["pending"] = True
+
+
+def _ctrl_c_watched() -> bool:
+    import signal
+
+    main = threading.current_thread() is threading.main_thread()
+    return main and signal.getsignal(signal.SIGINT) is _note_ctrl_c
+
+
+@contextmanager
+def _deferred_ctrl_c() -> Iterator[None]:
+    import signal
+
+    main = threading.current_thread() is threading.main_thread()
+    if not main or signal.getsignal(signal.SIGINT) is not signal.default_int_handler:
+        yield  # another thread, an embedder's own handler, or a nested call: nothing to defer
+        return
+    _ctrl_c["pending"] = False
+    signal.signal(signal.SIGINT, _note_ctrl_c)
+    try:
+        yield
+    finally:
+        if signal.getsignal(signal.SIGINT) is _note_ctrl_c:  # a host may have set its own
+            signal.signal(signal.SIGINT, signal.default_int_handler)
+        pending, _ctrl_c["pending"] = _ctrl_c["pending"], False
+    if pending:
+        raise KeyboardInterrupt
 
 
 EINVAL, ENOMEM, EBADF, EFAULT = 28, 48, 8, 21  # WASI preview1 errno values
@@ -425,7 +665,8 @@ def _poll_oneoff(
 ) -> Callable[..., int]:
     """The shadowed poll_oneoff. It never raises into wasmtime-py (an exception there travels by a
     process-wide slot another call can take): a wait ended by the deadline answers normally, and
-    the guest traps at its next epoch check. The clocks are injectable for the judge."""
+    the guest traps at its next epoch check. A BaseException goes to the shared function, which
+    records it and stops the guest (spec 011). The clocks are injectable for the judge."""
 
     def call(caller, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
@@ -448,10 +689,8 @@ def _poll_oneoff(
             memory.write(caller, events, out_ptr)
             memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
             return 0
-        except KeyboardInterrupt:
-            raise
         except Exception:
-            return EINVAL
+            return EINVAL  # anything else is recorded by the shared function (spec 011)
 
     return call
 
@@ -498,7 +737,7 @@ def _door(host: Host | None) -> Callable[..., int]:
         try:
             return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr)
         except (wt.Trap, wt.WasmtimeError):
-            raise  # a deadline or fuel running out inside host_alloc ends the run as anywhere
+            raise  # a trap or exit inside host_alloc: the shared function records it (spec 011)
         except Exception:
             return HOST_FAULT  # nothing a frame or a host does escapes run() (spec 006)
 
@@ -687,7 +926,8 @@ def stats() -> dict[str, int]:
 
 @atexit.register
 def _release() -> None:
-    """Free the cached modules and engines while wasmtime's bindings still exist."""
+    """Free the cached linkers, modules and engines while wasmtime's bindings still exist."""
+    _linkers.clear()
     _modules.clear()
     _engines.clear()
 
@@ -731,9 +971,27 @@ def _module(
     digest = _digest(binary)
     with _lock:
         mod = _modules.get((metered, digest))
+        guard = _compiling.setdefault((metered, digest), threading.Lock())
     if mod is not None:
         return mod
+    # One thread compiles or loads; the others wait for it (spec 011). Only this lock is held
+    # while compiling: the epoch ticker takes _lock every round.
+    with guard:
+        with _lock:
+            mod = _modules.get((metered, digest))
+        if mod is not None:
+            return mod
+        return _module_miss(wt, engine, metered, binary, cache, digest)
+
+
+_compiling: dict[tuple[bool, str], threading.Lock] = {}
+
+
+def _module_miss(
+    wt: Any, engine: wasmtime.Engine, metered: bool, binary: Path, cache: Path | None, digest: str
+) -> wasmtime.Module:
     flavor = "fuel" if metered else "plain"
+    mod = None
     cwasm = None
     if cache is not None and _private(cache, is_dir=True):
         cwasm = cache / f"{digest[:32]}-wasmtime{_wasmtime_version()}-{flavor}.cwasm"
@@ -779,7 +1037,7 @@ def _private(path: Path, *, is_dir: bool) -> bool:
         f"wasi_python: not using the module cache at {path}: it must be a "
         f"{'directory' if is_dir else 'file'} owned by this user and writable by no one else",
         RuntimeWarning,
-        stacklevel=4,
+        stacklevel=5,
     )
     return False
 

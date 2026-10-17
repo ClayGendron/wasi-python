@@ -98,8 +98,19 @@ question moves to the bottom with the answer and the date.
   button, which works only when private vulnerability reporting is on in the repository's
   settings (Settings → Code security). May the agent turn it on (`gh api -X PUT
   repos/ClayGendron/wasi_python/private-vulnerability-reporting`), or will you?
-- **Meanwhile:** `SECURITY.md` is not written yet; it waits on this answer and on spec 010, so
-  that the policy it publishes is true and its reporting route works.
+- **Meanwhile:** `SECURITY.md` is not written yet; it waits on this answer (spec 010, the other
+  thing it waited on, landed 2026-10-17), so that its reporting route works.
+
+### 11. File a wasmtime-py issue about its shared callback tables?
+
+- **Asked:** 2026-10-17. **Source:** spec 010's build review, finding 1, and spec 011
+  (`specifications/011-concurrent-calls-share-nothing.md`).
+- **The fact:** wasmtime-py keeps the Python callbacks of `define_func` and of custom WASI
+  output in two process-wide tables with no lock. Threads that define or free them at once
+  corrupt the tables (EXECUTED: after a few hundred concurrent calls every later call raised).
+  Spec 011 works around it in the runner, without patching wasmtime-py.
+- **The question:** may the agent file the issue (an outward-facing action)? The agent writes
+  its text into spec 011's landing notes either way.
 
 ## Answered
 

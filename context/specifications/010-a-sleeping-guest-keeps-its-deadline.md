@@ -172,3 +172,7 @@ benchmark fact (not a check): under a 1 s deadline, `time.sleep(5)` ended at 1.1
 `select.select([], [], [], 5)` at 1.03 s, where both ran the full 5 s before.
 
 `asyncio` still fails in the guest (it needs a socketpair), as the Scope says.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39014444311,
+on `29702cb`): every job it runs passed (build and judge, verify on ubuntu-24.04, windows-2025
+and macos-15); `attest`, `publish` and PyPI were skipped, as a dry run must (criterion 3).

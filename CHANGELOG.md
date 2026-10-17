@@ -48,6 +48,13 @@ package becomes a Python exception instead of ending the guest.
   its deadline; the runner answers the guest's waits itself, stopping at the deadline. One
   `poll_oneoff` takes at most 4,096 subscriptions (more answer `ENOMEM`: `select.poll()` on more
   than 2,047 descriptors), and a bad pointer answers `EFAULT`.
+- **Concurrent calls share nothing:** calls from many threads no longer corrupt wasmtime-py's
+  callback tables (after a few hundred concurrent calls, every later call raised, and a guest
+  could reach another call's host or output). The host functions are defined once per engine,
+  and outputs use the runner's own table. An exception a host raises, and Ctrl-C, now come back
+  to the call that caused them; Ctrl-C while a guest computed could abort the whole process. A
+  trap or exit inside the guest's allocator during a door call is that call's result, and its
+  `fuel_used` is `None`. Concurrent first calls compile the module once.
 - **Release provenance:** from this release on, every asset is attested by the release workflow
   and verified before it is published; the notes say how to verify a download.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;

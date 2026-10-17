@@ -263,7 +263,17 @@ has one.
   after it; `env=` is laid over them;
 - each call's store is closed when it ends, trapped or not, so its memory
   and open files are released at once; a call without `root` copies the
-  11 MB stdlib zip into its fresh root and removes the root afterwards.
+  11 MB stdlib zip into its fresh root and removes the root afterwards;
+- calls made through `run` share nothing with each other: the host
+  functions are defined once per engine and serve only the call whose store
+  called them, and each call's output goes to its own buffer, never through
+  wasmtime-py's shared callback tables; whatever a host function catches (a
+  trap in the guest's allocator, a host's `SystemExit` or `CancelledError`,
+  Ctrl-C) stops that call and is reported or raised by that call's `run`, on
+  its own thread. While `run` holds the main thread under Python's default
+  SIGINT handler, Ctrl-C ends the call at the guest's next wait or door
+  call, or during a wait, or else at its deadline; an embedder's own
+  handler is left alone.
 
 **Not protected:** disk use in a granted root; the host's file
 descriptors (a guest can hold thousands of open files, which the embedder's
@@ -276,7 +286,14 @@ from a reused root; concurrent calls on one root (a guest can hard-link or
 change the files another call uses, the stdlib zip included); a program
 damaging its own stdlib zip during its own run; a guest that waits
 (`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
-long as it asks (no instruction runs, so fuel does not stop it); timing
+long as it asks (no instruction runs, so fuel does not stop it); Ctrl-C
+for a guest that never waits or calls the door in a call with
+`deadline_s=None` (it runs on); Ctrl-C under an embedder's SIGINT handler
+that raises, asyncio's on a second Ctrl-C included, while a guest runs on
+the main thread: wasmtime-py can then abort the process, so call `run` on a
+worker thread (`asyncio.to_thread`, a thread pool) there; other code in the
+same process using wasmtime-py directly, whose exceptions can reach a
+trapping `run` through wasmtime-py's shared exception slot; timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

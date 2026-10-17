@@ -384,3 +384,160 @@ def test_an_ordinary_sleep_still_works(guest_workdir) -> None:
     code = "import time\ntime.sleep(0.05)\nprint('after')\n"
     done = run(["-c", code], root=_root(guest_workdir), deadline_s=None)
     assert (done.exit_code, done.stdout) == (0, b"after\n"), done
+
+
+CONCURRENT = r"""
+import sys, threading
+import wasi_python
+
+THREADS, CALLS = 8, 100  # 8 x 40 failed today's runner in 2 of 3 runs; 8 x 100 in 6 of 6
+wasi_python.run(["-c", "pass"])
+wasi_python.run(["-c", "pass"], fuel=10**10)  # both engines warm: the check is on the tables
+wrong, raised = [], []
+
+
+def one(kind, token):
+    if kind == "print":
+        r = wasi_python.run(["-c", f"print({token!r})"])
+        return r if (r.exit_code, r.stdout) != (0, f"{token}\n".encode()) else None
+    if kind == "door":
+        code = "import _host; print(_host.call(b'x').decode())"
+        r = wasi_python.run(["-c", code], host=lambda frame, t=token: t.encode())
+        return r if (r.exit_code, r.stdout) != (0, f"{token}\n".encode()) else None
+    if kind == "sleep":
+        r = wasi_python.run(["-c", f"import time; time.sleep(0.01); print({token!r})"])
+        return r if (r.exit_code, r.stdout) != (0, f"{token}\n".encode()) else None
+    if kind == "fuel":
+        r = wasi_python.run(["-c", f"print({token!r})"], fuel=10**10)
+        return r if (r.exit_code, r.stdout) != (0, f"{token}\n".encode()) else None
+    r = wasi_python.run(["-c", f"print({token!r}, flush=True)\nwhile True: pass"], deadline_s=0.2)
+    return r if (r.trapped, r.stdout) != ("deadline", f"{token}\n".encode()) else None
+
+
+def worker(w):
+    for i in range(CALLS):
+        kind = ("print", "door", "sleep", "fuel", "trap")[(w + i) % 5]
+        try:
+            bad = one(kind, f"t-{w}-{i}")
+        except BaseException as e:
+            raised.append(f"{kind}: {type(e).__name__}: {e}"[:200])
+            continue
+        if bad is not None:
+            wrong.append(f"{kind}: {bad}"[:200])
+
+
+sys.setswitchinterval(1e-6)  # frequent thread switches make an unlocked table's race likely
+threads = [threading.Thread(target=worker, args=(w,)) for w in range(THREADS)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+print(f"{THREADS * CALLS} calls, {len(wrong)} wrong, {len(raised)} raised")
+for line in (raised + wrong)[:5]:
+    print(line)
+"""
+
+
+def test_concurrent_calls_get_their_own_results() -> None:
+    """Guards a change: concurrent calls share nothing (spec 011). 8 threads make 100 calls each,
+    a mix of output, the door, a wait, fuel and a deadline trap; each must get its own result.
+    It runs in a child process, because a corrupted callback table breaks every later call in
+    the process it happens in; the 120 s timeout is a fail-safe, not a timing."""
+    _runner()
+    out = subprocess.run(
+        [sys.executable, "-c", CONCURRENT], capture_output=True, text=True, timeout=120
+    )
+    assert out.returncode == 0, out.stderr[-2000:]
+    summary = [line for line in out.stdout.splitlines() if " calls, " in line]
+    assert summary == ["800 calls, 0 wrong, 0 raised"], out.stdout[-2000:]
+
+
+def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) -> None:
+    """Guards a change: after one call per engine, a call defines no host function and sets no
+    wasmtime-py custom output, and the runner's own output table empties once wasmtime has freed
+    every call's streams (spec 011). The loop that waits for those frees, which wasmtime runs on
+    its own threads, is a fail-safe that counts rounds."""
+    import gc
+    import time
+
+    import wasmtime
+    from wasmtime import _func, _wasi
+
+    from wasi_python import runner
+
+    run = _runner()
+    root = _root(guest_workdir)
+    for fuel in (None, 10**10):
+        run(["-c", "print(1)"], root=root, fuel=fuel)
+    counts = {"define_func": 0, "custom outputs": 0}
+    define_func = wasmtime.Linker.define_func
+
+    def counted(self, *args, **kwargs):
+        counts["define_func"] += 1
+        return define_func(self, *args, **kwargs)
+
+    allocate = _wasi.CUSTOM_OUTPUTS.allocate
+
+    def counted_output(value):
+        counts["custom outputs"] += 1
+        return allocate(value)
+
+    monkeypatch.setattr(wasmtime.Linker, "define_func", counted)
+    monkeypatch.setattr(_wasi.CUSTOM_OUTPUTS, "allocate", counted_output)
+    functions = len(_func.FUNCTIONS.list)
+    for fuel in (None, 10**10, None):
+        done = run(["-c", "print('x')"], root=root, fuel=fuel)
+        assert (done.exit_code, done.stdout) == (0, b"x\n"), done
+    assert counts == {"define_func": 0, "custom outputs": 0}, counts
+    assert len(_func.FUNCTIONS.list) == functions
+    for _ in range(200):
+        gc.collect()
+        if not runner._outputs:
+            break
+        time.sleep(0.01)
+    assert not runner._outputs, f"{len(runner._outputs)} streams never freed"
+
+
+CTRL_C = r"""
+import os, signal, threading, time
+signal.signal(signal.SIGINT, signal.default_int_handler)  # as in a plain script
+import wasi_python
+
+
+def host(frame):
+    def later():
+        time.sleep(0.5)  # a trigger, not a measurement: the guest is computing by then
+        os.kill(os.getpid(), signal.SIGINT)
+
+    threading.Thread(target=later, daemon=True).start()
+    return b"ok"
+
+
+work = "x = 0\nfor i in range(30_000_000):\n    x += i\n" if "WORK" == "computes" else ""
+code = (
+    "import _host\n_host.call(b'go')\n"
+    + work
+    + "import time\ntime.sleep(10**6)\nprint('woke')\n"  # ignoring Ctrl-C hits the fail-safe
+)
+try:
+    done = wasi_python.run(["-c", code], host=host, deadline_s=None)
+    print("returned", done.exit_code, done.trapped, done.stdout)
+except KeyboardInterrupt:
+    print("KeyboardInterrupt")
+print("next", wasi_python.run(["-c", "print(1)"]).stdout)
+"""
+
+
+@pytest.mark.parametrize("when", ["computes", "waits"])
+def test_ctrl_c_while_the_guest_runs_ends_the_call(when) -> None:
+    """Guards a change: Ctrl-C while a guest computed on the main thread raised inside
+    wasmtime-py's trampoline and aborted the whole process (exit 134). Now the call stops at the
+    guest's next wait or door call, or within a wait, and raises KeyboardInterrupt, and the
+    process goes on (spec 011). In a child process, with a 120 s fail-safe."""
+    _runner()
+    script = CTRL_C.replace("WORK", when)
+    out = subprocess.run(
+        [sys.executable, "-c", script], capture_output=True, text=True, timeout=120
+    )
+    assert out.returncode == 0, (out.returncode, out.stderr[-1500:])
+    assert out.stdout.splitlines() == ["KeyboardInterrupt", "next b'1\\n'"], out.stdout
