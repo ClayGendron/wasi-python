@@ -76,9 +76,24 @@
    form, `exnref`), and a host without it cannot load them (EXECUTED by the review:
    `wasmtime compile -W exceptions=n` refuses them). The imports do not change: 42 WASI
    preview1 functions and `host::call`; the exception tag is defined inside the module
-   (EXECUTED by the review). The README's host list names only hosts the third research memo
-   shows to support the proposal, and says a host must; `CHANGELOG.md` says so too. The
-   `-V` sentence does not, since a host without the proposal cannot run `-V` at all.
+   (EXECUTED by the review). The third research memo confirms that C++ has no route on WASI
+   without the proposal under our rules, and that the legacy form would lose wasmtime, wazero
+   and WasmEdge (its findings 1, 4 and the recommendation). The README's host list is that
+   memo's, and says only wasmtime 49 was run, the rest read:
+   - runs by default: wasmtime ≥ 47 (CLI, Rust, wasmtime-py; 37 to 46 with `-W
+     exceptions=y`) and WasmEdge ≥ 0.16 (AOT ≥ 0.18);
+   - runs with a switch: wasmer ≥ 6 on LLVM, V8 or Cranelift ≥ 7 (not Singlepass); wazero
+     ≥ 1.12 with its experimental opt-in; Node ≥ 24.15 or 25;
+   - does not run: WAMR, wasmi, wasmer-python, wasmer-go, wasmtime's Winch, and wasmtime built
+     without its `gc` feature.
+
+   The README names the 0.1.0a1 set (3.14 + SDK 24) as the set for hosts without the
+   proposal, with its limits: a C++ throw ends the guest, and no matplotlib. An EH-free 3.15
+   set is not built; it would be a build-time profile if an embedder needs one. `CHANGELOG.md`
+   states the requirement. The `-V` sentence does not, since a host without the proposal
+   cannot run `-V` at all. The landing notes record whether `python.wasm` needs
+   extended-const (`wasmtime compile -W extended-const=n`, EXECUTED at build), which wazero
+   gates behind a further opt-in; if it does, the README's wazero line says so.
 5. **The snapshot is made by `wasmtime wizer`**, the pinned wasmtime 49 CLI's own: `wasmtime
    wizer -W exceptions=y,unknown-imports-trap=y -S
    cli=y,inherit-stdin=n,inherit-stdout=n,inherit-stderr=n -C cache=n --init-func
@@ -114,6 +129,10 @@
      arm64 macOS only, as the build does (the lock has no manylinux wheels for cp315 numpy and
      pandas). The goldens are regenerated; only their version line changes (the research
      memo, finding 6);
+   - a new v1.1 check, `test_exceptions_are_the_standard_form`, on `python.wasm` and the
+     snapshot: each has a tag section, validates on an engine with exceptions on, and is
+     refused with exceptions off. wasmtime has no legacy form (the third memo, EXECUTED), so
+     a dropped `-wasm-use-legacy-eh=false` or `-fwasm-exceptions` fails it;
    - a new v1.3 check, `test_a_cpp_exception_reaches_python`, on the snapshot through the
      runner: `np.fft.fft` of 12,000,001 zeros under a 560 MiB memory cap must raise a bare
      `MemoryError()` (no arguments: numpy's own array-allocation error carries a shape and a
@@ -156,7 +175,8 @@ In: the above. Out: matplotlib and its libraries (their own specifications); the
 ## Acceptance criteria
 
 1. The third research memo is executed and confirms that C++ exceptions need the proposal on
-   WASI; otherwise this specification goes back to the owner.
+   WASI; otherwise this specification goes back to the owner. (Met, 2026-10-16: executed, and
+   it confirms.)
 2. From an empty `build/` (oracle kept), `scripts/build.sh` passes; steps 60 to 90 again give
    the same reactor, snapshot and zip.
 3. `uv run pytest` is green against the 3.15 set, with the new check passing and every grown
