@@ -1,6 +1,7 @@
 # 016 — The security review's leftovers
 
-- **Status:** draft, revised twice on 2026-10-17 against its pre-build review and its confirmation
+- **Status:** ready to build, 2026-10-17: revised twice against its pre-build review, which
+  its second confirmation passed for build
   (`context/reviews/016-the-security-reviews-leftovers-spec-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the release workflow
@@ -62,29 +63,32 @@ Four things the security review found, none of which blocked 0.1.0a2:
      records the identity of the kernel that made it, and a sweep touches only lock files of its
      own kernel. The identity is: Linux, `/proc/sys/kernel/random/boot_id`; macOS,
      `sysctlbyname("kern.bootsessionuuid")` through `ctypes` (EXECUTED: it answers a UUID);
-     Windows, the `MachineGuid` value under `HKLM\SOFTWARE\Microsoft\Cryptography` (`winreg`).
+     Windows, the `MachineGuid` value under `HKLM\SOFTWARE\Microsoft\Cryptography` (`winreg`,
+     opened with `KEY_READ | KEY_WOW64_64KEY`, so a 32-bit Python reads the 64-bit view).
      Where the identity cannot be read, the process neither sweeps nor writes one, and its lock
      files are never swept by anyone: a leak, never a removal.
    - **Making a folder.** For each private root and each stdin folder the runner picks the name:
      the prefix (`wasi-python-root-` or `wasi-python-`) and 16 hex characters from
      `secrets.token_hex(8)`. In order:
+     0. add `<name>` to the process's set of held names, before anything exists on disk;
      1. create `<name>.lock` in the temporary folder with `O_CREAT | O_EXCL | O_NOFOLLOW |
         O_CLOEXEC` where the platform has them, mode `0600`;
      2. lock it without waiting: POSIX `fcntl.flock(fd, LOCK_EX | LOCK_NB)`; Windows
         `os.lseek(fd, 0, 0)` then `msvcrt.locking(fd, LK_NBLCK, 1)`;
      3. check that the open file is still the file at that path (`os.fstat(fd)` and
         `os.lstat(path)` agree on device and inode);
-     4. write the kernel identity into it, one line, and flush;
-     5. make the folder `<name>` with `os.mkdir(path, 0o700)`;
-     6. add `<name>` to the process's set of held names.
+     4. write the kernel identity into it at offset 0 (`os.lseek(fd, 0, 0)`, then `os.write`),
+        one line;
+     5. make the folder `<name>` with `os.mkdir(path, 0o700)`.
 
      A failure at steps 1 to 3 or 5 (`FileExistsError`, a lock that is busy, a path that is no
      longer this file) closes what this call opened, removes only a lock file this call created
-     and still holds, and draws a new name, up to 100 times, as `mkdtemp` does; then it raises,
+     and still holds, drops `<name>` from the held set, and draws a new name, up to 100 times, as `mkdtemp` does; then it raises,
      as `mkdtemp` would.
-   - **Removing a folder at the end of the call:** remove the folder; drop `<name>` from the held
-     set; close the lock file (which releases the lock); then unlink it, ignoring
-     `FileNotFoundError`. Closing before unlinking is what Windows requires: it cannot delete a
+   - **Removing a folder at the end of the call:** remove the folder; close the lock file (which
+     releases the lock); unlink it only if the folder no longer exists, ignoring
+     `FileNotFoundError`; and drop `<name>` from the held set last. A folder that `rmtree` could
+     not fully remove keeps its lock file, so a later sweep can try again. Closing before unlinking is what Windows requires: it cannot delete a
      file that is open (READ, CPython's `tempfile` does the same).
    - **The sweep.** Once per process, at its first call, the runner claims the sweep under
      `_lock` (a flag), then sweeps without holding `_lock`, before the call's own folders are
@@ -96,10 +100,15 @@ Four things the security review found, none of which blocked 0.1.0a2:
      2. open it with `O_RDWR | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC`, `fstat` the open file, and
         skip it unless it is a regular file with the device and inode `lstat` gave;
      3. try the lock without waiting (Windows: seek to 0 first); if it is held, skip;
-     4. read the first line; skip unless it equals this kernel's identity;
+     4. read the first line from offset 0 (`os.lseek(fd, 0, 0)`, then `os.read`); skip unless it
+        equals this kernel's identity;
      5. remove the folder `<name>` if it is a directory and not a link
-        (`shutil.rmtree(ignore_errors=True)`), counting it in `_swept`; then close and unlink the
-        lock file.
+        (`shutil.rmtree(ignore_errors=True)`), counting it in `_swept` if it is then gone; close
+        the lock file; and unlink it only if no folder `<name>` remains.
+
+     A lock file with no folder beside it whose lock is free is removed if its first line is this
+     kernel's identity or it is empty (a creator killed before step 4): there is nothing of a
+     call's to lose.
 
      Every step that fails, for any reason (`ENOLCK` on a network filesystem included), leaves
      the entry alone. The whole sweep sits in `try/except Exception`, each entry in its own;
@@ -196,7 +205,7 @@ Four things the security review found, none of which blocked 0.1.0a2:
 
 The wheel is proven to be the bytes a second host rebuilt; a killed process no longer leaves a
 guest's files and the caller's `stdin` behind for good, and no live call's folder is ever
-removed; and a trap says what it was.
+removed by a process of the same kernel identity; and a trap says what it was.
 
 ## Design
 
