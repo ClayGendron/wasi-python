@@ -60,6 +60,13 @@ question moves to the bottom with the answer and the date.
   `true`. The name `wasi-python` is free on PyPI today (404).
 - *Recommended: yes, from 0.1.0a3.* `pip install wasi-python` is how most users would try it.
   0.1.0a2 stays GitHub-only; re-running its tag would rebuild, not republish.
+- **In progress (2026-10-17):** the owner is setting it up, under the name `wasi-python` (PyPI
+  treats `wasi_python` as the same name; the import stays `import wasi_python`). The settings:
+  on pypi.org, a pending GitHub publisher with project `wasi-python`, owner `ClayGendron`,
+  repository `wasi_python`, workflow `release.yml`, environment `pypi`; on GitHub, an environment
+  named `pypi` (optionally with the owner as required reviewer) and the Actions variable
+  `PYPI_PUBLISH=true`. Nothing publishes before the next tagged release, which still needs the
+  §5.6 security review and the owner's word (§7). *Open until the owner says it is done.*
 
 ### 24. Should a call with no root and no grants become stricter?
 
