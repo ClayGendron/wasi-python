@@ -88,12 +88,15 @@
      without its `gc` feature.
 
    The README names the 0.1.0a1 set (3.14 + SDK 24) as the set for hosts without the
-   proposal, with its limits: a C++ throw ends the guest, and no matplotlib. An EH-free 3.15
+   proposal, with its limits (a C++ throw ends the guest; no matplotlib) and where to get it:
+   the `v0.1.0a1` release's assets, or `wasi-python==0.1.0a1` once that version is on PyPI. An EH-free 3.15
    set is not built; it would be a build-time profile if an embedder needs one. `CHANGELOG.md`
    states the requirement. The `-V` sentence does not, since a host without the proposal
-   cannot run `-V` at all. The landing notes record whether `python.wasm` needs
-   extended-const (`wasmtime compile -W extended-const=n`, EXECUTED at build), which wazero
-   gates behind a further opt-in; if it does, the README's wazero line says so.
+   cannot run `-V` at all. Neither 3.15 binary needs extended-const, which wazero gates
+   behind a further opt-in: both compile with `-W extended-const=n` (EXECUTED by the review's
+   confirmation). They need multi-value and reference-types, both Wasm 2.0. The README's
+   opening sentence stops naming wazero and wasmer as plain WASI hosts and points to the host
+   list, and its embedder step 1 names `python315.zip`.
 5. **The snapshot is made by `wasmtime wizer`**, the pinned wasmtime 49 CLI's own: `wasmtime
    wizer -W exceptions=y,unknown-imports-trap=y -S
    cli=y,inherit-stdin=n,inherit-stdout=n,inherit-stderr=n -C cache=n --init-func
@@ -130,9 +133,16 @@
      pandas). The goldens are regenerated; only their version line changes (the research
      memo, finding 6);
    - a new v1.1 check, `test_exceptions_are_the_standard_form`, on `python.wasm` and the
-     snapshot: each has a tag section, validates on an engine with exceptions on, and is
-     refused with exceptions off. wasmtime has no legacy form (the third memo, EXECUTED), so
-     a dropped `-wasm-use-legacy-eh=false` or `-fwasm-exceptions` fails it;
+     snapshot: each has a tag section (`tests/harness/wasm.py` records section 13, beside
+     reading `0x69`), passes `wasmtime.Module.validate` on an engine with exceptions on, and
+     fails it with exceptions off. It proves the binaries are standard-form EH. It does not
+     prove every object was compiled with the flags: a C++ file compiled without
+     `-fwasm-exceptions` but linked with it still passes, and its `throw` is never caught
+     (EXECUTED by the review's confirmation). A dropped `-wasm-use-legacy-eh=false` already
+     fails the build at step 80, and a dropped link flag fails the link;
+   - so a new v1.5 check, `test_cpp_is_compiled_with_exceptions`, scans the build recipe:
+     both cross files' `cpp_args` carry `-fwasm-exceptions` and `-wasm-use-legacy-eh=false`,
+     and step 60 links with `-lunwind` and passes `LDFLAGS_NODIST="-fwasm-exceptions"`;
    - a new v1.3 check, `test_a_cpp_exception_reaches_python`, on the snapshot through the
      runner: `np.fft.fft` of 12,000,001 zeros under a 560 MiB memory cap must raise a bare
      `MemoryError()` (no arguments: numpy's own array-allocation error carries a shape and a
