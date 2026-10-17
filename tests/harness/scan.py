@@ -348,3 +348,97 @@ def digest(findings: list[str]) -> str:
 def report(findings: list[str], what: str = "findings") -> str:
     shown = "; ".join(findings[:5]) + (f"; +{len(findings) - 5} more" if len(findings) > 5 else "")
     return f"{what}: {len(findings)} finding(s), digest {digest(findings)}: {shown}"
+
+
+# ---------------------------------------------------------------------------------------------
+# The release workflow's provenance (spec 009)
+
+ATTEST_PERMISSIONS = {"id-token: write", "attestations: write", "contents: read"}
+ATTEST_USES = re.compile(r"uses:\s*actions/attest@[0-9a-f]{40}\b")
+VERIFY_FLAGS = ("--repo", "--signer-workflow", "--source-ref", "--deny-self-hosted-runners")
+
+
+def workflow_jobs(text: str) -> dict[str, list[str]]:
+    """The workflow's jobs, each as its lines, read as text (the judge has no YAML library): a job
+    starts at a two-space-indented `name:` line under `jobs:`."""
+    jobs: dict[str, list[str]] = {}
+    current: list[str] | None = None
+    in_jobs = False
+    for line in text.splitlines():
+        if line.startswith("jobs:"):
+            in_jobs = True
+            continue
+        if not in_jobs:
+            continue
+        m = re.fullmatch(r"  ([A-Za-z0-9_-]+):\s*", line)
+        if m:
+            current = jobs.setdefault(m[1], [])
+        elif line and not line.startswith(" "):
+            in_jobs, current = False, None
+        elif current is not None:
+            current.append(line)
+    return jobs
+
+
+def _job_field(lines: list[str], key: str) -> str | None:
+    for line in lines:
+        m = re.fullmatch(rf"    {key}:\s*(.*)", line)
+        if m:
+            return m[1].strip()
+    return None
+
+
+def _job_permissions(lines: list[str]) -> set[str]:
+    out, inside = set(), False
+    for line in lines:
+        if re.fullmatch(r"    permissions:\s*", line):
+            inside = True
+            continue
+        if inside:
+            if line.startswith("      ") and line.strip():
+                out.add(" ".join(line.split()))
+            else:
+                break
+    return out
+
+
+def release_attestation_errors(text: str) -> list[str]:
+    """Every rule of spec 009, Decision 6, as one line per breach."""
+    jobs = workflow_jobs(text)
+    if "attest" not in jobs:
+        return ["no attest job"]
+    attest, publish = jobs["attest"], jobs.get("publish", [])
+    errors = []
+    if _job_field(attest, "if") != _job_field(publish, "if"):
+        errors.append("attest's if: is not publish's")
+    needs_attest = _job_field(attest, "needs") or ""
+    if not {"build", "verify"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
+        errors.append("attest does not need build and verify")
+    if _job_permissions(attest) != ATTEST_PERMISSIONS:
+        errors.append(f"attest's permissions are not {sorted(ATTEST_PERMISSIONS)}")
+    body = "\n".join(attest)
+    if not ATTEST_USES.search(body):
+        errors.append("no actions/attest step pinned by a 40-hex commit")
+    if not re.search(r"subject-path:\s*release-assets/\*\s*$", body, re.M):
+        errors.append("subject-path is not release-assets/*")
+    verify = [line for line in attest if "gh attestation verify" in line]
+    verify_text = "\n".join(attest[attest.index(verify[0]) :]) if verify else ""
+    if not verify or not all(flag in verify_text for flag in VERIFY_FLAGS):
+        errors.append(
+            "no gh attestation verify with --repo, --signer-workflow, --source-ref and "
+            "--deny-self-hosted-runners"
+        )
+    order = [
+        next((i for i, line in enumerate(attest) if marker in line), None)
+        for marker in ("actions/download-artifact@", "actions/attest@", "gh attestation verify")
+    ]
+    if None in order or order != sorted(order):
+        errors.append("attest's steps are not download, attest, verify, in that order")
+    if re.search(r"^      (- )?\s*(if|continue-on-error):", body, re.M):
+        errors.append("a step of attest has if: or continue-on-error:")
+    for name, lines in jobs.items():
+        if name not in ("attest", "pypi") and any("id-token: write" in line for line in lines):
+            errors.append(f"{name} has id-token: write")
+    if "attest" not in re.findall(r"[a-z_-]+", _job_field(publish, "needs") or ""):
+        errors.append("publish does not need attest")
+    return errors

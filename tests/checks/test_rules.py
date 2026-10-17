@@ -172,3 +172,9 @@ def test_the_version_is_released_by_the_book() -> None:
         version.INIT.read_text(), version.PYPROJECT.read_text(), version.CHANGELOG.read_text()
     )
     assert not errors, scan.report(errors)
+
+
+def test_releases_attest_and_verify_their_assets() -> None:
+    workflow = paths.REPO / ".github" / "workflows" / "release.yml"
+    errors = scan.release_attestation_errors(workflow.read_text())
+    assert not errors, scan.report(errors)

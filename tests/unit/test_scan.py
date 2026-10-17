@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from harness import jobs, scan
 
 
@@ -258,3 +260,96 @@ def test_a_digest_ignores_line_numbers_but_not_findings() -> None:
     assert moved == scan.digest(["scripts/a.sh:9: python3 x", "recipes/b.c:12"])
     assert moved != scan.digest(["scripts/a.sh:3: python3 x", "recipes/c.c:10"])
     assert moved != scan.digest(["scripts/a.sh:3: python3 x"])
+
+
+GOOD_WORKFLOW = """name: release
+jobs:
+  build:
+    runs-on: macos-15
+  verify:
+    needs: build
+  attest:
+    if: github.ref_type == 'tag'
+    needs: [build, verify]
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-assets/*
+      - name: verify
+        run: |
+          gh attestation verify "$a" --repo "$R" \\\\
+            --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
+  publish:
+    if: github.ref_type == 'tag'
+    needs: [build, verify, attest]
+    permissions:
+      contents: write
+  pypi:
+    permissions:
+      id-token: write
+"""
+
+BAD_WORKFLOWS = [
+    (("  attest:\n", "  other:\n"), "no attest job"),
+    (
+        (
+            "    if: github.ref_type == 'tag'\n    needs: [build, verify]\n",
+            "    if: always()\n    needs: [build, verify]\n",
+        ),
+        "attest's if: is not publish's",
+    ),
+    (
+        ("    needs: [build, verify]\n", "    needs: [build]\n"),
+        "attest does not need build and verify",
+    ),
+    (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
+    (
+        ("actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6", "actions/attest@v4"),
+        "no actions/attest step pinned by a 40-hex commit",
+    ),
+    (
+        ("subject-path: release-assets/*", "subject-path: release-assets/*.whl"),
+        "subject-path is not release-assets/*",
+    ),
+    ((" --deny-self-hosted-runners", ""), "no gh attestation verify with"),
+    (
+        (
+            "      - uses: actions/download-artifact@",
+            "      - uses: actions/fetch-artifact@",
+        ),
+        "attest's steps are not download, attest, verify",
+    ),
+    (
+        ("      - name: verify\n", "      - name: verify\n        continue-on-error: true\n"),
+        "a step of attest has if: or continue-on-error:",
+    ),
+    (
+        (
+            "  publish:\n    if: github.ref_type == 'tag'\n",
+            "  publish:\n    if: github.ref_type == 'tag'\n"
+            "    permissions:\n      id-token: write\n",
+        ),
+        "publish has id-token: write",
+    ),
+    (
+        ("    needs: [build, verify, attest]\n", "    needs: [build, verify]\n"),
+        "publish does not need attest",
+    ),
+]
+
+
+def test_release_attestation_scan_passes_a_good_workflow() -> None:
+    assert scan.release_attestation_errors(GOOD_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(("change", "error"), BAD_WORKFLOWS, ids=[e for _, e in BAD_WORKFLOWS])
+def test_release_attestation_scan_names_each_breach(change, error) -> None:
+    old, new = change
+    assert GOOD_WORKFLOW.count(old) == 1, old
+    errors = scan.release_attestation_errors(GOOD_WORKFLOW.replace(old, new))
+    assert len(errors) == 1 and errors[0].startswith(error), errors

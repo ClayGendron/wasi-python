@@ -44,6 +44,8 @@ package becomes a Python exception instead of ending the guest.
   they no longer include wasmtime's copy of the memory image (42.35M instructions for the
   snapshot, 5.05M for the plain reactor, charged on macOS when compiled in the process and on
   Windows always). Figures from 0.1.0a1 are that much higher.
+- **Release provenance:** from this release on, every asset is attested by the release workflow
+  and verified before it is published; the notes say how to verify a download.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;
   before, it ignored them or swapped them.
 

@@ -103,4 +103,16 @@ which come with trusted publishing (the owner's, later); the constitution's rele
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-17 by the author agent; build review pending.
+
+**Seen failing first** (EXECUTED): `test_releases_attest_and_verify_their_assets` on the
+workflow before the change: "no attest job". The unit tests: the good workflow passes, and each
+of the eleven bad variants yields exactly its own error.
+
+**The workflow** parses as YAML (EXECUTED: PyYAML 6.0.3 in a throwaway environment): jobs
+`build`, `verify`, `attest`, `publish`, `pypi`; `attest` needs `[build, verify]` with exactly the
+three permissions; `publish` needs `[build, verify, attest]`.
+
+**Not yet exercised:** the `attest` job runs only for a pushed tag, so its first run is the next
+release (Decision 5); that release's landing notes record `gh attestation verify` on each asset
+from a clean machine.

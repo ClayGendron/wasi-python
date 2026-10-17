@@ -140,11 +140,41 @@ jobs:
         env:
           WASI_PYTHON_ARTIFACTS: ""
 
+  attest:
+    name: attest the release assets
+    # Build provenance for every asset, signed through Sigstore's public-good instance and then
+    # verified strictly, before anything is published (spec 009). Only a pushed tag gets here: a
+    # signature is permanent in the public transparency log, so dry runs never sign.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [build, verify]
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release-assets
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-assets/*
+      - name: Verify each asset as a user will
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for asset in release-assets/*; do
+            gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+              --source-ref "$GITHUB_REF" --deny-self-hosted-runners
+          done
+
   publish:
     name: publish the GitHub release
     # Only a pushed tag publishes; a manual run, even started on a tag, never does.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify]
+    needs: [build, verify, attest]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

@@ -152,6 +152,26 @@ macOS. Then it publishes a GitHub pre-release with the wheel, the artifact set a
 their `SHA256SUMS`. PyPI upload is off until the trusted publisher is set up. A manual run of
 the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).
 
+Before publishing, an `attest` job signs build provenance for every asset and verifies it
+strictly (`context/specifications/009-release-security.md`). If it fails, nothing is published:
+re-run the failed jobs of the same workflow run (its artifacts are kept 90 days); never push the
+tag again. Dry runs never sign, since a signature is permanent in Sigstore's public log.
+
+## Verifying a download
+
+From the first release after `0.1.0a1` (which has no attestation), every release asset carries
+build provenance signed by this repository's release workflow at the release's tag:
+
+```
+gh attestation verify <asset> --repo ClayGendron/wasi_python \
+  --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version> --deny-self-hosted-runners
+```
+
+`gh` must be logged in for this. Without `gh`, check the asset against the release's
+`SHA256SUMS`. A bundle fetched from GitHub's attestations REST API, which answers without a
+token, verifies offline with `--bundle`.
+
 ## Running it
 
 From Python, one call (`pip install "wasi-python[run]"`, which brings

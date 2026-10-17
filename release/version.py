@@ -273,8 +273,21 @@ def _release(a: argparse.Namespace) -> int:
     return 0
 
 
+def verify_note(version: str) -> str:
+    """How a user checks this release's assets: appended to the release's notes, not to the tag's
+    message (spec 009, Decision 3)."""
+    return (
+        "\n**Verify a download** (`gh` logged in; see the README's *Verifying a download*):\n\n"
+        "```\n"
+        "gh attestation verify <asset> --repo ClayGendron/wasi_python \\\n"
+        "  --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml \\\n"
+        f"  --source-ref refs/tags/v{version} --deny-self-hosted-runners\n"
+        "```\n"
+    )
+
+
 def _notes(a: argparse.Namespace) -> int:
-    print(notes(CHANGELOG.read_text(), a.version), end="")
+    print(notes(CHANGELOG.read_text(), a.version) + verify_note(a.version), end="")
     return 0
 
 
