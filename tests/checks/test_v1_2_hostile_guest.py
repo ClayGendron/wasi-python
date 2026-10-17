@@ -4,6 +4,7 @@ made or behaviour that already held."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -72,7 +73,9 @@ def test_a_link_out_of_the_root_is_refused(guest_workdir, snapshot) -> None:
 PLANT = """
 import os
 mm, tag = {mm!r}, {tag!r}
-lib = f"/usr/local/lib/python{{mm}}"
+# Through /usr/./local/lib: the root's own folder, behind the stdlib's read-only grant for every
+# path spelled normally (spec 017), but still the guest's to write.
+lib = f"/usr/./local/lib/python{{mm}}"
 venv = f"/usr/local/bin/lib/python{{mm}}/site-packages"
 for d in (lib, lib + "/lib-dynload", lib + "/site-packages", venv):
     os.makedirs(d, exist_ok=True)
@@ -101,13 +104,28 @@ print(found, sorted(n for n in os.listdir("/") if n.startswith("MARKER")), sys.p
 """
 
 
+REFUSED = """
+import os
+for d in ("/usr/local/lib/python{mm}", "/usr/local/lib/python{mm}/site-packages"):
+    try:
+        os.makedirs(d, exist_ok=True)
+        print("made", d)
+    except PermissionError:
+        print("refused")
+"""
+
+
 @BOTH
 def test_planted_code_never_runs(guest_workdir, snapshot) -> None:
     """Guards a change on the plain reactor (it ran a planted .pth and imported planted modules),
-    existing behaviour on the snapshot: code one run leaves in a root never runs in the next."""
+    existing behaviour on the snapshot: code one run leaves in a root never runs in the next.
+    Since spec 017 the /usr/local/lib routes are refused outright (the stdlib's read-only grant),
+    and the same code is planted through /usr/./local/lib, the root's own folder."""
     run = _run()
     mm, tag = _version()
     root = _root(guest_workdir)
+    refused = run(["-c", REFUSED.format(mm=mm)], root=root, snapshot=snapshot)
+    assert (refused.exit_code, refused.stdout) == (0, b"refused\nrefused\n"), refused
     first = run(["-c", PLANT.format(mm=mm, tag=tag)], root=root, snapshot=snapshot)
     assert (first.exit_code, first.stdout) == (0, b"planted\n"), first
     second = run(["-c", PROBE], root=root, snapshot=snapshot)
@@ -387,7 +405,8 @@ guest = (
     "except OSError as e: print('refused', e.errno)\n"
 )
 done = wasi_python.run(["-c", guest], stdin=b"secret input")
-print(done.exit_code, done.stdout.decode().strip(), sorted(os.listdir(scratch)))
+left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-")]
+print(done.exit_code, done.stdout.decode().strip(), sorted(left))
 """
 
 
@@ -397,7 +416,8 @@ scratch = sys.argv[1]
 tempfile.tempdir = scratch
 import wasi_python
 done = wasi_python.run(["-c", "open('/f', 'w').close(); print('refused', 0)"], stdin=b"x")
-print(done.exit_code, done.stdout.decode().strip(), sorted(os.listdir(scratch)))
+left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-")]
+print(done.exit_code, done.stdout.decode().strip(), sorted(left))
 """
 
 
@@ -419,6 +439,8 @@ def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workd
     assert out.returncode == 0, out.stderr[-1500:]
     exit_code, refused, _errno, left = out.stdout.split("\n")[0].split(" ", 3)
     assert (exit_code, refused, left) == ("0", "refused", "[]"), out.stdout
+    # The child's zip folder (spec 017) was filtered above while it lived; its exit removes it.
+    assert list(scratch.iterdir()) == [], list(scratch.iterdir())
 
 
 def test_a_stack_overflow_is_named() -> None:
@@ -429,3 +451,272 @@ def test_a_stack_overflow_is_named() -> None:
     code = "import sys\nsys.setrecursionlimit(10**8)\ndef f(n): return f(n + 1)\nf(0)"
     done = run(["-c", code])
     assert (done.exit_code, done.trapped) == (None, "stack overflow"), done
+
+
+# Typed grants (spec 017). Every write-type call on a read-only grant is refused with EPERM
+# (WASI errno 63), whatever route a program takes; memo §1's rows and the pre-build review's.
+READ_ONLY = r"""
+import os, shutil, tempfile
+R, W = "/ro", "/rw"
+def fd(path, flags=os.O_RDONLY):
+    return os.open(path, flags)
+ops = {
+    "open w": lambda: open(R + "/f.txt", "w"),
+    "open a": lambda: open(R + "/f.txt", "a"),
+    "open r+": lambda: open(R + "/f.txt", "r+"),
+    "O_WRONLY": lambda: fd(R + "/f.txt", os.O_WRONLY),
+    "O_RDWR": lambda: fd(R + "/f.txt", os.O_RDWR),
+    "O_WRONLY|O_APPEND": lambda: fd(R + "/f.txt", os.O_WRONLY | os.O_APPEND),
+    "O_RDONLY|O_TRUNC": lambda: fd(R + "/f.txt", os.O_RDONLY | os.O_TRUNC),
+    "create": lambda: open(R + "/new.txt", "x"),
+    "O_CREAT|O_EXCL read-only": lambda: fd(R + "/new2", os.O_CREAT | os.O_EXCL | os.O_RDONLY),
+    "truncate": lambda: os.truncate(R + "/f.txt", 0),
+    "rename in place": lambda: os.rename(R + "/f.txt", R + "/g.txt"),
+    "rename out": lambda: os.rename(R + "/f.txt", W + "/g.txt"),
+    "rename in": lambda: os.rename(W + "/w.txt", R + "/w.txt"),
+    "replace over": lambda: os.replace(W + "/w.txt", R + "/f.txt"),
+    "move's copy in": lambda: shutil.move(W + "/w.txt", R + "/moved.txt"),
+    "unlink": lambda: os.unlink(R + "/f.txt"),
+    "rmdir": lambda: os.rmdir(R + "/sub"),
+    "mkdir": lambda: os.mkdir(R + "/d"),
+    "symlink": lambda: os.symlink("f.txt", R + "/l"),
+    "link in place": lambda: os.link(R + "/f.txt", R + "/h"),
+    "link out": lambda: os.link(R + "/f.txt", W + "/h"),
+    "link in": lambda: os.link(W + "/w.txt", R + "/h"),
+    "utime": lambda: os.utime(R + "/f.txt", (1, 1)),
+    "utime no-follow": lambda: os.utime(R + "/f.txt", (1, 1), follow_symlinks=False),
+    "utime of the grant": lambda: os.utime(R, (1, 1)),
+    "mkdir by dir_fd": lambda: os.mkdir("d", dir_fd=fd(R)),
+    "create by dir_fd": lambda: os.open("n", os.O_CREAT | os.O_WRONLY, dir_fd=fd(R)),
+    "TemporaryFile": lambda: tempfile.TemporaryFile(dir=R),
+    "ftruncate": lambda: os.ftruncate(fd(R + "/f.txt"), 0),
+    "utime of a descriptor": lambda: os.utime(fd(R + "/f.txt"), (1, 1)),
+    "write a read descriptor": lambda: os.write(fd(R + "/f.txt"), b"x"),
+    "through a link in the grant": lambda: open(R + "/escape/x", "w"),
+}
+for name, op in ops.items():
+    try:
+        op()
+        print(name, "DONE")
+    except OSError as e:
+        print(name, e.errno)
+open(W + "/control.txt", "w").write("written")  # the writable grant is the control
+print("control", open(W + "/control.txt").read())
+"""
+
+
+def _tree(folder: Path) -> list[tuple[str, int, bytes]]:
+    return sorted(
+        (str(p.relative_to(folder)), p.lstat().st_mode, b"" if p.is_dir() else p.read_bytes())
+        for p in folder.rglob("*")
+        if not p.is_symlink()
+    )
+
+
+@BOTH
+def test_a_read_only_grant_refuses_every_write(guest_workdir, snapshot) -> None:
+    """Guards a change (spec 017): a read-only grant refuses every write-type call with EPERM,
+    and a write through a read descriptor with EBADF; the host files, their modes and times, and
+    the folder a link inside the grant points at are unchanged."""
+    from wasi_python import Grant
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="grants-", dir=guest_workdir))
+    ro, rw, outside = base / "ro", base / "rw", base / "outside"
+    for d in (ro, ro / "sub", rw, outside):
+        d.mkdir()
+    (ro / "f.txt").write_text("original")
+    (rw / "w.txt").write_text("w")
+    if os.name == "posix":
+        (ro / "escape").symlink_to(outside)
+    before = _tree(ro)
+    times = os.stat(ro / "f.txt").st_mtime_ns
+    grants = [Grant(ro, "/ro"), Grant(rw, "/rw", writable=True)]
+    done = run(["-c", READ_ONLY], root=False, grants=grants, snapshot=snapshot)
+    assert done.exit_code == 0, done
+    lines = dict(line.rsplit(" ", 1) for line in done.stdout.decode().splitlines())
+    assert lines.pop("control") == "written"
+    want = {name: "63" for name in lines}
+    want["write a read descriptor"] = "8"  # EBADF: the descriptor has no write right
+    if os.name != "posix":
+        want["through a link in the grant"] = "44"  # ENOENT: no link was made on Windows
+    assert lines == want, done.stdout.decode()
+    assert _tree(ro) == before and os.stat(ro / "f.txt").st_mtime_ns == times
+    assert list(outside.iterdir()) == []
+
+
+ZIP_SHARED = r"""
+import os, sys, tempfile
+temp, root = sys.argv[1], sys.argv[2]
+tempfile.tempdir = temp
+import wasi_python
+
+def folders():
+    return sorted(n for n in os.listdir(temp) if n.startswith("wasi-python-zip-") and "." not in n)
+
+guest = "\n".join([
+    "import os",
+    "name = os.listdir('/usr/local/lib')[0]",
+    "try:",
+    "    open('/usr/local/lib/' + name, 'r+b')",
+    "except PermissionError:",
+    "    print('refused')",
+])
+first = wasi_python.run(["-c", guest], root=root)
+(folder,) = folders()
+(name,) = os.listdir(os.path.join(temp, folder))
+copy = os.path.join(temp, folder, name)
+stamp = os.stat(copy)
+second = wasi_python.run(["-c", "import json; print('ok')"])
+copied_once = folders() == [folder] and os.stat(copy).st_ino == stamp.st_ino
+with open(copy, "r+b") as f:  # the host changes the copy: the next call replaces it first
+    f.seek(1000)
+    f.write(b"X" * 64)
+third = wasi_python.run(["-c", "import json, csv; print('ok')"])
+with open(copy, "rb") as f, open(wasi_python.artifacts().stdlib_zip, "rb") as g:
+    restored = f.read() == g.read()
+import shutil
+shutil.rmtree(os.path.join(temp, folder))  # a temporary-folder cleaner: the next call recovers
+fourth = wasi_python.run(["-c", "import json; print('ok')"])
+print(first.stdout.decode().strip(), second.stdout.decode().strip(), copied_once,
+      third.stdout.decode().strip(), restored, fourth.stdout.decode().strip(),
+      os.listdir(os.path.join(root, "usr", "local", "lib")))
+"""
+
+
+def test_the_zip_is_read_only_and_shared(guest_workdir) -> None:
+    """Guards a change (spec 017; §4.15's alpha exception ends): the zip is no longer copied into
+    a root but granted read-only from one folder per process, copied once, replaced if changed
+    on disk, and removed when the process exits. In a child with its own temporary folder."""
+    _run()
+    base = Path(tempfile.mkdtemp(prefix="zip-", dir=guest_workdir))
+    temp, root = base / "temp", base / "root"
+    temp.mkdir()
+    out = subprocess.run(
+        [sys.executable, "-c", ZIP_SHARED, str(temp), str(root)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    assert out.stdout.split() == ["refused", "ok", "True", "ok", "True", "ok", "[]"], out.stdout
+    assert list(temp.iterdir()) == [], list(temp.iterdir())
+
+
+def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None:
+    """Guards a change (spec 017, Decision 4): each rule refuses before anything is made, a
+    guest's link cannot redirect a later grant (memo §7a), and identities, not spellings, are
+    compared."""
+    from wasi_python import Grant
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="bad-", dir=guest_workdir))
+    cache = base / "cache"
+    calls = []
+
+    def host(frame: bytes) -> bytes:
+        calls.append(frame)
+        return b""
+
+    def refused(error: type[Exception], match: str, **kw) -> None:
+        with pytest.raises(error, match=match):
+            run(["-c", "import _host; _host.call(b'x')"], host=host, cache_dir=cache, **kw)
+
+    shared, secret = base / "shared", base / "secret"
+    (shared / "data").mkdir(parents=True)
+    secret.mkdir()
+    (secret / "key.txt").write_text("HOST SECRET")
+    # The runner makes the cache before it judges, so a root above it is refused.
+    refused(ValueError, "holds the module cache", root=base.parent)
+    refused(ValueError, "does not exist", root=base / "new" / ".." / "x")
+    refused(ValueError, "holds the module cache", grants=[Grant(base, "/b", writable=True)])
+    refused(ValueError, "holds the artifact set", root=paths.artifact_dir().parent)
+    # The zip folder, or before this process made one, the temporary folder that will hold it.
+    either = "holds the (runtime's stdlib folder|temporary folder)"
+    refused(ValueError, either, root=tempfile.gettempdir())
+    # Read-only too: the temporary folder holds every call's private folders and stdin.
+    refused(ValueError, "holds the temporary folder", grants=[Grant(tempfile.gettempdir(), "/t")])
+    # A root there too, after the temporary folder moved (the confirmation, C1): the folder the
+    # runner's private folders go to now is never a guest's root.
+    moved = base / "moved-temp"
+    moved.mkdir()
+    old, tempfile.tempdir = tempfile.tempdir, str(moved)
+    try:
+        refused(ValueError, "which holds every call's private folders", root=moved)
+    finally:
+        tempfile.tempdir = old
+    import wasmtime
+
+    own = Path(wasmtime.__file__).parent
+    refused(ValueError, "wasmtime-py's own code", grants=[Grant(own, "/w", writable=True)])
+    # A root still to be made above a cache still to be made: the cache is made first, so the
+    # root is judged to hold it (the build review, finding 1); the root gets no folders of its own.
+    fresh = base / "fresh"
+    with pytest.raises(ValueError, match="holds the module cache"):
+        run(["-c", "pass"], root=fresh / "a", cache_dir=fresh / "a" / "cache")
+    assert sorted(p.name for p in (fresh / "a").iterdir()) == ["cache"]
+    refused(
+        ValueError,
+        "read-only but inside",
+        grants=[Grant(shared / "data", "/d"), Grant(shared, "/s", writable=True)],
+    )
+    refused(ValueError, "same guest path", grants=[Grant(shared, "/s"), Grant(secret, "/s")])
+    refused(ValueError, "does not exist", grants=[Grant(base / "nothing", "/n")])
+    refused(TypeError, "got True", root=True)
+    refused(TypeError, "writable must be", grants=[Grant(shared, "/s", writable="no")])
+    refused(TypeError, "not bytes", grants=[Grant(os.fsencode(shared), "/s")])
+    cache.mkdir(exist_ok=True)  # the runner made it already, judging the first call
+    inside = cache / "made-by-no-one"
+    refused(ValueError, "is inside the module cache", root=inside)
+    assert not inside.exists()  # a refused root makes no folder
+    if sys.platform in ("darwin", "win32"):  # case-insensitive folders: another spelling
+        refused(ValueError, "is inside the module cache", root=str(inside).swapcase())
+    if os.name == "posix":
+        # Memo §7a: call 1 may make links in its writable grant; call 2 names a path through one.
+        plant = "import os\nos.rmdir('/s/data')\nos.symlink('../secret', '/s/data')\n"
+        assert (
+            run(["-c", plant], root=False, grants=[Grant(shared, "/s", writable=True)]).exit_code
+            == 0
+        )
+        refused(ValueError, "passes through the link 'data'", grants=[Grant(shared / "data", "/d")])
+    assert calls == []
+
+
+def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
+    """Guards a change (spec 017, Decision 5): a middle folder of a grant's path swapped between
+    the runner's walk and wasmtime's own open is caught by the identity check before the guest
+    runs, and the door is never called. On Windows the walk holds every folder on the way, so the
+    swap itself is refused and the call reads the folder that was granted."""
+    from wasi_python import Grant, runner
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="swap-", dir=guest_workdir))
+    (base / "a" / "data").mkdir(parents=True)
+    (base / "a" / "data" / "f").write_text("granted")
+    (base / "evil" / "data").mkdir(parents=True)
+    (base / "evil" / "data" / "f").write_text("SECRET")
+    calls, swapped = [], []
+
+    def host(frame: bytes) -> bytes:
+        calls.append(frame)
+        return b""
+
+    def swap() -> None:
+        try:
+            os.rename(base / "a", base / "a-old")
+        except PermissionError:
+            swapped.append(False)  # Windows: the walk holds it
+            return
+        os.rename(base / "evil", base / "a")
+        swapped.append(True)
+
+    monkeypatch.setattr(runner, "_after_walk", swap)
+    code = "import _host; _host.call(b'x'); print(open('/d/f').read())"
+    grants = [Grant(base / "a" / "data", "/d")]
+    if os.name == "posix":
+        with pytest.raises(RuntimeError, match="grants\\[0\\] at /d changed between"):
+            run(["-c", code], grants=grants, host=host)
+        assert (swapped, calls) == ([True], [])
+    else:
+        done = run(["-c", code], grants=grants, host=host)
+        assert (swapped, done.stdout) == ([False], b"granted\n"), done

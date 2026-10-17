@@ -6,6 +6,24 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **Typed grants:** `run(grants=[Grant(host, guest, writable=False), ...])` gives the guest
+  more host folders, each read-only unless it says `writable=True`, nested in any order;
+  `root=False` gives it no `/`, only its grants. Every grant and `root` is walked folder by folder
+  and checked before any work: no link a guest could have made, no read-only grant inside a
+  writable one, no writable grant at, inside or above the runtime's own folders. After wasmtime
+  opens each folder, the runner checks it opened the one it checked. `HOME` is made in the folder
+  the guest sees at `/tmp`, and there is none without one.
+- **The stdlib zip is read-only and no longer copied into a root:** every call sees it read-only
+  at `/usr/local/lib`, from one folder per process that its exit removes (a killed process's is
+  swept like its other folders). A `python315.zip` that 0.1.0a2 left in a reused root is never
+  read again and may be deleted.
+- **Some `root=` values are now refused** (a change): a root at, inside or above the runtime's
+  own folders, such as the home folder, a project folder holding `.venv` or `build/artifacts`,
+  or the temporary folder itself, since its guest could change files later calls trust; a root
+  holding `wasi_python`'s or wasmtime-py's own code; a root still to be made where the module
+  cache will be made; and a root reached through a link in a folder you can write. A missing
+  root is still made. No grant, read-only either, may hold the temporary folder, which holds
+  every call's private folders and `stdin`.
 - **A killed process's files are cleaned up:** a process killed mid-call left its private root
   (the guest's files) and its stdin folder (the caller's `stdin`) in the temporary folder for
   good. Each now has a locked lock file beside it naming the kernel that made it; the next

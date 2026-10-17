@@ -272,10 +272,11 @@ done.exit_code, done.stdout        # (0, b'6\n')
 ```
 
 With no `root`, the call gets a fresh private directory as its whole
-filesystem, removed afterwards. `root=` grants a host directory instead,
-at `/`: the runner copies the stdlib zip into it before each call and
-replaces anything the guest changed there, without following any link
-the guest left. `run` also takes `env`, `stdin`, `host` (a function from
+filesystem, removed afterwards. `root=` gives the guest a host directory
+instead, writable, at `/`; `root=False` gives it no `/` at all. `grants=`
+hands it more host folders, each read-only unless it says otherwise (see
+*Grants*). The stdlib zip is never in a root: every call sees it read-only
+at `/usr/local/lib`. `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
@@ -303,6 +304,75 @@ first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
 `wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
 checkout's `build/artifacts/`, else the wheel's own copy.
+
+### Grants
+
+```python
+from pathlib import Path
+
+from wasi_python import Grant, run
+
+data = Path.home() / "project" / "data"
+done = run(
+    ["-c", "import os; open('/out/n.txt', 'w').write(str(len(os.listdir('/data'))))"],
+    root=False,
+    grants=[Grant(data, "/data"), Grant("/tmp/job-17", "/out", writable=True)],
+)
+```
+
+`Grant(host, guest, *, writable=False)` gives the guest the host folder `host`
+at the guest path `guest`, read-only unless `writable=True`. A read-only grant
+refuses every write-type call with `EPERM` (`PermissionError` in Python). Grants
+may be nested (`/data` read-only with `/data/out` writable), in any order: the
+guest's C library picks the longest matching guest path. `HOME` is made fresh
+in the folder the guest sees at `/tmp`: a writable grant there, else the root's
+own `tmp`; with neither, there is no `HOME`. With `root=False` there is no `/`,
+and a relative path fails.
+
+Every grant, and `root`, is checked before the guest is set up, and refused
+with `TypeError` or `ValueError` (the runner may first make its own module
+cache, so that it is judged as it will be):
+
+- a guest path must be absolute, with no empty, `.` or `..` part and no
+  trailing `/`; not `/` (that is `root`), not `/usr/local/lib` or under it
+  (the runtime's), and no two grants may share one;
+- a host path is walked one folder at a time and never through a link in a
+  folder you can write, which a guest could have made (on Windows, never
+  through any link, junction or other reparse point, which includes
+  OneDrive's cloud folders and some container layers); a folder you may
+  search but not list is walked through, as wasmtime opens it; a grant's
+  folder must exist, and a missing `root` is made. Run as the superuser,
+  every folder counts as writable, so every link on the way is refused
+  (macOS's `/tmp` and `/var` included): name the real path;
+- a read-only grant inside a writable one, or `root`, is refused: the guest
+  could change it through the other;
+- a writable grant or `root` at, inside or above the runtime's own folders
+  is refused, since later calls and processes trust them: the stdlib folder
+  (or the temporary folder that holds it), the artifact set, the module
+  cache, and the code of `wasi_python` and wasmtime-py themselves. So
+  `root=Path.home()`, a project folder holding the `.venv` this process runs
+  from or `build/artifacts`, and the temporary folder itself are refused;
+- any grant, read-only too, at or above the temporary folder is refused: it
+  holds every call's private folders and `stdin`;
+- folders are compared by identity (device and inode), never by spelling.
+
+After wasmtime opens each folder itself, the runner checks, before the guest
+runs, that it opened the folder it checked; a folder swapped in between
+raises `RuntimeError`. A folder removed between the check and wasmtime's own
+open raises wasmtime's `WasmtimeError`.
+
+What grants do not do:
+
+- `..` never crosses from one grant into another, and a grant does not appear
+  in a listing of its parent;
+- a read-only grant can still change if the same host files are writable
+  elsewhere, by another call or another program;
+- a SQLite database in a read-only grant opens only through a URI that takes
+  no lock (`file:/data/db.sqlite?immutable=1`);
+- a folder reachable by two routes (a bind mount, a share mounted twice) is
+  judged by the route you give. Each route is checked against the runtime's
+  files and the other grants by identity, which a bind mount shares and a
+  second mount of a network share may not.
 
 ### From async code
 
@@ -368,9 +438,10 @@ async def run_code(code: str):
 
 Any other embedder does the same three things:
 
-1. **Preopen a directory at `/`** holding the artifact set's stdlib zip at
-   `/usr/local/lib/python315.zip`. The snapshot runs only beside the zip it
-   was built against.
+1. **Preopen the artifact set's stdlib zip, read-only, in a folder of its
+   own at `/usr/local/lib`** (the guest finds `/usr/local/lib/python315.zip`),
+   plus whatever folders the embedder grants, possibly none, a folder at `/`
+   included. The snapshot runs only beside the zip it was built against.
 2. **Bind the one custom import, `host::call(ptr, len, out_ptr_ptr,
    out_len_ptr) -> i32`.** Answer −1 when there is no host. Otherwise read
    the request from guest memory, get space from the exported `host_alloc`,
@@ -423,17 +494,22 @@ has one.
   ticks of 10 ms (any positive deadline is at least one tick). The
   guest's environment starts from `TMPDIR=/tmp`, `PYTHONTZPATH=`
   (`zoneinfo` on the zip's tzdata) and
-  a `HOME` made fresh and empty for each call under `/tmp` and removed
-  after it; `env=` is laid over them;
+  a `HOME` made fresh and empty for each call in the folder the guest sees at
+  `/tmp` and removed after it (no `HOME` where there is none); `env=` is laid
+  over them;
+- **grants** are read-only unless they say otherwise, checked before any
+  work, and checked again after wasmtime opens them (see *Grants*); the stdlib
+  zip is a read-only grant on every call;
 - **inputs**: `argv` is any iterable of `str`, `env` a mapping of `str` to
   `str`, `stdin` a bytes-like object. One the guest would see differently
   (a NUL, text that is not UTF-8, an `=` or nothing as an env key) raises
   `ValueError` before any work, and a wrong type `TypeError`; no message
   quotes a value;
 - each call's store is closed when it ends, trapped or not, so its memory
-  and open files are released at once; a call without `root` copies the
-  11 MB stdlib zip into its fresh root and removes the root afterwards;
-- calls made through `run` share nothing with each other: the host
+  and open files are released at once; a process copies the 11 MB stdlib
+  zip once, into a folder of its own that its exit removes;
+- calls made through `run` share nothing with each other but the stdlib
+  zip's folder, which each sees read-only: the host
   functions are defined once per engine and serve only the call whose store
   called them, and each call's output goes to its own buffer, never through
   wasmtime-py's shared callback tables; whatever a host function catches (a
@@ -446,24 +522,23 @@ has one.
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
-**Not protected:** a process killed mid-call (its private root, its stdin
-folder and their lock files stay in the temporary folder until another
+**Not protected:** a killed process (mid-call, its private root and stdin
+folder; at any time after its first call, its 11 MB stdlib zip folder; each
+with its lock file, stay in the temporary folder until another
 process using wasi_python on the same kernel, with the same temporary
 folder, starts its first call; folders from releases before 0.1.0a3 have no
 lock file and are never removed: delete `wasi-python-*` entries there by hand
 when no wasi_python process runs; two machines that share one temporary
 folder and report the same identity, such as cloned Windows images, are not
 told apart; a temporary folder on a filesystem without file locks, where such
-folders are never removed); a `root=` at or above the temporary folder, which lets its
-guest reach other calls' private folders (never grant it); disk use in any
+folders are never removed); disk use in any
 root, the private one included (a guest
 can write as fast as the disk takes it until its deadline, tens of GiB in
 the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
 volume if that matters); links a guest leaves in a granted root that point
 outside it (host code that reads or writes the root after a call must not
 follow links: open with `O_NOFOLLOW`, or check `os.lstat` first);
-the stdlib zip in a reused root during a call (it is checked and replaced
-before each call, and moves to a read-only grant when typed grants land); the host's file
+the host's file
 descriptors (a guest can hold thousands of open files, which the embedder's
 process shares; wasmtime-py offers no lower limit; while one guest holds them
 all, the embedder's own code and other calls' `run` can fail with `OSError`,
@@ -473,8 +548,7 @@ plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts
 pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
 from a reused root; concurrent calls on one root (a guest can hard-link or
-change the files another call uses, the stdlib zip included); a program
-damaging its own stdlib zip during its own run; a guest that waits
+change the files another call uses); a guest that waits
 (`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
 long as it asks (no instruction runs, so fuel does not stop it); Ctrl-C
 for a guest that never waits or calls the door in a call with

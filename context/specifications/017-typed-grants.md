@@ -1,8 +1,8 @@
 # 017 — Typed grants
 
-- **Status:** ready to build, 2026-10-17: revised against its pre-build review
-  (`context/reviews/017-typed-grants-spec-2026-10-17.md`), whose confirmation set six conditions,
-  met below.
+- **Status:** landed 2026-10-17. Reviewed before build
+  (`../reviews/017-typed-grants-spec-2026-10-17.md`) and after
+  (`../reviews/017-typed-grants-2026-10-17.md`, with its confirmation).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`, `src/wasi_python/__init__.py`), the judge's
   reference embedder (`tests/harness/guest.py`), judge additions and changes in `tests/`, the
@@ -102,7 +102,10 @@
      root still to be made counts as inside whatever that ancestor is inside, and above nothing
      (so `root=~/newproj` is not "above" the module cache); if no rule refuses, each missing
      component is made with `os.mkdir(name, dir_fd=parent)` and walked. A refused root makes no
-     folder. A grant's host path must exist.
+     folder. A grant's host path must exist. **Amended by the build review (finding 1):** "above
+     nothing" holds only if every runtime folder exists when judged, so the runner makes the
+     module cache, if it can, before it walks `root`; a missing root at or above a missing cache
+     is then judged to hold it.
    - **Identity, not spelling.** Every comparison below uses `(st_dev, st_ino)` of the walked
      directories and their ancestors, never path strings: macOS folders are case-insensitive, so
      `~/LIBRARY/CACHES` is `~/Library/Caches` (the review, EXECUTED).
@@ -116,6 +119,11 @@
      existing ancestor (for the zip folder, the temporary folder itself), resolved following every
      link, and a protected folder's own walk never refuses. So `root=Path.home()` is refused on a
      fresh machine too, before the runner would make its module cache inside that root.
+     **Amended by the build review (findings 2 and 4):** the runtime's folders also include the
+     code of `wasi_python` and wasmtime-py (a guest that rewrote them would run in the next host
+     process) and the folders of each of the artifact set's files; and any grant, read-only too,
+     at or above the temporary folder is refused, since that folder holds every call's private
+     root and `stdin`.
      This now refuses some `root=` values that worked before: the home folder, a project folder
      holding `.venv` or `build/artifacts`, and the temporary folder itself. Each could let a guest
      change files the next call trusts; the CHANGELOG names it as a change.
@@ -252,4 +260,128 @@ In: the above. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `7dc59fd` (spec 016
+landed), after the pre-build review's second confirmation. **Not yet reviewed and not
+accepted.** Every claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2, wasmtime-py
+49.0.0, with the main tree's artifact set, unless it says otherwise.
+
+### What was built
+
+- `runner.py`: `Grant`; `root=False` and `grants=` on `run` and `run_async`, checked in the
+  caller's thread (`_check_root`, `_check_grants`, `_guest_path`, `_host_path`); the walk
+  (`_walk_posix`, `_walk_windows`, `_make_missing`) and `_Walked`; the runtime's folders'
+  chains (`_chain`, `_runtime_folders`); the rules (`_judge`); the zip folders (`_zip_folder`,
+  `_copy_zip`, `_zips` under `_zip_lock`, removed by `_release` at exit, forgotten in a forked
+  child); the identity check (`_CHECK_WAT`, `_siphash13`, `_wasi_ino`, `_check_preopens`, run in
+  `_drive` before the guest is instantiated); `HOME` (`_home_folder`); a test seam,
+  `_after_walk`. `_place_stdlib`, `_place_private`, `_place_checked` and their caches are gone.
+  `_LOCK_NAME` takes `zip-`.
+- `tests/harness/guest.py`: the stdlib (a zip, or the reference build's directory) is its own
+  read-only preopen at `/usr/local/lib`, first; the root keeps real `usr/local/lib` folders.
+- The release workflow's `verify` runs `tests/unit/test_runner_grants.py`.
+- README (*Grants*, the runner paragraph, the embedder contract's step 1, Safety and "Not
+  protected"), CHANGELOG (three entries), and the constitution: §4.15's alpha exception
+  paragraph is removed and the status line says so.
+
+### Choices the specification left to the build
+
+- **A read-only grant at `/tmp`** hides a root's `tmp` but cannot hold `HOME`, so then there is no
+  `HOME`, as with no `/tmp` at all (Decision 3 names only a writable grant).
+- **`..` after a missing component of a root** (`root=new/../x`) is refused as "does not exist",
+  as the kernel would answer, rather than made.
+- **The zip's copy is mode 0644, not read-only:** Windows can neither replace nor remove a
+  read-only file, and the guest's grant is read-only in a 0700 folder anyway.
+- **The raw WASI rows** (memo §1's second table, `fd_allocate` and `fd_renumber`) are checked in
+  `tests/unit/test_runner_grants.py` on a preopen made with `fs_mutable=False`, as the runner
+  makes one, since the guest's Python cannot make raw calls; that file runs on all three systems
+  in `verify`. The Python rows are `test_a_read_only_grant_refuses_every_write`, one guest
+  program per binary.
+- **The swap check on Windows** (`test_a_swapped_grant_is_refused`) cannot swap: the walk holds
+  every folder, so there it asserts the rename is refused and the call reads the granted folder.
+  It sits in `test_v1_2_hostile_guest.py`, which `verify` does not run, so Windows' identity check
+  is exercised by the unit file and by the v1.4 grant checks, which `verify` runs.
+
+### Seen failing first
+
+Against `main`'s runner (`git archive` of `0ea00df`'s `src` on `PYTHONPATH`): all 18 new and
+changed goal checks fail, and the unit file fails to import `Grant` (scratch
+`build017/seen-failing.txt`). Against stand-ins of this runner, each one change made by text
+replacement in a copy (scratch `build017/mut/run.py`, `mut/results.txt`):
+
+| stand-in | checks that fail |
+|---|---|
+| no identity check | `test_a_swapped_grant_is_refused` |
+| every preopen writable | the read-only check, both binaries; the zip checks; the grant checks |
+| the zip folder writable | the zip checks, `test_planted_code_never_runs` |
+| no rules (`_judge` skipped) | `test_a_bad_grant_is_refused_before_any_work` |
+| links never judged | `test_the_walk_judges_links`, `test_a_bad_grant_is_refused_before_any_work` |
+| the zip copied on every call | `test_the_zip_is_read_only_and_shared` |
+| a changed copy not replaced | `test_the_zip_is_read_only_and_shared` (it first survived: the third call imported only modules the snapshot holds; the check now compares the copy's bytes) |
+| `HOME` always in the root's `tmp` | `test_home_follows_a_writable_tmp_grant`, both |
+
+A stand-in run in one pytest process cascades: a stand-in that lets one check damage the
+process's shared zip folder fails later checks too. Each named check also fails alone.
+
+### Changed checks, and why each still guards what it did
+
+- `test_runner_keeps_the_artifact_zip_out_of_the_guests_reach`: the vandal's write is refused;
+  the artifact zip is unchanged; the next call imports; a root holds no zip.
+- `test_runner_never_follows_a_link_a_guest_left[...]`: the route through `/usr/local/lib` is
+  refused, and the same links are planted through `/usr/./local/lib`; the next call works,
+  `outside` stays empty, and the root's `usr/local/lib` is a real folder again.
+- `test_runner_replaces_a_directory_left_in_the_zips_place`: the guest cannot remove the zip or
+  make a folder in its place; the root's `usr/local/lib` is empty; the next call works.
+- `test_planted_code_never_runs`: the `/usr/local/lib/python3.X` routes are refused, and the same
+  code planted through `/usr/./local/lib/python3.X` never runs.
+- The checks that list the temporary folder: the descriptor check and `CANCEL_ASYNC` filter
+  `wasi-python-zip-*` while their child lives, and the descriptor check also asserts the folder
+  is gone after the child exits. Spec 016's killed-process check now counts the killed child's
+  zip folder among what the next process sweeps (three folders, not two), which shows the
+  `_LOCK_NAME` change; the live-call check counts six entries.
+- `test_cpython_sees_only_its_root` (unit) is unchanged and passes with the reference build.
+
+### The judge
+
+`uv run pytest` in the clone, with the main tree's artifact set: 165/176 pass, 0 fail, 11
+blocked; v1.2 36/37; v1.4 64/64; 524 passed, 12 skipped; ratchet lost 0, gained 10, **grew 3**;
+judge changed: the v1.2 and v1.4 checks, `tests/harness/guest.py`, and the new unit file. ruff:
+clean. The growth is the harness's separate stdlib preopen (acceptance criterion 2):
+`test_default_integer_width_is_documented` +194,555 fuel (+0.0172%), `test_longdouble_parses`
++131,629 (+0.0117%), `test_sqlite_holds_a_lock_while_it_writes` +32,608 (+0.0342%).
+
+### Left over
+
+- Windows runs the walk's `CreateFileW` path, the held handles and the identity formula for the
+  first time in the release dry run (criterion 3).
+- The security review §5.6 requires before 0.1.0a3 must review this change.
+
+### Revised against the build review
+
+The build review (`../reviews/017-typed-grants-2026-10-17.md`) found one high defect and eight
+smaller ones; its disposition says how each is answered. In short (EXECUTED in the clone):
+
+- **Finding 1 (high).** The runner makes the module cache, if it can, before it walks `root`, so a
+  root still to be made above a cache still to be made is judged to hold it and refused, with no
+  folder of its own made. Decision 4 is amended. Seen failing: the stand-in "cache not made first"
+  fails `test_a_bad_grant_is_refused_before_any_work`.
+- **Finding 2.** Any grant at or above the temporary folder is refused, read-only too
+  (`_shared_folders`). Stand-in "temp not shared" fails the same check.
+- **Finding 3.** A zip folder removed on the host is made again; on Windows a replace refused while
+  a guest holds the zip is accepted when the file in place hashes right. Stand-in "no zip
+  recovery" fails `test_the_zip_is_read_only_and_shared`, which now removes the folder mid-run.
+- **Finding 4.** `wasi_python`'s and wasmtime-py's own folders, and each artifact file's folder,
+  are runtime folders; the README's `.venv` claim names the `.venv` this process runs from.
+- **Finding 5.** Windows unit cases: a junction is refused; a walked folder cannot be moved while
+  held. The README names other reparse points (OneDrive, container layers).
+- **Finding 6.** Walk errors are `ValueError`s naming the grant; folders are opened for search
+  only (`O_PATH`, `O_SEARCH`), so a folder one may search but not list is walked through
+  (a unit case); the README names wasmtime's own error for a folder removed mid-call.
+- **Finding 7.** Three checks, each seen failing on its stand-in: a forked child's exit leaves the
+  parent's zip folder (`test_a_forked_child_leaves_the_parents_zip_folder`); a preopen at a guest
+  name of the same length is refused; a deadline during the check is `"deadline"`
+  (`test_a_deadline_during_the_grant_check_is_a_deadline`, the epoch advanced by count).
+- **Findings 8 and 9.** README: a killed process leaves its zip folder whenever it dies; calls
+  share only the read-only zip folder; run as the superuser every link on the way is refused.
+- **The judge:** v1.4 66/66; 0 fail; ratchet lost 0, gained 12, grew 3 (the same three fuel
+  growths as before, criterion 2's `--accept-growth`). ruff: clean. Stand-ins:
+  `build017/mut/run2.py`, `mut/results2.txt`.

@@ -293,56 +293,81 @@ def _zip() -> str:
 
 
 def test_runner_keeps_the_artifact_zip_out_of_the_guests_reach(guest_workdir, artifacts) -> None:
-    """A guest that rewrites its zip changes neither the artifact set nor its own next run."""
+    """A guest that rewrites its zip changes neither the artifact set nor its own next run. Since
+    spec 017 the zip is a read-only grant: the write is refused, and a root holds no zip."""
     run = _runner()
     zip_path = artifacts.path("python-stdlib.zip")
     before = paths.sha256_bytes(zip_path.read_bytes())
     root = _root(guest_workdir)
     ZIP = _zip()
-    vandal = f"f = open({ZIP!r}, 'r+b'); f.seek(1000); f.write(b'X' * 64); f.close()"
-    assert run(["-c", vandal], root=root).exit_code == 0
+    vandal = (
+        f"try:\n    f = open({ZIP!r}, 'r+b'); f.seek(1000); f.write(b'X' * 64); f.close()\n"
+        "except PermissionError:\n    print('refused')\n"
+    )
+    first = run(["-c", vandal], root=root)
+    assert (first.exit_code, first.stdout) == (0, b"refused\n"), first
     assert paths.sha256_bytes(zip_path.read_bytes()) == before
     after = run(["-c", "import json, csv; print('ok')"], root=root)
     assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
-    assert paths.sha256_bytes((root / ZIP.lstrip("/")).read_bytes()) == before
+    assert not (root / ZIP.lstrip("/")).exists()
+    assert (root / "usr/local/lib").is_dir()
 
 
 @pytest.mark.parametrize("planted", ["the zip", "its directory"])
 def test_runner_never_follows_a_link_a_guest_left(guest_workdir, planted) -> None:
-    """A symbolic link the guest planted in its root is replaced, never written through."""
+    """A symbolic link the guest planted in its root is replaced or left alone, never written
+    through. Since spec 017 removing or renaming the zip or its folder through /usr/local/lib is
+    refused, so the guest plants the same links through /usr/./local/lib, the root's own folder
+    behind the grant, which the runner still makes real each call."""
     run = _runner()
     base = Path(tempfile.mkdtemp(prefix="escape-", dir=guest_workdir))
     root, outside = base / "root", base / "outside"
     outside.mkdir()
     ZIP = _zip()
+    own = ZIP.replace("/usr/local/lib", "/usr/./local/lib")
     if planted == "the zip":
-        link, target, before = ZIP, "../../../../outside/target", f"os.remove({ZIP!r})"
+        refused = f"os.remove({ZIP!r})"
+        link, target, before = own, "../../../../outside/target", "pass"
     else:
-        link, target = "/usr/local/lib", "../../../outside"
-        before = "os.rename('/usr/local/lib', '/usr/local/old')"
+        refused = "os.rename('/usr/local/lib', '/usr/local/old')"
+        link, target = "/usr/./local/lib", "../../../outside"
+        before = "os.rename('/usr/./local/lib', '/usr/./local/old')"
     # Where the host does not let a guest make a link (Windows without the privilege), the
-    # guest still removes the zip or its directory, and the next call must repair that.
+    # guest still moves the root's folder, and the next call must repair that.
     code = (
-        f"import os\n{before}\n"
+        f"import os\ntry:\n    {refused}\n    print('done')\n"
+        "except OSError:\n    print('refused')\n"
+        f"{before}\n"
         f"try:\n    os.symlink({target!r}, {link!r})\n    print('linked')\n"
         "except OSError:\n    print('no link')\n"
     )
     first = run(["-c", code], root=root)
     assert first.exit_code == 0, first
+    assert first.stdout.startswith(b"refused\n"), first
     if os.name == "posix":  # there the guest can make the link, so the escape is really tried
-        assert first.stdout == b"linked\n", first
-    second = run(["-c", "print('ok')"], root=root)
+        assert first.stdout == b"refused\nlinked\n", first
+    second = run(["-c", "import json; print('ok')"], root=root)
     assert (second.exit_code, second.stdout) == (0, b"ok\n"), second
     assert list(outside.iterdir()) == [], list(outside.iterdir())
+    lib = root / "usr/local/lib"
+    assert lib.is_dir() and not lib.is_symlink()
 
 
 def test_runner_replaces_a_directory_left_in_the_zips_place(guest_workdir) -> None:
-    """A guest that turns its zip path into a directory does not break the next call."""
+    """A guest that would turn its zip path into a directory cannot (spec 017: the zip is a
+    read-only grant), and the next call works."""
     run = _runner()
     root = _root(guest_workdir)
     ZIP = _zip()
-    code = f"import os; os.remove({ZIP!r}); os.makedirs({ZIP!r} + '/x')"
-    assert run(["-c", code], root=root).exit_code == 0
+    code = (
+        "import os\n"
+        f"for step in (lambda: os.remove({ZIP!r}), lambda: os.makedirs({ZIP!r} + '/x')):\n"
+        "    try:\n        step()\n        print('done')\n"
+        "    except OSError:\n        print('refused')\n"
+    )
+    first = run(["-c", code], root=root)
+    assert (first.exit_code, first.stdout) == (0, b"refused\nrefused\n"), first
+    assert list((root / "usr/local/lib").iterdir()) == []
     after = run(["-c", "print('ok')"], root=root)
     assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
 
@@ -779,7 +804,11 @@ async def main():
         await task
         print("not cancelled")
     except asyncio.CancelledError:
-        left = sorted(n for n in os.listdir(tempfile.tempdir) if n.startswith("wasi-python"))
+        # The process's own zip folder (spec 017) lives until it exits: not the call's.
+        left = sorted(
+            n for n in os.listdir(tempfile.tempdir)
+            if n.startswith("wasi-python") and not n.startswith("wasi-python-zip-")
+        )
         print("cancelled", Counting.finished, left)
     print((await wasi_python.run_async(["-c", "print('next')"], executor=pool)).stdout)
 
@@ -1005,15 +1034,17 @@ def test_a_killed_process_leaves_nothing_after_the_next_call(tmp_path) -> None:
     """Guards a change: a process killed mid-call left its private root and its stdin folder in
     the temporary folder for good (the 0.1.0a2 security review, F6). Each now has a locked lock
     file beside it; the lock dies with the process, and the next process's first call removes
-    both (spec 016)."""
+    both (spec 016). Since spec 017 the killed process's zip folder is left too, with its own
+    lock file, and is swept with the others: three folders."""
     _runner()
     child = _held_child(tmp_path)
     child.kill()
     child.wait()
     left = _entries(tmp_path)
-    assert len(left) == 4 and sum(n.endswith(".lock") for n in left) == 2, left
+    assert len(left) == 6 and sum(n.endswith(".lock") for n in left) == 3, left
+    assert sum(n.startswith("wasi-python-zip-") for n in left) == 2, left
     assert _locks_free(tmp_path), "a dead process's locks were never released"
-    assert _child(ONE_CALL, str(tmp_path)) == ["0 2"]
+    assert _child(ONE_CALL, str(tmp_path)) == ["0 3"]
     assert _entries(tmp_path) == []
 
 
@@ -1025,7 +1056,7 @@ def test_a_live_calls_folders_are_never_swept(tmp_path) -> None:
     child = _held_child(tmp_path)
     try:
         held = _entries(tmp_path)
-        assert len(held) == 4, held
+        assert len(held) == 6, held  # its private root, its stdin folder, its zip folder (017)
         assert _child(ONE_CALL, str(tmp_path)) == ["0 0"]
         assert _entries(tmp_path) == held
         out, _ = child.communicate("go\n", timeout=120)
@@ -1035,3 +1066,144 @@ def test_a_live_calls_folders_are_never_swept(tmp_path) -> None:
             child.wait()
     assert out.split() == ["ended", "0"], out
     assert _entries(tmp_path) == []
+
+
+# Typed grants (spec 017).
+GRANTS_GUEST = r"""
+import os
+seen = {}
+for g in ("/data", "/data/out", "/work", "/ref", "/tmp"):
+    seen[g] = sorted(n for n in os.listdir(g) if not n.startswith(".home-"))
+for g in ("/data", "/data/out", "/work", "/ref", "/tmp"):
+    try:
+        open(g + "/written", "w").write("x")
+        seen[g].append("writable")
+    except PermissionError:
+        seen[g].append("read-only")
+print(seen)
+"""
+
+
+@pytest.mark.parametrize("snapshot", [False, True], ids=["plain", "snapshot"])
+def test_grants_reach_the_guest_in_any_order(guest_workdir, snapshot) -> None:
+    """Guards a change (spec 017): each grant reaches its guest path with its own mode, nested or
+    not, whatever order the embedder lists them in (wasi-libc picks the longest guest prefix)."""
+    import random
+
+    from wasi_python import Grant
+
+    run = _runner()
+    base = Path(tempfile.mkdtemp(prefix="grants-", dir=guest_workdir))
+    modes = {"data": False, "out": True, "work": True, "ref": False, "tmp": True}
+    for name in modes:
+        (base / name).mkdir()
+        (base / name / f"{name}.txt").write_text(name)
+    guests = {"data": "/data", "out": "/data/out", "work": "/work", "ref": "/ref", "tmp": "/tmp"}
+    grants = [Grant(base / n, guests[n], writable=modes[n]) for n in modes]
+    want = {
+        "/data": ["data.txt", "read-only"],
+        "/data/out": ["out.txt", "writable"],
+        "/work": ["work.txt", "writable"],
+        "/ref": ["ref.txt", "read-only"],
+        "/tmp": ["tmp.txt", "writable"],
+    }
+    order = random.Random(17)  # a fixed seed: the same three orders every run
+    for _ in range(3):
+        order.shuffle(grants)
+        for name in ("out", "work", "tmp"):
+            (base / name / "written").unlink(missing_ok=True)
+        done = run(["-c", GRANTS_GUEST], root=False, grants=grants, snapshot=snapshot)
+        assert done.exit_code == 0, done
+        assert done.stdout.decode().strip() == repr(want), (grants, done.stdout)
+        assert not (base / "data" / "written").exists() and not (base / "ref" / "written").exists()
+
+
+def test_no_root_and_no_grants_runs() -> None:
+    """Guards a change (spec 017): `root=False` with no grants still runs a program, on the zip
+    alone; there is no `/`, and no HOME, since there is no /tmp to make it in."""
+    run = _runner()
+    code = (
+        "import os, json\n"
+        "try:\n    os.listdir('/')\n    print('root')\nexcept OSError:\n    print('no root')\n"
+        "print(os.environ.get('HOME'), json.dumps([1]))\n"
+    )
+    done = run(["-c", code], root=False)
+    assert (done.exit_code, done.stdout) == (0, b"no root\nNone [1]\n"), done
+
+
+@pytest.mark.parametrize("with_root", [False, True], ids=["no root", "a root"])
+def test_home_follows_a_writable_tmp_grant(guest_workdir, with_root) -> None:
+    """Guards a change (spec 017, Decision 3): HOME is made in the folder the guest sees at /tmp,
+    so with a writable /tmp grant it is made there (the grant hides a root's own tmp), and it is
+    removed after the call."""
+    from wasi_python import Grant
+
+    run = _runner()
+    base = Path(tempfile.mkdtemp(prefix="home-", dir=guest_workdir))
+    tmp = base / "tmp"
+    tmp.mkdir()
+    code = "import os; h = os.environ['HOME']; print(os.path.isdir(h), os.path.dirname(h))"
+    root = base / "root" if with_root else False
+    done = run(["-c", code], root=root, grants=[Grant(tmp, "/tmp", writable=True)])
+    assert (done.exit_code, done.stdout) == (0, b"True /tmp\n"), done
+    assert list(tmp.iterdir()) == []
+
+
+FORK_ZIP = r"""
+import os, sys, tempfile
+tempfile.tempdir = sys.argv[1]
+import wasi_python
+
+def zips():
+    return sorted(n for n in os.listdir(sys.argv[1]) if n.startswith("wasi-python-zip-"))
+
+first = wasi_python.run(["-c", "print(1)"]).stdout
+before = zips()
+pid = os.fork()
+if pid == 0:
+    sys.exit(0)  # the child's exit runs the runner's clean-up: it must leave the parent's zip
+os.waitpid(pid, 0)
+print(first, zips() == before, wasi_python.run(["-c", "import json; print(2)"]).stdout)
+"""
+
+
+NO_FORK_ZIP = r"""
+import os, sys, tempfile
+tempfile.tempdir = sys.argv[1]
+import wasi_python
+
+def zips():
+    return sorted(n for n in os.listdir(sys.argv[1]) if n.startswith("wasi-python-zip-"))
+
+first = wasi_python.run(["-c", "print(1)"]).stdout
+before = zips()
+print(first, zips() == before, wasi_python.run(["-c", "import json; print(2)"]).stdout)
+"""
+
+
+def test_a_forked_child_leaves_the_parents_zip_folder(tmp_path) -> None:
+    """Guards a change (spec 017): the zip folder is the process's that made it; a child forked
+    after a call forgets it, so the child's exit cannot remove it from under its parent. Where
+    there is no fork (Windows), a second call reuses the folder."""
+    script = FORK_ZIP if hasattr(os, "fork") else NO_FORK_ZIP
+    assert _child(script, str(tmp_path)) == ["b'1\\n' True b'2\\n'"]
+
+
+def test_a_deadline_during_the_grant_check_is_a_deadline(monkeypatch) -> None:
+    """Guards a change (spec 017, Decision 5): a deadline that passes while the runner checks the
+    preopens traps the check module, and the call reports "deadline", never a refusal; the guest
+    never runs. The epoch is advanced by count, not by waiting."""
+    run = _runner()
+    from wasi_python import runner
+
+    real, calls = runner._check_preopens, []
+
+    def late(wt, linker, store, check, preopens):
+        for engine in list(runner._engines.values()):
+            for _ in range(1000):
+                engine.increment_epoch()
+        return real(wt, linker, store, check, preopens)
+
+    monkeypatch.setattr(runner, "_check_preopens", late)
+    done = run(["-c", "import _host; _host.call(b'x')"], host=calls.append, deadline_s=0.05)
+    assert (done.exit_code, done.trapped, calls) == (None, "deadline", []), done

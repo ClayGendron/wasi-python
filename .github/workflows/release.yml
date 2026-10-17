@@ -240,6 +240,7 @@ jobs:
           tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
           tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
           tests/unit/test_runner_sweep.py
+          tests/unit/test_runner_grants.py
       - name: Nothing passed here is blocked but what this job cannot provide
         # The empty baseline fails only on a failed check; a check that skipped for a missing
         # need would pass unnoticed, so the needs that blocked anything are named here.

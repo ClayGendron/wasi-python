@@ -1,10 +1,11 @@
 """The judge's own guest driver (spec 002, Decision 9).
 
-It does only what any embedder must do: preopen one directory at `/` (and, when a check asks,
-more directories, read-only or writable, in a chosen order), bind `host::call`, and call one
-export. It is kept apart from `wasi_python.run`, the runner it judges. It also answers
-`random_get` and `clock_time_get` itself, so every run is seeded alike and fuel (instructions
-executed) repeats to a few parts in ten million
+It does only what any embedder must do: preopen the stdlib, read-only, in a folder of its own at
+`/usr/local/lib` (spec 017: the runtime's files are never in a writable root), one directory at
+`/` (and, when a check asks, more directories, read-only or writable, in a chosen order), bind
+`host::call`, and call one export. It is kept apart from `wasi_python.run`, the runner it
+judges. It also answers `random_get` and `clock_time_get` itself, so every run is seeded alike
+and fuel (instructions executed) repeats to a few parts in ten million
 (context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-exact.md).
 """
 
@@ -133,10 +134,15 @@ def run(
     root, io = base / "root", base / "io"
     root.mkdir(parents=True)
     io.mkdir()
+    lib = None
     if stdlib is not None:
         if python_version is None:
             raise ValueError("a stdlib needs the python version that names it")
-        _place(stdlib, root / "usr/local/lib" / stdlib_name(python_version, stdlib))
+        # The root keeps real usr/local/lib folders, as the runner's does, so `/` lists `usr`;
+        # the stdlib itself (a zip, or the reference build's directory) is its own grant.
+        (root / "usr/local/lib").mkdir(parents=True)
+        lib = base / "lib"
+        _place(stdlib, lib / stdlib_name(python_version, stdlib))
     for guest_path, content in (files or {}).items():
         dest = root / guest_path.lstrip("/")
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +161,8 @@ def run(
     ordered = (
         [*extra, (str(root), "/", True)] if preopens_first else [(str(root), "/", True), *extra]
     )
+    if lib is not None:
+        ordered.insert(0, (str(lib), "/usr/local/lib", False))
     for host_dir, guest_path, writable in ordered:
         wasi.preopen_dir(host_dir, guest_path, writable)
     wasi.stdout_file = str(io / "stdout")

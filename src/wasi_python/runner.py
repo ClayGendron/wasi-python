@@ -233,10 +233,23 @@ class Completed:
     truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
 
 
+@dataclass(frozen=True)
+class Grant:
+    """A host folder the guest sees at `guest`, read-only unless `writable=True` (spec 017).
+
+    `host` is a str or os.PathLike[str]; `guest` an absolute guest path. A grant may be nested in
+    another; `run` checks every grant before any work."""
+
+    host: str | os.PathLike[str]
+    guest: str
+    writable: bool = field(default=False, kw_only=True)
+
+
 def run(
     argv: Iterable[str],
     *,
-    root: str | os.PathLike[str] | None = None,
+    root: str | os.PathLike[str] | None | bool = None,
+    grants: Iterable[Grant] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Host | None = None,
@@ -251,8 +264,11 @@ def run(
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
-    `root` is the host directory the guest sees as `/`; without one, a fresh private directory is
-    made and removed after the call. `memory_bytes`, `deadline_s` and `output_bytes` default to
+    `root` is the host directory the guest sees as `/`, writable; without one, a fresh private
+    directory is made and removed after the call; `root=False` gives the guest no `/`, only its
+    grants. `grants`, each a `Grant`, are host folders the guest sees at their guest paths,
+    read-only unless they say otherwise (spec 017). The stdlib zip is always granted, read-only,
+    at /usr/local/lib. `memory_bytes`, `deadline_s` and `output_bytes` default to
     `DEFAULTS`; `None` means no limit. The guest's environment starts from `BASE_ENV` (`/tmp` for
     temporary files, `zoneinfo` on the zip's tzdata) and a `HOME` made fresh for the call, with
     `env` laid over it.
@@ -262,13 +278,15 @@ def run(
     _refuse_forked()
     wt = _wasmtime()
     checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, cancel)
-    return _run_checked(wt, checked, root, host, snapshot, cache_dir, artifacts)
+    checked.update(root=_check_root(root), grants=_check_grants(grants))
+    return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
 
 async def run_async(
     argv: Iterable[str],
     *,
-    root: str | os.PathLike[str] | None = None,
+    root: str | os.PathLike[str] | None | bool = None,
+    grants: Iterable[Grant] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Host | None = None,
@@ -293,6 +311,7 @@ async def run_async(
 
     _refuse_forked()
     checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, None)
+    checked.update(root=_check_root(root), grants=_check_grants(grants))
     _check_executor(executor)
     wt = _wasmtime()
     _register_exit_hook()
@@ -304,7 +323,7 @@ async def run_async(
         _live.add(event)
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked, wt, checked, root, host, snapshot, cache_dir, artifacts)
+        args = (_run_checked, wt, checked, host, snapshot, cache_dir, artifacts)
         future = _submit(executor, work, *args)
         try:
             return await asyncio.wrap_future(future)
@@ -405,7 +424,7 @@ def _stop_async_calls() -> None:
 # that made it. A process killed mid-call leaves both; the lock dies with it, so the next process
 # on the same kernel can tell its folder is dead. A pid could not: pids repeat across namespaces,
 # are reused, and a killed child is a zombie until reaped.
-_LOCK_NAME = re.compile(r"wasi-python-(root-)?[0-9a-f]{16}\.lock\Z")
+_LOCK_NAME = re.compile(r"wasi-python-(root-|zip-)?[0-9a-f]{16}\.lock\Z")  # zip-: spec 017
 _held_lock = threading.Lock()
 _held: set[str] = set()  # the names this process holds: NFS may treat flock as per-process
 _sweep_state = {"claimed": False, "swept": 0}
@@ -679,8 +698,9 @@ def _after_fork_in_child() -> None:
     """Only assignments, and no lock: a lock may have been held by a thread the fork left out, so
     every lock the runner takes is made anew (spec 015's build review, F8)."""
     global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
-    global _held_lock
+    global _held_lock, _zip_lock, _zips
     _pool_lock, _live_lock, _held_lock = threading.Lock(), threading.Lock(), threading.Lock()
+    _zip_lock, _zips = threading.Lock(), {}  # the parent's zip folders stay the parent's
     _lock, _epoch_callback_lock, _outputs_lock = (
         threading.Lock(),
         threading.Lock(),
@@ -736,38 +756,738 @@ def _checked(
     return checked
 
 
+# Grants (spec 017). A grant is a host folder the guest sees at a guest path, read-only unless it
+# says `writable=True`. Every host path, `root` included, is walked one component at a time from
+# `/`, judging each link on the way, and every rule compares identities (device and inode), never
+# spellings: macOS folders are case-insensitive, and Windows spells one folder many ways. wasmtime
+# then opens each path itself, so before the guest runs a check module of the runner's own reads
+# back each preopen's identity and compares it with the walk's (Decision 5).
+ZIP_GUEST = "/usr/local/lib"
+MAX_LINKS = 40
+_M64 = (1 << 64) - 1
+
+
+def _host_path(where: str, value: Any) -> str:
+    if isinstance(value, (bytes, bytearray)):
+        raise TypeError(f"{where} must be a str or os.PathLike[str], not bytes")
+    try:
+        path = os.fspath(value)
+    except TypeError:
+        raise TypeError(
+            f"{where} must be a str or os.PathLike[str], not {type(value).__name__}"
+        ) from None
+    if not isinstance(path, str):
+        raise TypeError(f"{where} must be a str or os.PathLike[str], not a path of bytes")
+    path = _text(where, path)
+    if not path:
+        raise ValueError(f"{where} is empty")
+    return path
+
+
+def _guest_path(where: str, value: Any) -> str:
+    """An absolute guest path with no empty, `.` or `..` component and no trailing `/`, which
+    wasi-libc would otherwise match by text alone (memo §7d); not `/` and not the runtime's."""
+    if not isinstance(value, str):
+        raise TypeError(f"{where}: the guest path must be a str, not {type(value).__name__}")
+    path = _text(f"{where}: the guest path", value)
+    if not path.startswith("/"):
+        raise ValueError(f"{where}: the guest path must be absolute; got {path!r}")
+    if path == "/":
+        raise ValueError(f"{where}: the guest path / is the root; pass root= instead")
+    if any(part in ("", ".", "..") for part in path.split("/")[1:]):
+        raise ValueError(
+            f"{where}: the guest path {path!r} has an empty, '.' or '..' part, or ends in '/'"
+        )
+    if path == ZIP_GUEST or path.startswith(ZIP_GUEST + "/"):
+        raise ValueError(f"{where}: {path!r} is the runtime's own ({ZIP_GUEST})")
+    return path
+
+
+def _check_root(root: Any) -> str | bool | None:
+    if root is None or root is False:
+        return root
+    if root is True:
+        raise TypeError("root must be a path, None (a private root) or False (no root); got True")
+    return _host_path("root", root)
+
+
+def _check_grants(grants: Any) -> tuple[Grant, ...]:
+    """The grants as a tuple of plain `Grant`s, so `run_async` hands its worker no used iterator."""
+    if isinstance(grants, (str, bytes, bytearray, Grant)) or not isinstance(grants, Iterable):
+        raise TypeError(f"grants must be an iterable of Grant, not {type(grants).__name__}")
+    checked: list[Grant] = []
+    seen: set[str] = set()
+    for i, grant in enumerate(grants):
+        if not isinstance(grant, Grant):
+            raise TypeError(f"grants[{i}] must be a Grant, not {type(grant).__name__}")
+        guest = _guest_path(f"grants[{i}]", grant.guest)
+        where = f"grants[{i}] at {guest}"
+        if type(grant.writable) is not bool:
+            raise TypeError(f"{where}: writable must be True or False, not {grant.writable!r}")
+        if guest in seen:
+            raise ValueError(f"{where}: another grant has the same guest path")
+        seen.add(guest)
+        checked.append(
+            Grant(_host_path(f"{where}: host", grant.host), guest, writable=grant.writable)
+        )
+    return tuple(checked)
+
+
+Identity = tuple[int, int]
+
+
+class _Walked:
+    """A host folder walked component by component: the path wasmtime is given, the identities of
+    the folder and each ancestor (the folder's first), and what keeps it from changing until the
+    identity check: on POSIX the folder's descriptor, on Windows every component's handle. A root
+    still to be made has `missing` components, and its chain is its deepest existing ancestor's."""
+
+    def __init__(self, path: str, chain: tuple[Identity, ...], held: list[int]) -> None:
+        self.path, self.chain, self.held = path, chain, held
+        self.missing: tuple[str, ...] = ()
+
+    @property
+    def identity(self) -> Identity | None:
+        return None if self.missing else self.chain[0]
+
+    @property
+    def fd(self) -> int | None:
+        return self.held[-1] if self.held and os.name == "posix" else None
+
+    def close(self) -> None:
+        held, self.held = self.held, []
+        for h in held:
+            _close_held(h)
+
+
+def _close_held(h: int) -> None:
+    try:
+        if os.name == "posix":
+            os.close(h)
+        else:
+            _win().CloseHandle(h)
+    except OSError:
+        pass
+
+
+def _walk(where: str, path: str, *, judge: bool, may_make: bool = False) -> _Walked:
+    """Walk `path` from the top. With `judge`, a link in a folder this user can write (POSIX), or
+    any link or junction (Windows), raises ValueError; without it (the runtime's own folders),
+    every link is followed. With `may_make`, a missing tail is returned as `missing`."""
+    try:
+        if os.name == "posix":
+            return _walk_posix(where, path, judge, may_make)
+        return _walk_windows(where, path, judge, may_make)
+    except ValueError:
+        raise
+    except OSError as e:
+        if not judge:
+            raise
+        # A folder that cannot be searched, or vanished mid-walk: the caller's grant is refused.
+        raise ValueError(f"{where}: {path!r} cannot be walked: {e.strerror or e}") from None
+
+
+# Opened for search only where the system allows (Linux O_PATH, macOS O_SEARCH): wasmtime opens a
+# grant below a folder this user may search but not list, so the walk must pass through it too.
+_DIR = (_flags("O_PATH") or _flags("O_SEARCH") or os.O_RDONLY) | _flags(
+    "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"
+)
+
+
+def _walk_posix(where: str, path: str, judge: bool, may_make: bool) -> _Walked:
+    # Joined to the working directory without normalising: `..` is taken on the walked folders,
+    # as the kernel takes it, after any link before it is followed.
+    todo = list(reversed(os.path.join(os.getcwd(), path).split("/")))
+    top = os.open("/", _DIR)
+    st = os.fstat(top)
+    stack: list[tuple[int, Identity, str]] = [(top, (st.st_dev, st.st_ino), "")]
+    links = 0
+    try:
+        while todo:
+            name = todo.pop()
+            if name in ("", "."):
+                continue
+            if name == "..":
+                if len(stack) > 1:
+                    os.close(stack.pop()[0])
+                continue
+            parent = stack[-1][0]
+            try:
+                st = os.lstat(name, dir_fd=parent)
+            except FileNotFoundError:
+                rest = [n for n in reversed(todo) if n not in ("", ".")]
+                if not may_make or ".." in rest:
+                    raise ValueError(f"{where}: {path!r} does not exist") from None
+                walked = _walked_posix(stack)
+                walked.missing = (name, *rest)
+                return walked
+            if stat.S_ISLNK(st.st_mode):
+                if judge and _writable(parent, stack):
+                    raise ValueError(
+                        f"{where}: {path!r} passes through the link {name!r} in a folder this "
+                        "user can write, which a guest could have made; name its target instead"
+                    )
+                links += 1
+                if links > MAX_LINKS:
+                    raise ValueError(
+                        f"{where}: {path!r} passes through more than {MAX_LINKS} links"
+                    )
+                target = os.readlink(name, dir_fd=parent)
+                if target.startswith("/"):
+                    while len(stack) > 1:
+                        os.close(stack.pop()[0])
+                todo.extend(reversed(target.split("/")))
+                continue
+            if not stat.S_ISDIR(st.st_mode):
+                raise ValueError(f"{where}: {path!r} is not a folder")
+            fd = os.open(name, _DIR, dir_fd=parent)
+            opened = os.fstat(fd)
+            if (opened.st_dev, opened.st_ino) != (st.st_dev, st.st_ino):
+                os.close(fd)
+                raise ValueError(f"{where}: {path!r} changed while it was checked")
+            stack.append((fd, (opened.st_dev, opened.st_ino), name))
+        return _walked_posix(stack)
+    except BaseException:
+        for fd, _, _ in stack:
+            os.close(fd)
+        raise
+
+
+def _walked_posix(stack: list[tuple[int, Identity, str]]) -> _Walked:
+    """Keep the last folder's descriptor, close the rest."""
+    for fd, _, _ in stack[:-1]:
+        os.close(fd)
+    text = "/" + "/".join(name for _, _, name in stack[1:])
+    chain = tuple(identity for _, identity, _ in reversed(stack))
+    last = stack[-1][0]
+    stack[:] = []
+    return _Walked(text, chain, [last])
+
+
+def _writable(fd: int, stack: list[tuple[int, Identity, str]]) -> bool:
+    """Whether this user can write the folder open at `fd`: only a link in such a folder could be
+    a guest's, since a guest writes as this user (memo §7a)."""
+    effective = os.access in os.supports_effective_ids
+    if os.access in os.supports_dir_fd:
+        return os.access(".", os.W_OK, dir_fd=fd, effective_ids=effective)
+    text = "/" + "/".join(name for _, _, name in stack[1:])
+    return os.access(text, os.W_OK, effective_ids=effective)
+
+
+def _make_missing(where: str, walked: _Walked) -> _Walked:
+    """Make a root's missing components, after the rules were decided on its existing chain, each
+    inside the one before through its descriptor; then walk the made root as any other."""
+    path = walked.path
+    if os.name == "posix":
+        fd = os.dup(walked.held[-1])
+        try:
+            for name in walked.missing:
+                try:
+                    os.mkdir(name, dir_fd=fd)
+                except FileExistsError:  # a concurrent call made it
+                    pass
+                child = os.open(name, _DIR, dir_fd=fd)  # O_NOFOLLOW: a link put there fails
+                os.close(fd)
+                fd = child
+                path = os.path.join(path, name)
+        finally:
+            os.close(fd)
+    else:
+        for name in walked.missing:
+            path = os.path.join(path, name)
+            Path(path).mkdir(exist_ok=True)
+    walked.close()
+    return _walk(where, path, judge=True)
+
+
+# Windows (Decision 5): Python cannot open a folder with os.open, so the walk opens every
+# component through CreateFileW, refuses a reparse point (a link or a junction), and holds each
+# handle without FILE_SHARE_DELETE until the identity check, so no walked folder can be renamed,
+# removed or replaced in between, and no path string is ever compared.
+_FILE_READ_ATTRIBUTES = 0x80
+_SHARE_READ_WRITE = 0x1 | 0x2
+_OPEN_EXISTING = 3
+_BACKUP_SEMANTICS = 0x02000000
+_OPEN_REPARSE_POINT = 0x00200000
+_ATTRIBUTE_DIRECTORY = 0x10
+_ATTRIBUTE_REPARSE_POINT = 0x400
+_win_api: dict[str, Any] = {}
+
+
+def _win() -> Any:
+    if "kernel32" not in _win_api:
+        from ctypes import wintypes
+
+        k = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+        k.CreateFileW.argtypes = [
+            wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+            wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+        ]  # fmt: skip
+        k.CreateFileW.restype = wintypes.HANDLE
+        k.GetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+        k.GetFileInformationByHandle.restype = wintypes.BOOL
+        k.CloseHandle.argtypes = [wintypes.HANDLE]
+        k.CloseHandle.restype = wintypes.BOOL
+        _win_api["kernel32"] = k
+    return _win_api["kernel32"]
+
+
+class _ByHandle(ctypes.Structure):
+    _fields_ = [
+        ("attributes", ctypes.c_uint32),
+        ("times", ctypes.c_uint32 * 6),
+        ("volume_serial", ctypes.c_uint32),
+        ("size_high", ctypes.c_uint32),
+        ("size_low", ctypes.c_uint32),
+        ("links", ctypes.c_uint32),
+        ("index_high", ctypes.c_uint32),
+        ("index_low", ctypes.c_uint32),
+    ]
+
+
+def _win_open(path: str, follow: bool) -> tuple[int, int, Identity]:
+    """A held handle on `path`, its attributes and its identity, as wasmtime reads it."""
+    k = _win()
+    flags = _BACKUP_SEMANTICS | (0 if follow else _OPEN_REPARSE_POINT)
+    h = k.CreateFileW(
+        path, _FILE_READ_ATTRIBUTES, _SHARE_READ_WRITE, None, _OPEN_EXISTING, flags, None
+    )
+    if h is None or h == ctypes.c_void_p(-1).value:
+        code = ctypes.get_last_error()  # type: ignore[attr-defined]
+        raise ctypes.WinError(code)  # type: ignore[attr-defined]
+    info = _ByHandle()
+    if not k.GetFileInformationByHandle(h, ctypes.byref(info)):
+        code = ctypes.get_last_error()  # type: ignore[attr-defined]
+        k.CloseHandle(h)
+        raise ctypes.WinError(code)  # type: ignore[attr-defined]
+    index = (info.index_high << 32) | info.index_low
+    return h, info.attributes, (info.volume_serial, index)
+
+
+def _walk_windows(where: str, path: str, judge: bool, may_make: bool) -> _Walked:
+    full = os.path.abspath(path) if judge else os.path.realpath(path)
+    drive, rest = os.path.splitdrive(full)
+    anchor = drive + "\\"
+    parts = [p for p in re.split(r"[\\/]", rest) if p]
+    held: list[int] = []
+    chain: list[Identity] = []
+    try:
+        here = anchor
+        for i in range(len(parts) + 1):
+            if i:
+                here = os.path.join(here, parts[i - 1])
+            try:
+                h, attributes, identity = _win_open(here, follow=not judge)
+            except FileNotFoundError:
+                if not may_make or i == 0:
+                    raise ValueError(f"{where}: {path!r} does not exist") from None
+                walked = _Walked(os.path.dirname(here), tuple(reversed(chain)), held)
+                walked.missing = tuple(parts[i - 1 :])
+                return walked
+            held.append(h)
+            if judge and attributes & _ATTRIBUTE_REPARSE_POINT:
+                raise ValueError(
+                    f"{where}: {path!r} passes through a link or junction; on Windows every one is "
+                    "refused"
+                )
+            if not attributes & _ATTRIBUTE_DIRECTORY:
+                raise ValueError(f"{where}: {path!r} is not a folder")
+            chain.append(identity)
+        return _Walked(here, tuple(reversed(chain)), held)
+    except BaseException:
+        for h in held:
+            _close_held(h)
+        raise
+
+
+def _chain(path: Path) -> tuple[Identity | None, tuple[Identity, ...]]:
+    """A runtime folder's identity (None while it does not exist) and the identities of its
+    deepest existing ancestor and that one's ancestors, every link followed; never refuses."""
+    here = Path(os.path.realpath(path))
+    exists = True
+    while True:
+        try:
+            first = _identity_of(here)
+            break
+        except OSError:
+            exists = False
+            if here.parent == here:
+                return None, ()
+            here = here.parent
+    chain = [first]
+    for parent in here.parents:
+        try:
+            chain.append(_identity_of(parent))
+        except OSError:
+            break
+    return (first if exists else None), tuple(chain)
+
+
+def _identity_of(path: Path) -> Identity:
+    if os.name == "posix":
+        st = os.stat(path)
+        if not stat.S_ISDIR(st.st_mode):
+            raise NotADirectoryError(str(path))
+        return (st.st_dev, st.st_ino)
+    h, _, identity = _win_open(str(path), follow=True)
+    _close_held(h)
+    return identity
+
+
+def _judge(
+    root: _Walked | None,
+    grants: list[tuple[str, Grant, _Walked]],
+    runtime: list,
+    shared: list[tuple[str, tuple[Identity, ...]]] = [],  # noqa: B006 (read only)
+) -> None:
+    """Decision 4's rules, by identity. `runtime` is (name, identity or None, chain) for each of
+    the runtime's own folders: a writable grant at, inside or above one is refused; a folder not
+    made yet holds nothing, so only a grant above its deepest existing ancestor is. `shared` is
+    (name, chain) for each folder no grant, read-only included, may be at or above."""
+    judged = [("root", None, root)] if root is not None else []
+    for where, _, w in [*judged, *grants]:  # root too: the temporary folder may have moved
+        for name, chain in shared:
+            if w.identity is not None and w.identity in chain:
+                raise ValueError(f"{where} holds {name}; grant a folder apart from it")
+    writable = [("root", root)] if root is not None else []
+    writable += [(where, w) for where, g, w in grants if g.writable]
+    for where, w in writable:
+        for name, identity, chain in runtime:
+            inside = identity is not None and identity in w.chain
+            above = w.identity is not None and w.identity in chain
+            if inside or above:
+                how = "is inside" if inside else "holds"
+                raise ValueError(
+                    f"{where} is writable and {how} {name}, which later calls trust; grant a "
+                    "folder apart from it"
+                )
+    for where, g, r in grants:
+        if g.writable:
+            continue
+        for other, w in writable:
+            if w.identity is not None and w.identity in r.chain:
+                raise ValueError(
+                    f"{where} is read-only but inside {other}, which is writable; a guest would "
+                    "change it through that grant"
+                )
+
+
+# The zip (Decision 2): one read-only folder per zip per process, beside a lock file, at
+# /usr/local/lib on every call. Its own lock, since the epoch ticker takes `_lock` every round.
+_zip_lock = threading.Lock()
+_zips: dict[str, list[Any]] = {}  # the zip's SHA-256 -> [its _Private folder, the copy's stamp]
+
+
+def _zip_folder(found: Artifacts) -> Path:
+    want = _digest(found.stdlib_zip)
+    name = f"python{_version_tag(found.manifest)}.zip"
+    with _zip_lock:
+        entry = _zips.get(want)
+        if entry is None:
+            return _zip_folder_locked(found, want, name)
+        private, stamp = entry
+        if not os.path.isdir(private.path) or os.path.islink(private.path):
+            # Removed on the host (a temporary-folder cleaner, say): made again, not trusted.
+            private.remove()
+            del _zips[want]
+            return _zip_folder_locked(found, want, name)
+        dest = private.path / name
+        try:
+            st = os.lstat(dest)
+        except FileNotFoundError:
+            st = None
+        if st is None or not stat.S_ISREG(st.st_mode) or _stamp(st) != stamp:
+            entry[1] = _copy_zip(found, dest, want)  # changed on the host: copied again
+        return private.path
+
+
+def _zip_folder_locked(found: Artifacts, want: str, name: str) -> Path:
+    private = _Private("wasi-python-zip-")
+    try:
+        stamp = _copy_zip(found, private.path / name, want)
+    except BaseException:
+        private.remove()
+        raise
+    _zips[want] = [private, stamp]
+    return private.path
+
+
+def _zip_known(found: Artifacts) -> Path | None:
+    """This process's folder for this zip, if it has made one."""
+    with _zip_lock:
+        entry = _zips.get(_digest(found.stdlib_zip))
+    return None if entry is None else entry[0].path
+
+
+def _copy_zip(found: Artifacts, dest: Path, want: str) -> tuple[int, ...]:
+    fd, tmp = tempfile.mkstemp(prefix=".python-zip-", dir=dest.parent)
+    try:
+        with os.fdopen(fd, "wb") as out, found.stdlib_zip.open("rb") as src:
+            for block in iter(lambda: src.read(1 << 20), b""):
+                out.write(block)
+        # 0644, not read-only: Windows could neither replace nor remove a read-only file, and
+        # the guest's grant is read-only anyway, in a 0700 folder.
+        os.chmod(tmp, 0o644)
+        try:
+            os.replace(tmp, dest)
+        except PermissionError:
+            # Windows cannot replace a file a running guest has open; when the file in place is
+            # already the right zip, the copy is not needed.
+            if os.name != "nt" or not (dest.is_file() and _hash_file(dest) == want):
+                raise
+            Path(tmp).unlink(missing_ok=True)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
+    if _hash_file(dest) != want:
+        raise RuntimeError(f"the stdlib zip's copy at {dest} is not the artifact set's")
+    return _stamp(os.lstat(dest))
+
+
+def _remove_zips() -> None:
+    with _zip_lock:
+        entries = list(_zips.values())
+        _zips.clear()
+    for private, _ in entries:
+        private.remove()
+
+
+# The identity check (Decision 5): wasmtime reports a preopen's `ino` as SipHash-1-3, zero keys,
+# over the host folder's two identity numbers as 64-bit words (filesystem.rs:354-371; on Windows
+# the volume serial and file index, windows.rs:85-91). A wasmtime that hashes otherwise refuses
+# every grant, loudly; tests/unit/test_runner_grants.py pins it on every OS.
+_CHECK_WAT = """(module
+  (import "wasi_snapshot_preview1" "fd_prestat_get" (func $pg (param i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_prestat_dir_name"
+    (func $pn (param i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_filestat_get" (func $st (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "prestat") (param i32) (result i32) (call $pg (local.get 0) (i32.const 0)))
+  (func (export "name") (param i32 i32) (result i32)
+    (call $pn (local.get 0) (i32.const 1024) (local.get 1)))
+  (func (export "stat") (param i32) (result i32) (call $st (local.get 0) (i32.const 64))))"""
+_check_modules: dict[bool, Any] = {}
+
+
+def _rotl(x: int, b: int) -> int:
+    return ((x << b) | (x >> (64 - b))) & _M64
+
+
+def _siphash13(data: bytes) -> int:
+    v0, v1 = 0x736F6D6570736575, 0x646F72616E646F6D
+    v2, v3 = 0x6C7967656E657261, 0x7465646279746573
+
+    def rounds(n: int) -> None:
+        nonlocal v0, v1, v2, v3
+        for _ in range(n):
+            v0 = (v0 + v1) & _M64
+            v1 = _rotl(v1, 13) ^ v0
+            v0 = _rotl(v0, 32)
+            v2 = (v2 + v3) & _M64
+            v3 = _rotl(v3, 16) ^ v2
+            v0 = (v0 + v3) & _M64
+            v3 = _rotl(v3, 21) ^ v0
+            v2 = (v2 + v1) & _M64
+            v1 = _rotl(v1, 17) ^ v2
+            v2 = _rotl(v2, 32)
+
+    end = len(data) - len(data) % 8
+    for i in range(0, end, 8):
+        m = struct.unpack_from("<Q", data, i)[0]
+        v3 ^= m
+        rounds(1)
+        v0 ^= m
+    last = (len(data) & 0xFF) << 56
+    for i, byte in enumerate(data[end:]):
+        last |= byte << (8 * i)
+    v3 ^= last
+    rounds(1)
+    v0 ^= last
+    v2 ^= 0xFF
+    rounds(3)
+    return v0 ^ v1 ^ v2 ^ v3
+
+
+def _wasi_ino(identity: Identity) -> int:
+    """The `ino` wasmtime reports for a folder of this identity. Rust sign-extends a negative
+    dev_t, hence the mask; the words are native-endian, as Rust's Hash writes them."""
+    return _siphash13(struct.pack("=QQ", identity[0] & _M64, identity[1] & _M64))
+
+
+class _Preopen(NamedTuple):
+    label: str  # how an error names it: "grant 2 at /data", "root", "the stdlib folder"
+    walked: _Walked
+    guest: str
+    writable: bool
+
+
+def _check_module(wt: Any, engine: Any, metered: bool) -> Any:
+    with _lock:
+        if metered not in _check_modules:
+            _check_modules[metered] = wt.Module(engine, _CHECK_WAT)
+        return _check_modules[metered]
+
+
+def _check_preopens(wt: Any, linker: Any, store: Any, check: Any, preopens: list[_Preopen]) -> None:
+    """Before the guest: each preopen 3 + i is the folder the walk checked, by guest name and by
+    identity. A mismatch raises before the guest runs; the walk's holds are released either way."""
+    try:
+        exports = linker.instantiate(store, check).exports(store)
+        memory = exports["memory"]
+        for i, p in enumerate(preopens):
+            fd = 3 + i
+            name = p.guest.encode()
+            ok = exports["prestat"](store, fd) == 0
+            if ok:
+                head = bytes(memory.read(store, 0, 8))
+                ok = head[0] == 0 and struct.unpack_from("<I", head, 4)[0] == len(name)
+            ok = ok and exports["name"](store, fd, len(name)) == 0
+            ok = ok and bytes(memory.read(store, 1024, 1024 + len(name))) == name
+            ok = ok and exports["stat"](store, fd) == 0
+            identity = p.walked.identity
+            if ok and identity is not None:
+                reported = struct.unpack("<Q", bytes(memory.read(store, 72, 80)))[0]
+                ok = reported == _wasi_ino(identity)
+            if not ok:
+                raise RuntimeError(f"{p.label} changed between its check and the call")
+    finally:
+        for p in preopens:
+            p.walked.close()
+
+
+# A seam for the swap check (tests only): runs after every walk and before wasmtime opens anything.
+_after_walk: Callable[[], None] | None = None
+
+
+def _walk_grants(
+    root: str | bool | None, grants: tuple[Grant, ...], found: Artifacts, cache: Path | None
+) -> tuple[_Walked | None, list[tuple[str, Grant, _Walked]]]:
+    """Every grant and `root`, walked and judged before any work (Decision 4); a missing root is
+    made only once every rule has passed on its existing chain."""
+    walked_root: _Walked | None = None
+    walked: list[tuple[str, Grant, _Walked]] = []
+    runtime = _runtime_folders(found, cache)  # first: it makes the module cache if it can
+    try:
+        if isinstance(root, str):
+            walked_root = _walk("root", root, judge=True, may_make=True)
+        for i, grant in enumerate(grants):
+            where = f"grants[{i}] at {grant.guest}"
+            walked.append((where, grant, _walk(where, os.fspath(grant.host), judge=True)))
+        _judge(walked_root, walked, runtime, _shared_folders())
+        if walked_root is not None and walked_root.missing:
+            try:
+                walked_root = _make_missing("root", walked_root)
+            except OSError as e:
+                raise ValueError(f"root: {root!r} cannot be made: {e.strerror or e}") from None
+        return walked_root, walked
+    except BaseException:
+        for w in [walked_root, *(w for _, _, w in walked)]:
+            if w is not None:
+                w.close()
+        raise
+
+
+def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, Any, Any]]:
+    """The folders later calls and processes trust: this zip's folder (or, before it is made, the
+    temporary folder that will hold it), the artifact set's files, the module cache, and the
+    runtime's own code (this package and wasmtime-py's, whose native library a guest must never
+    replace). The module cache is made first, if it can be, so it is judged as it will be: a root
+    still to be made above a cache still to be made would otherwise come to hold it (the build
+    review, finding 1)."""
+    import wasmtime
+
+    if cache is not None:
+        try:
+            cache.mkdir(mode=0o700, parents=True, exist_ok=True)
+        except OSError:
+            pass  # unusable: `_module` then keeps compiled modules in memory
+    zip_dir = _zip_known(found)
+    if zip_dir is not None:
+        folders = [("the runtime's stdlib folder", *_chain(zip_dir))]
+    else:
+        temp = Path(tempfile.gettempdir())
+        folders = [
+            ("the temporary folder, where the runtime's stdlib folder goes", None, _chain(temp)[1])
+        ]
+    parts = {found.manifest.parent, found.snapshot.parent, found.plain.parent}
+    parts.add(found.stdlib_zip.parent)
+    folders += [("the artifact set", *_chain(d)) for d in sorted(parts)]
+    if cache is not None:
+        folders.append(("the module cache", *_chain(cache)))
+    folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
+    folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
+    return folders
+
+
+def _shared_folders() -> list[tuple[str, tuple[Identity, ...]]]:
+    """Folders no grant may be at or above, read-only included: the temporary folder holds every
+    call's private root and stdin (the build review, finding 2)."""
+    temp = Path(tempfile.gettempdir())
+    return [
+        (
+            "the temporary folder, which holds every call's private folders and stdin",
+            _chain(temp)[1],
+        )
+    ]
+
+
 def _run_checked(
     wt: Any,
     c: dict[str, Any],
-    root: str | os.PathLike[str] | None,
     host: Host | None,
     snapshot: bool,
     cache_dir: str | os.PathLike[str] | None | bool,
     artifacts: Artifacts | None,
 ) -> Completed:
     found = artifacts if artifacts is not None else find_artifacts()
-    binary = found.snapshot if snapshot else found.plain
-    engine = _engine(c["fuel"] is not None)
-    module = _module(engine, c["fuel"] is not None, binary, _cache_dir(cache_dir))
-    _sweep_once()
-    if root is not None:
-        guest_root = Path(root)
-        _place_stdlib(found, guest_root)
-        return _call(wt, engine, module, found, guest_root, c, host)
-    private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
+    cache = _cache_dir(cache_dir)
+    root = c["root"]
+    walked_root, walked = _walk_grants(root, c["grants"], found, cache)
+    preopens: list[_Preopen] = []
+    private = None
     try:
-        _place_private(found, private.path)
-        return _call(wt, engine, module, found, private.path, c, host)
+        if _after_walk is not None:
+            _after_walk()
+        binary = found.snapshot if snapshot else found.plain
+        engine = _engine(c["fuel"] is not None)
+        module = _module(engine, c["fuel"] is not None, binary, cache)
+        _sweep_once()
+        zip_dir = _zip_folder(found)
+        preopens.append(
+            _Preopen("the stdlib folder", _walk("", str(zip_dir), judge=False), ZIP_GUEST, False)
+        )
+        root_path = None
+        if root is None:
+            private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
+            (private.path / "usr" / "local" / "lib").mkdir(parents=True)
+            root_path = private.path
+            preopens.append(
+                _Preopen("the private root", _walk("", str(root_path), judge=False), "/", True)
+            )
+        elif walked_root is not None:
+            root_path = Path(walked_root.path)
+            # Real folders, never a guest's link: without them /usr would vanish from a fresh
+            # root's listing, and the zip's path could resolve into a file a guest wrote.
+            _real_dir(root_path, ("usr", "local", "lib"))
+            preopens.append(_Preopen("root", walked_root, "/", True))
+        for where, grant, w in walked:
+            preopens.append(_Preopen(where, w, grant.guest, grant.writable))
+        return _call(wt, engine, module, root_path, preopens, c, host)
     finally:
-        private.remove()
+        # Windows holds every walked folder until here; a private root can be removed only after.
+        for w in [walked_root, *(w for _, _, w in walked), *(p.walked for p in preopens)]:
+            if w is not None:
+                w.close()
+        if private is not None:
+            private.remove()
 
 
 def _call(
     wt: Any,
     engine: wasmtime.Engine,
     module: wasmtime.Module,
-    found: Artifacts,
-    guest_root: Path,
+    root: Path | None,
+    preopens: list[_Preopen],
     c: dict[str, Any],
     host: Host | None,
 ) -> Completed:
@@ -776,48 +1496,71 @@ def _call(
     a reference cycle until Python's collector runs) and a private root can be removed afterwards
     (Windows refuses to remove an open directory). Ctrl-C is deferred while the guest runs."""
     with _deferred_ctrl_c():
-        return _call_deferred(wt, engine, module, found, guest_root, c, host)
+        return _call_deferred(wt, engine, module, root, preopens, c, host)
 
 
 def _call_deferred(
     wt: Any,
     engine: wasmtime.Engine,
     module: wasmtime.Module,
-    found: Artifacts,
-    guest_root: Path,
+    root: Path | None,
+    preopens: list[_Preopen],
     c: dict[str, Any],
     host: Host | None,
 ) -> Completed:
-    tmp = _real_dir(guest_root, ("tmp",))  # TMPDIR; a guest's link there is removed
-    home = f".home-{secrets.token_hex(16)}"
-    # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
-    # link, so a guest running concurrently on the same root cannot turn /tmp into a link between
-    # the check and the mkdir (Windows has no dir_fd, and its guests cannot make links).
-    tmp_fd = _open_dir(tmp)
-    try:
-        if tmp_fd is not None:
-            os.mkdir(home, dir_fd=tmp_fd)
-        else:
-            (tmp / home).mkdir()
-    except BaseException:
-        _close(tmp_fd)
-        raise
+    tmp, tmp_fd = _home_folder(root, preopens)
+    home = None
+    if tmp is not None:
+        # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
+        # link, so a guest running concurrently on the same folder cannot turn /tmp into a link
+        # between the check and the mkdir (Windows has no dir_fd, and its guests cannot make links).
+        name = f".home-{secrets.token_hex(16)}"
+        try:
+            if tmp_fd is not None:
+                os.mkdir(name, dir_fd=tmp_fd)
+            else:
+                (tmp / name).mkdir()
+        except BaseException:
+            _close(tmp_fd)
+            raise
+        home = (name, f"/tmp/{name}")
     store = wt.Store(engine)
     try:
-        return _instance(wt, engine, module, store, guest_root, f"/tmp/{home}", c, host)
+        guest_home = None if home is None else home[1]
+        return _instance(wt, engine, module, store, preopens, guest_home, c, host)
     finally:
         store.close()
-        if tmp_fd is not None:
-            shutil.rmtree(home, ignore_errors=True, dir_fd=tmp_fd)
-        else:
-            shutil.rmtree(tmp / home, ignore_errors=True)
+        if home is not None and tmp_fd is not None:
+            shutil.rmtree(home[0], ignore_errors=True, dir_fd=tmp_fd)
+        elif home is not None and tmp is not None:
+            shutil.rmtree(tmp / home[0], ignore_errors=True)
         _close(tmp_fd)
+
+
+def _home_folder(root: Path | None, preopens: list[_Preopen]) -> tuple[Path | None, int | None]:
+    """Where HOME is made (Decision 3): a writable grant at /tmp, else the root's tmp, else
+    nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no HOME either."""
+    at_tmp = [p for p in preopens if p.guest == "/tmp"]
+    if at_tmp:
+        p = at_tmp[0]
+        if not p.writable:
+            return None, None
+        fd = p.walked.fd
+        return Path(p.walked.path), (os.dup(fd) if fd is not None and _dir_fd_ok() else None)
+    if root is None:
+        return None, None
+    tmp = _real_dir(root, ("tmp",))  # TMPDIR; a guest's link there is removed
+    return tmp, _open_dir(tmp)
+
+
+def _dir_fd_ok() -> bool:
+    return os.mkdir in os.supports_dir_fd and shutil.rmtree.avoids_symlink_attacks is not False
 
 
 def _open_dir(path: Path) -> int | None:
     """A handle on a directory, opened without following a link; None where the platform has no
     dir_fd support (Windows)."""
-    if os.mkdir not in os.supports_dir_fd or shutil.rmtree.avoids_symlink_attacks is False:
+    if not _dir_fd_ok():
         return None
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     return os.open(path, flags)
@@ -833,8 +1576,8 @@ def _instance(
     engine: wasmtime.Engine,
     module: wasmtime.Module,
     store: wasmtime.Store,
-    guest_root: Path,
-    home: str,
+    preopens: list[_Preopen],
+    home: str | None,
     c: dict[str, Any],
     host: Host | None,
 ) -> Completed:
@@ -870,8 +1613,11 @@ def _instance(
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here (spec 010)
     wasi.argv = [ARGV0, *argv]
-    wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
-    wasi.preopen_dir(str(guest_root), "/")
+    fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
+    wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
+    for p in preopens:  # the stdlib folder first; wasi-libc picks by the longest guest prefix
+        wasi.preopen_dir(p.walked.path, p.guest, p.writable)
+    check = _check_module(wt, engine, fuel is not None)
     keys = _send_outputs(wasi, out, err)
     scratch = None
     try:
@@ -885,7 +1631,7 @@ def _instance(
         if cancel is not None:
             _watch(store)
         with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
-            done = _drive(wt, linker, store, module, call, fuel)
+            done = _drive(wt, linker, store, module, call, fuel, preopens, check)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
     finally:
         # The store holds every descriptor the guest opened; a guest can open them until the
@@ -923,7 +1669,16 @@ class _Driven(NamedTuple):
     instance: Any
 
 
-def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int | None) -> _Driven:
+def _drive(
+    wt: Any,
+    linker: Any,
+    store: Any,
+    module: Any,
+    call: _Call,
+    fuel: int | None,
+    preopens: list[_Preopen] = (),  # type: ignore[assignment]
+    check: Any = None,
+) -> _Driven:
     """Instantiate and run the guest with its call on this thread's stack. What a host function
     caught and recorded comes first: an exit or a trap is the call's result, and any other
     exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call
@@ -939,6 +1694,8 @@ def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int
         if call.cancel is not None and call.cancel.is_set():  # cancelled before the guest ran
             call.ended = "cancelled"
             return _Driven(None, "cancelled", False, None)
+        if preopens:
+            _check_preopens(wt, linker, store, check, list(preopens))  # spec 017, Decision 5
         instance = linker.instantiate(store, module)
         if fuel is not None:
             store.set_fuel(fuel)
@@ -1447,81 +2204,6 @@ def _door(host: Host | None) -> Callable[..., int]:
     return call
 
 
-def _place_stdlib(found: Artifacts, root: Path) -> None:
-    """The artifact set's own zip at /usr/local/lib/python3XY.zip: the snapshot runs only beside
-    the zip it was built against.
-
-    The root is the guest's to write, so nothing in it is trusted: the zip is a copy (never a link
-    to the artifact itself), no symbolic link the guest left on the way to it is followed, and a
-    file that is not byte for byte the artifact's zip is replaced, by renaming a fresh copy over
-    it. On POSIX a copy this process placed is recognised by its inode and change time, which a
-    guest cannot set back, when the filesystem keeps sub-second times; otherwise the file is
-    hashed."""
-    lib = _real_dir(root, ("usr", "local", "lib"))
-    dest = lib / f"python{_version_tag(found.manifest)}.zip"
-    want = _digest(found.stdlib_zip)
-    # Calls in this process place one root's zip one at a time: on Windows a file being renamed
-    # over cannot be opened, so a second call checking it mid-rename would fail.
-    with _lock:
-        guard = _placing.setdefault(str(dest), threading.Lock())
-    with guard:
-        _place_checked(found, dest, want)
-
-
-_placing: dict[str, threading.Lock] = {}
-
-
-def _place_private(found: Artifacts, root: Path) -> None:
-    """The zip in a private root this call made: a plain copy, recorded in no cache, so a process
-    making many calls without a root does not grow `_placed` or `_placing`."""
-    lib = root / "usr" / "local" / "lib"
-    lib.mkdir(parents=True)
-    shutil.copyfile(found.stdlib_zip, lib / f"python{_version_tag(found.manifest)}.zip")
-
-
-def _place_checked(found: Artifacts, dest: Path, want: str) -> None:
-    lib = dest.parent
-    try:
-        st = os.lstat(dest)
-    except FileNotFoundError:
-        st = None
-    if st is not None and stat.S_ISDIR(st.st_mode):
-        shutil.rmtree(dest)  # a guest's directory in the zip's place; links inside are not followed
-        st = None
-    if st is not None and stat.S_ISREG(st.st_mode):
-        # A filesystem with whole-second times cannot show a write within the same second.
-        fine_times = st.st_ctime_ns % 1_000_000_000 != 0
-        if os.name == "posix" and fine_times and _placed.get(str(dest)) == _stamp(st):
-            return
-        if _hash_file(dest) == want:
-            _placed[str(dest)] = _stamp(st)
-            return
-    fd, tmp = tempfile.mkstemp(prefix=".python-zip-", dir=lib)
-    try:
-        with os.fdopen(fd, "wb") as out, found.stdlib_zip.open("rb") as src:
-            for block in iter(lambda: src.read(1 << 20), b""):
-                out.write(block)
-        os.chmod(tmp, 0o644)
-        try:
-            os.replace(tmp, dest)  # replaces a link at dest itself, never what it points to
-        except PermissionError:
-            # Windows cannot rename over a file another call's guest has open; when that file
-            # is already the right zip (a concurrent call placed it), this copy is not needed.
-            if os.name != "nt":
-                raise
-            st = os.lstat(dest)
-            if not (stat.S_ISREG(st.st_mode) and _hash_file(dest) == want):
-                raise
-            Path(tmp).unlink(missing_ok=True)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
-    _placed[str(dest)] = _stamp(os.lstat(dest))
-
-
-_placed: dict[str, tuple[int, ...]] = {}
-
-
 def _stamp(st: os.stat_result) -> tuple[int, ...]:
     return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
 
@@ -1606,7 +2288,10 @@ def stats() -> dict[str, int]:
 
 @atexit.register
 def _release() -> None:
-    """Free the cached linkers, modules and engines while wasmtime's bindings still exist."""
+    """Remove this process's zip folders, and free the cached linkers, modules and engines while
+    wasmtime's bindings still exist."""
+    _remove_zips()
+    _check_modules.clear()
     _linkers.clear()
     _modules.clear()
     _engines.clear()

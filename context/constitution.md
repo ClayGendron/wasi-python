@@ -6,7 +6,9 @@
   questions 1, 3, 4, 5, 7 and 9 (`questions-for-the-owner.md`): typed
   grants that may be none (§2.2, §2.4), the build order after v1 (§2),
   a command line inside the runner (§3), safe by default (§4.15), three
-  approved licences (§4.12), and the release rules (§5.5, §5.6)
+  approved licences (§4.12), and the release rules (§5.5, §5.6); §4.15's
+  alpha exception (the stdlib zip in a writable root) ended by spec 017,
+  as the exception itself provided.
   Amended 2026-10-17 by the owner's answer to question 32: carried
   upstream patches, recorded and temporary (§4.1, and §2.5, §6.2, §7 and
   §8 to match).
@@ -158,11 +160,6 @@ works.
     (no folder, no network, no host function); the runtime's own files
     are never in a writable grant. A change that loosens a default
     needs the owner's decision, not only a review (owner, 2026-10-17).
-    **Exception for the alpha line** (owner, 2026-10-17, from the 0.1.0a2
-    security review, F4): until typed grants land, the stdlib zip may sit
-    in the guest's writable root, verified and replaced before every call.
-    The typed-grants specification moves it to a read-only grant and ends
-    this exception.
 
 ## 5. How work is done
 
