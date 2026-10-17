@@ -86,9 +86,7 @@ question moves to the bottom with the answer and the date.
 - **26. Upstream:** may the agent draft an OpenBLAS issue and pull request (one return
   convention, plus four WASI portability fixes) and a small scipy one, for you to read and send?
   *Recommended: yes,* as with numpy and wasmtime-py: you approve before anything is posted.
-- **27. Wait or shim:** if upstream is slow, wait (§4.1's default), or accept a generated
-  rename-and-shim layer of about 150 functions as a recipe file? *Recommended: wait,* and start
-  matplotlib meanwhile.
+- **27. Wait or shim:** answered by question 32: neither; carried patches.
 - **28. `scipy.odr`:** accept its absence (scipy has deprecated it)? *Recommended: yes.*
 - **29. SIMD:** OpenBLAS's wasm target needs wasm SIMD. Accept it as a host requirement, as
   exception handling already is? *Recommended: yes;* every wasmtime since 2021 has it.
@@ -110,6 +108,19 @@ general features; `research/2026-10-17-the-runtime-for-agent-code.md` studies wh
 across turns is researched before any specification (`research/2026-10-17-state-across-agent-turns.md`).
 
 ## Answered
+
+### 32. Carry our own fixes to other projects, or wait for upstream?
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-what-scipy-needs.md` (OpenBLAS's C
+  LAPACK traps under wasm until a type fix lands upstream), and question 27.
+- **The question:** keep §4.1's zero patches (wait, or carry a generated shim layer), or carry
+  patch files that mirror drafted upstream pull requests; and for which projects.
+- **Answered 2026-10-17:** Carried patches, for any pinned project, each with an upstream PR
+  drafted in the repository: "I do not want to wait for upstream. I want to build fixes
+  ourselves but document the upstream fixes (PRs) we should submit to other projects." §4.1 is
+  amended; a specification builds the mechanism (patch layout, apply step, `MANIFEST` lines, the
+  release check) before any patch is applied. This also answers question 27 (no waiting) and
+  reopens numpy's `.npy` fix (question 8) as a carried patch.
 
 ### 1. Constitution: "only the grants the embedder gives, which may be none"
 

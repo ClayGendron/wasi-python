@@ -7,6 +7,8 @@
   grants that may be none (§2.2, §2.4), the build order after v1 (§2),
   a command line inside the runner (§3), safe by default (§4.15), three
   approved licences (§4.12), and the release rules (§5.5, §5.6)
+  Amended 2026-10-17 by the owner's answer to question 32: carried
+  upstream patches, recorded and temporary (§4.1).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -86,13 +88,19 @@ few: each one is built, judged and published. v1 ships the one set
 These are not preferences. Work that violates one is wrong even if it
 works.
 
-1. **Zero upstream patches.** No file in a CPython, numpy, pandas,
-   zlib or any other source tree is modified. An adaptation is a
-   recipe file: a cross file, a compiler wrapper, a rename header, a
-   stand-in module, a linker flag. If a source change is unavoidable,
-   it is sent upstream and the project waits or ships without the
-   feature. The release workflow fails on any diff against the pinned
-   tarball.
+1. **Upstream patches are few, recorded and temporary.** An adaptation
+   is a recipe file first: a cross file, a compiler wrapper, a rename
+   header, a stand-in module, a linker flag. Where a source change is
+   unavoidable, the project carries it as a patch file under
+   `recipes/patches/`, applied after the pinned tarball's hash is
+   checked. Each patch is reviewed like any change, recorded in
+   `MANIFEST` by its hash, named in the CHANGELOG, and matched by an
+   upstream pull request drafted in the repository for the owner to
+   send; it is deleted once an upstream release carries the fix. The
+   release workflow fails on any difference from the pinned tarball
+   other than exactly the recorded patches (owner, 2026-10-17,
+   question 32; until the specification that builds this lands, no
+   patch is applied and the old zero-diff check stands).
 2. **Every input is pinned and hashed.** Every source tarball,
    toolchain, tool and pure-Python dependency is a URL plus a SHA-256
    in `downloads/SHA256SUMS`, verified before use. A build that fetches
