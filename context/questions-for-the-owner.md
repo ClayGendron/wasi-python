@@ -98,8 +98,8 @@ question moves to the bottom with the answer and the date.
   button, which works only when private vulnerability reporting is on in the repository's
   settings (Settings → Code security). May the agent turn it on (`gh api -X PUT
   repos/ClayGendron/wasi_python/private-vulnerability-reporting`), or will you?
-- **Meanwhile:** `SECURITY.md` also gives the fallback: a public issue that asks for a contact
-  and says nothing else.
+- **Meanwhile:** `SECURITY.md` is not written yet; it waits on this answer and on spec 010, so
+  that the policy it publishes is true and its reporting route works.
 
 ## Answered
 

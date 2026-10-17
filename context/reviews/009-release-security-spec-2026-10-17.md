@@ -331,3 +331,127 @@ The rules checks then need their exact contract written (finding 5).
 One line: attesting in `publish` with this pin is correct and fails safe, but close or declare
 the sleep-past-deadline hole, turn on a real reporting route, tighten the verify command, and
 verify before creating the release, before this is built.
+
+## Confirmation by the reviewer, 2026-10-17
+
+- **Re-read:** the specification at `e04b596` (97 lines, now "Release provenance: every asset
+  attested and verified"), the Disposition above, the README's "Not protected" list at HEAD,
+  the head of spec 010, question 10, and `release/version.py` with its unit tests.
+- **Ran (EXECUTED, gh 2.96.0).** Outputs are under the same scratch directory, in
+  `review-009/noauth-dl/`.
+  - `gh api repos/actions/attest/git/ref/tags/v4.2.2` and `.../tags/v4`: both are commit
+    `1e69f48acb82d1966a394da916b4c1698aa569d6` (run for the first review). Its `action.yml` is a
+    direct `node24` action with a `subject-path` input, not a composite.
+  - `gh attestation download` with no token and an empty config: exit 4, "please run: gh auth
+    login".
+  - `curl` of `https://api.github.com/repos/cli/cli/attestations/sha256:<digest>` with no
+    token: HTTP 200. The attestations API is public; only `gh` insists on a login.
+  - Nothing under `build/` was written. pytest was not run.
+
+### Each finding
+
+1. **Sleep past the deadline: confirmed, answered by the move.**
+   - READ: the README's "Not protected" list now says a waiting guest "holds its call past the
+     deadline until the wait ends (spec 010 fixes this)" (`README.md:251-253`).
+   - Spec 010 exists and states the defect. `SECURITY.md` is out of 009.
+2. **The reporting route: confirmed, answered by the move.** It carries over to whichever
+   specification adds `SECURITY.md`. That specification must still give a fallback that leads
+   to a private channel, or make the setting a precondition. See N6 for a stale line.
+3. **The verify command: fixed, with one wording fault (N3).** Decision 2 binds the workflow,
+   the tag and GitHub-hosted runners. Decision 3 puts it where users read and names the first
+   attested release.
+4. **Verify before create: fixed, with one gap (N1).** The `attest` job verifies each asset, and
+   `publish` needs it. Decision 4 writes the recovery down. Decision 5 keeps dry runs off the
+   public log.
+5. **The rules check: fixed, with gaps (N4).** It is text-based, names its scanner and its
+   check, and has one bad variant per rule.
+6. **The counts list: confirmed, answered by the move.** It carries over, like finding 2.
+7. **The Sigstore instance: confirmed fixed** (`009:29`).
+8. **The pin: confirmed fixed.** EXECUTED as above. It was published 2026-08-04, more than two
+   weeks ago.
+9. **Least privilege: confirmed fixed.** The `attest` job holds the identity token without
+   `contents: write`, setup-uv or uv's Python (`009:22-33`). N4 asks the judge to keep it so.
+10. **The first run's record: confirmed fixed** (`009:51-53`).
+
+### New findings
+
+N1. **`attest`'s `needs` is not stated, and the scan does not check it** (`009:22`,
+    `009:54-61`). Medium-low.
+    - "Between `verify` and `publish`" names a position, not a dependency. Only `publish`'s
+      `needs` is written.
+    - If `attest` needed only `build`, it would run alongside `verify`. A set that then failed on
+      Windows would already be signed into the permanent public log. Decision 5 exists to avoid
+      exactly that.
+    - **Fix.** Decision 1: `attest` has `needs: [build, verify]`. Decision 6 gains a rule for
+      it, and a bad variant.
+
+N2. **The notes change touches the tag message and an exact unit test, and `release/version.py`
+    is missing from the Kind line** (`009:44-45`, `009:11-12`, `009:74`). Medium-low.
+    - READ: `notes()` (`version.py:115-121`) is also how `release` builds the annotated tag's
+      message (`version.py:265`). Appending the command inside `notes()` puts it in every tag.
+    - READ: `test_changelog_sections_are_added_dated_and_read` asserts
+      `version.notes(dated, "0.1.0a1") == "- first\n"` (`test_release_version.py:70`). It
+      would fail.
+    - **Fix.** Say where the command is added: in the `notes` command's output (`_notes`), or a
+      new function it calls, with `notes()` unchanged. Add `release/version.py` and
+      `tests/unit/test_release_version.py` to the Kind line. Add a unit test showing the
+      version filled into `--source-ref refs/tags/v<version>`.
+
+N3. **The bundle sentence overstates the no-login route** (`009:40-41`). Low.
+    - EXECUTED: `gh attestation download` itself needs a login (exit 4). So a user without a
+      login cannot get the bundle that way.
+    - EXECUTED: the REST endpoint answers without a token (HTTP 200), so the bundle is
+      reachable. Only the `gh` path is gated.
+    - **Fix (pick one):**
+      - say "anyone logged in can download the bundle; it then verifies offline with
+        `--bundle`";
+      - or attach the action's `bundle-path` output to the release. That needs an
+        `upload-artifact` in `attest` and a scan rule.
+
+N4. **The scan leaves three of Decision 1's and Decision 2's promises unguarded**
+    (`009:54-63`). Low.
+    - The verify rule requires `--signer-workflow` and `--source-ref`, but not
+      `--deny-self-hosted-runners` or `--repo`.
+    - Nothing checks step order within `attest`: download, then attest, then verify.
+    - Nothing checks that `id-token: write` appears only in `attest` and `pypi`. That is the
+      invariant Decision 1 states ("never in the same job as `contents: write`…").
+    - **Fix.** Add the three rules, each with its own bad variant.
+
+N5. **The verify step's environment is unstated** (`009:30-31`). Low.
+    - `gh` in a workflow reads `GH_TOKEN`. Without it, the step exits 4 (EXECUTED, the same
+      failure locally). The existing `publish` step sets `GH_TOKEN: ${{ github.token }}`
+      (`release.yml:163-164`). Say the same for the verify step.
+    - Prefer `--repo "$GITHUB_REPOSITORY"` and `--source-ref "$GITHUB_REF"` in the workflow
+      over a typed literal. The README keeps the literal.
+
+N6. **Question 10's "Meanwhile" line is stale** (`questions-for-the-owner.md`, question 10).
+    Low, and outside this specification.
+    - It still says `SECURITY.md` "also gives the fallback: a public issue…". `SECURITY.md` is no
+      longer in 009, and that fallback was finding 2.
+    - **Fix.** Say `SECURITY.md` waits on this question and on spec 010.
+
+### Verdict
+
+**Builds once N1 and N2 are written into the specification.** Both are a sentence or two:
+- `attest` needs `verify` (and the scan says so);
+- the notes change goes in the `notes` command's output, not in `notes()`, with the Kind line
+  completed.
+
+N3 to N5 are wording and three more scan rules, and can be folded in at build. N6 is the owner's
+questions file. Every earlier finding is fixed, or answered by moving `SECURITY.md` out.
+
+One line: the revised design, a least-privilege `attest` job that signs and strictly verifies
+before `publish`, is right. Make `attest` wait for `verify`, keep the verify command out of the
+tag message, and it is ready to build.
+
+## The author's answers to the confirmation
+
+- **N1:** fixed. `attest` needs `[build, verify]`; the scan has a rule for it.
+- **N2:** fixed. The command goes in `_notes` (the release body), not `notes()` (also the tag
+  message); the Kind names `release/version.py` and its unit test; a test shows the version.
+- **N3:** fixed. Decision 3 says `gh attestation download` needs a login and names the REST API
+  bundle route.
+- **N4:** fixed. The scan checks the four flags, the step order, and `id-token: write` only in
+  `attest` and `pypi`.
+- **N5:** fixed. The verify step sets `GH_TOKEN` and uses `$GITHUB_REPOSITORY` and `$GITHUB_REF`.
+- **N6:** fixed in the questions file.
