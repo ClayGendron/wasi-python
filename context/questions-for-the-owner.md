@@ -7,7 +7,58 @@ question moves to the bottom with the answer and the date.
 
 ## Open
 
-(None.)
+### 12. A tool-call convention over the door
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-market-research-use-cases.md`,
+  proposal A.
+- **The question:** may the project ship an optional convention, such as a guest helper plus
+  `tools={name: fn}` on the runner, that turns `tools.lookup(x)` into a JSON frame through the
+  door? Constitution §4.4 says the door's frames are opaque to the project.
+- **The owner, 2026-10-17:** "Let's come back to this." It waits on the study of what the agent
+  runtime needs (`research/2026-10-17-the-runtime-for-agent-code.md`).
+
+### 13–17. The agent runtime
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-the-runtime-for-agent-code.md` §6.
+- **13. Should vfs run guests through this runner, or through its own host?** vfs's spec 169b
+  plans its own wasmtime-py host, one guest per process. *Recommended: this runner.* It already
+  runs concurrent calls safely; vfs keeps only its shim, and a filesystem provider (memo item 8)
+  moves up. If not, the written embedder contract (item 7) comes first.
+- **14. May a guest program call tools?** vfs's ADR 082 says a program holds no execution
+  capability; the owner's direction says agent code reaches tools, APIs and MCP. *Recommended:
+  yes, through the door, under the embedder's gates.* It decides how soon question 12 matters.
+- **15. Is a door bounded by host time, and an async host, in scope?** Spec 015 put async host
+  functions out. Agent tools mostly wait on the network. *Recommended: yes, as a spec after 015.*
+- **16. May an embedder add read-only code to the import path?** It loosens a default only at the
+  embedder's explicit request; §4.15 makes that the owner's call. *Recommended: yes, as a
+  read-only typed grant.*
+- **17. Is per-access governance a goal here, or left to embedders?** *Recommended: left to
+  embedders,* with the runner offering the hooks (grants, the door, a provider) they need.
+
+### 18–22. State across agent turns
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-state-across-agent-turns.md`.
+- **18. May the guest gain a second export that runs a turn without finalizing?** It changes the
+  recipe and the exports, not the imports (§4.4). *Recommended: yes, after a pre-build review.*
+- **19. Is a session in scope?** §3 says the project is "not a development environment".
+  *Recommended: yes, bounded,* as a run that spans calls, not a shell.
+- **20. The default bounds.** *Recommended: 15 minutes idle, 1 hour lifetime,* in line with the
+  market's 15 to 20 minutes.
+- **21. Is "a trap ends the session" acceptable for v1?** *Recommended: yes;* pause, resume and
+  rollback wait for a later spec.
+- **22. Should the README show the files-in-a-root pattern** for state that must outlive a
+  process? *Recommended: yes;* it costs a paragraph and no code.
+
+## The owner's direction for the product (2026-10-17)
+
+"I am thinking of this more as a safe runtime for agent code. The use case is much more
+powerful web agents that can access code and interact with their data and tools (either through
+a file system, tools in the host program, api calls, mcp, etc.) its main use case is to work with
+~/Git/repos/vfs and run on top of that where vfs manages the permissions and governance."
+
+The code stays embedder-neutral (§4.5). The capabilities that agent use needs are built as
+general features; `research/2026-10-17-the-runtime-for-agent-code.md` studies which. State
+across turns is researched before any specification (`research/2026-10-17-state-across-agent-turns.md`).
 
 ## Answered
 
