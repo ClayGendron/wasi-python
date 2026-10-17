@@ -1,0 +1,4 @@
+    1:    0x1b9 - indirect.wasm!_start
+note: using the `WASMTIME_BACKTRACE_DETAILS=1` environment variable may show more debugging information
+    2: wasm trap: indirect call type mismatch
+

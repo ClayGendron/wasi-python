@@ -1,0 +1,2 @@
+error: invalid value 'f95-cpp-input' in '-x f95-cpp-input'
+exit=1

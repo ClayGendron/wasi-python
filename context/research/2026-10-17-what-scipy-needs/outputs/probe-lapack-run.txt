@@ -1,0 +1,5 @@
+dgesv info=0 x0=-0.036999190064
+dgeqrf info=0 r00=-2.151611140845
+dsyev info=0 wmax=3.116080858571
+    0:    0x587 - lapack_run.wasm!signature_mismatch:dlarft_
+    2: wasm trap: wasm `unreachable` instruction executed

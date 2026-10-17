@@ -1,0 +1,18 @@
+non-.so non-tests: files 639 unpacked 13444723 compressed 3806032
+  (top): 6,546,658
+  special: 4,516,439
+  sparse: 4,113,656
+  optimize: 3,086,215
+  linalg: 2,965,823
+  spatial: 1,509,159
+  stats: 1,031,476
+  io: 904,345
+  fft: 805,670
+  interpolate: 524,720
+  signal: 285,741
+  cluster: 248,218
+  ndimage: 210,537
+  integrate: 176,236
+  _lib: 147,109
+  odr: 131,947
+  fftpack: 52,693

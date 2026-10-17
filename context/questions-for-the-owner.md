@@ -70,6 +70,34 @@ question moves to the bottom with the answer and the date.
 - *Recommended: keep the default for now;* revisit before 1.0. Nothing waits on this answer:
   spec 017 changes no default.
 
+### 25–31. scipy
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-what-scipy-needs.md`. scipy is last on
+  §2's list, after matplotlib; nothing is built until these are answered, and none blocks
+  current work.
+- **The facts:** scipy 1.18.1 builds without Fortran except BLAS/LAPACK. OpenBLAS 0.3.34's C
+  LAPACK builds for WASI with zero patches, but declares functions with return types that clash
+  with their definitions, which wasm turns into traps at run time (the SVD traps today). The fix
+  belongs upstream.
+- **25. Licences (§4.12):** may BSL-1.0 (Boost.Math, ryu), the Qhull licence,
+  BSD-3-Clause-LBNL (xsf), BSD-2-Clause (fast_matrix_market) and the BSD/MIT set (scipy,
+  OpenBLAS, LAPACK, HiGHS, ducc0, pybind11 and others) be linked? *Recommended: yes;* without
+  Boost there is no `scipy.special` or `scipy.stats`.
+- **26. Upstream:** may the agent draft an OpenBLAS issue and pull request (one return
+  convention, plus four WASI portability fixes) and a small scipy one, for you to read and send?
+  *Recommended: yes,* as with numpy and wasmtime-py: you approve before anything is posted.
+- **27. Wait or shim:** if upstream is slow, wait (§4.1's default), or accept a generated
+  rename-and-shim layer of about 150 functions as a recipe file? *Recommended: wait,* and start
+  matplotlib meanwhile.
+- **28. `scipy.odr`:** accept its absence (scipy has deprecated it)? *Recommended: yes.*
+- **29. SIMD:** OpenBLAS's wasm target needs wasm SIMD. Accept it as a host requirement, as
+  exception handling already is? *Recommended: yes;* every wasmtime since 2021 has it.
+- **30. A profile:** scipy adds about 20–25 MB to `python.wasm` (INFERRED from Pyodide's
+  wheels). Ship it only in a separate scipy build? *Recommended: yes,* which makes build profiles
+  a prerequisite.
+- **31. pythran:** build without it first (5 modules fall back to slower code), or pin it and
+  its three dependencies as build tools? *Recommended: without, at first.*
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

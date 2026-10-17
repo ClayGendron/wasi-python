@@ -1,0 +1,4 @@
+scipy: download 14,029,750 B, sha ok=True, unpacked 47,333,628 B, 107 .so totalling 27,256,642 B, tests 6,632,263 B
+libopenblas: download 2,146,180 B, sha ok=True, unpacked 6,467,956 B, 1 .so totalling 6,467,956 B, tests 0 B
+numpy: download 2,960,568 B, sha ok=True, unpacked 10,777,799 B, 13 .so totalling 5,237,696 B, tests 0 B
+pandas: download 4,177,749 B, sha ok=True, unpacked 16,926,795 B, 45 .so totalling 8,559,037 B, tests 0 B

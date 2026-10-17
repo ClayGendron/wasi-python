@@ -1,0 +1,1 @@
+Only in src/scipy-1.18.1/scipy/_build_utils: __pycache__
