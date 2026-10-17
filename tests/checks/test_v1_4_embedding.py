@@ -1207,3 +1207,78 @@ def test_a_deadline_during_the_grant_check_is_a_deadline(monkeypatch) -> None:
     monkeypatch.setattr(runner, "_check_preopens", late)
     done = run(["-c", "import _host; _host.call(b'x')"], host=calls.append, deadline_s=0.05)
     assert (done.exit_code, done.trapped, calls) == (None, "deadline", []), done
+
+
+# The command line (spec 019).
+INTENT = (
+    b'{"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\\n", "trapped": null, '
+    b'"truncated": []}\n'
+)
+
+
+def _cli(capsysbinary, *args: str) -> tuple[int, dict]:
+    _runner()
+    from wasi_python import cli
+
+    code = cli.main(list(args))
+    out = capsysbinary.readouterr().out
+    return code, json.loads(out) if out else {}
+
+
+def test_the_command_runs_a_program_and_prints_its_result(capsysbinary, tmp_path) -> None:
+    """Guards a change (spec 019): `wasi-python run` prints one JSON line; the command's exit code
+    says there is a result, the JSON how the program ended."""
+    _runner()
+    from wasi_python import cli
+
+    assert cli.main(["run", "--", "-c", "print(1)"]) == 0
+    assert capsysbinary.readouterr().out == INTENT
+    assert _cli(capsysbinary, "run", "--", "-c", "import sys; sys.exit(3)") == (
+        0,
+        {"exit_code": 3, "fuel_used": None, "stderr": "", "stdout": "", "trapped": None,
+         "truncated": []},
+    )  # fmt: skip
+    (tmp_path / "in").write_bytes(b"from a file\n")
+    code, line = _cli(capsysbinary, "run", "--stdin", str(tmp_path / "in"), "--", "-c",
+                      "import sys; print(sys.stdin.read(), end='')")  # fmt: skip
+    assert (code, line["stdout"]) == (0, "from a file\n")
+    code, line = _cli(capsysbinary, "run", "--deadline-s", "0.5", "--", "-c", "while True: pass")
+    assert (code, line["trapped"]) == (0, "deadline")
+    code, line = _cli(capsysbinary, "run", "--fuel", "1000", "--", "-c", "while True: pass")
+    assert (code, line["trapped"]) == (0, "out of fuel")
+
+
+COMMAND_CTRL_C = r"""
+import signal, sys, threading, time
+from wasi_python import cli
+
+signal.signal(signal.SIGINT, signal.default_int_handler)  # a parent may have ignored it
+
+cli.main(["run", "--", "-c", "pass"])  # warm: the module is compiled or loaded
+sys.stdout.buffer.flush()
+threading.Thread(target=lambda: (time.sleep(1), signal.raise_signal(signal.SIGINT))).start()
+code = cli.main(["run", "--deadline-s", "none", "--", "-c", "while True: pass"])
+print("exit", code, flush=True)
+"""
+
+
+def test_ctrl_c_stops_the_command_with_130() -> None:
+    """Guards a change (spec 019, Decision 2): the command passes an unset `cancel`, so Ctrl-C stops
+    a guest that computes, with no deadline, and the command answers 130 and prints nothing more.
+    The sleep only makes the signal likely to land while the guest computes; either way the answer
+    must be 130. A fail-safe timeout asserts no duration."""
+    lines = _child(COMMAND_CTRL_C)
+    assert len(lines) == 2 and json.loads(lines[0])["exit_code"] == 0, lines
+    assert lines[1] == "exit 130", lines
+
+
+def test_the_installed_command_prints_the_same_line() -> None:
+    """Guards a change (spec 019): the `wasi-python` script this environment installed."""
+    import shutil
+    import sysconfig
+
+    _runner()
+    script = shutil.which("wasi-python", path=sysconfig.get_path("scripts"))
+    assert script is not None, sysconfig.get_path("scripts")
+    out = subprocess.run([script, "run", "--", "-c", "print(1)"], capture_output=True, timeout=120)
+    assert (out.returncode, out.stdout) == (0, INTENT), out.stderr[-500:]

@@ -374,6 +374,50 @@ What grants do not do:
   files and the other grants by identity, which a bind mount shares and a
   second mount of a network share may not.
 
+### From any language
+
+`wasi-python run` runs one program and prints its result as one line of JSON, so
+any language can call the runner as a subprocess:
+
+```
+$ wasi-python run -- -c "print(1)"
+{"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}
+```
+
+```typescript
+import { spawn } from "node:child_process";
+
+const child = spawn("wasi-python", ["run", "--deadline-s", "10", "--", "-c", code]);
+let out = "";
+child.stdout.on("data", (chunk) => (out += chunk));
+child.on("error", (err) => console.error("wasi-python could not start:", err.message));
+child.on("close", (status) => {
+  if (status === 0) console.log(JSON.parse(out)); // how the program ended
+  else if (status === 1) console.error(JSON.parse(out).error); // run() refused or failed
+  else console.error(`wasi-python exited ${status}`); // 2: usage error; 130: interrupted
+});
+```
+
+Each option is one of `run`'s arguments, and nothing else: `--env KEY=VALUE`
+(or `--env KEY` to pass this command's own value, which keeps a secret off the
+command line), `--stdin PATH` (or `-` for this command's input), `--deadline-s`,
+`--memory-bytes`, `--output-bytes` (each a number, or `none` for no limit),
+`--fuel` and `--no-snapshot`. Without an option the call has `run`'s defaults.
+Everything after `--` is the program's arguments.
+
+The line's keys: `exit_code`, `trapped`, `fuel_used` and `truncated`, as
+`run` returns them, and `stdout` and `stderr` as text, or `stdout_base64` and
+`stderr_base64` when the bytes are not UTF-8 (output cut at `--output-bytes`
+in the middle of a character is not). The command's own exit code says whether
+there is a result, not how the program ended: 0, a result; 1, `run` refused or
+failed, with `{"error": …, "kind": …}`; 2, a usage error, on standard error;
+130, Ctrl-C. A program's exit code 3 is `"exit_code": 3` with the command's 0.
+
+Two cautions. The line can be up to 6 times the program's output (JSON
+escaping), so collect standard output in full: Node's `exec` stops at 1 MiB by
+default. A long program belongs in a file, `--stdin prog.py -- -`, not in `-c`,
+which meets the system's limit on argument length.
+
 ### From async code
 
 `run_async` takes `run`'s arguments except `cancel` (cancel its task

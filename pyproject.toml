@@ -15,6 +15,10 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+# Run one program and print its result as JSON (spec 019).
+wasi-python = "wasi_python.cli:main"
+
 [project.optional-dependencies]
 # The runner binds the host-call import and runs the reactor; plain `wasmtime run` cannot.
 run = ["wasmtime>=49,<50"]

@@ -24,6 +24,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   cache will be made; and a root reached through a link in a folder you can write. A missing
   root is still made. No grant, read-only either, may hold the temporary folder, which holds
   every call's private folders and `stdin`.
+- **`wasi-python run`:** a command that runs one program and prints its result as one line of
+  JSON, so any language can run agent code by spawning it (`python -m wasi_python run` is the
+  same). Each option is one of `run`'s arguments; without options the call has `run`'s defaults.
 - **A killed process's files are cleaned up:** a process killed mid-call left its private root
   (the guest's files) and its stdin folder (the caller's `stdin`) in the temporary folder for
   good. Each now has a locked lock file beside it naming the kernel that made it; the next

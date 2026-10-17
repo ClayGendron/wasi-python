@@ -1,8 +1,8 @@
 # 019 — The command line
 
-- **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/019-the-command-line-spec-2026-10-17.md`), confirmed for build after one more edit
-  (the confirmation's C1 to C3, made).
+- **Status:** landed 2026-10-17. Reviewed before build
+  (`../reviews/019-the-command-line-spec-2026-10-17.md`) and after
+  (`../reviews/019-the-command-line-2026-10-17.md`, with its confirmation).
 - **Owner:** Clay Gendron
 - **Kind:** the runner's API (a new `src/wasi_python/cli.py`, `src/wasi_python/__main__.py`,
   `pyproject.toml`'s `[project.scripts]`), the release workflow's `verify` job, judge additions
@@ -187,4 +187,62 @@ In: the above. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `bf6dcd2`, then
+rebased onto `067c765` (spec 017 landed). **Not yet reviewed and not accepted.** Every claim
+below was run (EXECUTED) on macOS arm64 with the main tree's artifact set, unless it says
+otherwise.
+
+### What was built
+
+- `src/wasi_python/cli.py`: `main(argv=None) -> int`; `_split` (the one left-to-right scan of
+  Decision 1); `_parser` (argparse, `allow_abbrev=False`; the four limits default to
+  `argparse.SUPPRESS`, so an option not given is absent and `run` keeps its own default);
+  `_env`, `_stream`, `_write` (ASCII bytes to `sys.stdout.buffer`, flushed). `run` is called as
+  `runner.run(argv, cancel=threading.Event(), …)`.
+- `src/wasi_python/__main__.py`; `[project.scripts] wasi-python = "wasi_python.cli:main"`.
+- The release workflow's fresh-wheel step runs the installed command and compares its line with
+  the Intent's.
+- README *From any language*; CHANGELOG one entry.
+
+### Seen failing first
+
+- Against `main`'s runner (`bf6dcd2`'s `src` on `PYTHONPATH`): `tests/unit/test_cli.py` fails to
+  import `cli`; the three v1.4 checks fail (scratch `build019/seen-failing.txt`).
+- Against a stand-in that passes no `cancel` (Decision 2): `test_ctrl_c_stops_the_command_with_130`
+  fails at its 120 s fail-safe, and `test_each_option_reaches_run_as_its_argument` fails.
+- By hand: `wasi-python run -- -c "print(1)"` prints the Intent's line exactly; `--dead 1` exits 2
+  (no abbreviation); `--fuel 1000` on an endless loop gives `"trapped": "out of fuel"`;
+  `--fuel -1` exits 1 with `run()`'s `ValueError`; a guest that writes `\xff` and exits 3 gives
+  `"stdout_base64": "/w=="`, `"exit_code": 3` and command exit 0.
+
+### A judge mistake caught by the judge
+
+The rebase put this change's Ctrl-C script after spec 015's in the v1.4 file under the same name,
+`CTRL_C`, which redefined it: spec 015's two Ctrl-C checks then ran this one's script and were
+LOST in the ratchet. The new script is `COMMAND_CTRL_C`.
+
+### The judge
+
+`uv run pytest` in the clone, with the main tree's artifact set: 170/181 pass, 0 fail, 11 blocked;
+v1.4 69/69; unit suite 401/409, 8 skipped; ratchet lost 0; judge changed: `pyproject.toml`,
+`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_cli.py`. ruff: clean.
+
+### Left over
+
+- Windows runs the command first in the release dry run (the installed-script check in `verify`,
+  and the fresh-wheel step); `signal.raise_signal(SIGINT)` there is INFERRED to reach the main
+  thread as on POSIX.
+- `--grant` and `--root` (spec 017 has landed): a follow-up.
+
+### Revised against the build review
+
+The build review (`../reviews/019-the-command-line-2026-10-17.md`) found ten things; its
+disposition answers each. In short: the Ctrl-C check's child sets its own SIGINT handler, so it
+passes under a parent that ignores SIGINT (EXECUTED as a background job); new unit cases pin
+`allow_abbrev=False` (`--dead=1`, `--no`), a lone `-`, `--stdin -` from the command's input and a
+closed one, a Ctrl-C during parsing (130), and an `--env` name that is never echoed; `verify` runs
+`tests/unit/test_cli.py`; `main` turns a Ctrl-C anywhere into 130; the README's example handles
+every exit status and a missing command, and says "up to 6 times". The build has one parser and
+checks the word `run` itself, where the Design said a subparser; the behaviour is the one
+specified. A judge rule against duplicate module-level names in check files (the `CTRL_C` clash)
+is left for its own judge change.

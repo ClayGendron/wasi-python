@@ -241,6 +241,7 @@ jobs:
           tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
           tests/unit/test_runner_sweep.py
           tests/unit/test_runner_grants.py
+          tests/unit/test_cli.py
       - name: Nothing passed here is blocked but what this job cannot provide
         # The empty baseline fails only on a failed check; a check that skipped for a missing
         # need would pass unnoticed, so the needs that blocked anything are named here.
@@ -261,6 +262,15 @@ jobs:
           print(done)
           assert (done.exit_code, done.stdout) == (0, b'6\n'), done
           "
+          # The wheel's own command (spec 019) prints the one line its README promises.
+          line=$(uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" \
+            wasi-python run -- -c "print(1)")
+          echo "$line"
+          want='{"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}'
+          if [ "$line" != "$want" ]; then
+            echo "the installed command printed another line"
+            exit 1
+          fi
         env:
           WASI_PYTHON_ARTIFACTS: ""
 
