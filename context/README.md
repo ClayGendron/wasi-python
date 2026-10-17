@@ -21,6 +21,7 @@ context/
   reviews/             # REVIEW — one record per review of a built change (or of a spec before build)
   progress/            # the harness's accepted state: accepted.json and an append-only history.jsonl
   embedders.txt        # names no code may use (constitution §4.5); data the harness reads
+  questions-for-the-owner.md  # decisions only the owner can make, asked while the owner is away
 ```
 
 Progress is measured, not reported: `uv run pytest` prints the v1
@@ -37,6 +38,13 @@ Something we do not yet know enough to decide gets a research memo
 marked *placeholder* that names the question, what would answer it and
 what it blocks; the memo is filled in when the research is done, and
 the specification that needs it waits until then.
+
+The one exception is `questions-for-the-owner.md`, by the owner's
+instruction (2026-10-16): a decision only the owner can make (a change
+to the constitution, a release, an outward-facing action, the order of
+the work) is written there when the owner is away, with what waits on
+it and what the agent does meanwhile. It is never a place for a
+question the agent can answer by research.
 
 ## Lifecycle rules
 
