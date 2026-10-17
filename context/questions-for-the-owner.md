@@ -49,6 +49,18 @@ question moves to the bottom with the answer and the date.
 - **22. Should the README show the files-in-a-root pattern** for state that must outlive a
   process? *Recommended: yes;* it costs a paragraph and no code.
 
+### 23. Publish the wheel on PyPI?
+
+- **Asked:** 2026-10-17, after 0.1.0a2 shipped to GitHub only. **Source:**
+  `.github/workflows/release.yml`, job `pypi`.
+- **The question:** the release workflow can publish the wheel on PyPI, but the job stays off
+  until the owner does two things only the owner can do: register this workflow as a trusted
+  publisher for `wasi-python` on pypi.org (owner `ClayGendron`, repository `wasi_python`,
+  workflow `release.yml`, environment `pypi`), and set the repository variable `PYPI_PUBLISH` to
+  `true`. The name `wasi-python` is free on PyPI today (404).
+- *Recommended: yes, from 0.1.0a3.* `pip install wasi-python` is how most users would try it.
+  0.1.0a2 stays GitHub-only; re-running its tag would rebuild, not republish.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
