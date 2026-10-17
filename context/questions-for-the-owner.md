@@ -113,6 +113,23 @@ question moves to the bottom with the answer and the date.
 - **The question:** may the agent replace the clause with "(owner, 2026-10-17, question 32;
   built by spec 020)"? *Recommended: yes;* it changes no rule. Nothing waits on it.
 
+### 34–36. matplotlib
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-matplotlib-on-the-current-line.md`.
+  matplotlib 3.11.2 built and ran in scratch, pixel-equal to native, with two carried patches.
+  Nothing is built in the repository until a specification is reviewed; these shape it.
+- **34. Pre-import matplotlib in the default snapshot?** A plotting call then costs 4.6 times
+  less fuel (5.81 G to 1.25 G; 1.5 s to 0.35 s on the benchmark machine), but every call pays
+  +23.4 M fuel (+28% on `pass`), the snapshot grows 17.5 MB (to 89.5 MB), and each instance's
+  memory starts 18 MiB larger. *Recommended: yes* for a plotting product; the alternative is a
+  second snapshot with matplotlib, which doubles what ships.
+- **35. Licences:** pybind11 and cppy (both BSD-3-Clause) are compiled into `python.wasm` and were
+  not in the 2026-10-16 approval (FreeType, Qhull, SheenBidi, the fonts). *Recommended: approve,*
+  and record the whole matplotlib set in §4.12.
+- **36. Upstream:** patch 1 is matplotlib's own merged fix (PR #30291, in 3.12), re-made for
+  3.11.2; patch 2 (`_qhull` without a writable `/dev/null`) is new and needs a pull request. The
+  agent drafts it, and you send it, as with numpy. *Recommended: yes.*
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

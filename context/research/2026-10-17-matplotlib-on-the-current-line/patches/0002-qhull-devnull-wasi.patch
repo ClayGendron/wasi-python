@@ -1,0 +1,19 @@
+--- /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/mpl-research/work/_qhull_wrapper.cpp.before-devnull	2026-10-17 13:41:50
++++ src-patched/matplotlib-3.11.2/src/_qhull_wrapper.cpp	2026-10-17 13:41:50
+@@ -177,6 +177,16 @@
+          * Rather than have OS-specific code here, instead it is determined by
+          * meson.build and passed in via the macro MPL_DEVNULL. */
+         error_file = fopen(STRINGIFY(MPL_DEVNULL), "w");
++#ifdef __wasi__
++        /* A WASI sandbox has no /dev/null: discard qhull's messages in memory. */
++        if (error_file == nullptr) {
++            cookie_io_functions_t discard = {
++                nullptr,
++                [](void *, const char *, size_t size) -> ssize_t { return (ssize_t)size; },
++                nullptr, nullptr};
++            error_file = fopencookie(nullptr, "w", discard);
++        }
++#endif
+         if (error_file == nullptr) {
+             throw std::runtime_error("Could not open devnull");
+         }
