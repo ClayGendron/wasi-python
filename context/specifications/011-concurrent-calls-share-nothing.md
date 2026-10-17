@@ -323,3 +323,6 @@ code 2; it delivers no signal. The check now raises SIGINT in-process with
 `signal.raise_signal`, which every platform delivers to Python's handler. EXECUTED on macOS: both
 cases pass 3 of 3, and the `computes` case still fails on the runner from before this
 specification (−6). The next dry run records Windows.
+
+**The dry run after the fix** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39022271049,
+on `513455e`): every job it runs passed, verify on windows-2025 included (criterion 3).

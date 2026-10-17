@@ -35,6 +35,11 @@ package becomes a Python exception instead of ending the guest.
   - a call's store is closed when the call ends, trapped or not, so a trapped call no longer
     holds its guest memory until Python's garbage collector runs;
   - `Completed` gains `truncated`, last, defaulting to `()`.
+  - `run` refuses a limit of the wrong type (`TypeError`) or out of range (`ValueError`) before
+    any work, where 0.1.0a1 passed it on: a negative `fuel` or `memory_bytes`, or a
+    `memory_bytes` of 2**63 or more, meant no limit; `True` meant 1; a deadline of 0 or less ran
+    one tick. Integer limits take any integer type (numpy's included) from 0 to 2**63 - 1; a
+    deadline is a positive real number of seconds (not `Decimal`), at most about 4.6e16.
 - **Planted code never runs:** only the stdlib zip is on `sys.path` and `site` does not run
   (`sys.flags.no_site == 1`), so a module, `.pth` or `pyvenv.cfg` one call leaves in a root is
   never run by the next. The plain reactor ran them before.

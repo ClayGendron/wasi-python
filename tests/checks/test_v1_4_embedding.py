@@ -551,3 +551,54 @@ def test_ctrl_c_while_the_guest_runs_ends_the_call(when) -> None:
     )
     assert out.returncode == 0, (out.returncode, out.stderr[-1500:])
     assert out.stdout.splitlines() == ["KeyboardInterrupt", "next b'1\\n'"], out.stdout
+
+
+@pytest.mark.parametrize(
+    "limit", [{"fuel": -1}, {"memory_bytes": -1}, {"memory_bytes": 2**63}], ids=str
+)
+def test_a_limit_that_would_remove_itself_is_refused(guest_workdir, monkeypatch, limit) -> None:
+    """Guards a change: a negative fuel or memory cap, or a memory cap of 2**63 or more, meant no
+    limit at all. run now refuses it with ValueError before any work: no private root is made and
+    nothing is written into a given root (spec 013)."""
+    run = _runner()
+    scratch = Path(tempfile.mkdtemp(prefix="limits-", dir=guest_workdir))
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    root = _root(guest_workdir)
+
+    class Untouched:
+        def __getattr__(self, name):
+            raise AssertionError(f"the artifacts were used before the check ({name})")
+
+    for given in ({}, {"root": root}, {"artifacts": Untouched()}):
+        with pytest.raises(ValueError):
+            run(["-c", "print(1)"], **given, **limit)
+    assert (list(scratch.iterdir()), list(root.iterdir())) == ([], [])
+
+
+class _Index:
+    """An integer that is not an int, as a numpy integer is."""
+
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    def __index__(self) -> int:
+        return self.value
+
+
+def test_a_limit_given_as_another_integer_type_works(guest_workdir, monkeypatch) -> None:
+    """Guards a change: run passes on the plain values it checked, so a numpy-style integer cap
+    is honoured and fuel_used is a plain int, from an argument or from DEFAULTS (spec 013)."""
+    run = _runner()
+    from wasi_python import runner
+
+    done = run(
+        ["-c", "print(12345)"],
+        root=_root(guest_workdir),
+        fuel=_Index(10**10),
+        output_bytes=_Index(3),
+    )
+    assert (done.exit_code, done.stdout, done.truncated) == (0, b"123", ("stdout",)), done
+    assert type(done.fuel_used) is int, done
+    monkeypatch.setattr(runner, "DEFAULTS", runner.Defaults(_Index(1 << 30), 60.0, _Index(3)))
+    done = run(["-c", "print(12345)"], root=_root(guest_workdir))
+    assert (done.exit_code, done.stdout, done.truncated) == (0, b"123", ("stdout",)), done

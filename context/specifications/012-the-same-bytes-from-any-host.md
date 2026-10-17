@@ -439,3 +439,13 @@ The 16 growths, against `context/progress/accepted.json`, to accept with `--acce
   would catch it.
 - The patch carries this specification as a new file. It replaces the untracked copy in the main
   tree. The review file is unchanged and is not in the patch.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39022271049,
+on `513455e`, which carries this change): every job it runs passed (criterion 4).
+- `rebuild from the pins (ubuntu-24.04-arm)` built the set from empty `downloads/` and `build/`
+  on GitHub's arm64 Linux runner.
+- `the same bytes from every host` found that set's `SHA256SUMS` byte-identical to the macOS
+  build's, with the final `MANIFEST`.
+- Verify passed on ubuntu-24.04, windows-2025 and macos-15, the v1.4 directory check on Windows
+  included.
+- `attest`, `publish` and PyPI were skipped, as a dry run must.

@@ -21,6 +21,8 @@ import ctypes
 import hashlib
 import itertools
 import math
+import numbers
+import operator
 import os
 import secrets
 import shutil
@@ -50,7 +52,7 @@ CACHE_ENV = "WASI_PYTHON_CACHE"
 TICK_S = 0.01
 NO_DEADLINE = 2**62
 MASK32 = 0xFFFFFFFF
-UNMETERED = 2**63 - 1  # the most fuel a store takes: instantiation runs on it (spec 008)
+UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set (spec 008)
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
 # The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
 # directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
@@ -60,13 +62,72 @@ BASE_ENV = {"TMPDIR": "/tmp", "PYTHONTZPATH": ""}
 Host = Callable[[bytes], bytes]
 
 
+LIMIT_MAX = 2**63 - 1  # wasmtime reads a memory limit as signed: 2**63 and above mean none
+
+
+def _shown(value: Any) -> str:
+    """A value for an error message: an integer too long to print is named by its size."""
+    if isinstance(value, int) and value.bit_length() > 128:
+        return f"an integer of {value.bit_length()} bits"
+    return repr(value)
+
+
+def _integer_limit(name: str, value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise TypeError(f"{name} must be an integer, or None; got {value!r}")
+    try:
+        number = operator.index(value)
+    except TypeError:
+        raise TypeError(f"{name} must be an integer, or None; got {value!r}") from None
+    if not 0 <= number <= LIMIT_MAX:
+        raise ValueError(f"{name} must be from 0 to 2**63 - 1, or None; got {_shown(number)}")
+    return number
+
+
+def _deadline_limit(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, numbers.Real):
+        raise TypeError(f"deadline_s must be a number of seconds, or None; got {value!r}")
+    rule = "deadline_s must be finite and above 0, and at most about 4.6e16 s, or None"
+    try:
+        seconds = float(value)
+        ticks = math.ceil(seconds / TICK_S) if seconds > 0 else 0
+    except (OverflowError, ValueError):
+        raise ValueError(f"{rule}; got {_shown(value)}") from None
+    if not math.isfinite(seconds) or seconds <= 0 or not 0 < ticks < NO_DEADLINE:
+        raise ValueError(f"{rule}; got {_shown(value)}")
+    return seconds
+
+
+def _check_limits(
+    fuel: Any, deadline_s: Any, memory_bytes: Any, output_bytes: Any
+) -> dict[str, Any]:
+    """The four limits as plain values, or TypeError for a wrong type and ValueError for a value
+    out of range. A negative fuel or memory cap, or a memory cap of 2**63 or more, would mean no
+    limit to wasmtime, and `True` would mean 1, so none of them reaches it (spec 013)."""
+    return {
+        "fuel": _integer_limit("fuel", fuel),
+        "deadline_s": _deadline_limit(deadline_s),
+        "memory_bytes": _integer_limit("memory_bytes", memory_bytes),
+        "output_bytes": _integer_limit("output_bytes", output_bytes),
+    }
+
+
 @dataclass(frozen=True)
 class Defaults:
-    """The limits a call has when it names none. `run` reads `DEFAULTS` at call time."""
+    """The limits a call has when it names none. `run` reads `DEFAULTS` at call time; the values
+    are checked here, by `run`'s rules, so an error from `run` always names what its caller
+    passed (spec 013)."""
 
     memory_bytes: int  # the guest's linear memory
     deadline_s: float  # wall-clock time, by epoch interruption (costs nothing per instruction)
     output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
+
+    def __post_init__(self) -> None:
+        _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -129,6 +190,9 @@ def run(
         deadline_s = limits.deadline_s
     if output_bytes is _UNSET:
         output_bytes = limits.output_bytes
+    checked = _check_limits(fuel, deadline_s, memory_bytes, output_bytes)  # before any work
+    fuel, deadline_s = checked["fuel"], checked["deadline_s"]
+    memory_bytes, output_bytes = checked["memory_bytes"], checked["output_bytes"]
 
     found = artifacts if artifacts is not None else find_artifacts()
     binary = found.snapshot if snapshot else found.plain

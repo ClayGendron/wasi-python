@@ -287,8 +287,14 @@ has one.
   2,047 descriptors with its default mask);
 - **defaults** (`wasi_python.runner.DEFAULTS`): 1 GiB of memory, a 60 s
   deadline, 16 MiB of output per stream (the rest dropped and named in
-  `truncated`); pass `None` for no limit. The guest's environment starts
-  from `TMPDIR=/tmp`, `PYTHONTZPATH=` (`zoneinfo` on the zip's tzdata) and
+  `truncated`); pass `None` for no limit. A limit of the wrong type or out
+  of range (a negative cap, `True`, a deadline of 0) raises `TypeError` or
+  `ValueError` before any work, so no value can quietly remove a limit;
+  integer limits take any integer type (numpy's included) from 0 to
+  2**63 - 1, and a deadline is a positive real number of seconds, counted in
+  ticks of 10 ms (any positive deadline is at least one tick). The
+  guest's environment starts from `TMPDIR=/tmp`, `PYTHONTZPATH=`
+  (`zoneinfo` on the zip's tzdata) and
   a `HOME` made fresh and empty for each call under `/tmp` and removed
   after it; `env=` is laid over them;
 - each call's store is closed when it ends, trapped or not, so its memory
