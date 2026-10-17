@@ -1,0 +1,255 @@
+diff --git a/tests/component/test_linker.py b/tests/component/test_linker.py
+index 8dace94..0be2795 100644
+--- a/tests/component/test_linker.py
++++ b/tests/component/test_linker.py
+@@ -119,6 +119,42 @@ class TestLinker(unittest.TestCase):
+             func(store)
+         self.assertEqual(str(cm.exception), "oh no")
+ 
++    def test_host_base_exception(self):
++        # As for core host functions (#336): a `BaseException` raised by a
++        # host function must reach the caller, not abort the process.
++        engine = Engine()
++        component = Component(engine, """
++            (component
++                (import "x" (func $x))
++                (core module $a
++                    (import "" "x" (func))
++                    (func (export "x") call 0)
++                )
++                (core func $x (canon lower (func $x)))
++                (core instance $a (instantiate $a
++                    (with "" (instance
++                        (export "x" (func $x))
++                    ))
++                ))
++                (func (export "x") (canon lift (core func $a "x")))
++            )
++        """)
++
++        class CustomBaseException(BaseException):
++            pass
++
++        for exn in [KeyboardInterrupt, SystemExit, CustomBaseException]:
++            def host_func(_store, exn=exn):
++                raise exn()
++            store = Store(engine)
++            linker = Linker(engine)
++            with linker.root() as l:
++                l.add_func('x', host_func)
++            func = linker.instantiate(store, component).get_func(store, 'x')
++            assert(func is not None)
++            with self.assertRaises(exn):
++                func(store)
++
+     def test_fail_instantiate(self):
+         engine = Engine()
+         store = Store(engine)
+diff --git a/tests/test_func.py b/tests/test_func.py
+index ef7ddb8..2fde128 100644
+--- a/tests/test_func.py
++++ b/tests/test_func.py
+@@ -1,3 +1,6 @@
++import signal
++import threading
++import time
+ import unittest
+ 
+ from wasmtime import *
+@@ -118,6 +121,51 @@ class TestFunc(unittest.TestCase):
+         with self.assertRaises(CustomBaseException):
+             func(store)
+ 
++    def test_sigint_at_host_function_entry(self):
++        # Python runs a SIGINT handler at the next bytecode boundary on the
++        # main thread. When that is the entry of a host function's callback,
++        # before any `try` in it, the `KeyboardInterrupt` must still reach the
++        # caller, and the process must not crash.
++        store = Store()
++        module = Module(store.engine, """
++            (module
++                (import "" "f" (func $f))
++                (memory (export "m") 1)
++                (func (export "run")
++                    (i32.store (i32.const 4) (i32.const 1))
++                    (loop $l (br_if $l (i32.eqz (i32.load (i32.const 0)))))
++                    call $f))
++        """)
++        func = Func(store, FuncType([], []), lambda: None)
++        exports = Instance(store, module, [func]).exports(store)
++        run = exports["run"]
++        memory = exports["m"]
++        assert(isinstance(run, Func))
++        assert(isinstance(memory, Memory))
++        data = memory.data_ptr(store)
++
++        def interrupt():
++            while data[4] == 0:  # until the guest is in its loop
++                time.sleep(0.001)
++            signal.raise_signal(signal.SIGINT)
++            data[0] = 1  # then let it leave the loop and call `f`
++
++        previous = signal.signal(signal.SIGINT, signal.default_int_handler)
++        thread = threading.Thread(target=interrupt)
++        try:
++            thread.start()
++            with self.assertRaises(KeyboardInterrupt):
++                run(store)
++            self.assertIs(signal.getsignal(signal.SIGINT), signal.default_int_handler)
++            data[0] = 0
++            data[4] = 0
++            # The next call works.
++            data[0] = 1
++            run(store)
++        finally:
++            thread.join()
++            signal.signal(signal.SIGINT, previous)
++
+     def test_type(self):
+         store = Store()
+         i32 = ValType.i32()
+diff --git a/wasmtime/_func.py b/wasmtime/_func.py
+index 64623aa..fff5b13 100644
+--- a/wasmtime/_func.py
++++ b/wasmtime/_func.py
+@@ -1,10 +1,12 @@
+ from contextlib import contextmanager
+ from ctypes import POINTER, byref, CFUNCTYPE, c_void_p, cast
+ import ctypes
++import signal
++import threading
+ from wasmtime import Store, FuncType, Val, Trap, WasmtimeError
+ from . import _ffi as ffi
+ from ._extern import wrap_extern
+-from typing import Callable, Optional, Generic, TypeVar, List, Union, Tuple, cast as cast_type, Sequence, Any
++from typing import Callable, Optional, Generic, TypeVar, List, Union, Tuple, cast as cast_type, Sequence, Any, Iterator
+ from ._exportable import AsExtern
+ from ._store import Storelike
+ from ._slab import Slab
+@@ -189,6 +191,7 @@ def extract_val(val: Val) -> Any:
+ def trampoline(idx, caller, params, nparams, results, nresults):  # type: ignore
+     caller = Caller(caller)
+     try:
++        raise_deferred_sigint()
+         func, result_tys, access_caller = FUNCTIONS.get(idx or 0)
+         pyparams = []
+         if access_caller:
+@@ -229,16 +232,62 @@ FUNCTIONS = Slab()
+ 
+ @contextmanager
+ def enter_wasm(store: Storelike):  # type: ignore
+-    try:
+-        trap = POINTER(ffi.wasm_trap_t)()
+-        yield byref(trap)
+-        if trap:
+-            trap_obj = Trap._from_ptr(trap)
++    with defer_sigint():
++        try:
++            trap = POINTER(ffi.wasm_trap_t)()
++            yield byref(trap)
++            if trap:
++                trap_obj = Trap._from_ptr(trap)
++                maybe_raise_last_exn()
++                raise trap_obj
++        except WasmtimeError:
+             maybe_raise_last_exn()
+-            raise trap_obj
+-    except WasmtimeError:
+-        maybe_raise_last_exn()
+-        raise
++            raise
++
++
++# Ctrl-C while the main thread is in wasm.
++#
++# Python runs a signal handler at the next bytecode boundary on the main
++# thread. If that is the entry of a host function's ctypes callback, before
++# its `try`, the `KeyboardInterrupt` escapes the callback. ctypes then prints
++# it as unraisable and returns to Wasmtime without writing the return value,
++# so Wasmtime reads a stale value as a `wasm_trap_t *` and the process
++# crashes. No code inside the callback can catch an exception raised at its
++# own entry.
++#
++# So while the main thread is in wasm, and only if SIGINT has Python's default
++# handler, a handler that only records the signal takes its place. Host
++# functions raise the recorded `KeyboardInterrupt` inside their `try`, where
++# it becomes a trap, and the call raises it when it returns.
++_sigint_pending = False
++
++
++def _record_sigint(signum: int, frame: Any) -> None:
++    global _sigint_pending
++    _sigint_pending = True
++
++
++def raise_deferred_sigint() -> None:
++    global _sigint_pending
++    if _sigint_pending:
++        _sigint_pending = False
++        raise KeyboardInterrupt
++
++
++@contextmanager
++def defer_sigint() -> Iterator[None]:
++    if threading.current_thread() is not threading.main_thread() or \
++            signal.getsignal(signal.SIGINT) is not signal.default_int_handler:
++        # Another thread, a nested call, or the embedder's own handler.
++        yield
++        return
++    signal.signal(signal.SIGINT, _record_sigint)
++    try:
++        yield
++    finally:
++        if signal.getsignal(signal.SIGINT) is _record_sigint:
++            signal.signal(signal.SIGINT, signal.default_int_handler)
++        raise_deferred_sigint()
+ 
+ 
+ def maybe_raise_last_exn() -> None:
+diff --git a/wasmtime/component/_enter.py b/wasmtime/component/_enter.py
+index b7492ce..ce0825a 100644
+--- a/wasmtime/component/_enter.py
++++ b/wasmtime/component/_enter.py
+@@ -1,20 +1,22 @@
+ from contextlib import contextmanager
+ import ctypes
+ from .. import _ffi as ffi, StoreContext, WasmtimeError
++from .._func import defer_sigint, raise_deferred_sigint
+ from typing import Optional, Callable
+ 
+ 
+-LAST_EXCEPTION: Optional[Exception] = None
++LAST_EXCEPTION: Optional[BaseException] = None
+ 
+ 
+ def catch_exceptions(store_raw: 'ctypes._Pointer[ffi.wasmtime_context_t]', func: Callable[[StoreContext], None]) -> ctypes.c_size_t:
+     store = StoreContext(store_raw)
+     exception = None
+     try:
++        raise_deferred_sigint()
+         func(store)
+     except WasmtimeError as e:
+         exception = e
+-    except Exception as e:
++    except BaseException as e:
+         global LAST_EXCEPTION
+         LAST_EXCEPTION = e
+         exception = WasmtimeError("python exception")
+@@ -27,11 +29,12 @@ def catch_exceptions(store_raw: 'ctypes._Pointer[ffi.wasmtime_context_t]', func:
+ 
+ 
+ def enter_wasm(func: Callable[[], 'ctypes._Pointer[ffi.wasmtime_error_t]']) -> None:
+-    ptr = func()
+-    if ptr:
+-        error = WasmtimeError._from_ptr(ptr)
+-        maybe_raise_last_exn()
+-        raise error
++    with defer_sigint():
++        ptr = func()
++        if ptr:
++            error = WasmtimeError._from_ptr(ptr)
++            maybe_raise_last_exn()
++            raise error
+ 
+ 
+ def maybe_raise_last_exn() -> None:

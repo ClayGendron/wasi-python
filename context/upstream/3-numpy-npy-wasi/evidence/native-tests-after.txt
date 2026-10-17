@@ -1,0 +1,7 @@
+numpy 2.6.0.dev0+git20261016.ac61120 /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/numpy-venv/lib/python3.14/site-packages/numpy/__init__.py 3.14.2
+.................                                                        [100%]
+161 passed, 44 deselected in 1.17s
+............................................................             [100%]
+418 passed, 2 skipped in 7.23s
+test_format: 204 passed, 1 skipped
+test_io: 214 passed, 1 skipped

@@ -1,0 +1,6 @@
+pristine main 280ce73:
+main thread: 5.35 us per call
+worker thread: 5.31 us per call
+main + SIGINT-deferral prototype:
+main thread: 7.95 us per call
+worker thread: 6.02 us per call

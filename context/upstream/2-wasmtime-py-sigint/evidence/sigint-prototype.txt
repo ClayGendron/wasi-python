@@ -1,0 +1,11 @@
+wasmtime-py 280ce73b0e89c9522e75168553d4050a681d08c3 + prototype (prototype.patch), libwasmtime 49.0.0, Python 3.14.2 (main, Dec 17 2025, 20:54:49) [Clang 21.1.4 ]
+run 1: exit 0 | KeyboardInterrupt, as expected 
+run 2: exit 0 | KeyboardInterrupt, as expected 
+run 3: exit 0 | KeyboardInterrupt, as expected 
+run 4: exit 0 | KeyboardInterrupt, as expected 
+run 5: exit 0 | KeyboardInterrupt, as expected 
+run 6: exit 0 | KeyboardInterrupt, as expected 
+run 7: exit 0 | KeyboardInterrupt, as expected 
+run 8: exit 0 | KeyboardInterrupt, as expected 
+run 9: exit 0 | KeyboardInterrupt, as expected 
+run 10: exit 0 | KeyboardInterrupt, as expected 

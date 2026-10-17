@@ -1,0 +1,60 @@
+diff --git a/tests/component/test_linker.py b/tests/component/test_linker.py
+index 8dace94..0be2795 100644
+--- a/tests/component/test_linker.py
++++ b/tests/component/test_linker.py
+@@ -119,6 +119,42 @@ class TestLinker(unittest.TestCase):
+             func(store)
+         self.assertEqual(str(cm.exception), "oh no")
+ 
++    def test_host_base_exception(self):
++        # As for core host functions (#336): a `BaseException` raised by a
++        # host function must reach the caller, not abort the process.
++        engine = Engine()
++        component = Component(engine, """
++            (component
++                (import "x" (func $x))
++                (core module $a
++                    (import "" "x" (func))
++                    (func (export "x") call 0)
++                )
++                (core func $x (canon lower (func $x)))
++                (core instance $a (instantiate $a
++                    (with "" (instance
++                        (export "x" (func $x))
++                    ))
++                ))
++                (func (export "x") (canon lift (core func $a "x")))
++            )
++        """)
++
++        class CustomBaseException(BaseException):
++            pass
++
++        for exn in [KeyboardInterrupt, SystemExit, CustomBaseException]:
++            def host_func(_store, exn=exn):
++                raise exn()
++            store = Store(engine)
++            linker = Linker(engine)
++            with linker.root() as l:
++                l.add_func('x', host_func)
++            func = linker.instantiate(store, component).get_func(store, 'x')
++            assert(func is not None)
++            with self.assertRaises(exn):
++                func(store)
++
+     def test_fail_instantiate(self):
+         engine = Engine()
+         store = Store(engine)
+diff --git a/wasmtime/component/_enter.py b/wasmtime/component/_enter.py
+index 8f5a25f..6005733 100644
+--- a/wasmtime/component/_enter.py
++++ b/wasmtime/component/_enter.py
+@@ -21,7 +21,7 @@ def catch_exceptions(store_raw: 'ctypes._Pointer[ffi.wasmtime_context_t]', func:
+         func(store)
+     except WasmtimeError as e:
+         exception = e
+-    except Exception as e:
++    except BaseException as e:
+         LAST_EXCEPTION.exn = e
+         exception = WasmtimeError("python exception")
+     finally:

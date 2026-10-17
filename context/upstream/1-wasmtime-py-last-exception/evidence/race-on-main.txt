@@ -1,0 +1,12 @@
+race.py against wasmtime-py main 280ce73 (+ fix.patch, which does not touch _slab.py):
+0 of 4000 calls failed
+0 of 4000 calls failed
+0 of 4000 calls failed
+race.py against the installed wasmtime 49.0.0 wheel (old Slab):
+
+Caused by:
+    python exception
+
+2759 of 4000 calls failed
+  TypeError: cannot unpack non-iterable int object
+  TypeError: list indices must be integers or slices, not tuple

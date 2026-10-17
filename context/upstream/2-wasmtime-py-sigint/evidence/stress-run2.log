@@ -1,0 +1,12 @@
+Exception ignored while calling deallocator <function Managed.__del__ at 0x101a9a980>:
+Traceback (most recent call last):
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_types.py", line 137, in _delete
+    ffi.wasm_functype_delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_bindings.py", line 200, in wasm_functype_delete
+    return _wasm_functype_delete(arg0)  # type: ignore
+KeyboardInterrupt: 
+sent 300 SIGINTs, caught 299 KeyboardInterrupts, 74 calls completed, 0 wrong

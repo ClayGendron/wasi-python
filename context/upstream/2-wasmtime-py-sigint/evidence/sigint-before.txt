@@ -1,0 +1,11 @@
+wasmtime-py 280ce73b0e89c9522e75168553d4050a681d08c3 (unmodified), libwasmtime 49.0.0, Python 3.14.2 (main, Dec 17 2025, 20:54:49) [Clang 21.1.4 ]
+run 1: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x105d96090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 2: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x103076090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 3: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x103ca2090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 4: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x103dca090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 5: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x103606090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 6: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x101b2e090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 7: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x101e32090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 8: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x105b16090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 9: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x10118e090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth
+run 10: exit 133 | Exception ignored while calling ctypes callback function <function trampoline at 0x10390e090>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-pyth

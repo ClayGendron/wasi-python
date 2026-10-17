@@ -1,0 +1,6 @@
+mmap module: present
+stock: ValueError Filename must be a string or a path-like object.  Memmap cannot use existing file handles.
+stock: np.load(mmap_mode='r'): OSError [Errno 58] Not supported
+patched: TypeError expected str, bytes or os.PathLike object, not BufferedWriter
+patched: np.load(mmap_mode='r'): OSError mmap is unavailable on wasm32-wasi
+  exit 0

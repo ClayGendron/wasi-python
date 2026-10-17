@@ -1,0 +1,4 @@
+--- unmodified main:
+exit 134 |  0x105d000f0>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py/wasmtime/_func.py", line 188, in trampoline     @ffi.wasmtime_func_callback_t KeyboardInterrupt:  
+exit 133 |  0x101747e20>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py/wasmtime/_func.py", line 188, in trampoline     @ffi.wasmtime_func_callback_t KeyboardInterrupt:  
+exit 134 |  0x10380be20>: Traceback (most recent call last):   File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py/wasmtime/_func.py", line 188, in trampoline     @ffi.wasmtime_func_callback_t KeyboardInterrupt:  

@@ -1,0 +1,7 @@
+===================================== mypy =====================================
+Success: no issues found in 68 source files
+228 passed in 1.64s
+mypy              1.18.2
+pytest            9.0.1
+pytest-mypy       1.0.1
+Python Python 3.14.2; libwasmtime sha256 2cc7e37719916a84fb6c6b5e6cb6746817204e80d5a64b2c2ccff5db065b7c13, copied from the wasmtime 49.0.0 wheel (main's ci/download-wasmtime.py pins v49.0.0); wasmtime-py main 280ce73b0e89c9522e75168553d4050a681d08c3 + fix.patch

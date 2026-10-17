@@ -1,0 +1,7 @@
+run 1 (exit 0): sent 300 SIGINTs, caught 297 KeyboardInterrupts, 73 calls completed, 0 wrong
+run 2 (exit 0): sent 300 SIGINTs, caught 299 KeyboardInterrupts, 74 calls completed, 0 wrong
+run 3 (exit 0): sent 300 SIGINTs, caught 298 KeyboardInterrupts, 71 calls completed, 0 wrong
+Lines printed besides the summary, all three runs:
+   6 Exception ignored while calling deallocator <function Managed.__del__>:
+   6 KeyboardInterrupt: 
+An earlier batch of three runs (exit codes not captured; same script) also had 0 wrong; one printed 'mach_msg failed with 268451845 (10004005)' once.

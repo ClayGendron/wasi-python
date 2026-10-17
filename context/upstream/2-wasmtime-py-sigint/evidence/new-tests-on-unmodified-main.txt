@@ -1,0 +1,6 @@
+tests/component/test_linker.py::TestLinker::test_host_base_exception on unmodified main, run 1: exit 134 | 
+tests/component/test_linker.py::TestLinker::test_host_base_exception on unmodified main, run 2: exit 139 | 
+tests/component/test_linker.py::TestLinker::test_host_base_exception on unmodified main, run 3: exit 134 | 
+tests/test_func.py::TestFunc::test_sigint_at_host_function_entry on unmodified main, run 1: exit 134 | Fatal Python error: Aborted
+tests/test_func.py::TestFunc::test_sigint_at_host_function_entry on unmodified main, run 2: exit 133 | 
+tests/test_func.py::TestFunc::test_sigint_at_host_function_entry on unmodified main, run 3: exit 134 | Fatal Python error: Aborted

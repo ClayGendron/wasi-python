@@ -1,0 +1,26 @@
+sys.platform wasi | platform.machine() 'wasm32' | numpy 2.5.2
+os.dup(1) -> OSError(58, 'Not supported')
+--- stock numpy 2.5.2
+np.save('/tmp/a.npy'): OSError: [Errno 58] Not supported
+    /tmp/a.npy is 128 bytes (header only)
+np.load('/tmp/b.npy') of a good file: OSError: [Errno 58] Not supported
+a.tofile('/tmp/c.bin'): OSError: [Errno 58] Not supported
+np.fromfile('/tmp/b.npy'): OSError: [Errno 58] Not supported
+stock numpy: test_save_load_without_dup passed 12 of 161 arrays
+     OSError: [Errno 58] Not supported
+--- with the patched isfileobj
+patched: test_save_load_without_dup passed 161 of 161 arrays
+  C int64 2x3: round-trips
+  Fortran float64: round-trips
+  structured: round-trips
+  zero-size: round-trips
+  0-d: round-trips
+  big-endian: round-trips
+  unicode: round-trips
+  object (pickled): round-trips
+  3 MiB, more than BUFFER_SIZE: round-trips
+  two arrays through one open file: round-trip
+  file bytes equal BytesIO bytes: True
+failures: 0
+[host] exit_code=0 trapped=None
+[separate run, same runner and cache] guest: Python 3.15.0, sys.platform wasi, numpy 2.5.2

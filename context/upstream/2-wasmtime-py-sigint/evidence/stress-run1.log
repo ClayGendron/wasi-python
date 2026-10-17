@@ -1,0 +1,34 @@
+Exception ignored while calling deallocator <function Managed.__del__ at 0x104cea980>:
+Traceback (most recent call last):
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_store.py", line 31, in _delete
+    ffi.wasmtime_store_delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_bindings.py", line 2498, in wasmtime_store_delete
+    return _wasmtime_store_delete(store)  # type: ignore
+KeyboardInterrupt: 
+Exception ignored while calling deallocator <function Managed.__del__ at 0x104cea980>:
+Traceback (most recent call last):
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_store.py", line 31, in _delete
+    ffi.wasmtime_store_delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_bindings.py", line 2498, in wasmtime_store_delete
+    return _wasmtime_store_delete(store)  # type: ignore
+KeyboardInterrupt: 
+Exception ignored while calling deallocator <function Managed.__del__ at 0x104cea980>:
+Traceback (most recent call last):
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 95, in __del__
+    self.close()
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_managed.py", line 44, in close
+    self._delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_store.py", line 31, in _delete
+    ffi.wasmtime_store_delete(ptr)
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/upstream-fixes/src/wasmtime-py-sigint/wasmtime/_bindings.py", line 2498, in wasmtime_store_delete
+    return _wasmtime_store_delete(store)  # type: ignore
+KeyboardInterrupt: 
+sent 300 SIGINTs, caught 297 KeyboardInterrupts, 73 calls completed, 0 wrong
