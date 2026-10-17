@@ -26,6 +26,7 @@ the commit in the memo that cites it.
 | `numpy` | `meson.build`, `meson_cpu` (wasm32 family), `random/meson.build` (the double build of `distributions.c`) | BSD-3-Clause | ac61120 |
 | `pandas` | `meson.build` (`_cyutility`), the unconditional `ctypes` and `mmap` imports | BSD-3-Clause | 3ce0a8c |
 | `wasi-virt` | virtualizing a component's filesystem; the post-preview1 direction | Apache-2.0 with LLVM exception | 448f6df |
+| `wasi-vfs` | a read-only file tree packed into a preview1 module: link-time override of wasi-libc's WASI imports, `pack` as a Wizer run | Apache-2.0 (`LICENSE`; `Cargo.toml` says Apache-2.0 WITH LLVM-exception) | 0f4db4b (v0.6.3) |
 
 Removed: `bashkit` (everruns/bashkit; no licence file in the clone).
 Its Wizer snapshot of CPython 3.14 and its HTTP door are studied

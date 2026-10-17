@@ -1,0 +1,20 @@
+-- start: -c pass
+control snapshot (today), root                             fuel   117,641,834 (spread 0)  wall    18.7 ms  ok  out=
+late snapshot (vfs linked, nothing packed), root           fuel   117,517,184 (spread 0)  wall    18.2 ms  ok  out=
+packA snapshot (mpl-data packed), root                     fuel   127,202,487 (spread 0)  wall    19.1 ms  ok  out=
+packZ snapshot (zip + mpl packed), NO preopen              fuel   137,623,088 (spread 0)  wall    20.1 ms  ok  out=
+packZr snapshot (zip + mpl packed), root, no zip in it     fuel   137,582,191 (spread 0)  wall    19.5 ms  ok  out=
+control plain reactor, root                                fuel   246,651,162 (spread 0)  wall    32.4 ms  ok  out=
+late plain reactor, root                                   fuel   246,684,988 (spread 40)  wall    31.3 ms  ok  out=
+packA plain reactor, root                                  fuel   266,700,379 (spread 0)  wall    32.8 ms  ok  out=
+-- start: import decimal, numpy (lazy stdlib import)
+control snapshot, root                                     fuel   139,148,058 (spread 0)  wall    21.0 ms  ok  out=
+packZ snapshot, NO preopen                                 fuel   159,383,949 (spread 0)  wall    22.6 ms  ok  out=
+-- read all of mpl-data (204 files)
+control snapshot, data copied into the root (C1)           fuel   130,510,791 (spread 20)  wall    54.8 ms  ok  out=9647777
+late snapshot, data copied into the root (vfs passthrough) fuel   130,595,186 (spread 20)  wall    55.7 ms  ok  out=9647777
+packA snapshot, data packed (C3)                           fuel   152,287,973 (spread 0)  wall    21.8 ms  ok  out=9647777
+-- ordinary file I/O in the root (2000 x open/write/close, stat, open/read/close)
+control snapshot                                           fuel   420,824,644 (spread 6000)  wall   413.7 ms  ok  out=21
+late snapshot (vfs linked)                                 fuel   426,368,612 (spread 6000)  wall   379.7 ms  ok  out=21
+packA snapshot (vfs linked, data packed)                   fuel   450,801,126 (spread 6000)  wall   383.3 ms  ok  out=21

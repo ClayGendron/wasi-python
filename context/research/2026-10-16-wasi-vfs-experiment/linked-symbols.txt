@@ -1,0 +1,6 @@
+# C-namespace symbols the link took from libwasi_vfs.a
+## variant vfs (library appended, README order):      169 symbols, excluding __imported_wasi_* and wasi_vfs_*:
+__addtf3 __ashlti3 __divdc3 __divtf3 __eqtf2 __extenddftf2 __extendsftf2 __fixtfdi __fixtfsi __fixunstfdi __fixunstfsi __floatditf __floatsitf __floatunditf __floatunsitf __getf2 __gttf2 __internal_wasi_vfs_pack_fs __internal_wasi_vfs_rt_init __letf2 __lshrti3 __lttf2 __muldc3 __mulsc3 __multf3 __multi3 __netf2 __subtf3 __trunctfdf2 __trunctfsf2 __udivti3 __unordtf2 __wasi_vfs_force_link_init __wasi_vfs_rt_init __wasi_vfs_rt_init_ctor acos acosf asin asinf atan atan2 atan2f atanf cbrt cbrtf ceil ceilf copysign cos cosf cosh coshf erf erfc exp exp2 exp2f expf expm1 expm1f export_wasi_vfs_pack_fs fabs fabsf floor floorf fma fmax fmaxf fmin fminf fmod fmodf hypot hypotf ldexp ldexpf log log10 log10f log1p log1pf log2 log2f logf memcmp memcpy memmove memset pow powf rint rintf round sin sinf sinh sinhf sqrt strlen tan tanf tanh tanhf trunc truncf 
+## variant vfs-late (-lc -lm compiler-rt first):       70 symbols, excluding __imported_wasi_* and wasi_vfs_*:
+__internal_wasi_vfs_pack_fs __internal_wasi_vfs_rt_init __wasi_vfs_force_link_init __wasi_vfs_rt_init __wasi_vfs_rt_init_ctor export_wasi_vfs_pack_fs 
+## trampolines linked (__imported_wasi_snapshot_preview1_*): 29

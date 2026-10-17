@@ -1,0 +1,48 @@
+# Reproducibility (EXECUTED 2026-10-16, macOS arm64)
+## relinks
+control d77dc946962d2154866fc0727f4c5ba1c64207818afd0bd50d62d9d6d05cc159
+vfs 0ef7211d0c3bcd7b3661fdaa37ae0282255835449768a0d3fcc3c549868a8cff
+late 3f6e1b1118feef27de609684a7f275522c8876db14a5bd432a0b3a42f9f6fb12
+real build/out/python.wasm d77dc946962d2154866fc0727f4c5ba1c64207818afd0bd50d62d9d6d05cc159
+## step 80 on control and on late
+control snapshot b450c7a6892bf9e384c4e3e76c2088ab0eb7bb36b64dd66ee4151ab77c32c4ab
+late snapshot 4f958fa70ec80a6f06944481cd8efff0c2949c26a4cde24aa7f92b82182d6255
+real build/out/python-snapshot.wasm b450c7a6892bf9e384c4e3e76c2088ab0eb7bb36b64dd66ee4151ab77c32c4ab
+## wasi-vfs pack of the late reactor with mpl-data, same inputs
+packA/python.wasm 3268be2967bc97e43a39f0736085f0efee7fcb498c3a4350bc12f349cb011f8a
+packA2/python.wasm 5cfc7eb8ac20d461c74d280038d1c5f4ccbe7251877fa37f1e01c57d74b754a9
+rep/p1.wasm f08a5adfa20e848ff151896d2b7bbf1e2c7e9fa92e02c88c34db97a2093850f0
+rep/p2.wasm 0c9a6fa5ac7c9ffdde411e0d495bc0383cc4d85c9cc1bd3a2a48227c8c6f86e1
+rep/p3.wasm e3c8d35ca4d431fbcc409852393280d81c5e6b6e165a60dc060dbffd0b874b32
+rep/p4.wasm 13f1fa129024e165af66bfeea2682e7992e8be7223c09ba36285af8776f052ca
+rep/p5.wasm cd6c958655986feb34c271c2202f5b4e4f164b3648ffa30b7c67591b8976d3f2
+rep/p6.wasm 885b4abb26fed9f0fac9b6e8fdea30c78de3727a94ca1804451d4f0f74788c73
+rep/p7.wasm 83c43fb76b36659c22a7eaab8b907cdccae397eb4cb39606c7235dd0f8c39d8f
+(p6, p7 packed from a copy of the tree)
+## step 80 on packA and packA2
+packA snapshot d55df0aa39e96bdc991dbbbebe4afee8bc81fda0bd2958ebede40a34491fc038
+packA2 snapshot b60f8f6896b54926fb484ba1dae6ed49675cfbda068b69e651580fac7a6f59f6
+## memdiff packA vs packA2 (reactor), then the two snapshots
+memory bytes 41943040 41943040
+differing runs 16 bytes 45
+0x15a6ff1 1 00 | 5f
+0x164f31f 2 3735 | 325f
+memory bytes 67239936 67239936
+differing runs 1 bytes 1
+0x15a6ff1 1 00 | 5f
+## toy (SDK 24) packed 3x: 22-byte file, then mpl-data
+t1 3bd241a35c1c3f85a0c7ecc6e3d56cbb1554c5aac89064d7da562a369b1dccf2
+t2 3bd241a35c1c3f85a0c7ecc6e3d56cbb1554c5aac89064d7da562a369b1dccf2
+t3 3bd241a35c1c3f85a0c7ecc6e3d56cbb1554c5aac89064d7da562a369b1dccf2
+m1 69c6be802e2e3cd5ee74040a56d31257f2c436d8f5ae4ef49cf8a50d7787ed29
+m2 69c6be802e2e3cd5ee74040a56d31257f2c436d8f5ae4ef49cf8a50d7787ed29
+m3 f222d795980eb9b4ff04d683bc8c703aa99cc130e6f56e35ae443f3e0ea9bc54
+memory bytes 9764864 9764864
+differing runs 13 bytes 37
+0x204b1 1 00 | af
+0xc87de 3 000000 | dd3f14
+0xc880b 3 000000 | 7cddb3
+0xc8835 3 000000 | a6ae2c
+## second relink and step 80 of late
+late2 3f6e1b1118feef27de609684a7f275522c8876db14a5bd432a0b3a42f9f6fb12
+late2 snapshot 4f958fa70ec80a6f06944481cd8efff0c2949c26a4cde24aa7f92b82182d6255

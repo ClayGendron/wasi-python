@@ -1,0 +1,259 @@
+=== packA python.wasm, root /: exit 0 trapped None fuel 2052158413
+-- reads
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  listdir ['fonts', 'images', 'kpsewhich.lua', 'matplotlibrc', 'plot_directive', 'sample_data', 'sty
+ok  isfile True
+ok  isdir True
+ok  Path.is_dir True
+ok  stat ('0o100000', 45318, 0.0, 22657600, 0)
+ok  stat dir ('0o40000', 0, 0.0, 22652464, 0)
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- writes
+err create FileNotFoundError 44 ENOENT
+ok  open w existing None
+ok  size after open w 45318
+err append OSError 58 ENOTSUP
+err r+ write OSError 58 ENOTSUP
+err os.write O_RDWR OSError 58 ENOTSUP
+err unlink OSError 58 ENOTSUP
+err mkdir OSError 58 ENOTSUP
+err rmdir OSError 58 ENOTSUP
+err rename inside OSError 58 ENOTSUP
+err rename to root OSError 58 ENOTSUP
+err symlink OSError 58 ENOTSUP
+err hard link to root OSError 58 ENOTSUP
+err utime OSError 58 ENOTSUP
+err truncate OSError 58 ENOTSUP
+err escape .. NotADirectoryError 54 ENOTDIR
+-- after
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- the root and the zip
+ok  import decimal '/usr/local/lib/python314.zip/decimal.pyc'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+ok  write root 'hi'
+ok  listdir / ['probe.txt', 'usr']
+ok  zip isfile True
+-- shadow
+err plant at /usr/local/lib/python314.zip/./matplotlib/mpl-data NotADirectoryError 54 ENOTDIR
+ok  readline '#### MATPLOTLIBRC FORMAT'
+err readline alt NotADirectoryError 54 ENOTDIR
+host root after: ['probe.txt', 'usr']
+=== packA python-snapshot.wasm, root /: exit 0 trapped None fuel 1742294498
+-- reads
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  listdir ['fonts', 'images', 'kpsewhich.lua', 'matplotlibrc', 'plot_directive', 'sample_data', 'sty
+ok  isfile True
+ok  isdir True
+ok  Path.is_dir True
+ok  stat ('0o100000', 45318, 0.0, 22657600, 0)
+ok  stat dir ('0o40000', 0, 0.0, 22652464, 0)
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- writes
+err create FileNotFoundError 44 ENOENT
+ok  open w existing None
+ok  size after open w 45318
+err append OSError 58 ENOTSUP
+err r+ write OSError 58 ENOTSUP
+err os.write O_RDWR OSError 58 ENOTSUP
+err unlink OSError 58 ENOTSUP
+err mkdir OSError 58 ENOTSUP
+err rmdir OSError 58 ENOTSUP
+err rename inside OSError 58 ENOTSUP
+err rename to root OSError 58 ENOTSUP
+err symlink OSError 58 ENOTSUP
+err hard link to root OSError 58 ENOTSUP
+err utime OSError 58 ENOTSUP
+err truncate OSError 58 ENOTSUP
+err escape .. NotADirectoryError 54 ENOTDIR
+-- after
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- the root and the zip
+ok  import decimal '/usr/local/lib/python314.zip/decimal.pyc'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+ok  write root 'hi'
+ok  listdir / ['probe.txt', 'usr']
+ok  zip isfile True
+-- shadow
+err plant at /usr/local/lib/python314.zip/./matplotlib/mpl-data NotADirectoryError 54 ENOTDIR
+ok  readline '#### MATPLOTLIBRC FORMAT'
+err readline alt NotADirectoryError 54 ENOTDIR
+host root after: ['probe.txt', 'usr']
+=== packP python.wasm, root /: exit 0 trapped None fuel 2051955822
+-- reads
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  listdir ['fonts', 'images', 'kpsewhich.lua', 'matplotlibrc', 'plot_directive', 'sample_data', 'sty
+ok  isfile True
+ok  isdir True
+ok  Path.is_dir True
+ok  stat ('0o100000', 45318, 0.0, 22657584, 0)
+ok  stat dir ('0o40000', 0, 0.0, 22652464, 0)
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- writes
+err create FileNotFoundError 44 ENOENT
+ok  open w existing None
+ok  size after open w 45318
+err append OSError 58 ENOTSUP
+err r+ write OSError 58 ENOTSUP
+err os.write O_RDWR OSError 58 ENOTSUP
+err unlink OSError 58 ENOTSUP
+err mkdir OSError 58 ENOTSUP
+err rmdir OSError 58 ENOTSUP
+err rename inside OSError 58 ENOTSUP
+err rename to root OSError 58 ENOTSUP
+err symlink OSError 58 ENOTSUP
+err hard link to root OSError 58 ENOTSUP
+err utime OSError 58 ENOTSUP
+err truncate OSError 58 ENOTSUP
+err escape .. NotADirectoryError 54 ENOTDIR
+-- after
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- the root and the zip
+ok  import decimal '/usr/local/lib/python314.zip/decimal.pyc'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+ok  write root 'hi'
+ok  listdir / ['probe.txt', 'usr']
+ok  zip isfile True
+-- shadow
+ok  plant at /usr/local/share/./wasi-python/mpl-data 'planted'
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  readline alt '## PLANTED'
+host files planted: ['usr/local/lib', 'usr/local/lib/python314.zip', 'usr/local/share', 'usr/local/share/wasi-python', 'usr/local/share/wasi-python/mpl-data', 'usr/local/share/wasi-python/mpl-data/matplotlibrc']
+=== packP python-snapshot.wasm, root /: exit 0 trapped None fuel 1742303610
+-- reads
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  listdir ['fonts', 'images', 'kpsewhich.lua', 'matplotlibrc', 'plot_directive', 'sample_data', 'sty
+ok  isfile True
+ok  isdir True
+ok  Path.is_dir True
+ok  stat ('0o100000', 45318, 0.0, 22657584, 0)
+ok  stat dir ('0o40000', 0, 0.0, 22652464, 0)
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- writes
+err create FileNotFoundError 44 ENOENT
+ok  open w existing None
+ok  size after open w 45318
+err append OSError 58 ENOTSUP
+err r+ write OSError 58 ENOTSUP
+err os.write O_RDWR OSError 58 ENOTSUP
+err unlink OSError 58 ENOTSUP
+err mkdir OSError 58 ENOTSUP
+err rmdir OSError 58 ENOTSUP
+err rename inside OSError 58 ENOTSUP
+err rename to root OSError 58 ENOTSUP
+err symlink OSError 58 ENOTSUP
+err hard link to root OSError 58 ENOTSUP
+err utime OSError 58 ENOTSUP
+err truncate OSError 58 ENOTSUP
+err escape .. NotADirectoryError 54 ENOTDIR
+-- after
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  walk (204, 9647777, '7a1e1bf270e7374d')
+-- the root and the zip
+ok  import decimal '/usr/local/lib/python314.zip/decimal.pyc'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+ok  write root 'hi'
+ok  listdir / ['probe.txt', 'usr']
+ok  zip isfile True
+-- shadow
+ok  plant at /usr/local/share/./wasi-python/mpl-data 'planted'
+ok  readline '#### MATPLOTLIBRC FORMAT'
+ok  readline alt '## PLANTED'
+host files planted: ['usr/local/lib', 'usr/local/lib/python314.zip', 'usr/local/share', 'usr/local/share/wasi-python', 'usr/local/share/wasi-python/mpl-data', 'usr/local/share/wasi-python/mpl-data/matplotlibrc']
+=== packZ python.wasm, NO preopen: exit 0 trapped None fuel 1297105234
+1
+cwd /
+err listdir / FileNotFoundError 44 [Errno 44] No such file or directory: '/'
+err open /tmp/x w FileNotFoundError 44 [Errno 44] No such file or directory: '/tmp/x'
+err open /x w FileNotFoundError 44 [Errno 44] No such file or directory: '/x'
+err mkstemp FileNotFoundError 44 [Errno 44] No usable temporary directory found in ['/tmp', '/var/tmp', '/usr/tmp', '/']
+ok  listdir /usr/local/lib ['python314.zip']
+err remove zip OSError 58 [Errno 58] Not supported: '/usr/local/lib/python314.zip'
+ok  import csv (lazy) '/usr/local/lib/python314.zip/csv.pyc'
+ok  import fractions (lazy) '/usr/local/lib/python314.zip/fractions.pyc'
+=== packZ python-snapshot.wasm, NO preopen: exit 0 trapped None fuel 172594559
+1
+cwd /
+err listdir / FileNotFoundError 44 [Errno 44] No such file or directory: '/'
+err open /tmp/x w FileNotFoundError 44 [Errno 44] No such file or directory: '/tmp/x'
+err open /x w FileNotFoundError 44 [Errno 44] No such file or directory: '/x'
+err mkstemp FileNotFoundError 44 [Errno 44] No usable temporary directory found in ['/tmp', '/var/tmp', '/usr/tmp', '/']
+ok  listdir /usr/local/lib ['python314.zip']
+err remove zip OSError 58 [Errno 58] Not supported: '/usr/local/lib/python314.zip'
+ok  import csv (lazy) '/usr/local/lib/python314.zip/csv.pyc'
+ok  import fractions (lazy) '/usr/local/lib/python314.zip/fractions.pyc'
+=== packZ python.wasm, root / holding a bad zip: exit 0 trapped None fuel 390545444
+ok  zip isfile True
+ok  listdir /usr/local/lib ['python314.zip']
+ok  listdir / ['usr']
+ok  write /w 1
+err remove zip OSError 58 [Errno 58] Not supported: '/usr/local/lib/python314.zip'
+ok  remove zip via ./ None
+ok  plant module via ./ 3
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+err import plantme ModuleNotFoundError  No module named 'plantme'
+host root after: ['usr', 'usr/local', 'usr/local/lib', 'usr/local/lib/plantme.py', 'w']
+=== packZ python-snapshot.wasm, root / holding a bad zip: exit 0 trapped None fuel 141667967
+ok  zip isfile True
+ok  listdir /usr/local/lib ['python314.zip']
+err listdir / FileNotFoundError 44 [Errno 44] No such file or directory: '/'
+err write /w FileNotFoundError 44 [Errno 44] No such file or directory: '/w'
+err remove zip OSError 58 [Errno 58] Not supported: '/usr/local/lib/python314.zip'
+err remove zip via ./ FileNotFoundError 44 [Errno 44] No such file or directory: '/usr/local/./lib/python314.zip'
+err plant module via ./ FileNotFoundError 44 [Errno 44] No such file or directory: '/usr/local/./lib/plantme.py'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+err import plantme ModuleNotFoundError  No module named 'plantme'
+host root after: ['usr', 'usr/local', 'usr/local/lib', 'usr/local/lib/python314.zip']
+=== packZr python-snapshot.wasm, root / holding a bad zip: exit 0 trapped None fuel 141640054
+ok  zip isfile True
+ok  listdir /usr/local/lib ['python314.zip']
+ok  listdir / ['usr']
+ok  write /w 1
+err remove zip OSError 58 [Errno 58] Not supported: '/usr/local/lib/python314.zip'
+ok  remove zip via ./ None
+ok  plant module via ./ 3
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+err import plantme ModuleNotFoundError  No module named 'plantme'
+host root after: ['usr', 'usr/local', 'usr/local/lib', 'usr/local/lib/plantme.py', 'w']
+=== orderB (step 80, then pack), root /: exit 0 trapped None fuel 150206163
+-- reads
+err readline NotADirectoryError 54 ENOTDIR
+err listdir NotADirectoryError 54 ENOTDIR
+ok  isfile False
+ok  isdir False
+ok  Path.is_dir False
+err stat NotADirectoryError 54 ENOTDIR
+err stat dir NotADirectoryError 54 ENOTDIR
+ok  walk (0, 0, 'e3b0c44298fc1c14')
+-- writes
+err create NotADirectoryError 54 ENOTDIR
+err open w existing NotADirectoryError 54 ENOTDIR
+err size after open w NotADirectoryError 54 ENOTDIR
+err append NotADirectoryError 54 ENOTDIR
+err r+ write NotADirectoryError 54 ENOTDIR
+err os.write O_RDWR NotADirectoryError 54 ENOTDIR
+err unlink NotADirectoryError 54 ENOTDIR
+err mkdir NotADirectoryError 54 ENOTDIR
+err rmdir NotADirectoryError 54 ENOTDIR
+err rename inside NotADirectoryError 54 ENOTDIR
+err rename to root NotADirectoryError 54 ENOTDIR
+err symlink PermissionError 63 EPERM
+err hard link to root NotADirectoryError 54 ENOTDIR
+err utime NotADirectoryError 54 ENOTDIR
+err truncate NotADirectoryError 54 ENOTDIR
+err escape .. NotADirectoryError 54 ENOTDIR
+-- after
+err readline NotADirectoryError 54 ENOTDIR
+ok  walk (0, 0, 'e3b0c44298fc1c14')
+-- the root and the zip
+ok  import decimal '/usr/local/lib/python314.zip/decimal.pyc'
+ok  import json '/usr/local/lib/python314.zip/json/__init__.pyc'
+ok  write root 'hi'
+ok  listdir / ['probe.txt', 'usr']
+ok  zip isfile True
+-- shadow
+err plant at /usr/local/lib/python314.zip/./matplotlib/mpl-data NotADirectoryError 54 ENOTDIR
+err readline NotADirectoryError 54 ENOTDIR
+err readline alt NotADirectoryError 54 ENOTDIR

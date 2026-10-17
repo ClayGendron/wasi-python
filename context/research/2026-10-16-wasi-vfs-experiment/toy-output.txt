@@ -1,0 +1,8 @@
+# toy/toy.c linked with libwasi_vfs.a 0.6.3 (-lc and compiler-rt first, --wrap=__wasi_path_filestat_get),
+# packed with a 22-byte /data/hello.txt, run under wasmtime-py 49 with a writable root at / (drive.py).
+# Symbols taken from libwasi_vfs.a (beyond trampolines and wasi_vfs_*), and trampolines linked:
+wasi-sdk-24: __internal_wasi_vfs_pack_fs __internal_wasi_vfs_rt_init __wasi_vfs_force_link_init __wasi_vfs_rt_init __wasi_vfs_rt_init_ctor export_wasi_vfs_pack_fs ; 10 trampolines
+wasi-sdk-33: (same six) ; 10 trampolines
+# run:
+wasi-sdk-24 exit 0  packed: hello from the binary stat=0 size=22 root-write=1  root after: ['rootfile.txt']
+wasi-sdk-33 exit 0  packed: hello from the binary stat=0 size=22 root-write=1  root after: ['rootfile.txt']
