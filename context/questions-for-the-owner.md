@@ -123,9 +123,16 @@ question moves to the bottom with the answer and the date.
   +23.4 M fuel (+28% on `pass`), the snapshot grows 17.5 MB (to 89.5 MB), and each instance's
   memory starts 18 MiB larger. *Recommended: yes* for a plotting product; the alternative is a
   second snapshot with matplotlib, which doubles what ships.
-- **35. Licences:** pybind11 and cppy (both BSD-3-Clause) are compiled into `python.wasm` and were
-  not in the 2026-10-16 approval (FreeType, Qhull, SheenBidi, the fonts). *Recommended: approve,*
-  and record the whole matplotlib set in §4.12.
+- **35. Licences (widened 2026-10-17 by spec 023's pre-build review):** the 2026-10-16 approval
+  names FreeType's FTL, Qhull, SheenBidi's Apache-2.0 and the fonts (OFL, Bitstream Vera,
+  BaKoMa). M1 also ships, each permissive and each with its notice: matplotlib's licence (PSF
+  style) and its bundled notices (ColorBrewer, Yorick, Solarized, the Qt editor); Agg; HarfBuzz
+  (MIT-style, plus Microsoft's MIT `ms-use` file and Unicode's data terms); libraqm (MIT);
+  FreeType's BDF and PCF notices; Pillow (HPND); kiwisolver, pybind11 and cppy (BSD-3-Clause);
+  fonttools, cycler, pyparsing (MIT, BSD) and packaging (Apache-2.0 or BSD); STIX and Last Resort
+  (OFL), DejaVu's public-domain part, and the Adobe AFM and AMS terms. Qhull is no longer linked
+  in M1. *Recommended: approve the whole list,* and record it in §4.12; spec 023 lists each
+  file in its Decision 9.
 - **36. Upstream:** patch 1 is matplotlib's own merged fix (PR #30291, in 3.12), re-made for
   3.11.2; patch 2 (`_qhull` without a writable `/dev/null`) is new and needs a pull request. The
   agent drafts it, and you send it, as with numpy. *Recommended: yes.*
