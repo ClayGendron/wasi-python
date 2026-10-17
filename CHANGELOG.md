@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
-## 0.1.0a3 — unreleased
+## 0.1.0a3 — 2026-10-17
 
 - **Breaking: nothing is writable by default** (the owner's rule, constitution §4.15; spec 025).
   A call given no root and no grants has no `/`, no `/tmp` and no `HOME`: it can import,
