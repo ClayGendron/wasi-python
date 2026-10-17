@@ -1,8 +1,9 @@
 # 005 — The CPython 3.15 + wasi-sdk 33 line
 
-- **Status:** draft, 2026-10-16; revised the same day to answer its review
-  (`../reviews/005-the-3-15-line-spec-2026-10-16.md`). It changes the build recipe and the
-  artifact set's bytes, so it is reviewed again before it is built.
+- **Status:** landed, 2026-10-17. Reviewed before build
+  (`../reviews/005-the-3-15-line-spec-2026-10-16.md`) and after
+  (`../reviews/005-the-3-15-line-2026-10-17.md`); accepted as `context/progress/history.jsonl`
+  line 7.
 - **Owner:** Clay Gendron
 - **Kind:** build recipe (`downloads/SHA256SUMS`, `scripts/`, `recipes/`), `src/wasi_python/`
   (a docstring), judge edits in `tests/`, `CHANGELOG.md`, `README.md`,
@@ -199,4 +200,71 @@ In: the above. Out: matplotlib and its libraries (their own specifications); the
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-17 by the author agent (commit `34952cf`); build review and dry run below.
+
+**The build** (EXECUTED: `scripts/build.sh` from a `build/` holding only the oracle and Brett's
+reference unpack; the 3.14 tree was moved aside):
+
+```
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2…, cython 3.3.0
+ok 20_cpython: cpython: 29582988 bytes, 21b8f3fe46aa6f87
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives
+ok 50_pandas: pandas: 45 extension archives
+ok 60_link: reactor: 29801866 bytes, 856e08eb832d08f9
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140659 bytes
+ok 80_snapshot: snapshot: 63484356 bytes, 7d9836116aaecc1f
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+```
+
+Steps 60 to 90 run again gave the same three files (EXECUTED): reactor `856e08eb832d08f9…`,
+snapshot `7d9836116aaecc1f…`, zip `e95b35dea78981e8…`. They differ from the experiment's
+(`1522cd81…`, `9b10b259…`, `b10243c4…`) because the reactor now pre-imports `_colorize`, no
+longer links `cxa_stubs.c`, and the recipe files the zip's bootstrap is frozen from changed.
+
+**The goldens** (EXECUTED: `uv run python tests/jobs/regen.py --online` on the oracle's own
+hash-checked 3.15.0): only each file's version line changed, `python=3.14` to `python=3.15`.
+
+**The judge** (EXECUTED: `uv run pytest`): every check passes but the known gap, whose match is
+now `2 finding(s), digest 518b39136d6f`, as the review computed. The three new checks pass;
+`test_exceptions_are_the_standard_form` fails on the 0.1.0a1 binaries as it should (no tag
+section; they validate with exceptions off). `test_a_cpp_exception_reaches_python` spends
+440,862,415 instructions (the review measured 440,742,195 on its scratch build).
+
+**Growth, with its measured causes** (EXECUTED: the judge's metrics against the 0.1.0a1 accepted
+state; the probes are wasi_python.run with fuel on both artifact sets):
+
+| metric | 3.14 | 3.15 | cause |
+|---|---|---|---|
+| snapshot `-c pass` and the 16 other snapshot runs | 117.6M to 118.5M | 124.2M to 125.6M (+5.5%) | 5.0M is finalization (`-c pass` minus the hard-exit path: 73.9M on 3.14, 78.9M on 3.15, for 581 and 583 modules), 1.5M comes before exit (hard exit 43.6M to 45.1M): CPython 3.15's own start and shutdown |
+| plain uncaught error | 578.4M | 676.0M (+16.9%) | 3.15's traceback printing imports `pathlib`, `pathlib._os`, `ntpath`, `importlib.util` and `importlib._abc`, which 3.14's did not (EXECUTED: `sys.modules` before and after `sys.excepthook`) |
+| plain `import socket` (`test_guest_has_no_network`) | 293.7M | 335.1M (+14.1%) | 3.15's `socket` module (Decision 10) |
+| plain debugging tools (`pdb` and friends) | 552.4M | 577.4M (+4.5%) | 3.15's stdlib (Decision 10) |
+| plain `import pandas` and the golden jobs | | +0.8% to +1.2% | 3.15's stdlib imports under pandas |
+| plain `-c pass` and the nine other plain runs that do little else | 246.6M to 247.6M | +0.06% to +0.08% | 3.15's own start-up (plain `-c pass` 246.7M to 246.9M in the judge) |
+| snapshot bytes | 62,317,581 | 63,484,356 (+1.9%) | 3.15's larger heap after the same pre-imports, plus `_colorize` (INFERRED: not measured by part) |
+| stdlib zip bytes | 10,474,585 | 11,140,659 (+6.4%) | 3.15's stdlib is larger (Decision 10) |
+
+Shrank: the reactor (29,829,406 to 29,801,866 bytes), plain `import traceback` (577M to 440M),
+gzip (−2.7%).
+
+**Criterion 4** (EXECUTED: the `git grep`): nothing in `scripts/`, `recipes/`, `src/`,
+`.github/`, `tests/checks/` or `downloads/`; `tests/unit/` keeps 3.14 names only as fixtures of
+parsing tests.
+
+**`test_a_cpp_exception_reaches_python` and the cache** (the build review's finding 1,
+EXECUTED by the author too): a module loaded from the runner's `.cwasm` cache counts a constant
+fewer instructions than one compiled in the process (snapshot `-c pass` 81.8M against 124.1M;
+plain 5M fewer), with the same output. The check passes `cache_dir=False`, so its figure does
+not depend on the cache. The cause is open:
+`../research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`.
+
+**The push before review** (the build review's finding 9): `34952cf` went to `origin/main` as a
+draft before review, under the owner's instruction of 2026-10-16 ("You have full control to
+push to git"); landing is the accepted state and the review, as for spec 004's drafts.
+
+**Deviations from the design, both small:** the shell side reads `line.conf` through a third
+file, `scripts/line.sh` (sourced by `steps/common.sh` and `python-wasi-cross`, which does not
+source `common.sh`), so the grammar check lives in one place for the shell; and the `wheel` and
+`three systems` needs now name spec 004 as their provider, since the README's Next list no
+longer has the release workflow as an item.

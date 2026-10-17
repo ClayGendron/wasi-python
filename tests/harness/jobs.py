@@ -13,6 +13,7 @@ Decision 9). It shares no directory with the build.
 from __future__ import annotations
 
 import functools
+import importlib.util
 import os
 import re
 import shutil
@@ -26,6 +27,7 @@ JOB_DIR = paths.REPO / "tests" / "jobs"
 ORACLE_PROJECT = JOB_DIR / "oracle"
 ORACLE_HOME = paths.BUILD / "oracle"
 LINE_CONF = paths.REPO / "scripts" / "line.conf"
+LINE_PY = paths.REPO / "scripts" / "line.py"
 JOBS = ("numpy_csv", "pandas_csv", "numpy_random")
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
@@ -62,11 +64,16 @@ def compare(expected: bytes, actual: bytes) -> str | None:
 
 
 def host_python_archive() -> str:
-    """The line's pinned host-Python archive, named in `scripts/line.conf`."""
-    for text in LINE_CONF.read_text().splitlines():
-        if text.startswith("HOST_PYTHON_ARCHIVE="):
-            return text.split("=", 1)[1]
-    raise RuntimeError("scripts/line.conf names no HOST_PYTHON_ARCHIVE")
+    """The line's pinned host-Python archive, named in `scripts/line.conf` and read by the build's
+    own parser (`scripts/line.py`), which enforces the file's grammar."""
+    spec = importlib.util.spec_from_file_location("wasi_python_line", LINE_PY)
+    assert spec is not None and spec.loader is not None
+    line = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(line)
+    name = line.read(LINE_CONF)["HOST_PYTHON_ARCHIVE"]
+    if "/" in name or name.startswith("."):
+        raise RuntimeError(f"HOST_PYTHON_ARCHIVE is not a plain file name: {name!r}")
+    return name
 
 
 def oracle_python() -> Path:

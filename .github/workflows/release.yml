@@ -30,7 +30,7 @@ env:
 jobs:
   build:
     name: build and judge (arm64 macOS)
-    # The pinned toolchain (wasi-sdk, Wizer, wasmtime, the host Python) is arm64 macOS.
+    # The pinned toolchain (wasi-sdk, wasmtime and its wizer, the host Python) is arm64 macOS.
     runs-on: macos-15
     timeout-minutes: 120
     steps:

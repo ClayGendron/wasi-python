@@ -212,6 +212,7 @@ def toolchain_errors(pinned: Iterable[str]) -> list[str]:
 
 
 CPP_EH_FLAGS = ("'-fwasm-exceptions'", "'-wasm-use-legacy-eh=false'")
+CPP_EH_AGAINST = ("'-fno-exceptions'", "'-wasm-use-legacy-eh=true'", "'-fno-wasm-exceptions'")
 
 
 def cpp_exception_errors(root: Path) -> list[str]:
@@ -224,6 +225,7 @@ def cpp_exception_errors(root: Path) -> list[str]:
             errors.append(f"{cross}: {len(lines)} cpp_args lines, not 1")
             continue
         errors += [f"{cross}: cpp_args lacks {f}" for f in CPP_EH_FLAGS if f not in lines[0]]
+        errors += [f"{cross}: cpp_args has {f}" for f in CPP_EH_AGAINST if f in lines[0]]
     link = (root / "scripts/steps/60_link.sh").read_text().splitlines()
     if not any("-lunwind" in t and t.lstrip().startswith("echo") for t in link):
         errors.append("scripts/steps/60_link.sh: Setup.local does not link -lunwind")

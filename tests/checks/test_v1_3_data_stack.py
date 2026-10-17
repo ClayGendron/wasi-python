@@ -126,8 +126,14 @@ def test_a_cpp_exception_reaches_python(guest_workdir, metric) -> None:
     import wasi_python
 
     root = Path(tempfile.mkdtemp(prefix="cpp-throw-", dir=guest_workdir))
+    # cache_dir=False: a module loaded from a .cwasm counts fewer instructions than one compiled
+    # here (context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md).
     done = wasi_python.run(
-        ["-c", CPP_THROW], root=root, memory_bytes=560 << 20, fuel=50_000_000_000
+        ["-c", CPP_THROW],
+        root=root,
+        memory_bytes=560 << 20,
+        fuel=50_000_000_000,
+        cache_dir=False,
     )
     assert (done.exit_code, done.trapped) == (0, None), done
     assert done.stdout == b"caught MemoryError()\nTrue\n", done

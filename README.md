@@ -29,10 +29,12 @@ Published as GitHub release assets (xz, 8 to 20 MB) and as the `wasi-python`
 wheel on PyPI, which carries the same files and a `wasi_python.artifacts()`
 function that returns their paths.
 
-## Measured (2026-10-16, arm64 macOS, wasmtime 49)
+## Measured (arm64 macOS, wasmtime 49)
 
-From the first scripted build (spec 003; commands and outputs in its
-landing notes). Times are benchmark facts on one machine, not promises.
+Times are from the first scripted build on the 3.14 line (spec 003's landing
+notes, 2026-10-16); sizes and instruction counts are the 3.15 line's (spec 005's
+landing notes, 2026-10-17). Times are benchmark facts on one machine, not
+promises.
 
 | fact | value |
 |---|---|
@@ -170,7 +172,11 @@ request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `cache_dir` and `artifacts`.
 It returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
-`"deadline"`, or a trap's first line) and `fuel_used`.
+`"deadline"`, or a trap's first line) and `fuel_used`. A module loaded from
+the `.cwasm` cache counts a constant few tens of millions fewer instructions
+than one compiled in the process, with the same output, so compare
+`fuel_used` only between calls whose module came the same way
+(`context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`).
 
 The compiled module is cached as a `.cwasm` in the user cache directory, or
 in `$WASI_PYTHON_CACHE`, only where no other user can write (a `.cwasm` is
