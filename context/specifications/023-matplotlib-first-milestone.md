@@ -2,8 +2,8 @@
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
-  for build with five definitions (A to E), now written in. It builds only after the owner answers question 35 (licences, §4.12), widened by
-  the review.
+  for build with five definitions (A to E), now written in. Question 35 (licences, §4.12) was answered on
+  2026-10-17: the whole list is approved, so it may be built.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (pins; steps 00, 10, 37 (new), 55 (new), 60, 70; `scripts/build.sh`,
   `scripts/wasi-cc`, `scripts/gen_inittab.py`, `scripts/assemble_artifacts.py`), recipe files

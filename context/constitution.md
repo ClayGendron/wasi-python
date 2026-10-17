@@ -12,6 +12,10 @@
   Amended 2026-10-17 by the owner's answer to question 32: carried
   upstream patches, recorded and temporary (§4.1, and §2.5, §6.2, §7 and
   §8 to match).
+  Amended 2026-10-17 by the owner's answers to questions 12, 14, 19, 24,
+  25, 33 and 35: bounded sessions (§3), a tool protocol over the door
+  (§4.4), the matplotlib and scipy licences (§4.12), nothing writable by
+  default (§4.15), and §4.1's spent clause.
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -80,7 +84,10 @@ few: each one is built, judged and published. v1 ships the one set
   server. Those are its embedders' business. A thin command that runs
   one program through the runner and prints its result as JSON
   (`wasi-python run`) is part of the runner, not a shell: it adds no
-  power `run()` does not have (owner, 2026-10-17).
+  power `run()` does not have (owner, 2026-10-17). A bounded session,
+  one guest kept across several calls with an idle timeout and a
+  lifetime, is part of the runner too, not a development environment
+  (owner, 2026-10-17, question 19).
 - Performant, not the fastest. It is correct, portable and sealed
   first, and it stays close to native: the penalty against native
   Python is measured on every release, documented, never hidden, and
@@ -102,9 +109,8 @@ works.
    upstream pull request drafted in the repository for the owner to
    send; it is deleted once an upstream release carries the fix. The
    release workflow fails on any difference from the pinned tarball
-   other than exactly the recorded patches (owner, 2026-10-17,
-   question 32; until the specification that builds this lands, no
-   patch is applied and the old zero-diff check stands).
+   other than exactly the recorded patches (question 32; built by
+   spec 020).
 2. **Every input is pinned and hashed.** Every source tarball,
    toolchain, tool and pure-Python dependency is a URL plus a SHA-256
    in `downloads/SHA256SUMS`, verified before use. A build that fetches
@@ -114,8 +120,12 @@ works.
    done inside WASI, it is left out and documented.
 4. **The guest reaches the host through exactly two things:** the
    WASI preview1 calls and one custom import, the host door. No third
-   import, ever. The door's frames are opaque to this project; what
-   they mean is the embedder's.
+   import, ever. The door's raw frames are opaque to this project; what
+   they mean is the embedder's. On top of the door the project may
+   ship one tool protocol, through which a guest calls the host's
+   tools, APIs and MCP servers: optional, used only when the embedder
+   passes its tools, and gated by the embedder on every call (owner,
+   2026-10-17, questions 12 and 14).
 5. **Embedder-neutral.** No code, name, default or test in this
    repository refers to a particular embedder. vfs is one consumer
    and gets nothing the next consumer does not.
@@ -147,7 +157,17 @@ works.
     pure-Python dependencies; their notices are inside the release and
     the wheel. Nothing with a licence the owner has not approved is
     linked in. Approved 2026-10-17: SQLite (public domain), bzip2
-    (BSD-style) and liblzma from xz (0BSD).
+    (BSD-style) and liblzma from xz (0BSD); for matplotlib (question
+    35), FreeType (FTL), HarfBuzz, SheenBidi (Apache-2.0), libraqm,
+    Qhull, Agg, matplotlib (PSF-style) with its bundled data notices,
+    kiwisolver, pybind11 and cppy (BSD-3-Clause), Pillow (HPND),
+    fonttools, cycler, pyparsing and packaging, and the fonts and their
+    terms (OFL, Bitstream Vera, BaKoMa, DejaVu's public-domain part,
+    the Adobe AFM and AMS terms, Unicode's data terms); for scipy
+    (question 25), Boost.Math and ryu (BSL-1.0), xsf
+    (BSD-3-Clause-LBNL), fast_matrix_market (BSD-2-Clause), and scipy,
+    OpenBLAS, LAPACK, HiGHS and ducc0 (BSD/MIT). Each ships with its
+    notice.
 13. **Tooling.** `uv` only. `ruff check`, `ruff format --check` and
     `pytest` green on `src/` and `tests/` before any landing. No
     dependency added to `pyproject.toml` without a reason written in
@@ -158,8 +178,10 @@ works.
 15. **Safe by default.** Every limit has a default (memory, time,
     output); no channel to the host opens without an explicit argument
     (no folder, no network, no host function); the runtime's own files
-    are never in a writable grant. A change that loosens a default
-    needs the owner's decision, not only a review (owner, 2026-10-17).
+    are never in a writable grant. A call given no root and no grants
+    has nothing writable: no folder, no `/tmp`, no `HOME` (owner,
+    2026-10-17, question 24). A change that loosens a default needs
+    the owner's decision, not only a review (owner, 2026-10-17).
 
 ## 5. How work is done
 

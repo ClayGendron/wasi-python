@@ -1,8 +1,7 @@
 # 024 — A root prepared through its walk
 
-- **Status:** built and reviewed 2026-10-17
-  (`../reviews/024-a-root-prepared-through-its-walk-2026-10-17.md`); lands on its release dry
-  run.
+- **Status:** landed 2026-10-17. Built from the 0.1.0a3 security review and reviewed after
+  (`../reviews/024-a-root-prepared-through-its-walk-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the patch applier
   (`scripts/steps/apply_patches.sh`), judge additions in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -156,4 +155,6 @@ raise (3). The judge after the revision: 186/188, lost 0, grew 0.
 
 ### Release dry run
 
-Pending: the run after this push (criterion 6), cited here when it finishes.
+Run 39060577579 on `de91fff` (024 accepted): every job passed, the arm64 Linux rebuild from the
+pins and "the same bytes from every host" included, and the wheel verified on Windows, Linux and
+macOS (criterion 6; the review's finding 1).
