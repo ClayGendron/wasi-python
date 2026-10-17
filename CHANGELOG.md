@@ -6,6 +6,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **Breaking: nothing is writable by default** (the owner's rule, constitution §4.15; spec 025).
+  A call given no root and no grants has no `/`, no `/tmp` and no `HOME`: it can import,
+  compute, print, read the stdlib and call the door, and nothing else. Before, it got a fresh
+  private writable `/`. To keep that, pass `root=True` (`--private-root` on the command line);
+  or grant the folders the program needs. `root=None` now means no root, like `False`.
 - **Security: a `root` is prepared only through the folder that was checked** (the 0.1.0a3
   security review, S1). The runner made `root/usr/local/lib` and `root/tmp` by path after
   checking the root, so a guest of another call with a writable folder above it could swap that

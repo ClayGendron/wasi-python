@@ -276,11 +276,15 @@ done = run(["-c", "import pandas as pd; print(pd.Series([1, 2, 3]).sum())"])
 done.exit_code, done.stdout        # (0, b'6\n')
 ```
 
-With no `root`, the call gets a fresh private directory as its whole
-filesystem, removed afterwards. `root=` gives the guest a host directory
-instead, writable, at `/`; `root=False` gives it no `/` at all. `grants=`
-hands it more host folders, each read-only unless it says otherwise (see
-*Grants*). The stdlib zip is never in a root: every call sees it read-only
+By default the guest has nothing writable: no `/`, no `/tmp` and no
+`HOME`, only the read-only stdlib and whatever the embedder grants (since
+0.1.0a3; the owner's rule, constitution §4.15). It can import, compute,
+print, read the stdlib and call the door; `open('x', 'w')`, `tempfile`,
+`np.save` or `df.to_csv('x.csv')` fail with `OSError`. `root=True` gives the
+call a fresh private directory as its `/`, writable, removed afterwards
+(what a call got by default before 0.1.0a3); `root=` a path gives it that host
+directory instead, writable, at `/`. `grants=` hands it host folders, each
+read-only unless it says otherwise (see *Grants*). The stdlib zip is never in a root: every call sees it read-only
 at `/usr/local/lib`. `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
@@ -320,7 +324,6 @@ from wasi_python import Grant, run
 data = Path.home() / "project" / "data"
 done = run(
     ["-c", "import os; open('/out/n.txt', 'w').write(str(len(os.listdir('/data'))))"],
-    root=False,
     grants=[Grant(data, "/data"), Grant("/tmp/job-17", "/out", writable=True)],
 )
 ```
@@ -331,8 +334,20 @@ refuses every write-type call with `EPERM` (`PermissionError` in Python). Grants
 may be nested (`/data` read-only with `/data/out` writable), in any order: the
 guest's C library picks the longest matching guest path. `HOME` is made fresh
 in the folder the guest sees at `/tmp`: a writable grant there, else the root's
-own `tmp`; with neither, there is no `HOME`. With `root=False` there is no `/`,
-and a relative path fails.
+own `tmp`; with neither, there is no `HOME`. With no root (the default) there
+is no `/`, and a relative path fails.
+
+State that must outlive a call (an agent's notes between turns, say) lives in
+a writable grant the embedder keeps: each call reads it at the start and
+writes it at the end.
+
+```python
+state = Path.home() / "agent-17"  # the embedder's folder for this agent
+state.mkdir(exist_ok=True)
+run(["-c", "import json, os; p = '/state/n.json'; n = json.load(open(p)) if os.path.exists(p) else 0;"
+     " json.dump(n + 1, open(p, 'w')); print(n + 1)"],
+    grants=[Grant(state, "/state", writable=True)])
+```
 
 Every grant, and `root`, is checked before the guest is set up, and refused
 with `TypeError` or `ValueError` (the runner may first make its own module
@@ -417,9 +432,10 @@ Everything after `--` is the program's arguments.
 Folders, each one of `run`'s grants (see *Grants*): `--grant GUEST=HOST` gives the
 program a host folder read-only, `--grant-writable GUEST=HOST` writable; the split
 is at the first `=`, so `C:\data` and host paths with `=` pass whole. `--root
-HOST` is the guest's `/`, writable, and made if missing; `--no-root` gives no `/`
-at all, only the grants, as `root=False` does; `--root` given twice, or with
-`--no-root`, is a usage error. A guest path given here cannot hold `=`. `run`'s
+HOST` is the guest's `/`, writable, and made if missing; `--private-root` gives
+it a fresh private `/`, removed after the call (`root=True`); without either the
+program has no `/` at all, only its grants (`--no-root` says so explicitly).
+`--root` given twice, or two of the three together, is a usage error. A guest path given here cannot hold `=`. `run`'s
 errors number the grants from 0, across both options, in the order typed. The
 program itself is read from the host with `--stdin`, since the guest does not
 see the host's folders, only its root and its grants:

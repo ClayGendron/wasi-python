@@ -124,15 +124,15 @@ def test_the_argument_types(tmp_path) -> None:
     for not_iterable in ("/d", b"/d", Grant(tmp_path, "/d"), 3):
         with pytest.raises(TypeError, match="iterable of Grant"):
             runner._check_grants(not_iterable)
-    with pytest.raises(TypeError, match="got True"):
-        runner._check_root(True)
+    # spec 025: True asks for a private root (kept as None), None and False mean none
+    assert (runner._check_root(True), runner._check_root(None)) == (None, False)
     with pytest.raises(TypeError, match="not bytes"):
         runner._check_root(bytes(tmp_path))
     with pytest.raises(ValueError, match="same guest path"):
         runner._check_grants([Grant(tmp_path, "/d"), Grant(tmp_path, "/d", writable=True)])
     once = runner._check_grants(iter([Grant(tmp_path, "/d"), Grant(tmp_path, "/d/out")]))
     assert once == (Grant(str(tmp_path), "/d"), Grant(str(tmp_path), "/d/out"))  # a tuple of str
-    assert runner._check_root(None) is None and runner._check_root(False) is False
+    assert runner._check_root(False) is False
 
 
 def _w(*chain: tuple[int, int], missing: bool = False) -> runner._Walked:

@@ -89,7 +89,11 @@ def _parser() -> argparse.ArgumentParser:
         "--root", action=_Once, default=unset, metavar="HOST",
         help="the guest's /, writable; made if missing",
     )  # fmt: skip
-    roots.add_argument("--no-root", action="store_true", help="no / at all: only the grants")
+    roots.add_argument(
+        "--private-root", action="store_true",
+        help="a fresh private /, writable, removed after the call",
+    )  # fmt: skip
+    roots.add_argument("--no-root", action="store_true", help="no / at all, the default")
     return p
 
 
@@ -189,6 +193,8 @@ def _main(args: list[str]) -> int:
         given["grants"] = grants
     if hasattr(ns, "root"):
         given["root"] = ns.root
+    elif ns.private_root:
+        given["root"] = True
     elif ns.no_root:
         given["root"] = False
     try:

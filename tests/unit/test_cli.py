@@ -206,7 +206,13 @@ def test_grants_reach_run_in_the_order_typed_with_their_modes(fake, capsysbinary
 
 
 @pytest.mark.parametrize(
-    ("args", "root"), [(["--root", "r"], "r"), (["--no-root"], False), (["--root", ""], "")]
+    ("args", "root"),
+    [
+        (["--root", "r"], "r"),
+        (["--no-root"], False),
+        (["--private-root"], True),
+        (["--root", ""], ""),
+    ],
 )
 def test_root_reaches_run(fake, capsysbinary, args, root) -> None:
     calls, _ = fake

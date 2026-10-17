@@ -248,7 +248,7 @@ class Grant:
 def run(
     argv: Iterable[str],
     *,
-    root: str | os.PathLike[str] | None | bool = None,
+    root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
@@ -264,13 +264,14 @@ def run(
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
-    `root` is the host directory the guest sees as `/`, writable; without one, a fresh private
-    directory is made and removed after the call; `root=False` gives the guest no `/`, only its
-    grants. `grants`, each a `Grant`, are host folders the guest sees at their guest paths,
-    read-only unless they say otherwise (spec 017). The stdlib zip is always granted, read-only,
-    at /usr/local/lib. `memory_bytes`, `deadline_s` and `output_bytes` default to
-    `DEFAULTS`; `None` means no limit. The guest's environment starts from `BASE_ENV` (`/tmp` for
-    temporary files, `zoneinfo` on the zip's tzdata) and a `HOME` made fresh for the call, with
+    `root` is the host directory the guest sees as `/`, writable. By default (`False`, or `None`)
+    the guest has no `/` and nothing writable, only its grants (spec 025); `root=True` makes a
+    fresh private directory for the call, removed after it. `grants`, each a `Grant`, are host
+    folders the guest sees at their guest paths, read-only unless they say otherwise (spec 017).
+    The stdlib zip is always granted, read-only, at /usr/local/lib. `memory_bytes`, `deadline_s`
+    and `output_bytes` default to `DEFAULTS`; `None` means no limit. The guest's environment
+    starts from `BASE_ENV` (`/tmp` for temporary files, `zoneinfo` on the zip's tzdata) and a
+    `HOME` made fresh for the call where `/tmp` is writable, with
     `env` laid over it.
     `cache_dir=False` keeps compiled modules in this process only, never on disk.
     `cancel`, a `threading.Event`: once it is set and the guest runs, the guest stops within
@@ -285,7 +286,7 @@ def run(
 async def run_async(
     argv: Iterable[str],
     *,
-    root: str | os.PathLike[str] | None | bool = None,
+    root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
@@ -804,10 +805,12 @@ def _guest_path(where: str, value: Any) -> str:
 
 
 def _check_root(root: Any) -> str | bool | None:
+    """The root as the runner keeps it: a host path; None for a private root (`root=True`); or
+    False for none, the default (spec 025: nothing writable unless the embedder asks)."""
     if root is None or root is False:
-        return root
+        return False
     if root is True:
-        raise TypeError("root must be a path, None (a private root) or False (no root); got True")
+        return None
     return _host_path("root", root)
 
 

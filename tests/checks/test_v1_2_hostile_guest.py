@@ -173,15 +173,16 @@ def test_temporary_files_go_to_tmp(guest_workdir) -> None:
 
 
 def test_a_call_without_a_root_shares_nothing(guest_workdir, monkeypatch) -> None:
-    """Guards a change: no root means a fresh private one, removed after the call."""
+    """Guards a change: a private root (`root=True` since spec 025) is fresh, and removed after the
+    call."""
     run = _run()
     scratch = Path(tempfile.mkdtemp(prefix="rootless-", dir=guest_workdir))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     write = "open('/left-behind', 'w').write('x'); print(sorted(__import__('os').listdir('/')))"
-    first = run(["-c", write])
+    first = run(["-c", write], root=True)
     assert (first.exit_code, first.stdout) == (0, b"['left-behind', 'tmp', 'usr']\n"), first
     assert list(scratch.iterdir()) == []
-    second = run(["-c", "import os; print(os.path.exists('/left-behind'))"])
+    second = run(["-c", "import os; print(os.path.exists('/left-behind'))"], root=True)
     assert (second.exit_code, second.stdout) == (0, b"False\n"), second
     assert list(scratch.iterdir()) == []
 
@@ -336,7 +337,7 @@ def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch, ho
     fds = Path("/dev/fd")
     run(["-c", "pass"])  # the engine and module are loaded once per process; count after that
     before = len(list(fds.iterdir())) if fds.is_dir() else None
-    done = _returns(lambda: run(["-c", code], deadline_s=0.2))
+    done = _returns(lambda: run(["-c", code], root=True, deadline_s=0.2))
     assert done.trapped == "deadline", done
     assert list(scratch.iterdir()) == []
     if before is not None:  # a directory can be removed while open on POSIX; the store must close
@@ -404,7 +405,7 @@ guest = (
     "try:\n    while True: fs.append(os.open('/f', os.O_RDONLY))\n"
     "except OSError as e: print('refused', e.errno)\n"
 )
-done = wasi_python.run(["-c", guest], stdin=b"secret input")
+done = wasi_python.run(["-c", guest], root=True, stdin=b"secret input")
 left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-")]
 print(done.exit_code, done.stdout.decode().strip(), sorted(left))
 """
@@ -415,7 +416,9 @@ import os, sys, tempfile
 scratch = sys.argv[1]
 tempfile.tempdir = scratch
 import wasi_python
-done = wasi_python.run(["-c", "open('/f', 'w').close(); print('refused', 0)"], stdin=b"x")
+done = wasi_python.run(
+    ["-c", "open('/f', 'w').close(); print('refused', 0)"], root=True, stdin=b"x"
+)
 left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-")]
 print(done.exit_code, done.stdout.decode().strip(), sorted(left))
 """
@@ -671,7 +674,6 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
     )
     refused(ValueError, "same guest path", grants=[Grant(shared, "/s"), Grant(secret, "/s")])
     refused(ValueError, "does not exist", grants=[Grant(base / "nothing", "/n")])
-    refused(TypeError, "got True", root=True)
     refused(TypeError, "writable must be", grants=[Grant(shared, "/s", writable="no")])
     refused(TypeError, "not bytes", grants=[Grant(os.fsencode(shared), "/s")])
     cache.mkdir(exist_ok=True)  # the runner made it already, judging the first call
@@ -729,6 +731,54 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
     else:
         done = run(["-c", code], grants=grants, host=host)
         assert (swapped, done.stdout) == ([False], b"granted\n"), done
+
+
+NOTHING_WRITABLE = """
+import os
+out = []
+try:
+    os.listdir('/')
+    out.append('root listed')
+except OSError:
+    out.append('no root')
+for path in ('/x', '/tmp/x', '/usr/local/lib/x', 'x'):
+    try:
+        open(path, 'w').close()
+        out.append('wrote ' + path)
+    except OSError:
+        out.append('refused ' + path)
+out.append('HOME' if 'HOME' in os.environ else 'no HOME')
+import numpy, pandas
+out.append(str(int(pandas.Series(numpy.arange(4)).sum())))
+print(' '.join(out))
+"""
+
+
+@pytest.mark.parametrize("snapshot", [True, False], ids=["snapshot", "plain"])
+def test_nothing_is_writable_by_default(snapshot) -> None:
+    """Guards a change (spec 025; the owner's answer to question 24, §4.15): a call given no root
+    and no grants has nothing writable, no `/` and no HOME, and still imports and computes."""
+    run = _run()
+    done = run(["-c", NOTHING_WRITABLE], snapshot=snapshot)
+    assert done.exit_code == 0, done.stderr[-1500:]
+    assert done.stdout.decode().split() == [
+        "no",
+        "root",
+        "refused",
+        "/x",
+        "refused",
+        "/tmp/x",
+        "refused",
+        "/usr/local/lib/x",
+        "refused",
+        "x",
+        "no",
+        "HOME",
+        "6",
+    ], done.stdout
+    # The private root is asked for by name.
+    asked = run(["-c", "open('/x', 'w').write('ok'); print(open('/x').read())"], root=True)
+    assert (asked.exit_code, asked.stdout) == (0, b"ok\n"), asked
 
 
 @pytest.mark.parametrize("how", ["link", "rename"])

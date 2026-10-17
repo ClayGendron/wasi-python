@@ -968,7 +968,9 @@ def host(frame):
     sys.stdin.readline()  # until the parent says go, or forever
     return b""
 
-done = wasi_python.run(["-c", "import _host; _host.call(b'x')"], host=host, stdin=b"secret")
+done = wasi_python.run(
+    ["-c", "import _host; _host.call(b'x')"], root=True, host=host, stdin=b"secret"
+)
 print("ended", done.exit_code, flush=True)
 """
 
