@@ -1,0 +1,8 @@
+default              compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+epoch off            compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+opt none             compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+opt speed_and_size   compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+parallel off         compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+exceptions on        compiled=16385 from_file=16385 deser_bytes=16385 deser_file=0 other_engine_file=0
+Config.cache pass 0: compiled=16385
+Config.cache pass 1: compiled=16385

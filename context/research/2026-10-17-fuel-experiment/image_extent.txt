@@ -1,0 +1,7 @@
+1 [(16, 20000)] | 32769 32769 0
+2 [(0, 1), (100000, 1)] | 114689 114689 0
+100 [(0, 1), (6000000, 1)] | 6012929 6012929 0
+100 [(0, 1), (100000, 1), (6000000, 1)] | 6012929 6012929 0
+10 [(16, 40000)] | 49153 49153 0
+cow off 13 13 13
+['cache', 'close', 'consume_fuel', 'cranelift_debug_verifier', 'cranelift_flag_enable', 'cranelift_flag_set', 'cranelift_nan_canonicalization', 'cranelift_opt_level', 'debug_info', 'epoch_interruption', 'gc_support', 'macos_use_mach_ports', 'max_wasm_stack', 'memory_guard_size', 'memory_init_cow', 'memory_may_move', 'memory_reservation', 'memory_reservation_for_growth', 'native_unwind_info', 'parallel_compilation', 'profiler', 'ptr', 'shared_memory', 'signals_based_traps', 'strategy', 'target', 'wasm_bulk_memory', 'wasm_component_model', 'wasm_component_model_implements', 'wasm_component_model_map', 'wasm_custom_page_sizes', 'wasm_exceptions', 'wasm_function_references', 'wasm_gc', 'wasm_memory64', 'wasm_multi_memory', 'wasm_multi_value', 'wasm_reference_types', 'wasm_relaxed_simd', 'wasm_relaxed_simd_deterministic', 'wasm_simd', 'wasm_stack_switching', 'wasm_tail_call', 'wasm_threads', 'wasm_wide_arithmetic']

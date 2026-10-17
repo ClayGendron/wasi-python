@@ -1,0 +1,31 @@
+uv run python artifacts.py build/artifacts/python-snapshot.wasm build/artifacts/python-stdlib.zip <scratch> 1
+python-snapshot.wasm: 10000 active data segments, 38638304 bytes; extent [16776960, 59113421); image at host page 16384: 42352640 bytes
+memory_init_cow=True prog='pass'
+how                  | instantiate | after instantiate | total | exit | stdout | inst s
+compiled             | 42,352,641 | 81,947,194 | 124,299,835 | 0 | b'' | 0.004
+deserialize(bytes)   | 42,352,641 | 81,947,194 | 124,299,835 | 0 | b'' | 0.007
+deserialize_file     | 0 | 81,947,194 | 81,947,194 | 0 | b'' | 0.000
+compiled again       | 42,352,641 | 81,947,194 | 124,299,835 | 0 | b'' | 0.004
+
+(plain, cow 1, pass)
+python.wasm: 2 active data segments, 5036644 bytes; extent [16777216, 21813860); image at host page 16384: 5046272 bytes
+memory_init_cow=True prog='pass'
+how                  | instantiate | after instantiate | total | exit | stdout | inst s
+compiled             | 5,046,273 | 241,447,265 | 246,493,538 | 0 | b'' | 0.001
+deserialize(bytes)   | 5,046,273 | 241,447,265 | 246,493,538 | 0 | b'' | 0.001
+deserialize_file     | 0 | 241,447,265 | 241,447,265 | 0 | b'' | 0.000
+compiled again       | 5,046,273 | 241,447,265 | 246,493,538 | 0 | b'' | 0.001
+python-snapshot.wasm: 10000 active data segments, 38638304 bytes; extent [16776960, 59113421); image at host page 16384: 42352640 bytes
+memory_init_cow=False prog='pass'
+how                  | instantiate | after instantiate | total | exit | stdout | inst s
+compiled             | 38,648,305 | 81,947,194 | 120,595,499 | 0 | b'' | 0.005
+deserialize(bytes)   | 38,648,305 | 81,947,194 | 120,595,499 | 0 | b'' | 0.007
+deserialize_file     | 38,648,305 | 81,947,194 | 120,595,499 | 0 | b'' | 0.008
+compiled again       | 38,648,305 | 81,947,194 | 120,595,499 | 0 | b'' | 0.004
+python-snapshot.wasm: 10000 active data segments, 38638304 bytes; extent [16776960, 59113421); image at host page 16384: 42352640 bytes
+memory_init_cow=True prog='print(sum(range(10**6)))'
+how                  | instantiate | after instantiate | total | exit | stdout | inst s
+compiled             | 42,352,641 | 972,080,303 | 1,014,432,944 | 0 | b'499999500000\n' | 0.004
+deserialize(bytes)   | 42,352,641 | 972,080,303 | 1,014,432,944 | 0 | b'499999500000\n' | 0.007
+deserialize_file     | 0 | 972,080,303 | 972,080,303 | 0 | b'499999500000\n' | 0.000
+compiled again       | 42,352,641 | 972,080,303 | 1,014,432,944 | 0 | b'499999500000\n' | 0.004

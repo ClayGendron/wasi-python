@@ -20,6 +20,7 @@ the commit in the memo that cites it.
 | `wasi-libc` | the preview1 libc: the preopen table, `-lc-printscan-long-double`, the emulated signal/clock/getpid | Apache-2.0 / MIT (see its LICENSE) | 165235b |
 | `wizer` | snapshotting: init function, `--mapdir`, why a reactor is needed | Apache-2.0 with LLVM exception | 6130150 |
 | `wasmtime` | the host: epoch interruption, fuel, store limits, `.cwasm` serialization | Apache-2.0 with LLVM exception | 2d9c19b |
+| `wasmtime-v49` (tag `v49.0.3`, cloned 2026-10-17) | the release our runner uses: the module startup function, `memory_init_per_byte`, the copy-on-write memory image (`cow.rs`, `sys/*/vm.rs`) | Apache-2.0 with LLVM exception | f96eaba |
 | `wasmtime-py` | the Python embedding our runner uses: `Linker.define_func`, `Module.deserialize_file` | Apache-2.0 with LLVM exception | 280ce73 |
 | `componentize-py` | the link-time precedent for putting extension modules into one binary | Apache-2.0 with LLVM exception | 9ff99da |
 | `webassembly-language-runtimes` | the WLR Python builds that embed the stdlib with wasi-vfs | Apache-2.0 | 5a40c30 |

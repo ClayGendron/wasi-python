@@ -1,0 +1,4 @@
+cap=   1000 compiled          today=('trap TrapCode.OUT_OF_FUEL', 1000) remedy=(100, 702)
+cap=   1000 deserialize_file  today=(100, 702) remedy=(100, 702)
+cap=1000000 compiled          today=(100, 17087) remedy=(100, 702)
+cap=1000000 deserialize_file  today=(100, 702) remedy=(100, 702)
