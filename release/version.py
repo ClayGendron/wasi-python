@@ -145,10 +145,11 @@ def check_errors(
     return errors
 
 
-def git(*args: str) -> str:
-    return subprocess.run(
+def git(*args: str, strip: bool = True) -> str:
+    out = subprocess.run(
         ["git", "-C", str(REPO), *args], capture_output=True, text=True, check=True
-    ).stdout.strip()
+    ).stdout
+    return out.strip() if strip else out
 
 
 def write_assets(artifacts: Path, wheel: Path, out: Path, version: str) -> list[Path]:
@@ -242,7 +243,7 @@ def _check(a: argparse.Namespace) -> int:
 def _release(a: argparse.Namespace) -> int:
     version = Version.parse(read_version(INIT.read_text()))
     tag = f"v{version}"
-    changed = git("status", "--porcelain", "--untracked-files=no")
+    changed = git("status", "--porcelain", "--untracked-files=no", strip=False).rstrip("\n")
     if changed:
         names = ", ".join(line[3:] for line in changed.splitlines()[:5])
         raise ReleaseError(f"tracked files have uncommitted changes: {names}")

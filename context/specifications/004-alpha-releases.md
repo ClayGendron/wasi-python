@@ -1,6 +1,6 @@
 # 004 — Alpha releases: the version, the tag and the release workflow
 
-- **Status:** draft, 2026-10-16
+- **Status:** landed, 2026-10-16
 - **Owner:** Clay Gendron
 - **Kind:** release machinery (`src/wasi_python/__init__.py`, `pyproject.toml`, `release/`,
   `CHANGELOG.md`, `.github/workflows/release.yml`, `README.md`, judge edits in `tests/`). It
@@ -143,7 +143,7 @@ accepted); Linux and Windows builds (the reproducible-builds memo); signing.
 
 Built 2026-10-16 by the author agent; review pending (see below).
 
-**The dry runs** (EXECUTED: `gh workflow run release.yml --ref main`, three runs):
+**The dry runs** (EXECUTED: `gh workflow run release.yml --ref main`, five runs):
 1. https://github.com/ClayGendron/wasi_python/actions/runs/38978211049, failed in the build
    job's judge: the wiring self-test assumed no wheel in `dist/`, and the release build puts
    one there. Fixed: the self-test now expects the wheel check to fail against its synthetic
@@ -180,19 +180,25 @@ the accepted set's hashes. CPython's own interpreter from step 20, which is not 
 differed (`64f94066…` there, `307b29e2…` here), so something host-specific reaches that build
 and not ours; the reproducible-builds memo takes it up.
 
-**Locally** (EXECUTED): `uv run pytest` with the release wheel in `dist/`: `91/93 pass · 1
+**Locally** (EXECUTED): `uv run pytest` with the release wheel in `dist/`: `91/94 pass · 1
 gap · 1 blocked · 0 fail`; `version.py bump` took the tree from `0.0.0` to `0.1.0a1`. The
 reviewer rebuilt run 3's wheel and `.tar.xz` locally from its commit and got CI's bytes
 exactly (`02f83128…`, `bc51b406…`). After the review the licence notices changed (HACL\*),
 so the wheel's hash changed with them; the pinned build backend gives the same wheel each
-time (`184048f4…` here).
+time: the reviewer's local rebuild at the confirmation's commit matched run 5's wheel
+(`ef759b98…`) and `.tar.xz` byte for byte.
 
 **Judge edits.** The gap `test_release_workflow_runs_the_zero_patch_check` is removed; the
-new rules check and the unit tests of Decision 8; `pyproject.toml` (the dynamic version);
-the wiring self-test (above); `test_runner_refuses_a_cache_others_can_write` and
-`test_runner_never_follows_a_link_a_guest_left` now hold on Windows: the first asserts the
-documented Windows behaviour (the profile cache is trusted) instead of the POSIX refusal,
-and the second lets the guest's link creation fail where the host forbids it, still
-requiring the next call to repair the root.
+new rules check and the unit tests of Decision 8; `pyproject.toml` (the dynamic version, the
+`run` extra's `<50`); the wiring self-test (above); `test_cpython_notice_covers_hacl`; and
+two checks made to hold on Windows: `test_runner_refuses_a_cache_others_can_write` asserts the
+POSIX refusal on POSIX and records the documented Windows behaviour there, and
+`test_runner_never_follows_a_link_a_guest_left` requires the guest's link on POSIX and lets
+link creation fail only where the host forbids it, still requiring the next call to repair
+the root.
 
-**Review.** (to be filled in with the review's file and verdict)
+**Review.** `../reviews/004-alpha-releases-2026-10-16.md`: "the machinery doesn't land yet",
+then, after the dispositions, "confirmed, and spec 004 can land". After the confirmation the
+author fixed its cosmetic slip in `release`'s message, pinned the backend for every build in
+the workflow (`UV_BUILD_CONSTRAINT`) and corrected spec 001's cross-process sentence; the
+per-root lock's lifetime and the krml headers' explicit mention are left as recorded.

@@ -518,3 +518,181 @@ a few lines), and answer the rest in writing. Do not cut v0.1.0a1 until
 finding 1 is settled and the HACL\* notice ships in the set's licences.
 Everything else checks out: the build reproduced on a second host,
 three systems ran green, and the assets rebuilt byte for byte here.
+
+## Reviewer's confirmation
+
+- **Date:** 2026-10-16. Same reviewer.
+- **Reviewed:** `889acbd`, `74d7e3c` and `4ef924b` on top of `af0e6b9`.
+  These are the answers, the runner's per-root lock, and the landing
+  notes. `8c5ad04` is research and is not part of this review.
+- **Re-ran (EXECUTED, darwin-arm64):**
+  - `uv run pytest -q -p no:cacheprovider` → `91/94 pass · 1 gap · 2
+    blocked · 0 fail (unit suite 155/155)`, `246 passed, 2 skipped, 1
+    xfailed`, **exit 0**. The ratchet line ends `lost 0 … grew 0 · judge
+    changed: …` (eight files), so landing still needs `--accept-judge`.
+  - `uv run ruff check src tests release` → exit 0.
+    `uv run ruff format --check src tests release` → `38 files already
+    formatted`, exit 0.
+- **Run 5** (`gh run view 38985113082` and `--log`, EXECUTED):
+  - It is a `workflow_dispatch` on main at `74d7e3c`. `4ef924b` changes
+    only the spec text.
+  - The build, and verify on macos-15, ubuntu-24.04 and windows-2025,
+    all passed. Publish and pypi were skipped.
+  - The log shows:
+    - `Using CPython 3.14.2`.
+    - The reactor `d77dc946962d2154` and the snapshot `b450c7a6892bf9e3`
+      again.
+    - `uv build --wheel --build-constraints release/build-constraints.txt
+      --require-hashes`.
+    - Zero-patch: `4 passed, 8 deselected`.
+    - The judge: `90/94 … 0 fail`, `ratchet … lost 0 … grew 0`.
+    - Verify: `64/67 · 0 fail` on each system. The new step printed
+      `blocked by: ['oracle', 'three systems', 'wheel']` on each. The
+      installed wheel printed `Completed(exit_code=0, stdout=b'6\n', …)`
+      on each.
+  - Run 4 (`--log-failed`, EXECUTED) failed only
+    `test_runner_serves_concurrent_calls_on_one_root` on Windows, with
+    `PermissionError: [Errno 13] … python314.zip`. That is the cause the
+    notes give.
+- **Run 5's assets** (downloaded, EXECUTED):
+  - `shasum -c SHA256SUMS` passes: the `.tar.xz` is `6bf439ed…` and the
+    wheel `ef759b98…`.
+  - The wheel says `Generator: hatchling 1.32.4` and `Requires-Dist:
+    wasmtime<50,>=49; extra == 'run'`. There is no `.cwasm`.
+  - The set inside is identical to the local `build/artifacts/`, by
+    `SHA256SUMS`.
+  - At `4ef924b` I rebuilt the wheel locally with the constraints, and
+    ran `version.py assets`. **Both are byte for byte CI's**
+    (`ef759b98…`, `6bf439ed…`).
+
+Finding by finding:
+
+1. **Confirmed.**
+   - `LICENSES/cpython.txt`, in the CI tarball and in the wheel, now has
+     a section headed `CPython Modules/_hacl (HACL*), the header of
+     Hacl_Hash_SHA2.h`. It holds the full MIT text, with both copyright
+     lines: "2016-2022 INRIA, CMU and Microsoft Corporation" and
+     "2022-2023 HACL\* Contributors" (EXECUTED).
+   - `test_cpython_notice_covers_hacl` passes (EXECUTED).
+   - `assemble_artifacts.py` stops if the header loses its notice (READ).
+   - I surveyed `Modules/_hacl/` (EXECUTED). Every `Hacl_*` file carries
+     those two copyright lines.
+   - Seven KaRaMeL headers under `include/krml/` say "Copyright (c)
+     INRIA and Microsoft Corporation … Licensed under the Apache 2.0 and
+     MIT Licenses". The shipped MIT notice names those same holders, so
+     I take them as covered. A one-line remark in `cpython.txt`'s
+     heading would make that explicit. It is optional.
+2. **Confirmed** (READ). `publish` and `pypi` require
+   `github.event_name == 'push'`. Run 5, a dispatch, skipped both
+   (EXECUTED).
+3. **Confirmed** for what ships, and for the write token.
+   - The wheel is built with hatchling 1.32.4 and its five dependencies,
+     pinned by hash. Run 5's wheel names that generator (EXECUTED).
+   - Every checkout has `persist-credentials: false`. Publish runs
+     `uv run --no-project` (READ).
+   - Residual, low: `[build-system] requires = ["hatchling"]` is still
+     open. Every `uv run` in the build and verify jobs builds the
+     editable project with whatever hatchling is newest (`Building
+     wasi-python @ file://…` in run 5's log, EXECUTED). Those jobs now
+     hold only a read token, and their build does not ship. Setting
+     `UV_BUILD_CONSTRAINT: release/build-constraints.txt` for the whole
+     workflow, or pinning `hatchling==1.32.4` in `pyproject.toml`, would
+     close it. This does not block.
+4. **Confirmed.** On POSIX the check requires `first.stdout ==
+   b"linked\n"` (READ). It passes here (EXECUTED).
+5. **Confirmed.** The step reads `latest.json`, and run 5 shows it on
+   all three systems (EXECUTED). If a blocked check had no `need` key,
+   the step would fail, which is the safe way to fail (READ).
+6. **Confirmed.**
+   - The step runs `git merge-base --is-ancestor "$GITHUB_SHA"
+     origin/main`, after a checkout with `fetch-depth: 0` (READ).
+   - In a scratch clone, a commit on main gives 0, and a side-branch
+     commit gives 1 (EXECUTED).
+   - Run 5 did not reach this branch of the step: it ran on a branch
+     ref. The first tag push will be its first real test. INFERRED:
+     `fetch-depth: 0` brings `refs/remotes/origin/main` with it.
+7. **Confirmed as answered.** The notes now give both figures, +0.032%
+   and +0.0101%. The fix the notes propose, comparing fuel only between
+   runs on the same `host`, is a judge change for later. That is
+   reasonable.
+8. **Confirmed.** The extra is `wasmtime>=49,<50`, in the source and
+   in the built `METADATA` (EXECUTED). Verify installs `wasi-python[run]
+   @ ./<wheel>` (READ, and run 5's log).
+9. **Confirmed.**
+   - In a fresh clone, I added a `0.1.0a2` section first. `bump` then
+     gave `ERROR: … already has a section for 0.1.0a2`, exit 1. `show`
+     still said `0.1.0a1`, and only my own changelog edit was in the
+     diff (EXECUTED).
+   - A normal `bump` changes both files (EXECUTED).
+   - `test_bump_writes_both_files_or_neither` passes.
+10. **Confirmed, with one cosmetic slip.**
+    - Untracked files only (`stray.txt`, `.idea/x`): `release` goes
+      ahead. The release commit holds only `CHANGELOG.md` (EXECUTED).
+    - Changes to tracked files are refused, and the files are named. A
+      staged change to `README.md` → `tracked files have uncommitted
+      changes: README.md` (EXECUTED).
+    - The slip: with an *unstaged* change, the first name loses its
+      first letter: `… uncommitted changes: HANGELOG.md, README.md`
+      (EXECUTED).
+    - The cause: `git()` calls `.strip()` on the whole output. That eats
+      the leading space of the first porcelain line (` M CHANGELOG.md`),
+      and `line[3:]` then cuts one character too many.
+    - Fix: run `git status --porcelain` without the strip, or use
+      `git diff --name-only HEAD`. This is cosmetic and does not block.
+11. **Confirmed as the owner's.** The name is still unregistered. That
+    is the owner's step, not this change's.
+12. **Confirmed.**
+    - The fallback re-raises unless `os.name == "nt"` (READ).
+    - The new per-root lock serializes placement within one process
+      (READ). Run 5 passed the concurrency check on Windows (EXECUTED).
+    - Two small notes on the new lock:
+      - `_placing` keeps one `Lock` per root path for the life of the
+        process. That is a small, bounded leak for an embedder that
+        uses very many roots.
+      - The spec 001 amendment says the rename fallback "covers other
+        processes". It covers the *renaming* side only. Run 4 showed the
+        *reading* side, `open` of the zip mid-rename, failing with
+        `Errno 13`. Two processes making first calls on one root on
+        Windows can still meet that (INFERRED).
+      - Suggest the amendment say so: one root per process on Windows,
+        or let a failed first read retry once.
+      - Neither note blocks.
+13. **Not confirmed. The notes' numbers are stale again.**
+    - They give the local wheel as `184048f4…`. At `4ef924b`, the
+      pinned backend and the local set give `ef759b98…`, which is run
+      5's wheel byte for byte (EXECUTED). `184048f4…` is probably from
+      `889acbd`, before `74d7e3c` changed `runner.py`.
+    - "Locally … `91/93`" should now read `91/94`.
+    - The heading "(… three runs)" now lists five.
+    - The "Judge edits" paragraph still says the link check "lets the
+      guest's link creation fail". It no longer does on POSIX
+      (finding 4). It also still calls the Windows cache "the profile
+      cache" (finding 16).
+    - Fix the text only. Better still, state that run 5's wheel and
+      `.tar.xz` rebuild byte for byte here: `ef759b98…` and `6bf439ed…`.
+14. **Confirmed.**
+    - `UV_LOCKED=1` and `UV_PYTHON=3.14.2` are set. Run 5 logs `Using
+      CPython 3.14.2` on all four jobs (EXECUTED).
+    - uv's managed Python downloads are hash-checked by uv itself
+      (INFERRED).
+15. **Confirmed.** `set -o pipefail` is in place, with `grep -Eq "^4
+    passed, [0-9]+ deselected in"` (READ). Run 5's line matches.
+16. **Confirmed** (READ). The docstring now says that the runner makes
+    no ownership check on Windows.
+
+**Is cutting v0.1.0a1 clear of finding 1?** Yes. The HACL\* notice is
+in the set's `LICENSES/cpython.txt`, in both release assets. A v1.1
+check holds it, and the recipe guards its source. I found no other
+bundled code without a notice in `Modules/_hacl/`. My earlier probes of
+numpy's and pandas' vendored code also found their notices.
+
+**Verdict: confirmed. Spec 004 can land.**
+
+- Before or at landing, correct the stale figures and paragraphs in the
+  landing notes (finding 13).
+- Fix the porcelain-strip slip (finding 10) when convenient.
+- The other residuals are optional: the open `[build-system]` pin, the
+  wording of the cross-process lock note, and the KaRaMeL remark.
+- Landing needs `--accept-judge`.
+- Cutting v0.1.0a1 is no longer blocked by finding 1. It still waits on
+  the owner's instruction.

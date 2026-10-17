@@ -24,6 +24,8 @@ env:
   # The judge's own environment exactly as uv.lock pins it, on the Python it is developed with.
   UV_LOCKED: "1"
   UV_PYTHON: "3.14.2"
+  # Every build of this package, the editable one uv run makes included, uses the pinned backend.
+  UV_BUILD_CONSTRAINT: release/build-constraints.txt
 
 jobs:
   build:
