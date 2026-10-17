@@ -1,7 +1,8 @@
 # 029 — The landing lane is guarded
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
-  (`../reviews/029-the-landing-lane-is-guarded-spec-2026-10-17.md`), awaiting its confirmation.
+  (`../reviews/029-the-landing-lane-is-guarded-spec-2026-10-17.md`), whose confirmation passed it
+  for build with four conditions (A to D), written in.
 - **Owner:** Clay Gendron
 - **Kind:** judge additions and changes (`tests/checks/test_rules.py`, `tests/harness/plugin.py`,
   `tests/harness/paths.py`'s stray-conftest walk, `run_meta`'s `dirty`), the scoreboard's
@@ -31,17 +32,24 @@ Code's default `.claude/worktrees/`) changes the main tree's judge hash.
    does not move `<c>`, so the lane is never red between accepting and committing. Older history
    is not re-judged (23 of 31 past acceptance commits also carried code; the newest, `cb0c5a6`,
    carries only the two files; the review's `rule1.py`).
-2. **`dirty` means tracked changes.** `run_meta` records `dirty` from `git status --porcelain
-   --untracked-files=no`, so an untracked `.idea/` no longer marks every run dirty (all 34
-   history lines say `true` today). From the first acceptance after this lands, rule 1 also
-   requires the newest line's `dirty` to be `false`.
+2. **`dirty` means a change the judge could see, and an acceptance refuses it.** `run_meta`
+   records `dirty` as true when `git status --porcelain` shows any tracked change anywhere
+   (`context/progress/` excepted) or any untracked file under the judge's inputs (`src/`,
+   `tests/`, `scripts/`, `recipes/`, `pyproject.toml`, `uv.lock`); an untracked `.idea/` no longer
+   counts (all 34 history lines say `true` today; condition D). `--accept` on a dirty tree is
+   refused when it is made, in `pytest_configure`, with one line naming the first changed path,
+   exit 1, so a dirty acceptance is never written and main can never be red-locked by one
+   (condition B). Rule 1 also requires the newest committed line's `dirty` to be `false` from the
+   first acceptance after this lands.
 3. **Main is linear.** A rules check: `git rev-list --merges HEAD` is empty.
 4. **Only the lane accepts.** The plugin refuses `--accept` alone (`--accept-judge`,
    `--accept-growth` and `--partial` write nothing without it, so they stay allowed) when the run
    is in a linked worktree (`git rev-parse --absolute-git-dir` differs from `git rev-parse
    --path-format=absolute --git-common-dir`, git 2.31 or later) **and** the progress folder it
    would write resolves to a `context/progress` folder of this repository (the worktree's own,
-   the default, or the main tree's, reached by `--progress-dir`). Any other `--progress-dir`, as
+   the default, or the main tree's, reached by `--progress-dir`), compared with
+   `os.path.samefile` against `context/progress` of every worktree `git worktree list
+   --porcelain` names, so case and links cannot slip past (condition A). Any other `--progress-dir`, as
    the plugin's own self-tests use, is allowed: it writes no accepted state, and the scoreboard
    already announces it. The refusal happens in `pytest_configure`, before collection, with one
    line `accept: only the landing lane accepts, in the main tree (constitution §5.7); this is a
@@ -55,7 +63,13 @@ Code's default `.claude/worktrees/`) changes the main tree's judge hash.
    the scoreboard announces each worktree below the root found by `git worktree list
    --porcelain` (one line, `note: a worktree inside the repository: <path> (constitution §4.14
    puts them outside)`), since §4.14 places them outside; the hash stays stable either way.
-6. **Where git or its history is absent.** Rules 1 and 3 need `git history`: met when `git
+6. **The lane's acceptance commit, and recovery.** After `--accept` the lane commits with
+   `git commit -- context/progress/accepted.json context/progress/history.jsonl` and nothing
+   else. If an acceptance commit carries anything more (as `380f70d` did, a doc file), rule 1 is
+   red until the lane accepts again on a clean tree and commits only the two files: the newest
+   acceptance is what rule 1 reads, so one correct acceptance restores it; history is never
+   rewritten (condition C). `context/progress/README.md` says this in two lines.
+7. **Where git or its history is absent.** Rules 1 and 3 need `git history`: met when `git
    rev-parse --is-shallow-repository` prints `false`; otherwise they are blocked, not failed (a
    shallow clone's root commit has no parent to compare; the release builds with
    `fetch-depth: 0`). Where git is absent, `--accept` proceeds as today.

@@ -1,7 +1,9 @@
 # 028 — `pip install wasi-python` runs programs
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
-  (`../reviews/028-pip-install-wasi-python-spec-2026-10-17.md`), awaiting its confirmation.
+  (`../reviews/028-pip-install-wasi-python-spec-2026-10-17.md`), whose confirmation passed it for
+  build with three conditions, written in. It is build-class (it changes the release workflow;
+  constitution §5.7), so it builds after spec 027 lands (condition C).
 - **Owner:** Clay Gendron
 - **Kind:** packaging (`pyproject.toml`: the dependency, the empty extra, the dev group;
   `uv.lock`), the runner (`src/wasi_python/runner.py`: its module docstring at line 9 and
@@ -46,7 +48,8 @@ with this trade-off.
    with wasi-python; reinstall it or install wasmtime directly`. A wasmtime that is installed
    but cannot load (its pure `py3-none-any` wheel on an unsupported platform raises
    `RuntimeError` naming the architecture) has its own error chained under the same message:
-   `_wasmtime` catches `ImportError`, `RuntimeError` and `OSError`. A check asserts the message
+   `_wasmtime` catches `ImportError`, `RuntimeError` and `OSError` and raises `ImportError`
+   from it (condition B). A check asserts the message
    names `wasmtime>=49,<50`.
 4. **The release proves the plain install.** The workflow's install check installs the built
    wheel as `wasi-python @ ./<wheel>` (no extra) and runs a program, so a release whose wheel
@@ -85,11 +88,12 @@ artifacts-only package.
    specifier `>=49,<50`, no marker; `project.optional-dependencies` is exactly `{"run": []}`; the
    dev group names no wasmtime. Seen failing first on today's file.
 2. In a fresh environment, `uv run --isolated --no-project --with "wasi-python @ <wheel>"` runs a
-   program through `wasi_python.run` and through `wasi-python run`; the same with `[run]`
-   imports.
-3. `test_package_imports_without_wasmtime` still passes; a check makes `wasmtime` raise
-   `RuntimeError` at import and finds the runner's message, naming `wasmtime>=49,<50`, chained
-   over it.
+   program through `wasi_python.run` and through `wasi-python run`; the same with `[run]` asserts
+   the installed metadata as Decision 4 says (condition A).
+3. `test_package_imports_without_wasmtime` still passes; a check, in a subprocess whose
+   `sys.meta_path` begins with a finder that raises `RuntimeError` for `wasmtime`, calls `run`
+   and finds an `ImportError` naming `wasmtime>=49,<50` whose `__cause__` is that `RuntimeError`
+   (condition B).
 4. `uv run pytest` green with `--accept-judge`; lost 0; grew 0. A release dry run passes,
    its install check using the plain name.
 

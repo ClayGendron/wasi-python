@@ -246,3 +246,101 @@ silent about carried code.
 One line: key rule 3 on the `context/progress` folder being written and on `--accept` alone,
 read rule 1's line from the commit, require the acceptance commit to carry only the two progress
 files, and confine rule 4 to the stray-conftest walk.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `d6f2792`, and the Disposition above (`b8824bc`).
+  I wrote nothing in the repository but this section. I did not commit or stage it.
+- **Ran (EXECUTED, darwin-arm64, APFS).** In
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev028-029/casetest/`,
+  I resolved five ways of writing a progress folder against `<tmp>/context/progress`, comparing
+  both `Path.resolve()` equality and `os.path.samefile`. I also ran `git show --stat` on the five
+  newest "Accept" commits.
+
+### Each disposition against its finding
+
+1. **The refusal's key: closed, with condition A.** READ: Decision 4 keys on a linked worktree
+   **and** a progress folder resolving to this repository's `context/progress`. Criterion 4 runs
+   the plugin self-tests from a worktree.
+2. **Only `--accept`: closed.**
+3. **Committed history: closed.** READ: `<c>` comes from `git show <c>:…`, the first parent, and
+   the uncommitted case is a pass in criterion 1.
+4. **What the acceptance carries: closed in intent, with conditions B, C and D.**
+5. **Shallow clones: closed.** READ: the `git history` need, blocked when shallow.
+6. **Absolute forms: closed.** Clones are out of scope, and the spec says so.
+7. **The walk's scope: closed.** READ: only the stray-conftest walk, with `lexists`. A nested
+   repository under `tests/` stays in the hash. The Kind and the Design are corrected.
+8. **A worktree inside: closed.** READ: a scoreboard note from `git worktree list --porcelain`.
+9. **Leftovers: closed.** READ: the refusal runs in `pytest_configure` and exits 1, it wins over
+   `PYTEST_ADDOPTS`, `--accept` proceeds where git is absent, and "first parent" is written.
+
+### The coordinator's three questions
+
+- **Relative paths and links.** EXECUTED: `context/progress`, `./context/../context/progress/`
+  and a symbolic link to the folder all resolve equal to the target. But `Context/Progress` does
+  not compare equal (`False`), while `os.path.samefile` says it is the same folder (`True`). macOS
+  APFS ignores case by default. INFERRED: pytest hands the option over as written, so
+  `Path(d)` is relative to the process's working directory, which is the invocation directory.
+  `resolve()` handles that. → Condition A.
+- **"Exactly the two files" against the lane's commits.** EXECUTED: `cb0c5a6`, `de91fff`,
+  `c35d222` and `fcf1715` change only `accepted.json` and `history.jsonl`. `380f70d` ("Accept spec
+  020") also adds 10 lines to `context/questions-for-the-owner.md`. So the lane has already
+  broken (b) once with a harmless doc file, and nothing in its written procedure forbids it. If it
+  happens on main after 029, rule 1 is red, and there is no way back without rewriting history
+  (condition C).
+- **`dirty` against uncommitted spec files.** INFERRED from Decision 2. A new spec or review that
+  is untracked does not count, so an acceptance with drafts lying around stays clean. A tracked
+  file edited and not committed does count: a Disposition being filled in, or (EXECUTED,
+  `git status` now) `scripts/build.sh` and `tests/unit/test_build_progress.py` under another
+  agent's hands. That is right under §5.7, since the main tree is the lane's. But it bites at the
+  wrong moment (condition B). And `--untracked-files=no` hides the one case that matters most
+  (condition D).
+
+### Conditions left (each a sentence or two; none changes the design)
+
+- **A. Compare folders with `os.path.samefile`, not resolved-path equality,** whenever the folder
+  exists. A folder that does not exist yet compares by `resolve()`. And "this repository's
+  `context/progress`" means the folder in every worktree `git worktree list --porcelain` lists, the
+  main tree's included, so a builder cannot write into a sibling worktree's folder either.
+- **B. Refuse a dirty acceptance when it is made, not on the next run.** As written, rule 1 reads
+  `dirty` from the committed line. So a dirty acceptance is written and committed, and only then
+  does the judge go red. Rule 1 is an accepted pass by then, so its failure is a lost pass. Every
+  later `--accept` is refused as "not green", and main is stuck (INFERRED from `scoreboard.accept`'s
+  refusals). Fix: the plugin also refuses `--accept` when `git status --porcelain
+  --untracked-files=no` is not empty (one line, exit 1, in `pytest_configure` with the worktree
+  refusal). Rule 1's `dirty` test then only catches a hand-edited line. Say which acceptance is
+  the first to be required clean: 029's own.
+- **C. Write the lane's commit step and its recovery.** `context/progress/README.md`'s two lines
+  (Design) say that the acceptance commit holds exactly the two files and is made right after
+  the accepting run. Also say how the lane recovers if rule 1(b) is ever red on main. `--accept`
+  is then refused, so the only way back is to redo the lane's own unpushed acceptance commit
+  (`git reset --soft HEAD^` and commit the two files alone). That is not a fast-forward, so either
+  §4.14 needs the owner's word for this one case, or the spec says such a commit is never pushed
+  red: the lane runs the rules tier (`uv run pytest tests/checks/test_rules.py`) on the
+  acceptance commit before moving main.
+- **D. `dirty` must still see untracked judge inputs.** READ: `paths.judge_files()` takes `tests/`
+  from disk by `rglob`, untracked files included. The memo (§3.1) caught another agent's untracked
+  test file inside a judge hash. With `--untracked-files=no`, an acceptance judged with an
+  untracked test file reads `dirty: false`, and the committed tree lacks that file. Fix: `dirty`
+  is true when there is a tracked change **or** a judge file that `git ls-files` does not list.
+  `.idea/` and untracked drafts still do not count. Criterion 2 adds the case.
+
+### §5.2
+
+After A to D, nothing is left to the build.
+
+### Verdict
+
+**Passes for build**, once A to D are written in. All nine findings are closed. A and D are
+precision fixes. B and C close a deadlock the revision introduced: a dirty or over-full acceptance
+committed on main would make rule 1 red and refuse every later acceptance.
+
+One line: compare folders by `samefile` across every worktree, refuse a dirty `--accept` when it
+is made, count untracked judge files as dirty, and write the lane's two-file commit and its
+recovery.
+
+### The confirmation's conditions, written in by the author
+
+Each condition is written into the specification's Decisions or criteria, marked by its letter.

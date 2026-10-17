@@ -196,3 +196,57 @@ definition (Finding 2). And the cost to an embedder on another wasmtime is not s
 One line: make wasmtime required as written, but define the metadata check from `pyproject.toml`
 and the wheel, assert `Provides-Extra` instead of trusting a silent `uv run --with "[run]"`, and
 state the `--no-deps` route for embedders on another wasmtime.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `d6f2792`, and the Disposition above (`b8824bc`),
+  by `git diff ae35507 b8824bc -- context/specifications/028-pip-install-wasi-python.md`. I wrote
+  nothing in the repository but this section. I did not commit or stage it.
+
+### Each disposition against its finding
+
+1. **The `[run]` line: closed.** READ: Decision 4 now asserts `Provides-Extra` is exactly
+   `["run"]` and that no `Requires-Dist` has an `extra ==` marker. It also says why an import alone
+   proves nothing. One loose end is condition A.
+2. **The metadata check: closed.** READ: criterion 1 uses `tomllib` and `packaging`, requires
+   exactly one dependency, `{"run": []}`, and no wasmtime in the dev group. It no longer reads the
+   wheel's `METADATA`. That is acceptable, because Decision 4's install line now checks the
+   published wheel's metadata on three systems.
+3. **The `<50` cost: closed.** READ: the problem section names it and the `--no-deps` route. The
+   Design adds the README line.
+4. **A wasmtime that cannot load: closed, with condition B.** READ: `_wasmtime` catches
+   `ImportError`, `RuntimeError` and `OSError`, and criterion 3 tests the `RuntimeError` case.
+5. **Stale text: closed.** READ: the Kind names `runner.py:9`, `__init__.py`, and the amendment
+   notes for 001, 004 and 019. 019 is under "Depends on".
+6. **The dev group: closed.** READ: it is removed, and criterion 1 asserts that. INFERRED: the dev
+   environment still gets wasmtime, because the editable project depends on it. EXECUTED earlier:
+   the relocked `wasi-python` entry lists `dependencies = [{ name = "wasmtime" }]`.
+
+### Conditions left (each a sentence; none changes the design)
+
+- **A. Criterion 2 still says "the same with `[run]` imports".** Make it match Decision 4: the
+  `[run]` install asserts the metadata.
+- **B. Name the type `_wasmtime` raises.** I assume `ImportError`, raised `from` the original, so
+  `run()`'s callers and the command line's `"kind"` see one type whatever went wrong. Say it.
+  Criterion 3's `RuntimeError` case needs a stand-in `wasmtime` module whose import raises.
+  `sys.modules[...] = None` only gives `ImportError`. Say how the check builds it: a folder on
+  `sys.path` in the child process.
+- **C. The class.** The change edits `release.yml`, so it is build-class (AGENTS.md rule 2) and
+  waits for 027. The header still does not say so.
+
+### §5.2
+
+After A to C, nothing is left to the build.
+
+### Verdict
+
+**Passes for build**, once A to C are written in. All six findings are closed.
+
+One line: the revision closes every finding; align criterion 2 with Decision 4, name the raised
+type and how the `RuntimeError` stand-in is built, and mark the spec build-class.
+
+### The confirmation's conditions, written in by the author
+
+Each condition is written into the specification's Decisions or criteria, marked by its letter.
