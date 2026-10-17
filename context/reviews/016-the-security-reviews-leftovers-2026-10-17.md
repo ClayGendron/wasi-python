@@ -583,3 +583,109 @@ N1. **Nothing checks that the sweep leaves an entry whose lock attempt errors** 
 **Still open:** N1, one cheap unit case. The code is already correct; only the check is
 missing. The build lands once N1 is fixed or answered in writing. Criterion 3, the dry run, then
 shows the Windows path for the first time.
+
+## Follow-up: the Windows dry run (2026-10-17)
+
+A fresh reviewer, who wrote neither the build nor this change, checked one uncommitted judge
+change: `tests/unit/test_runner_sweep.py`, the check
+`test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again` (finding 1's check).
+Scratch work is under the session scratchpad, `rev016w/`.
+
+### What failed
+
+- The release dry run, run 39044137653, failed `verify (windows-2025)` in this one check and
+  nothing else (EXECUTED, `gh run view --log-failed`: 1 failed, 123 passed, 8 skipped; Python
+  3.14.2).
+- The check's own `lock.unlink()` raised `PermissionError: [WinError 32]`, a sharing violation.
+  The creator, `_Private.__init__`, still held the lock file open from its `O_EXCL` creation.
+- So the code did not fail; the check could not perform its simulated sweep on Windows.
+
+### 1. Can the race happen on Windows?
+
+No, for the creator's open lock file. The claim holds.
+- **How the creator opens (READ, `build/Python-3.15.0/Modules/posixmodule.c:11724`).** On
+  Windows, `os.open` calls the C runtime's `_wopen(path, flags, mode)`. It passes no share flag.
+- **What that share mode is (INFERRED, from the UCRT's `_wsopen`).** `_wopen` opens with
+  `_SH_DENYNO`, which is `FILE_SHARE_READ | FILE_SHARE_WRITE`. `FILE_SHARE_DELETE` is added only
+  for `_O_TEMPORARY`, which the runner does not use (READ, `_Private.__init__`: `O_RDWR`,
+  `O_CREAT`, `O_EXCL`, `O_BINARY`; the POSIX-only flags are 0 there).
+- **What that means.** Deleting a file opens it for `DELETE` access. While any handle lacks
+  `FILE_SHARE_DELETE`, that open fails with error 32. This holds for another process and for the
+  same process, which is what the dry run showed (EXECUTED, in CI). Windows' newer POSIX-style
+  delete does not change this: it still needs that `DELETE` open first (INFERRED).
+- **No gap at creation (INFERRED).** `O_CREAT | O_EXCL` maps to `CREATE_NEW`, which creates and
+  opens in one call. The file never exists without the creator's handle until `_abandon` or
+  `remove` closes it.
+- **The sweeper (READ, `_sweep_entry`).** On Windows it closes its own handle first, then calls
+  `_unlink_quietly`. That unlink fails on a creator's open file and is swallowed. So the sweeper
+  cannot remove a creator's new lock file while the creator holds it.
+- **The one Windows path left, and it is benign (INFERRED).** A sweeper can take the lock on a
+  creator's new, empty file before the creator does. Then:
+  - the creator's `_try_lock` returns `False`, so it raises `_Taken` with `owns` still `False`;
+  - `_abandon` closes without unlinking, and the creator draws a new name;
+  - the sweeper's later unlink fails if the creator has not closed yet.
+
+  The result is a lone, empty lock file. A later sweep removes it under the lone-lock rule.
+  Nothing raises out of `run` and no data is lost. POSIX has the same window, but its sweeper
+  unlinks while still holding the lock, so nothing is left there. Not a finding.
+- **Out of scope (INFERRED).** A `%TEMP%` on a network share relies on the server's share-mode
+  enforcement. That is not a supported layout for a per-user temporary folder here.
+
+### 2. Does the check still guard finding 1 on POSIX?
+
+Yes (EXECUTED, macOS). The check ran against copies of `src/` on `PYTHONPATH`; each run printed
+the copy's `runner.__file__` to prove the copy was the one imported.
+
+| copy | change to the runner | result |
+|------|----------------------|--------|
+| `m0` | none | passes |
+| `m1` | `_same_file` without its `try`: raises on a missing path (finding 1's bug) | **fails**: `FileNotFoundError` out of `_Private` |
+| `m2` | `_same_file` always `True` | **fails**: the creator kept the swept name |
+| `m3` | the creator ignores `owns` (`owns = True`) | **fails**: the creator kept the swept name |
+
+- On POSIX the `unlink` succeeds, so the check takes the old branch, unchanged in substance.
+- If an `unlink` ever raised `PermissionError` on POSIX, the check would not pass quietly
+  (EXECUTED, `w1`: a scratch copy of the check whose `unlink` raises fails on
+  `assert os.name == "nt"`).
+- It also adapts by itself. If Windows ever let the file be deleted, the check would take the
+  POSIX branch there and test the redraw.
+
+### 3. Does the Windows branch assert something real?
+
+Yes (EXECUTED by simulation, `w2`, since no Windows host was run here). The scratch copy `w2`
+makes `unlink` raise `PermissionError` and waives the `os.name` check.
+- Against the real runner it passes.
+- Against `m4`, a runner whose creator redraws once even though its file is still there, it
+  **fails**: `assert 3 == 2`, the abandoned first lock file plus the second name's folder and
+  lock.
+
+So `len(names(temp)) == 2` is right. It is the folder and its one lock file, and it tells "kept
+its first name" from "redrew". It also shows that `_same_file` is `True` for a file that is still
+there on Windows; otherwise every draw would fail.
+
+Nit (not blocking): record the lock file's name in both branches. The Windows branch could then
+assert `Path(private.lock_path).name == first`, which says "its first name" directly rather than
+by a count.
+
+### 4. The judge
+
+- `uv run pytest -q tests/unit/test_runner_sweep.py`: 27 passed (EXECUTED).
+- `ruff check src tests`: clean. `ruff format --check src tests`: 47 files already formatted
+  (EXECUTED).
+- `uv run pytest -m "not slow"` (EXECUTED): 158/166, 0 fail, unit suite 345/345; ratchet `lost 0 ·
+  gained 0 · grew 0`; `judge changed: tests/unit/test_runner_sweep.py`. Acceptance therefore needs
+  `--accept-judge` with a reason.
+- The change edits a check. It does not weaken it: on POSIX it fails on every mutation above, as
+  before. On Windows it replaces a crash of the check itself with a real assertion, and it adds no
+  skip.
+
+### Verdict
+
+**Lands.** The Windows claim is right for how CPython opens the creator's file. Finding 1's guard
+on POSIX is intact. The Windows branch checks a real property. The one nit is optional. Accept it
+with `--accept-judge`, naming this follow-up, and confirm on the next Windows dry run.
+
+### Disposition of the follow-up (filled in by the author)
+
+- The nit is taken: the Windows branch records the first lock file's name and asserts the
+  creator kept it, instead of counting entries.

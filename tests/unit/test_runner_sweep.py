@@ -215,21 +215,33 @@ def test_a_private_folder_goes_before_its_lock_file(temp, monkeypatch) -> None:
 
 def test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again(temp, monkeypatch) -> None:
     """A sweeper removes a new, still-empty lock file (the lone-lock rule) before its creator
-    locks it: the creator draws another name instead of raising (build review, finding 1)."""
+    locks it: the creator draws another name instead of raising (build review, finding 1). On
+    Windows the race cannot happen: the creator holds the file open from its creation, and an
+    open file cannot be deleted, by a sweeper or by this check; there the check shows that, and
+    that the creator keeps its first name."""
     real = runner._try_lock
-    removed = []
+    removed, kept = [], []
 
     def swept_first(fd):
         if not removed:
             (lock,) = temp.glob("*.lock")
-            removed.append(lock.name)
-            lock.unlink()
+            try:
+                lock.unlink()
+                removed.append(lock.name)
+            except PermissionError:  # Windows: open, so no one can delete it
+                removed.append(None)
+                kept.append(lock.name)
         return real(fd)
 
     monkeypatch.setattr(runner, "_try_lock", swept_first)
     private = runner._Private("wasi-python-root-")
     try:
-        assert private.path.is_dir() and Path(private.lock_path).name != removed[0]
+        assert private.path.is_dir()
+        if removed[0] is None:
+            assert os.name == "nt", "only Windows refuses to delete an open file"
+            assert Path(private.lock_path).name == kept[0]  # its first name: no redraw
+        else:
+            assert Path(private.lock_path).name != removed[0]
     finally:
         private.remove()
     assert names(temp) == []
