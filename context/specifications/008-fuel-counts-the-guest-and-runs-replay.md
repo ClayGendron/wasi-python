@@ -38,20 +38,24 @@
    section ids; section 8 is the start section). Neither has one today (EXECUTED). A unit test
    runs the same assertion on a WAT module with a start section, so the rule is seen to fail.
 3. **The cache no longer moves fuel, checked.** A v1.4 check,
-   `test_fuel_does_not_depend_on_the_module_cache`, runs `-c pass` on the snapshot in two fresh
-   processes (as the existing cache probe does): the first with `cache_dir=False`, the second
-   loading a `.cwasm` from a private cache a first call wrote, asserting through `stats()` that
-   it was loaded. Both report the same `fuel_used`, within the judge's 0.01% tolerance (the real
-   clock moves fuel by a few thousand instructions; the image charge it guards against is
-   42.35M). It fails today by that charge (the research, EXECUTED). A unit test checks the
+   `test_fuel_does_not_depend_on_the_module_cache`, runs `-c pass` on the snapshot, with a
+   `fuel` cap and `deadline_s=None`, in two fresh processes sharing one private cache directory
+   (as the existing cache probe does): a writer, which compiles and writes the `.cwasm`
+   (`stats()`: compiled 1, written 1), and a loader, which loads it (`stats()`: loaded 1). Their
+   `fuel_used` differ by less than 1,000,000 instructions: a fixed bound between the real
+   clock's noise (the runner's snapshot `-c pass` spread 107,811 to 151,964 across sets of 15 to
+   40 runs; the review, EXECUTED) and the 42.35M image charge it guards against. The judge's
+   0.01% tolerance (about 8,190 instructions here) is for its own driver, whose clock is fixed;
+   the runner's is real. It fails today by the charge (the research, EXECUTED). A unit test checks the
    driver's side: a WAT module with a data page and the same module without report the same fuel.
 4. **The judge's figures change once.** With Decision 1 in the driver, every accepted fuel
    metric drops by its binary's instantiation charge on macOS: 42,352,641 for the snapshot,
    5,046,273 for the plain reactor. The "before" figures are re-measured on this build, not
-   taken from `accepted.json`. Two kinds of metric are expected not to drop by exactly that: the
-   C++-exception check, which records the runner's fuel on the real clock (its drop is the charge
-   within a few thousand), and programs that touch inode numbers, which wasmtime hashes from the
-   host's and so move by tens of instructions between roots (the review, EXECUTED). Any other
+   taken from `accepted.json`. Programs that touch inode numbers are expected not to drop by
+   exactly that: wasmtime hashes them from the host's, so they move by tens of instructions
+   between roots (the review, EXECUTED). The C++-exception check no longer records a fuel metric
+   (spec 006's landing removed it: the runner's real clock spreads its count by about 96,000,
+   wider than its 0.01% band; the review, EXECUTED), so it is not among the metrics. Any other
    metric that does not drop by exactly its charge is investigated. Accepted with
    `--accept-judge`; the 0.01% tolerance is unchanged.
 

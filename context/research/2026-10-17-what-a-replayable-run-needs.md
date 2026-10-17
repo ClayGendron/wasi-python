@@ -17,7 +17,7 @@ a record of the run hold so that equal records mean the same run?
 
 ## What is known (from the review of spec 008's first draft, EXECUTED unless marked)
 
-- **Answered by the runner already (the judge's driver does this):** the realtime and monotonic
+- **Answered by the judge's driver already (not by the runner):** the realtime and monotonic
   clocks and `random_get`. With them fixed, `os.urandom`, `uuid4`/`uuid1`, `random`, numpy's
   legacy generator and unseeded `default_rng`, `tempfile`'s names and the plain reactor's hash
   secret all repeat.
@@ -45,7 +45,9 @@ a record of the run hold so that equal records mean the same run?
 An experiment that answers, from the runner, `clock_res_get`, `poll_oneoff` for clock-only
 subscriptions (advancing the fake clock instead of waiting), and the inode and timestamp fields
 of `fd_filestat_get`, `path_filestat_get` and `fd_readdir` (a stable inode per path; fixed
-times), then runs the golden jobs and a set of probes a hundred times each across fresh roots and
+times). The obstacle: wasmtime-py cannot call the WASI function it shadows, so answering the
+filestat and readdir calls means re-implementing them over the root (with the wall's
+confinement), not wrapping wasmtime's. The experiment then runs the golden jobs and a set of probes a hundred times each across fresh roots and
 two operating systems, and counts how many outputs and fuel figures differ. Then the record's
 encoding, specified to the byte, and a check that a changed door response changes the record.
 

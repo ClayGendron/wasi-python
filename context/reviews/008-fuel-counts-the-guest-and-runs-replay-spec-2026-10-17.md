@@ -413,3 +413,132 @@ One line: metering from after instantiation is correct and removes exactly the i
 but a replay's fuel still moves with the root's inode numbers. Take fuel out of the record's
 exact claim (or narrow it to the same host files), complete and pin down the record, and fix the
 sleep sentence and the two checks before building.
+
+## Confirmation by the reviewer, 2026-10-17
+
+- **Re-read:** the specification at `df729f2` (90 lines, narrowed to Decisions 1 to 4), the
+  Disposition above, and `context/research/2026-10-17-what-a-replayable-run-needs.md`.
+- **Ran (EXECUTED, darwin-arm64, wasmtime-py 49.0.0, `build/artifacts/` read only).** Two new
+  probes are under the same scratch directory: `p9_noise.py` and `p10_noise_more.py`, with their
+  `.txt` outputs. Both call `wasi_python.run` as it is at HEAD, with `cache_dir=False` and a
+  private root. Nothing under `build/` was written. pytest was not run.
+
+### Each finding
+
+1. **Inode residual: confirmed, answered by the split.** No replay is promised, and the memo
+   records the effect. Decision 4 names it as an exception.
+2. **The record's coverage: confirmed, answered by the split.** The memo lists every missing
+   field.
+3. **The not-replayed list and `sleep`: confirmed, answered by the split.** The memo states the
+   `sleep` behaviour correctly.
+4. **The encoding: confirmed, answered by the split.**
+5. **The cache check: half fixed; reopened as N1.**
+   - Fresh processes and the `stats()` assertion answer the memo problem.
+   - The added tolerance does not hold. See N1.
+6. **The replay check: confirmed, answered by the split.**
+7. **Decision 6's figures: mostly fixed; reopened as N2.**
+   - "Before" is now re-measured on this build, and the inode exception is named.
+   - The figure given for the C++-exception check is wrong. See N2.
+8. **Decision 1's wording: confirmed fixed.** Decision 1 now says three things. The reset
+   applies only with a cap. Without one nothing changes. `_initialize` stays metered.
+9. **Other clock IDs: confirmed, answered by the split.**
+10. **The start-section check: confirmed fixed.** Decision 2's WAT module makes the rule seen to
+    fail. The data-page unit test (Decision 3) fails on macOS today (16,385, the research).
+
+### New findings
+
+N1. **The cache check's 0.01% tolerance is about twenty times too tight for the real clock. As
+    written it would fail most of the time** (`008:40-47`). High.
+    - **Measured (EXECUTED).** The runner's `fuel_used` for snapshot `-c pass` on the real clock
+      varies far more than "a few thousand".
+      - `p10`: forty runs spread over 107,811 instructions (124,194,136 to 124,301,947), with a
+        standard deviation of 36,460.
+      - `p9`: fifteen runs spread 143,294. The same program with the change and a loaded module
+        spread 151,964 (81,801,734 to 81,953,698).
+    - **Why the band is too narrow.** After the change, 0.01% of about 81.9 M is 8,190
+      instructions.
+    - **The odds (INFERRED).** Assume the difference of two independent runs is normal, with a
+      standard deviation of about 51,600. Then it falls within ±8,190 about 13% of the time. So
+      the check would be red in roughly seven runs out of eight.
+    - **The cause.** The runner has no fixed clock now that replay has moved to research.
+      `_refresh` reseeds `random` and `numpy.random` from real entropy on every call, so the
+      count moves.
+    - **Fix.** Compare against a bound that sits between the noise and the charge. The check
+      only has to tell 0 from 42,352,641.
+      - For example: `abs(a - b) < 1_000_000`, or 1% of `a`.
+      - Either bound is about seven times the largest spread seen.
+      - It is still forty times smaller than the snapshot's charge.
+    - Say in the decision that this check does not use the judge's tolerance, and why.
+
+N2. **The C++-exception metric's real-clock spread is about 96,000, not "a few thousand". That is
+    already more than its own 0.01% band** (`008:51-54`). Medium.
+    - **Measured (EXECUTED, `p10`).** Six runs of the check's own program, with the check's
+      arguments, gave 440,955,170 to 441,051,408: a spread of 96,238. The band at 0.01% is
+      44,095.
+    - **It matters today.** All six samples are above the accepted 440,857,299 × 1.0001
+      (440,901,385). On today's build this metric may already read as "fuel grew".
+      - I cannot tell how much of that is noise. The artifacts in `build/` may be newer than
+        the accepted set (`856e08eb…`). INFERRED.
+    - **After Decision 1.** The figure falls to about 398.6 M and the band to about 39,900. The
+      noise stays the same, so the metric becomes a ratchet that can flip at random.
+    - **Fix.** This is a judge change anyway. Either:
+      - stop recording fuel from runner calls on the real clock (`metric("fuel", …)` in
+        `test_a_cpp_exception_reaches_python`), and say so in the landing notes;
+      - or give that metric a stated wider band.
+    - Correct Decision 4's "within a few thousand" to the measured spread either way.
+
+N3. **Two lines in the replay memo overstate or understate** (`what-a-replayable-run-needs.md`).
+    Low. This is not spec 008's text. It is noted here because the memo cites this review.
+    - "Answered by the runner already (the judge's driver does this)" is wrong: the runner does
+      not answer these calls. Only the judge's driver does. Make it "answered by the judge's
+      driver; the runner does not yet".
+    - "What would answer it" proposes answering the filestat and readdir calls from the runner.
+      wasmtime-py's shadowing cannot call the function it shadows (finding 1, option c). Name
+      that obstacle, so the experiment's cost is clear: it means re-implementing those calls,
+      with path resolution.
+
+N4. **Decision 3's process sequence is ambiguous** (`008:41-44`). Low.
+    - "The first with `cache_dir=False`, the second loading a `.cwasm` … a first call wrote"
+      reads as two processes, but three are needed:
+      - one with `cache_dir=False`;
+      - one that compiles and writes the cache;
+      - one that loads it.
+    - The writing call itself compiled in the process, so two processes suffice:
+      - a writer, asserting `compiled == 1` and `written == 1`;
+      - a loader, asserting `loaded == 1`.
+    - Say which.
+    - Pass `deadline_s=None` and a `fuel` cap, so `fuel_used` is never `None`.
+
+### Constitution, after the revision
+
+- §4.4, §4.5 and §4.9 hold. The checks compare counts. No guest import changes.
+- §4.10 holds except for Decision 3's and Decision 4's "a few thousand". That is an unmeasured
+  figure, and the measurement contradicts it (N1, N2).
+- §5.2 holds once N4 states the process sequence.
+- §7: nothing tripped.
+
+### Verdict after the revision
+
+**Ready to build once N1 and N2 are corrected in the text.**
+- **N1.** As written, the cache check would be red about seven times in eight on the real clock.
+- **N2.** Decision 4 rests on a wrong noise figure for the one runner metric, and that metric's
+  noise already exceeds its band.
+- **N3 and N4.** One-line text changes.
+
+The split answers findings 1 to 4, 6 and 9. Findings 8 and 10 are fixed. Decision 1 itself is
+unchanged and was measured exact.
+
+One line: the narrowed specification is right, but the runner's real clock moves `-c pass` by
+about 100,000 instructions, not a few thousand. Give the cache check a bound between that and
+the 42 M charge, and stop holding the C++-exception metric to 0.01%. Then it can be built.
+
+## The author's answers to the confirmation
+
+- **N1:** fixed. The cache check uses a fixed bound of 1,000,000 instructions and says why it
+  differs from the judge's 0.01%.
+- **N2:** fixed. The C++-exception check stops recording a fuel metric, at spec 006's landing
+  (its runner fuel is on the real clock); Decision 4 says so.
+- **N3:** fixed in the memo: only the judge's driver answers the clock and random; the
+  filestat/readdir plan names the re-implementation obstacle.
+- **N4:** fixed. Decision 3 describes two processes, a writer and a loader, with a fuel cap and
+  `deadline_s=None`.
