@@ -44,6 +44,10 @@ package becomes a Python exception instead of ending the guest.
   they no longer include wasmtime's copy of the memory image (42.35M instructions for the
   snapshot, 5.05M for the plain reactor, charged on macOS when compiled in the process and on
   Windows always). Figures from 0.1.0a1 are that much higher.
+- **A sleeping guest keeps its deadline:** `time.sleep` and `select` no longer hold a call past
+  its deadline; the runner answers the guest's waits itself, stopping at the deadline. One
+  `poll_oneoff` takes at most 4,096 subscriptions (more answer `ENOMEM`: `select.poll()` on more
+  than 2,047 descriptors), and a bad pointer answers `EFAULT`.
 - **Release provenance:** from this release on, every asset is attested by the release workflow
   and verified before it is published; the notes say how to verify a download.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;

@@ -270,9 +270,18 @@ def _instance(
         store.set_limits(memory_size=memory_bytes)
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     store.set_epoch_deadline(ticks)
+    # The ticker's count at which this store's deadline has passed, read after the deadline is set
+    # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
+    stop_at = _stop_at(_epoch_ticker.count(), ticks)
+    waits = _Waits(
+        lambda: time.perf_counter(),
+        time.sleep,
+        None if deadline_s is None else (lambda: _epoch_ticker.count() >= stop_at),
+    )
 
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
+    origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here (spec 010)
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
@@ -286,6 +295,14 @@ def _instance(
         linker = wt.Linker(engine)
         linker.define_wasi()
         i32 = wt.ValType.i32()
+        linker.allow_shadowing = True
+        linker.define_func(
+            "wasi_snapshot_preview1",
+            "poll_oneoff",
+            wt.FuncType([i32] * 4, [i32]),
+            _poll_oneoff(origin_ns, waits),
+            True,
+        )
         door = _door(host)
         linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
 
@@ -314,6 +331,129 @@ def _instance(
     fuel_used = (fuel - store.get_fuel() if metered else 0) if counted else None
     truncated = tuple(s.name for s in (out, err) if s.dropped)
     return Completed(exit_code, bytes(out.data), bytes(err.data), trapped, fuel_used, truncated)
+
+
+EINVAL, ENOMEM, EBADF, EFAULT = 28, 48, 8, 21  # WASI preview1 errno values
+MAX_SUBSCRIPTIONS = 4096  # one poll_oneoff's host work is bounded (spec 010)
+SUBSCRIPTION = (
+    "<QB7xIxxxxQQH6x"  # userdata, tag, clock id or fd, timeout, precision, flags: 48 bytes
+)
+EVENT = "<QHB5xQH6x"  # userdata, error, type, nbytes, flags: 32 bytes
+CLOCK, FD_READ, FD_WRITE = 0, 1, 2
+REALTIME, MONOTONIC = 0, 1
+ABSTIME = 1
+
+
+@dataclass(frozen=True)
+class _Plan:
+    """What one poll_oneoff answers: an errno, or the events to write after waiting wait_ns."""
+
+    errno: int | None
+    events: tuple[tuple[int, int, int, int, int], ...] = ()
+    wait_ns: int = 0
+
+
+def _stop_at(count: int, ticks: int) -> int:
+    """The ticker's count at which a deadline of `ticks`, set when the count was `count`, has
+    passed. The engine's epoch can be one round ahead of the count (the ticker advances the engines
+    first), hence the + 1: a wait never ends before the epoch reaches the deadline (spec 010)."""
+    return count + ticks + 1
+
+
+def _poll_plan(raw: bytes, n: int, realtime_ns: int, monotonic_ns: int) -> _Plan:
+    """poll_oneoff as wasmtime 49 answers it (crates/wasi/src/p1.rs), for the guest's files and
+    stdio: a descriptor subscription is ready at once (stdin for writing, stdout and stderr for
+    reading and the preopened root answer EBADF); otherwise the shortest clock wins, and every
+    clock due by then is reported, with nbytes 0 as wasmtime writes it (spec 010)."""
+    if n == 0:
+        return _Plan(EINVAL)
+    if n > MAX_SUBSCRIPTIONS:
+        return _Plan(ENOMEM)
+    ready, clocks = [], []
+    for userdata, tag, which, timeout, _precision, flags in struct.iter_unpack(SUBSCRIPTION, raw):
+        if tag == CLOCK:
+            if which not in (REALTIME, MONOTONIC):
+                return _Plan(EINVAL)
+            if flags & ABSTIME:
+                timeout -= realtime_ns if which == REALTIME else monotonic_ns
+            clocks.append((max(0, timeout), userdata))
+        elif tag in (FD_READ, FD_WRITE):
+            if (
+                which == 3
+                or (tag == FD_READ and which in (1, 2))
+                or (tag == FD_WRITE and which == 0)
+            ):
+                return _Plan(EBADF)
+            ready.append((userdata, 0, tag, 1, 0))
+        else:
+            return _Plan(EINVAL)
+    if ready:
+        return _Plan(None, tuple(ready))
+    wait_ns = min(timeout for timeout, _ in clocks)
+    due = tuple((userdata, 0, CLOCK, 0, 0) for timeout, userdata in clocks if timeout <= wait_ns)
+    return _Plan(None, due, wait_ns)
+
+
+class _Waits:
+    """A wait that the call's deadline ends: in slices of at most TICK_S while a deadline is set,
+    one sleep otherwise. `now`, `sleep` and `deadline_passed` are injected so the judge counts the
+    slices without measuring time (spec 010)."""
+
+    def __init__(
+        self,
+        now: Callable[[], float],
+        sleep: Callable[[float], None],
+        deadline_passed: Callable[[], bool] | None,
+    ) -> None:
+        self.now, self.sleep, self.deadline_passed = now, sleep, deadline_passed
+
+    def wait(self, seconds: float) -> None:
+        if self.deadline_passed is None:
+            if seconds > 0:
+                self.sleep(seconds)
+            return
+        until = self.now() + seconds
+        while (left := until - self.now()) > 0 and not self.deadline_passed():
+            self.sleep(min(left, TICK_S))
+
+
+def _poll_oneoff(
+    origin_ns: int,
+    waits: _Waits,
+    realtime_ns: Callable[[], int] = time.time_ns,
+    monotonic_ns: Callable[[], int] = time.perf_counter_ns,
+) -> Callable[..., int]:
+    """The shadowed poll_oneoff. It never raises into wasmtime-py (an exception there travels by a
+    process-wide slot another call can take): a wait ended by the deadline answers normally, and
+    the guest traps at its next epoch check. The clocks are injectable for the judge."""
+
+    def call(caller, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
+        try:
+            memory = caller.get("memory")
+            in_ptr, out_ptr, n, nevents_ptr = (
+                v & MASK32 for v in (in_ptr, out_ptr, n, nevents_ptr)
+            )
+            if n == 0 or n > MAX_SUBSCRIPTIONS:
+                return EINVAL if n == 0 else ENOMEM
+            size = memory.data_len(caller)
+            if in_ptr + 48 * n > size or out_ptr + 32 * n > size or nevents_ptr + 4 > size:
+                return EFAULT
+            raw = bytes(memory.read(caller, in_ptr, in_ptr + 48 * n))
+            plan = _poll_plan(raw, n, realtime_ns(), monotonic_ns() - origin_ns)
+            if plan.errno is not None:
+                return plan.errno
+            if plan.wait_ns:
+                waits.wait(plan.wait_ns / 1e9)
+            events = b"".join(struct.pack(EVENT, *e) for e in plan.events)
+            memory.write(caller, events, out_ptr)
+            memory.write(caller, struct.pack("<I", len(plan.events)), nevents_ptr)
+            return 0
+        except KeyboardInterrupt:
+            raise
+        except Exception:
+            return EINVAL
+
+    return call
 
 
 class _Stream:
@@ -656,11 +796,16 @@ class _epoch_ticker:
     deadline of n ticks ends close to n * TICK_S."""
 
     _active = 0
+    _count = 0  # epochs advanced so far, updated after the engines are (spec 010)
     _thread: threading.Thread | None = None
     _cond = threading.Condition()
 
     def __init__(self, engine: wasmtime.Engine, wanted: bool) -> None:
         self.wanted = wanted
+
+    @classmethod
+    def count(cls) -> int:
+        return cls._count
 
     def __enter__(self) -> None:
         if not self.wanted:
@@ -696,5 +841,6 @@ class _epoch_ticker:
                 for _ in range(due - done):
                     for engine in engines:
                         engine.increment_epoch()
+                    cls._count += 1
                 done = due
                 time.sleep(TICK_S / 4)

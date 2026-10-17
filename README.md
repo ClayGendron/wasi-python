@@ -249,6 +249,12 @@ has one.
   as in native Python);
 - every door frame is bounded by guest memory, and nothing a frame or a
   host function does makes `run` raise;
+- the deadline holds while the guest waits: the runner answers
+  `poll_oneoff` itself (`time.sleep`, `select`), in slices that stop at the
+  deadline, as wasmtime answers it except as spec 010 states (a directory or
+  an unopened descriptor is reported ready; a bad pointer answers `EFAULT`);
+  more than 4,096 subscriptions answer `ENOMEM` (`select.poll()` on more than
+  2,047 descriptors with its default mask);
 - **defaults** (`wasi_python.runner.DEFAULTS`): 1 GiB of memory, a 60 s
   deadline, 16 MiB of output per stream (the rest dropped and named in
   `truncated`); pass `None` for no limit. The guest's environment starts
@@ -269,9 +275,9 @@ pdb, as native pdb does (a fresh root closes it); a script or module the caller 
 from a reused root; concurrent calls on one root (a guest can hard-link or
 change the files another call uses, the stdlib zip included); a program
 damaging its own stdlib zip during its own run; a guest that waits
-(`time.sleep`, `select` with a timeout) holds its call past the deadline
-until the wait ends (spec 010 fixes this); timing (the clock is real
-and fine-grained); real entropy; the one-byte exit status.
+(`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
+long as it asks (no instruction runs, so fuel does not stop it); timing
+(the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope
 

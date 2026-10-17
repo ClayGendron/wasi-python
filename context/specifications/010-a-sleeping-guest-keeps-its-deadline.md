@@ -1,8 +1,8 @@
 # 010 — A sleeping guest keeps its deadline
 
-- **Status:** draft, 2026-10-17; revised the same day to answer its review
-  (`../reviews/010-a-sleeping-guest-keeps-its-deadline-spec-2026-10-17.md`). It changes the
-  runner, so it is reviewed again before it is built.
+- **Status:** landed, 2026-10-17. Reviewed before build
+  (`../reviews/010-a-sleeping-guest-keeps-its-deadline-spec-2026-10-17.md`) and after
+  (`../reviews/010-a-sleeping-guest-keeps-its-deadline-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), judge additions in `tests/`, `README.md`,
   `CHANGELOG.md`.
@@ -39,35 +39,55 @@ no limit still has one for time"). Fuel does not help: no instruction runs while
      `EINVAL`; more than `MAX_SUBSCRIPTIONS` (4,096) answer `ENOMEM`, so one call's host work is
      bounded (the review measured 0.16 s for one call at 50,000 descriptors, EXECUTED). The
      subscriptions (48 bytes each), the events (32 bytes each) and the event count must lie
-     inside guest memory, or the call answers `EFAULT`. Subscriptions are read in one pass with
-     `struct.iter_unpack`. An unknown tag answers `EINVAL`.
+     inside guest memory, or the call answers `EFAULT` (where wasmtime-py traps; the build review,
+     EXECUTED; the runner's answer is the safer one). Subscriptions are read in one pass with
+     `struct.iter_unpack`. An unknown tag answers `EINVAL`. The cap is a stated limit: `select`
+     (at most 1,024 descriptors, so at most 2,049 subscriptions) is unaffected, but
+     `select.poll()` with more than 2,047 descriptors (its default mask, two subscriptions a
+     descriptor; 4,095 with `POLLIN` alone) answers `ENOMEM` where wasmtime works.
    - **Descriptors.** wasmtime fails the whole call with `EBADF` for a descriptor it cannot
      poll; the runner does the same for the descriptors it knows: stdin (0) for writing,
      stdout and stderr (1, 2) for reading, and the preopened root (3). Any other descriptor
-     subscription is reported ready (error 0, `nbytes` 1, no flags), as wasmtime reports a file:
-     every other descriptor the guest can hold is a file it opened. One difference remains and
-     is documented: a descriptor that is not open is reported ready where wasmtime answers
-     `EBADF`; the guest's next read or write on it answers `EBADF`. A call with any descriptor
+     subscription is reported ready (error 0, `nbytes` 1, no flags), as wasmtime reports a file.
+     The differences from wasmtime, all about the guest's own descriptors and none reaching the
+     host (the confirmation, EXECUTED), are documented: a directory the guest opens, and a
+     descriptor that is not open, are reported ready where wasmtime answers `EBADF` (the guest's
+     next read or write on it answers `EBADF`); a file the guest opens can take a number 0 to 3
+     that it closed (the guest has no `dup2`, but a closed number is reused), and the fixed rule
+     then answers `EBADF` for it; no hang-up flag is set at the end of a file. A call with any descriptor
      subscription answers at once, with the descriptor events only, as wasmtime does when a
      descriptor is ready.
    - **Clocks.** A subscription on a clock other than realtime (0) or monotonic (1) answers
      `EINVAL`, as wasmtime does. A relative wait is its timeout. An absolute realtime wait is the
      target minus `time.time_ns()`, floored at 0. An absolute monotonic wait is the target minus
      the guest's monotonic clock, which the runner estimates as `time.perf_counter_ns()` minus
-     its value just after `store.set_wasi` (wasmtime's monotonic clock counts from the WASI
-     context's creation; the review, EXECUTED: 0.007 s at a program's start). The estimate's
+     its value just after `wt.WasiConfig()` is created (wasmtime fixes its monotonic origin
+     there; the confirmation, EXECUTED: within 0.02 ms, where an origin taken after `set_wasi`
+     made every sleep 0.63 ms too long, 61 ms with 64 MiB of stdin). The estimate's
      origin is taken after wasmtime's, so it reads low and a wait can only come out longer than
-     asked, never shorter. The call waits for the shortest subscription and writes one clock
-     event for it (error 0, `nbytes` 1), as wasmtime does.
+     asked, never shorter. The call waits for the shortest subscription and writes a clock event
+     (error 0, `nbytes` 0) for every clock due by then, as wasmtime does (the build review:
+     wasmtime 49's path writes `nbytes` 0 and reports every due clock; the first build wrote 1 and
+     reported one). A wait the host's `time.sleep` cannot represent (about 292 years) with no
+     deadline answers `EINVAL` through the catch-all, where wasmtime would wait.
    - **Nothing escapes.** The body is wrapped: any Python exception answers `EINVAL` (and a
      `KeyboardInterrupt` is let through, so Ctrl-C still ends the call; the store is still closed
-     and a private root removed, spec 006).
+     and a private root removed, spec 006). That one exception still travels by wasmtime-py's
+     process-wide `LAST_EXCEPTION`, so in a rare race another thread's call could receive it;
+     Ctrl-C ends the process's work anyway.
 2. **The deadline ends a wait without an exception.** Raising from the host function would carry
    the exception through wasmtime-py's process-wide `LAST_EXCEPTION`, where a concurrent call can
    take it (the review, EXECUTED: 3,489 of 7,986 traps crossed threads). Instead the wait loop
    sleeps in slices of at most `TICK_S` and stops when the requested wait is over or when the
    epoch ticker has advanced past the store's deadline (the ticker counts its increments; the
-   runner records the count at which the store's deadline falls when it sets it). It then answers
+   runner records the count at which the store's deadline falls when it sets it). Precisely: the
+   ticker updates its count after it advances the engines; the runner reads the count `c0` after
+   `set_epoch_deadline(ticks)`; the wait stops once the count is at least `c0 + ticks + 1`, so it
+   never answers before the epoch has passed the deadline (`_stop_at`). One exception, INFERRED
+   in the build review: the ticker copies its engine list once a round, so for the round in which
+   a new engine first joins, the count can run one round ahead of that engine, and a wait can end
+   up to a tick early; the guest then runs on and traps at the epoch, so no wait escapes the
+   deadline. It then answers
    the clock event normally, and the guest traps at its next epoch check, so the call reports
    `trapped == "deadline"` as for any other overrun (the review, EXECUTED: 0.22 s on a 0.2 s
    deadline, and nothing after the wait ran). With `deadline_s=None` a wait is one sleep of its
@@ -82,13 +102,20 @@ no limit still has one for time"). Fuel does not help: no instruction runs while
    slices asks for at most 50 slices of `TICK_S`; a 0.2 s wait with no deadline asks for one
    sleep of 0.2 s; an absolute wait in the past asks for nothing) and of Decision 1's parsing
    (zero subscriptions, too many, out-of-bounds pointers, an unknown tag, a CPU-time clock, each
-   descriptor rule) on hand-built subscription bytes. A v1.2 check,
+   descriptor rule) on hand-built subscription bytes; the wrapper's pointer bounds, masking, cap,
+   catch-all and clock origin are tested through a one-page WAT module, and `_stop_at` pins the
+   `+ 1`, with the clocks injected (added after the build review). Two things stay READ only: the
+   origin is taken right after `wt.WasiConfig()`, and the ticker updates its count after the
+   engines; neither can be checked without measuring time. A v1.2 check,
    `test_a_sleeping_guest_ends_at_its_deadline`, runs `time.sleep(10**6)`,
    `select.select([], [], [], 10**6)` and a loop of `time.sleep(0)` under `deadline_s=0.2` and
    asserts `trapped == "deadline"`; it runs each call in a thread and, as a fail-safe and not a
-   timing, fails if the thread has not returned after 120 s (without the fix the call would wait
+   timing, fails if the thread (a daemon, so a stuck call cannot keep the test process alive)
+   has not returned after 120 s (without the fix the call would wait
    11.6 days; §4.9 forbids measuring time, not refusing to wait forever). The spec 006 check
-   `test_a_trapped_call_without_a_root_is_removed` gains a sleeping case. A v1.4 check runs
+   `test_a_trapped_call_without_a_root_is_removed` gains a sleeping case, under the same
+   fail-safe (the build review saw it hang without one); its accepted id is retired for the
+   `[busy]` and `[sleeping]` ids. A v1.4 check runs
    `time.sleep(0.05)` with no deadline and asserts exit 0 and the output after it, so ordinary
    sleeps still work.
 5. **What it costs.** One Python call per `poll_oneoff`, bounded by `MAX_SUBSCRIPTIONS`; clock
@@ -124,4 +151,24 @@ socketpair; EXECUTED: `asyncio.run` of a coroutine that sleeps exits 1); its own
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-17 by the author agent (local commit `f5cf8bb`); reviewed in
+`../reviews/010-a-sleeping-guest-keeps-its-deadline-2026-10-17.md`. Its fixes: the trapped-call
+check's sleeping case runs under the 120 s fail-safe (EXECUTED: without the shadow it now fails
+after 120.25 s, where it hung); the wrapper is tested through a one-page WAT module and
+`_stop_at` is a function (EXECUTED: six mutations the review saw survive, namely no `EFAULT`
+bounds, no mask, a narrowed catch-all, a cap of 5,000, `stop_at` off by two and the origin
+ignored, each now fail a unit test); clock events carry `nbytes` 0 and every due clock is
+reported, as wasmtime does; the text states the differences from wasmtime. The concurrency
+defect the review found in wasmtime-py's host-function table (finding 1, not introduced here)
+is specification 011.
+
+**Seen failing first** (EXECUTED): the eight unit tests of `tests/unit/test_runner_waits.py`
+failed before the runner had `_Waits` and `_poll_plan`; `test_a_sleeping_guest_ends_at_its_deadline[sleep]`
+failed through its fail-safe ("the call did not return", after 120 s).
+
+**After the change** (EXECUTED): all pass, with the three sleeping cases, the sleeping case of
+`test_a_trapped_call_without_a_root_is_removed`, and `test_an_ordinary_sleep_still_works`. As a
+benchmark fact (not a check): under a 1 s deadline, `time.sleep(5)` ended at 1.16 s and
+`select.select([], [], [], 5)` at 1.03 s, where both ran the full 5 s before.
+
+`asyncio` still fails in the guest (it needs a socketpair), as the Scope says.

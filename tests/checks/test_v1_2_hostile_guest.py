@@ -304,16 +304,19 @@ def test_extra_preopens_work_on_the_snapshot(guest, guest_workdir, order) -> Non
     assert r.text.splitlines()[:3] == ["data root", "refused", "[0, 1, 2]"], r.text
 
 
-def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch) -> None:
-    """Guards a change: a call that ends in a trap still releases its store and removes its root."""
+@pytest.mark.parametrize("how", ["busy", "sleeping"])
+def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch, how) -> None:
+    """Guards a change: a call that ends in a trap still releases its store and removes its root,
+    whether the guest was running or waiting (spec 010)."""
     run = _run()
     scratch = Path(tempfile.mkdtemp(prefix="trapped-", dir=guest_workdir))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
-    code = "open('/x', 'w').write('x')\nwhile True:\n    pass\n"
+    loop = "    pass\n" if how == "busy" else "    __import__('time').sleep(10**6)\n"
+    code = "open('/x', 'w').write('x')\nwhile True:\n" + loop
     fds = Path("/dev/fd")
     run(["-c", "pass"])  # the engine and module are loaded once per process; count after that
     before = len(list(fds.iterdir())) if fds.is_dir() else None
-    done = run(["-c", code], deadline_s=0.2)
+    done = _returns(lambda: run(["-c", code], deadline_s=0.2))
     assert done.trapped == "deadline", done
     assert list(scratch.iterdir()) == []
     if before is not None:  # a directory can be removed while open on POSIX; the store must close
@@ -338,3 +341,33 @@ def test_a_planted_pdbrc_in_home_never_runs(guest_workdir) -> None:
     second = run(["-c", probe], root=root, stdin=b"c\n")
     assert second.exit_code == 0, second
     assert second.stdout.endswith(b"False\n"), second
+
+
+def _returns(call):
+    """Run a call that must end at its deadline in a daemon thread and return its result; fail if
+    it has not returned after 120 s. A fail-safe against waiting forever (a sleeping guest without
+    spec 010 waits 11.6 days), not a timing; a daemon thread cannot keep the test process alive."""
+    import threading
+
+    box: list = []
+    worker = threading.Thread(target=lambda: box.append(call()), daemon=True)
+    worker.start()
+    worker.join(120)
+    assert box, "the call did not return: its wait outlived the deadline"
+    return box[0]
+
+
+SLEEPERS = {
+    "sleep": "import time\ntime.sleep(10**6)\nprint('woke')\n",
+    "select": "import select\nselect.select([], [], [], 10**6)\nprint('woke')\n",
+    "sleep(0) loop": "import time\nwhile True:\n    time.sleep(0)\n",
+}
+
+
+@pytest.mark.parametrize("how", list(SLEEPERS))
+def test_a_sleeping_guest_ends_at_its_deadline(guest_workdir, how) -> None:
+    """Guards a change: a guest that waits in poll_oneoff still ends at its deadline (spec 010).
+    The call runs under the 120 s fail-safe of `_returns`."""
+    run = _run()
+    done = _returns(lambda: run(["-c", SLEEPERS[how]], root=_root(guest_workdir), deadline_s=0.2))
+    assert (done.exit_code, done.trapped, done.stdout) == (None, "deadline", b""), done

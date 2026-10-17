@@ -376,3 +376,11 @@ def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:
     done = run(["-c", "pass"], root=_root(guest_workdir), memory_bytes=1 << 20, fuel=10**9)
     assert done.exit_code is None and done.trapped, done
     assert done.fuel_used == 0, done
+
+
+def test_an_ordinary_sleep_still_works(guest_workdir) -> None:
+    """A short sleep with no deadline ends as asked and the program goes on (spec 010)."""
+    run = _runner()
+    code = "import time\ntime.sleep(0.05)\nprint('after')\n"
+    done = run(["-c", code], root=_root(guest_workdir), deadline_s=None)
+    assert (done.exit_code, done.stdout) == (0, b"after\n"), done

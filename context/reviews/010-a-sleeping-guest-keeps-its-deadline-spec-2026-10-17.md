@@ -339,3 +339,174 @@ Not ready to build yet: the design is right, and the shadow does end the wait at
 wasmtime-py's global slot (finding 1). It must make the shadow total, so no exception escapes
 (finding 2). It must keep wasmtime's per-call monotonic origin (finding 3). Findings 4 to 8 are
 small edits to the specification.
+
+## Confirmation by the reviewer, 2026-10-17
+
+- **Reviewed:** the revised specification at `aebe70e` (`git show aebe70e`), and the
+  dispositions above.
+- **Ran (EXECUTED, the same machine and artifacts; nothing under `build/` written; no tracked
+  file edited except this one).** New probes are in the same scratch directory:
+  - `p7_revised.py` / `.txt` builds the revised design. It shadows `poll_oneoff` only. Its
+    ticker counts its increments, after it has advanced the engines. The wait stops at
+    `count >= c0 + ticks + margin`, where `c0` is read after `set_epoch_deadline`, and then
+    answers normally. The door reports the guest's own `time.monotonic_ns()` together with the
+    host's `perf_counter_ns()`.
+  - `p8_fds.py` and `p9_reuse.py` / `.txt` test the fixed descriptor numbers.
+
+### The three questions asked
+
+- **Stopping on the ticker count makes the guest trap promptly, including inside C loops.**
+  - EXECUTED, `p7_revised.txt`. Six shapes, three runs each, under a 0.2 s deadline:
+    - `time.sleep(10**6)`: CPython's `pysleep` loop;
+    - `select.select([], [], [], 10**6)`;
+    - `poll().poll(10**9)`;
+    - a loop of `select(…, 0.003)`;
+    - a loop of `time.sleep(0)`;
+    - a sleep inside `try/finally`, whose `finally` writes a file.
+  - Every run trapped `"deadline"` in 0.201–0.223 s.
+  - The guest made **0** `poll_oneoff` calls after the wait had answered. That count is the
+    signal; the times are only context.
+  - No file written after the wait ever appeared, the `finally` block's included. A trap runs
+    no `finally`.
+  - READ/INFERRED: Cranelift puts an epoch check at every function entry and loop head. A C
+    loop that calls `poll_oneoff` again must pass one of those first. So "traps at its next
+    epoch check" holds for loops in C, not only in Python.
+  - Both margins, `+1` and `+0`, gave 0 calls after the stop in 18 runs each. The `+0` race
+    is narrow, but it is real. See N1.
+- **Estimating the monotonic origin is sound for the snapshot, but the specification takes it
+  at the wrong moment** (N2).
+  - Soundness (READ, `reactor_main.c:49-56`).
+    - The snapshot's pinned values are answered inside the guest by the `--wrap` wrapper, and
+      only while `pinned`. `run()` unpins before Python starts.
+    - Every wait is computed from a clock read made at run time. That read goes to wasmtime's
+      real `clock_time_get`, which 010 no longer shadows.
+    - Values pinned at build time therefore never reach the estimate. A guest that built an
+      absolute target from a pinned 0 would get the same answer from wasmtime.
+  - Placement (READ, `ctx.rs:64-66`, `clocks.rs:55-62, 132-137`; EXECUTED, `p7` part (a)).
+    - wasmtime's monotonic origin is `Instant::now()`, taken in `WasiCtxBuilder::default()`.
+      That is `wasi_config_new`, the moment `wt.WasiConfig()` is created. It is not taken at
+      `set_wasi`.
+    - The guest's own reading places the true origin within 0.04 ms after `WasiConfig()`
+      starts. An estimate taken after `set_wasi` is 0.63 ms late with empty stdin, and
+      61.1 ms late with 64 MiB of stdin, because the runner writes the stdin file in between.
+    - Every `time.sleep` (an absolute monotonic wait) comes out that much longer. The
+      direction is safe, but the error is needless and grows with stdin.
+    - Taken just after `WasiConfig()` returns, the estimate's error was within 0.02 ms of
+      the measurement's own bound. It is still never early, because `Instant::now()` runs
+      before the constructor returns.
+    - On macOS, `perf_counter_ns` and Rust's `Instant` agreed to tens of microseconds, so they
+      share a base (EXECUTED). Linux and Windows were not run.
+- **The "preopen is fd 3" assumption holds at the start, but the guest can change it**
+  (N3).
+  - EXECUTED, `p1_observe.txt` and `p8`: fd 3 is the preopened directory.
+  - The guest has no `os.dup2` (EXECUTED: `AttributeError`). So it cannot renumber a file
+    onto 0–3 from Python.
+  - Closing fd 3 makes every later `open` fail with `EBADF`, because wasi-libc resolves paths
+    through it (EXECUTED).
+  - wasmtime reuses a closed number for the next open (READ, `p1.rs:457-466`).
+    - EXECUTED, `p9`: after `os.close(1)`, `os.open` returned **1**. Stock `select` on it
+      answered normally. The revised rule would answer `EBADF`.
+    - The same holds for 0 and 2.
+  - A directory the guest opens is a descriptor. Stock answers `EBADF` for it (EXECUTED,
+    `p8`: `os.open("/tmp")` gave fd 5, and `select` raised `EBADF`). The revised rule reports
+    it ready.
+  - So Decision 1's sentence "every other descriptor the guest can hold is a file it opened"
+    is still not true.
+  - These differences only confuse the guest about its own descriptors. None of them reaches
+    the host.
+
+### Findings, confirmed or reopened
+
+1. **Confirmed fixed.** No exception crosses wasmtime-py, and the trap is the epoch's own
+   (EXECUTED above). The ordering detail is N1.
+2. **Confirmed fixed in design.** Masking, `EFAULT`, `EINVAL`, the `ENOMEM` cap and the
+   catch-all are all decided. A residue is N4.
+3. **Confirmed fixed.** `clock_time_get` is untouched, so the guest keeps wasmtime's clock: no
+   uptime leak, and `process_time` is as stock. Where the estimate is taken is N2.
+4. **Confirmed fixed.** 4,096 subscriptions bound one call's host work, at about 7 ms or less
+   by `p3b`'s per-subscription cost (INFERRED). A side effect is N5.
+5. **Confirmed fixed.** The 120 s fail-safe is stated as a fail-safe. One detail is N6.
+6. **Partly fixed; reopened as N3** (Low). The known numbers and `nbytes = 1` are fixed.
+   Directories, and numbers reused after a close, are not described.
+7. **Confirmed fixed.** Clock reads are untouched.
+8. **Confirmed fixed.**
+
+### New findings
+
+- **N1. The stop count needs its ordering and a `+1` stated** (`010` Decision 2). Low.
+  - wasmtime-py does not expose the engine's epoch. The runner compares its own count with a
+    store deadline that wasmtime fixed relative to the engine's epoch at `set_epoch_deadline`.
+  - The ticker may advance between the runner reading the count and that call.
+  - So the specification should state three things:
+    - the ticker updates the count after it advances the engines;
+    - the runner reads the count after `set_epoch_deadline`;
+    - the wait stops at `count >= c0 + ticks + 1`.
+  - Otherwise the wait can answer one tick before the epoch passes. The guest then runs on
+    for up to `TICK_S` with its sleep cut short. It could even finish with exit 0 after a
+    shortened sleep.
+  - INFERRED; I did not catch the race in 18 runs at `+0`.
+  - The unit test can check this with fakes: the count reaches `c0 + ticks` and the wait has
+    not stopped.
+- **N2. Take the monotonic origin just after `wt.WasiConfig()`, not after `set_wasi`**
+  (`010` Decision 1, Clocks). Low.
+  - EXECUTED above: taken after `set_wasi`, waits are 0.6 ms too long, and 61 ms too long with
+    64 MiB of stdin. Taken after `WasiConfig()`, the error was within 0.02 ms.
+  - Both are safe in direction. The specification's reason ("wasmtime's monotonic clock counts
+    from the WASI context's creation") is right in substance, but the context's clock is made
+    with the builder, not at `set_wasi`.
+- **N3. Describe the descriptor differences as they are** (`010` Decision 1, Descriptors). Low.
+  - Replace "every other descriptor the guest can hold is a file it opened". List what
+    differs from wasmtime:
+    - a directory the guest opens is reported ready (wasmtime: `EBADF`);
+    - a descriptor that is not open is reported ready;
+    - after the guest closes 0, 1, 2 or 3, a file it opens next can take that number. The
+      fixed rule then answers `EBADF` where wasmtime would report the file;
+    - there is no hang-up flag at end of file.
+  - Say that none of these reaches the host. Put the same short list in the README.
+- **N4. `KeyboardInterrupt` still crosses wasmtime-py's global slot** (`010` Decision 1,
+  Nothing escapes). Low.
+  - Letting it through is right. But it travels by `LAST_EXCEPTION`, like any exception from a
+    host function. If another thread's call traps at the same moment, that thread can receive
+    the `KeyboardInterrupt`, and the waiting call gets a bare `WasmtimeError` (the mechanism of
+    finding 1, EXECUTED there).
+  - It is rare: SIGINT reaches only the main thread, and the user is ending the process
+    anyway. One sentence in the specification is enough.
+- **N5. The 4,096 cap makes a large `poll` fail where wasmtime succeeds** (`010` Decision 1,
+  Bounds). Low.
+  - `select` is bounded by `FD_SETSIZE` 1024 (READ, the SDK's `sys/select.h:18`). That is at
+    most 2,049 subscriptions, under the cap.
+  - `select.poll()` with more than 2,047 registered descriptors will get `ENOMEM`, an
+    `OSError`. Under stock it works.
+  - Name it as a documented limit beside the other differences.
+- **N6. The fail-safe thread must be a daemon** (`010` Decision 4). Low.
+  - Without the fix, the stuck call stays in wasmtime's native sleep for 11.6 days.
+  - A thread that is not a daemon would keep the pytest process from exiting after the
+    failure is reported. That turns the red result back into a hang.
+  - INFERRED from how CPython shuts down; not run.
+
+### Constitution checks (revised)
+
+- §4.4 holds: one WASI function is shadowed on the host side, and the guest's imports are
+  unchanged.
+- §4.9 holds: the unit tests count slices with fakes, and the v1.2 check's 120 s limit is a
+  stated fail-safe.
+- §4.10: Decision 1's descriptor sentence and the origin's placement need the corrections in
+  N2 and N3.
+- §5.2: the stop count's ordering (N1) should be decided in the specification, not at build.
+- §7: nothing tripped.
+
+### Verdict (confirmation)
+
+Ready to build once N1 to N3 are written into the specification. They are wording-level
+corrections to a sound design: the deadline now holds through every kind of wait I tried,
+with no exception through wasmtime-py and no change to the guest's clocks (EXECUTED). N4 to N6
+are one-sentence additions, which the build review can confirm.
+
+## The author's answers to the confirmation
+
+- **N1:** fixed. Decision 2 states the count's order and the stop at `c0 + ticks + 1`.
+- **N2:** fixed. The origin is taken right after `wt.WasiConfig()`.
+- **N3:** fixed. Decision 1 lists the four differences instead of the claim.
+- **N4:** fixed. Decision 1 says `KeyboardInterrupt` still travels by `LAST_EXCEPTION`.
+- **N5:** fixed. Decision 1 states the cap's effect on `select.poll()`.
+- **N6:** fixed. The fail-safe thread is a daemon.
