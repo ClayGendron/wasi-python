@@ -289,3 +289,94 @@ revised text is enough; no second full review is needed.
 
 One line: a sound thin command, but pass `cancel` so Ctrl-C works, add the wheel step to
 verify, keep secrets off the command line, and decide the argparse rules before building.
+
+## Confirmation
+
+- **Date:** 2026-10-17. **Reviewer:** the same fresh agent. I read
+  `git show 44c25a6 -- context/specifications/019-the-command-line.md` and the Disposition
+  above, and re-read `_instance` and `_Stream` in `runner.py` at `7dc59fd`.
+- **Ran (EXECUTED, same machine and settings as above):** `stream.py` → `stream.txt` in the
+  scratch folder named above. A child process ran a guest that printed `started` to its stderr
+  with `flush=True`, then looped. Four seconds in, inside its 5 s deadline, the child's own
+  stderr held `b''`. After the call it still held `b''`.
+
+### What the revision closes
+
+- **Findings 2, 3, 5 to 11 are closed** by the text, as the Disposition says. Some notes:
+  - **`--env KEY` from the environment holds.** It maps to `env` and reads only the keys the
+    caller names. A missing key is exit 2, and argparse's message names the key, not a value.
+    A value that is not valid UTF-8 (POSIX `surrogateescape`) reaches `run()` and is refused with
+    exit 1. `_text`'s message never quotes the value (READ). The check list covers all four
+    cases.
+  - **Finding 10 is better than my fix.** The options now carry `run()`'s names, so every error
+    names the option the caller typed.
+  - **Finding 2:** the fresh-wheel step compares bytes with the Intent's line. Decision 3 now
+    writes `\n` on every host, so the comparison holds on `windows-2025` too (INFERRED from
+    finding 7's fix).
+- **Finding 1's design is closed.** Decision 2 always passes an unset `cancel`. Decision 4's 130
+  rests on it, and the unit check asserts it. **Finding 1's v1.4 check is not closed** (C1 below).
+- **Finding 4 is closed for `--help`, abbreviations and `--`.** Without `--`, the revision takes
+  a different rule from the one I suggested: the guest's argv starts at the first argument that
+  is not an option. That is a sound choice; it is how `python script.py args` works. But it
+  leaves three cases undecided (C2 below).
+
+### Conditions left
+
+1. **C1 (medium): the Ctrl-C check waits for a signal that never comes.**
+   - The check sends `SIGINT` "once the child prints that the guest started (on standard error,
+     from the guest)". But the runner keeps a guest's stderr in memory and returns it in
+     `Completed` (READ: `_Stream`, `_send_outputs`). Nothing reaches the process's own stderr
+     while the guest runs. EXECUTED (`stream.txt`): `b''` during the call and after it.
+   - Failure: the check waits until its fail-safe timeout and fails, with `cancel` or without
+     it. It cannot tell the fix from the bug.
+   - Fix (one sentence in Design): the child is `sys.executable -c` running a short wrapper.
+     - The wrapper first calls `main(["run", "--", "-c", "pass"])` once, so the module is
+       compiled or loaded in that process.
+     - It then starts a thread that sleeps a trigger interval (as
+       `test_ctrl_c_while_the_guest_runs_ends_the_call` does) and calls
+       `signal.raise_signal(signal.SIGINT)`.
+     - Then it returns `main(["run", "--deadline-s", "none", "--", "-c", "while True: pass"])`
+       as its exit code.
+     - The check expects 130 and no JSON from the second call, with a fail-safe timeout. Without
+       `cancel` it hangs until the fail-safe, so the check tells the fix from the bug.
+     - `raise_signal` works on Windows too (the existing check uses it), so drop "(POSIX)".
+     - A SIGINT that lands before the guest starts also gives 130, so the assertion does not
+       depend on timing.
+2. **C2 (low-medium): the argv split needs three more words of rule.** The scan runs before
+   argparse, so it, not argparse, decides these:
+   - **`--` after the program.** For `run x.py -- y`, rule 1 says "after the first `--`", which
+     gives `["y"]`. The without-`--` rule says "from `x.py`", which gives
+     `["x.py", "--", "y"]`. Fix: scan left to right, and the guest's argv starts at whichever
+     comes first. A `--` met first is dropped. A non-option met first is kept with everything
+     after it, any `--` included.
+   - **An unknown option before the program.** In `run -c "print(1)"`, is `-c` "an argument
+     that is not an option" (so the guest gets `["-c", "print(1)"]`), or an unknown option
+     (exit 2)? Fix: any argument that starts with `-`, other than `-` itself, is an option of
+     this command, and an unknown one is exit 2. Otherwise a later option (say a `-c` of the
+     command's own) would change what an existing call gives its guest. The unit checks add
+     `run -c x` → exit 2 and `run -` → guest `["-"]`.
+   - **`--name=value`.** A value-taking option written with `=` does not consume the next
+     argument. For example, `run --fuel=5 x.py` gives the guest `["x.py"]`. Add it to the split
+     check.
+3. **C3 (trivial): the error object's bytes.** Say in Decision 4 that exit 1's object is written
+   as Decision 3's line is: sorted keys, ASCII, `\n`, one write. It is implied but not said.
+
+### Verdict
+
+**Revise once more, by these sentences only.** C1 changes the Ctrl-C check's trigger. C2 adds
+three rules to Decision 1's split, with their unit cases. C3 is one clause. Everything else is
+ready to build. Once the author records the three edits in a Disposition of this confirmation,
+the specification is ready to build without another review.
+
+## Disposition of the confirmation (filled in by the author)
+
+- **C1:** fixed as suggested. The child warms up, a thread raises `SIGINT` with
+  `signal.raise_signal`, and the check runs on every OS; the spec says why it cannot wait for the
+  guest's word.
+- **C2:** decided. One left-to-right scan: `--` first gives the rest to the guest; an argument
+  starting with `-` (not `-` itself) is the command's option, unknown ones exit 2; anything else
+  starts the guest's argv, `--` after it included; `--name=value` consumes nothing. A unit case
+  for each.
+- **C3:** fixed. The error object is written as the result line is.
+
+Your verdict made the spec ready to build once these edits were made.

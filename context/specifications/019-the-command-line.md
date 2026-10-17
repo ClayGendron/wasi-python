@@ -1,7 +1,8 @@
 # 019 — The command line
 
 - **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/019-the-command-line-spec-2026-10-17.md`), awaiting the reviewer's confirmation.
+  (`../reviews/019-the-command-line-spec-2026-10-17.md`), confirmed for build after one more edit
+  (the confirmation's C1 to C3, made).
 - **Owner:** Clay Gendron
 - **Kind:** the runner's API (a new `src/wasi_python/cli.py`, `src/wasi_python/__main__.py`,
   `pyproject.toml`'s `[project.scripts]`), the release workflow's `verify` job, judge additions
@@ -32,11 +33,15 @@ runner's checks and defaults unchanged.
    `wasi_python.run([ARG...], ...)` once and prints the result. `python -m wasi_python run …` is
    the same command. A subcommand leaves room for later ones (a batch mode) without changing this
    one's meaning. No subcommand, or an unknown one, is a usage error.
-   - **Everything after the first `--` is the guest's argv**, untouched, even when it starts with
-     `-` or looks like an option of this command. Without `--`, the first argument that is not an
-     option and everything after it is the guest's argv; an option after it is the guest's too
-     (`run x.py --fuel 5` gives the guest `["x.py", "--fuel", "5"]`). The parser is
-     `argparse` with `allow_abbrev=False`, so `--dead` is a usage error, never `--deadline`.
+   - **The guest's argv is split off by one left-to-right scan.** Each argument is, in turn:
+     `--`, and then everything after it is the guest's argv, untouched; or an argument starting
+     with `-` (other than `-` itself), which is this command's option, so an unknown one, such as
+     `-c` before any program, is a usage error (exit 2) and a later option can never change what
+     an existing call gives its guest; or anything else, and then it and everything after it are
+     the guest's argv (`run x.py --fuel 5` gives the guest `["x.py", "--fuel", "5"]`, and
+     `run x.py -- y` gives `["x.py", "--", "y"]`). An option that takes a value consumes the next
+     argument, unless it is written `--name=value`. The options are then parsed by `argparse`
+     with `allow_abbrev=False`, so `--dead` is a usage error, never `--deadline-s`.
    - **An empty argv is allowed:** `run([], stdin=…)` runs the program on standard input, as
      CPython does (the review, EXECUTED).
    - **The command never reads its own standard input** unless `--stdin -` says so.
@@ -83,7 +88,8 @@ runner's checks and defaults unchanged.
    - `0`: the call returned; the JSON says how the program ended (any exit code, any trap).
    - `1`: `run()` raised (a value it refused, missing artifacts, wasmtime not installed), or a
      `--stdin PATH` could not be read; one JSON object
-     `{"error": "<the exception's message>", "kind": "<its class name>"}` on standard output.
+     `{"error": "<the exception's message>", "kind": "<its class name>"}` on standard output,
+     written as the result line is (sorted keys, ASCII, one line ending in `\n`).
    - `2`: a usage error (argparse's message on standard error, nothing on standard output).
      `main` catches argparse's `SystemExit` and returns its code, so a check calls `main` in
      process.
@@ -137,7 +143,8 @@ and every other language can run agent code the same way.
   - each option reaches `run()` as its argument, an option not given is not passed, and
     `cancel` is always an unset `threading.Event` (the fake records its keyword arguments);
   - the argv split: after `--`, an argv starting with `-c` and one holding `--fuel`; without
-    `--`, `x.py --fuel 5` goes to the guest; an empty argv;
+    `--`, `x.py --fuel 5` goes to the guest; `x.py -- y` gives `["x.py", "--", "y"]`; `-c x`
+    before any program exits 2; `--fuel=5 x.py` consumes nothing after it; an empty argv;
   - `--env K=V`, `--env K` from the environment, a repeated key, a missing `K` (exit 2);
   - `--dead 1` (an abbreviation), `--fuel ten` and an unknown subcommand exit 2 with nothing on
     standard output; `--help` exits 0;
@@ -150,10 +157,14 @@ and every other language can run agent code the same way.
     `-c "import sys; sys.exit(3)"` gives command exit 0 and `"exit_code": 3`; `--stdin` of a file
     reaches the guest's `sys.stdin`; `--deadline-s 0.5` on an endless loop gives
     `"trapped": "deadline"`; `--fuel 1000` gives `"trapped": "out of fuel"`;
-  - v1.4, Ctrl-C: the command in a child process, on an endless loop with `--deadline-s none`;
-    once the child prints that the guest started (on standard error, from the guest), the check
-    sends `SIGINT` (POSIX) and expects 130 and nothing on standard output; a fail-safe timeout
-    asserts no duration;
+  - v1.4, Ctrl-C: a child process runs a small wrapper that calls `main()` once to warm up, then
+    starts a thread that sleeps briefly and calls `signal.raise_signal(signal.SIGINT)`, and runs
+    `main(["run", "--deadline-s", "none", "--", "-c", "while True: pass"])`; the child expects
+    130 and nothing on standard output, on every OS (`raise_signal` works on Windows too). The
+    guest's own standard error is held by the runner until the call ends, so the check cannot
+    wait for the guest to say it started (the review's confirmation, EXECUTED); the sleep only
+    makes the signal likely to land while the guest computes, and either way the answer must be
+    130. A fail-safe timeout asserts no duration;
   - v1.4, the installed entry point: the script found by
     `shutil.which("wasi-python", path=sysconfig.get_path("scripts"))` (which finds the `.exe` on
     Windows) prints the Intent's line; the judge never calls `uv`.
