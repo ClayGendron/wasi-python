@@ -923,3 +923,115 @@ def test_a_forked_child_is_refused() -> None:
         return
     assert _child(FORK, "used") == ["child refused", "status 0"]
     assert _child(FORK, "imported") == ["child ran", "status 0"]
+
+
+# Dead processes' folders are swept, by lock (spec 016). Each check runs its calls in child
+# processes with a 120 s timeout, a fail-safe, and a temporary folder of its own.
+
+
+HELD = r"""
+import sys, tempfile
+tempfile.tempdir = sys.argv[1]
+import wasi_python
+
+def host(frame):
+    print("held", flush=True)
+    sys.stdin.readline()  # until the parent says go, or forever
+    return b""
+
+done = wasi_python.run(["-c", "import _host; _host.call(b'x')"], host=host, stdin=b"secret")
+print("ended", done.exit_code, flush=True)
+"""
+
+ONE_CALL = r"""
+import sys, tempfile
+tempfile.tempdir = sys.argv[1]
+import wasi_python
+from wasi_python import runner
+
+done = wasi_python.run(["-c", "print(1)"])
+print(done.exit_code, runner._sweep_state["swept"])
+"""
+
+
+def _held_child(temp: Path) -> subprocess.Popen[str]:
+    """A child whose call is held in its door; returns once the call has made its folders."""
+    import queue
+
+    child = subprocess.Popen(
+        [sys.executable, "-c", HELD, str(temp)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    lines: queue.Queue[str] = queue.Queue()
+    threading.Thread(target=lambda: lines.put(child.stdout.readline()), daemon=True).start()
+    try:
+        assert lines.get(timeout=120) == "held\n"  # a fail-safe, not a timing
+    except BaseException:
+        child.kill()
+        child.wait()
+        raise
+    return child
+
+
+def _locks_free(temp: Path) -> bool:
+    """Whether every lock file in `temp` can be locked now; Windows frees a dead process's lock
+    after a delay, so this tries up to 1,200 times (a fail-safe that counts tries)."""
+    import time
+
+    from wasi_python import runner
+
+    for _ in range(1200):
+        free = True
+        for lock in temp.glob("*.lock"):
+            fd = os.open(lock, os.O_RDWR | getattr(os, "O_BINARY", 0))
+            try:
+                free = free and runner._try_lock(fd) is True
+            finally:
+                runner._unlock_close(fd)
+        if free:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _entries(temp: Path) -> list[str]:
+    return sorted(p.name for p in temp.iterdir() if p.name.startswith("wasi-python-"))
+
+
+def test_a_killed_process_leaves_nothing_after_the_next_call(tmp_path) -> None:
+    """Guards a change: a process killed mid-call left its private root and its stdin folder in
+    the temporary folder for good (the 0.1.0a2 security review, F6). Each now has a locked lock
+    file beside it; the lock dies with the process, and the next process's first call removes
+    both (spec 016)."""
+    _runner()
+    child = _held_child(tmp_path)
+    child.kill()
+    child.wait()
+    left = _entries(tmp_path)
+    assert len(left) == 4 and sum(n.endswith(".lock") for n in left) == 2, left
+    assert _locks_free(tmp_path), "a dead process's locks were never released"
+    assert _child(ONE_CALL, str(tmp_path)) == ["0 2"]
+    assert _entries(tmp_path) == []
+
+
+def test_a_live_calls_folders_are_never_swept(tmp_path) -> None:
+    """Guards a change: another process's first call sweeps only folders whose lock it can take;
+    a call still running holds its lock, so its folders stay, and it cleans up after itself
+    (spec 016)."""
+    _runner()
+    child = _held_child(tmp_path)
+    try:
+        held = _entries(tmp_path)
+        assert len(held) == 4, held
+        assert _child(ONE_CALL, str(tmp_path)) == ["0 0"]
+        assert _entries(tmp_path) == held
+        out, _ = child.communicate("go\n", timeout=120)
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait()
+    assert out.split() == ["ended", "0"], out
+    assert _entries(tmp_path) == []

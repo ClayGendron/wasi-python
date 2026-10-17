@@ -391,16 +391,27 @@ print(done.exit_code, done.stdout.decode().strip(), sorted(os.listdir(scratch)))
 """
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="no RLIMIT_NOFILE to lower on Windows")
+NO_RLIMIT = r"""
+import os, sys, tempfile
+scratch = sys.argv[1]
+tempfile.tempdir = scratch
+import wasi_python
+done = wasi_python.run(["-c", "open('/f', 'w').close(); print('refused', 0)"], stdin=b"x")
+print(done.exit_code, done.stdout.decode().strip(), sorted(os.listdir(scratch)))
+"""
+
+
 def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workdir) -> None:
     """Guards a change: a guest that opened files until the host refused made run raise
     OSError (Errno 24) and left its stdin behind (the 0.1.0a2 security review, F1). The store is
     now closed, releasing the guest's descriptors, before anything else is cleaned up. In a child
-    process with a 256-descriptor limit, so the judge's own process is not starved."""
+    process with a 256-descriptor limit, so the judge's own process is not starved. Windows has
+    no RLIMIT_NOFILE to lower: there the child shows only that a call leaves nothing behind."""
     _run()
     scratch = Path(tempfile.mkdtemp(prefix="descriptors-", dir=guest_workdir))
+    script = NO_RLIMIT if sys.platform == "win32" else DESCRIPTORS
     out = subprocess.run(
-        [sys.executable, "-c", DESCRIPTORS, str(scratch)],
+        [sys.executable, "-c", script, str(scratch)],
         capture_output=True,
         text=True,
         timeout=120,
@@ -408,3 +419,13 @@ def test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise(guest_workd
     assert out.returncode == 0, out.stderr[-1500:]
     exit_code, refused, _errno, left = out.stdout.split("\n")[0].split(" ", 3)
     assert (exit_code, refused, left) == ("0", "refused", "[]"), out.stdout
+
+
+def test_a_stack_overflow_is_named() -> None:
+    """Guards a change: a stack overflow was reported as wasmtime's heading, "error while
+    executing at wasm backtrace:", which says nothing of why; a trap with a code is now named by
+    it (the 0.1.0a2 security review, F7; spec 016)."""
+    run = _run()
+    code = "import sys\nsys.setrecursionlimit(10**8)\ndef f(n): return f(n + 1)\nf(0)"
+    done = run(["-c", code])
+    assert (done.exit_code, done.trapped) == (None, "stack overflow"), done

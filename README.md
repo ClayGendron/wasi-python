@@ -273,7 +273,9 @@ instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
 `artifacts` and `cancel` (a `threading.Event`: once it is set, the guest
 stops, `trapped` is `"cancelled"`; see *From async code* for how soon). It
 returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
-`"deadline"`, `"cancelled"`, or a trap's first line), `fuel_used` and
+`"deadline"`, `"cancelled"`, a trap's kind such as `"stack overflow"`,
+`"unreachable"` or `"memory out of bounds"`, or, for an error with no trap
+code, its first line), `fuel_used` and
 `truncated` (the streams whose output hit the cap). `fuel_used` counts the
 guest's own instructions from the end of instantiation, so it is the same
 whether the module was compiled or loaded from the `.cwasm` cache (measured
@@ -283,7 +285,10 @@ Windows, which always copies it, is expected to match)
 
 The compiled module is cached as a `.cwasm` in the user cache directory, or
 in `$WASI_PYTHON_CACHE`, only where no other user can write (a `.cwasm` is
-native code); `cache_dir=False` keeps it in memory only. Measured on Apple
+native code); `cache_dir=False` keeps it in memory only. On Windows the
+runner cannot check who may write a folder, so `cache_dir` and
+`$WASI_PYTHON_CACHE` must name a folder only you can write; the default, in
+your own profile, is one. Measured on Apple
 arm64 (spec 001's landing notes): the first call compiles for about 3 s, a
 first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
@@ -432,7 +437,17 @@ has one.
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
-**Not protected:** disk use in any root, the private one included (a guest
+**Not protected:** a process killed mid-call (its private root, its stdin
+folder and their lock files stay in the temporary folder until another
+process using wasi_python on the same kernel, with the same temporary
+folder, starts its first call; folders from releases before 0.1.0a3 have no
+lock file and are never removed: delete `wasi-python-*` entries there by hand
+when no wasi_python process runs; two machines that share one temporary
+folder and report the same identity, such as cloned Windows images, are not
+told apart; a temporary folder on a filesystem without file locks, where such
+folders are never removed); a `root=` at or above the temporary folder, which lets its
+guest reach other calls' private folders (never grant it); disk use in any
+root, the private one included (a guest
 can write as fast as the disk takes it until its deadline, tens of GiB in
 the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
 volume if that matters); links a guest leaves in a granted root that point

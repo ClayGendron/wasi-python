@@ -123,6 +123,15 @@ jobs:
           name: rebuild-${{ matrix.os }}
           path: build/artifacts/SHA256SUMS
           if-no-files-found: error
+      - name: The wheel, as the build job makes it (spec 016, Decision 1)
+        run: |
+          cp -R build/artifacts src/wasi_python/artifacts
+          uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-wheel-${{ matrix.os }}
+          path: dist/wasi_python-*.whl
+          if-no-files-found: error
       - name: Keep the build logs when something fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -149,6 +158,10 @@ jobs:
         with:
           name: rebuild-ubuntu-24.04-arm
           path: rebuilds/ubuntu-24.04-arm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rebuild-wheel-ubuntu-24.04-arm
+          path: rebuilt-wheels/ubuntu-24.04-arm
       - name: Every rebuild's SHA256SUMS is the set's, byte for byte
         run: |
           mkdir set
@@ -159,6 +172,37 @@ jobs:
             echo "$runner: the same SHA256SUMS"
           done
           cat "$sums"
+      - name: The wheel carries the set and is the wheel the second host rebuilt (spec 016)
+        # Three rules name what differs; the last comparison covers everything else in the wheel
+        # (runner.py, METADATA), so a wheel built from any other source or set fails.
+        run: |
+          sums="$PWD/$(echo set/wasi-python-*/SHA256SUMS)"
+          wheel="$(echo release-assets/wasi_python-*.whl)"
+          mkdir wheel && unzip -q "$wheel" -d wheel
+          ( cd wheel/wasi_python/artifacts && sha256sum --strict -c "$sums" )
+          cmp "$sums" wheel/wasi_python/artifacts/SHA256SUMS
+          listed=$(awk '{print $2}' "$sums"; echo SHA256SUMS)
+          present=$(cd wheel/wasi_python/artifacts && find . -type f | sed 's#^\./##')
+          if [ "$(echo "$listed" | sort)" != "$(echo "$present" | sort)" ]; then
+            echo "the wheel's artifacts are not exactly the set's"
+            exit 1
+          fi
+          for runner in ubuntu-24.04-arm; do
+            rebuilt="rebuilt-wheels/$runner/$(basename "$wheel")"
+            if ! cmp -s "$wheel" "$rebuilt"; then
+              echo "$runner rebuilt a different wheel; entries only in one (name, mode, size, CRC, date):"
+              python3 - "$wheel" "$rebuilt" <<'PY'
+          import sys, zipfile
+          a, b = ({(i.filename, oct(i.external_attr >> 16), i.file_size, i.CRC, i.date_time)
+                   for i in zipfile.ZipFile(p).infolist()} for p in sys.argv[1:])
+          for row in sorted(a ^ b):
+              print("release" if row in a else "rebuilt", *row)
+          print("(no entry differs: the zip's own records do)" if a == b else "")
+          PY
+              exit 1
+            fi
+            echo "$runner: the same wheel"
+          done
 
   verify:
     name: verify (${{ matrix.os }})
@@ -195,6 +239,7 @@ jobs:
           uv run pytest -p no:cacheprovider --progress-dir "$RUNNER_TEMP/no-baseline"
           tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
           tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
+          tests/unit/test_runner_sweep.py
       - name: Nothing passed here is blocked but what this job cannot provide
         # The empty baseline fails only on a failed check; a check that skipped for a missing
         # need would pass unnoticed, so the needs that blocked anything are named here.

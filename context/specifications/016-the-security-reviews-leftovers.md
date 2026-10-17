@@ -1,7 +1,9 @@
 # 016 — The security review's leftovers
 
-- **Status:** ready to build, 2026-10-17: revised twice against its pre-build review, which
-  its second confirmation passed for build
+- **Status:** built and reviewed 2026-10-17
+  (`../reviews/016-the-security-reviews-leftovers-2026-10-17.md`, with its confirmation); revised
+  twice before the build against its pre-build review, which its second
+  confirmation passed for build
   (`context/reviews/016-the-security-reviews-leftovers-spec-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the release workflow
@@ -74,19 +76,32 @@ Four things the security review found, none of which blocked 0.1.0a2:
      1. create `<name>.lock` in the temporary folder with `O_CREAT | O_EXCL | O_NOFOLLOW |
         O_CLOEXEC` where the platform has them, mode `0600`;
      2. lock it without waiting: POSIX `fcntl.flock(fd, LOCK_EX | LOCK_NB)`; Windows
-        `os.lseek(fd, 0, 0)` then `msvcrt.locking(fd, LK_NBLCK, 1)`;
+        `os.lseek(fd, 0, 0)` then `msvcrt.locking(fd, LK_NBLCK, 1)`. Only contention means
+        busy: `BlockingIOError` on POSIX, `EACCES` or `EDEADLOCK` on Windows. Any other error
+        means this filesystem gives no lock (below);
      3. check that the open file is still the file at that path (`os.fstat(fd)` and
-        `os.lstat(path)` agree on device and inode);
-     4. write the kernel identity into it at offset 0 (`os.lseek(fd, 0, 0)`, then `os.write`),
-        one line;
+        `os.lstat(path)` agree on device and inode); a path that no longer exists fails the
+        check, since a sweeper may have removed the new, still-empty file (the build review,
+        finding 1);
+     4. if the lock was taken, write the kernel identity into it at offset 0
+        (`os.lseek(fd, 0, 0)`, then `os.write`), one line;
      5. make the folder `<name>` with `os.mkdir(path, 0o700)`.
 
      A failure at steps 1 to 3 or 5 (`FileExistsError`, a lock that is busy, a path that is no
-     longer this file) closes what this call opened, removes only a lock file this call created
-     and still holds, drops `<name>` from the held set, and draws a new name, up to 100 times, as `mkdtemp` does; then it raises,
-     as `mkdtemp` would.
-   - **Removing a folder at the end of the call:** remove the folder; close the lock file (which
-     releases the lock); unlink it only if the folder no longer exists, ignoring
+     longer this file) closes what this call opened, removes the lock file only if step 3
+     found it still this call's file, drops `<name>` from the held set, and draws a new name, up
+     to 100 times, as `mkdtemp` does; then it raises, as `mkdtemp` would.
+   - **A filesystem without locks** (the build review, finding 2). Where the lock fails for any
+     reason but contention (`ENOLCK` on NFS without a lock daemon, `ENOTSUP` on some network
+     filesystems), the call goes on without a lock and writes no identity. A lock file with an
+     empty first line beside a folder is never swept, even by a sweep whose lock works (a lock
+     daemon that comes back), so such a call's folders are only ever leaked by a kill, never
+     removed: the behaviour before this specification. A sweep whose own lock attempt errors
+     leaves the entry, whatever its first line. Raising instead would make every call fail on such a
+     temporary folder, where `mkdtemp` worked; drawing again, as the first build did, made every
+     call fail and left 100 lock files.
+   - **Removing a folder at the end of the call:** remove the folder; unlock the lock file
+     (Windows only, where a closed handle's lock is freed after a delay) and close it; unlink it only if the folder no longer exists, ignoring
      `FileNotFoundError`; and drop `<name>` from the held set last. A folder that `rmtree` could
      not fully remove keeps its lock file, so a later sweep can try again. Closing before unlinking is what Windows requires: it cannot delete a
      file that is open (READ, CPython's `tempfile` does the same).
@@ -103,8 +118,12 @@ Four things the security review found, none of which blocked 0.1.0a2:
      4. read the first line from offset 0 (`os.lseek(fd, 0, 0)`, then `os.read`); skip unless it
         equals this kernel's identity;
      5. remove the folder `<name>` if it is a directory and not a link
-        (`shutil.rmtree(ignore_errors=True)`), counting it in `_swept` if it is then gone; close
-        the lock file; and unlink it only if no folder `<name>` remains.
+        (`shutil.rmtree(ignore_errors=True)`), counting it in `_swept` if it is then gone; and
+        unlink the lock file only if no folder `<name>` remains. On POSIX the unlink comes
+        before the close, while the lock is still held, so a creator that locks the file
+        afterwards fails step 3 and draws again; Windows cannot delete an open file, so there it
+        closes first and leaves that narrow window (a leak if the creator is then killed, never
+        a removal; the build review, finding 6).
 
      A lock file with no folder beside it whose lock is free is removed if its first line is this
      kernel's identity or it is empty (a creator killed before step 4): there is nothing of a
@@ -174,13 +193,24 @@ Four things the security review found, none of which blocked 0.1.0a2:
        Windows, where making a link needs privileges, those two cases are skipped);
      - a dead folder that holds a link to a canary folder outside is removed and the canary
        survives (POSIX);
-     - an owner other than this user is refused, through a fake `lstat`;
-     - a sweep whose `listdir` raises returns quietly, and the call goes on;
+     - an owner other than this user is refused, through a fake `lstat` (POSIX), and `_owned`
+       answers for two `stat_result`s;
+     - a sweep whose `listdir` raises returns quietly, and the call goes on to make its folder;
      - a lock file of another kernel (a different first line), and one with no first line,
        beside an unlocked folder, stay with their folders;
      - a name this process holds is skipped, even when its lock could be taken (a fake held set);
-     - a lock file replaced by a FIFO between `lstat` and `open` is skipped and the sweep does
-       not hang (POSIX; `O_NONBLOCK`);
+     - a lock file replaced by a FIFO between `lstat` and `open` is skipped (POSIX). `O_RDWR`
+       on a FIFO does not block, so the check cannot see `O_NONBLOCK`, which guards a file under
+       a lease; the regular-file and inode checks are what skip the FIFO;
+     - a drawn name whose lock file exists is left untouched and another is drawn (`O_EXCL`);
+     - a lock file a sweeper removes before its creator locks it: the creator draws again;
+     - a filesystem without locks (a fake `flock` raising `ENOLCK`): the folder is made, its
+       lock file stays empty, a sweep leaves it, and the end of the call leaves nothing;
+       `_try_lock` answers busy only for contention;
+     - a folder `rmtree` could not fully remove keeps its lock file, and a later sweep removes
+       both;
+     - the sweep unlinks a lock file before it lets the lock go (POSIX);
+     - a lock file naming this kernel whose lock attempt errors (`ENOLCK`) stays with its folder;
      - making a folder whose lock file a sweeper holds at that instant draws a new name instead
        of raising (a fake `flock` that fails once), and the call succeeds;
      - at the end of a call, the folder is gone before its lock file is unlinked, and on every
@@ -241,4 +271,107 @@ In: the above. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `9ed86d6`, after the
+pre-build review and its two confirmations passed it for build, then revised against its build
+review (below), whose confirmation passed it. Every claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2, wasmtime-py
+49.0.0, with the main tree's artifact set, unless it says otherwise.
+
+### What was built
+
+- `_Private` (a folder and its locked lock file), `_kernel_identity`, `_try_lock`, `_sweep_once`
+  and `_sweep_entry` in `src/wasi_python/runner.py`; the private root and the stdin folder use
+  `_Private`; the first call sweeps. On this Mac the identity is the boot session's UUID.
+- `_trap_name` names any trap with a code by `_trap_code_name`.
+- The release workflow: `rebuild` uploads the wheel as `rebuild-wheel-<os>` beside its
+  `SHA256SUMS`; `same-bytes` checks the release's wheel against the set's `SHA256SUMS` (three
+  rules) and against the rebuilt wheel (`cmp`); `verify` runs `tests/unit/test_runner_sweep.py`.
+  The first attempt broke two rules of spec 012's workflow scan
+  (`test_release_workflow_rebuilds_on_a_second_host`): the `SHA256SUMS` upload moved into a
+  folder, and a `||` in `same-bytes`. The judge was not changed; the workflow was: the wheel has
+  its own upload, and the rule is an `if … then exit 1`.
+- README: the `trapped` sentence, the Windows cache sentence, and a new "Not protected" entry
+  (killed processes, and a `root=` at or above the temporary folder). CHANGELOG: three lines
+  under 0.1.0a3.
+
+### The wheel rules, each seen failing (Decision 1)
+
+Two local builds of the wheel from the same tree and set, with `SOURCE_DATE_EPOCH` set, were
+byte-identical. The workflow's rules, run locally on four changed copies of that wheel (scratch
+`build016/wheelcheck/`): one byte of `MANIFEST` changed fails rule 1 (a hash); a changed
+`SHA256SUMS` fails rule 2; an extra file fails rule 3; a changed `runner.py` passes rules 1 to 3
+and fails rule 4, the comparison with the rebuilt wheel.
+
+### Seen failing first (Decision 5)
+
+Against `main` the new checks fail for missing names and missing lock files. Against stand-ins
+(scratch `build016/standins.py`, output `standins.txt`), each runner change made by text
+replacement and reverted afterwards:
+
+| stand-in | checks that fail |
+|---|---|
+| the sweep does not try the lock | `test_a_live_calls_folders_are_never_swept`, `test_a_held_lock_keeps_its_folder` |
+| the sweep ignores the kernel identity | `test_another_kernels_folder_and_an_unnamed_one_stay` (both) |
+| no sweep | `test_a_killed_process_leaves_nothing_after_the_next_call` |
+| the old trap name | `test_a_trap_is_named_by_its_code`, `test_a_stack_overflow_is_named` |
+| a busy lock raises instead of drawing again | `test_a_busy_name_is_drawn_again` |
+| the sweep follows a link named like a root | none: `shutil.rmtree` refuses a symbolic link itself, so the canary survives; the check guards the outcome, which two layers give |
+
+The descriptor check's Windows branch and the sweep's Windows path (`msvcrt.locking`,
+`MachineGuid`) run first in the release workflow's Windows verify job.
+
+### The judge
+
+`uv run pytest` in the clone (no source trees, oracle, prior-art clones or wheel there): 155/166
+pass, 0 gap, 0 fail, 11 blocked; v1.4 59/59; unit suite 331/337, 6 skipped; ratchet lost 0,
+gained 3, grew 0; judge changed: `tests/checks/test_v1_2_hostile_guest.py`,
+`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_sweep.py`. ruff: clean. The
+`--accept-judge` run is made on `main` after the build review.
+
+### Left over
+
+- Linux and Windows run the sweep first in the release workflow; the Linux NFS case (C2) and
+  Windows's lock-release delay are covered by design, not by a run here.
+- The cross-kernel and container cases were run by the reviewer during the pre-build rounds, not
+  against this code.
+
+### Revised against the build review
+
+The build review
+(`context/reviews/016-the-security-reviews-leftovers-2026-10-17.md`) found three medium defects
+and six smaller ones. All are fixed; its disposition section says how. In short:
+
+- **Finding 1.** `_same_file` answers False when the path is gone, and the lock file is removed
+  on a redraw only when step 3 found it still this call's. The reviewer's stepped probe (p1) now
+  draws again, and its stress probe made 6,000 of 6,000 folders with 0 errors and 0 lost
+  (EXECUTED, scratch `build016/mut2/probes/stepped2.txt`).
+- **Finding 2, a new decision (above, "A filesystem without locks").** The reviewer's `ENOLCK`
+  probe now runs its call and leaves nothing (EXECUTED, `mut2/probes/stepped.txt`).
+- **Finding 3.** The unit test reads the identity through the holder's descriptor.
+- **Findings 4 to 8.** New unit cases, each seen failing against a mutation of the fixed runner
+  (EXECUTED, `mut2/run.py`):
+
+| mutation | checks that fail |
+|---|---|
+| `_same_file` raises when the path is gone | `test_a_lock_file_swept_before_its_lock_makes_the_creator_draw_again` |
+| any lock error is "busy" | `test_a_filesystem_without_locks_still_makes_a_folder_that_is_never_swept`, `test_only_contention_is_busy` |
+| `_owned` always true | `test_another_owner_is_refused`, `test_owned_means_this_users` |
+| `remove()` unlinks the lock file even when the folder is left | `test_a_folder_rmtree_could_not_remove_keeps_its_lock_file` |
+| no `O_EXCL` | `test_an_existing_lock_file_is_never_opened_again` |
+| the sweep closes before it unlinks | `test_the_sweep_unlinks_before_it_lets_the_lock_go` |
+
+  The stepped probe p2 now shows the live call keeping its lock file: the sweeper holds the lock
+  until its unlink, so the creator draws another name.
+- **Finding 7.** When the release's wheel and the rebuilt one differ, `same-bytes` prints each
+  entry found in only one (name, mode, size, CRC, date) and fails. Seen on two hand-made wheels
+  that differ in one entry (EXECUTED).
+- **Finding 9.** The `trapped` comment; the failing-listing case makes a folder afterwards;
+  Windows unlocks before it closes (`_unlock_close`); `sysctlbyname` has its `argtypes`.
+- **Not checked, and why.** No check can see `O_NONBLOCK` (above), or that a name joins the held
+  set before the open (m14) or leaves it last (m09): only an NFS client that treats `flock` as
+  per-process could tell. The layered defences m07, m08, m10 and m11 each survive alone because
+  another layer holds; the checks guard the outcome.
+- **Also.** `_call` makes the stdin folder inside its `try`, so a failure there still closes the
+  store (the review's section 1).
+- **The judge (EXECUTED, in the clone, with the main tree's artifact set):** 155/166 pass, 0 fail,
+  11 blocked; v1.4 59/59; unit suite 338/344, 6 skipped; 493 passed, 17 skipped; ratchet lost
+  0, gained 3, grew 0; judge changed in the same three files. ruff: clean.

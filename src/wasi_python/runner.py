@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import atexit
 import ctypes
+import errno
 import hashlib
 import itertools
 import math
 import numbers
 import operator
 import os
+import re
 import secrets
 import shutil
 import stat
@@ -225,7 +227,8 @@ class Completed:
     exit_code: int | None  # run's return value or proc_exit's code; None when it trapped
     stdout: bytes
     stderr: bytes
-    trapped: str | None  # None, "out of fuel", "deadline", or the trap's first line
+    trapped: str | None  # None, "out of fuel", "deadline", "cancelled", the trap code's plain
+    # name ("stack overflow"), or, for a trap without a code, its message's first line
     fuel_used: int | None  # instructions spent, when a fuel cap was given and no deadline hit
     truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
 
@@ -397,6 +400,267 @@ def _stop_async_calls() -> None:
         event.set()
 
 
+# Private folders and the sweep (spec 016, Decision 2). Each private root and stdin folder has a
+# lock file beside it in the temporary folder, locked for the folder's life and naming the kernel
+# that made it. A process killed mid-call leaves both; the lock dies with it, so the next process
+# on the same kernel can tell its folder is dead. A pid could not: pids repeat across namespaces,
+# are reused, and a killed child is a zombie until reaped.
+_LOCK_NAME = re.compile(r"wasi-python-(root-)?[0-9a-f]{16}\.lock\Z")
+_held_lock = threading.Lock()
+_held: set[str] = set()  # the names this process holds: NFS may treat flock as per-process
+_sweep_state = {"claimed": False, "swept": 0}
+_identity: dict[str, str | None] = {}
+
+
+def _flags(*names: str) -> int:
+    flags = 0
+    for name in names:
+        flags |= getattr(os, name, 0)
+    return flags
+
+
+def _kernel_identity() -> str | None:
+    """Which kernel this process runs on, or None: a lock taken on one kernel is invisible to
+    another that shares the folder (a VM and its host), so a sweep touches only its own."""
+    if "value" not in _identity:
+        value = None
+        try:
+            if sys.platform.startswith("linux"):
+                value = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+            elif sys.platform == "darwin":
+                import ctypes.util
+
+                libc = ctypes.CDLL(ctypes.util.find_library("c"))
+                size_p, void_p = ctypes.POINTER(ctypes.c_size_t), ctypes.c_void_p
+                libc.sysctlbyname.argtypes = [
+                    ctypes.c_char_p,
+                    void_p,
+                    size_p,
+                    void_p,
+                    ctypes.c_size_t,
+                ]
+                libc.sysctlbyname.restype = ctypes.c_int
+                buf, size = ctypes.create_string_buffer(64), ctypes.c_size_t(64)
+                name = b"kern.bootsessionuuid"
+                if libc.sysctlbyname(name, buf, ctypes.byref(size), None, 0) == 0:
+                    value = buf.value.decode("ascii")
+            elif sys.platform == "win32":
+                import winreg
+
+                access = winreg.KEY_READ | winreg.KEY_WOW64_64KEY
+                where = r"SOFTWARE\Microsoft\Cryptography"
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, where, 0, access) as key:
+                    value = str(winreg.QueryValueEx(key, "MachineGuid")[0])
+        except Exception:
+            value = None
+        _identity["value"] = value if value and "\n" not in value else None
+    return _identity["value"]
+
+
+_BUSY = {errno.EACCES, errno.EDEADLK, getattr(errno, "EDEADLOCK", errno.EDEADLK)}
+
+
+def _try_lock(fd: int) -> bool | None:
+    """Lock the open file without waiting: True when locked, False when another holder has it,
+    None when this filesystem gives no lock (`ENOLCK` on NFS without a lock daemon, say)."""
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+
+            os.lseek(fd, 0, 0)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except BlockingIOError:
+        return False
+    except OSError as e:
+        return False if sys.platform == "win32" and e.errno in _BUSY else None
+
+
+def _unlock_close(fd: int) -> None:
+    """Unlock (Windows frees a closed handle's lock only after a delay), then close; quiet."""
+    if sys.platform == "win32":
+        try:
+            import msvcrt
+
+            os.lseek(fd, 0, 0)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        except OSError:
+            pass
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+
+
+def _same_file(fd: int, path: str) -> bool:
+    """Whether the open file is still the file at `path`; False when the path is gone."""
+    try:
+        opened, named = os.fstat(fd), os.lstat(path)
+    except OSError:
+        return False
+    return (opened.st_dev, opened.st_ino) == (named.st_dev, named.st_ino)
+
+
+class _Taken(Exception):
+    pass
+
+
+class _Private:
+    """A private folder in the temporary folder, with `<name>.lock` beside it, held locked until
+    `remove` (spec 016). The name is drawn here, as mkdtemp draws one, because the lock file must
+    exist, locked, before the folder does."""
+
+    def __init__(self, prefix: str) -> None:
+        temp = tempfile.gettempdir()
+        identity = _kernel_identity()
+        create = _flags("O_RDWR", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC", "O_BINARY")
+        for _ in range(100):
+            name = prefix + secrets.token_hex(8)
+            lock_path, path = os.path.join(temp, name + ".lock"), os.path.join(temp, name)
+            with _held_lock:
+                _held.add(name)
+            try:
+                fd = os.open(lock_path, create, 0o600)
+            except FileExistsError:
+                _drop(name)
+                continue
+            except BaseException:
+                _drop(name)
+                raise
+            owns = False  # the file at lock_path is the one this call made
+            try:
+                locked = _try_lock(fd)
+                if locked is False:
+                    raise _Taken
+                owns = _same_file(fd, lock_path)  # a sweeper may have removed it, still empty
+                if not owns:
+                    raise _Taken
+                if locked and identity is not None:  # unlocked: no identity, so never swept
+                    os.lseek(fd, 0, 0)
+                    os.write(fd, identity.encode("ascii") + b"\n")
+                os.mkdir(path, 0o700)
+            except (_Taken, FileExistsError):
+                _abandon(fd, lock_path if owns else None, name)
+                continue
+            except BaseException:
+                _abandon(fd, lock_path if owns else None, name)
+                raise
+            self.name, self.fd, self.lock_path, self.path = name, fd, lock_path, Path(path)
+            return
+        raise FileExistsError(errno.EEXIST, "no usable temporary folder name found")
+
+    def remove(self) -> None:
+        """Folder, then lock (close), then the lock file only if the folder is gone, then the
+        name; never raises (the 0.1.0a2 security review, F1)."""
+        shutil.rmtree(self.path, ignore_errors=True)
+        _unlock_close(self.fd)  # Windows cannot delete an open file
+        if not os.path.lexists(self.path):
+            try:
+                os.unlink(self.lock_path)
+            except OSError:
+                pass
+        _drop(self.name)
+
+
+def _drop(name: str) -> None:
+    with _held_lock:
+        _held.discard(name)
+
+
+def _abandon(fd: int, lock_path: str | None, name: str) -> None:
+    _unlock_close(fd)
+    if lock_path is not None:  # only a lock file this call made and still has at that name
+        try:
+            os.unlink(lock_path)
+        except OSError:
+            pass
+    _drop(name)
+
+
+def _sweep_once() -> None:
+    """At a process's first call: remove the private folders of dead processes on this kernel.
+    Claimed under `_lock`, run without it; it never raises into the call."""
+    with _lock:
+        if _sweep_state["claimed"]:
+            return
+        _sweep_state["claimed"] = True
+    try:
+        identity = _kernel_identity()
+        if identity is None:
+            return
+        temp = tempfile.gettempdir()
+        for entry in os.listdir(temp):
+            try:
+                _sweep_entry(temp, entry, identity)
+            except Exception:
+                continue
+    except Exception:
+        return
+
+
+def _owned(st: os.stat_result) -> bool:
+    getuid = getattr(os, "getuid", None)
+    return getuid is None or st.st_uid == getuid()  # Windows: the user's own temporary folder
+
+
+def _sweep_entry(temp: str, entry: str, identity: str) -> None:
+    if not _LOCK_NAME.match(entry):
+        return
+    name = entry[: -len(".lock")]
+    with _held_lock:
+        if name in _held:
+            return
+    lock_path, path = os.path.join(temp, entry), os.path.join(temp, name)
+    named = os.lstat(lock_path)
+    if not stat.S_ISREG(named.st_mode) or not _owned(named):
+        return
+    fd = os.open(lock_path, _flags("O_RDWR", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "O_BINARY"))
+    unlink = False
+    try:
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode):
+            return
+        if (opened.st_dev, opened.st_ino) != (named.st_dev, named.st_ino):
+            return
+        if not _try_lock(fd):
+            return  # a live call holds it
+        os.lseek(fd, 0, 0)
+        first = os.read(fd, 256).split(b"\n", 1)[0].decode("ascii", "replace")
+        if not os.path.lexists(path):
+            unlink = first in ("", identity)  # a lone lock file: nothing of a call's to lose
+            return
+        if first != identity:
+            return  # another kernel's, or none
+        folder = os.lstat(path)
+        isjunction = getattr(os.path, "isjunction", lambda p: False)
+        if not stat.S_ISDIR(folder.st_mode) or isjunction(path):
+            return
+        shutil.rmtree(path, ignore_errors=True)
+        if not os.path.lexists(path):
+            with _held_lock:
+                _sweep_state["swept"] += 1
+            unlink = True
+    finally:
+        # POSIX unlinks while still holding the lock, so a creator that locks the file after
+        # this fails its same-file check and draws again; Windows cannot delete an open file.
+        if unlink and os.name == "posix":
+            _unlink_quietly(lock_path)
+        _unlock_close(fd)
+        if unlink and os.name != "posix":
+            _unlink_quietly(lock_path)
+
+
+def _unlink_quietly(path: str) -> None:
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
 # Fork (spec 015, Decision 5). A child of a process that made an engine inherits state from
 # threads that no longer exist, and wasmtime does not support use across a fork (on macOS it
 # aborts), so such a child is refused. A child of a parent that only imported this runs normally.
@@ -415,7 +679,8 @@ def _after_fork_in_child() -> None:
     """Only assignments, and no lock: a lock may have been held by a thread the fork left out, so
     every lock the runner takes is made anew (spec 015's build review, F8)."""
     global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
-    _pool_lock, _live_lock = threading.Lock(), threading.Lock()
+    global _held_lock
+    _pool_lock, _live_lock, _held_lock = threading.Lock(), threading.Lock(), threading.Lock()
     _lock, _epoch_callback_lock, _outputs_lock = (
         threading.Lock(),
         threading.Lock(),
@@ -484,16 +749,17 @@ def _run_checked(
     binary = found.snapshot if snapshot else found.plain
     engine = _engine(c["fuel"] is not None)
     module = _module(engine, c["fuel"] is not None, binary, _cache_dir(cache_dir))
+    _sweep_once()
     if root is not None:
         guest_root = Path(root)
         _place_stdlib(found, guest_root)
         return _call(wt, engine, module, found, guest_root, c, host)
-    guest_root = Path(tempfile.mkdtemp(prefix="wasi-python-root-"))  # 0700, this user's own
+    private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
     try:
-        _place_private(found, guest_root)
-        return _call(wt, engine, module, found, guest_root, c, host)
+        _place_private(found, private.path)
+        return _call(wt, engine, module, found, private.path, c, host)
     finally:
-        shutil.rmtree(guest_root, ignore_errors=True)
+        private.remove()
 
 
 def _call(
@@ -607,9 +873,10 @@ def _instance(
     wasi.env = sorted({**BASE_ENV, "HOME": home, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
     keys = _send_outputs(wasi, out, err)
-    scratch = tempfile.mkdtemp(prefix="wasi-python-")  # 0700, this user's own
+    scratch = None
     try:
-        stdin_path = Path(scratch) / "stdin"
+        scratch = _Private("wasi-python-")  # 0700, this user's own, locked (spec 016)
+        stdin_path = scratch.path / "stdin"
         stdin_path.write_bytes(stdin or b"")
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
@@ -628,7 +895,8 @@ def _instance(
         with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
             for key in keys:
                 _outputs.pop(key, None)
-        shutil.rmtree(scratch, ignore_errors=True)
+        if scratch is not None:
+            scratch.remove()
     truncated = tuple(s.name for s in (out, err) if s.dropped)
     return Completed(
         done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated
@@ -1128,7 +1396,14 @@ def _trap_name(e: wasmtime.Trap) -> str:
         return "out of fuel"
     if e.trap_code == wt.TrapCode.INTERRUPT:
         return "deadline"
+    if e.trap_code is not None:  # by its kind, not wasmtime's heading (spec 016, Decision 3)
+        return _trap_code_name(e.trap_code)
     return _first_line(e.message)
+
+
+def _trap_code_name(code: Any) -> str:
+    """`TrapCode.STACK_OVERFLOW` is "stack overflow"."""
+    return code.name.lower().replace("_", " ")
 
 
 def _door(host: Host | None) -> Callable[..., int]:

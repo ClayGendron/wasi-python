@@ -6,6 +6,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **A killed process's files are cleaned up:** a process killed mid-call left its private root
+  (the guest's files) and its stdin folder (the caller's `stdin`) in the temporary folder for
+  good. Each now has a locked lock file beside it naming the kernel that made it; the next
+  wasi_python process on that kernel removes them at its first call, and never touches a live
+  call's folders or another kernel's. On a temporary folder without file locks, calls go on
+  and such folders stay, as before.
+- **`trapped` names a trap by its kind** (a change to what it says): a stack overflow now reads
+  `"stack overflow"`, not wasmtime's heading `"error while executing at wasm backtrace:"`, and so
+  do `"unreachable"`, `"memory out of bounds"` and every other trap with a code. An error with no
+  trap code keeps its first line.
+- **The released wheel is the bytes a second host rebuilt:** the release workflow rebuilds the
+  wheel on arm64 Linux and publishes only a wheel equal to it, byte for byte, whose artifacts
+  match the set's `SHA256SUMS`.
 - **Run from async code:** `run_async` runs a call on a worker thread, so an async server's
   event loop never waits for a guest. Cancelling the awaiting task stops the guest (checked
   every 50 ms while it computes, at once when it waits or calls the door, later when other
