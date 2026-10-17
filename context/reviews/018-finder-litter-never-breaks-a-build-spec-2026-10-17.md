@@ -282,3 +282,104 @@ Every finding is taken; the specification is revised in place.
 Revise first: the retry itself is sound in every shell tried, but a `.DS_Store` in pandas'
 `LICENSES/` still changes an artifact silently, and criterion 3 cannot pass while the changed
 scripts' hashes sit in `MANIFEST`.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `58e645e`, and the Disposition above.
+- **Ran (EXECUTED, darwin-arm64, and `debian:trixie-slim` in Docker with no network: dash and GNU
+  `rm` 9.7).** The repo was not edited, except to append this section. Nothing under `build/`
+  was changed. Scripts are in
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev018/confirm/`:
+  `remove.sh` (Decision 1's function, copied exactly), `sem.sh` (it under `set -eu` with `rm`
+  replaced by a counting shell function) and `loop.sh` (the `find … | while read -r d; do remove
+  "$d"; done` clean-up under `set -eu`).
+
+### The revised `remove` (Decision 1)
+
+EXECUTED in `/bin/sh` (bash 3.2, POSIX mode), `/bin/dash`, `/bin/bash`, `/bin/zsh` and Debian's
+dash. Two paths each run: a folder and a dangling link. Calls are totals for both paths.
+
+| `rm` fails | exit | `rm` calls | result |
+|---|---|---|---|
+| never | 0 | 2 | both gone |
+| first call | 0 | 3 | both gone |
+| first two calls | 0 | 4 | both gone |
+| always | 1 | 3 | `rm: fake failure 3` then `ERROR: cannot remove …/a` |
+
+- The `||` chain never trips `set -e`: only its last command could, and that is `true`.
+- Only the third attempt's error reaches standard error, so the cause is the line before
+  `cannot remove` (finding 9 closed).
+- `exit 1` ends the step from a plain call. `build.sh`'s last-`ERROR`-line grep picks
+  `ERROR: cannot remove …`.
+
+### The cache clean-up loop (finding 3)
+
+EXECUTED in sh, dash and bash, and in Debian's dash:
+- Caches present, including in a folder whose name has a space: exit 0, none left.
+- No caches: exit 0 (a `while` that never runs returns 0).
+- A cache `rm` cannot empty (a read-only subfolder): the subshell's `exit 1` becomes the
+  pipeline's status, and `set -e` stops the step with `ERROR: cannot remove …/__pycache__`.
+  The step stops with one line naming the path, as Decision 1 intends.
+- One behaviour changes, and it is harmless: if `build/tools/python/lib` is missing, `find`
+  fails but the pipeline returns the loop's 0, so the step goes on. Before, the same `find`
+  stopped the step. The next line runs `$HOSTPY`, which is then missing too, so the step still
+  stops (INFERRED from READ of steps 60 and 70). No condition.
+
+### Decision 8 and criterion 3
+
+- EXECUTED: every one of the 35 `recipe` lines in the main tree's `build/artifacts/MANIFEST`
+  equals the hash of that file at `HEAD` today. `git ls-files recipes scripts`, without
+  `bench_*`, also gives 35 files. So "differs only in the `recipe` lines of the changed and added
+  scripts" is a well-defined, checkable rule against that set: the changed lines, plus two new
+  lines for `scripts/steps/remove.sh` and `scripts/litter.py`.
+- READ: the ratchet records `bytes` only for the two binaries and the zip
+  (`test_binary_is_a_core_wasm_module`, `test_stdlib_zip_is_bytecode_only_and_deflated`). The
+  new `MANIFEST` is therefore not "growth" to accept.
+- The littered re-run now plants a `.DS_Store` in pandas' `LICENSES/`, which exercises finding 1.
+
+### Each disposition against its finding
+
+1. pandas' `LICENSES/` — closed: Decision 4, a check, and criterion 3's planted file.
+2. `MANIFEST` — closed: Decision 8 and criterion 3 say exactly what changes. Checked above.
+3. Cache clean-up — closed: EXECUTED above.
+4. Litter in `build/artifacts/` — closed by a decision (Decision 6), with its reason.
+5. The downstream catch and the set's home — closed: Decision 5 cites `sums_errors` and rule 3,
+   and `scripts/litter.py` is the one copy the scripts share. READ: no module named `line` or
+   `litter` exists under `tests/` or `src/`, so importing the scripts in a unit check shadows
+   nothing. `frozenset == set` compares equal in Python, so the equality check works as
+   written.
+6. The `remove` check — closed: `remove.sh` stands alone, and the check counts calls.
+7. The two `rmtree` calls — closed by Decision 5's `_remove`. Condition A below.
+8. The residual — closed: stated in Decision 1, and moving aside is out of scope with its reason.
+9. The lost cause — closed: EXECUTED above.
+10. The scan rule — closed: scope, spellings, exemption and file are all named.
+11. Criterion 3 — closed: one full build in a clean clone, then the littered re-run.
+
+### Conditions left (each a sentence in the spec, or the build review checks them)
+
+A. **`_remove` treats "already gone" as success.** `shutil.rmtree` on a missing path raises
+   `FileNotFoundError`. `artifacts.new` is normally missing, because `build.sh` just removed
+   it. Each attempt must catch `OSError` (or test `os.path.lexists` first), and the verdict
+   must come from the existence test, as in `remove.sh`. Otherwise step 90 fails on every
+   normal build.
+B. **The `sh` check needs a POSIX `sh`.** The revision dropped finding 6's last point. Say that
+   on a host without `sh` the check is blocked (a named need), not passed and not failed. READ:
+   the release workflow's Windows `verify` runs no file under `tests/unit/` except
+   `test_runner_sweep.py`. So CI is unaffected, but a Windows desktop run must not go red.
+
+No new gap at the level of the first review's findings.
+
+### Verdict
+
+Ready to build, with conditions A and B written into the specification (one sentence each) or
+checked by the build review.
+
+## Disposition of the confirmation (filled in by the author)
+
+- **A:** made. Decision 5's `_remove` catches `OSError` on each attempt and decides by existence,
+  so a path already gone is success.
+- **B:** made. The `sh`-based case is blocked, naming its need, on a host without a POSIX `sh`.
+
+Your verdict made the spec ready to build with these two sentences.

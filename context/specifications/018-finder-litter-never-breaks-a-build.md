@@ -1,8 +1,8 @@
 # 018 — Finder litter never breaks a build
 
 - **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/018-finder-litter-never-breaks-a-build-spec-2026-10-17.md`), awaiting the
-  reviewer's confirmation.
+  (`../reviews/018-finder-litter-never-breaks-a-build-spec-2026-10-17.md`); ready to build, with
+  the confirmation's two conditions made.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (`scripts/steps/*.sh`, a new `scripts/steps/remove.sh`,
   `scripts/build.sh`, a new `scripts/litter.py`, `scripts/make_stdlib_zip.py`,
@@ -74,8 +74,10 @@ deleting files by hand.
    `assemble_artifacts.py` writes into a folder it has just made (`build/artifacts.new`). Before
    it lists that folder's files for `SHA256SUMS`, it deletes any file there named in
    `OS_LITTER`. Its two `shutil.rmtree(…, ignore_errors=True)` calls (of `artifacts.new` before,
-   and of `artifacts` before the rename) become `_remove(path)`: up to three `rmtree` attempts,
-   then `SystemExit("cannot remove <path>")` if it still exists, so a failure is one line, not a
+   and of `artifacts` before the rename) become `_remove(path)`: up to three `rmtree` attempts, each
+   catching `OSError` and deciding by whether the path still exists, as `remove.sh` does, so a
+   path already gone (`artifacts.new` usually is) is success; then
+   `SystemExit("cannot remove <path>")` if it still exists, so a failure is one line, not a
    later traceback. Litter written into the set after the listing is not in `SHA256SUMS`; the
    judge's `sums_errors` ("… is not listed in SHA256SUMS") and spec 016's wheel rule 3 fail on
    it. That is right: a shipped set must hold only what it lists.
@@ -118,7 +120,8 @@ with the same artifact set or fails for a reason that is not litter.
     - `remove`, sourced from `remove.sh` under `sh`, with `rm` replaced by a shell function that
       counts its calls and fails a set number of times: fails once → exit 0, the path gone,
       exactly 2 calls; always fails → exit 1, `cannot remove` on standard error, exactly 3 calls;
-      a dangling link is removed. No background writer, no timing;
+      a dangling link is removed. No background writer, no timing. On a host without a POSIX
+      `sh` the case is blocked, naming that need, never passed or failed;
     - `make_stdlib_zip.walk` over two temporary trees, each with a `.DS_Store`, a `Thumbs.db`
       and a real module: only the modules are yielded;
     - `assemble_artifacts.drop_litter` on a temporary folder: litter gone, other files kept;
