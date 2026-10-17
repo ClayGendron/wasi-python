@@ -103,6 +103,16 @@ question moves to the bottom with the answer and the date.
 - **31. pythran:** build without it first (5 modules fall back to slower code), or pin it and
   its three dependencies as build tools? *Recommended: without, at first.*
 
+### 33. Reword §4.1's clause that spec 020 has now fulfilled?
+
+- **Asked:** 2026-10-17. **Source:** spec 020's build review, confirmation C3.
+- **The fact:** §4.1 ends "(owner, 2026-10-17, question 32; until the specification that builds
+  this lands, no patch is applied and the old zero-diff check stands)". Spec 020 has landed, so
+  the clause has expired by its own words, and reads as history. The agent edited it to "built by
+  spec 020" and then reverted that, because only the owner changes the constitution.
+- **The question:** may the agent replace the clause with "(owner, 2026-10-17, question 32;
+  built by spec 020)"? *Recommended: yes;* it changes no rule. Nothing waits on it.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
