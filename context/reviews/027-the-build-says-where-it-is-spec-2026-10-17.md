@@ -346,3 +346,102 @@ the glyph rule, width, the test method and `--resume` are left open (Findings 4,
 One line: keep the sh driver and the foreground step, but move `curl`'s check into the download
 script, give the ticker a cleanup on every exit and a check that it really drew, and decide the
 glyph, width, clock and resume rules before it is built.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `4b8ccad` and the Disposition above
+  (`git diff d66711d 4b8ccad`).
+- **Ran (EXECUTED, darwin-arm64).** Outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev027/confirm/`.
+  I wrote nothing in the repository but this section, and did not commit or stage it.
+  - `rec.sh`: Decision 2's TERM rule. The trap only records the signal; the loop prints and exits
+    after the step returns. I sent TERM to the driver during a 2 s step that then exits 0, under
+    dash, bash and `zsh --emulate sh`.
+  - `sh -c 'exec 3>&1; sh -c "[ -e /dev/fd/3 ] …"'`: whether a step inherits the saved fd 3.
+  - Decision 6's time-left sum with a step running past its estimate.
+
+### Each disposition against its finding
+
+1. **The `curl` check: closed.** READ: Decision 8 drops `curl`, and Decision 9 checks it in `get`.
+   `command -v curl` inside `00_download.sh` is allowed by `fetch_hits`, which exempts that file.
+2. **Every exit path: closed, with condition C.** EXECUTED (`rec.sh`): under all three shells the
+   trap waits for the step, the step's status is 0, and the driver then prints its line and exits
+   143. Decision 2 can be built as written, and criterion 2's TERM case reflects what shells do.
+   The ticker's `set +e`, `kill -0` check, failed-write exit and EXIT trap are written, and
+   criterion 2 checks them with bounded reads.
+3. **A check that the ticker drew: closed.** READ: criterion 1 has the frame handshake, runs with
+   and without `timings.tsv`, and on 80 and 30 columns.
+4. **Glyphs: closed.** READ: glyphs appear only in the status line, and permanent lines differ from
+   plain only by SGR. The locale variables and their order are named.
+5. **Width: closed, with condition A.** One line cut to width − 1 cannot wrap. But where fd 3 is
+   opened is a new problem (A).
+6. **Criterion 3: closed, with condition E.**
+7. **The test method: closed, with condition E.** READ: Decision 10.
+8. **The staleness warning: closed by removal.** It is gone from Decision 7 and listed in Scope.
+9. **`--resume`: closed, with condition C.** The columns, statuses and newest-run rule are written.
+10. **Criterion 4: closed.** READ: the order of the `ERROR:` line, the indented and no-match logs,
+    the exact tail lengths, the `::error` placement and its `%25`, and `red` on the screen.
+11. **The download lines: closed, with condition D.**
+12. **The preflight: closed.** READ: 2.5 GiB, checked only on a first build, `df -Pk` on the
+    nearest parent, `gzip`, `stty` and `df` added, no litter warning.
+13. **Formats: closed, with condition B.**
+14. **One `^ERROR` line: closed.** READ: the header starts `FAILED`, and the Kind names spec 003 and
+    the README.
+15. **One status line: taken, and sound.** No log text reaches the live line. The cursor never
+    moves up. The tail is in Scope.
+
+### Conditions left (each a sentence; none changes the design)
+
+- **A. fd 3 reaches the steps, and only in terminal mode.** EXECUTED: after `exec 3>&1`, a child
+  `sh` sees `/dev/fd/3`. If `build.sh` saves the terminal on fd 3, each step in terminal mode holds
+  an extra descriptor to the terminal, which plain mode does not give it. That breaks Decision 2's
+  "same in every mode". A step, or a stray process a step leaves behind, could also write past its
+  log or keep the pty open. Fix: the ticker runs `exec 3>&1` as its own first line (its stdout is
+  the terminal), so `build.sh` and the steps never hold fd 3. Criterion 3 should also record the
+  step's open descriptors (`ls /dev/fd`). In plain mode no ticker runs, so `stty size <&3` is
+  never reached there.
+- **B. The estimate's edge cases.** EXECUTED arithmetic: a running step at 50 s against a 10 s
+  estimate, as the last step, gives `0 + 10 − 50 = −40` s left. Fix: clamp the running step's term
+  at 0. Use max(estimate, 1) in the ten-times rule, because step 90's newest time is 0 s and would
+  drop the estimate at once. "Remaining" means this run's steps. Write the overall counter as
+  `[k/N]`, with N this run's step count, not `[k/11]` (`--from 60` runs 4 steps). Criterion 1 then
+  reads `[k/N]`.
+- **C. A signal between steps, and `--resume` after it.** Decision 2 handles a signal only "when
+  the running step returns". A signal that arrives between steps, or in the preflight, runs its
+  trap at once. Fix: the loop checks the recorded signal before starting each step. For criterion
+  2's TERM case (`ok`, then `INTERRUPTED`), say which step `INTERRUPTED` names: the next one, not
+  started. Then append a row `<that step> interrupted 0`. Without that row the newest run's last
+  row is `ok`, and `--resume` says `nothing to resume` after a build that stopped early.
+- **D. The download summary must keep `shasum`'s failure.** To count the `OK` lines, the script must
+  not pipe `shasum -c` into `tee`, `grep` or `wc` under `sh`, which has no `pipefail`: a mismatch
+  would then pass. Fix: write `shasum`'s output to a file under `build/` with its status kept
+  (`set -e` still sees the exit code), then `cat` and count it. `scan.download_script_errors` stays
+  satisfied, since nothing writes `SHA256SUMS`.
+- **E. `BUILD_CLOCK` and the "alone" run.** The test's explicit environment holds `BUILD_CLOCK`, and
+  every step inherits it. Criterion 3 stays equal only if the "alone" run uses that same
+  environment plus the four exports; say so. The ticker's elapsed time must come from its own
+  `date +%s` reading at its start, not from `progress_clock`. Under a counting clock that mix gives
+  nonsense, which matters only for display but would confuse a reader of the frame.
+
+### §5.2
+
+After A to E, nothing is left to the build.
+
+### Verdict
+
+**Passes for build**, once A to E are written into the specification. Each is a sentence and none
+changes the design. All fifteen findings are closed. The one-line status removes the riskiest
+machinery, and the TERM rule behaves as written under dash, bash and zsh-as-sh.
+
+One line: the revision closes every finding; open fd 3 inside the ticker only, clamp the estimate,
+record a signal between steps, keep `shasum`'s status, and say which environment the "alone" run
+gets.
+
+### The confirmation's conditions, written in by the author
+
+A (fd 3 opened inside the ticker only), B (time left never below 0, estimates at least 1 s,
+`[k/N]`), C (the signal checked before each step, recorded `interrupted`), D (`shasum`'s output
+saved, never piped) and E (the alone run's `BUILD_CLOCK`) are written into Decisions 3, 6, 2, 9
+and criterion 3.

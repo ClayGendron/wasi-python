@@ -1,8 +1,8 @@
 # 027 — The build says where it is
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
-  (`../reviews/027-the-build-says-where-it-is-spec-2026-10-17.md`), awaiting that review's
-  confirmation.
+  (`../reviews/027-the-build-says-where-it-is-spec-2026-10-17.md`), whose confirmation passed it
+  for build with five conditions (A to E), now written in.
 - **Owner:** Clay Gendron
 - **Kind:** the build driver (`scripts/build.sh`, a new `scripts/steps/progress.sh`,
   `scripts/00_download.sh`'s per-pin lines), unit checks in `tests/unit/`, `README.md` (its
@@ -39,6 +39,9 @@ way to list or resume steps but by retyping their numbers.
      zsh-as-sh: exit 130, nothing left running). A TERM or HUP sent to `build.sh` alone waits for
      the running step to end, because a shell runs a trap only after its foreground child
      returns; the README says to signal the process group (`kill -TERM -<pgid>`) to stop at once.
+     The loop also checks the recorded signal before it starts each step, so a signal that
+     arrives between steps stops the build before the next one, and that step is written to
+     `timings.tsv` as `interrupted` for `--resume` (condition C).
    - **The ticker** (the background redraw, terminal mode only) runs with `set +e`, draws one
      whole frame per write, checks `kill -0 "$BUILD_PID"` before every frame, and exits on its own
      when the build is gone or a write fails. An EXIT trap in `build.sh` stops it and erases the
@@ -51,12 +54,14 @@ way to list or resume steps but by retyping their numbers.
      greps hold: `ok <step>: <summary> [<duration>]`, the summary cut to 120 characters as today.
    - **Terminal**: the same permanent lines, and **one live status line** below them, redrawn
      in place with `\r` and `ESC[K` (ninja's way) four times a second after a quiet first half
-     second: `<spinner> [k/11] <step> <elapsed> / ~<last> · [n/N] · ~<left> left`. `[n/N]` is the
+     second: `<spinner> [k/N] <step> <elapsed> / ~<last> · [n/N] · ~<left> left`, where `k/N` is
+     the step's place among this run's steps. `[n/N]` is the
      newest ninja counter in the step's own log (steps 40 and 50 write them; others show none);
      `~<last>` and `~<left>` appear only when `timings.tsv` has them (Decision 6). The line is cut
-     to the terminal's width − 1 columns. The width is read every frame from the terminal saved on
-     fd 3 before any `$(…)` (`exec 3>&1`, `stty size <&3`), else `COLUMNS`, else 80; 0 counts as
-     unset. No WINCH trap: one line cut to width cannot wrap.
+     to the terminal's width − 1 columns. The width is read every frame from fd 3, which the ticker
+     itself opens on its own standard output, the terminal, before any `$(…)` (`exec 3>&1`, then
+     `stty size <&3`), else `COLUMNS`, else 80; 0 counts as unset. `build.sh` never opens fd 3, so
+     no step inherits it in either mode (condition A). No WINCH trap: one line cut to width cannot wrap.
    - **Equality.** Before each permanent line the status line is erased (`\r ESC[K`), so the
      terminal ends showing the plain output exactly, apart from colour: in terminal mode, unless
      `NO_COLOR` is set and non-empty, `ok` is green and `FAILED`, `ERROR` and `INTERRUPTED` are
@@ -91,8 +96,9 @@ way to list or resume steps but by retyping their numbers.
    `build/logs/timings.tsv` the columns `run step status seconds`, where `run` is the build's
    start time and process id, and `status` is `ok`, `error` or `interrupted`. The estimate for a
    step is its newest `ok` row; the time left is the sum of the remaining steps' estimates plus
-   the running step's estimate minus its elapsed time, dropped when any is missing or the elapsed
-   time passes ten times the estimate. Times are shown to a person; no check reads them (§4.9).
+   the running step's estimate minus its elapsed time, never below 0, with every estimate taken
+   as at least 1 second; it is dropped when any is missing or the elapsed time passes ten times
+   the estimate (condition B). Times are shown to a person; no check reads them (§4.9).
    The file is never an input to a step or the artifact set.
 
 7. **Options.** `--list` (each step, the first line of its script's header comment, and its
@@ -116,7 +122,9 @@ way to list or resume steps but by retyping their numbers.
 9. **The download step.** `get` prints `fetched <name>` or `present <name>`, and fails with
    `ERROR: no curl on PATH; it fetches <name>` before a fetch it cannot make. `shasum`'s
    `<name>: OK` lines stay. The last line is `downloads: <n> pins, <f> fetched, <v> verified`
-   (`n` counts `get` calls, `v` the `OK` lines), which becomes step 00's `ok` summary. The
+   (`n` counts `get` calls, `v` the `OK` lines, counted from `shasum`'s output saved to a file,
+   never through a pipe, since `sh` has no `pipefail` and a pipe would hide `shasum`'s failure;
+   condition D), which becomes step 00's `ok` summary. The
    ticker shows the newest `downloads/*.part` and its size. Every literal `get <url> <name>` line
    and the `shasum` line stay, for `scan.url_errors` and `scan.download_script_errors`.
 
@@ -168,7 +176,8 @@ Each check runs a fake build as Decision 10 says. Nothing measures time.
 3. **The step sees nothing of the renderer.** On one pty with one explicit environment (no
    `CI`), a fake step records `env | sort`, `[ -t 0 ]` and its argv; terminal mode and `--plain`
    give equal records; run alone with the four exports written in the check
-   (`SOURCE_DATE_EPOCH`, `UV_CACHE_DIR`, `PYTHONHASHSEED`, `LC_ALL`) gives the same.
+   (`SOURCE_DATE_EPOCH`, `UV_CACHE_DIR`, `PYTHONHASHSEED`, `LC_ALL`) and the same `BUILD_CLOCK`
+   gives the same (condition E).
 4. **The failure block.** A log whose `ERROR: the real reason` comes before a later `checking
    strerror... yes` and `make: *** [all] Error 2` names the `ERROR:` line (today's grep would not);
    a log whose only match is indented gives `exit <n>`; a 50-line log shows exactly its last 20
