@@ -163,6 +163,16 @@ Built 2026-10-16 by the author agent; review pending (see below).
      fail` each, and the installed wheel ran `pandas.Series([1, 2, 3]).sum()` to
      `Completed(exit_code=0, stdout=b'6\n', …)` on all three.
    - publish and pypi: skipped, as a dry run must.
+4. After the review's fixes, https://github.com/ClayGendron/wasi_python/actions/runs/38983729244:
+   all passed but Windows' concurrent-calls check, where one call read the zip while another
+   renamed over it, which Windows refuses. Calls in one process now place a root's zip one at
+   a time (spec 001, amended).
+5. https://github.com/ClayGendron/wasi_python/actions/runs/38985113082: **every job passed.**
+   The build rebuilt `d77dc946…` and `b450c7a6…` again; the zero-patch step `4 passed`; the
+   judge `90/94 pass · 1 gap · 3 blocked · 0 fail`, `240 passed, 8 skipped, 1 xfailed`; verify
+   `64/67 pass · 0 fail` on all three systems, each blocked only by the oracle, the three
+   systems and the wheel, which the new step confirmed; the installed wheel printed `b'6\n'`
+   on all three; publish and pypi skipped.
 
 **A second host rebuilt the binaries byte for byte** (EXECUTED: the build job's log): GitHub's
 macOS runner produced the reactor `d77dc946962d2154…` and the snapshot `b450c7a6892bf9e3…`,
