@@ -291,16 +291,27 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. (pending)
-2. (pending)
-3. (pending)
-4. (pending)
-5. (pending)
-6. (pending)
-7. (pending)
-8. (pending)
-9. (pending)
-10. (pending)
+1. **Answered by moving `SECURITY.md` out.** It waits on spec 010 (which fixes the sleep defect
+   the review found) so the policy it publishes is true. Meanwhile the README's "Not protected"
+   list names the sleep gap (commit 47c9fdc).
+2. **Answered by moving `SECURITY.md` out.** It waits on question 10 (private vulnerability
+   reporting).
+3. **Fixed.** Decision 2 uses `--signer-workflow`, `--source-ref` and
+   `--deny-self-hosted-runners`; Decision 3 states the login, the bundle route, the first
+   attested release, and puts the command in a user-facing README section and in every release's
+   notes.
+4. **Fixed.** The `attest` job verifies each asset before `publish` can run; Decision 4 writes
+   the recovery down; Decision 5 keeps dry runs from signing to the public log.
+5. **Fixed.** Decision 6 names the text scan, each rule, the check, and a unit test with one bad
+   variant per rule.
+6. **Answered by moving `SECURITY.md` out.**
+7. **Fixed.** "the public-good Sigstore instance".
+8. **Fixed.** The pin is `actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6` (v4.2.2,
+   2026-08-04, EXECUTED by the author with `gh api`).
+9. **Fixed.** A separate `attest` job with only `id-token: write`, `attestations: write`,
+   `contents: read`.
+10. **Fixed.** Decision 5 records the first real run's result in the landing notes of the
+    specification that cuts that release, not in its notes.
 
 ## Verdict
 
