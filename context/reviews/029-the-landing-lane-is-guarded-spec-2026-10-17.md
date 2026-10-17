@@ -210,6 +210,29 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+All nine findings are taken.
+
+1. **Fixed.** Decision 4 keys the refusal on the folder that would be written: a linked worktree
+   **and** a progress folder resolving to this repository's `context/progress`; any other
+   `--progress-dir` proceeds. Criterion 4 runs `test_plugin.py` and `test_checks_wiring.py` from a
+   linked worktree.
+2. **Fixed.** Only `--accept` is refused; the other three flags stay allowed.
+3. **Fixed.** Rule 1 reads committed history (`git show <c>:…`), so an uncommitted acceptance
+   does not move `<c>`; criterion 1 adds that case as a pass.
+4. **Fixed.** Rule 1 also requires the acceptance commit to change exactly the two progress
+   files; Decision 2 makes `dirty` ignore untracked files, and from the next acceptance requires
+   it false.
+5. **Fixed.** Rules 1 and 3 need `git history` (not shallow) and are blocked otherwise.
+6. **Fixed.** `--absolute-git-dir` against `--path-format=absolute --git-common-dir`; clones are
+   out of scope, said.
+7. **Fixed.** The skip applies only to the stray-conftest walk in `tests/harness/paths.py`, with
+   `lexists`; `tests/checks/conftest.py` is out of the Kind; criterion 5 keeps a nested repository
+   under `tests/` in the hash.
+8. **Fixed.** The scoreboard names a worktree inside the repository (one note line).
+9. **Fixed.** The refusal happens in `pytest_configure`, exits 1 like other refusals, and wins
+   over `PYTEST_ADDOPTS`'s; where git is absent `--accept` proceeds; criterion 4 runs through
+   real pytest sessions; "first parent" is written.
+
 ## Verdict
 
 Revise first. The four rules are right, and today's repository passes all of them. EXECUTED:

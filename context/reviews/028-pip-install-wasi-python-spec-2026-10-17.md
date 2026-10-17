@@ -171,6 +171,19 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+All six findings are taken.
+
+1. **Fixed.** Decision 4's second line asserts the installed metadata (`Provides-Extra` exactly
+   `["run"]`, no `extra ==` marker), and its sentence no longer claims an import proves it.
+2. **Fixed.** Criterion 1 reads `pyproject.toml` with `tomllib` and `packaging`, as you wrote.
+3. **Fixed.** The problem section names the `<50` bound's cost and the `--no-deps` route; the
+   README gains that line (Design).
+4. **Fixed.** `_wasmtime` catches `ImportError`, `RuntimeError` and `OSError` and chains the
+   original under the message; criterion 3 adds a `RuntimeError` case asserting the text.
+5. **Fixed.** The Kind lists `runner.py:9`, `__init__.py`, and amendment notes for specs 001, 004
+   and 019; 019 is under "Depends on".
+6. **Fixed.** The dev group's copy is removed; criterion 1 asserts it names no wasmtime.
+
 ## Verdict
 
 Revise first, lightly. The change does what it says. EXECUTED: an empty extra is valid. pip and
