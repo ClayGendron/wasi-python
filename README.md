@@ -158,8 +158,40 @@ recorded patches (`recipes/patches/`: one today, numpy's `.npy` fix):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # eleven steps, one line each; logs in build/logs/
+scripts/build.sh         # a preflight, eleven steps with one line each, a summary; logs in build/logs/
 ```
+
+`scripts/build.sh` first runs a preflight: the build host's key, the host tools
+on `PATH` (`cc make shasum tar gzip xz sed uv git stty df`), and on a first
+build at least 2.5 GiB free under `build/`. It prints one line,
+`preflight: <host>; 11 tools; <n> GiB free`, or one `ERROR preflight:` line and
+stops. Each step then prints one line, `ok <step>: <what it made> [<time>]`.
+A failing step prints `FAILED <step>`, the last 20 lines of its log, and last
+one line, `ERROR <step>: <reason> (log: …)`, whose reason is the log's last
+line starting `ERROR`; so `grep '^ERROR'` gives exactly the reason. A passing
+build ends with `done:`, the three artifacts with their sizes and the start of
+their hashes, and the next command. Every run adds its steps' times to
+`build/logs/timings.tsv`; nothing reads it but the build's own display.
+
+On a terminal one status line sits below those lines and is redrawn in place:
+the step, its place in the run, its time against last time, ninja's `[n/N]`
+for numpy and pandas, and the time left. When the build ends, the terminal shows
+exactly what a pipe or CI log shows, apart from colour (`NO_COLOR` turns it
+off). A pipe, `CI`, `TERM=dumb` or `--plain` gives the plain lines only.
+
+```
+scripts/build.sh --list        # each step, what it does, and its last time
+scripts/build.sh --from 60     # that step and every later one
+scripts/build.sh --resume      # the step the last run did not finish, and every later one
+scripts/build.sh 60 70         # only the named steps
+scripts/build.sh --check       # the preflight alone
+```
+
+Nothing is skipped on its own: each step removes and remakes its outputs.
+Ctrl-C stops the running step at once and exits 130. A `kill -TERM` or `HUP`
+sent to `build.sh` alone waits for the running step to end, because a shell
+handles a signal only once its foreground command returns; to stop at once,
+signal the process group (`kill -TERM -<pgid>`), as Ctrl-C does.
 
 The steps (`scripts/steps/`): unpack the toolchain and a pinned host Python
 (CPython 3.15.0 from python-build-standalone) and install the build tools from
@@ -210,8 +242,9 @@ driver uses to build its own build-Python. Nothing it compiles is linked into
 the guest, and Apple clang and gcc 14.2 give the same artifact bytes
 (`context/research/2026-10-16-reproducible-builds-on-linux.md`). The build
 also runs host tools that move or check bytes and are not pinned either:
-`curl`, `shasum` (perl's), `tar`, `xz`, `sed`, `uv` (it installs the pinned
-wheels, offline, by hash) and `git` (it lists the recipes for `MANIFEST`). The
+`curl` (only for a pin not yet in `downloads/`), `shasum` (perl's), `tar`,
+`xz`, `sed`, `uv` (it installs the pinned wheels, offline, by hash) and `git`
+(it lists the recipes for `MANIFEST`). The
 release workflow prints each runner's versions of them. xz's own `configure`,
 which configures liblzma, also runs the host's shell tools (`sh`, `sed`,
 `grep`, `awk`); the same-bytes gate is what shows they leave the artifacts

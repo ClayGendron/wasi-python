@@ -2,7 +2,8 @@
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/027-the-build-says-where-it-is-spec-2026-10-17.md`), whose confirmation passed it
-  for build with five conditions (A to E), now written in.
+  for build with five conditions (A to E), now written in. Built 2026-10-17, awaiting its build
+  review.
 - **Owner:** Clay Gendron
 - **Kind:** the build driver (`scripts/build.sh`, a new `scripts/steps/progress.sh`,
   `scripts/00_download.sh`'s per-pin lines), unit checks in `tests/unit/`, `README.md` (its
@@ -197,4 +198,91 @@ Each check runs a fake build as Decision 10 says. Nothing measures time.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64; not yet reviewed. Each
+claim is labelled. Scratch outputs are under `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/build027/`.
+
+**What was built** (READ: the diff). `scripts/steps/progress.sh` (new): the mode, colour and
+glyph choices as pure functions, the cleaner, the estimate, the ticker, the permanent lines, the
+failure block, the preflight and the summary. `scripts/build.sh`: the options, the traps (INT,
+TERM and HUP recorded; an EXIT trap stops the ticker), the loop and `timings.tsv`.
+`scripts/00_download.sh`: `fetched`/`present`, curl checked in `get`, `shasum`'s lines saved to
+`build/downloads-verified.txt` and never piped, and the `downloads:` line.
+`tests/unit/test_build_progress.py` (new, 75 checks, Decision 10's method). `README.md` ("How it
+is built") and `CHANGELOG.md` (a new `0.1.0a4 — unreleased` section).
+
+**Seen failing first** (EXECUTED, `seen-failing.txt`). The checks ran in a clone at `2ea71f5`
+with today's `build.sh` and an empty `progress.sh`: 74 failed, 1 passed. The one that passed is
+the mismatch guard (condition D), which today's script already meets. Then (EXECUTED, in a
+scratch clone) each mutant below was caught:
+- no EXIT trap: the renderer-failure check fails;
+- a ticker that dies at once under `set -e` (the prototype's defect): 4 frame checks fail;
+- the width read as `stty size <&1` inside `$(…)`: both 30-column checks fail;
+- today's reason grep: 2 checks fail;
+- `export P_MODE` in terminal mode, or `exec 3>&1` in `build.sh`: criterion 3 fails;
+- `shasum` piped through `tee`: the mismatch check fails;
+- no signal check before a step: both TERM checks fail;
+- neither erase: 9 checks fail. One erase alone is caught by nothing. INFERRED: the other one
+  covers it, since `progress_stop` erases before every permanent line that follows a frame.
+
+**The criteria.** EXECUTED: `uv run pytest tests/unit/test_build_progress.py` gives 75 passed,
+under `dash` and `bash`. A scratch runner (`demo/other_shell.py`) ran the same 75 functions with
+the shell set to `/bin/sh` (bash in POSIX mode) and to `zsh --emulate sh`: 75 passed each.
+1. Criterion 1 runs as a pairwise cover: eight runs, in which every pair of the five factors'
+   values appears. They are passing/failing, timings.tsv or not, 80/30 columns, UTF-8/C, and
+   dash/bash. The full product would be 32 runs. A check also shows the `.part` frame
+   (Decision 9) and `NO_COLOR`.
+2. Criterion 2 has Ctrl-C (dash, bash), TERM (dash, bash, then `--resume` from the step not
+   started), and a `BUILD_CLOCK` that fails at step 00's end while the ticker runs.
+3. Criterion 3 also records `ls /dev/fd` (condition A).
+4. Criterion 4 runs in plain mode. Its `red` line also appears in criterion 1's failing runs on
+   the terminal.
+- One flake was found and fixed in the check, not the build. EXECUTED under ten `yes` processes:
+  the Ctrl-C check's "no process left" probe got `PermissionError` (EPERM) from `os.killpg(pgid,
+  0)` in 12 of 30 runs. On macOS that means a member has exited and is not yet reaped. It now
+  keeps looking (a bounded count). After the fix, under the same load: 90 of 90 exit-path runs
+  passed, and the whole file passed 3 times.
+5. Criteria 5 to 7 hold as written.
+
+**Criterion 8, the real build** (EXECUTED). A clean clone of `2ea71f5` got the six changed files
+copied in and `progress.sh` staged; step 90 refuses an untracked recipe. It used the main tree's
+`downloads/`, hard-linked. Both builds below exited 0.
+- `sh scripts/build.sh > log`: the preflight line, eleven `ok` lines with durations, `done: 11
+  steps in 5m18s` and the three artifacts (`clean-plain.log`). Step 00's line is now
+  `downloads: 29 pins, 0 fetched, 30 verified`; the research zip is present, so 30 are verified.
+- A second build over it on a 100-column pty (`demo/pty_build.py`, the shell's own environment):
+  1058 frames, the widest 54 columns. The final screen is the same lines (`clean-pty.txt`). The
+  raw bytes hold no cursor-up or erase-below sequence.
+- Both builds give the same `SHA256SUMS`. Against the main tree's `build/artifacts/SHA256SUMS`,
+  15 of its 16 lines are equal: the three artifacts and every licence. The 16th is `MANIFEST`'s,
+  as for specs 018 and 020. `MANIFEST` differs only in the `recipe` lines of
+  `scripts/00_download.sh`, `scripts/build.sh` and the new `scripts/steps/progress.sh`. So the
+  wording "the same `SHA256SUMS`" holds for every line but `MANIFEST`'s, which records the scripts'
+  own hashes.
+- In the clone, against its own set: v1.1 24/25 (blocked: wheel), v1.5 18/18, rules 18/19
+  (blocked: prior-art clones). Together with the new checks: 135 passed, 2 skipped.
+
+**The judge in the main tree** (EXECUTED: `uv run pytest -p no:cacheprovider -q`, never
+`--accept`). 732 passed, 1 failed, 4 skipped. v1 is 187/190, with 2 blocked (three systems,
+wheel). The unit suite is 545/547 (470 before, plus these 75). The ratchet: lost 1, grew 0; the
+judge changed (`tests/unit/test_build_progress.py`). The lost pass is
+`test_manifest_recipes_match_the_tree`. The main tree's set was built from the old scripts, so
+its `MANIFEST` names their hashes. INFERRED: rebuilding the main tree's set after the commit
+gives it back, as in the clone. Then the run with `--accept-judge` follows (criterion 9).
+`ruff check` and `ruff format --check` on `src` and `tests` are clean. `build/progress/latest.json`
+was restored byte for byte after the runs.
+
+**Choices the specification left open** (INFERRED, each the smallest reading):
+- A signal recorded during the last step, which then succeeds, prints its `ok` line, then
+  `INTERRUPTED after <step>: every step had finished`. It exits with the signal's code and gives
+  no summary. Decision 2 says the build exits 130, 143 or 129; there is no next step to name.
+- `CI` counts as set even when empty (`${CI+set}`).
+- The `ok` summary is cleaned like the tail lines before its 120-character cut. Today's summaries
+  are ASCII, so no line changes. The `ERROR` reason is not cut, since Decision 4 names no cut;
+  today's cut was 160.
+- `--list` and `--help` run no preflight; `--check` runs nothing else.
+- The ASCII separator in the status line is `-`; in UTF-8 it is `·`.
+
+**Not done.** A release dry run (criterion 9) needs this change on GitHub. The
+`--accept-judge` run and the main tree's rebuild are the owner's, after review. The new
+`0.1.0a4 — unreleased` section means `release/version.py bump` will refuse ("already has a
+section"). The owner can bump by hand, or remove the heading, bump, and paste the entry back.

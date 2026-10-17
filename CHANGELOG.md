@@ -4,6 +4,28 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
+## 0.1.0a4 — unreleased
+
+- **The build says where it is** (spec 027; the artifact set is unchanged). `scripts/build.sh`
+  runs a preflight first (the host, its tools, and 2.5 GiB free on a first build) and prints
+  one line for it. Each step's line now ends with its time, `ok <step>: … [3m02s]`, and a
+  passing build ends with a summary: the total time, the three artifacts with their sizes and
+  hash prefixes, and the next command. On a terminal one status line below them shows the
+  running step, its time against the last run, ninja's `[n/N]` and the time left; a pipe, `CI`,
+  `TERM=dumb` or `--plain` gets the plain lines only, and the terminal ends showing exactly them.
+- **A failure says why.** A failing step prints `FAILED <step>`, the last 20 lines of its log,
+  and last one `ERROR <step>: <reason>` line, whose reason is the log's last line starting
+  `ERROR` (or `exit <n>`). Before, the reason was the last line matching `error` anywhere, which
+  could name a harmless `Checking for strerror... Yes.`. On GitHub Actions it is also an
+  `::error` annotation.
+- **New options:** `--list`, `--from STEP`, `--resume` (from the step the last run did not
+  finish), `--check` (the preflight alone), `--plain` and `--help`. Nothing is skipped on its
+  own. Ctrl-C stops the running step at once and exits 130; a TERM or HUP to `build.sh` alone
+  waits for the running step, then exits 143 or 129. Each run's times go to
+  `build/logs/timings.tsv`.
+- **The download step** prints `fetched <name>` or `present <name>` per pin and ends with
+  `downloads: <n> pins, <f> fetched, <v> verified`; it needs `curl` only for a pin it must fetch.
+
 ## 0.1.0a3 — 2026-10-17
 
 - **Breaking: nothing is writable by default** (the owner's rule, constitution §4.15; spec 025).

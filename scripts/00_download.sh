@@ -7,17 +7,31 @@
 # Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/ (spec 003,
 # Decision 1). Downloads are untrusted data: they land in downloads/ only, and nothing here runs
 # them. This script reads SHA256SUMS and never writes it; a mismatch fails the build.
+#
+# One line per pin, `fetched <name>` or `present <name>`, then shasum's `<name>: OK` lines, then
+# `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's line (spec
+# 027). curl is needed only for a pin that is not present yet, and checked there.
 set -eu
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 D="$HERE/downloads"
 ALL=0
 [ "${1:-}" = "--all" ] && ALL=1
 
+PINS=0 FETCHED=0
 get() { # url name
-  if [ ! -s "$D/$2" ]; then
-    curl -fsSL --retry 3 -o "$D/$2.part" "$1"
-    mv "$D/$2.part" "$D/$2"
+  PINS=$((PINS + 1))
+  if [ -s "$D/$2" ]; then
+    echo "present $2"
+    return 0
   fi
+  if ! command -v curl > /dev/null 2>&1; then
+    echo "ERROR: no curl on PATH; it fetches $2" >&2
+    exit 1
+  fi
+  curl -fsSL --retry 3 -o "$D/$2.part" "$1"
+  mv "$D/$2.part" "$D/$2"
+  FETCHED=$((FETCHED + 1))
+  echo "fetched $2"
 }
 research() { # url name: fetched only with --all
   if [ "$ALL" = 1 ]; then get "$1" "$2"; fi
@@ -90,5 +104,16 @@ get https://raw.githubusercontent.com/llvm/llvm-project/4434dabb69916856b824f68a
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip
 
+# shasum's lines go to a file, never through a pipe: sh has no pipefail, so a pipe would hide a
+# mismatch. The file is shown whole, then its OK lines are counted.
+mkdir -p "$HERE/build"
+checked="$HERE/build/downloads-verified.txt"
 cd "$D"
-shasum -a 256 --ignore-missing -c SHA256SUMS
+if shasum -a 256 --ignore-missing -c SHA256SUMS > "$checked" 2>&1; then
+  cat "$checked"
+else
+  cat "$checked"
+  echo "ERROR: a download does not match its pin in downloads/SHA256SUMS" >&2
+  exit 1
+fi
+echo "downloads: $PINS pins, $FETCHED fetched, $(grep -c ': OK$' "$checked" || :) verified"
