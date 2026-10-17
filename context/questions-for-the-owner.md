@@ -8,16 +8,6 @@ document.
 
 ## Open
 
-### 13. Should vfs run guests through this runner, or through its own host?
-
-- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-the-runtime-for-agent-code.md` §6.
-- vfs's spec 169b plans its own wasmtime-py host, one guest per process. The agent recommended
-  this runner (it already runs concurrent calls safely; vfs keeps only its shim, and a
-  filesystem provider moves up).
-- **The owner, 2026-10-17:** "This will require further research later, so leave this as an open
-  question for owner." Nothing waits on it: the tool protocol, sessions and the strict default
-  are general features either way.
-
 ### 34. Pre-import matplotlib in the default snapshot?
 
 - **Asked:** 2026-10-17. **Source:** `research/2026-10-17-matplotlib-on-the-current-line.md`.
@@ -26,19 +16,6 @@ document.
   memory 18 MiB.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
-
-### 37. Does the tool protocol need a gate, or are the tools the authority?
-
-- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-a-tool-protocol-over-the-door.md`.
-- **The owner, 2026-10-17:** "My thinking is that wasi_python would call the public api for
-  something like read, and when it calls read VFS would inject its Authority into the read call,
-  so wasi_python would not know anything about permissions" ... "I'd like to position wasi_python
-  without a gate, or at least an optional one, I want to spend time on this design and think
-  through it with you."
-- **The agent's reading:** that is the capability model, as grants already are: holding a tool is
-  the permission, and the tool (bound by the embedder to its authority) enforces it. A gate would
-  then be optional, a hook for embedders whose tools do not carry their own policy. Being worked
-  through with the owner, starting from a study of vfs's authority model.
 
 ## The owner's direction for the product (2026-10-17)
 

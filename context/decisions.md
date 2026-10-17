@@ -8,6 +8,23 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 37. The tool protocol's gate, and 13. vfs on this runner
+
+- **Studied:** vfs's authority model (read-only, 2026-10-17): every vfs verb takes an
+  `Authority`; programs get an `Fs` curried with the caller's authority (vfs ADR 082); every call
+  re-enters the router's gates; a denial is a `Result`, never an exception; "No `ask` inside
+  vfs" (ADR 084); vfs needs to count calls (`VERB_CALL_BUDGET`) and record refused writes even on
+  exit 0 (its specs 169 and 172); vfs planned its own host (spec 169b) and treated wasi_python as
+  artifacts only.
+- **37, answered 2026-10-17:** an optional `gate=`. Tools are capabilities, their authority bound
+  by the embedder; wasi_python validates, routes, counts (`max_tool_calls`, with a default) and
+  records each call's outcome in the result; `gate=` may refuse a validated call before the tool
+  runs, and is absent by default.
+- **13, answered 2026-10-17:** "converge on our runner, but do not edit vfs". vfs is to run its
+  guests through `wasi_python.run`. That needs a filesystem provider in the runner (the guest's
+  file calls served by embedder code, as vfs's 169b shim does), researched first. This project
+  never edits vfs; vfs's own specifications are vfs's to change.
+
 ### Parallel work: build in parallel, land in series
 
 - **Decided 2026-10-17:** adopted `research/2026-10-17-parallel-work-without-lowering-the-bar.md`
