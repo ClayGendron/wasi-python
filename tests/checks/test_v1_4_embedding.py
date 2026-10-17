@@ -112,15 +112,25 @@ def test_unbuffered_output_survives_a_hard_exit(guest, which) -> None:
 
 @BINARY
 def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
-    """The constants the build pins while it snapshots never reach a program."""
+    """The constants the build pins while it snapshots never reach a program: entropy, a file's
+    inode and times, and a directory's size and link count (spec 012, Decision 4).
+
+    The directory's two are compared with the host's own answer for the same directory, not with
+    fixed numbers. On a host whose real answer is the pinned one (size 0 and one link, as Windows
+    may give), this part cannot tell pinned from real; the macOS and Linux runs are the ones that
+    tell."""
     code = (
         "import os\n"
         "st = os.stat('/w/f')\n"
+        "d = os.stat('/w')\n"
         "print(os.urandom(8) != bytes(8), st.st_ino != 0, st.st_mtime != 1767225600)\n"
+        "print(d.st_size, d.st_nlink)\n"
     )
     r = guest(which, ["-c", code], files={"/w/f": b"x"})
     assert r.exit_code == 0, r.describe()
-    assert r.text.split() == ["True", "True", "True"], r.text
+    host = os.stat(r.root / "w")
+    expected = ["True", "True", "True", str(host.st_size), str(host.st_nlink)]
+    assert r.text.split() == expected, (r.text, expected)
 
 
 def _runner():

@@ -11,6 +11,7 @@ HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 export SOURCE_DATE_EPOCH=1767225600  # 2026-01-01T00:00:00Z: a constant, so rebuilds are equal
 export UV_CACHE_DIR="$HERE/build/uv-cache"
 export PYTHONHASHSEED=0
+export LC_ALL=C  # one collation on every host: each step's `sort` orders bytes alike (spec 012)
 mkdir -p "$HERE/build/logs"
 
 ALL="00_download 10_tools 20_cpython 30_zlib 40_numpy 50_pandas 60_link 70_zip 80_snapshot 90_artifacts"

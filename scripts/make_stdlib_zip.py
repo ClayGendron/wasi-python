@@ -8,15 +8,22 @@ Every .py becomes a .pyc compiled in process (the running interpreter's bytecode
 guest's: both are the line's version, scripts/line.conf; UNCHECKED_HASH, so no source mtime is consulted). Every member is deflated
 at level 9 with the timestamp 1980-01-01 00:00 and mode 0644, in sorted order, so the same inputs
 give the same bytes. Run it with PYTHONHASHSEED=0: set and frozenset constants are marshalled in
-hash order. --replace rewrites text in _sysconfigdata and numpy's __config__.py before compiling,
-so the zip carries no builder's path.
+hash order.
+
+_sysconfigdata and numpy's __config__.py say nothing about the build host, so the zip is the same
+bytes from any host (spec 012, Decision 5). Their host keys are set to fixed values, whatever the
+host wrote (HOST_KEYS, NUMPY_BUILD_KEYS); a key that is absent, or that does not read back as its
+fixed value once rewritten, stops the build. Then each --replace rewrites its text in the two, in
+the order given; an old text found in neither stops the build. Both run before compiling.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 import os
+import re
 import sys
 import zipfile
 from importlib._bootstrap_external import _code_to_hash_pyc
@@ -40,6 +47,13 @@ SKIP_SUFFIXES = {".pyi", ".pxd", ".pyx", ".pxi", ".h", ".c", ".cpp", ".so", ".de
 SKIP_NAMES = {"conftest.py", "meson.build"}
 REWRITE = ("_sysconfigdata", "numpy/__config__.py")
 EPOCH = (1980, 1, 1, 0, 0, 0)
+# build_time_vars keys that record the build host's tools, and the value each is given. The
+# INSTALL* keys keep their own flags after `install -c`.
+HOST_KEYS = {"BUILD_GNU_TYPE": "build", "GNULD": "no", "MKDIR_P": "mkdir -p"}
+INSTALL_KEYS = ("INSTALL", "INSTALL_DATA", "INSTALL_PROGRAM", "INSTALL_SCRIPT", "INSTALL_SHARED")
+INSTALL = re.compile(r"\S*install -c((?: \S+)*)")
+# numpy's "Machine Information" -> "build" keys; its "endian" stays.
+NUMPY_BUILD_KEYS = {"cpu": "build", "family": "build", "system": "build"}
 
 
 def walk(root: Path, skip_top: frozenset[str] = frozenset()):
@@ -81,6 +95,78 @@ def pyc(source: bytes, name: str) -> bytes:
     return bytes(_code_to_hash_pyc(code, importlib.util.source_hash(source), checked=False))
 
 
+def _str_items(node: ast.expr) -> dict[str, ast.expr]:
+    """A dict display's string-keyed items, or nothing when the node is not a dict display."""
+    if not isinstance(node, ast.Dict):
+        return {}
+    return {
+        k.value: v
+        for k, v in zip(node.keys, node.values, strict=True)
+        if isinstance(k, ast.Constant) and isinstance(k.value, str)
+    }
+
+
+def _host_items(tree: ast.Module, name: str) -> dict[str, ast.expr]:
+    """The dict whose keys record the build host: _sysconfigdata's build_time_vars, or numpy's
+    CONFIG["Machine Information"]["build"]."""
+    if "_sysconfigdata" in name:
+        for node in tree.body:
+            if (
+                isinstance(node, ast.Assign)
+                and [getattr(t, "id", None) for t in node.targets] == ["build_time_vars"]
+                and isinstance(node.value, ast.Dict)
+            ):
+                return _str_items(node.value)
+        raise SystemExit(f"{name}: no build_time_vars dict")
+    for node in ast.walk(tree):
+        machine = _str_items(_str_items(node).get("Machine Information"))
+        if isinstance(machine.get("build"), ast.Dict):
+            return _str_items(machine["build"])
+    raise SystemExit(f"{name}: no Machine Information build dict")
+
+
+def _fixed_values(items: dict[str, ast.expr], name: str) -> dict[str, str]:
+    """Each host key's fixed value; one line and a stop for a key that is absent."""
+    sysconfig = "_sysconfigdata" in name
+    wanted = [*HOST_KEYS, *INSTALL_KEYS] if sysconfig else list(NUMPY_BUILD_KEYS)
+    missing = [key for key in wanted if key not in items]
+    if missing:
+        raise SystemExit(f"{name}: no {', '.join(missing)} to make host-neutral")
+    if not sysconfig:
+        return dict(NUMPY_BUILD_KEYS)
+    keys = dict(HOST_KEYS)
+    for key in INSTALL_KEYS:
+        old = ast.literal_eval(items[key])
+        m = INSTALL.fullmatch(old) if isinstance(old, str) else None
+        if m is None:
+            raise SystemExit(f"{name}: {key} is {old!r}, not an `install -c` command")
+        keys[key] = "install -c" + m[1]
+    return keys
+
+
+def host_neutral(text: str, name: str) -> str:
+    """The member with its host keys set to their fixed values, read back to prove it."""
+    data = text.encode()
+    starts = [0]
+    for row in data.splitlines(keepends=True):
+        starts.append(starts[-1] + len(row))
+    items = _host_items(ast.parse(data), name)
+    fixed = _fixed_values(items, name)
+    spans = []
+    for key, value in fixed.items():
+        node = items[key]  # col offsets are UTF-8 byte offsets, so the splice is on bytes
+        start = starts[node.lineno - 1] + node.col_offset
+        end = starts[node.end_lineno - 1] + node.end_col_offset
+        spans.append((start, end, repr(value).encode()))
+    for start, end, new in sorted(spans, reverse=True):
+        data = data[:start] + new + data[end:]
+    again = _host_items(ast.parse(data), name)
+    wrong = sorted(k for k, v in fixed.items() if ast.literal_eval(again[k]) != v)
+    if wrong:
+        raise SystemExit(f"{name}: {', '.join(wrong)} did not read back as fixed")
+    return data.decode()
+
+
 def member(name: str) -> zipfile.ZipInfo:
     info = zipfile.ZipInfo(name, date_time=EPOCH)
     info.compress_type = zipfile.ZIP_DEFLATED
@@ -106,16 +192,23 @@ def main() -> None:
     if os.environ.get("PYTHONHASHSEED") != "0":
         raise SystemExit("run with PYTHONHASHSEED=0: sets are marshalled in hash order")
     replacements = [tuple(r.split("=", 1)) for r in a.replace]
+    if any(not old for old, _ in replacements):
+        raise SystemExit("--replace with an empty old text")  # before any rewrite runs
+    found: set[str] = set()
+    rewritten: set[str] = set()
 
     entries: dict[str, bytes] = {}
 
     def add(data: bytes, name: str, origin: str) -> None:
         if name.endswith(".py"):
-            if any(key in name for key in REWRITE):
-                text = data.decode()
+            kind = next((key for key in REWRITE if key in name), None)
+            if kind is not None:
+                text = host_neutral(data.decode(), name)
                 for old, new in replacements:
+                    found.update([old] if old in text else [])
                     text = text.replace(old, new)
                 data = text.encode()
+                rewritten.add(kind)
             data, name = pyc(data, name), name + "c"
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
@@ -132,6 +225,12 @@ def main() -> None:
     for spec in a.file:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
+
+    if rewritten != set(REWRITE):
+        raise SystemExit(f"no member to make host-neutral for {sorted(set(REWRITE) - rewritten)}")
+    for old, _ in replacements:
+        if old not in found:
+            raise SystemExit(f"--replace {old!r}: in neither _sysconfigdata nor numpy's __config__")
 
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(a.out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:

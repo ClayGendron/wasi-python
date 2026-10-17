@@ -372,3 +372,198 @@ def test_release_attestation_scan_names_each_breach(change, error) -> None:
     assert GOOD_WORKFLOW.count(old) == 1, old
     errors = scan.release_attestation_errors(GOOD_WORKFLOW.replace(old, new))
     assert errors and errors[0].startswith(error), errors  # the first breach is the one named
+
+
+HOST_CONF = """PYTHON_VERSION=3.15.0
+A_WASI_SDK_DIR=sdk-a
+A_WASMTIME_DIR=wt-a
+A_HOST_PYTHON_ARCHIVE=py-a.tar.gz
+A_CYTHON_WHEEL=cy-a.whl
+A_NINJA_WHEEL=ninja-a.whl
+B_WASI_SDK_DIR=sdk-b
+B_WASMTIME_DIR=wt-b
+B_HOST_PYTHON_ARCHIVE=py-b.tar.gz
+B_CYTHON_WHEEL=cy-b.whl
+B_NINJA_WHEEL=ninja-b.whl
+"""
+HOST_DOWNLOAD = """get() { :; }
+case "$HOST_KEY" in
+  A)
+    get https://x/sdk-a.tar.gz sdk-a.tar.gz
+    get https://x/wt-a.tar.xz wt-a.tar.xz
+    get https://x/py-a.tar.gz py-a.tar.gz
+    get https://x/cy-a.whl cy-a.whl
+    get https://x/ninja-a.whl ninja-a.whl
+    ;;
+  B)
+    get https://x/sdk-b.tar.gz sdk-b.tar.gz
+    get https://x/wt-b.tar.xz wt-b.tar.xz
+    get https://x/py-b.tar.gz py-b.tar.gz
+    get https://x/cy-b.whl cy-b.whl
+    get https://x/ninja-b.whl ninja-b.whl
+    ;;
+esac
+get https://x/meson.whl meson.whl
+"""
+HOST_PINS = [
+    f"{stem}-{key}{ext}"
+    for key in "ab"
+    for stem, ext in (
+        ("sdk", ".tar.gz"),
+        ("wt", ".tar.xz"),
+        ("py", ".tar.gz"),
+        ("cy", ".whl"),
+        ("ninja", ".whl"),
+    )
+]
+
+
+def _host_table(conf=HOST_CONF, sh=("A", "B"), py=("A", "B"), download=HOST_DOWNLOAD, pins=None):
+    return scan.host_table_errors(conf, sh, py, download, HOST_PINS if pins is None else pins)
+
+
+def test_host_table_passes_a_whole_table() -> None:
+    assert scan.host_case_branches(HOST_DOWNLOAD)["B"][-1] == "ninja-b.whl"
+    assert _host_table() == []
+
+
+def test_host_table_names_each_breach() -> None:
+    assert _host_table(conf=HOST_CONF.replace("B_NINJA_WHEEL=ninja-b.whl\n", "")) == [
+        "line.conf: no B_NINJA_WHEEL"
+    ]
+    assert _host_table(pins=HOST_PINS[1:]) == ["A_WASI_SDK_DIR: sdk-a.tar.gz is not pinned"]
+    swapped = HOST_DOWNLOAD.replace("ninja-a.whl ninja-a.whl", "ninja-b.whl ninja-b.whl")
+    assert _host_table(download=swapped) == [
+        "A_NINJA_WHEEL: ninja-a.whl is not fetched in the A branch"
+    ]
+    assert _host_table(sh=("A",)) == ["line.sh: hosts ['A'], but line.conf has ['A', 'B']"]
+    assert _host_table(py=("A", "B", "C")) == [
+        "line.py: hosts ['A', 'B', 'C'], but line.conf has ['A', 'B']"
+    ]
+    plain = "WASI_SDK_DIR=sdk-a\n" + HOST_CONF
+    assert _host_table(conf=plain) == [
+        "line.conf: WASI_SDK_DIR is set for every host, not per host key"
+    ]
+    today = "WASI_SDK_DIR=sdk-a\nWASMTIME_DIR=wt-a\n"
+    assert _host_table(conf=today, sh=(), py=(), download="get https://x/a a\n") == [
+        "line.conf: WASI_SDK_DIR is set for every host, not per host key",
+        "line.conf: WASMTIME_DIR is set for every host, not per host key",
+        "line.conf: no host key names a host's inputs",
+    ]
+
+
+REBUILD_WORKFLOW = """name: release
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+  rebuild:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Build from the pins
+        run: scripts/build.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-${{ matrix.os }}
+          path: build/artifacts/SHA256SUMS
+        if: failure()
+  same-bytes:
+    needs: [build, rebuild]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+        with:
+          name: rebuild-ubuntu-24.04-arm
+          path: rebuilds/ubuntu-24.04-arm
+      - name: Every rebuild's SHA256SUMS is the set's
+        run: |
+          sums=set/SHA256SUMS
+          for runner in ubuntu-24.04-arm; do
+            cmp "$sums" "rebuilds/$runner/SHA256SUMS"
+          done
+  verify:
+    needs: build
+  attest:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [build, verify, same-bytes]
+  publish:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [build, verify, same-bytes, attest]
+"""
+
+BAD_REBUILDS = [
+    (("  rebuild:\n", "  rebuilt:\n"), "no rebuild job"),
+    (("  same-bytes:\n", "  same-bits:\n"), "no same-bytes job"),
+    (("os: [ubuntu-24.04-arm]", "os: [ubuntu-24.04]"), "rebuild's matrix lacks"),
+    (("    runs-on: ${{ matrix.os }}\n", "    runs-on: ubuntu-24.04\n"), "rebuild does not run on"),
+    (("        run: scripts/build.sh\n", "        run: echo\n"), "rebuild does not run scripts"),
+    (("name: rebuild-${{ matrix.os }}", "name: rebuild"), "rebuild does not upload"),
+    (
+        (
+            "    runs-on: ${{ matrix.os }}\n",
+            "    runs-on: ${{ matrix.os }}\n    if: github.ref_type == 'tag'\n",
+        ),
+        "rebuild has a job-level if:",
+    ),
+    (
+        (
+            "    needs: [build, rebuild]\n",
+            "    needs: [build, rebuild]\n    permissions:\n      id-token: write\n",
+        ),
+        "same-bytes's permissions are more than",
+    ),
+    (
+        (
+            "    needs: [build, rebuild]\n",
+            "    needs: [build, rebuild]\n    continue-on-error: true\n",
+        ),
+        "same-bytes has a job-level continue-on-error:",
+    ),
+    (
+        ("    needs: [build, rebuild]\n", "    needs: [build]\n"),
+        "same-bytes does not need build and",
+    ),
+    (("            cmp ", "            diff "), "same-bytes does not compare"),
+    (
+        ('cmp "$sums" "rebuilds/$runner/SHA256SUMS"', 'cmp "$sums" "$sums"'),
+        "same-bytes does not compare",
+    ),
+    (("path: rebuilds/ubuntu-24.04-arm", "path: elsewhere"), "same-bytes does not name"),
+    (
+        ("for runner in ubuntu-24.04-arm; do", "for runner in ubuntu-24.04; do"),
+        "same-bytes does not name ubuntu-24.04-arm'",
+    ),
+    (('/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
+    (
+        ("    needs: [build, verify, same-bytes]\n", "    needs: [build, verify]\n"),
+        "attest does not need",
+    ),
+    (
+        (
+            "    needs: [build, verify, same-bytes, attest]\n",
+            "    needs: [build, verify, attest]\n",
+        ),
+        "publish does not need",
+    ),
+    (
+        ("    needs: [build, rebuild]\n", "    needs: [build]  # rebuild\n"),
+        "same-bytes does not need",
+    ),
+]
+
+
+def test_rebuild_gate_scan_passes_a_good_workflow() -> None:
+    assert scan.rebuild_gate_errors(REBUILD_WORKFLOW) == []
+
+
+@pytest.mark.parametrize(("change", "error"), BAD_REBUILDS, ids=[e for _, e in BAD_REBUILDS])
+def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
+    old, new = change
+    assert REBUILD_WORKFLOW.count(old) == 1, old
+    errors = scan.rebuild_gate_errors(REBUILD_WORKFLOW.replace(old, new))
+    assert errors and errors[0].startswith(error), errors

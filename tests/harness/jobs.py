@@ -70,7 +70,9 @@ def host_python_archive() -> str:
     assert spec is not None and spec.loader is not None
     line = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(line)
-    name = line.read(LINE_CONF)["HOST_PYTHON_ARCHIVE"]
+    name = line.read(LINE_CONF).get("HOST_PYTHON_ARCHIVE")
+    if name is None:  # not a build host: the line pins a host Python for build hosts only
+        raise RuntimeError("no host Python for this host: scripts/line.conf pins build hosts only")
     if "/" in name or name.startswith("."):
         raise RuntimeError(f"HOST_PYTHON_ARCHIVE is not a plain file name: {name!r}")
     return name

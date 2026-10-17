@@ -1,0 +1,51 @@
+warning: Ignoring existing virtual environment linked to non-existent Python interpreter: .venv/bin/python3 -> python
+Downloading cpython-3.14.2-linux-aarch64-gnu (download) (28.2MiB)
+ Downloaded cpython-3.14.2-linux-aarch64-gnu (download)
+Using CPython 3.14.2
+Removed virtual environment at: .venv
+Creating virtual environment at: .venv
+Installed 8 packages in 21ms
+============================= test session starts ==============================
+platform linux -- Python 3.14.2, pytest-9.1.1, pluggy-1.7.0
+rootdir: /work/wasi_python
+configfile: pyproject.toml
+testpaths: tests
+collected 358 items / 4 deselected / 354 selected
+
+tests/checks/test_rules.py ..s..............                             [  4%]
+tests/checks/test_v1_1_artifact_set.py ......................s           [ 11%]
+tests/checks/test_v1_2_hostile_guest.py ........................         [ 18%]
+tests/checks/test_v1_2_portable_and_sealed.py .....s                     [ 19%]
+tests/checks/test_v1_3_data_stack.py ........                            [ 22%]
+tests/checks/test_v1_4_embedding.py ...................................  [ 31%]
+tests/checks/test_v1_5_rebuild_from_pins.py ...............              [ 36%]
+tests/test_api.py ...                                                    [ 37%]
+tests/unit/test_artifact_rules.py .......................                [ 43%]
+tests/unit/test_checks_wiring.py ......                                  [ 45%]
+tests/unit/test_guest.py ............ssss...                             [ 50%]
+tests/unit/test_line.py .....                                            [ 51%]
+tests/unit/test_pins.py .........                                        [ 54%]
+tests/unit/test_plugin.py ...........................                    [ 62%]
+tests/unit/test_release_version.py ....................                  [ 67%]
+tests/unit/test_runner_waits.py ..............                           [ 71%]
+tests/unit/test_scan.py ................................................ [ 85%]
+..........                                                               [ 88%]
+tests/unit/test_scoreboard.py ...............................            [ 96%]
+tests/unit/test_wasm.py ........s..                                      [100%]
+=================================== progress ===================================
+
+wasi_python v1: 125/132 pass · 0 gap · 3 blocked · 0 fail · 4 deselected   (unit suite 221/226, 5 skipped)
+JUDGE INPUTS OVERRIDDEN: --progress-dir (see latest.json)
+  v1.1  artifact set        22/23  blocked 1
+  v1.2  portable, sealed    29/30  blocked 1
+  v1.3  data stack           8/12  
+  v1.4  embedding           35/35  
+  v1.5  rebuild from pins   15/15  
+  rules constitution rules  16/17  blocked 1
+blocked by: prior-art clones 1 · three systems 1 · wheel 1
+next: context/specifications/004-alpha-releases.md (unblocks 2, closes 0)
+ratchet vs no baseline: lost 0 · absent 0 · unrun 0 · gained 125 · grew 0
+not machine-checked: publication · copying from prior art · numpy/pandas test subsets
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree
+=========== 346 passed, 8 skipped, 4 deselected in 70.96s (0:01:10) ============
+pytest exit 0

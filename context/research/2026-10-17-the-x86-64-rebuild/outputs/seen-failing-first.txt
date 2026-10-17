@@ -1,0 +1,205 @@
+FFFF..FFFFF                                                              [100%]
+=================================== FAILURES ===================================
+__________________ test_every_build_host_has_its_whole_table ___________________
+
+    def test_every_build_host_has_its_whole_table() -> None:
+        """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
+        that host's own branch of the download script; and the four files know the same hosts
+        (spec 012, Decision 1)."""
+        import importlib.util
+    
+        scripts = paths.REPO / "scripts"
+        spec = importlib.util.spec_from_file_location("wasi_python_line_hosts", scripts / "line.py")
+        line = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(line)
+        errors = scan.host_table_errors(
+            (scripts / "line.conf").read_text(),
+            scan.SH_HOST_KEY.findall((scripts / "line.sh").read_text()),
+            getattr(line, "HOSTS", {}).values(),
+            (scripts / "00_download.sh").read_text(),
+            paths.read_pin_list(),
+        )
+>       assert not errors, scan.report(errors)
+E       AssertionError: findings: 5 finding(s), digest 2f8989979f89: line.conf: WASI_SDK_DIR is set for every host, not per host key; line.conf: WASMTIME_DIR is set for every host, not per host key; line.conf: HOST_PYTHON_ARCHIVE is set for every host, not per host key; line.conf: CYTHON_WHEEL is set for every host, not per host key; line.conf: no host key names a host's inputs
+E       assert not ['line.conf: WASI_SDK_DIR is set for every host, not per host key', 'line.conf: WASMTIME_DIR is set for every host, no...ey', 'line.conf: CYTHON_WHEEL is set for every host, not per host key', "line.conf: no host key names a host's inputs"]
+
+tests/checks/test_rules.py:200: AssertionError
+_______________ test_release_workflow_rebuilds_on_two_more_hosts _______________
+
+    def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
+        """Two Linux runners rebuild the set beside the build, and nothing is signed or published
+        until their SHA256SUMS equal the set's (spec 012, Decision 7)."""
+        workflow = paths.REPO / ".github" / "workflows" / "release.yml"
+        errors = scan.rebuild_gate_errors(workflow.read_text())
+>       assert not errors, scan.report(errors)
+E       AssertionError: findings: 2 finding(s), digest c250faaa278f: no rebuild job; no same-bytes job
+E       assert not ['no rebuild job', 'no same-bytes job']
+
+tests/checks/test_v1_5_rebuild_from_pins.py:102: AssertionError
+_____________________ test_stdlib_zip_names_no_build_host ______________________
+
+artifacts = ArtifactSet(dir=PosixPath('<scratch>/build012/old-artifacts'))
+
+    def test_stdlib_zip_names_no_build_host(artifacts) -> None:
+        """_sysconfigdata and numpy's __config__ say nothing about the machine that built them, so the
+        zip, and the snapshot that holds its offsets, are the same bytes from any host (spec 012,
+        Decision 5)."""
+        needs.need("stdlib zip")
+        errors = rules.host_fact_errors(artifacts.path("python-stdlib.zip"), str(paths.REPO))
+>       assert not errors, scan.report(errors)
+E       AssertionError: findings: 9 finding(s), digest 656e0972ec78: _sysconfigdata__wasi_wasm32-wasi.pyc: holds 'darwin'; _sysconfigdata__wasi_wasm32-wasi.pyc: holds 'apple'; _sysconfigdata__wasi_wasm32-wasi.pyc: holds '-macos'; _sysconfigdata__wasi_wasm32-wasi.pyc: holds 'aarch64'; _sysconfigdata__wasi_wasm32-wasi.pyc: holds 'arm64'; +4 more
+E       assert not ["_sysconfigdata__wasi_wasm32-wasi.pyc: holds 'darwin'", "_sysconfigdata__wasi_wasm32-wasi.pyc: holds 'apple'", "_sysc..."_sysconfigdata__wasi_wasm32-wasi.pyc: holds 'arm64'", "_sysconfigdata__wasi_wasm32-wasi.pyc: holds 'python.exe'", ...]
+
+tests/checks/test_v1_5_rebuild_from_pins.py:94: AssertionError
+____________________ test_reactor_holds_no_sdk_builder_path ____________________
+
+artifacts = ArtifactSet(dir=PosixPath('<scratch>/build012/old-artifacts'))
+
+    def test_reactor_holds_no_sdk_builder_path(artifacts) -> None:
+        """The reactor links the host-neutral wasm runtime, not the one inside the builder's SDK
+        tarball, whose assert messages name where that tarball was built (spec 012, Decision 2)."""
+        errors = rules.sdk_builder_path_errors(_binary(artifacts, "plain"))
+>       assert not errors, scan.report(errors)
+E       AssertionError: findings: 1 finding(s), digest dd125b1b6ff1: python.wasm: holds /Users/runner/work/wasi-sdk
+E       assert not ['python.wasm: holds /Users/runner/work/wasi-sdk']
+
+tests/checks/test_v1_1_artifact_set.py:133: AssertionError
+______ test_each_build_host_reads_its_own_names[Darwin-arm64-MACOS_ARM64] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b59a780>
+system = 'Darwin', machine = 'arm64', key = 'MACOS_ARM64'
+
+    @pytest.mark.parametrize(("system", "machine", "key"), BUILD_HOSTS)
+    def test_each_build_host_reads_its_own_names(monkeypatch, system, machine, key) -> None:
+        _on(monkeypatch, system, machine)
+        values = _line().read()
+>       assert {name: values.get(name) for name in scan.HOST_NAMES} == {
+            name: values.get(f"{key}_{name}", f"<no {key}_{name}>") for name in scan.HOST_NAMES
+        }
+E       AssertionError: assert {'WASI_SDK_DI...m64.whl', ...} == {'WASI_SDK_DI..._WHEEL>', ...}
+E         
+E         Differing items:
+E         {'NINJA_WHEEL': None} != {'NINJA_WHEEL': '<no MACOS_ARM64_NINJA_WHEEL>'}
+E         {'WASMTIME_DIR': 'wasmtime-v49.0.3-aarch64-macos'} != {'WASMTIME_DIR': '<no MACOS_ARM64_WASMTIME_DIR>'}
+E         {'HOST_PYTHON_ARCHIVE': 'cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz'} != {'HOST_PYTHON_ARCHIVE': '<no MACOS_ARM64_HOST_PYTHON_ARCHIVE>'}
+E         {'CYTHON_WHEEL': 'cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl'} != {'CYTHON_WHEEL': '<no MACOS_ARM64_CYTHON_WHEEL>'}
+E         {'WASI_SDK_DIR': 'wasi-sdk-33.0-arm64-macos'} != {'WASI_SDK_DIR': '<no MACOS_ARM64_WASI_SDK_DIR>'}
+E         Use -v to get more diff
+
+tests/unit/test_line.py:40: AssertionError
+____ test_each_build_host_reads_its_own_names[Linux-aarch64-LINUX_AARCH64] _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b59b100>
+system = 'Linux', machine = 'aarch64', key = 'LINUX_AARCH64'
+
+    @pytest.mark.parametrize(("system", "machine", "key"), BUILD_HOSTS)
+    def test_each_build_host_reads_its_own_names(monkeypatch, system, machine, key) -> None:
+        _on(monkeypatch, system, machine)
+        values = _line().read()
+>       assert {name: values.get(name) for name in scan.HOST_NAMES} == {
+            name: values.get(f"{key}_{name}", f"<no {key}_{name}>") for name in scan.HOST_NAMES
+        }
+E       AssertionError: assert {'WASI_SDK_DI...m64.whl', ...} == {'WASI_SDK_DI..._WHEEL>', ...}
+E         
+E         Differing items:
+E         {'NINJA_WHEEL': None} != {'NINJA_WHEEL': '<no LINUX_AARCH64_NINJA_WHEEL>'}
+E         {'WASMTIME_DIR': 'wasmtime-v49.0.3-aarch64-macos'} != {'WASMTIME_DIR': '<no LINUX_AARCH64_WASMTIME_DIR>'}
+E         {'HOST_PYTHON_ARCHIVE': 'cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz'} != {'HOST_PYTHON_ARCHIVE': '<no LINUX_AARCH64_HOST_PYTHON_ARCHIVE>'}
+E         {'CYTHON_WHEEL': 'cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl'} != {'CYTHON_WHEEL': '<no LINUX_AARCH64_CYTHON_WHEEL>'}
+E         {'WASI_SDK_DIR': 'wasi-sdk-33.0-arm64-macos'} != {'WASI_SDK_DIR': '<no LINUX_AARCH64_WASI_SDK_DIR>'}
+E         Use -v to get more diff
+
+tests/unit/test_line.py:40: AssertionError
+_____ test_each_build_host_reads_its_own_names[Linux-x86_64-LINUX_X86_64] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b5bec30>
+system = 'Linux', machine = 'x86_64', key = 'LINUX_X86_64'
+
+    @pytest.mark.parametrize(("system", "machine", "key"), BUILD_HOSTS)
+    def test_each_build_host_reads_its_own_names(monkeypatch, system, machine, key) -> None:
+        _on(monkeypatch, system, machine)
+        values = _line().read()
+>       assert {name: values.get(name) for name in scan.HOST_NAMES} == {
+            name: values.get(f"{key}_{name}", f"<no {key}_{name}>") for name in scan.HOST_NAMES
+        }
+E       AssertionError: assert {'WASI_SDK_DI...m64.whl', ...} == {'WASI_SDK_DI..._WHEEL>', ...}
+E         
+E         Differing items:
+E         {'NINJA_WHEEL': None} != {'NINJA_WHEEL': '<no LINUX_X86_64_NINJA_WHEEL>'}
+E         {'WASMTIME_DIR': 'wasmtime-v49.0.3-aarch64-macos'} != {'WASMTIME_DIR': '<no LINUX_X86_64_WASMTIME_DIR>'}
+E         {'HOST_PYTHON_ARCHIVE': 'cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz'} != {'HOST_PYTHON_ARCHIVE': '<no LINUX_X86_64_HOST_PYTHON_ARCHIVE>'}
+E         {'CYTHON_WHEEL': 'cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl'} != {'CYTHON_WHEEL': '<no LINUX_X86_64_CYTHON_WHEEL>'}
+E         {'WASI_SDK_DIR': 'wasi-sdk-33.0-arm64-macos'} != {'WASI_SDK_DIR': '<no LINUX_X86_64_WASI_SDK_DIR>'}
+E         Use -v to get more diff
+
+tests/unit/test_line.py:40: AssertionError
+_ test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable[Windows-AMD64] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b5e59d0>
+system = 'Windows', machine = 'AMD64'
+
+    @pytest.mark.parametrize(("system", "machine"), FOREIGN_HOSTS)
+    def test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable(
+        monkeypatch, system, machine
+    ) -> None:
+        _on(monkeypatch, system, machine)
+        values = _line().read()
+        assert values["PYTHON_MM"] == ".".join(values["PYTHON_VERSION"].split(".")[:2])
+>       assert sorted(set(scan.HOST_NAMES) & set(values)) == []
+E       AssertionError: assert ['CYTHON_WHEE...WASMTIME_DIR'] == []
+E         
+E         Left contains 4 more items, first extra item: 'CYTHON_WHEEL'
+E         Use -v to get more diff
+
+tests/unit/test_line.py:52: AssertionError
+_ test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable[Darwin-x86_64] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b5e6140>
+system = 'Darwin', machine = 'x86_64'
+
+    @pytest.mark.parametrize(("system", "machine"), FOREIGN_HOSTS)
+    def test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable(
+        monkeypatch, system, machine
+    ) -> None:
+        _on(monkeypatch, system, machine)
+        values = _line().read()
+        assert values["PYTHON_MM"] == ".".join(values["PYTHON_VERSION"].split(".")[:2])
+>       assert sorted(set(scan.HOST_NAMES) & set(values)) == []
+E       AssertionError: assert ['CYTHON_WHEE...WASMTIME_DIR'] == []
+E         
+E         Left contains 4 more items, first extra item: 'CYTHON_WHEEL'
+E         Use -v to get more diff
+
+tests/unit/test_line.py:52: AssertionError
+==================================== PASSES ====================================
+=================================== progress ===================================
+wasi_python v1: 2/6 pass · 0 gap · 0 blocked · 4 fail   (unit suite 0/5)
+  v1.1  artifact set         0/1   fail 1
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           0/0   
+  v1.4  embedding            2/2   
+  v1.5  rebuild from pins    0/2   fail 2
+  rules constitution rules   0/1   fail 1
+FAIL tests/checks/test_rules.py::test_every_build_host_has_its_whole_table — AssertionError: findings: 5 finding(s), digest 2f8989979f89: line.conf: WASI_SDK_DIR is set for every host, not per host key; line.conf: WASMTIME_DIR is set for
+FAIL tests/checks/test_v1_1_artifact_set.py::test_reactor_holds_no_sdk_builder_path — AssertionError: findings: 1 finding(s), digest dd125b1b6ff1: python.wasm: holds /Users/runner/work/wasi-sdk
+FAIL tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_two_more_hosts — AssertionError: findings: 2 finding(s), digest c250faaa278f: no rebuild job; no same-bytes job
+FAIL tests/checks/test_v1_5_rebuild_from_pins.py::test_stdlib_zip_names_no_build_host — AssertionError: findings: 9 finding(s), digest 656e0972ec78: _sysconfigdata__wasi_wasm32-wasi.pyc: holds 'darwin'; _sysconfigdata__wasi_wasm32-wasi.pyc: holds '
+ratchet vs ab9bafd727: lost 0 · absent 0 · unrun 0 · gained 0 · grew 2 · not selected 123 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_4_embedding.py and 6 more
+GREW tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]: fuel 241965052 -> 242248488
+GREW tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]: fuel 82471455 -> 82759371
+RED: 2 metric(s) grew
+not machine-checked: publication · second-host rebuild · copying from prior art · numpy/pandas test subsets
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree
+=========================== short test summary info ============================
+PASSED tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]
+PASSED tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]
+FAILED tests/checks/test_rules.py::test_every_build_host_has_its_whole_table
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_two_more_hosts
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_stdlib_zip_names_no_build_host
+FAILED tests/checks/test_v1_1_artifact_set.py::test_reactor_holds_no_sdk_builder_path
+FAILED tests/unit/test_line.py::test_each_build_host_reads_its_own_names[Darwin-arm64-MACOS_ARM64]
+FAILED tests/unit/test_line.py::test_each_build_host_reads_its_own_names[Linux-aarch64-LINUX_AARCH64]
+FAILED tests/unit/test_line.py::test_each_build_host_reads_its_own_names[Linux-x86_64-LINUX_X86_64]
+FAILED tests/unit/test_line.py::test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable[Windows-AMD64]
+FAILED tests/unit/test_line.py::test_a_foreign_host_reads_the_line_and_the_oracle_is_unavailable[Darwin-x86_64]
+9 failed, 2 passed in 6.34s

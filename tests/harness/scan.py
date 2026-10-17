@@ -465,3 +465,145 @@ def release_attestation_errors(text: str) -> list[str]:
     if "attest" not in re.findall(r"[a-z_-]+", _job_field(publish, "needs") or ""):
         errors.append("publish does not need attest")
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The build hosts (spec 012, Decision 1)
+
+HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
+# The file in downloads/ each host name stands for: a directory name is its tarball's stem.
+HOST_FILE = {"WASI_SDK_DIR": "{}.tar.gz", "WASMTIME_DIR": "{}.tar.xz"}
+CONF_HOST_LINE = re.compile(rf"^([A-Z][A-Z0-9_]*?)_({'|'.join(HOST_NAMES)})=(\S+)$", re.M)
+SH_HOST_KEY = re.compile(r"\bHOST_KEY=([A-Z][A-Z0-9_]*)")
+
+
+def host_case_branches(text: str) -> dict[str, list[str]]:
+    """The file names the `get` lines fetch in each branch of the download script's
+    `case "$HOST_KEY" in … esac`."""
+    branches: dict[str, list[str]] = {}
+    current: list[str] | None = None
+    inside = False
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("#"):
+            continue
+        if re.fullmatch(r'case\s+"?\$\{?HOST_KEY\}?"?\s+in', s):
+            inside = True
+        elif inside and s == "esac":
+            break
+        elif inside and (m := re.fullmatch(r"([A-Z][A-Z0-9_]*)\)", s)):
+            current = branches.setdefault(m[1], [])
+        elif inside and s == ";;":
+            current = None
+        elif inside and current is not None and (g := GET.match(line)):
+            current.append(g[2] or g[1].rstrip("/").rsplit("/", 1)[-1])
+    return branches
+
+
+def host_table_errors(
+    conf: str, sh_keys: Iterable[str], py_keys: Iterable[str], download: str, pinned: Iterable[str]
+) -> list[str]:
+    """Every build host has all five host names in `line.conf`; each names a pinned file that the
+    download script fetches in that host's own `case` branch; and `line.conf`, `line.sh`,
+    `line.py` and `00_download.sh` know the same hosts."""
+    pinned = set(pinned)
+    table: dict[str, dict[str, str]] = {}
+    for key, name, value in CONF_HOST_LINE.findall(conf):
+        table.setdefault(key, {})[name] = value
+    errors = [
+        f"line.conf: {name} is set for every host, not per host key"
+        for name in HOST_NAMES
+        if re.search(rf"^{name}=", conf, re.M)
+    ]
+    if not table:
+        errors.append("line.conf: no host key names a host's inputs")
+    branches = host_case_branches(download)
+    for where, keys in (
+        ("line.sh", set(sh_keys)),
+        ("line.py", set(py_keys)),
+        ("00_download.sh", set(branches)),
+    ):
+        if keys != set(table):
+            errors.append(f"{where}: hosts {sorted(keys)}, but line.conf has {sorted(table)}")
+    for key in sorted(table):
+        for name in HOST_NAMES:
+            value = table[key].get(name)
+            if value is None:
+                errors.append(f"line.conf: no {key}_{name}")
+                continue
+            file = HOST_FILE.get(name, "{}").format(value)
+            if file not in pinned:
+                errors.append(f"{key}_{name}: {file} is not pinned")
+            if file not in branches.get(key, []):
+                errors.append(f"{key}_{name}: {file} is not fetched in the {key} branch")
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The release workflow's second-host rebuild (spec 012, Decision 7)
+
+# arm64 Linux only: x86_64 Linux is pinned but its rebuild is not yet byte-identical, so it is
+# left out of the gate (spec 012, Decision 8's fallback, taken in its landing notes).
+REBUILD_RUNNERS = ("ubuntu-24.04-arm",)
+
+
+def _needs(lines: list[str]) -> set[str]:
+    return set(re.findall(r"[a-z0-9_-]+", _job_field(lines, "needs") or ""))
+
+
+def rebuild_gate_errors(text: str) -> list[str]:
+    """Every rule of spec 012, Decision 7, as one line per breach, on the workflow without its
+    comments: a rebuild on each gated runner beside the build, a same-bytes job that compares every
+    rebuild's SHA256SUMS with the set's byte for byte, and nothing signed or published before it."""
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    rebuild, same = jobs.get("rebuild"), jobs.get("same-bytes")
+    errors = [
+        f"no {name} job" for name, job in (("rebuild", rebuild), ("same-bytes", same)) if not job
+    ]
+    if errors:
+        return errors
+    body = "\n".join(rebuild)
+    same_body = "\n".join(line for line in same if not line.startswith("    runs-on:"))
+    m = re.search(r"^\s+os:\s*\[([^\]]*)\]", body, re.M)
+    runners = [r.strip() for r in m[1].split(",")] if m else []
+    errors += [f"rebuild's matrix lacks {r}" for r in REBUILD_RUNNERS if r not in runners]
+    if _job_field(rebuild, "runs-on") != "${{ matrix.os }}":
+        errors.append("rebuild does not run on its matrix's runner")
+    if not re.search(r"^\s+(- )?run:\s*scripts/build\.sh\s*$", body, re.M):
+        errors.append("rebuild does not run scripts/build.sh")
+    if not re.search(r"^\s+path:\s*build/artifacts/SHA256SUMS\s*$", body, re.M) or not re.search(
+        r"^\s+name:\s*\S*\$\{\{\s*matrix\.os\s*\}\}\S*\s*$", body, re.M
+    ):
+        errors.append("rebuild does not upload build/artifacts/SHA256SUMS under a name per runner")
+    for name, lines in (("rebuild", rebuild), ("same-bytes", same)):
+        joined = "\n".join(lines)
+        if _job_field(lines, "if") is not None:
+            errors.append(f"{name} has a job-level if: (a dry run must run it)")
+        if _job_permissions(lines) - {"contents: read"}:
+            errors.append(f"{name}'s permissions are more than contents: read")
+        if re.search(r"^    continue-on-error:", joined, re.M):
+            errors.append(f"{name} has a job-level continue-on-error:")
+    if not {"build", "rebuild"} <= _needs(same):
+        errors.append("same-bytes does not need build and rebuild")
+    # One operand a rebuild's download, the other not: comparing the set's file with itself, or
+    # one rebuild with another, proves nothing (the build review, mutation M18).
+    pairs = re.findall(r"\bcmp\s+(\S+)\s+(\S+)", same_body)
+    if not any(("rebuilds/" in a) != ("rebuilds/" in b) for a, b in pairs):
+        errors.append("same-bytes does not compare a rebuild's SHA256SUMS with the set's (cmp)")
+    errors += [
+        f"same-bytes does not name {r}'s SHA256SUMS"
+        for r in REBUILD_RUNNERS
+        if not re.search(
+            rf"^\s+name:\s*rebuild-{re.escape(r)}\s*\n\s+path:\s*rebuilds/{re.escape(r)}\s*$",
+            same_body,
+            re.M,
+        )
+        or not re.search(rf"(?<![\w.-]){re.escape(r)}(?![\w.-])", same_body.split("run:", 1)[-1])
+    ]
+    if re.search(r"\|\||set \+e", same_body):
+        errors.append("a step of same-bytes swallows a failure (|| or set +e)")
+    for name in ("attest", "publish"):
+        if "same-bytes" not in _needs(jobs.get(name, [])):
+            errors.append(f"{name} does not need same-bytes")
+    return errors

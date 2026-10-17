@@ -59,6 +59,14 @@ package becomes a Python exception instead of ending the guest.
   and verified before it is published; the notes say how to verify a download.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;
   before, it ignored them or swapped them.
+- **The same bytes from any build host:** arm64 macOS and arm64 Linux rebuild the same artifact
+  set from the pins, byte for byte, and the release workflow rebuilds it on an arm64 Linux runner
+  and compares `SHA256SUMS` before anything is signed. x86_64 Linux is pinned and builds, but its
+  `python.wasm` is not yet byte-identical (one numpy function compiles differently there).
+  Every host links wasi-sdk's
+  host-neutral sysroot and builtins, and the build sorts in the C locale, so `python.wasm`'s hash
+  changes. Inside the guest, `sysconfig` and `numpy.show_config()` name the build machine
+  `build`. `MANIFEST`'s `pin` lines now list every supported build host's inputs.
 
 ## 0.1.0a1 — 2026-10-17
 

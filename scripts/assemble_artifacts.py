@@ -160,6 +160,9 @@ def main() -> None:
     manifest += [f"pin {sha} {name}" for sha, name in pins]
     manifest += [f"recipe {sha256(root / f)} {f}" for f in recipes]
     manifest += [
+        # The pin lines are every supported build host's inputs, not only this build's: each host
+        # builds the same bytes, so MANIFEST is the same file from any of them (spec 012).
+        "x-pins every-supported-build-host",
         f"x-wizer {wizer}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
         f"x-preimport {PREIMPORT}",

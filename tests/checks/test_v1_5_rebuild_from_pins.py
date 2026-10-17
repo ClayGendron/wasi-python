@@ -6,6 +6,7 @@ import re
 
 import pytest
 
+from harness import artifacts as rules
 from harness import needs, paths, pins, scan
 
 pytestmark = pytest.mark.goal("v1.5")
@@ -82,3 +83,20 @@ def test_release_workflow_runs_the_zero_patch_check() -> None:
         [] if good else ["no release workflow with workflow_dispatch runs the zero-patch check"]
     )
     assert not missing, scan.report(missing)
+
+
+def test_stdlib_zip_names_no_build_host(artifacts) -> None:
+    """_sysconfigdata and numpy's __config__ say nothing about the machine that built them, so the
+    zip, and the snapshot that holds its offsets, are the same bytes from any host (spec 012,
+    Decision 5)."""
+    needs.need("stdlib zip")
+    errors = rules.host_fact_errors(artifacts.path("python-stdlib.zip"), str(paths.REPO))
+    assert not errors, scan.report(errors)
+
+
+def test_release_workflow_rebuilds_on_a_second_host() -> None:
+    """An arm64 Linux runner rebuilds the set beside the build, and nothing is signed or
+    published until its SHA256SUMS equals the set's (spec 012, Decisions 7 and 8)."""
+    workflow = paths.REPO / ".github" / "workflows" / "release.yml"
+    errors = scan.rebuild_gate_errors(workflow.read_text())
+    assert not errors, scan.report(errors)

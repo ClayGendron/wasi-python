@@ -281,3 +281,43 @@ def test_start_section_rule_names_a_start_function(work) -> None:
         "s.wasm: has a start section (guest code would run unmetered)"
     ]
     assert rules.start_section_errors(wat.build(work, "p.wasm", wat.PLAIN_REACTOR)) == []
+
+
+def _zip_of(path: Path, members: dict[str, bytes]) -> Path:
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in members.items():
+            z.writestr(name, data)
+    return path
+
+
+def test_host_facts_in_the_two_members_are_named(work) -> None:
+    sysconfig, config = rules.HOST_FACT_MEMBERS
+    neutral = {
+        sysconfig: b"BUILD_GNU_TYPE build HAVE_LINUX_CAN_H /wasi-python-build/x",
+        config: b"cpu build family build endian little system build",
+    }
+    assert rules.host_fact_errors(_zip_of(work / "a.zip", neutral), "/home/me/repo") == []
+    leaky = {
+        sysconfig: b"aarch64-apple-darwin /usr/bin/install -c /home/me/repo/build",
+        config: b"system linux",
+    }
+    assert rules.host_fact_errors(_zip_of(work / "b.zip", leaky), "/home/me/repo") == [
+        f"{sysconfig}: holds 'darwin'",
+        f"{sysconfig}: holds 'apple'",
+        f"{sysconfig}: holds 'aarch64'",
+        f"{sysconfig}: holds '/usr/bin'",
+        f"{sysconfig}: holds '/home/me/repo'",
+        f"{config}: holds 'linux'",
+    ]
+    assert rules.host_fact_errors(_zip_of(work / "c.zip", {config: b""}), "/r") == [
+        f"{sysconfig}: not in the zip"
+    ]
+
+
+def test_a_reactor_with_the_sdk_tarball_runtime_is_named(work) -> None:
+    good = work / "good.wasm"
+    good.write_bytes(b"\0asm/src/src/llvm-project/libcxxabi/src/fallback_malloc.cpp")
+    bad = work / "bad.wasm"
+    bad.write_bytes(b"\0asm/Users/runner/work/wasi-sdk/wasi-sdk/src/llvm-project/x.cpp")
+    assert rules.sdk_builder_path_errors(good) == []
+    assert rules.sdk_builder_path_errors(bad) == ["bad.wasm: holds /Users/runner/work/wasi-sdk"]

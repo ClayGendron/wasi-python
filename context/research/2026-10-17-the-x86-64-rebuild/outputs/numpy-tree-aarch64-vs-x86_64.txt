@@ -1,0 +1,7 @@
+generated: ./numpy/_core/libnpymath.a.p/npy_math_complex.c
+  source equal
+./numpy/_core/libnpymath.a.p/meson-generated_npy_math_complex.c.o DIFFERS
+== generated .c/.h that differ
+(none)
+== objects that differ
+./numpy/_core/libnpymath.a.p/meson-generated_npy_math_complex.c.o

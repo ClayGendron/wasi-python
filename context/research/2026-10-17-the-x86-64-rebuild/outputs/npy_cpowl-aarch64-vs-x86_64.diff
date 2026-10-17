@@ -1,0 +1,24 @@
+453c453
+<     3214:      	i32.const	112
+---
+>     3214:      	i32.const	160
+461c461
+<     3228:      	i32.const	160
+---
+>     3228:      	i32.const	112
+472,478c472,478
+<     3242:      	i64.load	160
+<     3246:      	local.get	3
+<     3248:      	i64.load	168
+<     324c:      	local.get	3
+<     324e:      	i64.load	112
+<     3251:      	local.get	3
+<     3253:      	i64.load	120
+---
+>     3242:      	i64.load	112
+>     3245:      	local.get	3
+>     3247:      	i64.load	120
+>     324a:      	local.get	3
+>     324c:      	i64.load	160
+>     3250:      	local.get	3
+>     3252:      	i64.load	168

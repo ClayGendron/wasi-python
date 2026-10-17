@@ -23,7 +23,7 @@ directories and host functions you hand it.
 | `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
 | `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six as a deflated zip |
-| `MANIFEST`, `SHA256SUMS` | every pinned source, toolchain and recipe hash the build used |
+| `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 8 to 20 MB) and as the `wasi-python`
 wheel on PyPI, which carries the same files and a `wasi_python.artifacts()`
@@ -74,8 +74,9 @@ is stopped by fuel loses what it printed since its last flush; run it with
   re-reads what is known to matter (the `random` and numpy seeds, `logging`'s
   start time, `zoneinfo`'s `PYTHONTZPATH`), and anything else a module read
   from the environment at import keeps the build's value;
-- it is the same bytes on every build: while it initializes, the clocks,
-  entropy and file metadata answer constants, and no program ever sees them.
+- it is the same bytes on every build, from any supported build host: while
+  it initializes, the clocks, entropy and file metadata (a directory's size
+  and link count included) answer constants, and no program ever sees them.
 
 ## Hosts
 
@@ -124,6 +125,30 @@ extension module's shared link into a static archive, so no `meson.build`
 changes. The line's versions (CPython, wasi-sdk, the host Python) are named
 once, in `scripts/line.conf`.
 
+**The same bytes from any build host.** The build runs on arm64 macOS and
+arm64 Linux, and both give the same artifact set, byte for byte: the same
+`SHA256SUMS` over the three artifacts, `MANIFEST` and the licences
+(`context/specifications/012-the-same-bytes-from-any-host.md`). x86_64 Linux
+is a pinned build host too, but its rebuilds are not yet byte-identical: its
+wasi-sdk compiler lays out one numpy function's stack differently, so its
+`python.wasm` differs by 21 bytes and its snapshot with it; its zip, `MANIFEST`
+and licences are the same
+(`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`). Each host's
+own inputs (wasi-sdk, wasmtime, the host Python, the Cython and ninja wheels)
+are named once per host in `scripts/line.conf` and fetched by that host's
+branch of `scripts/00_download.sh`; every host's pins are in
+`downloads/SHA256SUMS`. So `MANIFEST`'s `pin` lines name every supported build
+host's inputs, not only the ones one build used (its line
+`x-pins every-supported-build-host` says so), and `MANIFEST` is the same file
+from every host. Four things make the bytes host-neutral: the host's wasi-sdk
+keeps only its compiler, and every host links wasi-sdk's host-neutral sysroot
+and builtins; the build sorts in the C locale; the snapshot sees a directory's
+size and link count as constants; and the stdlib zip's `_sysconfigdata` and
+numpy's `__config__.py` say nothing about the build machine. Inside the guest,
+`sysconfig.get_config_var('BUILD_GNU_TYPE')` and `numpy.show_config()`'s build
+machine therefore say `build`, not the host that built it. No compiler runs in
+a WASI guest, so nothing reads them.
+
 The recipe files under `recipes/`: two meson cross files, three rename headers
 for symbols that only collide in a static link, the reactor entry, the door
 module, a host-side numpy stand-in for pandas' build, and one-function stand-ins for `ctypes` and `mmap` that pandas
@@ -131,10 +156,12 @@ imports unconditionally.
 
 One host input is not pinned: the native C compiler and `make` that CPython's
 driver uses to build its own build-Python. Nothing it compiles is linked into
-the guest; a rebuild on a second host will test that it does not matter. The
-build also runs host tools that move or check bytes and are not pinned either:
-`curl`, `shasum`, `tar`, `xz`, `sed`, `uv` (it installs the pinned wheels,
-offline, by hash) and `git` (it lists the recipes for `MANIFEST`).
+the guest, and Apple clang and gcc 14.2 give the same artifact bytes
+(`context/research/2026-10-16-reproducible-builds-on-linux.md`). The build
+also runs host tools that move or check bytes and are not pinned either:
+`curl`, `shasum` (perl's), `tar`, `xz`, `sed`, `uv` (it installs the pinned
+wheels, offline, by hash) and `git` (it lists the recipes for `MANIFEST`). The
+release workflow prints each runner's versions of them.
 
 ## Releasing
 
@@ -148,7 +175,10 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
 runs the zero-patch check and the whole judge, and checks the same bytes on Linux, Windows and
-macOS. Then it publishes a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
+macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an arm64 Linux runner,
+and `same-bytes` requires its `SHA256SUMS` to equal the set's, byte for byte; nothing is signed
+or published until it passes. x86_64 Linux is not in this gate yet (above). Then it publishes
+a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
 their `SHA256SUMS`. PyPI upload is off until the trusted publisher is set up. A manual run of
 the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).
 
@@ -316,10 +346,10 @@ and the 3.15 line have landed (specs 001, 003, 004 and 005). The direction
 past these is in
 `context/research/2026-10-16-a-principal-engineers-direction.md`.
 
-1. **Reproducible builds on Linux** (`context/research/2026-10-16-…`,
-   placeholder): pin the Linux toolchain, build there, and compare hashes
-   with the macOS build. The reactor, the snapshot and the zip already
-   rebuild to the same bytes on one host.
+1. x86_64 Linux rebuilds byte-identical
+   (`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`):
+   its wasi-sdk compiler lays out one numpy function's stack differently;
+   the cause is found, the fix is not.
 2. numpy's and pandas' own test subsets under the runtime.
 
 Decided already, without further study: both binaries ship, the snapshot

@@ -178,3 +178,23 @@ def test_releases_attest_and_verify_their_assets() -> None:
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"
     errors = scan.release_attestation_errors(workflow.read_text())
     assert not errors, scan.report(errors)
+
+
+def test_every_build_host_has_its_whole_table() -> None:
+    """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
+    that host's own branch of the download script; and the four files know the same hosts
+    (spec 012, Decision 1)."""
+    import importlib.util
+
+    scripts = paths.REPO / "scripts"
+    spec = importlib.util.spec_from_file_location("wasi_python_line_hosts", scripts / "line.py")
+    line = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(line)
+    errors = scan.host_table_errors(
+        (scripts / "line.conf").read_text(),
+        scan.SH_HOST_KEY.findall((scripts / "line.sh").read_text()),
+        getattr(line, "HOSTS", {}).values(),
+        (scripts / "00_download.sh").read_text(),
+        paths.read_pin_list(),
+    )
+    assert not errors, scan.report(errors)

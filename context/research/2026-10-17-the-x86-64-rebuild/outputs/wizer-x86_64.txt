@@ -1,0 +1,3 @@
+x86_64 wasmtime wizer on macOS's reactor and zip (sha256, bytes):
+flags '': 4130d3baa218ce9b6fec08d84bb62f6a470ea791545f86b79d78f89c64ae4c44 63489079
+flags ',nan-canonicalization=y': 4130d3baa218ce9b6fec08d84bb62f6a470ea791545f86b79d78f89c64ae4c44 63489079

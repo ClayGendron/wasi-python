@@ -30,7 +30,7 @@ AREAS = {
 STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
 FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
 NOT_MACHINE_CHECKED = (
-    "publication · second-host rebuild · copying from prior art · numpy/pandas test subsets",
+    "publication · copying from prior art · numpy/pandas test subsets",
     "licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · "
     "bundled sub-licences · files a build adds inside a source tree",
 )

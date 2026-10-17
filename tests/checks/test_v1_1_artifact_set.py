@@ -126,6 +126,13 @@ def test_artifacts_carry_no_build_path(artifacts) -> None:
     assert not hits, scan.report(hits, f"files holding {paths.REPO}")
 
 
+def test_reactor_holds_no_sdk_builder_path(artifacts) -> None:
+    """The reactor links the host-neutral wasm runtime, not the one inside the builder's SDK
+    tarball, whose assert messages name where that tarball was built (spec 012, Decision 2)."""
+    errors = rules.sdk_builder_path_errors(_binary(artifacts, "plain"))
+    assert not errors, scan.report(errors)
+
+
 def test_no_cpython_test_module_is_built_in(guest) -> None:
     """CPython's _test* and xx* modules are test scaffolding, not part of the product."""
     code = (

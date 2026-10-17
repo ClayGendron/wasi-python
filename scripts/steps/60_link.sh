@@ -63,5 +63,42 @@ printf '%s\n%s\n' "$compile" "$link" > "$L/reactor-commands.txt"
 eval "$compile" > "$L/reactor-compile.log" 2>&1 || { tail -n 20 "$L/reactor-compile.log"; die "the reactor's compile failed"; }
 eval "$link" > "$L/reactor-link.log" 2>&1 || { tail -n 20 "$L/reactor-link.log"; die "the reactor's link failed"; }
 clashes "$L/reactor-link.log"
+
+# The link used the host-neutral wasm runtime that step 10 put in place (spec 012, Decision 2), not
+# the host tarball's: each runtime archive the link map names, its path resolved (the map writes
+# bin/../share/...), lies in the replaced sysroot or builtins directory and equals its member of the
+# pinned neutral tarball. Read only: the tarballs are opened, never unpacked, here.
+set -- "$SDK"/lib/clang/*/lib/wasm32-unknown-wasip1
+"$HOSTPY" - "$L/python.map" "$SDK/share/wasi-sysroot" "$1" \
+  "$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")" "$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")" \
+  > "$L/runtime-check.log" 2>&1 <<'EOF_RUNTIME' || { cat "$L/runtime-check.log"; die "the link did not use the neutral wasm runtime"; }
+import hashlib, os, re, sys, tarfile
+
+link_map, sysroot, builtins, sysroot_tgz, rt_tgz = sys.argv[1:]
+text = open(link_map, encoding="utf-8", errors="replace").read()
+want = {
+    "libc++.a": (sysroot, sysroot_tgz, "lib/wasm32-wasip1/eh/libc++.a"),
+    "libc++abi.a": (sysroot, sysroot_tgz, "lib/wasm32-wasip1/eh/libc++abi.a"),
+    "libclang_rt.builtins.a": (builtins, rt_tgz, "wasm32-unknown-wasip1/libclang_rt.builtins.a"),
+}
+members = {}
+for tgz in (sysroot_tgz, rt_tgz):
+    with tarfile.open(tgz) as t:
+        for info in t:
+            inside = info.name.split("/", 1)[-1]
+            if info.isfile() and any(m == inside for _, g, m in want.values() if g == tgz):
+                members[inside] = hashlib.sha256(t.extractfile(info).read()).hexdigest()
+for name, (root, _, member) in want.items():
+    used = sorted({os.path.realpath(p) for p in re.findall(r"(\S+/" + re.escape(name) + r")\(", text)})
+    if len(used) != 1:
+        sys.exit(f"ERROR: the link map names {len(used)} {name}: {used}")
+    if not used[0].startswith(os.path.realpath(root) + os.sep):
+        sys.exit(f"ERROR: {used[0]} is not under {os.path.realpath(root)}")
+    with open(used[0], "rb") as f:
+        sha = hashlib.sha256(f.read()).hexdigest()
+    if sha != members.get(member):
+        sys.exit(f"ERROR: {used[0]} is not the neutral tarball's {member}")
+    print(f"{name}: {used[0]} {sha}")
+EOF_RUNTIME
 "$SDK/bin/llvm-strip" --strip-debug "$OUT/python.wasm"
 echo "reactor: $(wc -c < "$OUT/python.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$OUT/python.wasm" | cut -c1-16)"

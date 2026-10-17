@@ -152,3 +152,48 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
             elif paths.sha256_bytes(w.read(member)) != paths.sha256_file(p):
                 errors.append(f"{wheel.name}: {member} differs from the artifact set")
     return errors
+
+
+# The two zip members that once recorded the build host (spec 012, Decision 5), and the words that
+# would show a host in them. Case-sensitive: the sysconfig member holds keys such as HAVE_LINUX_*.
+HOST_FACT_MEMBERS = ("_sysconfigdata__wasi_wasm32-wasi.pyc", "numpy/__config__.pyc")
+HOST_WORDS = (
+    "darwin",
+    "apple",
+    "linux-gnu",
+    "-macos",
+    "-linux",
+    "aarch64",
+    "x86_64",
+    "arm64",
+    "python.exe",
+    "/usr/bin",
+)
+NUMPY_HOST_WORDS = ("linux",)  # numpy's member has no HAVE_LINUX_* keys, so bare `linux` is a host
+
+
+def host_fact_errors(z: Path, repo: str) -> list[str]:
+    """The two members' bytecode, scanned as ASCII: the judge's Python cannot unmarshal the
+    guest's, and the strings a host leaves are plain text inside it."""
+    errors = []
+    with zipfile.ZipFile(z) as archive:
+        names = set(archive.namelist())
+        for member in HOST_FACT_MEMBERS:
+            if member not in names:
+                errors.append(f"{member}: not in the zip")
+                continue
+            data = archive.read(member)
+            words = HOST_WORDS + (NUMPY_HOST_WORDS if member.startswith("numpy/") else ()) + (repo,)
+            errors += [f"{member}: holds {w!r}" for w in words if w.encode() in data]
+    return errors
+
+
+# The builder path of a per-host wasi-sdk tarball's own wasm runtime (spec 012, Decision 2): the
+# macOS tarball's libc++abi carries it in two assert messages. The host-neutral runtime the build
+# links carries its own builder's path, /src/src/llvm-project, the same bytes on every host.
+SDK_HOST_BUILDER_PATHS = ("/Users/runner/work/wasi-sdk",)
+
+
+def sdk_builder_path_errors(binary: Path) -> list[str]:
+    data = binary.read_bytes()
+    return [f"{binary.name}: holds {p}" for p in SDK_HOST_BUILDER_PATHS if p.encode() in data]

@@ -1,0 +1,11 @@
+ok 00_download: libclang_rt-33.0+m.tar.gz: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29577411 bytes, 9bb2b8f6c86d8d51
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802418 bytes, 2df569f2f59397d5
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140578 bytes
+ok 80_snapshot: snapshot: 63489079 bytes, 4130d3baa218ce9b
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+exit: 0, wall: 302s

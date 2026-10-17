@@ -31,8 +31,9 @@
 /* While pinned, the C runtime's reads of the clocks, of entropy and of file metadata answer
  * constants, so everything captured during initialization is the same bytes on every build:
  * mimalloc's and wasi-libc's load-time state (they run as constructors, before any entry point),
- * numpy's SeedSequence and random's seed, and the times, inodes and devices of the files that
- * importing stats. The reactor's link wraps the four WASI calls (scripts/steps/60_link.sh,
+ * numpy's SeedSequence and random's seed, the times, inodes and devices of the files that
+ * importing stats, and a directory's size and link count, which each build host's file system
+ * answers its own way. The reactor's link wraps the four WASI calls (scripts/steps/60_link.sh,
  * --wrap); run() unpins before Python starts, and wizer.initialize unpins once the imports are
  * done, so a program only ever sees real values. */
 static int pinned = 1;
@@ -71,6 +72,12 @@ pin_filestat(__wasi_filestat_t *st)
 {
     st->dev = 0;
     st->ino = 0;
+    if (st->filetype == __WASI_FILETYPE_DIRECTORY) {
+        /* The host's file system answers a directory's size and link count its own way (APFS 96,
+         * ext4 4096), and CPython's heap layout follows the answer (spec 012, Decision 4). */
+        st->size = 0;
+        st->nlink = 1;
+    }
     st->atim = st->mtim = st->ctim = PINNED_REALTIME_NS;
 }
 
