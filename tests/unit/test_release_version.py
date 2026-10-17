@@ -130,3 +130,10 @@ def test_the_release_notes_say_how_to_verify_this_version() -> None:
     assert "--source-ref refs/tags/v0.1.0a2" in note
     assert "--signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml" in note
     assert "--deny-self-hosted-runners" in note
+
+
+def test_the_notes_command_prints_the_verify_note(capsys) -> None:
+    assert version.main(["notes", "0.1.0a1"]) == 0
+    out = capsys.readouterr().out
+    assert out.endswith(version.verify_note("0.1.0a1"))
+    assert version.notes(version.CHANGELOG.read_text(), "0.1.0a1") in out

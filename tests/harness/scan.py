@@ -356,6 +356,19 @@ def report(findings: list[str], what: str = "findings") -> str:
 ATTEST_PERMISSIONS = {"id-token: write", "attestations: write", "contents: read"}
 ATTEST_USES = re.compile(r"uses:\s*actions/attest@[0-9a-f]{40}\b")
 VERIFY_FLAGS = ("--repo", "--signer-workflow", "--source-ref", "--deny-self-hosted-runners")
+TAG_ONLY = "github.event_name == 'push' && github.ref_type == 'tag'"
+ID_TOKEN = re.compile(r"id-token:\s*write|write-all")
+
+
+def without_comments(text: str) -> str:
+    """The workflow with its comments removed, so a commented-out step or name counts for nothing:
+    whole-line comments, and trailing ` # …` comments."""
+    out = []
+    for line in text.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        out.append(re.sub(r"\s+#\s.*$", "", line))
+    return "\n".join(out) + "\n"
 
 
 def workflow_jobs(text: str) -> dict[str, list[str]]:
@@ -403,14 +416,16 @@ def _job_permissions(lines: list[str]) -> set[str]:
 
 
 def release_attestation_errors(text: str) -> list[str]:
-    """Every rule of spec 009, Decision 6, as one line per breach."""
+    """Every rule of spec 009, Decision 6, as one line per breach, on the workflow without its
+    comments."""
+    text = without_comments(text)
     jobs = workflow_jobs(text)
     if "attest" not in jobs:
         return ["no attest job"]
     attest, publish = jobs["attest"], jobs.get("publish", [])
     errors = []
-    if _job_field(attest, "if") != _job_field(publish, "if"):
-        errors.append("attest's if: is not publish's")
+    if _job_field(attest, "if") != TAG_ONLY or _job_field(publish, "if") != TAG_ONLY:
+        errors.append("attest's or publish's if: is not the pushed-tag condition")
     needs_attest = _job_field(attest, "needs") or ""
     if not {"build", "verify"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
         errors.append("attest does not need build and verify")
@@ -421,13 +436,19 @@ def release_attestation_errors(text: str) -> list[str]:
         errors.append("no actions/attest step pinned by a 40-hex commit")
     if not re.search(r"subject-path:\s*release-assets/\*\s*$", body, re.M):
         errors.append("subject-path is not release-assets/*")
-    verify = [line for line in attest if "gh attestation verify" in line]
-    verify_text = "\n".join(attest[attest.index(verify[0]) :]) if verify else ""
-    if not verify or not all(flag in verify_text for flag in VERIFY_FLAGS):
+    logical = body.replace("\\\n", " ").splitlines()  # a `\`-continued command is one line
+    verify = [line for line in logical if "gh attestation verify" in line]
+    if not verify or any(not all(flag in line for flag in VERIFY_FLAGS) for line in verify):
         errors.append(
-            "no gh attestation verify with --repo, --signer-workflow, --source-ref and "
+            "a gh attestation verify without --repo, --signer-workflow, --source-ref and "
             "--deny-self-hosted-runners"
         )
+    if re.search(r"^    continue-on-error:", body, re.M):
+        errors.append("attest has a job-level continue-on-error:")
+    if re.search(r"\|\||set \+e", body):
+        errors.append("a step of attest swallows a failure (|| or set +e)")
+    if re.search(r"setup-uv|uv run", body):
+        errors.append("attest runs setup-uv or uv")
     order = [
         next((i for i, line in enumerate(attest) if marker in line), None)
         for marker in ("actions/download-artifact@", "actions/attest@", "gh attestation verify")
@@ -436,9 +457,11 @@ def release_attestation_errors(text: str) -> list[str]:
         errors.append("attest's steps are not download, attest, verify, in that order")
     if re.search(r"^      (- )?\s*(if|continue-on-error):", body, re.M):
         errors.append("a step of attest has if: or continue-on-error:")
+    if ID_TOKEN.search(text.split("\njobs:", 1)[0]):
+        errors.append("the workflow-level permissions grant id-token: write or write-all")
     for name, lines in jobs.items():
-        if name not in ("attest", "pypi") and any("id-token: write" in line for line in lines):
-            errors.append(f"{name} has id-token: write")
+        if name not in ("attest", "pypi") and ID_TOKEN.search("\n".join(lines)):
+            errors.append(f"{name} has id-token: write or write-all")
     if "attest" not in re.findall(r"[a-z_-]+", _job_field(publish, "needs") or ""):
         errors.append("publish does not need attest")
     return errors

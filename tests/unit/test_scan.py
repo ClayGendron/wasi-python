@@ -269,7 +269,7 @@ jobs:
   verify:
     needs: build
   attest:
-    if: github.ref_type == 'tag'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify]
     permissions:
       id-token: write
@@ -282,10 +282,10 @@ jobs:
           subject-path: release-assets/*
       - name: verify
         run: |
-          gh attestation verify "$a" --repo "$R" \\\\
+          gh attestation verify "$a" --repo "$R" \\
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
-    if: github.ref_type == 'tag'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, attest]
     permissions:
       contents: write
@@ -294,19 +294,13 @@ jobs:
       id-token: write
 """
 
+ATTEST_IF = "  attest:\n    if: github.event_name == 'push' && github.ref_type == 'tag'\n"
+VERIFY = '          gh attestation verify "$a" --repo "$R" \\\n'
+
 BAD_WORKFLOWS = [
     (("  attest:\n", "  other:\n"), "no attest job"),
-    (
-        (
-            "    if: github.ref_type == 'tag'\n    needs: [build, verify]\n",
-            "    if: always()\n    needs: [build, verify]\n",
-        ),
-        "attest's if: is not publish's",
-    ),
-    (
-        ("    needs: [build, verify]\n", "    needs: [build]\n"),
-        "attest does not need build and verify",
-    ),
+    ((ATTEST_IF, "  attest:\n    if: always()\n"), "attest's or publish's if:"),
+    (("    needs: [build, verify]\n", "    needs: [build]\n"), "attest does not need build and"),
     (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
     (
         ("actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6", "actions/attest@v4"),
@@ -316,12 +310,9 @@ BAD_WORKFLOWS = [
         ("subject-path: release-assets/*", "subject-path: release-assets/*.whl"),
         "subject-path is not release-assets/*",
     ),
-    ((" --deny-self-hosted-runners", ""), "no gh attestation verify with"),
+    ((" --deny-self-hosted-runners", ""), "a gh attestation verify without"),
     (
-        (
-            "      - uses: actions/download-artifact@",
-            "      - uses: actions/fetch-artifact@",
-        ),
+        ("      - uses: actions/download-artifact@", "      - uses: actions/fetch-artifact@"),
         "attest's steps are not download, attest, verify",
     ),
     (
@@ -329,16 +320,44 @@ BAD_WORKFLOWS = [
         "a step of attest has if: or continue-on-error:",
     ),
     (
-        (
-            "  publish:\n    if: github.ref_type == 'tag'\n",
-            "  publish:\n    if: github.ref_type == 'tag'\n"
-            "    permissions:\n      id-token: write\n",
-        ),
-        "publish has id-token: write",
+        ("    contents: write\n  pypi:", "    contents: write\n      id-token: write\n  pypi:"),
+        "publish has id-token: write or write-all",
     ),
     (
         ("    needs: [build, verify, attest]\n", "    needs: [build, verify]\n"),
         "publish does not need attest",
+    ),
+    # The review's ways around the first scan (spec 009's build review, findings 1 to 4).
+    (
+        ("      - uses: actions/attest@", "      # - uses: actions/attest@"),
+        "no actions/attest step pinned by a 40-hex commit",
+    ),
+    (
+        ("    needs: [build, verify]\n", "    needs: [build]  # verify\n"),
+        "attest does not need build and",
+    ),
+    (
+        (
+            "    needs: [build, verify]\n",
+            "    needs: [build, verify]\n    continue-on-error: true\n",
+        ),
+        "attest has a job-level continue-on-error:",
+    ),
+    (
+        ("--deny-self-hosted-runners\n", "--deny-self-hosted-runners || true\n"),
+        "a step of attest swallows a failure",
+    ),
+    (
+        ("name: release\njobs:\n", "name: release\npermissions: write-all\njobs:\n"),
+        "the workflow-level permissions grant",
+    ),
+    (
+        (VERIFY, '          gh attestation verify "$a"\n          echo --repo \\\n'),
+        "a gh attestation verify without",
+    ),
+    (
+        ("      - name: verify\n", "      - uses: astral-sh/setup-uv@abc\n      - name: verify\n"),
+        "attest runs setup-uv or uv",
     ),
 ]
 
@@ -352,4 +371,4 @@ def test_release_attestation_scan_names_each_breach(change, error) -> None:
     old, new = change
     assert GOOD_WORKFLOW.count(old) == 1, old
     errors = scan.release_attestation_errors(GOOD_WORKFLOW.replace(old, new))
-    assert len(errors) == 1 and errors[0].startswith(error), errors
+    assert errors and errors[0].startswith(error), errors  # the first breach is the one named

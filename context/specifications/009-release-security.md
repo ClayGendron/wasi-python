@@ -1,12 +1,9 @@
 # 009 — Release provenance: every asset attested and verified
 
-- **Status:** draft, 2026-10-17; revised the same day to answer its review
-  (`../reviews/009-release-security-spec-2026-10-17.md`). The review's findings 1, 2 and 6 were
-  about `SECURITY.md`, which moved out of this specification: it waits on the owner turning on
-  private vulnerability reporting (`../questions-for-the-owner.md`, question 10; the setting is
-  off today, EXECUTED by the review) and on spec 010 (a sleeping guest keeps its deadline), so
-  that the policy it publishes is true when it is published. It changes the release workflow,
-  so it is reviewed again before it is built.
+- **Status:** landed, 2026-10-17. Reviewed before build
+  (`../reviews/009-release-security-spec-2026-10-17.md`) and after
+  (`../reviews/009-release-security-2026-10-17.md`). `SECURITY.md`, the first draft's other
+  half, waits on the owner (question 10) and on spec 010.
 - **Owner:** Clay Gendron
 - **Kind:** `.github/workflows/release.yml`, `release/version.py`, judge additions in
   `tests/checks/test_rules.py`, `tests/harness/scan.py`, `tests/unit/test_scan.py` and
@@ -37,10 +34,12 @@
    `needs: [build, verify, attest]`. The identity token is never in the same job as
    `contents: write`, setup-uv or uv's Python.
 2. **The strict verification.** `gh attestation verify <asset> --repo ClayGendron/wasi_python
-   --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml --source-ref
-   refs/tags/v<version> --deny-self-hosted-runners`. `--repo` alone would accept a statement from
-   any workflow in the repository at any ref; the two extra flags fail on a mismatch (the review,
-   EXECUTED).
+   --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v<version>
+   --source-ref refs/tags/v<version> --deny-self-hosted-runners`. `--repo` alone would accept a
+   statement from any workflow in the repository at any ref; the two extra flags fail on a
+   mismatch (the review, EXECUTED). `--signer-workflow` is a prefix match, so it carries
+   `@refs/tags/v<version>`, which pins the workflow's file name exactly (the build review's
+   finding 6; EXECUTED by the author on cli/cli's release).
 3. **Where users read it.** The README gains a section, "Verifying a download", with that command,
    and three facts: `gh` must be logged in for the command as written (`gh attestation
    download` needs a login too, but GitHub's attestations REST API answers without a token, so a
@@ -103,7 +102,11 @@ which come with trusted publishing (the owner's, later); the constitution's rele
 
 ## Landing notes
 
-Built 2026-10-17 by the author agent; build review pending.
+Built 2026-10-17 by the author agent (local commit `a0ba5fa`); reviewed in
+`../reviews/009-release-security-2026-10-17.md`. Its fixes: the scan reads the workflow without
+comments and refuses swallowed failures, workflow-level or stray identity tokens, and weakened
+`if:` lines; every verify command carries all four flags, and `--signer-workflow` carries
+`@refs/tags/v<version>` (a prefix match otherwise, EXECUTED on cli/cli).
 
 **Seen failing first** (EXECUTED): `test_releases_attest_and_verify_their_assets` on the
 workflow before the change: "no attest job". The unit tests: the good workflow passes, and each

@@ -166,7 +166,7 @@ jobs:
         run: |
           for asset in release-assets/*; do
             gh attestation verify "$asset" --repo "$GITHUB_REPOSITORY" \
-              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml@$GITHUB_REF" \
               --source-ref "$GITHUB_REF" --deny-self-hosted-runners
           done
 

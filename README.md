@@ -164,13 +164,13 @@ build provenance signed by this repository's release workflow at the release's t
 
 ```
 gh attestation verify <asset> --repo ClayGendron/wasi_python \
-  --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml \
+  --signer-workflow ClayGendron/wasi_python/.github/workflows/release.yml@refs/tags/v<version> \
   --source-ref refs/tags/v<version> --deny-self-hosted-runners
 ```
 
-`gh` must be logged in for this. Without `gh`, check the asset against the release's
-`SHA256SUMS`. A bundle fetched from GitHub's attestations REST API, which answers without a
-token, verifies offline with `--bundle`.
+`--signer-workflow` matches a prefix of the signer's identity, so it carries the `@` and the
+tag, which pins the workflow file exactly. `gh` must be logged in for this. Without `gh`, check
+the asset against the release's `SHA256SUMS`.
 
 ## Running it
 
