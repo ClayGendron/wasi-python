@@ -572,3 +572,72 @@ those lines confirms them.
   junction is refused, and the README does not claim otherwise; the optional
   `GetFinalPathNameByHandleW` comparison is taken, which closes the Windows residual, so it is no
   longer named; `msvcrt.get_osfhandle` is dropped.
+
+## Second confirmation
+
+- **Date:** 2026-10-17. **Reviewed:** `git show 690a1ee -- context/specifications/017-typed-grants.md`
+  against conditions C1 to C6 and the dispositions above. No new probes were run. The labels
+  below say where each claim comes from.
+- **Met:**
+  - **C1**: the deepest existing ancestor, following every link, and a protected walk that
+    never refuses. This is the shape `walk.txt` exercised.
+  - **C2**: `--accept-growth`, with the measured reason.
+  - **C3**: both changed checks also plant through `/usr/./local/lib`.
+  - **C4**: the harness keeps `usr/local/lib`, and grants a zip or a stdlib directory.
+  - **C6**: the two-routes fact is in the README.
+  - Recognising a link by `lstat`, and refusing every link on Windows.
+- **Two lines still need a change.**
+  1. **The Windows path comparison would refuse correct grants (medium).** Decision 5 requires
+     `GetFinalPathNameByHandleW` of the handle to equal the walked path "after
+     `os.path.normcase`". The final path is not spelled the way the walk spelled it:
+     - It starts with `\\?\`, or `\\?\UNC\` for a share. READ: `ntpath.realpath` strips both
+       (CPython `Lib/ntpath.py:674-690`). `normcase` does not.
+     - It expands 8.3 short names. READ: `tempfile` only `abspath`s `%TEMP%`
+       (`Lib/tempfile.py:200, 246`). INFERRED: GitHub's Windows runners set `%TEMP%` to
+       `C:\Users\RUNNER~1\AppData\Local\Temp`. If so, every private root, and every grant under
+       the temporary folder, fails the comparison there. `verify` would catch it, but only as a
+       failed release dry run (criterion 3).
+     - It resolves `subst` drives, and gives a mapped drive as `\\?\UNC\…` (INFERRED).
+     - Fix, one of:
+       - **(a)** Compare two paths made by the same function. During the walk, open each
+         component with `CreateFileW(… FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)`,
+         and refuse one whose attributes carry `FILE_ATTRIBUTE_REPARSE_POINT`. Record
+         `GetFinalPathNameByHandleW` of the last component's handle as the expected path. Then
+         require the later handle, the one the identity is read from, to give that same final
+         path. Never compare it with the string the caller passed.
+       - **(b), simpler and stronger:** hold each walked component's handle with share read and
+         write but **not** delete until the check module has compared. INFERRED from Windows
+         sharing rules: no held directory can then be renamed or replaced, so the path wasmtime
+         opens is the walked one, and no path string is compared at all. The handles are closed
+         before a private root is removed.
+
+       Either way, add a Windows case to `test_runner_grants.py` with a grant under the runner's
+       real temporary folder, so `verify` runs it.
+  2. **A missing root's rules must be decided before any `mkdir` (low).** The spec says how a
+     missing root is made (C5), but not when Decision 4's rules run.
+     - If an implementation makes the folders first, a refused root leaves them behind. That is
+       work before the refusal, which specs 013 and 014 forbid.
+     - If it judges the new root by its deepest existing ancestor's identity, then
+       `root=~/newproj` is "above" the module cache and is refused by mistake.
+     - Fix, one sentence: the rules are decided on the existing chain before any `mkdir`. A root
+       still to be made is inside whatever its deepest existing ancestor is inside. It is above
+       nothing, since a folder not yet made holds nothing.
+
+### Verdict
+
+**Revise again, by these two sentences only.** Everything else is ready to build. Once Decision 5's
+Windows bullet takes (a) or (b) and Decision 4's root bullet says the rules come before any
+`mkdir`, the specification is ready to build without another review. The author records the two
+edits in the Disposition, and that record is the confirmation.
+
+## Disposition of the second confirmation (filled in by the author)
+
+1. Taken (b): on Windows the walk opens every component with `CreateFileW` (backup semantics,
+   reparse points opened, not followed, and refused), holding each handle without
+   `FILE_SHARE_DELETE` until the comparison; no path string is compared. The identity unit test
+   gains a Windows grant under the real temporary folder.
+2. Fixed: a missing root's rules are decided on its existing chain first; a root still to be made
+   is inside what its deepest existing ancestor is inside and above nothing; a refused root makes
+   no folder.
+
+Your verdict made the spec ready to build once these two lines changed.

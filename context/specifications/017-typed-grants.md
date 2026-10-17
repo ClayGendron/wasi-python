@@ -97,9 +97,12 @@
      `/var -> private/var`) are followed: a guest writes as this user, so only a link in a
      directory this user can write could be a guest's (memo 7a). On Windows, where CPython's
      `os.access(dir, W_OK)` is always true, every link and junction on the way is refused.
-   - **A root that does not exist** is made, as today, but through the walk: the deepest existing
-     ancestor is walked by the rule above, and each missing component is made with
-     `os.mkdir(name, dir_fd=parent)` and then walked. A grant's host path must exist.
+   - **A root that does not exist** is made, as today, but only after every rule has been
+     decided on its existing chain: the deepest existing ancestor is walked by the rule above; a
+     root still to be made counts as inside whatever that ancestor is inside, and above nothing
+     (so `root=~/newproj` is not "above" the module cache); if no rule refuses, each missing
+     component is made with `os.mkdir(name, dir_fd=parent)` and walked. A refused root makes no
+     folder. A grant's host path must exist.
    - **Identity, not spelling.** Every comparison below uses `(st_dev, st_ino)` of the walked
      directories and their ancestors, never path strings: macOS folders are case-insensitive, so
      `~/LIBRARY/CACHES` is `~/Library/Caches` (the review, EXECUTED).
@@ -125,12 +128,15 @@
    - **POSIX:** SipHash-1-3, zero keys, over `(st_dev & (2**64 - 1), st_ino)` packed as two
      native-endian 64-bit words (`struct.pack("=QQ", …)`; Rust sign-extends a negative `dev_t`,
      hence the mask).
-   - **Windows:** Python cannot open a directory with `os.open`, so the runner opens the final
-     directory through `CreateFileW` with `FILE_FLAG_BACKUP_SEMANTICS`, after the walk's
-     component checks, and keeps that handle. It then requires `GetFinalPathNameByHandleW` of the
-     handle to equal the walked path (compared after `os.path.normcase`), so a component swapped
-     between the checks and the open is refused. The hash is over `(dwVolumeSerialNumber,
-     nFileIndexHigh << 32 | nFileIndexLow)` from `GetFileInformationByHandle` on that handle,
+   - **Windows:** Python cannot open a directory with `os.open`, so the walk opens every
+     component, root to last, through `CreateFileW` with `FILE_FLAG_BACKUP_SEMANTICS |
+     FILE_FLAG_OPEN_REPARSE_POINT`, refuses one that is a reparse point (a link or a junction),
+     and holds each handle with `FILE_SHARE_READ | FILE_SHARE_WRITE` but not `FILE_SHARE_DELETE`
+     until the comparison. While they are held, no walked folder can be renamed, removed or
+     replaced, so no path string is compared (8.3 short names, `\\?\` prefixes, `subst` and
+     mapped drives cannot cause a false refusal). The handles are closed after the comparison,
+     and before a private root is removed. The hash is over `(dwVolumeSerialNumber,
+     nFileIndexHigh << 32 | nFileIndexLow)` from `GetFileInformationByHandle` on the last handle,
      which is what wasmtime hashes (`filesystem/windows.rs:85-91`, READ).
    - A mismatch raises `RuntimeError("grant <n> at <guest> changed between its check and the
      call")` before the guest runs. A deadline that has already passed traps the check module
@@ -177,7 +183,8 @@ share's second mount may not).
        the walk and the preopen, made through a test seam that runs code at that instant; the call
        raises `RuntimeError` and a door host that counts calls stays at 0.
      - Unit, `test_the_grant_identity_matches_wasmtimes`, in `tests/unit/test_runner_grants.py`,
-       which `verify`'s file list gains.
+       which `verify`'s file list gains; on Windows it includes a grant under the real temporary
+       folder (the runners' `%TEMP%` may be an 8.3 short name), which must not be refused.
    - Changed (a judge change under `--accept-judge`, AGENTS rule 4; each keeps what it guards: the
      guest's write is refused, the next call works, nothing outside is written):
      - `test_runner_keeps_the_artifact_zip_out_of_the_guests_reach`: the vandal's write is now
