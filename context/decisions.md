@@ -8,6 +8,25 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Parallel work: build in parallel, land in series
+
+- **Decided 2026-10-17:** adopted `research/2026-10-17-parallel-work-without-lowering-the-bar.md`
+  (decisions A to D applied to constitution §4.14, §5.4, §5.7, §7 and `AGENTS.md`; F: commits on
+  `spec/` branches are commits, so §4.14 applies as written). Decision E, the four judge rules
+  (an acceptance sits on the commit it judged; main is linear; `--accept` refuses in a linked
+  worktree; a worktree inside the repository is not judge input), is built as its own
+  specification before parallel builders run.
+- Disk: the old scratch clones of landed specifications were deleted (owner's approval).
+
+### 38–40. The tool protocol (37 stays open)
+
+- **38, answered 2026-10-17:** the guest's namespace is `host`: `from host import tools`.
+- **39, answered 2026-10-17:** schemas are validated first. Errors follow `subprocess.run`'s
+  precedent: `run()` never raises for what the guest or a tool does (it returns `exit_code`,
+  `stdout`, `stderr`); it raises only for programming mistakes, before anything runs; inside the
+  guest a failed tool call raises `ToolError`, as normal Python. No `run_safe`.
+- **40, answered 2026-10-17:** no adapters ship (LangChain, MCP); the README may show recipes.
+
 ### Install as `pip install wasi-python`, without the `run` extra
 
 - **Decided 2026-10-17**, after 0.1.0a3 shipped: "Could we change it to just pip install

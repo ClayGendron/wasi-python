@@ -16,6 +16,10 @@
   25, 33 and 35: bounded sessions (§3), a tool protocol over the door
   (§4.4), the matplotlib and scipy licences (§4.12), nothing writable by
   default (§4.15), and §4.1's spent clause.
+  Amended 2026-10-17 by the owner's adoption of
+  `research/2026-10-17-parallel-work-without-lowering-the-bar.md`:
+  specifications built in parallel in their own worktrees, landed one
+  at a time through one landing lane (§4.14, §5.4, §5.7, §7).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -172,9 +176,14 @@ works.
     `pytest` green on `src/` and `tests/` before any landing. No
     dependency added to `pyproject.toml` without a reason written in
     the specification that needs it.
-14. **Git.** Commit or push only when the owner asks. No branches or
-    worktrees unless asked. Never `git checkout`, `git restore` or
-    `git stash` a file carrying uncommitted work.
+14. **Git.** Commit or push only when the owner asks. Work on one
+    specification may run in its own git worktree, outside the
+    repository, on a local branch named `spec/NNN-<slug>` made from
+    main's tip; the branch is never pushed and is deleted with its
+    worktree when the specification lands or is abandoned. No other
+    branch or worktree unless asked. Main moves only by fast-forward,
+    through the landing lane (§5.7). Never `git checkout`, `git
+    restore` or `git stash` a file carrying uncommitted work.
 15. **Safe by default.** Every limit has a default (memory, time,
     output); no channel to the host opens without an explicit argument
     (no folder, no network, no host function); the runtime's own files
@@ -200,6 +209,7 @@ works.
 4. **Small, finished, verified.** A landing is one specification,
    green, with its landing notes written and its numbers reproduced.
    Half-built work is not landed; it is reported as half-built.
+   Specifications may be built in parallel; they land one at a time.
 5. **A release is a re-run, not a project.** A new pinned set means:
    re-pin, re-run, re-verify, publish, and write the memo that says
    what changed. That must cost days, not weeks, which is why
@@ -222,6 +232,13 @@ works.
    the written threat model (`research/2026-10-16-a-principal-engineers-direction.md`,
    section 2) and the changes since the last release; the release
    waits on its findings (owner, 2026-10-17).
+7. **One landing lane.** Builders and reviewers may work in parallel,
+   each in its own worktree. Main changes in one place only: the lane
+   rebases one reviewed branch onto main, compares it with what was
+   reviewed, runs the full judge on that exact commit in the main
+   tree, accepts there, and fast-forwards main. Only the lane accepts.
+   A change to the build recipe overlaps no other change to the build
+   recipe (owner, 2026-10-17).
 
 ## 6. Deciding when the rules do not say
 
@@ -256,8 +273,9 @@ on it.
 - Add an import to the guest binary beyond WASI preview1 and the door.
 - Fetch anything unpinned, or install a download into the system.
 - Copy code from `context/prior_art/` or any other project.
-- Commit, push, branch, tag, publish a release, or upload to PyPI
-  without the owner's explicit instruction for that action.
+- Commit, push, tag, publish a release, upload to PyPI, or make a
+  branch or worktree beyond §4.14's, without the owner's explicit
+  instruction for that action.
 - Report a build, a run or a number it did not execute.
 - Leave an open question in a specification, or a question list
   anywhere.

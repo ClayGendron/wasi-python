@@ -27,22 +27,18 @@ document.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
 
-### 37–40. The tool protocol
+### 37. Does the tool protocol need a gate, or are the tools the authority?
 
-- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-a-tool-protocol-over-the-door.md`
-  (LangChain, Monty, MCP, Cloudflare's code mode and others studied; a prototype ran through
-  today's door with no change to the runner or the binary).
-- **37. Is `gate=` required whenever `tools=` is given?** The gate sees every call after the
-  runner validates it and before the tool runs. *Recommended: yes;* an embedder that wants no
-  policy passes `gate=allow_all` and says so in its code (§4.15).
-- **38. The guest module's name: `tools`, shipped in the stdlib zip?** Agent code would write
-  `import tools; tools.lookup_region("EMEA")`. *Recommended: yes;* it is short and what agent
-  code expects, and it does nothing unless the embedder passed tools.
-- **39. Refuse a tool whose schema the runner can only partly check,** unless the embedder marks
-  that the tool validates its own arguments? *Recommended: yes* (never trust the guest).
-- **40. The LangChain and MCP adapters: in the wheel, or as README recipes?** *Recommended: in
-  the wheel as small optional modules that import their library lazily,* so no dependency is
-  added.
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-a-tool-protocol-over-the-door.md`.
+- **The owner, 2026-10-17:** "My thinking is that wasi_python would call the public api for
+  something like read, and when it calls read VFS would inject its Authority into the read call,
+  so wasi_python would not know anything about permissions" ... "I'd like to position wasi_python
+  without a gate, or at least an optional one, I want to spend time on this design and think
+  through it with you."
+- **The agent's reading:** that is the capability model, as grants already are: holding a tool is
+  the permission, and the tool (bound by the embedder to its authority) enforces it. A gate would
+  then be optional, a hook for embedders whose tools do not carry their own policy. Being worked
+  through with the owner, starting from a study of vfs's authority model.
 
 ## The owner's direction for the product (2026-10-17)
 

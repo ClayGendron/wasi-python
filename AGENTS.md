@@ -45,7 +45,9 @@ the hard constraints, and it governs this file. Then `README.md` and
   the diff, before it lands; the review is recorded under
   `context/reviews/` and cited in the landing notes. Findings are fixed
   or answered in writing first.
-- **Commit or push only when asked.** No branches or worktrees unless
+- **Commit or push only when asked.** A specification may be built in
+  its own worktree outside the repository, on a local `spec/NNN-<slug>`
+  branch (constitution §4.14); no other branch or worktree unless
   asked. Never `git checkout`, `git restore` or `git stash` a file that
   carries uncommitted work.
 - **All project knowledge lives in this repo** under `context/`; no
@@ -64,7 +66,11 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    Then read the specification you are on.
 2. **Pick work by what it unblocks.** The `next:` line names the
    prerequisite that blocks the most checks. Work on the
-   specification that provides it. One specification at a time.
+   specification that provides it. One specification per builder; at
+   most three parallel-safe and one build-class specification in
+   flight; one landing at a time (constitution §5.7; build-class means
+   it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the
+   release workflow).
 3. **Write the check before the code.** A new behaviour gets a check
    (or a gap entry naming its closer) first. A new failure mode, once
    seen, becomes a check, so it cannot come back.
@@ -81,6 +87,11 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    is append-only. A changed judge needs `--accept-judge "<reason>"`;
    a machine without artifacts runs with `--partial "<reason>"`. See
    `context/progress/README.md`.
+6a. **Only the lane accepts.** A builder runs the judge in its worktree
+   without `--accept`, against the frozen artifact set its class
+   allows. The lane rebases, compares with the reviewed diff, judges
+   the exact commit in the main tree, accepts, and fast-forwards main.
+   Progress files are never merged: take main's and accept again.
 7. **Two strikes, then write it down.** After two failed attempts on
    one hypothesis, stop. Record where you stood and why in the memo
    or specification, and move to work that does not depend on it.
@@ -89,7 +100,8 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    review under `context/reviews/`.
 9. **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a
    `git mv` or an earlier `git add` stays staged and rides along. A commit on `main` is green on
-   its own; when two pieces of work share the tree, check the commit in a clean clone.
+   its own; when two pieces of work share the tree, check the commit in a clean clone. A
+   worktree's branch carries exactly one specification.
 10. **Keep output short.** Logs go to files under `build/`; a failure is
    one line with its reason.
 
