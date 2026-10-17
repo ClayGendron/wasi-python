@@ -261,14 +261,6 @@ Every finding is taken; the specification is revised in place.
 Simpler option taken: the upstream test is carried too (Decision 1), so the patch has the pull
 request's added lines, file for file, and changes no artifact.
 
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
 
 ## Verdict
 
@@ -278,3 +270,78 @@ itself is right, applies cleanly once regenerated, and changes only the one `.py
 
 One line: the fix is correct and narrow, but the check as written cannot pass in the judge's
 root, and the judge's ratchet will move, so revise before building.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `e4b8650`, and the Disposition above.
+- **Ran (EXECUTED, darwin-arm64).** The repo was not edited, except to append this section. The
+  020 clone, `build/` and `downloads/` were only read. Scripts and outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev021/`
+  (`confirm/`, `scripts/check_body2.py`, `out/check-body2.txt`).
+
+### Each disposition against its finding
+
+1. **`/tmp`:** closed. EXECUTED (`out/check-body2.txt`): the revised body makes `/npy` and runs in
+   the judge's own driver. On today's set, every file-path case fails with `OSError` 58 on both
+   binaries; on the patched set (the zip and snapshot rebuilt by steps 70 and 80 in scratch), all
+   nine cases pass on both.
+2. **Fuel and bytes:** closed. Decision 4 and criterion 3 carry the measured numbers and
+   `--accept-growth`; the build traces the snapshot's constant cost or names it untraced.
+3. **Re-made:** closed. EXECUTED (`confirm/`): the two-file patch, made by `git diff` of edited
+   2.5.2 copies, has hunks at 164, 1029, 277 and 479. Its added lines equal `fix.patch`'s, both
+   files. The 020 clone's applier applies both files cleanly, with no offset line, exit 0.
+4. **README and memo:** closed. Decision 6 fixes the place and the words; the memo's status is in
+   the Design. One wording point, A below.
+5. **The check's set:** closed. The large array, the zero-size array and the two-arrays-one-file
+   case are in. "Equal" is defined (`dtype`, `shape`, `tolist()`, `flags.f_contiguous`), and it
+   holds for every case on the patched set (EXECUTED). `allow_pickle` is on for the object array
+   only. One precision point, B below.
+6. **Why not a recipe:** closed. Decision 2 states it.
+7. **The draft:** closed for spec 021. EXECUTED: with `Files: numpy/lib/_format_impl.py,
+   numpy/lib/tests/test_format.py` and a pointer-only body, the 020 clone's `patch_errors` gives
+   no errors. Decision 3 states the departure and the three policy clauses; the link is relative
+   to the draft. One file is missing from the change, C below.
+8. **Release:** closed. Decision 7 states it.
+
+**The simpler option** (the test carried too) opens no gap. READ and EXECUTED: no file under
+`numpy/lib/tests` is in `build/numpy-install` (step 40 installs `python-runtime,devel` only), and
+`make_stdlib_zip.py` skips `tests` folders, so the measured artifact numbers stand. The names
+the test uses (`basic_arrays`, `record_arrays`, `assert_array_equal`, `pytest`) exist in
+2.5.2's `test_format.py` (READ). Its body passed 161 of 161 in the guest, taken from the 2.5.2
+file with the hunk applied (EXECUTED, first round). The project never runs the test itself;
+upstream's CI does once it is merged.
+
+### Conditions left (each a sentence; none changes the design)
+
+- **A. The README's lead-in.** README line 52 introduces the paragraph with "The platform's
+  facts, documented rather than patched". Decision 6 puts a patched fact right after it. Fix: the
+  `.npy` sentence says "one fact is patched, not documented:", or the lead-in drops "rather than
+  patched".
+- **B. Criterion 1's list.** EXECUTED: on today's set, the zero-size array and the
+  two-arrays-one-file case also fail with `OSError` 58, not only plain, record, 0-d, Fortran and
+  the large one. Fix: criterion 1 and Decision 5 name them too, so the stock run's expected output
+  is complete: every case but the object array and `.npz` fails with 58.
+- **C. The second place 020 states the body rule.** `recipes/patches/README.md` line 15 (020
+  clone) also says the draft has "the text for the upstream maintainers". Decision 3 changes only
+  `context/upstream/README.md`. Fix: add `recipes/patches/README.md` to the Kind and the Design,
+  with the same sentence.
+
+A small tidy point: the review file has an empty "1." to "8." list after the Disposition text.
+It can go.
+
+### Verdict
+
+Ready to build, once A, B and C are written into the specification (three sentences, no design
+change). Every finding is closed, and the revision opens no new open question.
+
+## Disposition of the confirmation (filled in by the author)
+
+- **A:** made: the README's lead-in gains "(with one carried patch, below)" (Decision 6).
+- **B:** made: Decision 5 and criterion 1 name every case that fails today (seven of nine).
+- **C:** made: `recipes/patches/README.md` gains the sentence, and is in the Kind and the Design.
+- The leftover empty list is removed.
+
+Your verdict made the specification ready to build with these.
+
