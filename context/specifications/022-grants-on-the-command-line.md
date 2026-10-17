@@ -1,8 +1,8 @@
 # 022 — Grants on the command line
 
 - **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/022-grants-on-the-command-line-spec-2026-10-17.md`), awaiting the reviewer's
-  confirmation.
+  (`../reviews/022-grants-on-the-command-line-spec-2026-10-17.md`); ready to build, with the
+  confirmation's three wording points made.
 - **Owner:** Clay Gendron
 - **Kind:** the command line (`src/wasi_python/cli.py`), judge additions in `tests/`, `README.md`,
   `CHANGELOG.md`.
@@ -43,9 +43,11 @@ which is most of what an agent's code does with files.
    `--help` say: "`--root HOST`: the guest's `/`, writable; made if missing". Giving `--root`
    twice, or with `--no-root`, is a usage error (exit 2); a silent last-one-wins is not taken.
 5. **What is a usage error, and what is `run()`'s.** Exit 2 only for what cannot be parsed: a
-   grant value with no `=` ("--grant needs GUEST=HOST"), `--root` twice, or `--root` with
+   grant value with no `=` ("--grant needs GUEST=HOST", or "--grant-writable needs GUEST=HOST",
+   naming the option given), `--root` twice, or `--root` with
    `--no-root`. A value that parses but `run()` refuses is exit 1 with `run()`'s error, as spec
-   019 decides: an empty guest or host side (`--grant /d=`, `--grant =x`), `--root ""`, a guest
+   019 decides, and argparse's own errors (an unknown option) stay exit 2 as before: an empty
+   guest or host side (`--grant /d=`, `--grant =x`), `--root ""`, a guest
    path `run()` refuses, a grant of the temporary folder. Nothing is checked twice. The `=` split
    runs inside the command's `try`, so its usage error returns 2 rather than escaping `main`.
 6. **Relative host paths** are taken from the command's working directory, as `run()` takes them.
@@ -73,7 +75,8 @@ program its data read-only and a folder for its results, with the runner's check
   the program's stderr end with `PermissionError: [Errno 63] Operation not permitted` and its
   `exit_code` 1, with the command's exit 0; a grant of `tempfile.gettempdir()` (by name, since
   `/tmp` is not that folder on macOS) gives exit 1 and `"kind": "ValueError"`.
-- README's *From any language*: the three options, the note that `--no-root` gives no `/` (as
+- README's *From any language*: the three options; that `run()`'s errors number grants from 0,
+  across both options, in the order typed; the note that `--no-root` gives no `/` (as
   *Grants* says for `root=False`), and an example. CHANGELOG: one line.
 
 ## Scope

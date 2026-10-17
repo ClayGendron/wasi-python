@@ -234,3 +234,85 @@ by default, and `run()` as the only judge.
 One line: the options are safe and the syntax is the right one, but one claim cannot be built,
 three checks would pass before the code exists, and the design as written loses the order it
 promises.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `641c2c2`, and the Disposition above. The
+  findings above are my text, unchanged (EXECUTED `diff` against my draft).
+- **Ran (EXECUTED, darwin-arm64).** No tracked file was edited, except to append this section.
+  Scripts and outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev022/`
+  (`confirm/argp.py` → `out/confirm-argparse.txt`; `confirm/tmpgrant.py` →
+  `out/confirm-tmpgrant.txt`).
+  - `confirm/argp.py`: the revised parser alone, in plain `argparse`, run with `python -I` on
+    every Python the project supports (3.11.14, 3.12.12, 3.13.11, 3.14.2). It has the tagged
+    shared list and a `--root` that refuses a second value. The output is the same on all four.
+  - `confirm/tmpgrant.py`: two fresh processes, each making two calls with a read-only and a
+    writable grant inside `tempfile.gettempdir()`, on the main tree's artifacts.
+
+### Each disposition against its finding
+
+1. **The `=` sentence:** closed. Decision 1 now says what the split does, says it narrows names
+   and not reach, and records why `GUEST=HOST` beats the three other forms.
+2. **Checks that pass today:** closed. The Design asks every usage-error check to assert its
+   message. Each new case now fails today for the right reason (INFERRED from
+   `out/today_cli.txt`). Today `--grant /d` says `unrecognized arguments`, not `needs
+   GUEST=HOST`. Today `--root ""` and `--grant /d=` are exit 2 and never reach `run()`.
+3. **Order:** closed. EXECUTED on all four Pythons: two `append` options share one `dest`, each
+   with a tagging `type`. `--grant /a=x --grant-writable /b=y --grant /c=z` gives `[("ro",
+   "/a=x"), ("rw", "/b=y"), ("ro", "/c=z")]`. Writable first, then read-only, keeps that order
+   too. With no grant, the list is `[]`. With only `--grant-writable`, it holds that one value.
+   argparse copies the default list, so one call never leaks into the next.
+4. **Exit codes:** closed. Decision 5 draws the line once and follows 019's rule. EXECUTED: `--root
+   ""` parses to `root=""`, which `run()` refuses with exit 1 (`root is empty`, first round).
+   `--grant=` parses to an empty value, which has no `=` and so is exit 2. That is consistent:
+   an empty value cannot be split. `--grant /d=` reaches `run()`. A check pins `--root ""`.
+5. **`--root` writes:** closed. Decision 4 has the words for the README and `--help`. EXECUTED: a
+   custom action that refuses a second value works on all four Pythons. `--root a --root b`,
+   `--root a --root a` and `--root= --root=x` are each exit 2, `argument --root: given twice`.
+   `--root a --no-root` and `--no-root --root a` are each exit 2, `not allowed with argument`.
+   The mutually exclusive group and the custom action work together. `--no-root --no-root` is
+   accepted, which is harmless.
+6. **The real call:** closed. EXECUTED: grants of folders inside `tempfile.gettempdir()` work,
+   one read-only and one writable. That includes the first call of a fresh process, before
+   the runtime's stdlib folder exists. So "folders under the check's own temporary folder" is
+   safe for the v1.4 check. Only a grant at or above the temporary folder itself is refused.
+7. **Small things:** closed. Status and Depends are current. The split runs inside the `try`.
+   The message is named. The scan table and the README note are in the Design.
+
+### New gaps (§5.2)
+
+None that change the design. Three points of wording; the builder can carry each one:
+
+- **A. The README does not say how grants are numbered.** Decision 2 says errors name grants by
+  position, in the order typed. Finding 3 asked the README to say so. The Design's README
+  bullet leaves it out. Fix: one sentence in *From any language*. "`run()`'s errors number
+  grants from 0, across `--grant` and `--grant-writable`, in the order typed."
+- **B. "Exit 2 only for…" reads as a complete list.** argparse's own errors are also exit 2:
+  an unknown option, `--grant` with no value, `--no-root=x`. Spec 019 already decides them.
+  Fix: "Exit 2 for what cannot be parsed: argparse's own errors (spec 019), and also …".
+- **C. The message names one option.** "--grant needs GUEST=HOST" is wrong for
+  `--grant-writable /d`. The tag tells the code which option was given, so the message can name
+  it. The check's phrase, `needs GUEST=HOST`, fits both.
+
+One build note, not a gap. The refusal of a second `--root` relies on its default being
+`argparse.SUPPRESS`, so the attribute is missing until the first value. With `default=None`, a
+`hasattr` test would refuse every `--root`. Testing `is not None` would also work, since `""`
+is not `None`. The Design's checks catch either mistake: `--root x` must reach `run()`.
+
+### Verdict
+
+Ready to build. Every finding is closed, and the revision opens no new open question. A, B
+and C are one sentence each, and the builder can add them during the build.
+
+## Disposition of the confirmation (filled in by the author)
+
+- **A:** made: the README line says grants are numbered from 0 across both options, in the order typed.
+- **B:** made: Decision 5 says argparse's own errors stay exit 2.
+- **C:** made: the missing-`=` message names the option given.
+- The build note (`--root` with no default) is taken.
+
+Your verdict made the specification ready to build with these.
+
