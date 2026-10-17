@@ -1421,6 +1421,12 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
         folders.append(("the module cache", *_chain(cache)))
     folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
     folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
+    # The host's own interpreter, which the next host process runs (spec 024, S2).
+    import sysconfig
+
+    paths = sysconfig.get_paths()
+    own = {Path(paths[k]).resolve() for k in ("stdlib", "platstdlib", "purelib", "platlib")}
+    folders += [("the host Python's own code", *_chain(d)) for d in sorted(own) if d.is_dir()]
     return folders
 
 
@@ -1472,8 +1478,13 @@ def _run_checked(
         elif walked_root is not None:
             root_path = Path(walked_root.path)
             # Real folders, never a guest's link: without them /usr would vanish from a fresh
-            # root's listing, and the zip's path could resolve into a file a guest wrote.
-            _real_dir(root_path, ("usr", "local", "lib"))
+            # root's listing, and the zip's path could resolve into a file a guest wrote. Made
+            # through the walked folder, never its path, which another guest may have swapped
+            # since the walk (spec 024).
+            if walked_root.fd is not None and _dir_fd_ok():
+                os.close(_real_dir_at(walked_root.fd, ("usr", "local", "lib")))
+            else:
+                _real_dir(root_path, ("usr", "local", "lib"))
             preopens.append(_Preopen("root", walked_root, "/", True))
         for where, grant, w in walked:
             preopens.append(_Preopen(where, w, grant.guest, grant.writable))
@@ -1554,8 +1565,12 @@ def _home_folder(root: Path | None, preopens: list[_Preopen]) -> tuple[Path | No
         return Path(p.walked.path), (os.dup(fd) if fd is not None and _dir_fd_ok() else None)
     if root is None:
         return None, None
-    tmp = _real_dir(root, ("tmp",))  # TMPDIR; a guest's link there is removed
-    return tmp, _open_dir(tmp)
+    # TMPDIR, a real folder (a guest's link there is removed), made through the root's walked
+    # folder, never its path (spec 024).
+    fd = next(p.walked.fd for p in preopens if p.guest == "/")
+    if fd is not None and _dir_fd_ok():
+        return root / "tmp", _real_dir_at(fd, ("tmp",))
+    return _real_dir(root, ("tmp",)), None
 
 
 def _dir_fd_ok() -> bool:
@@ -2213,9 +2228,38 @@ def _stamp(st: os.stat_result) -> tuple[int, ...]:
     return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
 
 
+def _real_dir_at(fd: int, parts: tuple[str, ...]) -> int:
+    """A descriptor on fd/parts…, each a real directory, each step taken from the folder before:
+    a link or file a guest left in the way is removed, never followed (spec 024). The caller
+    closes the result; `fd` stays open."""
+    here = os.dup(fd)
+    try:
+        for part in parts:
+            try:
+                st = os.stat(part, dir_fd=here, follow_symlinks=False)
+            except FileNotFoundError:
+                st = None
+            if st is not None and not stat.S_ISDIR(st.st_mode):
+                os.unlink(part, dir_fd=here)  # a symbolic link or a file: removed, never followed
+                st = None
+            if st is None:
+                try:
+                    os.mkdir(part, dir_fd=here)
+                except FileExistsError:  # a concurrent call made it
+                    pass
+            child = os.open(part, _DIR, dir_fd=here)  # O_NOFOLLOW: a link put there fails
+            os.close(here)
+            here = child
+    except BaseException:
+        os.close(here)
+        raise
+    return here
+
+
 def _real_dir(root: Path, parts: tuple[str, ...]) -> Path:
-    """root/parts…, each a real directory: a link or file a guest left in the way is removed."""
-    root.mkdir(parents=True, exist_ok=True)
+    """root/parts…, each a real directory: a link or file a guest left in the way is removed.
+    Windows only, where the walk holds every folder of the root's path (spec 017, Decision 5) and
+    guests cannot make links; elsewhere `_real_dir_at`. The root is never made again here."""
     here = root
     for part in parts:
         here = here / part

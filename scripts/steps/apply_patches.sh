@@ -18,6 +18,8 @@ die() {
 [ "$#" -eq 2 ] || die "usage: apply_patches.sh TREE PATCH_DIR"
 [ -d "$1" ] || die "no tree $1"
 TREE=$(CDPATH= cd "$1" && pwd -P)  # absolute: with a relative tree git ignores the ceiling
+# git would read a repository inside the tree, with its own configuration and attributes (spec 024).
+[ ! -e "$TREE/.git" ] && [ ! -L "$TREE/.git" ] || die "$TREE holds .git; a source tree is never a repository"
 [ -d "$2" ] || exit 0              # no patches for this tree
 DIR=$(CDPATH= cd "$2" && pwd -P)
 

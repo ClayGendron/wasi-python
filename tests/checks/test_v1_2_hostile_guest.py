@@ -649,6 +649,13 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
 
     own = Path(wasmtime.__file__).parent
     refused(ValueError, "wasmtime-py's own code", grants=[Grant(own, "/w", writable=True)])
+    # The host's own interpreter too (spec 024, S2): the next host process runs its stdlib.
+    import sysconfig
+
+    stdlib = Path(sysconfig.get_paths()["stdlib"])
+    refused(ValueError, "the host Python's own code", grants=[Grant(stdlib, "/w", writable=True)])
+    done = run(["-c", "pass"], grants=[Grant(stdlib, "/w")], cache_dir=cache)
+    assert done.exit_code == 0, done  # read-only stays allowed
     # A root still to be made above a cache still to be made: the cache is made first, so the
     # root is judged to hold it (the build review, finding 1); the root gets no folders of its own.
     fresh = base / "fresh"
@@ -720,3 +727,54 @@ def test_a_swapped_grant_is_refused(guest_workdir, monkeypatch) -> None:
     else:
         done = run(["-c", code], grants=grants, host=host)
         assert (swapped, done.stdout) == ([False], b"granted\n"), done
+
+
+@pytest.mark.parametrize("how", ["link", "rename"])
+def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, how) -> None:
+    """Guards a change (spec 024, the 0.1.0a3 security review's S1): a root swapped after its walk,
+    as a guest of another call with a writable folder above it could do, changes nothing outside
+    the folder that was checked. The runner prepares the root's usr/local/lib and tmp through
+    the walked descriptor, so a link put in its place is never followed and a root moved away is
+    never made again by path; the identity check then refuses the call. On Windows the walk
+    holds every folder on the way, so the swap itself is refused."""
+    from wasi_python import runner
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="rootswap-", dir=guest_workdir))
+    arena, outside = base / "arena", base / "outside"
+    (arena / "sub").mkdir(parents=True)
+    outside.mkdir()
+    for name in ("usr", "tmp"):
+        (outside / name).write_text("HOST FILE")
+    swapped = []
+
+    def swap() -> None:
+        try:
+            os.rename(arena / "sub", arena / "sub-old")
+        except PermissionError:
+            swapped.append(False)  # Windows: the walk holds it
+            return
+        if how == "link":
+            os.symlink(outside, arena / "sub")
+        swapped.append(True)
+
+    monkeypatch.setattr(runner, "_after_walk", swap)
+    if os.name == "posix":
+        import wasmtime
+
+        # A link: wasmtime opens where it points, and the identity check refuses. Moved away:
+        # wasmtime finds nothing at the path, as for any grant removed after its walk.
+        error = RuntimeError if how == "link" else wasmtime.WasmtimeError
+        with pytest.raises(error, match="root changed" if how == "link" else "preopen"):
+            run(["-c", "pass"], root=arena / "sub")
+        assert swapped == [True]
+        assert sorted(p.name for p in outside.iterdir()) == ["tmp", "usr"]
+        assert all((outside / n).read_text() == "HOST FILE" for n in ("usr", "tmp"))
+        if how == "rename":
+            assert not (arena / "sub").exists()  # never made again by path
+        # The preparation landed in the folder that was checked, now moved.
+        assert (arena / "sub-old" / "usr" / "local" / "lib").is_dir()
+    else:
+        done = run(["-c", "pass"], root=arena / "sub")
+        assert (swapped, done.exit_code) == ([False], 0), done
+        assert all((outside / n).read_text() == "HOST FILE" for n in ("usr", "tmp"))

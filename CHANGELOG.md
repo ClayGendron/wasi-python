@@ -6,6 +6,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **Security: a `root` is prepared only through the folder that was checked** (the 0.1.0a3
+  security review, S1). The runner made `root/usr/local/lib` and `root/tmp` by path after
+  checking the root, so a guest of another call with a writable folder above it could swap that
+  folder for a link in between, and the runner removed a file named `usr`, `local`, `lib` or
+  `tmp`, or made folders, outside every grant. It now works through the walked folder's
+  descriptor; the guest never saw the wrong folder before, and still does not. A writable grant
+  at, inside or above the host Python's own `stdlib` or `site-packages` is now refused (S2). The
+  patch applier refuses a source tree that holds `.git` (S3).
 - **`np.save` and `np.load` of files work** (the first carried patch,
   `recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch`): they raised `OSError` 58,
   because numpy's `tofile`/`fromfile` need `os.dup`, which WASI lacks. The patch is the fix numpy

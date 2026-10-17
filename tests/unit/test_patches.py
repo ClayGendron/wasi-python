@@ -132,6 +132,18 @@ def test_a_patch_that_is_not_exact_stops_the_step_with_one_line(tools, tmp_path,
         assert (tree / "a.c").read_bytes() == before
 
 
+def test_a_tree_holding_git_is_refused(tools, tmp_path) -> None:
+    """Spec 024 (the 0.1.0a3 security review, S3): git would read a repository inside the tree,
+    with its own configuration and attributes, so a tree that holds .git is refused."""
+    tree = _tree(tmp_path, _tarball(tmp_path))
+    subprocess.run([GIT, "init", "-q", str(tree)], check=True)
+    before = (tree / "a.c").read_bytes()
+    out = _apply(tree, _patches(tmp_path, _edit("a.c", FILES["a.c"], NEW_A)))
+    assert out.returncode == 1
+    assert out.stderr.strip().count("\n") == 0 and "holds .git" in out.stderr, out.stderr
+    assert (tree / "a.c").read_bytes() == before
+
+
 def test_the_callers_git_settings_change_nothing(tools, tmp_path) -> None:
     """Each setting the pre-build review found changing the bytes or skipping a patch (spec 020,
     Decision 3), all at once: the applier clears them."""

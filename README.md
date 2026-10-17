@@ -354,7 +354,8 @@ cache, so that it is judged as it will be):
 - a writable grant or `root` at, inside or above the runtime's own folders
   is refused, since later calls and processes trust them: the stdlib folder
   (or the temporary folder that holds it), the artifact set, the module
-  cache, and the code of `wasi_python` and wasmtime-py themselves. So
+  cache, the code of `wasi_python` and wasmtime-py themselves, and the host
+  Python's own `stdlib` and `site-packages` folders. So
   `root=Path.home()`, a project folder holding the `.venv` this process runs
   from or `build/artifacts`, and the temporary folder itself are refused;
 - any grant, read-only too, at or above the temporary folder is refused: it
@@ -364,7 +365,9 @@ cache, so that it is judged as it will be):
 After wasmtime opens each folder itself, the runner checks, before the guest
 runs, that it opened the folder it checked; a folder swapped in between
 raises `RuntimeError`. A folder removed between the check and wasmtime's own
-open raises wasmtime's `WasmtimeError`.
+open raises wasmtime's `WasmtimeError`. The runner's own preparation of a
+`root` (its `usr/local/lib` and `tmp`) goes through the folder it checked,
+never its path, so a folder swapped above it changes nothing elsewhere.
 
 What grants do not do:
 
