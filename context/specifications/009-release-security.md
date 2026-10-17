@@ -119,3 +119,7 @@ three permissions; `publish` needs `[build, verify, attest]`.
 **Not yet exercised:** the `attest` job runs only for a pushed tag, so its first run is the next
 release (Decision 5); that release's landing notes record `gh attestation verify` on each asset
 from a clean machine.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39008367705,
+on `fe8b8ed`): every job it runs passed (build and judge, verify on ubuntu-24.04, windows-2025
+and macos-15); `attest`, `publish` and PyPI were skipped, as a dry run must (criterion 2).
