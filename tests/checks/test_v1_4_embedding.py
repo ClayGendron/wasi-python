@@ -602,3 +602,61 @@ def test_a_limit_given_as_another_integer_type_works(guest_workdir, monkeypatch)
     monkeypatch.setattr(runner, "DEFAULTS", runner.Defaults(_Index(1 << 30), 60.0, _Index(3)))
     done = run(["-c", "print(12345)"], root=_root(guest_workdir))
     assert (done.exit_code, done.stdout, done.truncated) == (0, b"123", ("stdout",)), done
+
+
+@pytest.mark.parametrize(
+    "inputs",
+    [
+        {"argv": ["-c", "print(1)", "a\0b"]},
+        {"env": {"HOME\0x": "/shared"}},
+        {"env": {"K=X": "v"}},
+        {"argv": ["-c", "print(1)", "\udcff"]},
+    ],
+    ids=["NUL in argv", "NUL in an env key", "= in an env key", "lone surrogate"],
+)
+def test_an_input_the_guest_would_see_differently_is_refused(
+    guest_workdir, monkeypatch, inputs
+) -> None:
+    """Guards a change: a NUL cut an argument or an env key short, and an = split a key, so
+    {"HOME\\0x": "/shared"} passed a filter for HOME and set HOME. run now refuses such input
+    with ValueError before any work (spec 014)."""
+    run = _runner()
+    scratch = Path(tempfile.mkdtemp(prefix="inputs-", dir=guest_workdir))
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))
+    root = _root(guest_workdir)
+    argv = inputs.get("argv", ["-c", "print(1)"])
+    env = inputs.get("env")
+
+    class Untouched:
+        def __getattr__(self, name):
+            raise AssertionError(f"the artifacts were used before the check ({name})")
+
+    for given in ({}, {"root": root}, {"artifacts": Untouched()}):
+        with pytest.raises(ValueError):
+            run(argv, env=env, **given)
+    assert (list(scratch.iterdir()), list(root.iterdir())) == ([], [])
+
+
+class _Lying(str):
+    """A str whose own __str__ and encode lie: the guest must see the real text."""
+
+    def __str__(self) -> str:
+        return "evil"
+
+    def encode(self, *args, **kwargs):
+        return b"evil"
+
+
+def test_the_guest_gets_exactly_the_checked_inputs(guest_workdir) -> None:
+    """Guards a change: run passes on the values it checked, so a generator argv is not used
+    up by the check, a str subclass arrives as its real text, and a non-contiguous memoryview
+    arrives as its bytes (spec 014)."""
+    run = _runner()
+    code = "import os, sys; print(sys.argv[1:], os.environ['K'], sys.stdin.read())"
+    done = run(
+        (a for a in ["-c", code, _Lying("arg")]),
+        root=_root(guest_workdir),
+        env={_Lying("K"): _Lying("val")},
+        stdin=memoryview(b"h_i_")[::2],
+    )
+    assert (done.exit_code, done.stdout) == (0, b"['arg'] val hi\n"), done

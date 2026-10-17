@@ -40,6 +40,12 @@ package becomes a Python exception instead of ending the guest.
     `memory_bytes` of 2**63 or more, meant no limit; `True` meant 1; a deadline of 0 or less ran
     one tick. Integer limits take any integer type (numpy's included) from 0 to 2**63 - 1; a
     deadline is a positive real number of seconds (not `Decimal`), at most about 4.6e16.
+  - `run` refuses an `argv`, `env` or `stdin` the guest would see differently, before any work: a
+    NUL in an argument, key or value, or text that is not valid UTF-8 (`ValueError`); an `=` in a
+    key, or an empty key (`ValueError`); a `str` as `argv`, a non-`str` item or entry, or an `env`
+    that is not a `Mapping` (`TypeError`). `stdin` must be bytes-like: `""`, `0`, `False` and
+    `[]`, which meant empty input, are now a `TypeError`, as any other `str` already was. Messages
+    never quote a value.
 - **Planted code never runs:** only the stdlib zip is on `sys.path` and `site` does not run
   (`sys.flags.no_site == 1`), so a module, `.pth` or `pyvenv.cfg` one call leaves in a root is
   never run by the next. The plain reactor ran them before.

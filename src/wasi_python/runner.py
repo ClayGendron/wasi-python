@@ -33,7 +33,7 @@ import tempfile
 import threading
 import time
 import warnings
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -116,6 +116,54 @@ def _check_limits(
     }
 
 
+def _text(where: str, value: Any) -> str:
+    """A plain str the guest will see exactly: no NUL, and valid UTF-8, which WASI carries.
+    `str.__str__` and `str.encode` are called directly, so a subclass's overrides are ignored.
+    Messages name `where`, never the value: environment values are often secrets."""
+    if not isinstance(value, str):
+        raise TypeError(f"{where} must be a str, not {type(value).__name__}")
+    text = str.__str__(value)
+    if "\0" in text:
+        raise ValueError(f"{where}: embedded null byte")
+    try:
+        str.encode(text, "utf-8")
+    except UnicodeEncodeError:
+        raise ValueError(f"{where}: not valid UTF-8 (a lone surrogate)") from None
+    return text
+
+
+def _check_inputs(argv: Any, env: Any, stdin: Any) -> dict[str, Any]:
+    """argv, env and stdin as plain values, or TypeError for a wrong type and ValueError for a
+    value the guest would see differently: a NUL cut an argument or key short, and an = split a
+    key, so {"HOME\\0x": ...} set HOME (spec 014)."""
+    if isinstance(argv, (str, bytes, bytearray)) or not isinstance(argv, Iterable):
+        raise TypeError(f"argv must be an iterable of str, not {type(argv).__name__}")
+    args = [_text(f"argv[{i}]", item) for i, item in enumerate(argv)]
+    plain_env = None
+    if env is not None:
+        if not isinstance(env, Mapping):
+            raise TypeError(f"env must be a mapping of str to str, not {type(env).__name__}")
+        plain_env = {}
+        for key, value in env.items():
+            name = _text("env key", key)
+            if not name or "=" in name:
+                raise ValueError("env key: illegal environment variable name")  # never quoted
+            shown = name if len(name) <= 40 else name[:40] + "…"
+            plain_env[name] = _text(f"env value for {shown!r}", value)
+    data = None
+    if stdin is not None:
+        if type(stdin) is bytes:
+            data = stdin  # not copied again
+        else:
+            try:
+                data = memoryview(stdin).tobytes()
+            except TypeError:
+                raise TypeError(
+                    f"stdin must be bytes-like, or None; got {type(stdin).__name__}"
+                ) from None
+    return {"argv": args, "env": plain_env, "stdin": data}
+
+
 @dataclass(frozen=True)
 class Defaults:
     """The limits a call has when it names none. `run` reads `DEFAULTS` at call time; the values
@@ -154,11 +202,11 @@ class Completed:
 
 
 def run(
-    argv: list[str],
+    argv: Iterable[str],
     *,
     root: str | os.PathLike[str] | None = None,
     env: Mapping[str, str] | None = None,
-    stdin: bytes | None = None,
+    stdin: bytes | bytearray | memoryview | None = None,
     host: Host | None = None,
     snapshot: bool = True,
     fuel: int | None = None,
@@ -191,6 +239,8 @@ def run(
     if output_bytes is _UNSET:
         output_bytes = limits.output_bytes
     checked = _check_limits(fuel, deadline_s, memory_bytes, output_bytes)  # before any work
+    checked.update(_check_inputs(argv, env, stdin))
+    argv, env, stdin = checked["argv"], checked["env"], checked["stdin"]
     fuel, deadline_s = checked["fuel"], checked["deadline_s"]
     memory_bytes, output_bytes = checked["memory_bytes"], checked["output_bytes"]
 

@@ -156,3 +156,8 @@ memory caps ran the guest instead of raising.
   `0`, `nan` or `inf` raise `ValueError`;
 - `fuel=True`, `fuel=1.5`, `memory_bytes=1.5` and `deadline_s="1"` raise `TypeError`;
 - `fuel=0`, `memory_bytes=0` and `output_bytes=0` behave as before.
+
+**The dry run** (EXECUTED: https://github.com/ClayGendron/wasi_python/actions/runs/39025665466,
+on `1f21dd0`): every job it runs passed, including the arm64 Linux rebuild, `same-bytes`, and
+verify on ubuntu-24.04, windows-2025 and macos-15. `attest`, `publish` and PyPI were skipped, as
+a dry run must (criterion 3).

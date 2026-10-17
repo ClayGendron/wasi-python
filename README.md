@@ -297,6 +297,11 @@ has one.
   (`zoneinfo` on the zip's tzdata) and
   a `HOME` made fresh and empty for each call under `/tmp` and removed
   after it; `env=` is laid over them;
+- **inputs**: `argv` is any iterable of `str`, `env` a mapping of `str` to
+  `str`, `stdin` a bytes-like object. One the guest would see differently
+  (a NUL, text that is not UTF-8, an `=` or nothing as an env key) raises
+  `ValueError` before any work, and a wrong type `TypeError`; no message
+  quotes a value;
 - each call's store is closed when it ends, trapped or not, so its memory
   and open files are released at once; a call without `root` copies the
   11 MB stdlib zip into its fresh root and removes the root afterwards;
@@ -329,7 +334,12 @@ that raises, asyncio's on a second Ctrl-C included, while a guest runs on
 the main thread: wasmtime-py can then abort the process, so call `run` on a
 worker thread (`asyncio.to_thread`, a thread pool) there; other code in the
 same process using wasmtime-py directly, whose exceptions can reach a
-trapping `run` through wasmtime-py's shared exception slot; timing
+trapping `run` through wasmtime-py's shared exception slot; an `env=` that
+overrides `HOME` or `PYTHONTZPATH` on a reused root (pdb then reads a
+`.pdbrc`, and `zoneinfo` a zone file, that a guest may have planted there);
+`stdin`, which is written to a host temporary file of its size; an `argv`
+or `env` larger than the guest's memory, which exits 1 with empty stderr;
+timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

@@ -63,6 +63,11 @@ question moves to the bottom with the answer and the date.
 - **The question:** you authorised 0.1.0a1. Spec 005 names the 3.15 line's release `0.1.0a2`.
   The agent will prepare it (version bump, changelog, a green dry run of the release workflow)
   but will not push the tag until you say so (constitution §7).
+- **Status, 2026-10-17:** ready. `__version__` is `0.1.0a2`, and the CHANGELOG's unreleased
+  section covers specs 005 to 014. The dry run of `1f21dd0` passed every job, including the arm64
+  Linux rebuild with byte-identical `SHA256SUMS`. Before tagging, the agent will run one security
+  review of the release against the threat model, by a fresh agent. Releasing is one command
+  (`release/version.py release`) once you say yes.
 
 ### 7. A `wasi-python run` command line?
 
