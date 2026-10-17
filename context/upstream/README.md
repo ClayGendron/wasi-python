@@ -31,4 +31,4 @@ under `recipes/patches/<top>/` (specification 020). Its pull request lives here,
 
 The body is the text for the upstream maintainers, and says whether the project needs a
 contributor licence agreement, which the owner signs. The owner sends it; then the status records
-the link. A draft is not a build input, so recording the status changes no `MANIFEST` line.
+the link. Where a project forbids AI-written pull request descriptions (numpy does), the draft's body is the facts for the owner to write from, not the text. A draft is not a build input, so recording the status changes no `MANIFEST` line.

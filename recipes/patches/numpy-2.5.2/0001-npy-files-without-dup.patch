@@ -1,0 +1,57 @@
+diff --git a/numpy/lib/_format_impl.py b/numpy/lib/_format_impl.py
+index 51b16ce..d6686ea 100644
+--- a/numpy/lib/_format_impl.py
++++ b/numpy/lib/_format_impl.py
+@@ -164,6 +164,7 @@ evolved with time and this document is more current.
+ import io
+ import os
+ import pickle
++import sys
+ import warnings
+ 
+ import numpy
+@@ -1029,6 +1030,10 @@ def _read_bytes(fp, size, error_template="ran out of data"):
+ def isfileobj(f):
+     if not isinstance(f, (io.FileIO, io.BufferedReader, io.BufferedWriter)):
+         return False
++    if sys.platform == "wasi":
++        # `tofile` and `fromfile` need `os.dup`, which WASI does not
++        # support, so read and write real files like other file-likes.
++        return False
+     try:
+         # BufferedReader/Writer may raise OSError when
+         # fetching `fileno()` (e.g. when wrapping BytesIO).
+diff --git a/numpy/lib/tests/test_format.py b/numpy/lib/tests/test_format.py
+index 13429e9..c4e3690 100644
+--- a/numpy/lib/tests/test_format.py
++++ b/numpy/lib/tests/test_format.py
+@@ -277,6 +277,7 @@ Test the header writing.
+     "v\x00{'descr': [('x', '>i4', (2,)), ('y', '>f8', (2, 2)), ('z', '|u1')],\n 'fortran_order': False,\n 'shape': (2,)}         \n"
+     "\x16\x02{'descr': [('x', '>i4', (2,)),\n           ('Info',\n            [('value', '>c16'),\n             ('y2', '>f8'),\n             ('Info2',\n              [('name', '|S2'),\n               ('value', '>c16', (2,)),\n               ('y3', '>f8', (2,)),\n               ('z3', '>u4', (2,))]),\n             ('name', '|S2'),\n             ('z2', '|b1')]),\n           ('color', '|S2'),\n           ('info', [('Name', '>U8'), ('Value', '>c16')]),\n           ('y', '>f8', (2, 2)),\n           ('z', '|u1')],\n 'fortran_order': False,\n 'shape': (2,)}      \n"
+ '''  # noqa: E501
++import errno
+ import os
+ import sys
+ import warnings
+@@ -479,6 +480,21 @@ def test_file_truncated(tmp_path):
+                 ):
+                     _ = format.read_array(f)
+ 
++
++@pytest.mark.parametrize("arr", basic_arrays + record_arrays)
++def test_save_load_without_dup(tmp_path, monkeypatch, arr):
++    # WASI cannot duplicate a file descriptor, so `os.dup` raises there.
++    # Saving to and loading from a real file must not need it.
++    def dup(fd):
++        raise OSError(errno.ENOTSUP, "Not supported")
++
++    monkeypatch.setattr(sys, "platform", "wasi")
++    monkeypatch.setattr(os, "dup", dup)
++    path = tmp_path / "a.npy"
++    np.save(path, arr)
++    assert_array_equal(np.load(path, allow_pickle=True), arr)
++
++
+ def test_long_str():
+     # check items larger than internal buffer size, gh-4027
+     long_str_arr = np.ones(1, dtype=np.dtype((str, format.BUFFER_SIZE + 1)))

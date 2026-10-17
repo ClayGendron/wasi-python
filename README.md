@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 0, each with an upstream pull request (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 1, each with an upstream pull request drafted for the owner to send (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.1 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -49,15 +49,19 @@ promises.
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on five golden jobs |
 
-The platform's facts, documented rather than patched, are what `python.wasm
--V` prints after its version:
+The platform's facts, documented rather than patched (with one carried patch,
+below), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
 
 So `np.arange(1_000_000).sum()` wraps (use `dtype=np.int64`). A C++
 `throw` inside a package (numpy's FFT, for one) is caught as in native
 code and reaches Python as an exception. A script's directory is not put on `sys.path`: the interpreter
-runs isolated. The snapshot runs only beside the exact stdlib zip it was built
+runs isolated. `np.save` and `np.load` of paths and open files work, through a
+carried patch (`recipes/patches/numpy-2.5.2/`) until numpy releases the fix;
+`ndarray.tofile` and `np.fromfile` on real files still fail, since WASI cannot
+duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), and
+memory maps are unavailable. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
 offsets are part of the snapshot.
 

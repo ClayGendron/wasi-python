@@ -17,6 +17,9 @@ once an upstream release carries the fix (specification 020).
 `scripts/steps/apply_patches.sh` applies a tree's patches right after its step unpacks it, and
 the judge applies them the same way to check that each tree is its tarball plus exactly these.
 
+Where a project forbids AI-written pull request descriptions (numpy does), the draft's body is
+the facts for the owner to write from, not the text.
+
 ## What a patch may not contain
 
 No link, no binary hunk, no mode change, no file but a plain one (mode 100644), no rename or

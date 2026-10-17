@@ -1,10 +1,13 @@
 # numpy's `.npy` files need `dup`, which WASI preview1 lacks
 
-- **Status:** executed (the failure and its cause); the fix waits upstream. 2026-10-17.
+- **Status:** executed (the failure and its cause), 2026-10-17. The fix is carried by spec 021
+  (`recipes/patches/numpy-2.5.2/`) and sent upstream by the owner.
+- **Superseded in part (2026-10-17):** the sections "Why it is not fixed here", "What it
+  decides" and "One line" describe the state before spec 021; the fix is now carried.
 - **Owner:** Clay Gendron
 - **Researcher:** the author agent (Claude Opus 5.5), from the data-folders survey's finding.
-- **Feeds:** a known gap in the judge (`test_npy_files_round_trip`), closed by this memo once
-  numpy releases a fix and the pin moves; `../questions-for-the-owner.md`, question 8 (filing
+- **Feeds:** spec 021's carried patch and its guard `test_npy_files_round_trip` (first planned
+  as a known gap closed by this memo); `../questions-for-the-owner.md`, question 8 (filing
   the issue upstream is an outward-facing action).
 - **Stands on:** `2026-10-16-what-data-folders-the-packages-need.md`, surprise 1.
 

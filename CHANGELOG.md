@@ -6,6 +6,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **`np.save` and `np.load` of files work** (the first carried patch,
+  `recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch`): they raised `OSError` 58,
+  because numpy's `tofile`/`fromfile` need `os.dup`, which WASI lacks. The patch is the fix numpy
+  is asked to take (its pull request is drafted for the owner) and goes when numpy releases it.
+  `ndarray.tofile`, `np.fromfile` on real files and memory maps still fail. The next §5.6 security
+  review reads this patch.
 - **Carried patches** (the owner's decision; constitution §4.1): a fix the project cannot wait
   for may now be carried as a patch to a pinned project's source, under `recipes/patches/`, with
   its upstream pull request drafted under `context/upstream/patches/`. Each is reviewed, hashed in

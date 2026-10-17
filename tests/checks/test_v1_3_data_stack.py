@@ -216,3 +216,57 @@ def test_goldens_reproduce_under_the_pinned_oracle() -> None:
         assert jobs.compare(first, second) is None, f"{job}: two hash seeds disagree"
         why = jobs.compare(jobs.expected_path(job).read_bytes(), first)
         assert why is None, f"{job}: {why}"
+
+
+NPY = """
+import io, os
+import numpy as np
+os.makedirs("/npy")  # the judge's root has no /tmp
+
+def same(a, b):
+    return (a.dtype, a.shape, a.tolist(), a.flags.f_contiguous) == (
+        b.dtype, b.shape, b.tolist(), b.flags.f_contiguous)
+
+cases = {
+    "plain": np.arange(12, dtype=np.int32).reshape(3, 4),
+    "record": np.array([(1, 2.5), (3, 4.5)], dtype=[("a", "<i4"), ("b", "<f8")]),
+    "0-d": np.array(7.0),
+    "fortran": np.asfortranarray(np.arange(6.0).reshape(2, 3)),
+    "large": np.arange(40_000, dtype=np.float64),
+    "empty": np.zeros((0, 3), dtype=np.int16),
+}
+for name, a in cases.items():
+    try:
+        np.save(f"/npy/{name}.npy", a)
+        print(name, same(np.load(f"/npy/{name}.npy"), a))
+    except OSError as e:
+        print(name, "OSError", e.errno)
+try:
+    obj = np.array([{"k": 1}, [2, 3], "s"], dtype=object)
+    np.save("/npy/object.npy", obj, allow_pickle=True)
+    print("object", np.load("/npy/object.npy", allow_pickle=True).tolist() == obj.tolist())
+except OSError as e:
+    print("object", "OSError", e.errno)
+try:
+    with open("/npy/two.npy", "wb") as f:
+        np.save(f, cases["plain"])
+        np.save(f, cases["large"])
+    with open("/npy/two.npy", "rb") as f:
+        print("two", same(np.load(f), cases["plain"]) and same(np.load(f), cases["large"]))
+except OSError as e:
+    print("two", "OSError", e.errno)
+np.savez("/npy/z.npz", x=cases["plain"], y=cases["record"])
+with np.load("/npy/z.npz") as z:
+    print("npz", same(z["x"], cases["plain"]) and same(z["y"], cases["record"]))
+"""
+
+
+@pytest.mark.parametrize("which", ["snapshot", "plain"])
+def test_npy_files_round_trip(guest, which) -> None:
+    """Guards a change (spec 021, the first carried patch): `np.save` and `np.load` of real files
+    raised OSError 58, because numpy's `tofile` and `fromfile` need `os.dup`, which WASI lacks.
+    The object array and `.npz` always worked and guard."""
+    r = guest(which, ["-c", NPY])
+    assert r.exit_code == 0, r.describe()
+    names = ["plain", "record", "0-d", "fortran", "large", "empty", "object", "two", "npz"]
+    assert r.text == "".join(f"{n} True\n" for n in names), r.text
