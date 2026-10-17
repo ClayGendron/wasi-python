@@ -1,13 +1,13 @@
 # 023 — matplotlib, the first milestone
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
-  (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), awaiting that review's
-  confirmation. It builds only after the owner answers question 35 (licences, §4.12), widened by
+  (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
+  for build with five definitions (A to E), now written in. It builds only after the owner answers question 35 (licences, §4.12), widened by
   the review.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (pins; steps 00, 10, 37 (new), 55 (new), 60, 70; `scripts/build.sh`,
   `scripts/wasi-cc`, `scripts/gen_inittab.py`, `scripts/assemble_artifacts.py`), recipe files
-  (stand-ins, cross files, a `python3` shim), one carried patch, the runner (the zip folder's
+  (stand-ins, cross files), one carried patch, the runner (the zip folder's
   layout and a second runtime grant: matplotlib's data), judge additions and changes (`tests/`,
   `tests/harness/pins.py`, `tests/harness/needs.py`, `tests/harness/scan.py`, `tests/jobs/`), the
   release workflow's count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
@@ -79,22 +79,27 @@ brings the first, smallest useful part of that into the build.
      list sorted with `LC_ALL=C` so the object order is fixed; matplotlib (patched) with meson
      (`-Dsystem-freetype=true -Dsystem-libraqm=true -Dsystem-qhull=true -DrcParams-backend=Agg
      -Db_lto=false -Dmacosx=false`, the pinned `pkgconf`, pybind11's `pkgconfig` folder),
-     installed with `--tags python-runtime,data` and `-Dpython.bytecompile=-1`. meson's
-     `find_program('python3')` finds a step-private `bin/python3`, a link to step 10's pinned host
-     Python (`$HOSTPY`), first on `PATH`, with the `setuptools_scm` stand-in on its `PYTHONPATH`:
-     no unpinned interpreter runs. The cross file sets `cmake` to a program that does not exist,
+     installed with `--tags python-runtime,data` and `-Dpython.bytecompile=-1`. meson looks every program up in the cross file
+     before `PATH`, so matplotlib's `find_program('python3', 'python')` runs the cross file's
+     `python`, `scripts/python-wasi-cross` (step 20's pinned build-Python, EXECUTED by the review's
+     confirmation), which passes `PYTHONPATH` through; the `setuptools_scm` stand-in reaches it
+     there. No unpinned interpreter runs, and no shim is needed. The cross file sets `cmake` to a program that does not exist,
      so meson finds qhull the same way on every host.
    - **Step 60** takes the inittab names from the install paths (`scripts/gen_inittab.py`),
      honours `-l`/`-L` lines in `.deps`, adds `-lsetjmp`, and leaves `_tkagg` and `_qhull` out.
      **At its end it runs the constructor check** (Decision 7) on the linked `python.wasm`, so a
      build with a new static constructor stops before step 80, which would hang on it.
    - **Step 70** packs the new packages into the zip, leaving out what cannot run or is not
-     built: `matplotlib/backends/` except the Agg, PDF, PS, SVG, PGF and template modules and
-     `_backend_agg`'s wrapper; `matplotlib/testing/`, `matplotlib/sphinxext/`, `matplotlib/tests/`
+     built: every file of `matplotlib/backends/` except exactly `__init__`, `registry`,
+     `_backend_pdf_ps`, `backend_mixed`, `backend_agg`, `backend_pdf`, `backend_ps`, `backend_svg`,
+     `backend_pgf` and `backend_template` (a plot with PNG, PDF, PS, EPS and SVG saves imports the
+     first eight, EXECUTED by the review's confirmation); `matplotlib/testing/`, `matplotlib/sphinxext/`, `matplotlib/tests/`
      and each package's `tests/`; and contourpy (M2). `matplotlib/mpl-data/` goes in as **one
-     stored member**, `matplotlib/mpl-data.zip`, an inner archive of the data folder (deflated
-     inside, stored outside, deterministic member order and times as step 70 already writes),
-     because every zip member costs every plain call (Decision 6). fontTools' `.data/` is skipped.
+     member**, `matplotlib/mpl-data.zip`, an inner archive of the data folder, because every zip
+     member costs every plain call (Decision 6). The inner archive's files are stored and the
+     outer member is deflated, so the data is compressed once and the stdlib zip's rule
+     (`stdlib_zip_errors`: every member deflated, no source) holds unchanged; member order and
+     times are fixed as step 70 already writes them. fontTools' `.data/` is skipped.
      fontTools goes in whole in M1: its table modules load by name at run time, so a trim needs an
      import trace first (Scope).
    - **Step 80 is unchanged in M1:** matplotlib is not pre-imported (question 34).
@@ -112,7 +117,9 @@ brings the first, smallest useful part of that into the build.
      no new lock and no new held folder. A zip with no `matplotlib/mpl-data.zip` member gives no
      data grant.
    - **Extraction.** The runner extracts the inner archive once per process and zip, from its
-     private copy after that copy's SHA-256 check, never from the artifact path. It refuses a
+     private copy after that copy's SHA-256 check, never from the artifact path. It reads the
+     deflated outer member into memory whole (a deflated member seeks backward slowly) and opens
+     the inner archive from there. It refuses a
      member name that is absolute, holds `..`, or is a link, and a member that is not a regular
      file or folder. Each file is written, read back once and compared with the member's CRC-32
      and size: CRC-32 catches accidents; the trust anchor is the zip's SHA-256 and the 0700
@@ -151,7 +158,9 @@ brings the first, smallest useful part of that into the build.
    - **v1.3, the milestone.** `tests/jobs/plot_line.py`, a fixed plot program, is a job like the
      others: the pinned oracle (`tests/jobs/oracle`, Python 3.15.0) gains matplotlib 3.11.2 and its
      dependencies at the same versions in `pyproject.toml` and `uv.lock`, and `regen.py` writes
-     `plot_line.expected` with the full SHA-256 of the RGBA bytes, the shape, and the platform
+     `plot_line.expected` with `MPL_IGNORE_SYSTEM_FONTS=1` and a fresh `MPLCONFIGDIR` (so the
+     oracle uses only matplotlib's bundled fonts, as the guest does: natively it otherwise listed
+     1,378 of the Mac's fonts, EXECUTED), and with the full SHA-256 of the RGBA bytes, the shape, and the platform
      that made it (darwin-arm64). The guest's run must give the same hash and shape on every
      platform (its pixels do not depend on the host). The reproduce-under-the-oracle check runs
      this job on the recording platform only, because native matplotlib's pixels may differ off it
@@ -181,7 +190,8 @@ brings the first, smallest useful part of that into the build.
 9. **Licences.** `LICENSES/` gains, each with its notice: FreeType's `LICENSE.TXT`,
    `docs/FTL.TXT`, `src/bdf/README` and `src/pcf/README` (its BDF and PCF drivers are built);
    HarfBuzz's `COPYING` and `src/ms-use/COPYING` (Microsoft, MIT), and the Unicode data terms of
-   its tables; SheenBidi's (Apache-2.0); libraqm's; matplotlib's whole `LICENSE/` folder and
+   its tables, pinned like the wasi-libc notices (the text by URL and SHA-256 from unicode.org,
+   since HarfBuzz's tree carries no copy); SheenBidi's (Apache-2.0); libraqm's; matplotlib's whole `LICENSE/` folder and
    Agg's `extern/agg24-svn/src/copying`; kiwisolver's; Pillow's (HPND); pybind11's and cppy's
    (BSD-3-Clause); those of the four pure packages; and with the data, the fonts' (OFL for DejaVu's
    and STIX's and Last Resort, DejaVu's public-domain part, Bitstream Vera, BaKoMa),
@@ -204,7 +214,7 @@ scripts/steps/37_plot_libs.sh                     FreeType, HarfBuzz, SheenBidi,
 scripts/steps/55_plot_packages.sh                 Pillow, kiwisolver, matplotlib
 scripts/steps/60_link.sh, 70_zip.sh               as Decision 4; 60 runs the constructor check
 scripts/wasi-cc, gen_inittab.py, build.sh, assemble_artifacts.py   as Decision 4
-recipes/                                          the stand-ins, cross files, the python3 shim
+recipes/                                          the stand-ins and cross files
 recipes/patches/matplotlib-3.11.2/0001-…patch      Decision 3; its draft under context/upstream/
 src/wasi_python/runner.py                         the zip folder's layout, the data and its grant
 tests/checks/…, tests/known_gaps.toml             Decision 8

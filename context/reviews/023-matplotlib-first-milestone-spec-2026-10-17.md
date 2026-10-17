@@ -369,3 +369,125 @@ goldens and licences need to be defined (Findings 6 and 7).
 One line: M1 is the right cut and works through the real runner, pixel-equal to native, but the
 specification must judge the new trees, settle where the data goes and what it costs, and pin
 its goldens and licences before it is built.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `5e3e065`, the Disposition above, and question 35
+  as widened there (`git diff 7968e79 5e3e065`).
+- **Ran (EXECUTED, darwin-arm64).** Outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev023/confirm/`
+  (`out/`). I wrote nothing in the repository but this section. I did not commit, stage or pass
+  `--accept`.
+  - `layout_runner.py`: the revised layout on the real runner, with the scratch artifact set.
+  - `members.py`: Decision 6's member arithmetic against the research zip and today's zip.
+  - `backends.py`: which `matplotlib.backends` modules a plot and PNG, PDF, PS, EPS and SVG saves
+    import, natively.
+  - `meson/`: which interpreter meson's `find_program('python3', 'python')` runs in a cross
+    build, with the pinned meson 1.12.1.
+  - `out/stored-rule.txt`: the judge's zip rule on a zip with a stored member.
+  - `native315/`: the milestone natively on the line's Python 3.15.0 with the pinned PyPI wheels
+    (a scratch venv, `uv` cache in scratch).
+
+### Each disposition against its finding
+
+1. **The trees: closed.** READ: Decision 2 saves `qhull-8.0.2.tar.gz` and
+   `SheenBidi-3.0.0.tar.gz`; Decision 8 adds the eight trees and `^15 passed`; the Kind and the
+   Design name the harness files and the workflow.
+2. **The zip folder: closed.** EXECUTED (`out/layout.txt`): a private folder holding
+   `lib/python315.zip` and `mpl-data/` as siblings, `lib/` at `/usr/local/lib` and `mpl-data/` at
+   the nested path, through `_check_preopens`. On both binaries `/usr/local/lib` lists exactly
+   `['python315.zip']`, 42 entries in `fonts/ttf`, and the milestone gives RGBA
+   `eab6d61b37105e98` and PNG `b8759b7b…`. Keeping both in one private folder keeps
+   `test_v1_4_embedding.py:1059`'s six held folders (READ).
+3. **The per-call check: closed.** READ: Decision 5 takes every point.
+4. **Plain-start cost: closed, with condition A.** EXECUTED (`out/members.txt`): of 681 new
+   members, the exclusions drop 65 (28 backends, 20 `testing`/`sphinxext`, 17 contourpy; the
+   research zip already had no `tests`), leaving 617 with the inner archive. At 76,490 each that
+   is +47.2 M (+19.5%) on plain `pass`. The specification says about 70, about 610, +47 M (+19%):
+   inside its own tenth. Carrying `mpl-data` as 204 members instead would cost +62.7 M.
+5. **The constructor check: closed.** READ: Decision 8 and step 60.
+6. **The golden: closed, with condition D.** EXECUTED (`out/native315.txt`): on darwin-arm64 with
+   Python 3.15.0 and the cp315 wheels, the RGBA hash is `eab6d61b37105e98` under hash seeds 0 and
+   1. So the oracle golden will equal the guest's.
+7. **Licences: closed, with condition E.** READ: Decision 9 lists each notice, and question 35
+   now asks about every licence outside the 2026-10-16 decision.
+8. **The build's parts: closed, with condition C.**
+9. **The patch: closed.** READ: Decision 3. The re-made form was EXECUTED in the review.
+10. **Criterion 3: closed.** READ.
+11. **The gaps: closed.** READ: `from matplotlib import _qhull` with no such builtin raises
+    `ImportError`, as named. Nothing imports `_qhull` at import time (the review, READ).
+12. **Wording: closed.** READ.
+
+### The author's new choices
+
+- **`lib/` and `mpl-data/`.** Sound (EXECUTED above).
+- **One inner archive.** Sound for cost. But see condition A.
+- **Decision 6's numbers.** The arithmetic holds (EXECUTED above). `python.wasm` about +19%:
+  the memo's +6,247,429 bytes less qhull's 302,293 is +18.7% (INFERRED; `_qhull`'s own wrapper
+  is not counted).
+- **`_qhull` out, qhull built.** Sound. qhull stays a judged source tree; step 60 and
+  `gen_inittab.py` must both skip it (the specification says so).
+- **`-Dzlib=system`.** Sound, not built. EXECUTED `ls`: step 30 installs
+  `build/zlib-wasi/lib/pkgconfig/zlib.pc`, so step 37 must put that folder on
+  `pkg_config_libdir`. The matplotlib fonts are plain `.ttf`, so FreeType's gzip path does not
+  touch the pixels (INFERRED).
+- **The golden on the recording platform only.** Sound; the 3.15 run above backs it. See D.
+- **The step-private `python3` shim.** Not needed, and the specification's sentence about it is
+  wrong. See C.
+
+### Conditions left (each a sentence or a list; none changes the design)
+
+- **A. The stored member fails an existing rule.** EXECUTED (`out/stored-rule.txt`):
+  `stdlib_zip_errors` reports "matplotlib/mpl-data.zip: stored, not deflated". That rule backs
+  `test_stdlib_zip_is_bytecode_only_and_deflated`, and Decision 8 does not name it. Fix: deflate
+  the outer member too, and have the runner read the inner archive into memory before opening it
+  (a deflated member seeks backward slowly). Or name the rule's change under `--accept-judge`.
+- **B. Step 70's keep-list breaks every import if read literally.** EXECUTED
+  (`out/backends.txt`): a plot plus PNG, PDF, PS, EPS and SVG saves import
+  `matplotlib.backends` (its `__init__`), `registry`, `_backend_pdf_ps`, `backend_mixed`,
+  `backend_agg`, `_backend_agg`, `backend_pdf`, `backend_ps` and `backend_svg`. Decision 4 keeps
+  "the Agg, PDF, PS, SVG, PGF and template modules", which leaves out the first four. Fix: list
+  the kept files exactly: `__init__`, `registry`, `_backend_pdf_ps`, `backend_mixed`,
+  `backend_agg`, `backend_pdf`, `backend_ps`, `backend_svg`, `backend_pgf`, `backend_template`.
+- **C. meson never runs the `python3` shim.** READ (`mesonbuild/interpreter/interpreter.py`,
+  `program_lookup`): every name is looked up in the cross file before `PATH`. EXECUTED
+  (`meson/setup.log`): with a `python3` first on `PATH` and the cross file's `python` set,
+  `find_program('python3', 'python')` ran the cross file's program ("Project version: cross").
+  In step 55 that is `scripts/python-wasi-cross`, step 20's build-Python, which is pinned and
+  passes `PYTHONPATH` through. Fix: drop the shim. Say the `setuptools_scm` stand-in reaches
+  meson on `python-wasi-cross`'s `PYTHONPATH`.
+- **D. The oracle job must ignore system fonts.** EXECUTED (`out/native315.txt`): natively,
+  matplotlib listed 1,378 fonts from this Mac; the guest lists 40. Here it still chose the bundled
+  DejaVu Sans, but a host with a system DejaVu of another version could change the golden. With
+  `MPL_IGNORE_SYSTEM_FONTS=1` it listed 40 and gave the same hash. Fix: `plot_line.py`, or
+  `regen.py` for it, sets `MPL_IGNORE_SYSTEM_FONTS=1` and a fresh `MPLCONFIGDIR`.
+- **E. Name the Unicode terms' source.** HarfBuzz's tree carries no Unicode licence file; its
+  tables point to unicode.org (READ, `hb-unicode-emoji-table.hh`). Fix: quote the header text
+  from the tree, or pin the licence text by URL and SHA-256 like the wasi-libc notices.
+
+### §5.2
+
+Nothing is left open. fontTools' trim and the M2 items are scoped out, each with its reason and
+measure. Conditions A to E are definitions the specification must write, not open questions.
+
+### Verdict
+
+**Passes for build after question 35**, once A to E are written in (no design change). Every
+finding is closed. The new layout, the inner archive and the golden ran as the specification
+says.
+
+One line: the revision closes all twelve findings and its new choices hold up when run, with five
+small definitions to write first.
+
+### The confirmation's conditions, written in by the author
+
+- **A.** The inner archive's files are stored and the outer member deflated, so
+  `stdlib_zip_errors` holds unchanged; the runner reads the outer member into memory whole.
+- **B.** Step 70 keeps exactly the ten backend files named in the condition.
+- **C.** The shim is dropped; the spec says meson runs the cross file's `python`
+  (`scripts/python-wasi-cross`), and the stand-in reaches it on `PYTHONPATH`.
+- **D.** `regen.py` makes the plot golden with `MPL_IGNORE_SYSTEM_FONTS=1` and a fresh
+  `MPLCONFIGDIR`.
+- **E.** The Unicode terms are pinned by URL and SHA-256, like the wasi-libc notices.
