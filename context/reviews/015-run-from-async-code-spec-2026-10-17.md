@@ -319,21 +319,21 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. Finding 1 —
-2. Finding 2 —
-3. Finding 3 —
-4. Finding 4 —
-5. Finding 5 —
-6. Finding 6 —
-7. Finding 7 —
-8. Finding 8 —
-9. Finding 9 —
-10. Finding 10 —
-11. Finding 11 —
-12. Finding 12 —
-13. Finding 13 —
-14. Finding 14 —
-15. Finding 15 —
+1. Finding 1 — Fixed. Decision 1's outcomes are ordered: a recorded stop first, then Ctrl-C, cancel, the deadline, continue. `test_a_stop_holds_under_cancel` and the unit test of the order cover it.
+2. Finding 2 — Fixed. The body sits in `try/except BaseException`; every path returns an int; a fault is recorded as the stop and answered with an error; `delta` is never below 1. Unit tests inject a raising `is_set` and a raising stack lookup.
+3. Finding 3 — Fixed. The callback records `call.ended` (`"cancelled"` or `"deadline"`); `_drive` reads it after `call.stopped` and never parses the message; `_fuel_used` returns `None` when it is set. `test_a_deadline_under_cancel_is_named` covers it.
+4. Finding 4 — Fixed. Decision 2 states your mechanism (`submit`, `wrap_future`, `cf.cancel()`, set, wait until done, re-raise the first). The wait's bounds are stated, `run` checks the event before instantiating, and the worker runs under `contextvars.copy_context().run`.
+5. Finding 5 — Fixed. The non-blocking check gates the guests on the loop's count through the door, with a 120 s fail-safe answer. The cancellation check uses a one-worker executor that counts finished items, and counts `wasi-python-*` entries under a test-only `tempfile.tempdir` in a child.
+6. Finding 6 — Fixed. Decision 5: a fork hook resets the pool, the ticker and the registry, and keeps the parent's wasmtime objects unfreed; `run` in a child of a used parent raises a clear `RuntimeError`; the README says to warm up after the fork. `test_a_forked_child_is_refused` covers it. `macos_use_mach_ports` is not used: refusing is the simpler safe answer.
+7. Finding 7 — Fixed. Decision 4: `process_cpu_count()` where it exists, capped at 8 with a stated reason, settable as `DEFAULTS.async_workers` and checked like the other limits. The README gives the per-process arithmetic with output, disk and descriptors, says what the bound does not cover, and treats containers and several workers.
+8. Finding 8 — Fixed. Decision 6: a registry of live events and a `threading._register_atexit` hook stop running guests and cancel queued calls at exit, with `atexit` as the stated fallback. `test_exit_stops_async_guests` covers it.
+9. Finding 9 — Fixed. The README example uses `asyncio.timeout`, claims nothing about disconnects beyond what Starlette does, and covers synchronous endpoints.
+10. Finding 10 — Fixed. Decision 1 states the ticker for `cancel` calls and the 1–2 tick later deadline; the cancellation checks run with `deadline_s=None` and no other call.
+11. Finding 11 — Fixed. One module-level `CFUNCTYPE`, found through the stack and context address, with a NULL finalizer; the binding check gains both functions; the nested-call limit is stated.
+12. Finding 12 — Taken: the callback continues by up to `CANCEL_TICKS` (5) ticks, so cancel latency is at most 50 ms and the per-tick cost falls about fivefold. The benchmark facts are in the specification's research list.
+13. Finding 13 — Fixed. Process and interpreter pools are refused by type; `run_async` takes no `cancel`; the shut-down executor errors pass through and are stated; the pool is made under `_lock`; the worker calls an inner, already-checked entry point.
+14. Finding 14 — Taken: outcome 2 turns a deferred Ctrl-C into a stop. The README names the callback in its advice for a raising handler.
+15. Finding 15 — Fixed. The Scope names trio, free-threaded CPython, an async door and a queue-time limit, and a container's CPU quota.
 
 ## Verdict
 
@@ -347,3 +347,308 @@ size and exit (findings 6–8). Findings 9–15 are text and small tests.
 
 One line: the design is right, but the callback must also honour spec 011's stops, survive its own
 faults and record its outcome, and `run_async` must keep the concurrent future so that it can wait.
+
+## Confirmation of the revision (2026-10-17)
+
+- **Reviewer:** a second fresh agent (Claude Opus 5.5), not the author and not the first
+  reviewer. I read `AGENTS.md`, the constitution (§4.9, §4.15, §5.2), `context/reviews/README.md`,
+  this review and its disposition, the revised specification (`git diff` against `1745ac1`), and
+  the runner (`_instance`, `_drive`, `_Call`, `_shared`, `_Waits`, `_stop_at`, `_epoch_ticker`,
+  `_deferred_ctrl_c`, `Defaults`, `_fuel_used`, `_release`, `_engine`, `_linker`). I also read
+  wasmtime 49 (`crates/c-api/src/store.rs:150-182`, `crates/wasmtime/src/runtime/store.rs:2231-2240,
+  2361-2373`, `crates/wasmtime/src/engine.rs:136`), wasmtime-py 49's `_managed.py`, and CPython
+  3.14.2's `threading.py` (`_register_atexit`, `_shutdown`) and `concurrent/futures/thread.py`,
+  `interpreter.py` and `__init__.py`.
+- **Ran (EXECUTED, darwin-arm64, CPython 3.14.2, wasmtime-py 49.0.0, the artifacts in
+  `build/artifacts/` read only).** Nothing in the repo was edited except this section. New probes
+  and outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev015b/`:
+  - `f1_fork_exit.py` → `f1_fork_exit.txt`: forked children exiting through normal finalization;
+    a child of a parent that only imported;
+  - `a1_mech.py` → `a1_mech.txt`: Decision 2's mechanism when the worker raises after the event
+    is set; `InterpreterPoolExecutor`'s base class;
+  - `x1_order.py` → `x1_order.txt`: whether a `threading._register_atexit` hook runs before the
+    thread pool's own exit join, in both import orders.
+  - I did not run `uv run pytest`: nothing is built.
+
+### Each finding
+
+1. Confirmed. The order (a recorded stop, Ctrl-C, cancel, deadline, continue) puts spec 011's
+   stop first, and a stop-holds check exists (but see 18: it can hang rather than fail).
+2. Confirmed for a call that is found. Every path returns an int, `delta` is never below 1, and
+   `kind` and the error are never touched. The path where no call is found is not defined: see 22.
+3. Confirmed. `call.ended` is read after `call.stopped`; the message is never parsed;
+   `_fuel_used` returns `None` when it is set.
+4. Confirmed. The mechanism is the one that was EXECUTED, the wait's bounds are stated, `run`
+   checks the event before instantiating, and the worker runs under `copy_context().run`. One
+   edge of the mechanism is open: see 21.
+5. Confirmed for the two checks the finding named. The non-blocking check gates the guests on the
+   loop's count, so a blocking `run_async` can only reach the fail-safe (INFERRED from the text:
+   the counter and the calls are scheduled together, so a blocked loop counts at most one turn).
+   The cancellation check counts finished items and `wasi-python-*` entries. Three other new
+   checks can hang instead of failing: see 18.
+6. Confirmed as a decision: refuse in a child of a used parent, and say "warm up after the fork".
+   It is the simple, safe answer. READ (`engine.rs:136`): `Engine::new` is where wasmtime sets up
+   its trap handling (`init_traps`), so "the parent made an engine" is the right trigger. EXECUTED
+   (`f1_fork_exit.txt`): a child of a parent that imported `wasi_python` and `wasmtime` and made
+   no engine ran a call and exited 0, so "only imported" is safe on macOS. Some details are wrong
+   or missing: see 23.
+7. Confirmed. `process_cpu_count()`, a cap of 8 with a reason, settable and checked, and the
+   README's arithmetic. The new field breaks four existing checks unless it has a default: see 19.
+8. Not resolved. The decision is right, but whether the hook runs before the pool's join depends
+   on an order the spec does not state. EXECUTED (`x1_order.txt`): a hook registered after
+   `concurrent.futures.thread` is imported ran first, and exit took no time. A hook registered
+   before that import never ran: the worker was joined first, and exit hung until the watchdog.
+   READ: `threading._shutdown` runs the hooks in reverse order of registration
+   (`threading.py:1575-1577`). `concurrent.futures.thread` registers `_python_exit` when it is
+   first imported (`thread.py:37`). Nothing imports it early: EXECUTED, neither `import asyncio`
+   nor `import wasi_python` loads it, and `concurrent.futures` loads it lazily on first access
+   (`__init__.py:57-59`). See 17.
+9. Confirmed.
+10. Confirmed for what the finding asked: the ticker runs for `cancel` calls, the later stop is
+    stated, and the checks use `deadline_s=None`. But the ticker alone does not call the callback:
+    see 16.
+11. Confirmed.
+12. Confirmed. The "about five times less" is INFERRED; measure it at build and record it with the
+    benchmark facts.
+13. Confirmed, with one detail in 24.
+14. Confirmed.
+15. Confirmed.
+
+### New findings
+
+16. **The store's first epoch deadline under `cancel=` is not stated.** Medium-high.
+    - READ: `_instance` sets `store.set_epoch_deadline(ticks)`, and `ticks` is `NO_DEADLINE`
+      (2**62) when `deadline_s` is `None` (`runner.py:421-422`). wasmtime calls the callback only
+      when the epoch reaches the store's deadline (`store.rs:2361-2368`).
+    - INFERRED: if the build keeps that line, a busy guest under `cancel=` and `deadline_s=None`
+      never sees its cancel. Under the 60 s default it sees it after 60 s, not 50 ms. The first
+      reviewer's probe worked only because it set the deadline to 1 itself
+      (`rev015a/e7_runner.py:47`).
+    - A related gap: `_Waits` sleeps in one piece when `deadline_passed` is `None`
+      (`runner.py:766-769`), and today it is `None` whenever `deadline_s` is `None`. Under
+      `cancel=` it must be set even without a deadline. "Checks `cancel.is_set()` with the
+      deadline" implies this, but does not say it.
+    - Fix: under `cancel=`, set the first deadline to `min(CANCEL_TICKS, ticks)`, and compute
+      `stop_at` from `ticks` as today. A `cancel` call always has a `deadline_passed` check. The
+      callback reads the count once, so outcome 4 and "ticks left" agree. ("At least 1" already
+      keeps `delta` at 1 or more if the count moves between two reads.)
+17. **The exit hook must be registered after `concurrent.futures.thread` is imported.** Medium.
+    The evidence is under 8.
+    - Fix: the runner imports `concurrent.futures.thread` at its top, then registers the hook at
+      import. That order holds whatever the application imported first. Registering at import
+      also avoids `_register_atexit`'s "can't register atexit after shutdown" error, which a
+      first pool made during shutdown would raise.
+    - Also correct the bound in Decision 6. "At most `CANCEL_TICKS` ticks for each worker plus its
+      clean-up" holds only for a worker that is in wasm or in a wait. A worker in a door host, or
+      compiling the module (cold compiles took 90–225 s in spec 011), or placing the zip, keeps
+      exit waiting. Decision 2 already says this for the door; Decision 6 must say it too.
+18. **Three new checks hang the judge instead of failing when the feature is broken.** Medium.
+    - `test_run_with_cancel[busy|sleeping]` runs a guest that loops or sleeps for ever under
+      `deadline_s=None`. If cancellation does not work, `run` never returns.
+    - `test_a_deadline_under_cancel_is_named` runs a busy guest whose deadline only the callback
+      enforces. If outcome 4 does not work, it never returns.
+    - `test_a_stop_holds_under_cancel` hangs if the guest computes for ever and outcome 1 does not
+      work.
+    - In each case the scoreboard never prints, so the failure is not "one line with its reason"
+      (AGENTS.md, rule 10). The other hang-prone checks in `test_v1_4_embedding.py` run in a child
+      process with a 120 s fail-safe (READ, lines 463-466 and 554-558).
+    - Fix: run these three in a child process with the same fail-safe. Or give each guest a bound,
+      so that a broken build returns a wrong result. For example, the stop-holds guest runs a long
+      but finite loop and prints `DONE`; a broken outcome 1 then shows as a normal exit.
+    - Also, "seen failing first" is met trivially for a name that does not exist yet. Each check
+      should also be seen failing against a stand-in that has the API but lacks the property: a
+      `run_async` that calls `run` in the coroutine; a `run_async` that does not wait for its
+      worker; a callback without outcome 1, without outcome 4, or without the hook. That shows the
+      check can catch the defect it is for.
+19. **`Defaults` gains a required field, which breaks existing checks.** Low-medium.
+    - READ: four checks build `Defaults` from three positional arguments
+      (`tests/checks/test_v1_2_hostile_guest.py:176, 190, 200`;
+      `tests/checks/test_v1_4_embedding.py:610`). Users who follow the README may too.
+    - Adding `async_workers` without a default makes those calls raise `TypeError`. Then the judge
+      must be edited to pass (AGENTS.md, rule 4).
+    - Fix: add the field last, with the computed value as its default, so the three-argument form
+      still works.
+20. **A resize of the default pool can fail a call that has nothing to do with it.** Low-medium.
+    - INFERRED from `thread.py`'s `submit` (it raises after `shutdown`, `thread.py:200-206`).
+      Coroutine A reads the pool, then releases the lock. Coroutine B, on another thread or loop,
+      sees a new size, makes a new pool and shuts the old one down. A's `submit` then raises
+      "cannot schedule new futures after shutdown".
+    - In-flight and queued calls on the old pool do finish (READ: the worker drains the queue
+      before the `None` that `shutdown` adds). But until they do, the old and the new workers
+      together can exceed `async_workers`.
+    - Fix: look up the pool and `submit` to it under the same lock (`submit` does not block). State
+      the overlap during a resize.
+21. **After cancellation, a worker's exception replaces the `CancelledError`.** Low.
+    - EXECUTED (`a1_mech.txt`): I used the mechanism as worded and a worker that raises `OSError`
+      once its event is set. Under `asyncio.timeout(0.3)` the caller saw `OSError`, not
+      `TimeoutError`. A door host that raises when its request is gone would do the same.
+    - Fix: once the first `CancelledError` has been caught, the wait swallows any outcome of the
+      call, not only `CancelledError`. It retrieves the call's exception (so nothing is logged as
+      never retrieved) and re-raises the first `CancelledError`.
+    - Also state the registry's life cycle. The event leaves the registry in a `finally`. That
+      includes the paths where `submit` raises and where `cf.cancel()` wins.
+22. **The callback's no-call path is undefined.** Low.
+    - Some faults leave the callback with no `_Call` to record a stop on: the stack lookup raises,
+      or no call on the stack matches the context.
+    - Then `_drive` finds nothing recorded and takes the error's first line. READ: that line is
+      `'error while executing at wasm backtrace:'`, the defect finding 3 fixed.
+    - The unit test as worded ("a stack lookup that raises gives … a recorded stop") cannot hold.
+    - Fix: state the path. For example, the callback records the fault in a thread-local slot.
+      `_drive` reads that slot after it pops the stack, and raises the fault as it raises a
+      recorded stop. The unit test then asserts an int, an error, and the fault in that slot.
+23. **Decision 5's details.** Low.
+    - **"A list that is never freed" is freed.**
+      - EXECUTED: an object held in a list that is a global of `wasi_python.runner` was finalized
+        at interpreter exit. So the moved engines, modules and linkers are deleted in the child
+        anyway, by wasmtime-py's finalizers.
+      - EXECUTED (`f1_fork_exit.txt`): this was harmless when the parent was idle at the fork. A
+        used parent's child exited 0 through normal finalization in all three cases: today's
+        `_release`, a moved list, and pointers detached so nothing is freed.
+      - INFERRED: the case worth guarding is a lock that a parent thread held inside wasmtime at
+        the fork.
+      - Pick one, and say it. Either make the objects truly never freed (detach their pointers;
+        wasmtime-py keeps them in the private `_Managed__ptr`), or drop the claim and say they are
+        freed at exit.
+    - **"Used" must be a flag, set before `wt.Engine(cfg)` is called.** Checking "an engine
+      exists" misses a fork that lands while another thread is inside `_engine`. That child would
+      count as unused, and would inherit `_lock` held for ever (INFERRED). The fork hook must take
+      no lock. The refusal must come before any lock is taken.
+    - **The reason given for Linux no longer applies.** With the ticker reset, ticks would come
+      again. The reason to refuse on Linux is the state the child inherits from threads that no
+      longer exist: locks inside wasmtime, `_lock`, `_epoch_ticker._cond`. State that reason.
+    - **Windows has no `os.register_at_fork`.** Guard it with `hasattr`, as `concurrent.futures`
+      does (`thread.py:40`).
+    - **The fork check needs a fresh parent.** It must fork from a fresh child process, not from
+      pytest's own process, which has already made engines. The "only imported" half needs a
+      parent of its own.
+24. **`InterpreterPoolExecutor` is a `ThreadPoolExecutor`.** Low.
+    - EXECUTED (`a1_mech.txt`) and READ (`interpreter.py:100`): it subclasses `ThreadPoolExecutor`
+      in 3.14. So a check that accepts any `ThreadPoolExecutor` first would let it through.
+    - It exists only on 3.14 builds with `_interpreters`, and `requires-python` is `>=3.11`.
+    - Fix: the refusal tests `ProcessPoolExecutor` and, where it exists (`getattr`),
+      `InterpreterPoolExecutor` before anything else. The unit test skips the interpreter pool
+      where it is missing.
+    - The other version-dependent names are handled: `asyncio.timeout` exists from 3.11, and
+      `os.process_cpu_count` has its fallback.
+
+### §5.2 and the constitution
+
+- §5.2: the revision names no open question; each decision chooses. Findings 22 and 23 ask the
+  author to make two choices the text already implies, and to make them true.
+- §4.9: the two checks the first review named now count (finding 5). Finding 18 asks that the
+  other three fail rather than hang.
+- §4.15: the new limit has a default and a stated reason (finding 7). Finding 16 is the only gap
+  where a stated limit (cancel within 50 ms) would not hold as drafted.
+
+### Verdict
+
+**revise again.** The design and nearly all of the dispositions hold. Four text fixes are needed
+before build:
+- the first epoch deadline under `cancel=` (16);
+- the exit hook's registration order (17);
+- fail-safes for three checks (18);
+- the `Defaults` field default (19).
+Findings 20–24 are small, and can be fixed in the same pass.
+
+One line: the revision fixes what the first review found, but it must state the first epoch
+deadline and the exit hook's order, and keep its new checks from hanging the judge.
+
+## Disposition of the confirmation (filled in by the author)
+
+- Finding 8 — Fixed with 17: Decision 6 states the import-then-register order and why, citing
+  `rev015b/x1_order.txt`.
+- Finding 16 — Fixed: Decision 1 gains "The first deadline": `min(CANCEL_TICKS, ticks)` for a
+  store with a `cancel`; a cancel call's waits are sliced under `deadline_s=None`.
+- Finding 17 — Fixed: the order is in Decision 6, and a new bullet says a worker in a door host,
+  a compile or the zip's placement keeps exit waiting.
+- Finding 18 — Fixed: the three checks run in a child with the 120 s fail-safe, and "seen failing
+  first" names a stand-in per check (a callback that always continues, a `run_async` that does
+  not wait, no exit hook, no fork hook).
+- Finding 19 — Fixed: `async_workers` has a default; a unit test builds `Defaults` from three
+  arguments.
+- Finding 20 — Fixed: lookup, resize and `submit` under one lock; the overlap is stated.
+- Finding 21 — Fixed: the wait swallows any outcome and re-raises the first `CancelledError`;
+  the event leaves the registry in a `finally`.
+- Finding 22 — Fixed: Decision 1 gains "No call found": a thread flag, an error that stops the
+  guest, and a `RuntimeError` from `_drive`; a unit test drives both halves.
+- Finding 23 — Fixed: one way chosen (the parent's objects are freed at the child's exit, as the
+  probe showed harmless); `_used` is set before `wt.Engine`; the hook only assigns and takes no
+  lock; the reason is the inherited state of vanished threads; `hasattr` guard for Windows; the
+  check starts a fresh parent; "only imported" cites the reviewer's run.
+- Finding 24 — Fixed: the interpreter pool is looked up with `getattr` and checked first; its
+  unit case skips where it is missing.
+
+## Second confirmation (2026-10-17)
+
+- **Reviewer:** the confirming reviewer above (Claude Opus 5.5), not the author.
+- **Read:** the "Disposition of the confirmation" above, and the revised specification
+  (`git diff context/specifications/015-run-from-async-code.md`, Decisions 1–7). No new probes. The
+  evidence cited is the evidence in `rev015b/`. Nothing was edited except this section.
+
+### Each finding
+
+- 8 and 17. Confirmed. Decision 6 imports `concurrent.futures.thread`, then registers the hook,
+  on the first `run_async`. That is the order that worked in `x1_order.txt`. The exit bound now
+  names the door, the compile and the zip. One note, not a finding: `_register_atexit` raises
+  `RuntimeError` once shutdown has begun (READ, `threading.py:1545-1546`). So a first `run_async`
+  made during shutdown fails there instead of at `submit`. It is the same kind of error, and it
+  passes through.
+- 16. Confirmed. The first deadline is `min(CANCEL_TICKS, ticks)`, and a `cancel` call's waits are
+  sliced under `deadline_s=None`. Outcome 4 still uses `stop_at`, computed from `ticks`.
+- 18. Confirmed. The three checks run in a child with the fail-safe. Stand-ins are named for most
+  checks; the non-blocking check is missing one (see 25).
+- 19. Confirmed. The field has a default, and a unit test builds `Defaults` from three arguments.
+- 20. Confirmed. The lookup, any resize and `submit` happen under one lock, and the overlap is
+  stated. INFERRED: no lock cycle with the fork hook. The fork hook takes no lock. `submit` takes
+  `_lock` and then `concurrent.futures`' global lock, which `_python_exit` and the before-fork hook
+  hold alone.
+- 21. Confirmed. The wait swallows any outcome, the first `CancelledError` is re-raised, and the
+  event leaves the registry in a `finally`. This is the behaviour `a1_mech.txt` showed was missing.
+- 22. Resolved in Decision 1, but two details are left: see 26.
+- 23. Confirmed as a choice: refuse in the child, and free the parent's objects at the child's
+  exit. `_used` is set before `wt.Engine` is called. The fork hook takes no lock and only assigns.
+  The refusal comes before any lock is taken. There is a `hasattr` guard for Windows, and the fork
+  check starts a fresh parent. One sentence overstates the evidence: see 27.
+- 24. Confirmed. The interpreter pool is found with `getattr` and checked first, and its unit case
+  skips where it is missing.
+
+### New findings (all low; text only)
+
+25. **The non-blocking check has no stand-in named.** Decision 7's "seen failing first" list leaves
+    out `test_async_calls_do_not_block_the_loop`. Add one: a `run_async` that calls `run` inside the
+    coroutine. The check must reach its fail-safe and see `LATE`.
+26. **The "no call found" flag must be cleared, and the unit test line still contradicts it.**
+    - `_calls.lost` is per thread. It is never said to be cleared. A flag left set would make the
+      next call on that thread (a pool worker, say) raise "lost track of a call".
+    - Fix: `_drive` clears the flag when it pushes the call, and reads and clears it after the pop.
+    - Decision 7's unit bullet still says a raising stack lookup gives "a recorded stop". Make it
+      say: the flag is set, an error comes back, and `_drive` raises `RuntimeError`, as Decision 1
+      now says.
+27. **The fork evidence covers only an idle parent.** Decision 5 says freeing the parent's objects
+    at the child's exit "was harmless". `f1_fork_exit.txt` shows that only for a parent that was
+    idle at the fork. INFERRED: a parent that forks while one of its threads runs a guest may leave
+    a lock inside wasmtime held in the child. The child's exit could then hang when it frees those
+    objects. Say "harmless when the parent was idle at the fork (EXECUTED)". Name the busy-parent
+    case as not covered; the README's "warm up after the fork, never before" already steers away
+    from it.
+
+### Verdict
+
+**build.** Every finding from both rounds is resolved or answered. Findings 25–27 are one-sentence
+text fixes that change no design. The author makes them in the spec before writing code, and the
+build review checks them; they do not need another confirmation.
+
+One line: the revision is sound; fix three sentences, then build.
+
+## Disposition of the second confirmation (filled in by the author)
+
+- Finding 25 — Fixed: the non-blocking check's stand-in is a `run_async` that calls `run` in the
+  coroutine, which must reach the fail-safe and print `LATE`.
+- Finding 26 — Fixed: `_drive` clears `_calls.lost` at the push and reads and clears it after the
+  pop; the unit-test bullet says what a raising lookup gives.
+- Finding 27 — Fixed: Decision 5 says the probe covered an idle parent only, and that a parent
+  forking mid-guest is not covered (INFERRED).
+- The note on the exit hook's error is in Decision 2.
+
+The reviewer's verdict is "build"; these needed no further confirmation.
