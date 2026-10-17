@@ -345,3 +345,124 @@ Revise first: the mechanism is sound in outline and the ceiling is the right ide
 constitution still forbids patches outside §4.1, and `git apply` as specified gives
 host-dependent bytes, can skip a patch with exit 0, and cannot apply a committed patch to a CRLF
 file.
+
+## Confirmation
+
+- **Date:** 2026-10-17
+- **Reviewer:** the same fresh agent (Claude Opus 5.5); not the author.
+- **Reviewed:** the specification as revised in `44aa70f`, the Disposition above, and the
+  constitution as amended in `dbe9f02`. Spec 018 landed in `61b9fe6` (`scripts/steps/remove.sh`
+  is there, READ).
+- **Ran (EXECUTED, darwin-arm64, Homebrew `git` 2.51.0).** The repo was not edited, except to
+  append this section. Nothing under the main `build/` was written. Scripts are in
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev020/confirm/`:
+  - `apply_patches.sh`: Decision 3's `env -i … git -C "$TREE" apply --whitespace=nowarn
+    --verbose` command, copied as written, with a plain `case` test for the words Decision 3
+    names (`Skipped patch`, `with fuzz`, `offset`);
+  - `series/`: four patches (an edit, a dependent edit with a new file, a deletion and a mode
+    change, a CRLF edit, a trailing-space line);
+  - `gattr/`: a scratch repo with this repo's `.gitattributes` plus `recipes/patches/** -text`;
+  - `off/`: a patch to a file named `offsets.pyx`;
+  - `newest.sh`: the newest file of a tree, in POSIX `sh`.
+
+### The applier, the `-text` line and the constitution
+
+- **The `env -i` command holds under every hostile setting.** EXECUTED: the four-patch series
+  gave the same tree hash (`6196ef0a0b98`), exit 0, with no setting, with an XDG config and
+  `attributes` file, a global `core.autocrlf=true`, a global `apply.whitespace=fix`,
+  `GIT_CONFIG_COUNT`, `GIT_DIR` with `GIT_WORK_TREE`, and `LANG`/`LC_ALL=de_DE.UTF-8`. Because
+  `env -i` clears the locale, git's messages are always English, so testing its output is
+  sound.
+- **`recipes/patches/** -text` keeps a CRLF patch.** EXECUTED: after this repo's
+  `* text=auto eol=lf` line, a CRLF patch committed and checked out again was byte-identical.
+  `git check-attr text` says `unset`; `eol` still says `lf`, but has no effect without `text`.
+- **The constitution now agrees.** READ: §2.5, §6.2, §7 and §8 allow only the patches §4.1
+  allows.
+- **The mtime rule can be built in POSIX `sh`.** EXECUTED: `newest.sh` (a `find -newer` walk)
+  found `numpy/version.py` in numpy's unpacked tarball. That is the tarball's newest member, and
+  its mtime matches (1786240139). A changed file's own mtime can be saved before the patch and
+  put back after with `touch -r` (POSIX).
+
+### Each disposition against its finding
+
+1. The constitution — closed (`dbe9f02`, and Decision 11 for the README and docstrings).
+2. Host-dependent `git apply` — closed by Decision 3 (EXECUTED above). Conditions A and B.
+3. CRLF — closed by Decision 4 (EXECUTED above).
+4. The `patched` line — closed: dropped (Decision 5).
+5. Deletions and modes — closed: Decision 9 checks deletions, Decision 6 forbids mode lines.
+6. The embedder rule — closed: Decision 11.
+7. Drafts in `MANIFEST` — closed: the drafts are in `context/upstream/patches/` (Decision 1).
+8. Risky shapes — closed: Decision 6, the `Files:` line, Decision 8.
+9. mtimes — closed by a decision (Decision 3 plus Decision 6's ban on autotools inputs). The
+   ban costs little: a change to an input can be described in the draft, while the carried
+   patch changes the output the build runs.
+10. The three rules — closed, except how `released <version>` compares versions (condition D).
+11. Offsets — closed in intent. Condition A is about how they are detected.
+12. Small gaps — closed, except the file-name rule (condition C).
+13. Criteria — closed. Condition E tightens criterion 4.
+14. The drafts' open points — closed (Decision 2).
+
+### Conditions left (each a sentence in the spec, or checked by the build review)
+
+A. **Test git's output by exact line, not by word.** If "`offset`" is matched anywhere in the
+   output, a correct patch is refused when its path holds that word. Every `--verbose` run prints
+   `Checking patch <path>...`.
+   - EXECUTED: an exact-fit patch to `offsets.pyx` applied cleanly, and the word test then
+     refused it.
+   - EXECUTED (`tar -tf`): pinned paths that hold the word include pandas'
+     `pandas/_libs/tslibs/offsets.pyx`, `.pxd` and `.pyi`, and CPython's
+     `Include/internal/pycore_debug_offsets.h`. xz has `tests/ossfuzz/`.
+   - Fix: match `^Skipped patch '` and `^Hunk #[0-9]+ succeeded at [0-9]+ \(offset -?[0-9]+ lines?\)\.$`.
+     EXECUTED: the second pattern matches git's real offset line. Without `-C`, `git apply`
+     never fuzzes, so "with fuzz" needs no pattern. Add a unit case: a patch to a file named
+     `offsets.c` applies.
+B. **Make both arguments absolute first.** `GIT_CEILING_DIRECTORIES` ignores a relative entry,
+   and `git -C` opens a relative patch path from inside the tree.
+   - EXECUTED: a relative `TREE` gave `Skipped patch` (caught, so it fails closed). A relative
+     `PATCH_DIR` gave `can't open patch`.
+   - Both fail closed, but a step must not hit them. The script starts with
+     `TREE=$(cd "$1" && pwd -P)`, and the same for `PATCH_DIR`.
+C. **A rule for each patch file's name.** The applier's glob `[0-9][0-9][0-9][0-9]-*.patch`
+   silently ignores any other name, e.g. `1-fix.patch` or `0001-fix.diff`. `tree_drift` runs the
+   same applier, so it ignores the file too. READ: Decision 7's pairing rule would still pass if
+   the draft has the same name.
+   - The result would be a patch recorded in `MANIFEST` and the CHANGELOG but never applied.
+   - Decision 1 states the name form, but Decisions 6 and 7 do not check it.
+   - Fix: add to `patch_errors` that every file in a `<top>` folder is `NNNN-<slug>.patch`, with
+     `NNNN` unique in the folder, and a unit case for each.
+D. **Say how `released <version>` is compared.** The rule "fails when `<top>` is that version or
+   later" needs one comparison for all seven forms. SQLite's top is `sqlite-autoconf-3540100`,
+   not `3.54.1`.
+   - Fix: the status writes the version in the pinned file name's form. The version is the top
+     less its `SOURCE_PATTERNS` prefix. Compare as tuples of integers split on `.`.
+   - Do not use `packaging`: it is only a dependency of pytest, not of this project (§4.13).
+E. **Criterion 4: no line shift, criterion 3's clone, and identical binaries.**
+   - A comment added mid-file moves `__LINE__` for the code after it (INFERRED). That can change
+     the binaries and trip the ratchet's bytes rule, which is not this trial's point.
+   - Fix: append the comment at the end of a numpy `.c` file, and run the trial in criterion 3's
+     clone (steps 10 to 35 are already built there). Then also check that the three binaries and
+     the zip equal criterion 3's, byte for byte. That shows the applier changed only what the
+     patch says.
+
+Optional, not a condition: Decision 9 can find the deleted paths without `git apply --summary`.
+They are the tarball members missing from the patched copy.
+
+No new gap at the level of the first review's findings.
+
+### Verdict
+
+Ready to build, with conditions A to E written into the specification (one sentence each) or
+checked by the build review.
+
+## Disposition of the confirmation (filled in by the author)
+
+- **A:** made (Decision 3): whole-line patterns `^Skipped patch '` and
+  `^Hunk #[0-9]+ succeeded at [0-9]+ \(offset `; no fuzz pattern, since `-C` is never passed.
+- **B:** made (Decision 3): both arguments made absolute first.
+- **C:** made (Decision 7): every file in a patch folder is named `NNNN-<slug>.patch`, unique.
+- **D:** made (Decision 7): the version in the pinned file name's form, compared as integer tuples.
+- **E:** made (criterion 4): the comment at the end of a `.c` file, in criterion 3's clone, the
+  binaries and zip equal to criterion 3's.
+
+Your verdict made the specification ready to build with these.
+

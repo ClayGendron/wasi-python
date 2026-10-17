@@ -1,7 +1,8 @@
 # 020 — Carried patches
 
 - **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/020-carried-patches-spec-2026-10-17.md`), awaiting the reviewer's confirmation.
+  (`../reviews/020-carried-patches-spec-2026-10-17.md`), ready to build, with the
+  confirmation's five conditions made.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (a new `scripts/steps/apply_patches.sh`, each step that unpacks a
   source tarball), `.gitattributes`, the judge (`tests/harness/pins.py`, `tests/harness/scan.py`,
@@ -60,7 +61,8 @@ it, reviewed there.
    change rebased onto upstream's default branch in a scratch clone of upstream and hands the
    owner the branch and text; the owner opens the pull request, and the status records the link.
 3. **One applier, for the build and the judge.** A standalone `scripts/steps/apply_patches.sh
-   TREE PATCH_DIR` (it sources nothing, so the judge can run it alone):
+   TREE PATCH_DIR` (it sources nothing, so the judge can run it alone). It first makes both
+   arguments absolute (`cd … && pwd -P`): a relative tree makes git ignore the ceiling.
    - for each `PATCH_DIR/[0-9][0-9][0-9][0-9]-*.patch` in name order (an empty or missing folder
      applies nothing), it runs, one patch at a time,
 
@@ -75,9 +77,12 @@ it, reviewed there.
      config and attributes files; the ceiling keeps git from treating the outer repository's
      `build/` as its work tree. The review showed each of these changing the bytes or skipping a
      patch with exit 0 otherwise, and this form applying cleanly under all of them (EXECUTED);
-   - it fails the step when git exits non-zero, or when its output says `Skipped patch`, or that
-     a hunk applied `with fuzz` or at an `offset`: each patch is made against exactly its
-     tarball, so any of these means it no longer fits. git's output goes to the step's log; the
+   - it fails the step when git exits non-zero, or when a line of its output matches
+     `^Skipped patch '` or `^Hunk #[0-9]+ succeeded at [0-9]+ \(offset `: each patch is made
+     against exactly its tarball, so either means it no longer fits. Lines are matched whole, not
+     words: git prints every patched path, and pinned trees have files named `offsets.pyx`.
+     `env -i` clears the locale, so git's messages are English. git never fuzzes without `-C`,
+     which the applier does not pass. git's output goes to the step's log; the
      step dies with one line naming the patch;
    - after the patches, every file a patch changed gets back its mtime from the tarball, and a
      file a patch adds gets the tarball's newest member's mtime, so no `make` rule sees a newer
@@ -101,13 +106,18 @@ it, reviewed there.
    - the draft's `Files:` line names exactly the paths the patch touches. A review lists each
      added file and why (Decision 8).
 7. **The other rules** (same function):
+   - every file in `recipes/patches/<top>/` is named `NNNN-<slug>.patch` (four digits, unique in
+     the folder), since the applier's glob takes only those: a patch named otherwise would be
+     recorded but never applied;
    - every `.patch` has its draft, and every draft its `.patch`;
    - every `<top>` is the top of a pinned source tarball of a component in `SOURCE_PATTERNS`,
      taken from the pinned file name (the name without `.tar.*` equals the top for all seven, a
      separate check confirms it where `downloads/` exists), so the rule needs no download;
    - each draft has the six header lines and a status of the four forms; `released <version>`
      is allowed, but fails when `<top>` is that version or later, since the fix is then in the
-     tarball and the patch must go;
+     tarball and the patch must go. The version is written in the pinned file name's form
+     (`2.5.2` for numpy, `3540100` for SQLite) and compared as a tuple of integers split on `.`;
+     no version library is used;
    - each patch's path appears in `CHANGELOG.md` (the section is a review item);
    - the README's row reads `upstream patches carried: N` and N is the number of patch files.
 8. **Reviewing a patch.** A patch is code that runs in every guest, so it is reviewed as runner
@@ -188,10 +198,11 @@ In: the mechanism, landed with no patch. Out:
    the three binaries and the licences byte for byte; `MANIFEST` differing only in `recipe`
    lines (the changed steps, `apply_patches.sh`, `recipes/patches/README.md`); `SHA256SUMS` only
    in `MANIFEST`'s line.
-4. A trial, in a scratch clone with its `origin` removed, never committed, and deleted after: a
-   patch adding a comment to one numpy source file, staged with `git add`, with its draft,
-   CHANGELOG line and README count. Steps 40 to 90 run with it, and the whole judge passes; then
-   with the draft removed the rules check fails, naming it. The clone is then deleted.
+4. A trial, in criterion 3's clone with its `origin` removed, never committed, and deleted
+   after: a patch appending a comment at the end of one numpy `.c` file (so no `__LINE__`
+   shifts), staged with `git add`, with its draft, CHANGELOG line and README count. Steps 40 to
+   90 run with it; the binaries and the zip equal criterion 3's byte for byte; the whole judge
+   passes; then with the draft removed the rules check fails, naming it.
 5. A release dry run passes every job.
 
 ## Landing notes
