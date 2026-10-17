@@ -144,3 +144,16 @@ EXCEPTIONS = """
   (tag $e (param i32))
   (func (export "throws") (throw $e (i32.const 1))))
 """
+
+
+def door_probe(ptr: int, length: int) -> str:
+    """A snapshot-shaped guest whose run() sends one door frame of `length` bytes at `ptr` and
+    returns the door's answer (0, -1 or -2): one page of memory, so 65536 is its end."""
+    return f"""
+(module
+  {DOOR_IMPORT}
+  (memory (export "memory") 1)
+  {HOST_ALLOC}
+  (func (export "run") (result i32)
+    (call $door (i32.const {ptr}) (i32.const {length}) (i32.const 100) (i32.const 104))))
+"""

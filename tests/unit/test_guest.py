@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-import wat
 
-from harness import guest, paths
+from harness import guest, paths, wat
 
 
 def _run(work, name, source, **kw):

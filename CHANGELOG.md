@@ -25,6 +25,20 @@ package becomes a Python exception instead of ending the guest.
   a run does not pay for it.
 - **Measured:** a snapshot call costs about 5.5% more instructions than on 3.14 (CPython 3.15's
   own finalization); the stdlib zip is 6% larger.
+- **Safe by default** (`run` changes for existing callers):
+  - with no `root`, a call runs in a fresh private directory, removed afterwards;
+  - a call has a 60 s deadline, a 1 GiB memory cap and a 16 MiB output cap per stream unless it
+    passes others (`None` means no limit); a longer job now ends with `trapped == "deadline"`;
+  - the guest's environment starts from `TMPDIR=/tmp`, `HOME=/tmp`, `PYTHONTZPATH=`, with
+    `env=` laid over it, so `os.environ` is no longer exactly what `env=` gave;
+  - `Completed` gains `truncated`, last, defaulting to `()`.
+- **Planted code never runs:** only the stdlib zip is on `sys.path` and `site` does not run
+  (`sys.flags.no_site == 1`), so a module, `.pth` or `pyvenv.cfg` one call leaves in a root is
+  never run by the next. The plain reactor ran them before.
+- **The door is bounded:** a frame past guest memory, a response over 2 GiB or a failing host is
+  a host fault (−2); `run` no longer raises for them.
+- **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;
+  before, it ignored them or swapped them.
 
 ## 0.1.0a1 — 2026-10-17
 

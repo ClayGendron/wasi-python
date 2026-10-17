@@ -10,10 +10,9 @@ import zipfile
 from pathlib import Path
 
 import pytest
-import wat
 
 from harness import artifacts as rules
-from harness import paths
+from harness import paths, wat
 
 
 def sha(data: bytes) -> str:

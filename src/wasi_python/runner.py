@@ -2,12 +2,16 @@
 
     from wasi_python import run
 
-    done = run(["-c", "import pandas; print(pandas.__version__)"], root="/tmp/guest")
+    done = run(["-c", "import pandas; print(pandas.__version__)"])
     done.exit_code, done.stdout
 
 It does what any embedder does: preopen a directory at `/`, bind the one custom import
 (`host::call`), and call the reactor's exports. wasmtime-py (the `run` extra) is imported only
 here, when a call is made.
+
+It is safe by default (spec 006): a call that names no root gets a fresh private one, removed
+afterwards; a call that names no limit still has one for memory, time and output (`DEFAULTS`);
+and nothing a guest frame or a host function does makes `run` raise.
 """
 
 from __future__ import annotations
@@ -27,7 +31,7 @@ import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import Artifacts
 from . import artifacts as find_artifacts
@@ -42,8 +46,30 @@ CACHE_ENV = "WASI_PYTHON_CACHE"
 TICK_S = 0.01
 NO_DEADLINE = 2**62
 MASK32 = 0xFFFFFFFF
+MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
+BASE_ENV = {"TMPDIR": "/tmp", "HOME": "/tmp", "PYTHONTZPATH": ""}
 
 Host = Callable[[bytes], bytes]
+
+
+@dataclass(frozen=True)
+class Defaults:
+    """The limits a call has when it names none. `run` reads `DEFAULTS` at call time."""
+
+    memory_bytes: int  # the guest's linear memory
+    deadline_s: float  # wall-clock time, by epoch interruption (costs nothing per instruction)
+    output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
+
+
+DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
+
+
+class _Unset:
+    def __repr__(self) -> str:
+        return "<default>"
+
+
+_UNSET: Any = _Unset()
 
 
 @dataclass(frozen=True)
@@ -55,24 +81,30 @@ class Completed:
     stderr: bytes
     trapped: str | None  # None, "out of fuel", "deadline", or the trap's first line
     fuel_used: int | None  # instructions spent, when a fuel cap was given and no deadline hit
+    truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
 
 
 def run(
     argv: list[str],
     *,
-    root: str | os.PathLike[str],
+    root: str | os.PathLike[str] | None = None,
     env: Mapping[str, str] | None = None,
     stdin: bytes | None = None,
     host: Host | None = None,
     snapshot: bool = True,
     fuel: int | None = None,
-    deadline_s: float | None = None,
-    memory_bytes: int | None = None,
+    deadline_s: float | None = _UNSET,
+    memory_bytes: int | None = _UNSET,
+    output_bytes: int | None = _UNSET,
     cache_dir: str | os.PathLike[str] | None | bool = None,
     artifacts: Artifacts | None = None,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
+    `root` is the host directory the guest sees as `/`; without one, a fresh private directory is
+    made and removed after the call. `memory_bytes`, `deadline_s` and `output_bytes` default to
+    `DEFAULTS`; `None` means no limit. The guest's environment starts from `BASE_ENV` (`/tmp` for
+    temporary files and `HOME`, and `zoneinfo` on the zip's tzdata), with `env` laid over it.
     `cache_dir=False` keeps compiled modules in this process only, never on disk."""
     try:
         import wasmtime as wt
@@ -81,14 +113,76 @@ def run(
             'wasi_python.run needs wasmtime-py: pip install "wasi-python[run]"'
         ) from e
 
+    limits = DEFAULTS
+    if memory_bytes is _UNSET:
+        memory_bytes = limits.memory_bytes
+    if deadline_s is _UNSET:
+        deadline_s = limits.deadline_s
+    if output_bytes is _UNSET:
+        output_bytes = limits.output_bytes
+
     found = artifacts if artifacts is not None else find_artifacts()
     binary = found.snapshot if snapshot else found.plain
-    guest_root = Path(root)
-    _place_stdlib(found, guest_root)
-
     engine = _engine(fuel is not None)
     module = _module(engine, fuel is not None, binary, _cache_dir(cache_dir))
+    if root is not None:
+        guest_root = Path(root)
+        _place_stdlib(found, guest_root)
+        return _call(
+            wt,
+            engine,
+            module,
+            found,
+            guest_root,
+            argv,
+            env,
+            stdin,
+            host,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+        )
+    guest_root = Path(tempfile.mkdtemp(prefix="wasi-python-root-"))  # 0700, this user's own
+    try:
+        _place_private(found, guest_root)
+        return _call(
+            wt,
+            engine,
+            module,
+            found,
+            guest_root,
+            argv,
+            env,
+            stdin,
+            host,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+        )
+    finally:
+        shutil.rmtree(guest_root, ignore_errors=True)
 
+
+def _call(
+    wt: Any,
+    engine: wasmtime.Engine,
+    module: wasmtime.Module,
+    found: Artifacts,
+    guest_root: Path,
+    argv: list[str],
+    env: Mapping[str, str] | None,
+    stdin: bytes | None,
+    host: Host | None,
+    fuel: int | None,
+    deadline_s: float | None,
+    memory_bytes: int | None,
+    output_bytes: int | None,
+) -> Completed:
+    """One instance, one program; every wasmtime object it makes is released when it returns, so
+    a private root can be removed afterwards (Windows refuses to remove an open directory)."""
+    _real_dir(guest_root, ("tmp",))  # TMPDIR and HOME (BASE_ENV); a guest's link there is removed
     store = wt.Store(engine)
     if fuel is not None:
         store.set_fuel(fuel)
@@ -97,13 +191,13 @@ def run(
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     store.set_epoch_deadline(ticks)
 
-    out, err = bytearray(), bytearray()
+    out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
-    wasi.env = sorted((env or {}).items())
+    wasi.env = sorted({**BASE_ENV, **(env or {})}.items())
     wasi.preopen_dir(str(guest_root), "/")
-    wasi.stdout_custom = lambda data: _append(out, data)
-    wasi.stderr_custom = lambda data: _append(err, data)
+    wasi.stdout_custom = out.write
+    wasi.stderr_custom = err.write
     with tempfile.TemporaryDirectory(prefix="wasi-python-") as scratch:
         stdin_path = Path(scratch) / "stdin"
         stdin_path.write_bytes(stdin or b"")
@@ -133,12 +227,24 @@ def run(
     # meaningless then (spec 001 landing notes).
     counted = fuel is not None and trapped != "deadline"
     fuel_used = fuel - store.get_fuel() if counted else None
-    return Completed(exit_code, bytes(out), bytes(err), trapped, fuel_used)
+    truncated = tuple(s.name for s in (out, err) if s.dropped)
+    return Completed(exit_code, bytes(out.data), bytes(err.data), trapped, fuel_used, truncated)
 
 
-def _append(buffer: bytearray, data: bytes) -> int:
-    buffer.extend(data)
-    return len(data)
+class _Stream:
+    """A guest's stdout or stderr, kept up to a cap. Bytes past it are dropped, never buffered,
+    and still reported as written, so the guest's write succeeds and is not retried (wasmtime-py
+    takes the callback's return value as the count written)."""
+
+    def __init__(self, name: str, cap: int | None) -> None:
+        self.name, self.cap, self.data, self.dropped = name, cap, bytearray(), False
+
+    def write(self, data: bytes) -> int:
+        room = len(data) if self.cap is None else max(0, self.cap - len(self.data))
+        if room < len(data):
+            self.dropped = True
+        self.data.extend(data[:room])
+        return len(data)
 
 
 def _first_line(text: str) -> str:
@@ -159,24 +265,35 @@ def _trap_name(e: wasmtime.Trap) -> str:
 def _door(host: Host | None) -> Callable[..., int]:
     """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5)."""
 
+    import wasmtime as wt
+
     def call(caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
         if host is None:
             return NO_HOST
+        try:
+            return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr)
+        except (wt.Trap, wt.WasmtimeError):
+            raise  # a deadline or fuel running out inside host_alloc ends the run as anywhere
+        except Exception:
+            return HOST_FAULT  # nothing a frame or a host does escapes run() (spec 006)
+
+    def frame(caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
         memory, alloc = caller.get("memory"), caller.get("host_alloc")
         if memory is None or alloc is None:
             return HOST_FAULT
         ptr, length = ptr & MASK32, length & MASK32  # i32 values: addresses are unsigned
         out_ptr_ptr, out_len_ptr = out_ptr_ptr & MASK32, out_len_ptr & MASK32
-        request = bytes(memory.read(caller, ptr, ptr + length))
-        try:
-            response = host(request)
-            if not isinstance(response, (bytes, bytearray, memoryview)):
-                return HOST_FAULT
-            response = bytes(response)
-        except Exception:
+        size = memory.data_len(caller)
+        if ptr + length > size or out_ptr_ptr + 4 > size or out_len_ptr + 4 > size:
+            return HOST_FAULT  # memory.read would clamp a frame that runs past memory
+        response = host(bytes(memory.read(caller, ptr, ptr + length)))
+        if not isinstance(response, (bytes, bytearray, memoryview)):
             return HOST_FAULT
+        if len(response) > MAX_RESPONSE:
+            return HOST_FAULT  # checked before the copy
+        response = bytes(response)
         p = alloc(caller, len(response)) & MASK32
-        if not p:
+        if not p or p + len(response) > memory.data_len(caller):
             return HOST_FAULT
         memory.write(caller, response, p)
         memory.write(caller, struct.pack("<I", p), out_ptr_ptr)
@@ -208,6 +325,14 @@ def _place_stdlib(found: Artifacts, root: Path) -> None:
 
 
 _placing: dict[str, threading.Lock] = {}
+
+
+def _place_private(found: Artifacts, root: Path) -> None:
+    """The zip in a private root this call made: a plain copy, recorded in no cache, so a process
+    making many calls without a root does not grow `_placed` or `_placing`."""
+    lib = root / "usr" / "local" / "lib"
+    lib.mkdir(parents=True)
+    shutil.copyfile(found.stdlib_zip, lib / f"python{_version_tag(found.manifest)}.zip")
 
 
 def _place_checked(found: Artifacts, dest: Path, want: str) -> None:

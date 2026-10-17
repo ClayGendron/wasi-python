@@ -1,7 +1,7 @@
 """The reactor's argument handling: the module `_reactor` (spec 003, Decision 6).
 
 recipes/reactor_main.c calls `run(argv, environ)` once per instance. Step 60 compiles this file with
-the pinned host Python (the guest's own 3.14) and links the marshalled code into the reactor, so no
+the pinned host Python (the guest's own version) and links the marshalled code into the reactor, so no
 start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which `_report`
 strips from tracebacks.
 """

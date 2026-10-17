@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-import wat
 
-from harness import wasm
+from harness import wasm, wat
 
 
 def test_reads_imports_types_and_exports(work) -> None:

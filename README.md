@@ -160,19 +160,21 @@ wasmtime-py):
 ```python
 from wasi_python import run
 
-done = run(["-c", "import pandas as pd; print(pd.Series([1, 2, 3]).sum())"], root="/tmp/guest")
+done = run(["-c", "import pandas as pd; print(pd.Series([1, 2, 3]).sum())"])
 done.exit_code, done.stdout        # (0, b'6\n')
 ```
 
-`root` is a host directory and becomes the guest's whole filesystem, at
-`/`. The runner copies the stdlib zip into it before each call and
+With no `root`, the call gets a fresh private directory as its whole
+filesystem, removed afterwards. `root=` grants a host directory instead,
+at `/`: the runner copies the stdlib zip into it before each call and
 replaces anything the guest changed there, without following any link
 the guest left. `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
-instructions), `deadline_s`, `memory_bytes`, `cache_dir` and `artifacts`.
-It returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
-`"deadline"`, or a trap's first line) and `fuel_used`. A module loaded from
+instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`
+and `artifacts`. It returns `exit_code`, `stdout`, `stderr`, `trapped`
+(`"out of fuel"`, `"deadline"`, or a trap's first line), `fuel_used` and
+`truncated` (the streams whose output hit the cap). A module loaded from
 the `.cwasm` cache counts a constant few tens of millions fewer instructions
 than one compiled in the process, with the same output, so compare
 `fuel_used` only between calls whose module came the same way
@@ -205,6 +207,37 @@ Any other embedder does the same three things:
 The plain `wasmtime run` CLI cannot bind a custom import and refuses the
 binary. With `-W unknown-imports-default` it runs it, but the door then
 answers 0 with no response, which guest code reads as an empty answer.
+
+## Safety
+
+Made for running code nobody reviewed, such as a model's. The policy:
+code planted in a root never runs in a later call, on either binary; data
+planted in a root a caller reuses is read by later calls, and only a fresh
+root closes that; a call that names no limit still has one.
+
+**Enforced, and judged** (`tests/checks/test_v1_2_*.py`):
+
+- the guest sees only its root: no host path, no `..` out, no symbolic
+  link out (refused at creation or on open);
+- no network, no processes, no shared libraries; two imports only, WASI
+  preview1 and the one door;
+- only the stdlib zip is on the import path, and `site` does not run, so
+  modules, `.pth` files or a `pyvenv.cfg` planted in a root never run
+  (`sys.flags.no_site` is 1; `exit`, `quit`, `help` and `license` exist
+  as in native Python);
+- every door frame is bounded by guest memory, and nothing a frame or a
+  host function does makes `run` raise;
+- **defaults** (`wasi_python.runner.DEFAULTS`): 1 GiB of memory, a 60 s
+  deadline, 16 MiB of output per stream (the rest dropped and named in
+  `truncated`); pass `None` for no limit. The guest's environment starts
+  from `TMPDIR=/tmp`, `HOME=/tmp` and `PYTHONTZPATH=` (`zoneinfo` on the
+  zip's tzdata); `env=` is laid over them.
+
+**Not protected:** disk use in a granted root; data planted in a reused
+root (dateutil's zone files, `mimetypes`' tables, any user file, and the
+plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); a program
+damaging its own stdlib zip during its own run; timing (the clock is real
+and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope
 

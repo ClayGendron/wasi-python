@@ -214,4 +214,49 @@ the owner (`../questions-for-the-owner.md`) or on their own specifications.
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-17 by the author agent; build review pending.
+
+**The first run, before any fix** (EXECUTED: the checks written first, on the spec 005 build and
+runner): 4 passed, 14 failed.
+
+| check | first run | why |
+|---|---|---|
+| 1.1 links, plain and snapshot | pass | a guard of existing behaviour |
+| 1.2 planted code, plain | fail | `['evil_a', 'evil_b', 'evil_d']` imported, the `.pth` markers written, `RuntimeWarning`s on stderr |
+| 1.2 planted code, snapshot | fail | no planted code ran, but `sys.path` still listed `python3.15` and `lib-dynload` (the spec called this a guard of existing behaviour; the `sys.path` assertion is new) |
+| 1.3 zoneinfo | fail | `9:00:00` (Tokyo's offset, from the planted file) |
+| 1.4 temp files | fail | `/ /` |
+| 1.5 no root | fail | `run()` required `root` |
+| 1.6 to 1.8 defaults | fail | no `Defaults` in the runner |
+| 1.9 door bounds (4 cases) | fail | no `MAX_RESPONSE` in the runner |
+| 1.10 large response, plain and snapshot | pass | a guard of existing behaviour |
+| 1.11 extra preopens, root first | fail | `/data/x.txt` read the copy planted in the root |
+| 1.11 extra preopens, data first | fail | `/data/x.txt`: errno 44 |
+
+The first run of 1.11 also failed on a bug in the check itself (`fileno()` on an in-memory
+stream); the probe was fixed to skip streams without a descriptor before any runtime change.
+
+**After the fix:** all 18 pass. 1.2 first failed on the plain reactor's `sys.prefix`, which the
+revised spec had already said not to assert (Decision 4, N1); the assertion was removed.
+
+**The build** (EXECUTED: steps 60 to 90 twice from the 005 build): reactor `4e2b2470314ee392…`
+(29,802,408 bytes), snapshot `c6a791d3960c6398…` (63,492,577 bytes), zip unchanged
+(`e95b35dea78981e8…`); the second run gave the same three.
+
+**Growth, with its measured causes** (EXECUTED: the judge's driver on the snapshot and plain
+reactor, `-c pass`, for the build and two variants built from it):
+
+| build | snapshot `-c pass` | plain `-c pass` | modules |
+|---|---|---|---|
+| this spec | 124,236,654 | 246,412,173 | 583 / 34 |
+| without `__wasilibc_reset_preopens()` | 124,235,743 | 246,412,173 | 583 / 34 |
+| without the three `site` helpers | 124,089,784 | 242,350,381 | 581 / 32 |
+
+- The reset costs 911 instructions per snapshot call (its table is rebuilt on first use).
+- The `site` helpers (`import site` and its `_sitebuiltins`, for `exit`, `quit`, `help`,
+  `copyright`, `credits`, `license`) cost 147k on the snapshot and 4.06M on the plain reactor.
+- Against spec 005 the judge shows the snapshot's runs +0.03% to +0.09% (about +56k) and the
+  plain reactor's −0.08% to −0.18% (`site.main()`'s path work is gone). The snapshot's growth is
+  the helpers replacing what `site.main()` left; the review's prototype C, which ran them through
+  `PyRun_SimpleString` in `__main__`, measured −0.023% with its own harness, so the two figures
+  are not from the same driver (INFERRED). The binaries grew 542 and 8,221 bytes.

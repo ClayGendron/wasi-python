@@ -14,8 +14,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wasi/api.h>
+#include <wasi/libc.h>
 
 #include "reactor_bootstrap.h"
+
+/* The one entry on the guest's import path: the stdlib zip, named for the interpreter this file is
+ * compiled into (/usr/local/lib/python315.zip), so the two cannot disagree. */
+#define STR_(x) #x
+#define STR(x) STR_(x)
+#define STDLIB_ZIP L"/usr/local/lib/python" STR(PY_MAJOR_VERSION) STR(PY_MINOR_VERSION) ".zip"
 
 #ifndef PREIMPORT
 #define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
@@ -106,6 +113,8 @@ clear_unused_stack(void)
     }
 }
 
+static void run_private(const char *source);
+
 static void
 init_interpreter(int fixed_hash_seed)
 {
@@ -118,8 +127,20 @@ init_interpreter(int fixed_hash_seed)
         config.use_hash_seed = 1;
         config.hash_seed = 0;
     }
+    /* Only the zip is on the import path, and site does not run: the directories getpath would
+     * add (python3.X, lib-dynload, site-packages, a venv's) sit in the guest's writable root, so
+     * code one run planted there would run in the next (spec 006, Decision 4). stdlib_dir keeps
+     * the frozen modules' __file__. */
+    config.module_search_paths_set = 1;
+    config.site_import = 0;
     static wchar_t program[] = L"/usr/local/bin/python.wasm";
     PyStatus status = PyConfig_SetString(&config, &config.program_name, program);
+    if (!PyStatus_Exception(status)) {
+        status = PyWideStringList_Append(&config.module_search_paths, STDLIB_ZIP);
+    }
+    if (!PyStatus_Exception(status)) {
+        status = PyConfig_SetString(&config, &config.stdlib_dir, STDLIB_ZIP);
+    }
     if (!PyStatus_Exception(status)) {
         status = Py_InitializeFromConfig(&config);
     }
@@ -140,6 +161,9 @@ init_interpreter(int fixed_hash_seed)
         abort();
     }
     Py_DECREF(module);
+    /* What site would have added to builtins, without its path work: exit, quit, help,
+     * copyright, credits, license. */
+    run_private("import site\nsite.setquit()\nsite.setcopyright()\nsite.sethelper()\n");
     initialized = 1;
 }
 
@@ -170,6 +194,9 @@ wizer_initialize(void)
      * random and numpy.random from WASI entropy on every call. */
     run_private("import gc\ngc.collect()\ngc.freeze()\n");
     pinned = 0;
+    /* Forget the preopens Wizer gave, so the table is rebuilt from the runtime's, by name and in
+     * any order, on first use (spec 006, Decision 5). */
+    __wasilibc_reset_preopens();
     clear_unused_stack();
 }
 

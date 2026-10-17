@@ -1,7 +1,8 @@
 """The judge's own guest driver (spec 002, Decision 9).
 
-It does only what any embedder must do: preopen one directory at `/`, bind `host::call`, and
-call one export. It is kept apart from `wasi_python.run`, the runner it judges. It also answers
+It does only what any embedder must do: preopen one directory at `/` (and, when a check asks,
+more directories, read-only or writable, in a chosen order), bind `host::call`, and call one
+export. It is kept apart from `wasi_python.run`, the runner it judges. It also answers
 `random_get` and `clock_time_get` itself, so every run is seeded alike and fuel (instructions
 executed) repeats to a few parts in ten million
 (context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-exact.md).
@@ -121,6 +122,8 @@ def run(
     env: Mapping[str, str] | None = None,
     host: Callable[[bytes], bytes] | None = None,
     fuel: int = DEFAULT_FUEL,
+    preopens: list[tuple[str, Path, bool]] | None = None,
+    preopens_first: bool = False,
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`."""
     mod = module(wasm)
@@ -143,7 +146,16 @@ def run(
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted((env or {}).items())
-    wasi.preopen_dir(str(root), "/")
+    # Extra preopens are (guest path, host directory, writable); they go after the root, or
+    # before it with preopens_first, so a check can try both orders (spec 006, check 1.11).
+    extra = [
+        (str(host_dir), guest_path, writable) for guest_path, host_dir, writable in preopens or []
+    ]
+    ordered = (
+        [*extra, (str(root), "/", True)] if preopens_first else [(str(root), "/", True), *extra]
+    )
+    for host_dir, guest_path, writable in ordered:
+        wasi.preopen_dir(host_dir, guest_path, writable)
     wasi.stdout_file = str(io / "stdout")
     wasi.stderr_file = str(io / "stderr")
     store.set_wasi(wasi)
@@ -174,12 +186,18 @@ def run(
             return HOST_FAULT
         ptr, length = ptr & 0xFFFFFFFF, length & 0xFFFFFFFF  # i32 values; addresses are unsigned
         out_ptr_ptr, out_len_ptr = out_ptr_ptr & 0xFFFFFFFF, out_len_ptr & 0xFFFFFFFF
+        if ptr + length > memory.data_len(caller):  # the runner's bound (spec 006, Decision 3)
+            return HOST_FAULT
         request = bytes(memory.read(caller, ptr, ptr + length))
         try:
             response = bytes(host(request))
         except Exception:
             return HOST_FAULT
+        if len(response) > 0x7FFFFFFF:
+            return HOST_FAULT
         p = alloc(caller, len(response)) & 0xFFFFFFFF
+        if not p or p + len(response) > memory.data_len(caller):
+            return HOST_FAULT
         memory.write(caller, response, p)
         memory.write(caller, struct.pack("<I", p), out_ptr_ptr)
         memory.write(caller, struct.pack("<I", len(response)), out_len_ptr)

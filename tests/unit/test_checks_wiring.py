@@ -78,7 +78,7 @@ def test_a_set_without_its_snapshot_fails_completeness_and_blocks_the_snapshot(
 
 
 def test_a_set_with_a_third_import_breaks_the_wall(run_checks, work) -> None:
-    import wat
+    from harness import wat
 
     d = good_set(work / "third")
     wat.build(d, "python.wasm", wat.THIRD_IMPORT)
