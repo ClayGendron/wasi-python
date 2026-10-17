@@ -5,7 +5,8 @@
 # cross-build/, not named by host triple (spec 003, Decision 3). Its PYTHONPATH adds the caller's,
 # which carries the build tools (Cython, versioneer) and, for pandas, the host-side numpy stand-in.
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
-CP="$HERE/build/Python-3.14.8"
+. "$HERE/scripts/line.sh"
+CP="$HERE/build/Python-$PYTHON_VERSION"
 W="$CP/cross-build/wasm32-wasip1"
 BUILD_PYTHON=""
 for dir in "$CP"/cross-build/*; do
@@ -21,6 +22,6 @@ fi
 export _PYTHON_PROJECT_BASE="$W"
 export _PYTHON_HOST_PLATFORM=wasi-wasm32-wasi
 export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
-export _PYTHON_SYSCONFIGDATA_PATH="$W/build/lib.wasi-wasm32-3.14"
+export _PYTHON_SYSCONFIGDATA_PATH="$W/build/lib.wasi-wasm32-$PYTHON_MM"
 export PYTHONPATH="$CP/Lib:$_PYTHON_SYSCONFIGDATA_PATH${PYTHONPATH:+:$PYTHONPATH}"
 exec "$BUILD_PYTHON" "$@"

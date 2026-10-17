@@ -5,7 +5,7 @@ set -eu
 . "$(dirname "$0")/common.sh"
 
 NUMPY_SITE=$(dirname "$(find "$B/numpy-install" -type d -name numpy -path '*site-packages*' | head -n 1)")
-SYSCONFIG="$W/build/lib.wasi-wasm32-3.14/_sysconfigdata__wasi_wasm32-wasi.py"
+SYSCONFIG="$W/build/lib.wasi-wasm32-$PYTHON_MM/_sysconfigdata__wasi_wasm32-wasi.py"
 [ -f "$SYSCONFIG" ] || die "no WASI _sysconfigdata at $SYSCONFIG"
 mkdir -p "$OUT"
 host_from_source

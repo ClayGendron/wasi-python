@@ -1,7 +1,8 @@
 """Read a core wasm module's function types, imports and exports, without an engine.
 
 Enough of the binary format (WebAssembly core spec, chapter 5) to judge the wall: which modules
-the guest imports from, with which function types, and what it exports.
+the guest imports from, with which function types, what it exports, and which sections it has
+(a tag section, id 13, is where the exception-handling proposal defines its exception tags).
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ MAGIC = b"\0asm"
 CORE_VERSION = b"\x01\0\0\0"
 
 KINDS = {0: "func", 1: "table", 2: "memory", 3: "global", 4: "tag"}
+TAG_SECTION = 13
 VALTYPES = {0x7F: "i32", 0x7E: "i64", 0x7D: "f32", 0x7C: "f64", 0x7B: "v128"}
 
 
@@ -41,6 +43,7 @@ class Module:
     types: list[FuncType] = field(default_factory=list)
     imports: list[Import] = field(default_factory=list)
     exports: dict[str, str] = field(default_factory=dict)  # name -> kind
+    sections: set[int] = field(default_factory=set)  # the ids of the sections present
 
 
 class _Reader:
@@ -82,6 +85,8 @@ class _Reader:
             return VALTYPES[b]
         if b in (0x70, 0x6F):  # funcref, externref
             return "ref"
+        if b == 0x69:  # exnref: the exception-handling proposal's standard form
+            return "exnref"
         raise WasmError(f"unsupported value type 0x{b:02x}")
 
     def limits(self) -> None:
@@ -105,6 +110,7 @@ def parse(data: bytes) -> Module:
         if start + size > len(data):
             raise WasmError(f"section {section} runs past the end")
         s = _Reader(data, start, start + size)
+        mod.sections.add(section)
         if section == 1:
             for _ in range(s.u32()):
                 if s.byte() != 0x60:

@@ -17,7 +17,10 @@ import tomllib
 import zipfile
 from pathlib import Path
 
-PYTHON = "3.14.8"
+import line
+
+LINE = line.read()
+PYTHON = LINE["PYTHON_VERSION"]
 PACKAGES = {
     "numpy": "2.5.2",
     "pandas": "3.0.6",
@@ -31,21 +34,24 @@ WHEELS = {
     "tzdata": "tzdata-2026.5-py2.py3-none-any.whl",
     "six": "six-1.17.0-py2.py3-none-any.whl",
 }
+# The licence notices of what the SDK links in, named by the line's wasi-libc and LLVM commits.
 WASI_LIBC = [
-    "wasi-libc-b9ef79d7-LICENSE",
-    "wasi-libc-b9ef79d7-LICENSE-APACHE",
-    "wasi-libc-b9ef79d7-LICENSE-APACHE-LLVM",
-    "wasi-libc-b9ef79d7-LICENSE-MIT",
-    "wasi-libc-b9ef79d7-musl-COPYRIGHT",
-    "wasi-libc-b9ef79d7-cloudlibc-LICENSE",
+    f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-{name}"
+    for name in (
+        "LICENSE",
+        "LICENSE-APACHE",
+        "LICENSE-APACHE-LLVM",
+        "LICENSE-MIT",
+        "musl-COPYRIGHT",
+        "cloudlibc-LICENSE",
+    )
 ]
 LLVM = [
-    "llvm-26a1d660-libcxx-LICENSE.TXT",
-    "llvm-26a1d660-libcxxabi-LICENSE.TXT",
-    "llvm-26a1d660-compiler-rt-LICENSE.TXT",
+    f"llvm-{LINE['LLVM_COMMIT']}-{component}-LICENSE.TXT"
+    for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt")
 ]
-RESEARCH_PINS = {"wasi-sdk-33.0-arm64-macos.tar.gz", "python-3.14.7-wasi_sdk-24.zip"}
-PREIMPORT = "encodings, io, os, sys, json, csv, re, numpy, pandas"
+RESEARCH_PINS = {"python-3.14.7-wasi_sdk-24.zip"}
+PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
 
 

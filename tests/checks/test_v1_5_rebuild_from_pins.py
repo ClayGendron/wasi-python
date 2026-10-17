@@ -49,6 +49,11 @@ def test_toolchain_is_pinned_for_linux_and_macos() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_cpp_is_compiled_with_exceptions() -> None:
+    errors = scan.cpp_exception_errors(paths.REPO)
+    assert not errors, scan.report(errors)
+
+
 def test_pure_python_packages_are_pinned() -> None:
     errors = scan.pure_python_errors(paths.read_pin_list())
     assert not errors, scan.report(errors)

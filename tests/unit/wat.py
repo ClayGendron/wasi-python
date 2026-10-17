@@ -135,3 +135,12 @@ def build(directory: Path, name: str, wat: str) -> Path:
     path = directory / name
     path.write_bytes(wasmtime.wat2wasm(wat))
     return path
+
+
+# The exception-handling proposal's standard form: a tag, and a function type naming exnref.
+EXCEPTIONS = """
+(module
+  (type (func (param exnref)))
+  (tag $e (param i32))
+  (func (export "throws") (throw $e (i32.const 1))))
+"""

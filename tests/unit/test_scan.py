@@ -138,16 +138,12 @@ def test_toolchain_pins_for_both_hosts() -> None:
     both = [
         "wasi-sdk-24.0-arm64-macos.tar.gz",
         "wasi-sdk-24.0-x86_64-linux.tar.gz",
-        "wizer-v11.0.3-aarch64-macos.tar.xz",
-        "wizer-v11.0.3-x86_64-linux.tar.xz",
         "wasmtime-v49.0.3-aarch64-macos.tar.xz",
         "wasmtime-v49.0.3-x86_64-linux.tar.xz",
     ]
     assert scan.toolchain_errors(both) == []
     assert scan.toolchain_errors(both[:1]) == [
         "wasi-sdk: no Linux x86_64 pin",
-        "wizer: no Linux x86_64 pin",
-        "wizer: no macOS arm64 pin",
         "wasmtime: no Linux x86_64 pin",
         "wasmtime: no macOS arm64 pin",
     ]

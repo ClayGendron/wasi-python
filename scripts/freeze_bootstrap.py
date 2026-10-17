@@ -4,7 +4,7 @@
 
 Writes a C header holding the module's marshalled code object, which recipes/reactor_main.c loads
 with PyMarshal_ReadObjectFromString, so no start of the plain reactor compiles Python source. The
-host Python is the guest's own version (3.14): marshal's format and the bytecode are the same, and
+host Python is the guest's own version (scripts/line.conf): marshal's format and the bytecode are the same, and
 the header carries the bytecode magic the reactor checks before it loads. Run with
 PYTHONHASHSEED=0: set constants are marshalled in hash order.
 """
@@ -17,7 +17,9 @@ import os
 import sys
 from pathlib import Path
 
-TARGET = (3, 14)
+import line
+
+TARGET = line.target()
 
 
 def main() -> int:

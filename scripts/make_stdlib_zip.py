@@ -5,7 +5,7 @@
         [--replace <old>=<new>]... out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
-guest's: both are 3.14; UNCHECKED_HASH, so no source mtime is consulted). Every member is deflated
+guest's: both are the line's version, scripts/line.conf; UNCHECKED_HASH, so no source mtime is consulted). Every member is deflated
 at level 9 with the timestamp 1980-01-01 00:00 and mode 0644, in sorted order, so the same inputs
 give the same bytes. Run it with PYTHONHASHSEED=0: set and frozenset constants are marshalled in
 hash order. --replace rewrites text in _sysconfigdata and numpy's __config__.py before compiling,
@@ -22,7 +22,9 @@ import zipfile
 from importlib._bootstrap_external import _code_to_hash_pyc
 from pathlib import Path, PurePosixPath
 
-TARGET = (3, 14)
+import line
+
+TARGET = line.target()
 SKIP_DIRS = {
     "__pycache__",
     "test",

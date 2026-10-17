@@ -230,7 +230,7 @@ def manifest_pin_errors(m: Manifest, pin_list: dict[str, str]) -> list[str]:
             errors.append(f"no pin for package {pkg}")
         elif not is_version_of(f, pkg, version):
             errors.append(f"package {pkg} {version} does not match its pin {f}")
-    for tool in ("wasi-sdk", "wizer"):
+    for tool in ("wasi-sdk", "wasmtime"):
         if not any(norm(f).startswith(tool + "-") for f in m.pins):
             errors.append(f"no pin for {tool}")
     return errors

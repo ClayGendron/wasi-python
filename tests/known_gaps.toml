@@ -8,6 +8,6 @@
 
 [[gap]]
 check = "tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos"
-match = "3 finding(s), digest 56621daa39fa"
+match = "2 finding(s), digest 518b39136d6f"
 reason = "only the arm64 macOS toolchain is pinned"
 closes_with = "context/research/2026-10-16-reproducible-builds-on-linux.md"

@@ -49,6 +49,13 @@ def test_imports_are_wasi_and_the_door_only(artifacts, which) -> None:
     assert not errors, scan.report(errors)
 
 
+@BINARY
+def test_exceptions_are_the_standard_form(artifacts, which) -> None:
+    """C++ exceptions reach their handlers: the standard exnref form, which hosts must support."""
+    errors = rules.exception_errors(_binary(artifacts, which))
+    assert not errors, scan.report(errors)
+
+
 def test_plain_reactor_exports(artifacts) -> None:
     errors = rules.export_errors(_binary(artifacts, "plain"), rules.PLAIN_EXPORTS)
     assert not errors, scan.report(errors)

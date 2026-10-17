@@ -202,12 +202,36 @@ def recipe_path_errors(files: Iterable[Path], root: Path) -> list[str]:
 def toolchain_errors(pinned: Iterable[str]) -> list[str]:
     names = [n.lower() for n in pinned]
     errors = []
-    for tool in ("wasi-sdk", "wizer", "wasmtime"):
+    for tool in ("wasi-sdk", "wasmtime"):
         mine = [n for n in names if n.startswith(tool + "-")]
         if not any("x86_64-linux" in n or "linux-x86_64" in n for n in mine):
             errors.append(f"{tool}: no Linux x86_64 pin")
         if not any("arm64-macos" in n or "aarch64-macos" in n for n in mine):
             errors.append(f"{tool}: no macOS arm64 pin")
+    return errors
+
+
+CPP_EH_FLAGS = ("'-fwasm-exceptions'", "'-wasm-use-legacy-eh=false'")
+
+
+def cpp_exception_errors(root: Path) -> list[str]:
+    """Every C++ object is compiled, and the binary linked, for standard-form exceptions (spec 005,
+    Decision 9): a cross file without the flags compiles C++ whose `throw` is never caught."""
+    errors = []
+    for cross in ("recipes/wasi-numpy.cross", "recipes/wasi-pandas.cross"):
+        lines = [t for t in (root / cross).read_text().splitlines() if t.startswith("cpp_args")]
+        if len(lines) != 1:
+            errors.append(f"{cross}: {len(lines)} cpp_args lines, not 1")
+            continue
+        errors += [f"{cross}: cpp_args lacks {f}" for f in CPP_EH_FLAGS if f not in lines[0]]
+    link = (root / "scripts/steps/60_link.sh").read_text().splitlines()
+    if not any("-lunwind" in t and t.lstrip().startswith("echo") for t in link):
+        errors.append("scripts/steps/60_link.sh: Setup.local does not link -lunwind")
+    flag = 'LDFLAGS_NODIST="-fwasm-exceptions"'
+    for target in ("make -j8 all", "make -n python.wasm"):
+        calls = [t for t in link if t.lstrip().startswith(target)]
+        if not calls or not all(flag in t for t in calls):
+            errors.append(f"scripts/steps/60_link.sh: `{target}` without {flag}")
     return errors
 
 

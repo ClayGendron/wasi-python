@@ -292,7 +292,7 @@ _versions: dict[Path, str] = {}
 
 
 def _version_tag(manifest: Path) -> str:
-    """'314' from MANIFEST's `python 3.14.8` line."""
+    """'315' from MANIFEST's `python 3.15.0` line: the stdlib zip's guest name is python315.zip."""
     if manifest not in _versions:
         for line in manifest.read_text().splitlines():
             if line.startswith("python "):

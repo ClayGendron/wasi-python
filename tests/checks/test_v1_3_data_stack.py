@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -104,6 +106,32 @@ def test_snapshot_preimports_the_stack(guest, metric) -> None:
     snap = guest("snapshot", ["-c", "import pandas"])
     assert plain.exit_code == 0 and snap.exit_code == 0, f"{plain.describe()} / {snap.describe()}"
     assert snap.fuel * 10 < plain.fuel, f"snapshot fuel {snap.fuel}, plain fuel {plain.fuel}"
+
+
+CPP_THROW = """
+import numpy as np
+try:
+    np.fft.fft(np.zeros(12_000_001))
+except MemoryError as e:
+    print("caught", repr(e))
+print(np.allclose(np.fft.fft(np.ones(4)), [4, 0, 0, 0]))
+"""
+
+
+def test_a_cpp_exception_reaches_python(guest_workdir, metric) -> None:
+    """A C++ `throw` inside numpy (pocketfft's allocation, under a memory cap) becomes a Python
+    MemoryError, and the program goes on (spec 005, Decision 9). numpy's own array-allocation
+    error carries a shape and a dtype; the bare MemoryError() is C++'s std::bad_alloc."""
+    needs.need("runner", "artifact dir")
+    import wasi_python
+
+    root = Path(tempfile.mkdtemp(prefix="cpp-throw-", dir=guest_workdir))
+    done = wasi_python.run(
+        ["-c", CPP_THROW], root=root, memory_bytes=560 << 20, fuel=50_000_000_000
+    )
+    assert (done.exit_code, done.trapped) == (0, None), done
+    assert done.stdout == b"caught MemoryError()\nTrue\n", done
+    metric("fuel", done.fuel_used)
 
 
 @pytest.mark.slow

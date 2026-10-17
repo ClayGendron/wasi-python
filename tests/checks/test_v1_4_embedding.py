@@ -240,7 +240,13 @@ def test_runner_refuses_a_cache_others_can_write(guest_workdir) -> None:
         assert seen == [0, {"compiled": 1, "loaded": 0, "written": 1}], seen
 
 
-ZIP = "/usr/local/lib/python314.zip"
+def _zip() -> str:
+    """The stdlib zip's guest path, named from MANIFEST's `python` line (python3XY.zip)."""
+    directory = paths.artifact_dir()
+    assert directory is not None
+    version = paths.parse_manifest((directory / "MANIFEST").read_text()).python
+    major, minor = version.split(".")[:2]
+    return f"/usr/local/lib/python{major}{minor}.zip"
 
 
 def test_runner_keeps_the_artifact_zip_out_of_the_guests_reach(guest_workdir, artifacts) -> None:
@@ -249,6 +255,7 @@ def test_runner_keeps_the_artifact_zip_out_of_the_guests_reach(guest_workdir, ar
     zip_path = artifacts.path("python-stdlib.zip")
     before = paths.sha256_bytes(zip_path.read_bytes())
     root = _root(guest_workdir)
+    ZIP = _zip()
     vandal = f"f = open({ZIP!r}, 'r+b'); f.seek(1000); f.write(b'X' * 64); f.close()"
     assert run(["-c", vandal], root=root).exit_code == 0
     assert paths.sha256_bytes(zip_path.read_bytes()) == before
@@ -264,6 +271,7 @@ def test_runner_never_follows_a_link_a_guest_left(guest_workdir, planted) -> Non
     base = Path(tempfile.mkdtemp(prefix="escape-", dir=guest_workdir))
     root, outside = base / "root", base / "outside"
     outside.mkdir()
+    ZIP = _zip()
     if planted == "the zip":
         link, target, before = ZIP, "../../../../outside/target", f"os.remove({ZIP!r})"
     else:
@@ -289,6 +297,7 @@ def test_runner_replaces_a_directory_left_in_the_zips_place(guest_workdir) -> No
     """A guest that turns its zip path into a directory does not break the next call."""
     run = _runner()
     root = _root(guest_workdir)
+    ZIP = _zip()
     code = f"import os; os.remove({ZIP!r}); os.makedirs({ZIP!r} + '/x')"
     assert run(["-c", code], root=root).exit_code == 0
     after = run(["-c", "print('ok')"], root=root)

@@ -10,7 +10,7 @@ SRC="$B/numpy-2.5.2"
 BUILD="$B/numpy-build"
 rm -rf "$SRC" "$BUILD" "$B/numpy-install" "$B/numpy-host"
 tar -xzf "$TARBALL" -C "$B"
-sed "s#@ROOT@#$HERE#g" "$HERE/recipes/wasi-numpy.cross" > "$B/wasi-numpy.cross"
+sed "s#@ROOT@#$HERE#g; s#@SDK@#$WASI_SDK_DIR#g" "$HERE/recipes/wasi-numpy.cross" > "$B/wasi-numpy.cross"
 cd "$SRC"
 MESON="$SRC/vendored-meson/meson/meson.py"  # the meson that configures a build directory installs it
 "$HOSTPY" "$MESON" setup "$BUILD" --cross-file "$B/wasi-numpy.cross" --buildtype=release \

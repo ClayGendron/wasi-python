@@ -77,6 +77,35 @@ def export_errors(binary: Path, required: set[str], forbidden: set[str] = frozen
     return errors
 
 
+def exception_errors(binary: Path) -> list[str]:
+    """The binary uses the exception-handling proposal's standard form (spec 005, Decision 9): it
+    has a tag section, validates on an engine with exceptions on, and fails with them off.
+    wasmtime has no legacy form, so legacy `try` code fails the first validation."""
+    import wasmtime
+
+    data = binary.read_bytes()
+    try:
+        mod = wasm.parse(data)
+    except wasm.WasmError as e:
+        return [f"{binary.name}: {e}"]
+    errors = []
+    if wasm.TAG_SECTION not in mod.sections:
+        errors.append(f"{binary.name}: no tag section (no exception tag defined)")
+    for on in (True, False):
+        config = wasmtime.Config()
+        config.wasm_exceptions = on
+        try:
+            wasmtime.Module.validate(wasmtime.Engine(config), data)
+            valid = True
+        except wasmtime.WasmtimeError:
+            valid = False
+        if on and not valid:
+            errors.append(f"{binary.name}: does not validate with exceptions on")
+        if not on and valid:
+            errors.append(f"{binary.name}: validates with exceptions off (no exception handling)")
+    return errors
+
+
 def stdlib_zip_errors(z: Path) -> list[str]:
     errors = []
     with zipfile.ZipFile(z) as archive:

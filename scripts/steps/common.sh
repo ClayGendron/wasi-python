@@ -1,17 +1,19 @@
-# Sourced by every build step (spec 003): where things are, and the one host Python's environment.
+# Sourced by every build step (spec 003): where things are, the line (scripts/line.conf, spec 005),
+# and the one host Python's environment.
 # Downloads are untrusted data: they are unpacked under build/ and run only as build tools.
 HERE=$(CDPATH= cd "$(dirname "$0")/../.." && pwd -P)
 D="$HERE/downloads"
 B="$HERE/build"
+. "$HERE/scripts/line.sh"
 T="$B/tools"
-SDK="$T/wasi-sdk-24.0-arm64-macos"
+SDK="$T/$WASI_SDK_DIR"
 HOSTPY="$T/python/bin/python3"
-CP="$B/Python-3.14.8"
+CP="$B/Python-$PYTHON_VERSION"
 W="$CP/cross-build/wasm32-wasip1"
 OUT="$B/out"
 
 export WASI_SDK_PATH="$SDK"
-export PATH="$T/pylib/bin:$T/wasmtime-v49.0.3-aarch64-macos:$T/wizer-v11.0.3-aarch64-macos:$PATH"
+export PATH="$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"
 export PYTHONPATH="$T/pylib"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$B/uv-cache}"
 # Build tools must not leave bytecode caches inside the upstream source trees (spec 003, Decision 4).

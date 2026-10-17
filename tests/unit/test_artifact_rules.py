@@ -29,7 +29,7 @@ PIN_FILES = {
     "tzdata-2026.5-py2.py3-none-any.whl": b"tzdata wheel",
     "six-1.17.0-py2.py3-none-any.whl": b"six wheel",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
-    "wizer-v11.0.3-aarch64-macos.tar.xz": b"wizer",
+    "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
 PIN_LIST = {name: sha(data) for name, data in PIN_FILES.items()}
 PACKAGES = {
@@ -177,8 +177,8 @@ def test_manifest_versions_must_match_their_pins() -> None:
 
 
 def test_manifest_requires_toolchain_pins() -> None:
-    m = paths.parse_manifest(manifest_text(**{"wizer-v11.0.3-aarch64-macos.tar.xz": True}))
-    assert paths.manifest_pin_errors(m, PIN_LIST) == ["no pin for wizer"]
+    m = paths.parse_manifest(manifest_text(**{"wasmtime-v49.0.3-aarch64-macos.tar.xz": True}))
+    assert paths.manifest_pin_errors(m, PIN_LIST) == ["no pin for wasmtime"]
 
 
 def test_brett_zip_is_never_the_cpython_pin() -> None:
@@ -263,4 +263,15 @@ def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
     (good / "MANIFEST").write_text("changed\n")
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name}: wasi_python/artifacts/MANIFEST differs from the artifact set"
+    ]
+
+
+def test_exception_rule_passes_the_standard_form(work) -> None:
+    assert rules.exception_errors(wat.build(work, "eh.wasm", wat.EXCEPTIONS)) == []
+
+
+def test_exception_rule_names_a_module_without_exceptions(work) -> None:
+    assert rules.exception_errors(wat.build(work, "python.wasm", wat.PLAIN_REACTOR)) == [
+        "python.wasm: no tag section (no exception tag defined)",
+        "python.wasm: validates with exceptions off (no exception handling)",
     ]

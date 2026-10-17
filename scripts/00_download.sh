@@ -2,7 +2,7 @@
 # Fetch the pinned inputs into downloads/ and verify every one against downloads/SHA256SUMS.
 #
 #   scripts/00_download.sh          the build's inputs
-#   scripts/00_download.sh --all    also the research inputs (wasi-sdk 33, Brett's 3.14.7 build)
+#   scripts/00_download.sh --all    also the research input (Brett's 3.14.7 build)
 #
 # Each pin is one `get <url> <name>` line: a literal URL and the file's name in downloads/ (spec 003,
 # Decision 1). Downloads are untrusted data: they land in downloads/ only, and nothing here runs
@@ -23,20 +23,20 @@ research() { # url name: fetched only with --all
   if [ "$ALL" = 1 ]; then get "$1" "$2"; fi
 }
 
-# Toolchain and host tools (macOS arm64)
-get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-arm64-macos.tar.gz wasi-sdk-24.0-arm64-macos.tar.gz
-get https://github.com/bytecodealliance/wizer/releases/download/v11.0.3/wizer-v11.0.3-aarch64-macos.tar.xz wizer-v11.0.3-aarch64-macos.tar.xz
+# Toolchain and host tools (macOS arm64). The line's versions are named in scripts/line.conf; the
+# URLs here stay literal, one pin per line (spec 003, Decision 1).
+get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-macos.tar.gz wasi-sdk-33.0-arm64-macos.tar.gz
 get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-macos.tar.xz wasmtime-v49.0.3-aarch64-macos.tar.xz
-get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.14.8%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.14.8+20261009-aarch64-apple-darwin-install_only.tar.gz
+get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
 
 # Sources
-get https://www.python.org/ftp/python/3.14.8/Python-3.14.8.tar.xz Python-3.14.8.tar.xz
+get https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz Python-3.15.0.tar.xz
 get https://files.pythonhosted.org/packages/9a/80/db0b4559e57ec36362bedbb05530a87fafbcb6067708c946967a41d449e7/numpy-2.5.2.tar.gz numpy-2.5.2.tar.gz
 get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d759c6a241c5386a5d962e4f66c047e06/pandas-3.0.6.tar.gz pandas-3.0.6.tar.gz
 get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
 
 # Build tools (wheels, installed offline with their hashes)
-get https://files.pythonhosted.org/packages/8a/7f/e409f76bb955ecdcb746b80350b945fbb808846d797346d647a37e1790ca/cython-3.3.0-cp314-cp314-macosx_11_0_arm64.whl cython-3.3.0-cp314-cp314-macosx_11_0_arm64.whl
+get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
 get https://files.pythonhosted.org/packages/57/99/36cd25f9598eef70db97577440a70a360af505f6f01c2338a18d1556079c/meson-1.12.1-py3-none-any.whl meson-1.12.1-py3-none-any.whl
 get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
 get https://files.pythonhosted.org/packages/b0/79/f0f1ca286b78f6f33c521a36b5cbd5bd697c0d66217d8856f443aeb9dd77/versioneer-0.29-py3-none-any.whl versioneer-0.29-py3-none-any.whl
@@ -46,19 +46,20 @@ get https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee
 get https://files.pythonhosted.org/packages/94/21/1e5995a1c920cce14e4bffae20c665ec10e7ed03ab25e006cd741092b718/tzdata-2026.5-py2.py3-none-any.whl tzdata-2026.5-py2.py3-none-any.whl
 get https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl six-1.17.0-py2.py3-none-any.whl
 
-# Licence notices of what wasi-sdk 24 links in (its tarball carries none), at its submodule commits
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/LICENSE wasi-libc-b9ef79d7-LICENSE
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/LICENSE-APACHE wasi-libc-b9ef79d7-LICENSE-APACHE
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/LICENSE-APACHE-LLVM wasi-libc-b9ef79d7-LICENSE-APACHE-LLVM
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/LICENSE-MIT wasi-libc-b9ef79d7-LICENSE-MIT
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/libc-top-half/musl/COPYRIGHT wasi-libc-b9ef79d7-musl-COPYRIGHT
-get https://raw.githubusercontent.com/WebAssembly/wasi-libc/b9ef79d7dbd47c6c5bafdae760823467c2f60b70/libc-bottom-half/cloudlibc/LICENSE wasi-libc-b9ef79d7-cloudlibc-LICENSE
-get https://raw.githubusercontent.com/llvm/llvm-project/26a1d6601d727a96f4301d0d8647b5a42760ae0c/libcxx/LICENSE.TXT llvm-26a1d660-libcxx-LICENSE.TXT
-get https://raw.githubusercontent.com/llvm/llvm-project/26a1d6601d727a96f4301d0d8647b5a42760ae0c/libcxxabi/LICENSE.TXT llvm-26a1d660-libcxxabi-LICENSE.TXT
-get https://raw.githubusercontent.com/llvm/llvm-project/26a1d6601d727a96f4301d0d8647b5a42760ae0c/compiler-rt/LICENSE.TXT llvm-26a1d660-compiler-rt-LICENSE.TXT
+# Licence notices of what wasi-sdk 33 links in (its tarball carries none), at the commits its VERSION
+# names (wasi-libc 161b3195, LLVM 4434dabb, 22.1.0)
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/LICENSE wasi-libc-161b3195-LICENSE
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/LICENSE-APACHE wasi-libc-161b3195-LICENSE-APACHE
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/LICENSE-APACHE-LLVM wasi-libc-161b3195-LICENSE-APACHE-LLVM
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/LICENSE-MIT wasi-libc-161b3195-LICENSE-MIT
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/libc-top-half/musl/COPYRIGHT wasi-libc-161b3195-musl-COPYRIGHT
+get https://raw.githubusercontent.com/WebAssembly/wasi-libc/161b3195fc2558d2b1ba3eb9ffae3b2b47407623/libc-bottom-half/cloudlibc/LICENSE wasi-libc-161b3195-cloudlibc-LICENSE
+get https://raw.githubusercontent.com/llvm/llvm-project/4434dabb69916856b824f68a64b029c67175e532/libcxx/LICENSE.TXT llvm-4434dabb-libcxx-LICENSE.TXT
+get https://raw.githubusercontent.com/llvm/llvm-project/4434dabb69916856b824f68a64b029c67175e532/libcxxabi/LICENSE.TXT llvm-4434dabb-libcxxabi-LICENSE.TXT
+get https://raw.githubusercontent.com/llvm/llvm-project/4434dabb69916856b824f68a64b029c67175e532/libunwind/LICENSE.TXT llvm-4434dabb-libunwind-LICENSE.TXT
+get https://raw.githubusercontent.com/llvm/llvm-project/4434dabb69916856b824f68a64b029c67175e532/compiler-rt/LICENSE.TXT llvm-4434dabb-compiler-rt-LICENSE.TXT
 
-# Research inputs: the SDK-33 exception probe, and the reference build the harness self-tests use
-research https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-macos.tar.gz wasi-sdk-33.0-arm64-macos.tar.gz
+# Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip
 
 cd "$D"

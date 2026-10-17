@@ -4,6 +4,28 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
+## 0.1.0a2 — unreleased
+
+The second alpha moves the line to CPython 3.15.0 and wasi-sdk 33, so a C++ exception inside a
+package becomes a Python exception instead of ending the guest.
+
+- **The line:** CPython 3.15.0, built with wasi-sdk 33; numpy 2.5.2, pandas 3.0.6 and the
+  pure-Python packages are unchanged. The line's versions are named once, in
+  `scripts/line.conf`.
+- **C++ exceptions work:** numpy and pandas' C++ is compiled for WebAssembly exception handling
+  in its standard form (`exnref`). A C++ error such as pocketfft's failed allocation now raises
+  `MemoryError` in the program, which goes on.
+- **Hosts must support exception handling.** wasmtime 47 or later runs it by default (as
+  wasmtime-py does); wasmer, wazero and Node need a switch; WAMR and wasmi cannot run it. The
+  README's *Hosts* lists them. For a host without it, use `0.1.0a1`.
+- **The stdlib zip's guest name is now `/usr/local/lib/python315.zip`.** An embedder that lays
+  out the root by hand must follow it; `wasi_python.run` does.
+- **The snapshot** is made by the pinned wasmtime's own `wasmtime wizer` (the standalone Wizer
+  pin is gone), and pre-imports `_colorize`, which 3.15 loads lazily, so the first traceback in
+  a run does not pay for it.
+- **Measured:** a snapshot call costs about 5.5% more instructions than on 3.14 (CPython 3.15's
+  own finalization); the stdlib zip is 6% larger.
+
 ## 0.1.0a1 — 2026-10-17
 
 The first alpha: CPython 3.14.8 for `wasm32-wasip1` with numpy 2.5.2 and pandas 3.0.6 compiled

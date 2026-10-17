@@ -103,7 +103,7 @@ SPEC_001 = "context/specifications/001-the-neutral-host-door-and-the-runner.md"
 SPEC_003 = "context/specifications/003-the-pinned-build-end-to-end.md"
 REPRO_MEMO = "context/research/2026-10-16-reproducible-builds-on-linux.md"
 SPEC_002 = "context/specifications/002-the-progress-harness.md"
-README_NEXT = "README.md (Next, item 4)"
+SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
 
 SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib")
 
@@ -117,8 +117,8 @@ VOCABULARY: dict[str, Need] = {
         Need("manifest", _artifact_file("MANIFEST"), SPEC_003),
         Need("wasmtime-py", _wasmtime, SPEC_002),
         Need("runner", _runner, SPEC_001),
-        Need("wheel", _wheel, README_NEXT),
-        Need("three systems", _three_systems, README_NEXT),
+        Need("wheel", _wheel, SPEC_004),
+        Need("three systems", _three_systems, SPEC_004),
         Need("oracle", _oracle, SPEC_002),
         Need("reference build", _reference_build, SPEC_002),
         Need("prior-art clones", _prior_art, "context/prior_art/README.md"),

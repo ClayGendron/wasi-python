@@ -61,3 +61,14 @@ def test_reads_a_real_cpython_build_when_present() -> None:
     assert {i.module for i in mod.imports} == {"wasi_snapshot_preview1"}
     assert set(mod.exports) == {"memory", "_start"}
     assert wasm.wall_errors(mod) == ["no host::call import (the door)"]
+
+
+def test_reads_exnref_and_the_tag_section(work) -> None:
+    mod = wasm.parse_file(wat.build(work, "eh.wasm", wat.EXCEPTIONS))
+    assert mod.types[0].params == ("exnref",)
+    assert wasm.TAG_SECTION in mod.sections
+
+
+def test_a_module_without_exceptions_has_no_tag_section(work) -> None:
+    mod = wasm.parse_file(wat.build(work, "plain.wasm", wat.PLAIN_REACTOR))
+    assert wasm.TAG_SECTION not in mod.sections

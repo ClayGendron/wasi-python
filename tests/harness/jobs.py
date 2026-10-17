@@ -3,6 +3,11 @@
 A job takes a data directory and an output directory. Its expected output is its stdout, then
 each file it wrote in path order, each after a `=== <name>` line. The oracle is its own uv
 project (`tests/jobs/oracle/`), run with every uv download under `build/oracle/`.
+
+Its interpreter is its own copy of the line's pinned host Python (`scripts/line.conf`'s
+`HOST_PYTHON_ARCHIVE`), checked against `downloads/SHA256SUMS` and unpacked under
+`build/oracle/python/`, because the pinned uv cannot install the line's version (spec 005,
+Decision 9). It shares no directory with the build.
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+import tarfile
 from pathlib import Path
 
 from harness import paths
@@ -19,6 +25,7 @@ from harness import paths
 JOB_DIR = paths.REPO / "tests" / "jobs"
 ORACLE_PROJECT = JOB_DIR / "oracle"
 ORACLE_HOME = paths.BUILD / "oracle"
+LINE_CONF = paths.REPO / "scripts" / "line.conf"
 JOBS = ("numpy_csv", "pandas_csv", "numpy_random")
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
@@ -54,13 +61,46 @@ def compare(expected: bytes, actual: bytes) -> str | None:
     return f"expected {len(exp)} lines, got {len(act)}"
 
 
+def host_python_archive() -> str:
+    """The line's pinned host-Python archive, named in `scripts/line.conf`."""
+    for text in LINE_CONF.read_text().splitlines():
+        if text.startswith("HOST_PYTHON_ARCHIVE="):
+            return text.split("=", 1)[1]
+    raise RuntimeError("scripts/line.conf names no HOST_PYTHON_ARCHIVE")
+
+
+def oracle_python() -> Path:
+    """The oracle's interpreter: the pinned archive, hash-checked, unpacked once under
+    build/oracle/python/<archive>/. A stamp holding the archive's hash marks a finished unpack."""
+    name = host_python_archive()
+    home = ORACLE_HOME / "python" / name
+    exe = home / "python" / "bin" / "python3"
+    stamp = home / ".sha256"
+    sha = paths.read_pin_list().get(name)
+    if sha is None:
+        raise RuntimeError(f"{name} is not pinned in downloads/SHA256SUMS")
+    if exe.is_file() and stamp.is_file() and stamp.read_text() == sha:
+        return exe
+    archive = paths.DOWNLOADS / name
+    if not archive.is_file():
+        raise RuntimeError(f"downloads/{name} is missing: run scripts/00_download.sh")
+    if paths.sha256_file(archive) != sha:
+        raise RuntimeError(f"downloads/{name} does not match its pin")
+    shutil.rmtree(home, ignore_errors=True)
+    home.mkdir(parents=True)
+    with tarfile.open(archive) as t:
+        t.extractall(home, filter="data")
+    stamp.write_text(sha)
+    return exe
+
+
 def oracle_env(seed: int | None = None) -> dict[str, str]:
     env = dict(os.environ)
     env.update(
         UV_CACHE_DIR=str(ORACLE_HOME / "cache"),
-        UV_PYTHON_INSTALL_DIR=str(ORACLE_HOME / "python"),
         UV_PROJECT_ENVIRONMENT=str(ORACLE_HOME / "venv"),
-        UV_PYTHON_PREFERENCE="only-managed",
+        UV_PYTHON=str(oracle_python()),
+        UV_PYTHON_PREFERENCE="only-system",
     )
     env.pop("VIRTUAL_ENV", None)
     if seed is not None:
@@ -83,7 +123,7 @@ def oracle_available() -> bool:
             capture_output=True,
             check=False,
         )
-    except OSError:
+    except (OSError, RuntimeError):
         return False
     return r.returncode == 0
 

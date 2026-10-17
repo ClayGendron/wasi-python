@@ -13,7 +13,9 @@ placed by ROOT_MODULES, or the run fails.
 import sys
 from pathlib import Path
 
-SUFFIX = ".cpython-314-wasm32-wasi.so"
+import line
+
+SUFFIX = f".cpython-{line.read()['PYTHON_TAG']}-wasm32-wasi.so"
 # Cython 3.1+ builds its shared utility module at the build root; pandas imports it from here.
 ROOT_MODULES = {("pandas", "_cyutility"): "pandas._libs._cyutility"}
 

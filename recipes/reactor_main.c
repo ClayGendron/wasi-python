@@ -18,7 +18,7 @@
 #include "reactor_bootstrap.h"
 
 #ifndef PREIMPORT
-#define PREIMPORT "import encodings, io, os, sys, json, csv, re, numpy, pandas"
+#define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 #endif
 
 /* While pinned, the C runtime's reads of the clocks, of entropy and of file metadata answer
