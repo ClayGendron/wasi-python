@@ -1,9 +1,11 @@
 # 029 — The landing lane is guarded
 
-- **Status:** drafted 2026-10-17.
+- **Status:** drafted 2026-10-17; revised against its pre-build review
+  (`../reviews/029-the-landing-lane-is-guarded-spec-2026-10-17.md`), awaiting its confirmation.
 - **Owner:** Clay Gendron
-- **Kind:** judge additions (`tests/checks/test_rules.py`, `tests/harness/`, the judge plugin
-  and `tests/checks/conftest.py`'s input walk), `context/progress/README.md`.
+- **Kind:** judge additions and changes (`tests/checks/test_rules.py`, `tests/harness/plugin.py`,
+  `tests/harness/paths.py`'s stray-conftest walk, `run_meta`'s `dirty`), the scoreboard's
+  announcements, `context/progress/README.md`.
 - **Depends on:** 002 (the progress harness: the ratchet, `--accept`, the judge hash).
 - **Research it stands on:** `../research/2026-10-17-parallel-work-without-lowering-the-bar.md`
   (part 6, its four rules, and the experiment behind them), adopted by the owner on 2026-10-17
@@ -20,23 +22,43 @@ Code's default `.claude/worktrees/`) changes the main tree's judge hash.
 
 ## Decisions
 
-1. **An acceptance sits on the commit it judged.** A rules check: for the newest commit that
-   changed `context/progress/history.jsonl`, its parent is the commit that the newest history
-   line names. Older history is not re-judged: 29 of 31 past acceptances hold it and the two that
-   do not predate the rule (memo, `01_accept_baselines.txt`); the check starts from the newest.
-2. **Main is linear.** A rules check: no merge commit is reachable from `HEAD`
-   (`git rev-list --merges HEAD` is empty; today it is, EXECUTED by the memo).
-3. **`--accept` refuses outside the main tree.** When `git rev-parse --git-dir` differs from
-   `git rev-parse --git-common-dir`, the plugin refuses `--accept`, `--accept-judge`,
-   `--accept-growth` and `--partial` with one line: `accept: only the landing lane accepts, in
-   the main tree (constitution §5.7); this is a linked worktree`, exit 2, and writes nothing
-   under `context/progress/`. The judge itself still runs there.
-4. **A worktree inside the repository is not judge input.** The walk that hashes the judge's
-   inputs skips any directory below the repository's root that holds a `.git` entry of its own
-   (a linked worktree or a nested repository), so `.claude/worktrees/` cannot change the main
-   tree's judge hash.
-5. **Where git is absent** (a source tarball without `.git`), rules 1 to 3 skip with `needs:
-   git`, as other git-reading checks do.
+1. **An acceptance sits on the commit it judged, and carries nothing else.** A rules check reads
+   committed history only: `<c>` is the newest commit reachable from `HEAD` that changed
+   `context/progress/history.jsonl`; its newest line is read with `git show
+   <c>:context/progress/history.jsonl`; and the check requires (a) that line's commit equal `<c>`'s
+   **first** parent, and (b) that `<c>` change exactly `context/progress/accepted.json` and
+   `context/progress/history.jsonl` and nothing else. An acceptance appended but not yet committed
+   does not move `<c>`, so the lane is never red between accepting and committing. Older history
+   is not re-judged (23 of 31 past acceptance commits also carried code; the newest, `cb0c5a6`,
+   carries only the two files; the review's `rule1.py`).
+2. **`dirty` means tracked changes.** `run_meta` records `dirty` from `git status --porcelain
+   --untracked-files=no`, so an untracked `.idea/` no longer marks every run dirty (all 34
+   history lines say `true` today). From the first acceptance after this lands, rule 1 also
+   requires the newest line's `dirty` to be `false`.
+3. **Main is linear.** A rules check: `git rev-list --merges HEAD` is empty.
+4. **Only the lane accepts.** The plugin refuses `--accept` alone (`--accept-judge`,
+   `--accept-growth` and `--partial` write nothing without it, so they stay allowed) when the run
+   is in a linked worktree (`git rev-parse --absolute-git-dir` differs from `git rev-parse
+   --path-format=absolute --git-common-dir`, git 2.31 or later) **and** the progress folder it
+   would write resolves to a `context/progress` folder of this repository (the worktree's own,
+   the default, or the main tree's, reached by `--progress-dir`). Any other `--progress-dir`, as
+   the plugin's own self-tests use, is allowed: it writes no accepted state, and the scoreboard
+   already announces it. The refusal happens in `pytest_configure`, before collection, with one
+   line `accept: only the landing lane accepts, in the main tree (constitution §5.7); this is a
+   linked worktree`, exit 1 like every acceptance refusal today. When both this and
+   `PYTEST_ADDOPTS`'s refusal apply, this one is reported. A plain clone and a submodule are not
+   linked worktrees; a clone is out of scope (rule 1 still catches an acceptance moved from one).
+5. **A worktree inside the repository is not judge input, and is named.** The skip applies only
+   to `paths.judge_files()`'s stray-conftest `os.walk` below the root (never the walk over
+   `JUDGE_PATHS`, so a nested repository under `tests/` stays in the hash): a directory holding a
+   `.git` entry (`os.path.lexists`, so a `.git` file or broken link counts) is not descended. And
+   the scoreboard announces each worktree below the root found by `git worktree list
+   --porcelain` (one line, `note: a worktree inside the repository: <path> (constitution §4.14
+   puts them outside)`), since §4.14 places them outside; the hash stays stable either way.
+6. **Where git or its history is absent.** Rules 1 and 3 need `git history`: met when `git
+   rev-parse --is-shallow-repository` prints `false`; otherwise they are blocked, not failed (a
+   shallow clone's root commit has no parent to compare; the release builds with
+   `fetch-depth: 0`). Where git is absent, `--accept` proceeds as today.
 
 ## Intent
 
@@ -45,9 +67,9 @@ The parallel-work rules of §4.14 and §5.7 are mechanical, not a matter of care
 ## Design
 
 ```
-tests/checks/test_rules.py      rules 1 and 2
-tests/harness/plugin.py         rule 3 (the accept refusal)
-tests/checks/conftest.py, tests/harness/paths.py   rule 4 (the input walk)
+tests/checks/test_rules.py      rules 1 and 3 (Decisions 1, 3)
+tests/harness/plugin.py         the accept refusal (Decision 4); run_meta's dirty (Decision 2)
+tests/harness/paths.py          the stray-conftest walk (Decision 5); the scoreboard's note
 tests/unit/test_landing_lane.py the checks below, in temporary repositories
 context/progress/README.md      the lane, in two lines
 ```
@@ -62,17 +84,22 @@ In: the four rules. Out: automating the lane itself (it stays the coordinator's 
 Each check builds a temporary git repository (and worktrees of it) with `git` only; nothing
 measures time.
 
-1. Rule 1: a history whose newest acceptance commit's parent is the named commit passes; one
-   carried across a rebase (parent differs) fails, naming both commits. Seen failing first on a
-   constructed case.
-2. Rule 2: a repository with a merge commit fails; a linear one passes; the real repository
-   passes.
-3. Rule 3: in a linked worktree, `uv run pytest --accept "x"` (driven against a small temporary
-   project using the plugin, or the plugin's accept function directly) exits 2 with the line and
-   writes nothing; in the main tree it accepts as before.
-4. Rule 4: a worktree created under the temporary repository's `.claude/worktrees/` leaves the
-   judge hash unchanged; seen failing first.
-5. `uv run pytest` green with `--accept-judge`; lost 0; grew 0.
+1. Rule 1 passes for an acceptance commit whose first parent is the named commit and which
+   changes only the two files; fails, naming both commits, for one carried across a rebase; fails
+   for one that also changes a code file; passes while a new acceptance is appended but
+   uncommitted; is blocked in a shallow clone. The first failing cases are seen failing first.
+2. `dirty` is `false` with only untracked files present, `true` with a tracked change.
+3. Rule 3 fails on a repository with a merge commit and passes on a linear one and on this
+   repository.
+4. In a linked worktree of a temporary clone: `--accept` with the default progress folder exits 1
+   with the line before collecting and writes nothing; `--accept` with a `--progress-dir` outside
+   the repository proceeds; `--partial` alone proceeds. `tests/unit/test_plugin.py` and
+   `tests/unit/test_checks_wiring.py` pass when run from that worktree (the review's
+   implementation (a) failed 16 of 33 there).
+5. A worktree under the temporary repository's `.claude/worktrees/` leaves the judge hash
+   unchanged and is named by the scoreboard's note; a nested repository under `tests/` stays in
+   the hash. The first is seen failing first.
+6. `uv run pytest` green with `--accept-judge`; lost 0; grew 0.
 
 ## Landing notes
 
