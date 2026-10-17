@@ -8,7 +8,9 @@
 - **Kind:** build recipe (`downloads/SHA256SUMS`, `scripts/00_download.sh`, a new
   `scripts/steps/35_stdlib_libs.sh`, `scripts/build.sh`, `scripts/steps/60_link.sh`,
   `scripts/assemble_artifacts.py`), the `-V` sentence (`recipes/reactor_bootstrap.py`), judge
-  additions in `tests/` (checks, golden jobs, `tests/harness/paths.py`), `README.md`,
+  additions in `tests/` (checks, golden jobs, `tests/harness/paths.py`, `needs.py`, `pins.py`,
+  `jobs.py`, `scoreboard.py`, `tests/unit/test_artifact_rules.py`),
+  `.github/workflows/release.yml` (the zero-patch count), `README.md`,
   `CHANGELOG.md`.
 - **Depends on:** 005 (the line), 006 (safe by default; this builds on its reactor).
 - **Research it stands on:** `../research/2026-10-17-sqlite-bz2-and-lzma.md` and its evidence
@@ -60,27 +62,32 @@
    `sqlite-autoconf 3540100` (SQLite 3.54.1, named as its pin names it, so the judge's pin rule
    needs no new encoding). `LICENSES/` gains `bzip2.txt` (its `LICENSE`), `xz.txt` (`COPYING` and
    `COPYING.0BSD`) and `sqlite.txt` (the public-domain blessing at the head of `sqlite3.h`).
-   `tests/harness/paths.py`'s `LICENCE_COMPONENTS` and `PACKAGES` gain the three.
+   `tests/harness/paths.py`'s `LICENCE_COMPONENTS` gains `bzip2`, `xz` and `sqlite` (the notice's
+   file name) and `PACKAGES` gains `bzip2`, `xz` and `sqlite-autoconf` (the `MANIFEST` name).
 7. **The `-V` sentence** drops sqlite3, bz2 and lzma from its missing list and names zstd, which
    the WASI build also lacks (§4.11): "no ctypes, mmap, sockets, ssl or zstd". The README's platform facts and the CHANGELOG say what changed and what
    SQLite cannot do here.
 8. **SQLite's limits are stated, not patched.** The README says:
    - one connection holds the database while it reads or writes, through a `<db>.lock`
      directory beside it, so a second connection (even in the same program) gets "database is
-     locked" during another's write or unfinished read (the review, EXECUTED);
+     locked" during another's write or unfinished read, after its busy timeout (5 s by default)
+     (the review, EXECUTED);
    - `journal_mode=wal` silently stays `delete` unless `locking_mode=exclusive`;
    - a guest killed, out of fuel or past its deadline inside a transaction leaves `<db>.lock`
      and a hot journal, which the embedder removes (SQLite then rolls the journal back); a call
      without `root` (spec 006) never sees a stale lock, since its root is fresh;
    - SQLite's own randomness (`randomblob()`, `random()`, temporary names) is seeded from the
-     time in seconds and the process id, because the guest has no `/dev/urandom`: two calls in
-     the same second can repeat it, and a `/dev/urandom` planted in a reused root fixes it (the
-     review, EXECUTED). Python's `random`, `secrets` and `os.urandom` are unaffected (real
-     entropy through WASI). The upstream fix (SQLite using `getentropy` on WASI) is recorded in
-     the research memo; spec 006's Safety list gains this row;
+     time in seconds and the process id, which is always 1 on WASI, because the guest has no
+     `/dev/urandom`: two calls in the same second can repeat it, and a `/dev/urandom` planted in
+     a reused root fixes it (the review, EXECUTED). Python's `random`, `secrets`, `os.urandom`
+     and `tempfile`'s names are unaffected (real entropy through WASI; the review ran them on
+     both binaries, EXECUTED). The upstream fix (SQLite using `getentropy` on WASI) is recorded
+     in the review (`../reviews/007-sqlite3-bz2-and-lzma-spec-2026-10-17.md`, finding 4) and goes
+     into the research memo's "Where it stopped" at landing; the README's Safety list gains this
+     row;
    - `sqlite3.threadsafety` is 0 (native: 3); `sysconfig` reports `_sqlite3`, `_bz2` and `_lzma`
-     as missing and `PY_SQLITE_HAVE_SERIALIZE` as 0, because they were added through
-     `Setup.local`, not `configure`; `shelve` and `dbm` now create `dbm.sqlite3` files, as
+     as missing or disabled and `PY_SQLITE_HAVE_SERIALIZE` as 0, because they were added through
+     `Setup.local`, not `configure` (it says "disabled" for `_sqlite3`); `shelve` and `dbm` now create `dbm.sqlite3` files, as
      native does.
 9. **Not pre-imported.** `import sqlite3` costs 6.7M instructions on first use (EXECUTED);
    the snapshot does not pre-import it, so a program that does not use it pays nothing. `bz2` and
@@ -96,23 +103,28 @@
       output directory (`jobs.render` compares every file there, and a database's header records
       the SQLite version that last wrote it, bytes 96 to 99: EXECUTED by the review): create,
       `executemany`, a transaction and a rollback, JSON and window functions, FTS5 matches, a
-      temporary table large enough to spill to a temporary file (so the Windows verify job
-      exercises SQLite's unlink of an open file), then `DataFrame.to_sql` and `pandas.read_sql`.
-      The oracle's SQLite is 3.53.1, not 3.54.1, so the job prints only what both versions agree
-      on: no version or error text, every query with a total `ORDER BY`, floats rounded to 9
-      places, no FTS5 `bm25()` scores, no JSON float text, no trigonometric results (the review
-      found these differ between 3.53.1 and 3.54.1, EXECUTED);
+      temporary table forced to a temporary file with `PRAGMA temp_store=file` and
+      `PRAGMA cache_size=2` (so the Windows verify job exercises SQLite's unlink of an open file;
+      a table merely "large" may stay in the page cache), then `DataFrame.to_sql` and
+      `pandas.read_sql`. The oracle's SQLite is 3.53.1, and its math library is the host's, so the
+      job prints only what both agree on: no version or error text, every query with a total
+      `ORDER BY`, floats rounded to 9 places by the jobs' own helper after they leave SQLite, no
+      FTS5 `bm25()` scores, no JSON float text, no trigonometric or `log10` results (the review
+      found these differ, EXECUTED; the math functions follow the C library, not the SQLite
+      release);
     - `compress` and `sqlite` join `tests/harness/jobs.py`'s `JOBS`;
     - a v1.3 check, `test_sqlite_holds_a_lock_while_it_writes`: inside a write transaction a
       second connection opened with `timeout=0` gets `sqlite3.OperationalError` ("database is
       locked") at once (the default timeout waits about 5 s of real time) and `<db>.lock`
-      exists; after commit, both work and the lock is gone;
+      exists; the same while a first connection holds an unfinished `SELECT`; after commit and
+      close, both work and the lock is gone;
     - the other judge files that change: `.github/workflows/release.yml`'s zero-patch step
       expects `^7 passed` (four trees become seven); `tests/harness/needs.py`'s
       `SOURCE_COMPONENTS` and `tests/harness/pins.py`'s `SOURCE_PATTERNS` gain `bzip2`, `xz` and
       `sqlite`; the synthetic set in `tests/unit/test_artifact_rules.py` gains the three packages
       and pins. SQLite's licence notice is checked for presence only (it has no licence file to
-      compare against), which the scoreboard's "not machine-checked" line already names.
+      compare against); the scoreboard's "not machine-checked" line, which names presence-only
+      notices for unpinned components, gains "SQLite's" (`tests/harness/scoreboard.py`).
 
 ## Intent
 
@@ -130,7 +142,9 @@ scripts/assemble_artifacts.py     three packages, three licence notices
 recipes/reactor_bootstrap.py      the -V sentence
 tests/checks/…                    the builtin-modules check, the lock check
 tests/jobs/compress.py, sqlite.py and their .expected
-tests/harness/paths.py, pins.py   the three components
+tests/harness/paths.py, pins.py, needs.py, jobs.py, scoreboard.py   the three components
+tests/unit/test_artifact_rules.py   the synthetic set
+.github/workflows/release.yml     ^7 passed
 README.md, CHANGELOG.md
 ```
 

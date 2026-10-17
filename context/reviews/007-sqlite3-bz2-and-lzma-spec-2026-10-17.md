@@ -411,3 +411,142 @@ All of these are changes to the text and the judge list, not to the design.
 One line: the recipe is right and patch-free; keep the database out of `/out`, keep SQLite's
 version and unrounded floats out of the goldens, list every judge file that changes, and tell
 users that SQLite's randomness and its lock are weaker in the guest than natively.
+
+## Confirmation by the reviewer, 2026-10-17
+
+- **Reviewed:** the specification at `91d6c02` (revised), against the dispositions above.
+- **Ran (EXECUTED).** One new probe, `probes/pyrand.py` (`out/pyrand.txt`), on the experiment's
+  set through this tree's runner. It ran twice on each binary. I did not run pytest or touch
+  `build/`.
+- **Read (READ):** the revised specification; `tests/harness/jobs.py:138-161` (`stage_data`,
+  `run_native`); `tests/harness/scoreboard.py:31-36`; the research memo at `91d6c02` (`grep`
+  for `urandom`, `getentropy`, `randomness`).
+
+### Each finding
+
+1. **Confirmed fixed.** The database goes in the data directory. `stage_data` copies the
+   fixtures into a fresh directory for each native run (`jobs.py:138-150`). So the database
+   never lands in `fixtures/`, and `render` never sees it.
+2. **Fixed in rule; the stated cause is wrong** (new finding C3).
+3. **Confirmed fixed in Decision 10.** Two remnants are new finding C5.
+4. **Fixed in substance.** One claim is not true at `91d6c02`, and one phrase misleads (new
+   findings C1 and C4).
+5. **Fixed in the text and the check's `timeout=0`.**
+   - Decision 8 now claims that an unfinished read holds the lock. No check guards that.
+   - AGENTS.md rule 3 says a failure mode, once seen, becomes a check. Add the open-read case
+     to the lock check (C6).
+   - The README bullet still does not say that the error comes only after the busy timeout,
+     5 s by default. The check's bullet says it; the user-facing text should too (C6).
+6. **Confirmed fixed.**
+7. **Fixed in intent, not yet certain to happen** (new finding C2).
+8. **Confirmed fixed.** One word: `sysconfig` reports `_sqlite3` as `'disabled'`, while
+   `_bz2` and `_lzma` are `'missing'`. "Missing or disabled" is exact.
+9. **Noted. Nothing to confirm.**
+10. **Confirmed fixed.**
+11. **Noted. Nothing to confirm.**
+
+### New findings from the revision, most severe first
+
+C1. **Decision 8 cites a memo record that does not exist** (`007:79-81`). Medium-low.
+    - Decision 8 says: "The upstream fix (SQLite using `getentropy` on WASI) is recorded in the
+      research memo."
+    - At `91d6c02`, `context/research/2026-10-17-sqlite-bz2-and-lzma.md` contains neither
+      `urandom`, `getentropy` nor `randomness` (READ, `grep`). The commit changed only the
+      specification and this review (`git show --stat`).
+    - Under §4.10, a claim must point at its evidence.
+    - **Fix.** Add the section to the memo: `unixRandomness`, the time and pid fallback, this
+      review's EXECUTED rows, and the upstream route. Or cite this review instead of the memo.
+
+C2. **The spill is not certain as worded** (`007:98-100`). Low-medium.
+    - Decision 10 says "a temporary table large enough to spill to a temporary file".
+    - A temporary database's pages reach its file only when the page cache overflows. The
+      default cache is `DEFAULT_CACHE_SIZE=-2000`, about 2 MB, in both builds (EXECUTED,
+      `PRAGMA compile_options`).
+    - A table under that size never touches the file (INFERRED from SQLite's pager). From
+      inside the guest, nothing can show whether it did, because the file is unlinked.
+    - So a job that looks right could leave the Windows path unrun without anyone noticing.
+    - **Fix.** Make the spill certain by construction, as `probes/spill.py` did:
+      `PRAGMA temp_store=file` and `PRAGMA cache_size=2`, then a temporary table and an
+      `ORDER BY` over a few thousand one-KB rows. Print only counts and ordered keys.
+
+C3. **The golden rules give the wrong cause for the float differences** (`007:101-104`). Low.
+    - Decision 10 says "the review found these differ between 3.53.1 and 3.54.1". That is not
+      what the review found.
+    - The review compared native macOS SQLite 3.53.1 with the guest's 3.54.1 on wasi-libc. The
+      trigonometric, `log10` and `bm25()` differences track the two libm implementations
+      (INFERRED: `exp`, `ln`, `sqrt` and `pow` agreed). They would remain with one SQLite
+      release on both sides. They may also differ between the oracle's own hosts, because
+      `test_goldens_reproduce_under_the_pinned_oracle` runs natively wherever the oracle is
+      present.
+    - The JSON float text may be the release difference or a platform one. The review did not
+      isolate it.
+    - Why it matters: a future reader could think that bumping the oracle's Python lifts the
+      rules.
+    - **Fix.** Say "differ between the oracle and the guest (libm, and possibly the SQLite
+      release)". Round floats with the jobs' existing helper
+      (`format(round(float(x), 9) + 0.0, ".9g")`, `tests/jobs/pandas_csv.py:16-17`) after they
+      leave SQLite, not with SQL's `round()` alone.
+
+C4. **"Seeded from … the process id" reads as if the pid varied** (`007:75-77`). Low.
+    - On WASI, SQLite's `osGetpid` is the constant 1 (READ, `sqlite3.c:40874-40876`). The
+      only varying input is the second.
+    - **Fix.** "Seeded from the time in whole seconds (the process id is always 1 on WASI)."
+    - **The sentence's other claim holds (EXECUTED, `out/pyrand.txt`).** Python's `random`,
+      `secrets`, `os.urandom` and `tempfile` names differ from run to run on both binaries. On
+      the snapshot, `random` is already imported, and it still varies.
+
+C5. **Two remnants of finding 3** (`007:8-12`, `007:63`, `007:110-116`, `007:125-135`). Low.
+    - **Kind and Design are stale.** They still list only `tests/harness/paths.py` and
+      `pins.py`. Decision 10 now also changes `release.yml`, `needs.py`, `jobs.py` and
+      `tests/unit/test_artifact_rules.py`. Make the Kind and the Design say so.
+    - **The tuples are still not spelled out.** Decision 6 still says `LICENCE_COMPONENTS`
+      and `PACKAGES` "gain the three". Write `LICENCE_COMPONENTS += ("bzip2", "xz", "sqlite")`
+      and `PACKAGES += ("bzip2", "xz", "sqlite-autoconf")`.
+    - **The scoreboard does not name SQLite's notice.** The line Decision 10 cites reads
+      "licence content of wasi-libc, llvm-runtimes and unpinned components (presence only)"
+      (`scoreboard.py:34`). SQLite is pinned, so the line does not cover it.
+    - **Fix for the scoreboard line.** Either extend `NOT_MACHINE_CHECKED`, a judge change
+      that goes under `--accept-judge` with the rest, or drop the claim that it "already names"
+      SQLite's notice. `test_v1_1`'s own scope line does list `sqlite` under "presence only"
+      (READ, `test_v1_1_artifact_set.py:92`), so the fact is still reported.
+
+C6. **The lock check and the README bullet lag Decision 8** (`007:68-70`, `007:106-109`).
+    Low.
+    - **Fix.** The lock check gains the open-read case: `a` fetches one row of an open
+      `SELECT`, then `b` with `timeout=0` gets "database is locked". The README bullet adds
+      "after the connection's busy timeout (5 s by default)".
+
+### Constitution, after the revision
+
+- §4.1, §4.2, §4.5, §4.9 and §4.12 hold. The `SQLITE_EXTRA` hook is gone, and the lock check
+  uses `timeout=0`.
+- §4.10 is tripped by C1 alone: a claim that points to a record that is not there.
+- §5.2: no open question.
+- §7: nothing tripped.
+
+### Verdict after the revision
+
+**Ready to build once C1 and C2 are corrected in the text.** Every original finding is fixed or
+answered, and none is reopened in substance.
+- **C1.** A claim that cites a missing record.
+- **C2.** Without it, the job may never spill, and the Windows path stays unrun.
+- **C3 to C6.** One-line wording and list changes. They can go in at the same time.
+
+None of these changes the design. The build still waits on the owner's answer to question 9.
+
+One line: the revision answers all eleven findings. Record the randomness section where the
+specification says it is, and force the spill with two pragmas, and 007 can be built once the
+licences are approved.
+
+## The author's answers to the confirmation
+
+- **C1:** fixed. Decision 8 cites the review's finding 4 for the upstream fix, and the memo's
+  "Where it stopped" gains it at landing.
+- **C2:** fixed. The job forces the spill with `PRAGMA temp_store=file` and `cache_size=2`.
+- **C3:** fixed. The float differences are attributed to the math library; floats are rounded by
+  the jobs' helper after they leave SQLite; `log10` joins the excluded results.
+- **C4:** fixed. The process id is always 1 on WASI; `tempfile` names join the unaffected list.
+- **C5:** fixed. Kind and Design list every judge file; Decision 6 spells out `sqlite` (notice)
+  and `sqlite-autoconf` (MANIFEST); the scoreboard line gains SQLite's.
+- **C6:** fixed. The lock check also covers an unfinished `SELECT`; the README bullet names the
+  busy timeout. `_sqlite3` is "disabled" in `sysconfig`.
