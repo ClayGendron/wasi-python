@@ -2,7 +2,11 @@
 
 - **Status:** in force, 2026-10-16; amended the same day by the owner's
   decision on profiles and on what the product is for (§2 "Beyond v1",
-  §3 first bullet)
+  §3 first bullet); amended 2026-10-17 by the owner's answers to
+  questions 1, 3, 4, 5, 7 and 9 (`questions-for-the-owner.md`): typed
+  grants that may be none (§2.2, §2.4), the build order after v1 (§2),
+  a command line inside the runner (§3), safe by default (§4.15), three
+  approved licences (§4.12), and the release rules (§5.5, §5.6)
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -28,19 +32,23 @@ Version 1 is reached when all of these are true:
    GitHub release and as the `wasi-python` wheel on PyPI, with a
    manifest and hashes.
 2. It runs under wasmtime on Linux, macOS and Windows from the same
-   bytes, with no host directory beyond the one the embedder
-   preopens, no network, no shared library and no host process.
+   bytes, with no host directory beyond the grants the embedder gives
+   (read-only or writable folders, which may be none), no network, no
+   shared library and no host process.
 3. `import numpy` and `import pandas` work; a CSV read, a groupby and
    a CSV write run inside it; the result matches native Python.
 4. An embedder in any language with a wasmtime binding can run it by
-   preopening a directory, binding one host function and calling one
-   export. A Python embedder does it in one call through the wheel.
+   preopening the folders it grants (possibly none), binding one host
+   function and calling one export. A Python embedder does it in one
+   call through the wheel.
 5. The whole thing rebuilds from pinned sources by a CI job anyone can
    run, with zero patches to any upstream tree.
 
 Beyond v1, in order of value: matplotlib, then the stdlib modules WASI
 lacks (sqlite, bz2, lzma), then scipy. Nothing else is in scope until
-those are decided.
+those are decided. By the owner's decision (2026-10-17) the cheaper
+sqlite3, bz2 and lzma are built first, while matplotlib waits on typed
+grants; matplotlib's data is a read-only grant (C2).
 
 Also beyond v1, by the owner's decision (2026-10-16): **build-time
 profiles of the core C libraries**, so an embedder carries only the
@@ -63,7 +71,10 @@ few: each one is built, judged and published. v1 ships the one set
 - Not a browser Python. Pyodide owns that.
 - Not a general wasm toolchain. It builds one artifact well.
 - Not an application. It ships no filesystem, no shell, no agent, no
-  server. Those are its embedders' business.
+  server. Those are its embedders' business. A thin command that runs
+  one program through the runner and prints its result as JSON
+  (`wasi-python run`) is part of the runner, not a shell: it adds no
+  power `run()` does not have (owner, 2026-10-17).
 - Performant, not the fastest. It is correct, portable and sealed
   first, and it stays close to native: the penalty against native
   Python is measured on every release, documented, never hidden, and
@@ -123,7 +134,8 @@ works.
     CPython (PSF), numpy and pandas (BSD-3-Clause), zlib and the
     pure-Python dependencies; their notices are inside the release and
     the wheel. Nothing with a licence the owner has not approved is
-    linked in.
+    linked in. Approved 2026-10-17: SQLite (public domain), bzip2
+    (BSD-style) and liblzma from xz (0BSD).
 13. **Tooling.** `uv` only. `ruff check`, `ruff format --check` and
     `pytest` green on `src/` and `tests/` before any landing. No
     dependency added to `pyproject.toml` without a reason written in
@@ -131,6 +143,11 @@ works.
 14. **Git.** Commit or push only when the owner asks. No branches or
     worktrees unless asked. Never `git checkout`, `git restore` or
     `git stash` a file carrying uncommitted work.
+15. **Safe by default.** Every limit has a default (memory, time,
+    output); no channel to the host opens without an explicit argument
+    (no folder, no network, no host function); the runtime's own files
+    are never in a writable grant. A change that loosens a default
+    needs the owner's decision, not only a review (owner, 2026-10-17).
 
 ## 5. How work is done
 
@@ -153,7 +170,9 @@ works.
    re-pin, re-run, re-verify, publish, and write the memo that says
    what changed. That must cost days, not weeks, which is why
    constraint 1 exists. Cadence is a scope decision the owner makes
-   per release, never a schedule the project is bound to.
+   per release, never a schedule the project is bound to. A security
+   fix in a pinned component is a reason to release: the agent
+   prepares one and asks (owner, 2026-10-17).
 6. **Review is a stage, not a courtesy.** Every built change is
    reviewed before it lands, by a reviewer who did not write it (a
    fresh agent or a person), who is given the specification and the
@@ -165,6 +184,10 @@ works.
    the guest's imports or exports, the artifact set or the build
    recipe is reviewed once more before it is built, so a wrong design
    is caught before it is code. Reviews live in `context/reviews/`.
+   Before each release, a fresh reviewer checks the release against
+   the written threat model (`research/2026-10-16-a-principal-engineers-direction.md`,
+   section 2) and the changes since the last release; the release
+   waits on its findings (owner, 2026-10-17).
 
 ## 6. Deciding when the rules do not say
 

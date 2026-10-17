@@ -7,6 +7,10 @@ question moves to the bottom with the answer and the date.
 
 ## Open
 
+(None.)
+
+## Answered
+
 ### 1. Constitution: "only the grants the embedder gives, which may be none"
 
 - **Asked:** 2026-10-16. **Source:** `research/2026-10-16-a-principal-engineers-direction.md`
@@ -20,6 +24,7 @@ question moves to the bottom with the answer and the date.
   (typed grants), and a run with no folder at all.
 - **Meanwhile:** the agent builds what the current text allows (spec 005, the hostile-guest
   checks, safe defaults with one folder).
+- **Answered 2026-10-17:** Yes: typed grants, read-only or writable, which may be none. The constitution's §2.2 and §2.4 are amended.
 
 ### 2. matplotlib's data: a read-only folder (C2) or packed inside the binary (C3, wasi-vfs)
 
@@ -32,6 +37,7 @@ question moves to the bottom with the answer and the date.
   it has one maintainer who has said he has little time. C3 is worth it only if a run with no
   folder at all, and the stdlib zip inside the binary, become goals.
 - **What waits:** the matplotlib specification.
+- **Answered 2026-10-17:** C2: a read-only folder where matplotlib already looks, built on typed grants. The constitution's §2 records it.
 
 ### 3. A new hard constraint, "safe by default"
 
@@ -41,6 +47,7 @@ question moves to the bottom with the answer and the date.
 - **Meanwhile:** the agent gives `run()` safe defaults anyway (your direction: "no way (unless
   explicitly provided) to access the host file system or network"); the rule would make them
   binding on every later change.
+- **Answered 2026-10-17:** Yes, binding: §4.15 "Safe by default". A change that loosens a default needs the owner's decision.
 
 ### 4. Order of post-v1 work: sqlite3, bz2, lzma before matplotlib?
 
@@ -48,6 +55,7 @@ question moves to the bottom with the answer and the date.
 - **The question:** your order is matplotlib, then sqlite3/bz2/lzma, then scipy. matplotlib now
   waits on questions 1 and 2; sqlite3, bz2 and lzma need no C++ and no data folder. The agent
   works on them while matplotlib waits, and keeps your order for anything not blocked.
+- **Answered 2026-10-17:** sqlite3, bz2 and lzma first (spec 007), then typed grants and matplotlib. The constitution's §2 records it.
 
 ### 5. Security rules for releases
 
@@ -56,6 +64,7 @@ question moves to the bottom with the answer and the date.
   §5.6 gains "a security review against the written threat model before each release".
 - **Meanwhile:** the agent adds `SECURITY.md` and build-provenance attestations to the release
   workflow, which change no rule.
+- **Answered 2026-10-17:** Both: §5.5 (a security fix in a pinned component is a reason to release; the agent prepares one and asks) and §5.6 (a security review against the threat model before each release).
 
 ### 6. May the agent publish 0.1.0a2?
 
@@ -68,6 +77,7 @@ question moves to the bottom with the answer and the date.
   Linux rebuild with byte-identical `SHA256SUMS`. Before tagging, the agent will run one security
   review of the release against the threat model, by a fresh agent. Releasing is one command
   (`release/version.py release`) once you say yes.
+- **Answered 2026-10-17:** Yes, after a security review of the release against the threat model by a fresh agent; then the agent tags v0.1.0a2.
 
 ### 7. A `wasi-python run` command line?
 
@@ -75,6 +85,7 @@ question moves to the bottom with the answer and the date.
 - **The question:** §3 says the project "ships no shell". Is a thin command that runs a program
   and prints a JSON result part of the runner (allowed) or a shell (not)? The agent reads it as
   the runner but does not build it until you answer.
+- **Answered 2026-10-17:** Yes, as part of the runner: `wasi-python run` prints one program's result as JSON. The constitution's §3 records it.
 
 ### 8. numpy's `.npy` files
 
@@ -83,6 +94,7 @@ question moves to the bottom with the answer and the date.
   `os.dup`, which WASI preview1 does not have. Zero patches rules out a local fix.
 - **The question:** may the agent file an upstream numpy issue (an outward-facing action)? The
   agent writes the issue text into the repository and records the failure as a known gap.
+- **Answered 2026-10-17:** File it, after the owner reads and approves the text (drafted as an artifact).
 
 ### 9. Licences for sqlite3, bz2 and lzma
 
@@ -95,6 +107,7 @@ question moves to the bottom with the answer and the date.
   you answer. The experiment shows all three build with no patch; bz2 and lzma match native
   byte for byte; sqlite3 works with one limit (one connection writes at a time, through a lock
   directory beside the database).
+- **Answered 2026-10-17:** Approved: SQLite (public domain), bzip2 (BSD-style), liblzma from xz (0BSD). The constitution's §4.12 records it; spec 007 is unblocked.
 
 ### 10. Turn on private vulnerability reporting?
 
@@ -105,6 +118,7 @@ question moves to the bottom with the answer and the date.
   repos/ClayGendron/wasi_python/private-vulnerability-reporting`), or will you?
 - **Meanwhile:** `SECURITY.md` is not written yet; it waits on this answer (spec 010, the other
   thing it waited on, landed 2026-10-17), so that its reporting route works.
+- **Answered 2026-10-17:** Yes, the agent turns it on (`gh api`), then writes `SECURITY.md`.
 
 ### 11. File a wasmtime-py issue about its shared callback tables?
 
@@ -116,7 +130,5 @@ question moves to the bottom with the answer and the date.
   Spec 011 works around it in the runner, without patching wasmtime-py.
 - **The question:** may the agent file the issue (an outward-facing action)? The agent writes
   its text into spec 011's landing notes either way.
+- **Answered 2026-10-17:** File it, after the owner reads and approves the text (drafted as an artifact).
 
-## Answered
-
-(None yet.)

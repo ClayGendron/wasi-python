@@ -316,6 +316,8 @@ has one.
   call, or during a wait, or else at its deadline; an embedder's own
   handler is left alone.
 
+To report a way around any of this, see [SECURITY.md](SECURITY.md).
+
 **Not protected:** disk use in a granted root; the host's file
 descriptors (a guest can hold thousands of open files, which the embedder's
 process shares; wasmtime-py offers no lower limit); data planted in a
