@@ -1,0 +1,17 @@
+edits applied
+ok 00_download: sqlite-autoconf-3540100.tar.gz: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29604842 bytes, d705eb55946e6eb5
+ok 30_zlib: zlib: 102842 bytes
+ok 35_stdlib_libs: stdlib libs: bz2 80798, lzma 213672, sqlite3 2048884 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 31760440 bytes, e2d45152c4124177
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140659 bytes
+ok 80_snapshot: snapshot: 65504775 bytes, 038413bc39871fe9
+ok 90_artifacts: artifacts: 17 files in build/artifacts
+sh scripts/build.sh  667.82s user 106.91s system 253% cpu 5:05.53 total
+28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  LICENSES/bzip2.txt
+038413bc39871fe913f3f080f80c5c0d7b212f7431aa17bd79b2dfa3dc24730e  python-snapshot.wasm
+e95b35dea78981e8be867e136136a9b5d4235891c8b3483ba415494d427af8df  python-stdlib.zip
+e2d45152c41241776ffb21eb3b8992535b2acd2cfaec059c707d58cfa703ce67  python.wasm

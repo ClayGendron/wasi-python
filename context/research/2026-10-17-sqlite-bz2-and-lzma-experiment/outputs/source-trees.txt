@@ -1,0 +1,3 @@
+bzip2-1.0.8: identical to its tarball
+xz-5.8.4: identical to its tarball
+sqlite-autoconf-3540100: identical to its tarball

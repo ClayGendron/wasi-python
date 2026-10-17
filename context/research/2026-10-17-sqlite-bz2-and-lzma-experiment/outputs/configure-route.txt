@@ -1,0 +1,10 @@
+# configure-host with LIBSQLITE3/BZIP2/LIBLZMA _CFLAGS and _LIBS (-L<dir> -l<name>) after --, on a copy of the clone's CPython tree
+337:MODULE__SQLITE3_STATE=yes
+346:MODULE__BZ2_STATE=yes
+349:MODULE__LZMA_STATE=yes
+1773:/* #undef PY_SQLITE_ENABLE_LOAD_EXTENSION */
+1776:#define PY_SQLITE_HAVE_SERIALIZE 1
+configure:17408: checking for sqlite3_load_extension in -lsqlite3
+configure:17460: checking for sqlite3_serialize in -lsqlite3
+configure:17531: checking for --enable-loadable-sqlite-extensions
+# the first two tries never reached configure (the driver's --logdir must exist); with a .a path in *_LIBS instead of -L/-l, not run

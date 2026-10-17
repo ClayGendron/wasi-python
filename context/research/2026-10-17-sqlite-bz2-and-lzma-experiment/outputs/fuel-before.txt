@@ -1,0 +1,7 @@
+snapshot	pass	exit=0	trap=None	fuel=124178786	
+plain	pass	exit=0	trap=None	fuel=246819329	
+snapshot	import bz2	exit=1	trap=None	fuel=128997672	ModuleNotFoundError: Standard library module '_bz2' was not found
+snapshot	import lzma	exit=1	trap=None	fuel=129422257	ModuleNotFoundError: Standard library module '_lzma' was not found
+snapshot	import sqlite3	exit=1	trap=None	fuel=128634756	ModuleNotFoundError: Standard library module '_sqlite3' was not found
+snapshot	import sqlite3; sqlite3.connect(':memory:').execute('select 1').fetchone()	exit=1	trap=None	fuel=129191589	ModuleNotFoundError: Standard library module '_sqlite3' was not found
+plain	import pandas	exit=0	trap=None	fuel=4995344218	

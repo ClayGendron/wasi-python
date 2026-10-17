@@ -1,0 +1,7 @@
+snapshot	pass	exit=0	trap=None	fuel=124594750	
+plain	pass	exit=0	trap=None	fuel=247057632	
+snapshot	import bz2	exit=0	trap=None	fuel=124617032	
+snapshot	import lzma	exit=0	trap=None	fuel=124617690	
+snapshot	import sqlite3	exit=0	trap=None	fuel=131289118	
+snapshot	import sqlite3; sqlite3.connect(':memory:').execute('select 1').fetchone()	exit=0	trap=None	fuel=131829834	
+plain	import pandas	exit=0	trap=None	fuel=4993227984	

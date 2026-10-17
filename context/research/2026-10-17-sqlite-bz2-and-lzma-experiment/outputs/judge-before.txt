@@ -1,0 +1,10 @@
+wasi_python v1: 93/98 pass · 1 gap · 3 blocked · 1 fail   (unit suite 154/159, 5 skipped)
+  v1.1  artifact set        18/20  blocked 1 fail 1
+  v1.2  portable, sealed     5/6   blocked 1
+  v1.3  data stack          12/12  
+  v1.4  embedding           32/32  
+  v1.5  rebuild from pins   12/13  gap 1
+  rules constitution rules  14/15  blocked 1
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 5 finding(s), digest d8b6a20037ba: stale artifact: scripts/steps/35_stdlib_libs.sh is not in MANIFEST; stale artifact: scripts/00_down
+FAILED tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+1 failed, 247 passed, 8 skipped, 1 xfailed in 43.18s

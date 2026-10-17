@@ -1,0 +1,55 @@
+sqlite True module (3, 15)
+memory create -> -1
+memory executemany -> 1000
+memory query -> (1000, 71357.14285714286, 'r999')
+json -> (3,)
+math -> (1.414214, 2.302585)
+window -> [('r0', 1), ('r1', 3), ('r2', 6)]
+fts5 -> [('hello wasi world',)]
+rtree -> [(1,)]
+create_function -> (42,)
+create_aggregate -> (500500,)
+collation -> [('r999',), ('r998',)]
+serialize -> 61440
+deserialize -> (1000,)
+blobopen -> 16
+iterdump -> 1028
+load_extension -> False
+compile_options -> ['ENABLE_FTS5', 'MAX_MMAP_SIZE=0', 'OMIT_LOAD_EXTENSION', 'TEMP_STORE=1', 'THREADSAFE=0']
+temp_store default -> (0,)
+file create -> ['t.db']
+file executemany -> (5000,)
+journal_mode -> ('delete',)
+locking_mode -> ('normal',)
+open transaction files -> ['t.db', 't.db-journal', 't.db.lock']
+rollback -> (5000,)
+with commit -> (5001,)
+second reads -> (5001,)
+first writes, second reads !! OperationalError database is locked
+second writes while first holds !! OperationalError database is locked
+first commits -> ['t.db']
+second writes after -> (5003,)
+uri read-only -> (5003,)
+uri ro write !! OperationalError attempt to write a readonly database
+big sort (temp) -> (10006,)
+temp table -> ((5003,), ['t.db'])
+vacuum -> ['t.db']
+backup -> (5003,)
+backup to file -> True
+journal_mode=wal -> (('delete',), ['t.db'])
+journal_mode=truncate -> (('truncate',), ['t.db', 't.db-journal'])
+journal_mode=persist -> (('persist',), ['t.db', 't.db-journal'])
+journal_mode=memory -> (('memory',), ['t.db'])
+journal_mode=off -> (('off',), ['t.db'])
+journal_mode=delete -> (('delete',), ['t.db'])
+locking_mode=exclusive then wal -> (('exclusive',), ('wal',), 1, None, ['t.db', 't.db-wal', 't.db.lock'], (5010,), ('delete',))
+after close -> ['t.db']
+begin immediate -> ['t.db', 't.db.lock']
+commit -> ['t.db']
+pandas to_sql/read_sql -> (4, {'k': ['a', 'b', 'c'], 's': [4.75, 2.0, nan], 'n': [2, 1, 1]}, {'k': 'str', 'v': 'float64', 'd': 'datetime64[us]'}, True)
+vfs=unix-none -> (['v-unix-none.db', 'v-unix-none.db-journal'], (1,))
+vfs=unix-dotfile -> (['v-unix-dotfile.db', 'v-unix-dotfile.db-journal', 'v-unix-dotfile.db.lock'], (1,))
+vfs=unix !! OperationalError disk I/O error
+vfs=unix-excl !! OperationalError disk I/O error
+done
+--- exit=0 trap=None fuel=509107015

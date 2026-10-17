@@ -1,0 +1,8 @@
+wasi_python v1: 94/98 pass · 1 gap · 3 blocked · 0 fail   (unit suite 154/159, 5 skipped)
+  v1.1  artifact set        19/20  blocked 1
+  v1.2  portable, sealed     5/6   blocked 1
+  v1.3  data stack          12/12  
+  v1.4  embedding           32/32  
+  v1.5  rebuild from pins   12/13  gap 1
+  rules constitution rules  14/15  blocked 1
+248 passed, 8 skipped, 1 xfailed in 42.44s

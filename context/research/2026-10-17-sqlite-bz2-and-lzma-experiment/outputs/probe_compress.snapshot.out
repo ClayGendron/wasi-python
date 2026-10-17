@@ -1,0 +1,30 @@
+data 128384 8f29813039440942
+bz2 1 971 5a8e647d3d287cbc True
+bz2 9 868 146a7d2359095a26 True
+bz2 incremental True True
+lzma xz 0 416 True
+lzma xz 6 416 True
+lzma xz 2147483657 416 True
+lzma alone 0 370 True
+lzma alone 6 369 True
+lzma alone 2147483657 369 True
+lzma check CHECK_NONE True 408 True
+lzma check CHECK_CRC32 True 412 True
+lzma check CHECK_CRC64 True 416 True
+lzma check CHECK_SHA256 True 440 True
+lzma raw delta+lzma2 139 True
+lzma bcj FILTER_X86 True
+lzma bcj FILTER_ARM True
+bz2 file 5000 53
+xz file 5000 100
+tarfile bz2 ['sub/f0.txt', 'sub/f1.txt', 'sub/f2.txt', 'sub/f3.txt', 'sub/f4.txt'] 9d5005d069a6909d 5
+tarfile extract bz2 ['f0.txt', 'f1.txt', 'f2.txt', 'f3.txt', 'f4.txt']
+tarfile xz ['sub/f0.txt', 'sub/f1.txt', 'sub/f2.txt', 'sub/f3.txt', 'sub/f4.txt'] 9d5005d069a6909d 5
+tarfile extract xz ['f0.txt', 'f1.txt', 'f2.txt', 'f3.txt', 'f4.txt']
+archive formats ['bztar', 'gztar', 'tar', 'xztar', 'zip']
+unpack formats ['bztar', 'gztar', 'tar', 'xztar', 'zip']
+make_archive mk.tar.xz
+zipfile bzip2 True None
+zipfile lzma True None
+done
+--- exit=0 trap=None fuel=7395790424

@@ -1,0 +1,7 @@
+base-art/python.wasm 43 imports; modules ['host', 'wasi_snapshot_preview1'] ; wall errors: []
+new-art/python.wasm 43 imports; modules ['host', 'wasi_snapshot_preview1'] ; wall errors: []
+base-art/python-snapshot.wasm 43 imports; modules ['host', 'wasi_snapshot_preview1'] ; wall errors: []
+new-art/python-snapshot.wasm 43 imports; modules ['host', 'wasi_snapshot_preview1'] ; wall errors: []
+added [] removed [] (base-art -> new-art)
+added [] removed [] (new-art -> base-art)
+added [] removed [] (base-art -> new-art)

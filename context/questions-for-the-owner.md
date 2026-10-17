@@ -79,6 +79,18 @@ question moves to the bottom with the answer and the date.
 - **The question:** may the agent file an upstream numpy issue (an outward-facing action)? The
   agent writes the issue text into the repository and records the failure as a known gap.
 
+### 9. Licences for sqlite3, bz2 and lzma
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-sqlite-bz2-and-lzma.md`.
+- **The question:** constitution §4.12: "Nothing with a licence the owner has not approved is
+  linked in." Building these three modules in links: SQLite 3.54.1 (public domain: its
+  header's blessing, no licence file), bzip2 1.0.8 (its own BSD-style licence), and liblzma from
+  xz 5.8.4 (0BSD). Do you approve them?
+- **What waits:** spec 007 (sqlite3, bz2 and lzma) is written and reviewed, but not built, until
+  you answer. The experiment shows all three build with no patch; bz2 and lzma match native
+  byte for byte; sqlite3 works with one limit (one connection writes at a time, through a lock
+  directory beside the database).
+
 ## Answered
 
 (None yet.)

@@ -1,0 +1,11 @@
+ok 35_stdlib_libs: stdlib libs: bz2 80798, lzma 213672, sqlite3 1413274 bytes
+ok 60_link: reactor: 31239873 bytes, 08207778a72cad0d
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140659 bytes
+ok 80_snapshot: snapshot: 64981214 bytes, 3fa5958d6acd9a81
+total 1,354,593
+  SQLite (libsqlite3.a)        1,083,674
+  liblzma (liblzma.a)            115,480
+  CPython _sqlite3 module         68,897
+  bzip2 (libbz2.a)                63,192
+  CPython _lzma module            16,035
+  CPython _bz2 module              7,315

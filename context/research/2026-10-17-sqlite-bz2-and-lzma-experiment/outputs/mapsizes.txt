@@ -1,0 +1,19 @@
+CPython _bz2 module          CODE       4,935
+CPython _bz2 module          DATA       2,380
+CPython _lzma module         CODE      10,990
+CPython _lzma module         DATA       5,045
+CPython _sqlite3 module      CODE      57,130
+CPython _sqlite3 module      DATA      11,767
+SQLite (libsqlite3.a)        CODE   1,531,307
+SQLite (libsqlite3.a)        DATA      46,548
+bzip2 (libbz2.a)             CODE      60,064
+bzip2 (libbz2.a)             DATA       3,128
+liblzma (liblzma.a)          CODE      89,366
+liblzma (liblzma.a)          DATA      26,114
+total 1,848,774
+  SQLite (libsqlite3.a)        1,577,855
+  liblzma (liblzma.a)            115,480
+  CPython _sqlite3 module         68,897
+  bzip2 (libbz2.a)                63,192
+  CPython _lzma module            16,035
+  CPython _bz2 module              7,315

@@ -1,0 +1,70 @@
+== snapshot die {} exit=3 trap=None (3.62 s)
+in transaction ['k.db', 'k.db-journal', 'k.db.lock']
+== snapshot after {} exit=0 trap=None (0.03 s)
+left behind ['k.db', 'k.db-journal', 'k.db.lock']
+read !! OperationalError database is locked
+write !! OperationalError database is locked
+end after
+== snapshot clear {} exit=0 trap=None (0.04 s)
+read after clearing -> (100, 0)
+after recovery ['k.db']
+end clear
+== snapshot spin {} exit=None trap=out of fuel (0.37 s)
+in transaction ['k.db', 'k.db-journal', 'k.db.lock']
+== snapshot after {} exit=0 trap=None (0.03 s)
+left behind ['k.db', 'k.db-journal', 'k.db.lock']
+read !! OperationalError database is locked
+write !! OperationalError database is locked
+end after
+== snapshot clear {} exit=0 trap=None (0.04 s)
+read after clearing -> (100, 0)
+after recovery ['k.db']
+end clear
+== snapshot temp {} exit=0 trap=None (0.08 s)
+SQLITE_TMPDIR None TMPDIR None
+during: / [] tmp None
+vacuum into -> True
+after: / []
+end temp
+== snapshot temp {'SQLITE_TMPDIR': '/tmpdir'} exit=0 trap=None (0.06 s)
+SQLITE_TMPDIR /tmpdir TMPDIR None
+during: / [] tmp []
+vacuum into !! OperationalError output file already exists
+after: / []
+end temp
+host view of the root after: ['probe', 'probe/probe_lock.py', 'tmpdir', 'work', 'work/k.db', 'work/v.db']
+== plain die {} exit=3 trap=None (3.52 s)
+in transaction ['k.db', 'k.db-journal', 'k.db.lock']
+== plain after {} exit=0 trap=None (0.05 s)
+left behind ['k.db', 'k.db-journal', 'k.db.lock']
+read !! OperationalError database is locked
+write !! OperationalError database is locked
+end after
+== plain clear {} exit=0 trap=None (0.06 s)
+read after clearing -> (100, 0)
+after recovery ['k.db']
+end clear
+== plain spin {} exit=None trap=out of fuel (0.38 s)
+in transaction ['k.db', 'k.db-journal', 'k.db.lock']
+== plain after {} exit=0 trap=None (0.05 s)
+left behind ['k.db', 'k.db-journal', 'k.db.lock']
+read !! OperationalError database is locked
+write !! OperationalError database is locked
+end after
+== plain clear {} exit=0 trap=None (0.06 s)
+read after clearing -> (100, 0)
+after recovery ['k.db']
+end clear
+== plain temp {} exit=0 trap=None (0.11 s)
+SQLITE_TMPDIR None TMPDIR None
+during: / [] tmp None
+vacuum into -> True
+after: / []
+end temp
+== plain temp {'SQLITE_TMPDIR': '/tmpdir'} exit=0 trap=None (0.09 s)
+SQLITE_TMPDIR /tmpdir TMPDIR None
+during: / [] tmp []
+vacuum into !! OperationalError output file already exists
+after: / []
+end temp
+host view of the root after: ['probe', 'probe/probe_lock.py', 'tmpdir', 'work', 'work/k.db', 'work/v.db']
