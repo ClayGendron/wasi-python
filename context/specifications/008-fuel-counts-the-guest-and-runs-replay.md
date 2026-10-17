@@ -91,4 +91,17 @@ fuel as a price in any API.
 
 ## Landing notes
 
-(Filled in on landing.)
+Built 2026-10-17 by the author agent; build review pending.
+
+**Seen failing first** (EXECUTED): `test_fuel_does_not_depend_on_the_module_cache` failed with
+"compiled 124,252,680, loaded 81,846,084"; the unit test `test_fuel_counts_no_memory_image_copy`
+failed (a page of data cost its image); `test_start_section_rule_names_a_start_function` shows
+the rule failing on a WAT module with a start section. After the change all pass.
+
+**The judge's metrics** (EXECUTED: the full judge against the accepted state of spec 006, the
+same build): 33 fuel metrics dropped by exactly their binary's charge, 42,352,641 (snapshot) or
+5,046,273 (plain). Three differ from it by tens of instructions, as Decision 4 expected for
+programs that write files (wasmtime's inode numbers are hashed from the host's):
+`test_nothing_is_a_shared_library` −34, `test_numpy_csv_job_matches_native` +34,
+`test_random_matches_native` +17. The C++-exception check records no fuel since spec 006's
+landing; the ratchet lists it as "no longer recorded".

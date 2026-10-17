@@ -42,7 +42,7 @@ promises.
 | build from pinned sources, downloads present | 4 min 19 s |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 29.8 MB / 63.5 MB / 11.1 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 124M instructions on 3.15 (117.6M on 3.14) |
+| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 81.9M guest instructions on 3.15 |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
 | one call, plain reactor, `-c pass` / `import pandas` | 33 ms / 720 ms |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
@@ -174,10 +174,10 @@ default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`
 and `artifacts`. It returns `exit_code`, `stdout`, `stderr`, `trapped`
 (`"out of fuel"`, `"deadline"`, or a trap's first line), `fuel_used` and
-`truncated` (the streams whose output hit the cap). A module loaded from
-the `.cwasm` cache counts a constant few tens of millions fewer instructions
-than one compiled in the process, with the same output, so compare
-`fuel_used` only between calls whose module came the same way
+`truncated` (the streams whose output hit the cap). `fuel_used` counts the
+guest's own instructions from the end of instantiation, so it is the same
+whether the module was compiled or loaded from the `.cwasm` cache, and on
+every operating system
 (`context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`).
 
 The compiled module is cached as a `.cwasm` in the user cache directory, or

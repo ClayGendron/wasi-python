@@ -77,6 +77,18 @@ def export_errors(binary: Path, required: set[str], forbidden: set[str] = frozen
     return errors
 
 
+def start_section_errors(binary: Path) -> list[str]:
+    """The binary has no start section, so instantiation runs no guest code: the runner and the
+    judge meter fuel from after instantiation (spec 008, Decision 2)."""
+    try:
+        mod = wasm.parse_file(binary)
+    except wasm.WasmError as e:
+        return [f"{binary.name}: {e}"]
+    if wasm.START_SECTION in mod.sections:
+        return [f"{binary.name}: has a start section (guest code would run unmetered)"]
+    return []
+
+
 def exception_errors(binary: Path) -> list[str]:
     """The binary uses the exception-handling proposal's standard form (spec 005, Decision 9): it
     has a tag section, validates on an engine with exceptions on, and fails with them off.

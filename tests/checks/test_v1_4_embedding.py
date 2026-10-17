@@ -223,6 +223,39 @@ def _cache_probe(guest_workdir: Path, cache: Path) -> tuple[list, str]:
     return json.loads(out.stdout), out.stderr
 
 
+FUEL_PROBE = (
+    "import sys, json\n"
+    f"sys.path.insert(0, {str(paths.REPO / 'src')!r})\n"
+    "from wasi_python import run, runner\n"
+    "done = run(['-c', 'pass'], root=sys.argv[1], cache_dir=sys.argv[2], fuel=10**12,\n"
+    "           deadline_s=None)\n"
+    "print(json.dumps([done.exit_code, done.fuel_used, runner.stats()]))\n"
+)
+
+
+def test_fuel_does_not_depend_on_the_module_cache(guest_workdir) -> None:
+    """Fuel counts the guest only: a module compiled in the process and one loaded from a .cwasm
+    report the same fuel (spec 008). Without that, wasmtime's memory-image copy at instantiation
+    (42.35M on the snapshot) is counted when the image cannot be mapped. The bound is fixed, not
+    the judge's 0.01%: the runner's clock is real and moves the count by about 150,000."""
+    _runner()
+    cache = Path(tempfile.mkdtemp(prefix="fuel-cache-", dir=guest_workdir))
+    seen = []
+    for _ in range(2):
+        out = subprocess.run(
+            [sys.executable, "-I", "-c", FUEL_PROBE, str(_root(guest_workdir)), str(cache)],
+            capture_output=True,
+            text=True,
+            env={**os.environ},
+        )
+        assert out.returncode == 0, out.stderr
+        seen.append(json.loads(out.stdout))
+    (code_a, fuel_a, stats_a), (code_b, fuel_b, stats_b) = seen
+    assert (code_a, stats_a) == (0, {"compiled": 1, "loaded": 0, "written": 1}), seen
+    assert (code_b, stats_b) == (0, {"compiled": 0, "loaded": 1, "written": 0}), seen
+    assert abs(fuel_a - fuel_b) < 1_000_000, f"compiled {fuel_a:,}, loaded {fuel_b:,}"
+
+
 def test_runner_refuses_a_cache_others_can_write(guest_workdir) -> None:
     """A .cwasm is native code: on POSIX a cache directory others can write is neither read
     nor written. Windows has no such mode bits, and the runner makes no ownership check there

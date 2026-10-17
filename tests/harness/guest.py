@@ -22,6 +22,7 @@ from pathlib import Path
 import wasmtime as wt
 
 DEFAULT_FUEL = 2 * 10**11
+UNMETERED = 2**63 - 1  # instantiation's own memory fill is not the guest's work (spec 008)
 NO_HOST = -1
 HOST_FAULT = -2
 ARGV0 = "/usr/local/bin/python.wasm"
@@ -142,7 +143,7 @@ def run(
         dest.write_bytes(content.encode() if isinstance(content, str) else content)
 
     store = wt.Store(engine())
-    store.set_fuel(fuel)
+    store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation (spec 008)
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted((env or {}).items())
@@ -215,6 +216,7 @@ def run(
     trapped: str | None = None
     try:
         inst = linker.instantiate(store, mod)
+        store.set_fuel(fuel)
         exports = inst.exports(store)
         if how == "command":
             exports["_start"](store)

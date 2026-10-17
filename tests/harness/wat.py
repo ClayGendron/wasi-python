@@ -157,3 +157,25 @@ def door_probe(ptr: int, length: int) -> str:
   (func (export "run") (result i32)
     (call $door (i32.const {ptr}) (i32.const {length}) (i32.const 100) (i32.const 104))))
 """
+
+
+# A module with a start function: guest code that runs at instantiation.
+WITH_START = """
+(module
+  (memory (export "memory") 1)
+  (func $boot (i32.store (i32.const 0) (i32.const 7)))
+  (start $boot))
+"""
+
+
+# The door-free command shape with and without one page of data, for the fuel-at-instantiation
+# rule: the driver must charge them alike.
+def command_with_data(data: bool) -> str:
+    segment = '(data (i32.const 16) "0123456789")' if data else ""
+    return f"""
+(module
+  (import "{WASI}" "proc_exit" (func $exit (param i32)))
+  (memory (export "memory") 1)
+  {segment}
+  (func (export "_start") (call $exit (i32.const 0))))
+"""

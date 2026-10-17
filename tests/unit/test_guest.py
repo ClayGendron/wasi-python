@@ -130,3 +130,11 @@ def test_cpython_fuel_repeats_without_a_seed(cpython) -> None:
     a = cpython("-I", "-c", "import json; print(json.dumps({'a': [1, 2]}))").fuel
     b = cpython("-I", "-c", "import json; print(json.dumps({'a': [1, 2]}))").fuel
     assert abs(a - b) <= a * 1e-4, (a, b)
+
+
+def test_fuel_counts_no_memory_image_copy(work) -> None:
+    """The driver meters from after instantiation, so a page of data costs no fuel (spec 008)."""
+    with_data = guest.run(wat.build(work, "d.wasm", wat.command_with_data(True)), [], workdir=work)
+    without = guest.run(wat.build(work, "n.wasm", wat.command_with_data(False)), [], workdir=work)
+    assert (with_data.exit_code, without.exit_code) == (0, 0)
+    assert with_data.fuel == without.fuel, (with_data.fuel, without.fuel)

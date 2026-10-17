@@ -274,3 +274,10 @@ def test_exception_rule_names_a_module_without_exceptions(work) -> None:
         "python.wasm: no tag section (no exception tag defined)",
         "python.wasm: validates with exceptions off (no exception handling)",
     ]
+
+
+def test_start_section_rule_names_a_start_function(work) -> None:
+    assert rules.start_section_errors(wat.build(work, "s.wasm", wat.WITH_START)) == [
+        "s.wasm: has a start section (guest code would run unmetered)"
+    ]
+    assert rules.start_section_errors(wat.build(work, "p.wasm", wat.PLAIN_REACTOR)) == []

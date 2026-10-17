@@ -47,6 +47,7 @@ CACHE_ENV = "WASI_PYTHON_CACHE"
 TICK_S = 0.01
 NO_DEADLINE = 2**62
 MASK32 = 0xFFFFFFFF
+UNMETERED = 2**63 - 1  # the most fuel a store takes: instantiation runs on it (spec 008)
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
 # The guest's environment before the caller's `env`. HOME is added per call: a fresh, empty
 # directory under /tmp that the runner removes afterwards, so nothing a call leaves in its HOME
@@ -261,7 +262,10 @@ def _instance(
     output_bytes: int | None,
 ) -> Completed:
     if fuel is not None:
-        store.set_fuel(fuel)
+        # Fuel is metered from the end of instantiation (spec 008): instantiation runs only
+        # wasmtime's own memory fill, which it charges per byte when it cannot map the image
+        # (macOS when compiled in the process, Windows always); the guest's work starts after.
+        store.set_fuel(UNMETERED)
     if memory_bytes is not None:
         store.set_limits(memory_size=memory_bytes)
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
@@ -289,7 +293,10 @@ def _instance(
         trapped: str | None = None
         with _epoch_ticker(engine, deadline_s is not None):
             try:
-                exports = linker.instantiate(store, module).exports(store)
+                instance = linker.instantiate(store, module)
+                if fuel is not None:
+                    store.set_fuel(fuel)
+                exports = instance.exports(store)
                 if "_initialize" in exports:
                     exports["_initialize"](store)
                 exit_code = exports["run"](store)

@@ -56,6 +56,12 @@ def test_exceptions_are_the_standard_form(artifacts, which) -> None:
     assert not errors, scan.report(errors)
 
 
+@BINARY
+def test_no_start_section(artifacts, which) -> None:
+    errors = rules.start_section_errors(_binary(artifacts, which))
+    assert not errors, scan.report(errors)
+
+
 def test_plain_reactor_exports(artifacts) -> None:
     errors = rules.export_errors(_binary(artifacts, "plain"), rules.PLAIN_EXPORTS)
     assert not errors, scan.report(errors)

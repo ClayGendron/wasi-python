@@ -40,6 +40,10 @@ package becomes a Python exception instead of ending the guest.
   never run by the next. The plain reactor ran them before.
 - **The door is bounded:** a frame past guest memory, a response over 2 GiB or a failing host is
   a host fault (−2); `run` no longer raises for them.
+- **Fuel counts the guest only:** `fuel_used` and the `fuel` cap start after instantiation, so
+  they no longer include wasmtime's copy of the memory image (42.35M instructions for the
+  snapshot, 5.05M for the plain reactor, charged on macOS when compiled in the process and on
+  Windows always). Figures from 0.1.0a1 are that much higher.
 - **The snapshot honours extra preopens** by name and in any order, as the plain reactor does;
   before, it ignored them or swapped them.
 
