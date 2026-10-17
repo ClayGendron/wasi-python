@@ -1,12 +1,13 @@
 # 019 — The command line
 
-- **Status:** drafted 2026-10-17, awaiting its pre-build review.
+- **Status:** drafted 2026-10-17 and revised against its pre-build review
+  (`../reviews/019-the-command-line-spec-2026-10-17.md`), awaiting the reviewer's confirmation.
 - **Owner:** Clay Gendron
 - **Kind:** the runner's API (a new `src/wasi_python/cli.py`, `src/wasi_python/__main__.py`,
-  `pyproject.toml`'s `[project.scripts]`), judge additions in `tests/`, `README.md`,
-  `CHANGELOG.md`.
+  `pyproject.toml`'s `[project.scripts]`), the release workflow's `verify` job, judge additions
+  in `tests/`, `README.md`, `CHANGELOG.md`.
 - **Depends on:** 013 and 014 (`run` checks its limits and inputs, so the command line does not
-  check them twice), 015 (cancel and Ctrl-C).
+  check them twice), 015 (cancel and Ctrl-C), 016 (a killed command's folders are swept).
 - **Research it stands on:**
   - The owner's answer to question 7 (`../questions-for-the-owner.md`), recorded in the
     constitution's §3: "A thin command that runs one program through the runner and prints its
@@ -27,52 +28,80 @@ runner's checks and defaults unchanged.
 
 ## Decisions
 
-1. **One subcommand, `run`.** `wasi-python run [options] [--] ARG...` calls
+1. **One subcommand, `run`.** `wasi-python run [OPTIONS] -- ARG...` calls
    `wasi_python.run([ARG...], ...)` once and prints the result. `python -m wasi_python run …` is
    the same command. A subcommand leaves room for later ones (a batch mode) without changing this
    one's meaning. No subcommand, or an unknown one, is a usage error.
+   - **Everything after the first `--` is the guest's argv**, untouched, even when it starts with
+     `-` or looks like an option of this command. Without `--`, the first argument that is not an
+     option and everything after it is the guest's argv; an option after it is the guest's too
+     (`run x.py --fuel 5` gives the guest `["x.py", "--fuel", "5"]`). The parser is
+     `argparse` with `allow_abbrev=False`, so `--dead` is a usage error, never `--deadline`.
+   - **An empty argv is allowed:** `run([], stdin=…)` runs the program on standard input, as
+     CPython does (the review, EXECUTED).
+   - **The command never reads its own standard input** unless `--stdin -` says so.
 2. **It adds no power.** Each option maps to one `run()` argument, and nothing else:
 
    | option | `run()` argument |
    |---|---|
-   | `--env KEY=VALUE` (repeatable; split at the first `=`) | `env` |
+   | `--env KEY=VALUE`, or `--env KEY` to take `KEY`'s value from this command's own environment (repeatable; split at the first `=`; a repeated key keeps its last value) | `env` |
    | `--stdin PATH`, or `--stdin -` for this process's standard input | `stdin` (the file's bytes) |
-   | `--deadline SECONDS` | `deadline_s` (`none` for no limit) |
-   | `--memory BYTES` | `memory_bytes` (`none` for no limit) |
-   | `--output-bytes BYTES` | `output_bytes` (`none` for no limit) |
-   | `--fuel N` | `fuel` |
+   | `--deadline-s SECONDS` (a `float`) | `deadline_s` |
+   | `--memory-bytes BYTES` (an `int`) | `memory_bytes` |
+   | `--output-bytes BYTES` (an `int`) | `output_bytes` |
+   | `--fuel N` (an `int`) | `fuel` |
    | `--no-snapshot` | `snapshot=False` |
 
+   The option names are `run()`'s argument names, so an error from `run()` (it names
+   `deadline_s`) points at the option. A limit given as `none` is `None`, no limit. A value that
+   does not parse as its type (`--fuel ten`) is a usage error, exit 2; a value that parses but
+   `run()` refuses (`--fuel -1`) is exit 1 with `run()`'s message. `--env KEY` without `=` takes
+   the value from the command's environment, so a secret need not appear on the command line,
+   where other local users can read it with `ps`; a `KEY` absent there is a usage error.
+
    Without an option the argument is `run()`'s default, so the command is as safe as `run(argv)`:
-   a private root, `DEFAULTS`' limits, empty input, no host function. There is no `--root`:
-   giving the guest a host folder waits for typed grants (spec 017), whose `--grant` option is a
-   later change. There is no host function: a host function is code, and a command line carries
-   none. Values are passed through as strings or parsed only as far as their type needs (`int`,
-   `float`, `none`); `run()` checks them and its error names the argument.
+   a private root, `DEFAULTS`' limits, empty input, no host function. There is no `--root` and no
+   `--grant`: giving the guest a host folder waits for typed grants (spec 017). There is no host
+   function: a host function is code, and a command line carries none.
+
+   **Ctrl-C.** The command always passes `run()` a `cancel` event that nothing sets. Spec 015
+   watches for Ctrl-C while a guest computes only when the call has `cancel` (the review,
+   EXECUTED: without one, Ctrl-C at 1.5 s stopped an endless loop only at its 8 s deadline; with
+   one, at 1.5 s). An unset event changes nothing else, so it adds no power.
 3. **The output is one JSON object, one line, on standard output.** Keys, sorted:
    - `exit_code`, `trapped`, `fuel_used`, `truncated` (a list): as in `Completed`;
    - the program's standard output as `stdout` when its bytes are valid UTF-8, otherwise as
      `stdout_base64` (standard base64); exactly one of the two is present; the same for `stderr`.
-     Text is what agents read; base64 keeps binary output exact.
+     Text is what agents read; base64 keeps binary output exact. Output cut at `output_bytes`
+     inside a character is not valid UTF-8, so it comes as base64; the README says so.
 
-   `json.dumps(…, sort_keys=True, ensure_ascii=True)`, then a newline. The command prints nothing
-   else on standard output.
+   `json.dumps(…, sort_keys=True, ensure_ascii=True)` plus `"\n"`, encoded as ASCII and written
+   to `sys.stdout.buffer` and flushed, so the line ends in `\n` on Windows too. The command
+   prints nothing else on standard output, with one exception: `--help` prints its usage there
+   and exits 0, as every command does.
 4. **Exit codes say whether there is a result, not how the program ended.**
    - `0`: the call returned; the JSON says how the program ended (any exit code, any trap).
-   - `1`: `run()` raised (a checked argument, missing artifacts, wasmtime not installed); one JSON
-     object `{"error": "<the exception's message>", "kind": "<its class name>"}` on standard
-     output, so a caller parses one shape on every path but usage errors.
-   - `2`: a usage error (argparse's own message on standard error, nothing on standard output).
-   - `130`: interrupted. Ctrl-C stops the guest (spec 015 already does this inside `run`), and the
-     command exits 130 with nothing on standard output.
+   - `1`: `run()` raised (a value it refused, missing artifacts, wasmtime not installed), or a
+     `--stdin PATH` could not be read; one JSON object
+     `{"error": "<the exception's message>", "kind": "<its class name>"}` on standard output.
+   - `2`: a usage error (argparse's message on standard error, nothing on standard output).
+     `main` catches argparse's `SystemExit` and returns its code, so a check calls `main` in
+     process.
+   - `130`: interrupted. Ctrl-C stops the guest (Decision 2's `cancel`), `run()` raises
+     `KeyboardInterrupt`, and the command returns 130 with nothing on standard output.
+   - Killed (a caller's timeout sends `SIGTERM` or `SIGKILL`): no output. The call's private
+     folders stay until the next wasi_python process on the same kernel sweeps them (spec 016,
+     EXECUTED by the review).
+
    The program's own exit code is never the command's: a caller would not tell a program that
    exited 1 from a command that failed.
-5. **wasmtime stays optional.** The wheel's dependencies stay empty; `run` needs the `run` extra.
-   The command imports the runner lazily, and without wasmtime it exits 1 with
-   `{"error": "the run command needs wasmtime: install wasi-python[run]", "kind": "ImportError"}`.
+5. **wasmtime stays optional, with no special case.** The package imports without wasmtime, and
+   `run()` already raises `ImportError('wasi_python.run needs wasmtime-py: pip install
+   "wasi-python[run]"')`, which exit 1 reports as is.
 6. **The entry point** is `[project.scripts] wasi-python = "wasi_python.cli:main"`. `main(argv=None)`
    returns the exit code, so checks call it in process; the script wrapper passes it to
-   `sys.exit`.
+   `sys.exit`. The wheel gains a two-line `entry_points.txt` and stays reproducible (the review,
+   EXECUTED: two builds, one under `umask 077`, gave the same bytes).
 
 ## Intent
 
@@ -82,34 +111,52 @@ and every other language can run agent code the same way.
 
 ## Design
 
-- `src/wasi_python/cli.py`: `argparse` with one subparser; `main(argv: list[str] | None = None) ->
-  int`. Parsing helpers `_limit(text)` (`none` → `None`, else `float` or `int`) and `_env(items)`
-  (refuses an item with no `=`, as a usage error). The call: `run(args.argv, env=…, stdin=…, …)`
-  with only the options given passed, so `run()`'s `_UNSET` defaults apply. `_stream(name, data)`
-  returns `{name: text}` or `{name + "_base64": …}`.
+- `src/wasi_python/cli.py`: `argparse` with one subparser, `allow_abbrev=False` on both;
+  `main(argv: list[str] | None = None) -> int`. The guest's argv is split off first: everything
+  after the first `--`, or, without `--`, from the first argument that is not an option (the
+  options that take a value consume it). Helpers: `_limit(type)(text)` (`none` → `None`, else
+  the type, else `argparse.ArgumentTypeError`) and `_env(items)` (the `=` split, or the
+  command's environment). The call: `run(argv, cancel=threading.Event(), …)` with only the
+  options given passed, so `run()`'s `_UNSET` defaults apply. `_stream(name, data)` returns
+  `{name: text}` or `{name + "_base64": …}`.
 - `src/wasi_python/__main__.py`: `raise SystemExit(main())`.
-- `pyproject.toml`: the `[project.scripts]` line. The wheel changes (an entry point and two
-  modules), so the release's same-bytes rebuild compares it as before.
+- `pyproject.toml`: the `[project.scripts]` line.
+- `.github/workflows/release.yml`: the `verify` job's fresh-wheel step also runs
+  `wasi-python run -- -c "print(1)"` from the installed wheel and compares its line with the
+  Intent's, on Linux, macOS and Windows. The `verify` file list gains `tests/unit/test_cli.py`.
 - README: a "From any language" section with one example in a shell and one in TypeScript
-  (`spawn`, `JSON.parse`), the output keys and the exit codes.
+  (`spawn` with standard output collected in full, `JSON.parse`), the output keys and the exit
+  codes, and three warnings: the JSON line can be about 5.4 times the raw output (escaping;
+  about 190 MiB at the defaults, EXECUTED by the review), so Node's `exec`, which stops at 1 MiB
+  by default, is the wrong call; output cut inside a character comes as base64; a long program
+  belongs in a file, `--stdin PATH -- -`, not in `-c`, which meets the system's argument-length
+  limit.
 - CHANGELOG: one entry.
 - Checks (`tests/unit/test_cli.py` for parsing and output without a guest, by a fake `run`;
   `tests/checks/test_v1_4_embedding.py` for real calls):
-  - each option reaches `run()` as its argument, and an option not given is not passed (the fake
-    records its keyword arguments);
-  - `--env` without `=` and an unknown subcommand exit 2 with nothing on standard output;
-  - a fake `run` that raises `ValueError("deadline_s must be …")` gives exit 1 and the error JSON;
+  - each option reaches `run()` as its argument, an option not given is not passed, and
+    `cancel` is always an unset `threading.Event` (the fake records its keyword arguments);
+  - the argv split: after `--`, an argv starting with `-c` and one holding `--fuel`; without
+    `--`, `x.py --fuel 5` goes to the guest; an empty argv;
+  - `--env K=V`, `--env K` from the environment, a repeated key, a missing `K` (exit 2);
+  - `--dead 1` (an abbreviation), `--fuel ten` and an unknown subcommand exit 2 with nothing on
+    standard output; `--help` exits 0;
+  - a fake `run` that raises `ValueError("deadline_s must be …")` gives exit 1 and the error
+    JSON; an unreadable `--stdin PATH` gives exit 1;
+  - a fake `run` that raises `KeyboardInterrupt` gives 130 and nothing on standard output;
   - a fake `Completed` with UTF-8 and non-UTF-8 bytes gives `stdout` and `stderr_base64`, and the
-    base64 decodes to the bytes;
-  - the JSON is one line with sorted keys;
-  - without wasmtime (the import made to fail): exit 1 and the ImportError JSON;
+    base64 decodes to the bytes; the line is ASCII, one line, sorted keys, ending in `\n`;
   - v1.4, real calls through `main()`: `-c "print(1)"` gives exit 0 and `"stdout": "1\n"`;
     `-c "import sys; sys.exit(3)"` gives command exit 0 and `"exit_code": 3`; `--stdin` of a file
-    reaches the guest's `sys.stdin`; `--deadline 0.5` on an endless loop gives
+    reaches the guest's `sys.stdin`; `--deadline-s 0.5` on an endless loop gives
     `"trapped": "deadline"`; `--fuel 1000` gives `"trapped": "out of fuel"`;
-  - v1.4, the installed entry point: `uv run wasi-python run -- -c "print(1)"` as a subprocess
-    prints the same JSON (the check finds the script on `PATH` through `sysconfig`, not `shutil.which`
-    on an unknown `PATH`).
+  - v1.4, Ctrl-C: the command in a child process, on an endless loop with `--deadline-s none`;
+    once the child prints that the guest started (on standard error, from the guest), the check
+    sends `SIGINT` (POSIX) and expects 130 and nothing on standard output; a fail-safe timeout
+    asserts no duration;
+  - v1.4, the installed entry point: the script found by
+    `shutil.which("wasi-python", path=sysconfig.get_path("scripts"))` (which finds the `.exe` on
+    Windows) prints the Intent's line; the judge never calls `uv`.
 - Each check is seen failing first (no `cli` module).
 
 ## Scope
@@ -117,15 +164,15 @@ and every other language can run agent code the same way.
 In: the above. Out:
 - A batch mode (many programs, one process, JSON Lines in and out): a later specification, once
   a caller needs to keep one process warm.
-- `--grant`: after spec 017 lands.
+- `--root` and `--grant`: after spec 017 lands.
 - A Node, Go or other client library: the README's examples are the contract.
 
 ## Acceptance criteria
 
 1. The checks exist and were seen failing before the change.
 2. `uv run pytest` is green with `--accept-judge`.
-3. A release dry run passes every job, and its `verify` jobs run the command from the installed
-   wheel on Linux, macOS and Windows.
+3. A release dry run passes every job, and its `verify` jobs run the command from the freshly
+   installed wheel on Linux, macOS and Windows (the fresh-wheel step).
 
 ## Landing notes
 
