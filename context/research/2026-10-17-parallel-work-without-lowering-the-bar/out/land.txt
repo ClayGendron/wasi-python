@@ -1,0 +1,12 @@
+main fast-forwarded to exp-a
+rebase: conflicts in CHANGELOG.md context/progress/history.jsonl 
+after rebase: HEAD 7985a2c, parent f65abde, main f65abde
+main fast-forwarded to exp-b
+34 ae10b13e7c6f 57b3a23284 Specs 025 (nothing writable by default) and 026 (Finder litter in the judge's extraction)
+35 a921c820c9a5 c4a8a001cf experiment: change a
+36 1db3a450ee7d 7985a2c845 experiment: change b, re-accepted on main
+d13862c change b: accepted on main
+7985a2c change wt-b
+f65abde change wt-a
+c4a8a00 Decision: install as pip install wasi-python, wasmtime-py required from 0.1.0a4 (spec 028 to build)
+2ea71f5 Spec 027: confirmed for build, with the confirmation's five conditions written in

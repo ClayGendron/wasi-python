@@ -1,0 +1,2 @@
+300M	build
+ 58M	.venv

@@ -1,0 +1,3 @@
+shared-cache 0 {'compiled': 1, 'loaded': 0, 'written': 1} []
+cache-link 0 {'compiled': 1, 'loaded': 0, 'written': 0} ['wasi_python: not using the module cache at /private/tmp/clau']
+c7302cfd191ac3b96c3dd713fd16b89d-wasmtime49.0.0-plain.cwasm

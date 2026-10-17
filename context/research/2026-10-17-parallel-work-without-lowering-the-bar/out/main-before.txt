@@ -1,0 +1,49 @@
+28753c7121ccf73cc69a44ee55ba52d891d3bf1718940d2e3cffa661d225a455  ./LICENSES/bzip2.txt
+e140d8fab8152ead9954dea90595498bf4a86adf2bc69c8f91a5b6dbb7c38150  ./LICENSES/cpython.txt
+796ac49177d19da4f828081607414aad9b2953b3e811a9e6e13714866d475745  ./LICENSES/llvm-runtimes.txt
+7bd98a031ed230538a1e6457822483bfdc7c0216f9438441b6917366a7f97de8  ./LICENSES/numpy.txt
+d38f9537c4397ecb97d1b3dc7feaf9bed381780639d126909b120113c9566ab9  ./LICENSES/pandas.txt
+54c1d04571a9c1a99925fe49ed3092f4c74c8b1b6593e7a8c9633728cc8ecfe2  ./LICENSES/python-dateutil.txt
+09ad15735d79a7d10caf307dfba8a8fe8ec52aa5fdea4db1e664d0528ee32cb1  ./LICENSES/six.txt
+681f05f7e60baee5e748a22c0e3dfa1fce3fcf16c69078998928bfb3978c70f9  ./LICENSES/sqlite.txt
+a28814acc65c4af15aa37fb4b300c035fac36e77ab16967f18b4797dafd29c45  ./LICENSES/tzdata.txt
+cf87ce0c8612aa619b7058b5699acb9a4c3ccd88c82228d3db6b7ea3b0fee427  ./LICENSES/wasi-libc.txt
+93947eef5170a4e17a3dfed772f23f4fa366beff24358f41764cf60698a053e3  ./LICENSES/xz.txt
+b629f68f9e92e40953433541cc1e8e20be1c6421770f67486f7db98e270801e5  ./LICENSES/zlib.txt
+a680b3e065ba1f385a7de13446e7cad033629481e1eee32727135650d20d44a7  ./MANIFEST
+c7302cfd191ac3b96c3dd713fd16b89d3f07adb32ede80a15ba6d97908a0ac26  ./python-snapshot.wasm
+1add57e442f3d56596e1b4c09bc3201b79797143360b7a06c87f25dc80060739  ./python-stdlib.zip
+4befe9de64edc783996ab006e6179b704a73a520b67431135df103db9db9625d  ./python.wasm
+9a6c16459ddedf07458eb78d121c8b8ac1b09f43d7ff82c0eab626b64850762e  ./SHA256SUMS
+-rw-------@ 1 claygendron  staff   69585112 Oct 17 00:54 d77dc946962d2154866fc0727f4c5ba1-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff   70133240 Oct 17 00:09 856e08eb832d08f9320ad8dffbe75636-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff   70133368 Oct 17 00:35 4e2b2470314ee392acbcd53b8861d283-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff   70133368 Oct 17 05:31 2df569f2f59397d59b175eec7553d6a0-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff   75400320 Oct 17 09:45 4befe9de64edc783996ab006e6179b70-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff   82390272 Oct 17 00:17 856e08eb832d08f9320ad8dffbe75636-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff   82390392 Oct 17 08:11 2df569f2f59397d59b175eec7553d6a0-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff   88640488 Oct 17 10:26 4befe9de64edc783996ab006e6179b70-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  105383992 Oct 17 00:54 b450c7a6892bf9e384c4e3e76c2088ab-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  107439456 Oct 17 00:09 7d9836116aaecc1f5ec780081023a020-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  107439576 Oct 17 00:36 c6a791d3960c63982e83aeaa9daeff2b-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  107439576 Oct 17 05:31 4130d3baa218ce9b6fec08d84bb62f6a-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  112821232 Oct 17 09:45 a7a0a4a8da0f3c50fc630ac39ba74dc9-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  112821232 Oct 17 14:08 c7302cfd191ac3b96c3dd713fd16b89d-wasmtime49.0.0-plain.cwasm
+-rw-------@ 1 claygendron  staff  117542736 Oct 17 00:19 b450c7a6892bf9e384c4e3e76c2088ab-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  119696480 Oct 17 00:09 7d9836116aaecc1f5ec780081023a020-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  119696616 Oct 17 01:17 c6a791d3960c63982e83aeaa9daeff2b-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  119696616 Oct 17 05:31 4130d3baa218ce9b6fec08d84bb62f6a-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  126061392 Oct 17 09:45 a7a0a4a8da0f3c50fc630ac39ba74dc9-wasmtime49.0.0-fuel.cwasm
+-rw-------@ 1 claygendron  staff  126061392 Oct 17 14:09 c7302cfd191ac3b96c3dd713fd16b89d-wasmtime49.0.0-fuel.cwasm
+total 3888560
+07b975a21ff0de661881acfafb17d08e1be2e0d8a00dd06ca83bd15f4da3eff6  <main>/build/progress/latest.json
+guest-3n4mljmz
+guest-618z8duv
+guest-8ry6kc7c
+guest-hpqef__5
+guest-p2h3ufpj
+guest-vdz2nedx
+guest-wgoijiba
+oracle-check
+patched-7odafqtz
+patched-cq8ozq4b

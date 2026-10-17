@@ -1,0 +1,4 @@
+before: 61 24da1fb067e6 []
+after:  64 f4290620e8fa ['.claude/worktrees/inside/tests/checks/conftest.py', '.claude/worktrees/inside/tests/conftest.py', '.claude/worktrees/inside/tests/unit/conftest.py']
+?? .claude/
+removed: 61 24da1fb067e6 []

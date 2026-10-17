@@ -1,0 +1,8 @@
+build
+build/cwasm-cache
+build/cwasm-cache/4befe9de64edc783996ab006e6179b70-wasmtime49.0.0-plain.cwasm
+build/cwasm-cache/c7302cfd191ac3b96c3dd713fd16b89d-wasmtime49.0.0-fuel.cwasm
+build/cwasm-cache/c7302cfd191ac3b96c3dd713fd16b89d-wasmtime49.0.0-plain.cwasm
+build/harness
+build/progress
+build/progress/latest.json
