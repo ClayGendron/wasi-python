@@ -3,6 +3,7 @@ one line each; an empty list means the rule holds."""
 
 from __future__ import annotations
 
+import ast
 import re
 from collections.abc import Iterable
 from pathlib import Path
@@ -640,3 +641,66 @@ def rebuild_gate_errors(text: str) -> list[str]:
         if "same-bytes" not in _needs(jobs.get(name, [])):
             errors.append(f"{name} does not need same-bytes")
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# A module-level name bound twice: the second silently replaces the first, so checks that used
+# the first run the second's code (spec 019's rebase redefined `CTRL_C` and lost two checks).
+
+
+def _bound(node: ast.stmt) -> list[str]:
+    """The names a module-level statement binds: definitions, imports and assignment targets
+    (tuples and starred ones included). Names bound inside `if`, `try`, `for` or `with` are not
+    counted: their branches are often real alternatives (a `TYPE_CHECKING` import, a fallback)."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        decorators = [ast.unparse(d) for d in node.decorator_list]
+        if any(d.endswith("overload") or d.endswith(".register") for d in decorators):
+            return []  # typing's overloads and singledispatch's registrations repeat by design
+        return [node.name]
+    if isinstance(node, ast.ClassDef):
+        return [node.name]
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        return [(a.asname or a.name).split(".")[0] for a in node.names if a.name != "*"]
+    targets: list[ast.expr] = []
+    if isinstance(node, ast.Assign):
+        targets = list(node.targets)
+    elif isinstance(node, ast.AnnAssign) and node.value is not None:
+        targets = [node.target]
+    names = []
+    while targets:
+        t = targets.pop(0)
+        if isinstance(t, ast.Name):
+            names.append(t.id)
+        elif isinstance(t, (ast.Tuple, ast.List)):
+            targets[:0] = t.elts
+        elif isinstance(t, ast.Starred):
+            targets.insert(0, t.value)
+    return names
+
+
+def duplicate_name_hits(files: Iterable[Path], root: Path) -> list[str]:
+    hits = []
+    for p in files:
+        if p.suffix != ".py":
+            continue
+        try:
+            tree = ast.parse(p.read_text(), str(p))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        # A guest program under tests/jobs/ rebinds its working names on purpose; there only a
+        # constant (an upper-case name), a function or a class bound twice is the hazard.
+        guest = rel(p, root).startswith("tests/jobs/")
+        seen: dict[str, int] = {}
+        defined: set[str] = set()
+        for node in tree.body:
+            names = _bound(node)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                defined.update(names)
+            for name in names:
+                hazard = not guest or name.isupper() or name in defined
+                if name in seen and hazard:
+                    hits.append(
+                        f"{rel(p, root)}:{node.lineno}: {name} (first bound at {seen[name]})"
+                    )
+                seen.setdefault(name, node.lineno)
+    return hits

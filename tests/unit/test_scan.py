@@ -605,3 +605,36 @@ def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
     assert REBUILD_WORKFLOW.count(old) == 1, old
     errors = scan.rebuild_gate_errors(REBUILD_WORKFLOW.replace(old, new))
     assert errors and errors[0].startswith(error), errors
+
+
+def test_a_name_bound_twice_at_module_level_is_found(work) -> None:
+    cases = {
+        "tests/checks/a.py": 'A = "one"\n\ndef f():\n    pass\n\nA = "two"\n',
+        "tests/checks/b.py": "def f():\n    pass\n\ndef f():\n    pass\n",
+        "tests/checks/c.py": "def f():\n    pass\n\nclass f:\n    pass\n",
+        "tests/checks/d.py": "script = 1\nscript = 2\n",
+        "tests/checks/e.py": "A, B = 1, 2\n*C, A = [3, 4]\n",
+        "tests/checks/f.py": "import os as A\nA = 1\n",
+        "tests/checks/g.py": "x: int = 1\nx: int = 2\n",
+    }
+    files = [write(work, name, text) for name, text in cases.items()]
+    hits = [h.split(":")[0] for h in scan.duplicate_name_hits(files, work)]
+    assert hits == sorted(cases)
+
+
+def test_what_may_be_bound_twice(work) -> None:
+    files = [
+        write(work, "tests/checks/a.py", "A = 1\n\ndef f():\n    A = 2\n    return A\n"),
+        write(work, "tests/jobs/b.py", "blob = 1\nblob = blob + 1\nimport os\nimport os\n"),
+        write(work, "tests/checks/c.py", "A = 1\nA += 1\n"),
+        write(work, "tests/checks/d.py", "if X:\n    A = 1\nelse:\n    A = 2\n"),
+        write(
+            work,
+            "tests/checks/e.py",
+            "from typing import overload\n@overload\ndef f(x: int) -> int: ...\n"
+            "@overload\ndef f(x: str) -> str: ...\ndef f(x): return x\n",
+        ),
+    ]
+    assert scan.duplicate_name_hits(files, work) == []
+    job = write(work, "tests/jobs/z.py", "LIMIT = 1\nLIMIT = 2\n")  # a constant, even in a job
+    assert scan.duplicate_name_hits([job], work) == ["tests/jobs/z.py:2: LIMIT (first bound at 1)"]

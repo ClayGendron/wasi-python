@@ -18,6 +18,14 @@ SPECS = paths.CONTEXT / "specifications"
 RESEARCH = paths.CONTEXT / "research"
 
 
+def test_no_module_level_name_is_bound_twice() -> None:
+    """A second binding silently replaces the first; in a check file it makes other checks run the
+    wrong code (spec 019's rebase lost two checks that way)."""
+    files = scan.files_under(paths.REPO, "tests", "src", "scripts", "release")
+    hits = scan.duplicate_name_hits(files, paths.REPO)
+    assert not hits, scan.report(hits)
+
+
 def test_no_embedder_name_in_code() -> None:
     hits = scan.embedder_hits(paths.REPO, CODE_DIRS, scan.read_names(paths.EMBEDDERS))
     assert not hits, scan.report(hits)
