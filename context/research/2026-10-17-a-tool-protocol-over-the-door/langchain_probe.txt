@@ -1,0 +1,158 @@
+--- type and name
+StructuredTool 'lookup_region'
+--- description
+Look up a sales region by its code.
+--- tool_call_schema json
+{
+ "description": "Look up a sales region by its code.",
+ "properties": {
+  "code": {
+   "description": "The region code, such as \"EMEA\".",
+   "title": "Code",
+   "type": "string"
+  },
+  "year": {
+   "default": 2026,
+   "description": "The fiscal year.",
+   "title": "Year",
+   "type": "integer"
+  }
+ },
+ "required": [
+  "code"
+ ],
+ "title": "lookup_region",
+ "type": "object"
+}
+--- openai tool
+{
+ "type": "function",
+ "function": {
+  "name": "lookup_region",
+  "description": "Look up a sales region by its code.",
+  "parameters": {
+   "properties": {
+    "code": {
+     "description": "The region code, such as \"EMEA\".",
+     "type": "string"
+    },
+    "year": {
+     "default": 2026,
+     "description": "The fiscal year.",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "code"
+   ],
+   "type": "object"
+  }
+ }
+}
+--- openai tool strict
+{
+ "type": "function",
+ "function": {
+  "name": "lookup_region",
+  "description": "Look up a sales region by its code.",
+  "parameters": {
+   "properties": {
+    "code": {
+     "description": "The region code, such as \"EMEA\".",
+     "type": "string"
+    },
+    "year": {
+     "default": 2026,
+     "description": "The fiscal year.",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "code",
+    "year"
+   ],
+   "type": "object",
+   "additionalProperties": false
+  },
+  "strict": true
+ }
+}
+--- invoke(dict)
+{
+ "code": "EMEA",
+ "year": 2026,
+ "name": "Europe"
+}
+--- invoke(ToolCall) type
+ToolMessage
+--- invoke(ToolCall) message
+{
+ "content": "{\"code\": \"EMEA\", \"year\": 2026, \"name\": \"Europe\"}",
+ "name": "lookup_region",
+ "tool_call_id": "c1",
+ "artifact": null,
+ "status": "success"
+}
+--- coercion year='7'
+{
+ "code": "EMEA",
+ "year": 7,
+ "name": "Europe"
+}
+--- bad arg raises
+ValidationError: 1 validation error for lookup_region
+--- extra arg
+{
+ "code": "EMEA",
+ "year": 2026,
+ "name": "Europe"
+}
+--- ToolException raises by default
+ToolException("no region 'XX'")
+--- handled ToolException
+{
+ "content": "no region 'XX'",
+ "status": "error"
+}
+--- handled validation error
+{
+ "content": "Tool input validation error",
+ "status": "error"
+}
+--- plain exception propagates even when handled
+RuntimeError('secret host path /Users/me/key')
+--- ainvoke async tool
+<html>u</html>
+--- invoke of async-only tool
+NotImplementedError: StructuredTool does not support sync invocation.
+--- ainvoke of sync tool
+{
+ "code": "EMEA",
+ "year": 2026,
+ "name": "Europe"
+}
+--- content_and_artifact
+{
+ "content": "a chart of 3 points",
+ "artifact": "b'\\x89PNG...'"
+}
+--- from_function lambda schema
+{
+ "description": "Upper.",
+ "properties": {
+  "q": {
+   "title": "Q"
+  }
+ },
+ "required": [
+  "q"
+ ],
+ "title": "up",
+ "type": "object"
+}
+--- name accepted 'my tool'
+true
+--- name accepted 'a.b'
+true
+--- name accepted 'xxxxxxxxxxxx'
+true

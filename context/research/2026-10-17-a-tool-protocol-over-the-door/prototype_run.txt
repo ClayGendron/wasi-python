@@ -1,0 +1,80 @@
+=== discovery: one frame at import, real signatures and docstrings
+['lookup_region', 'sales', 'delete_report', 'secret_fault', 'refuse', 'slow', 'fetch', 'chart', 'big', 'block']
+(code: str, year: int = 2026) -> Any
+Look up a sales region by its code.
+
+Args:
+    code: The region code, such as "EMEA".
+    year: The fiscal year.
+{'destructive': True}
+exit_code=0 trapped=None frames=1 calls=0
+record: [('list', '', 'ok')]
+=== a call, and pandas on the result
+{'code': 'EMEA', 'year': 2026, 'name': 'Europe'}
+1 Q2
+exit_code=0 trapped=None frames=3 calls=2
+record: [('list', '', 'ok'), ('call', 'lookup_region', 'ok'), ('call', 'sales', 'ok')]
+=== arguments: the guest's binding, then the host's validation of a forged frame
+ToolArgumentError | lookup_region(): missing a required argument: 'code'
+ToolArgumentError | lookup_region: $.code: expected string, got int
+ToolArgumentError | lookup_region: $: unexpected argument 'colour'
+ToolArgumentError | lookup_region: $.year: expected integer, got str
+forged: {"v":1,"id":99,"ok":false,"error":{"kind":"invalid_arguments","message":"lookup_region: $.code: expected string, got list"}}
+old protocol: {"v":1,"id":1,"ok":false,"error":{"kind":"protocol","message":"protocol 0 is not served; this host serves 1"}}
+not JSON: {"v":1,"id":null,"ok":false,"error":{"kind":"protocol","message":"the request is not JSON"}}
+exit_code=0 trapped=None frames=7 calls=4
+record: [('list', '', 'ok'), ('call', 'lookup_region', 'invalid_arguments'), ('call', 'lookup_region', 'invalid_arguments'), ('call', 'lookup_region', 'invalid_arguments'), ('call', 'lookup_region', 'invalid_arguments'), ('?', '', 'protocol'), ('?', '', 'protocol')]
+=== the gate refuses; a tool error carries its message; a fault carries none
+PermissionError: ToolDenied | delete_report needs a person's approval
+ToolError tool_error | no record 7; try a number below 100
+ToolError tool_error | secret_fault failed (internal error)
+exit_code=0 trapped=None frames=4 calls=3
+record: [('list', '', 'ok'), ('call', 'delete_report', 'denied'), ('call', 'refuse', 'tool_error'), ('call', 'secret_fault', 'tool_error')]
+faults kept for the embedder: ["KeyError('/Users/me/.ssh/id_rsa')"]
+=== timeout: a slow tool ends the call, not the run
+ToolTimeout | slow took longer than 0.2 s
+guest continues: Europe
+exit_code=0 trapped=None frames=3 calls=2
+record: [('list', '', 'ok'), ('call', 'slow', 'timeout'), ('call', 'lookup_region', 'ok')]
+=== an async tool, and bytes both ways
+<html>https://example.org</html>
+bytes b'\x89PNG' 9
+exit_code=0 trapped=None frames=3 calls=2
+record: [('list', '', 'ok'), ('call', 'fetch', 'ok'), ('call', 'chart', 'ok')]
+=== caps: calls per run and bytes per response
+too large | the result is over 1048576 bytes
+calls before the cap: 3 | this run may make 4 tool calls
+exit_code=0 trapped=None frames=6 calls=4
+record: [('list', '', 'ok'), ('call', 'big', 'too_large'), ('call', 'lookup_region', 'ok'), ('call', 'lookup_region', 'ok'), ('call', 'lookup_region', 'ok'), ('call', 'lookup_region', 'budget_exceeded')]
+=== no tools passed: the import fails cleanly
+(no stdout)
+stderr tail: ['tools.ToolError: this run has no tools: the embedder passed none']
+exit_code=1 trapped=None (no host bound)
+=== an empty tool list: the module imports with nothing in it
+[]
+AttributeError | the host offers no tool 'anything'; it offers: none
+exit_code=0 trapped=None frames=1 calls=0
+record: [('list', '', 'ok')]
+=== cancel while a tool blocks
+(no stdout)
+stderr tail: 
+exit_code=None trapped='error while executing at wasm backtrace:' frames=2 calls=1
+record: [('list', '', 'ok'), ('call', 'block', 'cancelled')]
+=== stubs for a prompt (host side)
+# import tools
+
+def lookup_region(code: str, year: int = 2026):
+    """Look up a sales region by its code."""
+
+def sales(region: str):
+    """Quarterly sales rows for a region."""
+
+def fetch(url: str):
+    """Fetch a page (an async tool)."""
+
+=== LangChain @tool through the adapter
+(city: str, units: str = 'c') -> Any
+{'city': 'Paris', 'temp': 21.5, 'units': 'c'}
+ToolError | no such city
+exit_code=0 trapped=None frames=3 calls=2
+record: [('list', '', 'ok'), ('call', 'weather', 'ok'), ('call', 'weather', 'tool_error')]

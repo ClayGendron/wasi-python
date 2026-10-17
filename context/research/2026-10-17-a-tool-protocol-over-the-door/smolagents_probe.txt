@@ -1,0 +1,9 @@
+{'city': {'type': 'string', 'description': 'City name.'}, 'units': {'type': 'string', 'nullable': True, 'description': "'c' or 'f'."}} object
+def get_weather(city: string, units: string) -> object:
+    """Get current weather.
+
+    Args:
+        city: City name.
+        units: 'c' or 'f'.
+    """
+1.26.0

@@ -1,0 +1,10 @@
+--- deadline 0.3 s, host blocks 1 s, answers 2 bytes
+trapped='deadline' exit_code=None stdout=b''
+--- deadline 0.3 s, host blocks 1 s, answers 0 bytes
+trapped='deadline' exit_code=None stdout=b''
+--- cancel set at 0.2 s, host blocks 1 s, answers 2 bytes
+trapped='error while executing at wasm backtrace:' exit_code=None stdout=b''
+--- cancel set at 0.2 s, host blocks 1 s, answers 0 bytes
+trapped='error while executing at wasm backtrace:' exit_code=None stdout=b''
+--- control: cancel set while the guest computes
+trapped='cancelled' exit_code=None stdout=b''

@@ -27,6 +27,23 @@ document.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
 
+### 37–40. The tool protocol
+
+- **Asked:** 2026-10-17. **Source:** `research/2026-10-17-a-tool-protocol-over-the-door.md`
+  (LangChain, Monty, MCP, Cloudflare's code mode and others studied; a prototype ran through
+  today's door with no change to the runner or the binary).
+- **37. Is `gate=` required whenever `tools=` is given?** The gate sees every call after the
+  runner validates it and before the tool runs. *Recommended: yes;* an embedder that wants no
+  policy passes `gate=allow_all` and says so in its code (§4.15).
+- **38. The guest module's name: `tools`, shipped in the stdlib zip?** Agent code would write
+  `import tools; tools.lookup_region("EMEA")`. *Recommended: yes;* it is short and what agent
+  code expects, and it does nothing unless the embedder passed tools.
+- **39. Refuse a tool whose schema the runner can only partly check,** unless the embedder marks
+  that the tool validates its own arguments? *Recommended: yes* (never trust the guest).
+- **40. The LangChain and MCP adapters: in the wheel, or as README recipes?** *Recommended: in
+  the wheel as small optional modules that import their library lazily,* so no dependency is
+  added.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

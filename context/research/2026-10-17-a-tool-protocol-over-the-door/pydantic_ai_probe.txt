@@ -1,0 +1,24 @@
+{
+ "name": "get_weather",
+ "description": "Get current weather.",
+ "kind": "unapproved",
+ "params": {
+  "additionalProperties": false,
+  "properties": {
+   "city": {
+    "description": "City name.",
+    "type": "string"
+   },
+   "units": {
+    "default": "c",
+    "description": "'c' or 'f'.",
+    "type": "string"
+   }
+  },
+  "required": [
+   "city"
+  ],
+  "type": "object"
+ }
+}
+2.57.0

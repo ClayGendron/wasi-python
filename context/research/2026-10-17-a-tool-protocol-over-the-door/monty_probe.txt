@@ -1,0 +1,26 @@
+--- int to a str parameter
+21.5
+--- what the host saw
+[('int', 123)]
+--- custom host exception, uncaught
+MontyRuntimeError: Exception: quota of 10 calls exceeded
+--- custom host exception, caught as Exception
+('Exception', 'quota of 10 calls exceeded')
+--- host KeyError message
+"'/Users/me/.ssh/id_rsa'"
+--- host returns a builtin function
+('function', "<function 'print' external>")
+--- unknown tool
+MontyRuntimeError: NameError: name 'send_email' is not defined
+--- introspection
+('function', "<function 'get_temperature' external>")
+--- gated calls (name, args, kwargs, call_id)
+[('get_temperature', ('London',), {}, 0), ('get_temperature', (), {'city': 'Paris'}, 1)]
+--- gated outcome
+(20.0, 'denied: denied by policy')
+--- max_suspensions=5, ten calls
+MontyRuntimeError: RuntimeError: suspension limit 5 exceeded
+--- gather result
+['a', 'b']
+--- host order
+['start a', 'start b', 'end b', 'end a']
