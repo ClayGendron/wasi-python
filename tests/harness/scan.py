@@ -798,6 +798,8 @@ def patch_shape_errors(text: str, where: str) -> tuple[list[str], set[str]]:
             errors.append(f"{where}: {path!r} is outside the tree")
             continue
         touched.add(path)
+        if parts[-1] in paths_os_litter():
+            errors.append(f"{where}: touches {path}, a name Finder or Explorer writes (spec 026)")
         if parts[-1] in AUTOTOOLS_INPUTS or parts[-1].endswith(".m4"):
             errors.append(f"{where}: changes the autotools input {path}; patch its output")
     if not touched:

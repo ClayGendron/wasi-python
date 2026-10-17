@@ -250,6 +250,27 @@ def test_os_litter_in_the_judges_own_extraction_is_not_drift(tools, tmp_path, mo
     assert pins.tree_drift(tarball, tree, patches) == []
 
 
+def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monkeypatch) -> None:
+    """Spec 026, the build review's finding 1: only litter the tarball does not hold is skipped."""
+    monkeypatch.setitem(FILES, ".DS_Store", b"shipped by upstream\n")
+    tarball = _tarball(tmp_path)
+    root = tmp_path / "recipes"
+    _patches(root, _edit("a.c", FILES["a.c"], NEW_A))
+    patches = root / "patches"
+    tree = _tree(tmp_path, tarball)
+    assert _apply(tree, patches / TOP).returncode == 0
+    assert pins.tree_drift(tarball, tree, patches) == []
+    (tree / ".DS_Store").write_bytes(b"changed\n")
+    assert pins.tree_drift(tarball, tree, patches) == [".DS_Store: modified"]
+
+
+def test_a_patch_may_not_touch_a_litter_name() -> None:
+    """Spec 026, the build review's finding 2: a patch-added .DS_Store would never be compared, so
+    no patch may touch one."""
+    errors, _ = scan.patch_shape_errors(_add("sub/.DS_Store", b"x\n"), "p")
+    assert any("sub/.DS_Store, a name Finder or Explorer writes" in e for e in errors), errors
+
+
 GOOD_DRAFT = """- **Project:** proj (https://example.org/proj)
 - **Against:** 1.2.3 (the pinned tarball)
 - **Status:** drafted
