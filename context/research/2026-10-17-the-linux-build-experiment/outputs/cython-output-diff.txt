@@ -1,0 +1,15 @@
+# Cython output, pandas build (both compile to equal objects: no pandas .o or archive differs)
+_cyutility.c: equal between two macOS runs, equal between two Linux runs, different across hosts (prototype order):
+2924,2929d2923
+< 
+< /* CalculateMetaclass.proto */
+< static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases);
+< 
+< /* IsLittleEndian.proto */
+< static CYTHON_INLINE int __Pyx_Is_Little_Endian(void);
+2943a2938,2943
+strptime.pyx.c: differs between two macOS runs (run-to-run), equal between two Linux runs; one variable's declared type:
+14345c14345
+<   __pyx_t_5numpy_int64_t __pyx_v_value;
+---
+>   npy_datetime __pyx_v_value;

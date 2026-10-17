@@ -1,0 +1,36 @@
+# Snapshot (run 4): the same reactor (35bfa758...) and zip (e95b35de...) gave 989317297a... on macOS and 5ba00077... on Linux.
+## Initial memory compared by data symbol (tools/memdiff.py, macOS run 3 vs Linux run 4):
+memory image: 59113421 bytes; differing bytes: 21116353 (21055913 in the heap, outside any symbol; 35664 _PyRuntime; 23951 __pyx_mstate_global_static; ...)
+first differing address: 0xffff00 (the shadow stack), last: 0x385eafd
+
+## Every WASI preview1 call of step 80's wasmtime wizer, traced (WASMTIME_LOG=wasmtime_wasi=trace; tools/trace-wizer.sh).
+calls traced: 13443 lines on macOS, 13443 on Linux; snapshot hashes reproduced: 989317297a41740f / 5ba00077c59e28a2
+With ino and the three times masked (the reactor pins those), the only differing results (macOS < , Linux >):
+3975c3975
+< path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 96, atim: X, mtim: X, ctim: X })
+---
+> path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 4096, atim: X, mtim: X, ctim: X })
+3977c3977
+< path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 96, atim: X, mtim: X, ctim: X })
+---
+> path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 4096, atim: X, mtim: X, ctim: X })
+4015c4015
+< path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 96, atim: X, mtim: X, ctim: X })
+---
+> path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 4096, atim: X, mtim: X, ctim: X })
+4017c4017
+< path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 96, atim: X, mtim: X, ctim: X })
+---
+> path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 4096, atim: X, mtim: X, ctim: X })
+4019c4019
+< path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 3, size: 96, atim: X, mtim: X, ctim: X })
+---
+> path_filestat_get result=Ok(Filestat { dev: 1, ino: X, filetype: Directory, nlink: 2, size: 4096, atim: X, mtim: X, ctim: X })
+
+The calls' path lengths (the trace prints a guest pointer and a length): 3, 9, 3, 9, 13 = usr, usr/local, usr/local/lib under the wizer root.
+APFS answers a directory's size 96 and nlink 3; ext4/overlayfs answers 4096 and 2 or 3. CPython shares ints up to 256 and allocates larger ones.
+
+## After edit 7 (pin_filestat also sets a directory's size 0 and nlink 1 while pinned): run 5 macOS and run 6 Linux (macOS runtime archives, macOS zip)
+macOS: reactor d1113ecc733bda1b, snapshot 59faf331c9588360
+ok 60_link: reactor: 29802482 bytes, d1113ecc733bda1b
+ok 80_snapshot: snapshot: 63492626 bytes, 59faf331c9588360

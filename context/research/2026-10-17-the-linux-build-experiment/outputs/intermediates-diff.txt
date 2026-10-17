@@ -1,0 +1,39 @@
+# Run 1 vs the macOS reference build: every intermediate under build/ that can reach the artifacts, hashed (tools/hash-tree.sh).
+files hashed per host:     2577 ; differing:      262
+CPython objects differing: 236 of 250; equal after llvm-strip --strip-debug: 236 of 236 (DWARF carries the checkout path)
+numpy and pandas objects and archives differing: 0 (-ffile-prefix-map in the cross files)
+
+## Differing files other than CPython objects
+link/make-n.txt
+link/python.map
+link/reactor-commands.txt
+numpy-build/meson-logs/install-log.txt
+numpy-build/meson-logs/meson-log.txt
+numpy-build/meson-logs/meson-setup.txt
+numpy-build/meson-private/cmd_line.txt
+numpy-build/numpy/__config__.py
+numpy-install/usr/local/lib/python3.15/site-packages/numpy/__config__.py
+out/python-snapshot.wasm
+out/python-stdlib.zip
+out/python.wasm
+pandas-build/_cyutility.c
+pandas-build/meson-logs/meson-log.txt
+pandas-build/meson-logs/meson-setup.txt
+pandas-build/meson-private/cmd_line.txt
+pandas-build/pandas/_libs/tslibs/strptime.cpython-315-wasm32-wasi.so.p/strptime.pyx.c
+Python-3.15.0/cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.15/_sysconfigdata__wasi_wasm32-wasi.py
+Python-3.15.0/cross-build/wasm32-wasip1/libpython3.15.a
+
+## ceval.o section sizes (macOS < , Linux >), then hashes after --strip-debug
+17,18c17,18
+<  11 .debug_str          0000d76e 00000000 
+<  12 .debug_line         0001b055 00000000 
+---
+>  11 .debug_str          0000d757 00000000 
+>  12 .debug_line         0001b03e 00000000 
+23c23
+<  17 reloc..debug_info   00024764 00000000 
+---
+>  17 reloc..debug_info   00024763 00000000 
+56cc7d7a17168e9eabc52746c07ab9693ac434cfd5085c787965aab92ee32d99  ceval-linux.nodbg.o
+56cc7d7a17168e9eabc52746c07ab9693ac434cfd5085c787965aab92ee32d99  ceval-mac.nodbg.o

@@ -1,0 +1,47 @@
+# Stdlib zip, macOS reference vs Linux run 1 (tools/zipdiff.py)
+members: 1751 vs 1751; same names: True; same order: True
+differing members: 2
+  _sysconfigdata__wasi_wasm32-wasi.pyc: 61700 vs 61648 bytes
+  numpy/__config__.pyc: 5350 vs 5349 bytes
+
+## numpy __config__.py (macOS < , Linux >; after --replace the paths become /wasi-python-build, the 'system' line stays)
+<                 "system": "darwin",
+>                 "system": "linux",
+
+## _sysconfigdata__wasi_wasm32-wasi.py, keys whose value differs after the repository path is normalized (macOS < , Linux >)
+<     'AR': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/llvm-ar',
+>     'AR': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/llvm-ar',
+<     'BLDSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang -shared',
+>     'BLDSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang -shared',
+<     'BUILD_GNU_TYPE': 'aarch64-apple-darwin',
+>     'BUILD_GNU_TYPE': 'aarch64-unknown-linux-gnu',
+<     'CC': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang',
+>     'CC': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang',
+<     'CONFIG_ARGS': "'--host=wasm32-wasip1' '--build=aarch64-apple-darwin' '--with-build-python=<root>/build/Python-3.15.0/cross-build/aarch64-apple-darwin/python.exe' '--disable-test-modules' 'build
+>     'CONFIG_ARGS': "'--host=wasm32-wasip1' '--build=aarch64-unknown-linux-gnu' '--with-build-python=<root>/build/Python-3.15.0/cross-build/aarch64-unknown-linux-gnu/python' '--disable-test-modules' 
+<     'CXX': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang++',
+>     'CXX': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang++',
+<     'FREEZE_MODULE': '<root>/build/Python-3.15.0/cross-build/aarch64-apple-darwin/python.exe ../../Programs/_freeze_module.py',
+<     'FREEZE_MODULE_BOOTSTRAP': '<root>/build/Python-3.15.0/cross-build/aarch64-apple-darwin/python.exe ../../Programs/_freeze_module.py',
+>     'FREEZE_MODULE': '<root>/build/Python-3.15.0/cross-build/aarch64-unknown-linux-gnu/python ../../Programs/_freeze_module.py',
+>     'FREEZE_MODULE_BOOTSTRAP': '<root>/build/Python-3.15.0/cross-build/aarch64-unknown-linux-gnu/python ../../Programs/_freeze_module.py',
+<     'GNULD': 'no',
+>     'GNULD': 'yes',
+<     'HOSTRUNNER': '<root>/build/tools/wasmtime-v49.0.3-aarch64-macos/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <root>/build/Python-3.15
+>     'HOSTRUNNER': '<root>/build/tools/wasmtime-v49.0.3-aarch64-linux/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <root>/build/Python-3.15
+<     'LDCXXSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang++ -shared',
+>     'LDCXXSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang++ -shared',
+<     'LDSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang -shared',
+>     'LDSHARED': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang -shared',
+<     'LINKCC': '<root>/build/tools/wasi-sdk-33.0-arm64-macos/bin/clang',
+>     'LINKCC': '<root>/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang',
+<     'MKDIR_P': 'mkdir -p',
+>     'MKDIR_P': '/usr/bin/mkdir -p',
+<     'PYTHON_FOR_BUILD': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-macos/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --confi
+>     'PYTHON_FOR_BUILD': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-linux/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --confi
+<     'PYTHON_FOR_FREEZE': '<root>/build/Python-3.15.0/cross-build/aarch64-apple-darwin/python.exe',
+>     'PYTHON_FOR_FREEZE': '<root>/build/Python-3.15.0/cross-build/aarch64-unknown-linux-gnu/python',
+<     'TESTPYTHON': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-macos/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <roo
+>     'TESTPYTHON': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-linux/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <roo
+<     'TESTRUNNER': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-macos/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <roo
+>     'TESTRUNNER': "_PYTHON_HOSTRUNNER='<root>/build/tools/wasmtime-v49.0.3-aarch64-linux/wasmtime run --argv0 /cross-build/wasm32-wasip1/python.wasm --dir <root>/build/Python-3.15.0::/ --config <roo

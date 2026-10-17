@@ -1,0 +1,43 @@
+# The wasi-sdk 33 per-host tarballs' wasm runtime, file by file (share/ and lib/clang/; 18,571 files each)
+differing files:      122; for the wasm32-wasip1 target, outside llvm-lto/:
+lib/clang/22/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a
+share/wasi-sysroot/lib/wasm32-wasip1/eh/libc++.a
+share/wasi-sysroot/lib/wasm32-wasip1/eh/libc++abi.a
+share/wasi-sysroot/lib/wasm32-wasip1/eh/libc++experimental.a
+share/wasi-sysroot/lib/wasm32-wasip1/libc.so
+share/wasi-sysroot/lib/wasm32-wasip1/noeh/libc++.a
+share/wasi-sysroot/lib/wasm32-wasip1/noeh/libc++.so
+share/wasi-sysroot/lib/wasm32-wasip1/noeh/libc++abi.a
+share/wasi-sysroot/lib/wasm32-wasip1/noeh/libc++abi.so
+share/wasi-sysroot/lib/wasm32-wasip1/noeh/libc++experimental.a
+libc.a and every header: identical. Members differing (llvm-ar x, cmp):
+  libc++abi.a 16 of 18; libc++.a 53 of 54; libclang_rt.builtins.a 142 of 149
+after --strip-debug still differing: libc++abi cxa_demangle, fallback_malloc, private_typeinfo; 15 builtins (abs*/add*/mul*/neg*/sub*v, clear_cache): __FILE__ strings
+
+## The builder path each tarball carries (strings in libc++abi.a's cxa_aux_runtime.cpp.o)
+macOS tarball: /Users/runner/work/wasi-sdk/wasi-sdk/src/llvm-project/libcxx/include
+Linux tarball: /src/src/llvm-project/libcxx/include
+
+## In the run-1 reactors (strings): two libc++abi assert paths in DATA, 32 bytes longer each on macOS = 64 bytes
+/Users/runner/work/wasi-sdk/wasi-sdk/src/llvm-project/libcxxabi/src/private_typeinfo.cpp
+/Users/runner/work/wasi-sdk/wasi-sdk/src/llvm-project/libcxxabi/src/fallback_malloc.cpp
+/src/src/llvm-project/libcxxabi/src/private_typeinfo.cpp
+/src/src/llvm-project/libcxxabi/src/fallback_malloc.cpp
+
+## Reactor sections (macOS reference < , Linux run 1 >)
+14,17c14,17
+<  10 DATA            004cda7a 01697437 DATA
+<  11 name            00106f8d 01b64eb5 
+<  12 producers       00000099 01c6be4a 
+<  13 target_features 000000a8 01c6bef0 
+---
+>  10 DATA            004cda3a 01697437 DATA
+>  11 name            00106f8d 01b64e75 
+>  12 producers       00000099 01c6be0a 
+>  13 target_features 000000a8 01c6beb0 
+
+## The host-neutral wasi-sysroot-33.0+m and libclang_rt-33.0+m (sha256 prefixes: neutral, macOS tarball, Linux tarball)
+eh/libc++abi.a  53a077fc9f4f6e98 937aa087aa29ac16 53a077fc9f4f6e98
+eh/libc++.a     d4527e52b4e5eafd ece8c9501732b5cc d4527e52b4e5eafd
+libc.a          5d8ba34d8c6fd0ac 5d8ba34d8c6fd0ac 5d8ba34d8c6fd0ac
+builtins        b1e23c0376609e09 6e016eff513a07d5 b667e133a802c1de

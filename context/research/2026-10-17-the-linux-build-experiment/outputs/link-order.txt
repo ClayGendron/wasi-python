@@ -1,0 +1,17 @@
+# Run 2's reactor (macOS runtime archives) still differed from macOS: first differing byte at file offset 24515, in the FUNCTION section (function order).
+# Setup.local, one token per line, paths normalized (macOS reference < , Linux >):
+47d46
+< ROOT/build/link/archives/pandas_ops_dispatch.a
+48a48
+> ROOT/build/link/archives/pandas_ops_dispatch.a
+
+# Step 60 orders the archives with find | sort. The same two names under each collation:
+macOS sort (LANG=en_US.UTF-8):
+pandas/_libs/ops_dispatch.cpython-315-wasm32-wasi.so
+pandas/_libs/ops.cpython-315-wasm32-wasi.so
+macOS LC_ALL=C sort:
+pandas/_libs/ops.cpython-315-wasm32-wasi.so
+pandas/_libs/ops_dispatch.cpython-315-wasm32-wasi.so
+Linux container sort (no LANG: POSIX):
+pandas/_libs/ops.cpython-315-wasm32-wasi.so
+pandas/_libs/ops_dispatch.cpython-315-wasm32-wasi.so

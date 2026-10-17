@@ -1,0 +1,4 @@
+3fb079450ee57075a790b94634206759501166e0a99de459cdad095f6c158d39  cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
+f02953d2c56c7eaa2fa3a21f2680a823b8748959c571ac149cd76b0fd1a1c33c  cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
+5b73d275ef59c742ae58a13130381ddf3451a5a96b2d802c8d5aa0741511baa7  cpython-3.15.0+20261009-x86_64-apple-darwin-install_only.tar.gz
+95ba085863806dacf0fd7119c590154bbcd3351099e55c0808a9c61603e320a8  cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz

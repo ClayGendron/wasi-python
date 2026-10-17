@@ -1,0 +1,123 @@
+# Every run: step lines and artifact SHA-256 (EXECUTED). Reference (real repo, macOS, also the CI dry run):
+#   reactor 4e2b2470314ee392acbcd53b8861d283d2ebb7c07816662e7c0c0b158463a251
+#   snapshot c6a791d3960c63982e83aeaa9daeff2b2036aa4cf218ef6731575563dfc0c6bd
+#   zip     e95b35dea78981e8be867e136136a9b5d4235891c8b3483ba415494d427af8df
+
+## Run 1: Linux aarch64 container, edits 1-5 (host-aware names only), from an empty build/
+ok 00_download: ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29577411 bytes, 9bb2b8f6c86d8d51
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802344 bytes, 4428c35a3c48cf7e
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140674 bytes
+ok 80_snapshot: snapshot: 63488735 bytes, ba278ac7df57bcb8
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+wall: 185s
+d7f19140f5afdcd3231f5a37127822762b04104df1143ce7dd0a3b6f8e1087ac  build/artifacts/MANIFEST
+b37eb19e3599192b8ce7107d5f04f964ed54831290a60fdb749a2bf757b78c3f  build/artifacts/SHA256SUMS
+ba278ac7df57bcb809f634028f4277f9a3880ab68472c746c6d80c58e3c75df9  build/artifacts/python-snapshot.wasm
+0780282ec5b20dec4fe780fc5808ac887cd011c8e2c87dd56fdb87d37ef0f8ac  build/artifacts/python-stdlib.zip
+4428c35a3c48cf7edc64b27f524a26bbbd6eaeca822415bd9a3e07a5fe9623cf  build/artifacts/python.wasm
+
+## Run 2 (repeated as run 4): Linux, run 1's tree with the macOS SDK's three wasip1 runtime archives swapped in; steps 60-70, then 80 with the macOS zip (run-swap.sh)
+ok 60_link: reactor: 29802408 bytes, 35bfa758b7fbfb36
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140674 bytes
+35bfa758b7fbfb36af98abb6522ba3c260d59ce9c2c01bd5ac6d6949574a1b70  build/out/python.wasm
+0780282ec5b20dec4fe780fc5808ac887cd011c8e2c87dd56fdb87d37ef0f8ac  build/out/python-stdlib.zip
+ok 80_snapshot: snapshot: 63492376 bytes, 5ba00077c59e28a2
+5ba00077c59e28a254f884603ac0586debcd7efbc6740c4d214bca46542a2caa  build/out/python-snapshot.wasm
+
+## Run 3: edits 1-6 (adds LC_ALL=C). Output directories were removed before the next setup; values as the runs printed them:
+macOS native:  ok 60_link: reactor: 29802408 bytes, 35bfa758b7fbfb36 | ok 70_zip: 11140659 bytes | ok 80_snapshot: 63492552 bytes, 989317297a41740f | wall 347s
+  35bfa758b7fbfb36af98abb6522ba3c260d59ce9c2c01bd5ac6d6949574a1b70  python.wasm
+  989317297a41740f172bd8fbd9663f0184909a0c3542228ce5687fceae46d41c  python-snapshot.wasm
+  e95b35dea78981e8be867e136136a9b5d4235891c8b3483ba415494d427af8df  python-stdlib.zip
+Linux:         the same lines and hashes as run 1 (reactor 4428c35a..., zip 0780282e..., snapshot ba278ac7...), wall 211s
+
+## Run 5: edits 1-7 (adds the directory size/nlink pin). macOS native:
+ok 00_download: ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29603504 bytes, bc76627c99b1816d
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802482 bytes, d1113ecc733bda1b
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140659 bytes
+ok 80_snapshot: snapshot: 63492626 bytes, 59faf331c9588360
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+wall: 328s
+87d97974eded0dc64c09d3b6100830a2b9d13d081e2e9325f32abccf07d177e1  build/artifacts/MANIFEST
+59faf331c95883609e4ca21f0fc3a29eb42de3e8ec49a0ae5aec3a43f4ba6fb2  build/artifacts/python-snapshot.wasm
+e95b35dea78981e8be867e136136a9b5d4235891c8b3483ba415494d427af8df  build/artifacts/python-stdlib.zip
+d1113ecc733bda1b0c78412d1a9a8e26f972db660a2d77b560f0616e5f1dac42  build/artifacts/python.wasm
+46667c03e683d85a27e48613d1a6b840e4de2ce942a9013ddafa80b1362107cd  build/artifacts/SHA256SUMS
+
+## Run 5: Linux:
+ok 00_download: ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29577411 bytes, 9bb2b8f6c86d8d51
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802418 bytes, 5d9ccb4151885fde
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140674 bytes
+ok 80_snapshot: snapshot: 63487425 bytes, 5c33299cfad67257
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+wall: 212s
+96c8c9f56f6831889f422adebb164fe990861a031e1c750083f2d9e44b0d84ea  build/artifacts/MANIFEST
+bee375c71678688f8f4a896eefc3a2c04ffb48de00942752510b8643499342fe  build/artifacts/SHA256SUMS
+5c33299cfad672573cf1344d0a38a960f02ce032b8be472b6edb1cf4b6d8cc0d  build/artifacts/python-snapshot.wasm
+0780282ec5b20dec4fe780fc5808ac887cd011c8e2c87dd56fdb87d37ef0f8ac  build/artifacts/python-stdlib.zip
+5d9ccb4151885fde679eddba117eeae08f331b3b80082d170f624b10a70160e7  build/artifacts/python.wasm
+
+## Run 6: Linux, run 5's tree with the macOS runtime archives swapped in, and the macOS zip (run-swap.sh)
+ok 60_link: reactor: 29802482 bytes, d1113ecc733bda1b
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140674 bytes
+d1113ecc733bda1b0c78412d1a9a8e26f972db660a2d77b560f0616e5f1dac42  build/out/python.wasm
+0780282ec5b20dec4fe780fc5808ac887cd011c8e2c87dd56fdb87d37ef0f8ac  build/out/python-stdlib.zip
+ok 80_snapshot: snapshot: 63492626 bytes, 59faf331c9588360
+59faf331c95883609e4ca21f0fc3a29eb42de3e8ec49a0ae5aec3a43f4ba6fb2  build/out/python-snapshot.wasm
+
+## Run 7: edits 1-8 (adds the host-neutral wasi-sysroot and libclang_rt). macOS native:
+ok 00_download: libclang_rt-33.0+m.tar.gz: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29603056 bytes, 15b2ae828679efa4
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802418 bytes, 2df569f2f59397d5
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140659 bytes
+ok 80_snapshot: snapshot: 63493889 bytes, ba44932bc1d34f0b
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+wall: 307s
+ba44932bc1d34f0b05c413f36daeb5b40a8b68629c59259b874b3793c95bdbfb  build/artifacts/python-snapshot.wasm
+e95b35dea78981e8be867e136136a9b5d4235891c8b3483ba415494d427af8df  build/artifacts/python-stdlib.zip
+2df569f2f59397d59b175eec7553d6a0ec7dff99b5e819659f9ce0758fdba3ad  build/artifacts/python.wasm
+93701e3d2cb4667275882f126f69a629ddf43d002c273069f96f888e1bacb763  build/artifacts/MANIFEST
+ebde321f438b60e70b4d3f16ab0f2d1f955203ecdc58ad7283e3575901086ccc  build/artifacts/SHA256SUMS
+
+## Run 7: Linux:
+ok 00_download: libclang_rt-33.0+m.tar.gz: OK
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
+ok 20_cpython: cpython: 29577411 bytes, 9bb2b8f6c86d8d51
+ok 30_zlib: zlib: 102842 bytes
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas
+ok 60_link: reactor: 29802418 bytes, 2df569f2f59397d5
+ok 70_zip: python-stdlib.zip: 1098 pyc, 653 data files, 11140674 bytes
+ok 80_snapshot: snapshot: 63487425 bytes, f8795f6a9733a1f4
+ok 90_artifacts: artifacts: 14 files in build/artifacts
+wall: 198s
+df051d8fd16ce2195af043c4dd8417ef367ad1b47dd2a6793cc376427efefbf7  build/artifacts/MANIFEST
+53307eac741397da085e94ec1de56dab71e43d08ee0a0b837dcde9190c090bf3  build/artifacts/SHA256SUMS
+f8795f6a9733a1f4b2afd0fed200ed9d3e70a9725c4f415d74240f6964497703  build/artifacts/python-snapshot.wasm
+0780282ec5b20dec4fe780fc5808ac887cd011c8e2c87dd56fdb87d37ef0f8ac  build/artifacts/python-stdlib.zip
+2df569f2f59397d59b175eec7553d6a0ec7dff99b5e819659f9ce0758fdba3ad  build/artifacts/python.wasm
+
+## Run 7: Linux step 80 with the macOS run-7 zip
+2df569f2f59397d5
+e95b35dea78981e8
+ok 80_snapshot: snapshot: 63493889 bytes, ba44932bc1d34f0b
+ba44932bc1d34f0b05c413f36daeb5b40a8b68629c59259b874b3793c95bdbfb  build/out/python-snapshot.wasm

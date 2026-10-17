@@ -1,0 +1,204 @@
+diff --git a/recipes/reactor_main.c b/recipes/reactor_main.c
+index b893b3b..3788992 100644
+--- a/recipes/reactor_main.c
++++ b/recipes/reactor_main.c
+@@ -71,6 +71,10 @@ pin_filestat(__wasi_filestat_t *st)
+ {
+     st->dev = 0;
+     st->ino = 0;
++    if (st->filetype == __WASI_FILETYPE_DIRECTORY) {
++        st->size = 0;  /* the host's file system answers it: APFS 96, ext4 4096 */
++        st->nlink = 1;
++    }
+     st->atim = st->mtim = st->ctim = PINNED_REALTIME_NS;
+ }
+ 
+diff --git a/scripts/00_download.sh b/scripts/00_download.sh
+index 4b78a12..8b57b6c 100755
+--- a/scripts/00_download.sh
++++ b/scripts/00_download.sh
+@@ -23,11 +23,36 @@ research() { # url name: fetched only with --all
+   if [ "$ALL" = 1 ]; then get "$1" "$2"; fi
+ }
+ 
+-# Toolchain and host tools (macOS arm64). The line's versions are named in scripts/line.conf; the
+-# URLs here stay literal, one pin per line (spec 003, Decision 1).
+-get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-macos.tar.gz wasi-sdk-33.0-arm64-macos.tar.gz
+-get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-macos.tar.xz wasmtime-v49.0.3-aarch64-macos.tar.xz
+-get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
++# Toolchain, host Python and the native build-tool wheels: the running host's only (its key from
++# scripts/line.sh). The line's versions are named in scripts/line.conf; the URLs here stay
++# literal, one pin per line (spec 003, Decision 1).
++. "$HERE/scripts/line.sh"
++case "$HOST_KEY" in
++  MACOS_ARM64)
++    get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-macos.tar.gz wasi-sdk-33.0-arm64-macos.tar.gz
++    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-macos.tar.xz wasmtime-v49.0.3-aarch64-macos.tar.xz
++    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-apple-darwin-install_only.tar.gz cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
++    get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
++    get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
++    ;;
++  LINUX_AARCH64)
++    get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-linux.tar.gz wasi-sdk-33.0-arm64-linux.tar.gz
++    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-aarch64-linux.tar.xz wasmtime-v49.0.3-aarch64-linux.tar.xz
++    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-aarch64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
++    get https://files.pythonhosted.org/packages/6e/5d/afb6866ab10236bb208dff0f172ea4b397c9693c5250280c4d9d26057218/cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
++    get https://files.pythonhosted.org/packages/35/54/7368ce188625e39acc03ee362bb86cc9bfa6ad15e25c50889ae36e2889b3/ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
++    ;;
++  LINUX_X86_64)
++    get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-x86_64-linux.tar.gz wasi-sdk-33.0-x86_64-linux.tar.gz
++    get https://github.com/bytecodealliance/wasmtime/releases/download/v49.0.3/wasmtime-v49.0.3-x86_64-linux.tar.xz wasmtime-v49.0.3-x86_64-linux.tar.xz
++    get https://github.com/astral-sh/python-build-standalone/releases/download/20261009/cpython-3.15.0%2B20261009-x86_64-unknown-linux-gnu-install_only.tar.gz cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz
++    get https://files.pythonhosted.org/packages/c9/aa/4c0b6773ecf6bc1ec6cda7db8312a566611b330fb6dae87d740e44a47822/cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
++    get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
++    ;;
++esac
++# The wasm runtime (sysroot and compiler-rt builtins), the same bytes for every host
++get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sysroot-33.0%2Bm.tar.gz wasi-sysroot-33.0+m.tar.gz
++get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/libclang_rt-33.0%2Bm.tar.gz libclang_rt-33.0+m.tar.gz
+ 
+ # Sources
+ get https://www.python.org/ftp/python/3.15.0/Python-3.15.0.tar.xz Python-3.15.0.tar.xz
+@@ -36,9 +61,7 @@ get https://files.pythonhosted.org/packages/e2/17/d7b106e05bfa642e8694451e7d3d75
+ get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zlib-1.3.1.tar.gz
+ 
+ # Build tools (wheels, installed offline with their hashes)
+-get https://files.pythonhosted.org/packages/ea/45/7f6988070013e16918e39b1b3dab9c5f2c8e404253a7fd10ee685bbd6902/cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
+ get https://files.pythonhosted.org/packages/57/99/36cd25f9598eef70db97577440a70a360af505f6f01c2338a18d1556079c/meson-1.12.1-py3-none-any.whl meson-1.12.1-py3-none-any.whl
+-get https://files.pythonhosted.org/packages/b5/b8/90a9518f2264637084d6199bc20c2f3fb97fefc4c474d277720150c3bd6d/ninja-1.13.2-py3-none-macosx_10_9_universal2.whl ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
+ get https://files.pythonhosted.org/packages/b0/79/f0f1ca286b78f6f33c521a36b5cbd5bd697c0d66217d8856f443aeb9dd77/versioneer-0.29-py3-none-any.whl versioneer-0.29-py3-none-any.whl
+ 
+ # Pure-Python packages for the stdlib zip
+diff --git a/scripts/build.sh b/scripts/build.sh
+index 9e22872..10dd8ec 100755
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -11,6 +11,7 @@ HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
+ export SOURCE_DATE_EPOCH=1767225600  # 2026-01-01T00:00:00Z: a constant, so rebuilds are equal
+ export UV_CACHE_DIR="$HERE/build/uv-cache"
+ export PYTHONHASHSEED=0
++export LC_ALL=C  # one collation: step 60's `sort` orders the link
+ mkdir -p "$HERE/build/logs"
+ 
+ ALL="00_download 10_tools 20_cpython 30_zlib 40_numpy 50_pandas 60_link 70_zip 80_snapshot 90_artifacts"
+diff --git a/scripts/line.conf b/scripts/line.conf
+index 9f5063d..a248668 100644
+--- a/scripts/line.conf
++++ b/scripts/line.conf
+@@ -5,9 +5,22 @@
+ # PYTHON_MM (3.15) and PYTHON_TAG (315) from PYTHON_VERSION.
+ PYTHON_VERSION=3.15.0
+ WASI_SDK_VERSION=33
+-WASI_SDK_DIR=wasi-sdk-33.0-arm64-macos
+-HOST_PYTHON_ARCHIVE=cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
+-CYTHON_WHEEL=cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
+-WASMTIME_DIR=wasmtime-v49.0.3-aarch64-macos
++# Host-specific names: one line per host, prefixed by its key (MACOS_ARM64, LINUX_AARCH64,
++# LINUX_X86_64); line.sh and line.py set the plain name for the host they run on.
++MACOS_ARM64_WASI_SDK_DIR=wasi-sdk-33.0-arm64-macos
++MACOS_ARM64_HOST_PYTHON_ARCHIVE=cpython-3.15.0+20261009-aarch64-apple-darwin-install_only.tar.gz
++MACOS_ARM64_CYTHON_WHEEL=cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl
++MACOS_ARM64_NINJA_WHEEL=ninja-1.13.2-py3-none-macosx_10_9_universal2.whl
++MACOS_ARM64_WASMTIME_DIR=wasmtime-v49.0.3-aarch64-macos
++LINUX_AARCH64_WASI_SDK_DIR=wasi-sdk-33.0-arm64-linux
++LINUX_AARCH64_HOST_PYTHON_ARCHIVE=cpython-3.15.0+20261009-aarch64-unknown-linux-gnu-install_only.tar.gz
++LINUX_AARCH64_CYTHON_WHEEL=cython-3.3.0-cp315-cp315-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl
++LINUX_AARCH64_NINJA_WHEEL=ninja-1.13.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl
++LINUX_AARCH64_WASMTIME_DIR=wasmtime-v49.0.3-aarch64-linux
++LINUX_X86_64_WASI_SDK_DIR=wasi-sdk-33.0-x86_64-linux
++LINUX_X86_64_HOST_PYTHON_ARCHIVE=cpython-3.15.0+20261009-x86_64-unknown-linux-gnu-install_only.tar.gz
++LINUX_X86_64_CYTHON_WHEEL=cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
++LINUX_X86_64_NINJA_WHEEL=ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
++LINUX_X86_64_WASMTIME_DIR=wasmtime-v49.0.3-x86_64-linux
+ WASI_LIBC_COMMIT=161b3195
+ LLVM_COMMIT=4434dabb
+diff --git a/scripts/line.py b/scripts/line.py
+index 456767e..59fdd95 100644
+--- a/scripts/line.py
++++ b/scripts/line.py
+@@ -6,11 +6,19 @@ safe for the shell to source). `PYTHON_MM` and `PYTHON_TAG` are derived from `PY
+ `steps/common.sh` derives them, so they cannot disagree with it.
+ """
+ 
++import platform
+ import re
+ from pathlib import Path
+ 
+ CONF = Path(__file__).resolve().with_name("line.conf")
+ LINE = re.compile(r"([A-Z][A-Z0-9_]*)=([A-Za-z0-9._+-]+)")
++HOSTS = {
++    ("Darwin", "arm64"): "MACOS_ARM64",
++    ("Linux", "aarch64"): "LINUX_AARCH64",
++    ("Linux", "arm64"): "LINUX_AARCH64",
++    ("Linux", "x86_64"): "LINUX_X86_64",
++}
++HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
+ 
+ 
+ def read(path: Path = CONF) -> dict[str, str]:
+@@ -23,6 +31,13 @@ def read(path: Path = CONF) -> dict[str, str]:
+         if match is None:
+             raise SystemExit(f"{path.name}:{number}: not NAME=value: {text!r}")
+         values[match[1]] = match[2]
++    key = HOSTS.get((platform.system(), platform.machine()))
++    if key is None:
++        raise SystemExit(f"no line for host {platform.system()}-{platform.machine()}")
++    for name in HOST_NAMES:
++        if f"{key}_{name}" not in values:
++            raise SystemExit(f"{path.name} has no {key}_{name}")
++        values[name] = values[f"{key}_{name}"]
+     major, minor, _ = values["PYTHON_VERSION"].split(".")
+     values["PYTHON_MM"] = f"{major}.{minor}"
+     values["PYTHON_TAG"] = f"{major}{minor}"
+diff --git a/scripts/line.sh b/scripts/line.sh
+index 02adfda..8b3637e 100644
+--- a/scripts/line.sh
++++ b/scripts/line.sh
+@@ -6,5 +6,16 @@ if grep -v -E '^(#.*|[A-Z][A-Z0-9_]*=[A-Za-z0-9._+-]+)$' "$LINE_CONF" > /dev/nul
+   exit 1
+ fi
+ . "$LINE_CONF"
++case "$(uname -s)-$(uname -m)" in
++  Darwin-arm64) HOST_KEY=MACOS_ARM64;;
++  Linux-aarch64|Linux-arm64) HOST_KEY=LINUX_AARCH64;;
++  Linux-x86_64) HOST_KEY=LINUX_X86_64;;
++  *) echo "ERROR: no line for host $(uname -s)-$(uname -m)" >&2; exit 1;;
++esac
++for name in WASI_SDK_DIR WASMTIME_DIR HOST_PYTHON_ARCHIVE CYTHON_WHEEL NINJA_WHEEL; do
++  eval "value=\${${HOST_KEY}_$name:-}"
++  [ -n "$value" ] || { echo "ERROR: scripts/line.conf has no ${HOST_KEY}_$name" >&2; exit 1; }
++  eval "$name=\$value"
++done
+ PYTHON_MM=${PYTHON_VERSION%.*}
+ PYTHON_TAG=$(printf '%s' "$PYTHON_MM" | tr -d .)
+diff --git a/scripts/steps/10_tools.sh b/scripts/steps/10_tools.sh
+index 40885bf..0a4b350 100755
+--- a/scripts/steps/10_tools.sh
++++ b/scripts/steps/10_tools.sh
+@@ -8,7 +8,7 @@ SDK_TGZ=$(pinned "$WASI_SDK_DIR.tar.gz")
+ WASMTIME_TXZ=$(pinned "$WASMTIME_DIR.tar.xz")
+ PYTHON_TGZ=$(pinned "$HOST_PYTHON_ARCHIVE")
+ WHEELS="$CYTHON_WHEEL meson-1.12.1-py3-none-any.whl
+-ninja-1.13.2-py3-none-macosx_10_9_universal2.whl versioneer-0.29-py3-none-any.whl"
++$NINJA_WHEEL versioneer-0.29-py3-none-any.whl"
+ 
+ rm -rf "$T" "$B/wheelhouse"
+ mkdir -p "$T" "$B/wheelhouse"
+@@ -16,6 +16,17 @@ for archive in "$SDK_TGZ" "$WASMTIME_TXZ" "$PYTHON_TGZ"; do
+   tar -xf "$archive" -C "$T"
+ done
+ [ -x "$HOSTPY" ] || die "the host Python did not unpack to $HOSTPY"
++# The wasm runtime every host links: the host-neutral sysroot and builtins over the SDK's own.
++SYSROOT_TGZ=$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")
++RT_TGZ=$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")
++rm -rf "$SDK/share/wasi-sysroot" "$B/rt"
++mkdir -p "$SDK/share/wasi-sysroot" "$B/rt"
++tar -xzf "$SYSROOT_TGZ" -C "$SDK/share/wasi-sysroot" --strip-components=1
++tar -xzf "$RT_TGZ" -C "$B/rt" --strip-components=1
++RT_DIR=$(echo "$SDK"/lib/clang/*/lib)
++[ -d "$RT_DIR/wasm32-unknown-wasip1" ] || die "no compiler-rt directory in the SDK"
++for target in "$B"/rt/*; do cp "$target"/* "$RT_DIR/${target##*/}/"; done
++rm -rf "$B/rt"
+ 
+ # Only the pinned wheels, and a requirements file carrying their pinned hashes.
+ REQS="$B/tools-requirements.txt"

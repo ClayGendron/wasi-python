@@ -1,0 +1,40 @@
+tests/checks/test_rules.py ..s.............                              [  5%]
+tests/checks/test_v1_1_artifact_set.py .....................s            [ 11%]
+tests/checks/test_v1_2_hostile_guest.py ........................         [ 19%]
+tests/checks/test_v1_2_portable_and_sealed.py .....s                     [ 21%]
+tests/checks/test_v1_3_data_stack.py ........                            [ 23%]
+tests/checks/test_v1_4_embedding.py ...................................  [ 35%]
+tests/checks/test_v1_5_rebuild_from_pins.py .....F.......                [ 39%]
+tests/test_api.py ...                                                    [ 40%]
+tests/unit/test_artifact_rules.py .....................                  [ 46%]
+tests/unit/test_checks_wiring.py ......                                  [ 48%]
+tests/unit/test_guest.py ............ssss...                             [ 54%]
+tests/unit/test_pins.py .........                                        [ 57%]
+tests/unit/test_plugin.py ...........................                    [ 65%]
+tests/unit/test_release_version.py ....................                  [ 72%]
+tests/unit/test_runner_waits.py ........                                 [ 74%]
+tests/unit/test_scan.py ......................................           [ 86%]
+tests/unit/test_scoreboard.py ...............................            [ 96%]
+tests/unit/test_wasm.py ........s..                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_toolchain_is_pinned_for_linux_and_macos _________________
+passes, but tests/known_gaps.toml still lists it: remove the gap
+=================================== progress ===================================
+wasi_python v1: 120/128 pass · 0 gap · 3 blocked · 1 fail · 4 deselected   (unit suite 188/193, 5 skipped)
+JUDGE INPUTS OVERRIDDEN: --progress-dir (see latest.json)
+  v1.1  artifact set        21/22  blocked 1
+  v1.2  portable, sealed    29/30  blocked 1
+  v1.3  data stack           8/12  
+  v1.4  embedding           35/35  
+  v1.5  rebuild from pins   12/13  fail 1
+  rules constitution rules  15/16  blocked 1
+blocked by: prior-art clones 1 · three systems 1 · wheel 1
+next: context/specifications/004-alpha-releases.md (unblocks 2, closes 0)
+FAIL tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos — passes, but tests/known_gaps.toml still lists it: remove the gap
+ratchet vs no baseline: lost 0 · absent 0 · unrun 0 · gained 120 · grew 0
+not machine-checked: publication · second-host rebuild · copying from prior art · numpy/pandas test subsets
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree
+=========================== short test summary info ============================
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos
+=========== 1 failed, 308 passed, 8 skipped, 4 deselected in 45.81s ============
+exit 1
