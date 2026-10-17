@@ -448,3 +448,26 @@ already looks in. The runtime refuses every write and every escape, no
 run can touch another's data, and nothing is copied or checked per
 call; the price is a second, optional preopen in the embedder's
 contract, which is the owner's to approve.
+
+## The owner's direction (2026-10-16, after this memo)
+
+The owner, on the filesystem constraints: the project is built so that anyone can embed it,
+and it stays "safe and secure and has no way (unless explicitly provided) to access the host
+file system or network". One intended embedder keeps its own virtual filesystem and would
+write the files a package needs into it; the design must not depend on that embedder.
+
+What this adds to the recommendation above (the author's reading, for the specification):
+
+- **The runtime brings its own files; the host brings only the user's.** Today the runtime
+  needs one writable host directory just to hold the stdlib zip. The goal is that the
+  runtime's own files (the stdlib zip, matplotlib's data, any later package data) need no
+  host directory at all, and that zero preopens is a valid run. wasi-vfs (C3) is being
+  tested for exactly that: `2026-10-16-wasi-vfs-for-package-data.md`. C2 stays the fallback.
+- **Writable caches never reach the host by default.** They go into a directory the embedder
+  granted, or are built at snapshot time, or are off:
+  `2026-10-16-what-data-folders-the-packages-need.md`.
+- **Network stays off by construction**: no socket can be made (v1.2,
+  `test_guest_has_no_network`), and the only other channel is the door, which the embedder
+  writes.
+- The constitution's "the one the embedder preopens" (§2.2, §2.4) would read "only the
+  preopens the embedder grants, which may be none". That change is the owner's.
