@@ -534,3 +534,50 @@ own executor, and it does not block landing.
   `exiting` before it reads `_live`, so a call is either in the hook's list or refused.
 - The status line and the doubled Disposition heading are fixed. F2's sentence about the binding
   test was wrong, as you say: the real-function test covers the shape.
+
+## Follow-up: the fork check on Windows (2026-10-17)
+
+- **Reviewer:** the build reviewer above (Claude Opus 5.5), not the author.
+- **Reviewed:** the main tree's uncommitted `git diff tests/checks/test_v1_4_embedding.py`, on top
+  of `bbeac1f`. I also read the dry run's log (`gh run view 39038155556`), the harness's
+  `needs.py` and `plugin.py`, and `release.yml`.
+- **Evidence:** logs are in
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev015c/winfork/`.
+  - READ, the dry run's log. Windows gave v1.4 56/57; the only failure was this check, skipped
+    without a known need. Linux and macOS ran it and passed it (57/57 each).
+  - EXECUTED on macOS, with the main tree's artifacts: the changed check passes through its fork
+    path.
+  - EXECUTED: I ran the new `NO_FORK` child with `os.fork` and `os.register_at_fork` deleted
+    first, to stand in for Windows. It prints exactly the two expected lines.
+  - EXECUTED: I then removed the runner's `hasattr` guard, in a copy of the package. The same
+    child fails with `AttributeError: module 'os' has no attribute 'register_at_fork'`.
+  - ruff is clean on the file. I changed nothing in the tree except this section.
+
+**Verdict: honest, and the right shape. Keep the branch; do not add a platform need.**
+- The harness's needs are inputs that a document provides. A blocked check feeds the `next:`
+  line ("what to do next"). A need for `fork` could never be met on Windows. It would be a
+  permanent "blocked" that points at no work.
+- The tree's own precedent is a branch inside the check: the `os.name == "posix"` branches at
+  `test_v1_4_embedding.py:278` and `:332` still assert what does apply.
+- On Windows there is no fork, so what applies is this: the hook's guard keeps the import
+  working, and the runner is never marked forked.
+- Be clear what a Windows pass means. This branch is a smoke check. It can fail only in ways
+  every other check on that host would also fail: an import error, or a refused call. A green
+  `test_a_forked_child_is_refused` on win32 therefore says "nothing fork-related breaks here".
+  It does not say "the refusal was checked". The docstring says as much. The refusal itself is
+  checked on Linux and macOS, as the dry run shows.
+- The change alters the judge, so its acceptance needs `--accept-judge`.
+
+**Anything else in 015's checks that is Windows-specific in the same way?** None.
+- Every other 015 check passed on windows-2025 in this dry run (READ).
+- 015's new unit tests do not run in the verify jobs ("unit suite 0/0"). They use no
+  platform-specific call, except `ProcessPoolExecutor(1)`, which is never started.
+- **One latent case of the same kind, not 015's.**
+  `tests/checks/test_v1_2_hostile_guest.py:394` uses
+  `@pytest.mark.skipif(sys.platform == "win32", reason="no RLIMIT_NOFILE to lower on Windows")`.
+  That is a skip that names no need. It has passed only because the Windows verify job runs
+  `test_v1_1_artifact_set.py`, `test_v1_2_portable_and_sealed.py`, `test_v1_3_data_stack.py` and
+  `test_v1_4_embedding.py`, not the hostile-guest file (READ, the job's command).
+- The first run of the judge on Windows that includes that file will fail the same way. Give it
+  the same treatment now: a branch that asserts what applies on Windows, or a recorded gap.
+  Spec 016 is the natural place.

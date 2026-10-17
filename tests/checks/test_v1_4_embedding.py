@@ -903,10 +903,23 @@ print("status", os.waitstatus_to_exitcode(status))
 """
 
 
-@pytest.mark.skipif(not hasattr(os, "fork"), reason="no fork on this platform")
+NO_FORK = r"""
+import os
+import wasi_python
+from wasi_python import runner
+
+print(hasattr(os, "register_at_fork"), wasi_python.run(["-c", "print('ran')"]).stdout)
+print(runner._fork)
+"""
+
+
 def test_a_forked_child_is_refused() -> None:
     """Guards a change: a child forked after its parent ran a guest aborted on macOS, and could
     not keep a deadline elsewhere; now it is refused with a clear error, while a child of a
-    parent that only imported the package runs (spec 015). A fresh parent, not pytest's."""
+    parent that only imported the package runs (spec 015). A fresh parent, not pytest's. Where
+    there is no fork (Windows), the runner registers no fork hook and a call runs as usual."""
+    if not hasattr(os, "fork"):
+        assert _child(NO_FORK) == ["False b'ran\\n'", "{'used': True, 'forked': False}"]
+        return
     assert _child(FORK, "used") == ["child refused", "status 0"]
     assert _child(FORK, "imported") == ["child ran", "status 0"]
