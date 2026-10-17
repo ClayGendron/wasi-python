@@ -300,3 +300,16 @@ def test_accept_drops_a_metric_no_longer_recorded_when_growth_is_accepted() -> N
     assert kept["checks"][A]["metrics"].get(PLAT, {}) in ({}, {"wasmtime": "49.0.0"})
     rec = run({A: check("pass")})
     assert scoreboard.compare(rec, kept).growth == []
+
+
+def test_files_an_os_writes_are_not_part_of_the_judge(tmp_path, monkeypatch) -> None:
+    """A `.DS_Store` that Finder writes into `tests/` must not change the judge's hash, or a hash
+    accepted on a desktop could never match CI's (spec 011 concurrency-check review, F3)."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_a.py").write_text("")
+    monkeypatch.setattr(paths, "REPO", tmp_path)
+    monkeypatch.setattr(paths, "JUDGE_PATHS", ("tests",))
+    clean = paths.judge_files()
+    for name in {".DS_Store", *paths.OS_LITTER}:
+        (tmp_path / "tests" / name).write_bytes(b"\0")
+    assert paths.judge_files() == clean == {"tests/test_a.py": paths.sha256_bytes(b"")}

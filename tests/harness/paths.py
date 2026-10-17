@@ -69,6 +69,9 @@ JUDGE_PATHS = (
 )
 # Directories never searched for a stray conftest.py: build output, downloads, clones, venvs.
 NOT_SOURCE = {"build", "downloads", "prior_art", ".venv", ".venv-build", ".git", "__pycache__"}
+# Files an operating system writes into any folder a person opens: never part of the judge, or a
+# hash taken on a desktop could not be reproduced by CI (spec 011 concurrency-check review, F3).
+OS_LITTER = {".DS_Store", "Thumbs.db", "desktop.ini"}
 
 
 def artifact_dir() -> Path | None:
@@ -124,7 +127,9 @@ def judge_files() -> dict[str, str]:
     return {
         f.relative_to(REPO).as_posix(): sha256_file(f)
         for f in sorted(found)
-        if f.is_file() and not NOT_SOURCE & set(f.relative_to(REPO).parts)
+        if f.is_file()
+        and f.name not in OS_LITTER
+        and not NOT_SOURCE & set(f.relative_to(REPO).parts)
     }
 
 

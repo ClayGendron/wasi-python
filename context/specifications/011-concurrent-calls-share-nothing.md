@@ -192,6 +192,13 @@ The same review found three more things.
      - every call must return its own token, with its own trap where one is expected, and no
        call may raise.
      Before the change it must be seen failing (the review saw 242–286 wrong).
+     *Note, 2026-10-17:* the check now runs 8 × 100 calls (8 × 40 caught the old runner's defect in only 2 of 3
+     runs). A trap call's
+     0.2 s deadline also covers start-up, which a loaded Windows runner outlasted once (dry run
+     39030915226: `stdout=b''`, `trapped='deadline'`). The trap call now calls the door after
+     its print: once the door has run, its own token is required; before, empty output is also
+     accepted. Nothing else is ever allowed. Review:
+     `context/reviews/011-concurrency-check-start-up-2026-10-17.md`.
    - **The table checks** (unit, counting operations):
      - after one warm-up call per engine, further calls leave `len(FUNCTIONS.list)` unchanged
        and call `Linker.define_func` zero times;

@@ -403,7 +403,7 @@ import wasi_python
 THREADS, CALLS = 8, 100  # 8 x 40 failed today's runner in 2 of 3 runs; 8 x 100 in 6 of 6
 wasi_python.run(["-c", "pass"])
 wasi_python.run(["-c", "pass"], fuel=10**10)  # both engines warm: the check is on the tables
-wrong, raised = [], []
+wrong, raised, reached = [], [], []
 
 
 def one(kind, token):
@@ -420,8 +420,15 @@ def one(kind, token):
     if kind == "fuel":
         r = wasi_python.run(["-c", f"print({token!r})"], fuel=10**10)
         return r if (r.exit_code, r.stdout) != (0, f"{token}\n".encode()) else None
-    r = wasi_python.run(["-c", f"print({token!r}, flush=True)\nwhile True: pass"], deadline_s=0.2)
-    return r if (r.trapped, r.stdout) != ("deadline", f"{token}\n".encode()) else None
+    # The deadline also covers start-up, which a loaded host can take past 0.2 s (Windows CI,
+    # 2026-10-17). The door, called after the print, tells whether the print ran; with no timing,
+    # the guest's own token is required once it has, and nothing else is ever allowed.
+    printed = []
+    code = f"import _host; print({token!r}, flush=True); _host.call(b'x')\nwhile True: pass"
+    r = wasi_python.run(["-c", code], host=lambda frame: printed.append(1) or b"", deadline_s=0.2)
+    reached.extend(printed)
+    allowed = {f"{token}\n".encode()} if printed else {b"", f"{token}\n".encode()}
+    return r if r.trapped != "deadline" or r.stdout not in allowed else None
 
 
 def worker(w):
@@ -445,14 +452,18 @@ for t in threads:
 print(f"{THREADS * CALLS} calls, {len(wrong)} wrong, {len(raised)} raised")
 for line in (raised + wrong)[:5]:
     print(line)
+print(f"trap calls that reached the door: {len(reached)} of {THREADS * CALLS // 5}")  # not asserted
 """
 
 
 def test_concurrent_calls_get_their_own_results() -> None:
     """Guards a change: concurrent calls share nothing (spec 011). 8 threads make 100 calls each,
-    a mix of output, the door, a wait, fuel and a deadline trap; each must get its own result.
-    It runs in a child process, because a corrupted callback table breaks every later call in
-    the process it happens in; the 120 s timeout is a fail-safe, not a timing."""
+    a mix of output, the door, a wait, fuel and a deadline trap; each must get its own result. A
+    trap call's deadline may end it before its print, so it must show its own output only if
+    its door call shows the print ran; how many did is printed, not asserted. The other calls run
+    under the default 60 s deadline, a fail-safe like the timeout. It runs in a child process,
+    because a corrupted callback table breaks every later call in the process it happens in; the
+    120 s timeout is a fail-safe, not a timing."""
     _runner()
     out = subprocess.run(
         [sys.executable, "-c", CONCURRENT], capture_output=True, text=True, timeout=120
@@ -460,6 +471,7 @@ def test_concurrent_calls_get_their_own_results() -> None:
     assert out.returncode == 0, out.stderr[-2000:]
     summary = [line for line in out.stdout.splitlines() if " calls, " in line]
     assert summary == ["800 calls, 0 wrong, 0 raised"], out.stdout[-2000:]
+    print(out.stdout.splitlines()[-1])
 
 
 def test_calls_add_nothing_to_wasmtime_pys_tables(guest_workdir, monkeypatch) -> None:
