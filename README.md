@@ -248,7 +248,9 @@ in the current directory, `/`, which pdb runs as code when a program starts
 pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
 from a reused root; concurrent calls on one root (a guest can hard-link or
 change the files another call uses, the stdlib zip included); a program
-damaging its own stdlib zip during its own run; timing (the clock is real
+damaging its own stdlib zip during its own run; a guest that waits
+(`time.sleep`, `select` with a timeout) holds its call past the deadline
+until the wait ends (spec 010 fixes this); timing (the clock is real
 and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

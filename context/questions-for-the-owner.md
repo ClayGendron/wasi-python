@@ -91,6 +91,16 @@ question moves to the bottom with the answer and the date.
   byte for byte; sqlite3 works with one limit (one connection writes at a time, through a lock
   directory beside the database).
 
+### 10. Turn on private vulnerability reporting?
+
+- **Asked:** 2026-10-17. **Source:** spec 009 (`specifications/009-release-security.md`).
+- **The question:** `SECURITY.md` asks reporters to use GitHub's "Report a vulnerability"
+  button, which works only when private vulnerability reporting is on in the repository's
+  settings (Settings → Code security). May the agent turn it on (`gh api -X PUT
+  repos/ClayGendron/wasi_python/private-vulnerability-reporting`), or will you?
+- **Meanwhile:** `SECURITY.md` also gives the fallback: a public issue that asks for a contact
+  and says nothing else.
+
 ## Answered
 
 (None yet.)
