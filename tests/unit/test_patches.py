@@ -234,6 +234,22 @@ def test_the_zero_diff_check_takes_exactly_the_recorded_patches(tools, tmp_path)
     assert pins.tree_drift(tarball, tree, patches) == ["sub/b.c: modified"]
 
 
+def test_os_litter_in_the_judges_own_extraction_is_not_drift(tools, tmp_path, monkeypatch) -> None:
+    """Spec 026: Finder writes .DS_Store into folders it shows, the judge's fresh extraction
+    under build/harness included. A litter name the tarball does not hold is not drift; one it
+    holds is still compared."""
+    tarball = _tarball(tmp_path)
+    root = tmp_path / "recipes"
+    _patches(root, _edit("a.c", FILES["a.c"], NEW_A))
+    patches = root / "patches"
+    tree = _tree(tmp_path, tarball)
+    assert _apply(tree, patches / TOP).returncode == 0
+    finder = tmp_path / "finder.sh"  # the real applier, then Finder's litter in the result
+    finder.write_text(f'sh "{APPLIER}" "$1" "$2" && : > "$1/.DS_Store" && : > "$1/sub/Thumbs.db"\n')
+    monkeypatch.setattr(pins, "APPLIER", finder)
+    assert pins.tree_drift(tarball, tree, patches) == []
+
+
 GOOD_DRAFT = """- **Project:** proj (https://example.org/proj)
 - **Against:** 1.2.3 (the pinned tarball)
 - **Status:** drafted

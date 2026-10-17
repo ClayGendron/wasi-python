@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import tarfile
 import tempfile
@@ -80,7 +81,8 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
     # Under the project's own build/harness, never the system's temporary folder (§4.8): the
     # applier's ceiling keeps git from taking the outer repository for the tree's.
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="patched-", dir=paths.HARNESS_TMP) as d:
+    d = tempfile.mkdtemp(prefix="patched-", dir=paths.HARNESS_TMP)
+    try:
         with tarfile.open(tarball) as t:
             members = [m.name.split("/", 1)[1] for m in t if "/" in m.name.strip("/")]
             t.extractall(d, filter="data")
@@ -91,8 +93,11 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
         if out.returncode != 0:
             return [f"{tree.name}: the recorded patches do not apply: {out.stderr.strip()}"]
         drift = []
+        held = set(members)
         for p in sorted(result.rglob("*")):
             rel = p.relative_to(result).as_posix()
+            if p.name in paths.OS_LITTER and rel not in held:
+                continue  # Finder's or Explorer's, written into this extraction (spec 026)
             target = tree / rel
             if p.is_symlink():
                 if not target.is_symlink() or os.readlink(target) != os.readlink(p):
@@ -108,6 +113,18 @@ def _patched_drift(tarball: Path, tree: Path, patch_dir: Path) -> list[str]:
             if not os.path.lexists(result / rel) and os.path.lexists(tree / rel):
                 drift.append(f"{rel}: a recorded patch deletes it")
         return drift
+    finally:
+        _remove_tree(Path(d))
+
+
+def _remove_tree(d: Path) -> None:
+    """Removed with spec 018's retries: a Finder window showing build/ can write litter into a
+    folder while it is removed (spec 026). One that still will not go is left under build/harness,
+    which git ignores, rather than failing the check."""
+    for _ in range(3):
+        shutil.rmtree(d, ignore_errors=True)
+        if not d.exists():
+            return
 
 
 def _tarball_drift(tarball: Path, tree: Path) -> list[str]:
