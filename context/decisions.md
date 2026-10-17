@@ -8,6 +8,15 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 41–42. The filesystem provider
+
+- **Source:** `research/2026-10-17-a-filesystem-provider-for-the-runner.md`.
+- **41, answered 2026-10-17:** a provider may be mounted at `/`, making the embedder the guest's
+  whole filesystem; a `/` mount and `root=` are mutually exclusive; the zip stays at
+  `/usr/local/lib`.
+- **42, answered 2026-10-17:** provider calls have a default limit of 10,000 per run; at the
+  limit the run stops, as at its fuel or deadline, and the result names it.
+
 ### 37. The tool protocol's gate, and 13. vfs on this runner
 
 - **Studied:** vfs's authority model (read-only, 2026-10-17): every vfs verb takes an
