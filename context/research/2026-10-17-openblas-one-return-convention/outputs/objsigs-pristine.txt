@@ -1,0 +1,445 @@
+objects: 3782  function names: 3867  names with more than one type: 111
+
+caxpy_
+  (i32, i32, i32, i32, i32, i32) -> void  [43 objects; defined in caxpy.o:D]  e.g. caxpy.o:D, cgbcon.o:U, cgbrfs.o:U, cgehrd.o:U
+  (i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. clarf1f.o:U, clarf1l.o:U, cgedmd.o:U
+
+cgeev_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in cgeev.o:D]  e.g. cgeev.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+cgejsv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in cgejsv.o:D]  e.g. cgejsv.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+cgemm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [50 objects; defined in cgemm.o:D]  e.g. cgemm.o:D, cgetrf2.o:U, cgbtrf.o:U, cgebrd.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. claqp3rk.o:U, clarft.o:U, clarft_lvl2.o:U, cgedmd.o:U
+
+cgemv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [52 objects; defined in cgemv.o:D]  e.g. cgemv.o:D, cgbtrs.o:U, cgelss.o:U, cgerfs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. claqp3rk.o:U, clarft_lvl2.o:U, clarf1f.o:U, clarf1l.o:U
+
+cgeqrf_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in cgeqrf.o:D]  e.g. cgels.o:U, cgelsd.o:U, cgelss.o:U, cgeqp3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmdq.o:U
+
+cgerc_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [15 objects; defined in cgerc.o:D]  e.g. cgerc.o:D, chbgst.o:U, clarf.o:U, clarz.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. clarf1f.o:U, clarf1l.o:U
+
+cgesdd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in cgesdd.o:D]  e.g. cgesdd.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+cgesvd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [3 objects; defined in cgesvd.o:D]  e.g. cgesvd.o:D, cgesvdq.o:U, clatm6.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+cgesvdq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in cgesvdq.o:D]  e.g. cgesvdq.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+clacpy_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [71 objects; defined in clacpy.o:D]  e.g. cgbsvx.o:U, cgees.o:U, cgeesx.o:U, cgeev.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. clarft.o:U, cgedmd.o:U, cgedmdq.o:U
+
+clarf_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [27 objects; defined in clarf.o:D]  e.g. cgebd2.o:U, cgehd2.o:U, cgelq2.o:U, cgeql2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. claqp2rk.o:U
+
+clarfg_
+  (i32, i32, i32, i32, i32) -> void  [30 objects; defined in clarfg.o:D]  e.g. cgebd2.o:U, cgehd2.o:U, cgelq2.o:U, cgeql2.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. claqp2rk.o:U, claqp3rk.o:U
+
+clarft_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [14 objects; defined in none]  e.g. cgelqf.o:U, cgeqlf.o:U, cgeqrf.o:U, cgeqrfp.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in clarft.o:D]  e.g. clarft.o:D
+
+clascl_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [41 objects; defined in clascl.o:D]  e.g. cgees.o:U, cgeesx.o:U, cgeev.o:U, cgeevx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+claset_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [55 objects; defined in claset.o:D]  e.g. cgbbrd.o:U, cgels.o:U, cgelsd.o:U, cgelss.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. cgedmdq.o:U, cgelqs.o:U
+
+classq_
+  (i32, i32, i32, i32, i32) -> void  [26 objects; defined in classq.o:D]  e.g. cgesvj.o:U, cgejsv.o:U, cgsvj0.o:U, cgsvj1.o:U
+  (i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmd.o:U
+
+cscal_
+  (i32, i32, i32, i32) -> void  [54 objects; defined in cscal.o:D]  e.g. cscal.o:D, cgetrf2.o:U, cgbbrd.o:U, cgbtf2.o:U
+  (i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. clarf1f.o:U, clarf1l.o:U, crscl.o:U
+
+csrscl_
+  (i32, i32, i32, i32) -> void  [11 objects; defined in csrscl.o:D]  e.g. cgbcon.o:U, cgecon.o:U, cgelss.o:U, cpbcon.o:U
+  (i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. crscl.o:U
+
+csscal_
+  (i32, i32, i32, i32) -> void  [57 objects; defined in csscal.o:D]  e.g. csscal.o:D, cbdsqr.o:U, cgebak.o:U, cgebal.o:U
+  (i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. crscl.o:U, cgedmd.o:U
+
+cswap_
+  (i32, i32, i32, i32, i32) -> void  [77 objects; defined in cswap.o:D]  e.g. cswap.o:D, cbdsqr.o:U, cgbtf2.o:U, cgbtrf.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. claqp2rk.o:U, claqp3rk.o:U
+
+ctrmm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in ctrmm.o:D]  e.g. ctrmm.o:D, cgehrd.o:U, chegst.o:U, chegv.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. clarft.o:U
+
+ctrmv_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [11 objects; defined in ctrmv.o:D]  e.g. ctrmv.o:D, cgghd3.o:U, cgglse.o:U, chegs2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. clarft_lvl2.o:U
+
+ctrsm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [30 objects; defined in ctrsm.o:D]  e.g. ctrsm.o:D, cpotrf2.o:U, cgetrf2.o:U, cgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. cgelqs.o:U, cgeqrs.o:U
+
+ctrtrs_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in ctrtrs.o:D]  e.g. ctrtrs.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [5 objects; defined in none]  e.g. cgels.o:U, cggglm.o:U, cgglse.o:U, cgetsls.o:U
+
+cungqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [17 objects; defined in cungqr.o:D]  e.g. cgesdd.o:U, cgesvd.o:U, cgejsv.o:U, cgges.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgedmdq.o:U
+
+cunmlq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [8 objects; defined in cunmlq.o:D]  e.g. cgels.o:U, cgelsd.o:U, cgelss.o:U, cgesvdx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. cgelqs.o:U
+
+cunmqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [23 objects; defined in cunmqr.o:D]  e.g. cgels.o:U, cgelsd.o:U, cgelss.o:U, cgelsy.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. cgedmdq.o:U, cgeqrs.o:U
+
+daxpy_
+  (i32, i32, i32, i32, i32, i32) -> void  [48 objects; defined in daxpy.o:D]  e.g. daxpy.o:D, dgbcon.o:U, dgbrfs.o:U, dgehrd.o:U
+  (i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. dlarf1f.o:U, dlarf1l.o:U, dgedmd.o:U
+
+dgeev_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in dgeev.o:D]  e.g. dgeev.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dgejsv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in dgejsv.o:D]  e.g. dgejsv.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dgemm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [57 objects; defined in dgemm.o:D]  e.g. dgemm.o:D, dlaed3_single.o:U, dgetrf2.o:U, dgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. dlaqp3rk.o:U, dlarft.o:U, dgedmd.o:U
+
+dgemv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [48 objects; defined in dgemv.o:D]  e.g. dgemv.o:D, dgbtrs.o:U, dgelss.o:U, dgerfs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. dlaqp3rk.o:U, dlarft_lvl2.o:U, dlarf1f.o:U, dlarf1l.o:U
+
+dgeqrf_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in dgeqrf.o:D]  e.g. dgels.o:U, dgelsd.o:U, dgelss.o:U, dgeqp3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmdq.o:U
+
+dger_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [22 objects; defined in dger.o:D]  e.g. dger.o:D, dgbtf2.o:U, dgbtrf.o:U, dgbtrs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dlarf1f.o:U, dlarf1l.o:U
+
+dgesdd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in dgesdd.o:D]  e.g. dgesdd.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dgesvd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [3 objects; defined in dgesvd.o:D]  e.g. dgesvd.o:D, dgesvdq.o:U, dlatm6.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dgesvdq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in dgesvdq.o:D]  e.g. dgesvdq.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dlacpy_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [75 objects; defined in dlacpy.o:D]  e.g. dlaed3_single.o:U, dgbsvx.o:U, dgees.o:U, dgeesx.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. dlarft.o:U, dgedmd.o:U, dgedmdq.o:U
+
+dlaed3_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in dlaed3.o:D]  e.g. dlaed3.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in none]  e.g. dlaed1.o:U
+
+dlarf_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [27 objects; defined in dlarf.o:D]  e.g. dgebd2.o:U, dgehd2.o:U, dgelq2.o:U, dgeql2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dlaqp2rk.o:U
+
+dlarfg_
+  (i32, i32, i32, i32, i32) -> void  [32 objects; defined in dlarfg.o:D]  e.g. dgebd2.o:U, dgehd2.o:U, dgelq2.o:U, dgeql2.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dlaqp2rk.o:U, dlaqp3rk.o:U
+
+dlarft_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [14 objects; defined in none]  e.g. dgelqf.o:U, dgeqlf.o:U, dgeqrf.o:U, dgeqrfp.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in dlarft.o:D]  e.g. dlarft.o:D
+
+dlascl_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [64 objects; defined in dlascl.o:D]  e.g. dgees.o:U, dgeesx.o:U, dgeev.o:U, dgeevx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dlaset_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [67 objects; defined in dlaset.o:D]  e.g. dlaed3_single.o:U, dgbbrd.o:U, dgels.o:U, dgelsd.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dgedmdq.o:U, dgelqs.o:U
+
+dlassq_
+  (i32, i32, i32, i32, i32) -> void  [24 objects; defined in dlassq.o:D]  e.g. dlangb.o:U, dlange.o:U, dlangt.o:U, dlanhs.o:U
+  (i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmd.o:U
+
+dorgqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [17 objects; defined in dorgqr.o:D]  e.g. dgesdd.o:U, dgesvd.o:U, dgges.o:U, dgges3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgedmdq.o:U
+
+dormlq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [8 objects; defined in dormlq.o:D]  e.g. dgels.o:U, dgelsd.o:U, dgelss.o:U, dgesvdx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dgelqs.o:U
+
+dormqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [23 objects; defined in dormqr.o:D]  e.g. dgels.o:U, dgelsd.o:U, dgelss.o:U, dgelsy.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dgedmdq.o:U, dgeqrs.o:U
+
+dscal_
+  (i32, i32, i32, i32) -> void  [135 objects; defined in dscal.o:D]  e.g. dscal.o:D, dgetrf2.o:U, dgbtf2.o:U, dgbtrf.o:U
+  (i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. dlarf1f.o:U, dlarf1l.o:U, dgedmd.o:U
+
+dswap_
+  (i32, i32, i32, i32, i32) -> void  [64 objects; defined in dswap.o:D]  e.g. dswap.o:D, dgbtf2.o:U, dgbtrf.o:U, dgbtrs.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dlaqp2rk.o:U, dlaqp3rk.o:U
+
+dtrmm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [19 objects; defined in dtrmm.o:D]  e.g. dtrmm.o:D, dgehrd.o:U, dlahr2.o:U, dlarfb.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dlarft.o:U
+
+dtrmv_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [11 objects; defined in dtrmv.o:D]  e.g. dtrmv.o:D, dgghd3.o:U, dgglse.o:U, dlahr2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. dlarft_lvl2.o:U
+
+dtrsm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [25 objects; defined in dtrsm.o:D]  e.g. dtrsm.o:D, dpotrf2.o:U, dgetrf2.o:U, dgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. dgelqs.o:U, dgeqrs.o:U
+
+dtrtrs_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in dtrtrs.o:D]  e.g. dtrtrs.o:D, dgglse.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [4 objects; defined in none]  e.g. dgels.o:U, dggglm.o:U, dgetsls.o:U, dgelst.o:U
+
+saxpy_
+  (i32, i32, i32, i32, i32, i32) -> void  [46 objects; defined in saxpy.o:D]  e.g. saxpy.o:D, sgbcon.o:U, sgbrfs.o:U, sgehrd.o:U
+  (i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. slarf1f.o:U, slarf1l.o:U, sgedmd.o:U
+
+sgeev_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in sgeev.o:D]  e.g. sgeev.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+sgejsv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in sgejsv.o:D]  e.g. sgejsv.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+sgemm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [56 objects; defined in sgemm.o:D]  e.g. sgemm.o:D, slaed3_single.o:U, sgetrf2.o:U, sgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. slaqp3rk.o:U, slarft.o:U, sgedmd.o:U
+
+sgemv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [48 objects; defined in sgemv.o:D]  e.g. sgemv.o:D, sgbtrs.o:U, sgelss.o:U, sgerfs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. slaqp3rk.o:U, slarft_lvl2.o:U, slarf1f.o:U, slarf1l.o:U
+
+sgeqrf_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in sgeqrf.o:D]  e.g. sgels.o:U, sgelsd.o:U, sgelss.o:U, sgeqp3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmdq.o:U
+
+sger_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [22 objects; defined in sger.o:D]  e.g. sger.o:D, sgbtf2.o:U, sgbtrf.o:U, sgbtrs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. slarf1f.o:U, slarf1l.o:U
+
+sgesdd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in sgesdd.o:D]  e.g. sgesdd.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+sgesvd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [3 objects; defined in sgesvd.o:D]  e.g. sgesvd.o:D, sgesvdq.o:U, slatm6.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+sgesvdq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in sgesvdq.o:D]  e.g. sgesvdq.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+slacpy_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [73 objects; defined in slacpy.o:D]  e.g. slaed3_single.o:U, sgbsvx.o:U, sgees.o:U, sgeesx.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. slarft.o:U, sgedmd.o:U, sgedmdq.o:U
+
+slaed3_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in slaed3.o:D]  e.g. slaed3.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in none]  e.g. slaed1.o:U
+
+slarf_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [27 objects; defined in slarf.o:D]  e.g. sgebd2.o:U, sgehd2.o:U, sgelq2.o:U, sgeql2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. slaqp2rk.o:U
+
+slarfg_
+  (i32, i32, i32, i32, i32) -> void  [32 objects; defined in slarfg.o:D]  e.g. sgebd2.o:U, sgehd2.o:U, sgelq2.o:U, sgeql2.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. slaqp2rk.o:U, slaqp3rk.o:U
+
+slarft_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [14 objects; defined in none]  e.g. sgelqf.o:U, sgeqlf.o:U, sgeqrf.o:U, sgeqrfp.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in slarft.o:D]  e.g. slarft.o:D
+
+slascl_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [64 objects; defined in slascl.o:D]  e.g. sgees.o:U, sgeesx.o:U, sgeev.o:U, sgeevx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+slaset_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [67 objects; defined in slaset.o:D]  e.g. slaed3_single.o:U, sgbbrd.o:U, sgels.o:U, sgelsd.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. sgedmdq.o:U, sgelqs.o:U
+
+slassq_
+  (i32, i32, i32, i32, i32) -> void  [24 objects; defined in slassq.o:D]  e.g. slangb.o:U, slange.o:U, slangt.o:U, slanhs.o:U
+  (i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmd.o:U
+
+sorgqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [17 objects; defined in sorgqr.o:D]  e.g. sgesdd.o:U, sgesvd.o:U, sgges.o:U, sgges3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgedmdq.o:U
+
+sormlq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [8 objects; defined in sormlq.o:D]  e.g. sgels.o:U, sgelsd.o:U, sgelss.o:U, sgesvdx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. sgelqs.o:U
+
+sormqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [23 objects; defined in sormqr.o:D]  e.g. sgels.o:U, sgelsd.o:U, sgelss.o:U, sgelsy.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. sgedmdq.o:U, sgeqrs.o:U
+
+sscal_
+  (i32, i32, i32, i32) -> void  [135 objects; defined in sscal.o:D]  e.g. sscal.o:D, sgetrf2.o:U, sgbtf2.o:U, sgbtrf.o:U
+  (i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. slarf1f.o:U, slarf1l.o:U, sgedmd.o:U
+
+sswap_
+  (i32, i32, i32, i32, i32) -> void  [64 objects; defined in sswap.o:D]  e.g. sswap.o:D, sgbtf2.o:U, sgbtrf.o:U, sgbtrs.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. slaqp2rk.o:U, slaqp3rk.o:U
+
+strmm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [19 objects; defined in strmm.o:D]  e.g. strmm.o:D, sgehrd.o:U, slahr2.o:U, slarfb.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. slarft.o:U
+
+strmv_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [11 objects; defined in strmv.o:D]  e.g. strmv.o:D, sgghd3.o:U, sgglse.o:U, slahr2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. slarft_lvl2.o:U
+
+strsm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [25 objects; defined in strsm.o:D]  e.g. strsm.o:D, spotrf2.o:U, sgetrf2.o:U, sgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. sgelqs.o:U, sgeqrs.o:U
+
+strtrs_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in strtrs.o:D]  e.g. strtrs.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [5 objects; defined in none]  e.g. sgels.o:U, sggglm.o:U, sgglse.o:U, sgetsls.o:U
+
+xerbla_
+  (i32, i32, i32) -> i32  [1760 objects; defined in xerbla.o:D]  e.g. sgemv.o:U, sger.o:U, strsv.o:U, strmv.o:U
+  (i32, i32) -> i32  [20 objects; defined in none]  e.g. sgeqp3rk.o:U, sgedmd.o:U, sgedmdq.o:U, dgeqp3rk.o:U
+
+zaxpy_
+  (i32, i32, i32, i32, i32, i32) -> void  [45 objects; defined in zaxpy.o:D]  e.g. zaxpy.o:D, zgbcon.o:U, zgbrfs.o:U, zgehrd.o:U
+  (i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. zlarf1f.o:U, zlarf1l.o:U, zgedmd.o:U
+
+zdrscl_
+  (i32, i32, i32, i32) -> void  [11 objects; defined in zdrscl.o:D]  e.g. zgbcon.o:U, zgecon.o:U, zgelss.o:U, zpbcon.o:U
+  (i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zrscl.o:U
+
+zdscal_
+  (i32, i32, i32, i32) -> void  [57 objects; defined in zdscal.o:D]  e.g. zdscal.o:D, zbdsqr.o:U, zgebak.o:U, zgebal.o:U
+  (i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zrscl.o:U, zgedmd.o:U
+
+zgeev_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in zgeev.o:D]  e.g. zgeev.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zgejsv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in zgejsv.o:D]  e.g. zgejsv.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zgemm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [51 objects; defined in zgemm.o:D]  e.g. zgemm.o:D, zgetrf2.o:U, zgbtrf.o:U, zgebrd.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. zlaqp3rk.o:U, zlarft.o:U, zlarft_lvl2.o:U, zgedmd.o:U
+
+zgemv_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [52 objects; defined in zgemv.o:D]  e.g. zgemv.o:D, zgbtrs.o:U, zgelss.o:U, zgerfs.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [4 objects; defined in none]  e.g. zlaqp3rk.o:U, zlarft_lvl2.o:U, zlarf1f.o:U, zlarf1l.o:U
+
+zgeqrf_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in zgeqrf.o:D]  e.g. zgels.o:U, zgelsd.o:U, zgelss.o:U, zgeqp3.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmdq.o:U
+
+zgerc_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [15 objects; defined in zgerc.o:D]  e.g. zgerc.o:D, zhbgst.o:U, zlarf.o:U, zlarz.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zlarf1f.o:U, zlarf1l.o:U
+
+zgesdd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in zgesdd.o:D]  e.g. zgesdd.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zgesvd_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [3 objects; defined in zgesvd.o:D]  e.g. zgesvd.o:D, zgesvdq.o:U, zlatm6.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zgesvdq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [1 objects; defined in zgesvdq.o:D]  e.g. zgesvdq.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zlacpy_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [73 objects; defined in zlacpy.o:D]  e.g. zgbsvx.o:U, zgees.o:U, zgeesx.o:U, zgeev.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. zlarft.o:U, zgedmd.o:U, zgedmdq.o:U
+
+zlarf_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [27 objects; defined in zlarf.o:D]  e.g. zgebd2.o:U, zgehd2.o:U, zgelq2.o:U, zgeql2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zlaqp2rk.o:U
+
+zlarfg_
+  (i32, i32, i32, i32, i32) -> void  [30 objects; defined in zlarfg.o:D]  e.g. zgebd2.o:U, zgehd2.o:U, zgelq2.o:U, zgeql2.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zlaqp2rk.o:U, zlaqp3rk.o:U
+
+zlarft_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [14 objects; defined in none]  e.g. zgelqf.o:U, zgeqlf.o:U, zgeqrf.o:U, zgeqrfp.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in zlarft.o:D]  e.g. zlarft.o:D
+
+zlascl_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [41 objects; defined in zlascl.o:D]  e.g. zgees.o:U, zgeesx.o:U, zgeev.o:U, zgeevx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zlaset_
+  (i32, i32, i32, i32, i32, i32, i32) -> void  [55 objects; defined in zlaset.o:D]  e.g. zgbbrd.o:U, zgels.o:U, zgelsd.o:U, zgelss.o:U
+  (i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zgedmdq.o:U, zgelqs.o:U
+
+zlassq_
+  (i32, i32, i32, i32, i32) -> void  [26 objects; defined in zlassq.o:D]  e.g. zgesvj.o:U, zgejsv.o:U, zgsvj0.o:U, zgsvj1.o:U
+  (i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmd.o:U
+
+zscal_
+  (i32, i32, i32, i32) -> void  [54 objects; defined in zscal.o:D]  e.g. zscal.o:D, zgetrf2.o:U, zgbbrd.o:U, zgbtf2.o:U
+  (i32, i32, i32, i32) -> i32  [3 objects; defined in none]  e.g. zlarf1f.o:U, zlarf1l.o:U, zrscl.o:U
+
+zswap_
+  (i32, i32, i32, i32, i32) -> void  [77 objects; defined in zswap.o:D]  e.g. zswap.o:D, zbdsqr.o:U, zgbtf2.o:U, zgbtrf.o:U
+  (i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zlaqp2rk.o:U, zlaqp3rk.o:U
+
+ztrmm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [21 objects; defined in ztrmm.o:D]  e.g. ztrmm.o:D, zgehrd.o:U, zhegst.o:U, zhegv.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zlarft.o:U
+
+ztrmv_
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> void  [11 objects; defined in ztrmv.o:D]  e.g. ztrmv.o:D, zgghd3.o:U, zgglse.o:U, zhegs2.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zlarft_lvl2.o:U
+
+ztrsm_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [30 objects; defined in ztrsm.o:D]  e.g. ztrsm.o:D, zpotrf2.o:U, zgetrf2.o:U, zgbtrf.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zgelqs.o:U, zgeqrs.o:U
+
+ztrtrs_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in ztrtrs.o:D]  e.g. ztrtrs.o:D
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [5 objects; defined in none]  e.g. zgels.o:U, zggglm.o:U, zgglse.o:U, zgetsls.o:U
+
+zungqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [17 objects; defined in zungqr.o:D]  e.g. zgesdd.o:U, zgesvd.o:U, zgejsv.o:U, zgges.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgedmdq.o:U
+
+zunmlq_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [8 objects; defined in zunmlq.o:D]  e.g. zgels.o:U, zgelsd.o:U, zgelss.o:U, zgesvdx.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [1 objects; defined in none]  e.g. zgelqs.o:U
+
+zunmqr_
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void  [23 objects; defined in zunmqr.o:D]  e.g. zgels.o:U, zgelsd.o:U, zgelss.o:U, zgelsy.o:U
+  (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32  [2 objects; defined in none]  e.g. zgedmdq.o:U, zgeqrs.o:U

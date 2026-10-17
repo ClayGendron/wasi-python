@@ -1,0 +1,51 @@
+subroutine names known: 2153
+R1-decl: 258
+R1-def: 60
+R2: 26
+R3: 294
+R4: 78
+R5: 0
+R6-proto: 20
+R6-call: 36
+files changed: 190
+int declarators left alone (not known subroutines): 1584
+  cbbcsd.c: xerbla_
+  cbdsqr.c: xerbla_
+  cgbbrd.c: xerbla_
+  cgbcon.c: xerbla_
+  cgbequ.c: xerbla_
+  cgbequb.c: xerbla_
+  cgbrfs.c: xerbla_
+  cgbsv.c: xerbla_
+  cgbsvx.c: xerbla_
+  cgbsvxx.c: xerbla_
+  cgbtf2.c: xerbla_
+  cgbtrf.c: xerbla_
+  cgbtrs.c: xerbla_
+  cgebak.c: xerbla_
+  cgebal.c: xerbla_
+  cgebd2.c: xerbla_
+  cgebrd.c: xerbla_
+  cgecon.c: xerbla_
+  cgeequ.c: xerbla_
+  cgeequb.c: xerbla_
+  cgees.c: xerbla_
+  cgeesx.c: xerbla_
+  cgeev.c: xerbla_
+  cgeevx.c: xerbla_
+  cgegs.c: xerbla_
+  cgegv.c: xerbla_
+  cgehd2.c: xerbla_
+  cgehrd.c: xerbla_
+  cgejsv.c: xerbla_
+  cgelq.c: xerbla_
+  cgelq2.c: xerbla_
+  cgelqf.c: xerbla_
+  cgelqt.c: xerbla_
+  cgelqt3.c: xerbla_
+  cgels.c: xerbla_
+  cgelsd.c: xerbla_
+  cgelss.c: xerbla_
+  cgelst.c: xerbla_
+  cgelsx.c: xerbla_
+  cgelsy.c: xerbla_

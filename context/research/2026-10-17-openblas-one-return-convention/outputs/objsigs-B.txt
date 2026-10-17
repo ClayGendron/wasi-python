@@ -1,0 +1,1 @@
+objects: 3782  function names: 3867  names with more than one type: 0

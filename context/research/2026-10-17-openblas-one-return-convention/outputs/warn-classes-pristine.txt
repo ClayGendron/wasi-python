@@ -1,0 +1,7 @@
+19998 [-Wunused-function]
+1767 [-Wunused-variable]
+1020 [-Wlogical-op-parentheses]
+ 138 [-Wshift-op-parentheses]
+  88 [-Wsometimes-uninitialized]
+  81 [-Wunused-but-set-variable]
+  16 [-Wincompatible-pointer-types-discards-qualifiers]

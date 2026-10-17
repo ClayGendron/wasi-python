@@ -1,0 +1,35 @@
+OpenBLAS develop @ 0fee0ebe90aac2fbc18e54d961f4b3c32306c4dd (2026-10-17T19:41:00+02:00); newest release tag on origin: v0.3.34 (git ls-remote, 2026-10-17)
+1a4c5670 2026-09-03 Merge pull request #6008 from martin-frbg/larft_sig |  8 files changed, 52 insertions(+), 1052 deletions(-)
+180d98c0 2026-09-06 Merge pull request #6017 from martin-frbg/fix-lapack-signatures |  28 files changed, 229 insertions(+), 229 deletions(-)
+2154be86 2026-09-09 Merge pull request #6022 from martin-frbg/f2c-lapack-s |  396 files changed, 1207 insertions(+), 17285 deletions(-)
+78501e39 2026-09-13 Merge pull request #6030 from martin-frbg/f2c-lapack-d |  496 files changed, 739 insertions(+), 138800 deletions(-)
+9e857d00 2026-09-16 Merge pull request #6036 from martin-frbg/f2c-lapack-i |  56 files changed, 145 insertions(+), 8236 deletions(-)
+a6906252 2026-09-17 Merge pull request #6049 from martin-frbg/f2c-lapack-matgen |  74 files changed, 101 insertions(+), 2187 deletions(-)
+f288d1f0 2026-09-28 Merge pull request #6061 from martin-frbg/f2c-lapack-c |  510 files changed, 873 insertions(+), 131559 deletions(-)
+e11d7858 2026-09-28 Merge pull request #6063 from martin-frbg/f2c-lapack-z |  512 files changed, 875 insertions(+), 127916 deletions(-)
+89f18324 2026-10-01 Merge pull request #6077 from martin-frbg/f2c-lapack-inst |  10 files changed, 2335 insertions(+), 666 deletions(-)
+5d2235c9 2026-10-01 Merge pull request #6079 from martin-frbg/f2c-lapack-s-2 |  109 files changed, 369 insertions(+), 4398 deletions(-)
+eb00d597 2026-10-01 Merge pull request #6080 from martin-frbg/f2c-lapack-d-2 |  22 files changed, 33 insertions(+), 4827 deletions(-)
+d57ad7d1 2026-10-01 Merge pull request #6081 from martin-frbg/f2c-lapack-xerb |  51 files changed, 51 insertions(+), 317 deletions(-)
+06f28d09 2026-10-02 Merge pull request #6082 from martin-frbg/voidxerbla |  2 files changed, 5 insertions(+), 6 deletions(-)
+
+remaining int subroutines in develop's C LAPACK sources:
+lapack-netlib/INSTALL/ilaver.c:322:/* Subroutine */ int ilaver_(integer *vers_major__, integer *vers_minor__, 
+lapack-netlib/INSTALL/dlamch.c:478:/* Subroutine */ int dlamc1_(integer *beta, integer *t, logical *rnd, logical 
+lapack-netlib/INSTALL/dlamch.c:703:/* Subroutine */ int dlamc2_(integer *beta, integer *t, logical *rnd, 
+lapack-netlib/INSTALL/dlamch.c:740:    extern /* Subroutine */ int dlamc1_(integer *, integer *, logical *, 
+lapack-netlib/INSTALL/dlamch.c:744:    extern /* Subroutine */ int dlamc4_(integer *, doublereal *, integer *), 
+lapack-netlib/INSTALL/dlamch.c:1013:/* Subroutine */ int dlamc4_(integer *emin, doublereal *start, integer *base)
+lapack-netlib/INSTALL/dlamch.c:1128:/* Subroutine */ int dlamc5_(integer *beta, integer *p, integer *emin, 
+lapack-netlib/INSTALL/LAPACK_version.c:274:    extern /* Subroutine */ int ilaver_(integer *, integer *, integer *);
+lapack-netlib/INSTALL/secondtst.c:283:    extern /* Subroutine */ int mysub_(integer *, real *, real *);
+lapack-netlib/INSTALL/secondtst.c:382:/* Subroutine */ int mysub_(integer *n, real *x, real *y)
+lapack-netlib/INSTALL/slamch.c:477:/* Subroutine */ int slamc1_(integer *beta, integer *t, logical *rnd, logical 
+lapack-netlib/INSTALL/slamch.c:702:/* Subroutine */ int slamc2_(integer *beta, integer *t, logical *rnd, real *
+lapack-netlib/INSTALL/slamch.c:739:    extern /* Subroutine */ int slamc1_(integer *, integer *, logical *, 
+lapack-netlib/INSTALL/slamch.c:742:    extern /* Subroutine */ int slamc4_(integer *, real *, integer *), 
+lapack-netlib/INSTALL/slamch.c:1008:/* Subroutine */ int slamc4_(integer *emin, real *start, integer *base)
+lapack-netlib/INSTALL/slamch.c:1123:/* Subroutine */ int slamc5_(integer *beta, integer *p, integer *emin, 
+lapack-netlib/INSTALL/dsecndtst.c:291:    extern /* Subroutine */ int mysub_(integer *, doublereal *, doublereal *);
+lapack-netlib/INSTALL/dsecndtst.c:362:/* Subroutine */ int mysub_(integer *n, doublereal *x, doublereal *y)
+interface/lapack int NAME:        0

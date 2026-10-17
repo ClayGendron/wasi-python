@@ -1,0 +1,15 @@
+wasm-ld: warning: function signature mismatch: zgees_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/direct_flapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(zgees.o)
+
+wasm-ld: warning: function signature mismatch: sgees_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/direct_flapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(sgees.o)
+
+wasm-ld: warning: function signature mismatch: dgees_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/direct_flapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(dgees.o)
+
+wasm-ld: warning: function signature mismatch: cgees_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/direct_flapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(cgees.o)

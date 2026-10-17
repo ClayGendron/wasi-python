@@ -1,0 +1,6 @@
+clang version 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+wasmtime 49.0.3 (f96eabaa1 2026-10-14)
+Apple clang version 17.0.0 (clang-1700.6.4.2)
+26.5.2
+arm64
+efa3f12

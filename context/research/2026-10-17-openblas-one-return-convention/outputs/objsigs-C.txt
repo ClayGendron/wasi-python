@@ -1,0 +1,5 @@
+objects: 3782  function names: 3867  names with more than one type: 1
+
+xerbla_
+  (i32, i32, i32) -> i32  [1765 objects; defined in xerbla.o:D]  e.g. sgemv.o:U, sger.o:U, strsv.o:U, strmv.o:U
+  (i32, i32, i32) -> void  [15 objects; defined in none]  e.g. sgedmd.o:U, sgedmdq.o:U, dgedmd.o:U, dgedmdq.o:U

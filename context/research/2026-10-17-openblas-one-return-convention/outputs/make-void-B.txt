@@ -1,0 +1,10 @@
+subroutine names known: 2154
+R1-decl: 1842
+R1-def: 60
+R2: 26
+R3: 294
+R4: 79
+R5: 3
+R6-proto: 20
+R6-call: 36
+files changed: 1665

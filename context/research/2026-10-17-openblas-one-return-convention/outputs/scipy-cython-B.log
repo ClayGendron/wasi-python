@@ -1,0 +1,7 @@
+wasm-ld: warning: function signature mismatch: xerbla_array_
+>>> defined as (i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(xerbla_array.o)
+
+wasm-ld: warning: function signature mismatch: chla_transtype_
+>>> defined as (i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-B/libopenblas_wasm128-r0.3.34.a(chla_transtype.o)

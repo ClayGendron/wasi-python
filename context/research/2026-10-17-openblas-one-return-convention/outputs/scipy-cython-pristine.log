@@ -1,0 +1,307 @@
+wasm-ld: warning: function signature mismatch: xerbla_array_
+>>> defined as (i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(xerbla_array.o)
+
+wasm-ld: warning: function signature mismatch: ctrmv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ctrmv.o)
+
+wasm-ld: warning: function signature mismatch: ztrtrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ztrtrs.o)
+
+wasm-ld: warning: function signature mismatch: strtri_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(strtri.o)
+
+wasm-ld: warning: function signature mismatch: zgetf2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgetf2.o)
+
+wasm-ld: warning: function signature mismatch: dtrtri_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dtrtri.o)
+
+wasm-ld: warning: function signature mismatch: clauu2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clauu2.o)
+
+wasm-ld: warning: function signature mismatch: dlacpy_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlacpy.o)
+
+wasm-ld: warning: function signature mismatch: ctrtri_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ctrtri.o)
+
+wasm-ld: warning: function signature mismatch: zgemv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgemv.o)
+
+wasm-ld: warning: function signature mismatch: clarft_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft.o)
+
+wasm-ld: warning: function signature mismatch: cpotrf_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cpotrf.o)
+
+wasm-ld: warning: function signature mismatch: dlaswp_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlaswp.o)
+
+wasm-ld: warning: function signature mismatch: cgemm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgemm.o)
+
+wasm-ld: warning: function signature mismatch: clauum_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clauum.o)
+
+wasm-ld: warning: function signature mismatch: strti2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(strti2.o)
+
+wasm-ld: warning: function signature mismatch: zlarft_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft.o)
+
+wasm-ld: warning: function signature mismatch: dlaed3_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlaed3.o)
+
+wasm-ld: warning: function signature mismatch: dgetrf_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgetrf.o)
+
+wasm-ld: warning: function signature mismatch: chla_transtype_
+>>> defined as (i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(chla_transtype.o)
+
+wasm-ld: warning: function signature mismatch: sgetrf_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgetrf.o)
+
+wasm-ld: warning: function signature mismatch: dgemv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgemv.o)
+
+wasm-ld: warning: function signature mismatch: dtrti2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dtrti2.o)
+
+wasm-ld: warning: function signature mismatch: dtrtrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dtrtrs.o)
+
+wasm-ld: warning: function signature mismatch: zlacpy_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlacpy.o)
+
+wasm-ld: warning: function signature mismatch: cgemv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgemv.o)
+
+wasm-ld: warning: function signature mismatch: slauum_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slauum.o)
+
+wasm-ld: warning: function signature mismatch: cgesv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgesv.o)
+
+wasm-ld: warning: function signature mismatch: dlauum_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlauum.o)
+
+wasm-ld: warning: function signature mismatch: slaed3_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slaed3.o)
+
+wasm-ld: warning: function signature mismatch: dgetf2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgetf2.o)
+
+wasm-ld: warning: function signature mismatch: ctrti2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ctrti2.o)
+
+wasm-ld: warning: function signature mismatch: slacpy_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slacpy.o)
+
+wasm-ld: warning: function signature mismatch: clacpy_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clacpy.o)
+
+wasm-ld: warning: function signature mismatch: cgetrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgetrs.o)
+
+wasm-ld: warning: function signature mismatch: dlauu2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlauu2.o)
+
+wasm-ld: warning: function signature mismatch: zpotf2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zpotf2.o)
+
+wasm-ld: warning: function signature mismatch: ztrmm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ztrmm.o)
+
+wasm-ld: warning: function signature mismatch: dlarft_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft.o)
+
+wasm-ld: warning: function signature mismatch: cgetf2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgetf2.o)
+
+wasm-ld: warning: function signature mismatch: sgetrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgetrs.o)
+
+wasm-ld: warning: function signature mismatch: zgetrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgetrs.o)
+
+wasm-ld: warning: function signature mismatch: sgesv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgesv.o)
+
+wasm-ld: warning: function signature mismatch: strtrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(strtrs.o)
+
+wasm-ld: warning: function signature mismatch: zlauu2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlauu2.o)
+
+wasm-ld: warning: function signature mismatch: zlaswp_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlaswp.o)
+
+wasm-ld: warning: function signature mismatch: spotrf_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(spotrf.o)
+
+wasm-ld: warning: function signature mismatch: slarft_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft.o)
+
+wasm-ld: warning: function signature mismatch: dgetrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgetrs.o)
+
+wasm-ld: warning: function signature mismatch: slauu2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slauu2.o)
+
+wasm-ld: warning: function signature mismatch: sgemm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgemm.o)
+
+wasm-ld: warning: function signature mismatch: ctrtrs_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ctrtrs.o)
+
+wasm-ld: warning: function signature mismatch: sgetf2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgetf2.o)
+
+wasm-ld: warning: function signature mismatch: dpotrf_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dpotrf.o)
+
+wasm-ld: warning: function signature mismatch: zpotrf_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zpotrf.o)
+
+wasm-ld: warning: function signature mismatch: strmm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(strmm.o)
+
+wasm-ld: warning: function signature mismatch: ilaver_
+>>> defined as (i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ilaver.o)
+
+wasm-ld: warning: function signature mismatch: ztrti2_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ztrti2.o)
+
+wasm-ld: warning: function signature mismatch: ctrmm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(clarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ctrmm.o)
+
+wasm-ld: warning: function signature mismatch: claswp_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(claswp.o)
+
+wasm-ld: warning: function signature mismatch: dtrmv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dtrmv.o)
+
+wasm-ld: warning: function signature mismatch: ztrmv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ztrmv.o)
+
+wasm-ld: warning: function signature mismatch: spotf2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(spotf2.o)
+
+wasm-ld: warning: function signature mismatch: zgemm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgemm.o)
+
+wasm-ld: warning: function signature mismatch: dtrmm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dtrmm.o)
+
+wasm-ld: warning: function signature mismatch: cgetrf_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cgetrf.o)
+
+wasm-ld: warning: function signature mismatch: strmv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(strmv.o)
+
+wasm-ld: warning: function signature mismatch: slaswp_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slaswp.o)
+
+wasm-ld: warning: function signature mismatch: dpotf2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dpotf2.o)
+
+wasm-ld: warning: function signature mismatch: dgesv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgesv.o)
+
+wasm-ld: warning: function signature mismatch: zlauum_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zlauum.o)
+
+wasm-ld: warning: function signature mismatch: ztrtri_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(ztrtri.o)
+
+wasm-ld: warning: function signature mismatch: zgetrf_
+>>> defined as (i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgetrf.o)
+
+wasm-ld: warning: function signature mismatch: cpotf2_
+>>> defined as (i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(cpotf2.o)
+
+wasm-ld: warning: function signature mismatch: sgemv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(slarft_lvl2.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(sgemv.o)
+
+wasm-ld: warning: function signature mismatch: dgemm_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dlarft.o)
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(dgemm.o)
+
+wasm-ld: warning: function signature mismatch: zgesv_
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> void in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/../scipy-research/work/abi/cython_lapack.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32) -> i32 in /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/openblas-void/work/wasm-pristine/libopenblas_wasm128-r0.3.34.a(zgesv.o)

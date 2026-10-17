@@ -1,0 +1,41 @@
+dgesv.info             equal (1 integer)
+dgesv.x                pass  n= 64  max|d|/max|x| = 4.82e-16
+dgesv.exit             equal (1 integer)
+dgetrf.info            equal (1 integer)
+dgetrf.ipiv            equal (64 integers)
+dgetrf.U               pass  n= 64  max|d|/max|x| = 1.70e-15
+dgetrf.LU              pass  n=130  max|d|/max|x| = 1.21e-15
+dgetrf.exit            equal (1 integer)
+dpotrf.info            equal (1 integer)
+dpotrf.L               pass  n=152  max|d|/max|x| = 1.57e-16
+dpotrf.exit            equal (1 integer)
+dgeqrf.info            equal (1 integer)
+dgeqrf.R               pass  n= 64  max|d|/max|x| = 1.03e-16
+dgeqrf.exit            equal (1 integer)
+dsyev.info             equal (1 integer)
+dsyev.w                pass  n= 64  max|d|/max|x| = 6.41e-16
+dsyev.exit             equal (1 integer)
+dsyevr.info            equal (1 integer)
+dsyevr.m               equal (1 integer)
+dsyevr.w               pass  n= 64  max|d|/max|x| = 6.41e-16
+dsyevr.residual_ok     equal (1 integer)
+dsyevr.exit            equal (1 integer)
+dgesdd64.info          equal (1 integer)
+dgesdd64.s0            pass  n=  1  max|d|/max|x| = 0.00e+00
+dgesdd64.exit          equal (1 integer)
+dgesdd.info            equal (1 integer)
+dgesdd.s               pass  n= 48  max|d|/max|x| = 2.43e-15
+dgesdd.residual_ok     equal (1 integer)
+dgesdd.exit            equal (1 integer)
+zgesdd.info            equal (1 integer)
+zgesdd.s               pass  n= 48  max|d|/max|x| = 1.56e-15
+zgesdd.residual_ok     equal (1 integer)
+zgesdd.exit            equal (1 integer)
+dgees.info             equal (1 integer)
+dgees.sdim             equal (1 integer)
+dgees.select_called    equal (1 integer)
+dgees.wr               pass  n= 64  max|d|/max|x| = 5.84e-15
+dgees.wi               pass  n= 64  max|d|/max|x| = 5.92e-15
+dgees.residual_ok      equal (1 integer)
+dgees.exit             equal (1 integer)
+ALL PASS (tolerance 1e-10 relative)

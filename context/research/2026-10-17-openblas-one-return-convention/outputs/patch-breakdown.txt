@@ -1,0 +1,14 @@
+files: 1665  lines: -2369 +2369  patch lines: 26136  bytes: 1119817
+files whose only change is xerbla_: 1475
+   1549 lapack-netlib/SRC
+     48 lapack-netlib/TESTING/MATGEN
+     36 lapack-netlib/SRC/DEPRECATED
+     26 interface/lapack
+      4 lapack-netlib/INSTALL
+      1 .
+      1 driver/others
+   1599 changed lines: xerbla_ int -> void (decl/proto)
+    438 changed lines: other subroutine int -> void (decl/def/proto)
+    294 changed lines: return 0 -> return
+     36 changed lines: xerbla call gains (ftnlen)N
+      2 changed lines: xerbla_ prototype gains ftnlen

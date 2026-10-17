@@ -102,6 +102,11 @@ question moves to the bottom with the answer and the date.
   a prerequisite.
 - **31. pythran:** build without it first (5 modules fall back to slower code), or pin it and
   its three dependencies as build tools? *Recommended: without, at first.*
+- **Update, 2026-10-17** (`research/2026-10-17-openblas-one-return-convention.md`): one `void`
+  convention takes OpenBLAS's C LAPACK from 111 clashes to 0, and the SVD, Schur and eigen
+  routines then match native. OpenBLAS `develop` has merged the same change, unreleased. Under
+  question 32's answer the agent will carry the backport when scipy is built; question 26 is
+  covered by that answer's scope. Questions 25, 28, 29, 30 and 31 still stand.
 
 ### 33. Reword §4.1's clause that spec 020 has now fulfilled?
 

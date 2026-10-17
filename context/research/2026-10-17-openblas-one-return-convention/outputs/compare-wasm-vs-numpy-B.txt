@@ -1,0 +1,10 @@
+numpy 2.5.2
+dgesv.x                pass  n= 64  max|d|/max|x| = 1.45e-15
+dsyev.w                pass  n= 64  max|d|/max|x| = 5.70e-16
+dsyevr.w               pass  n= 64  max|d|/max|x| = 4.99e-16
+dgesdd64.s0            pass  n=  1  max|d|/max|x| = 1.43e-16
+dgesdd.s               pass  n= 48  max|d|/max|x| = 1.32e-15
+zgesdd.s               pass  n= 48  max|d|/max|x| = 2.27e-15
+dgees.eig(sorted)      pass  n= 64  max|d|/max|x| = 1.09e-14
+dgees.sdim(=#Re>0)     pass  n=  1  max|d|/max|x| = 0.00e+00
+ALL PASS against numpy (tolerance 1e-10 relative)
