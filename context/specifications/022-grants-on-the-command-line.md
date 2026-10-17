@@ -1,8 +1,8 @@
 # 022 — Grants on the command line
 
-- **Status:** drafted 2026-10-17 and revised against its pre-build review
-  (`../reviews/022-grants-on-the-command-line-spec-2026-10-17.md`); ready to build, with the
-  confirmation's three wording points made.
+- **Status:** landed 2026-10-17. Reviewed before build
+  (`../reviews/022-grants-on-the-command-line-spec-2026-10-17.md`) and after
+  (`../reviews/022-grants-on-the-command-line-2026-10-17.md`, with its confirmation).
 - **Owner:** Clay Gendron
 - **Kind:** the command line (`src/wasi_python/cli.py`), judge additions in `tests/`, `README.md`,
   `CHANGELOG.md`.
@@ -91,4 +91,41 @@ In: the above. Out: anything `run()` does not take.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `c95399c`. **Not yet
+reviewed and not accepted.** Every claim below was run (EXECUTED) on macOS arm64 with the main
+tree's artifact set.
+
+### What was built
+
+- `cli.py`: `--grant` and `--grant-writable` append to one `grants` list, each value tagged
+  `("ro", …)` or `("rw", …)`; `_grants` splits at the first `=` and builds `Grant`s, with "--grant
+  needs GUEST=HOST" (or "--grant-writable …") as a usage error; `--root` is a `_Once` action (no
+  default, so a second one is "argument --root: given twice") in a mutually exclusive group with
+  `--no-root`; `VALUED` gains the three valued options.
+- README *From any language*: the options, the numbering of grants, `--no-root`, an example.
+  CHANGELOG: one entry.
+
+### Seen failing first
+
+Against `main`'s command (`c95399c`'s `src` on `PYTHONPATH`): 12 of the new and changed cases
+fail (scratch `build022/seen-failing.txt`); `--grant-writabl` already exits 2 there, as an
+unknown option, so that case guards.
+
+### By hand
+
+`--grant /in=… --grant-writable /out=… -- -c "…"` copied a file upper-cased from one grant to the
+other; `--grant /in` exits 2, "--grant needs GUEST=HOST"; `--root a --root b` exits 2, "argument
+--root: given twice"; `--root ""` exits 1, `{"error": "root is empty", "kind": "ValueError"}`.
+
+### The judge
+
+`uv run pytest` in the clone, with the main tree's artifact set: 172/183 pass, 0 fail, 11
+blocked; unit suite 421/429; 593 passed, 19 skipped; ratchet lost 0, gained 1, grew 0; judge
+changed: `tests/checks/test_v1_4_embedding.py`, `tests/unit/test_cli.py`. ruff: clean.
+
+### Revised against the build review
+
+The build review (`../reviews/022-grants-on-the-command-line-2026-10-17.md`) found four
+things, all fixed and confirmed: the README example reads the
+program with `--stdin prog.py -- -`; a case pins that an empty side reaches `run()`; the v1.4
+check asserts the refusal's text; the README names the `--root` and `=` rules.

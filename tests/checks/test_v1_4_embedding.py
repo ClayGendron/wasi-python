@@ -1282,3 +1282,25 @@ def test_the_installed_command_prints_the_same_line() -> None:
     assert script is not None, sysconfig.get_path("scripts")
     out = subprocess.run([script, "run", "--", "-c", "print(1)"], capture_output=True, timeout=120)
     assert (out.returncode, out.stdout) == (0, INTENT), out.stderr[-500:]
+
+
+def test_the_command_grants_folders(capsysbinary, tmp_path) -> None:
+    """Guards a change (spec 022): `--grant` and `--grant-writable` reach the guest with their
+    modes; a write to the read-only one fails in the program, not in the command; a grant `run()`
+    refuses (the temporary folder, named as the runner sees it) is exit 1."""
+    ro, rw = tmp_path / "in", tmp_path / "out"
+    ro.mkdir()
+    rw.mkdir()
+    (ro / "in.txt").write_text("data")
+    grants = ["--grant", f"/in={ro}", "--grant-writable", f"/out={rw}"]
+    copy = "open('/out/out.txt', 'w').write(open('/in/in.txt').read().upper())"
+    code, line = _cli(capsysbinary, "run", *grants, "--", "-c", copy)
+    assert (code, line["exit_code"]) == (0, 0), line
+    assert (rw / "out.txt").read_text() == "DATA" and (ro / "in.txt").read_text() == "data"
+    code, line = _cli(capsysbinary, "run", *grants, "--", "-c", "open('/in/x', 'w')")
+    assert (code, line["exit_code"]) == (0, 1), line
+    last = line["stderr"].strip().splitlines()[-1]
+    assert last.startswith("PermissionError: [Errno 63] Operation not permitted"), last
+    code, line = _cli(capsysbinary, "run", "--grant", f"/t={tempfile.gettempdir()}", "--", "-")
+    assert (code, line["kind"]) == (1, "ValueError"), line
+    assert "holds the temporary folder" in line["error"], line

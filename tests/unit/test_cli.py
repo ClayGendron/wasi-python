@@ -81,6 +81,8 @@ def test_an_option_not_given_is_not_passed(fake, capsysbinary) -> None:
         (["--fuel=5", "x.py"], ["x.py"]),
         (["--fuel", "5", "x.py"], ["x.py"]),
         (["-"], ["-"]),  # a lone `-`: the program on standard input
+        (["--grant=/d=x", "x.py"], ["x.py"]),
+        (["--no-root", "x.py"], ["x.py"]),
         ([], []),
     ],
 )
@@ -185,3 +187,61 @@ def test_the_result_line(fake, capsysbinary) -> None:
         "stderr_base64": base64.b64encode(b"\xff\xfe").decode(),
     }
     assert base64.b64decode(line["stderr_base64"]) == b"\xff\xfe"
+
+
+# Grants on the command line (spec 022).
+
+
+def test_grants_reach_run_in_the_order_typed_with_their_modes(fake, capsysbinary) -> None:
+    from wasi_python import Grant
+
+    calls, _ = fake
+    args = ["--grant", "/a=ha", "--grant-writable", "/b=hb", "--grant", "/c=h=c"]
+    assert _main(capsysbinary, "run", *args, "--", "-c", "1")[0] == 0
+    assert calls[0][1]["grants"] == [
+        Grant("ha", "/a"),
+        Grant("hb", "/b", writable=True),
+        Grant("h=c", "/c"),  # the split is at the first `=`: the host keeps the rest
+    ]
+
+
+@pytest.mark.parametrize(
+    ("args", "root"), [(["--root", "r"], "r"), (["--no-root"], False), (["--root", ""], "")]
+)
+def test_root_reaches_run(fake, capsysbinary, args, root) -> None:
+    calls, _ = fake
+    assert _main(capsysbinary, "run", *args, "--", "-c", "1")[0] == 0
+    assert calls[0][1]["root"] == root  # `--root ""` too: run() refuses it, exit 1
+
+
+def test_a_windows_host_path_passes_whole(fake, capsysbinary) -> None:
+    calls, _ = fake
+    assert _main(capsysbinary, "run", r"--grant=/d=C:\data", "--", "-c", "1")[0] == 0
+    assert calls[0][1]["grants"][0].host == r"C:\data"
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["--grant", "/d"], b"--grant needs GUEST=HOST"),
+        (["--grant-writable", "/d"], b"--grant-writable needs GUEST=HOST"),
+        (["--root", "a", "--root", "b"], b"--root: given twice"),
+        (["--root", "a", "--no-root"], b"not allowed with argument"),
+        (["--grant-writabl", "/d=x"], b"unrecognized arguments"),
+    ],
+)
+def test_a_grant_usage_error_exits_2_and_says_why(fake, capsysbinary, args, message) -> None:
+    code, out, err = _main(capsysbinary, "run", *args, "--", "-c", "1")
+    assert (code, out) == (2, b"") and message in err, err
+    assert fake[0] == []
+
+
+@pytest.mark.parametrize(
+    ("value", "grant"), [("/d=", ("", "/d")), ("=x", ("x", "")), ("==", ("=", ""))]
+)
+def test_an_empty_side_reaches_run_which_refuses_it(fake, capsysbinary, value, grant) -> None:
+    """Exit 2 is only for what cannot be parsed; an empty side parses, so `run()` judges it."""
+    calls, _ = fake
+    assert _main(capsysbinary, "run", "--grant", value, "--", "-c", "1")[0] == 0
+    g = calls[0][1]["grants"][0]
+    assert (g.host, g.guest) == grant

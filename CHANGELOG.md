@@ -29,6 +29,8 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   cache will be made; and a root reached through a link in a folder you can write. A missing
   root is still made. No grant, read-only either, may hold the temporary folder, which holds
   every call's private folders and `stdin`.
+- **Grants on the command line:** `wasi-python run --grant GUEST=HOST`, `--grant-writable
+  GUEST=HOST`, `--root HOST` and `--no-root`, each one of `run`'s arguments.
 - **`wasi-python run`:** a command that runs one program and prints its result as one line of
   JSON, so any language can run agent code by spawning it (`python -m wasi_python run` is the
   same). Each option is one of `run`'s arguments; without options the call has `run`'s defaults.

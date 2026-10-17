@@ -406,6 +406,20 @@ command line), `--stdin PATH` (or `-` for this command's input), `--deadline-s`,
 `--fuel` and `--no-snapshot`. Without an option the call has `run`'s defaults.
 Everything after `--` is the program's arguments.
 
+Folders, each one of `run`'s grants (see *Grants*): `--grant GUEST=HOST` gives the
+program a host folder read-only, `--grant-writable GUEST=HOST` writable; the split
+is at the first `=`, so `C:\data` and host paths with `=` pass whole. `--root
+HOST` is the guest's `/`, writable, and made if missing; `--no-root` gives no `/`
+at all, only the grants, as `root=False` does; `--root` given twice, or with
+`--no-root`, is a usage error. A guest path given here cannot hold `=`. `run`'s
+errors number the grants from 0, across both options, in the order typed. The
+program itself is read from the host with `--stdin`, since the guest does not
+see the host's folders, only its root and its grants:
+
+```
+$ wasi-python run --grant /data=./inputs --grant-writable /out=./results --stdin prog.py -- -
+```
+
 The line's keys: `exit_code`, `trapped`, `fuel_used` and `truncated`, as
 `run` returns them, and `stdout` and `stderr` as text, or `stdout_base64` and
 `stderr_base64` when the bytes are not UTF-8 (output cut at `--output-bytes`

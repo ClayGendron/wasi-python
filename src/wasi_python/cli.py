@@ -22,7 +22,26 @@ import threading
 from typing import Any
 
 USAGE = "wasi-python run [OPTIONS] [--] ARG..."
-VALUED = {"--env", "--stdin", "--deadline-s", "--memory-bytes", "--output-bytes", "--fuel"}
+VALUED = {
+    "--env",
+    "--stdin",
+    "--deadline-s",
+    "--memory-bytes",
+    "--output-bytes",
+    "--fuel",
+    "--grant",
+    "--grant-writable",
+    "--root",
+}
+
+
+class _Once(argparse.Action):
+    """An option that may be given once: a second `--root` is a usage error, never last-wins."""
+
+    def __call__(self, parser, namespace, values, option_string=None):  # type: ignore[override]
+        if hasattr(namespace, self.dest):
+            parser.error(f"argument {option_string}: given twice")
+        setattr(namespace, self.dest, values)
 
 
 def _limit(kind: type) -> Any:
@@ -55,7 +74,38 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--output-bytes", type=_limit(int), metavar="BYTES", default=unset)
     p.add_argument("--fuel", type=_limit(int), metavar="N", default=unset)
     p.add_argument("--no-snapshot", action="store_true")
+    # Both grant options write to one list, each value tagged with its mode, so the order typed
+    # is the order `run` numbers them in (spec 022).
+    p.add_argument(
+        "--grant", dest="grants", action="append", default=[], type=lambda v: ("ro", v),
+        metavar="GUEST=HOST", help="a host folder the guest sees at GUEST, read-only",
+    )  # fmt: skip
+    p.add_argument(
+        "--grant-writable", dest="grants", action="append", type=lambda v: ("rw", v),
+        metavar="GUEST=HOST", help="a host folder the guest sees at GUEST, writable",
+    )  # fmt: skip
+    roots = p.add_mutually_exclusive_group()
+    roots.add_argument(
+        "--root", action=_Once, default=unset, metavar="HOST",
+        help="the guest's /, writable; made if missing",
+    )  # fmt: skip
+    roots.add_argument("--no-root", action="store_true", help="no / at all: only the grants")
     return p
+
+
+def _grants(items: list[tuple[str, str]], parser: argparse.ArgumentParser) -> list[Any]:
+    """GUEST=HOST, split at the first `=`: a host path may hold `=` or `C:\\`, a guest path
+    starts with `/`. Whatever parses goes to `run()`, which judges it."""
+    from .runner import Grant
+
+    grants = []
+    for mode, value in items:
+        guest, sep, host = value.partition("=")
+        if not sep:
+            option = "--grant-writable" if mode == "rw" else "--grant"
+            parser.error(f"{option} needs GUEST=HOST")
+        grants.append(Grant(host, guest, writable=mode == "rw"))
+    return grants
 
 
 def _split(args: list[str]) -> tuple[list[str], list[str]]:
@@ -124,6 +174,7 @@ def _main(args: list[str]) -> int:
     try:
         ns = parser.parse_args(options)
         env = _env(ns.env, parser)
+        grants = _grants(ns.grants, parser)
     except SystemExit as e:  # usage errors exit 2; --help exits 0
         return int(e.code or 0)
     given: dict[str, Any] = {"cancel": threading.Event()}  # set by no one: lets Ctrl-C stop it
@@ -134,6 +185,12 @@ def _main(args: list[str]) -> int:
         given["env"] = env
     if ns.no_snapshot:
         given["snapshot"] = False
+    if grants:
+        given["grants"] = grants
+    if hasattr(ns, "root"):
+        given["root"] = ns.root
+    elif ns.no_root:
+        given["root"] = False
     try:
         if ns.stdin is not None:
             if ns.stdin == "-":
