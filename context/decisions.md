@@ -8,6 +8,14 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Install as `pip install wasi-python`, without the `run` extra
+
+- **Decided 2026-10-17**, after 0.1.0a3 shipped: "Could we change it to just pip install
+  wasi-python and not with the run for the next release? That would be a better dev experience."
+- wasmtime-py (`wasmtime>=49,<50`, about 8 to 10 MB per platform, with a wheel for every major
+  platform) becomes a required dependency; `wasi-python[run]` stays as an empty alias so older
+  instructions work. Built as spec 028 for 0.1.0a4 (§4.13 asks the specification for the reason).
+
 ### 12 and 14. A tool protocol over the door
 
 - **Asked:** 2026-10-17 (12: `research/2026-10-17-market-research-use-cases.md`, proposal A;
