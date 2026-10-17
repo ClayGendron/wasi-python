@@ -77,6 +77,14 @@ def artifacts() -> Artifacts:
     )
 
 
-from .runner import Completed, run  # noqa: E402  (runner.py imports Artifacts from here)
+from .runner import Completed, run, run_async  # noqa: E402  (runner.py imports Artifacts from here)
 
-__all__ = ["Artifacts", "ArtifactsMissing", "Completed", "artifact_dir", "artifacts", "run"]
+__all__ = [
+    "Artifacts",
+    "ArtifactsMissing",
+    "Completed",
+    "artifact_dir",
+    "artifacts",
+    "run",
+    "run_async",
+]

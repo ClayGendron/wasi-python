@@ -35,7 +35,7 @@ import time
 import warnings
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NamedTuple
 
@@ -43,6 +43,8 @@ from . import Artifacts
 from . import artifacts as find_artifacts
 
 if TYPE_CHECKING:
+    import concurrent.futures
+
     import wasmtime
 
 ARGV0 = "/usr/local/bin/python.wasm"
@@ -51,6 +53,8 @@ HOST_FAULT = -2
 CACHE_ENV = "WASI_PYTHON_CACHE"
 TICK_S = 0.01
 NO_DEADLINE = 2**62
+CANCEL_TICKS = 5  # a call with `cancel` is checked every 5 ticks while it computes (spec 015)
+MAX_WORKERS = 1024
 MASK32 = 0xFFFFFFFF
 UNMETERED = 2**63 - 1  # the budget instantiation runs on, before the cap is set (spec 008)
 MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a signed i32
@@ -164,18 +168,43 @@ def _check_inputs(argv: Any, env: Any, stdin: Any) -> dict[str, Any]:
     return {"argv": args, "env": plain_env, "stdin": data}
 
 
+def _cpus() -> int:
+    count = getattr(os, "process_cpu_count", os.cpu_count)()  # 3.13 honours CPU affinity
+    return count or 1
+
+
+def _default_workers() -> int:
+    """At most 8: at the defaults a worker holds up to 1 GiB of guest memory and 32 MiB of output,
+    so 8 bound a process at about 8.3 GiB, and past 8 the measured speedup flattens (spec 015)."""
+    return min(_cpus(), 8)
+
+
+def _check_workers(value: Any) -> int:
+    if isinstance(value, bool):
+        raise TypeError(f"async_workers must be an integer; got {value!r}")
+    try:
+        number = operator.index(value)
+    except TypeError:
+        raise TypeError(f"async_workers must be an integer; got {value!r}") from None
+    if not 1 <= number <= MAX_WORKERS:
+        raise ValueError(f"async_workers must be from 1 to {MAX_WORKERS}; got {_shown(number)}")
+    return number
+
+
 @dataclass(frozen=True)
 class Defaults:
     """The limits a call has when it names none. `run` reads `DEFAULTS` at call time; the values
     are checked here, by `run`'s rules, so an error from `run` always names what its caller
-    passed (spec 013)."""
+    passed (spec 013). `async_workers` sizes `run_async`'s default pool (spec 015)."""
 
     memory_bytes: int  # the guest's linear memory
     deadline_s: float  # wall-clock time, by epoch interruption (costs nothing per instruction)
     output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
+    async_workers: int = field(default_factory=_default_workers)  # guests run_async runs at once
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
+        _check_workers(self.async_workers)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -215,6 +244,7 @@ def run(
     output_bytes: int | None = _UNSET,
     cache_dir: str | os.PathLike[str] | None | bool = None,
     artifacts: Artifacts | None = None,
+    cancel: threading.Event | None = None,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -223,14 +253,209 @@ def run(
     `DEFAULTS`; `None` means no limit. The guest's environment starts from `BASE_ENV` (`/tmp` for
     temporary files, `zoneinfo` on the zip's tzdata) and a `HOME` made fresh for the call, with
     `env` laid over it.
-    `cache_dir=False` keeps compiled modules in this process only, never on disk."""
+    `cache_dir=False` keeps compiled modules in this process only, never on disk.
+    `cancel`, a `threading.Event`: once it is set and the guest runs, the guest stops within
+    `CANCEL_TICKS` ticks and the call returns `trapped == "cancelled"` (spec 015)."""
+    _refuse_forked()
+    wt = _wasmtime()
+    checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, cancel)
+    return _run_checked(wt, checked, root, host, snapshot, cache_dir, artifacts)
+
+
+async def run_async(
+    argv: Iterable[str],
+    *,
+    root: str | os.PathLike[str] | None = None,
+    env: Mapping[str, str] | None = None,
+    stdin: bytes | bytearray | memoryview | None = None,
+    host: Host | None = None,
+    snapshot: bool = True,
+    fuel: int | None = None,
+    deadline_s: float | None = _UNSET,
+    memory_bytes: int | None = _UNSET,
+    output_bytes: int | None = _UNSET,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    executor: concurrent.futures.Executor | None = None,
+) -> Completed:
+    """`run` from async code, on a worker thread, so the event loop is never blocked (spec 015).
+
+    The arguments are `run`'s, checked here before anything is queued. The call runs on
+    `executor`, which must run callables on threads of this process, or on the runner's default
+    pool of `DEFAULTS.async_workers` threads. If the awaiting task is cancelled, the guest is
+    stopped and its worker freed before `CancelledError` is raised; a call still queued never
+    starts."""
+    import asyncio
+    import contextvars
+
+    _refuse_forked()
+    checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, None)
+    _check_executor(executor)
+    wt = _wasmtime()
+    _register_exit_hook()
+    event = threading.Event()
+    checked["cancel"] = event
+    with _live_lock:  # the exit hook sets `exiting` before it reads `_live` (the build review, N1)
+        if _hook["exiting"]:
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+        _live.add(event)
+    try:
+        work = contextvars.copy_context().run  # a door host sees the request's context
+        args = (_run_checked, wt, checked, root, host, snapshot, cache_dir, artifacts)
+        future = _submit(executor, work, *args)
+        try:
+            return await asyncio.wrap_future(future)
+        except asyncio.CancelledError:
+            if future.cancel():  # still queued: it never starts
+                raise
+            event.set()
+            while not future.done():  # wait for the worker, whatever the call's outcome
+                try:
+                    await asyncio.wrap_future(future)
+                except BaseException:
+                    pass
+            raise
+    finally:
+        with _live_lock:
+            _live.discard(event)
+
+
+def _check_executor(executor: Any) -> None:
+    import concurrent.futures
+
+    if executor is None:
+        return
+    interpreters = getattr(concurrent.futures, "InterpreterPoolExecutor", None)  # 3.14
+    if interpreters is not None and isinstance(executor, interpreters):
+        raise TypeError("executor must run on threads of this process, not an interpreter pool")
+    if isinstance(executor, concurrent.futures.ProcessPoolExecutor):
+        raise TypeError("executor must run on threads of this process, not a process pool")
+    if not isinstance(executor, concurrent.futures.Executor):
+        raise TypeError(f"executor must be a concurrent.futures.Executor; got {executor!r}")
+
+
+# run_async's default pool, its live calls and its exit hook (spec 015, Decisions 4 and 6).
+_pool_lock = threading.Lock()
+_pool: dict[str, Any] = {"pool": None, "size": 0}
+_pools: list[concurrent.futures.ThreadPoolExecutor] = []  # every default pool made, for exit
+_live_lock = threading.Lock()
+_live: set[threading.Event] = set()
+_hook = {"registered": False, "exiting": False}
+
+
+def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.futures.Future[Any]:
+    """Submit to the caller's executor, or to the default pool, resized when `DEFAULTS` changed.
+    The lookup, any resize and the submit share one lock, so a resize on another thread never
+    leaves a submit facing a pool that is shut down."""
+    import concurrent.futures
+
+    if executor is not None:
+        return executor.submit(fn, *args)
+    with _pool_lock:
+        if _hook["exiting"]:  # the exit hook has run: never start a pool's call again
+            raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+        size = DEFAULTS.async_workers
+        if _pool["pool"] is None or _pool["size"] != size:
+            old = _pool["pool"]
+            new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
+            _pools.append(new)
+            _pool.update(pool=new, size=size)
+            if old is not None:
+                old.shutdown(wait=False)  # its running calls finish
+        return _pool["pool"].submit(fn, *args)
+
+
+def _register_exit_hook() -> None:
+    """At exit, stop run_async's guests and drop its queued calls. threading runs its exit hooks
+    in reverse order of registration, so this one, registered after concurrent.futures.thread is
+    imported, runs before that module joins the pools' workers; registered before, exit would
+    wait for every queued call (spec 015's confirmation, EXECUTED both ways)."""
+    with _pool_lock:
+        if _hook["registered"]:
+            return
+        import concurrent.futures.thread  # noqa: F401  (its hook first, so ours runs before it)
+
+        register = getattr(threading, "_register_atexit", None)
+        if register is not None:
+            register(_stop_async_calls)
+        else:
+            atexit.register(_stop_async_calls)
+        _hook["registered"] = True
+
+
+def _stop_async_calls() -> None:
+    """Pools first, so no call can be submitted after its event was missed; then the events of the
+    calls already running (spec 015's build review, F3)."""
+    with _pool_lock:
+        _hook["exiting"] = True
+        pools = list(_pools)
+    for pool in pools:
+        pool.shutdown(wait=False, cancel_futures=True)
+    with _live_lock:
+        events = list(_live)
+    for event in events:
+        event.set()
+
+
+# Fork (spec 015, Decision 5). A child of a process that made an engine inherits state from
+# threads that no longer exist, and wasmtime does not support use across a fork (on macOS it
+# aborts), so such a child is refused. A child of a parent that only imported this runs normally.
+_fork = {"used": False, "forked": False}
+
+
+def _refuse_forked() -> None:
+    if _fork["forked"]:
+        raise RuntimeError(
+            "wasi_python was used before this process was forked; use it in the child only, or "
+            "start processes with 'spawn' or 'forkserver'"
+        )
+
+
+def _after_fork_in_child() -> None:
+    """Only assignments, and no lock: a lock may have been held by a thread the fork left out, so
+    every lock the runner takes is made anew (spec 015's build review, F8)."""
+    global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
+    _pool_lock, _live_lock = threading.Lock(), threading.Lock()
+    _lock, _epoch_callback_lock, _outputs_lock = (
+        threading.Lock(),
+        threading.Lock(),
+        threading.RLock(),
+    )
+    _compiling = {}
+    _pool.update(pool=None, size=0)
+    _pools.clear()
+    _live.clear()
+    _epoch_ticker._thread, _epoch_ticker._active = None, 0
+    _epoch_ticker._cond = threading.Condition()
+    if _fork["used"]:
+        _fork["forked"] = True
+
+
+if hasattr(os, "register_at_fork"):  # not on Windows, which has no fork
+    os.register_at_fork(after_in_child=_after_fork_in_child)
+
+
+def _wasmtime() -> Any:
     try:
         import wasmtime as wt
     except ImportError as e:
         raise ImportError(
             'wasi_python.run needs wasmtime-py: pip install "wasi-python[run]"'
         ) from e
+    return wt
 
+
+def _checked(
+    argv: Any,
+    env: Any,
+    stdin: Any,
+    fuel: Any,
+    deadline_s: Any,
+    memory_bytes: Any,
+    output_bytes: Any,
+    cancel: Any,
+) -> dict[str, Any]:
+    """Every argument a call's guest depends on, checked before any work (specs 013 to 015)."""
     limits = DEFAULTS
     if memory_bytes is _UNSET:
         memory_bytes = limits.memory_bytes
@@ -238,52 +463,35 @@ def run(
         deadline_s = limits.deadline_s
     if output_bytes is _UNSET:
         output_bytes = limits.output_bytes
-    checked = _check_limits(fuel, deadline_s, memory_bytes, output_bytes)  # before any work
+    if cancel is not None and not isinstance(cancel, threading.Event):
+        raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
+    checked = _check_limits(fuel, deadline_s, memory_bytes, output_bytes)
     checked.update(_check_inputs(argv, env, stdin))
-    argv, env, stdin = checked["argv"], checked["env"], checked["stdin"]
-    fuel, deadline_s = checked["fuel"], checked["deadline_s"]
-    memory_bytes, output_bytes = checked["memory_bytes"], checked["output_bytes"]
+    checked["cancel"] = cancel
+    return checked
 
+
+def _run_checked(
+    wt: Any,
+    c: dict[str, Any],
+    root: str | os.PathLike[str] | None,
+    host: Host | None,
+    snapshot: bool,
+    cache_dir: str | os.PathLike[str] | None | bool,
+    artifacts: Artifacts | None,
+) -> Completed:
     found = artifacts if artifacts is not None else find_artifacts()
     binary = found.snapshot if snapshot else found.plain
-    engine = _engine(fuel is not None)
-    module = _module(engine, fuel is not None, binary, _cache_dir(cache_dir))
+    engine = _engine(c["fuel"] is not None)
+    module = _module(engine, c["fuel"] is not None, binary, _cache_dir(cache_dir))
     if root is not None:
         guest_root = Path(root)
         _place_stdlib(found, guest_root)
-        return _call(
-            wt,
-            engine,
-            module,
-            found,
-            guest_root,
-            argv,
-            env,
-            stdin,
-            host,
-            fuel,
-            deadline_s,
-            memory_bytes,
-            output_bytes,
-        )
+        return _call(wt, engine, module, found, guest_root, c, host)
     guest_root = Path(tempfile.mkdtemp(prefix="wasi-python-root-"))  # 0700, this user's own
     try:
         _place_private(found, guest_root)
-        return _call(
-            wt,
-            engine,
-            module,
-            found,
-            guest_root,
-            argv,
-            env,
-            stdin,
-            host,
-            fuel,
-            deadline_s,
-            memory_bytes,
-            output_bytes,
-        )
+        return _call(wt, engine, module, found, guest_root, c, host)
     finally:
         shutil.rmtree(guest_root, ignore_errors=True)
 
@@ -294,35 +502,15 @@ def _call(
     module: wasmtime.Module,
     found: Artifacts,
     guest_root: Path,
-    argv: list[str],
-    env: Mapping[str, str] | None,
-    stdin: bytes | None,
+    c: dict[str, Any],
     host: Host | None,
-    fuel: int | None,
-    deadline_s: float | None,
-    memory_bytes: int | None,
-    output_bytes: int | None,
 ) -> Completed:
     """One instance, one program. The store is closed before this returns, trapped or not, so the
     guest's memory and open files are released at once (a trapped store is otherwise kept alive by
     a reference cycle until Python's collector runs) and a private root can be removed afterwards
     (Windows refuses to remove an open directory). Ctrl-C is deferred while the guest runs."""
     with _deferred_ctrl_c():
-        return _call_deferred(
-            wt,
-            engine,
-            module,
-            found,
-            guest_root,
-            argv,
-            env,
-            stdin,
-            host,
-            fuel,
-            deadline_s,
-            memory_bytes,
-            output_bytes,
-        )
+        return _call_deferred(wt, engine, module, found, guest_root, c, host)
 
 
 def _call_deferred(
@@ -331,14 +519,8 @@ def _call_deferred(
     module: wasmtime.Module,
     found: Artifacts,
     guest_root: Path,
-    argv: list[str],
-    env: Mapping[str, str] | None,
-    stdin: bytes | None,
+    c: dict[str, Any],
     host: Host | None,
-    fuel: int | None,
-    deadline_s: float | None,
-    memory_bytes: int | None,
-    output_bytes: int | None,
 ) -> Completed:
     tmp = _real_dir(guest_root, ("tmp",))  # TMPDIR; a guest's link there is removed
     home = f".home-{secrets.token_hex(16)}"
@@ -356,22 +538,7 @@ def _call_deferred(
         raise
     store = wt.Store(engine)
     try:
-        return _instance(
-            wt,
-            engine,
-            module,
-            store,
-            guest_root,
-            f"/tmp/{home}",
-            argv,
-            env,
-            stdin,
-            host,
-            fuel,
-            deadline_s,
-            memory_bytes,
-            output_bytes,
-        )
+        return _instance(wt, engine, module, store, guest_root, f"/tmp/{home}", c, host)
     finally:
         store.close()
         if tmp_fd is not None:
@@ -402,15 +569,12 @@ def _instance(
     store: wasmtime.Store,
     guest_root: Path,
     home: str,
-    argv: list[str],
-    env: Mapping[str, str] | None,
-    stdin: bytes | None,
+    c: dict[str, Any],
     host: Host | None,
-    fuel: int | None,
-    deadline_s: float | None,
-    memory_bytes: int | None,
-    output_bytes: int | None,
 ) -> Completed:
+    argv, env, stdin, cancel = c["argv"], c["env"], c["stdin"], c["cancel"]
+    fuel, deadline_s = c["fuel"], c["deadline_s"]
+    memory_bytes, output_bytes = c["memory_bytes"], c["output_bytes"]
     if fuel is not None:
         # Fuel is metered from the end of instantiation (spec 008): instantiation runs only
         # wasmtime's own memory fill, which it charges per byte when it cannot map the image
@@ -419,11 +583,15 @@ def _instance(
     if memory_bytes is not None:
         store.set_limits(memory_size=memory_bytes)
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
-    store.set_epoch_deadline(ticks)
+    # A call with `cancel` is first checked within CANCEL_TICKS ticks, whatever its deadline; its
+    # callback then enforces the deadline too (spec 015).
+    store.set_epoch_deadline(ticks if cancel is None else min(CANCEL_TICKS, ticks))
     # The ticker's count at which this store's deadline has passed, read after the deadline is set
     # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
-    stop_at = _stop_at(_epoch_ticker.count(), ticks)
-    checks = [] if deadline_s is None else [lambda: _epoch_ticker.count() >= stop_at]
+    stop_at = None if deadline_s is None else _stop_at(_epoch_ticker.count(), ticks)
+    checks = [] if stop_at is None else [lambda: _epoch_ticker.count() >= stop_at]
+    if cancel is not None:
+        checks.append(cancel.is_set)  # a wait ends at a cancel, deadline or not
     if _ctrl_c_watched():
         checks.append(lambda: _ctrl_c["pending"])  # a wait on the main thread ends at Ctrl-C
     waits = _Waits(
@@ -446,8 +614,10 @@ def _instance(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
-        call = _Call(store, host, waits, origin_ns)
-        with _epoch_ticker(engine, deadline_s is not None):
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at)
+        if cancel is not None:
+            _watch(store)
+        with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
             done = _drive(wt, linker, store, module, call, fuel)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
     finally:
@@ -471,7 +641,9 @@ def _fuel_used(
     """The instructions the guest ran, or None when the count is meaningless: after an epoch
     interrupt wasmtime's fuel counter is not brought up to date (spec 001 landing notes), and a
     stopped call ended on one (spec 011)."""
-    if fuel is None or done.trapped == "deadline" or call.stopped is not None:
+    if fuel is None or done.trapped == "deadline":
+        return None
+    if call.stopped is not None or call.ended is not None:
         return None
     return fuel - remaining() if done.metered else 0
 
@@ -494,7 +666,11 @@ def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int
     instance = None
     stack = _stack()
     stack.append(call)
+    _calls.lost = False
     try:
+        if call.cancel is not None and call.cancel.is_set():  # cancelled before the guest ran
+            call.ended = "cancelled"
+            return _Driven(None, "cancelled", False, None)
         instance = linker.instantiate(store, module)
         if fuel is not None:
             store.set_fuel(fuel)
@@ -511,6 +687,9 @@ def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int
         trapped = _first_line(str(e))
     finally:
         stack.pop()
+        lost, _calls.lost = getattr(_calls, "lost", False), False
+    if lost:
+        raise RuntimeError("wasi_python lost track of a call")
     cause = call.stopped
     if cause is not None:
         exit_code, trapped = None, None
@@ -522,18 +701,33 @@ def _drive(wt: Any, linker: Any, store: Any, module: Any, call: _Call, fuel: int
             trapped = _first_line(str(cause))
         else:
             raise cause
+    elif call.ended is not None:  # the epoch callback stopped it (spec 015)
+        exit_code, trapped = None, call.ended
     return _Driven(exit_code, trapped, metered, instance)
 
 
 class _Call:
     """One call's state, which the shared host functions find on the calling thread's stack: its
-    door, its poll_oneoff, its store's context address, and the first exception they caught."""
+    door, its poll_oneoff, its store's context address, and the first exception they caught; for
+    a call with `cancel`, the event, the ticker count its deadline passes at, and the outcome the
+    epoch callback recorded (spec 015)."""
 
-    def __init__(self, store: Any, host: Host | None, waits: Any, origin_ns: int) -> None:
+    def __init__(
+        self,
+        store: Any,
+        host: Host | None,
+        waits: Any,
+        origin_ns: int,
+        cancel: threading.Event | None = None,
+        stop_at: int | None = None,
+    ) -> None:
         self.context = _context_address(store)
         self.door = _door(host)
         self.poll = _poll_oneoff(origin_ns, waits)
         self.stopped: BaseException | None = None
+        self.cancel = cancel
+        self.stop_at = stop_at
+        self.ended: str | None = None  # "cancelled" or "deadline", from the epoch callback
 
     def stop(self, caller: Any, cause: BaseException) -> None:
         """Record the cause and stop the guest: an epoch deadline of 0, set through the caller's
@@ -580,6 +774,8 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
             if _ctrl_c_watched() and _ctrl_c["pending"]:  # Ctrl-C during a wait
                 _ctrl_c["pending"] = False
                 raise KeyboardInterrupt
+            if call.cancel is not None and call.cancel.is_set():
+                _epoch_now(caller)  # the epoch callback names it at the guest's next entry
             return answer
         except BaseException as cause:
             try:
@@ -590,6 +786,98 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
             return stopped
 
     return function
+
+
+def _epoch_now(caller: Any) -> None:
+    """An epoch deadline of 0 for the caller's store: its guest stops, or meets its epoch
+    callback, at its next function entry."""
+    from wasmtime import _ffi
+
+    _ffi.wasmtime_context_set_epoch_deadline(caller._context(), 0)
+
+
+def _epoch_answer(context: Any, delta: Any) -> int:
+    """The epoch callback's decision for the call on top of this thread's stack, in order: a
+    recorded stop holds, a deferred Ctrl-C becomes a stop, then a cancel, then the deadline;
+    otherwise continue for up to CANCEL_TICKS ticks. 0 continues; an error (an int address) stops
+    the guest (spec 015)."""
+    call = None
+    try:
+        try:
+            stack = _stack()
+            call = stack[-1] if stack else None
+            if call is not None and ctypes.addressof(context.contents) != call.context:
+                call = None
+        except BaseException:
+            call = None
+        if call is None:
+            _calls.lost = True
+            return _stop_error(delta)
+        if call.stopped is not None:
+            return _stop_error(delta)
+        if _ctrl_c_watched() and _ctrl_c["pending"]:
+            _ctrl_c["pending"] = False
+            call.stopped = KeyboardInterrupt()
+            return _stop_error(delta)
+        if call.cancel is not None and call.cancel.is_set():
+            call.ended = "cancelled"
+            return _stop_error(delta)
+        count = _epoch_ticker.count()
+        if call.stop_at is not None and count >= call.stop_at:
+            call.ended = "deadline"
+            return _stop_error(delta)
+        left = CANCEL_TICKS if call.stop_at is None else call.stop_at - count
+        delta[0] = max(1, min(CANCEL_TICKS, left))
+        return 0
+    except BaseException as cause:
+        try:
+            if call is None:
+                _calls.lost = True
+            elif call.stopped is None:
+                call.stopped = cause
+        except BaseException:
+            pass
+        return _stop_error(delta)
+
+
+def _stop_error(delta: Any) -> int:
+    """A new wasmtime error, which wasmtime owns once returned. If none can be made, continue for
+    one tick, never 0, so the next callback tries again (spec 015's build review, F2)."""
+    try:
+        from wasmtime import _ffi
+
+        error = ctypes.cast(_ffi.wasmtime_error_new(b"stopped by wasi_python"), ctypes.c_void_p)
+        if error.value:
+            return error.value
+    except BaseException:
+        pass
+    try:
+        delta[0] = 1
+    except BaseException:
+        pass
+    return 0
+
+
+def _on_epoch(context: Any, data: Any, delta: Any, kind: Any) -> int:
+    return _epoch_answer(context, delta)  # never writes `kind`: wasmtime panics on a bad value
+
+
+_epoch_callback: Any = None  # the one C callback, made on first use
+_epoch_callback_lock = threading.Lock()
+
+
+def _watch(store: Any) -> None:
+    """Give a store the epoch callback, with a NULL finalizer: no per-call ctypes object exists,
+    and the callback finds its call through the thread's stack (spec 015)."""
+    global _epoch_callback
+    from wasmtime import _bindings, _ffi
+
+    argtypes = _bindings._wasmtime_store_epoch_deadline_callback.argtypes
+    with _epoch_callback_lock:  # one object for the process: a store must never outlive its own
+        if _epoch_callback is None:
+            _epoch_callback = argtypes[1](_on_epoch)
+        callback = _epoch_callback
+    _ffi.wasmtime_store_epoch_deadline_callback(store.ptr(), callback, None, argtypes[3]())
 
 
 _linkers: dict[Any, Any] = {}
@@ -1055,6 +1343,7 @@ def _engine(metered: bool) -> wasmtime.Engine:
 
     with _lock:
         if metered not in _engines:
+            _fork["used"] = True  # before the engine exists: a fork from here on is refused
             cfg = wt.Config()
             cfg.consume_fuel = metered
             cfg.epoch_interruption = True

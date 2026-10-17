@@ -1,8 +1,8 @@
 # 015 — Run from async code
 
-- **Status:** draft, revised twice on 2026-10-17 against its pre-build review and its confirmation
-  (`context/reviews/015-run-from-async-code-spec-2026-10-17.md`). It changes the runner's API, so
-  the reviewer confirms the revision before it is built.
+- **Status:** built and reviewed 2026-10-17 (`../reviews/015-run-from-async-code-2026-10-17.md`);
+  revised twice before build against its pre-build review and its confirmation
+  (`context/reviews/015-run-from-async-code-spec-2026-10-17.md`).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`, `src/wasi_python/__init__.py`), judge
   additions in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -267,8 +267,8 @@ they fork worker processes, and they exit with work in flight.
 ## Intent
 
 An async web server can run many untrusted guests at once without blocking its event loop, with a
-stated bound per process, and a cancelled request stops its guest within 50 ms once the guest
-runs.
+stated bound per process, and a cancelled request stops its guest within about 50 ms once the
+guest runs, when other Python threads leave the GIL free.
 
 ## Design
 
@@ -304,4 +304,95 @@ In: the above. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5) in a scratch clone of `main`, after the
+pre-build review and its two confirmations passed it for build. **Not yet reviewed and not
+accepted.** Every claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2, wasmtime-py
+49.0.0, against the 0.1.0a2 artifact set, unless it says otherwise.
+
+### What was built
+
+- `run(cancel=)`, `run_async(executor=)`, `Defaults.async_workers`, the epoch callback
+  (`_epoch_answer`, `_on_epoch`, `_watch`), the default pool, the exit hook and the fork hook, all
+  in `src/wasi_python/runner.py`; `run_async` exported from the package. `run` is split into
+  `_checked` (every argument, before any work) and `_run_checked` (the worker's entry), so
+  `run_async` checks in the coroutine and the worker never checks again.
+- `cancel` must be a `threading.Event`; anything else is refused with `TypeError` before any
+  work, like the other arguments.
+
+### One change to Decision 1, found while building
+
+Decision 1 said a waiting guest's wait ends at the cancel "and the callback names the outcome at
+the guest's next tick". EXECUTED: a guest whose `time.sleep` ended at the cancel then finished
+before its next callback, so the call returned `exit_code 0` instead of `"cancelled"`. Now, when
+a shared host function (a wait or the door) returns while the call's event is set, it sets the
+store's epoch deadline to 0, as spec 011's stop does; the callback then runs at the guest's next
+function entry and names the call `"cancelled"`. `test_run_with_cancel[sleeping]` covers both
+halves together, and a unit test (`test_a_host_function_returning_under_a_set_event_stops_the_guest`)
+the host function's half alone (the build review, F4).
+
+### Seen failing first (Decision 7)
+
+Against `main` each new check fails for a missing name. Against the stand-ins (scratch
+`build015/standins.py`, output `standins.txt`), each runner change made by text replacement and
+reverted afterwards:
+
+| stand-in | checks that fail |
+|---|---|
+| `run_async` runs the call in the coroutine | `test_async_calls_do_not_block_the_loop` (the host's fail-safe answered: LATE) |
+| the epoch callback always continues | `test_run_with_cancel[busy]` and `[sleeping]`, `test_a_stop_holds_under_cancel`, `test_a_deadline_under_cancel_is_named`, `test_cancelling_an_async_call_stops_its_guest[busy]` and `[sleeping]` |
+| `run_async` does not wait for its worker | `test_cancelling_an_async_call_stops_its_guest[busy]` and `[sleeping]` |
+| no exit hook | `test_exit_stops_async_guests` (the child never exits; the 120 s fail-safe) |
+| no fork hook | `test_a_forked_child_is_refused` |
+
+In the first build, `test_cancelling_an_async_call_stops_its_guest[sleeping]` passed under "the
+callback always continues": the cancel ended the sleep and the guest exited. Its guest now
+computes once it wakes, so only the callback can end it, and that stand-in fails it too (the
+build review, F5; EXECUTED, scratch `build015/standins2.txt`).
+
+After the build review, each new check was also run against the code without its behaviour
+(`standins2.txt`), and each failed: no deadline of 0 after a host function under a set event; no
+check before instantiating; the first `_stop_error`, which left `delta` at 0 when no error could
+be made; and no context copy (the loop check's `ContextVar`).
+
+The unit tests (`tests/unit/test_runner_async.py`, 12) cover the callback's five outcomes and
+their order, a fault, a context that is not the call's, the lost-call flag and `_drive`'s
+`RuntimeError`, `run_async`'s refusals before queueing, `async_workers`, a `cancel` that is not
+an event, and the fork refusal. The binding check gains the callback's and the error's shapes.
+
+### The judge
+
+`uv run pytest` in the clone, rebased onto `11085c7` (Release 0.1.0a2), artifacts from the main
+tree, before the build review (the landing's run on `main` follows): 147/155 pass, 0 gap, 0 fail, 8 blocked (the clone has no source trees, oracle, prior-art
+clones or wheel); v1.4 57/57; unit suite 308/314, 6 skipped; ratchet lost 0, gained 9, grew 0;
+judge changed: `tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_async.py`,
+`tests/unit/test_runner_calls.py`. ruff check and format: clean. The `--accept-judge` run is made
+on `main` after the build review.
+
+### After the build review
+
+- The README and CHANGELOG no longer promise "within 50 ms" with no condition: the check runs
+  every 50 ms while the guest computes and at once at a wait or a door call, and needs the GIL,
+  as does the clean-up; the reviewer's measurement with another thread spinning is quoted (F1).
+- `_stop_error` writes a `delta` of 1 on every path that makes no error, and a unit test runs the
+  real function (F2).
+- The exit hook marks the runner as exiting and shuts the pools down before it sets the events,
+  and `_submit` refuses once it is exiting, so a call cannot slip between the two (F3).
+- Three new unit tests and a `ContextVar` in the loop check (F4); the sleeping async guest
+  computes after it wakes (F5).
+- `asyncio`, `concurrent.futures` and `contextvars` are imported where they are used: `import
+  wasi_python` loads 92 modules, as on `main` (F6, EXECUTED).
+- The fork hook makes every lock the runner takes anew, and empties `_compiling` (F8).
+- The README's argument list, `trapped` values, the Ctrl-C note and the exit fallback are
+  corrected (F9).
+- The build review's confirmation (verdict: lands) found one more gap, N1: a call on the caller's
+  own executor could still slip past the exit hook. `run_async` now checks the hook's `exiting`
+  flag under `_live_lock`, where it adds its event, and the hook sets that flag before it reads
+  the events.
+
+### Left over
+
+- The per-tick cost under a busy event loop (the review's finding 12) is not re-measured with
+  `CANCEL_TICKS = 5`.
+- FastAPI itself was not run: the README example is the shape of an ASGI endpoint, and what it
+  says about disconnects is from Starlette's documented behaviour (INFERRED).
+- Windows and Linux run these checks first in the release workflow's verify jobs.

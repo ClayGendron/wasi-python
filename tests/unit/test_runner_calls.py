@@ -128,9 +128,12 @@ def test_a_stopped_call_reports_no_fuel() -> None:
     from types import SimpleNamespace
 
     done = runner._Driven(7, None, True, None)
-    assert runner._fuel_used(1000, done, SimpleNamespace(stopped=None), lambda: 400) == 600
-    stopped = SimpleNamespace(stopped=SystemExit())
+    plain = SimpleNamespace(stopped=None, ended=None)
+    assert runner._fuel_used(1000, done, plain, lambda: 400) == 600
+    stopped = SimpleNamespace(stopped=SystemExit(), ended=None)
     assert runner._fuel_used(1000, done, stopped, lambda: 400) is None
+    ended = SimpleNamespace(stopped=None, ended="cancelled")  # spec 015's epoch callback
+    assert runner._fuel_used(1000, done, ended, lambda: 400) is None
 
 
 def test_the_bindings_the_runner_calls_exist() -> None:
@@ -149,6 +152,21 @@ def test_the_bindings_the_runner_calls_exist() -> None:
         ctypes.POINTER(_ffi.wasmtime_context_t),
         ctypes.c_uint64,
     ]
+    # spec 015: the epoch callback, and the error it answers with
+    assert callable(_ffi.wasmtime_store_epoch_deadline_callback)
+    argtypes = _bindings._wasmtime_store_epoch_deadline_callback.argtypes
+    assert len(argtypes) == 4
+    assert argtypes[0] is ctypes.POINTER(_ffi.wasmtime_store_t)
+    assert argtypes[1]._restype_ is ctypes.c_size_t
+    assert argtypes[1]._argtypes_ == (
+        ctypes.POINTER(_ffi.wasmtime_context_t),
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_uint64),
+        ctypes.POINTER(ctypes.c_uint8),
+    )
+    assert argtypes[2] is ctypes.c_void_p
+    assert argtypes[3]._argtypes_ == (ctypes.c_void_p,)
+    assert callable(_ffi.wasmtime_error_new)
 
 
 @pytest.fixture

@@ -6,6 +6,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a3 — unreleased
 
+- **Run from async code:** `run_async` runs a call on a worker thread, so an async server's
+  event loop never waits for a guest. Cancelling the awaiting task stops the guest (checked
+  every 50 ms while it computes, at once when it waits or calls the door, later when other
+  threads hold the GIL) and frees its worker before `CancelledError` is raised. Calls share one
+  pool per process of `DEFAULTS.async_workers` threads (the CPU count, at most 8).
+  `run(cancel=event)` stops a guest from any thread (`trapped == "cancelled"`). A process forked
+  after it ran a guest now refuses to run guests, instead of aborting (macOS) or losing its
+  deadlines; at exit, `run_async`'s guests are stopped and its queued calls dropped.
 - **sqlite3, bz2 and lzma are built in**, from three new pins (SQLite 3.54.1, bzip2 1.0.8,
   liblzma from xz 5.8.4), with no upstream patch. `bz2`, `lzma` and `tarfile`'s `bz2` and `xz`
   modes write the same bytes as native; `sqlite3` gives native's results, except the last digits

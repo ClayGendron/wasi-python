@@ -269,9 +269,11 @@ replaces anything the guest changed there, without following any link
 the guest left. `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
-instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`
-and `artifacts`. It returns `exit_code`, `stdout`, `stderr`, `trapped`
-(`"out of fuel"`, `"deadline"`, or a trap's first line), `fuel_used` and
+instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
+`artifacts` and `cancel` (a `threading.Event`: once it is set, the guest
+stops, `trapped` is `"cancelled"`; see *From async code* for how soon). It
+returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
+`"deadline"`, `"cancelled"`, or a trap's first line), `fuel_used` and
 `truncated` (the streams whose output hit the cap). `fuel_used` counts the
 guest's own instructions from the end of instantiation, so it is the same
 whether the module was compiled or loaded from the `.cwasm` cache (measured
@@ -287,6 +289,68 @@ first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
 `wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
 checkout's `build/artifacts/`, else the wheel's own copy.
+
+### From async code
+
+`run_async` takes `run`'s arguments except `cancel` (cancel its task
+instead), plus `executor`, and runs the call on
+a worker thread, so the event loop never waits for a guest. wasmtime
+releases the GIL while wasm runs, so guests on different workers run in
+parallel. An ASGI endpoint (FastAPI shown):
+
+```python
+import asyncio
+from wasi_python import run_async
+
+@app.post("/run")
+async def run_code(code: str):
+    async with asyncio.timeout(30):  # also bounds the time spent waiting for a worker
+        done = await run_async(["-c", code])
+    return {"exit_code": done.exit_code, "stdout": done.stdout.decode()}
+```
+
+- **Cancelling the task stops its guest.** The runner checks the cancel
+  every 50 ms while the guest computes, and at once when it waits or calls
+  the door; the check and the clean-up need the GIL, so other busy Python
+  threads delay them (measured: up to 200 ms to stop and 460 ms to return
+  with one other thread spinning). The worker is freed and the private
+  root removed before `CancelledError` (or the timeout's `TimeoutError`)
+  reaches the caller. A call still waiting for a worker never starts. A guest inside
+  a door host is stopped only when the host returns: the runner cannot
+  interrupt host code.
+- **What cancels the task** is your code: a timeout, a task group,
+  shutdown. Starlette does not cancel a plain endpoint's task when the
+  client disconnects, so without a timeout that guest runs to its
+  `deadline_s`.
+- **How many run at once.** With no `executor`, calls share one pool per
+  process of `DEFAULTS.async_workers` threads: the CPU count (with CPU
+  affinity, from Python 3.13), at most 8. Further calls wait for a worker.
+  At the defaults each running guest may hold 1 GiB of memory, up to
+  32 MiB of output and a copy of its `stdin`, so 8 workers bound one
+  process at about 8.3 GiB, plus the disk a guest writes and the file
+  descriptors it opens. Four server worker processes have four pools: four
+  times that. A container's CPU quota is not seen; set the size with
+  `wasi_python.runner.DEFAULTS = dataclasses.replace(DEFAULTS,
+  async_workers=n)`. The bound covers only `run_async` on its own pool, not
+  `run` called from your threads, an `executor` you pass, or a
+  framework's thread pool for synchronous endpoints.
+- **A synchronous endpoint** that calls `run` also keeps the loop free (the
+  framework runs it on a thread), but it cannot be cancelled.
+- **`executor`** must run callables on threads of this process; a process
+  or interpreter pool is refused.
+- **Forking.** A process forked after it ran a guest refuses to run guests
+  (`RuntimeError`): wasmtime does not support use across a fork. Warm the
+  runner up after the fork (in gunicorn's `post_fork`, say), never before.
+- **Exit.** At interpreter exit, `run_async`'s running guests are stopped
+  together and its queued calls dropped, so exit waits about as long as
+  one cancel, longer for a worker inside a door host or still compiling.
+  On a Python without `threading._register_atexit` (CPython has had it
+  since 3.9) the stop runs later, and exit can wait for queued calls.
+- **A door host that must await** runs the coroutine on its own loop with
+  `asyncio.run_coroutine_threadsafe(coro, loop).result(timeout=...)`;
+  without a timeout a closing loop blocks it forever.
+- `run_async` is asyncio only. Under trio, call `run(cancel=event)` from a
+  worker thread.
 
 Any other embedder does the same three things:
 
@@ -390,10 +454,12 @@ damaging its own stdlib zip during its own run; a guest that waits
 (`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
 long as it asks (no instruction runs, so fuel does not stop it); Ctrl-C
 for a guest that never waits or calls the door in a call with
-`deadline_s=None` (it runs on); Ctrl-C under an embedder's SIGINT handler
+`deadline_s=None` and no `cancel` (it runs on; with `cancel=`, the runner's
+check ends it); Ctrl-C under an embedder's SIGINT handler
 that raises, asyncio's on a second Ctrl-C included, while a guest runs on
-the main thread: wasmtime-py can then abort the process, so call `run` on a
-worker thread (`asyncio.to_thread`, a thread pool) there; other code in the
+the main thread: wasmtime-py, or under `cancel=` the runner's epoch
+callback, can then abort the process, so call `run` on a worker thread
+(`run_async`, `asyncio.to_thread`, a thread pool) there; other code in the
 same process using wasmtime-py directly, whose exceptions can reach a
 trapping `run` through wasmtime-py's shared exception slot; an `env=` that
 overrides `HOME` or `PYTHONTZPATH` on a reused root (pdb then reads a

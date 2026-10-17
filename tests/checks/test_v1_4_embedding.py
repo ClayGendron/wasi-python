@@ -672,3 +672,241 @@ def test_the_guest_gets_exactly_the_checked_inputs(guest_workdir) -> None:
         stdin=memoryview(b"h_i_")[::2],
     )
     assert (done.exit_code, done.stdout) == (0, b"['arg'] val hi\n"), done
+
+
+# Run from async code (spec 015). Each check runs its calls in a child process with a 120 s
+# timeout, a fail-safe and not a timing: the defect each one guards would make a call run forever.
+
+
+def _child(script: str, *args: str) -> list[str]:
+    _runner()
+    out = subprocess.run(
+        [sys.executable, "-c", script, *args], capture_output=True, text=True, timeout=120
+    )
+    assert out.returncode == 0, (out.returncode, out.stderr[-1500:])
+    return out.stdout.splitlines()
+
+
+LOOP_FREE = r"""
+import asyncio, contextvars, threading
+import wasi_python
+
+gate, late = threading.Event(), threading.Event()
+request = contextvars.ContextVar("request")
+
+
+def host(frame):
+    # The guest waits here until the loop has counted 1,000 turns. A blocked loop never counts:
+    # the first wait ends at its fail-safe, and every later one at once.
+    if request.get(None) != "from main":  # the worker runs in a copy of the caller's context
+        return b"NO CONTEXT"
+    if gate.wait(0 if late.is_set() else 60):
+        return b"ok"
+    late.set()
+    return b"LATE"
+
+
+CODE = "import _host, sys\na = _host.call(b'x')\nprint(sys.argv[1] if a == b'ok' else a.decode())"
+
+
+async def count():
+    for _ in range(1000):
+        await asyncio.sleep(0)
+    gate.set()
+
+
+async def main():
+    request.set("from main")
+    counter = asyncio.create_task(count())
+    calls = [wasi_python.run_async(["-c", CODE, f"t{i}"], host=host) for i in range(4)]
+    done = await asyncio.gather(*calls)
+    await counter
+    print(sorted(r.stdout.decode().strip() for r in done))
+
+
+asyncio.run(main())
+"""
+
+
+def test_async_calls_do_not_block_the_loop() -> None:
+    """Guards a change: four `run_async` calls each wait in the door until the event loop has
+    turned 1,000 times, so they finish only if the loop runs while they do (spec 015). A
+    `run_async` that ran its call in the coroutine reached the host's fail-safe and printed LATE.
+    The host also sees the caller's context variables, as `asyncio.to_thread` gives them."""
+    assert _child(LOOP_FREE) == ["['t0', 't1', 't2', 't3']"]
+
+
+CANCEL_ASYNC = r"""
+import asyncio, concurrent.futures, os, sys, tempfile, threading
+tempfile.tempdir = tempfile.mkdtemp()  # the private root and the stdin scratch are made here
+import wasi_python
+
+# The sleeping guest computes once it wakes, so only the epoch callback can end it then.
+WORK = {"busy": "while True: pass", "sleeping": "import time; time.sleep(10**6)\nwhile True: pass"}[
+    sys.argv[1]
+]
+
+
+class Counting(concurrent.futures.ThreadPoolExecutor):
+    finished = 0
+
+    def submit(self, fn, /, *args, **kwargs):
+        def counted(*a, **k):
+            try:
+                return fn(*a, **k)
+            finally:
+                Counting.finished += 1
+
+        return super().submit(counted, *args, **kwargs)
+
+
+pool = Counting(1)  # one worker: a new call completes only if the cancelled one freed it
+started = threading.Event()
+
+
+def host(frame):
+    started.set()
+    return b""
+
+
+async def main():
+    code = "import _host\n_host.call(b'x')\n" + WORK
+    call = wasi_python.run_async(["-c", code], host=host, deadline_s=None, executor=pool)
+    task = asyncio.create_task(call)
+    await asyncio.to_thread(started.wait, 120)
+    task.cancel()
+    try:
+        await task
+        print("not cancelled")
+    except asyncio.CancelledError:
+        left = sorted(n for n in os.listdir(tempfile.tempdir) if n.startswith("wasi-python"))
+        print("cancelled", Counting.finished, left)
+    print((await wasi_python.run_async(["-c", "print('next')"], executor=pool)).stdout)
+
+
+asyncio.run(main())
+"""
+
+
+@pytest.mark.parametrize("work", ["busy", "sleeping"])
+def test_cancelling_an_async_call_stops_its_guest(work) -> None:
+    """Guards a change: cancelling the task that awaits `run_async` stops its guest, frees its
+    worker and removes its private root before `CancelledError` reaches the caller (spec 015).
+    The guest has no deadline and no other call runs, so only the cancel can end it."""
+    assert _child(CANCEL_ASYNC, work) == ["cancelled 1 []", "b'next\\n'"]
+
+
+CANCEL_RUN = r"""
+import asyncio, sys, threading
+import wasi_python
+
+case = sys.argv[1]
+event = threading.Event()
+
+
+def sets(frame):
+    event.set()
+    return b""
+
+
+def raises(frame):
+    raise asyncio.CancelledError
+
+
+busy, sleeps = "while True: pass", "import time; time.sleep(10**6)"
+door = "import _host\n_host.call(b'x')\n"
+if case in ("busy", "sleeping"):
+    work = busy if case == "busy" else sleeps
+    r = wasi_python.run(["-c", door + work], host=sets, cancel=event, deadline_s=None, fuel=10**15)
+    print(r.trapped, r.fuel_used)
+elif case == "stop":
+    code = "import _host\ntry:\n    _host.call(b'x')\nexcept Exception:\n    pass\n" + busy
+    try:
+        wasi_python.run(["-c", code], host=raises, cancel=event, deadline_s=None)
+        print("returned")
+    except asyncio.CancelledError:
+        print("CancelledError")
+else:
+    r = wasi_python.run(["-c", busy], cancel=event, deadline_s=0.2, fuel=10**15)
+    print(r.trapped, r.fuel_used)
+"""
+
+
+@pytest.mark.parametrize("work", ["busy", "sleeping"])
+def test_run_with_cancel(work) -> None:
+    """Guards a change: `run(cancel=event)` stops a computing or waiting guest once the event is
+    set, and names it "cancelled" with no fuel count (spec 015). The guest has no deadline."""
+    assert _child(CANCEL_RUN, work) == ["cancelled None"]
+
+
+def test_a_stop_holds_under_cancel() -> None:
+    """Guards a change: a host's exception still stops a call that has a `cancel` (spec 011's
+    stop), though the guest catches the door's error and computes on with no deadline (spec
+    015's review, finding 1)."""
+    assert _child(CANCEL_RUN, "stop") == ["CancelledError"]
+
+
+def test_a_deadline_under_cancel_is_named() -> None:
+    """Guards a change: under `cancel=`, a deadline reaches Python as the epoch callback's error,
+    not as wasmtime's interrupt trap; the runner still names it "deadline" (spec 015's review,
+    finding 3)."""
+    assert _child(CANCEL_RUN, "deadline") == ["deadline None"]
+
+
+AT_EXIT = r"""
+import asyncio, dataclasses, threading
+import wasi_python
+from wasi_python import runner
+
+runner.DEFAULTS = dataclasses.replace(runner.DEFAULTS, async_workers=1)
+started = threading.Event()
+
+
+def host(frame):
+    started.set()
+    return b""
+
+
+loop = asyncio.new_event_loop()
+threading.Thread(target=loop.run_forever, daemon=True).start()
+code = "import _host\n_host.call(b'x')\nwhile True: pass"
+for _ in range(2):  # one runs, one waits in the queue
+    call = wasi_python.run_async(["-c", code], host=host, deadline_s=None)
+    asyncio.run_coroutine_threadsafe(call, loop)
+started.wait(120)
+print("exiting")
+"""
+
+
+def test_exit_stops_async_guests() -> None:
+    """Guards a change: at interpreter exit, a guest `run_async` started is stopped and a queued
+    call never starts, so a process with a guest that has no deadline still exits (spec 015)."""
+    assert _child(AT_EXIT) == ["exiting"]
+
+
+FORK = r"""
+import os, sys
+import wasi_python
+
+if sys.argv[1] == "used":
+    wasi_python.run(["-c", "pass"])
+pid = os.fork()
+if pid == 0:
+    try:
+        r = wasi_python.run(["-c", "print('ran')"])
+        print("child", r.stdout.decode().strip(), flush=True)
+    except RuntimeError as e:
+        print("child refused" if "forked" in str(e) else f"child {e}", flush=True)
+    os._exit(0)
+_, status = os.waitpid(pid, 0)
+print("status", os.waitstatus_to_exitcode(status))
+"""
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="no fork on this platform")
+def test_a_forked_child_is_refused() -> None:
+    """Guards a change: a child forked after its parent ran a guest aborted on macOS, and could
+    not keep a deadline elsewhere; now it is refused with a clear error, while a child of a
+    parent that only imported the package runs (spec 015). A fresh parent, not pytest's."""
+    assert _child(FORK, "used") == ["child refused", "status 0"]
+    assert _child(FORK, "imported") == ["child ran", "status 0"]
