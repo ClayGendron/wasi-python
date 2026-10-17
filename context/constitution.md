@@ -8,7 +8,8 @@
   a command line inside the runner (§3), safe by default (§4.15), three
   approved licences (§4.12), and the release rules (§5.5, §5.6)
   Amended 2026-10-17 by the owner's answer to question 32: carried
-  upstream patches, recorded and temporary (§4.1).
+  upstream patches, recorded and temporary (§4.1, and §2.5, §6.2, §7 and
+  §8 to match).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -44,7 +45,8 @@ Version 1 is reached when all of these are true:
    function and calling one export. A Python embedder does it in one
    call through the wheel.
 5. The whole thing rebuilds from pinned sources by a CI job anyone can
-   run, with zero patches to any upstream tree.
+   run; any upstream tree differs from its pinned tarball only by the
+   recorded, temporary patches §4.1 allows.
 
 Beyond v1, in order of value: matplotlib, then the stdlib modules WASI
 lacks (sqlite, bz2, lzma), then scipy. Nothing else is in scope until
@@ -209,9 +211,10 @@ decides by these, in order:
 
 1. **Does it keep the wall whole?** Anything that lets the guest reach
    the host by a third way is refused.
-2. **Does it keep the build reproducible and patch-free?** Prefer a
-   recipe file over a patch, a pin over a floating version, leaving a
-   feature out over bending constraint 1.
+2. **Does it keep the build reproducible, with as few patches as it
+   can?** Prefer a recipe file over a patch, a pin over a floating
+   version, and a patch only as §4.1 allows it: reviewed, recorded,
+   matched by an upstream pull request, and temporary.
 3. **Does it work on every WASI host the same way?** Prefer the plain
    WASI form over the clever host-specific one.
 4. **Is it the smallest thing that meets the specification?** Prefer
@@ -228,7 +231,9 @@ on it.
 
 ## 7. What an autonomous agent must never do here
 
-- Patch an upstream source tree, even "temporarily".
+- Patch an upstream source tree outside §4.1: a change not carried as a
+  reviewed patch file under `recipes/patches/` with its upstream pull
+  request drafted, or any edit made by hand in `build/`.
 - Add an import to the guest binary beyond WASI preview1 and the door.
 - Fetch anything unpinned, or install a download into the system.
 - Copy code from `context/prior_art/` or any other project.
@@ -242,5 +247,6 @@ on it.
 ## 8. One line
 
 Build one sealed, portable Python with the data stack inside, from
-pinned sources with no patches, prove every claim by running it, and
+pinned sources with only recorded, temporary patches, prove every claim
+by running it, and
 release a new pinned set only when there is a reason to.
