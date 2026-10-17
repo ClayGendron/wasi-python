@@ -637,3 +637,14 @@ line (for C++ exceptions, pybind11's `<thread>` and FreeType's setjmp),
 five C libraries built as their own pinned steps, a zlib-only Pillow,
 kiwisolver, and an owner decision to put the matplotlib package and its
 fonts on the guest filesystem, outside the zip.
+
+## The owner's decisions (2026-10-16, after this memo)
+
+- **Licences: approved.** FreeType under its own licence (the FTL, not GPLv2), Qhull's licence,
+  Apache-2.0 for SheenBidi, and the bundled fonts' licences (OFL, Bitstream Vera, BaKoMa) may
+  ship, each with its notice in `LICENSES/`.
+- **matplotlib's data outside the zip: approved on two conditions.** It must not weaken the
+  separation of the runtime from the host filesystem, and there must be no other way to
+  include the data. Both are studied in `2026-10-16-where-package-data-lives.md`.
+- **The exception-handling proposal: required,** once it is confirmed that C++ can't be done on
+  WASI without it (`2026-10-16-cpp-exceptions-and-wasi-hosts.md`; spec 005).
