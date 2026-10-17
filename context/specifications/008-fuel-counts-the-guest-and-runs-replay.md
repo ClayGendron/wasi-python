@@ -1,12 +1,9 @@
 # 008 — Fuel counts the guest only
 
-- **Status:** draft, 2026-10-17; narrowed the same day to answer its review
-  (`../reviews/008-fuel-counts-the-guest-and-runs-replay-spec-2026-10-17.md`): deterministic
-  replay, its second half, moved to research
-  (`../research/2026-10-17-what-a-replayable-run-needs.md`), because its review found that the
-  guest observes host state the runner does not control (inode numbers, the real clock under
-  `time.sleep`, clock resolution, directory order). It changes the runner and the judge's driver,
-  so it is reviewed again before it is built.
+- **Status:** landed, 2026-10-17. Reviewed before build
+  (`../reviews/008-fuel-counts-the-guest-and-runs-replay-spec-2026-10-17.md`) and after
+  (`../reviews/008-fuel-counts-the-guest-2026-10-17.md`). Deterministic replay, the first draft's
+  second half, is in `../research/2026-10-17-what-a-replayable-run-needs.md`.
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the judge's driver
   (`tests/harness/guest.py`), judge additions in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -91,7 +88,8 @@ fuel as a price in any API.
 
 ## Landing notes
 
-Built 2026-10-17 by the author agent; build review pending.
+Built 2026-10-17 by the author agent (commit `f6b67ac`); reviewed in
+`../reviews/008-fuel-counts-the-guest-2026-10-17.md`.
 
 **Seen failing first** (EXECUTED): `test_fuel_does_not_depend_on_the_module_cache` failed with
 "compiled 124,252,680, loaded 81,846,084"; the unit test `test_fuel_counts_no_memory_image_copy`
@@ -99,9 +97,21 @@ failed (a page of data cost its image); `test_start_section_rule_names_a_start_f
 the rule failing on a WAT module with a start section. After the change all pass.
 
 **The judge's metrics** (EXECUTED: the full judge against the accepted state of spec 006, the
-same build): 33 fuel metrics dropped by exactly their binary's charge, 42,352,641 (snapshot) or
-5,046,273 (plain). Three differ from it by tens of instructions, as Decision 4 expected for
-programs that write files (wasmtime's inode numbers are hashed from the host's):
-`test_nothing_is_a_shared_library` −34, `test_numpy_csv_job_matches_native` +34,
-`test_random_matches_native` +17. The C++-exception check records no fuel since spec 006's
-landing; the ratchet lists it as "no longer recorded".
+same build): every fuel metric dropped by its binary's charge, 42,352,641 (snapshot) or
+5,046,273 (plain), exactly or within tens of instructions. Which few miss by tens changes from
+run to run (the author's run: `test_nothing_is_a_shared_library` −34, the numpy CSV job +34,
+the random job +17; the review's: `test_nothing_is_a_shared_library` −34 and plain `import
+numpy, pandas` −34): wasmtime's inode numbers are hashed from the host's, and any program that
+stats a file sees them, not only programs that write (Decision 4).
+
+**The build review's fixes** (`../reviews/008-fuel-counts-the-guest-2026-10-17.md`): a failed
+instantiation now reports 0 fuel, not the unmetered budget (runner and driver; a v1.4 check and
+a unit test, the check seen failing without the fix, EXECUTED); a unit test shows `_initialize`
+is metered; the README says which systems were measured.
+
+**The scoreboard fix** that lands with this spec: `accept()` kept a check's old metrics when the
+run recorded none, so the C++-exception check's dropped metric (spec 006) could never be
+accepted, and the dry run of `2519620`
+(https://github.com/ClayGendron/wasi_python/actions/runs/39005940343) failed its judge on it
+alone. Accepting growth now drops metrics a passing check no longer records; a unit test saw the
+old behaviour fail first. Landing uses `--accept-judge` and `--accept-growth`.

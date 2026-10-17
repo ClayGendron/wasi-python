@@ -367,3 +367,12 @@ def test_package_imports_without_wasmtime() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     assert out.stdout.split() == ["True"], out.stdout
+
+
+def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:
+    """A memory cap below the module's own minimum fails instantiation: the call traps and
+    reports 0 instructions, never the unmetered budget instantiation ran on (spec 008)."""
+    run = _runner()
+    done = run(["-c", "pass"], root=_root(guest_workdir), memory_bytes=1 << 20, fuel=10**9)
+    assert done.exit_code is None and done.trapped, done
+    assert done.fuel_used == 0, done

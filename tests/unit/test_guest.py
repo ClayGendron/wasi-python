@@ -138,3 +138,17 @@ def test_fuel_counts_no_memory_image_copy(work) -> None:
     without = guest.run(wat.build(work, "n.wasm", wat.command_with_data(False)), [], workdir=work)
     assert (with_data.exit_code, without.exit_code) == (0, 0)
     assert with_data.fuel == without.fuel, (with_data.fuel, without.fuel)
+
+
+def test_initialize_is_metered(work) -> None:
+    """_initialize runs guest code (the reactor's constructors), so it counts (spec 008)."""
+    light = guest.run(wat.build(work, "l.wasm", wat.reactor_with_init(0)), [], workdir=work)
+    heavy = guest.run(wat.build(work, "h.wasm", wat.reactor_with_init(1000)), [], workdir=work)
+    assert (light.exit_code, heavy.exit_code) == (0, 0)
+    assert heavy.fuel - light.fuel >= 3000, (light.fuel, heavy.fuel)
+
+
+def test_a_failed_instantiation_spends_nothing(work) -> None:
+    """A module that cannot be instantiated reports no fuel spent, not the unmetered budget."""
+    r = guest.run(wat.build(work, "x.wasm", wat.THIRD_IMPORT), [], workdir=work)
+    assert r.trapped is not None and r.fuel == 0, r

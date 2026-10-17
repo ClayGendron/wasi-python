@@ -23,8 +23,8 @@ package becomes a Python exception instead of ending the guest.
 - **The snapshot** is made by the pinned wasmtime's own `wasmtime wizer` (the standalone Wizer
   pin is gone), and pre-imports `_colorize`, which 3.15 loads lazily, so the first traceback in
   a run does not pay for it.
-- **Measured:** a snapshot call costs about 5.5% more instructions than on 3.14 (CPython 3.15's
-  own finalization); the stdlib zip is 6% larger.
+- **Measured:** a snapshot call costs about 6.6% more guest instructions than on 3.14 (81.9M
+  against 76.8M: CPython 3.15's own start-up and finalization); the stdlib zip is 6% larger.
 - **Safe by default** (`run` changes for existing callers):
   - with no `root`, a call runs in a fresh private directory, removed afterwards;
   - a call has a 60 s deadline, a 1 GiB memory cap and a 16 MiB output cap per stream unless it

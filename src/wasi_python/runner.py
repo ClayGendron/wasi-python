@@ -291,11 +291,13 @@ def _instance(
 
         exit_code: int | None = None
         trapped: str | None = None
+        metered = False  # the cap is set only once instantiation has succeeded
         with _epoch_ticker(engine, deadline_s is not None):
             try:
                 instance = linker.instantiate(store, module)
                 if fuel is not None:
                     store.set_fuel(fuel)
+                    metered = True
                 exports = instance.exports(store)
                 if "_initialize" in exports:
                     exports["_initialize"](store)
@@ -309,7 +311,7 @@ def _instance(
     # After an epoch interrupt wasmtime's fuel counter is not brought up to date, so the count is
     # meaningless then (spec 001 landing notes).
     counted = fuel is not None and trapped != "deadline"
-    fuel_used = fuel - store.get_fuel() if counted else None
+    fuel_used = (fuel - store.get_fuel() if metered else 0) if counted else None
     truncated = tuple(s.name for s in (out, err) if s.dropped)
     return Completed(exit_code, bytes(out.data), bytes(err.data), trapped, fuel_used, truncated)
 

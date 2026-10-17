@@ -176,8 +176,9 @@ and `artifacts`. It returns `exit_code`, `stdout`, `stderr`, `trapped`
 (`"out of fuel"`, `"deadline"`, or a trap's first line), `fuel_used` and
 `truncated` (the streams whose output hit the cap). `fuel_used` counts the
 guest's own instructions from the end of instantiation, so it is the same
-whether the module was compiled or loaded from the `.cwasm` cache, and on
-every operating system
+whether the module was compiled or loaded from the `.cwasm` cache (measured
+on macOS; Linux maps the memory image itself and never charged for it, and
+Windows, which always copies it, is expected to match)
 (`context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`).
 
 The compiled module is cached as a `.cwasm` in the user cache directory, or

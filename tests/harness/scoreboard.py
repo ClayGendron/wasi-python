@@ -202,6 +202,8 @@ def accept(
                 keep_old = name in old and not growth_reason and (name != "fuel" or same_engine)
                 merged[name] = min(old[name], value) if keep_old else value
             metrics[platform] = merged
+        elif growth_reason and now["status"] == "pass":
+            metrics.pop(platform, None)  # metrics no longer recorded: accepted growth drops them
         checks[node] = {
             "status": now["status"],
             "commit": meta["commit"],

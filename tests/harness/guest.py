@@ -214,9 +214,11 @@ def run(
 
     exit_code: int | None = None
     trapped: str | None = None
+    metered = False  # the budget is set only once instantiation has succeeded
     try:
         inst = linker.instantiate(store, mod)
         store.set_fuel(fuel)
+        metered = True
         exports = inst.exports(store)
         if how == "command":
             exports["_start"](store)
@@ -232,7 +234,7 @@ def run(
         trapped = trapped.strip().splitlines()[0] if trapped else "trap"
     except wt.WasmtimeError as e:
         trapped = str(e).strip().splitlines()[0]
-    spent = fuel - store.get_fuel()
+    spent = fuel - store.get_fuel() if metered else 0
     return Result(
         exit_code=exit_code,
         stdout=(io / "stdout").read_bytes(),

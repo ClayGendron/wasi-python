@@ -290,3 +290,13 @@ def test_the_judge_includes_any_conftest_and_pytest_config(work, monkeypatch) ->
         "pytest.ini",
         "tests/test_a.py",
     ]
+
+
+def test_accept_drops_a_metric_no_longer_recorded_when_growth_is_accepted() -> None:
+    """A check that stops recording a metric is "growth" until accepted; accepting it with a
+    reason drops the old figure, so the next run is not red over it again."""
+    base = accepted({A: acc(fuel=1_000_000)})
+    kept, _ = _accept(run({A: check("pass")}), base, growth_reason="its fuel was noise")
+    assert kept["checks"][A]["metrics"].get(PLAT, {}) in ({}, {"wasmtime": "49.0.0"})
+    rec = run({A: check("pass")})
+    assert scoreboard.compare(rec, kept).growth == []

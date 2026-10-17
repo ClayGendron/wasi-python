@@ -179,3 +179,17 @@ def command_with_data(data: bool) -> str:
   {segment}
   (func (export "_start") (call $exit (i32.const 0))))
 """
+
+
+def reactor_with_init(iterations: int) -> str:
+    """A plain reactor whose _initialize loops `iterations` times: that cost must be metered."""
+    return f"""
+(module
+  (memory (export "memory") 1)
+  (func (export "_initialize") (local $i i32)
+    (block $done (loop $next
+      (br_if $done (i32.ge_u (local.get $i) (i32.const {iterations})))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $next))))
+  (func (export "run") (result i32) (i32.const 0)))
+"""
