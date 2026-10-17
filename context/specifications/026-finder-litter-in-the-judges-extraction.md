@@ -61,6 +61,7 @@ Built 2026-10-17 by the implementer (Claude Opus 5.5). EXECUTED on macOS arm64: 
 failed first with `['.DS_Store: missing', 'sub/Thumbs.db: missing']` and passes with the change;
 `tests/unit/test_patches.py` 37 passed.
 
+Reviewed after build (`../reviews/026-finder-litter-in-the-judges-extraction-2026-10-17.md`).
 Revised against the build review: a tarball-shipped `.DS_Store` is still compared (a check, and
 the surviving mutant now fails it), and a patch may not touch a litter name (a new rule in
 `patch_shape_errors`, with its check). 39 passed.
