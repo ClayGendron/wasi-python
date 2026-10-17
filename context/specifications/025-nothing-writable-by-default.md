@@ -1,6 +1,6 @@
 # 025 — Nothing writable by default
 
-- **Status:** built 2026-10-17, awaiting its build review.
+- **Status:** built and reviewed 2026-10-17 (`../reviews/025-nothing-writable-by-default-2026-10-17.md`, which is also §5.6's security review of this change).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: `run`, `run_async`, `_check_root`), the
   command line (`src/wasi_python/cli.py`), judge changes in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -79,7 +79,7 @@ stand); a writable `/tmp` by default (the owner chose nothing writable).
 ## Landing notes
 
 Built 2026-10-17 by the implementer (Claude Opus 5.5) on main (`f81d4e7`). Every claim below was
-run (EXECUTED) on macOS arm64. **Not yet reviewed and not accepted.**
+run (EXECUTED) on macOS arm64.
 
 ### Seen failing first
 
@@ -112,3 +112,15 @@ refused, and `test_the_argument_types` asserts the new mapping; `test_root_reach
 
 `uv run pytest` with main's set (and spec 026's harness fix, committed separately): 188/190 pass,
 0 fail; 656 passed, 4 skipped; ratchet vs `efa3f1203e`: lost 0, gained 2, grew 0. ruff clean.
+
+### The build review
+
+`../reviews/025-nothing-writable-by-default-2026-10-17.md`: lands after its dry run; the change
+only tightens. A default call writes nothing on either binary, `run_async` and the command line
+agree, and `root=True` keeps the private root's properties. Findings answered in its
+Disposition: the dry run (below); the README's sqlite item (fixed); `--private-root` twice
+(answered: a flag).
+
+### Release dry run
+
+Pending: the run after this push, cited here when it finishes.

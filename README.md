@@ -104,8 +104,9 @@ and these facts follow from it:
 - a guest stopped inside a transaction (killed, out of fuel, past its
   deadline, or by a hard exit such as `os._exit`) leaves `<db>.lock` and a hot journal; in a
   reused root the embedder removes the lock directory, and SQLite then rolls
-  the journal back; a call without `root` never sees a stale lock, since its
-  root is fresh;
+  the journal back; a call with `root=True` never sees a stale lock, since
+  its root is fresh (with no root, the default, a database file can live only
+  in a writable grant);
 - SQLite's own randomness (`random()`, `randomblob()`, its temporary file
   names) is seeded from the time in whole seconds, because the guest has no
   `/dev/urandom` (the process id is always 1 on WASI): two calls in the same
@@ -153,7 +154,7 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`, none today):
+recorded patches (`recipes/patches/`: one today, numpy's `.npy` fix):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
