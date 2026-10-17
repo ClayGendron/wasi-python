@@ -355,7 +355,8 @@ cache, so that it is judged as it will be):
   is refused, since later calls and processes trust them: the stdlib folder
   (or the temporary folder that holds it), the artifact set, the module
   cache, the code of `wasi_python` and wasmtime-py themselves, and the host
-  Python's own `stdlib` and `site-packages` folders. So
+  Python's own `stdlib`, `site-packages` (the user's too) and `bin` (or
+  `Scripts`) folders. So
   `root=Path.home()`, a project folder holding the `.venv` this process runs
   from or `build/artifacts`, and the temporary folder itself are refused;
 - any grant, read-only too, at or above the temporary folder is refused: it
@@ -613,8 +614,10 @@ reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts
 pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
-from a reused root; concurrent calls on one root (a guest can hard-link or
-change the files another call uses); a guest that waits
+from a reused root; concurrent calls on one root, or a guest that can write a folder above
+another call's root (it can hard-link or change the files that call uses,
+and make that call's `run` raise `ValueError`, `RuntimeError`,
+`WasmtimeError` or `OSError`; nothing outside the grants changes); a guest that waits
 (`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
 long as it asks (no instruction runs, so fuel does not stop it); Ctrl-C
 for a guest that never waits or calls the door in a call with

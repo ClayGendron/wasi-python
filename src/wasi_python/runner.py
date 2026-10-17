@@ -1421,11 +1421,16 @@ def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, An
         folders.append(("the module cache", *_chain(cache)))
     folders.append(("wasi_python's own code", *_chain(Path(__file__).resolve().parent)))
     folders.append(("wasmtime-py's own code", *_chain(Path(wasmtime.__file__).resolve().parent)))
-    # The host's own interpreter, which the next host process runs (spec 024, S2).
+    # The host's own interpreter, which the next host process runs (spec 024, S2): its stdlib,
+    # its site-packages and scripts, and the user's site-packages it imports at start-up.
+    import site
     import sysconfig
 
     paths = sysconfig.get_paths()
-    own = {Path(paths[k]).resolve() for k in ("stdlib", "platstdlib", "purelib", "platlib")}
+    keys = ("stdlib", "platstdlib", "purelib", "platlib", "scripts")
+    own = {Path(paths[k]).resolve() for k in keys if k in paths}
+    if site.ENABLE_USER_SITE:
+        own.add(Path(site.getusersitepackages()).resolve())
     folders += [("the host Python's own code", *_chain(d)) for d in sorted(own) if d.is_dir()]
     return folders
 

@@ -1,6 +1,8 @@
 # 024 — A root prepared through its walk
 
-- **Status:** built 2026-10-17, awaiting its build review.
+- **Status:** built and reviewed 2026-10-17
+  (`../reviews/024-a-root-prepared-through-its-walk-2026-10-17.md`); lands on its release dry
+  run.
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`), the patch applier
   (`scripts/steps/apply_patches.sh`), judge additions in `tests/`, `README.md`, `CHANGELOG.md`.
@@ -54,8 +56,9 @@ but would still read a `.git` folder inside an unpacked tree.
    The private root's `usr/local/lib` is made before its walk, inside the runner's own fresh
    `0700` folder, as today; its `tmp` goes through its walked descriptor like any root's.
 2. **The host's interpreter is a runtime folder (S2).** `_runtime_folders` adds the running
-   interpreter's `sysconfig` paths `stdlib`, `platstdlib`, `purelib` and `platlib`, each that
-   exists, resolved and de-duplicated, named "the host Python's own code". A writable grant at,
+   interpreter's `sysconfig` paths `stdlib`, `platstdlib`, `purelib`, `platlib` and `scripts`,
+   and the user's site-packages when `site.ENABLE_USER_SITE` (the build review's finding 2),
+   each that exists, resolved and de-duplicated, named "the host Python's own code". A writable grant at,
    inside or above one is refused, as for wasmtime-py's code. Read-only grants are unchanged.
 3. **The applier refuses a tree that holds `.git` (S3).** One line after the tree is found:
    `ERROR: TREE holds .git; a source tree is never a repository`. No pinned tarball holds one
@@ -108,8 +111,7 @@ later change); S5 (no finding).
 
 Built 2026-10-17 by the implementer (Claude Opus 5.5) on main (`7d4c4ad`), from the security
 review's S1 to S3. Written straight after the review, without a pre-build review: the fix is the
-one the review proposed. **Not yet reviewed and not accepted.** Every claim below was run
-(EXECUTED) on macOS arm64.
+one the review proposed. Every claim below was run (EXECUTED) on macOS arm64.
 
 ### Seen failing first
 
@@ -141,3 +143,17 @@ not `RuntimeError`; the spec's Decision 1 and criterion 2 say so.
 `uv run pytest`, with main's set (step 90 re-run): 186/188 pass, 0 gap, 2 blocked, 0 fail; 652
 passed, 4 skipped; ratchet vs `bf9581b971`: lost 0, gained 2, grew 0; judge changed:
 `tests/checks/test_v1_2_hostile_guest.py`, `tests/unit/test_patches.py`. ruff: clean.
+
+### The build review
+
+`../reviews/024-a-root-prepared-through-its-walk-2026-10-17.md`, by the security reviewer who
+found S1: it lands once the dry run passes. It re-ran the S1 attack (10,753 swaps against 1,269
+victim calls, 42 inside the window): nothing outside either root changed. Each fix reverted
+fails its own check. Its findings, answered in its Disposition: the dry run (1, below); the
+host Python's `scripts` and the user's site-packages added to S2's rule, with a check seen
+failing without it (2); *Not protected* names that such a guest can make the other call's `run`
+raise (3). The judge after the revision: 186/188, lost 0, grew 0.
+
+### Release dry run
+
+Pending: the run after this push (criterion 6), cited here when it finishes.

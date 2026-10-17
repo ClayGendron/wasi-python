@@ -654,6 +654,8 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
 
     stdlib = Path(sysconfig.get_paths()["stdlib"])
     refused(ValueError, "the host Python's own code", grants=[Grant(stdlib, "/w", writable=True)])
+    scripts = Path(sysconfig.get_paths()["scripts"])  # bin/ or Scripts\ (the build review, 2)
+    refused(ValueError, "the host Python's own code", grants=[Grant(scripts, "/w", writable=True)])
     done = run(["-c", "pass"], grants=[Grant(stdlib, "/w")], cache_dir=cache)
     assert done.exit_code == 0, done  # read-only stays allowed
     # A root still to be made above a cache still to be made: the cache is made first, so the
