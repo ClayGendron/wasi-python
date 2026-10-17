@@ -460,10 +460,35 @@ paths, since names are case-insensitive. `\\?\` and drive-relative forms must be
 A guest cannot make a link on Windows (`runner.py:527-529` says so), which removes threat a's
 guest-made link, but not a junction an embedder made. `/dev/fd` does not exist there.
 
+## 7b, answered: the post-preopen check works (EXECUTED by the author, 2026-10-17)
+
+Threat b's check was untried when this memo was written. It now has a result.
+
+- A tiny module (two WASI imports, `fd_filestat_get` and `fd_prestat_get`) instantiated in a
+  store that has preopens reads each preopen's `filestat`. wasmtime does not report the host's
+  numbers: `dev` is always 1 and `ino` is a hash.
+- The hash is a fixed function of the host directory: the same folder gave the same `ino` in two
+  stores and in two processes, and another folder a different one.
+- READ (`crates/wasi/src/filesystem.rs:354-371`, `filesystem/unix.rs:107-118`): on POSIX the
+  `ino` is the lower 64 bits of `MetadataHashValue::new((st_dev, st_ino))`, Rust's
+  `DefaultHasher` over the pair, which is SipHash-1-3 with zero keys over the two values as
+  little-endian 64-bit words. wasmtime's own comment warns it "may change when a different rustc
+  release is used to build this host implementation".
+- EXECUTED: a 30-line SipHash-1-3 in Python over `struct.pack("<QQ", st_dev, st_ino)` of the
+  scratch folder gave `14205808286320391386`, the `ino` the guest's `fd_filestat_get` reported.
+- So the runner can open each grant's host directory itself, without following links, `fstat`
+  it, and compare the hash with what the call's own preopen reports, before the guest runs. A
+  swap between the check and the preopen shows as a mismatch. A wasmtime build that hashes
+  differently refuses every grant, loudly; a unit test that compares the two on a scratch folder
+  pins it, so the pin move is where it fails first.
+- Windows hashes a different identity (`filesystem/windows.rs`); it was not reproduced. There a
+  guest cannot make a link, so a swap can only exchange directories inside the guest's own
+  writable area, which reaches no host path outside the grants (INFERRED).
+
 ## Where it stopped
 
-- Windows and Linux were not run. The Linux `/proc/self/fd/N` preopen and the
-  `fd_filestat_get` post-check (threat b) are untried.
+- Windows and Linux were not run. The Linux `/proc/self/fd/N` preopen is untried; the
+  `fd_filestat_get` post-check (threat b) was later tried on macOS and works (section 7b).
 - The `.cwasm` threat (f) was reasoned, not demonstrated: no native code was written.
 - The private `/tmp` and `HOME` rules were probed through the harness, not through a changed
   runner.
