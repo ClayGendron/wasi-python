@@ -13,11 +13,15 @@ the hard constraints, and it governs this file. Then `README.md` and
 
 ## Rules that bind all work
 
-- **Zero upstream patches.** No file in a CPython, numpy, pandas or
-  zlib source tree is ever modified. An adaptation is a recipe file
-  under `recipes/` (a cross file, a compiler wrapper, a rename header,
-  a stand-in module). A needed source change goes upstream first. The
-  release workflow fails on any diff against the pinned tarball.
+- **Upstream patches are few, recorded and temporary** (constitution
+  §4.1, amended 2026-10-17). An adaptation is a recipe file under
+  `recipes/` first (a cross file, a compiler wrapper, a rename header,
+  a stand-in module). An unavoidable source change is a patch file
+  under `recipes/patches/`, reviewed, hashed in `MANIFEST`, named in the
+  CHANGELOG, with its upstream pull request drafted beside it for the
+  owner to send, and deleted once upstream releases the fix. Until the
+  specification that builds this lands, no patch is applied and the
+  release workflow still fails on any diff against the pinned tarball.
 - **Every input is pinned by URL and SHA-256** in `downloads/SHA256SUMS`
   and verified before use. Downloads are untrusted: they unpack under
   `downloads/` and `build/`, never into the system, and run only as
