@@ -3727,3 +3727,385 @@ def test_the_command_takes_import_paths(capsysbinary, tmp_path) -> None:
     code, line = _cli(capsysbinary, "run", "--import-path", "/code", "--", "-c", "pass")
     assert (code, line["kind"]) == (1, "ValueError"), line
     assert "import_path[0]" in line["error"], line
+
+
+# Async tools (spec 053): an `async def` tool or gate is awaited on the caller's loop under
+# `run_async`, on a loop of the call's own under `run`; every end cancels a started task. A tool
+# that must block awaits an event the check sets; a `timeout_s` only chooses the outcome, and is
+# long enough for the tool to have started, so the check sees its cancel. Nothing here measures
+# time; checks whose defect would hang run in a child with the 120 s fail-safe.
+
+ASYNC_LOOP = "wasi-python-tool--loop"
+
+
+def _loop_threads() -> set[threading.Thread]:
+    return {t for t in threading.enumerate() if t.name == ASYNC_LOOP}
+
+
+def test_a_guest_calls_an_async_tool_under_run(guest_workdir) -> None:
+    """Criterion 9: two `async def` tools and an async gate; the tools ran on the call's own
+    loop thread, which is gone once the call has returned and the threads are joined."""
+    import asyncio
+
+    from wasi_python import runner
+    from wasi_python.tools import tool
+
+    run = _runner()
+    seen: list[str] = []
+
+    @tool(read_only=True)
+    async def lookup_region(code: str) -> dict:
+        """Look up a sales region by its code."""
+        await asyncio.sleep(0)
+        seen.append(threading.current_thread().name)
+        return {"code": code, "months": [{"month": m, "sales": 10 * m} for m in (1, 2, 3)]}
+
+    @tool
+    async def reverse(data: bytes) -> bytes:
+        """Reverse some bytes."""
+        seen.append(threading.current_thread().name)
+        return data[::-1]
+
+    async def gate(call) -> bool:
+        await asyncio.sleep(0)
+        return True
+
+    before_loops = _loop_threads()
+    before = runner.stats()["tool_threads_running"]
+    done = run(["-c", TOOL_PROGRAM], tools=[lookup_region, reverse], gate=gate)
+    assert (done.exit_code, done.stdout) == (0, b"EMEA 60 ['month', 'sales']\nb'\\x00cba'\n"), done
+    assert _outcomes(done) == [
+        ("list", None, "ok"),
+        ("call", "lookup_region", "ok"),
+        ("call", "reverse", "ok"),
+    ]
+    assert seen == [ASYNC_LOOP, ASYNC_LOOP]
+    _join_tool_threads()
+    assert _loop_threads() - before_loops == set()
+    assert runner.stats()["tool_threads_running"] == before
+
+
+CALLERS_LOOP = r"""
+import asyncio, threading
+import wasi_python
+from wasi_python.tools import tool
+
+
+async def main():
+    loop = asyncio.get_running_loop()
+    future = loop.create_future()
+    awaiting = asyncio.Event()
+    seen = {}
+
+    @tool
+    async def wait_for_the_caller() -> int:
+        "Await a Future of the caller's loop."
+        seen["same loop"] = asyncio.get_running_loop() is loop
+        seen["pending"] = not future.done()
+        loop.call_soon_threadsafe(awaiting.set)
+        return await future
+
+    async def setter():
+        await awaiting.wait()
+        for _ in range(1000):
+            await asyncio.sleep(0)
+        future.set_result(42)
+
+    asyncio.ensure_future(setter())
+    done = await wasi_python.run_async(
+        ["-c", "from host import tools\nprint(tools.wait_for_the_caller())"],
+        tools=[wait_for_the_caller],
+    )
+    o = done.tools.outcomes[-1]
+    print(done.stdout, o.outcome, o.fault, seen["same loop"], seen["pending"])
+
+
+asyncio.run(main())
+"""
+
+
+def test_run_async_awaits_tools_on_the_callers_loop() -> None:
+    """Criterion 10 (the review's F5): the tool awaits a pending Future of the caller's loop,
+    set only after the tool says it is awaiting; on any other loop that await raises."""
+    assert _child(CALLERS_LOOP) == ["b'42\\n' ok None True True"]
+
+
+TIMEOUT_THEN_ANOTHER = """
+from host import tools, ToolTimeout
+try:
+    tools.a()
+except ToolTimeout as e:
+    print(e)
+print(tools.b())
+"""
+
+
+def test_a_timeout_cancels_an_async_tool(guest_workdir) -> None:
+    """Criterion 11: A times out and its started task is cancelled once; B then answers."""
+    import asyncio
+
+    from wasi_python.tools import tool
+
+    run = _runner()
+    started, cancels = threading.Event(), []
+
+    @tool(timeout_s=0.5)
+    async def a() -> int:
+        """Wait for ever."""
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancels.append(1)
+            raise
+        return 1
+
+    @tool
+    async def b() -> str:
+        """Answer."""
+        return "B's answer"
+
+    done = run(["-c", TIMEOUT_THEN_ANOTHER], tools=[a, b])
+    assert (done.exit_code, done.stdout) == (0, b"a timed out after 0.5 s\nB's answer\n"), done
+    assert [(o.tool, o.outcome, o.abandoned) for o in done.tools.outcomes[1:]] == [
+        ("a", "timeout", True),
+        ("b", "ok", False),
+    ]
+    _join_tool_threads()
+    assert (started.is_set(), cancels) == (True, [1])
+
+
+ASYNC_TOOL_CHILD = r"""
+import asyncio, signal, sys, threading
+import wasi_python
+from wasi_python.tools import tool
+
+case = sys.argv[1]
+started, cancel = threading.Event(), threading.Event()
+cancels = []
+
+
+@tool
+async def block() -> int:
+    "Wait for ever."
+    started.set()
+    try:
+        await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        cancels.append(1)
+        raise
+    return 1
+
+
+code = "from host import tools\ntools.block()\nprint('after the tool')\n"
+
+
+def join_loop():
+    for t in threading.enumerate():
+        if t.name.startswith("wasi-python-tool-"):
+            t.join(60)
+    return not any(t.name == "wasi-python-tool--loop" for t in threading.enumerate())
+
+
+if case == "deadline":
+    r = wasi_python.run(["-c", code], tools=[block], deadline_s=3)
+    joined = join_loop()
+    print(r.tools.outcomes[-1].outcome, r.tools.outcomes[-1].message, cancels, joined)
+    cancels.clear()
+
+    async def main():
+        return await wasi_python.run_async(["-c", code], tools=[block], deadline_s=3)
+
+    r = asyncio.run(main())
+    print(r.tools.outcomes[-1].outcome, r.tools.outcomes[-1].message, cancels)
+elif case == "async":
+    import concurrent.futures
+
+    pool = concurrent.futures.ThreadPoolExecutor(1)
+
+    async def main():
+        task = asyncio.create_task(
+            wasi_python.run_async(["-c", code], tools=[block], deadline_s=None, executor=pool)
+        )
+        await asyncio.to_thread(started.wait, 120)
+        task.cancel()
+        try:
+            await task
+            print("not cancelled")
+        except asyncio.CancelledError:
+            print("cancelled", cancels)
+        print((await wasi_python.run_async(["-c", "print('next')"], executor=pool)).stdout)
+
+    asyncio.run(main())
+elif case == "cancel":
+    def check():
+        started.wait()
+        cancel.set()
+
+    threading.Thread(target=check, daemon=True).start()
+    r = wasi_python.run(["-c", code], tools=[block], cancel=cancel, deadline_s=None, fuel=10**15)
+    last = r.tools.outcomes[-1]
+    joined = join_loop()
+    print(r.trapped, r.exit_code, r.fuel_used, r.stdout, last.outcome, last.abandoned, cancels,
+          joined)
+elif case == "ctrl-c":
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+
+    def interrupt():
+        started.wait()
+        signal.raise_signal(signal.SIGINT)
+
+    threading.Thread(target=interrupt, daemon=True).start()
+    try:
+        r = wasi_python.run(["-c", code], tools=[block], deadline_s=None)
+        print("returned", r.trapped)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt", cancels, join_loop())
+"""
+
+
+def test_the_deadline_cancels_an_async_tool() -> None:
+    """Criterion 12: an async tool with no `timeout_s` is answered at the run's deadline and
+    its task cancelled once, under `run` and under `run_async`."""
+    assert _child(ASYNC_TOOL_CHILD, "deadline") == [
+        "timeout block timed out at the run's deadline [1] True",
+        "timeout block timed out at the run's deadline [1]",
+    ]
+
+
+def test_cancelling_run_async_cancels_an_async_tool() -> None:
+    """Criterion 13: the task awaiting `run_async` is cancelled during an async tool; the tool's
+    task is cancelled once, and the one worker is free for the next call."""
+    assert _child(ASYNC_TOOL_CHILD, "async") == ["cancelled [1]", "b'next\\n'"]
+
+
+def test_a_cancel_during_an_async_tool_is_named() -> None:
+    """Criterion 14: `cancel` set during an async tool: the run is named "cancelled" and the
+    task is cancelled once; the call's loop thread ends."""
+    assert _child(ASYNC_TOOL_CHILD, "cancel") == ["cancelled None None b'' cancelled True [1] True"]
+
+
+def test_ctrl_c_during_an_async_tool() -> None:
+    """Criterion 15: Ctrl-C during an async tool: `run` raises KeyboardInterrupt, the task is
+    cancelled once and the call's loop thread ends."""
+    assert _child(ASYNC_TOOL_CHILD, "ctrl-c") == ["KeyboardInterrupt [1] True"]
+
+
+def test_an_async_tool_that_ignores_its_cancel_is_bounded(guest_workdir) -> None:
+    """Criterion 16: four abandoned calls whose tasks ignore their cancel, then two answered at
+    once; after `run` returns, the four work threads and the call's loop thread are alive
+    (the loop's run-down waits on the tasks), and all end once the tasks are released."""
+    import asyncio
+
+    from wasi_python import runner
+    from wasi_python.tools import tool
+
+    run = _runner()
+    starts: list = []
+    held: dict = {}
+
+    @tool(timeout_s=0.5)
+    async def stall() -> int:
+        """Ignore every cancel until released."""
+        starts.append(1)
+        if "event" not in held:
+            held["event"], held["loop"] = asyncio.Event(), asyncio.get_running_loop()
+        while True:
+            try:
+                await held["event"].wait()
+                return 1
+            except asyncio.CancelledError:
+                continue
+
+    before = runner.stats()["tool_threads_running"]
+    done = run(["-c", SIX_CALLS], tools=[stall])
+    assert done.exit_code == 0, done
+    assert (
+        done.stdout.decode().splitlines()
+        == ["stall timed out after 0.5 s"] * 4
+        + ["stall timed out: 4 earlier tool calls are still running"] * 2
+    )
+    assert len(starts) == 4
+    assert runner.stats()["tool_threads_running"] == before + 5
+    held["loop"].call_soon_threadsafe(held["event"].set)
+    _join_tool_threads()
+    assert runner.stats()["tool_threads_running"] == before
+
+
+def test_one_calls_blocked_loop_does_not_starve_another(guest_workdir) -> None:
+    """Criterion 17: call A's async tool blocks its own loop; call B, on another thread, gets
+    its async tool's answer. With one loop for the process B would wait behind A."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+    blocking, release = threading.Event(), threading.Event()
+
+    @tool(timeout_s=0.5)
+    async def hog() -> int:
+        """Block the loop it runs on."""
+        blocking.set()
+        release.wait(60)  # sync code inside a coroutine: the loop is held
+        return 1
+
+    @tool(timeout_s=5)
+    async def instant() -> str:
+        """Answer at once."""
+        return "now"
+
+    results: dict = {}
+
+    def call(key, code, tools) -> None:
+        results[key] = run(["-c", code], tools=tools)
+
+    code_a = "from host import tools\ntry:\n    tools.hog()\n"
+    code_a += "except TimeoutError:\n    print('A done')"
+    a = threading.Thread(target=call, args=("A", code_a, [hog]))
+    a.start()
+    a.join()
+    b = threading.Thread(
+        target=call, args=("B", "from host import tools\nprint(tools.instant())", [instant])
+    )
+    b.start()
+    b.join()
+    release.set()
+    _join_tool_threads()
+    assert blocking.is_set()
+    assert results["A"].stdout == b"A done\n", results["A"]
+    assert results["B"].stdout == b"now\n", results["B"]
+    assert results["B"].tools.outcomes[-1].outcome == "ok"
+
+
+def test_fuel_is_exact_across_async_tool_calls(guest, guest_workdir) -> None:
+    """Criterion 18: through the judge's driver (fixed clock and entropy), one program of two
+    tool calls spends the same fuel with `async def` tools as with their `def` twins, and the
+    same whatever its async tools await."""
+    import asyncio
+
+    from wasi_python import runner
+    from wasi_python.tools import tool
+
+    turns = {"n": 0}
+
+    @tool(name="nap")
+    async def nap_async(n: int) -> int:
+        """Nap."""  # the same descriptor as its twin's: the same frames, the same fuel
+        for _ in range(turns["n"]):
+            await asyncio.sleep(0)
+        return n
+
+    @tool(name="nap")
+    def nap_sync(n: int) -> int:
+        """Nap."""
+        return n
+
+    used = []
+    for nap, turns["n"] in ((nap_async, 0), (nap_async, 50), (nap_sync, 0)):
+        host = runner._tool_host({"tools": (nap,), "gate": None, "tool_calls": 1000}, None, None)
+        try:
+            r = guest("snapshot", ["-c", TWO_CALLS], host=host)
+        finally:
+            host.close()
+        assert (r.exit_code, r.stdout) == (0, b"1 2\n"), r.describe()
+        assert [o.outcome for o in host.record.outcomes] == ["ok"] * 3
+        used.append(r.fuel)
+    assert used[0] == used[1] == used[2], used

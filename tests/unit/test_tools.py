@@ -177,8 +177,8 @@ def schema(properties: dict, **more: Any) -> dict:
     return {"type": "object", "properties": properties, **more}
 
 
-async def fetch(url: str) -> str:
-    return url
+async def fetch(url: str):
+    yield url  # an async generator: protocol 1 answers once (spec 053)
 
 
 def _cycle() -> dict:
@@ -259,7 +259,7 @@ REFUSED = [
     ("a zero timeout_s", lambda: tool(square, timeout_s=0), ValueError, "timeout_s"),
     ("a bool timeout_s", lambda: tool(square, timeout_s=True), TypeError, "timeout_s"),
     ("a partial without name=", lambda: tool(functools.partial(square, 1)), TypeError, "name="),
-    ("an async def", lambda: tool(fetch), TypeError, "decision 15"),
+    ("an async generator function", lambda: tool(fetch), TypeError, "async generator"),
     ("no hint", lambda: tool(no_hint), TypeError, "'x'"),
     ("*args", lambda: tool(star), TypeError, "'xs'"),
     ("**kwargs", lambda: tool(stars), TypeError, "'kw'"),

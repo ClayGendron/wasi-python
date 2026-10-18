@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import functools
 import json
 import os
 import struct
@@ -71,7 +72,20 @@ def unhinted(code):
 
 
 async def async_gate(call):
-    return None
+    yield None  # an async generator: refused as a gate (spec 053)
+
+
+async def async_host(frame):
+    return frame
+
+
+async def agen_host(frame):
+    yield frame
+
+
+class AsyncHost:
+    async def __call__(self, frame):
+        return frame
 
 
 def _twin() -> T.Tool:
@@ -92,7 +106,11 @@ MISTAKES = [
     ({"tools": [lookup, _twin()]}, ValueError, r"tools\[1\].*'lookup'"),
     ({"tools": [plain, plain]}, ValueError, r"tools\[1\].*'plain'"),
     ({"tools": [lookup], "gate": 5}, TypeError, "gate must be"),
-    ({"tools": [lookup], "gate": async_gate}, TypeError, "coroutine"),
+    ({"tools": [lookup], "gate": async_gate}, TypeError, "async generator"),
+    ({"host": async_host}, TypeError, "serve an async host function as a tool"),
+    ({"host": agen_host}, TypeError, "serve an async host function as a tool"),
+    ({"host": AsyncHost()}, TypeError, "serve an async host function as a tool"),
+    ({"host": functools.partial(async_host)}, TypeError, "serve an async host function as a tool"),
     ({"tools": [lookup], "max_tool_calls": True}, TypeError, "max_tool_calls"),
     ({"tools": [lookup], "max_tool_calls": -1}, ValueError, "max_tool_calls"),
     ({"tools": [lookup], "max_tool_calls": 2**63}, ValueError, "max_tool_calls"),
