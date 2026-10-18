@@ -1,6 +1,7 @@
 # 054 — Read-only code on the import path
 
-- **Status:** confirmed for build 2026-10-18; building. The reviewer's Confirmation passed it
+- **Status:** built 2026-10-18; awaiting its build review (Landing notes). Confirmed for build
+  2026-10-18. The reviewer's Confirmation passed it
   ("ready to build") with two remarks, written in here: R1 (S8's root is a host folder apart
   from `code`) and R2 (A5's payload parses, so the stand-in really prints `injected`).
   Drafted 2026-10-18; reviewed before build the same day
@@ -528,4 +529,165 @@ finding, and where it went:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the author (Claude Opus 5.5) on `spec/054-read-only-code-on-the-import-path`
+in `../wasi_python-054`, from main `62d2c56`, after the reviewer's Confirmation. **Not yet
+reviewed and not accepted.** Every claim below was run (EXECUTED) on arm64 macOS, CPython 3.14.2
+under uv, wasmtime-py 49.0.0, against the frozen artifact set
+`build/sets/s-f94dec535086b06c` of the main tree (read only; `WASI_PYTHON_ARTIFACTS` set to it,
+never `build/artifacts`). Logs are in the worktree's `build/` (ignored); the ones a reviewer
+needs are copied to `build/reviews-evidence/054-review/build/` in the main tree.
+
+### Commits
+
+- `615e447` the Confirmation's R1 and R2 written in; status "confirmed for build".
+- `9063ff3` build step 1: the checks, seen failing.
+- `3ccb6b4` build step 2: `import_path=` and `--import-path` (runner and command).
+- `9dedc19` criterion 5 matches each serving refusal's reason (see "Stand-ins").
+- `8c5bc7a` build step 3: README and CHANGELOG.
+- `799f391` the nothing-written check's helper renamed `_digests`: `test_rules`'s "no
+  module-level name bound twice" found `_tree` already bound at line 511 of the v1.2 file. Step 1
+  committed it with that defect; the fast tier caught it before any acceptance.
+- the commit carrying these notes.
+
+### What was built
+
+- `runner.py`: `import_path: Iterable[str] = ()` on `run` and `run_async`, right after `mounts`,
+  and a docstring sentence (prose, as the rest of today's `run` docstring; Decision 10's "054
+  first" path, since 049 has not landed here). `_check_places` takes it and returns
+  `import_path` and `import_serving`. `_under` (whole-component containment). `_check_import_path`
+  (Decisions 2 to 4: the type; `/` with its own message; `_guest_path`'s rule; duplicates; the
+  serving place by the longest whole-component prefix among grants, mounts and the root; a
+  mount refused as server; a writable server refused; nothing serving refused; a writable grant
+  or any mount under an entry refused; the plain strings and the serving grant's index kept).
+  `_judge_import_path` (Decision 5, by identity against each serving grant's whole walked
+  folder, called in `_walk_grants` after `_judge` and before a missing root is made).
+  `_import_prelude` (Decision 7's line, from the kept plain strings, passed again through
+  `str.__str__`), used in `_instance`: `wasi.argv = [ARGV0, *_import_prelude(…), *argv]`, and
+  `[]` without entries, so the argv is today's.
+- `cli.py`: `--import-path GUEST` (append, in `VALUED`), passed as `import_path=` only when given.
+- Checks: v1.4 `test_the_import_path_reaches_every_mode`, `test_the_import_path_comes_after_the_runtime`,
+  `test_a_zip_on_the_import_path` (each `[plain]`, `[snapshot]`) and
+  `test_the_command_takes_import_paths`; v1.2 `test_the_import_path_writes_nothing` and
+  `test_a_writable_place_never_serves_the_import_path` (each both binaries); unit
+  `test_import_paths_reach_run_in_the_order_typed`, `test_an_import_path_without_a_value_is_a_usage_error`
+  and a scan-table row in `tests/unit/test_cli.py`.
+- README: *Grants* gains "The import path"; *From any language* names `--import-path`; *Any
+  other embedder* gains Decision 11's sentence; *Mounts*' wrong `sys.path` clause is replaced;
+  *Safety*'s sentence is F7's. CHANGELOG: one entry under `0.1.0a4 — unreleased` (main's
+  CHANGELOG still has that section open, checked at the end).
+
+### Seen failing first
+
+Against the runner before step 2 (the branch at `9063ff3`): all 11 new goal checks fail
+(`run() got an unexpected keyword argument 'import_path'`, and the command's case on its
+missing `exit_code`), `build/054-seen-failing-main.txt`; the unit case
+`test_import_paths_reach_run_in_the_order_typed` and the new scan row fail. The usage-error
+unit case passed already (an unknown option is exit 2 too); it guards.
+
+### Stand-ins
+
+`build/054-mut/run.py` copies `src/` to a scratch folder, makes one text change to `runner.py`
+(each asserted to apply exactly once), and runs the named checks with that copy first on
+`PYTHONPATH`; `results.txt` holds the lines. Every stand-in fails its checks on both binaries:
+
+| stand-in | the spec's prediction | seen |
+|---|---|---|
+| 1a: the prelude passes `sys.argv[2:]` | every mode case | both checks fail at the first mode (`-c` is read as a script name) |
+| 1b: the prelude passes `sys.argv` whole | missing script, `orig_argv` | 2 of 11 byte-equal cases differ |
+| 1c: the memo's prelude, no `linecache` clear | the last three | 3 of 11 differ |
+| 2: entries inserted at 0 | plain 5 shadowed, snapshot 1 | plain `['json', 'numpy', 'csv', 'uuid', 'host']`, snapshot `['host']` |
+| no serving-place rule | S1 to S8 | S1 to S8 (8) |
+| mounts accepted as read-only servers | S3, S6, S7 | S3, S6, S7 (3) |
+| serving place by text prefix | S8 | S8 (1) |
+| shortest prefix instead of longest | A1, A2 | **A1, A2, H2, H3** (4) |
+| guest nesting by text prefix | A4 | A4 (1) |
+| no guest-nesting rule | G1 to G3 | G1 to G3 (3) |
+| no host-nesting rule | H1 to H4 | H1 to H4 (4; H3 twice: it ran, and the refused root was made) |
+| host nesting by the entry's own folder | H4 | H4 (1) |
+| the prelude from the caller's objects | A5 | A5 (1: it printed `injected`) |
+
+Two differences from the spec's text, both because the check is stricter than criterion 5 asks:
+it matches each refusal's **reason**, not only its type and `import_path[i]`.
+
+- **Shortest prefix also fails H2 and H3.** With `root=` a path, the shortest prefix is the root,
+  so H2 and H3 are refused as "served by the root" instead of for host nesting. A refusal for the
+  wrong reason is counted wrong.
+- **The first run of "no serving-place rule" saw 7 of 8**: S2 (a writable grant at `/work`
+  serving `/work/lib`) was still refused, by the host-nesting rule (the serving grant's own
+  folder is a writable grant's), and the check's first regular expression accepted that message.
+  `9dedc19` makes the serving cases match "is served by …, which is writable; only a read-only
+  grant", so S2 refused for another reason counts as wrong: 8 of 8 on the re-run.
+- The stand-in "host nesting by the entry's own folder" is emulated: the runner never walks an
+  entry's subfolder, so the stand-in skips host nesting when the entry is not the serving grant's
+  own guest path, which is what a "precise" implementation would allow for H4.
+
+### Criteria
+
+1. Every mode: passes, both binaries; 11 of 11 byte-equal cases. Stand-ins 1a to 1c above.
+2. After the runtime: passes; 0 of 6 shadowed; order among entries; the pins (pytz 0 on the
+   snapshot, 2 on the plain binary; `_hashlib` once and `AttributeError` on both). Stand-in 2.
+3. A zip: passes, both binaries (`/code/lib.zip/zmod.py`, the resource, `1.2 3.4`; the missing
+   entry's importer `None`).
+4. Writes nothing: passes, both binaries (0 files added or changed, stderr empty, with and
+   without `sys.dont_write_bytecode = False`; the `.pyc` gives `X == 1`).
+5. 32 cases: passes, both binaries. Stand-ins above.
+6. The command line: the unit cases and the v1.4 call pass (exit 0 with the module's value; exit
+   1, `ValueError`, naming `import_path[0]`, without the grant).
+7. Spec 006's guarantee: `test_planted_code_never_runs` and the v1.2 file's `sys.path` check pass
+   unchanged (in the fast tier below).
+8. The judge: below; lost 0, grew 0. ruff check and ruff format --check: clean. 049 has not
+   landed here, so there is no snapshot to regenerate.
+9. README and CHANGELOG: as listed above.
+
+Fuel of the prelude with the `linecache` clear, a benchmark fact (one run each, `-c pass`, a
+read-only grant at `/code`): snapshot 82,066,061 without and 85,458,178 with `import_path`
+(+3.39 M); plain 242,561,175 and 244,106,174 (+1.54 M). The spec's +3.26 M and +1.33 M were
+measured without the clear.
+
+### The judge
+
+`WASI_PYTHON_ARTIFACTS=…/build/sets/s-f94dec535086b06c uv run pytest -m "not slow"`
+(`build/054-fast.txt`), no `--accept`:
+
+```
+wasi_python v1: 270/319 pass · 0 gap · 10 blocked · 0 fail · 39 deselected   (unit suite 1020/1028, 8 skipped)
+  v1.2  portable, sealed    60/61  blocked 1
+  v1.4  embedding           132/132
+ratchet vs 34eb315196: lost 0 · absent 0 · unrun 0 · unrun locally 8 · gained 11 · grew 0 · upstream unrun 31 · not selected 27 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/unit/test_cli.py
+1290 passed, 18 skipped, 39 deselected
+```
+
+The full judge once, the same way (`build/054-full.txt`), no `--accept`:
+
+```
+wasi_python v1: 277/319 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1020/1028, 8 skipped)
+  v1.2  portable, sealed    60/61  blocked 1
+  v1.3  data stack          26/58  blocked 32
+  v1.4  embedding           132/132
+ratchet vs 34eb315196: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 11 · grew 0 · upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/unit/test_cli.py
+1297 passed, 50 skipped
+```
+
+The 32 blocked v1.3 checks are numpy's and pandas' own suites, which need the source trees
+under `build/` that this worktree does not have ("source tree numpy 17 · source tree pandas
+16 · oracle 1"); they are "unrun locally", not lost. The lane's run in the main tree has them.
+
+### For the build review
+
+- Decision 5 is judged against each serving grant's whole folder (`_judge_import_path`); H4 and
+  its stand-in hold it. Check that a missing root inside a serving grant is refused before
+  `_make_missing` (H3: the folder is absent afterwards).
+- The prelude is built from `str.__str__` of the kept strings twice over (`_check_import_path`
+  keeps `_guest_path`'s plain value; `_import_prelude` passes each through `str.__str__` again).
+  The A5 stand-in had to remove both.
+- `_check_places` now checks mounts before the import path and returns them under the same key;
+  049's builder changes `_check_places` too (one read of the defaults), so the lane's rebase may
+  meet a small conflict there; the two changes are independent.
+- Criterion 5's check is stricter than the spec's text (reasons are matched), which is why the
+  shortest-prefix stand-in fails 4 cases, not 2.
+- The README example in *The import path* is illustrative (its `helpers` and `toolbox` are the
+  reader's); every claim around it is a check above.
+- The runner's message for `/` is its own (Decision 2); the others reuse `_guest_path`'s.
+- Not run here: Windows and Linux. The v1.4 checks are in the file `verify` runs on all three
+  systems, so the release dry run meets them there; the host-nesting rule uses spec 017's
+  identities, which that job already exercises.
