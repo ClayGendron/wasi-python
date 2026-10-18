@@ -902,3 +902,37 @@ members, as Decision 9 predicted; a snapshot start +~0.11 M, all of it in Py_Fin
 program (an os._exit(0) run differs by -989), not in the start or the program (Decision 9 and
 criterion 14 as amended); heavy jobs move within +-2.2 M, heap-layout noise as in spec 033's
 acceptance".
+
+### The confirmation's N1 (2026-10-18)
+
+The reviewer confirmed F1 to F7 and found one new bug, N1. Its fix is `src/` only, so the
+artifact set does not change.
+
+**The bug.**
+- `Tool._keysets` was keyed by `(id(node), word)` alone.
+- Pickle a `Tool`, free the original, and unpickle it in the same process: the new schema's
+  nodes reuse the freed ids, and a node picks up another node's set.
+- The reviewer saw 117 forbidden values accepted in 20 round trips.
+
+**The fix.**
+- Each entry now keeps its node, `(node, frozenset)`, and the validator uses it only when
+  `entry[0] is s`.
+- Otherwise the set is made again, charged, as for a schema no `tool()` vetted. A copied or
+  unpickled `Tool` therefore pays its `enum` and `const` sizes once per frame.
+- I chose this over keeping the sets out of the pickled and copied state: it is one test of
+  identity, and it holds for any way a `Tool` is duplicated.
+
+**The check.** `test_a_pickled_tool_checks_each_enum_against_its_own_set`:
+- It makes a tool of 30 single-value `enum` properties and pickles it, then frees the original
+  and unpickles the copy, five times over.
+- Each property must accept its own value and refuse the 29 others.
+- It failed against `7a587ad` (a valid value refused), and passes now.
+
+**Evidence** (EXECUTED):
+- The reviewer's `pickled3.py`, run on the fix: "0 wrong values accepted".
+- The judge (`uv run pytest`, no flags, the worktree's own artifacts):
+  `223/227 pass · 0 gap · 4 blocked · 0 fail (unit suite 813/820)`; `lost 0 · gained 4 ·
+  grew 40`; red only for growth; 1036 passed.
+- The growth list equals the revision's within 68 fuel on six checks, and exactly on the rest.
+- `SHA256SUMS` is unchanged (zip `ee1acace…`, snapshot `0cdc7b2b…`, `python.wasm` `4befe9de…`).
+- `ruff check` and `ruff format --check` are clean on `src tests recipes/guest`.

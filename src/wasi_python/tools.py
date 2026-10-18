@@ -768,17 +768,22 @@ _OBJECT_WORDS = frozenset(
 _ARRAY_WORDS = frozenset(("items", "prefixItems", "minItems", "maxItems", "uniqueItems"))
 
 
-def _keysets(nodes: Iterable[Any]) -> dict[tuple[int, str], frozenset]:
+_KeySets = dict[tuple[int, str], tuple[dict, frozenset]]
+
+
+def _keysets(nodes: Iterable[Any]) -> _KeySets:
     """Each `enum` and `const` as a set of keys, made once when the tool is made, so checking a
-    value against them is one key and one lookup (review F1)."""
-    out: dict[tuple[int, str], frozenset] = {}
+    value against them is one key and one lookup (review F1). Each entry keeps its node, and is
+    used only for that same object: an id alone can be reused by another node once a Tool is
+    copied or unpickled and the original freed (the confirmation's N1)."""
+    out: _KeySets = {}
     for s in nodes:
         if not isinstance(s, dict):
             continue
         if isinstance(s.get("enum"), list):
-            out[(id(s), "enum")] = frozenset(_key(e) for e in s["enum"])
+            out[(id(s), "enum")] = (s, frozenset(_key(e) for e in s["enum"]))
         if "const" in s:
-            out[(id(s), "const")] = frozenset((_key(s["const"]),))
+            out[(id(s), "const")] = (s, frozenset((_key(s["const"]),)))
     return out
 
 
@@ -801,7 +806,7 @@ class _Validator:
         self,
         root: Any,
         budget: int = TOOL_VALIDATION_STEPS,
-        keysets: dict[tuple[int, str], frozenset] | None = None,
+        keysets: _KeySets | None = None,
     ) -> None:
         self.root, self.budget = root, budget
         self.keysets = dict(keysets or {})
@@ -825,14 +830,18 @@ class _Validator:
         self.steps += 1
 
     def keyset(self, s: dict, word: str) -> frozenset:
-        found = self.keysets.get((id(s), word))
-        if found is None:  # a schema no tool() vetted (the unit checks): made now, and charged
-            allowed = s["enum"] if word == "enum" else [s["const"]]
-            keys = []
-            for e in allowed:
-                self.step()
-                keys.append(_key(e, self.step))
-            found = self.keysets[(id(s), word)] = frozenset(keys)
+        entry = self.keysets.get((id(s), word))
+        if entry is not None and entry[0] is s:
+            return entry[1]
+        # A schema no tool() vetted (the unit checks), or a Tool copied or unpickled, whose
+        # entries name nodes that are gone: made now, and charged.
+        allowed = s["enum"] if word == "enum" else [s["const"]]
+        keys = []
+        for e in allowed:
+            self.step()
+            keys.append(_key(e, self.step))
+        found = frozenset(keys)
+        self.keysets[(id(s), word)] = (s, found)
         return found
 
     def visit(self, s: Any, value: Any, at: Any) -> None:

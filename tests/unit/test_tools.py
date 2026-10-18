@@ -695,6 +695,34 @@ def test_an_enum_costs_one_key_per_value(monkeypatch) -> None:
     assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
 
 
+def many(**kw: Any) -> dict:
+    """Give back the arguments (module level, so a Tool of it pickles)."""
+    return kw
+
+
+def test_a_pickled_tool_checks_each_enum_against_its_own_set() -> None:
+    """Confirmation N1: the key sets are found by node identity. A Tool pickled, the original
+    freed, then unpickled, reuses the freed ids; each node still checks only its own set."""
+    import gc
+    import pickle
+
+    n = 30
+    allow = schema({f"p{i}": {"enum": [f"v{i}"]} for i in range(n)})
+    wrong = 0
+    for _ in range(5):
+        t = tool(many, input_schema=allow)
+        data = pickle.dumps(t)
+        del t
+        gc.collect()
+        host = T._ToolHost([pickle.loads(data)], max_calls=None)
+        for i in range(n):
+            assert answer(host(call_frame("many", {f"p{i}": f"v{i}"})))["ok"] is True
+            for j in range(n):
+                if i != j:
+                    wrong += answer(host(call_frame("many", {f"p{i}": f"v{j}"})))["ok"]
+    assert wrong == 0
+
+
 def test_messages_never_format_a_whole_value() -> None:
     """Review F1: a failing enum, const or bound names the value by its kind and size, never by
     dumping it, so a message costs what it says."""
