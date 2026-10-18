@@ -2,10 +2,16 @@
 
 - **Status:** drafted 2026-10-17; revised the same day against its pre-build review
   (`../reviews/040-x86-64-rebuilds-the-same-bytes-spec-2026-10-17.md`). All eight findings are
-  written in, and its Disposition says where. It awaits the reviewer's confirmation. It changes
-  the build recipe and the release workflow, so it is reviewed before it is built (constitution
-  §5.6). It is build-class: it touches `scripts/`, `downloads/SHA256SUMS` and the release
-  workflow (§5.7).
+  written in, and its Disposition says where. **Confirmed for build with conditions, written
+  in.**
+  - Condition A, the loader probe, is in Decision 5.
+  - Condition B: the builder starts from `d98249b`, where 028 has landed, and takes main's
+    `release.yml` `verify` job as it is. 028 changed only that job, so 040's `rebuild` and
+    `same-bytes` edits do not overlap it.
+
+  It changes the build recipe and the release workflow, so it was reviewed before it is built
+  (constitution §5.6). It is build-class: it touches `scripts/`, `downloads/SHA256SUMS` and the
+  release workflow (§5.7). It builds next after 033 lands (Decision 12).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (`scripts/line.conf`, `line.sh`, `00_download.sh`,
   `steps/common.sh`, `steps/10_tools.sh`, `steps/60_link.sh`, and a new compiler launcher,
@@ -174,12 +180,12 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
      `/lib/ld-linux-aarch64.so.1`). Each package is an `ar` archive, read with the native SDK's
      `llvm-ar` and the host's `tar`. `dpkg-deb` is not assumed.
    - It writes an empty `$T/aarch64-root/etc/ld.so.cache`. Without it, qemu's `-L` falls
-     through to the host's `/etc/ld.so.cache`, and the guest's loader reads that (EXECUTED by
-     the review, `LD_DEBUG=libs`). The builder confirms with `LD_DEBUG=libs` that the guest
-     then searches only the root. That glibc's loader treats a file too short for a cache header
-     as no cache is INFERRED, from reading glibc's cache loader. If the probe shows otherwise,
-     that is a failed attempt under AGENTS.md rule 7, recorded in the memo's addendum. The
-     host's cache must never be read.
+     through to the host's `/etc/ld.so.cache`, and the guest's loader reads that. The review
+     showed both cases under `qemu -strace` (EXECUTED in its confirmation). Without the file,
+     the loader opens `/etc/ld.so.cache` and maps 4,095 bytes, the host file's size. With the
+     empty file in the root, it opens it, maps nothing, and goes straight to
+     `/lib/aarch64-linux-gnu`. Gate probe 5 holds this on every x86_64 build. The host's cache
+     is never read.
    - It copies `scripts/clang-emulated` (our recipe file) into `$CSDK/bin/`. It replaces the
      real clang binary of the native tree (the file `$SDK/bin/clang` resolves to) with a
      symbolic link to that copy. So every caller is unchanged: CPython's `Platforms/WASI`
@@ -196,8 +202,21 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
      - `$SDK/bin/clang-cpp`, given a two-line file holding `__clang__` and
        `__cplusplus`, prints the first expanded and the second not (cpp mode, C);
      - `$SDK/bin/clang++ -v` names `clang++.cfg` as its configuration file (g++ mode);
-     - `LD_DEBUG=libs` on a `clang -v`, passed in for this probe only, shows the guest's loader
-       searching only under `$T/aarch64-root` and the SDK's own `lib/`.
+     - **The host's loader cache is not read** (condition A of the review's confirmation).
+       Step 10 runs `$T/emulator/qemu-aarch64 -strace -L $T/aarch64-root
+       $CSDK/bin/<clang> --version` directly, not through the launcher. It requires the trace
+       to show the `ld.so.cache` open followed by no `mmap` of it before the next `openat`, and
+       `--version` to exit 0.
+       - **Why this probe, not `LD_DEBUG=libs`.** The trace records the system calls with
+         qemu's `-L` redirection already applied. So it tells the empty root file (nothing
+         mapped) from the host's file (4,095 bytes mapped), which is the fact that matters.
+         `LD_DEBUG=libs` prints only the paths the guest sees, so `search
+         cache=/etc/ld.so.cache` prints either way (EXECUTED by the review, nine lines in both
+         cases). It also makes the launcher's native `sh`, `readlink` and `dirname` print, so
+         its lines must be picked out by pid. A test that the root's file exists and is empty
+         checks the setup, not the effect. The trace checks the effect.
+       - The probe needs no environment of its own. It runs the pinned emulator on the pinned
+         clang, which is what every compile does.
      Each tree's other tools (`llvm-ar`, `llvm-ranlib`, `llvm-nm`) are run from `$SDK` as
      today.
    - **The launcher's contract** (`scripts/clang-emulated`, a POSIX `sh` script).
@@ -273,7 +292,7 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
        `00_download.sh`;
      - `10_tools.sh`, read without its comments (the scan's `_code_lines`), names
        `clang-emulated`, `aarch64-root`, `ld.so.cache` and the gate's `InstalledDir` and
-       `clang-cpp` probes, so a comment cannot satisfy it;
+       `clang-cpp` probes and its `-strace` loader-cache probe, so a comment cannot satisfy it;
      - `scripts/clang-emulated`, read without its comments, holds the three `-U` loader
        flags, the `QEMU_` clearing, and the three names `clang`, `clang++` and `clang-cpp`
        with their modes.
@@ -384,22 +403,28 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
         and x86_64 rejoins the gate by its own change.
 
 12. **The order of work.** §5.7 and AGENTS.md rule 2 allow one build-class specification in
-    flight. 028 is in build now and changes `release.yml` too, so 040 waits for it.
-    - **The recommended queue:** 028 (in build), then **040**, then 033, 035, 023, 037 and 039.
-    - **040 next, after 028.** It is small: one launcher, five pins, one step's branch, a
+    flight.
+    - **The queue as it stands:** 028 (landed, `d98249b`), then 033 (in build), then
+      **040**, then 035, 023, 037 and 039.
+    - **Why 033 went before 040.** 040 was not confirmed when 028 landed, so 033 took the slot,
+      as the fallback below provides. 040 builds next, after 033 lands, and rebases onto main
+      as it then stands. 033 changes only the zip, so the rebase touches no file 040 edits but
+      `MANIFEST`'s recipe list, which is computed.
+    - **040 next.** It is small: one launcher, five pins, one step's branch, a
       matrix entry, three checks. It changes no artifact byte, so it moves no number that a
       later specification measures. Every specification after it then has its new compiles
       gated on x86_64 from their first build, rather than in a later change of their own.
       That matters most where the most compiles are new.
-    - **033 and 035 after 040, though they are confirmed first.** They are cheap to gate and
-      move no compile volume worth waiting for, so their order against 040 matters little.
+    - **033 and 035 against 040.** They are cheap to gate and move no compile volume worth
+      waiting for, so their order against 040 matters little.
       - 033 changes only the zip (`make_stdlib_zip.py`, step 70, a Python stand-in). It
         compiles nothing, so 040 gates nothing new in it. Its numbers do not move with 040, nor
         040's with it.
       - 035 compiles one changed file, `recipes/reactor_main.c`. Gated after 040, its one new
         object is checked on x86_64 at once.
-      - **If 040 is not confirmed when 028 lands,** 033 takes the slot, then 035, and 040 takes
-        the next slot after its confirmation. Neither waits on 040.
+      - **If 040 is not confirmed when 028 lands,** 033 takes the slot, and 040 takes the next
+        slot after its confirmation. This is what happened: 040 is confirmed, so it goes after
+        033 and before 035. Neither waits on 040.
     - **023 after 040, 033 and 035.** 023 adds the most C and C++ before scipy: FreeType,
       HarfBuzz, SheenBidi, libraqm, Qhull, Agg, kiwisolver, and matplotlib's own extensions.
       It is the first place a new tie is likely to show. Gated from its first build, 023's
@@ -527,7 +552,7 @@ Out:
    - `python.wasm`, the snapshot, the zip and the licences keep today's accepted hashes on
      every host.
    - The x86_64 build's log shows every probe of step 10's gate passing (Decision 5): the link,
-     `InstalledDir`, `clang-cpp`, `clang++` and the loader's search.
+     `InstalledDir`, `clang-cpp`, `clang++` and the loader-cache trace.
    - Its step 20 log shows CPython's configure passing its preprocessor checks, with
      `PLATFORM_TRIPLET` set to `wasm32-wasi`, as on the arm64 hosts.
    - Its step 60 log shows the three runtime archives under `$CSDK`'s replaced directories,

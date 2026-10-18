@@ -411,3 +411,83 @@ The aarch64 clang under the pinned qemu gives macOS's bytes on x86_64 (EXECUTED)
 launcher as specified turns `clang-cpp` into a compiler, so CPython's configure stops; map each
 name to its driver mode, clear qemu's and the loader's environment, and decide the time
 trip-wire and the queue before building.
+
+## Confirmation (2026-10-17)
+
+The same reviewer checked the revision (`bf7baf1`) and the Disposition against each finding.
+Main is now at `d98249b`, where 028 has landed. I re-ran the revised contract in the same
+`linux/amd64` container. My stand-in launcher was rewritten from the revised Decision 5 alone
+(`stage/clang-emulated-v2`; outputs `out/container-run5.txt` to `run7.txt` in the scratch
+folder named above).
+
+- **1, confirmed (EXECUTED).** Through the launcher, `clang-cpp` passes both halves of
+  autoconf's sanity check. On `<limits.h>` plus "Syntax error" it exits 0 with no stderr; on
+  `<ac_nonexistent.h>` it exits 1. `Misc/platform_triplet.c` gives
+  `PLATFORM_TRIPLET=wasm32-wasi`. On the two-line probe, `__clang__` becomes `1` and
+  `__cplusplus` stays as written. `clang++ -v` names the aarch64 tree's `clang++.cfg`. A
+  `clang-cl` link stops with one line. Gate probes 1 to 4 behave as written.
+- **2, confirmed, with one condition on gate probe 5 (EXECUTED).**
+  - With `QEMU_SET_ENV=CCC_OVERRIDE_OPTIONS=+-O0` and `QEMU_STRACE=1` on the host, the object
+    is still `20ef33440bb2e944`, so the variables are cleared.
+  - With `LD_PRELOAD` set on the host, `clang-cpp` writes 0 bytes to stderr.
+  - The empty `etc/ld.so.cache` works. Under `qemu -strace`, without it the guest's loader
+    opens `/etc/ld.so.cache` and maps 4,095 bytes, which is the host file's size. With the
+    empty file in the root, it opens it, finds it empty, maps nothing, and goes straight to
+    `/lib/aarch64-linux-gnu`. So the host's cache is no longer read. The spec's INFERRED claim
+    now has evidence.
+  - **Condition A.** Gate probe 5, as written, cannot tell the two cases apart.
+    `LD_DEBUG=libs` prints the paths the guest sees. qemu's `-L` redirection is invisible to
+    it. `search cache=/etc/ld.so.cache` prints with or without the root's file (9 lines
+    either way, EXECUTED). `LD_DEBUG` set on the host also makes the native `sh`, `readlink`
+    and `dirname` print, so the guest's lines must be picked out by its pid. The builder
+    instead writes the probe as either of these:
+    - `qemu-aarch64 -strace -L $T/aarch64-root … clang-22 --version`, which shows no `mmap`
+      after the `ld.so.cache` open;
+    - or a test that the root's `etc/ld.so.cache` exists and is empty, plus `LD_DEBUG=libs`
+      showing only `/lib/aarch64-linux-gnu` and the SDK's `lib/` as search paths.
+    Either is a wording change in Decision 5; no attempt is spent.
+- **3, confirmed (READ).** The changes are in place:
+  - the 240-minute trip-wire, in Decision 11 and question 63;
+  - the same-day fallback, which keeps the launcher and the pins and lands first;
+  - per-runner timeouts (120 and 360) taken from the matrix, with a scan rule;
+  - `nproc` and `binfmt_misc` printed by the runner's tools step, with a scan rule;
+  - criterion 3's hours, stated.
+- **4, confirmed (READ).** Decision 12 names the queue: 028, then 040, then 033, 035, 023,
+  037 and 039. It says 040 waits for 028, and it gives a fallback if 040 is not confirmed in
+  time. 028 has now landed. It changed only the `verify` job in `release.yml` (READ:
+  `git diff bf7baf1 d98249b`), so 040's `rebuild` and `same-bytes` edits do not overlap it.
+  The rebase is mechanical.
+- **5, confirmed (READ).** Decision 8 and criterion 4 now name `--retire` for the old node id.
+  The growth branch is dropped.
+- **6, confirmed (READ).** The gate has five probes. The rule check reads `10_tools.sh` and the
+  launcher without comments, and `test_scan.py` gains one mutation per rule.
+- **7, confirmed (READ).** The closure and the reason for the launcher's place are stated.
+  EXECUTED again: with `-fno-integrated-cc1`, the driver's `-cc1` run comes back through the
+  launcher and still gives `20ef33440bb2e944`. Compile-and-link and `clang++ -c` work.
+- **8, confirmed (READ).** The four text points are made.
+- `uv run pytest -q tests/checks/test_rules.py`: 22 passed on the revision (EXECUTED).
+
+**Verdict: 040 is confirmed for build**, with these conditions:
+- **A.** Rewrite gate probe 5 as above.
+- **B.** Rebase onto `d98249b` (028 landed), and take main's `release.yml` `verify` job as it
+  is.
+
+It is the next build-class specification, in its own worktree, as Decision 12 says.
+
+### Author's note on the confirmation (2026-10-17)
+
+- **Condition A is written into Decision 5.** Gate probe 5 is now the `qemu-aarch64 -strace`
+  trace of `clang-22 --version`, run directly, not through the launcher. It requires the
+  `ld.so.cache` open to be followed by no `mmap` of it, and `--version` to exit 0.
+  - **Why this probe and not the other.** The trace sees the system calls after qemu's `-L`
+    redirection, so it checks the effect: the host's 4,095 bytes are mapped, or nothing is. The
+    alternative, an empty file plus `LD_DEBUG` search paths, checks the setup and the guest's
+    view of paths, and the confirmation showed that `LD_DEBUG` cannot tell the cases apart.
+  - The confirmation's `-strace` result is cited as the evidence that an empty cache is read as
+    no cache, which the revision had marked INFERRED.
+  - The rule check now also requires the probe's `-strace` in `10_tools.sh`'s code.
+- **Condition B is in the Status line.** The builder starts from `d98249b` and takes main's
+  `verify` job as it is.
+- **Decision 12's queue** now reads 028 (landed), 033 (in build), 040, 035, 023, 037, 039. 033
+  took the slot under the fallback Decision 12 already gave, and 040 builds next after 033
+  lands.
