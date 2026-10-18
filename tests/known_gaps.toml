@@ -7,7 +7,8 @@
 # `--accept-judge "<reason>"`. A gap whose check passes fails the run until it is removed.
 
 # numpy's and pandas' own tests (spec 050): each class of known failures, listed by node id in
-# tests/upstream/expected/<group>/<class>.txt, and each test that traps the guest.
+# tests/upstream/expected/<group>/<class>.txt, and each test that traps the guest. A class whose
+# list is empty has no gap (condition C1).
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-dup]"
@@ -25,6 +26,12 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-processes]"
 match = "3 finding(s), digest 6879d1dd691a"
 reason = "no processes: subprocess is unavailable on WASI"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-core-no-ctypes]"
+match = "28 finding(s), digest f8e85109dc85"
+reason = "no ctypes calls: the stand-in raises OSError (test_object_casts_NULL_None_equivalence, which runs since spec 051)"
 closes_with = "README.md"
 
 [[gap]]
@@ -46,22 +53,10 @@ reason = "no /dev/null on WASI: os.devnull names a path that does not exist"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-lib-patch-0001-truncated-message]"
-match = "1 finding(s), digest e40455516d70"
-reason = "carried patch 0001: reading a truncated .npy takes the buffer path, whose message differs"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-ctypes]"
 match = "8 finding(s), digest 29089ac8c9cc"
 reason = "no ctypes calls: the stand-in raises OSError"
 closes_with = "README.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-patch-0001-masked-save]"
-match = "1 finding(s), digest 83f4b9535a6b"
-reason = "carried patch 0001: np.save of a masked array writes its data instead of raising"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-conftest]"
@@ -76,91 +71,13 @@ reason = "_multiarray_tests, a numpy C test module, is not in the product (quest
 closes_with = "context/questions-for-the-owner.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-zip-code-names]"
-match = "1 finding(s), digest b33b103ae585"
-reason = "the zip's code objects carry relative file names, so a filter by module file misses (test_suppress_warnings_module)"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-frame-zip-code-names]"
-match = "21 finding(s), digest e81517d4d918"
-reason = "the zip's code objects carry relative file names, so pandas' warnings point inside pandas"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-groupby-zip-code-names]"
-match = "71 finding(s), digest d5a0c8a6531f"
-reason = "the same"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-reshape-zip-code-names]"
-match = "7 finding(s), digest 1ea6d974266d"
-reason = "the same"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-zip-code-names]"
-match = "73 finding(s), digest 1eae688822d1"
-reason = "the same"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-parser-no-mmap]"
 match = "40 finding(s), digest bb867a100101"
 reason = "no mmap on WASI"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-formats-zip-code-names]"
-match = "21 finding(s), digest cfad1308a6be"
-reason = "the zip's code objects carry relative file names, so pandas' warnings point inside pandas"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-tslibs-no-processes]"
 match = "1 finding(s), digest 9d47cafba98d"
 reason = "no processes: subprocess is unavailable on WASI"
 closes_with = "README.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[castingimpl-casting-unittests]"
-match = "1 finding(s), digest c64a182027cd"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_casting_unittests.py::TestCasting::test_simple_cancast[BoolDType]"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[castingimpl-arraymethod]"
-match = "1 finding(s), digest a42517fe0680"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_arraymethod.py"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[castingimpl-stringdtype]"
-match = "1 finding(s), digest 334bb69f491a"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_stringdtype.py::test_cast_method_names"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[descr-set-records]"
-match = "1 finding(s), digest 5839d9898018"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_records.py::TestRecord::test_assign_dtype_attribute[0]"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[descr-set-stringdtype]"
-match = "1 finding(s), digest ffc85494daf4"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_stringdtype.py::test_view_distinct_instance"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[gentype-copy]"
-match = "1 finding(s), digest da94a5cea096"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_regression.py::TestRegression::test_scalar_copy"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[sfloat-reduce]"
-match = "1 finding(s), digest f06b24b2cc07"
-reason = "traps the guest: trap: wasm trap: indirect call type mismatch at numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"

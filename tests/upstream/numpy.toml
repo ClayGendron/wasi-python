@@ -37,7 +37,7 @@ support = []
 
 [groups.numpy-core]
 paths = ["numpy/_core/tests"]
-fuel = 300_000_000_000
+fuel = 310_000_000_000
 
 [groups.numpy-lib]
 paths = ["numpy/lib/tests"]
@@ -91,11 +91,6 @@ reason = "imports _simd, which the product does not link"
 closes_with = "context/questions-for-the-owner.md"
 
 [[not_selected]]
-files = ["numpy/_core/tests/test_casting_unittests.py", "numpy/_core/tests/test_arraymethod.py"]
-reason = "they trap the guest (the [[trap]] entries); test_arraymethod at collection"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
-
-[[not_selected]]
 files = ["numpy/_core/tests/test_memmap.py"]
 reason = "every test needs mmap, which WASI lacks"
 closes_with = "README.md"
@@ -105,51 +100,17 @@ files = ["numpy/tests/test_ctypeslib.py"]
 reason = "it reads _multiarray_umath.__file__, which a builtin module has not"
 closes_with = "README.md"
 
-# The tests that trap the guest (Decision 9): `wasm trap: indirect call type mismatch`, a C
-# function called through a pointer of another signature. Each is deselected from its group (a
-# file is --ignore'd) and run alone by test_upstream_trap[<id>], a gap until spec 051 fixes it.
+# The tests that trap the guest (Decision 9) would be [[trap]] entries here: id, node, reason,
+# closes_with; each deselected from its group and run alone by test_upstream_trap[<id>], a gap
+# until fixed. None today: the seven that trapped on numpy 2.5.2 (four C callbacks called through
+# pointers of another signature) run in numpy-core since spec 051's patch 0002.
 
-[[trap]]
-id = "castingimpl-casting-unittests"
-node = "numpy/_core/tests/test_casting_unittests.py"
-reason = "_get_castingimpl(module, args), convert_datatype.c:248, registered METH_VARARGS | METH_KEYWORDS"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "castingimpl-arraymethod"
-node = "numpy/_core/tests/test_arraymethod.py"
-reason = "_get_castingimpl, as above, called at collection (frame 0 cfunction_call)"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "castingimpl-stringdtype"
-node = "numpy/_core/tests/test_stringdtype.py::test_cast_method_names"
-reason = "_get_castingimpl, as above"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "descr-set-records"
-node = "numpy/_core/tests/test_records.py::TestRecord::test_assign_dtype_attribute"
-reason = "array_descr_set(self, arg), getset.c:388, called as a setter with a closure"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "descr-set-stringdtype"
-node = "numpy/_core/tests/test_stringdtype.py::test_view_distinct_instance"
-reason = "array_descr_set, as above"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "gentype-copy"
-node = "numpy/_core/tests/test_regression.py::TestRegression::test_scalar_copy"
-reason = "gentype___copy__(self), scalartypes.c.src:2128, registered METH_NOARGS"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
-[[trap]]
-id = "sfloat-reduce"
-node = "numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load"
-reason = "sfloat___reduce__(self), _scaled_float_dtype.c:192, registered METH_NOARGS"
-closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
@@ -177,6 +138,14 @@ group = "numpy-core"
 outcome = "failed"
 match = 'wasi does not support processes'
 reason = 'no processes: subprocess is unavailable on WASI'
+closes_with = "README.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "numpy-core"
+outcome = "failed"
+match = 'ctypes is unavailable'
+reason = "no ctypes calls: the stand-in raises OSError (test_object_casts_NULL_None_equivalence, which runs since spec 051)"
 closes_with = "README.md"
 
 [[expected]]

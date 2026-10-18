@@ -48,7 +48,7 @@ promises.
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
-| numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 62,569 passing; 26 gaps (19 classes of known failures, 7 tests that trap), each with its closer |
+| numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 
 The platform's facts, documented rather than patched (with two carried patches,
 below), are what `python.wasm -V` prints after its version:
@@ -84,17 +84,6 @@ array or function type (the stand-in computes no layouts), and with it `inspect.
 `hasattr(t, "__numpy_dtype__")` on such a type; `help()` and `dir()` work. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
 offsets are part of the snapshot.
-
-### Known defects
-
-numpy's and pandas' own tests found these; each is a gap on the judge's scoreboard until it
-closes (spec 051 fixes them):
-
-- `copy.copy` of a numpy scalar, `__copy__` on one, and assigning `ndarray.dtype` end the call
-  in a trap (`trapped`), not a Python exception.
-- pandas' warnings name a pandas file, not the caller's line.
-- `np.save` of a masked array writes its data without its mask instead of raising
-  `NotImplementedError`.
 
 `run` treats its arguments as CPython's command line does for one program:
 `-c`, `-m`, a script, or `-` and no argument for stdin; `-u`; `-V`. Its return

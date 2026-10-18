@@ -17,11 +17,11 @@ support = [
 
 [groups.pandas-frame]
 paths = ["pandas/tests/frame"]
-fuel = 510_000_000_000
+fuel = 520_000_000_000
 
 [groups.pandas-groupby]
 paths = ["pandas/tests/groupby"]
-fuel = 700_000_000_000
+fuel = 720_000_000_000
 
 [groups.pandas-reshape]
 paths = ["pandas/tests/reshape"]
@@ -29,15 +29,15 @@ fuel = 160_000_000_000
 
 [groups.pandas-io-parser]
 paths = ["pandas/tests/io/parser"]
-fuel = 130_000_000_000
+fuel = 135_000_000_000
 
 [groups.pandas-io-formats]
 paths = ["pandas/tests/io/formats"]
-fuel = 81_000_000_000
+fuel = 82_000_000_000
 
 [groups.pandas-tslibs]
 paths = ["pandas/tests/tslibs"]
-fuel = 58_000_000_000
+fuel = 59_000_000_000
 
 [groups.pandas-internals]
 paths = ["pandas/tests/internals"]
@@ -45,7 +45,7 @@ fuel = 28_000_000_000
 
 [groups.pandas-libs]
 paths = ["pandas/tests/libs"]
-fuel = 34_000_000_000
+fuel = 35_000_000_000
 
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)

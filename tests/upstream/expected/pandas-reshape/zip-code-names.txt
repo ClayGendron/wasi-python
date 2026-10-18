@@ -1,7 +1,0 @@
-pandas/tests/reshape/concat/test_categorical.py::TestCategoricalConcat::test_categorical_index_preserver
-pandas/tests/reshape/concat/test_concat.py::TestConcatenate::test_concat_bug_1719
-pandas/tests/reshape/concat/test_datetimes.py::TestDatetimeConcat::test_concat_datetime_timezone
-pandas/tests/reshape/concat/test_index.py::TestMultiIndexConcat::test_concat_with_key_not_unique[True]
-pandas/tests/reshape/merge/test_merge.py::TestMergeDtypes::test_merge_on_ints_floats_warning
-pandas/tests/reshape/merge/test_merge.py::test_merge_ea_int_and_float_numpy
-pandas/tests/reshape/merge/test_merge.py::test_merge_multiindex_reset_index_mixed

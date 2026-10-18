@@ -998,3 +998,43 @@ ratchet vs 361775dd62: lost 0 · absent 0 · unrun 0 · unrun locally 7 · gaine
 The 38 checks: 12 `pass`, 26 `gap`. Passes 62,569. The groups' fuel sums to
 1,646,467,107,285, 0.07 ppm from the run before the fixes (the fixes run nothing differently in
 the guest).
+
+**Rebased onto spec 051 and re-derived on its set** (2026-10-18, `s-f94dec535086b06c`; EXECUTED;
+in progress: the body's tables, criteria and Design still carry the counts measured on
+`s-0cdc7b2bd78db6f5`, and are made to agree in the next commit).
+- **Rebase.** One conflict in `tests/harness/plugin.py`: spec 051 landed a `note(text)` fixture
+  first, so this specification's `note(name, value)` is renamed `fact(name, value)`, recorded
+  under `facts`. That is the only change to `tests/harness/` from the reviewed code (`guest.py`,
+  `needs.py`, `scoreboard.py` and `upstream.py` are byte-identical to `3907985`'s). README
+  conflicts were merged with 051's text.
+- **The tie** holds with 051's `recipe` lines for `0001` (amended) and `0002`.
+- **Seen first, as they stood:** every group ran with no finding. The six `zip-code-names` and
+  the two `patch-0001-*` classes are empty; every other class equals its list. The seven trap
+  entries, each alone, no longer trap (`test_casting_unittests.py` 904 passed and 28 failed, all
+  `OSError: ctypes is unavailable`; the other six passed). numpy-lib gains two passes (the
+  truncated-message test, and `test_save_masked_without_dup`, which amended patch 0001 adds).
+- **C1 applied.** The eight emptied classes keep their ids and empty lists and lose their gaps;
+  the seven `[[trap]]` entries, their gaps and the `not_selected` entry for the two returning
+  files are deleted. `test_upstream_trap` is defined only while a trap entry exists (an empty
+  parametrization would be a skip naming no need). The returning files' 28 failures are a new
+  class, `numpy-core-no-ctypes`, closed by the README (it states that ctypes calls raise).
+- **Caps** raised to at least 1.5 times the new fuel where needed (numpy-core 3.1×10¹¹,
+  frame 5.2×10¹¹, groupby 7.2×10¹¹, io-parser 1.35×10¹¹, io-formats 8.2×10¹⁰, tslibs 5.9×10¹⁰,
+  libs 3.5×10¹⁰); they sum to 2.519×10¹².
+- **Passes, judge's fuel, and each group twice in one session:** numpy-core 9,519,
+  203,078,170,200 (203,078,175,300 / 203,078,175,317); numpy-lib 4,825, 131,417,583,434
+  (131,417,587,463 / 131,417,589,146); numpy-others 7,269, 175,315,688,633 (175,315,700,040
+  twice); pandas-frame 10,852, 344,819,783,016 (344,819,777,287 / 344,819,777,236);
+  pandas-groupby 22,227, 478,743,979,551 (478,743,797,770 twice); pandas-reshape 2,664,
+  103,347,417,535 (103,347,419,796 twice); pandas-io-parser 3,474, 89,652,537,969
+  (89,652,525,304 / 89,652,525,202); pandas-io-formats 976, 54,364,789,367 (54,364,781,173 /
+  54,364,779,609); pandas-tslibs 590, 38,969,563,583 (38,969,542,622 / 38,969,562,648);
+  pandas-internals 258, 18,266,840,927 (18,266,840,485 / 18,266,840,400); pandas-libs 1,063,
+  23,065,428,403 (23,065,428,080 / 23,065,428,148). Every pair within 0.01% (the most apart,
+  groupby, 0.38 ppm). **63,717 passes**; group fuel **1.661×10¹²**, under the 1.8×10¹² budget.
+- **The full judge** on 051's set, exit 0: `v1.3 data stack 45/58 gap 12 blocked 1`;
+  `gaps close with: README 10 · questions-for-the-owner 2`; `ratchet vs 614520fff6: lost 0 ·
+  absent 0 · unrun 0 · unrun locally 7 · gained 20 · grew 0`; `1263 passed, 17 skipped, 12 xfailed
+  in 521.05s`. The 32 upstream checks: 20 `pass` (11 groups, 8 emptied classes, the rule), 12
+  `gap`. The class lists hold 100 node ids. README's Measured row (63,717; 12 gaps) and the
+  CHANGELOG line follow; the README's "Known defects" list is removed (051 closed all three).

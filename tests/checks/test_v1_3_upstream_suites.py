@@ -72,14 +72,16 @@ def test_upstream_class(upstream_session, package, klass) -> None:
     assert not findings, scan.report(findings, f"class {klass.group}-{klass.id}")
 
 
-@pytest.mark.slow
-@pytest.mark.parametrize(("package", "trap"), TRAPS, ids=[t for _, t in TRAPS])
-def test_upstream_trap(upstream_session, metric, package, trap) -> None:
-    """The entry, run alone in its own session, completes without a trap."""
-    _need(package)
-    run = upstream_session.trap(package, trap)
-    metric("fuel", run.fuel)
-    assert not run.findings, scan.report(run.findings, f"trap {trap}")
+if TRAPS:  # an empty parametrization would be a skip that names no need, so a failure
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize(("package", "trap"), TRAPS, ids=[t for _, t in TRAPS])
+    def test_upstream_trap(upstream_session, metric, package, trap) -> None:
+        """The entry, run alone in its own session, completes without a trap."""
+        _need(package)
+        run = upstream_session.trap(package, trap)
+        metric("fuel", run.fuel)
+        assert not run.findings, scan.report(run.findings, f"trap {trap}")
 
 
 @pytest.mark.goal("rules")
