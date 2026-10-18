@@ -3524,3 +3524,173 @@ def test_unlinked_files_are_not_written_back_at_the_ending(which) -> None:
         ], (ending, provider.log)
         assert provider.tree["/a.txt"] == b"b\n" and "/t" not in provider.tree, ending
         assert (done.files.refused, done.files.refused_total) == ((), 0)
+
+
+# Read-only code on the import path (spec 054): entries a read-only grant serves, after the zip.
+
+IMPORT_PATH_FILES = {
+    "mylib.py": "VALUE = 'mylib from the grant'\n",
+    "pkg/__init__.py": "",
+    "pkg/__main__.py": "import sys\nprint('pkg main', sys.argv)\n",
+    "main.py": "import sys, mylib\nprint(sys.argv, mylib.VALUE)\nraise SystemExit(3)\n",
+    "boom.py": "def f():\n    return 1 / 0\n\n\nf()\n",
+    "s_eval.py": "eval('1/0')\n",
+    "s_exec.py": "exec('x = 1/0')\n",
+}
+
+
+def _folder(workdir: Path, files: dict[str, str], prefix: str = "import-path-") -> Path:
+    """A fresh host folder holding `files` (relative path -> text)."""
+    base = Path(tempfile.mkdtemp(prefix=prefix, dir=workdir))
+    for name, text in files.items():
+        (base / name).parent.mkdir(parents=True, exist_ok=True)
+        (base / name).write_text(text)
+    return base
+
+
+@BINARY
+def test_the_import_path_reaches_every_mode(guest_workdir, which) -> None:
+    """Spec 054, criterion 1: an entry a read-only grant serves is on `sys.path`, after the zip,
+    in every mode the reactor has; and every case below answers byte for byte as the same call
+    without an import path does (the prelude's frames and source never show)."""
+    from wasi_python import Grant
+
+    run = _runner()
+    snapshot = which == "snapshot"
+    code = _folder(guest_workdir, IMPORT_PATH_FILES)
+    grants = [Grant(code, "/code")]
+
+    def call(argv, stdin=None, **kw):
+        return run(argv, grants=grants, snapshot=snapshot, stdin=stdin, **kw)
+
+    def with_path(argv, stdin=None):
+        return call(argv, stdin, import_path=["/code"])
+
+    stdlib = call(["-c", "import sys; print(sys.path)"])
+    assert stdlib.exit_code == 0, stdlib
+    import ast
+
+    zip_entry = ast.literal_eval(stdlib.stdout.decode())[0]
+    done = with_path(["-c", "import sys, mylib; print(sys.path, mylib.VALUE)"])
+    assert done.stdout.decode() == f"{[zip_entry, '/code']} mylib from the grant\n", done
+    done = with_path(["-m", "pkg", "x", "y"])
+    assert done.stdout == b"pkg main ['/code/pkg/__main__.py', 'x', 'y']\n", done
+    done = with_path(["/code/main.py", "s1"])
+    assert (done.exit_code, done.stdout) == (3, b"['/code/main.py', 's1'] mylib from the grant\n")
+    done = with_path([], stdin=b"import mylib; print(mylib.VALUE)\n")
+    assert (done.exit_code, done.stdout) == (0, b"mylib from the grant\n"), done
+    same = [
+        (["-V"], None),
+        (["-u", "-c", "print(1)"], None),
+        (["-c", "import sys; sys.exit(7)"], None),
+        (["-c", "raise SystemExit('bye')"], None),
+        (["-c", "1/0"], None),
+        (["/code/boom.py"], None),
+        (["/code/nope.py"], None),
+        (["-c", ORIG_ARGV], None),
+        (["/code/s_eval.py"], None),
+        (["/code/s_exec.py"], None),
+        ([], b"eval('1/0')\n"),
+    ]
+    differ = []
+    for argv, stdin in same:
+        a, b = call(argv, stdin), with_path(argv, stdin)
+        if (a.exit_code, a.stdout, a.stderr) != (b.exit_code, b.stdout, b.stderr):
+            differ.append((argv or "stdin", a.stderr[-300:], b.stderr[-300:]))
+    assert differ == [], f"{len(differ)} of {len(same)} differ: {differ}"
+
+
+@BINARY
+def test_the_import_path_comes_after_the_runtime(guest_workdir, which) -> None:
+    """Spec 054, criterion 2: a name the runtime has is the runtime's on both binaries; among
+    entries the first wins; and today's answers for names the runtime looks for and lacks are
+    pinned (Decision 6), so a set that changes them is seen."""
+    from wasi_python import Grant
+
+    run = _runner()
+    snapshot = which == "snapshot"
+    shadows = {f"{n}/__init__.py": f"SHADOW = '{n}'\n" for n in ("json", "numpy", "csv", "host")}
+    shadows |= {"uuid.py": "SHADOW = 'uuid'\n", "math.py": "SHADOW = 'math'\n"}
+    code = _folder(guest_workdir, shadows)
+    program = (
+        "import json, math, numpy, csv, uuid, host\n"
+        "print([m.__name__ for m in (json, math, numpy, csv, uuid, host) if hasattr(m, 'SHADOW')])"
+    )
+    done = run(["-c", program], grants=[Grant(code, "/code")], import_path=["/code"],
+               snapshot=snapshot)  # fmt: skip
+    assert (done.exit_code, done.stdout) == (0, b"[]\n"), done
+    a = _folder(guest_workdir, {"same.py": "WHO = 'a'\n"})
+    b = _folder(guest_workdir, {"same.py": "WHO = 'b'\n"})
+    both = [Grant(a, "/a"), Grant(b, "/b")]
+    for order, want in ((["/a", "/b"], b"a\n"), (["/b", "/a"], b"b\n")):
+        done = run(["-c", "import same; print(same.WHO)"], grants=both, import_path=order,
+                   snapshot=snapshot)  # fmt: skip
+        assert (done.exit_code, done.stdout) == (0, want), (order, done)
+    pytz = _folder(guest_workdir, {"pytz.py": STUB.format(name="pytz") + "raise ImportError\n"})
+    done = run(["-c", "import pandas"], grants=[Grant(pytz, "/e")], import_path=["/e"],
+               snapshot=snapshot)  # fmt: skip
+    assert done.exit_code == 0, done
+    assert done.stderr.decode().count("HIT pytz") == (0 if snapshot else 2), done.stderr
+    hashlib = _folder(guest_workdir, {"_hashlib.py": STUB.format(name="_hashlib")})
+    done = run(["-c", "import hashlib"], grants=[Grant(hashlib, "/e")], import_path=["/e"],
+               snapshot=snapshot)  # fmt: skip
+    err = done.stderr.decode()
+    assert done.exit_code == 1 and err.count("HIT _hashlib") == 1, done
+    assert err.strip().splitlines()[-1].startswith("AttributeError"), err
+
+
+ORIG_ARGV = "import sys; print(sys.orig_argv, sorted(k for k in dir() if not k.startswith('__')))"
+STUB = "import sys\nsys.stderr.write('HIT {name}\\n')\n"
+
+
+@BINARY
+def test_a_zip_on_the_import_path(guest_workdir, which) -> None:
+    """Spec 054, criterion 3: a zip inside a read-only grant, named as an entry, imports, and
+    its resources and metadata read; a missing entry is skipped as CPython skips one."""
+    import zipfile
+
+    from wasi_python import Grant
+
+    run = _runner()
+    snapshot = which == "snapshot"
+    code = _folder(guest_workdir, {"mylib.py": "VALUE = 'mylib'\n"})
+    with zipfile.ZipFile(code / "lib.zip", "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("zmod.py", "VALUE = 'zmod'\n")
+        z.writestr("zpkg/__init__.py", "")
+        z.writestr("zpkg/data.txt", "resource in a zip\n")
+        z.writestr("zdist-1.2.dist-info/METADATA", "Metadata-Version: 2.1\nName: zdist\n"
+                   "Version: 1.2\n")  # fmt: skip
+    (code / "ddist-3.4.dist-info").mkdir()
+    (code / "ddist-3.4.dist-info" / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: ddist\nVersion: 3.4\n"
+    )
+    grants = [Grant(code, "/code")]
+    program = (
+        "import zmod, importlib.resources as r, importlib.metadata as m\n"
+        "print(zmod.__file__)\n"
+        "print(r.files('zpkg').joinpath('data.txt').read_text(), end='')\n"
+        "print(m.version('zdist'), m.version('ddist'))\n"
+    )
+    done = run(["-c", program], grants=grants, import_path=["/code", "/code/lib.zip"],
+               snapshot=snapshot)  # fmt: skip
+    assert (done.exit_code, done.stdout) == (
+        0,
+        b"/code/lib.zip/zmod.py\nresource in a zip\n1.2 3.4\n",
+    ), done
+    program = "import sys, mylib; print(sys.path_importer_cache.get('/code/missing.zip'))"
+    done = run(["-c", program], grants=grants, import_path=["/code/missing.zip", "/code"],
+               snapshot=snapshot)  # fmt: skip
+    assert (done.exit_code, done.stdout) == (0, b"None\n"), done
+
+
+def test_the_command_takes_import_paths(capsysbinary, tmp_path) -> None:
+    """Spec 054, criterion 6: `--import-path` reaches `run()` as `import_path=`; an entry no
+    grant serves is `run()`'s refusal, exit 1."""
+    _runner()
+    (tmp_path / "mylib.py").write_text("VALUE = 'from the command'\n")
+    code, line = _cli(capsysbinary, "run", "--grant", f"/code={tmp_path}", "--import-path",
+                      "/code", "--", "-c", "import mylib; print(mylib.VALUE)")  # fmt: skip
+    assert (code, line["exit_code"], line["stdout"]) == (0, 0, "from the command\n"), line
+    code, line = _cli(capsysbinary, "run", "--import-path", "/code", "--", "-c", "pass")
+    assert (code, line["kind"]) == (1, "ValueError"), line
+    assert "import_path[0]" in line["error"], line

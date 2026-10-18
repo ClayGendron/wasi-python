@@ -83,6 +83,7 @@ def test_an_option_not_given_is_not_passed(fake, capsysbinary) -> None:
         (["-"], ["-"]),  # a lone `-`: the program on standard input
         (["--grant=/d=x", "x.py"], ["x.py"]),
         (["--no-root", "x.py"], ["x.py"]),
+        (["--import-path", "/a", "x.py"], ["x.py"]),
         ([], []),
     ],
 )
@@ -251,3 +252,26 @@ def test_an_empty_side_reaches_run_which_refuses_it(fake, capsysbinary, value, g
     assert _main(capsysbinary, "run", "--grant", value, "--", "-c", "1")[0] == 0
     g = calls[0][1]["grants"][0]
     assert (g.host, g.guest) == grant
+
+
+# The import path on the command line (spec 054).
+
+
+def test_import_paths_reach_run_in_the_order_typed(fake, capsysbinary) -> None:
+    from wasi_python import Grant
+
+    calls, _ = fake
+    args = ["--import-path", "/a", "--grant", "/a=x", "--import-path", "/b"]
+    assert _main(capsysbinary, "run", *args, "--", "-c", "pass")[0] == 0
+    assert calls[0][1]["import_path"] == ["/a", "/b"]
+    assert calls[0][1]["grants"] == [Grant("x", "/a")]
+    assert _main(capsysbinary, "run", "--import-path=/a", "--", "-c", "pass")[0] == 0
+    assert calls[1][1]["import_path"] == ["/a"]
+    assert _main(capsysbinary, "run", "--", "-c", "pass")[0] == 0
+    assert "import_path" not in calls[2][1]
+
+
+def test_an_import_path_without_a_value_is_a_usage_error(fake, capsysbinary) -> None:
+    code, out, err = _main(capsysbinary, "run", "--import-path")
+    assert (code, out) == (2, b"") and b"--import-path" in err, err
+    assert fake[0] == []

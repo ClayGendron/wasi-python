@@ -1601,3 +1601,187 @@ def test_a_write_half_fault_never_escapes(snapshot) -> None:
     for (method, path, error), (m, p, name) in zip(faults, want_faults, strict=True):
         assert (method, path) == (m, p) and error.startswith(WRITE_FAULTS[name][1]), (name, error)
     assert not [w for w in caught if "never awaited" in str(w.message)], caught
+
+
+# Read-only code on the import path (spec 054): nothing the same call can write lies under an
+# entry, and nothing is written to one.
+
+
+def _tree(folder: Path) -> dict[str, str]:
+    """Every file under `folder` and its SHA-256, and every folder (as "dir")."""
+    import hashlib
+
+    def digest(p: Path) -> str:
+        return "dir" if p.is_dir() else hashlib.sha256(p.read_bytes()).hexdigest()
+
+    return {str(p.relative_to(folder)): digest(p) for p in sorted(folder.rglob("*"))}
+
+
+@BOTH
+def test_the_import_path_writes_nothing(guest_workdir, snapshot) -> None:
+    """Spec 054, criterion 4: an import from a read-only entry writes no `.pyc`, even when the
+    program asks for one (the refused write is quiet), and a valid `.pyc` already in an entry is
+    the one imported."""
+    from wasi_python import Grant
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="import-path-", dir=guest_workdir))
+    code = base / "code"
+    (code / "pkg").mkdir(parents=True)
+    (code / "mylib.py").write_text("VALUE = 'mylib'\n")
+    (code / "pkg" / "__init__.py").write_text("NAME = 'pkg'\n")
+    before = _tree(code)
+    program = "import mylib, pkg; print(mylib.VALUE, pkg.NAME)"
+    for prefix in ("", "import sys; sys.dont_write_bytecode = False\n"):
+        done = run(["-c", prefix + program], grants=[Grant(code, "/code")],
+                   import_path=["/code"], snapshot=snapshot)  # fmt: skip
+        assert (done.exit_code, done.stdout, done.stderr) == (0, b"mylib pkg\n", b""), done
+        assert _tree(code) == before, (prefix, _tree(code))
+    w = base / "w"
+    w.mkdir()
+    (w / "wmod.py").write_text("X = 1\n")
+    done = run(["-c", "import py_compile; py_compile.compile('/w/wmod.py', doraise=True)"],
+               grants=[Grant(w, "/w", writable=True)], snapshot=snapshot)  # fmt: skip
+    assert done.exit_code == 0, done
+    st = (w / "wmod.py").stat()
+    (w / "wmod.py").write_text("X = 2\n")  # the same size; its times restored below
+    os.utime(w / "wmod.py", ns=(st.st_atime_ns, st.st_mtime_ns))
+    done = run(["-c", "import wmod; print(wmod.X, wmod.__spec__.cached)"],
+               grants=[Grant(w, "/w")], import_path=["/w"], snapshot=snapshot)  # fmt: skip
+    x, cached = done.stdout.decode().split()
+    assert (done.exit_code, x) == (0, "1"), done
+    assert cached.startswith("/w/__pycache__/wmod.") and cached.endswith(".pyc"), cached
+
+
+class _Lying(str):
+    """A str whose repr and str would write code into a prelude built from them (spec 054, A5)."""
+
+    PAYLOAD = "'/code'] + [print('injected') or '/code'"
+
+    def __repr__(self) -> str:
+        return self.PAYLOAD
+
+    def __str__(self) -> str:
+        return self.PAYLOAD
+
+
+@BOTH
+def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) -> None:
+    """Spec 054, criterion 5: each refused layout raises before any work (the door is never
+    called), and each allowed one imports from its entry. Every case is tried, and the failure
+    names every case that answered wrongly, so a stand-in's count is exact."""
+    import re
+
+    from harness.files import MemoryProvider
+    from wasi_python import Grant, Mount
+
+    run = _run()
+    base = Path(tempfile.mkdtemp(prefix="import-path-", dir=guest_workdir))
+
+    def folder(*parts: str, mylib: bool = False) -> Path:
+        d = base.joinpath(*parts)
+        d.mkdir(parents=True, exist_ok=True)
+        if mylib:
+            (d / "mylib.py").write_text("VALUE = 'mylib'\n")
+        return d
+
+    code = folder("code", mylib=True)
+    folder("code", "out")
+    folder("code", "r")
+    proj = folder("proj")
+    folder("proj", "lib", mylib=True)
+    folder("proj", "out")
+    ro = Grant(code, "/code")
+    mem = MemoryProvider()
+    calls: list[bytes] = []
+
+    def host(frame: bytes) -> bytes:
+        calls.append(frame)
+        return b""
+
+    wrong: list[tuple[str, str]] = []
+
+    def refused(name: str, error: type[Exception], match: str, import_path, **kw) -> None:
+        kw.setdefault("grants", [ro])
+        before = len(calls)
+        try:
+            run(["-c", "import _host; _host.call(b'x')"], host=host, import_path=import_path,
+                snapshot=snapshot, **kw)  # fmt: skip
+        except error as e:
+            if not re.search(match, str(e)):
+                wrong.append((name, f"message: {e}"))
+            elif len(calls) != before:
+                wrong.append((name, "the door was called"))
+            return
+        except Exception as e:  # a refusal of another kind, or for another reason
+            wrong.append((name, f"{type(e).__name__}: {e}"))
+            return
+        wrong.append((name, "ran"))
+
+    def allowed(name: str, import_path, **kw) -> None:
+        program = "import sys, mylib; print(sys.path[-1], mylib.VALUE)"
+        try:
+            done = run(["-c", program], import_path=import_path, snapshot=snapshot, **kw)
+        except Exception as e:
+            wrong.append((name, f"{type(e).__name__}: {e}"))
+            return
+        if (done.exit_code, done.stdout) != (0, f"{import_path[0]} mylib\n".encode()):
+            wrong.append((name, f"{done.exit_code} {done.stdout[-200:]!r} {done.stderr[-200:]!r}"))
+
+    one = r"import_path\[0\]"
+    refused("T1", TypeError, "import_path", "/code")
+    refused("T2", TypeError, one, [b"/code"])
+    refused("T3", TypeError, one, [Path("/code")])
+    refused("T4", TypeError, one, [None])
+    refused("T5", TypeError, "import_path", 5)
+    refused("V1", ValueError, one, ["code"])
+    refused("V2", ValueError, one, ["/code/"])
+    refused("V3", ValueError, one, ["/code/../x"])
+    refused("V4", ValueError, one, ["/"])
+    refused("V5", ValueError, one, ["/usr/local/lib/x"])
+    refused("V6", ValueError, r"import_path\[1\]", ["/code", "/code"])
+    refused("V7", ValueError, one, ["/co\0de"])
+    # The serving place: each entry strictly under its server, so no nesting rule applies.
+    writable = "is served by .*writable"
+    refused("S1", ValueError, writable, ["/x"], root=True)
+    work = Grant(folder("work"), "/work", writable=True)
+    refused("S2", ValueError, writable, ["/work/lib"], grants=[ro, work])
+    mount = "is served by mounts"
+    refused("S3", ValueError, mount, ["/m/lib"], mounts=[Mount(mem, "/m")])
+    refused("S4", ValueError, mount, ["/w/lib"], mounts=[Mount(mem, "/w", writable=True)])
+    refused("S5", ValueError, "no grant serves it", ["/nowhere/lib"])
+    refused("S6", ValueError, mount, ["/lib"], mounts=[Mount(mem, "/")])
+    alias = [Mount(mem, "/lib"), Mount(mem, "/work", writable=True)]  # the review's F1
+    refused("S7", ValueError, mount, ["/lib/lib"], mounts=alias)
+    refused("S8", ValueError, writable, ["/code2"], root=folder("apart"))  # R1: apart from code
+    # Guest nesting: a writable place, or any mount, under the entry.
+    under = "lies under it"
+    out = Grant(folder("out-g"), "/code/out", writable=True)
+    refused("G1", ValueError, under, ["/code"], grants=[ro, out])
+    refused("G2", ValueError, under, ["/code"], mounts=[Mount(mem, "/code/out")])
+    deep = Grant(folder("ab"), "/code/a/b", writable=True)
+    refused("G3", ValueError, under, ["/code"], grants=[ro, deep])
+    # Host nesting: a writable folder inside the serving grant's whole folder.
+    holds = "whose folder holds"
+    inner = Grant(code / "out", "/out", writable=True)
+    refused("H1", ValueError, holds, ["/code"], grants=[ro, inner])
+    refused("H2", ValueError, holds, ["/code"], root=code / "r")
+    refused("H3", ValueError, holds, ["/code"], root=code / "new")
+    if (code / "new").exists():
+        wrong.append(("H3", "the refused root was made"))
+    p_out = Grant(proj / "out", "/out", writable=True)
+    refused("H4", ValueError, holds, ["/p/lib"], grants=[Grant(proj, "/p"), p_out])
+    # Allowed.
+    lib = folder("lib", mylib=True)
+    allowed("A1", ["/work/lib"], grants=[work, Grant(lib, "/work/lib")])
+    allowed("A2", ["/code"], grants=[ro], root=True)
+    allowed("A3", ["/code"], grants=[ro, Grant(folder("sibling"), "/out", writable=True)])
+    allowed("A4", ["/code"], grants=[ro, Grant(folder("code2"), "/code2", writable=True)])
+    try:
+        done = run(["-c", "import sys, mylib; print(sys.path[-1], mylib.VALUE)"],
+                   grants=[ro], import_path=[_Lying("/code")], snapshot=snapshot)  # fmt: skip
+        if (done.exit_code, done.stdout) != (0, b"/code mylib\n"):
+            wrong.append(("A5", f"{done.exit_code} {done.stdout[-200:]!r}"))
+    except Exception as e:
+        wrong.append(("A5", f"{type(e).__name__}: {e}"))
+    assert wrong == [], f"{len(wrong)} wrong: {[n for n, _ in wrong]}\n{wrong}"
