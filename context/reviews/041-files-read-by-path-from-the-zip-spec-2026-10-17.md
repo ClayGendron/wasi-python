@@ -470,3 +470,74 @@ unchanged. The Low findings can be written in at the same time.
 Both patches are right and prove out in the guest and natively, and the sdist route is exact,
 but the networkx and pandas drafts must state their projects' AI and issue rules in full, and
 Decision 1 must reject the recipe for the real reason, before this is built.
+
+## Confirmation (2026-10-17)
+
+By the same reviewer, against the revision in `52f11c5` (the specification, both `pr.md` facts
+sheets, both `notes.md`, `../upstream/README.md`) and question 80. Re-run under the same scratch
+folder (`out/equiv2.txt`, `out/rules2.txt`); nothing else was edited.
+
+### The patches
+
+Byte for byte the reviewed ones (EXECUTED: `shasum -a 256` gives `0b6b418b…ce7d` and
+`3b8b6d2d…5384`; `cmp` against the copies this review applied). So every guest, native and test
+result above still stands, and nothing needed re-running for them.
+
+### The nine dispositions
+
+1. **Confirmed.** The networkx sheet quotes the hidden note to AI tools, the close-and-block and
+   "closed without review" clauses, and `AGENTS.md`'s rules (two-week wait included); it suggests
+   no pull request and sets out the manual route. READ again with `gh`: #3929 was closed by #6936
+   (its `closingIssuesReferences`, both 2023-09-23), and #7033 is the unrelated 3.8
+   `importlib.resources` test failure, as the sheet says.
+2. **Confirmed.** The pandas sheet quotes "fully review and modify", the template's AI box,
+   `AGENTS.md`'s "never perform…" and fencing rules, and the issue-first route (triage, `/take`,
+   "closes #…"). The reasoning level is "not recorded", not guessed. READ again: #39733's
+   reporter used PyInstaller and jreback answered "this relates not to pandas itself but to
+   pyinstaller", so "closed as a PyInstaller matter" is fair.
+3. **Confirmed.** Decision 1 drops the appeal to §7, says a recorded recipe is no hidden change,
+   and rejects the run-time route on the class-body failure, the width of a working recipe, the
+   tree check's blindness and the missing exit. The nested-preopen route is named and refused for
+   the runner's rule, §4.6 and §2.4, with its INFERRED label kept.
+4. **Confirmed.** Decision 4's rule now has the equality proof as a step, names the cases where it
+   fails, and leaves the entry-points gap to the moving specification. EXECUTED again on 033's
+   landed `make_stdlib_zip.py` (033 landed after the review): `tree_members` of a staged
+   `pure-install/networkx` plus `sdist_metadata` and the egg-info `entry_points.txt` give 291
+   members, the wheel's `wheel_members` 292; the only differences are `networkx/conftest.py`
+   (wheel only) and the patched `atlas.py`. The two `.dist-info` members have the same names and
+   bytes by either route.
+5. **Confirmed.** The test is offered in the sheet with its three limits; the carried patch is
+   unchanged.
+6. **Confirmed.** Every evidence link in both sheets is a repository path, and each exists
+   (EXECUTED). Decision 6 removes `fix.patch` from the numbered folder after the copy, which
+   criterion 3's order (compare, then delete) allows.
+7. **Confirmed.** The template goes to the data folder; "shows … on the job's calls" replaces
+   "proves".
+8. **Confirmed.** `sdist_entry_points` is named and built on `sdist_metadata`, which 033 landed
+   under that name (READ, `scripts/make_stdlib_zip.py`); the guard matches the computed folder,
+   and the unit check and a path-string mutant cover it. The `--file` paragraph gives the reason.
+9. **Confirmed.** Both test environments are given; the comment's wording is left to the owner's
+   version; the loader assertion is a finding on the starting set.
+
+Spec 020's rules accept the two rewritten sheets as they will sit after the move, once the
+CHANGELOG names both patch paths and the README says 3 (EXECUTED, `out/rules2.txt`: no error).
+
+### Conditions
+
+- **C1, question 80 is open.** The specification applies its recommended answer and says nothing
+  in the build waits on it; that holds, since spec 020's rules read only the header lines and
+  `Files:`. But §4.1 and spec 020 still say "pull request drafted". The landing notes say which
+  answer question 80 had at landing; if the owner has not answered, they say the two drafts are
+  facts sheets pending that answer. If the owner answers otherwise, only the sheets' bodies
+  change, as the specification says.
+- **C2, the order.** It builds only after 039 lands (which now builds on the landed 033), and
+  uses 033's landed `sdist_metadata` as Decision 5 says.
+
+### Result
+
+**Confirmed for build, with conditions C1 and C2.** The design, both patches and the sdist route
+were sound at review and are unchanged; every finding is answered in the text, and the re-runs
+agree.
+
+One line: 041 is confirmed for build; the drafts are now honest facts sheets, Decision 1 gives
+the real reason, and the landing notes must state question 80's answer.
