@@ -106,6 +106,11 @@ get https://github.com/qhull/qhull/archive/v8.0.2/qhull-8.0.2.tar.gz qhull-8.0.2
 get https://files.pythonhosted.org/packages/e7/c8/9aa712a0afb882649424dd8de8ad9aa6235e796e84c6052e8f6dc1598d0d/matplotlib-3.11.2.tar.gz matplotlib-3.11.2.tar.gz
 get https://files.pythonhosted.org/packages/ba/07/bd78e6a8fae171ea041ef5bba3ed21a003522fa088834b069b1909981f30/kiwisolver-1.5.1.tar.gz kiwisolver-1.5.1.tar.gz
 get https://files.pythonhosted.org/packages/ce/a4/9cc30690a394a8305e8be4c9036aa16d0dfddadd09079860b582f562496d/pillow-13.0.0.tar.gz pillow-13.0.0.tar.gz
+# lxml (spec 046): libxml2 and libxslt, the newest release of each, and lxml's sdist, whose
+# Cython-generated C is compiled
+get https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz libxml2-2.15.4.tar.xz
+get https://download.gnome.org/sources/libxslt/1.1/libxslt-1.1.45.tar.xz libxslt-1.1.45.tar.xz
+get https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb2017ac62e3632cee05a5f9493547eb/lxml-6.1.3.tar.gz lxml-6.1.3.tar.gz
 # Header-only C++ that is compiled in (matplotlib's and kiwisolver's bindings), so its notices ship
 get https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl pybind11-3.1.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/8b/3c/823fda3f226d84f983e48005527a6dd2dc365220ac4f098b770779d9f4a1/cppy-1.3.1-py3-none-any.whl cppy-1.3.1-py3-none-any.whl

@@ -40,6 +40,10 @@ SOURCE_PATTERNS = {
     "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
     "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
     "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
+    # lxml (spec 046): its two C libraries and the package
+    "libxml2": re.compile(r"libxml2-[\w.]+\.tar\.xz"),
+    "libxslt": re.compile(r"libxslt-[\w.]+\.tar\.xz"),
+    "lxml": re.compile(r"lxml-[\w.]+\.tar\.gz"),
 }
 
 

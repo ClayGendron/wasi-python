@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -126,6 +128,17 @@ def test_artifacts_carry_no_build_path(artifacts) -> None:
     assert not hits, scan.report(hits, f"files holding {paths.REPO}")
 
 
+@BINARY
+def test_binaries_hold_no_build_path(artifacts, which) -> None:
+    """Neither binary holds the checkout's path or the build user's home folder (spec 046,
+    Decision 10): a path compiled in through a `-D` string (libxml2's default catalog, from its
+    configure's `--prefix`) or an `assert`'s `__FILE__` names the builder's disk, and no two
+    checkouts would give the same bytes. The binary-side twin of the zip's host-fact check."""
+    folders = rules.build_folders(paths.REPO, Path.home())
+    errors = rules.build_path_errors(_binary(artifacts, which), folders)
+    assert not errors, scan.report(errors)
+
+
 def test_reactor_holds_no_sdk_builder_path(artifacts) -> None:
     """The reactor links the host-neutral wasm runtime, not the one inside the builder's SDK
     tarball, whose assert messages name where that tarball was built (spec 012, Decision 2)."""
@@ -185,3 +198,37 @@ def test_target_features_are_the_lines(artifacts, which) -> None:
 
     errors = constructors.feature_errors(wasm.parse_file(_binary(artifacts, which)))
     assert not errors, scan.report(errors)
+
+
+LXML = """
+import json, sys
+import lxml
+from lxml import etree, objectify
+dotted = lambda t: ".".join(map(str, t))
+print(json.dumps({
+    "builtin": [m for m in ("lxml.etree", "lxml.objectify") if m in sys.builtin_module_names],
+    "lxml": lxml.__version__,
+    "libxml2": dotted(etree.LIBXML_VERSION),
+    "libxslt": dotted(etree.LIBXSLT_VERSION),
+    "features": sorted(etree.LIBXML_FEATURES & {"iconv", "schematron", "zlib", "thread"}),
+}))
+"""
+
+
+@BINARY
+def test_lxml_is_builtin_at_manifest_versions(guest, which) -> None:
+    """`lxml.etree` and `lxml.objectify` are builtins, and lxml, libxml2 and libxslt are the
+    versions MANIFEST names (spec 046, Decision 10). libxml2 converts encodings through
+    wasi-libc's iconv and keeps Schematron; it has no zlib and no threads (Decision 3)."""
+    r = guest(which, ["-c", LXML])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    m = paths.parse_manifest((paths.artifact_dir() / "MANIFEST").read_text())
+    want = {
+        "builtin": ["lxml.etree", "lxml.objectify"],
+        "lxml": m.packages.get("lxml"),
+        "libxml2": m.packages.get("libxml2"),
+        "libxslt": m.packages.get("libxslt"),
+        "features": ["iconv", "schematron"],
+    }
+    assert got == want, f"guest says {got}, want {want}"

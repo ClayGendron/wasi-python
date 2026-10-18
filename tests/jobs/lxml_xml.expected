@@ -1,0 +1,75 @@
+versions python=3.15 lxml=6.1.3 pandas=3.0.6
+count 3.0
+ns ['{urn:a}b'] x
+string r-6-gAmmA
+substr al x y
+regex ['1', '2']
+replace gaMa
+sets ['gamma', 'alpha', 'beta']
+math 3.0 1.0
+comment pi ['_Comment', '_ProcessingInstruction']
+xslt <?xml version="1.0"?>
+<out total="6"><v>**gmm</v><v>**bet</v><v>**lph</v></out>
+xslt param <?xml version="1.0"?>
+<out total="6"><w>**gmm</w><w>**bet</w><w>**lph</w></out>
+objectify 42 s FloatElement 3.0 True StringElement
+c14n b'<r xmlns:z="urn:z" a="1" b="2"><x></x><!-- k --></r>'
+c14n2 b'<r a="1" b="2"><x></x></r>'
+links [('a', 'href', '/x'), ('a', 'href', 'https://e.org/y')]
+text one and twop b
+html b'<html><head><meta charset="utf-8"><title>t</title></head><body><p>&#233;</p></body></html>'
+html broken b'<html><body><p>a<b>b</b></p><p>c</p></body></html>'
+iterparse [('start', 'r'), ('start', 'a'), ('end', 'a'), ('start', 'b'), ('start', 'c'), ('end', 'c'), ('end', 'b'), ('end', 'r')]
+parse path v ['one', 'two'] d.dtd
+iterparse path [('end', 'e'), ('end', 'e'), ('end', 'd')]
+xinclude ['top', 'd', 'e', 'e'] v
+dtd True False
+dtd parser d
+xsd True False
+relaxng True False
+gzip b'<w a="1"><v>&#233;</v></w>'
+encoding windows-1252 123 0 0 11fcdbb6ed716c8644c5f053d5736bdc7c0c2aec8c22f0df853a7469c2cdbb3f
+encoding iso-8859-2 96 0 0 3f742bebbca3a664aa0324630044821eb246d9aa48518a6c354af9f65e413ead
+encoding iso-8859-15 96 0 0 680fc7d462a3a6375c3af6311639f7e305d313451a55956bd2cdd8e0469b3357
+encoding cp1251 127 0 0 aeddde1ef3fead4196f4e10c45af6ab3510aba95d08442167e35d13bfd270790
+encoding koi8-r 128 0 0 1d9eaa70ec32e8fd6e30938d76e92460769b72f10c99662fef82a8d30488a081
+encoding tis-620 87 0 0 a0105d61c2ba627f48319cb30f9bb095179cc28c1470925f00d4ff89a5e1c74c
+encoding utf-16 56926 0 0 716351c8ebbd280dd74b0cd91d3309f01a388d6b586fb331f275f545188ba121
+encoding gbk 21791 0
+encoding cp949 17048 0
+read_html {'a': [1, 2], 'b': ['x', 'y']}
+read_xml {'a': [1, 2, 3], 'b': ['x', 'y', 'z']}
+read_xml xpath {'a': [2, 3], 'b': ['y', 'z']}
+read_xml stylesheet {'s': [10, 20, 30], 't': ['x', 'y', 'z']}
+to_xml <?xml version='1.0' encoding='utf-8'?>
+<t>
+  <u>
+    <a>1</a>
+    <b>x</b>
+    <c>1.5</c>
+  </u>
+  <u>
+    <a>2</a>
+    <b>é</b>
+    <c/>
+  </u>
+</t>
+=== frame.xml
+<?xml version='1.0' encoding='utf-8'?>
+<data>
+  <row>
+    <index>0</index>
+    <a>1</a>
+    <b>x</b>
+    <c>1.5</c>
+  </row>
+  <row>
+    <index>1</index>
+    <a>2</a>
+    <b>é</b>
+    <c/>
+  </row>
+</data>
+=== w.xml
+<?xml version='1.0' encoding='UTF-8'?>
+<w a="1"><v>é</v></w>

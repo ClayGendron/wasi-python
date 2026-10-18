@@ -1,0 +1,96 @@
+diff --git a/xmlIO.c b/xmlIO.c
+index 847fdca..61963e6 100644
+--- a/xmlIO.c
++++ b/xmlIO.c
+@@ -1227,6 +1227,23 @@ xmlInputFromFd(xmlParserInputBuffer *buf, int fd,
+     }
+ #endif /* LIBXML_ZLIB_ENABLED */
+ 
++#ifdef __wasi__
++    /*
++     * WASI has no dup(). Read from the caller's descriptor and leave
++     * closing it to the caller, as the documentation of every public
++     * caller already says it will not be closed.
++     */
++    copy = fd;
++
++    fdctxt = xmlMalloc(sizeof(*fdctxt));
++    if (fdctxt == NULL)
++        return(XML_ERR_NO_MEMORY);
++    fdctxt->fd = copy;
++
++    buf->context = fdctxt;
++    buf->readcallback = xmlFdRead;
++    buf->closecallback = xmlFdFree;
++#else
+     copy = dup(fd);
+     if (copy == -1)
+         return(xmlIOErr(errno));
+@@ -1241,6 +1258,7 @@ xmlInputFromFd(xmlParserInputBuffer *buf, int fd,
+     buf->context = fdctxt;
+     buf->readcallback = xmlFdRead;
+     buf->closecallback = xmlFdClose;
++#endif
+ 
+     return(XML_ERR_OK);
+ }
+@@ -1257,14 +1275,21 @@ xmlOutputDefaultOpen(xmlOutputBufferPtr buf, const char *filename,
+                      int compression) {
+     xmlFdIOCtxt *fdctxt;
+     int fd;
++    int owned = 1;
+ 
+     (void) compression;
+ 
+     if (!strcmp(filename, "-")) {
++#ifdef __wasi__
++        /* WASI has no dup(): write to standard output without closing it. */
++        fd = STDOUT_FILENO;
++        owned = 0;
++#else
+         fd = dup(STDOUT_FILENO);
+ 
+         if (fd < 0)
+             return(xmlIOErr(errno));
++#endif
+     } else {
+         int ret;
+ 
+@@ -1296,14 +1321,15 @@ xmlOutputDefaultOpen(xmlOutputBufferPtr buf, const char *filename,
+ 
+     fdctxt = xmlMalloc(sizeof(*fdctxt));
+     if (fdctxt == NULL) {
+-        close(fd);
++        if (owned)
++            close(fd);
+         return(XML_ERR_NO_MEMORY);
+     }
+     fdctxt->fd = fd;
+ 
+     buf->context = fdctxt;
+     buf->writecallback = xmlFdWrite;
+-    buf->closecallback = xmlFdClose;
++    buf->closecallback = owned ? xmlFdClose : xmlFdFree;
+     return(XML_ERR_OK);
+ }
+ #endif
+@@ -1527,7 +1553,19 @@ xmlParserInputBufferCreateUrl(const char *URI, xmlCharEncoding enc,
+ 
+             if (ret == XML_ERR_OK) {
+                 ret = xmlInputFromFd(buf, fd, flags);
++#ifdef __wasi__
++                /*
++                 * Without dup(), xmlInputFromFd reads from fd itself:
++                 * the buffer takes it over and closes it when done.
++                 */
++                if ((ret == XML_ERR_OK) &&
++                    (buf->closecallback == xmlFdFree))
++                    buf->closecallback = xmlFdClose;
++                else
++                    close(fd);
++#else
+                 close(fd);
++#endif
+                 break;
+             } else if (ret != XML_IO_ENOENT) {
+                 break;

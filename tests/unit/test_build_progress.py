@@ -32,9 +32,11 @@ STEPS = (
     "20_cpython",
     "30_zlib",
     "35_stdlib_libs",
+    "36_xml_libs",
     "37_plot_libs",
     "40_numpy",
     "50_pandas",
+    "54_lxml",
     "55_matplotlib",
     "60_link",
     "70_zip",
@@ -338,7 +340,7 @@ def fold(text: str, cols: int) -> list[str]:
     return rows
 
 
-def go_when(tree: Tree, step: str, k: int, n: int = 13, also: str = ""):
+def go_when(tree: Tree, step: str, k: int, n: int = 15, also: str = ""):
     """Create go/<step> once a frame names the step, its [k/n] and `also`."""
     want = f"[{k}/{n}] {step} "
 
@@ -403,10 +405,10 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
     tree.reset_clock()
 
     code, raw = tree.pty(
-        shell=sh, env=tree.env(lang), cols=cols, react=go_when(tree, "40_numpy", 7)
+        shell=sh, env=tree.env(lang), cols=cols, react=go_when(tree, "40_numpy", 8)
     )
     drawn = frames(raw)
-    assert (tree.root / "go" / "40_numpy").exists(), "no frame named 40_numpy and [7/13]"
+    assert (tree.root / "go" / "40_numpy").exists(), "no frame named 40_numpy and [8/15]"
     assert code == plain.returncode == (1 if fails else 0), plain.stdout
     assert screen(raw, cols) == fold(plain.stdout, cols)
     assert all(len(f) <= cols - 1 for f in drawn), [f for f in drawn if len(f) >= cols]
@@ -417,7 +419,7 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
     else:
         assert spinners <= set("|/-\\"), spinners
         assert all(f.isascii() for f in drawn)
-    numpy = [f for f in drawn if "[7/13] 40_numpy " in f]
+    numpy = [f for f in drawn if "[8/15] 40_numpy " in f]
     if timings:
         assert any(" / ~" in f for f in numpy), numpy
         if cols == 80:
@@ -478,7 +480,7 @@ def test_ctrl_c_interrupts_the_step_and_leaves_nothing(work, shell) -> None:
     sent = []
 
     def react(p: Pty) -> None:
-        if not sent and any("[7/13] 40_numpy " in f for f in frames(p.data)):
+        if not sent and any("[8/15] 40_numpy " in f for f in frames(p.data)):
             sent.append(os.write(p.master, b"\x03"))
 
     p = Pty([SHELLS[shell], str(tree.root / "scripts/build.sh")], tree.env(), tree.root, 80)
@@ -500,7 +502,7 @@ def test_term_waits_for_the_step_then_stops_before_the_next(work, shell) -> None
 
     def react(p: Pty) -> None:
         go = tree.root / "go" / "40_numpy"
-        if not go.exists() and any("[7/13] 40_numpy " in f for f in frames(p.data)):
+        if not go.exists() and any("[8/15] 40_numpy " in f for f in frames(p.data)):
             p.proc.send_signal(signal.SIGTERM)  # to build.sh alone, not its process group
             go.touch()
 
@@ -513,7 +515,9 @@ def test_term_waits_for_the_step_then_stops_before_the_next(work, shell) -> None
     assert tree.timings()[-1][1:] == ["50_pandas", "interrupted", "0"]
     resumed = tree.plain("--resume")
     oks = [x.split(":")[0][3:] for x in resumed.stdout.splitlines() if x.startswith("ok ")]
-    assert resumed.returncode == 0 and oks == list(STEPS[7:]), resumed.stdout
+    assert resumed.returncode == 0 and oks == list(STEPS[STEPS.index("50_pandas") :]), (
+        resumed.stdout
+    )
 
 
 def test_term_during_the_last_step_ends_without_a_summary(work) -> None:
@@ -523,7 +527,7 @@ def test_term_during_the_last_step_ends_without_a_summary(work) -> None:
 
     def react(p: Pty) -> None:
         go = tree.root / "go" / "90_artifacts"
-        if not go.exists() and any("[13/13] 90_artifacts " in f for f in frames(p.data)):
+        if not go.exists() and any("[15/15] 90_artifacts " in f for f in frames(p.data)):
             p.proc.send_signal(signal.SIGTERM)
             go.touch()
 
@@ -553,7 +557,7 @@ def test_the_ticker_ends_itself_when_the_build_is_gone(work) -> None:
     drawn_before: list[int] = []
 
     def react(p: Pty) -> None:
-        if not drawn_before and any("[7/13] 40_numpy " in f for f in frames(p.data)):
+        if not drawn_before and any("[8/15] 40_numpy " in f for f in frames(p.data)):
             os.kill(int((tree.root / "build.pid").read_text()), signal.SIGKILL)
             drawn_before.append(len(frames(p.data)))
             (tree.root / "go" / "40_numpy").touch()
@@ -575,7 +579,7 @@ def test_a_renderer_failure_stops_the_ticker_too(work) -> None:
     code, raw = tree.pty(react=go_when(tree, "00_download", 1))
     assert (tree.root / "go" / "00_download").exists(), "no frame before the failure"
     assert code != 0
-    assert not any("[1/13]" in row for row in screen(raw, 80)), screen(raw, 80)
+    assert not any("[1/15]" in row for row in screen(raw, 80)), screen(raw, 80)
 
 
 # --------------------------------------------------------------------------------------------
@@ -787,8 +791,8 @@ def test_a_whole_build_ends_with_its_summary(work) -> None:
         )
     }
     total = (2 * len(STEPS) + 1) * CLOCK_STEP  # the summary's reading less the build's first
-    assert lines[14:] == [
-        f"done: 13 steps in {total // 60}m{total % 60:02d}s; the artifact set is in "
+    assert lines[16:] == [
+        f"done: 15 steps in {total // 60}m{total % 60:02d}s; the artifact set is in "
         "build/artifacts/",
         f"  python.wasm 4 bytes  {sums['python.wasm']}",
         f"  python-snapshot.wasm 9 bytes  {sums['python-snapshot.wasm']}",
@@ -864,7 +868,7 @@ def test_list_cuts_the_real_descriptions_at_a_word(work) -> None:
 def test_from_runs_that_step_and_every_later_one(work) -> None:
     _needs_sh()
     out = Tree(work).plain("--from", "60")
-    assert out.returncode == 0 and _oks(out.stdout) == list(STEPS[9:])
+    assert out.returncode == 0 and _oks(out.stdout) == list(STEPS[STEPS.index("60_link") :])
 
 
 def test_resume_runs_from_the_last_failure_or_says_nothing(work) -> None:
@@ -875,7 +879,9 @@ def test_resume_runs_from_the_last_failure_or_says_nothing(work) -> None:
     assert tree.timings()[-1][1:3] == ["40_numpy", "error"]
     tree.step("40_numpy")
     out = tree.plain("--resume")
-    assert out.returncode == 0 and _oks(out.stdout) == list(STEPS[6:]), out.stdout
+    assert out.returncode == 0 and _oks(out.stdout) == list(STEPS[STEPS.index("40_numpy") :]), (
+        out.stdout
+    )
     again = tree.plain("--resume")
     assert again.returncode == 2 and again.stdout.splitlines()[-1] == "nothing to resume"
 

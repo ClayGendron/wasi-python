@@ -69,6 +69,10 @@ LICENCE_COMPONENTS = (
     "pyparsing",
     "packaging",
     "fonttools",
+    # lxml (spec 046, Decision 15)
+    "libxml2",
+    "libxslt",
+    "lxml",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -94,6 +98,9 @@ PACKAGES = (
     "pyparsing",
     "packaging",
     "fonttools",
+    "libxml2",
+    "libxslt",
+    "lxml",
 )
 
 # The judge: every file that decides a check's outcome or steers pytest (spec 002, Decision 14).
@@ -434,21 +441,28 @@ def _top_level_licence(archive: Path) -> bytes | None:
 
 # Licence text a notice must hold besides the top-level file, read from the same pinned archive
 # (spec 007's build review, finding 7): xz's library is under 0BSD, and SQLite's notice is the
-# blessing at the head of sqlite3.h.
+# blessing at the head of sqlite3.h. libxml2's and libxslt's terms are in a top-level file named
+# `Copyright`, which the top-level search does not match (spec 046, Decision 15).
 BLESSING = b"The author disclaims copyright to this source code."
+MORE_LICENCE = {
+    "xz": "COPYING.0BSD",
+    "sqlite": "sqlite3.h",
+    "libxml2": "Copyright",
+    "libxslt": "Copyright",
+}
 
 
 def _more_licence(component: str, archive: Path) -> list[bytes]:
-    if component not in ("xz", "sqlite") or archive.suffix in (".whl", ".zip"):
+    if component not in MORE_LICENCE or archive.suffix in (".whl", ".zip"):
         return []
-    want = "COPYING.0BSD" if component == "xz" else "sqlite3.h"
+    want = MORE_LICENCE[component]
     with tarfile.open(archive) as t:
         for member in t:
             parts = member.name.split("/")
             if len(parts) == 2 and member.isfile() and parts[1] == want:
                 f = t.extractfile(member)
                 data = f.read() if f else b""
-                if component == "xz":
+                if component != "sqlite":
                     return [data]
                 return [BLESSING] if BLESSING in data else []
     return []

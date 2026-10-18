@@ -202,3 +202,25 @@ SDK_HOST_BUILDER_PATHS = ("/Users/runner/work/wasi-sdk",)
 def sdk_builder_path_errors(binary: Path) -> list[str]:
     data = binary.read_bytes()
     return [f"{binary.name}: holds {p}" for p in SDK_HOST_BUILDER_PATHS if p.encode() in data]
+
+
+def build_folders(repo: Path, home: Path) -> list[str]:
+    """The folders a binary must not name (spec 046, Decision 10): the checkout, and the build
+    user's home folder when it is deep enough to be distinctive (`/Users/<name>`, `/home/<name>`;
+    a container's `/root` is two bytes from common strings, and the checkout check covers it)."""
+    folders = [str(repo)]
+    if len(home.parts) >= 3:
+        folders.append(str(home))
+    return folders
+
+
+def build_path_errors(binary: Path, folders: list[str]) -> list[str]:
+    """Each folder whose path the binary holds, with how many times: the binary-side twin of
+    `host_fact_errors`. A compiled-in `-D` path (libxml2's default catalog, built from configure's
+    `--prefix`) or an `assert`'s `__FILE__` names the builder's disk and ties the bytes to it."""
+    data = binary.read_bytes()
+    return [
+        f"{binary.name}: holds {f!r} {data.count(f.encode())} times"
+        for f in folders
+        if f.encode() in data
+    ]

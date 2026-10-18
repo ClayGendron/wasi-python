@@ -64,6 +64,44 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 - **Changed:** a new, tighter default (spec 060; spec 049, Decision 8, exception 1): a call that
   sends more than 16 MiB of tool requests passes a larger `max_tool_request_bytes`, or `None`.
 
+- **lxml, with libxml2 and libxslt built in** (spec 046). lxml 6.1.3's `lxml.etree` and
+  `lxml.objectify` are builtins, over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath,
+  XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser,
+  `iterparse`, and files read and written by path inside a grant. lxml's Python package
+  (`lxml.html`, `lxml.builder`, `lxml.sax`, `ElementInclude`, `lxml.html.diff`) is in the zip with
+  its METADATA. pandas' `read_html` with no `flavor` now works (lxml is its first flavor), and so
+  do `read_xml` and `to_xml` with their default parser. The judge's golden job `lxml_xml` equals
+  native lxml at the same pins. What differs from native, as the README says:
+  - **Character encodings are wasi-libc's iconv**, not GNU libiconv: windows-1252, ISO-8859-2
+    and -15, cp1251, KOI8-R, TIS-620 and UTF-16 round-trip every character; Shift_JIS,
+    ISO-2022-JP and GB2312 read a few characters as other characters; cp932, EUC-JP, Big5 and
+    cp950 documents fail to parse; most CJK writes raise `LookupError`. **GB18030 is refused**
+    ("Unsupported encoding"), because wasi-libc decodes 1,617 of its characters wrongly without
+    an error: `recipes/iconv_refusals.c`, linked into the reactor with
+    `-Wl,--wrap=iconv_open`, until a wasi-sdk carries musl's fix
+    (`context/upstream/15-wasi-libc-gb18030-decoder/`). The README gives the workaround: decode
+    with Python's codec, parse the UTF-8.
+  - **XSLT reads and writes files by default.** A stylesheet without an `access_control`, or a
+    document it loads with `document()`, can read any file in a grant (external entities
+    included) and write into any writable grant; use `etree.XSLTAccessControl.DENY_ALL` for
+    untrusted stylesheets. lxml's parser defaults stay the safe ones.
+  - **Left out:** `lxml.isoschematron` (it reads its stylesheets by file path, and their terms
+    are not approved; a stand-in raises `ImportError`; `etree.Schematron` works), zlib in
+    libxml2 (`XMLParser(decompress=True)` raises; lxml compresses output through Python's
+    `gzip`), `cssselect` and `lxml_html_clean`. A catalog is read only from a grant at `/etc/xml`.
+  - **One more carried patch:**
+    `recipes/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.patch` lets libxml2's file
+    input and output work without `dup()`, which WASI preview 1 does not have (without it
+    libxml2 does not compile for `wasm32-wasip1`). Its facts sheet for the owner:
+    `context/upstream/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.md`.
+  - **The build:** two new steps, 36 (libxml2 and libxslt, by their own configure, under an empty
+    environment, with the pinned `pkgconf` and an empty search path) and 54 (lxml's two modules,
+    from the Cython 3.2.9 C its sdist ships); three new pins. libxml2's default catalog is
+    native Linux's `/etc/xml/catalog`, not a build folder, and a new judge check holds every
+    later package to the same rule: neither binary names the checkout or the builder's home.
+  - **Licences:** `LICENSES/libxml2.txt` (with the notices of `dict.c`, `list.c` and
+    `timsort.h`), `LICENSES/libxslt.txt` and `LICENSES/lxml.txt`.
+
 - **matplotlib, the first milestone** (spec 023). matplotlib 3.11.2 is built in: `import
   matplotlib; matplotlib.use("agg")`, `plt.plot(...)` and `savefig` to PNG, PDF, PS, EPS or SVG
   in a granted folder. A fixed line plot's RGBA buffer equals native matplotlib's at the same pins,

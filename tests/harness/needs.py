@@ -143,6 +143,9 @@ SOURCE_COMPONENTS = (
     "pillow",
     "kiwisolver",
     "matplotlib",
+    "libxml2",
+    "libxslt",
+    "lxml",
 )
 
 VOCABULARY: dict[str, Need] = {

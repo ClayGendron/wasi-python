@@ -47,6 +47,10 @@ PACKAGES = {
     "pyparsing": "3.3.3",
     "packaging": "26.3",
     "fonttools": "4.67.0",
+    # lxml (spec 046): the package and its two C libraries, linked in.
+    "libxml2": "2.15.4",
+    "libxslt": "1.1.45",
+    "lxml": "6.1.3",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -85,6 +89,26 @@ MPL_NOTICES = (
     "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU",
     "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_STIX",
     "lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+)
+# libxml2's own notices beside its Copyright file (spec 046, Decision 15): the two files Copyright
+# names as its exceptions, each under an ISC-style grant of its own, and timsort.h's MIT notice.
+# Each is the comment at the file's head that holds these words; a file missing, or a notice not
+# where it was, stops the build.
+LIBXML2_NOTICES = (
+    ("dict.c", ("Copyright (C) 2003-2012 Daniel Veillard.", "Permission to use, copy, modify")),
+    (
+        "list.c",
+        ("Copyright (C) 2000 Gary Pennington and Daniel Veillard.", "Permission to use, copy"),
+    ),
+    ("timsort.h", ("The MIT License (MIT)", "Copyright (c) 2010-2017 Christopher Swenson.")),
+)
+# lxml's terms (spec 046, Decision 15): its licence, its list of the licences in its wheels (which
+# bundle GNU libiconv and zlib; this build links neither), and the BSD and ElementTree texts.
+LXML_NOTICES = (
+    "LICENSE.txt",
+    "LICENSES.txt",
+    "doc/licenses/BSD.txt",
+    "doc/licenses/elementtree.txt",
 )
 PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
@@ -167,6 +191,24 @@ def sqlite_notice(b: Path) -> bytes:
     return (text[: end + 2] + "\n").encode()
 
 
+def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
+    """The first of a C file's two leading comments that holds every one of `words`."""
+    if not path.is_file():
+        raise SystemExit(f"{path.name} is missing: its licence notice cannot be read")
+    text = path.read_text()
+    start = 0
+    for _ in range(2):
+        begin = text.find("/*", start)
+        end = text.find("*/", begin)
+        if begin < 0 or end < 0:
+            break
+        comment = text[begin : end + 2]
+        if all(w in comment for w in words):
+            return (comment + "\n").encode()
+        start = end + 2
+    raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
+
+
 def main() -> None:
     root = Path(sys.argv[1]).resolve()
     b, d = root / "build", root / "downloads"
@@ -236,6 +278,13 @@ def main() -> None:
         + [(f"matplotlib {n}", (b / "matplotlib-3.11.2" / n).read_bytes()) for n in MPL_NOTICES],
         "pillow": [("Pillow LICENSE", (b / "pillow-13.0.0" / "LICENSE").read_bytes())],
         "kiwisolver": [("kiwisolver LICENSE", (b / "kiwisolver-1.5.1" / "LICENSE").read_bytes())],
+        "libxml2": [("libxml2 Copyright", (b / "libxml2-2.15.4" / "Copyright").read_bytes())]
+        + [
+            (f"libxml2 {n}, its head comment", head_notice(b / "libxml2-2.15.4" / n, words))
+            for n, words in LIBXML2_NOTICES
+        ],
+        "libxslt": [("libxslt Copyright", (b / "libxslt-1.1.45" / "Copyright").read_bytes())],
+        "lxml": [(f"lxml {n}", (b / "lxml-6.1.3" / n).read_bytes()) for n in LXML_NOTICES],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],

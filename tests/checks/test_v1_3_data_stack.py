@@ -301,6 +301,7 @@ DISTRIBUTIONS = (
     "cycler",
     "fonttools",
     "kiwisolver",
+    "lxml",
     "matplotlib",
     "numpy",
     "packaging",
@@ -310,7 +311,7 @@ DISTRIBUTIONS = (
     "python-dateutil",
     "six",
     "tzdata",
-)  # matplotlib and its distributions: spec 023
+)  # matplotlib and its distributions: spec 023; lxml: spec 046
 
 METADATA = """
 import json, re

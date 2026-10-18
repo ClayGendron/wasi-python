@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 5, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 6, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 13 s (macOS arm64, 10 cores, with matplotlib's two steps; spec 023's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 36.9 MB / 70.9 MB / 21.9 MB (3.15 line, with matplotlib; spec 023's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -51,8 +51,8 @@ promises.
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 
-The platform's facts, documented rather than patched (with five carried patches,
-below and under *matplotlib in the guest*), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with six carried patches,
+below and under *matplotlib in the guest* and *lxml in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
 
@@ -209,6 +209,76 @@ README is the wheel's description:
 > Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org).
 > All rights reserved.
 
+### lxml in the guest
+
+lxml 6.1.3 is built in (spec 046): `lxml.etree` and `lxml.objectify` are builtin modules over
+libxml2 2.15.4 and libxslt 1.1.45 with libexslt, and lxml's Python package (`lxml.html`,
+`lxml.builder`, `lxml.sax`, `ElementInclude`) is in the zip. XPath, XSLT, XInclude, C14N, DTD,
+XML Schema, RELAX NG and Schematron validation, the HTML parser and `iterparse` give native
+lxml's answers at the same pins (the judge's golden job `lxml_xml`). Files are read and written
+by path inside a grant. pandas' `read_html` with no `flavor` uses lxml, and `read_xml` and
+`to_xml` use it by default. Native lxml's wheels carry an older libxml2 (2.14.6), so two
+outputs differ from them: XSLT's `method="html"` writes `<meta charset="UTF-8">` (2.15's form),
+and error messages may name other columns.
+
+**XSLT reads and writes files by default.** A stylesheet given no `access_control` may load
+documents (`document()`, `xsl:include`, `xsl:import`) and write them (`exsl:document`), and
+libxslt loads each document it reads with its own parse options, which resolve external
+entities whatever lxml's parser says. So **an untrusted stylesheet, or an untrusted document a
+stylesheet loads, can read any file in a grant, external entities included, and write into any
+writable grant.** Give untrusted stylesheets, and trusted ones that load untrusted documents,
+`etree.XSLT(sheet, access_control=etree.XSLTAccessControl.DENY_ALL)` (or `read_file=False`,
+`write_file=False`): the read or write then raises "read rights … denied" or "write rights …
+denied". pandas' `read_xml(…, stylesheet=…)` applies its stylesheet with no access control. The
+sandbox keeps all of this inside the grants (no network, nothing outside a grant, nothing
+written to a read-only one), but does not make untrusted input safe to transform; libxml2's own
+README advises against untrusted input too. lxml's parser keeps its safe defaults: external
+entities are not resolved, there is no network, DTDs are not loaded, and entity expansion is
+capped.
+
+**Character encodings are wasi-libc's**, not GNU libiconv's (which native wheels bundle; it is
+LGPL). Measured over each encoding's whole repertoire in the Basic Multilingual Plane, one
+element per character:
+
+| encoding | parse | write |
+|---|---|---|
+| windows-1252, ISO-8859-2, ISO-8859-15, cp1251, KOI8-R, TIS-620, UTF-16 | every character | every character, native's bytes |
+| Shift_JIS | 3 of 6,944 read as another character | the same 3 |
+| ISO-2022-JP | 1 of 6,881 read as another character | the same 1 |
+| GB2312 | 2 of 7,445 read as another character | `LookupError` |
+| GBK, cp949 | every character | `LookupError` |
+| EUC-KR | as native (8,226 of the 17,048 characters Python encodes) | `LookupError` |
+| cp932 | the document fails ("Invalid bytes": NEC row 13 and IBM extensions) | 460 characters differ |
+| EUC-JP | the document fails (JIS X 0212 characters) | 6,069 characters differ |
+| Big5, cp950 | the document fails, as natively | `LookupError` |
+| GB18030 | **refused**: "Unsupported encoding: gb18030" | `LookupError` |
+
+The characters read as others are mapping conventions, not damage: Shift_JIS `5C` and `7E` read
+as `\` and `~` (native: `¥` and `‾`), Shift_JIS `81 5F` and ISO-2022-JP's fullwidth reverse
+solidus as `\`, GB2312 `A1 AA` and `A1 A4` as `—` (U+2014) and `·` (U+00B7) (native: U+2015 and
+U+30FB). GB18030 is refused on purpose: wasi-libc decodes 1,617 of its characters as other
+characters without an error, so its `iconv_open` is wrapped to refuse it
+(`recipes/iconv_refusals.c`) until a wasi-sdk carries musl's fix. **The workaround** for every
+partial row is Python's own codecs, which are complete. To read, decode the bytes and parse the
+UTF-8: `etree.fromstring(data.decode("cp932").encode("utf-8"), etree.XMLParser(encoding="utf-8"))`,
+or parse a `str` with no encoding declaration. To write, serialize with `encoding="unicode"` and
+encode the `str` with Python.
+
+Left out, or different, on purpose:
+
+- **`lxml.isoschematron`** reads its stylesheets by file path, which fails from the zip, and their
+  licence terms are not approved: `import lxml.isoschematron` raises `ImportError`. libxml2's own
+  Schematron, `etree.Schematron`, works.
+- **No zlib in libxml2**: `XMLParser(decompress=True)` on a gzip file raises `XMLSyntaxError`;
+  decompress with Python's `gzip` first. Writing compressed (`write(…, compression=6)`) works:
+  lxml compresses through Python's `gzip`.
+- **Catalogs**: libxml2's default catalog is `/etc/xml/catalog`, read only if the embedder grants
+  a folder at `/etc/xml` (or sets `XML_CATALOG_FILES` in the guest's environment).
+- **Not shipped**: `cssselect` and `lxml_html_clean`, so `lxml.cssselect` and `lxml.html.clean`
+  raise lxml's own `ImportError`, as natively without them.
+- lxml's `LICENSES.txt` (in `LICENSES/lxml.txt`) describes its wheels, which bundle GNU libiconv
+  and zlib; this build links neither.
+
 ## Hosts
 
 The binaries use WebAssembly's exception-handling proposal in its standard
@@ -236,13 +306,13 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: five today, numpy's `.npy` fix and its callback
-signatures, matplotlib's enum fix from upstream, and Pillow's and kiwisolver's callback
-signatures):
+recorded patches (`recipes/patches/`: six today, numpy's `.npy` fix and its callback
+signatures, matplotlib's enum fix from upstream, Pillow's and kiwisolver's callback
+signatures, and libxml2's file input without `dup()`):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, thirteen steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, fifteen steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -282,7 +352,9 @@ The steps (`scripts/steps/`): unpack the toolchain and a pinned host Python
 hashed wheels, offline; build CPython with its own `Platforms/WASI` driver;
 build zlib, numpy and pandas outside their source trees, cross-compiling with
 meson, and the C libraries behind `bz2`, `lzma` and `sqlite3` (bzip2, liblzma
-from xz with xz's own `configure`, and SQLite's one-file amalgamation); link everything into one interpreter as builtin modules and relink it
+from xz with xz's own `configure`, and SQLite's one-file amalgamation); build libxml2
+and libxslt with their own `configure`s and compile lxml's two modules from the C its sdist
+ships; link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
 the reactor with the pinned wasmtime's own `wasmtime wizer`, numpy and pandas
 pre-imported; assemble
@@ -2400,7 +2472,9 @@ reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts
 pdb, as native pdb does (a fresh root closes it); a script or module the caller names to run
-from a reused root; concurrent calls on one root, or a guest that can write a folder above
+from a reused root; an lxml XSLT stylesheet given no `access_control`, or a document it loads,
+which can read any file in the call's grants, external entities included, and write into its
+writable grants (use `XSLTAccessControl.DENY_ALL`; see *lxml in the guest*); concurrent calls on one root, or a guest that can write a folder above
 another call's root (it can hard-link or change the files that call uses,
 and make that call's `run` raise `ValueError`, `RuntimeError`,
 `WasmtimeError` or `OSError`; nothing outside the grants changes); a guest that waits

@@ -43,6 +43,9 @@ PIN_FILES = {
     "pyparsing-3.3.3-py3-none-any.whl": b"pyparsing pin",
     "packaging-26.3-py3-none-any.whl": b"packaging pin",
     "fonttools-4.67.0-py3-none-any.whl": b"fonttools pin",
+    "libxml2-2.15.4.tar.xz": b"libxml2 pin",
+    "libxslt-1.1.45.tar.xz": b"libxslt pin",
+    "lxml-6.1.3.tar.gz": b"lxml pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -70,6 +73,9 @@ PACKAGES = {
     "pyparsing": "3.3.3",
     "packaging": "26.3",
     "fonttools": "4.67.0",
+    "libxml2": "2.15.4",
+    "libxslt": "1.1.45",
+    "lxml": "6.1.3",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -128,6 +134,22 @@ def test_a_good_set_passes_every_rule(good) -> None:
     assert paths.manifest_recipe_errors(m, TREE) == []
     assert rules.stdlib_zip_errors(good / "python-stdlib.zip") == []
     assert rules.shared_library_errors(good / "python-stdlib.zip") == []
+
+
+def test_build_paths_are_named_in_a_binary(work) -> None:
+    """Spec 046, Decision 10: a binary holding the checkout's path or the home folder is named,
+    with how many times; a shallow home folder is not searched for."""
+    b = work / "python.wasm"
+    b.write_bytes(b"\0file:///w/repo/build/xml-libs/etc/xml/catalog\0/home/u/x\0/w/repo/a\0")
+    folders = rules.build_folders(Path("/w/repo"), Path("/home/u"))
+    assert folders == ["/w/repo", "/home/u"]
+    assert rules.build_path_errors(b, folders) == [
+        "python.wasm: holds '/w/repo' 2 times",
+        "python.wasm: holds '/home/u' 1 times",
+    ]
+    assert rules.build_folders(Path("/w/repo"), Path("/root")) == ["/w/repo"]
+    b.write_bytes(b"\0file:///etc/xml/catalog\0")
+    assert rules.build_path_errors(b, folders) == []
 
 
 def test_completeness_names_each_missing_file(good) -> None:

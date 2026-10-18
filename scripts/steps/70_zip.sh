@@ -14,7 +14,9 @@
 # Pillow's, kiwisolver's and matplotlib's Python files from step 55, the four pure wheels, and their
 # METADATA; matplotlib's backends but the ten a plot and its saves can use, its testing and
 # sphinxext folders, and every tests/ folder stay out; its mpl-data goes in as one member, an inner
-# archive the runner extracts and grants at the path matplotlib computes (Decision 5).
+# archive the runner extracts and grants at the path matplotlib computes (Decision 5). lxml (spec
+# 046): its Python package from step 54 without isoschematron, whose stand-in takes its place
+# (Decision 8), and its METADATA from the pinned sdist.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -24,6 +26,7 @@ SYSCONFIG="$W/build/lib.wasi-wasm32-$PYTHON_MM/_sysconfigdata__wasi_wasm32-wasi.
 for pkg in pillow kiwisolver matplotlib; do
   [ -d "$B/plot-install/$pkg" ] || die "build/plot-install/$pkg is missing: run step 55"
 done
+[ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -47,6 +50,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/plot-install/pillow" \
   --tree "$B/plot-install/kiwisolver" \
   --tree "$B/plot-install/matplotlib" \
+  --tree "$B/lxml-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -59,6 +63,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
   --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
   --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
+  --metadata "$B/lxml-6.1.3/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -68,6 +73,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/ctypes_stand_in/_types.py=ctypes/_types.py" \
   --file "$HERE/recipes/ctypes_stand_in/util.py=ctypes/util.py" \
   --file "$HERE/recipes/mmap_stub.py=mmap.py" \
+  --file "$HERE/recipes/lxml_isoschematron_stand_in.py=lxml/isoschematron.py" \
   --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
   --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \
