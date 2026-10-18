@@ -1,6 +1,8 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** revised against its build review 2026-10-18 (`049-the-public-api-is-frozen-2026-10-18.md`, verdict "lands once F1 and F2 are fixed; F3 to F6 fixed or answered in writing"; all six fixed, see the landing notes' "Revised against the build review"); awaiting the reviewer's confirmation. Built 2026-10-18 in the worktree `wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c` (034 landed). Before that: confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
+- **Status:** **landed 2026-10-18** (accepted on `323ad21` as `6d6dfc5`; the build review,
+  `../reviews/049-the-public-api-is-frozen-2026-10-18.md`, confirmed it and its rebase; see the
+  Landing notes' last part). Before landing: revised against its build review 2026-10-18 (`049-the-public-api-is-frozen-2026-10-18.md`, verdict "lands once F1 and F2 are fixed; F3 to F6 fixed or answered in writing"; all six fixed, see the landing notes' "Revised against the build review"); awaiting the reviewer's confirmation. Built 2026-10-18 in the worktree `wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c` (034 landed). Before that: confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
   (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
   F1 to F7 are written in) and revised against all thirteen findings (the review's
   Disposition says where each went), and confirmed. It changes neither
@@ -1014,3 +1016,16 @@ the lane at `build/sets/s-c4190ca065ada03a`. That set's `SHA256SUMS` equals
 - The 42 blocked checks are this worktree's own. It has no numpy or pandas source tree for
   spec 050's upstream checks (33), plus the 9 blocked before.
 - `ruff check` and `ruff format --check` are clean.
+
+**Landed 2026-10-18** through the lane. The build review's Confirmation ("confirmed, it lands",
+with N1 fixed in `b015484`) and its "Rebase check (2026-10-18)" of the builder's rebase onto main
+`90e46cb` (specs 035 and 056, 0.1.0a4 released; tools.py's one conflicting hunk kept 056's
+`_proceed` exactly, the reviewer comparing syntax trees; the CHANGELOG entry moved into 0.1.0a5)
+are in `../reviews/049-the-public-api-is-frozen-2026-10-18.md`. The lane rebased once more onto
+main `73fb50b` (spec 055's documents only); `git range-diff` shows all fourteen commits
+unchanged (`=`). The review was committed on the detached HEAD as `323ad21`. The full judge there,
+on spec 035's artifact set: `wasi_python v1: 329/343 pass · 12 gap · 2 blocked · 0 fail (unit
+suite 1062/1064, 2 skipped)`, `ratchet vs 323ad21aa5: lost 0 · absent 0 · unrun 0 · gained 0 ·
+grew 0` after acceptance, `1391 passed, 4 skipped, 12 xfailed in 619.72s` (EXECUTED,
+`build/lane-049-accept.log`). Accepted with `--accept-judge` as `6d6dfc5` (history line 53); the
+rules tier passed (24/24); main fast-forwarded.
