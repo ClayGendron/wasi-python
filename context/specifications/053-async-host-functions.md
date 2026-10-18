@@ -1,6 +1,6 @@
 # 053 — Async host functions
 
-- **Status:** **built 2026-10-18; build-reviewed the same day ("lands once F1 is fixed"); F1 fixed and N1 to N3 answered (Landing notes, "Revised against the build review"); awaiting the reviewer's confirmation.** Drafted
+- **Status:** **landed 2026-10-18** (accepted on `13934b0` as `8185e5f`; the build review, `../reviews/053-async-host-functions-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; build-reviewed the same day ("lands once F1 is fixed"); F1 fixed and N1 to N3 answered (Landing notes, "Revised against the build review"); confirmed. Drafted
   2026-10-18; reviewed before build the same day
   (`../reviews/053-async-host-functions-spec-2026-10-18.md`, written in the lane's evidence
   folder, `build/reviews-evidence/053-review/`, and copied in by the lane; verdict: "ready once
@@ -1234,3 +1234,18 @@ and copied in by the lane) said "lands once F1 is fixed". Its disposition, each 
   unrun locally 8 · gained 10 · grew 0`, `1389 passed, 18 skipped, 39 deselected`.
 - The full judge was not re-run for this one-file fix. The lane judges the exact commit it
   accepts.
+
+**Landed 2026-10-18** through the lane, after the 0.1.0a5 tag. The lane rebased the branch onto
+main `99097b6` (0.1.0a5 tagged, the version bumped to 0.1.0a6) with no conflict; its code diff
+equals the reviewed diff at `e07630f` line for line (EXECUTED, `build/lane-053-rebased.diff`
+against `build/reviews-evidence/053-buildreview/reviewed-e07630f.diff`). One lane commit,
+`4e8b32a`, moves the CHANGELOG entry from the dated 0.1.0a5 section to 0.1.0a6 (the notes above
+that name `0.1.0a5 — unreleased` predate the tag). Its pre-build review
+(`../reviews/053-async-host-functions-spec-2026-10-18.md`) and its build review
+(`../reviews/053-async-host-functions-2026-10-18.md`: "lands once F1 is fixed", then "confirmed,
+it lands") were committed on the detached HEAD as `13934b0`. The full judge there, on spec 035's
+artifact set: `wasi_python v1: 350/364 pass · 12 gap · 2 blocked · 0 fail (unit suite 1083/1085,
+2 skipped)`, `ratchet vs 13934b0770: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after
+acceptance, `1433 passed, 4 skipped, 12 xfailed in 517.02s` (EXECUTED, `build/lane-053-accept.log`).
+Accepted with `--accept-judge` as `8185e5f` (history line 56); the rules tier passed (24/24); main
+fast-forwarded. Owner question 90 (batched tool calls, after 0.1.0) stays open; nothing waits on it.
