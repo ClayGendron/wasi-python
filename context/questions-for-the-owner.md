@@ -32,6 +32,23 @@ document.
 - **Meanwhile:** the agent specifies and builds 030, 031 and 032 as 0.1.0 work, and leaves the
   rest unspecified. Answering otherwise moves them out; nothing built is lost.
 
+### 50 to 53. The tool protocol's defaults (spec 031)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** spec 031, Decisions 6, 8 and 9. Each is
+  decided in the spec as written below, so nothing waits; the owner may change any of them before
+  or after it is built.
+- **50. A schema keyword the runner does not check** (the tool memo's question 3): refused
+  unless the tool says `validates_input=True`, reading decision 39's "validated first" strictly.
+  The alternative checks the subset and skips the rest silently.
+- **51. The discovery frame counts toward `max_tool_calls`,** so `max_tool_calls=4` allows three
+  tool calls. The alternative counts only `call` frames.
+- **52. At the limit the guest gets `ToolBudgetExceeded` and runs on,** so its code can handle
+  it. Decision 42 stops the run at the filesystem provider's limit instead; the two could be made
+  the same.
+- **53. No per-call default timeout beyond the run's deadline.** The memo proposed 30 s per
+  call. With `deadline_s=None` a hung tool holds the run until `cancel`, which is the embedder's
+  explicit choice of no limit.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
