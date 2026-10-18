@@ -21,10 +21,13 @@ referenced entry, so bytes that happen to look like an entry just before a table
 Members go first because a member array also reads as a getset array (its type code taken for
 a getter's table index). The cost: a getset array whose getters all sit at table indices 1 to 20
 with no doc would read as members. In the linked binary those twenty are CPython's parser rules
-(READ, spec 051's build), never a getter. For the same reason a single definition whose function
-sits at one of them is not read as a method (spec 023's build): FreeType's BDF property table
-begins `{"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at,
-which read as `{name, table index 1, METH_VARARGS, no doc}`.
+(READ, spec 051's build), never a getter. A single definition whose function sits at one of them is
+not read as a method (spec 023's build): FreeType's BDF property table begins `{"ADD_STYLE_NAME",
+BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at, which read as `{name, table
+index 1, METH_VARARGS, no doc}`. That rests on link order, so it is checked, not assumed: a single
+is skipped only when the name section names the function there as a parser rule (`*_rule` or
+`_PyPegen_*`); any other function at index 1 to 20, or a module without names, is checked as a
+method like any other (the build review, F3).
 
 Out of the scan: the `tp_*` slots of static type objects, `PyType_Slot` arrays, the number,
 sequence and mapping method structs, and C callbacks passed to C APIs (`qsort`, LAPACK).
@@ -210,6 +213,13 @@ def _tables(image, size, entry, elements, refs, taken):
     return tables
 
 
+def _parser_rule(mod: Module, index: int) -> bool:
+    """Whether the name section names the function at this table index as one of CPython's parser
+    rules."""
+    name = mod.names.get(mod.elements[index], "")
+    return name.endswith("_rule") or name.startswith("_PyPegen_")
+
+
 def _named(mod: Module, func: int) -> str:
     name = mod.names.get(func)
     return f" ({name})" if name else ""
@@ -268,7 +278,7 @@ def scan(mod: Module) -> Report:
         if e is None:
             continue
         name, meth, flags = e
-        if meth <= PARSER_RULES:
+        if meth <= PARSER_RULES and _parser_rule(mod, meth):
             continue  # a record that only looks like a PyMethodDef (the module docstring says why)
         report.coverage["singles"] += 1
         found = _check(mod, "single method", name, meth, _method_type(flags))

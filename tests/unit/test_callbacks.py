@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import struct
 
+import pytest
+
 from harness import callbacks, wasm, wat
 
 NOARGS, VARARGS, KEYWORDS = 0x4, 0x1, 0x3
@@ -160,10 +162,9 @@ def test_an_extended_constant_offset_is_recorded_not_raised(work) -> None:
     assert wasm.wall_errors(mod) == []
 
 
-def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
-    """A code-referenced record whose second word is a table index of 1 to 20 (the parser's rules
-    in a real link) is not read as a single PyMethodDef (spec 023's build: FreeType's BDF property
-    table, {"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}); the same record at index 21 is."""
+def _low_index_module(work, at_one: str):
+    """A code-referenced record pointing at table index 1, where the function `at_one` sits, and
+    the same record at index 21, where a function named `method` sits."""
     blob, at = _strings()
     rule = struct.pack("<4I", at["look"], 1, VARARGS, 0) + b"\xff" * 16
     method = struct.pack("<4I", at["single"], 21, VARARGS, 0) + b"\xff" * 16
@@ -171,26 +172,50 @@ def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
         f'  (data (i32.const {a}) "{_escape(b)}")'
         for a, b in [(STRINGS, blob), (1300, rule), (1400, method)]
     )
-    mod = wasm.parse_file(
+    return wasm.parse_file(
         wat.build(
             work,
-            "rule.wasm",
+            f"{at_one}.wasm",
             f"""
 (module
-  (func $rule (param i32) (result i32) (local.get 0))
+  (func ${at_one} (param i32) (result i32) (local.get 0))
+  (func $method (param i32) (result i32) (local.get 0))
   (func (export "make") (result i32) (drop (i32.const 1300)) (i32.const 1400))
   (table 25 funcref)
-  (elem (i32.const 1) $rule)
-  (elem (i32.const 21) $rule)
+  (elem (i32.const 1) ${at_one})
+  (elem (i32.const 21) $method)
   (memory 1)
-{data}
+{{data}}
 )
-""",
+""".replace("{data}", data),
         )
     )
-    report = callbacks.scan(mod)
-    assert callbacks.findings(report) == [
-        "single method single: table index 21 has (i32) -> (i32), "
-        "called as (i32, i32) -> (i32) (rule)"
-    ]
+
+
+METHOD_FINDING = (
+    "single method single: table index 21 has (i32) -> (i32), "
+    "called as (i32, i32) -> (i32) (method)"
+)
+
+
+def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
+    """A code-referenced record whose function, at table index 1 to 20, the name section names as
+    a parser rule is not read as a single PyMethodDef (spec 023's build: FreeType's BDF property
+    table, {"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}); the same record at index 21 is."""
+    report = callbacks.scan(_low_index_module(work, "_tmp_6_rule"))
+    assert callbacks.findings(report) == [METHOD_FINDING]
     assert report.coverage["singles"] == 1
+
+
+@pytest.mark.parametrize("at_one", ["handler", "_rule_handler"])
+def test_a_low_index_that_is_no_parser_rule_is_checked(work, at_one) -> None:
+    """The exemption is checked against the name section, never assumed from link order (the
+    build review, F3): another function at index 1 is a method like any other, and so is any
+    function there in a module whose names are gone."""
+    mod = _low_index_module(work, at_one)
+    report = callbacks.scan(mod)
+    low = "single method look: table index 1 has (i32) -> (i32), called as (i32, i32) -> (i32)"
+    assert callbacks.findings(report) == [f"{low} ({at_one})", METHOD_FINDING]
+    mod.names.clear()
+    found = callbacks.findings(callbacks.scan(mod))
+    assert low in found and len(found) == 2, found
