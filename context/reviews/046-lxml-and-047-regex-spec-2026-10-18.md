@@ -440,3 +440,81 @@ lxml and regex probes on it are unchanged from the drafting runs.
 The libxml2 and regex patches are correct and complete, but 046 bakes the build folder into
 the binary through libxml2's catalog path and overstates its encodings, and 047's name check
 needs a general fix before scipy's single-phase modules meet it.
+
+## Confirmation (2026-10-18)
+
+By the reviewer, against the revision in `e8755fe` (both specifications, the two facts-sheet
+folders and their new evidence). I re-ran what each finding could be re-run on, on a copy of the
+author's revised scratch binary (`set/rev-python.wasm`, SHA-256 `312654058c3f6b72…`, 35,936,637
+bytes: the catalog defines, `-DNDEBUG`, the GB18030 wrap, every builtin wrapped in its package
+context, regex without the header) with the drafting's scratch zip, in the same scratch folder
+as above. Nothing but this section was edited.
+
+### Each disposition against its finding
+
+1. **Holds.** EXECUTED: `strings` finds 0 matches for `/Users/`, the user's name,
+   `/private/tmp`, `scratchpad` or `/home/` in the revised binary (15 in the drafting one, as
+   `evidence/build-paths.txt` says), and the catalog string is now `file:///etc/xml/catalog`.
+   The constructor list equals today's exactly (`ctors.py`: `init`,
+   `__wasilibc_initialize_environ_eagerly`, `_mi_process_init`, `register_builtin_extensions`,
+   `_GLOBAL__sub_I_unique.cpp`); the imports are today's 43; the stack is still first. The
+   `-DNDEBUG` the revision added for lxml's and regex's compiles is what CPython's release
+   build and native wheels use, and removed the twelve CPython header paths the drafting
+   binary carried through `assert`; good catch. `test_binaries_hold_no_build_path` is in
+   Decision 10 and Acceptance 1.
+2. **Holds.** EXECUTED (`enc_breadth.py` on the revised binary): every row equals my first run
+   except GB18030, which now raises `XMLSyntaxError: Unsupported encoding: gb18030`; the output
+   equals the author's `evidence/encodings_whole_repertoire.txt` row for row. Decision 9's table,
+   its mapping notes (Shift_JIS `5C`/`7E`, GB2312 `A1 AA`/`A1 A4`), the golden's set, the
+   whole-repertoire v1.3 case and the README workaround are written in. The refusal is a recipe
+   (a link-time wrap and a small file, no upstream source changed), visible on step 60's link
+   line, and the check turns red when wasi-libc's tables change. Question 82(d) holds the
+   wasi-libc report.
+3. **Holds, the preferred way.** EXECUTED (`ctx_check.py` on the revised binary, then the same
+   program natively): all 61 dotted builtins import under their own names; the regex pickle is
+   117 bytes with SHA-256 `5dfc121b6135ce13…` in both, and `regex._regex.compile.__module__` is
+   `regex._regex`; numpy's `_multiarray_umath` and `numpy.random._pcg64` keep their names, a
+   seeded `default_rng(0)` and a pickled-and-restored `default_rng(1)` give native's numbers, a
+   pandas groupby, a DataFrame pickle round trip, `pandas._libs.lib` and a Timestamp equal
+   native, and `lxml.etree`/`lxml.objectify` keep their names. `regex_sweep.py`: no trap, same
+   output as before. Decision 4 states the wrapper, its declaration guard, what it does to
+   multi-phase and single-phase modules, and Decision 9 states the no-exemption condition on
+   whichever of 047 and 037/038 lands second.
+4. **Holds.** Decision 4 and the notes now weigh both forms in the terms I asked; `pr.md` names
+   the zlib branch's handling of standard output.
+5. **Holds.** EXECUTED on the revised binary: the `document()` entity read without access
+   control and its refusal under `DENY_ALL` and `read_file=False`, as before; Decision 7, the
+   v1.3 safety case and the README row say it.
+6. **Holds.** Decision 15 names `list.c`; `assemble_artifacts.py` stops on a missing notice.
+7. **Holds.** EXECUTED through the judge's seeded guest (`tests/harness/guest.py`, twice each,
+   identical): `-c pass` 242,002,560 today and 242,032,339 on the revised binary, +29,779 (the
+   author's absolute numbers differ by 34 from mine, a work-folder path length; the delta is the
+   same).
+8. **Holds.** An empty `PKG_CONFIG_LIBDIR` and `PKG_CONFIG_PATH` instead of `PKG_CONFIG=false`
+   is the right correction (libxml2's configure requires a `pkg-config` binary); not re-run.
+9. **Holds.** Decision 10 of 047 adds the modification line, written from the patch's path.
+10. **Holds.** The cost and budgets are stated; my 5.0 G plain and 0.105 G snapshot, and the
+    author's 5.2 G with lxml and regex (EXECUTED here: 5,227,541,312 for `ctx_check.py`, which
+    imports every dotted builtin plus numpy, pandas and lxml work), sit well inside 20 G.
+
+Also re-run on the revised binary: `fd_probe.py` (no descriptor drift, held files readable,
+standard output kept after two `write("-")`), and `safety.py` (every case as in "What holds").
+
+### Conditions
+
+- **046** is built after question 82(a) is answered, or after 038 as decision 48 says; its
+  builder measures the snapshot with the new flags (the revision rebuilt only the plain
+  reactor) and records the same-bytes result on the second host.
+- **047** carries Decision 9's condition: the name check green over every scipy builtin in
+  whichever of 047 and 037/038 lands second, never by an exemption. The builder also confirms
+  on the snapshot binary that the package-context wrappers leave the pre-imported numpy and
+  pandas as they are (the revision ran the plain reactor only).
+
+### Verdict
+
+- **046: confirmed for build**, with the conditions above.
+- **047: confirmed for build**, with the conditions above.
+
+One line: every finding is fixed in the text and the fixes reproduce on the revised binary: no
+build path, GB18030 refused loudly, all 61 builtins named as natively with numpy, pandas and
+regex giving native's results.
