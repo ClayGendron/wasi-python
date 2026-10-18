@@ -391,7 +391,9 @@ def test_runner_serves_concurrent_calls_on_one_root(guest_workdir) -> None:
 
 
 def test_package_imports_without_wasmtime() -> None:
-    """The package imports with the `run` extra absent; only run() needs wasmtime."""
+    """The package imports where wasmtime-py cannot (an embedder that installed with `--no-deps`
+    to keep its own binding, or a platform wasmtime cannot load on); only run() needs wasmtime
+    (spec 028, Decision 3)."""
     code = (
         "import sys\n"
         f"sys.path.insert(0, {str(paths.REPO / 'src')!r})\n"
@@ -402,6 +404,62 @@ def test_package_imports_without_wasmtime() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     assert out.stdout.split() == ["True"], out.stdout
+
+
+def test_a_plain_install_brings_wasmtime() -> None:
+    """`pip install wasi-python` runs programs: wasmtime-py is the one required dependency,
+    `>=49,<50` with no marker; the `run` extra stays, empty; the dev group does not repeat the
+    bound (spec 028, criterion 1). Exactly one dependency also makes §4.13 mechanical: another
+    one turns this red until a specification gives its reason."""
+    import tomllib
+
+    from packaging.requirements import Requirement
+    from packaging.specifiers import SpecifierSet
+
+    project = tomllib.loads((paths.REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    deps = project["project"].get("dependencies", [])
+    assert len(deps) == 1, deps
+    req = Requirement(deps[0])
+    assert (req.name, req.specifier, req.marker, req.extras) == (
+        "wasmtime",
+        SpecifierSet(">=49,<50"),
+        None,
+        set(),
+    ), deps
+    assert project["project"].get("optional-dependencies") == {"run": []}, project["project"]
+    dev = project.get("dependency-groups", {}).get("dev", [])
+    assert not [d for d in dev if isinstance(d, str) and Requirement(d).name == "wasmtime"], dev
+
+
+def test_a_wasmtime_that_cannot_load_is_named() -> None:
+    """A wasmtime that is installed but cannot load (its pure wheel on an unsupported platform
+    raises `RuntimeError` at import) gives `run` one error type, `ImportError`, naming the bound,
+    with wasmtime's own error as its cause (spec 028, Decision 3 and condition B). The stand-in is
+    a finder at the head of `sys.meta_path` that raises for `wasmtime`, in a child process."""
+    code = (
+        "import json, sys\n"
+        f"sys.path.insert(0, {str(paths.REPO / 'src')!r})\n"
+        "class Refuse:\n"
+        "    def find_spec(self, name, path=None, target=None):\n"
+        "        if name == 'wasmtime':\n"
+        "            raise RuntimeError('unsupported architecture for wasmtime: test')\n"
+        "        return None\n"
+        "sys.modules.pop('wasmtime', None)\n"
+        "sys.meta_path.insert(0, Refuse())\n"
+        "import wasi_python\n"
+        "try:\n"
+        "    wasi_python.run(['-c', 'pass'])\n"
+        "except ImportError as e:\n"
+        "    c = e.__cause__\n"
+        "    print(json.dumps([type(c).__name__, str(c), str(e)]))\n"
+        "else:\n"
+        "    print(json.dumps(['no error']))\n"
+    )
+    out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
+    assert out.returncode == 0, out.stderr
+    got = json.loads(out.stdout)
+    assert got[:2] == ["RuntimeError", "unsupported architecture for wasmtime: test"], got
+    assert "wasmtime>=49,<50" in got[2], got
 
 
 def test_a_failed_instantiation_reports_no_fuel(guest_workdir) -> None:

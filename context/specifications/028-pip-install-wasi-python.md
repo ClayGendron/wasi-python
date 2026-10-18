@@ -3,7 +3,8 @@
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/028-pip-install-wasi-python-spec-2026-10-17.md`), whose confirmation passed it for
   build with three conditions, written in. It is build-class (it changes the release workflow;
-  constitution §5.7), so it builds after spec 027 lands (condition C).
+  constitution §5.7), so it builds after spec 027 lands (condition C). Built 2026-10-17 on
+  `spec/028-pip-install-wasi-python`; awaiting its build review.
 - **Owner:** Clay Gendron
 - **Kind:** packaging (`pyproject.toml`: the dependency, the empty extra, the dev group;
   `uv.lock`), the runner (`src/wasi_python/runner.py`: its module docstring at line 9 and
@@ -99,4 +100,67 @@ artifacts-only package.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, uv 0.9.22, in the worktree
+`wasi_python-028`; not yet reviewed. Each claim is labelled. The artifact set is the frozen one,
+`build/sets/4befe9de64edc783` of the main tree, read only. Scratch outputs are under
+`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/b028/`.
+
+**What was built** (READ: the diff). `pyproject.toml`: `dependencies = ["wasmtime>=49,<50"]`,
+`run = []`, the dev group without wasmtime, each with its reason in a comment; `uv.lock` from
+`uv lock` (wasmtime moves from the `run` extra to `dependencies`, the marker leaves
+`requires-dist`, `provides-extras = ["run"]` stays, the dev group loses wasmtime).
+`src/wasi_python/runner.py`: the module docstring, and `_wasmtime` catching `ImportError`,
+`RuntimeError` and `OSError` and raising `ImportError("wasi_python.run needs wasmtime-py
+(wasmtime>=49,<50), which installs with wasi-python; reinstall it or install wasmtime directly")`
+from the original. `src/wasi_python/__init__.py`: its docstring. `tests/checks/test_v1_4_embedding.py`:
+`test_package_imports_without_wasmtime`'s docstring, and two new v1.4 checks,
+`test_a_plain_install_brings_wasmtime` (criterion 1) and `test_a_wasmtime_that_cannot_load_is_named`
+(criterion 3: a child process whose `sys.meta_path` begins with a finder that raises
+`RuntimeError` for `wasmtime`). `.github/workflows/release.yml`: the verify job installs
+`wasi-python @ ./<wheel>` for the program and the command, and a third line installs
+`wasi-python[run] @ ./<wheel>` and asserts `Provides-Extra == ["run"]` and no `Requires-Dist`
+with an `extra ==` marker. `README.md` ("Running it": the plain install, `uv add`, the empty extra,
+the `--no-deps` route), `CHANGELOG.md` (0.1.0a4), and one amendment note each in specs 001, 004
+and 019.
+
+**Seen failing first** (EXECUTED). Both new checks ran on today's `pyproject.toml` and runner,
+before any other edit: `test_a_plain_install_brings_wasmtime` failed `assert 0 == 1`
+(`project.dependencies` was `[]`); `test_a_wasmtime_that_cannot_load_is_named` failed with the
+finder's `RuntimeError` escaping `_wasmtime` uncaught. After the change both pass, with
+`test_package_imports_without_wasmtime` (3 passed).
+
+**Criterion 1** (EXECUTED): the check passes on the changed file, by `tomllib` and
+`packaging.requirements.Requirement`, as written.
+
+**Criterion 2** (EXECUTED). The wheel was built with the release's own command, `uv build --wheel
+--build-constraints release/build-constraints.txt --require-hashes`, with the frozen set copied
+into `src/wasi_python/artifacts/` first (as the build job does) and removed after, into
+`dist/` under the scratch folder: `wasi_python-0.1.0a4-py3-none-any.whl`, 38,788,843 bytes. Its
+`METADATA` holds `Requires-Dist: wasmtime<50,>=49` (no marker) and `Provides-Extra: run`. Then,
+with `WASI_PYTHON_ARTIFACTS=""` as the workflow sets it, the workflow's three lines by hand:
+- `uv run --isolated --no-project --with "wasi-python @ ./<wheel>" python -c …` installed
+  wasmtime 49.0.0, found the wheel's own artifacts, and printed `Completed(exit_code=0,
+  stdout=b'6\n', stderr=b'', trapped=None, fuel_used=None, truncated=())`; exit 0.
+- the same install, `wasi-python run -- -c "print(1)"`, printed exactly the line the workflow wants.
+- `--with "wasi-python[run] @ ./<wheel>"` printed `Provides-Extra: ['run'] Requires-Dist:
+  ['wasmtime<50,>=49']`; exit 0.
+
+The same lines against a wheel built from today's `HEAD` (no change; in `headdist/`) fail: the
+`[run]` metadata line raises `AssertionError: ["wasmtime<50,>=49; extra == 'run'"]`, and the plain
+install's `run` raises `ImportError: wasi_python.run needs wasmtime-py: pip install
+"wasi-python[run]"`. So each line catches what it is there for.
+
+**Criterion 3** (EXECUTED): `test_package_imports_without_wasmtime` passes; the `RuntimeError`
+check passes. The command line reports the new message with exit 1 (`{"error": "wasi_python.run
+needs wasmtime-py (wasmtime>=49,<50), …", "kind": "ImportError"}`, wasmtime blocked by
+`sys.modules['wasmtime'] = None`), as spec 019's Decision 5 expects.
+
+**Criterion 4** (EXECUTED, without `--accept`: only the lane accepts). `uv sync`, then
+`WASI_PYTHON_ARTIFACTS=<frozen set> uv run pytest`: 762 passed, 19 skipped, exit 0.
+`wasi_python v1: 184/195 pass · 0 gap · 11 blocked · 0 fail`; v1.4 72/72 (70 before, plus the two
+new checks); `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 2 ·
+grew 0 · judge changed: pyproject.toml, tests/checks/test_v1_4_embedding.py, uv.lock`. The ninth
+check unrun locally is the oracle check, blocked because this worktree has no oracle environment.
+The lane accepts with `--accept-judge`. `ruff check` and `ruff format --check` clean on `src` and
+`tests`. The release dry run is not run here: it needs a push the builder is not allowed to make
+(INFERRED: its install step is the three lines above, run on three systems).

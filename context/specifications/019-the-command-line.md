@@ -103,7 +103,8 @@ runner's checks and defaults unchanged.
    exited 1 from a command that failed.
 5. **wasmtime stays optional, with no special case.** The package imports without wasmtime, and
    `run()` already raises `ImportError('wasi_python.run needs wasmtime-py: pip install
-   "wasi-python[run]"')`, which exit 1 reports as is.
+   "wasi-python[run]"')`, which exit 1 reports as is. **Amended by spec 028:** wasmtime-py is
+   now a required dependency, and the message names `wasmtime>=49,<50`; exit 1 still reports it.
 6. **The entry point** is `[project.scripts] wasi-python = "wasi_python.cli:main"`. `main(argv=None)`
    returns the exit code, so checks call it in process; the script wrapper passes it to
    `sys.exit`. The wheel gains a two-line `entry_points.txt` and stays reproducible (the review,

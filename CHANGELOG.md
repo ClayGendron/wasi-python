@@ -6,6 +6,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
+- **`pip install wasi-python` runs programs** (spec 028). wasmtime-py (`wasmtime>=49,<50`) is
+  now a required dependency, so the plain install runs `wasi_python.run` and `wasi-python run`;
+  the `run` extra is no longer needed. It is kept, empty, so `pip install "wasi-python[run]"`
+  still works. An embedder that brings its own wasmtime installs with
+  `pip install --no-deps wasi-python` and uses `artifacts()`; importing the package still never
+  loads wasmtime. Where wasmtime is missing or cannot load (its pure wheel on an unsupported
+  platform), `run` raises one `ImportError` naming `wasmtime>=49,<50`, with wasmtime's own error
+  as its cause. The release now proves the plain install on all three systems.
 - **The build says where it is** (spec 027; the artifact set is unchanged). `scripts/build.sh`
   runs a preflight first (the host, its tools, and 2.5 GiB free on a first build) and prints
   one line for it. Each step's line now ends with its time, `ok <step>: … [3m02s]`, and a

@@ -300,8 +300,9 @@ the asset against the release's `SHA256SUMS`.
 
 ## Running it
 
-From Python, one call (`pip install "wasi-python[run]"`, which brings
-wasmtime-py):
+Install it with `pip install wasi-python` (or `uv add wasi-python`). That
+brings wasmtime-py (`wasmtime>=49,<50`), which runs the guest. From Python it
+is then one call:
 
 ```python
 from wasi_python import run
@@ -309,6 +310,12 @@ from wasi_python import run
 done = run(["-c", "import pandas as pd; print(pd.Series([1, 2, 3]).sum())"])
 done.exit_code, done.stdout        # (0, b'6\n')
 ```
+
+`pip install "wasi-python[run]"`, the 0.1.0a3 instruction, still works: the
+`run` extra is kept, empty, for compatibility. An embedder that brings its own
+wasmtime binding (another version, or another language's host) installs with
+`pip install --no-deps wasi-python` and uses `wasi_python.artifacts()` for the
+files; importing `wasi_python` never loads wasmtime, only `run` does.
 
 By default the guest has nothing writable: no `/`, no `/tmp` and no
 `HOME`, only the read-only stdlib and whatever the embedder grants (since

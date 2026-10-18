@@ -76,7 +76,8 @@
      following step reads `latest.json` and fails unless the only needs that blocked
      anything are the oracle, the three systems and the wheel, which a verify job cannot
      provide. The wheel is installed as `wasi-python[run] @ <wheel>`, so the `run` extra's
-     own pin (`wasmtime>=49,<50`) is what is tested.
+     own pin (`wasmtime>=49,<50`) is what is tested. **Amended by spec 028:** the wheel is
+     installed by its plain name and runs a program; a `[run]` install asserts the metadata.
    - **publish** (tags only, after build and verify): a GitHub release named for the tag,
      marked a pre-release for `a`, `b` and `rc` versions, with the assets and the version's
      `CHANGELOG.md` section as notes.

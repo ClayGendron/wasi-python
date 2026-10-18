@@ -254,16 +254,18 @@ jobs:
           assert blocked <= {'oracle', 'three systems', 'wheel'}, blocked
           "
       - name: The wheel, installed fresh, runs a program in one call
+        # Installed by its plain name, no extra: `pip install wasi-python` must run programs, so
+        # a wheel whose plain install could not never publishes (spec 028, Decision 4).
         run: |
           wheel="$(ls release-assets/wasi_python-*.whl)"
-          uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" python -c "
+          uv run --isolated --no-project --with "wasi-python @ ./$wheel" python -c "
           import tempfile, wasi_python
           done = wasi_python.run(['-c', 'import pandas; print(pandas.Series([1, 2, 3]).sum())'], root=tempfile.mkdtemp())
           print(done)
           assert (done.exit_code, done.stdout) == (0, b'6\n'), done
           "
           # The wheel's own command (spec 019) prints the one line its README promises.
-          line=$(uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" \
+          line=$(uv run --isolated --no-project --with "wasi-python @ ./$wheel" \
             wasi-python run -- -c "print(1)")
           echo "$line"
           want='{"exit_code": 0, "fuel_used": null, "stderr": "", "stdout": "1\n", "trapped": null, "truncated": []}'
@@ -271,6 +273,17 @@ jobs:
             echo "the installed command printed another line"
             exit 1
           fi
+          # The empty `run` extra, kept for 0.1.0a3's instructions. `uv run --with` installs an
+          # unknown extra silently, so an import would prove nothing: assert the metadata.
+          uv run --isolated --no-project --with "wasi-python[run] @ ./$wheel" python -c "
+          import importlib.metadata, re
+          meta = importlib.metadata.metadata('wasi-python')
+          extras = meta.get_all('Provides-Extra') or []
+          reqs = meta.get_all('Requires-Dist') or []
+          print('Provides-Extra:', extras, 'Requires-Dist:', reqs)
+          assert extras == ['run'], extras
+          assert not [r for r in reqs if re.search(r'extra\s*==', r)], reqs
+          "
         env:
           WASI_PYTHON_ARTIFACTS: ""
 

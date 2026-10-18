@@ -152,7 +152,8 @@
      values as signed integers, so the runner masks every guest address
      and length to 32 bits before using it (the judge's driver too).
    - Without wasmtime-py, `run` raises `ImportError` naming
-     `pip install "wasi-python[run]"`.
+     `pip install "wasi-python[run]"`. **Amended by spec 028:** wasmtime-py is a required
+     dependency, the `run` extra is kept empty, and the message names `wasmtime>=49,<50`.
    - The runner answers `random_get` and `clock_time_get` from WASI as
      wasmtime does: only the judge's driver makes them deterministic.
      It shares no code with the judge's driver (`tests/harness/guest.py`).

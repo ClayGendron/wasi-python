@@ -91,9 +91,7 @@ wheels = [
 [[package]]
 name = "wasi-python"
 source = { editable = "." }
-
-[package.optional-dependencies]
-run = [
+dependencies = [
     { name = "wasmtime" },
 ]
 
@@ -101,18 +99,16 @@ run = [
 dev = [
     { name = "pytest" },
     { name = "ruff" },
-    { name = "wasmtime" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "wasmtime", marker = "extra == 'run'", specifier = ">=49,<50" }]
+requires-dist = [{ name = "wasmtime", specifier = ">=49,<50" }]
 provides-extras = ["run"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.12" },
-    { name = "wasmtime", specifier = ">=49,<50" },
 ]
 
 [[package]]

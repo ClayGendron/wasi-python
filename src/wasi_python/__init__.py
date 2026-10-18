@@ -12,9 +12,9 @@ The wheel carries the runtime's artifacts and this module tells an embedder wher
 
 `artifacts()` looks, in order, at `$WASI_PYTHON_ARTIFACTS` (when set and not empty), in a source
 checkout at `build/artifacts/` (what `scripts/build.sh` writes), and at the wheel's own
-`artifacts/`: the harness's order. `run()` runs one
-program in one call (the `run` extra; see `wasi_python.run`), and README.md documents the contract
-any other embedder implements.
+`artifacts/`: the harness's order. `run()` runs one program in one call through wasmtime-py,
+which installs with the package (see `wasi_python.run`); importing this module never loads it.
+README.md documents the contract any other embedder implements.
 """
 
 from __future__ import annotations

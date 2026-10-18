@@ -13,23 +13,27 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Interpreters",
 ]
-dependencies = []
+# wasmtime-py runs the guest: `run()` and the `wasi-python` command cannot work without it, so
+# `pip install wasi-python` brings it (spec 028). The runner is tested on 49 only (spec 004).
+dependencies = ["wasmtime>=49,<50"]
 
 [project.scripts]
 # Run one program and print its result as JSON (spec 019).
 wasi-python = "wasi_python.cli:main"
 
 [project.optional-dependencies]
-# The runner binds the host-call import and runs the reactor; plain `wasmtime run` cannot.
-run = ["wasmtime>=49,<50"]
+# Kept, empty, so `pip install "wasi-python[run]"` from 0.1.0a3's instructions still works;
+# wasmtime is now a plain dependency (spec 028, Decision 2).
+run = []
 
 [project.urls]
 Homepage = "https://wasipython.dev"
 Repository = "https://github.com/claygendron/wasi_python"
 
 [dependency-groups]
-# wasmtime: the harness drives the guest with fuel metering and its own door binding (spec 002, Decision 10).
-dev = ["pytest>=8", "ruff>=0.12", "wasmtime>=49,<50"]
+# wasmtime, which the harness drives the guest with (spec 002, Decision 10), comes from the
+# project's own dependency, so the bound is written once (spec 028, Decision 1).
+dev = ["pytest>=8", "ruff>=0.12"]
 
 [build-system]
 requires = ["hatchling"]

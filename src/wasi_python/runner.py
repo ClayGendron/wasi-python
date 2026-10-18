@@ -6,8 +6,9 @@
     done.exit_code, done.stdout
 
 It does what any embedder does: preopen a directory at `/`, bind the one custom import
-(`host::call`), and call the reactor's exports. wasmtime-py (the `run` extra) is imported only
-here, when a call is made.
+(`host::call`), and call the reactor's exports. wasmtime-py (a dependency of the package since
+spec 028) is imported only here, when a call is made, so `import wasi_python` and `artifacts()`
+still work where it cannot load.
 
 It is safe by default (spec 006): a call that names no root gets a fresh private one, removed
 afterwards; a call that names no limit still has one for memory, time and output (`DEFAULTS`);
@@ -722,11 +723,16 @@ if hasattr(os, "register_at_fork"):  # not on Windows, which has no fork
 
 
 def _wasmtime() -> Any:
+    """wasmtime-py, or one `ImportError` whatever stopped it loading (spec 028, Decision 3): not
+    installed (`ImportError`), installed on a platform it does not support (its pure wheel raises
+    `RuntimeError` naming the architecture), or its native library not loading (`OSError`). The
+    original is chained as the cause, so its text still names the platform."""
     try:
         import wasmtime as wt
-    except ImportError as e:
+    except (ImportError, RuntimeError, OSError) as e:
         raise ImportError(
-            'wasi_python.run needs wasmtime-py: pip install "wasi-python[run]"'
+            "wasi_python.run needs wasmtime-py (wasmtime>=49,<50), which installs with "
+            "wasi-python; reinstall it or install wasmtime directly"
         ) from e
     return wt
 
