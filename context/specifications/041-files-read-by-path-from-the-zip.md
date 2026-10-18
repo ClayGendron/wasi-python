@@ -3,7 +3,10 @@
 - **Status:** drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
   written in here and in the two upstream folders, and the review's Disposition says where. The
-  review's confirmation is pending. It changes the build recipe and the artifact set, so it is
+  review's confirmation passed it for build with two conditions, written in: C1, the landing
+  notes record question 80's answer at landing (if the owner answers otherwise, only the two
+  sheets' bodies change, not the build); C2, it builds only after spec 039 lands, and uses spec
+  033's landed `sdist_metadata`. It changes the build recipe and the artifact set, so it is
   reviewed before it is built (constitution §5.6). It is build-class: it touches `scripts/`,
   `recipes/patches/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries two
   upstream patches (§4.1), so the review reads both patches and both drafts (spec 020,
@@ -511,4 +514,4 @@ Filing anything upstream is the owner's (§7).
 
 ## Landing notes
 
-Not built.
+Not built. At landing, record here the answer question 80 had (condition C1).
