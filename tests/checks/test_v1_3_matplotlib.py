@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from harness import jobs, png, scan
+from harness import jobs, needs, png, scan
 
 pytestmark = pytest.mark.goal("v1.3")
 
@@ -154,3 +154,25 @@ def test_patched_callbacks_run(guest, which) -> None:
     (r.root / "out" / ".keep").unlink()
     why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.render(r.stdout, r.root / "out"))
     assert why is None, why
+
+
+THROUGH_THE_RUNNER = """
+import os, matplotlib
+data = matplotlib.get_data_path()
+print(data)
+print(len([f for f in os.listdir(os.path.join(data, "fonts", "ttf")) if f.endswith(".ttf")]))
+print(matplotlib.rcParams["backend"], matplotlib.matplotlib_fname())
+"""
+
+
+def test_matplotlib_finds_its_data_through_the_runner() -> None:
+    """Through `wasi_python.run` itself, not the judge's driver (the build review, F7): matplotlib
+    finds its data where the runner extracted and granted it, the 40 bundled fonts and the
+    `matplotlibrc` that sets the Agg backend (spec 023, Decision 5)."""
+    needs.need("runner", "artifact dir")
+    import wasi_python
+
+    done = wasi_python.run(["-c", THROUGH_THE_RUNNER], root=True)
+    assert done.exit_code == 0, done
+    data = "/usr/local/lib/python315.zip/matplotlib/mpl-data"
+    assert done.stdout.decode() == f"{data}\n40\nAgg {data}/matplotlibrc\n", done.stdout
