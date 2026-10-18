@@ -53,7 +53,20 @@ everything listed under 0.1.0a4 ships in this release too, including the securit
     minor releases (deprecated in 0.N, removable in 0.N+2); a tighter default, in a minor release,
     and a security fix, in any release, need no deprecation. The README's "API reference" says
     what is promised and what is not.
-
+- **Async tools and gates** (spec 053). A tool or a gate may be an `async def`, or a function
+  that returns an awaitable. Under `run_async` it is awaited on the event loop that awaits
+  `run_async`, so an MCP client session or an async HTTP client works as it is; under `run`, on a
+  loop of the call's own, on a thread started at the call's first awaitable and closed when the
+  call ends. A call answered before its coroutine started never starts it (spec 056's fix,
+  extended to async tools); every later end of the call (`timeout_s`, the deadline, a cancel,
+  Ctrl-C) cancels it at its next `await`. A `KeyboardInterrupt`, `SystemExit` or
+  `CancelledError` a tool raises, and a loop that has closed or stopped, are faults in the record,
+  never exceptions in the embedder's loop. The guest, the protocol and the artifact set do not
+  change. The README's MCP recipe is now an `async def`. An async generator is refused as a tool
+  or a gate.
+- **Changed:** `host=` given an `async def` (or an async generator, a `partial` of one, an
+  object with an async `__call__`) is refused with `TypeError` before any work. The raw door is
+  synchronous; it used to answer every frame with a host fault and never await the coroutine.
 
 ## 0.1.0a4 — 2026-10-18
 

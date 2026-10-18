@@ -982,7 +982,11 @@ async def run_code(code: str):
   one cancel, longer for a worker inside a door host or still compiling.
   On a Python without `threading._register_atexit` (CPython has had it
   since 3.9) the stop runs later, and exit can wait for queued calls.
-- **A door host that must await** runs the coroutine on its own loop with
+- **A host function that must await** is best served as an async tool
+  (see *Tools*, **Async tools**): the runner awaits it on your loop, bounds
+  it by the call's deadline and cancel, and cancels it when its call ends.
+  A raw `host=` must stay synchronous (an `async def` is refused); one
+  that must await runs the coroutine on its own loop with
   `asyncio.run_coroutine_threadsafe(coro, loop).result(timeout=...)`;
   without a timeout a closing loop blocks it forever.
 - `run_async` is asyncio only. Under trio, call `run(cancel=event)` from a
@@ -1137,7 +1141,8 @@ done.stdout                                    # b'Ada\n'
   `"cancelled"` or raises `KeyboardInterrupt`. There is no per-call default
   beyond the run's deadline. Fuel counts only the guest's instructions: time
   spent in a tool adds none.
-- **Abandoned tools.** A Python function cannot be stopped. A tool whose
+- **Abandoned tools.** A sync function cannot be stopped (an async one can:
+  see **Async tools**). A tool whose
   call timed out or was cancelled runs on to its end, unseen; its result is
   dropped, and its outcome says `abandoned=True`, because its effect may
   still land. So a call the guest retries after `ToolTimeout` may act twice.
@@ -1155,12 +1160,70 @@ done.stdout                                    # b'Ada\n'
 - **What `run` refuses**, before any work: `host=` with `tools=` (the door
   is one function: pass `host=` for the raw door or `tools=` for the
   protocol), `gate=` or `max_tool_calls=` without `tools=`, two tools with
-  one name, a gate that is a coroutine function, and an artifact set from
-  before the tool protocol (`ArtifactsMissing`).
+  one name, an async generator function as a tool or a gate (a tool answers
+  each call once), an `async def` as `host=` (the raw door is synchronous:
+  serve it as a tool), and an artifact set from before the tool protocol
+  (`ArtifactsMissing`).
+- **Async tools.** A tool or a gate may be an `async def`, or a function
+  that returns an awaitable (an adapter over an async client). The guest
+  still calls it synchronously; only the host side awaits.
+
+  ```python
+  import asyncio
+  from wasi_python import run_async
+  from wasi_python.tools import tool
+
+  PRICES = {"EUR": 1.08, "GBP": 1.27}
+
+  @tool
+  async def rate(currency: str) -> float:
+      """The US dollar price of one unit of a currency."""
+      await asyncio.sleep(0)  # your async client's call goes here
+      return PRICES[currency]
+
+  async def main():
+      code = "from host import tools\nprint(tools.rate('EUR'))"
+      done = await run_async(["-c", code], tools=[rate])
+      return done.stdout                     # b'1.08\n'
+
+  asyncio.run(main())
+  ```
+
+  - **Where it runs.** Under `run_async`, on the event loop that awaits
+    `run_async`, beside your own sessions and clients, so objects bound to
+    that loop work. Under `run`, on a loop of the call's own, on a thread
+    named `wasi-python-tool--loop` that is started at the call's first
+    awaitable and closed when the call ends; each call gets its own, so one
+    call's tool that blocks its loop delays no other call's. Use
+    `run_async` when your tool needs your loop's objects: `run` on a worker
+    thread (`asyncio.to_thread(run, …)`) gets a loop of its own.
+  - **Stopped, not abandoned.** A call answered before its coroutine has
+    started (its timeout or the deadline came first, or its gate answered
+    late) never starts it. Once started, every end of the call (`timeout_s`,
+    the deadline, a cancel, Ctrl-C) cancels it at its next `await`. A
+    coroutine that catches `CancelledError` and goes on runs on, holds one
+    of the run's 4 abandoned slots, and keeps its thread alive, like a sync
+    tool.
+  - **Faults stay in the call.** A `KeyboardInterrupt`, `SystemExit` or
+    `CancelledError` the tool raises, or a loop that has closed or stopped,
+    is a "(internal error)" fault in the record, never an exception in
+    your loop. A `CancelledError` met while the run is being cancelled is
+    answered `cancelled`.
+  - **What it does not do.** Under `run_async`, tasks an async tool spawns
+    outlive the call: the runner cancels only its own (under `run`, the
+    call's loop cancels everything on it when it closes). An abandoned
+    coroutine that ignores its cancel on your loop keeps that loop's
+    `asyncio.run()` from returning at shutdown, since `asyncio.run` waits
+    for every task; an abandoned sync tool never does, its thread being a
+    daemon. A blocking call inside an `async def` holds the loop it runs
+    on, and every async tool on that loop with it.
+  - **Counted.** `tool_threads_running` counts the call's loop thread with
+    the tool threads while it is alive; threads a tool starts itself
+    (`asyncio.to_thread` on that loop's default executor) are not counted.
 
 Two recipes follow. They are recipes, not API: the project ships no
-adapter, and each was run once with the versions named (spec 036's landing
-notes).
+adapter, and each was run once with the versions named (specs 036's and
+053's landing notes).
 
 **A LangChain tool** (`langchain-core==1.6.12`), its own input checked by
 its own pydantic model:
@@ -1181,21 +1244,20 @@ def from_langchain(lc_tool):
 ```
 
 **An MCP server's tool**, through your own client session (`mcp==2.3.0`).
-The session lives on your event loop; the tool, on its own thread, hands
-each call to that loop. `run_async` keeps the loop free meanwhile. The
-result's structured content (`structuredContent` on the wire,
-`structured_content` in mcp 2's Python) is the value, and an error result
-(`isError`) becomes a `ToolError` with the server's text:
+The session lives on your event loop, and an async tool is awaited there:
+`run_async` keeps the loop free meanwhile, and a call that times out or is
+cancelled cancels its `call_tool`. The result's structured content
+(`structuredContent` on the wire, `structured_content` in mcp 2's Python)
+is the value, and an error result (`isError`) becomes a `ToolError` with the
+server's text:
 
 ```python
-import asyncio
 from wasi_python import run_async
 from wasi_python.tools import ToolError, tool
 
-def from_mcp(session, loop, listed, timeout_s=30):
-    def call(**args):
-        future = asyncio.run_coroutine_threadsafe(session.call_tool(listed.name, args), loop)
-        result = future.result(timeout=timeout_s)
+def from_mcp(session, listed, timeout_s=30):
+    async def call(**args):
+        result = await session.call_tool(listed.name, args)
         text = " ".join(c.text for c in result.content if c.type == "text")
         if result.is_error:
             raise ToolError(text)
@@ -1205,8 +1267,7 @@ def from_mcp(session, loop, listed, timeout_s=30):
                 input_schema=listed.input_schema, validates_input=True, timeout_s=timeout_s)
 
 async def answer(session, code):  # session: your open mcp.Client
-    loop = asyncio.get_running_loop()
-    tools = [from_mcp(session, loop, t) for t in (await session.list_tools()).tools]
+    tools = [from_mcp(session, t) for t in (await session.list_tools()).tools]
     return await run_async(["-c", code], tools=tools)
 ```
 
