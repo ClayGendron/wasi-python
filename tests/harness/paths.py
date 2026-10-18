@@ -55,6 +55,20 @@ LICENCE_COMPONENTS = (
     "six",
     "wasi-libc",
     "llvm-runtimes",
+    # matplotlib (spec 023, Decision 9)
+    "matplotlib",
+    "pillow",
+    "kiwisolver",
+    "freetype",
+    "harfbuzz",
+    "sheenbidi",
+    "libraqm",
+    "pybind11",
+    "cppy",
+    "cycler",
+    "pyparsing",
+    "packaging",
+    "fonttools",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -67,6 +81,19 @@ PACKAGES = (
     "python-dateutil",
     "tzdata",
     "six",
+    "matplotlib",
+    "pillow",
+    "kiwisolver",
+    "freetype",
+    "harfbuzz",
+    "sheenbidi",
+    "libraqm",
+    "pybind11",
+    "cppy",
+    "cycler",
+    "pyparsing",
+    "packaging",
+    "fonttools",
 )
 
 # The judge: every file that decides a check's outcome or steers pytest (spec 002, Decision 14).

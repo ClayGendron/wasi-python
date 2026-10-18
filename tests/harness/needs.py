@@ -118,7 +118,23 @@ SPEC_002 = "context/specifications/002-the-progress-harness.md"
 SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
 SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md"
 
-SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib", "bzip2", "xz", "sqlite")
+SOURCE_COMPONENTS = (
+    "cpython",
+    "numpy",
+    "pandas",
+    "zlib",
+    "bzip2",
+    "xz",
+    "sqlite",
+    "freetype",
+    "harfbuzz",
+    "sheenbidi",
+    "libraqm",
+    "qhull",
+    "pillow",
+    "kiwisolver",
+    "matplotlib",
+)
 
 VOCABULARY: dict[str, Need] = {
     n.name: n

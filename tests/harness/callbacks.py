@@ -21,7 +21,10 @@ referenced entry, so bytes that happen to look like an entry just before a table
 Members go first because a member array also reads as a getset array (its type code taken for
 a getter's table index). The cost: a getset array whose getters all sit at table indices 1 to 20
 with no doc would read as members. In the linked binary those twenty are CPython's parser rules
-(READ, spec 051's build), never a getter.
+(READ, spec 051's build), never a getter. For the same reason a single definition whose function
+sits at one of them is not read as a method (spec 023's build): FreeType's BDF property table
+begins `{"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}`, sixteen bytes the BDF driver's code points at,
+which read as `{name, table index 1, METH_VARARGS, no doc}`.
 
 Out of the scan: the `tp_*` slots of static type objects, `PyType_Slot` arrays, the number,
 sequence and mapping method structs, and C callbacks passed to C APIs (`qsort`, LAPACK).
@@ -53,6 +56,8 @@ GETTER = FuncType((I32, I32), (I32,))
 SETTER = FuncType((I32, I32, I32), (I32,))
 IDENT = re.compile(rb"[A-Za-z_][A-Za-z0-9_]{0,80}\0")
 METHOD, GETSET, MEMBER = 16, 20, 20  # entry sizes in bytes (wasm32)
+# Table indices 1 to 20: CPython's parser rules in the linked binary, never a callback.
+PARSER_RULES = 20
 I32_CONST = re.compile(rb"(?=\x41([\x80-\xff]{0,4}[\x00-\x7f]))", re.DOTALL)
 
 # Reviewed real cases only, keyed by "<kind> <entry name>", each with its reason. Today none: a
@@ -263,6 +268,8 @@ def scan(mod: Module) -> Report:
         if e is None:
             continue
         name, meth, flags = e
+        if meth <= PARSER_RULES:
+            continue  # a record that only looks like a PyMethodDef (the module docstring says why)
         report.coverage["singles"] += 1
         found = _check(mod, "single method", name, meth, _method_type(flags))
         report.findings += [found] if found else []

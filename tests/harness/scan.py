@@ -256,20 +256,42 @@ def toolchain_errors(pinned: Iterable[str]) -> list[str]:
 
 
 CPP_EH_FLAGS = ("'-fwasm-exceptions'", "'-wasm-use-legacy-eh=false'")
+CPP_CROSS_FILES = (
+    "recipes/wasi-numpy.cross",
+    "recipes/wasi-pandas.cross",
+    "recipes/wasi-plot-libs.cross",
+    "recipes/wasi-matplotlib.cross",
+)
+# kiwisolver's C++ is compiled by step 55 itself: its flags variable, and the compile that uses it.
+CPP_DIRECT = "scripts/steps/55_matplotlib.sh"
 CPP_EH_AGAINST = ("'-fno-exceptions'", "'-wasm-use-legacy-eh=true'", "'-fno-wasm-exceptions'")
 
 
 def cpp_exception_errors(root: Path) -> list[str]:
     """Every C++ object is compiled, and the binary linked, for standard-form exceptions (spec 005,
-    Decision 9): a cross file without the flags compiles C++ whose `throw` is never caught."""
+    Decision 9): a cross file without the flags compiles C++ whose `throw` is never caught. Every
+    C++ build is judged (spec 023): numpy's and pandas' cross files, HarfBuzz's (step 37),
+    matplotlib's, and kiwisolver's compile line in step 55."""
     errors = []
-    for cross in ("recipes/wasi-numpy.cross", "recipes/wasi-pandas.cross"):
+    for cross in CPP_CROSS_FILES:
         lines = [t for t in (root / cross).read_text().splitlines() if t.startswith("cpp_args")]
         if len(lines) != 1:
             errors.append(f"{cross}: {len(lines)} cpp_args lines, not 1")
             continue
         errors += [f"{cross}: cpp_args lacks {f}" for f in CPP_EH_FLAGS if f not in lines[0]]
         errors += [f"{cross}: cpp_args has {f}" for f in CPP_EH_AGAINST if f in lines[0]]
+    direct = (root / CPP_DIRECT).read_text().splitlines()
+    flags = [t for t in direct if t.startswith("CXX_EH=")]
+    if len(flags) != 1:
+        errors.append(f"{CPP_DIRECT}: {len(flags)} CXX_EH= lines, not 1")
+    else:
+        errors += [
+            f"{CPP_DIRECT}: CXX_EH lacks {f}" for f in CPP_EH_FLAGS if f[1:-1] not in flags[0]
+        ]
+        errors += [f"{CPP_DIRECT}: CXX_EH has {f}" for f in CPP_EH_AGAINST if f[1:-1] in flags[0]]
+    compiles = [t for t in direct if t.lstrip().startswith("$CXX ")]
+    if not compiles or not all("$CXX_EH" in t for t in compiles):
+        errors.append(f"{CPP_DIRECT}: a $CXX compile without $CXX_EH")
     link = (root / "scripts/steps/60_link.sh").read_text().splitlines()
     if not any("-lunwind" in t and t.lstrip().startswith("echo") for t in link):
         errors.append("scripts/steps/60_link.sh: Setup.local does not link -lunwind")

@@ -1,0 +1,9 @@
+versions python=3.15 kiwisolver=1.5.1
+x ctx 8.0
+>= 1001001000.0 False -8.0 0.0 1
+x 1.0 8.0
+1.0 1000.0 1000000.0 1001001000.0
+True
+8.0
+PyCapsule PyCapsule
+'Objective\n---------\n\n\nTableau\n-------\n\nInfeasible\n----------\n\nVariables\n---------\n\nEdit Variables\n--------------\n\nConstraints\n-----------\n\n\n'

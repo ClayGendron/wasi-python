@@ -158,3 +158,39 @@ def test_an_extended_constant_offset_is_recorded_not_raised(work) -> None:
     assert mod.unread == ["data segment 0: an offset that is not one i32.const"]
     assert mod.data == [(64, b"y")]
     assert wasm.wall_errors(mod) == []
+
+
+def test_a_single_at_a_parser_rule_is_not_a_method(work) -> None:
+    """A code-referenced record whose second word is a table index of 1 to 20 (the parser's rules
+    in a real link) is not read as a single PyMethodDef (spec 023's build: FreeType's BDF property
+    table, {"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}); the same record at index 21 is."""
+    blob, at = _strings()
+    rule = struct.pack("<4I", at["look"], 1, VARARGS, 0) + b"\xff" * 16
+    method = struct.pack("<4I", at["single"], 21, VARARGS, 0) + b"\xff" * 16
+    data = "\n".join(
+        f'  (data (i32.const {a}) "{_escape(b)}")'
+        for a, b in [(STRINGS, blob), (1300, rule), (1400, method)]
+    )
+    mod = wasm.parse_file(
+        wat.build(
+            work,
+            "rule.wasm",
+            f"""
+(module
+  (func $rule (param i32) (result i32) (local.get 0))
+  (func (export "make") (result i32) (drop (i32.const 1300)) (i32.const 1400))
+  (table 25 funcref)
+  (elem (i32.const 1) $rule)
+  (elem (i32.const 21) $rule)
+  (memory 1)
+{data}
+)
+""",
+        )
+    )
+    report = callbacks.scan(mod)
+    assert callbacks.findings(report) == [
+        "single method single: table index 21 has (i32) -> (i32), "
+        "called as (i32, i32) -> (i32) (rule)"
+    ]
+    assert report.coverage["singles"] == 1

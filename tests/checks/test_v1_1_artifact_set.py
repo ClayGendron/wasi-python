@@ -163,3 +163,25 @@ def test_wheel_carries_the_artifact_set(artifacts) -> None:
     assert len(wheels) == 1, scan.report([w.name for w in wheels], "dist/ must hold one wheel")
     errors = rules.wheel_errors(wheels[0], artifacts.dir)
     assert not errors, scan.report(errors)
+
+
+def test_static_constructors_are_reviewed(artifacts) -> None:
+    """Every function `__wasm_call_ctors` calls is on the reviewed list (spec 023, Decision 8): a
+    static constructor runs in `_initialize`, before Python starts, and one that touches Python
+    hangs there (matplotlib 3.11.2's ft2font enums did, until carried patch 0001). Read from the
+    plain binary's name section, so a new one fails here instead of hanging a run."""
+    from harness import constructors, wasm
+
+    mod = wasm.parse_file(_binary(artifacts, "plain"))
+    errors = constructors.constructor_errors(mod)
+    assert not errors, scan.report(errors, f"constructors {wasm.call_ctors(mod)}")
+
+
+@BINARY
+def test_target_features_are_the_lines(artifacts, which) -> None:
+    """`target_features` is exactly the line's ten (spec 023, Decision 8): `+atomics` (which
+    `-pthread` adds), `+simd128` or `+tail-call` would each be a new host requirement."""
+    from harness import constructors, wasm
+
+    errors = constructors.feature_errors(wasm.parse_file(_binary(artifacts, which)))
+    assert not errors, scan.report(errors)

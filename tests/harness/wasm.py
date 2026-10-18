@@ -60,6 +60,7 @@ class Module:
     data: list[tuple[int, bytes]] = field(default_factory=list)  # active segments: (address, bytes)
     code: bytes = b""  # the code section's bytes, as they are
     names: dict[int, str] = field(default_factory=dict)  # function index -> name (name section)
+    custom: dict[str, bytes] = field(default_factory=dict)  # custom section name -> its payload
     unread: list[str] = field(default_factory=list)  # element or data segments not read, and why
 
     def func_type(self, index: int) -> FuncType | None:
@@ -272,10 +273,63 @@ def parse(data: bytes) -> Module:
             mod.code = data[start : start + size]
         elif section == 11:
             _data(s, mod)
-        elif section == 0 and s.name() == "name":
-            _names(s, mod)
+        elif section == 0:
+            custom = s.name()
+            mod.custom.setdefault(custom, data[s.pos : start + size])
+            if custom == "name":
+                _names(s, mod)
         r.pos = start + size
     return mod
+
+
+def bodies(mod: Module) -> dict[int, bytes]:
+    """Each defined function's body (its locals and expression), by function index."""
+    imported = sum(1 for i in mod.imports if i.kind == "func")
+    s = _Reader(mod.code)
+    out = {}
+    for k in range(s.u32() if mod.code else 0):
+        size = s.u32()
+        if s.pos + size > s.end:
+            raise WasmError(f"function body {k} runs past the code section")
+        out[imported + k] = mod.code[s.pos : s.pos + size]
+        s.pos += size
+    return out
+
+
+def call_ctors(mod: Module) -> list[str]:
+    """The functions `__wasm_call_ctors` calls, in order, by name from the name section: the
+    module's static constructors, which a reactor runs in `_initialize` before Python starts.
+    Anything in its body but direct calls is named `<op 0x..>`, so the list cannot hide it."""
+    found = [i for i, n in mod.names.items() if n == "__wasm_call_ctors"]
+    if len(found) != 1:
+        raise WasmError(f"{len(found)} functions named __wasm_call_ctors in the name section")
+    body = bodies(mod).get(found[0])
+    if body is None:
+        raise WasmError("__wasm_call_ctors is not a defined function")
+    s = _Reader(body)
+    for _ in range(s.u32()):  # local declarations: a count and a type each
+        s.u32()
+        s.byte()
+    calls = []
+    while s.pos < s.end:
+        op = s.byte()
+        if op == 0x10:  # call
+            index = s.u32()
+            calls.append(mod.names.get(index, f"#{index}"))
+        elif op != 0x0B:  # end
+            calls.append(f"<op 0x{op:02x}>")
+            break
+    return calls
+
+
+def target_features(mod: Module) -> list[str]:
+    """The `target_features` custom section as written: a prefix (`+`, `-` or `=`) and a name
+    for each feature the objects were compiled with, which a host must support."""
+    payload = mod.custom.get("target_features")
+    if payload is None:
+        return []
+    s = _Reader(payload)
+    return [chr(s.byte()) + s.name() for _ in range(s.u32())]
 
 
 def parse_file(path) -> Module:

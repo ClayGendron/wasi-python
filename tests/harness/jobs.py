@@ -15,9 +15,11 @@ from __future__ import annotations
 import functools
 import importlib.util
 import os
+import platform
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -28,7 +30,22 @@ ORACLE_PROJECT = JOB_DIR / "oracle"
 ORACLE_HOME = paths.BUILD / "oracle"
 LINE_CONF = paths.REPO / "scripts" / "line.conf"
 LINE_PY = paths.REPO / "scripts" / "line.py"
-JOBS = ("numpy_csv", "pandas_csv", "numpy_random", "compress", "sqlite", "callbacks", "pandas_tz")
+JOBS = (
+    "numpy_csv",
+    "pandas_csv",
+    "numpy_random",
+    "compress",
+    "sqlite",
+    "callbacks",
+    "pandas_tz",
+    "plot_line",
+    "plot_callbacks",
+)
+# Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
+# native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
+# guest's never do. Each records its platform in tests/jobs/<job>.platform; the oracle reproduces
+# it only there, and the guest must match it everywhere.
+PLATFORM_BOUND = ("plot_line",)
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
 
@@ -39,6 +56,24 @@ def script(job: str) -> Path:
 
 def expected_path(job: str) -> Path:
     return JOB_DIR / f"{job}.expected"
+
+
+def platform_path(job: str) -> Path:
+    return JOB_DIR / f"{job}.platform"
+
+
+def this_platform() -> str:
+    """The native platform a golden was made on, as `darwin-arm64`."""
+    machine = platform.machine().lower()
+    return f"{sys.platform}-{'arm64' if machine in ('arm64', 'aarch64') else machine}"
+
+
+def reproducible_here(job: str) -> bool:
+    """Whether the oracle can reproduce this job's golden on this machine."""
+    if job not in PLATFORM_BOUND:
+        return True
+    f = platform_path(job)
+    return f.is_file() and f.read_text().strip() == this_platform()
 
 
 def render(stdout: bytes, out_dir: Path) -> bytes:
@@ -112,6 +147,9 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
         UV_PYTHON_PREFERENCE="only-system",
     )
     env.pop("VIRTUAL_ENV", None)
+    # matplotlib uses its own fonts only, as the guest does (spec 023, Decision 8): natively it
+    # would otherwise list every font of the machine.
+    env["MPL_IGNORE_SYSTEM_FONTS"] = "1"
     if seed is not None:
         env["PYTHONHASHSEED"] = str(seed)
     return env
@@ -151,9 +189,11 @@ def run_native(job: str, seed: int, workdir: Path, *, offline: bool = True) -> b
     data, out = base / "data", base / "out"
     stage_data(data)
     out.mkdir(parents=True)
+    env = oracle_env(seed)
+    env["MPLCONFIGDIR"] = str(base / "mplconfig")  # fresh for every run: no font cache carried over
     r = subprocess.run(
         oracle_command(str(script(job)), str(data), str(out), offline=offline),
-        env=oracle_env(seed),
+        env=env,
         capture_output=True,
         check=False,
     )

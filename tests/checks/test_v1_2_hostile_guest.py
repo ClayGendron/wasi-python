@@ -572,8 +572,9 @@ guest = "\n".join([
 ])
 first = wasi_python.run(["-c", guest], root=root)
 (folder,) = folders()
-(name,) = os.listdir(os.path.join(temp, folder))
-copy = os.path.join(temp, folder, name)
+# The zip in the folder's lib/, matplotlib's data beside it (spec 023, Decision 5).
+(name,) = os.listdir(os.path.join(temp, folder, "lib"))
+copy = os.path.join(temp, folder, "lib", name)
 stamp = os.stat(copy)
 second = wasi_python.run(["-c", "import json; print('ok')"])
 copied_once = folders() == [folder] and os.stat(copy).st_ino == stamp.st_ino
@@ -609,6 +610,51 @@ def test_the_zip_is_read_only_and_shared(guest_workdir) -> None:
     assert out.returncode == 0, out.stderr[-1500:]
     assert out.stdout.split() == ["refused", "ok", "True", "ok", "True", "ok", "[]"], out.stdout
     assert list(temp.iterdir()) == [], list(temp.iterdir())
+
+
+MPL_DATA = r"""
+import os, sys
+data = "/usr/local/lib/python%s.zip/matplotlib/mpl-data" % sys.argv[1]
+print("data", sorted(os.listdir(data)))
+for what, attempt in [
+    ("write", lambda: open(data + "/matplotlibrc", "w")),
+    ("append", lambda: open(data + "/matplotlibrc", "a")),
+    ("create", lambda: open(data + "/new.txt", "w")),
+    ("mkdir", lambda: os.mkdir(data + "/new")),
+    ("remove", lambda: os.remove(data + "/matplotlibrc")),
+]:
+    try:
+        attempt()
+        print(what, "allowed")
+    except OSError as e:
+        print(what, type(e).__name__, e.errno)
+"""
+
+
+@BOTH
+def test_matplotlib_data_is_granted_read_only(snapshot) -> None:
+    """Guards a change (spec 023, Decision 5): the runner grants matplotlib's data, extracted from
+    the zip's inner archive, read-only at the path matplotlib computes; every write, create, mkdir
+    and remove there is refused with EPERM (63 in the guest)."""
+    _, tag = _version()
+    done = _run()(["-c", MPL_DATA, tag], snapshot=snapshot)
+    assert done.exit_code == 0, done
+    want = "data ['fonts', 'images', 'kpsewhich.lua', 'matplotlibrc', 'plot_directive', "
+    want += "'sample_data', 'stylelib']\n"
+    want += "".join(f"{w} PermissionError 63\n" for w in ("write", "append", "create", "mkdir"))
+    want += "remove PermissionError 63\n"
+    assert done.stdout.decode() == want, done.stdout.decode()
+
+
+@BOTH
+def test_usr_local_lib_holds_only_the_zip(snapshot) -> None:
+    """Guards a change (spec 023, Decision 5, amending spec 017's Decision 2): the runner's private
+    folder now holds the zip in lib/ and matplotlib's data beside it, and only lib/ is granted at
+    /usr/local/lib, so the guest sees the zip there and nothing else."""
+    _, tag = _version()
+    done = _run()(["-c", "import os; print(os.listdir('/usr/local/lib'))"], snapshot=snapshot)
+    assert done.exit_code == 0, done
+    assert done.stdout.decode() == f"['python{tag}.zip']\n", done.stdout.decode()
 
 
 def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None:

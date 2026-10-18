@@ -212,6 +212,8 @@ def test_goldens_reproduce_under_the_pinned_oracle() -> None:
     needs.need("oracle")
     workdir = paths.HARNESS_TMP / "oracle-check"
     for job in jobs.JOBS:
+        if not jobs.reproducible_here(job):
+            continue  # native pixels may differ off the recording platform (spec 023, Decision 8)
         first = jobs.run_native(job, 0, workdir)
         second = jobs.run_native(job, 1, workdir)
         assert jobs.compare(first, second) is None, f"{job}: two hash seeds disagree"
@@ -295,7 +297,20 @@ def test_npy_files_round_trip(guest, which) -> None:
 
 # Spec 033: the zip keeps each distribution's METADATA, so a package that asks for its own
 # version gets it. A later specification that adds a distribution adds it here.
-DISTRIBUTIONS = ("numpy", "pandas", "python-dateutil", "six", "tzdata")
+DISTRIBUTIONS = (
+    "cycler",
+    "fonttools",
+    "kiwisolver",
+    "matplotlib",
+    "numpy",
+    "packaging",
+    "pandas",
+    "pillow",
+    "pyparsing",
+    "python-dateutil",
+    "six",
+    "tzdata",
+)  # matplotlib and its distributions: spec 023
 
 METADATA = """
 import json, re

@@ -3,19 +3,24 @@
 It does only what any embedder must do: preopen the stdlib, read-only, in a folder of its own at
 `/usr/local/lib` (spec 017: the runtime's files are never in a writable root), one directory at
 `/` (and, when a check asks, more directories, read-only or writable, in a chosen order), bind
-`host::call`, and call one export. It is kept apart from `wasi_python.run`, the runner it
-judges. It also answers `random_get` and `clock_time_get` itself, so every run is seeded alike
-and fuel (instructions executed) repeats to a few parts in ten million
+`host::call`, and call one export. A check that plots asks for matplotlib's data too: the zip's
+inner archive `matplotlib/mpl-data.zip`, extracted once per zip and granted read-only at the path
+matplotlib computes, as the README's embedder contract says (spec 023, Decision 5). It is kept
+apart from `wasi_python.run`, the runner it judges. It also answers `random_get` and
+`clock_time_get` itself, so every run is seeded alike and fuel (instructions executed) repeats to
+a few parts in ten million
 (context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-exact.md).
 """
 
 from __future__ import annotations
 
 import hashlib
+import io
 import itertools
 import os
 import shutil
 import struct
+import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +38,8 @@ CLOCK_STEP_NS = 1_000
 _engine: wt.Engine | None = None
 _modules: dict[tuple[str, int, int], wt.Module] = {}
 _run_ids = itertools.count()
+_mpl_data: dict[tuple[str, int, int], Path] = {}
+MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"
 
 
 def engine() -> wt.Engine:
@@ -113,6 +120,20 @@ def _place(src: Path, dest: Path) -> None:
         shutil.copyfile(src, dest)
 
 
+def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
+    """matplotlib's data, extracted once per zip from its inner archive into the work folder."""
+    st = stdlib.stat()
+    key = (str(stdlib.resolve()), st.st_size, st.st_mtime_ns)
+    if key not in _mpl_data:
+        dest = workdir / f"mpl-data-{len(_mpl_data)}"
+        with zipfile.ZipFile(stdlib) as outer:
+            inner = io.BytesIO(outer.read(MPL_DATA_MEMBER))
+        with zipfile.ZipFile(inner) as z:
+            z.extractall(dest)
+        _mpl_data[key] = dest
+    return _mpl_data[key]
+
+
 def _random_stream() -> Callable[[int], bytes]:
     counter = itertools.count()
 
@@ -138,8 +159,10 @@ def run(
     fuel: int = DEFAULT_FUEL,
     preopens: list[tuple[str, Path, bool]] | None = None,
     preopens_first: bool = False,
+    mpl_data: bool = False,
 ) -> Result:
-    """Run the guest once, in a fresh instance and a fresh root under `workdir`."""
+    """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
+    matplotlib's data is granted read-only beside the stdlib zip."""
     mod = module(wasm)
     how = kind(mod)
     base = workdir / f"run-{next(_run_ids)}"
@@ -175,6 +198,12 @@ def run(
     )
     if lib is not None:
         ordered.insert(0, (str(lib), "/usr/local/lib", False))
+    if mpl_data:
+        if stdlib is None or lib is None or not stdlib.is_file():
+            raise ValueError("matplotlib's data comes from a stdlib zip")
+        name = stdlib_name(python_version or "", stdlib)
+        data = mpl_data_dir(stdlib, workdir)
+        ordered.insert(1, (str(data), f"/usr/local/lib/{name}/matplotlib/mpl-data", False))
     for host_dir, guest_path, writable in ordered:
         wasi.preopen_dir(host_dir, guest_path, writable)
     wasi.stdout_file = str(io / "stdout")

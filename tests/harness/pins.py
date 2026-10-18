@@ -31,6 +31,15 @@ SOURCE_PATTERNS = {
     "bzip2": re.compile(r"bzip2-[\w.]+\.tar\.gz"),
     "xz": re.compile(r"xz-[\w.]+\.tar\.gz"),
     "sqlite": re.compile(r"sqlite-autoconf-\d+\.tar\.gz"),
+    # matplotlib (spec 023): its five C libraries and three packages
+    "freetype": re.compile(r"freetype-[\w.]+\.tar\.xz"),
+    "harfbuzz": re.compile(r"harfbuzz-[\w.]+\.tar\.xz"),
+    "sheenbidi": re.compile(r"SheenBidi-[\w.]+\.tar\.gz"),
+    "libraqm": re.compile(r"libraqm-[\w.]+\.tar\.gz"),
+    "qhull": re.compile(r"qhull-[\w.]+\.tar\.gz"),
+    "pillow": re.compile(r"pillow-[\w.]+\.tar\.gz"),
+    "kiwisolver": re.compile(r"kiwisolver-[\w.]+\.tar\.gz"),
+    "matplotlib": re.compile(r"matplotlib-[\w.]+\.tar\.gz"),
 }
 
 

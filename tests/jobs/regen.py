@@ -5,7 +5,9 @@
     uv run python tests/jobs/regen.py --online   # allow uv to fetch the pinned oracle first
 
 Each job runs twice, with PYTHONHASHSEED 0 and 1; the two outputs must agree, or nothing is
-written. Every uv download lands under build/oracle/ (spec 002, Decisions 11 and 16).
+written. Every uv download lands under build/oracle/ (spec 002, Decisions 11 and 16). A
+platform-bound job (the plot, spec 023) also records the platform that made it, in
+tests/jobs/<job>.platform, and --check reproduces it only on that platform.
 """
 
 from __future__ import annotations
@@ -27,6 +29,9 @@ def main() -> int:
     workdir = paths.BUILD / "oracle" / "runs"
     status = 0
     for job in jobs.JOBS:
+        if a.check and not jobs.reproducible_here(job):
+            print(f"skipped {job}: recorded on another platform than {jobs.this_platform()}")
+            continue
         first = jobs.run_native(job, 0, workdir, offline=not a.online)
         second = jobs.run_native(job, 1, workdir, offline=not a.online)
         why = jobs.compare(first, second)
@@ -42,6 +47,9 @@ def main() -> int:
         else:
             target.write_bytes(first)
             print(f"wrote {target.relative_to(paths.REPO)} ({len(first)} bytes)")
+            if job in jobs.PLATFORM_BOUND:
+                jobs.platform_path(job).write_text(jobs.this_platform() + "\n")
+                print(f"wrote {jobs.platform_path(job).relative_to(paths.REPO)}")
     return status
 
 
