@@ -2339,7 +2339,8 @@ integer is documented, not patched.
 - `recipes/`, `scripts/`, `fixtures/`, `downloads/SHA256SUMS`: the build.
 - `src/wasi_python/`: the wheel. `tests/`: its tests and the progress
   harness; `uv run pytest` prints the v1 scoreboard and guards it with a
-  ratchet (`context/progress/README.md`).
+  ratchet (`context/progress/README.md`), and `uv run pytest -n 6` gives
+  the same answer on six cores.
 - `context/`: the project's memory. `prior_art/` holds shallow clones we
   study and never copy (git-ignored, indexed in its README); `research/`
   holds dated memos, executed or marked placeholder; `specifications/`

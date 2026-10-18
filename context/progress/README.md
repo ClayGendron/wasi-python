@@ -82,8 +82,38 @@ here, unless `--partial "<why>"` is given.
 | `--partial "<reason>"` | allow accepted passes to be blocked here |
 | `--retire <node id>` | with `--accept`: drop a check from the protected set |
 | `-m "not slow"` | the fast tier: skip the golden jobs and the oracle |
+| `-n 6` | run on six cores (spec 052): the same verdicts, about a third of the time |
 
 The full record of the last run is `build/progress/latest.json`.
+
+## Several cores (spec 052)
+
+`uv run pytest -n 6` runs the judge on six cores with pytest-xdist (pinned in `uv.lock`). Its
+answer is the serial answer: every status, need, fact and `bytes` and `passes` value, the unit
+tally, the deselected list and the collected files are equal; fuel differs by no more than serial
+runs differ between themselves, far inside the ratchet's 0.01%. On darwin-arm64 (10 cores) the
+full judge took about 3 minutes against about 10 serially. Use `-n 3` when another agent's judge
+is running on the machine (a `-n 6` run peaks near 10 GiB), and `-n auto` on another machine.
+The plain `uv run pytest` stays serial.
+
+- **How it stays the same.** The workers collect and run; each check's record is made on its
+  worker exactly as in a serial run and rides to the controller on its report. Workers write
+  nothing and run none of the lane's guards: the controller alone writes `latest.json`, judges the
+  ratchet and accepts. An upstream group's check and its classes' checks always run in one
+  worker (the judge's own scheduler; node ids are unchanged). A worker that dies leaves its check
+  `fail`, named "worker crashed".
+- **What the record says.** `meta.workers` is the number of workers started (`0` serially) and
+  `meta.scheduler` the scheduler xdist used (`JudgeScheduling`; `null` serially). Neither is
+  compared.
+- **One way to run in parallel.** Allowed: `-n <number>`, `-n auto`, `--maxprocesses`,
+  `--max-worker-restart`, `--dist load`, `--loadscope-reorder`, `--testrunuid`. Refused before
+  anything runs, exit 1 with one line: `-n logical`, any other `--dist`, `-d`,
+  `--no-loadscope-reorder`, `--maxschedchunk`, `--tx`, `--px`, `--rsyncdir`, `--rsyncignore`,
+  `-f`/`--looponfail`. The ini keys `rsyncdirs`, `rsyncignore` and `looponfailroots` would come
+  only from `pyproject.toml`, which is judged, and do nothing without the refused options.
+- **Comparing two runs.** `uv run python tests/harness/sameness.py A.json B.json` prints every
+  difference that could change a verdict (the fields above; a pass's, gap's or blocked check's
+  reason; fuel beyond the ratchet's tolerance) and exits 1 when there is one.
 
 ## The landing lane (spec 029)
 
@@ -107,7 +137,14 @@ The steps, in order:
    file that step 1 left. For a change built in the main tree, commit the change, its
    specification and its review here first, on the detached HEAD.
 3. **Accept.** Run `uv run pytest --accept "<reason>"`, with `--accept-judge` when the judge
-   changed.
+   changed. **Serially**: the verdict of record stays serial (spec 052, Decision 11).
+3a. **Compare** (spec 052). When the rebase changed no judged file and no code, the
+   landing notes record `uv run python tests/harness/sameness.py <the reviewer's -n 6
+   latest.json> build/progress/latest.json` (the lane's serial record from step 3) and its output.
+   A difference stops the landing here: it is a defect of a check (order, speed, a shared
+   path) or of the harness, written in the landing notes and fixed by its own judge change. Nobody
+   re-runs to make it go away. When the rebase did change a judged file or code, the notes say so,
+   and the landing is not counted.
 4. **Commit the acceptance alone, at once.** Run `git commit -m "Accept …" --
    context/progress/accepted.json context/progress/history.jsonl`. The pathspec leaves out
    anything else that is staged.
@@ -118,6 +155,12 @@ The steps, in order:
    can exit 1 only because other checks did not run; read the check's own line). HEAD is still
    detached and nothing has been pushed, so main has not moved. Then redo step 4.
 6. **Move main.** Run `git switch main && git merge --ff-only <the acceptance commit>`.
+
+**Ten clean landings** (spec 052, Decision 11). After ten consecutive counted landings with no
+difference, a research memo that counts them may move step 3 to `uv run pytest -n 6 --accept
+"<reason>"` without a new specification. That memo names a periodic serial confirmation (one
+serial run at least every tenth landing, compared the same way) and what a difference does (a
+stopped landing and a fix). The count restarts at any difference.
 
 **The upstream suites on the lane (spec 050).** The lane fetches the kit once
 (`uv run python tests/upstream/fetch.py`) and keeps the source trees under `build/`. The landing

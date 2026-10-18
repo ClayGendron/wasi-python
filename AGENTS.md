@@ -78,11 +78,15 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    -m "not slow"` skips the guest jobs, the oracle and the upstream
    suites (3 min 48 s on darwin-arm64, against about 9 min for the full
    run, 2026-10-18). Iterate on it while building or reviewing, and run
-   a slow check you are changing alone by its node id. The full
-   `uv run pytest` runs once per stage, at its end: the builder's before
-   it writes "built", the reviewer's before its verdict (the reviewer
-   re-runs the counted tests, constitution §5.6), and the lane's on the
-   exact commit it accepts.
+   a slow check you are changing alone by its node id. Both tiers may
+   run on several cores with `-n 6` (spec 052): the same verdicts, about
+   a third of the time; use `-n 3` when another agent's judge is running
+   on the machine. The full judge runs once per stage, at its end: the
+   builder's `uv run pytest -n 6` before it writes "built", the
+   reviewer's before its verdict (the reviewer re-runs the counted
+   tests, constitution §5.6), each keeping its `build/progress/latest.json`
+   for the lane; and the lane's serial `uv run pytest` on the exact
+   commit it accepts.
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
    golden output, `tests/known_gaps.toml`, the upstream suites'
    allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`)
@@ -100,8 +104,12 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
 6a. **Only the lane accepts.** A builder runs the judge in its worktree
    without `--accept`, against the frozen artifact set its class
    allows. The lane rebases, compares with the reviewed diff, judges
-   the exact commit in the main tree, accepts, and fast-forwards main.
-   Progress files are never merged: take main's and accept again.
+   the exact commit in the main tree **serially**, accepts, and
+   fast-forwards main. It records `uv run python tests/harness/sameness.py`
+   between the reviewer's `-n 6` record and its own serial one; a
+   difference stops the landing until the check is fixed, never a
+   re-run (spec 052, Decision 11). Progress files are never merged:
+   take main's and accept again.
 6b. **Tag only what a dry run passed.** Before a release tag, dispatch
    the release workflow on main's exact commit and wait for every job
    to pass on all three systems. Only Windows runs there; a landing

@@ -27,6 +27,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 everything listed under 0.1.0a4 ships in this release too, including the security fixes of specs
 048 and 056.
 
+- **The judge runs on several cores** (spec 052). `uv run pytest -n 6` gives the serial
+  answer in about a third of the time: pytest-xdist 3.8.0 is pinned in the development group,
+  each check's record is made on its worker and carried to the controller, which alone writes the
+  run record and accepts, and an upstream group runs with its classes in one worker. The lane's
+  accepting run stays serial; `tests/harness/sameness.py` compares two run records. Five checks
+  no longer depend on the order or speed of the run, and the judge's zips folder is safe when
+  several processes make it at once. Nothing in the artifact set or the wheel changes.
 - **Read-only code on the import path** (spec 054). Added: `run(import_path=[…])` and
   `run_async(import_path=[…])`, and `wasi-python run --import-path GUEST`. Each entry, a folder
   or a zip file inside a read-only grant, goes on `sys.path` after the stdlib zip. The runner
