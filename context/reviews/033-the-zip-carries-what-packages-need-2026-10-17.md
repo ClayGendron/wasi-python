@@ -427,3 +427,118 @@ needs nothing.
 One line: the metadata and the stand-in are right and reproducible, but the refusal on the shared
 base breaks `help(ctypes)` on the snapshot, and the two over-cap checks call for a recorded
 criterion amendment, not an unexplained `--accept-growth`.
+
+## Confirmation (2026-10-17)
+
+- **Reviewer:** the same fresh agent that wrote the review above (Claude Opus 5.5), not the
+  author. I read the Disposition, the revision commit `f4f64ce` (`git diff 6f29828 f4f64ce`), and
+  the specification's amended Status line, Decision 5, criterion 4 and landing notes. I edited
+  nothing but this section.
+- **Reviewed:** `spec/033-the-zip-carries-what-packages-need` at `f4f64ce`, rebased onto main.
+  Since then main has moved only in `context/` documents (034, 041 and this review's
+  Disposition). `git merge-tree --write-tree main HEAD` exits 0.
+- **Ran (EXECUTED, in the worktree only; under the same scratch folder).**
+  - Steps 70 to 90 once (`conf-70-90.log`). `cmp` with the rebuilt set's `SHA256SUMS`, saved
+    before the run: the same file. Its non-licence lines are the landing notes' (`MANIFEST`
+    `9f6019c6…`, snapshot `8d84b3b1…`, zip `6e3f773a…`, `python.wasm` `4befe9de…`). The
+    `LICENSES/` lines equal `$OLD`'s.
+  - The full judge, `uv run pytest`, no flags (`judge-conf.log`). Then `growth.py` against the
+    branch's and main's `accepted.json` (`growth-conf.txt`). Ruff on `src/` and `tests/`.
+  - The help probes on the rebuilt set, both binaries (`conf-pydoc2-*.txt`,
+    `conf-introspect-snap.txt`). `probe.py`, `$OLD` against the rebuilt set: `help`, and the
+    five-run series for both checks (`conf-noise.tsv`).
+  - Two mutants of the fix in `_types.py`, each run against the stand-in unit checks with
+    `--progress-latest` set to a scratch file, then restored. `git status --short` is empty
+    after them. The worktree's `latest.json` is the full judge's.
+
+### Each finding
+
+1. **Fixed, as prototyped.** READ: the diff matches `proto/fixed/`.
+   - The refusal moved to `_NoLayout(_CData)`. That base serves `Structure`, `Union`, and the
+     array, pointer and function types. `_CData` no longer carries it.
+   - `_NumpyDtype.__get__` returns itself when read on `_SimpleCData`. It uses `cls is
+     _SimpleCData`, which is cleaner than my name test.
+
+   EXECUTED on the rebuilt set:
+   - On the snapshot, old against new, `pydoc.render_doc(ctypes)` now exits 0 on both.
+   - On both binaries, these all succeed: `help(ctypes)`, `pydoc.render_doc(ctypes)`,
+     `pydoc.render_doc(ctypes.c_int)`, `pydoc.render_doc(ctypes.Structure)`,
+     `pydoc.render_doc(numpy.ctypeslib)` and `np.info(ctypes.c_int)`.
+   - The snapshot introspection probe changes in exactly those lines. Every refusal is
+     unchanged: `np.dtype` of a `Structure`, an array or a pointer; `pandas_dtype(S)`;
+     `getmembers(S)`; `as_ctypes`; `ndarray.ctypes`.
+
+   The new guest steps and the new unit check have teeth. EXECUTED: putting `_Refused` back on
+   `_CData` fails the new unit check. So does removing the `_SimpleCData` guard (`1 failed, 1
+   passed` each time). My first review EXECUTED the four guest calls on the first build's set,
+   where they raised the `OSError`.
+2. **Amended as worded, and met.** READ: criterion 4 carries the amendment word for word. It is
+   marked as amended from this finding, with its reason, and the Status line records it.
+   EXECUTED (`conf-noise.tsv`), every run equal to the Disposition's numbers to the unit:
+   - `1/0` plain: +624,428, +492,342, +623,826, +489,246, +495,227; **mean +545,014**
+     (cap 0.6 M);
+   - the debugging tools on the snapshot: +215,063, +77,589, +198,036, −47,727, −71,721;
+     **mean +74,248** (cap 0.2 M).
+
+   My first review EXECUTED that the types are not built in either program (`'c_long' in
+   vars(ctypes)` is `False`). The fix does not change what those programs import.
+3. **Fixed.** READ: the Status line and the landing notes now say "heap-layout noise, the
+   collector among it". They cite the series, and they record that the `gc.disable()` pair is
+   not a clean control.
+4. **Fixed.** READ: Decision 5 states the introspection edge and the `AttributeError`-before-numpy
+   refinement, and says where the refusal sits. The README and the CHANGELOG state the edge.
+   - One wording nit, not a condition. The README's new sentence begins "So does asking numpy or
+     pandas for the dtype…" right after "`-V` still says 'no ctypes'". It means "this raises
+     `OSError` too". It could say so, but the meaning is recoverable.
+5. **No change, as agreed.**
+
+### The judge and the account
+
+- **Full judge (EXECUTED).** `791 passed, 11 skipped`. `200/204 pass · 0 gap · 4 blocked · 0
+  fail (unit suite 591/598)`. `ratchet vs aac0a98618: lost 0 · absent 0 · unrun 0 · unrun locally
+  2 · gained 4 · grew 39 · judge changed: tests/checks/test_v1_3_data_stack.py,
+  tests/unit/test_build_scripts.py`. Ruff: `All checks passed!`, `56 files already formatted`.
+- **Growth (EXECUTED, `growth-conf.txt`).** Main's `accepted.json` equals the branch's for every
+  changed check. Every number matches the revised landing-notes table:
+  - the zip +21,430 bytes;
+  - the snapshot −1,072 bytes;
+  - `python.wasm` 0;
+  - `pandas_csv` +2,499,701, the largest heavy growth, under +2.5 M;
+  - `gzip_round_trips` +592,080.
+
+  Only two checks exceed their absolute caps, `uncaught_errors_print_as_native[plain]` (+624,513)
+  and `stdlib_debugging_tools_import` (+215,114). Both are within the amended criterion by their
+  five-run means.
+
+### For the lane
+
+These are not conditions; they are the lane's own steps.
+- **The clean-clone build and the dry run.** Criterion 2's full build from pins in a clean clone
+  and criteria 3 and 5's release dry run (`gh workflow run release.yml --ref <branch>`, its
+  `rebuild` and `same-bytes` jobs) are not run. They are the lane's. Put the run number in the
+  landing notes.
+- **The acceptance needs both** `--accept-judge` (the two changed test files) and
+  `--accept-growth`.
+- **The `--accept-growth` reason:**
+
+  > spec 033: 7 more zip members, about +0.54 M fuel per plain start and +0.07 M per snapshot
+  > call; the zip +21,430 bytes, the snapshot −1,072 bytes, python.wasm unchanged; every check
+  > within criterion 4's caps as amended by review 033's finding 2:
+  > uncaught_errors_print_as_native[plain] (+624,513) and stdlib_debugging_tools_import
+  > (+215,114) exceed their absolute caps by heap-layout noise, and their five-run perturbation
+  > means (+545,014 and +74,248) are within them; no heavy check above +2.5 M (pandas_csv
+  > +2,499,701).
+
+  If the lane's own run in the main tree differs, use its numbers. The fuel figures here
+  reproduce exactly on this machine, and the judge's driver differs from `probe.py` by under
+  100 fuel.
+
+### Lands?
+
+**Yes. 033 lands**, once the lane has the clean-clone build and a green release dry run, and
+accepts with the reason above. Every finding is fixed or answered. The rebuilt set reproduces
+byte for byte. The judge is green apart from the growth it must accept.
+
+One line: the refusal now sits only on the types without a layout, `help(ctypes)` works on the
+snapshot again, and both over-cap checks are within the amended criterion by their five-run
+means, so 033 lands through the lane.
