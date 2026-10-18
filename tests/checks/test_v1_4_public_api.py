@@ -405,16 +405,22 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
 
 
 class _Racing:
-    """The pool's lock, with a `set_defaults` on another thread landing just as it is taken."""
+    """The pool's lock, with a `set_defaults` on another thread landing each time it is taken:
+    every entry sets a new `async_workers`, so only a read made inside the lock sees the last
+    one (`run_async` also takes this lock earlier, to register its exit hook)."""
 
-    def __init__(self, real: Any, swap: Any) -> None:
+    def __init__(self, real: Any, before: Any) -> None:
         self.real = real
-        self.swap = swap
+        self.before = before
+        self.sizes: list[int] = []
 
     def __enter__(self) -> None:
         import wasi_python
 
-        wasi_python.set_defaults(self.swap)
+        size = (self.sizes[-1] if self.sizes else 1) + 1
+        size += size == self.before.async_workers  # never the value read before any entry
+        self.sizes.append(size)
+        wasi_python.set_defaults(dataclasses.replace(self.before, async_workers=size))
         self.real.acquire()
 
     def __exit__(self, *exc: Any) -> None:
@@ -424,7 +430,7 @@ class _Racing:
 def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
     """The size of `run_async`'s own pool is process state, not a call's limit: it is read
     under the pool's lock, so a call that read its limits before a `set_defaults` never sizes
-    the pool back (the build review's F3)."""
+    the pool back (the build review's F3, and its confirmation's N1)."""
     import wasi_python
     from wasi_python import runner
 
@@ -433,15 +439,12 @@ def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
 
     monkeypatch.setattr(runner, "find_artifacts", found)
     before = wasi_python.defaults()
-    workers = 3 if before.async_workers != 3 else 2
-    monkeypatch.setattr(
-        runner,
-        "_pool_lock",
-        _Racing(runner._pool_lock, dataclasses.replace(before, async_workers=workers)),
-    )
+    racing = _Racing(runner._pool_lock, before)
+    monkeypatch.setattr(runner, "_pool_lock", racing)
     try:
         with pytest.raises(_Stop):
             asyncio.run(runner.run_async(["-c", "pass"]))
-        assert runner._pool["size"] == workers, (runner._pool["size"], workers)
+        assert racing.sizes, "the pool's lock was never taken"
+        assert runner._pool["size"] == racing.sizes[-1], (runner._pool["size"], racing.sizes)
     finally:
         wasi_python.set_defaults(before)

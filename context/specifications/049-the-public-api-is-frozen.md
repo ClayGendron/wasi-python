@@ -954,6 +954,14 @@ v1.4 136/136; `ratchet vs 01238501f8: lost 0 · absent 0 · unrun 0 · unrun loc
 tests/harness/artifacts.py and 7 more`; `1210 passed, 19 skipped`. `ruff check` and `ruff format
 --check` are clean.
 
+- **N1 (the confirmation's note), fixed** in the commit after `c642fc3`. In
+  `test_the_pool_takes_the_newest_size`, `_Racing` now sets a new `async_workers` on every
+  entry to the pool's lock. The check asserts that the pool's size equals the last value set.
+  `run_async` also takes that lock earlier, in `_register_exit_hook`, so the old stand-in
+  could not tell a read inside the lock from a read just before it. Results
+  (`build/n1-mutant.log`): the built code passes; a mutant copy that reads the size just above
+  `with _pool_lock:` fails with `assert 2 == 3` (sizes set `[2, 3]`).
+
 **For the confirmation.** Look at:
 - `_submit`'s read under `_pool_lock`;
 - the two new parts of criterion 10 and `test_the_pool_takes_the_newest_size`;
