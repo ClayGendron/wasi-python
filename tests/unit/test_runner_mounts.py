@@ -659,3 +659,26 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
     errno, _, now, peak = gathered(bound)
     assert errno == 22  # EFBIG, judged while gathering
     assert peak <= bound * 1.25 + 65536, (bound, peak)  # the gathering is counted too
+
+
+def test_a_mount_writes_zero_dirent_padding(placeholder) -> None:
+    """Every fd_readdir entry a mount writes has its three padding bytes after d_type zeroed,
+    over a buffer filled with 0xFF first, on full and cut-short buffers alike: the runner never
+    copies host memory into the guest there (wasmtime 49.0.0's own fd_readdir does, on a grant:
+    GHSA-96f6-r43r-8c24)."""
+    r = Mounted(MemoryProvider(), placeholder).raw
+    d = r.open(3, "d", files.O_DIRECTORY)[1]
+    for fd in (3, d):
+        for size in (4096, 25, 50, 80):
+            r.put(files.DIRBUF, b"\xff" * 4096)
+            assert r("fd_readdir", fd, files.DIRBUF, size, 0, files.RESULT) == 0
+            data, pos, entries = r.get(files.DIRBUF, r.u32(files.RESULT)), 0, 0
+            while pos < len(data):
+                header = data[pos : pos + 24]
+                assert header[21:24] == b"\x00" * len(header[21:24]), (fd, size, pos, header)
+                entries += 1
+                if len(header) < 24:
+                    break
+                pos += 24 + struct.unpack_from("<I", header, 16)[0]
+            assert entries >= 1
+            assert r.get(files.DIRBUF + len(data), 1) == b"\xff"  # nothing past what it used

@@ -236,7 +236,7 @@ class Raw:
         return errno, self.u64(RESULT)
 
     def readdir(self, fd: int, size: int = 4096, cookie: int = 0) -> tuple:
-        """errno, the bytes used, and the buffer with each entry's d_ino zeroed."""
+        """errno, the bytes used, and the buffer with each entry's d_ino and padding zeroed."""
         self.clear()
         errno = self("fd_readdir", fd, DIRBUF, size, cookie, RESULT)
         used = self.u32(RESULT)
@@ -289,15 +289,22 @@ class Raw:
         return self("path_symlink", a, n, base, b, m)
 
 
+DIRENT_MASKED = (*range(8, 16), 21, 22, 23)  # d_ino, and the padding after d_type
+
+
 def masked_dirents(data: bytes) -> bytes:
-    """An fd_readdir buffer with each entry's d_ino (bytes 8 to 16 of its header) zeroed; an
-    entry the buffer cut short is masked as far as it goes."""
+    """An fd_readdir buffer with what may differ by design zeroed in each entry's header: d_ino
+    (bytes 8 to 16) and the three padding bytes after d_type (21 to 24), which wasmtime 49.0.0
+    fills from uninitialized host memory (GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2) and a
+    mount writes as zeros. So entries compare by d_next, d_namlen, d_type and name. An entry the
+    buffer cut short is masked as far as it goes."""
     out = bytearray(data)
     pos = 0
     while pos < len(out):
         header = bytes(out[pos : pos + 24])
-        for i in range(8, min(16, len(header))):
-            out[pos + i] = 0
+        for i in DIRENT_MASKED:
+            if i < len(header):
+                out[pos + i] = 0
         if len(header) < 24:
             break
         namlen = struct.unpack_from("<I", header, 16)[0]

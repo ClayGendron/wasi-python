@@ -307,6 +307,7 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | `fileno()` of an opened file | the lowest free number | `2**30` or above | no host handle per file (Decision 1) |
    | `select.select` on an opened file | accepted (a low number) | `ValueError` in the guest (`FD_SETSIZE` is 1,024); `select.poll` and `selectors` work | the high range; CPython refuses before the runner sees it |
    | a later `iovec` past memory, after a non-empty one (build review, F4.1) | read: wasmtime checks only up to the first non-empty `iovec` | `EFAULT` | every `iovec` is checked (Decision 7) |
+   | the three padding bytes after each `fd_readdir` entry's `d_type` (after landing) | whatever wasmtime 49.0.0's buffer held: uninitialized host memory (GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2) | zeros | the runner encodes every entry itself; the parity compares the fields, not the padding |
    | an argument the ABI cannot carry: an undefined flag or enum value, an integer out of its type's range, a misaligned pointer (build review, F4.2) | the run ends; `trapped` is `error while executing at wasm backtrace:` | the run ends, with the same `fuel_used`; `trapped` is wiggle's own text, such as `Invalid flag value Oflags` | the runner raises the error itself, as the call's stop |
 
    The runner adds what a grant cannot say:
@@ -838,3 +839,48 @@ The judge after the revision (`WASI_PYTHON_ARTIFACTS=…/4befe9de64edc783 uv run
 `wasi_python v1: 208/219 pass · 0 gap · 11 blocked · 0 fail (unit suite 627/635, 8 skipped)`,
 `ratchet vs aac0a98618: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 19 · grew 0`,
 `835 passed, 19 skipped`. `ruff check` and `ruff format --check` clean.
+
+**Revised after landing, 2026-10-18 (a judge change).** The release dry run 39097514484 failed
+in "build and judge (arm64 macOS)": `test_raw_calls_answer_as_a_grant_does` differed on `dir
+fd_readdir` and `plain dir fd_readdir`, only in the byte after one entry's `d_type`: the grant
+wrote `0x60`, the mount `0x00` (`context/upstream/12-wasmtime-py-on-wasmtime-49-0-3/evidence/
+ci-39097514484.txt`). EXECUTED unless it says otherwise.
+
+- **The cause is wasmtime's, and known.** wasmtime 49.0.2's release notes list "`fd_readdir`
+  copies uninitialized struct padding into guest memory" (GHSA-96f6-r43r-8c24; READ,
+  `context/prior_art/wasmtime-v49/RELEASES.md`). wasmtime-py 49.0.0, the release `uv.lock` pins
+  and PyPI's only 49 release, bundles wasmtime 49.0.0 (READ, `ci/download-wasmtime.py`). In
+  49.0.3's source the dirent is a zeroed `vec![0; 24]` (READ, `crates/wasi/src/p1.rs:2010`).
+  Reproduced locally: on a read-only preopen, with the guest buffer zeroed before each call, the
+  `..` entry's first padding byte was `0x04` in 995 of 1,000 calls
+  (`…/12-wasmtime-py-on-wasmtime-49-0-3/evidence/padding.txt`). The local judge had passed by
+  chance of what the host's buffer held.
+- **The judge change and its reason.** The bytes are undefined on the reference side, so the
+  parity compares each entry's fields, not its padding: `masked_dirents` (`tests/harness/
+  files.py`) now zeroes bytes 21 to 24 of each header beside `d_ino`, so entries compare by
+  `d_next`, `d_namlen`, `d_type` and name, cut-short buffers included. That is not a weaker
+  claim about the mount: `test_a_mount_writes_zero_dirent_padding` (new) fills the buffer with
+  0xFF and asserts every entry's padding is zero on full and cut-short buffers, from a folder
+  and from the mount's preopen. Seen failing first with the mount's `DIRENT` made to write
+  `0x04` there (and the masked parity still passing). Decision 6's table and the README have a
+  row for it.
+- **Our grants are affected, by default.** Every `fd_readdir` wasmtime serves leaks up to three
+  bytes of uninitialized host memory per entry: the stdlib zip's folder at `/usr/local/lib` on
+  every call (nothing granted is needed), a root, every grant. A guest can repeat it at will.
+  What the bytes hold is the host's (INFERRED: stack or heap leftovers of the thread running the
+  guest, possibly pointer fragments). It is a host-memory disclosure to the guest, the adversary
+  of the threat model (§2), reachable with no argument, so §4.15's spirit and §5.5's rule apply:
+  a security fix in a pinned component is a reason to release. None can be taken yet, because
+  no wasmtime-py release carries wasmtime 49.0.2 or later. `context/upstream/12-…/facts.md` is
+  a facts sheet for the owner to ask wasmtime-py for one (the Bytecode Alliance AI Tool Use
+  Policy keeps agents from posting). Not done here, for the owner's decision: a runner
+  workaround, shadowing `fd_readdir` on today's linker and zeroing each forwarded entry's
+  padding, which changes calls without mounts and so needs a specification.
+- **Also in the same release notes, unexamined here:** wasmtime 49.0.3 fixes "Filesystem
+  sandbox escape when renaming symlinks with trailing slashes" (GHSA-m9f7-9w4p-gv38), which may
+  bear on writable grants and roots; it deserves its own research.
+- **The judge after the change** (`WASI_PYTHON_ARTIFACTS=…/s-8d84b3b190fe9bce uv run pytest`):
+  `wasi_python v1: 212/223 pass · 0 gap · 11 blocked · 0 fail (unit suite 633/641, 8 skipped)`,
+  `ratchet vs 789c841673: lost 0 · … · gained 0 · grew 0 · judge changed: tests/harness/files.py,
+  tests/unit/test_runner_mounts.py`, `845 passed, 19 skipped`. `ruff check` and `ruff format
+  --check` clean.

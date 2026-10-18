@@ -1,0 +1,7 @@
+wasmtime-py 49.0.0 | (name, d_type and padding): count
+(b'.', b'\x03\x00\x00\x00') 1000
+(b'..', b'\x03\x00\x00\x00') 5
+(b'..', b'\x03\x04\x00\x00') 995
+(b'x.txt', b'\x04\x00\x00\x00') 1000
+Darwin arm64
+2026-10-18T04:52Z

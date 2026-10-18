@@ -566,6 +566,10 @@ A path a more specific preopen owns, spelled past the guest's C library
   ends the run as on a grant, with the same `fuel_used`, but `trapped` names
   it (`Invalid flag value Oflags`);
 - `fd_renumber` of an open file answers `ENOTSUP`.
+- each `fd_readdir` entry's three padding bytes are zeros; on a grant, the
+  wasmtime-py 49.0.0 this runner uses fills them from uninitialized host
+  memory (wasmtime's advisory GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2,
+  which no wasmtime-py release carries yet).
 
 **Time and threads.** A provider runs synchronously on the thread that runs
 the guest; under `run_async` that is a worker thread, never the event loop's.

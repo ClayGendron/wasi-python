@@ -1,0 +1,17 @@
+# How the wasmtime 49.0.0 dirent padding was found
+
+- **Found** by spec 032's release dry run 39097514484 (2026-10-18): the raw parity table
+  (`tests/unit/test_runner_grants.py::test_raw_calls_answer_as_a_grant_does`) compared
+  `fd_readdir`'s bytes on a read-only grant and on a mount. On the macOS arm64 runner the
+  grant's first entry had `0x60` after `d_type`; the mount writes zeros. Locally the row had
+  passed, because the stale byte there was in another entry on other calls.
+- **Reproduced** with `evidence/padding.py` (EXECUTED, `evidence/padding.txt`), and traced to
+  wasmtime's own advisory GHSA-96f6-r43r-8c24 (READ, `RELEASES.md`, 49.0.2), fixed upstream. So
+  the upstream ask is a wasmtime-py release on a fixed wasmtime, not a new report.
+- **Who is affected here.** Every `fd_readdir` wasmtime serves: the stdlib zip's folder (on
+  every call, the default included), a root, every grant, and a mount's own preopen if the
+  runner forwarded it (it does not: a mount's listing is the runner's, with zero padding).
+- **Not done here:** no workaround in the runner. Zeroing the padding after a forwarded
+  `fd_readdir` would mean shadowing it on today's linker, which spec 032 keeps unchanged for
+  calls without mounts; that is a decision for the owner (spec 032's landing notes, "Revised
+  after landing").
