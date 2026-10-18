@@ -74,6 +74,33 @@ document.
   in the follow-up build-class specification that 056 names.
 - **The agent's recommendation:** yes, before 0.1.0 final. Then the follow-up names the
   environment in the workflow.
+### 91. Four choices in bounded sessions where your decisions are silent
+
+- **Asked:** 2026-10-18. **Source:** `specifications/055-bounded-sessions.md` (Decisions 3, 4,
+  8 and 9); `research/2026-10-18-bounded-sessions.md`. Nothing waits on it: spec 055 decides
+  each as written below, so its pre-build review and its build go ahead. An answer that differs
+  changes one decision and its checks before 055 is built, or in a follow-up after.
+- **The facts.** Your decisions 18 to 22 set the export, the scope, the bounds (15 minutes idle,
+  1 hour), "a trap ends the session" and the README's files pattern. Four behaviours they do not
+  cover had to be chosen:
+  1. **`sys.exit()` in a turn keeps the session** (Decision 4). The turn reports the exit status,
+     as `run` would, and the next turn still has every variable. Model code ends scripts with
+     `sys.exit(main())` by habit; Jupyter keeps its kernel the same way. `os._exit()` still ends
+     the session, because it unwinds the guest like a trap. The first research memo had leaned
+     the other way ("a trap or an exit ends the session").
+  2. **Closing is a stop, not a shutdown** (Decision 8). No guest code runs at close or expiry:
+     no `atexit` handlers, no flush of files a program left open. What a turn wrote to its
+     folders or mounts is already delivered at the end of that turn.
+  3. **A running turn is never cut by the lifetime** (Decision 9). A turn's own deadline bounds
+     it. If the hour passes during a turn, the turn returns its result and the session ends
+     then. So a session lives at most 1 hour plus one turn's deadline (60 s by default).
+  4. **A turn's last expression is echoed** (Decision 3), as in a notebook: `df.head()` as the
+     last line prints the frame. It costs about 0.58 M instructions for a four-line turn, under
+     1% of a fresh run.
+- **The question:** keep these four as decided, or change any?
+- **The agent's recommendation:** keep all four. Each follows the interactive interpreters
+  agents are trained on, keeps a turn's limits fixed when it starts, and keeps the export's C
+  small (no finalize path).
 
 ## The owner's direction for the product (2026-10-17)
 
