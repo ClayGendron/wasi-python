@@ -519,3 +519,138 @@ F8 to F15 are low, and each has a one-paragraph fix.
 One line: the suites belong in the judge and their strictness is honest, but make the admitted
 failures show on the scoreboard as gaps do, list them by node id, give falling passes their own
 flag, and tie the staged tests to the artifact's `MANIFEST` before building.
+
+## Confirmation (2026-10-18)
+
+By the reviewer (the same fresh agent, Claude Opus 5.5), against the revised
+`context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md` at `3da1bcd` and
+the Disposition above. I read the whole revised specification, the memo's dated correction, and
+the harness code each fix touches: `scoreboard.compare` and `accept` (the `--retire` rule),
+`scan.digest` (`LINE_REF`), `pins.source_pair`, `paths.NOT_SOURCE`.
+
+**New evidence (EXECUTED, `uv run` only, scripts in the review folder).** These runs were made
+for spec 051's review, but they bear on two of 050's claims:
+- `pandas/tests/reshape`, under the judge's `guest.py` with Decision 5's options, gave the same
+  2,657 passed and 7 failed as the drafting run (fuel 101,333,230,099). All 7 are the
+  `zip-code-names` class.
+- The same group under the plain binary, with a zip whose code objects carry the zip path, gave
+  2,664 passed and 0 failed. So the closers named for that class are real.
+
+### Each finding
+
+- **F1, confirmed.** The preferred fix is written in:
+  - each class and each trap is its own check and an ordinary spec 002 gap with its own closer;
+  - the group check admits nothing;
+  - the scoreboard shows 25 gaps under their closers;
+  - AGENTS.md rule 4 and the progress README name the new allowance files.
+
+  One consequence is not yet decided; see condition C1.
+- **F2, confirmed.**
+  - A fall in passes goes to its own `fewer` list and prints as `FEWER`, first and never cut.
+  - Accepting it needs its own flag and its own history field.
+  - Criterion 6 tests that `--accept-growth` alone is refused.
+  - Rises go to `more`, not to `gained`.
+- **F3, confirmed.**
+  - The list files are judge files, so a `git diff` names each test admitted or released.
+  - The findings carry `+` and `-` ids.
+  - Builder note: `scan.digest` strips `:<digits>` before `:`, whitespace or the end (`LINE_REF`).
+    So a pandas id such as `…[2020-01-01 00:00:00]` is partly normalised inside a gap's digest.
+    This opens no hole, because the `+`/`-` comparison with the list file is exact. But the
+    unit check should use one such id, so nobody "fixes" the digest later.
+- **F4, confirmed.**
+  - The MANIFEST tie fails rather than blocks, and names both sides.
+  - Only tarball members are staged; a stray file is listed in `latest.json`.
+  - Builder note: Decision 3 says no recorded patch adds a file. That is true for 0001, and for
+    051's 0002 and the amended 0001 (I applied both: they change existing files only). A later
+    patch that adds a test file would be silently left out. Make the member filter also accept
+    a path that a recorded patch creates, read from the patch's `+++` lines.
+- **F5, confirmed.**
+  - `C` lines exist, and the trapped node is the last open `S` or `C` line.
+  - Successful collectors never get an `R` line, but every `S` comes after all `C` lines, so the
+    rule picks the right line both at collection and at run time.
+  - Criterion 4 covers the collector case.
+- **F6, confirmed.**
+  - The caps rule is at most 3×10¹², and today's caps sum to 2.82×10¹².
+  - The 1.8×10¹² spent-fuel budget is a review rule, backed by a sum in the landing notes.
+- **F7, confirmed.** Decision 20 gives the builder a way to run the groups:
+  - linked tarballs and trees;
+  - the kit fetched or linked;
+  - `WASI_PYTHON_ARTIFACTS` set to the frozen set;
+  - the 37-check scoreboard line in the notes.
+
+  `pins.source_pair` follows a symlinked tree (`is_dir`), and `build/` and `downloads/` are in
+  `NOT_SOURCE` (READ).
+- **F8, confirmed.**
+  - The two profiles are stated as they are.
+  - The `P` line makes derandomization a checked fact.
+  - Criterion 3 gives the expected values.
+- **F9, confirmed.**
+  - `--accept` refuses while an upstream check with an accepted pass or gap is unrun locally,
+    unless `--partial`.
+  - The lane rule is written down.
+  - The release rule is recorded as later work.
+- **F10, confirmed.** The kit's pinning is covered:
+  - the oracle precedent is cited;
+  - the rules line checks `kit.txt`;
+  - the fetcher renames a file only after its hash matches;
+  - the unzip is safe.
+- **F11, confirmed.**
+  - Staging is once per run, of named folders only.
+  - The `M` lines guard against a product module coming from the grant.
+  - The `__init__.py` sentence is corrected in the spec and, by a dated line, in the memo.
+- **F12, confirmed.** `passed_digest` is recorded, and the promise is reworded to what a count
+  can keep.
+- **F13, confirmed.**
+  - The memo says which file is the driver that ran.
+  - The file-list origin of the numpy numbers is stated.
+  - The 13 minutes are labelled INFERRED.
+- **F14, confirmed.**
+  - Upstream's `--strict-markers --strict-config` are passed.
+  - The revision runs show no configuration error.
+  - The other `addopts` are named, each with its reason.
+- **F15, confirmed.**
+  - The cost stands beside the lane's measured times.
+  - The landing notes measure the judge's time before and after.
+  - The knob is named in the owner's section.
+
+### Condition (write into the specification before the build starts)
+
+**C1. Say what happens to a class or a trap once it is fixed.** Two parts of the revision
+disagree:
+- Decision 10 says that when a class empties, its check passes and its gap fails with "remove
+  the gap". That is spec 002's "a gap becomes a pass".
+- Decision 17's rules check requires every class to have a non-empty list file. So a fixed class
+  must be deleted, and its check disappears.
+
+Spec 051's Decision 12 relies on the second reading for 7 trap entries and 7 classes. A
+disappearing check also leaves its accepted `gap` entry in `accepted.json` for good:
+`scoreboard.compare` reports `absent` only for accepted passes, and `accept()` refuses a
+`--retire` of any node that is not `absent` (READ, `scoreboard.py`). Choose one, and write it
+into Decisions 10 and 17 and criterion 8:
+- **(a) Preferred.** An emptied class stays, with an empty list file, as a passing check. Its gap
+  is removed, and the rules check allows an empty list once its gap is gone. The scoreboard then
+  shows gap → pass, as spec 002 says every fix lands. The class keeps guarding: if the same
+  failure comes back, it shows as `+<node id>`. Trap entries are still removed when their tests
+  rejoin the group, since the group then guards them.
+- **(b)** A fixed class, its list and its gap are deleted. The harness learns to drop an
+  accepted `gap` entry whose check is absent from a run of its whole file, through `--retire`
+  or by itself, with a unit check.
+
+### Builder notes (no change to the specification needed)
+
+- A trap check passes as soon as its entry stops trapping, even if the test then fails as a
+  Python exception. The test stays deselected from its group until its `[[trap]]` entry is
+  removed. Spec 051 removes all seven entries in the same landing, so nothing hides. Say so in
+  the landing notes of whichever spec fixes a trap.
+- The prototype runs show that a snapshot cannot be paired with a zip it was not made from:
+  `named.zip` under the snapshot exited 1 after 0.76 G fuel. Any experiment on a changed zip
+  uses the plain binary. This matters to spec 051's builder, not to 050.
+
+### Verdict on the revision
+
+**Confirmed for build, with condition C1 written in.** Every finding is fixed as its disposition
+says, and the fixes keep spec 002's model instead of standing beside it. C1 is small, but it
+decides how every later fix to these suites lands, and spec 051 is the first to need the answer.
+
+One line: all fifteen fixes hold; 050 is confirmed for build once it says whether a fixed class
+stays as a passing guard (preferred) or is deleted, with its accepted gap retired.
