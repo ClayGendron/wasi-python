@@ -401,6 +401,95 @@ it after step 4 rather than at the end.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author, 2026-10-17. Each finding is fixed in the specification; the decision or criterion
+that carries it is named. I read 032's build (`spec/032-a-filesystem-provider`, commit `c69cb31`,
+read only) to name the seams: `_Files`, `_ask`, `_take`, `_drop` and `free`, `_across`,
+`_fd_filestat_set_times`, `_fd_fdstat_get`'s `FILE_RIGHTS`, `METHODS`, `FileRecord.calls`, and
+`_call_deferred`'s `_fuel_used` then `table.record()`.
+
+1. **Fixed by A (Decisions 2, 3 and 12; acceptance 1, 2, 4 and 9).** A create is one
+   `write(path, b"")` at open, in place of the parent `stat`. `"w"` is that one call, which
+   creates or truncates; `"x"` is `stat` then the create; `"a"` is `read` then the create if
+   missing; `TRUNC` alone is `stat` then `write(b"")`. Every buffer starts clean. A refused
+   create fails at open and is a `RefusedWrite` with `at == "open"`. The two rows ("appears at
+   its first write-back", "two `"x"` opens both succeed") left Decision 12's table; the "refused
+   write" row now says a create or truncation still fails at open. Decision 3 says why, citing
+   your `tempfile_model.txt` and `tempfile_model_create.txt`, and that `O_EXCL` is exact within a
+   call and as atomic as the provider's `stat` then `write` across writers. Acceptance 2 gains a
+   second `"x"`, `TemporaryFile`, `NamedTemporaryFile` with `os.replace` and `O_CREAT | O_RDONLY`
+   rows; acceptance 9's first row now counts one `write(b"")`, one `remove` and no other
+   `write`, with the provider left empty. B is not taken.
+2. **Fixed (Decisions 5 and 8; Terms; acceptance 5, 12 and the new 16).**
+   - Owed buffers: a close the runner could not write back frees the number for the guest
+     (later calls on it are `EBADF`) but keeps it **reserved**: not pushed onto `_Files.free`,
+     counted in `MAX_MOUNT_FILES` and in the staged bytes, until the walk. The walk's bound then
+     holds by construction, whatever an embedder does with its `cancel`.
+   - One rule for unmade write-backs: not recorded at the close or sync; owed; recorded once, at
+     `"exit"`, if the walk does not write it. The guest's answer is named for each case:
+     `ECANCELED`, `ETIMEDOUT`, `EIO` from `_ask`, or `EIO` (`stopped`) from 030's guard, under
+     which the number simply stays open.
+   - The walk never goes through `_ask`: it has its own counted call path (counts in
+     `_Files.total` and `calls`; checks only the limit, the deferred Ctrl-C and the exit hook;
+     keeps the fault boundary; never sets `call.ended` or `call.stopped`; never touches the
+     epoch or the fuel), placed in `_call_deferred` after `_fuel_used` and before
+     `table.record()`. Acceptance 5 and 12 assert an exit-0 run's `fuel_used` is unchanged.
+   - The orphan path has its own raw WAT check, acceptance 16: a provider `stat` that sets
+     `cancel`, then `fd_close` at once; `ECANCELED`, no call from a later open, the number
+     reserved, one walk `write`, `refused` empty; and the same under the limit, recorded once.
+3. **Fixed (Decision 8, Decision 12's table, acceptance 7; question 71 updated).** No walk when
+   spec 015's exit hook has run (`_hook["exiting"]`), and the walk stops before its next call if
+   the hook runs during it; acceptance 7 gains that row in a child process. Decision 8 states the
+   bound in your numbers (min(1,024, calls left) `write`s, at most the staging bound in bytes,
+   1 GiB by default or 4 GiB, one transient copy at a time) and that a mounted run may return
+   after its deadline by the provider's time for those calls; the README says it. The vfs reason
+   is qualified in Decision 8 and in question 71: vfs's flush waits only for the line's remaining
+   time (169 §b8), and a provider under 034 does the same by answering `ETIMEDOUT`, which
+   `refused` records. "The owner's choices" and question 71 say the owner should answer before
+   the landing lane lands 034. I also corrected one clause of question 72, which finding 1 made
+   false ("a new file … seen only after its close").
+4. **Fixed (Decision 10, Decision 14).** A new bullet states the amplification in numbers
+   (`max_file_calls` × the staging bound, 10,000 × 1 GiB by default, against one byte per sync
+   on a grant), keeps "no new limit", and has the README advise a persisting provider to quota
+   or rate-limit and answer `EDQUOT`. A byte budget on write-backs is listed in Scope as a later
+   specification. The buffer calls' host fills are named as the class every host function is in.
+5. **Fixed (Decision 7, acceptance 9).** An unlinked folder answers every relative path call
+   (`path_open`, `path_filestat_get`, `path_readlink`, set-times, the namespace calls) with
+   `ENOENT`, and `fd_readdir` from cookie 0 lists only `.` and `..`, with no provider call; its
+   kept listing is dropped when it is unlinked. Acceptance 9 asserts a relative open, a stat and
+   a re-list, each with no call, after an `rmdir` and a `mkdir` of the same name.
+6. **Fixed (Decision 11, acceptance 13 and 14, Kind, Design).** Decision 11 keeps eight keys and
+   says it is a judge change: every 032 assertion comparing a `calls` mapping or the harness
+   provider's count with a three-key literal, in `test_v1_4_embedding.py` and
+   `test_runner_mounts.py` (four named, from `c69cb31`; the builder lists every one found by
+   `calls ==`), gains the five zero keys. Each check then asserts more, never less. It is named
+   in the `--accept-judge` reason. Acceptance 13 now reads "pass, with only their record shape
+   changed".
+7. **Fixed by the count (Decision 11, acceptance 4 and 12).** `FileRecord.refused_total` counts
+   every refusal, kept or not; acceptance 12 asserts 1,001 refused `mkdir`s and one refused walk
+   write-back give `len(refused) == 1000` and `refused_total == 1002`.
+8. **Fixed (Decisions 6, 9, 12 and 13; acceptance 10 and 11).** At or under a nested preopen is
+   032's `EPERM`; strictly above is `EBUSY`. Across: `EPERM` when the other side is read-only
+   (a read-only grant, the zip, a read-only mount), `EXDEV` only when both may be written; the
+   same for `path_link`. That extends 032's `_across`, which says `EPERM` for every side.
+   Acceptance 10 says `rmdir`, and adds a rename to a read-only grant (`EPERM`). The grant's
+   `rmdir("/w1/./inner")` is a row of Decision 12's table.
+9. **Fixed (Terms, Decisions 3, 4, 5, 6, 9 and 12; acceptance 2, 3 and 11; the build order).**
+   The preopen's set-times is served on a writable mount (success, no change), by path and by
+   descriptor; its sync stays forwarded (`EBADF`). A descriptor that may write reports
+   `FD_WRITE`. "May write" is a term: `CREAT` or `TRUNC`, or `FD_WRITE`. The two macOS rows are
+   named as per system from the start. The table is read top to bottom, first row wins; `EXCL`
+   without `CREAT` is ignored; an offset, position or size at or above `2**63` answers
+   wasmtime's errno before the growth bound. Acceptance 3 gains `fd_fdstat_get` on a
+   write-opened file, the preopen's set-times and sync, `EXCL` without `CREAT` and the `2**63`
+   offset. The build order ends step 4 with one release dry run to fill the per-system rows
+   before the build review.
+10. **Fixed (Decision 13, acceptance preamble).** The cross-run hazard names planted data files
+    (`/etc/mime.types`, `/usr/share/zoneinfo/…`) beside modules. The preamble's guard list adds
+    the create at open, the reserved number, the unlinked-folder rule, the exit-hook skip, the
+    rule across and `refused_total`, each tied to a named check.
+
+The Status line records this review and that the revision waits on your confirmation.
+
 ## Verdict
 
 Not ready to build as written, but close. The design keeps the wall whole and adds the write

@@ -198,15 +198,23 @@ document.
   mount until close, `fsync` or the end of the run. Spec 034 hands every unclosed file to the
   provider at every ending that returns a result: an exit, a trap, out of fuel, the deadline, a
   cancel. Its reason is POSIX's: bytes a killed process wrote are still in the file. The cost is
-  provider calls after a cancel or a deadline, at most one per open file (1,024), each counted
-  in `max_file_calls`. A cancelled `run_async` raises `CancelledError`, so its write-backs'
-  refusals reach only the provider. A run that raises (Ctrl-C) writes nothing back. The other
-  way is "a stop means stop": write nothing after a cancel or a deadline, and list each unwritten
-  file in the result. Keep the POSIX rule? The agent recommends yes; vfs's own design flushes on
-  every exit, its timeout included (vfs spec 169 §b5).
+  provider calls after a cancel or a deadline: at most min(1,024, the file calls left) whole-file
+  `write`s, at most the staging bound in bytes (1 GiB by default), each counted in
+  `max_file_calls`, each taking the provider's own time. So a mounted run may return after its
+  deadline by the time those calls take. A cancelled `run_async` raises `CancelledError`, so its
+  write-backs' refusals reach only the provider. A run that raises (Ctrl-C) writes nothing back,
+  and neither does a run stopped by the interpreter's exit (a provider called then could block
+  exit for ever; the pre-build review's finding 3). The other way is "a stop means stop": write
+  nothing after a cancel or a deadline, and list each unwritten file in the result. Keep the
+  POSIX rule? The agent and the pre-build review recommend yes, and recommend answering before
+  the landing lane lands 034. vfs's design is consistent with it, though it is not the same
+  rule: vfs flushes on every exit, but each flush waits only for the line's remaining time
+  (vfs spec 169 §b8), so a flush after the timeout is recorded as a timeout. Under 034 a
+  provider that must honour the deadline does the same by answering `ETIMEDOUT`, which the
+  result records.
 - **72. One buffer per open, not per path.** Two descriptors on one path in one run hold two
-  buffers, and the later write-back wins; a file's unflushed writes, and a new file, are seen
-  by other opens only after its close or `fsync`. This is vfs's staging model, and it keeps the
+  buffers, and the later write-back wins; a file's unflushed writes are seen by other opens only
+  after its close or `fsync` (a new file exists from its open, after the pre-build review). This is vfs's staging model, and it keeps the
   provider to whole-file calls. Sharing one buffer per path would remove these differences from a
   host folder, at the cost of reference-counted buffers. Keep one per open? The agent
   recommends yes, until a real program needs the other.
