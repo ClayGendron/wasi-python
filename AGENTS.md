@@ -67,8 +67,10 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
 2. **Pick work by what it unblocks.** The `next:` line names the
    prerequisite that blocks the most checks. Work on the
    specification that provides it. One specification per builder; at
-   most three parallel-safe and one build-class specification in
-   flight; one landing at a time (constitution §5.7; build-class means
+   most three parallel-safe and three build-class specifications in
+   flight; one landing at a time (constitution §5.7; a build-class
+   specification lands after a rebase, a full rebuild in the main tree
+   and a delta review if its recipe hunks or numbers moved; build-class means
    it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the
    release workflow).
 3. **Write the check before the code.** A new behaviour gets a check

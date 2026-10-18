@@ -74,7 +74,7 @@ build-class), 057 (the release ties what it signs to what it built; build-class;
 before the release after a5). Confirmed for build, building next: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
 every compile; the owner's decision of 2026-10-18).
 
-Confirmed for build, in the build-class queue (one at a time, §5.7), in this order: 059, then 057,
+Confirmed for build, in the build-class queue (up to three built at once, each landing alone, §5.7 as amended 2026-10-18), in this order: 059, then 057,
 then 046 and 047
 (lxml, regex; question 82 lets them take a slot before scipy), 037 and 038 (scipy), 043
 (matplotlib M2; question 81 answered), 039 (tier A), 041 (files read by path from the zip), 042

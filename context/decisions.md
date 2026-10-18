@@ -8,6 +8,22 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 91, answered: up to three build changes built at once (2026-10-18)
+
+- **Asked:** 2026-10-18 (question 91: build the next build-class specification stacked on the one
+  in review?). The owner asked that day what limited parallel work; the agent named constitution
+  §5.7's own rule ("a change to the build recipe overlaps no other change to the build recipe",
+  the owner, 2026-10-17) and offered two shapes: build in parallel and land one at a time, or ship
+  several as one landing.
+- **The owner, 2026-10-18:** option A, "up to 3, land one by one".
+- **What follows:** constitution §5.7 and AGENTS.md rule 2 are amended. Up to three build-class
+  specifications are built and reviewed at once, each in its own worktree. Each lands alone: the
+  lane rebases it, rebuilds the set from the pins in the main tree, compares it with the builder's
+  set rebuilt on the same base, judges and re-measures it; a delta review follows when the rebase
+  altered its recipe hunks or its numbers moved beyond what its review saw. Shipping several as one
+  landing was declined: one landing stays one specification (§5.4). Chains stay in order (scipy
+  before scikit-learn and statsmodels; 041 before 039).
+
 ### The x86_64 rebuild without emulation (2026-10-18)
 
 The owner, 2026-10-18: "I don't see the value in the hour long build under emulation", then, on

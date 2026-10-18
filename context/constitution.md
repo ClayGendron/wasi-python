@@ -29,6 +29,10 @@
   and 83: contourpy, the barcode modules' four-clause BSD and CC BY 4.0
   for three scikit-learn datasets (§4.12), and one unpushed acceptance
   commit may be soft-reset (§4.14).
+  Amended 2026-10-18 by the owner's answer to question 91 (option A): up to
+  three changes to the build recipe may be built at once; each still
+  lands alone, after a rebase, a rebuild and the judge on its own
+  commit (§5.7).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -258,8 +262,15 @@ works.
    rebases one reviewed branch onto main, compares it with what was
    reviewed, runs the full judge on that exact commit in the main
    tree, accepts there, and fast-forwards main. Only the lane accepts.
-   A change to the build recipe overlaps no other change to the build
-   recipe (owner, 2026-10-17).
+   Up to three changes to the build recipe may be built and reviewed at
+   once, each in its own worktree, and each still lands alone. At its
+   landing the lane rebases it onto main, rebuilds the artifact set from
+   the pins in the main tree, compares that set with the builder's
+   rebuilt on the same base, judges and re-measures it there; a change
+   whose recipe hunks the rebase altered, or whose measured numbers moved
+   beyond what its review saw, gets a delta review before it lands
+   (owner, 2026-10-18, question 91; before that, one at a time,
+   2026-10-17).
 
 ## 6. Deciding when the rules do not say
 
