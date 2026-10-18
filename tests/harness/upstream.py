@@ -322,6 +322,15 @@ def stage(cfg: Config, tree: Path, allowed: set[str], dest: Path) -> list[str]:
     return sorted(left_out)
 
 
+def _has_mpl_data(stdlib: Path) -> bool:
+    import zipfile
+
+    from harness import guest
+
+    with zipfile.ZipFile(stdlib) as z:
+        return guest.MPL_DATA_MEMBER in z.NameToInfo
+
+
 def preopens(stage_root: Path) -> list[tuple[str, Path, bool]]:
     """The one grant every group and trap check gets: the stage, read-only, at /upstream."""
     return [(GRANT, stage_root, False)]
@@ -710,6 +719,10 @@ class Session:
             env=ENV,
             fuel=fuel,
             preopens=preopens(self._stage_root()),
+            # matplotlib's data, as the runner grants it on every call (spec 023, Decision 5):
+            # without it `import matplotlib` raises NotADirectoryError, which pandas' own
+            # `importorskip("matplotlib")` does not catch, so a group would fail to collect.
+            mpl_data=_has_mpl_data(d / "python-stdlib.zip"),
         )
         stream_file = r.root / STREAM
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
