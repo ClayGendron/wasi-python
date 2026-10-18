@@ -1,0 +1,31 @@
+$ uv run --python 3.11 --isolated --no-project python -I asyncio_probe.py   (stdout; stderr carries asyncio's two "Task exception was never retrieved" logs of case A6)
+python 3.11.14
+A1 tool ran on 'MainThread', on the caller's loop True; loop turned while the worker waited: True
+A2 a coroutine posted to a blocked loop started while it was blocked: False; started once the loop turned again: True
+A3 the task saw the posting thread's context: True ('from the request'); the loop thread's own value: 'unset'
+A4 clean: cf.cancel() -> True; the waiter woke with CancelledError; task ended when the waiter woke: False; ended within the next second: True; saw CancelledError: True; steps after the cancel: 0; ended once released: True
+A4 suppresses: cf.cancel() -> True; the waiter woke with CancelledError; task ended when the waiter woke: False; ended within the next second: False; saw CancelledError: True; steps after the cancel: >0; ended once released: True
+A5 posting to a closed loop: RuntimeError: Event loop is closed
+A6 KeyboardInterrupt in a bare task: asyncio.run raised KeyboardInterrupt; in a wrapper: caught KeyboardInterrupt
+A6 SystemExit in a bare task: asyncio.run raised SystemExit; in a wrapper: caught SystemExit
+A7 a coroutine made on the main thread ran on 'loop-thread'; a Future of that loop: 'a future of that loop'; a Future of another loop: RuntimeError: Task <Task pending name='Task-31' coro=<a7_made_on_one_threa
+A8 clean: loop thread alive a second after the shutdown request: False; ended once released: True; loop closed: True
+A8 suppresses: loop thread alive a second after the shutdown request: True; ended once released: True; loop closed: True
+A9 async def: True; partial(async def): True; async __call__ (the class's): True; async generator fn is a coroutine fn: False; def returning a coroutine: False; isawaitable(its result): True; isawaitable(Future): True; isawaitable(async generator): False
+exit 0
+
+$ uv run python -I asyncio_probe.py   (the dev environment)
+python 3.14.2
+A1 tool ran on 'MainThread', on the caller's loop True; loop turned while the worker waited: True
+A2 a coroutine posted to a blocked loop started while it was blocked: False; started once the loop turned again: True
+A3 the task saw the posting thread's context: True ('from the request'); the loop thread's own value: 'unset'
+A4 clean: cf.cancel() -> True; the waiter woke with CancelledError; task ended when the waiter woke: False; ended within the next second: True; saw CancelledError: True; steps after the cancel: 0; ended once released: True
+A4 suppresses: cf.cancel() -> True; the waiter woke with CancelledError; task ended when the waiter woke: False; ended within the next second: False; saw CancelledError: True; steps after the cancel: >0; ended once released: True
+A5 posting to a closed loop: RuntimeError: Event loop is closed
+A6 KeyboardInterrupt in a bare task: asyncio.run raised KeyboardInterrupt; in a wrapper: caught KeyboardInterrupt
+A6 SystemExit in a bare task: asyncio.run raised SystemExit; in a wrapper: caught SystemExit
+A7 a coroutine made on the main thread ran on 'loop-thread'; a Future of that loop: 'a future of that loop'; a Future of another loop: RuntimeError: Task <Task pending name='Task-31' coro=<a7_made_on_one_threa
+A8 clean: loop thread alive a second after the shutdown request: False; ended once released: True; loop closed: True
+A8 suppresses: loop thread alive a second after the shutdown request: True; ended once released: True; loop closed: True
+A9 async def: True; partial(async def): True; async __call__ (the class's): True; async generator fn is a coroutine fn: False; def returning a coroutine: False; isawaitable(its result): True; isawaitable(Future): True; isawaitable(async generator): False
+exit 0

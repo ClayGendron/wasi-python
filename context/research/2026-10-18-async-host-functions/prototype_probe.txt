@@ -1,0 +1,7 @@
+$ WASI_PYTHON_ARTIFACTS=…/build/sets/s-f94dec535086b06c uv run python -I context/research/2026-10-18-async-host-functions/prototype_probe.py
+B1 run: exit 0; stdout b"{'n': 3, 'thread': 'wasi-python-tool-loop'}\n"; outcomes [('list', None, 'ok', False), ('call', 'fetch', 'ok', False)]
+B2 run_async: exit 0; stdout b"{'n': 3, 'thread': 'MainThread'}\n"; the tool ran on the caller's loop True; the loop turned meanwhile True; outcomes [('list', None, 'ok', False), ('call', 'fetch', 'ok', False)]
+B3 timeout_s: stdout b'ToolTimeout stall timed out after 0.05 s\n'; outcomes [('list', None, 'ok', False), ('call', 'stall', 'timeout', True)]; the task saw CancelledError True; tool threads back to where they were True
+B4 deadline_s=1, no timeout_s: stdout b"ToolTimeout stall timed out at the run's deadline\n"; last outcome ('call', 'stall', 'timeout', True); message "stall timed out at the run's deadline"; the task saw CancelledError True
+B5 run_async cancelled during an async tool: the task raised CancelledError; the tool's task saw CancelledError True; the next call printed b"{'n': 3, 'thread': 'MainThread'}\n"
+exit 0
