@@ -1,0 +1,5 @@
+compiler gate: /work/host-cache/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang leads to /work/host-cache/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated
+compiler gate: clang's InstalledDir is /work/host-cache/build/tools/wasi-sdk-33.0-arm64-linux/bin
+compiler gate: clang-cpp preprocesses C (__clang__ 1, __cplusplus not defined)
+compiler gate: clang++ reads /work/host-cache/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang++.cfg
+ERROR: compiler gate: the guest's loader read an ld.so.cache (build/compiler-gate/loader-trace.txt)

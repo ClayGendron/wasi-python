@@ -1,0 +1,3 @@
+compiler gate: /work/no-cpp-mode/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang leads to /work/no-cpp-mode/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated
+compiler gate: clang's InstalledDir is /work/no-cpp-mode/build/tools/wasi-sdk-33.0-arm64-linux/bin
+ERROR: compiler gate: clang-cpp failed (build/compiler-gate/clang-cpp.txt)

@@ -1,0 +1,4 @@
+no-launcher: exit 1; 1 lines; last: ERROR: compiler gate: /work/no-launcher/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang does not lead to /work/no-launcher/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated
+no-cpp-mode: exit 1; 3 lines; last: ERROR: compiler gate: clang-cpp failed (build/compiler-gate/clang-cpp.txt)
+0
+host-cache: exit 1; 5 lines; last: ERROR: compiler gate: the guest's loader read an ld.so.cache (build/compiler-gate/loader-trace.txt)

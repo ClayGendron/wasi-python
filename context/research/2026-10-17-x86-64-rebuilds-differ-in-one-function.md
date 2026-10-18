@@ -1,6 +1,8 @@
 # x86_64 rebuilds differ in one function
 
-- **Status:** executed, 2026-10-17. Written when spec 012 took Decision 8's fallback.
+- **Status:** executed, 2026-10-17. Written when spec 012 took Decision 8's fallback. Traced
+  further on 2026-10-18 by spec 040's build (the addendum below); finding 7's register-allocation
+  explanation is superseded there.
 - **Owner:** Clay Gendron
 - **Researcher:** the implementer of spec 012 (Claude Opus 5.5), inside spec 012's build. The box
   was Decision 8's two attempts.
@@ -61,7 +63,9 @@ it too? If not, what differs, and why?
    - It wrote the same bytes again with `-W nan-canonicalization=y` added.
    - So the snapshot step is host-independent on x86_64 (under Rosetta). The whole difference is
      the reactor's one function.
-7. **Why one function** (INFERRED, not traced).
+7. **Why one function** (INFERRED, not traced). *Superseded in part by the addendum: the choice
+   is made in instruction selection, before register allocation, so the spill-weight explanation
+   below is ruled out.*
    - The same LLVM 22 source, built per host, chose differently between two equal-cost
      stack-slot assignments.
    - A heuristic computed in floating point on the host is a likely source. Register allocation's
@@ -89,6 +93,40 @@ it too? If not, what differs, and why?
   - an x86_64 build that runs aarch64's compiler under emulation;
   - an upstream LLVM fix, once the tie is traced to its source.
 - Not run: the x86_64 build on a real x86_64 machine, and the `ubuntu-24.04` runner.
+
+## Traced further (spec 040), 2026-10-18
+
+Spec 040's builder re-ran its Decision 1 from this folder (`decision1-host.sh`,
+`decision1-sweep.sh`, `decision1-x86_64.sh`; outputs in `outputs/decision1/`). The machine is the
+one above. All EXECUTED.
+
+1. **One file reproduces it.** numpy's `npy_math_complex.c`, preprocessed with the build's own
+   command (`-E -P`, 324,353 bytes, `2193b9bd4d40aadc`), compiled with the build's
+   code-generation flags: the arm64 macOS SDK gives `20ef33440bb2e944`, the build's own object; the
+   x86_64 Linux SDK, native in the `linux/amd64` container, gives `d36897438056e356`, the x86_64
+   build's object.
+2. **The IR is equal; instruction selection differs.** `-print-after-all` for `npy_cpowl` prints
+   65,227 lines on each host. Apart from three header lines spelling a template name differently,
+   the first difference is the dump after "WebAssembly Instruction Selection (wasm-isel)": two
+   `__multf3` result slots are numbered in swapped order (`outputs/decision1/passes-first-differences.diff`).
+3. **The scheduler is not a lever.** Each of the seven `-pre-RA-sched` choices gives different
+   objects on the two hosts (`outputs/decision1/*/sched.txt`).
+4. So finding 7's register-allocation explanation is ruled out. Why instruction selection orders
+   the slots differently per host build is not traced (INFERRED: the release binaries have no
+   `-debug-only`).
+5. **The aarch64 compiler, emulated on x86_64, gives the aarch64 bytes.** After the recipe's own
+   step 10 puts the arm64 Linux SDK's clang under the pinned `qemu-aarch64` behind
+   `$SDK/bin/clang`, the same sweep through it gives macOS's object and macOS's hash for every
+   scheduler choice (`outputs/decision1/linux-x86_64-emulated/`). Its pass print equals macOS's
+   but for the same three header lines (`outputs/decision1/passes-macos-vs-emulated.diff`): that
+   spelling follows the system each clang was built on (both Linux builds spell it alike), not the
+   CPU, and it is not in any object.
+6. **A nine-line reproducer** (`../upstream/4-llvm-wasm-isel-slot-order/evidence/slot-order.c`): a
+   loop carrying a complex multiply in two `long double`s. The arm64 macOS and arm64 Linux SDKs give
+   `9afcef294ca52dad`, the x86_64 Linux SDK `7daeec0794b49c01`, again first differing at
+   `wasm-isel`'s `__multf3` slots. The LLVM issue is drafted there.
+7. **The fix.** Spec 040 compiles on x86_64 with the aarch64 clang under qemu. Its three-host build
+   and the numbers are in the spec's landing notes.
 
 ## One line
 

@@ -1,0 +1,15 @@
+# diff macos-arm64/passes.txt linux-x86_64-emulated/passes.txt (cmp: they differ only here). The three header lines
+# spell a template name as each OS's build of clang does (the Linux builds alike); every
+# pass's content is equal.
+9553c9553
+< ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module> on [module] ***
+10261c10261
+< ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module> on [module] ***
+20529c20529
+< ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function, llvm::AnalysisManager<Function>> on npy_cpowl ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function> on npy_cpowl ***

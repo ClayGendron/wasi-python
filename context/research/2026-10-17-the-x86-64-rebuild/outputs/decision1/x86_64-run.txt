@@ -1,0 +1,31 @@
+downloads: 35 pins, 0 fetched, 35 verified
+uname: Linux 7.0.12-linuxkit x86_64
+commit: 09d90e8e6ad5411fe48b30ebf4af04ec76dd86fe
+file: 324353 bytes, 2193b9bd4d40aadc
+== the x86_64 Linux SDK's clang, native
+object d36897438056e356
+passes: 65227 lines
+default d36897438056e356
+source d5f10409ccdb5eb7
+list-burr d36897438056e356
+list-hybrid d79a51b89a8fbb99
+list-ilp 80029e2b4398eb85
+linearize 4dfe54d1652b9a4f
+fast 1e6427b96fea3f63
+== step 10
+compiler gate: /work/wasi_python/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang leads to /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated
+compiler gate: clang's InstalledDir is /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin
+compiler gate: clang-cpp preprocesses C (__clang__ 1, __cplusplus not defined)
+compiler gate: clang++ reads /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang++.cfg
+compiler gate: the guest's loader maps no ld.so.cache; clang version 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+== $SDK/bin/clang after step 10: the arm64 Linux SDK's clang under qemu-aarch64
+object 20ef33440bb2e944
+passes: 65227 lines
+default 20ef33440bb2e944
+source c3b001c3351c08af
+list-burr 20ef33440bb2e944
+list-hybrid 522f924ab0de8a2f
+list-ilp 98f1fbf6da3de020
+linearize 13f0e78633daa4e1
+fast d8c6f8d513243df8
+exit 0

@@ -1,0 +1,3 @@
+uname: Linux 7.0.12-linuxkit x86_64
+commit: 09d90e8e6ad5411fe48b30ebf4af04ec76dd86fe
+file: 324353 bytes, 2193b9bd4d40aadc

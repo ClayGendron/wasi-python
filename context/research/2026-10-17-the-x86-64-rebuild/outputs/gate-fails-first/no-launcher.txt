@@ -1,0 +1,1 @@
+ERROR: compiler gate: /work/no-launcher/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang does not lead to /work/no-launcher/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated

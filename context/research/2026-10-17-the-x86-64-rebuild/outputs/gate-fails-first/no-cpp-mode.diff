@@ -1,0 +1,8 @@
+46,49c46,47
+<   clang) run -no-canonical-prefixes "$@";;
+<   clang++) run -no-canonical-prefixes --driver-mode=g++ "$@";;
+<   clang-cpp) run -no-canonical-prefixes --driver-mode=cpp "$@";;
+<   *) echo "ERROR clang-emulated: no driver mode for the name $(basename "$0")" >&2; exit 1;;
+---
+>   *++) run -no-canonical-prefixes --driver-mode=g++ "$@";;
+>   *) run -no-canonical-prefixes "$@";;

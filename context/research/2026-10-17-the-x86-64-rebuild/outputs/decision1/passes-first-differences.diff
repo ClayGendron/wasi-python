@@ -1,0 +1,32 @@
+# diff macos-arm64/passes.txt linux-x86_64-native/passes.txt: 658 changed lines in all; the first:
+9553c9553
+< ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module> on [module] ***
+10261c10261
+< ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module> on [module] ***
+20529c20529
+< ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function, llvm::AnalysisManager<Function>> on npy_cpowl ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function> on npy_cpowl ***
+35955c35955
+<   CALL_PARAMS &__multf3, %stack.28, %12:i64, %13:i64, %14:i64, %15:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   CALL_PARAMS &__multf3, %stack.25, %12:i64, %13:i64, %14:i64, %15:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+35957c35957
+<   CALL_PARAMS &__multf3, %stack.25, %16:i64, %17:i64, %10:i64, %11:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   CALL_PARAMS &__multf3, %stack.28, %16:i64, %17:i64, %10:i64, %11:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+35959,35962c35959,35962
+<   %120:i64 = LOAD_I64_A32 0, 8, %stack.28, implicit-def dead $arguments :: (load (s64) from %stack.28 + 8, basealign 16)
+<   %121:i64 = LOAD_I64_A32 0, 0, %stack.28, implicit-def dead $arguments :: (load (s64) from %stack.28, align 16)
+<   %122:i64 = LOAD_I64_A32 0, 8, %stack.25, implicit-def dead $arguments :: (load (s64) from %stack.25 + 8, basealign 16)
+<   %123:i64 = LOAD_I64_A32 0, 0, %stack.25, implicit-def dead $arguments :: (load (s64) from %stack.25, align 16)
+---
+>   %120:i64 = LOAD_I64_A32 0, 8, %stack.25, implicit-def dead $arguments :: (load (s64) from %stack.25 + 8, basealign 16)
+>   %121:i64 = LOAD_I64_A32 0, 0, %stack.25, implicit-def dead $arguments :: (load (s64) from %stack.25, align 16)
+>   %122:i64 = LOAD_I64_A32 0, 8, %stack.28, implicit-def dead $arguments :: (load (s64) from %stack.28 + 8, basealign 16)
+>   %123:i64 = LOAD_I64_A32 0, 0, %stack.28, implicit-def dead $arguments :: (load (s64) from %stack.28, align 16)
+first content difference at macOS line 35955, in the dump: # *** IR Dump After WebAssembly Instruction Selection (wasm-isel) ***:

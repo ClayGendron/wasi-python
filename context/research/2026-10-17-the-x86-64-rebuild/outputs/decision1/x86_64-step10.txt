@@ -1,0 +1,14 @@
+compiler gate: /work/wasi_python/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang leads to /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang-emulated
+compiler gate: clang's InstalledDir is /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin
+compiler gate: clang-cpp preprocesses C (__clang__ 1, __cplusplus not defined)
+compiler gate: clang++ reads /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/bin/clang++.cfg
+compiler gate: the guest's loader maps no ld.so.cache; clang version 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+Using CPython 3.15.0 interpreter at: build/tools/python/bin/python3
+Resolved 4 packages in 66ms
+Prepared 4 packages in 160ms
+Installed 4 packages in 57ms
+ + cython==3.3.0
+ + meson==1.12.1
+ + ninja==1.13.2
+ + versioneer==0.29
+tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0
