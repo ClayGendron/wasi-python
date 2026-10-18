@@ -505,3 +505,116 @@ A sound write half on 032's boundary, with one design gap (a file created at ope
 provider, so `TemporaryFile` and `O_EXCL` break) and an ending whose owed buffers, limit and exit
 path need exact rules; create at open, reserve owed numbers, skip the walk at interpreter exit,
 and it can be built.
+
+## Confirmation (2026-10-17)
+
+By the reviewer. I read the revised specification (commit `21ba601`), the Disposition above and
+questions 71 and 72 as updated, and checked each answer against its finding. I checked the
+ending's seams against 032 as committed for its build review (`c69cb31`, read only, through
+`git show`; the worktree also holds uncommitted build-review edits to `mounts.py`, which I did
+not rely on). I re-ran the tempfile model with Decision 3 as now worded. New files are in the
+same scratch folder: `memo_shadow_034rev.py` (the memo's model with Decision 3's revised table,
+Decision 7's unlinking and following, and Decision 2's `write` contract, `EISDIR` for a folder),
+`tempfile_prog2.py`, `tempfile_model_034rev.txt` and `runner_c69cb31.py.txt`. They ran under
+`uv run python -I` on darwin-arm64 against the artifact copy. Nothing in `src/`, `tests/`,
+`scripts/`, `recipes/`, the spec or the 032 worktree was edited.
+
+### The ten dispositions
+
+1. **Confirmed (EXECUTED, `tempfile_model_034rev.txt`, both binaries).** With the open table
+   read top to bottom as written (`"x"` is `stat` then `write(b"")`; `"w"` is one `write(b"")`;
+   `TRUNC` alone is `stat` then `write(b"")`; `"a"` is `read` then `write(b"")` if missing; every
+   buffer clean), and Decision 7, the model gives a writable grant's results:
+   - `TemporaryFile` gives `b'hello'` and leaves nothing in the store;
+   - `NamedTemporaryFile` with `os.replace` inside its `with` gives `b'x'` at the final name and
+     nothing at the temp name;
+   - `mkstemp`, then a rename while open, then a write and a close gives `b'm'` at the new name,
+     and the old name is gone;
+   - a just-created open file exists, and a second `O_EXCL` open is 20 (`EEXIST`);
+   - `"w"` under a missing parent is 44 and on a folder is 31, both at open;
+   - `"a"` on a missing file creates it;
+   - a `"w"` truncation is visible to `os.stat` before the close.
+   The final store is `a.txt`, `final.bin`, `moved.txt`, `new.txt`, `seed.txt`, with no stray
+   temp file. The model has no owed buffers or walk; those are confirmed by reading below.
+2. **Confirmed (READ, `c69cb31`), with notes N1 and N2.**
+   - Owed buffers keep their numbers out of `_Files.free` and count toward `MAX_MOUNT_FILES`
+     and staging, so the walk's bound holds by construction.
+   - One rule: not recorded at the close or sync, recorded once at `"exit"`.
+   - The guest's answers are named.
+   - The walk has its own path. It never sets `call.ended` or `call.stopped` and runs after
+     `_fuel_used` (`runner.py:1765`) and before `table.record()` (`runner.py:1779`). `_fuel_used`
+     reads only those two fields (`runner.py:1799`), so an exit-0 run keeps its `fuel_used`.
+   - Acceptance 16 reaches the owed path through raw WAT with no function entry between the
+     `stat` and the close. That is the only way to reach it before the epoch callback, so it is
+     the right check.
+3. **Confirmed (READ).** `_hook["exiting"]` exists and is set first in `_stop_async_calls`
+   (`runner.py:379, 426`). Checking it before each walk call covers a hook that runs during the
+   walk. The bound in numbers, the README sentence and question 71's qualified vfs reason are
+   right.
+4. **Confirmed (READ).** The numbers, no new limit, `EDQUOT` advice, and a byte budget in
+   Scope.
+5. **Confirmed (READ).** Every relative path call and the re-list are covered, with the kept
+   listing dropped. Acceptance 9 asserts it after an `rmdir` and a `mkdir` of the same name,
+   which is the case that matters.
+6. **Confirmed (READ).** The four literals the Disposition names are the ones in `c69cb31`
+   (`test_v1_4_embedding.py:1536, 1732`, `test_runner_mounts.py:151, 437`). Each rewrite only
+   adds zero keys, so each check asserts more. It is named as a judge change.
+7. **Confirmed (READ).** `refused_total`, and acceptance 12's 1,002.
+8. **Confirmed (READ).** `EPERM` at or under a nested preopen, `EBUSY` strictly above it.
+   `EPERM` across to a read-only side, `EXDEV` only between writable sides, and the same for
+   `path_link`. The grant's `rmdir("/w1/./inner")` row is in Decision 12's table.
+9. **Confirmed (READ).** The preopen's set-times is served and its sync forwarded, as
+   `preopen_rw.txt` shows. `FD_WRITE` is reported, "may write" is a term, both macOS rows are
+   per system, the open table's order is stated, the `2**63` order is stated, and a dry run
+   closes step 4.
+10. **Confirmed (READ).**
+
+### Notes for the builder
+
+The first is a one-word text fix; the rest need no change to the specification.
+
+- **N1. The walk's seam is in `_instance`, not `_call_deferred`.** EXECUTED (grep of
+  `runner_c69cb31.py.txt`): `done = _drive(...)` (1764), `fuel_used = _fuel_used(...)` (1765)
+  and `files = ... table.record()` (1779) are in `_instance` (from line 1680).
+  `_call_deferred` (1599) only makes `HOME` and the store. Both run inside `_call`'s
+  `_deferred_ctrl_c` scope (1595), so the design holds; Decision 8's "In 032's
+  `_call_deferred`" should read `_instance`.
+- **N2. An owed buffer must not be found by `_entry`.** READ (`mounts.py:432-433` at `c69cb31`):
+  `_entry` is `self.table.get(fd)`. If an owed buffer stays in `table` at its reserved number, a
+  later call on that number is served from it rather than answering `EBADF`. Hold owed buffers
+  in their own map, keyed by number, that the walk reads and `_entry` does not. A forward of
+  the number then answers `EBADF` (wasmtime never holds it), and `fd_renumber` already refuses
+  it.
+- **N3. An unmade call at open owes nothing.** If `_ask` refuses an open's `stat`, `read` or
+  create `write` (cancel, deadline or limit), no buffer exists and nothing is lost. The open
+  answers that errno, and nothing is recorded. Decision 11's "every write-half call that did not
+  succeed" means calls the provider answered, and Decision 5's rule covers the rest. Write it so
+  in the code's comment, which keeps "each once" exact.
+- **N4. Acceptance 9's exact counts need `dir=`.** A `TemporaryFile()` with no `dir` first runs
+  `tempfile._get_default_tempdir`'s probe (an `"x"` open, a write of `b'blat'`, a close and an
+  unlink: READ, `Lib/tempfile.py:195-210`), which adds its own create and content write. Pass
+  `dir="/tmp"` or set `tempfile.tempdir`, or count only the temp file's own name.
+
+### Questions 71 and 72
+
+As updated, both read correctly. I agree with each. The owner's answer to 71 is wanted before
+the landing lane lands 034, as the specification now says, not before the build.
+
+### Result
+
+**Confirmed for build, on one condition:** N1's word fix in Decision 8 (`_instance` for
+`_call_deferred`), which the author makes before the builder starts. N2 to N4 are builder notes.
+No further pre-build review is needed. The build review is also a security review
+(acceptance 15). It re-runs the guards one at a time, including the new ones (the create at
+open, the reserved number, the unlinked-folder rule, the exit-hook skip, the rule across,
+`refused_total`).
+
+One line: the revision closes all ten findings. The create at open gives a grant's
+`TemporaryFile`, `O_EXCL` and atomic-save results when run, and the walk's seams match 032's
+committed code. Fix one function name, and 034 can be built.
+
+### The lane's note on the condition (2026-10-17)
+
+- N1: Decision 8 and the Design table now place the walk in 032's `_instance`, inside
+  `_call_deferred`'s deferred-Ctrl-C scope, after `_fuel_used` and before `table.record()`.
+- N2 to N4 stay builder notes, as the confirmation says.

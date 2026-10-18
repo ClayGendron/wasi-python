@@ -3,7 +3,8 @@
 - **Status:** drafted 2026-10-17; reviewed before build the same day
   (`../reviews/034-writable-mounts-spec-2026-10-17.md`, which is also a security review of the
   design; verdict: not ready as written, but close) and revised against its ten findings (its
-  Disposition). It waits on the reviewer's short confirmation. Not built. It is written on spec
+  Disposition), and confirmed for build with one condition (N1, where the walk sits), written
+  in; the confirmation's builder notes N2 to N4 are in the review. Not built. It is written on spec
   032 as built for review (`spec/032-a-filesystem-provider`, commit `c69cb31`, read only; its
   seams are named here by function: `_Files`, `_ask`, `_take`, `_drop`, `_across`,
   `FileRecord.calls`). 032 may change in its build review. **034 rebases on what lands:** where
@@ -294,7 +295,8 @@ staging). New here:
 8. **Write-back at every ending.** The runner plays the part a kernel plays for a process: what
    the guest gave `fd_write` is in the file, and a stopped process does not take it back.
    - **When:** after the guest has stopped by any ending, on the call's thread, outside every
-     host function. In 032's `_call_deferred`, the walk runs after `_drive` returns and after
+     host function. In 032's `_instance` (inside `_call_deferred`'s deferred-Ctrl-C scope), the
+     walk runs after `_drive` returns and after
      `_fuel_used` has been read, before `table.record()` builds the result, inside spec 015's
      deferred-Ctrl-C scope. It goes through the call's table in ascending provider number and
      makes one `write` for each dirty buffer of a writable mount that is not unlinked, owed
@@ -529,7 +531,7 @@ src/wasi_python/mounts.py    the writable flag in the mount table; the open tabl
                              walk's own counted call path; RefusedWrite, FileRecord.refused and
                              refused_total; METHODS of eight; WritableFileProvider
 src/wasi_python/runner.py    Mount's writable check among the mount checks; the walk in
-                             _call_deferred after _fuel_used and before table.record(), skipped
+                             _instance after _fuel_used and before table.record(), skipped
                              when the call raises or the exit hook has run
 src/wasi_python/__init__.py  exports RefusedWrite and WritableFileProvider
 tests/harness/files.py       032's in-memory provider gains the write half; it counts all eight
