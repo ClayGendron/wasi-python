@@ -33,7 +33,13 @@ Repository = "https://github.com/claygendron/wasi_python"
 [dependency-groups]
 # wasmtime, which the harness drives the guest with (spec 002, Decision 10), comes from the
 # project's own dependency, so the bound is written once (spec 028, Decision 1).
-dev = ["pytest>=8", "ruff>=0.12"]
+# pytest-xdist runs the judge on several cores (spec 052, Decision 1); pinned exactly, since the
+# harness subclasses its scheduler and allows its plugins only at the version uv.lock names.
+dev = [
+    "pytest>=8",
+    "pytest-xdist==3.8.0",
+    "ruff>=0.12",
+]
 
 [build-system]
 requires = ["hatchling"]

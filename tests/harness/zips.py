@@ -11,7 +11,7 @@
   passes on a zip that lacks it.
 
 `judge_zips(artifact_zip)` makes `small.zip` and `padded.zip` once per artifact zip, under
-build/harness/zips-<the zip's hash>/, and reuses them while that zip is unchanged.
+build/harness/zips-<the zip's hash>-v2/, and reuses them while that zip is unchanged.
 """
 
 from __future__ import annotations
@@ -229,14 +229,24 @@ class JudgeZips:
 
 
 def judge_zips(artifact_zip: Path) -> JudgeZips:
+    """The two zips, made once per artifact zip and safe across processes (spec 052, Decision 13).
+
+    Each process builds in its own work folder and publishes it with one rename. A home that
+    exists is complete, since a rename of a finished build is the only way one comes to exist,
+    and no home is ever removed: a process that loses the rename drops its own work folder and
+    uses the one that won. The `-v2` name leaves any folder an earlier version made unread."""
     sha = paths.sha256_file(artifact_zip)[:16]
-    home = paths.HARNESS_TMP / f"zips-{sha}"
-    small, padded = home / "small.zip", home / "padded.zip"
-    if not (small.is_file() and padded.is_file()):
+    home = paths.HARNESS_TMP / f"zips-{sha}-v2"
+    if not home.is_dir():
         paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
-        work = Path(tempfile.mkdtemp(prefix="zips-", dir=paths.HARNESS_TMP))
-        make_small(artifact_zip, work / "small.zip")
-        make_padded(work / "small.zip", artifact_zip, work / "padded.zip")
-        shutil.rmtree(home, ignore_errors=True)
-        os.replace(work, home)
+        work = Path(tempfile.mkdtemp(prefix="zips-work-", dir=paths.HARNESS_TMP))
+        try:
+            make_small(artifact_zip, work / "small.zip")
+            make_padded(work / "small.zip", artifact_zip, work / "padded.zip")
+            os.rename(work, home)
+        except OSError:
+            shutil.rmtree(work, ignore_errors=True)
+            if not home.is_dir():  # not another process's finished folder: a real error
+                raise
+    small, padded = home / "small.zip", home / "padded.zip"
     return JudgeZips(small, padded, _members(small), _members(padded))

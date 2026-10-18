@@ -534,3 +534,55 @@ def _no_private_modules_left():
     yield
     for name in [n for n in sys.modules if n.startswith("judge_zip_")]:
         del sys.modules[name]
+
+
+# Part 3: the judge's zips folder, made by several processes at once (spec 052, Decision 13).
+
+CONCURRENT_ZIPS = r"""
+import sys, zipfile
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+from harness import paths, zips
+paths.HARNESS_TMP = Path(sys.argv[2])
+go = Path(sys.argv[4])
+while not go.exists():  # a start line, not a timing: every process builds from cold together
+    pass
+made = zips.judge_zips(Path(sys.argv[3]))
+with zipfile.ZipFile(made.small) as s, zipfile.ZipFile(made.padded) as p:
+    whole = s.testzip() is None and p.testzip() is None
+    print(len(s.namelist()), len(p.namelist()), whole, made.small.parent.name)
+"""
+PROCESSES, TRIALS, SOURCE_MEMBERS = 6, 3, 400
+
+
+def test_the_judges_zips_folder_is_safe_across_processes(work) -> None:
+    """Six processes build the folder from cold at once, three times: each gets both zips whole,
+    one folder is published, and no work folder is left (spec 052, criterion 10)."""
+    import subprocess
+
+    source = work / "source.zip"
+    source.write_bytes(zips.build({f"m{i}.py": f"x = {i}\n" * 40 for i in range(SOURCE_MEMBERS)}))
+    small = SOURCE_MEMBERS + len(zips.DISTRIBUTIONS)
+    expected = f"{small} {small + 3 * SOURCE_MEMBERS} True"
+    tests = str(paths.REPO / "tests")
+    for trial in range(TRIALS):
+        harness_tmp, go = work / f"trial{trial}", work / f"go{trial}"
+        children = [
+            subprocess.Popen(
+                [sys.executable, "-c", CONCURRENT_ZIPS, tests, str(harness_tmp), str(source),
+                 str(go)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            for _ in range(PROCESSES)
+        ]  # fmt: skip
+        go.touch()
+        answers = [child.communicate(timeout=120) for child in children]
+        lines = [out.strip() for out, _ in answers]
+        errors = [err.strip().splitlines()[-1:] for out, err in answers if not out.strip()]
+        assert errors == [], (trial, errors)
+        assert [line.rsplit(" ", 1)[0] for line in lines] == [expected] * PROCESSES, trial
+        left = sorted(p.name for p in harness_tmp.iterdir())
+        assert len(left) == 1 and left[0].startswith("zips-") and left[0].endswith("-v2"), left
+        assert {line.rsplit(" ", 1)[1] for line in lines} == {left[0]}
