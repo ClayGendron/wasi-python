@@ -460,3 +460,251 @@ and release dry run.
 ## One line
 
 A guest still cannot get out of a writable mount, and the code keeps every rule; but three of those rules (no write-back of an unlinked file at the ending, follow only a successful rename, answers judged by type) have no check, so add them, settle the 048 rename rule, and it lands after question 71.
+
+## The implementer's Disposition (copied by the lane from the scratchpad)
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+By the implementer, 2026-10-18. The branch is rebased onto main `3a9588f`. The reviewed commits
+are now `b947e5c` (was `bb354ba`), `be8ae7d` (`2fcfbee`), `fd3ff39` (`7588daa`) and `e214318`
+(`7bad2d3`). The revision is `40515d3`. The three conflicts you named, plus
+`tests/unit/test_runner_grants.py`, were each two appends at one place, resolved by keeping both.
+Main's `mounts.py` change (reads near `2**63` as Linux answers them) merged cleanly beside
+`_reads`' `readable` check. Each finding's answer is in the specification's Landing notes, last
+part ("Revised 2026-10-18 against the build review"). The new checks were written first and
+pass on the built code, as F1 and F2 expected. Each was seen failing on its mutant, applied one
+at a time and restored byte for byte (`build/mutants-f1f2.log`). All are EXECUTED, frozen set
+`build/sets/s-0cdc7b2bd78db6f5`.
+
+1. **F1 — fixed (two checks).**
+   - `test_unlinked_files_are_not_written_back_at_the_ending` (v1.4, both binaries) runs your
+     scenario A with two endings, `os._exit(0)` and a cancel through the door. The provider's log
+     is exactly `rename("/b.txt", "/a.txt")`, `write("/t", b"")`, `remove("/t")`. `/a.txt`
+     holds `b"b\n"`, `/t` is gone, and nothing is refused. M6 fails it, both binaries.
+   - `test_a_refused_rename_or_removal_moves_no_descriptor` (unit) runs your scenario B with a
+     `dst` descriptor too. After a refused rename, the `src` descriptor writes back to `/a.txt`
+     and the `dst` one to `/b.txt`. A refused `remove` unlinks nothing. A refused `rmdir` leaves
+     the folder descriptor asking the provider. M5 fails it, and so does M5b (a removal unlinks
+     even when refused).
+2. **F2 — fixed (one check).** `test_a_write_half_fault_never_escapes` (v1.2, both binaries)
+   uses five hostile answers: a fake `Errno` of 0, a fake `Errno` past i32, `0`, a coroutine, and
+   an exception whose type's name raises. Each is answered at four places: a create at open, a
+   close, a `mkdir`, and the walk. The results:
+   - the guest gets 15 `EIO`s;
+   - there are 20 faults, each with its text;
+   - there are 20 `RefusedWrite(…, Errno.EIO, at, "fault")`, each holding a real `Errno`;
+   - `run` raises nothing, and no "never awaited" warning appears.
+
+   M1 and M2 each fail it, both binaries.
+3. **F3 — answered in writing; the served rename is made ready.** 048 lands first, so 048's rule
+   is not implemented here.
+   - Which trailing `/` makes a served rename need a folder source is now one constant,
+     `mounts.RENAME_SLASH_NEEDS_FOLDER = (True, False)`: the source's slash, the destination's
+     slash. `_path_rename` reads it: one `stat` of the source, then `ENOTDIR` unless it is a
+     folder.
+   - After the rebase onto 048, exactly these change:
+     - The constant becomes `(True, True)`.
+     - `_path_rename`'s branch for two wasmtime numbers calls 048's `self._rename(...)`. It is
+       034's only rename forward; `_across` forwards none.
+     - `_write_sides`' grant side becomes 048's writable `files.Guarded`.
+     - The raw rows `'a.txt' → 'newname/'`, `'a.txt' → 'b.txt/'` and `'a.txt' → 'a.txt/'` become
+       54 on both sides on every host, and move to `WASMTIME_ROWS`.
+     - `'d' → 'f/'` stays 0. 048's notes list it among the rows that become `ENOTDIR`, but `d`
+       is a folder, so 49.0.3 renames it.
+   - The served rename already answers those rows in the guard's order: the stat first, then
+     `ENOTDIR`.
+   - Nothing of 048's padding, `forward(..., stat=True)`, `PRIVATE`, `_zeroed`, or its rule that
+     `files` is `None` without mounts is touched. `walk()` does nothing on a guard table.
+4. **F4 — fixed and documented.**
+   - Growth now uses `_grow`, which appends from one shared 64 KiB zero block, so it makes no
+     temporary of the gap's size. Growing a buffer to 64 MiB peaks at 1.014 times the size under
+     `tracemalloc`; the review measured 2.00.
+   - `held` still counts a buffer's length. The README now says the host may hold up to about an
+     eighth more (`bytearray`'s over-allocation), plus the one transient copy at a write-back.
+5. **F5 — unchanged.** The build keeps Decision 8's answer. 034 waits on the owner's answer to
+   question 71.
+6. **F6 — fixed where it asked for a change.**
+   - The README's walk bound now reads "1 GiB by default, 4 GiB when it is `None`".
+   - `_write_back` copies the buffer only after the gate lets the call through.
+   - The Linux image's digest is recorded:
+     `python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b`.
+     In it, on the revised tree, these passed:
+     - the raw write rows and the write differences;
+     - 032's `test_raw_calls_answer_as_a_grant_does`, which passes on Linux since main's fix;
+     - the new F1 v1.4 check, the v1.4 write parity and the endings check (the snapshot).
+   - No check is added for owed buffers following renames; you agreed it is nearly unreachable.
+   - The deadline seam needs no change.
+
+**The fifteen guards**, re-run on the revised source (`mounts.py` `4f643905fc0e…`, `runner.py`
+`620389e3ab9d…`), each fail the checks the Landing notes name (`build/guards-revised.log`).
+
+**The judge:**
+
+```
+wasi_python v1: 238/249 pass · 0 gap · 11 blocked · 0 fail (unit suite 831/839, 8 skipped)
+ratchet vs 947036ec8d: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0
+1069 passed, 19 skipped
+```
+
+`ruff check` and `ruff format --check` are clean.
+
+## Confirmation (2026-10-18)
+
+By the reviewer, on `40515d3`, the revision on the rebased branch (`b947e5c`, `be8ae7d`, `fd3ff39`,
+`e214318` on main `3a9588f`), in the worktree `../wasi_python-034`. I read the Disposition and the
+revision's diff (`git diff e214318 40515d3`). Nothing in any repository tree was edited. Scripts
+and outputs are in the same scratch folder (`rv034/`): `judge2.log`, `mutants_r.txt`,
+`mutants_r7b.txt`, `guards_r.txt`, `bounds_r.txt`, `slash_rows_r.txt`, `gate_probe.txt`. Probes ran
+on `git archive 40515d3` copies (`src034r/`, checked by `__file__`), so the worktree was never
+touched by them. After every mutant and guard run, `git status` in the worktree was clean and
+`mounts.py` hashed `4f643905fc0e…`, `runner.py` `620389e3ab9d…`. Each claim is EXECUTED or READ.
+
+**The rebase (EXECUTED).** The lines `987012e..7bad2d3` changes in `src/` and `README.md` are
+identical to the lines `3a9588f..e214318` changes. The test diffs hold the same lines once sorted.
+So the conflicts were resolved by keeping both sides, as the Disposition says.
+
+**The judge (EXECUTED, `judge2.log`, set `s-0cdc7b2bd78db6f5`, no flags, exit 0):**
+
+```
+wasi_python v1: 238/249 pass · 0 gap · 11 blocked · 0 fail   (unit suite 831/839, 8 skipped)
+ratchet vs 947036ec8d: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0 · judge changed: …
+1069 passed, 19 skipped
+```
+
+`ruff check`: all checks passed. `ruff format --check`: 62 files already formatted. These are the
+Disposition's numbers.
+
+**Each finding against its fix.**
+
+1. **F1: fixed (EXECUTED).** Mutants re-run on the revision, each alone, over the four mount test
+   files (234 checks): M6 (the walk writes back unlinked files) now fails 2 checks, both binaries of
+   `test_unlinked_files_are_not_written_back_at_the_ending`. M5 (a rename's descriptors follow when
+   it is refused) fails 1, `test_a_refused_rename_or_removal_moves_no_descriptor`. My extra M5b (a
+   refused removal unlinks) fails the same check. READ: the v1.4 check is my scenario A with two
+   endings (`os._exit`, a cancel), and it asserts the provider's whole log. The unit check covers a
+   `src` descriptor, a `dst` descriptor, a refused `remove` and a refused `rmdir`.
+2. **F2: fixed (EXECUTED).** M1 (`isinstance` in `_made`) and M2 (any falsy answer is success) each
+   now fail 2 checks, both binaries of `test_a_write_half_fault_never_escapes`. READ: it covers the
+   create at open, the close, `mkdir` and the walk. It also asserts `type(r.errno) is Errno` for
+   every record, and no "never awaited" warning.
+3. **F3: answered, and the switch is right (EXECUTED, `slash_rows_r.txt`).**
+   - With `RENAME_SLASH_NEEDS_FOLDER = (True, False)` as committed, the mount answers as today's
+     grant on all seven trailing-slash rows I ran.
+   - On a copy with `(True, True)`, the mount answers 54, with one `stat` and no `rename`, on the
+     three rows that rename a file to a name ending in `/` (`'a.txt' → 'newname/'`,
+     `'a.txt' → 'b.txt/'`, `'a.txt' → 'a.txt/'`).
+   - On that copy `'d' → 'f/'` stays 0, because `d` is a folder; the Disposition is right on that
+     row. `'a.txt/' → 'c'` stays 54, and `'missing' → 'x/'` stays 44.
+   - READ: `_path_rename`'s branch for two wasmtime numbers is still its only rename forward, and
+     `_across` forwards none.
+
+   The list of what changes when this is rebased onto 048 (the constant, the forward branch, the
+   grant side of the parity, the three rows into `WASMTIME_ROWS`) is complete as far as I can see
+   from 034's side. Whether 048 is built as its spec says is that spec's own build review.
+4. **F4: fixed (EXECUTED, `bounds_r.txt`).**
+   - Growing a buffer to 64 MiB by `fd_filestat_set_size`, and by a `pwrite` past the end, now
+     peaks at 1.01 times the size (it was 2.00) and holds 1.01 times after.
+   - The table's `staged` count is exactly 64 MiB.
+   - The walk bound is unchanged: 1,024 descriptors, 76 `EMFILE`, 1,024 walk writes after a cancel.
+   - READ: `_grow` appends slices of one shared 64 KiB block. The README states the eighth and the
+     one transient copy.
+5. **F5: unchanged, as answered.** 034 waits on question 71.
+6. **F6: fixed where it asked (READ).**
+   - The README now says 4 GiB when `memory_bytes` is `None`.
+   - `_write_back` calls `_gate` before it copies the buffer.
+   - The container image's digest is recorded.
+
+**One new gap, which the revision exposed (EXECUTED).**
+
+- Before the revision, `_write_back` went through `_change`. So my M7 (`_change` without `_gate`)
+  failed acceptance 16 through the close.
+- `_write_back` now calls `_gate` itself, which is right. Removing that call (M7b) still fails
+  `test_a_close_stopped_by_a_cancel_is_owed`.
+- But M7 now **passes all 234 checks**. Nothing checks that a create at open or a namespace call
+  (`mkdir`, `remove`, `rmdir`, `rename`) is refused by the cancel, the deadline and the file-call
+  limit. That was already unchecked before the revision; the close's coverage hid it.
+- What M7 would let through (EXECUTED, `gate_probe.txt`, 50 `mkdir`s with `max_file_calls=5`):
+  - as built: 5 provider calls, and the run ends `"out of file calls"`;
+  - under M7: 50 provider calls, and the run exits 0.
+
+  So decision 42's bound, which Decision 10 extends to the write half, is kept by the code but not
+  held by any check.
+
+**N1, the one condition.** Add a check, seen failing on M7. A guest makes `mkdir`s, or writing
+opens, past `max_file_calls`. The provider sees exactly the limit's count, and the run ends
+`"out of file calls"`. The same after a cancel the provider sets (one row is enough, as in
+acceptance 16): a `mkdir` answers `ECANCELED` with no provider call. The lane can confirm the
+check fails on M7 and passes on the built code; it needs no further review.
+
+**Everything else re-run on the revision (EXECUTED).**
+- Every other mutant of mine is still caught: M3, M4, M9, M10, M11, M12, M14, M15, M16, M18 and
+  M20.
+- M8 (owed buffers do not follow renames) still survives, as agreed (F6).
+- The spec's fifteen guards, removed one at a time with the implementer's script (`guards_r.txt`),
+  each fail the checks the landing notes name.
+
+**Result: 034 lands once N1's check is added and seen failing on M7.** The landing also needs:
+- the owner's answer to question 71;
+- 048 landing first, then 034 rebased onto it as the Disposition's F3 describes;
+- the lane's `--accept-judge` (the judge changed) and the release dry run, with Windows still not
+  run.
+
+One line: F1 to F6 are fixed or answered and their checks catch their mutants; one more check is
+needed, because the write half's cancel, deadline and file-call-limit gate on creates and namespace
+calls is still unguarded.
+
+## Confirmation of the rebase (2026-10-18)
+
+By the reviewer, on `eb70481`. The branch is rebased onto main `77bd08e`, which carries specs 048
+and 036, and its last two commits are `9822812` (the composition and N1) and `eb70481`. Outputs are
+in `rv034/`: `judge3.log` and `mutants_rb.txt`. Each claim is EXECUTED or READ.
+
+- **The judge (EXECUTED, set `s-0cdc7b2bd78db6f5`, no flags, exit 0).**
+  - Result: `258/269 pass · 0 gap · 11 blocked · 0 fail`; `ratchet vs 361775dd62: lost 0 · …
+    gained 22 · grew 0`; `1132 passed, 19 skipped`.
+  - `ruff check` and `ruff format --check` are clean.
+- **The forwarded rename holds 048's rule (READ).**
+  - `_path_rename`'s branch for two wasmtime numbers calls `self._rename(...)`, as main's
+    `_path_rename` does.
+  - 048's `_rename` is byte-identical to main's.
+  - `fd_readdir`'s forward branch, which carries 048's zeroing, is unchanged.
+  - `_across` still forwards no rename and no link.
+  - Every line the branch removes from main's `mounts.py` is 032's read-only text that 034
+    replaces. None is 048's.
+- **The served rename holds 048's rule (READ).** `RENAME_SLASH_NEEDS_FOLDER = (True, True)`. A
+  trailing `/` on either path makes one `stat` of the source, and the answer is `ENOTDIR` unless the
+  source is a folder. The provider is given the plain normalized names. A mount has no links, so
+  this rule is there for parity only, not for safety.
+- **Nothing of 048's checks was weakened (READ).**
+  - The only lines the branch removes from main's tests are 032's three-key `calls` literals and
+    032's harness provider, which 034 rewrites.
+  - One more line is 048's `test_a_guard_call_leaves_the_other_calls_native`. Its
+    `g.table.record().calls == {three zero keys}` becomes `dict.fromkeys(...)` over all eight keys.
+    That adds keys and drops nothing.
+  - In `runner.py`, a guard table's `walk()` does nothing, and `files` stays `None` without mounts
+    (`files = table.record() if mounts else None`).
+- **Mutants on the rebased tree (EXECUTED).** Each was applied alone over the four mount test files
+  plus `test_rules.py` and `test_runner_tools.py` (321 checks), then restored byte for byte.
+  - **R1**, the constant back to `(True, False)`: fails
+    `test_raw_write_calls_answer_as_a_writable_grant_does`.
+  - **R2**, the pair branch forwarding the rename unchanged, as on 49.0.0: fails 6. These are
+    048's `test_a_trailing_slash_rename_rule`,
+    `test_a_trailing_slash_symlink_rename_cannot_escape[grant, root]`,
+    `test_the_rename_is_forwarded_by_its_plain_names` and
+    `test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes`, plus 034's raw write rows.
+  - **M7**, `_change` without `_gate`: fails `test_the_write_half_is_gated`.
+- **N1 is met (READ, and M7 above).** `test_the_write_half_is_gated` covers `mkdir`s and writing
+  opens past `max_file_calls=5`: exactly 5 provider calls, and the run ends `"out of file calls"`.
+  It also covers a cancel set inside a provider's `stat`, after which a `mkdir`, a `rename` and a
+  create at open each answer `ECANCELED` (11) with no provider call and no refusal recorded.
+- **A process note.** My first try at these three mutants started the whole mutant list, and I
+  stopped it part-way. That left my own R1 edit (one line, the constant) in `mounts.py`. I restored
+  the file from `HEAD`'s bytes; `git status` was clean and `mounts.py` hashed `492bf04ce88b…`
+  before the rerun and after it.
+
+**Result: the rebase is confirmed, and N1 is met.** On 034's side, nothing remains but the owner's
+answer to question 71 and the lane's `--accept-judge` and release dry run. Windows has still not
+been run.
+
+One line: both renames hold 048's rule, none of 048's checks lost an assertion, and N1's check
+catches M7.
