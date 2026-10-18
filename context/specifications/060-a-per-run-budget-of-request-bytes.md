@@ -1,6 +1,6 @@
 # 060 — A per-run budget of request bytes
 
-- **Status:** built 2026-10-18; awaiting its build review. Built on
+- **Status:** **landed 2026-10-18** (accepted on `efe2974` as `9e0219b`, history line 61; the build review, `../reviews/060-a-per-run-budget-of-request-bytes-2026-10-18.md`, passed it: "lands"; see the Landing notes' last part). Before landing: built 2026-10-18. Built on
   `spec/060-a-per-run-budget-of-request-bytes` from main `5e66995` (`f77d97d`; the Landing
   notes). Before that: confirmed for build 2026-10-18 (the confirmation names no conditions:
   `build/reviews-evidence/060-spec/060-a-per-run-budget-of-request-bytes-spec-2026-10-18-confirmation.md`
@@ -703,3 +703,20 @@ of `src/` was empty afterwards.
 - 055's builder now reads the keyword in its own specification (Decision 7).
 - The guest's `ToolBudgetExceeded` docstring waits for the next change to the guest package
   (Scope).
+
+**Landed 2026-10-18** through the lane. The lane rebased the branch onto main `dd4eeb5` (after
+spec 062 landed); its diff equals the reviewed diff at `32f0503` line for line (EXECUTED,
+`build/lane-060-rebased2.diff` against `build/reviews-evidence/060-buildreview/reviewed-32f0503.diff`),
+and the CHANGELOG entry was already in 0.1.0a6. Its pre-build review with its confirmation
+(`../reviews/060-a-per-run-budget-of-request-bytes-spec-2026-10-18.md`) and its build review
+(`../reviews/060-a-per-run-budget-of-request-bytes-2026-10-18.md`: "lands", notes N1 to N3 optional)
+were committed on the detached HEAD as `efe2974`. The full judge there, serial, on spec 023's
+artifact set: `wasi_python v1: 376/392 pass · 14 gap · 2 blocked · 0 fail (unit suite 1183/1185, 2
+skipped)`, `ratchet vs efe2974420: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after acceptance,
+`1559 passed, 4 skipped, 14 xfailed in 648.56s` (EXECUTED, `build/lane-060-accept2.log`). Accepted
+with `--accept-judge` as `9e0219b`, history line 61 (`context/progress/history-00060.jsonl`); the
+rules tier passed (25/25, unpiped); main fast-forwarded. Its first acceptance (`24b16f8`, as line 60
+of the single file) was held, never on main: it took `history.jsonl` past the rules check's 1 MiB,
+which spec 062 fixed. The review's notes N1 (an oversized tool list still builds its answer once a
+frame), N2 (a refused discovery frame gives the guest `ImportError`, as `max_tool_calls=0` does) and
+N3 (four of `_C_SLOTS` unpinned) are left for a later change.
