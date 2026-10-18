@@ -395,6 +395,43 @@ cancel again after the call; that is enough.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the implementer, 2026-10-17, in `9c60d91` on `spec/032-a-filesystem-provider` (on the lane's
+`c69cb31`). Each fix's check was seen failing first, on the reviewed code swapped in or with its
+one rule removed; numbers and the rest are in the specification's landing notes ("Revised …").
+
+1. **F1: fixed.** Every answer is judged by its real type (`type(answer) is Errno`,
+   `answer is Errno.EISDIR`, `issubclass(type(…), …)` for `Stat`, the buffer types and
+   `Iterable`; a plain tuple of plain str in `_listed`; sizes and times by type). `_described`
+   is total: the type's own name through `type.__dict__["__name__"]`, the text only when
+   `str(e)` is a plain str. `_fd_readdir` answers `EIO`, never an assertion. Acceptance 7 has the
+   four answers from `hostile.py` (two fake `Errno`s, a raising metaclass name, a hostile str
+   text); `hostile.py` rerun on `c69cb31`'s code reproduces each of your results, and on the fix
+   each is EIO with one fault.
+2. **F2: fixed (not restated).** A listing is one `bytearray` of encoded entries plus an
+   `array("I")` of offsets, counted as their allocated size; while it is gathered the repeat-
+   finding set is counted too. `fd_readdir` serves one slice of it (the 330 parity rows still
+   equal). Your measure, rerun: counted 38,816,299, held 38,818,230 (1.00, was 4.9).
+   `test_a_listing_is_counted_as_what_it_holds` checks kept within 4 KiB of the count and the
+   gathering peak within 1.25 times a bound it passes; it failed on `c69cb31` (640,051 counted,
+   3,153,076 held).
+3. **F3: fixed.** `_instance` keeps the record, then `table.release()` drops the files, listings,
+   handles, fuel record and the link to the call. A trapped call still lingered through
+   wasmtime-py's `Trap` traceback (also without mounts: one `_Call` after running out of fuel),
+   so `_drive` drops the traceback of a trap or error it has named, and of a reported wasmtime
+   stop. `test_a_finished_call_holds_nothing` counts `_Call`, `_Files` and `_Open` with the
+   collector off after an exit with a file open, out of fuel and "out of file calls": 0 (4 on
+   `c69cb31`).
+4. **F4: documented, and (2) closed.** Decision 5 states when UTF-8 is judged; Decision 6's
+   table and the README gain the later `iovec` and the ABI error's `trapped` text. An ABI
+   error's `fuel_used` now equals the grant's: `_Files` records the fuel when it raises one
+   (`stop_fuel`). `test_an_abi_error_keeps_the_grants_fuel`: 11 on both (the mount's was `None`).
+5. **F5: fixed.** `test_a_mount_at_tmp_means_no_home` (v1.4), `root=True` and a root path; with
+   the two lines removed it fails (`HOME` made behind the mount).
+6. **F6:** the README's climb wording corrected; the other notes need no change.
+
+The judge after the revision: `208/219 pass · 0 fail`, `lost 0 · grew 0`, `835 passed, 19
+skipped`; ruff clean.
+
 ## Verdict
 
 **Not yet.** The mechanism is sound and the guest-side boundary held against everything I tried:
