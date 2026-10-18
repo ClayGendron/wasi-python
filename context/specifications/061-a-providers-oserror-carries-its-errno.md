@@ -1,7 +1,6 @@
 # 061 — A provider's OSError carries its errno
 
-- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
-  confirmation.** The build review
+- **Status:** **landed 2026-10-18** (accepted on `6186235` as `abe32e6`, history line 62; the build review, `../reviews/061-a-providers-oserror-carries-its-errno-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; revised against its build review; confirmed. The build review
   (`../reviews/061-a-providers-oserror-carries-its-errno-2026-10-18.md`, written in
   `build/reviews-evidence/061-buildreview/` and copied in by the lane): "lands once F1 is
   fixed"; F1 fixed, F2, F3, N1 and N2 written in, N3 and N4 answered (the Landing notes'
@@ -768,3 +767,17 @@ The rows added are inside existing checks, so the counts are the build's. `ruff 
 - **N4, `_raised`'s `try` and `_RAISED`'s order untestable: kept as written.** They are the
   "total" promise of Decision 3 and a deterministic order for a class that inherits two of the
   six; no input reaches either, which is the point of a guard, so no check is added.
+
+**Landed 2026-10-18** through the lane. The lane rebased the branch onto main `1555a6d` (after
+specs 062 and 060 landed); its diff equals the reviewed diff line for line (EXECUTED,
+`build/lane-061-rebased.diff` against `build/reviews-evidence/061-buildreview/reviewed-head.diff`),
+and its CHANGELOG entry sits in 0.1.0a6. Its pre-build review with its confirmation
+(`../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18.md`) and its build review
+with its confirmation (`../reviews/061-a-providers-oserror-carries-its-errno-2026-10-18.md`: "lands
+once F1 is fixed", then "Confirmed, it lands") were committed on the detached HEAD as `6186235`.
+The full judge there, serial, on spec 023's artifact set: `wasi_python v1: 380/396 pass · 14 gap · 2
+blocked · 0 fail (unit suite 1186/1188, 2 skipped)`, `ratchet vs 6186235b22: lost 0 · absent 0 ·
+unrun 0 · gained 0 · grew 0` after acceptance, `1566 passed, 4 skipped, 14 xfailed in 1095.07s`
+(EXECUTED, `build/lane-061-accept.log`). Accepted with `--accept-judge` as `abe32e6`, history line 62
+(`context/progress/history-00060.jsonl`); the rules tier passed (25/25, unpiped); main fast-forwarded.
+Its Windows rows (criterion 1 on win32) are proven at the next release dry run.

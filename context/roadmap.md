@@ -59,7 +59,7 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
@@ -69,7 +69,7 @@ question 95) and its security review's addendum ("a5 may be released"), and publ
 the build job's (`python.wasm` `42344e2c…`, snapshot `c4190ca0…`, zip `daf2cdd8…`), which is spec
 035's reviewed set (`SHA256SUMS` `3c0ec02e…`). 0.1.0a6 waits on 057.
 
-Built and confirmed, landing next: 061 (a provider's `OSError` carries its errno; question 54). Confirmed for build: 055 (bounded sessions;
+Building now (decision 91: up to three build-class at once): 059 (landing next), 057, 046. Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
 before the release after a5). Confirmed for build, building next: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
 every compile; the owner's decision of 2026-10-18).
