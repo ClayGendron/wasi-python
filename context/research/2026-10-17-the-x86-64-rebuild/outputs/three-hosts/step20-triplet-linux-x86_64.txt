@@ -1,0 +1,3 @@
+triplet line captured live from the x86_64 build's CPython configure log (docker exec, 2026-10-18):
+checking how to run the C preprocessor... /work/wasi_python/build/tools/wasi-sdk-33.0-x86_64-linux/bin/clang-cpp
+checking for the platform triplet based on compiler characteristics... wasm32-wasi

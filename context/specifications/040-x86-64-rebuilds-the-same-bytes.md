@@ -8,6 +8,8 @@
   - Condition B: the builder starts from `d98249b`, where 028 has landed, and takes main's
     `release.yml` `verify` job as it is. 028 changed only that job, so 040's `rebuild` and
     `same-bytes` edits do not overlap it.
+  - **Built 2026-10-18** from main at `64663de` (Landing notes): three hosts wrote one
+    `SHA256SUMS`. Awaiting its build review.
 
   It changes the build recipe and the release workflow, so it was reviewed before it is built
   (constitution §5.6). It is build-class: it touches `scripts/`, `downloads/SHA256SUMS` and the
@@ -584,4 +586,204 @@ upstream issue waits. Decided: yes (Decision 2).
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-040`, branch
+`spec/040-x86-64-rebuilds-the-same-bytes`, from main at `64663de` (033 and 031 landed; the
+`verify` job taken as main has it, condition B). The machine: Apple arm64, macOS 26.5, Docker
+29.7.2 (10 CPUs, 7.7 GiB); `linux/amd64` containers run under Rosetta. Every claim below is
+EXECUTED unless labelled. The container image is the research folder's `Dockerfile` (pinned
+`debian:trixie-slim`, uv 0.9.22 checked by hash). Scratch logs stay in the worktree's `build/` and
+the session's scratch folder; the numbers are written here. Not yet reviewed: the build review
+(`../reviews/`) is next, then the lane's acceptance.
+
+### What changed
+
+- `scripts/clang-emulated` (new, mode 755): the launcher, as Decision 5's contract.
+- `scripts/line.conf`: `COMPILER_SDK_DIR` for the three keys; the five emulation names for
+  `LINUX_X86_64`. `scripts/line.sh` sets `COMPILER_SDK_DIR` (required, like the other five) and the
+  emulation names (empty where a key has none). `line.py` is unchanged.
+- `scripts/00_download.sh`: the x86_64 branch fetches the arm64 Linux SDK and the five `.deb`s from
+  their `snapshot.debian.org` URLs. `downloads/SHA256SUMS`: the five pins.
+- `scripts/steps/common.sh`: `CSDK`. `scripts/steps/10_tools.sh`: the runtime replacement is one
+  function, `neutral_runtime`, run on `$SDK` and, on x86_64, on `$CSDK`; the x86_64 branch (the
+  emulator, the aarch64 root with `lib -> usr/lib` and an empty `etc/ld.so.cache`, the launcher,
+  the `wasm-ld` redirect) and the gate's five probes, each printing one `compiler gate:` line.
+  `scripts/steps/60_link.sh`: the link-map check reads `$CSDK`.
+- `.github/workflows/release.yml`: `rebuild` on `[ubuntu-24.04-arm, ubuntu-24.04]`, each with its
+  `timeout` from the matrix's `include` (120, 360); the tools step prints `nproc` and
+  `binfmt_misc`'s entries; `same-bytes` downloads both runners' sums and wheels and both loops run
+  over both; comments as Decision 6 says.
+- The judge: `scan.compiler_table_errors` and `code_text`, `test_rules.py::
+  test_x86_64_compiles_with_an_aarch64_compiler`; `scan.REBUILD_RUNNERS` gains `ubuntu-24.04`,
+  `REBUILD_TIMEOUTS`, and `rebuild_gate_errors` gains the timeout, `nproc`/`binfmt_misc`, wheel
+  download and both-loops rules; the v1.5 check is renamed
+  `test_release_workflow_rebuilds_on_two_more_hosts`; `tests/unit/test_scan.py` (the rebuild
+  fixture now has both runners; 22 compiler mutations, 31 rebuild mutations);
+  `tests/unit/test_clang_emulated.py` (new, 10 cases).
+- `context/upstream/4-llvm-wasm-isel-slot-order/` (issue, notes, a nine-line reproducer, evidence)
+  and the upstream README's row; the research folder's `decision1-*.sh`, `gate-fails-first.sh` and
+  `outputs/`; the memo's addendum "Traced further (spec 040)"; `README.md`; `CHANGELOG.md`.
+- **Not changed: step 70.** Decision 5's conditional rewrite is not added: the aarch64 tree's name
+  reaches neither `_sysconfigdata` nor numpy's `__config__` (the v1.5 zip check, and the x86_64
+  zip's hash, below).
+
+### Criterion 1: seen failing first
+
+- **The rule check**, on `64663de` with only the check written (`uv run pytest
+  tests/checks/test_rules.py -k x86_64_compiles`): 1 failed, ten findings:
+  `line.conf: no LINUX_AARCH64_COMPILER_SDK_DIR`, the same for `LINUX_X86_64` and `MACOS_ARM64`,
+  `10_tools.sh does not name` each of `clang-emulated`, `aarch64-root`, `ld.so.cache`,
+  `InstalledDir`, `clang-cpp`, `10_tools.sh does not trace the guest's loader (qemu-aarch64
+  -strace)`, `scripts/clang-emulated is missing`.
+- **The workflow check**, renamed, on today's workflow: 1 failed, ten findings, among them the two
+  Decision 7 names: `rebuild's matrix lacks ubuntu-24.04`; `rebuild's timeout-minutes does not come
+  from its matrix`; `rebuild's matrix does not give ubuntu-24.04-arm 120 minutes`; `... ubuntu-24.04
+  360 minutes`; `rebuild's tools step does not print nproc`; `... binfmt_misc`; `same-bytes does
+  not name ubuntu-24.04's SHA256SUMS`; `... ubuntu-24.04's rebuilt wheel`; `same-bytes' SHA256SUMS
+  loop does not run over ubuntu-24.04`; `same-bytes' wheel loop does not run over ubuntu-24.04`.
+- **The scan mutations** each name their breach: `test_scan.py -k "compiler or rebuild"`, every
+  case asserting its first finding (all pass on the change).
+- **The launcher test**, with no launcher: 10 errors (`FileNotFoundError: …/scripts/clang-emulated`).
+  Then against launchers missing one rule each (the real launcher with one part cut, put in place
+  and restored):
+  - the draft contract (`*++` in g++ mode, every other name in none): 2 failed, the `clang-cpp`
+    case and the refused-name case;
+  - one that runs any name: 1 failed, the refused-name case;
+  - one without the `QEMU_` clearing: 1 failed, `test_the_emulators_variables_never_reach_it`;
+  - one without the three `-U` flags: 6 failed (every case that reaches the emulator);
+  - one without both: 6 failed.
+- **The gate fails first.** Today's main (`64663de`) rebuilt in the `linux/amd64` container from
+  empty `downloads/` and `build/` (`run-build.sh`): exit 0 in 1,406 s, and its `SHA256SUMS`
+  differs from macOS's in exactly two lines, `python.wasm` (`b71c2a18e0343e4c…` against
+  `4befe9de64edc783…`) and `python-snapshot.wasm` (`3dbbb5b2034cb60f…` against
+  `0cdc7b2bd78db6f5…`) (`../research/2026-10-17-the-x86-64-rebuild/outputs/seen-failing-main-*`).
+- **Dry run 1** needs a pushed ref, which needs the owner's instruction (§4.14). None was given, so
+  the container run above stands for it.
+- **Step 10's gate stops the build** in one line (`gate-fails-first.sh`; outputs in
+  `outputs/gate-fails-first/`), each case in its own clone at `09d90e8`:
+  - the native clang never replaced by the link: exit 1, `ERROR: compiler gate: …/wasi-sdk-33.0-
+    x86_64-linux/bin/clang does not lead to …/wasi-sdk-33.0-arm64-linux/bin/clang-emulated`;
+  - the draft contract's launcher (no `clang-cpp` mode): exit 1 after the first two probes pass,
+    `ERROR: compiler gate: clang-cpp failed (build/compiler-gate/clang-cpp.txt)`;
+  - also, not required: no empty cache in the root: exit 1 after four probes pass, `ERROR: compiler
+    gate: the guest's loader read an ld.so.cache`. So probe 5 tells the two cases apart.
+
+### Criterion 2: Decision 1 reproduced
+
+Into `../research/2026-10-17-the-x86-64-rebuild/` (`decision1-host.sh` on macOS,
+`decision1-x86_64.sh` in the `linux/amd64` container at `09d90e8`; `outputs/decision1/`):
+
+| | object | `-print-after-all` lines | `-pre-RA-sched` objects (default, source, list-burr, list-hybrid, list-ilp, linearize, fast) |
+|---|---|---|---|
+| arm64 macOS SDK | `20ef33440bb2e944` | 65,227 | `20ef3344`, `c3b001c3`, `20ef3344`, `522f924a`, `98f1fbf6`, `13f0e786`, `d8c6f8d5` |
+| x86_64 Linux SDK, native | `d36897438056e356` | 65,227 | `d3689743`, `d5f10409`, `d3689743`, `d79a51b8`, `80029e2b`, `4dfe54d1`, `1e6427b9` |
+| arm64 Linux SDK under qemu, through step 10's `$SDK/bin/clang` | `20ef33440bb2e944` | 65,227 | as macOS, all seven |
+
+- The preprocessed file: 324,353 bytes, `2193b9bd4d40aadc`, the same twice; regenerated, not
+  committed. The build's own object is `20ef33440bb2e944`.
+- macOS against native x86_64: the first three differences are the `RequireAnalysisPass<…>`
+  spellings; the first content difference is in the dump after "WebAssembly Instruction Selection
+  (wasm-isel)" (`passes-first-differences.diff`).
+- macOS against emulated: only those three header lines differ (`passes-macos-vs-emulated.diff`).
+  New fact: the spelling follows the system the clang was built on (both Linux builds spell it
+  alike), not the CPU.
+- **The reproducer** (Decision 9), reduced by hand in well under the hour: `slot-order.c`, nine
+  lines. arm64 macOS and arm64 Linux `9afcef294ca52dad`; x86_64 Linux `7daeec0794b49c01`; the
+  arm64 Linux SDK under the pinned qemu on x86_64 `9afcef294ca52dad`. Its first difference is
+  again `wasm-isel`'s `__multf3` slots.
+- **LLVM's AI policy** (https://llvm.org/docs/AIToolPolicy.html, read 2026-10-18): a human reads and
+  reviews all generated text, substantially generated content is labelled, and agents may not act in
+  LLVM's spaces without approval. It does not require the person to write the text, so `issue.md`
+  is the text, with a disclosure line, for the owner to check and post.
+
+### Criterion 3: three hosts, one set
+
+Each from empty `downloads/` and `build/`, at `09d90e8` (outputs in
+`../research/2026-10-17-the-x86-64-rebuild/outputs/three-hosts/`):
+
+| host | where | wall time (benchmark fact, §4.9) | `SHA256SUMS` |
+|---|---|---|---|
+| arm64 macOS | a fresh clone in a scratch folder, `scripts/build.sh --plain` | 9m45s, downloads included | `ce0002861e0ee241…` |
+| arm64 Linux | the `linux/arm64` container, `run-build.sh` | 385 s | `ce0002861e0ee241…` |
+| x86_64 Linux | the `linux/amd64` container, `run-build.sh` | 11,669 s (3h14m); steps 20 1h27m, 35 34m, 40 38m, 50 23m, 60 7m46s | `ce0002861e0ee241…` |
+
+- **All three `SHA256SUMS` are byte-identical** (`cmp`). The x86_64 build's own lines:
+  `python.wasm 31760992 bytes 4befe9de64edc783`, `python-snapshot.wasm 65509949 bytes
+  0cdc7b2bd78db6f5`, `python-stdlib.zip 11175028 bytes ee1acace2fc1fb26`: main's accepted hashes.
+  Its numpy object `meson-generated_npy_math_complex.c.o` is `20ef33440bb2e944`, the aarch64
+  object.
+- **Against main's frozen set** (`build/sets/s-0cdc7b2bd78db6f5/SHA256SUMS`): before the change,
+  the worktree's arm64 build gave the same file, byte for byte. After it, exactly one line differs,
+  `MANIFEST` (`fbb1b1e2…` to `70731f51…`). `MANIFEST` gains the five `pin` lines and one `recipe`
+  line (`scripts/clang-emulated`), and six `recipe` hashes change (`00_download.sh`, `line.conf`,
+  `line.sh`, `steps/10_tools.sh`, `steps/60_link.sh`, `steps/common.sh`)
+  (`manifest-main-vs-040.diff`). The worktree's own rebuild at `09d90e8` wrote the same
+  `SHA256SUMS` as the fresh clone.
+- The x86_64 log's step 10 prints the five gate lines: the link to the launcher, `InstalledDir`
+  `…/wasi-sdk-33.0-arm64-linux/bin`, `clang-cpp` in cpp mode, `clang++.cfg`, and "the guest's
+  loader maps no ld.so.cache" (`step10-gate-linux-x86_64.txt`).
+- Step 20: CPython's WASI configure, read live from its log during the build, chose
+  `…/wasi-sdk-33.0-x86_64-linux/bin/clang-cpp` as its preprocessor and found the platform triplet
+  `wasm32-wasi`, as on the arm64 hosts; the build Python's own configure used the runner's `gcc`
+  (`x86_64-linux-gnu`). The container copies only `build/logs/*`, so this is recorded in
+  `step20-triplet-linux-x86_64.txt`.
+- Step 60: its runtime check passes only if each of `libc++.a`, `libc++abi.a` and
+  `libclang_rt.builtins.a` the link map names lies under `$CSDK`'s replaced directories and equals
+  the neutral tarball's member, and it passed (READ, the step's code; EXECUTED, exit 0). Its
+  printed lines go to `build/link/runtime-check.log`, which the container does not keep, so
+  `link-paths-x86_64.sh` shows the same fact apart from the build: a C++ program linked through
+  `$SDK/bin/clang++` after step 10 takes all three from `…/wasi-sdk-33.0-arm64-linux/…`, each equal
+  to the neutral member (`d4527e52…`, `53a077fc…`, `b1e23c03…`; `link-paths-linux-x86_64.txt`).
+- The `linux/amd64` time is qemu inside Rosetta, two emulators nested, on 10 CPUs. It is a
+  correctness run, not a CI figure. For scale only: today's main, all native under the same
+  Rosetta, took 1,406 s, so the emulated compiler cost about 8.3 times the wall time here.
+
+### Criterion 4: the judge
+
+`uv run pytest` in the worktree, on its own `build/artifacts/` (rebuilt at `09d90e8`), without
+`--accept`:
+
+```
+wasi_python v1: 224/228 pass · 0 gap · 4 blocked · 0 fail   (unit suite 861/868, 7 skipped)
+  v1.1  artifact set        24/25  blocked 1
+  v1.2  portable, sealed    45/46  blocked 1
+  v1.3  data stack          20/21  blocked 1
+  v1.4  embedding           95/95
+  v1.5  rebuild from pins   18/18
+  rules constitution rules  22/23  blocked 1
+blocked by: oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+ratchet vs c42410a127: lost 0 · absent 1 · unrun 0 · unrun locally 2 · gained 2 · grew 0 · judge changed: …
+ABSENT tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_a_second_host
+RED: 1 accepted check(s) absent (retire them with --retire)
+1085 passed, 11 skipped
+```
+
+- The one red line is the renamed check, as Decision 8 expects. The lane accepts with
+  `--accept-judge "<reason>"` and `--retire
+  tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_a_second_host`;
+  the two gained checks are the new rule check and the renamed workflow check. Grew 0, lost 0: no
+  `--accept-growth`.
+- `ruff check` and `ruff format --check` are clean on `src/` and `tests/`.
+
+### Criterion 5: dry run 2
+
+Not run: it needs a pushed ref or the landing, and no push was instructed (§4.14). It runs after
+landing, as spec 012's did. The `ubuntu-24.04` runner's wall time and `nproc` go into these notes
+then (Decision 11); if it passes 240 minutes, the trip-wire applies, and if the x86_64 rebuild
+fails, times out or differs, Decision 11's same-day fallback is taken.
+
+### Criterion 6
+
+The upstream draft (`../upstream/4-llvm-wasm-isel-slot-order/`), the README, the CHANGELOG and the
+memo's addendum exist as Decisions 9, 10 and 13 say.
+
+### For the reviewer
+
+- `scripts/clang-emulated` and step 10's x86_64 branch, against Decision 5's contract; the gate's
+  `awk` reading of the loader trace (it matches the cache's file descriptor in `mmap(…,fd,0)`).
+- `scan.compiler_table_errors`' `_maps`: it reads the launcher's `case` arms by text.
+- The workflow's matrix `include` and `timeout-minutes: ${{ matrix.timeout }}`; nothing has run it
+  on GitHub yet.
+- Deviation: the gate's loader-trace probe passes the launcher's three `-U` flags to qemu as well,
+  so a host `LD_PRELOAD` cannot change what it sees; Decision 5 runs it "directly". It is still not
+  run through the launcher.
+- Step 70 is unchanged (Decision 5's rewrite was not needed).

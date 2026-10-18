@@ -1,0 +1,6 @@
+libc++.a: /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/share/wasi-sysroot/lib/wasm32-wasip1/eh/libc++.a (under the arm64 SDK) d4527e52b4e5eafd
+libc++abi.a: /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/share/wasi-sysroot/lib/wasm32-wasip1/eh/libc++abi.a (under the arm64 SDK) 53a077fc9f4f6e98
+libclang_rt.builtins.a: /work/wasi_python/build/tools/wasi-sdk-33.0-arm64-linux/lib/clang/22/lib/wasm32-unknown-wasip1/libclang_rt.builtins.a (under the arm64 SDK) b1e23c0376609e09
+neutral lib/wasm32-wasip1/eh/libc++.a: d4527e52b4e5eafd
+neutral lib/wasm32-wasip1/eh/libc++abi.a: 53a077fc9f4f6e98
+neutral wasm32-unknown-wasip1/libclang_rt.builtins.a: b1e23c0376609e09

@@ -1,0 +1,32 @@
+49a50,54
+> pin ca6ede739327a20ae5a3498230c8a3a9a072c586e131bc6bcc1201eb1725e336 qemu-user_10.0.13+ds-0+deb13u1_amd64.deb
+> pin 8784eda966b189c777a384dac5ce009e8fc9b52d006926c5a013e7fa8aa688cc libc6_2.41-12+deb13u4_arm64.deb
+> pin 6669b0c52a2e7c6af9adfdabce3ff6e286065cdfbc7b85280862b5f799daebee libstdc++6_14.2.0-19_arm64.deb
+> pin 1108bc87879833d6d9a145f22a4a15cddb34e065b4b5f4b97bee586adbac2851 libgcc-s1_14.2.0-19_arm64.deb
+> pin 2a747f7fff3c2347c357387a7133df997410f07ba1b1df1a1461a97bd7fbc2fc libtinfo6_6.5+20250216-2_arm64.deb
+67c72
+< recipe d81bfc4d48172097a07017f3778cf576d1331083081916caa08330c7ed8b9b5f scripts/00_download.sh
+---
+> recipe 0fb1340839e26faf5ab4f8f0633fbb32be98ca301fc13a4efe04df675c9f38af scripts/00_download.sh
+69a75
+> recipe bedb48c7781c5c773bd014cd0a32c776a940a5fac00a5cf3df09609f8071b9b2 scripts/clang-emulated
+73c79
+< recipe c2f05b0f8a87e1fc64cb58d2e3ee47a1ff8f89ed1038f578aff5cff6f0b44b0d scripts/line.conf
+---
+> recipe c475bcf36828eb9695be75304a94c6416a34b540a9703959f20f78e212772167 scripts/line.conf
+75c81
+< recipe ce83ec2d25eaa61b82ae6605f463dfc776026715e3efb4f059a866e4c1e1a311 scripts/line.sh
+---
+> recipe a9a7e75c2d888054016069b92707515ebf20a4a49e2d237b8397872032ed53b9 scripts/line.sh
+79c85
+< recipe ed096b47b43528a6fa4f5add6c8791e590113fc21aa1b7b86d4598ff5c5ef726 scripts/steps/10_tools.sh
+---
+> recipe 4be40b530ca8ee6327a0cec03e20ac52ebed54afa13ce89b054df8e07922d65f scripts/steps/10_tools.sh
+85c91
+< recipe 7fd9bac71ad3d52b1c8692f2cab49cb476267884dae9c8b842ca4d3f244c8a74 scripts/steps/60_link.sh
+---
+> recipe 8268e4f2158c367a577c41e8f38e1f3d4bb5f4c0a2aeb995c7837e92fa8c5d5e scripts/steps/60_link.sh
+90c96
+< recipe 6f80642c60dd708c1f2c7c16a22a650c4e255d4837711a32993439cca21a25e1 scripts/steps/common.sh
+---
+> recipe 3d299406de1c321fa47aefe88f65650b70dd6029bcdf85a26fc2ea0cd3cac7bc scripts/steps/common.sh
