@@ -299,3 +299,73 @@ F7–F8 are notes for the builder.
 One line: the guard copies 49.0.3's check but not its rename by plain names, and its borrowed
 scratch can end the guest, so fix those two, return the stat's own errno, tie removal to the
 published floor, and add the target-slash cases before building.
+
+## Confirmation (2026-10-18)
+
+The same reviewer re-read the revised specification at `c42410a` with its Disposition. I checked
+each answer against the finding and against main as it stands now (`e82c51c`). Main still has one
+place that instantiates the guest (`runner.py:1845`). The spec 031 build added
+`src/wasi_python/tools.py`, which defines no linker, no WASI and neither guarded call (READ, grep).
+So the coverage argument still holds. The 032 dirent-padding fix is on main (`ebc9f53`).
+`DIRENT_MASKED` still masks 21–23 (`tests/harness/files.py:295`), which is what criterion 6 needs
+to fail first. The README (line 586) and `test_runner_mounts.py:478` say `files is None` for a
+call without mounts, as Decision 7 now keeps. I executed nothing for this confirmation, so the
+evidence is READ and INFERRED.
+
+| finding | answer | confirmed? |
+|---|---|---|
+| F1 forward kept the slash | Decision 1: trims every trailing `/` from both paths (shorter lengths, at least one byte) after the check; quotes upstream's reason | **yes** |
+| F2 borrowed scratch | Decision 2: a per-call stat trampoline with its own one-page memory; path at 64, result at 0, filetype at byte 16; no guest byte touched | **yes**, with C2 below |
+| F3 stat errno | Decision 3: passes the stat's errno through; ENOTDIR only for a successful stat on a non-directory; the ordering difference is stated | **yes** |
+| F4 pin tie | Decision 5 and criterion 7: the `pyproject.toml` floor, explicit patched lists, no "at or past" | **direction yes; the rule as worded cannot be met**, see C1 |
+| F5 criterion 2 | target-slash cases, `missing/`, in-sandbox checks added; fails first on every host | **yes**, with N1 |
+| F6 `files` and stop behaviour | Decision 7 and criterion 5b | **yes** |
+| F7 padding walk | Decision 4 and criterion 3: `24 + d_namlen`, within `[buf, buf+used)`, `used` kept, only on errno 0 | **yes** |
+| F8 small points | predicate dropped; 034 order and parity; not build-class; EPERM→ENOENT stated; 84 marked as a release decision | **yes** |
+
+### Conditions (write into the specification before the build starts)
+
+**C1. Give the floor rule a predicate that can be met.** Decision 5 and criterion 7 keep a guard
+"while the floor still admits a wasmtime not on the list". A requirement of `>=49.0.3,<50` still
+admits 49.0.4, which is not on any list. So the guard could never be removed (INFERRED, from the
+text). Write the predicate as follows. A guard may go only when, **for every major.minor line the
+`wasmtime` requirement admits**, the advisory lists a patched version in that line that is at or
+below the lowest version the requirement admits in that line. If any admitted line has no listed
+version, the guard stays. Examples: `>=49.0.3,<50` → the rename guard may go. `>=49.0.3,<51` →
+both guards stay, because 50.x is not listed. Criterion 7 tests these two examples, plus today's
+`>=49,<50`, as fixed inputs. A unit-style table in the check is enough.
+
+**C2. Once a trailing slash is seen, the rename is never forwarded with it.** Decision 2 copies
+"the already-read, stripped source path" into the private page. The spec does not say what
+happens when that read or copy fails.
+- The slash test reads each path's last byte. If a path does not fit in guest memory, forward
+  unchanged. wasmtime cannot read it either, so no rename happens, and the errno stays as today.
+- After a slash is seen, any failure to stage the source answers an errno and **does not
+  forward**. That covers a source longer than the private page allows (65,536 − 64 bytes), or
+  longer than `MAX_PATH` if the builder reuses `_Files._path`. Use `ENAMETOOLONG`.
+- Why (INFERRED): wasmtime 49.0.0 has no whole-path length limit. It opens the parent one
+  component at a time and calls `renameat` on the final name. So a long `./././…/up/` forwarded
+  unchanged would skip the rule entirely.
+
+Add one case to criterion 2: a trailing-slash rename whose source is longer than the limit, ending
+in the symlink. It must be refused, and the symlink must still be in place.
+
+### Builder notes (no change to the specification needed)
+
+- **N1.** Criterion 2's target-slash cases assume wasi-libc passes `"x/"` through to
+  `path_rename` unchanged. The seen-failing run on today's code shows whether it does. If libc
+  strips the slash, drive those cases with raw preview1 calls (the 032 `Raw` harness), as
+  upstream's test program does. Do not drop them.
+- **N2.** The stat trampoline's handles belong to the call's store, as `_Forwards` already
+  requires. Keep them in the call's `_Files`, give them their own argument slot, and clear them
+  in `release()`.
+
+### Verdict on the revision
+
+**Confirmed for build, on conditions C1 and C2**, written into the specification first. They
+are text changes. The author writes them and the lane checks they are present. No further review
+round is needed before build. The build review checks C1 and C2 and notes N1 and N2.
+
+One line: the revision fixes all eight findings; write in a floor rule that can actually retire
+the guard (C1) and never forward a slash-bearing rename when the source cannot be staged (C2),
+then build.
