@@ -2,11 +2,14 @@
 
 `differences(a, b)` lists every difference between two `latest.json` records in what a verdict is
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
-`bytes` and `passes`; its `reason` where both records call it `pass`, `gap` or `blocked` (there
-the reason is deterministic: a note, a gap's first line, a need); its `fuel` where the two differ
+`bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
+reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`; and the run's
 `deselected`, `collected_files` and `suite`. A failure's reason is not compared: it may name a
-temporary path, and the statuses already decide. `meta` is never compared.
+temporary path, and the statuses already decide. A pass's reason, its note, is not compared
+either: the plugin never compares a note, and one may print a fuel count, which carries the
+residual serial runs show (spec 035's zone-load check: 17 instructions in 8.7 million between a
+serial and a parallel run, the build's evidence). `meta` is never compared.
 
     uv run python tests/harness/sameness.py A.json B.json
 
@@ -26,7 +29,7 @@ from harness.scoreboard import FUEL_TOLERANCE  # noqa: E402
 
 FIELDS = ("status", "need", "area", "closer", "facts")
 EXACT_METRICS = ("bytes", "passes")
-REASONED = ("pass", "gap", "blocked")
+REASONED = ("gap", "blocked")
 RUN_FIELDS = ("deselected", "collected_files", "suite")
 
 

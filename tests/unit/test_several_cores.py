@@ -483,16 +483,18 @@ def _record(**checks) -> dict:
 
 def test_sameness_counts_what_must_be_equal() -> None:
     a = _record(
-        p={"status": "pass", "reason": "n", "metrics": {"fuel": 1_000_000, "bytes": 5}},
+        p={"status": "pass", "reason": "n 8,688,508", "metrics": {"fuel": 1_000_000, "bytes": 5}},
         f={"status": "fail", "reason": "at /tmp/x1"},
+        g={"status": "gap", "reason": "the named failure", "closer": "README.md"},
     )
     assert sameness.differences(a, a) == []
     b = json.loads(json.dumps(a))
     b["checks"]["p"]["metrics"]["fuel"] = 1_000_090  # 9e-5: within the tolerance
     b["checks"]["f"]["reason"] = "at /tmp/x2"  # a failure's reason is not compared
+    b["checks"]["p"]["reason"] = "n 8,688,525"  # nor a pass's note, which may print fuel
     assert sameness.differences(a, b) == []
     b["checks"]["p"]["metrics"]["fuel"] = 1_000_200  # 2e-4: beyond it
-    b["checks"]["p"]["reason"] = "m"
+    b["checks"]["g"]["reason"] = "another failure"
     b["checks"]["p"]["metrics"]["bytes"] = 6
     b["suite"]["passed"] = 0
     found = sameness.differences(a, b)
