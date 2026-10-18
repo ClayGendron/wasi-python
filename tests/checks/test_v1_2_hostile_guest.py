@@ -1742,7 +1742,7 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     refused("V6", ValueError, r"import_path\[1\]", ["/code", "/code"])
     refused("V7", ValueError, one, ["/co\0de"])
     # The serving place: each entry strictly under its server, so no nesting rule applies.
-    writable = "is served by .*writable"
+    writable = "is served by [^,]*, which is writable; only a read-only grant"
     refused("S1", ValueError, writable, ["/x"], root=True)
     work = Grant(folder("work"), "/work", writable=True)
     refused("S2", ValueError, writable, ["/work/lib"], grants=[ro, work])
