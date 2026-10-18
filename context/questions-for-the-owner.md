@@ -16,6 +16,23 @@ document.
   memory 18 MiB.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
+- **The numbers, 2026-10-18** (EXECUTED by spec 023's builder on its built set, a scratch
+  snapshot with matplotlib pre-imported; nothing of it lands; spec 023's landing notes, in its
+  build review now):
+
+  | | no pre-import | pre-imported |
+  |---|---|---|
+  | a plot job with its PNG save (fuel) | 7.56 G fresh cache, 5.57 G kept cache | 1.02 G (7.4 and 5.5 times less) |
+  | `-c pass` (fuel) | 83.37 M | 106.64 M (+27.9%) |
+  | the snapshot | 70.90 MB | 88.39 MB (+24.7%) |
+  | starting memory per instance | 57.3 MiB | 74.0 MiB (+16.75 MiB) |
+  | the wheel | 52.1 MB | about 58.5 MB |
+
+- **The agent's recommendation:** do not pre-import for 0.1.0. Every call, plotting or not, would
+  pay +28% fuel and +16.75 MiB of starting memory, while a plotting call already works and only
+  costs more fuel the first time in a process. A profile that pre-imports matplotlib is the
+  constitution's answer for plotting-heavy embedders (§2, "a profile is its own artifact set").
+  Meanwhile: not pre-imported; nothing waits on the answer.
 
 ### 64. The wheel and PyPI's file-size limit
 
@@ -37,6 +54,12 @@ document.
   the request carries real numbers.
 - **The owner, 2026-10-18:** wait; measure the wheel as packages land, then assess the route
   from the real size. Each landing records the wheel's size; the agent brings the number back.
+- **Measured, 2026-10-18** (EXECUTED by spec 023's builder, the wheel built as spec 028 builds
+  it): main's set (035) gives a 38.9 MB wheel; with matplotlib M1 it is 52,070,134 bytes
+  (49.7 MiB): the stdlib zip deflates to 21.6 MB, the snapshot to 21.4 MB, `python.wasm` to
+  8.8 MB. So M1 added about 13 MB, less than the documents estimated (spec 035's reader does not
+  change size; the zip's 631 new members do). Still to come: scipy (037, 038), tier A (039) and
+  tier B (044 to 047); the estimate of 95 to 110 MB at 0.1.0 is revised when scipy lands.
 
 ### 91. Build the next build-class specification stacked on the one in review?
 
