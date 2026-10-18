@@ -97,6 +97,30 @@ document.
   in the follow-up build-class specification that 056 names.
 - **The agent's recommendation:** yes, before 0.1.0 final. Then the follow-up names the
   environment in the workflow.
+### 96. A Rust core with JavaScript and Python wrappers?
+
+- **Asked:** 2026-10-18. **Source:** the owner's proposal that day (a Rust core runner on the
+  `wasmtime` crate, napi-rs for Node, Bun and Deno, PyO3 replacing wasmtime-py, the artifacts
+  downloaded on first use), assessed at the owner's request in
+  `research/2026-10-18-a-rust-core-with-js-and-python-wrappers.md`.
+- **The facts (the memo):** the constitution's "no JavaScript" rule is about the guest, and §2.4
+  already expects embedders in other languages, so a JavaScript binding fits. wasmtime-py has
+  shipped every wasmtime major release on the same day for twelve months, never a patch release,
+  and wasmtime 50 is due within days; nothing is patched into wasmtime-py (spec 048 shadows two
+  calls in Python). The port is far larger than mounts.py: the door's threading, async tools,
+  cancel, sessions, the frozen API of spec 049, and a judge that drives the artifacts with its
+  own wasmtime-py driver. napi-rs promises Node; Bun is best effort and Deno is not promised.
+  Download on first use contradicts the mission's "without … a package install step" and opens a
+  network channel in the embedder's process.
+- **The question:** which of the three parts, if any, should go on the roadmap, and when?
+- **The agent's recommendation (the memo's verdict):** adopt in part, after 0.1.0.
+  - Now: a time-boxed research spike, a Rust `run()` checked against the judge, to settle
+    whether fuel counts match across runners. It commits to nothing.
+  - After 0.1.0 and the wasmtime 50 pin: a separate Node package on that core.
+  - Keep the Python wheel on wasmtime-py, and keep bundling the artifacts in it, asking PyPI
+    for the size raise (question 64).
+- **Meanwhile:** nothing changes; the spike is not started until you answer.
+
 ### 95. Documentation commits between a release's dry run and its tag
 
 - **Asked:** 2026-10-18. **Source:** the 0.1.0a5 cut; AGENTS.md rule 6b ("dispatch the release
