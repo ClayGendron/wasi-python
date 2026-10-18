@@ -1,6 +1,7 @@
 # 034 — Writable mounts
 
-- **Status:** built 2026-10-18 (Landing notes); its build review, which is also a security
+- **Status:** landed 2026-10-18 (accepted on `0123850` as `1110f91`; release dry run not yet
+  run). Built 2026-10-18 (Landing notes); its build review, which is also a security
   review (`../reviews/034-writable-mounts-2026-10-18.md`; verdict: not yet, but close), is
   answered by a revision, confirmed with one condition (N1), met on main `77bd08e` after 048
   and 036 landed (the Landing notes' last two parts); it waits on the owner's answer to question
@@ -1192,3 +1193,14 @@ implementer, on main `77bd08e`. EXECUTED unless it says otherwise; the frozen se
   · absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0`, `1132 passed, 19 skipped`.
   `ruff check` and `ruff format --check` are clean. Commits: this composition and N1 in
   `9822812`, these notes in the commit after it.
+
+**Landed 2026-10-18** through the lane, after the owner's answer to question 71 (the POSIX rule;
+"Spec 034 lands as built", `decisions.md`). Rebased onto main `2d7a0ae` (specs 040 and 051 and
+the owner's answers); `git range-diff 77bd08e..eb70481 main..0123850` shows all seven commits
+unchanged (`=`), so the reviewed patches are the landed ones and the review's confirmation of the
+rebase on `eb70481` carries over. The main tree, detached at `0123850`, ran the full judge on
+051's accepted set: `wasi_python v1: 274/276 pass · 0 gap · 2 blocked · 0 fail (unit suite
+939/941, 2 skipped)`, `ratchet vs 01238501f8: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0`,
+`1213 passed, 4 skipped` (EXECUTED, `build/lane-034-accept.log`). Accepted with
+`--accept-judge` as `1110f91` (history line 49); the rules tier passed (24/24); main
+fast-forwarded. The release dry run waits on the owner's push; Windows is first run there.
