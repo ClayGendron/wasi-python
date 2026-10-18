@@ -4,7 +4,9 @@
 # say nothing about the build host (spec 012, Decision 5): make_stdlib_zip.py sets their host keys
 # to fixed values, and the text rewrites below, computed from what the build knows and applied in
 # this order (the triple appears only inside the build-Python's path, which goes first), replace
-# the rest.
+# the rest. Each Python distribution's METADATA rides along (spec 033): a wheel's from the wheel,
+# numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
+# in wasi-sdk); the recipe's stand-in package takes its place.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -31,8 +33,12 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
+  --metadata "$B/numpy-2.5.2/PKG-INFO" \
+  --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
-  --file "$HERE/recipes/ctypes_stub.py=ctypes.py" \
+  --file "$HERE/recipes/ctypes_stand_in/__init__.py=ctypes/__init__.py" \
+  --file "$HERE/recipes/ctypes_stand_in/_types.py=ctypes/_types.py" \
+  --file "$HERE/recipes/ctypes_stand_in/util.py=ctypes/util.py" \
   --file "$HERE/recipes/mmap_stub.py=mmap.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \
   --replace "$WASI_SDK_DIR=wasi-sdk" \

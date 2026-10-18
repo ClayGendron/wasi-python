@@ -1,0 +1,235 @@
+"""The `ctypes` stand-in's types, factories, libraries and memory functions (spec 033, Decision 5).
+
+Imported by `ctypes.__getattr__` on the first lookup of a type name, never at `import ctypes`.
+
+The rule: a name exists so that an import succeeds. Declaring a type works (a simple type, a
+`Structure` or `Union` subclass with `_fields_`, `POINTER(t)`, `CFUNCTYPE(...)`, `t * n`), and
+`sizeof` answers where the answer is a true fact on wasm32. Anything that would load a library,
+touch memory or make an instance raises OSError with the message `import ctypes` raises today.
+
+The aliases follow CPython's own rule (Lib/ctypes/__init__.py), from `struct.calcsize` in the
+guest, so on wasm32 `c_int is c_long`, `c_size_t is c_ulong` and `c_int32 is c_long`.
+"""
+
+import struct
+import sys
+
+from . import _MSG
+
+_MODULE = __name__.rpartition(".")[0]
+_POINTER_SIZE = struct.calcsize("P")
+_WCHAR_SIZE = 4  # WASI's wchar_t is 32-bit; `struct` has no code for it
+_LONGDOUBLE_SIZE = 16  # wasm32's long double is 128-bit; `struct` has no code for it
+
+
+def _refuse(*args, **kwargs):
+    raise OSError(_MSG)
+
+
+class _Refused:
+    """A class attribute that raises the OSError when read."""
+
+    def __get__(self, obj, cls=None):
+        raise OSError(_MSG)
+
+
+class _NumpyDtype:
+    """A simple type's dtype, as numpy computes it for a real one (numpy/_core/_dtype_ctypes.py,
+    `_from_ctypes_scalar`). Without it numpy would treat the type as a plain class: dtype('O')."""
+
+    def __get__(self, obj, cls=None):
+        numpy = sys.modules.get("numpy")
+        if numpy is None:  # only numpy asks, and numpy is loaded then
+            raise AttributeError("__numpy_dtype__")
+        return numpy.dtype(cls._numpy_code_)
+
+
+class _CType(type):
+    """The stand-in types' metaclass: `t * n` and `n * t` declare an array type."""
+
+    def __mul__(cls, length):
+        if not isinstance(length, int) or length < 0:
+            return NotImplemented
+        return _array_type(cls, length)
+
+    __rmul__ = __mul__
+
+
+class _CData(metaclass=_CType):
+    """Every stand-in type: no instance, no layout, no foreign call."""
+
+    _size_ = None  # None: no layout is computed (Structure, Union)
+    __numpy_dtype__ = _Refused()
+    from_buffer = from_buffer_copy = from_address = from_param = in_dll = classmethod(_refuse)
+
+    def __new__(cls, *args, **kwargs):
+        raise OSError(_MSG)
+
+
+class _SimpleCData(_CData):
+    __numpy_dtype__ = _NumpyDtype()
+
+
+def _simple(name, code, size, numpy_code=None):
+    return _CType(
+        name,
+        (_SimpleCData,),
+        {"_type_": code, "_size_": size, "_numpy_code_": numpy_code or code, "__module__": _MODULE},
+    )
+
+
+_arrays = {}
+
+
+def _array_type(element, length):
+    key = (element, length)
+    if key not in _arrays:
+        size = None if element._size_ is None else element._size_ * length
+        _arrays[key] = _CType(
+            f"{element.__name__}_Array_{length}",
+            (_CData,),
+            {"_type_": element, "_length_": length, "_size_": size, "__module__": _MODULE},
+        )
+    return _arrays[key]
+
+
+def _size(code):
+    return struct.calcsize(code)
+
+
+# The simple types CPython makes as classes everywhere.
+c_bool = _simple("c_bool", "?", _size("?"))
+c_char = _simple("c_char", "c", _size("c"))
+c_wchar = _simple("c_wchar", "u", _WCHAR_SIZE)
+c_byte = _simple("c_byte", "b", _size("b"))
+c_ubyte = _simple("c_ubyte", "B", _size("B"))
+c_short = _simple("c_short", "h", _size("h"))
+c_ushort = _simple("c_ushort", "H", _size("H"))
+c_long = _simple("c_long", "l", _size("l"))
+c_ulong = _simple("c_ulong", "L", _size("L"))
+c_float = _simple("c_float", "f", _size("f"))
+c_double = _simple("c_double", "d", _size("d"))
+c_char_p = _simple("c_char_p", "z", _POINTER_SIZE)
+c_wchar_p = _simple("c_wchar_p", "Z", _POINTER_SIZE)
+c_void_p = _simple("c_void_p", "P", _POINTER_SIZE)
+
+# CPython's aliases: one class where two C types have one size.
+if _size("i") == _size("l"):
+    c_int, c_uint = c_long, c_ulong
+else:
+    c_int, c_uint = _simple("c_int", "i", _size("i")), _simple("c_uint", "I", _size("I"))
+if _size("q") == _size("l"):
+    c_longlong, c_ulonglong = c_long, c_ulong
+else:
+    c_longlong = _simple("c_longlong", "q", _size("q"))
+    c_ulonglong = _simple("c_ulonglong", "Q", _size("Q"))
+if _LONGDOUBLE_SIZE == _size("d"):
+    c_longdouble = c_double
+else:
+    c_longdouble = _simple("c_longdouble", "g", _LONGDOUBLE_SIZE)
+for _unsigned, _signed in ((c_uint, c_int), (c_ulong, c_long), (c_ulonglong, c_longlong)):
+    if _unsigned._size_ == _POINTER_SIZE:
+        c_size_t, c_ssize_t = _unsigned, _signed
+        break
+_widths = {}  # the last of c_short, c_int, c_long, c_longlong of each size, as in CPython
+for _signed, _unsigned in ((c_short, c_ushort), (c_int, c_uint), (c_long, c_ulong),
+                           (c_longlong, c_ulonglong)):  # fmt: skip
+    _widths[_signed._size_] = (_signed, _unsigned)
+c_int8, c_uint8 = c_byte, c_ubyte
+c_int16, c_uint16 = _widths[2]
+c_int32, c_uint32 = _widths[4]
+c_int64, c_uint64 = _widths[8]
+c_time_t = c_int64  # WASI's time_t is 8 bytes (SIZEOF_TIME_T in the build's _sysconfigdata)
+
+# Byte order, as numpy's _from_ctypes_scalar and as_ctypes_type read it: on little-endian wasm32
+# each numeric type is its own __ctype_le__; its __ctype_be__ is itself when one byte wide, else a
+# big-endian twin.
+_numeric = (c_bool, c_byte, c_ubyte, c_short, c_ushort, c_int, c_uint, c_long, c_ulong,
+            c_longlong, c_ulonglong, c_float, c_double, c_longdouble)  # fmt: skip
+for _t in dict.fromkeys(_numeric):  # an alias once
+    _t.__ctype_le__ = _t
+    if _t._size_ == 1:
+        _t.__ctype_be__ = _t
+    else:
+        _twin = _simple(_t.__name__ + "_be", _t._type_, _t._size_, ">" + _t._type_)
+        _twin.__ctype_be__, _twin.__ctype_le__ = _twin, _t
+        _t.__ctype_be__ = _twin
+
+
+class Structure(_CData):
+    __module__ = _MODULE
+
+
+class Union(_CData):
+    __module__ = _MODULE
+
+
+_pointers = {}
+
+
+def POINTER(cls):
+    if cls not in _pointers:
+        name = f"LP_{getattr(cls, '__name__', cls)}"
+        _pointers[cls] = _CType(name, (_CData,), {"_type_": cls, "_size_": _POINTER_SIZE})
+    return _pointers[cls]
+
+
+_functions = {}
+
+
+def CFUNCTYPE(restype, *argtypes, **kwargs):
+    key = (restype, argtypes, tuple(sorted(kwargs.items())))
+    if key not in _functions:
+        _functions[key] = _CType(
+            "CFunctionType",
+            (_CData,),
+            {"_restype_": restype, "_argtypes_": argtypes, "_size_": _POINTER_SIZE},
+        )
+    return _functions[key]
+
+
+def PYFUNCTYPE(restype, *argtypes):
+    return CFUNCTYPE(restype, *argtypes, pyfunc=True)
+
+
+def sizeof(obj):
+    """A stand-in type's size on wasm32; OSError for a Structure or Union (no layout is computed);
+    TypeError for anything else, as CPython says."""
+    cls = obj if isinstance(obj, type) else type(obj)
+    if not isinstance(cls, _CType):
+        raise TypeError("this type has no size")
+    if cls._size_ is None:
+        raise OSError(_MSG)
+    return cls._size_
+
+
+class CDLL:
+    def __init__(self, *args, **kwargs):
+        raise OSError(_MSG)
+
+
+class PyDLL(CDLL):
+    pass
+
+
+class LibraryLoader:
+    def __init__(self, dlltype):
+        self._dlltype = dlltype
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return self._dlltype(name)
+
+    def __getitem__(self, name):
+        return self._dlltype(name)
+
+    def LoadLibrary(self, name):
+        return self._dlltype(name)
+
+
+cdll = LibraryLoader(CDLL)
+pydll = LibraryLoader(PyDLL)
+
+byref = pointer = cast = addressof = memmove = memset = string_at = wstring_at = _refuse
+create_string_buffer = create_unicode_buffer = resize = get_errno = set_errno = _refuse

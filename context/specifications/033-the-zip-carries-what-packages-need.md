@@ -6,7 +6,10 @@
   in:** the review's Confirmation set two conditions. Condition 1 (the type builder outside
   `ctypes/__init__`) is in Decisions 5, 7 and 10, Design and criterion 2. Condition 2 (the caps
   re-based) is in criterion 4. It changes the build recipe and the artifact set (constitution
-  §5.6), and it is build-class (it touches `scripts/` and `recipes/`; §5.7).
+  §5.6), and it is build-class (it touches `scripts/` and `recipes/`; §5.7). Built 2026-10-17 on
+  `spec/033-the-zip-carries-what-packages-need`, awaiting its build review: two of criterion 4's
+  caps are exceeded (by 24,482 and 15,125 fuel, both shown to be the collector's timing), and the
+  release dry run is the lane's (Landing notes).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (`scripts/make_stdlib_zip.py`, `scripts/steps/70_zip.sh`), recipe
   files (`recipes/ctypes_stand_in/__init__.py`, `_types.py` and `util.py` replace
@@ -697,4 +700,167 @@ as questions 57 and 58 in `../questions-for-the-owner.md`; nothing waits on them
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, uv 0.9.22, in the worktree
+`wasi_python-033` on `spec/033-the-zip-carries-what-packages-need` (from `d98249b`); not yet
+reviewed. Each claim is labelled. Scratch outputs are under
+`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/`
+(`033-old/` today's set, `033-variants/` the split sets and probes, `033-mutant/` the mutant).
+
+**What was built** (READ: the diff). As Design says, file by file:
+- `scripts/make_stdlib_zip.py`: `wheel_members` keeps `<dist-info>/METADATA` and
+  `<dist-info>/entry_points.txt`, bytes unchanged, and drops the rest of `.dist-info`, `.data`
+  and any top-level `.egg-info`; `sdist_metadata(path)` and `--metadata`; `walk` skips
+  `.egg-info` as well as `.dist-info`; `tree_members(tree)`, which `main` calls for each
+  `--tree`, stops on a top-level `.dist-info` or `.egg-info` with Decision 3's line; the
+  docstring.
+- `scripts/steps/70_zip.sh`: two `--metadata` lines, three `--file` lines for the package.
+- `recipes/ctypes_stand_in/__init__.py` (51 lines, comments rather than a docstring because every
+  `import numpy` loads it): the constants, `WinError`, `__all__`, and a PEP 562 `__getattr__` and
+  `__dir__`; the first lookup of a type name imports `._types` and stores every built name in the
+  package's globals. `_types.py`: the metaclass (`t * n`, `n * t`), `_CData` (refusing
+  `__new__`, the five classmethods, and a `__numpy_dtype__` that raises the `OSError`),
+  `_SimpleCData` (a `__numpy_dtype__` returning `numpy.dtype(cls._numpy_code_)`), the simple
+  types and CPython's aliases from `struct.calcsize`, the twins, `Structure`, `Union`,
+  `POINTER`, `CFUNCTYPE`, `PYFUNCTYPE`, `sizeof`, the libraries, and the memory functions.
+  `util.py`: `find_library` returns `None`. `recipes/ctypes_stub.py` is deleted.
+- `tests/unit/test_build_scripts.py`: the four unit checks. `tests/checks/test_v1_3_data_stack.py`:
+  the two guest checks, each on both binaries. `README.md` (the recipe paragraph, the platform
+  paragraph, the zip's size 11.2 MB) and `CHANGELOG.md` (two 0.1.0a4 entries).
+
+One refinement in a case the spec leaves open (for the review): when numpy is not in
+`sys.modules`, a simple type's `__numpy_dtype__` raises `AttributeError` rather than `KeyError`,
+so `hasattr` and `inspect.getmembers` on a stand-in type work before numpy is loaded. numpy is
+always loaded when numpy asks.
+
+**How the baseline was taken** (EXECUTED). The first full build in the worktree ran while I was
+already editing: steps 00 to 60 passed (`python.wasm` `4befe9de64edc783`), and step 70 failed on
+the deleted stub. Steps 00 to 60 read none of the changed files. I copied my three changed build
+files aside, put `HEAD`'s versions back by hand (`git show HEAD:<path> >`), moved the untracked
+package aside, and re-ran steps 70, 80 and 90: `cmp build/artifacts/SHA256SUMS
+<main>/build/sets/4befe9de64edc783/SHA256SUMS` exits 0. That set is `$OLD`
+(`python-stdlib.zip` `1add57e4…`, `python-snapshot.wasm` `c7302cfd…`, `MANIFEST` `e962887d…`).
+Then my files went back and steps 70 to 90 ran with the change. Step 90 lists recipes from the
+git index, so the new package must be staged before it runs (it stops on untracked recipe files).
+
+**Criterion 1, seen failing first** (EXECUTED).
+- The four unit checks, run in a `git archive HEAD` copy with the new test file: the wheel check
+  fails (`wheel_members` yields `x.egg-info/PKG-INFO` and neither `METADATA` nor
+  `entry_points.txt`); the `PKG-INFO` check fails on `no attribute 'sdist_metadata'`; the tree
+  check on `no attribute 'tree_members'`; the stand-in check, with today's stub as the folder's
+  `__init__.py`, on `no attribute 'c_long'` (and with no folder, `FileNotFoundError`).
+- The guest checks on `$OLD`, both binaries: `test_packages_carry_their_metadata` exits 1 with
+  `PackageNotFoundError: No package metadata was found for numpy`;
+  `test_ctypes_stand_in_names_what_packages_import` reports 43 failures, the first two
+  `import pandas.io.clipboard: ImportError: cannot import name 'c_size_t'` and
+  `sympy's names: ImportError: cannot import name 'c_long'`; every dtype line fails with
+  `AttributeError` (`no attribute 'c_double'`, `'c_long'`, `'c_int32'`), and
+  `hasattr(np, 'ctypeslib')` is `False`.
+- **The mutant** (the new zip with `ctypes/_types.pyc` recompiled without either
+  `__numpy_dtype__`, plain binary): `np.dtype(ctypes.c_double)`, `np.dtype(ctypes.c_long)` and
+  `np.asarray([1.5], dtype=ctypes.c_double).dtype` print `object object object` (the real
+  stand-in: `float64 int32 float64`). The check's program then reports `dtype(c_double)`,
+  `dtype(c_long)` and `dtype(c_int32 be)` false, `as_ctypes_type` and `from_dataframe` raising
+  `NotImplementedError: Converting dtype('int32') to a ctypes type`, and `dtype(Structure)`
+  raising nothing.
+- With the change, all six pass (EXECUTED, the judge below).
+
+**Criterion 2, the zip's names and bytes** (EXECUTED, the commands as written, from the worktree's
+root, `$OLD` as above). The names diff is exactly `< ctypes.pyc`; `> ctypes/__init__.pyc`,
+`> ctypes/_types.pyc`, `> ctypes/util.pyc`; `> numpy-2.5.2.dist-info/METADATA`,
+`> pandas-3.0.6.dist-info/METADATA`, `> python_dateutil-2.9.0.post0.dist-info/METADATA`,
+`> six-1.17.0.dist-info/METADATA`, `> tzdata-2026.5.dist-info/METADATA`; `unzip -Z1 | wc -l` is
+1758. The shared-member comparison prints `1750 shared; 0 differ: []`. The five `cmp`s exit 0.
+`cmp $OLD/python.wasm build/artifacts/python.wasm` exits 0. This was a worktree that built 00 to
+60 from pins, not a clean clone; the lane's clean-clone build is still to do.
+
+**Criterion 3** (EXECUTED in part). The litter re-run: a `.DS_Store` in
+`build/pandas-install/pandas/`, in numpy's installed package, and beside each `PKG-INFO`
+(`build/numpy-2.5.2/`, `build/pandas-3.0.6/`), then steps 70 to 90: `SHA256SUMS` is the same
+file (`cmp` exits 0); the litter was removed after. **Not done here: the release dry run**
+(`gh workflow run release.yml --ref <branch>`, its `rebuild` and `same-bytes` jobs). That is the
+lane's, on the reviewed commit, and its run number goes here.
+
+**The new artifact set** (EXECUTED). `python.wasm` unchanged (31,760,992 bytes, `4befe9de…`);
+`python-snapshot.wasm` 65,505,782 bytes (`98b03d8b…`), −1,042; `python-stdlib.zip`
+11,161,822 bytes (`e9875f22…`), +21,187; 1,100 pyc and 658 data files. `SHA256SUMS`
+changes in the zip's, the snapshot's and `MANIFEST`'s lines only; `MANIFEST`'s `recipe` lines
+change for the two scripts, and the stub's line is replaced by the three package lines.
+
+**Criterion 4, the judge** (EXECUTED: `uv run pytest`, full tier, against the worktree's
+`build/artifacts`, no `--accept`). The account, metric by metric (the judge's metrics in
+`build/progress/latest.json` against `context/progress/accepted.json`):
+
+| metric | the confirmation | measured | cap | |
+|---|---|---|---|---|
+| plain `-c pass`-sized checks (11, 217 M to 243 M) | +542,066 | +530,461 to +565,359 (`test_guest_runs_here[plain]` +543,042) | ≤ +0.6 M | ✓ |
+| plain import-only: `numpy_and_pandas_are_builtin[plain]`, `nothing_is_a_shared_library`, `default_integer_width`, `longdouble_parses` | +983,668; +835,650 | +1,143,614; +1,391,847; +872,877; +1,255,668 | ≤ +1.5 M | ✓ |
+| plain heavy (> 1 G): `numpy_csv`, `pandas_csv`, `numpy_random`, `compress`, `sqlite`, `npy_files_round_trip[plain]` | +0.004% to +0.05% | +0.0257%, +0.0440% (+2,499,648), +0.0025%, +0.0191%, +0.0213%, +0.0725% | ≤ +0.2% | ✓ |
+| other plain ≤ 1 G: `guest_has_no_network`, `gzip_round_trips` | about +0.54 M | +533,029; +592,049 | ≤ +0.6 M | ✓ |
+| other plain ≤ 1 G: `uncaught_errors_print_as_native[plain]` (670.7 M) | | **+624,482** | ≤ +0.6 M | **✗ over by 24,482** |
+| snapshot checks (18 of 19) | +16,277 to +154,670 | −326,122 to +104,697 | ≤ +0.2 M | ✓ |
+| snapshot: `stdlib_debugging_tools_import` (535.1 M) | | **+215,125** | ≤ +0.2 M | **✗ over by 15,125** |
+| the zip's bytes | +20,532 | +21,187 | ≤ +25 KB | ✓ |
+| the snapshot's bytes | +7,285 | −1,042 | ≤ +20 KB | ✓ |
+| the plain binary's bytes | 0 | 0 | 0 | ✓ |
+
+**Two caps are exceeded. Per criterion 4 these are findings for the build review, not reasons to
+accept.** Neither program was measured by the confirmation. The evidence that both are the
+collector's timing (EXECUTED, `033-variants/probe-1.tsv`, the judge's own driver):
+- `import pdb, pydoc, doctest` on the snapshot: +215,074 (old 535,114,853, new 535,329,927). The
+  same program after `import gc; gc.disable()`: **−85,342** (528,473,344 to 528,388,002).
+- `1/0` on the plain binary: +624,397. After `gc.disable()`: **+460,162**, below the plain-start
+  cost (+541,683 for `-c pass` in the same run).
+- The types were not built in either: neither program names a C type.
+
+They exceed their caps by 4.1% and 7.6%. The fix would be a cap that is relative for
+programs past a few hundred M of fuel, as the confirmation did for the heavy plain ones; that is
+the reviewer's and the owner's call, not the builder's.
+
+**A heavy check above +2.5 M.** None: `pandas_csv` is the largest at +2,499,648. Its evidence
+anyway (EXECUTED, `033-variants/jobs.tsv`): a copy ending with a print of whether `ctypes`' types
+were built prints `False` on both sets, and that two-line tail alone moves the job's growth from
++2,498,560 to +3,109,847 (the collector's timing, as Decision 7 says). `numpy_csv` likewise:
+`False`, +1,287,332 to +1,454,741.
+
+**The snapshot's growth, split** (EXECUTED, variant sets made from `$OLD` and the new zip with
+`make_stdlib_zip`'s own `member()`, snapshots with step 80's flags; the rewriter reproduces
+`$OLD`'s zip and snapshot byte for byte). Snapshot `-c pass`: metadata alone +87,744, the
+stand-in alone +111,981, both +67,223. On the plain binary: metadata alone +400,825, stand-in
+alone +145,769, both +541,683; plain `import numpy` +308,504, +699,309, +1,038,845. The parts do
+not add on the snapshot. The cause is not profiled. The INFERRED one is spec 021's: a moved heap
+changes the work of finalization, about 97% of a snapshot `-c pass`. Snapshot bytes: metadata
+alone +937, stand-in alone +3,468, both −1,042.
+
+**The uncapped costs** (EXECUTED on the snapshot, old against new): `import importlib.metadata`
+117,441,530 to 117,487,675 (about 35.5 M over `pass`, as before); the first `version("numpy")`
+336,323,860 (`PackageNotFoundError`) to 478,501,836, **+142.2 M**, and 361.0 M over the import
+alone; a second lookup (`pandas`) in the same process 23.5 M more (502,007,726);
+`import numpy.testing` 463,864,591 to 600,088,569, **+136.2 M (+29.4%)**. No check measures
+them. Spec 035's builder re-measures them with this change in.
+
+**What stays the same** (EXECUTED: the judge). Every golden job's output is unchanged (each
+`*_job_matches_native` passes). No check compares member names or counts.
+
+**The scoreboard** (EXECUTED, run 2, after one fix): see the tail below. Run 1 found one lost
+pass, `test_no_module_level_name_is_bound_twice`, on my unit file (`import importlib` and
+`import importlib.util`); the plain `import importlib` was removed.
+
+```
+wasi_python v1: 196/200 pass · 0 gap · 4 blocked · 0 fail   (unit suite 583/590, 7 skipped)
+  v1.1  artifact set        24/25  blocked 1
+  v1.2  portable, sealed    40/41  blocked 1
+  v1.3  data stack          20/21  blocked 1
+  v1.4  embedding           73/73
+  v1.5  rebuild from pins   18/18
+  rules constitution rules  21/22  blocked 1
+blocked by: oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+ratchet vs f7b8df25de: lost 0 · absent 0 · unrun 0 · unrun locally 2 · gained 4 · grew 39 · judge changed: tests/checks/test_v1_3_data_stack.py, tests/unit/test_build_scripts.py
+779 passed, 11 skipped
+```
+
+The four gained are the two new guest checks on both binaries; the 39 that grew are the table
+above. Run 1 and run 2 agree within 34 fuel on six checks and exactly on the rest. `ruff check`
+and `ruff format --check` are clean on `src/` and `tests/`. **For the lane:** the acceptance
+needs `--accept-judge` (the two changed test files) and `--accept-growth`, which can cite the
+table only after the build review answers the two over-cap findings. Then the release dry run
+(criteria 3 and 5).

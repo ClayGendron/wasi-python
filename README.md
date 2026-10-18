@@ -40,7 +40,7 @@ promises.
 |---|---|
 | upstream patches | upstream patches carried: 1, each with an upstream pull request drafted for the owner to send (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.1 MB (3.15 line) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.2 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 81.9M guest instructions on 3.15 |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
@@ -61,7 +61,13 @@ runs isolated. `np.save` and `np.load` of paths and open files work, through a
 carried patch (`recipes/patches/numpy-2.5.2/`) until numpy releases the fix;
 `ndarray.tofile` and `np.fromfile` on real files still fail, since WASI cannot
 duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), and
-memory maps are unavailable. The snapshot runs only beside the exact stdlib zip it was built
+memory maps are unavailable. `importlib.metadata` gives each package's name, version and entry
+points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
+process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
+about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`
+works: it sizes wasm32's C types and gives numpy their dtypes, but it loads no library and calls
+nothing; each such use raises `OSError`, as a missing library does, which is why `-V` still says
+"no ctypes". The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
 offsets are part of the snapshot.
 
@@ -234,8 +240,12 @@ a WASI guest, so nothing reads them.
 
 The recipe files under `recipes/`: two meson cross files, three rename headers
 for symbols that only collide in a static link, the reactor entry, the door
-module, a host-side numpy stand-in for pandas' build, and one-function stand-ins for `ctypes` and `mmap` that pandas
-imports unconditionally.
+module, a host-side numpy stand-in for pandas' build, a one-function stand-in for `mmap` that pandas
+imports unconditionally, and a stand-in `ctypes` package (`recipes/ctypes_stand_in/`), which numpy
+and pandas import too: it names and sizes wasm32's C types, gives numpy the dtype it gives a real
+one, and refuses every foreign call. The stdlib zip also carries each package's `METADATA` (and a
+wheel's `entry_points.txt`): a wheel's own, and numpy's and pandas' from their pinned sdists'
+`PKG-INFO`.
 
 One host input is not pinned: the native C compiler and `make` that CPython's
 driver uses to build its own build-Python. Nothing it compiles is linked into

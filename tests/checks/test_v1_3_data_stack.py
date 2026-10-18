@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -270,3 +271,147 @@ def test_npy_files_round_trip(guest, which) -> None:
     assert r.exit_code == 0, r.describe()
     names = ["plain", "record", "0-d", "fortran", "large", "empty", "object", "two", "npz"]
     assert r.text == "".join(f"{n} True\n" for n in names), r.text
+
+
+# Spec 033: the zip keeps each distribution's METADATA, so a package that asks for its own
+# version gets it. A later specification that adds a distribution adds it here.
+DISTRIBUTIONS = ("numpy", "pandas", "python-dateutil", "six", "tzdata")
+
+METADATA = """
+import json, re
+import importlib.metadata as md
+import numpy, pandas
+dists = sorted(
+    (re.sub(r"[-_.]+", "-", d.metadata["Name"]).lower(), d.version) for d in md.distributions()
+)
+print(json.dumps({
+    "version": [md.version("numpy"), md.version("pandas")],
+    "__version__": [numpy.__version__, pandas.__version__],
+    "distributions": dists,
+    "files": md.files("numpy"),
+}))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_packages_carry_their_metadata(guest, which) -> None:
+    """`importlib.metadata` finds each distribution in the zip at its MANIFEST version. `files()`
+    is None: the zip keeps METADATA and entry_points.txt, never RECORD, which would list `.py`
+    files the zip does not hold (spec 033, Decision 1)."""
+    r = guest(which, ["-c", METADATA])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    m = paths.parse_manifest((paths.artifact_dir() / "MANIFEST").read_text())
+    want = [m.packages.get("numpy"), m.packages.get("pandas")]
+    assert got["version"] == want, f"importlib.metadata says {got['version']}, MANIFEST {want}"
+    assert got["__version__"] == want, f"__version__ is {got['__version__']}, MANIFEST {want}"
+    dists = [[name, m.packages.get(name)] for name in DISTRIBUTIONS]
+    assert got["distributions"] == dists, f"distributions {got['distributions']}, want {dists}"
+    assert got["files"] is None, f"files('numpy') is {got['files']!r}: RECORD is not kept"
+
+
+# Spec 033, Decision 5: the stand-in names and sizes wasm32's C types, gives numpy the dtype it
+# gives a real one, and refuses every foreign call. The names are what sympy and threadpoolctl
+# import, written here by name; the sizes are the guest's own sysconfig.
+CTYPES = """
+import json, sysconfig
+bad = []
+
+def step(label, run, want=True):
+    try:
+        got = run()
+    except Exception as e:
+        bad.append(f"{label}: {type(e).__name__}: {e}")
+    else:
+        if got != want:
+            bad.append(f"{label}: {got!r}, want {want!r}")
+
+def refused(label, run):
+    try:
+        run()
+    except OSError as e:
+        if str(e) != "ctypes is unavailable on wasm32-wasi":
+            bad.append(f"{label}: OSError {e}")
+    except Exception as e:
+        bad.append(f"{label}: {type(e).__name__}: {e}")
+    else:
+        bad.append(f"{label}: no error")
+
+def clipboard():
+    import pandas.io.clipboard
+    return True
+
+def sympys():
+    from ctypes import c_long, sizeof
+    return sizeof(c_long) > 0
+
+import numpy as np, pandas as pd
+import ctypes
+step("import pandas.io.clipboard", clipboard)
+step("sympy's names", sympys)
+for bits in (8, 16, 32, 64):
+    for name in (f"c_int{bits}", f"c_uint{bits}"):
+        step(name, lambda name=name: ctypes.sizeof(getattr(ctypes, name)) * 8, bits)
+
+def declare():
+    class Info(ctypes.Structure):
+        _fields_ = [("name", ctypes.c_char * 16), ("p", ctypes.c_void_p), ("s", ctypes.c_char_p)]
+    return Info
+
+step("threadpoolctl's names", lambda: isinstance(ctypes.DEFAULT_MODE, int) and bool(declare()))
+def find_library():
+    from ctypes.util import find_library
+    return find_library("c")
+
+step("find_library", find_library, None)
+sizes = (
+    ("SIZEOF__BOOL", "c_bool"), ("SIZEOF_SHORT", "c_short"), ("SIZEOF_INT", "c_int"),
+    ("SIZEOF_LONG", "c_long"), ("SIZEOF_LONG_LONG", "c_longlong"), ("SIZEOF_SIZE_T", "c_size_t"),
+    ("SIZEOF_VOID_P", "c_char_p"), ("SIZEOF_VOID_P", "c_wchar_p"), ("SIZEOF_VOID_P", "c_void_p"),
+    ("SIZEOF_WCHAR_T", "c_wchar"), ("SIZEOF_FLOAT", "c_float"), ("SIZEOF_DOUBLE", "c_double"),
+    ("SIZEOF_LONG_DOUBLE", "c_longdouble"), ("SIZEOF_TIME_T", "c_time_t"),
+)
+for key, name in sizes:
+    want = sysconfig.get_config_var(key)
+    step(f"sizeof({name})", lambda name=name: ctypes.sizeof(getattr(ctypes, name)), want)
+step(
+    "sizeof(POINTER(c_int))",
+    lambda: ctypes.sizeof(ctypes.POINTER(ctypes.c_int)),
+    sysconfig.get_config_var("SIZEOF_VOID_P"),
+)
+step("sizeof(c_char * 16)", lambda: ctypes.sizeof(ctypes.c_char * 16), 16)
+step("c_int is c_long", lambda: ctypes.c_int is ctypes.c_long)
+step("c_int32 is c_long", lambda: ctypes.c_int32 is ctypes.c_long)
+step("dtype(c_double)", lambda: np.dtype(ctypes.c_double) == np.float64)
+step("dtype(c_long)", lambda: np.dtype(ctypes.c_long) == np.int32)
+step("dtype(c_int32 be)", lambda: np.dtype(ctypes.c_int32.__ctype_be__) == np.dtype(">i4"))
+step("as_ctypes_type", lambda: np.ctypeslib.as_ctypes_type(np.int32) is ctypes.c_long)
+step("hasattr(np, 'ctypeslib')", lambda: hasattr(np, "ctypeslib"))
+frame = pd.DataFrame({"a": [1, 2, 3]})
+refused("ndarray.ctypes", lambda: np.arange(3).ctypes)
+refused("from_dataframe", lambda: pd.api.interchange.from_dataframe(frame.__dataframe__()))
+refused("CDLL(None)", lambda: ctypes.CDLL(None))
+refused("c_int(1)", lambda: ctypes.c_int(1))
+refused("Structure()", lambda: declare()())
+refused("byref", lambda: ctypes.byref(None))
+refused("from_buffer", lambda: ctypes.c_int.from_buffer(b""))
+refused("dtype(Structure)", lambda: np.dtype(declare()))
+refused("WinError", lambda: ctypes.WinError())
+try:
+    import ctypes.wintypes
+    bad.append("ctypes.wintypes imported")
+except ImportError:
+    pass
+print(json.dumps(bad))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
+    """The names sympy, threadpoolctl and pandas' clipboard import resolve; each C type's size is
+    the guest's sysconfig; numpy's dtypes are numpy's own for a real type, never dtype('O'); and
+    every call that would reach C raises OSError (spec 033, Decision 5)."""
+    r = guest(which, ["-c", CTYPES])
+    assert r.exit_code == 0, r.describe()
+    bad = json.loads(r.text)
+    assert bad == [], "; ".join(bad)

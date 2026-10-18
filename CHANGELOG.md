@@ -6,6 +6,25 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
+- **The stdlib zip carries package metadata** (spec 033). `importlib.metadata.version("numpy")`
+  now answers `2.5.2` instead of raising `PackageNotFoundError`, and `distributions()` lists
+  numpy, pandas, python-dateutil, six and tzdata at their pinned versions. A wheel keeps exactly
+  `METADATA` and `entry_points.txt` of its `.dist-info`; numpy and pandas get their pinned sdists'
+  `PKG-INFO` as `METADATA` (`make_stdlib_zip.py --metadata`). `files()` gives `None`: `RECORD` is
+  not kept. A source tree that brings a `.dist-info` or `.egg-info` of its own now stops the
+  build. Costs: the zip grows by 7 members (about 21 KB), every plain start by about 0.54 M fuel,
+  and on the snapshot the first metadata lookup costs about 0.36 G fuel and `import numpy.testing`
+  about 0.14 G more than before.
+- **A wider `ctypes` stand-in** (spec 033). The one-function `recipes/ctypes_stub.py` becomes the
+  package `recipes/ctypes_stand_in/` (`ctypes/__init__`, `ctypes/_types`, `ctypes/util` in the
+  zip). It names wasm32's C types with CPython's aliases (`c_int is c_long`), sizes them, lets a
+  module declare `Structure`, `POINTER`, `CFUNCTYPE` and array types, gives numpy each simple
+  type's true dtype (never `dtype('O')`), and makes `ctypes.util.find_library` answer `None`. It
+  loads no library, makes no instance and touches no memory: each raises
+  `OSError("ctypes is unavailable on wasm32-wasi")`. So `import pandas.io.clipboard` and
+  `import numpy.ctypeslib` now import, and sympy's and threadpoolctl's import-time names resolve.
+  The types are built on first use, so `import numpy` does not pay for them. `-V` still says
+  "no ctypes": no foreign function can be called.
 - **`pip install wasi-python` runs programs** (spec 028). wasmtime-py (`wasmtime>=49,<50`) is
   now a required dependency, so the plain install runs `wasi_python.run` and `wasi-python run`;
   the `run` extra is no longer needed. It is kept, empty, so `pip install "wasi-python[run]"`

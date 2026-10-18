@@ -1,13 +1,16 @@
 """Finder litter never breaks a build (spec 018): `remove` retries, and the zip, the licences and
 the artifact set never carry litter. Each case works on a temporary folder; `remove` runs under a
-POSIX `sh` with `rm` replaced by a shell function that counts its calls. Nothing measures time."""
+POSIX `sh` with `rm` replaced by a shell function that counts its calls. Nothing measures time.
+The zip's package metadata and the `ctypes` stand-in (spec 033) are checked here on the host too."""
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shutil
 import subprocess
 import sys
+import zipfile
 
 import pytest
 
@@ -150,3 +153,188 @@ def test_step_90_removes_or_says_why(tmp_path, monkeypatch) -> None:
 
 def test_the_scripts_litter_is_the_judges() -> None:
     assert set(litter.OS_LITTER) == set(paths.OS_LITTER)
+
+
+# Spec 033: the zip carries package metadata, and the ctypes stand-in names and refuses.
+
+STAND_IN = paths.REPO / "recipes" / "ctypes_stand_in"
+REFUSED = "ctypes is unavailable on wasm32-wasi"
+
+
+def test_the_zip_keeps_a_wheels_metadata_and_entry_points(tmp_path) -> None:
+    info = "x-1.0.dist-info"
+    kept = {
+        "x/__init__.py": b"x = 1\n",
+        f"{info}/METADATA": b"Metadata-Version: 2.1\nName: x\nVersion: 1.0\n\nbody\n",
+        f"{info}/entry_points.txt": b"[console_scripts]\nx = x:main\n",
+    }
+    dropped = {
+        "x-1.0.data/data/share/x.txt": b"data",
+        "x.egg-info/PKG-INFO": b"Name: x\n",
+        **{
+            f"{info}/{name}": name.encode()
+            for name in (
+                "RECORD",
+                "WHEEL",
+                "INSTALLER",
+                "REQUESTED",
+                "direct_url.json",
+                "top_level.txt",
+                "zip-safe",
+                "licenses/LICENSE",
+            )
+        },
+    }
+    wheel = tmp_path / "x-1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as z:
+        for name, data in sorted({**kept, **dropped}.items()):
+            z.writestr(name, data)
+    got = {name: data for data, name in make_stdlib_zip.wheel_members(wheel)}
+    assert got == kept
+
+
+def test_an_sdists_pkg_info_becomes_metadata(tmp_path) -> None:
+    good = tmp_path / "good" / "PKG-INFO"
+    good.parent.mkdir()
+    text = b"Metadata-Version: 2.4\nName: Foo.Bar-baz\nVersion: 1.0\n\nName: not a header\n"
+    good.write_bytes(text)
+    assert make_stdlib_zip.sdist_metadata(good) == (text, "foo_bar_baz-1.0.dist-info/METADATA")
+    for case, body in {
+        "no-name": "Metadata-Version: 2.1\nVersion: 1.0\n",
+        "no-version": "Metadata-Version: 2.1\nName: foo\n",
+        "two-versions": "Name: foo\nVersion: 1.0\nVersion: 2.0\n",
+        "after-the-blank": "Name: foo\n\nVersion: 1.0\n",
+    }.items():
+        bad = tmp_path / case / "PKG-INFO"
+        bad.parent.mkdir()
+        bad.write_text(body)
+        with pytest.raises(SystemExit) as stop:
+            make_stdlib_zip.sdist_metadata(bad)
+        line = str(stop.value)
+        assert str(bad) in line and "\n" not in line, f"{case}: {line!r}"
+
+
+def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:
+    for folder in ("x-1.0.dist-info", "x.egg-info"):
+        tree = tmp_path / folder.replace(".", "_")
+        (tree / "x").mkdir(parents=True)
+        (tree / "x" / "__init__.py").write_text("x = 1\n")
+        (tree / folder).mkdir()
+        (tree / folder / "PKG-INFO").write_text("Name: x\n")
+        with pytest.raises(SystemExit) as stop:
+            list(make_stdlib_zip.tree_members(tree))
+        assert str(stop.value) == (
+            f"{tree}: {folder} holds package metadata; pass the package as a wheel, "
+            "or its sdist's PKG-INFO with --metadata"
+        )
+    deep = tmp_path / "deep"
+    (deep / "pkg" / "y.egg-info").mkdir(parents=True)
+    (deep / "pkg" / "y.egg-info" / "PKG-INFO").write_text("Name: y\n")
+    (deep / "pkg" / "mod.py").write_text("y = 1\n")
+    assert [name for _, name in make_stdlib_zip.tree_members(deep)] == ["pkg/mod.py"]
+
+
+def _load_stand_in():
+    """The recipe folder as a package under a private name, never as `ctypes`, so that its
+    relative import of `._types` resolves and nothing on the host can import it as `ctypes`."""
+    name = "_ctypes_stand_in_under_test"
+    for key in [k for k in sys.modules if k == name or k.startswith(name + ".")]:
+        del sys.modules[key]
+    spec = importlib.util.spec_from_file_location(
+        name, STAND_IN / "__init__.py", submodule_search_locations=[str(STAND_IN)]
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _refuses(call) -> None:
+    with pytest.raises(OSError) as refused:
+        call()
+    assert str(refused.value) == REFUSED
+
+
+# Decision 5's names, written here rather than read from the stand-in: sympy's first.
+STAND_IN_TYPES = (
+    "c_long", "sizeof", "c_bool", "c_char", "c_wchar", "c_byte", "c_ubyte", "c_short", "c_ushort",
+    "c_int", "c_uint", "c_ulong", "c_longlong", "c_ulonglong", "c_size_t", "c_ssize_t", "c_float",
+    "c_double", "c_longdouble", "c_char_p", "c_wchar_p", "c_void_p", "c_int8", "c_int16",
+    "c_int32", "c_int64", "c_uint8", "c_uint16", "c_uint32", "c_uint64", "c_time_t",
+    "Structure", "Union", "POINTER", "CFUNCTYPE", "PYFUNCTYPE", "CDLL", "PyDLL", "LibraryLoader",
+    "cdll", "pydll", "byref", "pointer", "cast", "addressof", "memmove", "memset", "string_at",
+    "wstring_at", "create_string_buffer", "create_unicode_buffer", "resize", "get_errno",
+    "set_errno",
+)  # fmt: skip
+STAND_IN_CONSTANTS = ("DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL", "WinError")
+
+
+def test_the_ctypes_stand_in_names_and_refuses() -> None:
+    ct = _load_stand_in()
+    assert not [n for n in STAND_IN_TYPES if n in vars(ct)], "built at import"
+    assert f"{ct.__name__}._types" not in sys.modules, "the builder loaded at import"
+    for name in STAND_IN_TYPES + STAND_IN_CONSTANTS:
+        assert getattr(ct, name) is not None, name
+    assert all(n in vars(ct) for n in STAND_IN_TYPES), "not stored after the first lookup"
+    assert set(ct.__all__) == {*STAND_IN_TYPES, *STAND_IN_CONSTANTS}
+    assert set(ct.__all__) <= set(dir(ct))
+    names = STAND_IN_TYPES
+
+    for load in (
+        lambda: ct.CDLL(None),
+        lambda: ct.CDLL("libc.so"),
+        lambda: ct.PyDLL(None),
+        lambda: ct.cdll.LoadLibrary("x"),
+        lambda: ct.cdll.x,
+        lambda: ct.cdll["x"],
+    ):
+        _refuses(load)
+
+    class S(ct.Structure):
+        _fields_ = [("name", ct.c_char * 16), ("p", ct.c_void_p)]
+
+    class U(ct.Union):
+        _fields_ = [("a", ct.c_int), ("b", ct.c_float)]
+
+    simple = [getattr(ct, n) for n in names if n.startswith("c_")]
+    func = ct.CFUNCTYPE(ct.c_int, ct.c_char_p)
+    kinds = [*simple, S, U, ct.c_char * 4, func, ct.POINTER(ct.c_int)]
+    for kind in kinds:
+        _refuses(kind)
+        for method in ("from_buffer", "from_buffer_copy", "from_address", "from_param", "in_dll"):
+            _refuses(lambda kind=kind, method=method: getattr(kind, method)(b""))
+    for name in (
+        "byref",
+        "pointer",
+        "cast",
+        "addressof",
+        "memmove",
+        "memset",
+        "string_at",
+        "wstring_at",
+        "create_string_buffer",
+        "create_unicode_buffer",
+        "resize",
+        "get_errno",
+        "set_errno",
+    ):
+        _refuses(lambda name=name: getattr(ct, name)(None))
+    _refuses(ct.WinError)
+    _refuses(lambda: S.__numpy_dtype__)  # no layout: numpy must not get dtype('O')
+
+    four, four_again = ct.c_char * 4, 4 * ct.c_char
+    assert four is four_again and isinstance(four, type) and four._length_ == 4
+    assert four._type_ is ct.c_char
+    assert ct.POINTER(ct.c_char) is ct.POINTER(ct.c_char)
+    assert isinstance(func, type) and isinstance(ct.PYFUNCTYPE(None), type)
+    assert ct.sizeof(ct.c_wchar) == 4 and ct.sizeof(ct.c_longdouble) == 16
+    assert ct.sizeof(ct.c_char * 16) == 16
+    _refuses(lambda: ct.sizeof(S))
+    with pytest.raises(TypeError):
+        ct.sizeof(3)
+    assert ct.c_int8 is ct.c_byte and ct.c_uint8 is ct.c_ubyte
+    for kind in (ct.c_bool, ct.c_byte, ct.c_short, ct.c_long, ct.c_ulonglong, ct.c_double):
+        assert kind.__ctype_le__ is kind, kind
+        twin = kind.__ctype_be__
+        assert twin is kind if ct.sizeof(kind) == 1 else twin.__ctype_le__ is kind, kind
+    assert importlib.import_module(f"{ct.__name__}.util").find_library("c") is None

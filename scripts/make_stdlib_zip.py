@@ -1,7 +1,8 @@
 """Build the stdlib zip: bytecode-only, deflated and deterministic (spec 003, Decision 7).
 
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
-        [--wheel <pinned wheel>]... [--file <source>=<name in zip>]... [--skip <top-level name>]...
+        [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
+        [--file <source>=<name in zip>]... [--skip <top-level name>]...
         [--replace <old>=<new>]... out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
@@ -15,6 +16,11 @@ bytes from any host (spec 012, Decision 5). Their host keys are set to fixed val
 host wrote (HOST_KEYS, NUMPY_BUILD_KEYS); a key that is absent, or that does not read back as its
 fixed value once rewritten, stops the build. Then each --replace rewrites its text in the two, in
 the order given; an old text found in neither stops the build. Both run before compiling.
+
+Package metadata (spec 033): a wheel keeps two files of its .dist-info, METADATA and
+entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
+<name>-<version>.dist-info/METADATA (--metadata). A tree never brings metadata of its own: walk
+skips every .dist-info and .egg-info folder, and a tree with one at its top stops the build.
 """
 
 from __future__ import annotations
@@ -55,6 +61,10 @@ INSTALL_KEYS = ("INSTALL", "INSTALL_DATA", "INSTALL_PROGRAM", "INSTALL_SCRIPT", 
 INSTALL = re.compile(r"\S*install -c((?: \S+)*)")
 # numpy's "Machine Information" -> "build" keys; its "endian" stays.
 NUMPY_BUILD_KEYS = {"cpu": "build", "family": "build", "system": "build"}
+# Package metadata (spec 033): the folders importlib.metadata reads, and the two files of a
+# wheel's .dist-info the zip keeps (RECORD would list .py files the zip does not hold).
+METADATA_DIRS = (".dist-info", ".egg-info")
+KEPT_METADATA = ("METADATA", "entry_points.txt")
 
 
 def walk(root: Path, skip_top: frozenset[str] = frozenset()):
@@ -66,7 +76,7 @@ def walk(root: Path, skip_top: frozenset[str] = frozenset()):
             d
             for d in dirnames
             if d not in SKIP_DIRS
-            and not d.endswith(".dist-info")
+            and not d.endswith(METADATA_DIRS)
             and not (rel == Path(".") and d in skip_top)
         )
         for f in sorted(filenames):
@@ -78,17 +88,52 @@ def walk(root: Path, skip_top: frozenset[str] = frozenset()):
             yield p.read_bytes(), str(PurePosixPath(*rel.parts, f))
 
 
+def tree_members(tree: Path):
+    """walk(tree), after a stop when the tree holds package metadata at its top: it would be lost,
+    or a second route to metadata the zip does not choose."""
+    for entry in sorted(os.listdir(tree)):
+        if entry.endswith(METADATA_DIRS):
+            raise SystemExit(
+                f"{tree}: {entry} holds package metadata; pass the package as a wheel, "
+                "or its sdist's PKG-INFO with --metadata"
+            )
+    yield from walk(tree)
+
+
 def wheel_members(wheel: Path):
+    """A wheel's modules and data files, and of its .dist-info only METADATA and entry_points.txt,
+    under the folder name the wheel gives them; never its .data or an .egg-info."""
     with zipfile.ZipFile(wheel) as z:
         for info in sorted(z.infolist(), key=lambda i: i.filename):
             name = info.filename
-            top = name.split("/", 1)[0]
-            if info.is_dir() or top.endswith(".dist-info") or top.endswith(".data"):
+            top, _, rest = name.partition("/")
+            if top.endswith(".dist-info") and rest in KEPT_METADATA:
+                yield z.read(name), name
+                continue
+            if info.is_dir() or top.endswith((*METADATA_DIRS, ".data")):
                 continue
             parts = set(name.split("/"))
             if parts & SKIP_DIRS or PurePosixPath(name).suffix in SKIP_SUFFIXES:
                 continue
             yield z.read(name), name
+
+
+def sdist_metadata(path: Path) -> tuple[bytes, str]:
+    """An sdist's PKG-INFO, bytes unchanged, and its member <name>-<version>.dist-info/METADATA,
+    the name written as a wheel's folder name is. Its headers end at the first blank line;
+    exactly one Name: and one Version: must be among them."""
+    data = path.read_bytes()
+    found: dict[str, list[str]] = {"Name": [], "Version": []}
+    for row in data.decode("utf-8").splitlines():
+        if not row.strip():
+            break
+        key, sep, value = row.partition(":")
+        if sep and key in found:
+            found[key].append(value.strip())
+    if any(len(v) != 1 or not v[0] for v in found.values()):
+        raise SystemExit(f"{path}: needs exactly one Name: and one Version: header")
+    name = re.sub(r"[-_.]+", "_", found["Name"][0]).lower()
+    return data, f"{name}-{found['Version'][0]}.dist-info/METADATA"
 
 
 def pyc(source: bytes, name: str) -> bytes:
@@ -181,6 +226,7 @@ def main() -> None:
     ap.add_argument("--lib", required=True, type=Path)
     ap.add_argument("--tree", action="append", default=[], type=Path)
     ap.add_argument("--wheel", action="append", default=[], type=Path)
+    ap.add_argument("--metadata", action="append", default=[], type=Path)
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
     ap.add_argument("--replace", action="append", default=[])
@@ -218,11 +264,14 @@ def main() -> None:
     for data, name in walk(a.lib, frozenset(a.skip)):
         add(data, name, str(a.lib))
     for tree in a.tree:
-        for data, name in walk(tree):
+        for data, name in tree_members(tree):
             add(data, name, str(tree))
     for wheel in a.wheel:
         for data, name in wheel_members(wheel):
             add(data, name, wheel.name)
+    for path in a.metadata:
+        data, name = sdist_metadata(path)
+        add(data, name, str(path))
     for spec in a.file:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
