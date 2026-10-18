@@ -1,14 +1,18 @@
 # 039 — Tier A: the pure-Python packages
 
-- **Status:** drafted 2026-10-17. It changes the build recipe and the artifact set, so it is
-  reviewed once more before it is built (constitution §5.6). It is build-class: it touches
-  `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7).
+- **Status:** drafted 2026-10-17. Revised the same day against its pre-build review
+  (`../reviews/039-tier-a-packages-spec-2026-10-17.md`): all ten findings are fixed here, and
+  its Disposition says where; awaiting the reviewer's confirmation. It changes the build recipe
+  and the artifact set, so it is reviewed once more before it is built (constitution §5.6). It
+  is build-class: it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release
+  workflow (§5.7).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (31 pins in `downloads/SHA256SUMS` and `scripts/00_download.sh`;
   `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`), one recipe line
   (`recipes/ctypes_stand_in/util.py` gains `dllist`), judge additions and changes (seven golden
-  jobs and the oracle's pins, six other checks, the judge's package and licence lists, two
-  source-tree patterns, one bound of spec 035 re-based, two known gaps), the release workflow's
+  jobs, the oracle's pins and its pure pyyaml, six other checks, two unit checks, the judge's
+  package and licence lists, two
+  source-tree patterns, one bound of spec 035 re-based as proposed for 035 (Decision 13), two known gaps), the release workflow's
   tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
 - **Depends on:** three specifications not yet built, each landing first (Decision 14):
   033 (the zip keeps `METADATA` and `entry_points.txt`; `make_stdlib_zip.py --metadata`;
@@ -42,6 +46,13 @@
   - threadpoolctl 3.7.0 on the host with `sys.platform` set to `"wasi"` and a model of 033's
     stand-in, with and without `ctypes.util.dllist`;
   - the wheel's size today, and PyPI's upload limit (READ, `https://pypi.org/help/`).
+
+  **The pre-build review's runs** (`../reviews/039-tier-a-packages-spec-2026-10-17.md`, its
+  "Ran" list): the pins against PyPI; the members from the pins; a scratch oracle locked and
+  synced by the pinned uv (finding 1's evidence); the jobs under 24 seeds and another time zone
+  and locale; the Excel edge through `wasi_python.run`; two snapshots made by step 80's own
+  command, on today's zip and on this one; the top-level split's slope; and the cost of reading
+  each `METADATA`. Decision 13's numbers marked "the review" are from these.
 
 ## The problem
 
@@ -88,6 +99,11 @@ in the README what works and what does not.
    `colorama` is required on Windows only and stays out. Nothing here needs the
    `importlib_metadata` or `importlib_resources` backports, which spec 035's Scope asked this
    specification to check (READ: no wheel requires them on 3.15).
+
+   Besides code, the members include `py.typed` files, networkx's `atlas.dat.gz`, tqdm's
+   `completion.sh` and man page, and sympy's grammar, `.xsl` and `.lark` files and its 16
+   autolev `test-examples` files, which step 70's `SKIP_DIRS` keeps because their folder is not
+   named `test` (the review, EXECUTED). They stay: no trimming here (Scope).
 
    **seaborn and reportlab are not here** (Decision 15): a follow-up after 023.
 2. **The pins.** Each version is the current release on PyPI on 2026-10-17 and the version the
@@ -231,8 +247,12 @@ in the README what works and what does not.
      `OSError`, so `threadpool_info()` and `threadpool_limits(…)` would raise.
    - **The change:** `recipes/ctypes_stand_in/util.py` gains `dllist()`, returning `[]`. That is
      a true answer on wasm32-wasi: the guest is one statically linked module and loads no shared
-     library (no `dlopen`), as `find_library` returning `None` already says. It follows 033's
-     rule: a name exists so that an import succeeds, and every answer is true on wasm32.
+     library (no `dlopen`), as `find_library` returning `None` already says. It is 033's rule,
+     extended by one case: a name exists so that an import succeeds; a query whose true wasm32
+     answer is known is answered (`find_library` gives `None`, `dllist` gives `[]`); anything
+     that would load a library or call C still raises the `OSError`. 033 is confirmed and
+     hands this choice to this specification (its Decision 6), so the line lands here, not as
+     an edit to 033's text.
    - **EXECUTED while drafting** (host Python 3.15.0, `sys.platform` set to `"wasi"`, a model of
      033's stand-in): without `dllist`, `threadpool_info()`, `threadpool_limits(limits=1,
      user_api="blas")` and `ThreadpoolController().select(user_api="openmp").info()` each raised
@@ -270,20 +290,34 @@ in the README what works and what does not.
      `build/markupsafe-3.0.4/LICENSE.txt`, each named in the `licences` dict as zlib's is.
    - **tqdm (MPL-2.0 AND MIT).** Its wheel's `LICENCE` holds the MIT text and MPL-2.0's
      Exhibit A, not the MPL's full text (READ). The zip ships tqdm as bytecode, which MPL-2.0
-     calls the Executable Form: §3.2 asks that its recipients can get the Source Code Form and
-     receive the licence. So `LICENSES/tqdm.txt` holds three parts: the wheel's `LICENCE`; the
-     full MPL-2.0 text, pinned by URL and SHA-256 (`spdx-31ba1a50-MPL-2.0.txt`, SPDX's
-     `license-list-data` at commit `31ba1a50`, an immutable URL; Decision 2); and a part headed
-     `tqdm source` saying that tqdm 4.70.1's Source Code Form is the pinned wheel
-     `tqdm-4.70.1-py3-none-any.whl` (its URL and SHA-256 as in Decision 2), which holds its
-     `.py` files, and the project's repository at tag `v4.70.1`.
+     calls the Executable Form: §3.2(a) asks that the Source Code Form be made available and
+     that recipients be told how to get it, and §3.2(b) that they receive the licence.
+     **The release carries tqdm's source itself**, so the obligation never rests on PyPI or
+     GitHub keeping a file (the review's finding 2):
+     - `assemble_artifacts.py` copies the pinned `tqdm-4.70.1-py3-none-any.whl`, after
+       `pinned`'s hash check, unchanged to `LICENSES/tqdm-4.70.1-source.whl` (80,199 bytes). It
+       holds tqdm's `.py` files, the form preferred for modification. The pinned wheel's bytes
+       are carried rather than a repacked zip of its `.py` files, so the file's SHA-256 is the
+       pin's and anyone can check it against `MANIFEST`. It travels in the GitHub release and in
+       the `wasi-python` wheel, as every file of `LICENSES/` does.
+     - `LICENSES/tqdm.txt` holds three parts: the wheel's `LICENCE`; the full MPL-2.0 text,
+       pinned by URL and SHA-256 (`spdx-31ba1a50-MPL-2.0.txt`, SPDX's `license-list-data` at
+       commit `31ba1a50`, an immutable URL; Decision 2); and a part headed `tqdm source` that
+       names first `LICENSES/tqdm-4.70.1-source.whl` (its SHA-256), then, for convenience, the
+       PyPI URL of Decision 2 and the project's repository at tag `v4.70.1`.
+   - **sympy's nested notice.** `sympy/parsing/latex/LICENSE.txt` (MIT, "Copyright 2016,
+     latex2sympy") covers the LaTeX grammar and its generated parser, which the zip carries. It
+     sits inside the package, not in `.dist-info`, so `wheel_licences` would miss it (the
+     review, EXECUTED; no other wheel has a nested licence file). `assemble_artifacts.py` adds
+     it as a second part of `LICENSES/sympy.txt`, labelled with its path in the wheel. MIT is
+     approved by decision 43 for most of tier A.
    - The other licences (MIT, BSD-2-Clause, BSD-3-Clause, BSD, PSF-2.0) ask for their notice to
      travel with the work, which `LICENSES/` does; none asks for source.
    - The judge's `paths.PACKAGES` and `paths.LICENCE_COMPONENTS` gain the thirty, so
      `test_manifest_is_well_formed` and `test_licence_notices_cover_every_component` require a
      `package` line and a notice holding the pinned archive's top-level licence for each (the
      existing `licence_source` finds wheels and sdists by `is_version_of`). A new check holds
-     tqdm's three parts (Decision 12).
+     tqdm's three parts and its carried source, and sympy's nested notice (Decision 12).
 9. **What a guest sees: the edges, stated.** Each is either a check or a golden line (Decisions
    11 and 12), and each goes in the README (Design).
    - **Excel output with nothing writable (decision 46).** pandas 3.0.6 picks xlsxwriter as the
@@ -311,6 +345,11 @@ in the README what works and what does not.
      (`TqdmMonitorWarning … can't start new thread`, on stderr; EXECUTED in the guest); setting
      `tqdm.tqdm.monitor_interval = 0` first silences it. Bars write to stderr as natively.
    - **threadpoolctl finds no native thread pools** (Decision 5).
+   - **pyyaml has no libyaml:** `yaml.__with_libyaml__` is `False` and `yaml.CLoader`,
+     `yaml.CSafeLoader` and `yaml.CDumper` are absent, as in a native install without libyaml
+     (EXECUTED by the review in the guest). Code that writes
+     `getattr(yaml, "CSafeLoader", yaml.SafeLoader)` works; `yaml.safe_*` never use libyaml,
+     even natively (READ).
    - **networkx algorithms that need scipy** (`pagerank`, the spectral and linear-algebra ones)
      raise `ModuleNotFoundError: scipy` until spec 037 lands, as natively without scipy.
      **`import networkx` reads entry points** (`networkx/utils/backends.py:102`,
@@ -377,8 +416,10 @@ in the README what works and what does not.
       and `safe_load` refusing a `!!python/object/apply` tag; `tomli_w.dumps` read back by the
       stdlib's `tomllib`; a jinja2 template with autoescape, `StrictUndefined`, a loop and
       filters; `markupsafe.escape` and `Markup` formatting; `df.to_markdown()` and
-      `tabulate(…, tablefmt="grid")`; charset-normalizer naming UTF-8, cp1252 and UTF-16 bytes
-      of one German sentence and decoding each back to it.
+      `tabulate(…, tablefmt="grid")`; charset-normalizer guessing the encoding of the UTF-8,
+      cp1252 and UTF-16 bytes of one German sentence and decoding each back to it. For the
+      cp1252 bytes it names **cp1250**, which decodes this sentence identically (EXECUTED
+      natively and in the guest: `cp1252 -> cp1250 True`); the golden records that guess.
     - **`modelling`:** networkx on Zachary's karate club (sizes, a shortest path, the top three
       by betweenness, Louvain community sizes with a fixed seed), a weighted directed graph
       (Dijkstra, topological order, a minimum spanning tree); patsy's `dmatrices("y ~ x + C(g)")`
@@ -386,10 +427,12 @@ in the README what works and what does not.
     - **`symbolic`:** sympy `solve`, `factor`, `expand`, `integrate` (indefinite and a Gaussian
       over the real line), `diff`, `limit`, `series`, a matrix inverse and eigenvalues, `dsolve`
       of `f'' + f = 0`, `nsimplify`, rationals, `N(pi, 40)`, `isprime(2**61 - 1)`, `latex`,
-      and `lambdify` with its default modules; mpmath at 30 digits (`pi`, a quadrature,
-      `zeta(3)`). The drafting run used `lambdify(…, modules="math")`, because its scratch
-      `ctypes` lacked what `numpy.ctypeslib` needs (Decision 6); the built job uses the
-      default, which 033's stand-in serves.
+      and `lambdify(…, modules="numpy")`; mpmath at 30 digits (`pi`, a quadrature, `zeta(3)`).
+      `modules="numpy"`, not the default: sympy 1.14.0's default is `["numpy", "scipy"]` when
+      scipy imports (READ), so after spec 037 the job would import scipy and its fuel would grow
+      for a reason outside this family. `modules="numpy"` still runs `from numpy import *`,
+      which reaches `numpy.ctypeslib` through 033's stand-in (Decision 6). The drafting run used
+      `modules="math"`, because its scratch `ctypes` lacked what `numpy.ctypeslib` needs.
     - **`utilities`:** attrs (a validated, ordered class, `asdict`, `evolve`, a validator's
       `ValueError`); more-itertools and toolz helpers; tqdm counting into a `StringIO` and
       `format_meter` with a fixed elapsed time; `typing_extensions.TypedDict` with `NotRequired`;
@@ -397,32 +440,76 @@ in the README what works and what does not.
       `hash`, `dump`/`load` through a buffer; cloudpickle round-tripping a closure and a class;
       a narwhals group-by over a pandas frame.
 
-    Each job's first line is `versions <name>=<version> …` from `importlib.metadata.version`,
-    so it also proves spec 033's metadata for its family. The drafting fuel of each job on the
-    plain reactor (before spec 035, on a zip of 3,765 to 3,791 members) was 2.07 G (`pdf`) to
-    9.29 G (`symbolic`) (EXECUTED); the judge records the built numbers as each check's metric.
+    **Every job's first line is `versions <name>=<version> …` from
+    `importlib.metadata.version`,** so it also proves spec 033's metadata for its family. The
+    drafts of `excel` and `pdf` printed `__version__` attributes instead (the review, READ); the
+    built jobs use `version()` like the other five. The drafts are not repository code: the
+    builder writes the jobs from them, formatted and clean under the repository's
+    `ruff format` and `ruff check` (the drafts had 82 findings, all style; formatting changes
+    no output). The drafting fuel of each job on the plain reactor (before spec 035, on a zip
+    of 3,765 to 3,791 members) was 2.07 G (`pdf`) to 9.29 G (`symbolic`) (EXECUTED); the judge
+    records the built numbers as each check's metric.
 
-    **The oracle.** `tests/jobs/oracle/pyproject.toml` gains the thirty at the same versions,
-    and `uv.lock` is regenerated with every download under `build/oracle/` (spec 002). It pins
-    charset-normalizer's pure wheel by URL (`[tool.uv.sources]`), the same file as the guest.
-    pyyaml and markupsafe have no pure wheel, so the oracle installs their platform wheels with
-    the C speedups. No job prints which path ran, and the projects guarantee the same results
-    from both, so the goldens hold; the guest's pure paths are checked separately (Decision
-    12). `jobs.JOBS` gains the seven, so `regen.py` and
-    `test_goldens_reproduce_under_the_pinned_oracle` cover them.
+    **The oracle** (`tests/jobs/oracle/`, spec 002) gains the same code the guest has, with
+    nothing built on the host and nothing fetched unhashed (the review's finding 1):
+    - `pyproject.toml` gains twenty-nine of the thirty at the same versions, and `uv.lock` is
+      regenerated with every download under `build/oracle/`. charset-normalizer's pure wheel is
+      pinned by URL (`[tool.uv.sources]`), the same file as the guest's.
+    - **pyyaml is not in `pyproject.toml`.** It has no cp315 wheel (EXECUTED by the review:
+      wheels for cp38 to cp314t only), so uv would build its sdist on the host with build tools
+      it resolves at that moment (setuptools and Cython, in no lock and hashed nowhere), run
+      pyyaml's own `setup.py`, and get the C extension or not depending on whether the host has
+      libyaml's headers (EXECUTED by the review). Instead the oracle takes pyyaml as the guest
+      does: `tests/harness/jobs.py` gains `oracle_pure()`, which checks the pinned
+      `downloads/pyyaml-6.0.3.tar.gz` against `downloads/SHA256SUMS` (as `oracle_python()`
+      checks its archive), extracts only `pyyaml-6.0.3/lib/yaml/` and `pyyaml-6.0.3/PKG-INFO`
+      (`filter="data"`) under `build/oracle/pure/`, writes `PKG-INFO` as
+      `pyyaml-6.0.3.dist-info/METADATA` beside `yaml/`, and marks the unpack with the
+      archive's hash as `oracle_python()` does. `oracle_env` puts that folder on `PYTHONPATH`.
+      No other oracle dependency requires pyyaml (READ), so nothing pulls a second copy in.
+    - **markupsafe stays a locked wheel.** It has cp315 wheels for macOS, Linux and Windows
+      (EXECUTED by the review), jinja2 requires it, and the lock hashes them. The oracle runs
+      its C `_speedups`; markupsafe's two paths give the same results by the project's
+      contract, no job prints which ran, and the guest's `_native` path is held by Decision
+      12's pure-path check.
+    - `jobs.JOBS` gains the seven, so `regen.py` and
+      `test_goldens_reproduce_under_the_pinned_oracle` cover them. The drafting runs used a
+      native install with both pyyaml and markupsafe pure, copied by hand (the drafter's scratch
+      venv; the review READ it). For pyyaml that is what this oracle does. For markupsafe the
+      built oracle runs the C path the drafts did not; `regen.py`'s two-seed run and the guest's
+      equality check are what show the goldens hold, and a difference is a finding for the build
+      review.
 12. **The guest checks** (Acceptance lists each with how it was seen failing first).
     - **v1.3, `tests/checks/test_v1_3_default_profile.py`, a new file:** the seven
       `test_<family>_job_matches_native` checks (plain, `slow`, as the existing job checks);
       `test_the_default_profile_runs_its_pure_python_paths[plain, snapshot]`: `yaml.__with_libyaml__
       is False`, `import _yaml` raises `ModuleNotFoundError`, `markupsafe._escape_inner.__module__
-      == "markupsafe._native"`, and `charset_normalizer.md.__file__` ends in `.pyc` (no mypyc
-      module); `test_threadpoolctl_finds_no_native_pools[plain, snapshot]`:
-      `ctypes.util.dllist() == []`, `threadpool_info() == []`, `threadpool_limits(limits=1,
-      user_api="blas")` entered and left, and `ThreadpoolController().select(user_api="openmp")
-      .info() == []`, all with warnings turned into errors;
+      == "markupsafe._native"`, `charset_normalizer.md.__file__` ends in `.pyc`, no zip member
+      name holds `__mypyc`, and after importing charset-normalizer and running `from_bytes` no
+      module in `sys.modules` has `__mypyc` in its name (`md.pyc` alone would not show the mypyc
+      path absent); `test_threadpoolctl_finds_no_native_pools[plain, snapshot]`:
+      `ctypes.util.dllist() == []`, `threadpool_info() == []`, a `with threadpool_limits(limits=1,
+      user_api="blas"):` block entered **and left** (`__exit__` runs and restores nothing, since
+      there is nothing to restore), and `ThreadpoolController().select(user_api="openmp")
+      .info() == []`, all with warnings turned into errors.
+    - **The two known-gap checks**, in the same file:
       `test_pandas_styler_renders_from_the_zip[plain]` and
-      `test_networkx_atlas_reads_from_the_zip[plain]`, each failing today in exactly the named
-      way and each a known gap (Decision 9).
+      `test_networkx_atlas_reads_from_the_zip[plain]`. Each runs its calls in the guest, builds
+      a list of one-line findings with no fuel figure and no path in them, and asserts
+      `not findings, scan.report(findings)`, so a failure prints the `N finding(s), digest …`
+      form `test_known_gaps_are_well_formed` requires of a gap's `match`. A finding names the
+      call, the exception's type and a path-free detail: for `TemplateNotFound` the template's
+      name (`e.name`), not its message, which quotes the zip's path (memo finding 4d's stderr);
+      for the atlas the message itself, which holds no path. The findings expected today are
+      `df.style.to_html(): TemplateNotFound: html.tpl`, one for `df.to_latex()` naming the
+      template it asks for, and
+      `nx.graph_atlas(100): TypeError: filename must be a str or bytes object, or a file`. Each
+      gap in `tests/known_gaps.toml` names its check, that exact finding set and, as
+      `closes_with`, `context/specifications/039-tier-a-packages.md` (a file under `context/`,
+      as the rule requires) until spec 041 exists as a file, when 041 takes it over. The
+      atlas's message is seen again after 035 lands: `files()` then gives 035's
+      `ZipDirectoryPath`, which is not path-like either (INFERRED by the review), so it should
+      not change; if it does, the gap records what the build sees.
     - The helper that runs a job in the guest (`_run_job` in `test_v1_3_data_stack.py`) moves to
       `tests/harness/jobs.py` as `run_in_guest(guest, job)`, used by both files, unchanged.
     - **v1.3, spec 033's `test_packages_carry_their_metadata`:** its set of distributions gains
@@ -439,9 +526,18 @@ in the README what works and what does not.
         `df.to_excel(io.BytesIO())` both work.
     - **v1.1, `test_tqdm_notice_carries_the_mpl_and_its_source`:** `LICENSES/tqdm.txt` holds
       the wheel's `LICENCE`, the pinned MPL-2.0 text byte for byte, and the `tqdm source` part
-      naming the pinned wheel's file name and SHA-256.
+      naming `LICENSES/tqdm-4.70.1-source.whl` and its SHA-256; that file's bytes equal the
+      pinned `downloads/tqdm-4.70.1-py3-none-any.whl` (its SHA-256 equals `MANIFEST`'s `pin`
+      line). The same check asserts `LICENSES/sympy.txt` holds
+      `sympy/parsing/latex/LICENSE.txt` from the pinned sympy wheel.
     - **Unit, `test_the_ctypes_stand_in_names_and_refuses`** (spec 033's) gains
       `util.dllist() == []`.
+    - **Unit, `test_a_staged_tree_ignores_litter`** in `tests/unit/test_build_scripts.py`
+      (replacing a litter re-run that could not fail; the review's finding 3): it stages a tree
+      as Decision 4 does (a temporary folder holding a copied package folder), once clean and
+      once with a `.DS_Store` at the tree's top and inside the package, calls
+      `make_stdlib_zip.tree_members` on each, and asserts the same names and bytes. It calls
+      `tree_members` directly, as 033's unit checks do, because `main` needs the line's 3.15.
 13. **What it costs, stated so growth can be told from regression.**
 
     **Members and bytes** (EXECUTED while drafting): **+2,014 members** (Decision 1) and
@@ -455,39 +551,62 @@ in the README what works and what does not.
 
     **Fuel on a plain start.** Before spec 035, the same 2,014 members cost 156,824,942 more
     fuel on a plain `-c pass` (241,166,128 to 397,991,070; 77,867 per member; EXECUTED while
-    drafting, close to the memo's 77,912). After 035 a member costs about 26,700 (its
-    Decision 10, INFERRED; its check 2 bounds it at 30,000). So:
+    drafting, close to the memo's 77,912; the review measured 77,692). After 035 a member costs
+    about 26,900: the review ran 035's review's reader prototype on this zip, 25,000 per member,
+    plus 035's 1,931 of other start work (EXECUTED; 035's check 2 bounds it at 30,000). The
+    snapshot rows are the review's measurements on two snapshots made by step 80's own command
+    on today's binary, one with today's zip and one with this zip, so only the zip differs
+    (EXECUTED; spec 023's +2.0% mixed a binary change in, so it is not the basis).
 
-    | metric | expected (INFERRED) | cap |
+    | metric | expected | cap |
     |---|---|---|
-    | plain `-c pass` | +2,014 × 26,700 ≈ +53.8 M | ≤ +2,014 × 30,000 = +60.4 M |
-    | every other plain check | the same, plus the collector's timing on heavy programs | ≤ +60.4 M + 0.2% of its accepted value |
-    | snapshot checks that neither read metadata nor resources | ≈ +4.8 M (about 2,400 per member: spec 023's review measured +2.0% on snapshot `pass` for 681 members) | ≤ +3,500 per member, +7.0 M |
-    | snapshot checks that query `importlib.metadata` | up to 6,000 per member more (035's plain slope bound) | ≤ +6,000 per member, +12.1 M |
+    | plain `-c pass` | +2,014 × 26,900 ≈ +54.2 M (INFERRED from the prototype) | ≤ +2,014 × 30,000 = +60.4 M |
+    | every other plain check that does not query `importlib.metadata` | the same, plus the collector's timing on heavy programs | ≤ +60.4 M + 0.2% of its accepted value |
+    | plain checks that query `importlib.metadata` (they also pay 035's top-level split of every name) | +54.2 M + 2,014 × 4,844 ≈ +64.0 M (the split: 4,844 per member at these names, EXECUTED by the review) | ≤ +2,014 × (30,000 + 6,000) = +72.5 M + 0.2% |
+    | snapshot checks that neither read metadata nor resources | +4,831,524 on `pass` (2,399 per member); a `json` call and a pandas groupby +2,392 and +2,419 per member (EXECUTED by the review) | ≤ +3,500 per member, +7.0 M |
+    | snapshot checks that query `importlib.metadata` | the row above plus the split, about 4,844 per member | ≤ +(3,500 + 6,000) per member, +19.1 M |
+    | **checks that read every distribution's metadata**: 033's `test_packages_carry_their_metadata[plain, snapshot]` (which this specification extends to the thirty) and 035's check 6 snapshot comparison over "the distributions the zip holds" | reading one distribution's `METADATA` and its version is about **18.9 M** (the `email` parse; 565.9 M for the thirty, plain, EXECUTED by the review); 035's comparison reads each twice (ours and upstream's) | on top of the rows above, ≤ 25 M per added distribution per read: ≤ +0.75 G for 033's check, ≤ +1.5 G for 035's comparison |
     | the zip's `bytes` | about +16.48 MB | ≤ +17.0 MB |
-    | the snapshot's `bytes` | about +0.6 to +1 MB: zipimport's dict takes 489 bytes per entry on a 64-bit host with a long archive path (EXECUTED: 936,848 bytes for 1,917 entries), less on wasm32 | ≤ +1,000 per member, +2.0 MB |
+    | the snapshot's `bytes` | +737,113 (366 per member; EXECUTED by the review) | ≤ +1,000 per member, +2.0 MB |
     | the plain binary's `bytes` | 0 | 0 |
 
-    The caps use the members this change really adds, if 023 or 037 have changed the count by
-    then. The pre-build review measures plain and snapshot `pass`, the snapshot's bytes and one
-    metadata miss on a prototype set (033 and 035 built, this zip), as 033's review did, and its
-    confirmation re-bases any cap the measurement shows to be wrong. A growth above a cap is a
-    finding for the build review, not a reason to accept.
+    The caps use the members and distributions this change really adds, if 023 or 037 have
+    changed the count by then. A growth above a cap is a finding for the build review, not a
+    reason to accept. The plain cap's headroom over the prototype is about 10%.
 
-    **One of spec 035's bounds is re-based, as a judge change.** 035's check 6 bounds a missing
-    `version("nope")` on the snapshot at **20 M**, set against a zip of about 1,758 members with
-    9.7 M measured. Its cost grows about 4,600 fuel per member (035's Decision 7: the split of
-    each name). With 023's about 610 members and these 2,014 it is about 9.7 M + 2,624 × 4,600
-    ≈ 21.8 M (INFERRED), past 20 M, for growth 035 planned for ("Tier A waits for this one") but
-    did not bound. The bound becomes **20 M + 6,000 × (the artifact zip's members − 1,758)**:
-    the same slope 035 allows the plain binary (≤ 6,000 per member), on the snapshot too. It is
-    named in `--accept-judge` with this reason. 035's other absolute bounds stay: a zone load
-    and the pandas time-zone job read resources, whose cost does not grow with members after
-    035 (its check 4's slope bound is 1,000 per member, about +2.6 M here at most).
+    **Spec 035's check 6: a re-base, proposed here, made in 035.** This specification may not
+    change 035's text. It proposes the amendment below; the landing lane writes it into 035
+    when this specification lands, or 035's builder adopts it first if 035 is still being
+    built. The judge change itself is in this specification's diff and its `--accept-judge`.
+    - **Why.** 035's check 6 bounds a missing `version("nope")` on the snapshot at **20 M**, set
+      against a zip of about 1,758 members (9.4 M measured by 035's confirmation). Its cost grows
+      with every member through the split of each name (035's Decision 7): 4,844 per member at
+      tier A's names (EXECUTED by the review). With 023's about 610 members and these 2,014 the
+      miss is about 9.4 M + 610 × 4,622 + 2,014 × 4,844 ≈ **22.0 M** (INFERRED), past 20 M, for
+      growth 035 foresaw ("Tier A waits for this one") but did not bound.
+    - **The proposed text for 035's check 6, snapshot bullet:** "B − A is at most **20 M + 6,000
+      × (N − 1,758)**, where N is `len(zipfile.ZipFile(zip).infolist())` of the artifact zip at
+      the time the check runs." At this specification's zip that is about 35.7 M.
+    - **What still bounds it.** The formula guards the fixed part (20 M at 1,758 members) and
+      the per-member part (6,000) separately. It loosens with every later member (scipy, tier
+      B) without a new account; that is acceptable only because check 6's plain slope bound
+      (≤ 6,000 per member) stays and holds each member's cost. At tier A's names the measured
+      slope, 4,844, leaves 19% headroom under 6,000, not the 30% 035 assumed for 4,600.
+    - **One more change proposed for 035's check 6:** its snapshot comparison opens the artifact
+      zip once and builds each upstream `PathDistribution` from `zipfile.Path(zf, folder + "/")`
+      on that one `ZipFile`. Otherwise it parses the 4,382-member directory once per
+      distribution, which the judge pays on every run.
+    - **Optional for 035's builder, not required here:** priming the split for the artifact zip
+      during the interpreter's start would make the snapshot miss constant and leave 20 M as it
+      is. If 035 does that, the re-base is not needed and is not made.
+    - 035's other absolute bounds stay: a zone load and the pandas time-zone job read
+      resources, whose cost does not grow with members after 035 (its check 4's slope bound is
+      1,000 per member, about +2.6 M here at most).
 
     **The wheel.** The `wasi-python` wheel carries the zip, which is already deflated, so the
-    wheel grows by about the zip's growth: +16.5 MB, from about 38.7 MB today (EXECUTED while
-    drafting: zlib level 6 of today's three large files, 7.6 + 20.1 + 10.9 MB). The landing
+    wheel grows by about the zip's growth: +16.5 MB, from about 38.7 MB today to about 55.1 MB
+    (EXECUTED while drafting and again by the review: zlib level 6 of the three large files,
+    7.6 + 20.1 + 10.9 MB today), plus tqdm's carried source (80,199 bytes). The landing
     notes record the built wheel's size. PyPI refuses a file over 100.0 MiB unless the
     project's limit is raised (READ); with matplotlib, scipy and tier B the wheel nears that
     (question 64).
@@ -497,11 +616,16 @@ in the README what works and what does not.
     - **It builds after 033, 035 and 023.** 033 gives the metadata rule, `--metadata`,
       `tree_members` and the stand-in it extends; 035 must cut the per-member cost first
       (decision 44; sympy after it, decision 45); 023 brings `packaging` and is ahead in the
-      queue (035's Decision 12). Spec 037's Decision 16 places tier A after 037 and 038; nothing
-      here depends on scipy (Decision 11's jobs print nothing that scipy changes), so if 037 or
-      038 stalls, this one may go first. Whichever of them builds second rebases onto the other's
-      step 70, `00_download.sh` and `assemble_artifacts.py`, and adds its packages to the
-      metadata set.
+      queue (035's Decision 12).
+    - **With 037 and 038, 037's order wins.** 037's Decision 16 and the roadmap's milestones
+      (plotting, then scipy, then the rest of the profile) put this specification after 037 and
+      038, and that is the order. One rule, so the lane does not choose: if, when this
+      specification is confirmed for build and 023 has landed, 037 is not itself confirmed for
+      build, this one builds first; otherwise it waits for 038 to land. Nothing here depends
+      on scipy (Decision 11's jobs print nothing scipy changes; `symbolic` names
+      `modules="numpy"`). Whichever builds second rebases onto the other's step 70,
+      `00_download.sh` and `assemble_artifacts.py`, adds its packages to 033's metadata set, and
+      re-derives Decision 13's caps from the members it really adds.
     - **Not split.** Thirty distributions go in through one seam (pins, `--wheel` lines, notices)
       with one rebuild, one review and one accept; splitting by family would repeat the rebuild,
       the review and the growth account seven times for no new design. One builder builds it in
@@ -541,21 +665,21 @@ sandbox says no, the README says so first.
 | `downloads/SHA256SUMS` | the 31 lines of Decision 2 |
 | `scripts/00_download.sh` | the 30 package `get` lines after the three existing pure-Python pins; the MPL-2.0 text's line in the licence-notice block, under a comment naming it as a licence text tqdm's notice needs |
 | `scripts/steps/70_zip.sh` | Decision 4: unpack and stage the two sdists; `--tree "$B/pure-install"`, two `--metadata` lines, 28 `--wheel` lines |
-| `scripts/assemble_artifacts.py` | `PACKAGES` (+30), `WHEELS` (+28), pyyaml's and markupsafe's notices from their trees, tqdm's three-part notice (Decision 8) |
+| `scripts/assemble_artifacts.py` | `PACKAGES` (+30), `WHEELS` (+28), pyyaml's and markupsafe's notices from their trees, tqdm's three-part notice and its carried source `LICENSES/tqdm-4.70.1-source.whl`, sympy's nested notice (Decision 8) |
 | `recipes/ctypes_stand_in/util.py` | `dllist()` returning `[]` (Decision 5) |
 | `tests/jobs/{excel,pdf,markup,text_formats,modelling,symbolic,utilities}.py` and `.expected` | Decision 11; goldens written by `regen.py` |
-| `tests/jobs/oracle/pyproject.toml`, `uv.lock` | the thirty, charset-normalizer's pure wheel by URL |
-| `tests/harness/jobs.py` | `JOBS` gains the seven; `run_in_guest` moved here |
+| `tests/jobs/oracle/pyproject.toml`, `uv.lock` | twenty-nine of the thirty (not pyyaml), charset-normalizer's pure wheel by URL (Decision 11) |
+| `tests/harness/jobs.py` | `JOBS` gains the seven; `run_in_guest` moved here; `oracle_pure()` stages pyyaml's pure tree from the pinned sdist and `oracle_env` puts it on `PYTHONPATH` (Decision 11) |
 | `tests/harness/paths.py` | `PACKAGES` and `LICENCE_COMPONENTS` gain the thirty |
 | `tests/harness/pins.py`, `tests/harness/needs.py` | `SOURCE_PATTERNS` and `SOURCE_COMPONENTS` gain `pyyaml` (`pyyaml-[\w.]+\.tar\.gz`) and `markupsafe` (`markupsafe-[\w.]+\.tar\.gz`) |
 | `tests/checks/test_v1_3_default_profile.py` | new: Decision 12's v1.3 checks |
 | `tests/checks/test_v1_3_data_stack.py` | uses `jobs.run_in_guest`; 033's metadata set gains the thirty |
-| `tests/checks/test_v1_3_the_zips_directory.py` | check 6's snapshot bound re-based (Decision 13) |
+| `tests/checks/test_v1_3_the_zips_directory.py` | check 6's snapshot bound re-based and its comparison opening the zip once, as proposed for 035 in Decision 13 (unless 035's builder primes the split, when neither is needed) |
 | `tests/checks/test_v1_4_embedding.py` | the Excel check (Decision 12) |
-| `tests/checks/test_v1_1_artifact_set.py` | the tqdm notice check |
-| `tests/unit/test_build_scripts.py` | `dllist` in the stand-in's unit check |
-| `tests/known_gaps.toml` | two gaps (the Styler, the atlas), each naming its check, its exact finding set and spec 041 as its closer (or this specification's Decision 15 if 041 is not yet drafted when this lands) |
-| `.github/workflows/release.yml` | the zero-patch job's tree count gains two (to 17 after 023's 15) |
+| `tests/checks/test_v1_1_artifact_set.py` | the tqdm notice check, with the carried source and sympy's nested notice |
+| `tests/unit/test_build_scripts.py` | `dllist` in the stand-in's unit check; `test_a_staged_tree_ignores_litter` (Decision 12) |
+| `tests/known_gaps.toml` | two gaps (the Styler, the atlas), each naming its check, its exact finding set (`N finding(s), digest …`) and, as closer, `context/specifications/039-tier-a-packages.md` until spec 041 is a file (Decision 12) |
+| `.github/workflows/release.yml` | the zero-patch job's tree count rises by two from main's count when this lands (023 and 037 each add trees too, in either order) |
 | `README.md` | below |
 | `CHANGELOG.md` | under the unreleased section: the thirty, by family; the pure builds of pyyaml and markupsafe; `ctypes.util.dllist`; the Excel, `read_html`, AES, joblib and tqdm notes; the two gaps |
 
@@ -569,7 +693,7 @@ sandbox says no, the README says so first.
   (§4.15);
 - the other edges of Decision 9, one line each: `pd.read_html(…, flavor="bs4")`; pypdf's AES;
   joblib serial; tqdm's warning and `monitor_interval = 0`; threadpoolctl's empty answer;
-  networkx and scipy; the Styler and the atlas until spec 041; pytz absent; what is not carried;
+  no `yaml.CLoader` and `__with_libyaml__` `False`; networkx and scipy; the Styler and the atlas until spec 041; pytz absent; what is not carried;
 - the cost: a plain start pays for every member (the measured figure), a snapshot call does
   not; each package's import is paid by the call that imports it (Decision 10).
 
@@ -608,12 +732,17 @@ In: Decisions 1 to 14. Out:
      on wasm32-wasi`;
    - `test_excel_output_needs_a_writable_folder_or_xlsxwriter_in_memory`:
      `ModuleNotFoundError: openpyxl`;
-   - `test_tqdm_notice_carries_the_mpl_and_its_source`: no `LICENSES/tqdm.txt`; and against a
-     copy of the built set whose notice lacks the MPL text;
+   - `test_tqdm_notice_carries_the_mpl_and_its_source`: no `LICENSES/tqdm.txt`; and against
+     copies of the built set whose notice lacks the MPL text, whose
+     `LICENSES/tqdm-4.70.1-source.whl` is missing or one byte changed, and whose
+     `LICENSES/sympy.txt` lacks the nested notice;
+   - `test_a_staged_tree_ignores_litter`: against a `tree_members` mutant that does not skip
+     `.DS_Store`, the two runs differ;
    - `test_packages_carry_their_metadata` and `test_licence_notices_cover_every_component`
      with the thirty added: the thirty missing;
    - the two known-gap checks fail in exactly their named way (`TemplateNotFound`; the
-     atlas's `TypeError`) and are recorded as gaps;
+     atlas's `TypeError`), print the `N finding(s), digest …` line, and are recorded as gaps
+     that `test_known_gaps_are_well_formed` accepts;
    - the unit check's `dllist` assertion: `AttributeError` against 033's `util.py`.
 2. **The zip's names and bytes.** A full build from pins in a clean clone gives a
    `python.wasm` byte for byte the one it started from (`cmp`). With the starting set copied to
@@ -627,19 +756,25 @@ In: Decisions 1 to 14. Out:
      `METADATA` equals the one in its pinned wheel.
 3. **The same bytes everywhere.** A manual run of the release workflow on the reviewed commit
    passes its `rebuild` and `same-bytes` jobs (spec 012) and its zero-patch job with the new
-   tree count; its run number goes in the landing notes. Steps 70 to 90, re-run with a
-   `.DS_Store` in `build/pure-install/yaml/` and beside each `PKG-INFO` (spec 018), give the
-   same `SHA256SUMS` (`cmp`).
+   tree count; its run number goes in the landing notes. Litter in the staged tree is held by
+   the unit check `test_a_staged_tree_ignores_litter` (Decision 12), not by a re-run of steps
+   70 to 90: step 70 removes and re-stages `build/pure-install/` first, so litter put there
+   before a re-run is deleted before anything reads it, and `--metadata` reads one named file
+   (the review's finding 3).
 4. **The judge.** `uv run pytest` is green with `--accept "<reason>"`, `--accept-judge "<the
    new checks, jobs and goldens; the package, licence and source-tree lists; the moved helper;
    035's check 6 re-based, with Decision 13's reason; the two gaps>"` and `--accept-growth
    "<the account>"`, and loses no pass. The account gives the build's measured numbers for each
-   row of Decision 13's table against its expectation and cap, the member count actually added,
-   and the snapshot's metadata miss against both the old 20 M and the re-based bound. The
-   goldens reproduce under the pinned oracle (`regen.py --check`).
+   row of Decision 13's table against its expectation and cap, the member and distribution
+   counts actually added, and the snapshot's metadata miss against both the old 20 M and the
+   re-based bound. The goldens reproduce under the pinned oracle (`regen.py --check`), with
+   pyyaml staged from the pinned sdist and nothing built on the host (the oracle's sync log
+   shows no build step). The seven jobs pass `ruff check` and `ruff format --check`.
 5. **The numbers recorded.** The landing notes give: plain and snapshot `-c pass`; each
    family's import fuel on the snapshot (Decision 10); each job's fuel; the zip's, the
-   snapshot's and the wheel's sizes.
+   snapshot's and the wheel's sizes; the snapshot's growth per member (the review's baseline:
+   2,399 fuel and 366 bytes); the top-level split's slope (the review's baseline: 4,844 per
+   member); and whether 035's check 6 was re-based or 035 primed the split.
 6. **The release.** A release dry run passes every job (criterion 3's run).
 
 ## The owner's choices

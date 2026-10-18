@@ -368,6 +368,68 @@ asks that 037's text and this one agree on which comes first.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+The author's answers, 2026-10-17. Every finding is fixed in the specification's text; none is
+declined. Section references are to the revised `specifications/039-tier-a-packages.md`.
+
+1. **Fixed (Decision 11, "The oracle"; Design; criterion 4).** pyyaml leaves the oracle's
+   `pyproject.toml`. A new `oracle_pure()` in `tests/harness/jobs.py` checks the pinned
+   `pyyaml-6.0.3.tar.gz` against `downloads/SHA256SUMS`, extracts only `lib/yaml/` and
+   `PKG-INFO` under `build/oracle/pure/`, writes `pyyaml-6.0.3.dist-info/METADATA`, stamps the
+   unpack with the hash, and `oracle_env` puts it on `PYTHONPATH`. Nothing is built on the host
+   and nothing unhashed is fetched. markupsafe stays a locked cp315 wheel with its C speedups,
+   said so, with the guest's `_native` path held by the pure-path check. The text now says the
+   drafting natives were pure by hand, and that for markupsafe `regen.py` and the guest check
+   are what show the goldens hold. Criterion 4 asks that the oracle's sync shows no build step.
+2. **Fixed (Decision 8; Decision 12's tqdm check; criterion 1).** The release carries tqdm's
+   source: `assemble_artifacts.py` copies the pinned, hash-checked
+   `tqdm-4.70.1-py3-none-any.whl` unchanged to `LICENSES/tqdm-4.70.1-source.whl`. The pinned
+   wheel's bytes rather than a repacked zip of its `.py` files, so its SHA-256 is the pin's and
+   checkable against `MANIFEST`. `LICENSES/tqdm.txt`'s third part names that file first, then
+   PyPI and the tag. The check asserts the file's bytes equal the pinned wheel's; criterion 1
+   sees it fail on a missing and a one-byte-changed copy.
+3. **Fixed (Decision 12; criterion 3; Design).** The litter re-run is gone from criterion 3,
+   with the reason. A unit check, `test_a_staged_tree_ignores_litter`, stages a tree as
+   Decision 4 does and asserts `tree_members` gives the same names and bytes with `.DS_Store`
+   at the top and inside the package; seen failing first against a mutant that keeps litter.
+4. **Fixed (Decision 13's table).** Two rows added: plain checks that query metadata
+   (≤ 2,014 × 36,000 = 72.5 M + 0.2%; the split's 4,844 per member cited), and checks that read
+   every distribution's metadata (about 18.9 M each, ≤ 25 M per added distribution per read;
+   033's metadata check ≤ +0.75 G, 035's check 6 comparison ≤ +1.5 G, since it reads each
+   twice). A snapshot row for metadata queries is widened to 3,500 + 6,000 per member. The
+   snapshot rows now cite this review's two-snapshot measurements (2,399 fuel and 366 bytes per
+   member), not spec 023's +2.0%, and the plain row cites the prototype's 25,000 + 1,931.
+   Criterion 5 records the per-member and split baselines.
+5. **Fixed (Decision 13, "Spec 035's check 6").** Written as a proposed amendment to 035, which
+   the lane writes into 035 when 039 lands, or 035's builder adopts first; the judge change is
+   in 039's diff and `--accept-judge`. (a) N is `len(zipfile.ZipFile(zip).infolist())` of the
+   artifact zip at check time; (b) the plain slope bound (≤ 6,000) stays and is what bounds each
+   member, with the measured 4,844 and 19% headroom stated, and the loosening with later members
+   named; (c) the snapshot comparison opens the zip once. The optional priming is recorded for
+   035's builder; if 035 primes, neither change is made.
+6. **Fixed (Decision 12, "The two known-gap checks"; Design; criterion 1).** Each check builds
+   one-line findings with no fuel or path (for `TemplateNotFound`, the template's `e.name`, not
+   its message, which quotes the zip's path), asserts `not findings, scan.report(findings)`, and
+   its gap names that exact set and closes with
+   `context/specifications/039-tier-a-packages.md` until 041 is a file. The atlas's message is
+   re-seen after 035, as the review notes.
+7. **Fixed (Decision 11).** All seven jobs print versions from `importlib.metadata.version`
+   (the `excel` and `pdf` drafts did not; said so). The charset line names cp1250 and says why.
+   `symbolic` uses `lambdify(…, modules="numpy")`, with the reason (sympy's default adds scipy
+   once 037 lands) and that it still reaches `numpy.ctypeslib`. The builder writes the jobs
+   formatted and clean under `ruff format` and `ruff check`; criterion 4 asks for it.
+8. **Fixed.** Decision 5 states the rule as 033's, extended (a known true answer is answered;
+   anything that loads or calls raises). Decision 9 and the README gain the `CLoader`/
+   `__with_libyaml__` line. The pure-path check adds no `__mypyc` member name and no `__mypyc`
+   module loaded. The threadpoolctl check enters and leaves the `threadpool_limits` block.
+   Decision 1 names sympy's 16 autolev `test-examples` files, kept as Scope says.
+9. **Fixed (Design; Decision 14).** The zero-patch count "rises by two from main's count".
+   Decision 14 now says 037's order wins (037 and 038 first, as 037's Decision 16 and the
+   roadmap say), with one rule so the lane does not choose: 039 goes first only if 037 is not
+   confirmed for build when 039 is confirmed and 023 has landed; otherwise it waits for 038.
+10. **Fixed (Decision 8; the tqdm/notice check).** `assemble_artifacts.py` adds
+    `sympy/parsing/latex/LICENSE.txt` as a second, labelled part of `LICENSES/sympy.txt`, and
+    the v1.1 notice check asserts it is there.
+
 ## Verdict
 
 Not ready to build as written, but close. The pins, the member count, the pure builds, the
