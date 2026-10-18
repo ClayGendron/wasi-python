@@ -1,0 +1,9 @@
+3.14.2
+      5 tools,     12891 B: encoded per frame        0.039 ms
+      5 tools,     12891 B: encoded once, spliced    0.002 ms
+    100 tools,    447891 B: encoded per frame        1.068 ms
+    100 tools,    447891 B: encoded once, spliced    0.017 ms
+    300 tools,   1943891 B: encoded per frame        4.228 ms
+    300 tools,   1943891 B: encoded once, spliced    0.082 ms
+   1000 tools,  10479891 B: encoded per frame       21.886 ms
+   1000 tools,  10479891 B: encoded once, spliced    0.528 ms

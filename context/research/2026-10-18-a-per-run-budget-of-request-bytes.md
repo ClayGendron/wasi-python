@@ -261,3 +261,33 @@ A budget of admitted request bytes per call, checked in `admit` from the length 
 bytes are read; default 16 MiB; `max_tool_request_bytes=` and `Defaults.tool_request_bytes`;
 `budget_exceeded` with a message naming bytes; no command-line flag; per turn in a session.
 N8 closed by following `__call__` on every hop, stopping at C slots.
+
+## Addendum after the pre-build review (2026-10-18)
+
+Spec 060's pre-build review (`build/reviews-evidence/060-spec/` in the main tree) found two
+things this memo missed. Neither changes a measurement above.
+
+- **`list` frames** (its F1, READ there, P4). Each 26-byte `list` frame makes the frame host
+  encode the whole tool list again (`_answer`, `_encode(body)` per frame). No byte budget sees
+  that cost. Encoding the descriptors array once and splicing the `id` in gives the same bytes
+  at a fortieth of the cost (EXECUTED, `list_splice_060.py`, `list_splice_060.txt`; host-only,
+  thread CPU, median of 20, one copy of the answer included as the door makes it, the write into
+  guest memory not measured):
+
+  | tools | list | encoded per frame | encoded once, spliced |
+  |---:|---:|---:|---:|
+  | 5 | 12,891 B | 0.039 ms | 0.002 ms |
+  | 100 | 447,891 B | 1.068 ms | 0.017 ms |
+  | 300 | 1,943,891 B | 4.228 ms | 0.082 ms |
+  | 1,000 | 10,479,891 B | 21.886 ms | 0.528 ms |
+
+  The probe asserts that the two answers are equal byte for byte, for an integer `id` and for
+  `null`. What is left per `list` frame (the splice, the door's copies) is per frame, so
+  `max_tool_calls` bounds it.
+- **A metaclass's `__call__`** (its F2, EXECUTED there, P2 and P5). §8's walk stops at every
+  class; `inspect.signature` reads a user-defined metaclass `__call__` first. Treating a class as
+  any other hop (following `type(cls).__call__` unless it is a C slot) closes that case and
+  changes none of the review's 27 other callables.
+- **A `__call__` cycle on main** (its F6, EXECUTED there): on 3.14 `tool()` raises
+  `RecursionError` from `inspect.signature`; on 3.11, a `TypeError` from `_type_hints`. The walk
+  makes both its own `TypeError` (§8, `n8_cycle_060.txt`).
