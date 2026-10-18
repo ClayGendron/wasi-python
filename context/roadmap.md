@@ -19,7 +19,7 @@ and B of the default-profile memo (decisions 43 to 48).
 |---|---|
 | CPython 3.15 with its stdlib, including `sqlite3`, `bz2`, `lzma` | shipped (0.1.0a2) |
 | numpy, pandas | shipped (0.1.0a1) |
-| matplotlib | M1 specified and confirmed (spec 023); M2 (triangulation, contourpy) next |
+| matplotlib | M1 landed (spec 023, 0.1.0a6); M2 (triangulation, contourpy) next |
 | scipy | researched (`research/2026-10-17-what-scipy-needs.md`, the OpenBLAS memo); its licences, SIMD and placement decided (`decisions.md`, 25 to 31) |
 | tier A: about thirty pure-Python packages (Excel, PDF, HTML, YAML, templates, graphs, sympy, seaborn, reportlab) | approved (decisions 43 to 45); after the zip's per-member cost is cut, and after matplotlib M1 |
 | tier B: scikit-learn, statsmodels, lxml (with python-docx and python-pptx), regex | approved for 0.1.0 (decision 48); native builds after scipy |
@@ -59,19 +59,18 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
 question 95) and its security review's addendum ("a5 may be released"). 0.1.0a6 waits on 057.
 
-Built and confirmed, landing next: 023 (matplotlib M1, build-class; after its rebase). Confirmed for build: 055 (bounded sessions;
+Built, in review: 060 (a per-run budget of request bytes, and N8), 061 (a provider's `OSError` carries its errno; question 54). Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
-before the release after a5). Confirmed for build after 023: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
+before the release after a5). Confirmed for build, building next: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
 every compile; the owner's decision of 2026-10-18).
 
-Confirmed for build, in the build-class queue (one at a time, §5.7), in this order: 023
-(matplotlib M1; its measurements answer question 34 and feed question 64), then 059, then 057,
+Confirmed for build, in the build-class queue (one at a time, §5.7), in this order: 059, then 057,
 then 046 and 047
 (lxml, regex; question 82 lets them take a slot before scipy), 037 and 038 (scipy), 043
 (matplotlib M2; question 81 answered), 039 (tier A), 041 (files read by path from the zip), 042
@@ -79,13 +78,13 @@ then 046 and 047
 and 045 (scikit-learn, statsmodels; question 83 answered), then 055.
 
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
-54; a change to 032's provider); a judge-only binary linked with numpy's test modules (question
+54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).
 
 Release rule: alphas are cut by the agent after their pre-release security review (the owner,
 2026-10-18: "You may publish alpha releases but not the 0.1.0 release"); 0.1.0 is the owner's to
 tag. Before 0.1.0: a security review of the whole surface (milestone 6), the a4 review's F3 (a
-per-run request-byte budget) and N8, and the wheel's size against PyPI's limit (question 64:
+per-run request-byte budget) and N8 (both spec 060), and the wheel's size against PyPI's limit (question 64:
 49.7 MiB with matplotlib M1).
 
 ## After 0.1.0

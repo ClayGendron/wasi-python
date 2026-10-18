@@ -1,6 +1,6 @@
 # 023 — matplotlib, the first milestone
 
-- **Status:** **built 2026-10-18; revised against its build review (F1 to F7: six fixed, F4 the lane's rebase checklist); awaiting the reviewer's confirmation** (the landing notes below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
+- **Status:** **landed 2026-10-18** (accepted on `7c3d606` as `40d8d12`; the build review, `../reviews/023-matplotlib-first-milestone-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: **built 2026-10-18; revised against its build review (F1 to F7: six fixed, F4 the lane's rebase checklist); confirmed** (the landing notes below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
   (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
   for build with five definitions (A to E), now written in. Question 35 (licences, §4.12) was answered on
   2026-10-17: the whole list is approved, so it may be built.
@@ -626,3 +626,30 @@ ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gaine
 - **Growth:** the same list as above, plus one check that is new on main: 053's
   `test_fuel_is_exact_across_async_tool_calls`, 92,028,958 → 93,529,167 fuel (+1.50 M, +1.6%), a
   snapshot check of the same class as the other 23 (the snapshot's start grew +1.50 M).
+
+**Landed 2026-10-18** through the lane, after the 0.1.0a5 tag, 053 and 052. The builder rebased
+onto main `5e66995` ("Rebased onto main 5e66995", above); the lane compared the rebased diff with
+the reviewed one (`7ccf316` against its base `73fb50b`): they differ only by the CHANGELOG's
+placeholder line and the new "Rebased" section (EXECUTED, `build/lane-023-diffdiff.txt`), so no
+reviewed hunk changed. The build review (`../reviews/023-matplotlib-first-milestone-2026-10-18.md`:
+"lands once F1 to F7", then "confirmed, it lands after its rebase") was committed on the detached
+HEAD as `7c3d606`. **The main tree's full build from pins** (`scripts/build.sh --plain`, about 7
+min) gave `SHA256SUMS` `04f14aec59199c9c8d53c64666e4f093921c58051b4a30667845b9cfe1c100d6`, byte for
+byte the builder's (EXECUTED, `build/lane-023-build.log`, `cmp`). The set is frozen read-only as
+`build/sets/s-8eb9e35734deeb21`; builders made from main after this landing judge against it.
+
+The first accepting run (history line 58) left one check blocked: the oracle goldens check,
+`test_goldens_reproduce_under_the_pinned_oracle`, because the main tree's oracle environment did
+not yet hold matplotlib 3.11.2, the pin this specification adds to `tests/jobs/oracle/uv.lock`,
+and the oracle runs `--offline`. The lane fetched the locked wheel once (the oracle's own command
+with network on, hash-checked by uv against the lock); the check then passed alone, and the lane
+judged and accepted again so that every check ran on this commit: `wasi_python v1: 374/390 pass ·
+14 gap · 2 blocked · 0 fail (unit suite 1141/1143, 2 skipped)`, `blocked by: three systems 1 ·
+wheel 1`, `ratchet vs 7c3d606d09: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after
+acceptance, `1515 passed, 4 skipped, 14 xfailed in 677.80s` (EXECUTED, `build/lane-023-accept2.log`).
+Accepted with `--accept-judge` and `--accept-growth` (the snapshot's start, +1.50 M fuel, carried by
+every snapshot check) as `40d8d12` (history lines 58 and 59); the rules tier passed (25/25); main
+fast-forwarded. **For later landings:** a specification that adds a pin to the oracle's lock needs
+the lane to fetch it once before the accepting run, or the goldens check is blocked, not run.
+Question 34 (pre-import) and question 64 (the wheel, 52,091,103 bytes at 0.1.0a6) stay open with
+this landing's numbers.
