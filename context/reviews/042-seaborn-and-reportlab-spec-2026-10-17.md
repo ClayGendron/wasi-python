@@ -319,15 +319,65 @@ fallback.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1.
-2.
-3.
-4.
-5.
-6.
-7.
-8.
-9.
+1. **Fixed.** New Decision 4a: the eight Sarna files (the review's seven plus
+   `graphics/barcode/test.py`, which also carries the notice; READ), the QR encoder and
+   Adobe's glyph list, with the folder's 16 members and 124,642 bytes (EXECUTED). (a) Decision
+   7: `LICENSES/reportlab.txt` gains the three parts, each the file's leading comment block
+   (31, 45 and 22 lines) byte for byte from the pinned wheel, the QR part followed by the MIT
+   text already pinned as `wasi-libc-161b3195-LICENSE-MIT` (generic, no holder named), so no
+   new pin. (b) Decision 11: `test_reportlab_notice_carries_its_third_party_parts`, seen
+   failing against 039's builder and against altered notices (criterion 1). (c) Question 73
+   gains part (c), asking approval of the four-clause BSD with the advertising clause quoted
+   and explained plainly. **Decided now, so nothing waits:** step 70 also passes `--leave-out
+   reportlab/graphics/barcode/` until the owner approves; `pdf_reports` draws no barcode or
+   QR code (eleven lines; a later change adds them, with Sarna's acknowledgement, once
+   approved); `test_reportlab_runs_its_pure_paths` asserts the `qr` import fails and
+   `test_reportlab_fonts_are_not_in_the_zip` that no barcode member ships, while the leave-out
+   stands. All three notices ship now. Counts re-derived: 199 members, 2,036,192 bytes
+   (EXECUTED), Decisions 1 and 12, criterion 2. The revised `pdf_reports` equals native in the
+   guest on a zip without the folder (EXECUTED). (d) The lesser items are in Decision 4a and
+   question 73's facts.
+2. **Fixed.** Decision 3 says seaborn imports scipy at import once 037 is in (the review's 971
+   against 407 modules) and catches only `ImportError`; Decision 8 states it as an edge;
+   Decision 9 says its fuel was taken without scipy; Decision 12 says the jobs' fuel includes
+   scipy's import. New check `test_seaborn_takes_its_scipy_paths[plain, snapshot]` asserts
+   `seaborn.matrix._no_scipy is False`, `seaborn._statistics._no_scipy is False` and
+   `gaussian_kde.__module__` starting with `scipy.` (EXECUTED natively with and without scipy:
+   `False False scipy.stats._kde` and `True True seaborn.external.kde`), seen failing on a zip
+   without scipy. Decision 10 now names `kdeplot`, `violinplot` and `clustermap` as not yet run
+   in a guest with scipy, all three under rule 7, and criterion 4 asks their guest result.
+3. **Fixed.** Decision 8 states the three outcomes as the review ran them (matplotlib's
+   `OSError`; `PermissionError … '~'` with only `MPLCONFIGDIR` writable; a `/~/.cache/seaborn`
+   folder and then `URLError` with a writable root) and `pd.read_csv` on a granted file as the
+   route. `test_seaborn_takes_its_scipy_paths` also asserts the `PermissionError` naming `'~'`
+   through `wasi_python.run` with only `/cfg` writable. The README line and the CHANGELOG (the
+   `~` folder) say so.
+4. **Fixed.** Decision 10 says the drafting's native numpy and scipy were the
+   `macosx_14_0_arm64` wheels linking Accelerate, cites this review's reproduction with numpy's
+   OpenBLAS wheel and 037's scipy pin, and names the guest's difference as `lapack_lite`
+   against the host's LAPACK (also The problem). `regen.py` runs both jobs under 037's
+   `oracle_env` (`OPENBLAS_NUM_THREADS=1`, `VECLIB_MAXIMUM_THREADS=1`); Design's `jobs.py` row.
+5. **Fixed.** Decision 10 lists which runs used which version of each job: the first versions
+   (with `lowess:` and the barcodes), the `clustermap` version (the review's runs), and the
+   versions the specification now describes, re-run natively without and with scipy, under
+   both seeds and in another zone and locale, and in the guest (EXECUTED, the revision's runs,
+   named in "Research it stands on").
+6. **Fixed.** Decision 11: both notice checks compare content byte for byte when the pinned
+   archive (and, for reportlab, the MIT pin) is in `downloads/` and passes its hash check, and
+   check the headings (and Sarna's acknowledgement line) otherwise, as `licence_errors` does;
+   criterion 1 sees each fail both ways.
+7. **Fixed.** Decision 7 cites 039's sympy precedent (Decision 8, confirmed by 039's review)
+   in place of INFERRED, names `NUMPYDOC_LICENSE` BSD-2-Clause, and records which notices
+   survive compilation (the review's run). Question 73's facts name appdirs, husl and numpydoc.
+8. **Fixed.** Decision 5: if 023 lands any member-exclusion option in `make_stdlib_zip.py`, for
+   trees or wheels, this specification extends it to every input and adds none; a prefix is
+   matched against the name before `.py` becomes `.pyc`, and the unit check pins it (and a
+   mutant that matches compiled names is seen failing).
+9. **Fixed, with a golden line.** `statistical_plots` gains one `seaborn.objects` plot's RGBA
+   and SVG (eighteen lines). A first try with `so.PolyFit` differed from native in the guest by
+   its least-squares pixels, as `regplot` does, so the line uses `so.Agg` and the plain line;
+   with it the guest equals native (EXECUTED, the revision's runs). The probe's
+   `buffer_rgba` error is noted as the probe's own.
 
 ## Verdict
 
