@@ -107,3 +107,30 @@ def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"
     errors = scan.rebuild_gate_errors(workflow.read_text())
     assert not errors, scan.report(errors)
+
+
+def test_every_compile_contracts_nothing() -> None:
+    """Every compile carries -ffp-contract=off, set once in the toolchain's own clang.cfg and
+    clang++.cfg by step 10, and nothing overrides it: no recipe file, no compiler command in the
+    build's records (every meson build's compile_commands.json, the autoconf Makefiles, CPython's
+    cross-build Makefile, step 60's command files), no source pragma, and the compiler's own -cc1
+    line says so (spec 059, Decisions 1, 2 and 4). Without a build, the record parts are blocked."""
+    step_10 = SCRIPTS / "steps" / "10_tools.sh"
+    files = {
+        rel: (paths.REPO / rel).read_text(errors="replace")
+        for rel in paths.tracked_files("scripts", "recipes")
+        if (paths.REPO / rel).is_file() and rel != "scripts/steps/10_tools.sh"
+    }
+    errors = scan.fp_recipe_errors(scan.code_text(step_10), files)
+    assert not errors, scan.report(errors)
+    needs.need("compile records")
+    errors, read = scan.fp_record_errors(paths.REPO)
+    trees = [pair[1] for c in needs.SOURCE_COMPONENTS if (pair := pins.source_pair(c))]
+    trees += [paths.BUILD / name for name in scan.MESON_BUILDS if (paths.BUILD / name).is_dir()]
+    errors += scan.fp_pragma_hits(trees)
+    read.append(f"source trees and meson folders grepped for pragmas: {len(trees)}")
+    for clang in sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang")):
+        errors += scan.fp_compiler_errors(clang.parent)
+        read.append(f"{clang.parent.parent.name}: clang and clang++ probed with -###")
+    print("\n".join(read))
+    assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)

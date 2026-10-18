@@ -66,15 +66,18 @@ case "$HOST_KEY" in
     get https://files.pythonhosted.org/packages/c9/aa/4c0b6773ecf6bc1ec6cda7db8312a566611b330fb6dae87d740e44a47822/cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl cython-3.3.0-cp315-cp315-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
     get https://files.pythonhosted.org/packages/6e/53/ebfed7b689c338dd8ebeec9c0730c8d56821292f14e2536e5f3ef1a05744/ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
     get https://files.pythonhosted.org/packages/6c/eb/4a4fe6c178d4447f3a3189b5fb740a76dc7ef8846a57886270315f22f7ee/pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl pkgconf-3.0.7.post0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-    # The compiler this host runs (spec 040, Decisions 3 and 4): the arm64 Linux SDK's clang, under
-    # Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries that clang loads. Each
-    # is a snapshot.debian.org URL, which does not change when Debian moves on.
-    get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-linux.tar.gz wasi-sdk-33.0-arm64-linux.tar.gz
-    get https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/q/qemu/qemu-user_10.0.13%2Bds-0%2Bdeb13u1_amd64.deb qemu-user_10.0.13+ds-0+deb13u1_amd64.deb
-    get https://snapshot.debian.org/archive/debian/20260711T202405Z/pool/main/g/glibc/libc6_2.41-12%2Bdeb13u4_arm64.deb libc6_2.41-12+deb13u4_arm64.deb
-    get https://snapshot.debian.org/archive/debian/20250317T031857Z/pool/main/g/gcc-14/libstdc%2B%2B6_14.2.0-19_arm64.deb libstdc++6_14.2.0-19_arm64.deb
-    get https://snapshot.debian.org/archive/debian/20250317T031857Z/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_arm64.deb libgcc-s1_14.2.0-19_arm64.deb
-    get https://snapshot.debian.org/archive/debian/20250306T211336Z/pool/main/n/ncurses/libtinfo6_6.5%2B20250216-2_arm64.deb libtinfo6_6.5+20250216-2_arm64.deb
+    # The fallback's compiler (spec 040, Decisions 3 and 4; spec 059, Decision 3): the arm64 Linux
+    # SDK's clang, under Debian's qemu-aarch64 (a static binary) with the four aarch64 libraries
+    # that clang loads, each a snapshot.debian.org URL, which does not change when Debian moves on.
+    # Fetched only when scripts/line.conf's switch names that SDK; a native build never asks for them.
+    if [ "$COMPILER_SDK_DIR" != "$WASI_SDK_DIR" ]; then
+      get https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-33/wasi-sdk-33.0-arm64-linux.tar.gz wasi-sdk-33.0-arm64-linux.tar.gz
+      get https://snapshot.debian.org/archive/debian/20260905T205002Z/pool/main/q/qemu/qemu-user_10.0.13%2Bds-0%2Bdeb13u1_amd64.deb qemu-user_10.0.13+ds-0+deb13u1_amd64.deb
+      get https://snapshot.debian.org/archive/debian/20260711T202405Z/pool/main/g/glibc/libc6_2.41-12%2Bdeb13u4_arm64.deb libc6_2.41-12+deb13u4_arm64.deb
+      get https://snapshot.debian.org/archive/debian/20250317T031857Z/pool/main/g/gcc-14/libstdc%2B%2B6_14.2.0-19_arm64.deb libstdc++6_14.2.0-19_arm64.deb
+      get https://snapshot.debian.org/archive/debian/20250317T031857Z/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_arm64.deb libgcc-s1_14.2.0-19_arm64.deb
+      get https://snapshot.debian.org/archive/debian/20250306T211336Z/pool/main/n/ncurses/libtinfo6_6.5%2B20250216-2_arm64.deb libtinfo6_6.5+20250216-2_arm64.deb
+    fi
     ;;
 esac
 # The wasm runtime every host links, the same bytes for each: wasi-sdk's host-neutral sysroot and

@@ -100,6 +100,10 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
 2. **The fix: the x86_64 host compiles with the aarch64 compiler, under a pinned emulator.**
    On `LINUX_X86_64`, every C and C++ compile runs the pinned arm64 Linux wasi-sdk's own clang
    under `qemu-aarch64`. Every other tool stays native x86_64.
+   - **Amended by spec 059 (2026-10-18):** the emulation is switched off and kept one release as
+     the fallback. Every compile now carries `-ffp-contract=off`, set in the toolchain's own
+     configuration files by step 10, which makes the two compiler builds agree (the difference
+     needed `llvm.fmuladd` on `fp128`); x86_64 compiles with its own clang.
    - **Why this route.** It fixes the whole class by construction, not one tie. Every host then
      compiles with an aarch64 build of the pinned clang: the Mach-O build on macOS, and the same
      ELF build on both Linux hosts, which qemu runs on x86_64 with aarch64's arithmetic exactly.
@@ -160,6 +164,9 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
 
 4. **The line names the compiler per host.** `scripts/line.conf` gains a sixth host name,
    `COMPILER_SDK_DIR`, for every host key. It is the SDK whose clang compiles on that host.
+   - **Amended by spec 059 (2026-10-18):** `LINUX_X86_64_COMPILER_SDK_DIR` names the host's own
+     SDK; the arm64 Linux SDK's name there is the switch that turns the emulation back on, and the
+     five emulation names stay as the fallback's pins, fetched only when the switch names them.
    - `MACOS_ARM64_COMPILER_SDK_DIR=wasi-sdk-33.0-arm64-macos` and
      `LINUX_AARCH64_COMPILER_SDK_DIR=wasi-sdk-33.0-arm64-linux`: each host's own SDK.
    - `LINUX_X86_64_COMPILER_SDK_DIR=wasi-sdk-33.0-arm64-linux`: the aarch64 host's SDK.
@@ -386,6 +393,10 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
     file itself is numpy's and wasi-libc's text; it is regenerated, not committed.
 
 11. **Time is recorded, never tested, and acted on before the limit.**
+    - **Amended by spec 059 (2026-10-18):** the same-day fallback is now the switch (059, Decision
+      3: one `line.conf` line, the x86_64 timeout back to 360, `REBUILD_TIMEOUTS`); the trip-wire and
+      the 360-minute limit below apply only while it is thrown, the native job's limit being 120
+      minutes; and "x86_64 leaves the gate" is the step after a failed switch (059, Decision 9).
     - **Recorded.** The x86_64 rebuild's wall time, emulated, on the `ubuntu-24.04` runner, with
       `nproc` beside it, goes into the landing notes as a benchmark fact (§4.9). So does every
       later build-class specification's x86_64 rebuild time. None of it is ever a check.

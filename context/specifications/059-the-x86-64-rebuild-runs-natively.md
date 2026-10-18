@@ -1,7 +1,8 @@
 # 059 — The x86_64 rebuild runs natively
 
-- **Status:** specified; confirmed by its pre-build review (N1 and N2 written in); ready to build
-  after 023 lands. Drafted 2026-10-18 on `spec/059-the-x86-64-rebuild-runs-natively` from main
+- **Status:** confirmed for build 2026-10-18 (N1 and N2 written in and checked by the lane:
+  `build/reviews-evidence/059-spec/059-the-x86-64-rebuild-runs-natively-spec-2026-10-18-confirmation.md`
+  in the main tree); building on this branch, rebased onto main `dfa820c` (023 landed). Drafted 2026-10-18 on `spec/059-the-x86-64-rebuild-runs-natively` from main
   `d68a594`, where the owner's decision is recorded (`../decisions.md`, "The x86_64 rebuild
   without emulation (2026-10-18)"). The pre-build review
   (`build/reviews-evidence/059-spec/059-the-x86-64-rebuild-runs-natively-spec-2026-10-18.md` in

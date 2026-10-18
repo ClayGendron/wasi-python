@@ -136,6 +136,47 @@ if [ "$CSDK" != "$SDK" ]; then
   echo "compiler gate: the guest's loader maps no ld.so.cache; $(head -n 1 "$G/version.txt")"
 fi
 
+# Every compile contracts nothing (spec 059, Decisions 1 and 2). -ffp-contract=off goes into the
+# toolchain's own configuration files, bin/clang.cfg and bin/clang++.cfg, which every clang and
+# clang++ call reads whatever the caller (CPython's driver, wasi-cc and wasi-cxx, meson, autoconf,
+# a direct compile), so no compile can miss it. wasi-sdk's x86_64 and aarch64 builds of the same
+# clang order two stack slots differently only where the IR holds llvm.fmuladd, which this flag
+# removes (context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). Every SDK tree
+# under build/tools/ gets it: $SDK, and $CSDK when the fallback's switch puts another tree's clang
+# behind $SDK/bin/clang. On wasm32 nothing fuses a multiply and an add, so run-time arithmetic
+# does not change; a constant the compiler folds moves to the value the run time computes.
+contract_off() { # an SDK tree
+  for cfg in clang.cfg clang++.cfg; do
+    f="$1/bin/$cfg"
+    [ -f "$f" ] || die "compiler gate: $1 has no bin/$cfg"
+    [ -z "$(tail -c 1 "$f")" ] || printf '\n' >> "$f"
+    printf '%s\n' "-ffp-contract=off" >> "$f"
+    [ "$(grep -c -x -F -- '-ffp-contract=off' "$f")" = 1 ] \
+      || die "compiler gate: $f does not hold -ffp-contract=off exactly once"
+  done
+}
+contract_off "$SDK"
+[ "$CSDK" = "$SDK" ] || contract_off "$CSDK"
+# The gate: each driver's -cc1 line carries -ffp-contract=off once and no other -ffp-contract=
+# value, through $SDK/bin/<driver> as every step calls it (the launcher, when the switch is thrown).
+G="$B/compiler-gate"
+mkdir -p "$G"
+printf 'int main(void) { return 0; }\n' > "$G/fp-probe.c"
+fp_probe() { # the driver's name, then its language flags
+  name=$1
+  shift
+  "$SDK/bin/$name" --target=wasm32-wasip1 -### -c "$@" "$G/fp-probe.c" -o "$G/fp-probe.o" \
+    > "$G/fp-$name.txt" 2>&1 || die "compiler gate: $name -### failed (build/compiler-gate/fp-$name.txt)"
+  cc1=$(grep -F -- '"-cc1"' "$G/fp-$name.txt" | head -n 1)
+  [ -n "$cc1" ] || die "compiler gate: $name -### printed no -cc1 line (build/compiler-gate/fp-$name.txt)"
+  values=$(printf '%s\n' "$cc1" | grep -o -E -- '"-ffp-contract=[^"]*"' | tr '\n' ' ')
+  [ "$values" = '"-ffp-contract=off" ' ] \
+    || die "compiler gate: $name's -cc1 line carries ${values:-no -ffp-contract}, not -ffp-contract=off once (build/compiler-gate/fp-$name.txt)"
+  echo "compiler gate: $name contracts nothing (-ffp-contract=off)"
+}
+fp_probe clang
+fp_probe clang++ -x c++
+
 # Only the pinned wheels, and a requirements file carrying their pinned hashes.
 REQS="$B/tools-requirements.txt"
 : > "$REQS"

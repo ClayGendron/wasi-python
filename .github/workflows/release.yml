@@ -2,7 +2,7 @@
 #
 # A pushed tag v<version> builds the artifact set from its pins, judges it, checks the same bytes on
 # Linux, Windows and macOS, rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires
-# the same bytes (specs 012 and 040), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
+# the same bytes (specs 012, 040 and 059), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
 # manual run (workflow_dispatch) is a dry run: build, rebuild and verify, never sign or publish.
 # Third-party actions are pinned by commit, their release named beside each.
 name: release
@@ -87,11 +87,12 @@ jobs:
     name: rebuild from the pins (${{ matrix.os }})
     # Two more hosts rebuild the whole set from an empty downloads/ and build/, beside the build,
     # and upload their SHA256SUMS; same-bytes compares each with the set's (spec 012, Decision 7).
-    # The x86_64 runner compiles with the pinned arm64 Linux wasi-sdk's clang under the pinned
-    # qemu-aarch64, because wasi-sdk's x86_64 clang orders two stack slots of one numpy function
-    # differently (spec 040; context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md).
-    # Each runner keeps its own time limit: an emulated rebuild is slower, and a hung arm64 job still
-    # frees the gate after two hours. 360 minutes is a hosted job's limit (spec 040, Decision 11).
+    # Each runner compiles with its own pinned wasi-sdk clang, and every compile carries
+    # -ffp-contract=off, set in the toolchain's own configuration files by step 10: that makes
+    # wasi-sdk's x86_64 and aarch64 builds of clang emit the same bytes (spec 059;
+    # context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). Spec 040's emulated
+    # compiler stays in the tree, switched off, for one release. Each runner's time limit comes from
+    # the matrix, so a hung job frees the gate after two hours (spec 059, Decision 5).
     strategy:
       fail-fast: false
       matrix:
@@ -100,7 +101,7 @@ jobs:
           - os: ubuntu-24.04-arm
             timeout: 120
           - os: ubuntu-24.04
-            timeout: 360
+            timeout: 120
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.timeout }}
     steps:
@@ -155,8 +156,8 @@ jobs:
   same-bytes:
     name: the same bytes from every host
     # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the licences)
-    # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, whose clang
-    # runs emulated (spec 040). The .tar.xz asset is made from the set deterministically but is
+    # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, each with its
+    # own pinned clang (specs 012, 040 and 059). The .tar.xz asset is made from the set deterministically but is
     # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
     # that both hosts did not rebuild.
     needs: [build, rebuild]

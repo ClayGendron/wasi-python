@@ -365,12 +365,14 @@ def test_the_rename_and_readdir_guard_match_the_floor() -> None:
     assert not errors, scan.report(errors)
 
 
-def test_x86_64_compiles_with_an_aarch64_compiler() -> None:
-    """Every build host compiles with an arm64 build of the pinned clang: its own SDK's, or, on
-    x86_64 Linux, the arm64 Linux SDK's under the pinned qemu, with its five packages pinned and
-    fetched in that host's branch, step 10 laying out and probing the emulated compiler, and the
-    launcher clearing the emulator's and the loader's environment and keeping each name's driver
-    mode (spec 040, Decisions 4, 5 and 7)."""
+def test_every_host_compiles_natively_with_the_fallback_kept() -> None:
+    """Every build host compiles with its own pinned clang (its COMPILER_SDK_DIR is its own SDK),
+    or, with the fallback's one-line switch thrown, with another host's SDK under the pinned qemu
+    while carrying the five emulation names; exactly one key carries those names, each pinned and
+    fetched in its branch beside another host's SDK, so the fallback is runnable; step 10 still
+    lays out and probes the emulated compiler, and the launcher still clears the emulator's and
+    the loader's environment and keeps each name's driver mode (spec 059, Decisions 3 and 4; spec
+    040, Decisions 5 and 7)."""
     scripts = paths.REPO / "scripts"
     errors = scan.compiler_table_errors(
         (scripts / "line.conf").read_text(),

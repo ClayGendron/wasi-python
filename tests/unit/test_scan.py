@@ -505,7 +505,7 @@ jobs:
           - os: ubuntu-24.04-arm
             timeout: 120
           - os: ubuntu-24.04
-            timeout: 360
+            timeout: 120
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.timeout }}
     steps:
@@ -561,7 +561,8 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, attest]
 """
-X86_ROW = "          - os: ubuntu-24.04\n            timeout: 360\n"
+X86_ROW = "          - os: ubuntu-24.04\n            timeout: 120\n"
+ARM_ROW = "          - os: ubuntu-24.04-arm\n            timeout: 120\n"
 
 BAD_REBUILDS = [
     (("  rebuild:\n", "  rebuilt:\n"), "no rebuild job"),
@@ -577,14 +578,14 @@ BAD_REBUILDS = [
         "rebuild's timeout-minutes does not come from its matrix",
     ),
     (
-        ("            timeout: 120\n", "            timeout: 360\n"),
+        (ARM_ROW, ARM_ROW.replace("120", "360")),
         "rebuild's matrix does not give ubuntu-24.04-arm 120 minutes",
     ),
     (
-        ("            timeout: 360\n", "            timeout: 120\n"),
-        "rebuild's matrix does not give ubuntu-24.04 360 minutes",
+        (X86_ROW, X86_ROW.replace("120", "360")),
+        "rebuild's matrix does not give ubuntu-24.04 120 minutes",
     ),
-    ((X86_ROW, ""), "rebuild's matrix does not give ubuntu-24.04 360 minutes"),
+    ((X86_ROW, ""), "rebuild's matrix does not give ubuntu-24.04 120 minutes"),
     (("          nproc\n", ""), "rebuild's tools step does not print nproc"),
     (
         ("          ls /proc/sys/fs/binfmt_misc/\n", ""),
@@ -685,14 +686,15 @@ def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
     assert errors and errors[0].startswith(error), errors
 
 
-# Spec 040: two arm64 hosts compile with their own SDKs, and X with B's under the emulator.
+# Spec 059: every host compiles with its own SDK; X carries the five emulation names, the
+# fallback, switched off (its COMPILER_SDK_DIR is its own SDK; B's would throw the switch).
 COMPILER_CONF = """PYTHON_VERSION=3.15.0
 A_WASI_SDK_DIR=sdk-a-arm64
 A_COMPILER_SDK_DIR=sdk-a-arm64
 B_WASI_SDK_DIR=sdk-b-arm64
 B_COMPILER_SDK_DIR=sdk-b-arm64
 X_WASI_SDK_DIR=sdk-x
-X_COMPILER_SDK_DIR=sdk-b-arm64
+X_COMPILER_SDK_DIR=sdk-x
 X_EMULATOR_DEB=qemu.deb
 X_AARCH64_LIBC_DEB=libc.deb
 X_AARCH64_LIBSTDCXX_DEB=libstdcxx.deb
@@ -759,19 +761,23 @@ BAD_COMPILERS = [
     ("conf", ("PYTHON", "COMPILER_SDK_DIR=sdk-a-arm64\nPYTHON"), "line.conf: COMPILER_SDK_DIR is"),
     (
         "conf",
-        ("A_COMPILER_SDK_DIR=sdk-a-arm64", "A_COMPILER_SDK_DIR=sdk-x"),
-        "A_COMPILER_SDK_DIR: sdk-x is not an arm64 SDK",
+        ("B_COMPILER_SDK_DIR=sdk-b-arm64", "B_COMPILER_SDK_DIR=sdk-a-arm64"),
+        "B compiles with another host's SDK but lacks the five emulation names",
     ),
     (
         "conf",
         ("A_COMPILER_SDK_DIR=sdk-a-arm64\n", "A_COMPILER_SDK_DIR=sdk-a-arm64\nA_EMULATOR_DEB=q\n"),
-        "A compiles with its own SDK but has EMULATOR_DEB",
+        "A and X both carry the emulation names",
     ),
-    ("conf", ("X_AARCH64_LIBTINFO_DEB=libtinfo.deb\n", ""), "line.conf: no X_AARCH64_LIBTINFO_DEB"),
     (
         "conf",
-        ("X_COMPILER_SDK_DIR=sdk-b-arm64", "X_COMPILER_SDK_DIR=sdk-z-arm64"),
-        "X_COMPILER_SDK_DIR: sdk-z-arm64 is no host's own WASI_SDK_DIR",
+        ("X_AARCH64_LIBTINFO_DEB=libtinfo.deb\n", ""),
+        "X has 4 of the five emulation names",
+    ),
+    (
+        "conf",
+        ("X_COMPILER_SDK_DIR=sdk-x", "X_COMPILER_SDK_DIR=sdk-z"),
+        "X_COMPILER_SDK_DIR: sdk-z is no host's own WASI_SDK_DIR",
     ),
     ("pins", ("qemu.deb", "other.deb"), "X_EMULATOR_DEB: qemu.deb is not pinned"),
     (
@@ -785,7 +791,7 @@ BAD_COMPILERS = [
             "sdk-b-arm64.tar.gz\n    get https://x/qemu",
             "sdk-b-arm64.tar.gz.old\n    get https://x/qemu",
         ),
-        "X_COMPILER_SDK_DIR: sdk-b-arm64.tar.gz is not fetched in the X branch",
+        "X's branch fetches no other host's SDK (the fallback's compiler)",
     ),
     ("step", ("/clang-emulated", "/launcher"), "10_tools.sh does not name clang-emulated"),
     ("step", ("aarch64-root", "guest-root"), "10_tools.sh does not name aarch64-root"),
@@ -821,6 +827,19 @@ BAD_COMPILERS = [
 
 def test_compiler_table_passes_a_whole_table() -> None:
     assert _compiler_table() == []
+
+
+def test_compiler_table_passes_with_the_switch_thrown() -> None:
+    """X compiling with B's SDK under the emulator, the five names present (spec 040's position),
+    is the fallback's legal second position (spec 059, Decision 3)."""
+    thrown = COMPILER_CONF.replace("X_COMPILER_SDK_DIR=sdk-x", "X_COMPILER_SDK_DIR=sdk-b-arm64")
+    assert _compiler_table(conf=thrown) == []
+
+
+def test_compiler_table_needs_one_fallback() -> None:
+    gone = "".join(line + "\n" for line in COMPILER_CONF.splitlines() if "_DEB=" not in line)
+    errors = _compiler_table(conf=gone)
+    assert errors == ["no host key carries the emulation names (the fallback is gone)"], errors
 
 
 @pytest.mark.parametrize(
@@ -877,3 +896,175 @@ def test_what_may_be_bound_twice(work) -> None:
     assert scan.duplicate_name_hits(files, work) == []
     job = write(work, "tests/jobs/z.py", "LIMIT = 1\nLIMIT = 2\n")  # a constant, even in a job
     assert scan.duplicate_name_hits([job], work) == ["tests/jobs/z.py:2: LIMIT (first bound at 1)"]
+
+
+# Spec 059: every compile contracts nothing.
+def test_fp_override_names_the_family_as_whole_tokens() -> None:
+    assert scan.fp_override("-ffp-contract=off") is None
+    for tok in (
+        "-ffp-contract=on",
+        "-ffp-contract=fast",
+        "-ffp-model=precise",
+        "-ffast-math",
+        "-Ofast",
+        "-funsafe-math-optimizations",
+        "--no-default-config",
+        "--config",
+        "--config=other.cfg",
+    ):
+        assert scan.fp_override(tok) == tok, tok
+    for tok in (
+        "-O3",
+        "-ffp-contract",
+        "--configure",
+        "-Ofastest",
+        "config",
+        "--no-default-configs",
+    ):
+        assert scan.fp_override(tok) is None, tok
+    assert scan.fp_hits("clang -O3 '-ffp-model=precise' -c x.c") == ["-ffp-model=precise"]
+    assert scan.fp_hits("wasmtime run --dir a::/ --config x.toml") == ["--config"]
+
+
+MAKEFILE = """CC=\t\t/t/wasi-sdk/bin/clang
+CFLAGS_NODIST=\t-std=c11 -fvisibility=hidden
+PY_STDMODULE_CFLAGS= $(PY_CORE_CFLAGS)
+HOSTRUNNER= /t/wasmtime run --argv0 /x/python.wasm --dir /x::/ --config /x/wasmtime.toml
+PYTHON_FOR_BUILD=_PYTHON_HOSTRUNNER='/t/wasmtime run --config /x/wasmtime.toml' /x/python.exe
+MODULE__SQLITE3_CFLAGS=-I$(srcdir)/Modules/_sqlite
+all:
+\t$(CC) $(CFLAGS) -c a.c -o a.o
+\t/t/wasmtime run --config /x/wasmtime.toml ./python.wasm
+"""
+
+
+def test_fp_makefile_scan_reads_compiler_lines_and_flag_variables_only() -> None:
+    hits, read = scan.fp_makefile_hits(MAKEFILE)
+    assert hits == [] and read == 5, (
+        hits,
+        read,
+    )  # CC, CFLAGS_NODIST, PY_STDMODULE_CFLAGS, MODULE_, $(CC)
+    hits, _ = scan.fp_makefile_hits(MAKEFILE.replace("-std=c11", "-std=c11 -ffast-math"))
+    assert hits == ["CFLAGS_NODIST: -ffast-math"], hits
+    hits, _ = scan.fp_makefile_hits(MAKEFILE.replace("$(CFLAGS) -c", "$(CFLAGS) --config x.cfg -c"))
+    assert hits == ["recipe line: --config"], hits
+    joined = MAKEFILE.replace("-fvisibility=hidden", "\\\n\t-fvisibility=hidden -ffp-contract=on")
+    hits, _ = scan.fp_makefile_hits(joined)
+    assert hits == ["CFLAGS_NODIST: -ffp-contract=on"], hits
+    hits, read = scan.fp_command_file_hits(
+        "/t/bin/clang --target=wasm32-wasip1 -O3 -c a.c\nwasmtime run --config x\n"
+    )
+    assert hits == [] and read == 1
+
+
+def test_fp_record_scan_requires_every_listed_record_and_lists_every_record(work) -> None:
+    build = work / "build"
+    record = (
+        '[{"directory": "/b", "command": "/t/bin/clang -O3 -c a.c -o a.o", '
+        '"file": "a.c", "output": "a.o"}]'
+    )
+    for name in scan.MESON_BUILDS:
+        write(build, f"{name}/compile_commands.json", record)
+    for rel in scan.AUTOCONF_MAKEFILES:
+        write(build, rel, MAKEFILE)
+    write(build, "Python-3.15.0/cross-build/wasm32-wasip1/Makefile", MAKEFILE)
+    write(build, "link/make-n.txt", "/t/bin/clang -O3 -c a.c -o a.o\n")
+    write(
+        build,
+        "link/reactor-commands.txt",
+        "/t/bin/clang -O3 -c r.c -o r.o\n/t/bin/clang -o python.wasm r.o\n",
+    )
+    errors, read = scan.fp_record_errors(work)
+    assert errors == [], errors
+    assert len(read) == len(scan.MESON_BUILDS) + len(scan.AUTOCONF_MAKEFILES) + 1 + len(
+        scan.LINK_RECORDS
+    )
+    assert read[0] == "freetype-build/compile_commands.json: 1 commands"
+    # A listed record missing; an unlisted record present; a banned option on one command.
+    (build / "pandas-build" / "compile_commands.json").unlink()
+    errors, _ = scan.fp_record_errors(work)
+    assert errors == ["pandas-build/compile_commands.json is missing (listed in MESON_BUILDS)"], (
+        errors
+    )
+    write(build, "pandas-build/compile_commands.json", record)
+    write(build, "extra-build/compile_commands.json", record)
+    errors, _ = scan.fp_record_errors(work)
+    assert errors == ["extra-build/compile_commands.json is not listed in MESON_BUILDS"], errors
+    (build / "extra-build" / "compile_commands.json").unlink()
+    write(
+        build, "numpy-build/compile_commands.json", record.replace("-O3", "-O3 -ffp-model=precise")
+    )
+    errors, _ = scan.fp_record_errors(work)
+    assert errors == ["numpy-build: a.c: -ffp-model=precise"], errors
+    write(build, "numpy-build/compile_commands.json", record)
+    write(build, "link/make-n.txt", "/t/bin/clang -O3 -Ofast -c a.c -o a.o\n")
+    errors, _ = scan.fp_record_errors(work)
+    assert errors == ["link/make-n.txt: -Ofast"], errors
+
+
+def test_fp_record_scan_without_any_record(work) -> None:
+    errors, read = scan.fp_record_errors(work)
+    assert errors == ["no compile record under build/ (build first)"] and read == []
+
+
+def test_fp_pragmas_are_found_in_source_trees(work) -> None:
+    tree = work / "build" / "lib-1.0"
+    write(tree, "a.c", "double f(double a, double b, double c) { return a * b + c; }\n")
+    write(tree, "b.c", "#pragma STDC FP_CONTRACT ON\ndouble g(void) { return 0; }\n")
+    write(tree, "c.cpp", "#pragma clang fp contract(fast)\n")
+    write(tree, "d.c", "#pragma clang fp contract(off)\n#pragma STDC FP_CONTRACT OFF\n")
+    write(tree, "e.txt", "#pragma STDC FP_CONTRACT ON\n")
+    hits = scan.fp_pragma_hits([tree])
+    assert hits == [
+        "lib-1.0/b.c: a pragma turns contraction on",
+        "lib-1.0/c.cpp: a pragma turns contraction on",
+    ], hits
+
+
+def test_fp_cc1_line_must_carry_off_once_and_nothing_else() -> None:
+    good = (
+        'clang version 22\n "/t/bin/clang-22" "-cc1" "-triple" "wasm32" '
+        '"-ffp-contract=off" "-O3" "x.c"\n'
+    )
+    assert scan.fp_cc1_errors("clang", good) == []
+    assert scan.fp_cc1_errors(
+        "clang", good.replace('"-ffp-contract=off"', '"-ffp-contract=on"')
+    ) == ["clang -###: the -cc1 line carries ['-ffp-contract=on'], not -ffp-contract=off once"]
+    doubled = good.replace('"-O3"', '"-O3" "-ffp-contract=off"')
+    assert scan.fp_cc1_errors("clang", doubled)[0].startswith(
+        "clang -###: the -cc1 line carries ['-ffp-contract=off', '-ffp-contract=off']"
+    )
+    after = good.replace('"-O3"', '"-O3" "-ffp-contract=fast"')
+    assert scan.fp_cc1_errors("clang++", after)[0].startswith(
+        "clang++ -###: the -cc1 line carries ['-ffp-contract=off', '-ffp-contract=fast']"
+    )
+    assert scan.fp_cc1_errors("clang", "clang version 22\n") == ["clang -###: no -cc1 line"]
+
+
+STEP_10_FP = """printf '%s\\n' "-ffp-contract=off" >> "$1/bin/clang.cfg"
+printf '%s\\n' "-ffp-contract=off" >> "$1/bin/clang++.cfg"
+"$SDK/bin/clang" --target=wasm32-wasip1 -### -c "$G/fp-probe.c" > "$G/fp-clang.txt" 2>&1
+grep -F -- '"-cc1"' "$G/fp-clang.txt"
+"""
+
+
+def test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere() -> None:
+    assert (
+        scan.fp_recipe_errors(
+            STEP_10_FP, {"scripts/wasi-cc": "exec clang --target=wasm32-wasip1 -O3\n"}
+        )
+        == []
+    )
+    assert scan.fp_recipe_errors(None, {}) == ["scripts/steps/10_tools.sh is missing"]
+    errors = scan.fp_recipe_errors(STEP_10_FP.replace("clang++.cfg", "clangxx.cfg"), {})
+    assert errors == ["10_tools.sh does not name clang++.cfg"], errors
+    errors = scan.fp_recipe_errors(STEP_10_FP.replace("-###", "-v"), {})
+    assert errors == ["10_tools.sh does not name -###"], errors
+    errors = scan.fp_recipe_errors(
+        STEP_10_FP, {"recipes/x.cross": "c_args = ['-O3', '-ffast-math']\n"}
+    )
+    assert errors == ["recipes/x.cross:1: -ffast-math"], errors
+    errors = scan.fp_recipe_errors(
+        STEP_10_FP, {"scripts/steps/30_zlib.sh": 'CFLAGS="-O2 -ffp-contract=off"\n'}
+    )
+    assert errors == ["scripts/steps/30_zlib.sh:1: sets -ffp-contract outside step 10"], errors

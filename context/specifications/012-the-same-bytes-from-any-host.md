@@ -170,6 +170,9 @@ The four leaks, all EXECUTED in the memo:
    arithmetic NaN are left to the hardware, and wasmtime does not canonicalize them by default.
    So a NaN computed while numpy or pandas import would land in the snapshot, and differ on
    x86_64 (INFERRED). Relaxed SIMD is ruled out: the reactor has no SIMD (the review, EXECUTED).
+   - **Note (spec 059, 2026-10-18):** this decision's fallback, x86_64 as a pinned build host
+     outside the gate, stands as the last resort behind spec 059's switch (059, Decision 9);
+     nothing here changes.
    - The build runs the full recipe for linux/amd64 in the experiment's container before
      landing (emulated on this machine; slow, and a benchmark fact) and compares the set.
    - If x86_64 differs, the first fix tried is wasmtime's `-W nan-canonicalization=y` in step

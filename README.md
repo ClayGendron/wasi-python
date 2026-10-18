@@ -297,22 +297,37 @@ Linux and x86_64 Linux, and all three give the same artifact set, byte for
 byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the
 licences (`context/specifications/012-the-same-bytes-from-any-host.md`,
 `context/specifications/040-x86-64-rebuilds-the-same-bytes.md`). Every host
-compiles with an arm64 build of the pinned clang. The two arm64 hosts run their
-own wasi-sdk's. The x86_64 host runs the arm64 Linux wasi-sdk's clang under a
-pinned `qemu-aarch64`, through the launcher `scripts/clang-emulated`; every
-other tool there (the linker, the archiver, wasmtime, the host Python, Cython,
-meson, ninja) stays native. That is because wasi-sdk's x86_64 clang, given the
-same input and flags, orders two stack slots of one numpy function differently
-in instruction selection, so its `python.wasm` differed by 21 bytes
-(`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`). The
-issue is drafted for LLVM (`context/upstream/4-llvm-wasm-isel-slot-order/`),
-and the emulation goes when an SDK's two compilers agree. The x86_64 host's
-compiler inputs are five Debian packages, pinned by `snapshot.debian.org` URL
-and hash, unpacked under `build/tools/` and never installed: `qemu-user`
-(GPL-2.0), and the aarch64 `libc6` (LGPL-2.1), `libstdc++6` and `libgcc-s1`
-(GPL-3.0 with the GCC runtime exception) and `libtinfo6` (X11) that the clang
-loads. They are build tools, like the runner's `cc`: nothing of them is linked
-into or shipped with an artifact. Each host's
+compiles with its own pinned wasi-sdk clang, and every compile carries
+`-ffp-contract=off`, which step 10 writes into the toolchain's own
+configuration files (`bin/clang.cfg`, `bin/clang++.cfg`), read by every
+`clang` and `clang++` call whatever the caller
+(`context/specifications/059-the-x86-64-rebuild-runs-natively.md`). So the
+flag appears in no recorded flag: `sysconfig.get_config_var('CFLAGS')` inside
+the guest does not show it, and a rebuild must not add it to a command line.
+The judge refuses, on any compiler command in the recipe or in a build's
+records, any option that would override the file (`-ffp-model=`,
+`-ffast-math`, `-Ofast`, `-funsafe-math-optimizations`, `--no-default-config`,
+`--config`, any other `-ffp-contract=`), greps the source trees for a pragma
+that turns contraction on, and probes the compiler's own `-cc1` line. Why:
+wasi-sdk's x86_64 and aarch64 builds of the same clang order two stack slots of
+one `long double` expression differently when the IR holds `llvm.fmuladd`, the
+intrinsic clang emits for `a*b+c` under its default contraction setting, so the
+x86_64 `python.wasm` differed by 21 bytes
+(`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`,
+`context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md`). wasm32
+has no fused multiply-add, so run-time arithmetic does not change; a constant
+the compiler folds moves by one rounding, to the value the run time computes.
+The issue is drafted for LLVM (`context/upstream/4-llvm-wasm-isel-slot-order/`).
+Spec 040's emulated compiler stays in the tree, switched off, as the fallback
+until the first alpha whose native x86_64 rebuild passed has shipped: one line
+in `scripts/line.conf` turns it on. It is the launcher `scripts/clang-emulated`
+running the arm64 Linux wasi-sdk's clang under a pinned `qemu-aarch64`, with
+five Debian packages pinned by `snapshot.debian.org` URL and hash and fetched
+only when the switch names them: `qemu-user` (GPL-2.0), and the aarch64 `libc6`
+(LGPL-2.1), `libstdc++6` and `libgcc-s1` (GPL-3.0 with the GCC runtime
+exception) and `libtinfo6` (X11) that the clang loads. They are build tools,
+like the runner's `cc`: nothing of them is linked into or shipped with an
+artifact. Each host's
 own inputs (wasi-sdk, wasmtime, the host Python, the Cython and ninja wheels,
 and the SDK whose clang compiles there)
 are named once per host in `scripts/line.conf` and fetched by that host's

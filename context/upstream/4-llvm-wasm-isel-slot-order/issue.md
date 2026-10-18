@@ -120,12 +120,36 @@ SelectionDAG lowering of the libcall results (the order in which the result `Fra
 created) depends on an ordering that is not stable across host builds, such as iteration over a
 pointer-keyed container, or a floating-point heuristic compiled differently for each host.
 
+### Narrowed: the difference needs `llvm.fmuladd` on `fp128`
+
+Clang's default `-ffp-contract=on` emits `llvm.fmuladd` for `a*b+c` in one expression (the numpy
+file above holds 78 such calls at `-O3`: 26 each on `f32`, `f64` and `f128`). With
+`-ffp-contract=off`, which makes clang emit a plain `fmul` and `fadd`, **the two host builds give
+the same object**, for the reproducer and for the whole numpy file; `-ffp-contract=fast` gives that
+same object too. With `-ffp-model=precise` (which sets `-ffp-contract=on` again) the old pair comes
+back. So the host dependence sits in the lowering of `fmuladd` on `fp128` into the `__multf3` and
+`__addtf3` libcalls with their 16-byte result slots. Every other flag tried (`-O1`, `-O2`, `-Os`,
+`-Oz`, `-mllvm -enable-misched=0`, `-mllvm -fast-isel`, `-fno-unroll-loops`, `-fno-vectorize
+-fno-slp-vectorize`, `-fno-omit-frame-pointer`, each `-mllvm -pre-RA-sched`) still differs between
+the hosts. An empty or a 300 KB environment changes neither host's output, so the order does not
+move with process addresses: a deterministic difference between the two compiler builds (as in
+#99396, where x87 excess precision in a spill weight gave different registers per host), not
+pointer-keyed iteration.
+
+| input, `-O3` as above | aarch64 clang | x86_64 clang |
+|---|---|---|
+| `slot-order.c` | `9afcef294ca52dad` | `7daeec0794b49c01` |
+| `slot-order.c` with `-ffp-contract=off` | `bca38dcd95e249c3` | `bca38dcd95e249c3` |
+| numpy 2.5.2 `npy_math_complex.c`, preprocessed | `20ef33440bb2e944` | `d36897438056e356` |
+| the same with `-ffp-contract=off` (or `fast`) | `2914eb833ad62c93` | `2914eb833ad62c93` |
+
 ### Running the aarch64 compiler on x86_64
 
 The `wasi-sdk-33.0-arm64-linux` clang, run on the x86_64 machine under `qemu-aarch64` 10.0.13
 (user mode), gives the aarch64 bytes, for the reproducer (the table's last row) and for the numpy
-file. So the difference is in the x86_64 build of clang, not in the machine it runs on. That is our
-workaround until this is fixed.
+file. So the difference is in the x86_64 build of clang, not in the machine it runs on. We used that
+as a workaround first; we now compile everything with `-ffp-contract=off` (in the SDK's `clang.cfg`),
+which makes the two host builds agree, and build on x86_64 natively.
 
 ---
 

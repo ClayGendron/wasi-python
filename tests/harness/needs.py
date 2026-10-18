@@ -102,6 +102,14 @@ def _upstream_kit() -> bool:
     return upstream.kit_met()
 
 
+def _compile_records() -> bool:
+    """A build left its meson records under build/ (spec 059, Decision 4): the compile-flag check
+    reads them, and the generated Makefiles and step 60's command files beside them."""
+    from harness import scan
+
+    return any((paths.BUILD / n / "compile_commands.json").is_file() for n in scan.MESON_BUILDS)
+
+
 def _source_tree(component: str) -> Callable[[], bool]:
     def met() -> bool:
         from harness import pins
@@ -117,6 +125,7 @@ REPRO_MEMO = "context/research/2026-10-16-reproducible-builds-on-linux.md"
 SPEC_002 = "context/specifications/002-the-progress-harness.md"
 SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
 SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md"
+SPEC_059 = "context/specifications/059-the-x86-64-rebuild-runs-natively.md"
 
 SOURCE_COMPONENTS = (
     "cpython",
@@ -154,6 +163,7 @@ VOCABULARY: dict[str, Need] = {
         Need("git", _git, "-"),
         Need("git history", _git_history, "-"),
         Need("upstream kit", _upstream_kit, SPEC_050),  # tests/upstream/fetch.py fetches it
+        Need("compile records", _compile_records, SPEC_059),
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

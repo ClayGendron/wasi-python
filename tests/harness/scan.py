@@ -6,6 +6,9 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
+import subprocess
+import tempfile
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -625,8 +628,9 @@ def host_table_errors(
 
 
 # ---------------------------------------------------------------------------------------------
-# The compiler each host runs (spec 040, Decisions 4 and 5): an arm64 build of the pinned clang on
-# every host, natively on the arm64 hosts and under the pinned emulator on x86_64 Linux.
+# The compiler each host runs (spec 040, Decision 4; spec 059, Decisions 3 and 4): each host's own
+# pinned clang, natively. One host key carries the five emulation names: the fallback, switched off,
+# runnable by one line (COMPILER_SDK_DIR naming another host's SDK).
 
 COMPILER_NAME = "COMPILER_SDK_DIR"
 EMULATION_NAMES = (
@@ -664,9 +668,13 @@ def _maps(launcher: str, name: str, mode: str | None) -> bool:
 def compiler_table_errors(
     conf: str, download: str, pinned: Iterable[str], step_10: str, launcher: str | None
 ) -> list[str]:
-    """Every rule of spec 040, Decision 7's rule check, one line per breach. `step_10` and
-    `launcher` are scripts/steps/10_tools.sh and scripts/clang-emulated without their comment
-    lines (None: the launcher is missing), so a comment satisfies nothing."""
+    """Every rule of spec 059, Decision 4's rule check (spec 040, Decision 7, amended), one line
+    per breach. Each host's COMPILER_SDK_DIR is its own SDK, or another host's own SDK while the
+    key carries all five emulation names (the fallback's switch thrown). Exactly one key carries
+    the five names, each pinned and fetched in its branch, and that branch fetches another host's
+    SDK for the fallback's compiler. `step_10` and `launcher` are scripts/steps/10_tools.sh and
+    scripts/clang-emulated without their comment lines (None: the launcher is missing), so a
+    comment satisfies nothing."""
     pinned = set(pinned)
     own = {k: v for k, name, v in CONF_HOST_LINE.findall(conf) if name == "WASI_SDK_DIR"}
     table: dict[str, dict[str, str]] = {}
@@ -678,24 +686,36 @@ def compiler_table_errors(
         for name in (COMPILER_NAME, *EMULATION_NAMES)
         if re.search(rf"^{name}=", conf, re.M)
     ]
+    carriers = [k for k in sorted(table) if any(n in table[k] for n in EMULATION_NAMES)]
+    if not carriers:
+        errors.append("no host key carries the emulation names (the fallback is gone)")
+    elif len(carriers) > 1:
+        errors.append(f"{' and '.join(carriers)} both carry the emulation names")
     for key in sorted(own):
         names = table.get(key, {})
         compiler = names.get(COMPILER_NAME)
         if compiler is None:
             errors.append(f"line.conf: no {key}_{COMPILER_NAME}")
             continue
-        if "arm64" not in compiler:
-            errors.append(f"{key}_{COMPILER_NAME}: {compiler} is not an arm64 SDK")
-        files = {COMPILER_NAME: f"{compiler}.tar.gz"}
-        emulation = [n for n in EMULATION_NAMES if n in names]
-        if compiler == own[key]:
-            if emulation:
-                errors.append(f"{key} compiles with its own SDK but has {', '.join(emulation)}")
-        else:
+        have = [n for n in EMULATION_NAMES if n in names]
+        if 0 < len(have) < len(EMULATION_NAMES):
+            errors.append(f"{key} has {len(have)} of the five emulation names")
+        files: dict[str, str] = {}
+        if compiler != own[key]:
             if compiler not in own.values():
                 errors.append(f"{key}_{COMPILER_NAME}: {compiler} is no host's own WASI_SDK_DIR")
-            errors += [f"line.conf: no {key}_{n}" for n in EMULATION_NAMES if n not in names]
-            files.update({n: names[n] for n in emulation})
+            if not have:
+                errors.append(
+                    f"{key} compiles with another host's SDK but lacks the five emulation names"
+                )
+            files[COMPILER_NAME] = f"{compiler}.tar.gz"
+        if len(have) == len(EMULATION_NAMES):
+            files.update({n: names[n] for n in have})
+            foreign = [f"{v}.tar.gz" for k, v in own.items() if k != key]
+            if not any(f in branches.get(key, []) for f in foreign):
+                errors.append(
+                    f"{key}'s branch fetches no other host's SDK (the fallback's compiler)"
+                )
         for name, file in files.items():
             if file not in pinned:
                 errors.append(f"{key}_{name}: {file} is not pinned")
@@ -720,13 +740,256 @@ def compiler_table_errors(
 
 
 # ---------------------------------------------------------------------------------------------
+# Every compile contracts nothing (spec 059, Decisions 1, 2 and 4): -ffp-contract=off lives in the
+# toolchain's own clang.cfg and clang++.cfg, written by step 10, and nothing on any compiler's
+# command line may override it.
+
+# The options that override or drop the configuration file (the pre-build review's F1), as whole
+# tokens; any -ffp-contract= value but off is one too (fp_override).
+FP_CONTRACT_OVERRIDES = (
+    "-ffp-model=",
+    "-ffast-math",
+    "-Ofast",
+    "-funsafe-math-optimizations",
+    "--no-default-config",
+    "--config",
+)
+FP_FLAG = "-ffp-contract=off"
+# The meson builds, by their folder under build/: every one's compile_commands.json is a compile
+# record the judge reads; a specification that adds a meson build extends this (spec 059, N2).
+MESON_BUILDS = (
+    "numpy-build",
+    "pandas-build",
+    "freetype-build",
+    "harfbuzz-build",
+    "sheenbidi-build",
+    "libraqm-build",
+    "matplotlib-build",
+)
+# The Makefiles autoconf generates for the C libraries, and step 60's two command files.
+AUTOCONF_MAKEFILES = ("zlib-build/Makefile", "xz-build/Makefile", "xz-build/src/liblzma/Makefile")
+LINK_RECORDS = ("link/make-n.txt", "link/reactor-commands.txt")
+CPYTHON_MAKEFILE = "Python-*/cross-build/wasm32-wasip1/Makefile"
+# What step 10's code must name: the two files, the flag, and the -### probe, matched on its -cc1
+# line.
+STEP_10_FP_WORDS = ("clang.cfg", "clang++.cfg", FP_FLAG, "-###", "-cc1")
+# A source pragma that turns contraction back on inside a block (the pre-build review's F5).
+FP_PRAGMA = re.compile(r"FP_CONTRACT\s+ON\b|\bfp\s+contract\s*\(\s*(?:on|fast)\s*\)")
+SOURCE_SUFFIXES = {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".pyx", ".pxd", ".pxi"}
+_MAKE_ASSIGNMENT = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*[:?+]?=(.*)$")
+_FLAG_VARIABLE = re.compile(r"^(CC|CXX|CPP)$|CFLAGS|CXXFLAGS|CPPFLAGS|CCSHARED|OPT")
+_COMPILER_TOKEN = re.compile(r"^(\$\((?:CC|CXX|CPP)\)|\S*clang(?:\+\+)?)$")
+
+
+def fp_override(token: str) -> str | None:
+    """The banned option a whole token is, or None."""
+    if token.startswith("-ffp-contract="):
+        return None if token == FP_FLAG else token
+    for option in FP_CONTRACT_OVERRIDES:
+        if option.endswith("="):
+            if token.startswith(option):
+                return token
+        elif token == option or token.startswith(option + "="):
+            return token
+    return None
+
+
+def _tokens(text: str) -> list[str]:
+    try:
+        return shlex.split(text, posix=True)
+    except ValueError:
+        return text.split()
+
+
+def fp_hits(text: str) -> list[str]:
+    """The banned options among the whole tokens of one command line or variable value (a token
+    is read without the brackets, commas and quotes a meson list or a Makefile puts around it)."""
+    return [t for t in (fp_override(tok.strip("[](),;'\"")) for tok in _tokens(text)) if t]
+
+
+def _logical_lines(text: str) -> list[str]:
+    """A Makefile's lines with backslash continuations joined."""
+    out: list[str] = []
+    pending = ""
+    for line in text.splitlines():
+        if line.endswith("\\"):
+            pending += line[:-1] + " "
+            continue
+        out.append(pending + line)
+        pending = ""
+    if pending:
+        out.append(pending)
+    return out
+
+
+def is_compiler_line(line: str) -> bool:
+    """A command line that runs a compiler: `$(CC)`, `$(CXX)`, `$(CPP)` or a word ending in clang
+    or clang++ among its whole tokens (the review's N1: wasmtime's `--config` on a line that runs
+    no compiler is not a hit)."""
+    return any(_COMPILER_TOKEN.match(tok) for tok in _tokens(line))
+
+
+def fp_makefile_hits(text: str) -> tuple[list[str], int]:
+    """(hits, lines read) over a Makefile: compile-flag variables (CC, CXX, CPP, and any name
+    holding CFLAGS, CXXFLAGS, CPPFLAGS, CCSHARED or OPT) and recipe lines that run a compiler."""
+    hits: list[str] = []
+    read = 0
+    for line in _logical_lines(text):
+        if m := _MAKE_ASSIGNMENT.match(line):
+            if _FLAG_VARIABLE.search(m[1]):
+                read += 1
+                hits += [f"{m[1]}: {h}" for h in fp_hits(m[2])]
+        elif line.startswith("\t") and is_compiler_line(line):
+            read += 1
+            hits += [f"recipe line: {h}" for h in fp_hits(line)]
+    return hits, read
+
+
+def fp_command_file_hits(text: str) -> tuple[list[str], int]:
+    """(hits, compiler lines read) over a file of shell commands (step 60's make -n output)."""
+    hits: list[str] = []
+    read = 0
+    for line in _logical_lines(text):
+        if is_compiler_line(line):
+            read += 1
+            hits += fp_hits(line)
+    return hits, read
+
+
+def fp_record_errors(root: Path) -> tuple[list[str], list[str]]:
+    """The compile records a build leaves under build/: every listed meson record exists once any
+    does, every record under build/*/ is listed, and no compiler command or compile-flag variable
+    in any record holds a banned option. Returns (errors, what was read, one line each)."""
+    build = root / "build"
+    errors: list[str] = []
+    read: list[str] = []
+    listed = {name: build / name / "compile_commands.json" for name in MESON_BUILDS}
+    present = {n for n, p in listed.items() if p.is_file()}
+    if not present:
+        return ["no compile record under build/ (build first)"], read
+    errors += [
+        f"{n}/compile_commands.json is missing (listed in MESON_BUILDS)"
+        for n in sorted(set(listed) - present)
+    ]
+    for p in sorted(build.glob("*/compile_commands.json")):
+        if p.parent.name not in listed:
+            errors.append(f"{p.parent.name}/compile_commands.json is not listed in MESON_BUILDS")
+    for name in sorted(present):
+        entries = json.loads(listed[name].read_text())
+        read.append(f"{name}/compile_commands.json: {len(entries)} commands")
+        for e in entries:
+            command = e.get("command") or " ".join(e.get("arguments", []))
+            errors += [f"{name}: {e.get('file')}: {h}" for h in fp_hits(command)]
+    for rel in (
+        *AUTOCONF_MAKEFILES,
+        *sorted(str(p.relative_to(build)) for p in build.glob(CPYTHON_MAKEFILE)),
+    ):
+        p = build / rel
+        if not p.is_file():
+            errors.append(f"build/{rel} is missing")
+            continue
+        hits, lines = fp_makefile_hits(p.read_text(errors="replace"))
+        read.append(f"{rel}: {lines} compile-flag variables and compiler lines")
+        errors += [f"{rel}: {h}" for h in hits]
+    if not list(build.glob(CPYTHON_MAKEFILE)):
+        errors.append(f"build/{CPYTHON_MAKEFILE} is missing")
+    for rel in LINK_RECORDS:
+        p = build / rel
+        if not p.is_file():
+            errors.append(f"build/{rel} is missing")
+            continue
+        hits, lines = fp_command_file_hits(p.read_text(errors="replace"))
+        read.append(f"{rel}: {lines} compiler lines")
+        errors += [f"{rel}: {h}" for h in hits]
+    return errors, read
+
+
+def fp_pragma_hits(trees: Iterable[Path]) -> list[str]:
+    """Source files under the given trees that turn contraction on by pragma."""
+    hits = []
+    for tree in trees:
+        for p in sorted(tree.rglob("*")):
+            if p.suffix not in SOURCE_SUFFIXES or not p.is_file():
+                continue
+            try:
+                text = p.read_text(errors="replace")
+            except OSError:
+                continue
+            if FP_PRAGMA.search(text):
+                hits.append(f"{p.relative_to(tree.parent)}: a pragma turns contraction on")
+    return hits
+
+
+def fp_cc1_errors(name: str, output: str) -> list[str]:
+    """The -### output of one driver: its -cc1 line carries -ffp-contract=off once and no other
+    -ffp-contract= value."""
+    lines = [line for line in output.splitlines() if '"-cc1"' in line]
+    if not lines:
+        return [f"{name} -###: no -cc1 line"]
+    values = re.findall(r'"(-ffp-contract=[^"]*)"', lines[0])
+    if values != [FP_FLAG]:
+        return [
+            f"{name} -###: the -cc1 line carries {values or 'no -ffp-contract'}, not {FP_FLAG} once"
+        ]
+    return []
+
+
+def fp_compiler_errors(bindir: Path) -> list[str]:
+    """Run the two -### probes through an SDK's clang and clang++ (what step 10's gate does)."""
+    errors = []
+    with tempfile.TemporaryDirectory() as tmp:
+        probe = Path(tmp) / "probe.c"
+        probe.write_text("int main(void) { return 0; }\n")
+        for name, extra in (("clang", []), ("clang++", ["-x", "c++"])):
+            r = subprocess.run(
+                [
+                    str(bindir / name),
+                    "--target=wasm32-wasip1",
+                    "-###",
+                    "-c",
+                    *extra,
+                    str(probe),
+                    "-o",
+                    str(Path(tmp) / "probe.o"),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if r.returncode != 0:
+                errors.append(
+                    f"{name} -### failed: {r.stderr.strip().splitlines()[-1:] or r.returncode}"
+                )
+                continue
+            errors += fp_cc1_errors(name, r.stderr + r.stdout)
+    return errors
+
+
+def fp_recipe_errors(step_10: str | None, files: dict[str, str]) -> list[str]:
+    """Step 10's code writes the flag into both configuration files and probes it, and no other
+    recipe file (`files`: tracked path -> text) carries a banned option or any -ffp-contract=
+    form."""
+    if step_10 is None:
+        return ["scripts/steps/10_tools.sh is missing"]
+    errors = [f"10_tools.sh does not name {w}" for w in STEP_10_FP_WORDS if w not in step_10]
+    for rel in sorted(files):
+        for n, line in enumerate(files[rel].splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue  # a comment sets nothing; a comment satisfies nothing either
+            if "-ffp-contract=" in line:
+                errors.append(f"{rel}:{n}: sets -ffp-contract outside step 10")
+            errors += [f"{rel}:{n}: {h}" for h in fp_hits(line)]
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
 # The release workflow's second-host rebuild (spec 012, Decision 7)
 
 # arm64 Linux, and x86_64 Linux, which compiles with the arm64 Linux SDK's clang under the pinned
 # qemu (spec 040). Each runner's job time limit, in minutes: an emulated rebuild is slower, and a
 # hung arm64 job still frees the gate after two hours (spec 040, Decision 6).
 REBUILD_RUNNERS = ("ubuntu-24.04-arm", "ubuntu-24.04")
-REBUILD_TIMEOUTS = {"ubuntu-24.04-arm": 120, "ubuntu-24.04": 360}
+REBUILD_TIMEOUTS = {"ubuntu-24.04-arm": 120, "ubuntu-24.04": 120}  # spec 059: both native
 
 
 def _needs(lines: list[str]) -> set[str]:

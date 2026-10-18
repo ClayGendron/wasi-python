@@ -42,6 +42,18 @@ How the issue in `issue.md` was found and checked. Each claim is EXECUTED unless
   `evidence/compare-two-hosts.sh` with the x86_64 SDK on a real x86_64 machine (`issue.md`'s
   preamble; the build review, finding 1).
 
+## Narrowed (spec 059)
+
+- `context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md` (EXECUTED): a flag sweep
+  on `slot-order.c` and on the preprocessed numpy file with both pinned SDKs (the x86_64 one in the
+  research container under Rosetta). Only `-ffp-contract=off` (and `fast`) makes the two hosts
+  agree; the IR under the default holds 78 `llvm.fmuladd` calls that the flag removes; the object's
+  set of call targets is unchanged. The pre-build review of spec 059 added: `-ffp-model=precise`
+  restores the difference; a constant-folded `a*b+c` moves by one rounding under `off`
+  (`0x1p-54` to `0x0p0`); `#pragma STDC FP_CONTRACT ON` brings `fmuladd` back under the flag.
+- The research folder's `cfg-route.sh` reproduces the facts through the SDK's configuration file
+  (`bin/clang.cfg`), which is where spec 059 sets the flag for every compile.
+
 ## When it leaves
 
 When the line moves to a new wasi-sdk, compile `evidence/slot-order.c` and the numpy file with that

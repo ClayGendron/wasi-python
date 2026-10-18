@@ -6,6 +6,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a6 — unreleased
 
+- **The x86_64 rebuild runs natively** (spec 059). Every compile carries `-ffp-contract=off`,
+  set once in the toolchain's own `clang.cfg` and `clang++.cfg` by step 10, so wasi-sdk's x86_64
+  and aarch64 builds of clang emit the same bytes, and the x86_64 Linux rebuild compiles with its
+  own clang instead of the arm64 clang under qemu (an hour less per release run). Run-time
+  arithmetic does not change (wasm32 fuses nothing); a constant the compiler folds moves to the
+  value the run time computes. `python.wasm`, the snapshot and `MANIFEST` change once; the zip
+  stays. The judge refuses any compiler option that would override the file (`-ffp-model=`,
+  `-ffast-math`, `-Ofast`, `-funsafe-math-optimizations`, `--no-default-config`, `--config`,
+  another `-ffp-contract=`) in the recipe and in every build record, greps the source trees for
+  a pragma that turns contraction on, and probes the compiler's own `-cc1` line. Spec 040's
+  emulated compiler stays in the tree, switched off by one line in `scripts/line.conf`, until
+  the first alpha whose native x86_64 rebuild passed has shipped. The LLVM issue draft is
+  narrowed to `llvm.fmuladd` on `fp128`.
 - **Async tools and gates** (spec 053). A tool or a gate may be an `async def`, or a function
   that returns an awaitable. Under `run_async` it is awaited on the event loop that awaits
   `run_async`, so an MCP client session or an async HTTP client works as it is; under `run`, on a
