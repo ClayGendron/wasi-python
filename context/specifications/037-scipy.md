@@ -1,9 +1,11 @@
 # 037 — scipy, the first milestone
 
-- **Status:** drafted 2026-10-17; revised the same day against its pre-build review
-  (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1 to 4 fixed in the text and the checks,
-  5 to 13 fixed or answered (the review's Disposition), and spec 040's asks written in, each
-  conditional on 040 landing first. Awaiting the reviewer's confirmation. It changes the build
+- **Status:** confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+  same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
+  to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
+  and spec 040's asks written in, each conditional on 040 landing first. The review's
+  Confirmation passed it with conditions A (Decision 15, the solvers' own tolerance options) and
+  B (Decision 5, the patch script's identity, forced add and count check). It changes the build
   recipe and the artifact set (constitution §5.6). It is build-class: it touches `scripts/`,
   `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). Its second milestone is
   spec 038 (Decision 1).
@@ -210,7 +212,15 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `MANIFEST`) makes both. It unpacks the pinned tarball into a fresh folder, commits it in a
      git repository run as `apply_patches.sh` runs git (`env -i`, an empty `HOME` and
      `XDG_CONFIG_HOME`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`, a ceiling), and
-     runs `scripts/openblas_make_void.py` on it. That is the memo's `make_void.py`, moved into
+     runs `scripts/openblas_make_void.py` on it. **Condition B:** it adds the tree with
+     `git add -A --force`, because the tarball's own `.gitignore` hides two of its files
+     (`lapack-netlib/TESTING/CMakeLists.txt`, `relapack/test/config.h`; EXECUTED by the review)
+     and an edit to an ignored file would otherwise be left out of the patch silently; it commits
+     with a fixed identity (`-c user.name=wasi-python -c user.email=build@wasi-python.invalid`),
+     since `env -i` and an empty `HOME` leave git none; and it stops, naming both numbers, if
+     `openblas_make_void.py`'s "files changed" count differs from the count of
+     `git diff --name-only` (1,665 today, EXECUTED by the review). None of these moves today's
+     hashes (EXECUTED by the review: the two ignored files are not edited). That is the memo's `make_void.py`, moved into
      `scripts/` unchanged but for its header comment; the memo's copy stays as evidence. The
      script then writes 0001 with plain `git diff -- . ':!lapack-netlib/INSTALL/ilaver.c'` and
      0002 with plain `git diff -- lapack-netlib/INSTALL/ilaver.c`, no other option, and writes
@@ -592,8 +602,14 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       `atol ≤ 1e-12` for `solve_ivp` and `odeint`; `gtol`, `xtol` and `ftol ≤ 1e-9` for
       `minimize`, `root`, `least_squares` and `curve_fit`; `epsabs ≤ 1e-12` and
       `epsrel ≤ 1e-10` for `quad` and `dblquad`. Then what is printed is bounded by tolerance,
-      not by the path a step-size or line-search decision took. If a value still differs in its
-      last printed digit, the job's input changes, never `k` or a tolerance upward.
+      not by the path a step-size or line-search decision took. **Condition A:** each call sets
+      the tolerance options its method actually takes, not only the generic names: `xatol` and
+      `fatol` for Nelder-Mead; `ftol` and `gtol` for L-BFGS-B; `ftol` for SLSQP; `xtol` for
+      `root` with `hybr`; `gtol` for BFGS; `xtol`, `ftol` and `gtol` for `least_squares` and
+      `curve_fit`. Each also raises `maxiter` or `maxfev` far enough that it stops on tolerance,
+      not on a cap, and the job prints each result's `success` (a `success: False` would be a
+      path-dependent stop, and fails the golden). If a value still differs in its last printed
+      digit, the job's input changes, never `k` or a tolerance upward.
     - **Golden jobs (v1.3),** in `JOBS`, their goldens written by `regen.py`:
       - `scipy_numeric.py` (`k = 9`): `linalg` (`solve`, `lu_factor` pivots and `U`'s diagonal,
         `qr`'s `|diag(R)|`, `cholesky`, `det`, an `inv` residual bound, `eigh` and `eigvalsh`

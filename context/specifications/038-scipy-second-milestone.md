@@ -1,8 +1,9 @@
 # 038 — scipy, the second milestone: the sandbox's edges
 
-- **Status:** drafted 2026-10-17; revised the same day against the pre-build review of 037 and
-  038 (`../reviews/037-scipy-spec-2026-10-17.md`): its findings 2, 14 and 15 fixed, 16 noted (the
-  review's Disposition). Awaiting the reviewer's confirmation. It changes the artifact set (two
+- **Status:** confirmed for build. Drafted 2026-10-17; revised the same day against the
+  pre-build review of 037 and 038 (`../reviews/037-scipy-spec-2026-10-17.md`): its findings 2,
+  14 and 15 fixed, 16 noted (the review's Disposition), and confirmed there with no condition on
+  038. It changes the artifact set (two
   carried patches to scipy, a wider `ctypes` stand-in), so it was reviewed before it is built
   (constitution §5.6). It is build-class: it touches `recipes/` (§5.7). It builds after spec 037
   lands.
