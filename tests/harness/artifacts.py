@@ -139,10 +139,15 @@ def shared_library_errors(z: Path) -> list[str]:
         return [n for n in archive.namelist() if n.endswith(SHARED_SUFFIXES)]
 
 
+TYPED = "wasi_python/py.typed"
+
+
 def wheel_errors(wheel: Path, d: Path) -> list[str]:
     errors = []
     with zipfile.ZipFile(wheel) as w:
         names = set(w.namelist())
+        if TYPED not in names:  # PEP 561: a type checker reads the package's hints (spec 049)
+            errors.append(f"{wheel.name} lacks {TYPED}")
         for p in sorted(d.rglob("*")):
             if not p.is_file():
                 continue

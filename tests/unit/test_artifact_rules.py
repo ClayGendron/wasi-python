@@ -310,6 +310,7 @@ def test_an_empty_licence_file_fails(good, work, monkeypatch) -> None:
 def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
     wheel = work / "wasi_python-0-py3-none-any.whl"
     with zipfile.ZipFile(wheel, "w") as w:
+        w.writestr(rules.TYPED, b"")
         for p in good.rglob("*"):
             if p.is_file():
                 w.writestr(
@@ -320,6 +321,18 @@ def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name}: wasi_python/artifacts/MANIFEST differs from the artifact set"
     ]
+
+
+def test_a_wheel_must_carry_py_typed(good, work) -> None:
+    """Spec 049, criterion 8: without `py.typed` a type checker treats the package as untyped."""
+    wheel = work / "wasi_python-0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as w:
+        for p in good.rglob("*"):
+            if p.is_file():
+                w.writestr(
+                    f"wasi_python/artifacts/{p.relative_to(good).as_posix()}", p.read_bytes()
+                )
+    assert rules.wheel_errors(wheel, good) == [f"{wheel.name} lacks wasi_python/py.typed"]
 
 
 def test_exception_rule_passes_the_standard_form(work) -> None:
