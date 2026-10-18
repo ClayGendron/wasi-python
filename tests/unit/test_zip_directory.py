@@ -10,6 +10,7 @@ import io
 import struct
 import sys
 import zipfile
+import zlib
 from pathlib import Path
 
 import pytest
@@ -92,12 +93,82 @@ def _understated() -> bytes:
     return bytes(data)
 
 
+def _local_offset_past_the_directory() -> bytes:
+    """The second entry's local-header offset points past the directory's start: zipimport
+    raises `ZipImportError('bad local header offset')`."""
+    data = bytearray(zips.build({"a.py": "x = 1\n", "b.py": ""}))
+    second = data.find(b"PK\x01\x02", data.find(b"PK\x01\x02") + 4)
+    struct.pack_into("<I", data, second + 42, 0x7000)
+    return bytes(data)
+
+
+def _negative_archive_offset() -> bytes:
+    """The end record's directory offset raised by 10, past where the directory stands, so
+    zipimport's archive offset (the bytes before the zip) comes out negative."""
+    data = bytearray(zips.build({"a.py": "x = 1\n"}))
+    end = data.rfind(b"PK\x05\x06")
+    struct.pack_into("<I", data, end + 16, struct.unpack_from("<I", data, end + 16)[0] + 10)
+    return bytes(data)
+
+
+def _zip64_extra_without_a_zip64_end() -> bytes:
+    """An entry whose compressed size is 0xFFFFFFFF, with the real size in a Zip64 extra, and a
+    plain end record (no `PK\x06\x06`), as streaming writers make it."""
+    data = bytearray(zips.build({"a.py": "x = 1\n"}))
+    cd, end = data.find(b"PK\x01\x02"), data.rfind(b"PK\x05\x06")
+    size = struct.unpack_from("<I", data, cd + 20)[0]
+    name_size, extra_size = struct.unpack_from("<HH", data, cd + 28)
+    struct.pack_into("<I", data, cd + 20, 0xFFFFFFFF)
+    extra = struct.pack("<HHQ", 1, 8, size)
+    at = cd + 46 + name_size + extra_size
+    data[at:at] = extra
+    struct.pack_into("<H", data, cd + 30, extra_size + len(extra))
+    end += len(extra)
+    struct.pack_into("<I", data, end + 12, struct.unpack_from("<I", data, end + 12)[0] + len(extra))
+    return bytes(data)
+
+
 ODD = {
     "zip64": zips.zip64_zip(),
     "cp437": zips.cp437_zip(),
     "truncated": zips.truncated_zip(),
     "one entry more than declared": _understated(),
+    "a local-header offset past the directory": _local_offset_past_the_directory(),
+    "a negative archive offset": _negative_archive_offset(),
+    "a Zip64 extra without a Zip64 end record": _zip64_extra_without_a_zip64_end(),
 }
+
+
+def test_the_odd_zips_have_what_they_claim() -> None:
+    """Each hostile zip has its feature, so `test_odd_zips_go_to_the_stock_reader` never passes
+    on a zip that lacks it."""
+
+    def end_record(data: bytes) -> tuple[int, int, int]:
+        end = data.rfind(b"PK\x05\x06")
+        cd_size, cd_offset = struct.unpack_from("<II", data, end + 12)
+        return end, cd_size, cd_offset
+
+    data = ODD["a local-header offset past the directory"]
+    _, _, cd_offset = end_record(data)
+    offsets = [struct.unpack_from("<I", data, i + 42)[0] for i in _entries(data)]
+    assert offsets[0] <= cd_offset < offsets[1]
+    data = ODD["a negative archive offset"]
+    end, cd_size, cd_offset = end_record(data)
+    assert end - cd_size - cd_offset < 0
+    data = ODD["a Zip64 extra without a Zip64 end record"]
+    (cd,) = _entries(data)
+    assert struct.unpack_from("<I", data, cd + 20)[0] == 0xFFFFFFFF
+    assert b"PK\x06\x06" not in data
+    with zipfile.ZipFile(io.BytesIO(data)) as z:  # zipfile reads the size from the extra
+        assert z.read("a.py") == b"x = 1\n"
+
+
+def _entries(data: bytes) -> list[int]:
+    found, at = [], data.find(b"PK\x01\x02")
+    while at >= 0:
+        found.append(at)
+        at = data.find(b"PK\x01\x02", at + 4)
+    return found
 
 
 @pytest.mark.parametrize("case", ODD)
@@ -318,16 +389,40 @@ def _patch(data: bytes, offset: int, value: bytes) -> bytes:
 
 @pytest.mark.parametrize(
     "case",
-    ["plain", "lzma", "over 1 MiB", "bad crc", "encrypted", "local name", "inflates past"],
+    [
+        "plain",
+        "lzma",
+        "over 1 MiB",
+        "bad crc",
+        "encrypted",
+        "local name",
+        "inflates past",
+        "stream not ended",
+    ],
 )
 def test_the_member_reader_hands_odd_members_to_zipfile(zr, zd, work, monkeypatch, case) -> None:
     body = b"a member that inflates\n" * 50
     method = zipfile.ZIP_LZMA if case == "lzma" else zipfile.ZIP_DEFLATED
     if case == "over 1 MiB":
         body, method = b"x" * (zr.LIMIT + 1), zipfile.ZIP_STORED
-    loader = _member_zip(work, zd, {"d/m.bin": (body, method)})
+    if case == "stream not ended":
+        # A deflate stream with no final block: it inflates to every byte of the body, with the
+        # right size and CRC, but it never ends. Written stored, then marked deflated.
+        squeeze = zlib.compressobj(9, zlib.DEFLATED, -15)
+        raw = squeeze.compress(body) + squeeze.flush(zlib.Z_SYNC_FLUSH)
+        loader = _member_zip(work, zd, {"d/m.bin": (raw, zipfile.ZIP_STORED)})
+    else:
+        loader = _member_zip(work, zd, {"d/m.bin": (body, method)})
     data = Path(loader.archive).read_bytes()
     cd = data.rfind(b"PK\x01\x02")
+    if case == "stream not ended":
+        crc = struct.pack("<I", zlib.crc32(body))
+        size = struct.pack("<I", len(body))
+        deflate = struct.pack("<H", zipfile.ZIP_DEFLATED)
+        for at, value in ((8, deflate), (14, crc), (22, size)):  # the local header
+            data = _patch(data, at, value)
+        for at, value in ((10, deflate), (16, crc), (24, size)):  # the directory entry
+            data = _patch(data, cd + at, value)
     if case == "bad crc":
         crc = struct.unpack_from("<I", data, cd + 16)[0]
         data = _patch(data, cd + 16, struct.pack("<I", crc ^ 1))
@@ -387,6 +482,29 @@ def test_metadata_finds_a_zip_on_the_path_from_zipimports_dict(zr, zd, work, mon
     assert dist.version == "2.0" and dist.requires == ["judge_meta_a>=1.0"]
     # RECORD's files that the zip lacks are dropped, as upstream drops them (`skip_missing_files`).
     assert [str(f) for f in dist.files] == ["judge_meta_b-2.0.dist-info/METADATA"]
+
+
+def test_metadata_leaves_a_prefixed_zip_to_upstream(zr, zd, work, monkeypatch) -> None:
+    """A zip on the import path under a prefix (`/x.zip/sub`) is not answered from the archive's
+    root names: upstream's own `zip_children` gets it, as it gets a zip off the import path."""
+    import zipimport
+
+    archive = _write(work, "m.zip", zips.build({**zips.DISTRIBUTIONS, "sub/__init__.py": ""}))
+    prefixed = f"{archive}/sub"
+    monkeypatch.setattr(zipimport, "_read_directory", zd.read_directory)
+    monkeypatch.setitem(sys.path_importer_cache, archive, zipimport.zipimporter(archive))
+    monkeypatch.setitem(sys.path_importer_cache, prefixed, zipimport.zipimporter(prefixed))
+    assert sys.path_importer_cache[prefixed].prefix == "sub/"
+    calls = []
+    zr.stock_zip_children = lambda self: calls.append(self.root) or {"stock": None}
+
+    class Root:
+        def __init__(self, root):
+            self.root = root
+
+    assert zr.zip_children(Root(prefixed)) == {"stock": None} and calls == [prefixed]
+    assert "judge_meta_a-1.0.dist-info" in zr.zip_children(Root(archive))
+    assert calls == [prefixed], "the archive's own root went to upstream"
 
 
 @pytest.fixture(autouse=True)
