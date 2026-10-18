@@ -18,7 +18,7 @@
     - `tests/harness/upstream.py`;
     - `tests/checks/test_v1_3_upstream_suites.py`;
     - `tests/unit/test_upstream.py`;
-    - 25 entries in `tests/known_gaps.toml`.
+    - 12 entries in `tests/known_gaps.toml` (on spec 051's set; 26 on the set before it).
   - **Changed:**
     - `tests/harness/needs.py` (one need);
     - `tests/harness/plugin.py` and `tests/harness/scoreboard.py` (the `passes` metric, its
@@ -288,20 +288,25 @@ So the next `os.dup` is found by the judge and not by a user.
    fuel cap is about 1.5 times its drafting fuel, so a runaway ends as "out of fuel", which is a
    failure (the harness default, 2×10¹¹, is too small for most groups).
 
-   | group | paths | passed | fuel (drafting) | cap |
-   |---|---|---|---|---|
-   | `numpy-core` | `numpy/_core/tests` | 8,568 | 195.8 G | 3.0×10¹¹ |
-   | `numpy-lib` | `numpy/lib/tests` | 4,823 | 131.4 G | 2.0×10¹¹ |
-   | `numpy-others` | `numpy/{fft,linalg,ma,matrixlib,polynomial,random,testing}/tests`, `numpy/tests` | 7,267 | 174.9 G | 2.7×10¹¹ |
-   | `pandas-frame` | `pandas/tests/frame` | 10,831 | 337.1 G | 5.1×10¹¹ |
-   | `pandas-groupby` | `pandas/tests/groupby` | 22,156 | 460.3 G | 7.0×10¹¹ |
-   | `pandas-reshape` | `pandas/tests/reshape` | 2,657 | 101.2 G | 1.6×10¹¹ |
-   | `pandas-io-parser` | `pandas/tests/io/parser` | 3,401 | 85.8 G | 1.3×10¹¹ |
-   | `pandas-io-formats` | `pandas/tests/io/formats` | 955 | 53.6 G | 8.1×10¹⁰ |
-   | `pandas-tslibs` | `pandas/tests/tslibs` | 590 | 38.6 G | 5.8×10¹⁰ |
-   | `pandas-internals` | `pandas/tests/internals` | 258 | 18.1 G | 2.8×10¹⁰ |
-   | `pandas-libs` | `pandas/tests/libs` | 1,063 | 22.4 G | 3.4×10¹⁰ |
-   | **all** | | **62,569** | **1,619 G** | **2.47×10¹²** |
+   | group | paths | passed (drafting) | fuel (drafting) | passed, spec 051's set | fuel, spec 051's set | cap |
+   |---|---|---|---|---|---|---|
+   | `numpy-core` | `numpy/_core/tests` | 8,568 | 195.8 G | 9,519 | 203.1 G | 3.1×10¹¹ |
+   | `numpy-lib` | `numpy/lib/tests` | 4,823 | 131.4 G | 4,825 | 131.4 G | 2.0×10¹¹ |
+   | `numpy-others` | `numpy/{fft,linalg,ma,matrixlib,polynomial,random,testing}/tests`, `numpy/tests` | 7,267 | 174.9 G | 7,269 | 175.3 G | 2.7×10¹¹ |
+   | `pandas-frame` | `pandas/tests/frame` | 10,831 | 337.1 G | 10,852 | 344.8 G | 5.2×10¹¹ |
+   | `pandas-groupby` | `pandas/tests/groupby` | 22,156 | 460.3 G | 22,227 | 478.7 G | 7.2×10¹¹ |
+   | `pandas-reshape` | `pandas/tests/reshape` | 2,657 | 101.2 G | 2,664 | 103.3 G | 1.6×10¹¹ |
+   | `pandas-io-parser` | `pandas/tests/io/parser` | 3,401 | 85.8 G | 3,474 | 89.7 G | 1.35×10¹¹ |
+   | `pandas-io-formats` | `pandas/tests/io/formats` | 955 | 53.6 G | 976 | 54.4 G | 8.2×10¹⁰ |
+   | `pandas-tslibs` | `pandas/tests/tslibs` | 590 | 38.6 G | 590 | 39.0 G | 5.9×10¹⁰ |
+   | `pandas-internals` | `pandas/tests/internals` | 258 | 18.1 G | 258 | 18.3 G | 2.8×10¹⁰ |
+   | `pandas-libs` | `pandas/tests/libs` | 1,063 | 22.4 G | 1,063 | 23.1 G | 3.5×10¹⁰ |
+   | **all** | | **62,569** | **1,619 G** | **63,717** | **1,661 G** | **2.519×10¹²** |
+
+   **Re-derived on spec 051's set** (`s-f94dec535086b06c`, EXECUTED; the landing notes). 051
+   landed first. Its patch 0002 lets `test_casting_unittests.py` and `test_arraymethod.py` run in
+   `numpy-core` (+951 passes), and its other fixes pass the tests its classes held. Each cap is at
+   least 1.5 times the fuel on 051's set; seven were raised.
 
    **How the drafting numbers were made.** The numpy numbers came from explicit file lists in the
    order `sort` gives (`test_hermite_e.py` before `test_hermite.py`). pytest collects a directory
@@ -318,7 +323,7 @@ So the next `os.dup` is found by the judge and not by a user.
    |---|---|---|
    | 23 files that import numpy's C test modules (`_core/tests` `test_api`, `test_argparse`, `test_array_coercion`, `test_arrayobject`, `test_arrayprint`, `test_conversion_utils`, `test_cpu_dispatcher`, `test_deprecations`, `test_dtype`, `test_extint128`, `test_getlimits`, `test_hashtable`, `test_indexing`, `test_mem_overlap`, `test_multiarray`, `test_multithreading`, `test_nditer`, `test_numeric`, `test_scalarbuffer`, `test_scalarmath`, `test_ufunc`, `test_umath`; `lib/tests/test_stride_tricks`) | `_multiarray_tests`, `_umath_tests`, `_rational_tests`, `_operand_flag_tests` are not linked (`scripts/gen_inittab.py:27`) | `context/questions-for-the-owner.md` (number 89) |
    | `test_simd.py`, `test_simd_module.py` | `_simd` is not linked | the same |
-   | `test_casting_unittests.py`, `test_arraymethod.py` | they trap the guest (Decision 9); `test_arraymethod` at collection | spec 051 |
+   | ~~`test_casting_unittests.py`, `test_arraymethod.py`~~ | they trapped the guest (Decision 9); removed on spec 051's set, where they run in `numpy-core` | spec 051 |
    | `test_memmap.py` | every test needs `mmap`, which WASI lacks | `README.md` |
    | `tests/test_ctypeslib.py` | it reads `_multiarray_umath.__file__`, which a builtin module has not | `README.md` |
 
@@ -349,11 +354,11 @@ So the next `os.dup` is found by the judge and not by a user.
 
    **The budget (two rules).**
    - **Caps.** The groups' caps and the trap checks' caps (Decision 9) sum to at most 3×10¹².
-     Today they sum to 2.47×10¹² + 7 × 5×10¹⁰ = 2.82×10¹². The rules check enforces it
-     (Decision 17).
-   - **Fuel spent.** The fuel the checks actually use stays under 1.8×10¹² (1.62×10¹² measured).
-     This is a review rule. Each landing's notes sum the 18 checks' recorded `fuel` metrics and
-     say why if the sum is over.
+     On spec 051's set there is no trap entry, and the groups' caps sum to 2.519×10¹² (before it:
+     2.47×10¹² + 7 × 5×10¹⁰ = 2.82×10¹²). The rules check enforces it (Decision 17).
+   - **Fuel spent.** The fuel the checks actually use stays under 1.8×10¹² (1.661×10¹² on spec
+     051's set; 1.62×10¹² at drafting). This is a review rule. Each landing's notes sum the
+     group and trap checks' recorded `fuel` metrics and say why if the sum is over.
 
 9. **Tests that trap the guest are deselected, and each is a gap until fixed.** A trap ends the
    session, so a trapping test cannot run in its group. `tests/upstream/numpy.toml` lists each as
@@ -388,6 +393,11 @@ So the next `os.dup` is found by the judge and not by a user.
    | `sfloat-reduce` | `numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load` | `sfloat___reduce__(self)`, `_scaled_float_dtype.c:192`, `METH_NOARGS` |
 
    With the traps deselected, the `numpy-core` group ran to its end (EXECUTED).
+
+   **On spec 051's set none of the seven traps** (EXECUTED: each entry alone ran with no trap).
+   As condition C1 says, the entries, their gaps and the `not_selected` line for the two files
+   are deleted, and their tests run in `numpy-core`. The trap check is defined only while an
+   entry exists, so today there is none; the mechanism stays for the next trap.
    `tests/upstream/pandas.toml` has no trap entry: pandas trapped nowhere, in full mode
    (EXECUTED).
 
@@ -399,7 +409,8 @@ So the next `os.dup` is found by the judge and not by a user.
       `outcome` (`failed` or `error`), `match` (a regular expression searched in the one-line
       reason), `reason`, `closes_with`.
     - **Its members.** They are listed, one sorted node id per line, in
-      `tests/upstream/expected/<group>/<class>.txt` (268 lines in all today). A `git diff` of a
+      `tests/upstream/expected/<group>/<class>.txt` (100 lines on spec 051's set; 268 before it).
+      A `git diff` of a
       list shows exactly which tests were admitted or released (the review's F3).
     - **Sorting.** The group's run sorts each failed or errored test into the first class of its
       group whose `outcome` and `match` fit.
@@ -461,7 +472,19 @@ So the next `os.dup` is found by the judge and not by a user.
     | `pandas-io-formats` | `zip-code-names` | failed | 21 | `Warning not set with correct stacklevel` | spec 051 |
     | `pandas-tslibs` | `no-processes` | failed | 1 | `wasi does not support processes` | `README.md` |
 
-    That is 18 classes and 18 gaps. numpy has 31 failed and 3 errors; pandas has 234 failed. A
+    That is 18 classes and 18 gaps. numpy has 31 failed and 3 errors; pandas has 234 failed.
+
+    **What the classes are on spec 051's set** (EXECUTED; the landing notes):
+    - the build review's F5 split `numpy-others` `test-only-modules`: `test_api_importable`
+      (`numpy.conftest`, which the zip does not carry) is class `no-conftest`, closed by the
+      README; `test-only-modules` keeps `test_NPY_NO_EXPORT` (question 89);
+    - 051 empties the six `zip-code-names` classes and the two `patch-0001-*` classes; by
+      condition C1 they stay, with empty lists and no gaps, as passing checks;
+    - the two returning files fail 28 tests with `ctypes is unavailable`: a new class,
+      `numpy-core` `no-ctypes`, closed by the README.
+
+    So there are 20 classes: 12 with members and gaps (100 node ids; the README closes 10,
+    question 89 closes 2) and 8 empty. numpy has 56 failed and 3 errors; pandas has 41 failed. A
     generic `match` (the bare `AssertionError: `) is safe: any other test that fails that way
     joins the class, shows as `+<node id>`, and turns red. **Closers:**
     - `README.md` closes only a fact the README states (a permanent platform fact). The README
@@ -575,13 +598,10 @@ So the next `os.dup` is found by the judge and not by a user.
 18. **What the README and the CHANGELOG say.**
     - **README, the platform paragraph,** gains "no `/dev/null`" (`os.devnull` names a path that
       does not exist).
-    - **README, a short "Known defects" list,** until each closes:
-      - `copy.copy` of a numpy scalar, `__copy__` on one, and assigning `ndarray.dtype` end the
-        call in a trap, not an exception;
-      - pandas' warnings name a pandas file, not the caller's line;
-      - `np.save` of a masked array writes its data without its mask instead of raising.
-    - **README, "Measured,"** gains a row: numpy's and pandas' own tests, 62,569 passing in the
-      guest (the accepted count), and the number of gaps.
+    - **README, a short "Known defects" list,** until each closes. Spec 051 closed all three
+      (the traps, pandas' warnings, the masked-array save), so on its set the list is gone.
+    - **README, "Measured,"** gains a row: numpy's and pandas' own tests, 63,717 passing in the
+      guest on spec 051's set (the accepted count), and 12 gaps.
     - **CHANGELOG:** one line under the next alpha's "Judge" heading.
 
 19. **Spec 002, amended by dated lines, as spec 029 amended its Decision 5.** Spec 002's states
@@ -615,7 +635,7 @@ So the next `os.dup` is found by the judge and not by a user.
 
     It confirms that the judge's conftest walk and `dirty_path` ignore the links (`build/` and
     `downloads/` are in `NOT_SOURCE`; READ). Its landing notes record the scoreboard line showing
-    the 37 checks ran (11 groups, 18 classes, 7 traps, 1 rule). Criteria 2, 3 and 7 are run
+    the checks ran (on spec 051's set 32: 11 groups, 20 classes, 1 rule). Criteria 2, 3 and 7 are run
     there, and the lane re-runs them in the main tree.
 
 ## Intent
@@ -654,10 +674,11 @@ tests/harness/scoreboard.py          the fewer and more lists; FEWER lines; acce
                                        checks are unrun locally; NOT_MACHINE_CHECKED's new text
 tests/checks/test_v1_3_upstream_suites.py
                                      test_upstream_suite[<group>] (11, slow)
-                                     test_upstream_class[<group>-<class>] (18, slow, gaps today)
-                                     test_upstream_trap[<id>] (7, slow, gaps today)
+                                     test_upstream_class[<group>-<class>] (20, slow; 12 gaps)
+                                     test_upstream_trap[<id>] (slow; defined only while a
+                                       [[trap]] entry exists: none on spec 051's set)
                                      test_upstream_files_are_well_formed (rules, fast)
-tests/known_gaps.toml                25 entries: 18 classes, 7 traps
+tests/known_gaps.toml                12 entries: the classes with members
 tests/unit/test_upstream.py          the stream parser, the sorting, the class lists' +/- findings,
                                        the trap node from S or C lines, the MANIFEST tie, the member
                                        filter, the safe unzip, the argv, on fixed inputs; no guest
@@ -724,14 +745,17 @@ Out:
    The builder records the counts and compares them with Decision 10's table. Any difference is
    explained in the landing notes before a class is written.
 3. **With the TOML, the lists and the gaps complete,** the run on the frozen set gives:
-   - 11 groups `pass`, 18 classes `gap` and 7 traps `gap`;
-   - `passes` per group equal to Decision 8's table (62,569 in all). Any difference is explained
+   - 11 groups `pass`; the classes with members `gap` (12 on spec 051's set), the emptied ones
+     `pass` (8); every trap `gap` (none on spec 051's set);
+   - `passes` per group equal to Decision 8's table (63,717 in all on spec 051's set; 62,569
+     before it). Any difference is explained
      in the landing notes; the guest is the same bytes on every host, so a host is not an
      explanation.
    - each pandas group's `P` line shows `derandomize=True database=None max_examples=15`, and
      each numpy group's shows `derandomize=True database=None`;
    - no `M` line names a product module.
-4. **Traps.** Every `test_upstream_trap[<id>]` fails with exactly one finding,
+4. **Traps.** (On spec 051's set there is none; this held on the set before it.) Every
+   `test_upstream_trap[<id>]` fails with exactly one finding,
    `trap: wasm trap: indirect call type mismatch at <node>`, admitted by its gap. The node of
    `castingimpl-arraymethod` is its collector (a `C` line). Unit checks show three things:
    - a stream that ends after a `C` line names that collector;
@@ -758,8 +782,8 @@ Out:
    - `--accept` with an accepted upstream check unrun locally is refused unless `--partial`.
 7. **Fuel repeats.** The builder runs each group twice in one session; this is a one-off check
    by the builder, not a judge check. The two fuel values are within 0.01%, and the landing
-   notes give both for every group. The notes also sum the 18 checks' fuel against the 1.8×10¹²
-   budget.
+   notes give both for every group. The notes also sum the group and trap checks' fuel against
+   the 1.8×10¹² budget.
 8. `test_upstream_files_are_well_formed` passes, with every rule Decision 17 lists. The caps sum
    to at most 3×10¹².
    - **Unit checks:** an empty list with no gap passes the rule; an empty list with a gap, and a
@@ -779,8 +803,8 @@ Out:
     changes.
     - **Ratchet against the base:** lost 0, grew 0, fewer 0. No existing check's fuel moves: the
       harness changes record, they do not run the guest differently.
-    - **Gained:** 12 (11 groups and the rule). The 25 gaps are on the scoreboard under their
-      closers.
+    - **Gained:** 20 on spec 051's set (11 groups, 8 emptied classes and the rule; 12 before it).
+      The 12 gaps are on the scoreboard under their closers.
     - **Unrun locally:** 0.
     - **The tail:** the scoreboard's last lines carry Decision 17's new "not machine-checked"
       text.
@@ -802,6 +826,10 @@ The time the full judge takes is the owner's to weigh (Decision 15), and the pan
 the knob.
 
 ## Landing notes
+
+The current numbers are spec 051's set's, in the last section ("Rebased onto spec 051 and
+re-derived on its set"). The sections before it record the build and its review on the set
+before 051 (`s-0cdc7b2bd78db6f5`), and keep that set's counts.
 
 Built 2026-10-18 by the builder (Claude Opus 5.5) in the worktree `wasi_python-050`, branch
 `spec/050-upstream-tests`, against the frozen set `s-0cdc7b2bd78db6f5`. Not yet reviewed; the
@@ -999,9 +1027,8 @@ The 38 checks: 12 `pass`, 26 `gap`. Passes 62,569. The groups' fuel sums to
 1,646,467,107,285, 0.07 ppm from the run before the fixes (the fixes run nothing differently in
 the guest).
 
-**Rebased onto spec 051 and re-derived on its set** (2026-10-18, `s-f94dec535086b06c`; EXECUTED;
-in progress: the body's tables, criteria and Design still carry the counts measured on
-`s-0cdc7b2bd78db6f5`, and are made to agree in the next commit).
+**Rebased onto spec 051 and re-derived on its set** (2026-10-18, `s-f94dec535086b06c`; EXECUTED).
+The body's tables, criteria and Design now give these counts beside the earlier set's.
 - **Rebase.** One conflict in `tests/harness/plugin.py`: spec 051 landed a `note(text)` fixture
   first, so this specification's `note(name, value)` is renamed `fact(name, value)`, recorded
   under `facts`. That is the only change to `tests/harness/` from the reviewed code (`guest.py`,
