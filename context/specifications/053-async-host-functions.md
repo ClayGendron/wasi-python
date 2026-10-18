@@ -3,9 +3,10 @@
 - **Status:** drafted 2026-10-18; reviewed before build the same day
   (`../reviews/053-async-host-functions-spec-2026-10-18.md`, written in the lane's evidence
   folder, `build/reviews-evidence/053-review/`, and copied in by the lane; verdict: "ready once
-  F1 to F4 are written in", F5 to F8 small text edits); **revised against its pre-build review;
-  awaiting the reviewer's confirmation** (the section "Revised against the pre-build review"
-  says where each finding went). It changes neither the guest's imports nor its exports, the
+  F1 to F4 are written in", F5 to F8 small text edits); revised against it (the section "Revised
+  against the pre-build review" says where each finding went); **confirmed for build 2026-10-18
+  with conditions C-1 and C-2, written in; builds after 056 lands** (the review's Confirmation:
+  C-1 in Decisions 3 and 4 and criterion 7; C-2 in Decision 4 and the Design). It changes neither the guest's imports nor its exports, the
   artifact set nor the build recipe, so §5.6 asks no review before build. One was asked for
   because it changes how the door waits, as 036's was.
 - **Owner:** Clay Gendron
@@ -68,7 +69,9 @@
 - **The wrapper:** the runner's own coroutine around an awaitable, posted to the tool loop.
   **Its first step** is the first statement it runs, on the loop's thread.
 - **`proceed`:** spec 056's question, asked under the bound's lock: has this call not been
-  answered yet?
+  answered yet? (056's `_Bounded._proceed` takes the lock itself.)
+- **`_start`:** this specification's one locked step (Decision 4): 056's predicate, the started
+  mark and the task, in one acquisition of the bound's lock.
 
 ## The problem
 
@@ -149,13 +152,19 @@ ends.
      `asyncio.run_coroutine_threadsafe`. It then **waits for the wrapper's real end**: an event
      the wrapper sets in its `finally`, waited on in slices of one tick (`TICK_S`). Once the
      wrapper has ended, the work thread encodes the result, as today.
-   - **Three things end the wait:**
+   - **Four things end the wait:**
      1. the wrapper's event;
-     2. the tool loop being closed (`loop.is_closed()`);
-     3. for a private loop, its thread no longer being alive.
+     2. the posted future being done while the slot has not started, read under the bound's
+        lock (the Confirmation's C-1): the wrapper was cancelled before its first step, so its
+        body, its `finally` included, never ran and never will;
+     3. the tool loop being closed (`loop.is_closed()`);
+     4. for a private loop, its thread no longer being alive.
 
-     The second and third make the call a fault (Decision 6). The wait never depends on a
-     loop's selector staying open.
+     After the second, third and fourth, the work thread closes the tool's awaitable if it never
+     started (`close()`, where it has one, so no "never awaited" warning) and answers as
+     Decision 6 says: after the second, `cancelled` if the run is being cancelled, else a fault
+     beginning `"CancelledError"`; after the third and fourth, a fault. The wait never depends on
+     a loop's selector staying open.
    - **Why the wrapper's end, not the posted future.** Cancelling the future that
      `run_coroutine_threadsafe` returns wakes its waiter at once, before the task has ended.
      And a task that catches its `CancelledError` runs on (finding 4, case A4). Waiting on the
@@ -204,20 +213,31 @@ ends.
        `ToolTimeout`, and then the tool's effect ran.
      - So the start of an awaitable is decided **on the loop's thread, at the wrapper's first
        step**. Deciding it at the post is too early.
-   - **The first step.** The wrapper's first statement, before it touches the tool's awaitable,
-     takes the bound's lock and asks `proceed` (spec 056's question: is the call not yet
-     answered?).
-     - If the call is answered, the wrapper closes the awaitable unawaited (`close()`, where it
-       has one, so no "never awaited" warning) and ends. The awaitable never started.
-     - Otherwise, still under the lock, the wrapper marks the slot started and records its own
-       task (`asyncio.current_task()`) in the slot. Then it awaits the awaitable.
-     - The wrapper's `finally` closes the awaitable if it was never started. That covers a
-       `CancelledError` thrown into the wrapper before its first statement ran.
+   - **The first step: one named method, one acquisition of the lock** (the Confirmation's
+     C-2). `_Bounded` gains one method, `_start(slot, task) -> bool`. In a single acquisition of
+     the bound's lock it checks 056's predicate (`not slot.abandoned`, the call not yet
+     answered) and, if that holds, marks the slot started and records `task` in the slot; it
+     returns whether to go on. The wrapper's first statement, before it touches the tool's
+     awaitable, calls only `_start(slot, asyncio.current_task())`.
+     - It must not be built from 056's `_proceed`. `_proceed` takes the lock itself, and the
+       lock is a plain, non-reentrant `threading.Lock`: calling it while holding the lock
+       deadlocks the loop's thread, which under `run_async` is the embedder's event loop (the
+       Confirmation's C3: "thread stuck True"). And `_proceed` followed by a mark in a second
+       acquisition reopens F1: an abandon in the gap sees "not started", cancels nothing, and
+       the task runs after the answer.
+     - If `_start` returns `False`, the wrapper closes the awaitable unawaited (`close()`, where
+       it has one) and ends. The awaitable never started.
+     - Otherwise it awaits the awaitable.
+     - The wrapper's `finally` closes the awaitable if it was never started, on any path through
+       its body. A wrapper cancelled before its first statement runs no part of its body, its
+       `finally` included (the Confirmation's C2, EXECUTED: "its finally ran False; … 1
+       `RuntimeWarning`"); that case is the work thread's to finish, by Decision 3's second
+       end of the wait.
      - The same holds with an eager task factory (Python 3.12 and later), whose first step runs
        inside the post's callback. That is still on the loop's thread, and still the wrapper's
        first statement (INFERRED).
-     - The work thread may also ask `proceed` before posting, to save a post. The wrapper's
-       answer is the one that decides.
+     - The work thread may also ask 056's `_proceed` before posting, outside the lock, to save a
+       post. `_start`'s answer is the one that decides.
    - **Every end cancels a started task.** The bound answers a call without its work at any of
      036's ends: the tool's `timeout_s`; the run's deadline less two ticks; the run's `cancel`
      or the `run_async` task's cancellation; a pending Ctrl-C. It answers the guest at once, as
@@ -268,7 +288,8 @@ ends.
      only makes the coroutine; when `proceed` says no, the function is never called and no
      coroutine exists.
    - **For an awaitable** (a tool's or a gate's), the start is Decision 4's wrapper first step,
-     asked with the same `proceed`. A skipped awaitable is recorded exactly as 056 records a
+     `_start`, which checks the same predicate as `proceed` and marks the start in the same
+     acquisition of the lock. A skipped awaitable is recorded exactly as 056 records a
      skipped tool: an unread `cancelled` answer from the work thread, and no change to the
      record. An async gate's awaitable follows the same rule: a gate that has not started when
      its call is answered never starts.
@@ -474,11 +495,15 @@ src/wasi_python/tools.py     tool(): accepts async functions, refuses async gene
                                  thread whose target owns the loop's life (run_forever, then
                                  cancel, run down, shutdown_asyncgens, close)
                                - run(awaitable, slot): posts the wrapper and waits for its end,
-                                 the loop's closing, or its thread's death
+                                 the posted future done with the slot unstarted, the loop's
+                                 closing, or its thread's death; then closes an unstarted
+                                 awaitable
                                - cancel(slot) and close(): skip a closed loop, never raise
-                             the wrapper: its first step asks proceed under the bound's lock,
-                               then marks the slot started and records its task, or closes the
-                               awaitable unrun
+                             the wrapper: its first step calls only _Bounded._start(slot, task),
+                               then awaits the awaitable or closes it unrun
+                             _Bounded._start(slot, task) -> bool: one acquisition of the lock;
+                               056's predicate, the started mark and the task together (never
+                               built on 056's self-locking _proceed)
                              _Slot: the started mark and the task, under the bound's lock
                              _Work: after the gate (056's proceed) and after the tool, an
                                awaitable result goes to the loop
@@ -605,6 +630,11 @@ check owns stands for the caller's.
      `RuntimeWarning`s.
    - Stand-in: Decision 4 as first drafted (the post made under the lock, and the posted future
      cancelled at the end). The body's counter is 1, the review's R1 and E1.
+   - **The single acquisition** (the Confirmation's C-2). A test hook injected between the
+     predicate and the mark makes the abandon land in that gap. With `_start` as written the
+     body's counter is 0 and the bound never deadlocks. Stand-ins: `_proceed` and then the mark
+     in a second acquisition (the body's counter is 1); `_proceed` called while holding the lock
+     (the loop's thread is stuck, and the check's fail-safe fires).
 6. `test_a_late_gate_skips_an_async_tool`. 056's late-gate case, with an `async def` tool: a
    sync gate blocks on an event past the tool's `timeout_s`, then allows. Once it is released
    and the work thread joined:
@@ -625,6 +655,7 @@ check owns stands for the caller's.
    | raises `KeyboardInterrupt` / `SystemExit` | a fault beginning with its name; the check's loop is still running afterwards (a later call on it answers `ok`) |
    | raises `asyncio.CancelledError` itself, the call's `cancel` unset | `tool_error`, a fault beginning `"CancelledError"` |
    | the same, the call's `cancel` set | `cancelled` |
+   | the wrapper is cancelled before its first step (the check cancels every task on its loop, which stays open, while the loop is held busy and the post waits) | answered (`tool_error`, a fault beginning `"CancelledError"`), with 0 `RuntimeWarning`s, the awaitable `CORO_CLOSED`, and the work thread ended (joined) while the loop is still open (the Confirmation's C-1; stand-in: a wait without the posted future's end, which holds the work thread until the fail-safe) |
    | the frame host's given loop is closed | `tool_error`, a fault beginning `"RuntimeError"`, at once; the awaitable is closed (0 `RuntimeWarning`s) |
    | starting the private loop's thread raises `RuntimeError` (an injected `start`) | `tool_error`, a fault beginning `"RuntimeError"`; the tool-thread count is back |
 
@@ -809,6 +840,30 @@ added (R1 to R5, E1) is cited from the review, under "Research it stands on".
    spawned tasks outlive a `run_async` call; an ignoring task on the caller's loop holds up
    `asyncio.run()`'s shutdown; a private loop's executor threads are not counted (also Decision
    8).
+
+### The Confirmation's conditions (2026-10-18)
+
+The reviewer confirmed the revision (`da7dc72`) for build, once two conditions were written in.
+Both are now in:
+
+- **C-1. A wrapper cancelled before its first step never runs its `finally`** (EXECUTED by the
+  reviewer, `probe_c1.txt`, case C2: "its finally ran False; the posted future ended with
+  CancelledError; RuntimeWarnings 1"). Decision 4 had wrongly said the wrapper's `finally`
+  covers that case.
+  - Written in: Decision 3's wait has a second end: the posted future is done while the slot
+    has not started, read under the bound's lock. The work thread then closes the awaitable and
+    answers as Decision 6 says.
+  - Decision 4 now says that case is the work thread's to finish.
+  - Criterion 7 gains its row.
+- **C-2. One named locked step** (EXECUTED by the reviewer as a model, case C3: "thread stuck
+  True"). 056's `_proceed` takes the non-reentrant lock itself, so calling it under the lock
+  deadlocks the loop's thread, and calling it in a separate acquisition from the mark reopens
+  F1.
+  - Written in: Decision 4 names `_Bounded._start(slot, task) -> bool`, one acquisition that
+    checks 056's predicate, marks the slot started and records the task. The wrapper's first
+    step calls only that.
+  - The Design and Terms say so.
+  - Criterion 5 gains a check with an injected hook in the gap, and the two stand-ins.
 
 ## Landing notes
 
