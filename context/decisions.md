@@ -8,6 +8,21 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 43–48. What else the default profile carries
+
+- **Source:** `research/2026-10-17-what-else-the-default-profile-carries.md` (tiers A to D).
+- **43, answered 2026-10-17:** tiers A and B approved, with their licences (constitution §4.12),
+  tqdm's MPL-2.0 and regex's CNRI-Python included.
+- **44, answered 2026-10-17:** cut the zip's per-member cost first: a research memo, then a
+  specification ("the zip's directory is read once"), before tier A grows the zip.
+- **45, answered 2026-10-17:** sympy (with mpmath) joins the default profile after that fix.
+- **46, answered 2026-10-17:** nothing writable stays the default; the README documents that
+  openpyxl needs a writable folder and that xlsxwriter (or pandas' `engine="xlsxwriter"`) writes
+  in memory.
+- **47, answered 2026-10-17:** pytz is left out; `zoneinfo` is the supported path.
+- **48, answered 2026-10-17:** all of tier B is in 0.1.0: scikit-learn, statsmodels, lxml (with
+  python-docx and python-pptx) and regex, after scipy.
+
 ### The roadmap, and 0.1.0's contents
 
 - **Decided 2026-10-17:** "Matplotlib and scipy are v0.1.0 for sure, and we should probably

@@ -23,6 +23,8 @@
   Amended 2026-10-17 by the owner's decision to keep the roadmap out of
   this document: §2 is the bar every release meets; what each release
   contains, and the order of work, live in `roadmap.md`.
+  Amended 2026-10-17 by the owner's answer to question 43: the default
+  profile's other packages' licences (§4.12).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -166,7 +168,17 @@ works.
     the Adobe AFM and AMS terms, Unicode's data terms); for scipy
     (question 25), Boost.Math and ryu (BSL-1.0), xsf
     (BSD-3-Clause-LBNL), fast_matrix_market (BSD-2-Clause), and scipy,
-    OpenBLAS, LAPACK, HiGHS and ducc0 (BSD/MIT). Each ships with its
+    OpenBLAS, LAPACK, HiGHS and ducc0 (BSD/MIT); for the default
+    profile's other packages (question 43), openpyxl, et-xmlfile,
+    beautifulsoup4, soupsieve, html5lib, pyyaml, tomli-w, tabulate,
+    charset-normalizer, xmltodict, attrs, more-itertools, narwhals,
+    formulaic, interface-meta, libxml2, libxslt, python-docx and
+    python-pptx (MIT), xlsxwriter, patsy and wrapt (BSD-2-Clause),
+    xlrd, webencodings and reportlab (BSD), pypdf, jinja2, markupsafe,
+    networkx, sympy, mpmath, toolz, joblib, cloudpickle, threadpoolctl,
+    seaborn, scikit-learn, statsmodels and lxml (BSD-3-Clause),
+    defusedxml and typing-extensions (PSF-2.0), tqdm (MPL-2.0 AND MIT)
+    and regex (Apache-2.0 AND CNRI-Python). Each ships with its
     notice.
 13. **Tooling.** `uv` only. `ruff check`, `ruff format --check` and
     `pytest` green on `src/` and `tests/` before any landing. No

@@ -10,8 +10,8 @@ feature lands because it is general, whoever asked for it first.
 
 ## 0.1.0: the first release to rely on
 
-Decided by the owner on 2026-10-17: **matplotlib and scipy are in 0.1.0**, and the default
-profile's other packages are to be chosen (below).
+Decided by the owner on 2026-10-17: **matplotlib and scipy are in 0.1.0**, and with them tiers A
+and B of the default-profile memo (decisions 43 to 48).
 
 ### The default profile
 
@@ -21,7 +21,9 @@ profile's other packages are to be chosen (below).
 | numpy, pandas | shipped (0.1.0a1) |
 | matplotlib | M1 specified and confirmed (spec 023); M2 (triangulation, contourpy) next |
 | scipy | researched (`research/2026-10-17-what-scipy-needs.md`, the OpenBLAS memo); its licences, SIMD and placement decided (`decisions.md`, 25 to 31) |
-| others | researched (`research/2026-10-17-what-else-the-default-profile-carries.md`: tiers A to D); to be chosen by the owner (questions 43 to 48) |
+| tier A: about thirty pure-Python packages (Excel, PDF, HTML, YAML, templates, graphs, sympy, seaborn, reportlab) | approved (decisions 43 to 45); after the zip's per-member cost is cut, and after matplotlib M1 |
+| tier B: scikit-learn, statsmodels, lxml (with python-docx and python-pptx), regex | approved for 0.1.0 (decision 48); native builds after scipy |
+| left out of 0.1.0 | pytz (decision 47); Rust packages, pyarrow, polars, duckdb, plotly (later, or a profile); network libraries |
 
 ### Milestones
 
@@ -32,7 +34,12 @@ profile's other packages are to be chosen (below).
    decided from M1's measurements (question 34).
 3. **scipy** in the default build (decision 30), with OpenBLAS's C LAPACK made consistent by a
    carried patch until its next release.
-4. **The rest of the default profile,** as chosen.
+4. **The rest of the default profile** (`research/2026-10-17-what-else-the-default-profile-carries.md`,
+   "The order of specifications"): the zip keeps what packages need (metadata, a wider `ctypes`
+   stand-in); the zip's directory is read once, researched and then specified, before the zip
+   grows (decision 44); tier A, sympy included; pandas' Styler from a zip; then on the scipy
+   line scikit-learn, statsmodels, lxml with python-docx and python-pptx, and regex. Excel
+   output with nothing writable is documented (decision 46).
 5. **The agent runtime's features,** as the owner places them (below).
 6. **Hardening:** a security review against the threat model, extended to every new surface;
    x86_64 Linux rebuilds byte-identical; numpy's and pandas' own test subsets under the
