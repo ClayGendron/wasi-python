@@ -209,6 +209,7 @@ CACHE_PROBE = (
     "done = run(['-c', 'pass'], root=sys.argv[1], cache_dir=sys.argv[2])\n"
     "print(json.dumps([done.exit_code, runner.stats()]))\n"
 )
+NO_TOOL_THREADS = {"tool_threads_running": 0}  # stats() also counts tool threads (spec 036)
 
 
 def test_runner_caches_the_compiled_module(guest_workdir) -> None:
@@ -216,8 +217,8 @@ def test_runner_caches_the_compiled_module(guest_workdir) -> None:
     _runner()
     cache = Path(tempfile.mkdtemp(prefix="cache-", dir=guest_workdir))
     seen = [_cache_probe(guest_workdir, cache)[0] for _ in range(2)]
-    assert seen[0] == [0, {"compiled": 1, "loaded": 0, "written": 1}], seen
-    assert seen[1] == [0, {"compiled": 0, "loaded": 1, "written": 0}], seen
+    assert seen[0] == [0, {"compiled": 1, "loaded": 0, "written": 1, **NO_TOOL_THREADS}], seen
+    assert seen[1] == [0, {"compiled": 0, "loaded": 1, "written": 0, **NO_TOOL_THREADS}], seen
     assert len(list(cache.glob("*.cwasm"))) == 1
 
 
@@ -261,8 +262,14 @@ def test_fuel_does_not_depend_on_the_module_cache(guest_workdir) -> None:
         assert out.returncode == 0, out.stderr
         seen.append(json.loads(out.stdout))
     (code_a, fuel_a, stats_a), (code_b, fuel_b, stats_b) = seen
-    assert (code_a, stats_a) == (0, {"compiled": 1, "loaded": 0, "written": 1}), seen
-    assert (code_b, stats_b) == (0, {"compiled": 0, "loaded": 1, "written": 0}), seen
+    assert (code_a, stats_a) == (
+        0,
+        {"compiled": 1, "loaded": 0, "written": 1, **NO_TOOL_THREADS},
+    ), seen
+    assert (code_b, stats_b) == (
+        0,
+        {"compiled": 0, "loaded": 1, "written": 0, **NO_TOOL_THREADS},
+    ), seen
     assert abs(fuel_a - fuel_b) < 1_000_000, f"compiled {fuel_a:,}, loaded {fuel_b:,}"
 
 
@@ -276,11 +283,11 @@ def test_runner_refuses_a_cache_others_can_write(guest_workdir) -> None:
     cache.chmod(0o777)
     seen, stderr = _cache_probe(guest_workdir, cache)
     if os.name == "posix":
-        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 0}], seen
+        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 0, **NO_TOOL_THREADS}], seen
         assert "not using the module cache" in stderr, stderr
         assert list(cache.iterdir()) == []
     else:
-        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 1}], seen
+        assert seen == [0, {"compiled": 1, "loaded": 0, "written": 1, **NO_TOOL_THREADS}], seen
 
 
 def _zip() -> str:
@@ -1980,3 +1987,497 @@ def test_the_zip_carries_the_host_package(artifacts) -> None:
     )
     recipes = artifacts.manifest().recipes
     assert {"recipes/guest/host/__init__.py", "recipes/guest/host/tools.py"} <= set(recipes)
+
+
+# -------------------------------------------------------------------------------------------------
+# Tools in the runner (spec 036): run(tools=…), the door's cap before the copy, the bound of one
+# tool call, and the record in the result. A tool that must block waits on an event the check
+# sets; a short timeout_s only chooses the outcome. Nothing here measures time.
+
+
+def _tool_threads() -> list[threading.Thread]:
+    return [t for t in threading.enumerate() if t.name.startswith("wasi-python-tool-")]
+
+
+def _join_tool_threads() -> None:
+    for t in _tool_threads():
+        t.join(60)  # a fail-safe, not a timing: each check releases its tools first
+
+
+@pytest.fixture
+def release():
+    """An event the check's blocking tools wait on, set at the end, and their threads joined, so
+    no check leaves a tool thread for the next one to count."""
+    event = threading.Event()
+    yield event
+    event.set()
+    _join_tool_threads()
+
+
+def _outcomes(done) -> list[tuple]:
+    return [(o.op, o.tool, o.outcome) for o in done.tools.outcomes]
+
+
+def test_a_guest_calls_a_tool(guest_workdir) -> None:
+    """Criterion 4: `run(tools=…)`; the guest imports and calls two tools, one result fed to
+    pandas; the record is in the result, on an exit and on a trap; none without tools=."""
+    run = _runner()
+    done = run(["-c", TOOL_PROGRAM], tools=_region_tools())
+    assert (done.exit_code, done.stdout) == (0, b"EMEA 60 ['month', 'sales']\nb'\\x00cba'\n"), done
+    assert _outcomes(done) == [
+        ("list", None, "ok"),
+        ("call", "lookup_region", "ok"),
+        ("call", "reverse", "ok"),
+    ]
+    assert (done.tools.frames, done.tools.unlisted) == (3, 0)
+    assert run(["-c", "pass"]).tools is None
+    spin = "from host import tools\ntools.reverse(b'x')\nwhile True: pass\n"
+    done = run(["-c", spin], tools=_region_tools(), fuel=10**9)
+    assert (done.exit_code, done.trapped) == (None, "out of fuel"), done
+    assert _outcomes(done) == [("list", None, "ok"), ("call", "reverse", "ok")]
+
+
+HUGE_FRAMES = """
+import _host, json
+frame = bytes(256 * 2**20)
+for _ in range(4):
+    print(json.loads(_host.call(frame))["error"]["kind"])
+"""
+
+
+def test_a_huge_frame_is_answered_unread(guest_workdir) -> None:
+    """Criterion 5: under tools=, four frames of 256 MiB are each answered `too_large` from
+    their length alone (the door asks before it copies), and the run exits 0."""
+    run = _runner()
+    done = run(["-c", HUGE_FRAMES], tools=_region_tools())
+    assert (done.exit_code, done.stdout) == (0, b"too_large\n" * 4), done
+    assert [(o.op, o.outcome, o.request_bytes) for o in done.tools.outcomes] == [
+        (None, "too_large", 268_435_456)
+    ] * 4
+
+
+GATED = """
+from host import tools
+try:
+    tools.count(n=3)
+except PermissionError as e:
+    print(type(e).__name__, e)
+"""
+
+
+def test_a_gate_refuses_before_the_tool_runs(guest_workdir) -> None:
+    """Criterion 6: the gate refuses; the guest catches `PermissionError` with the gate's
+    message, the tool never runs, and the record says `denied`."""
+    from wasi_python.tools import ToolDenied, tool
+
+    run = _runner()
+    calls = []
+
+    @tool
+    def count(n: int) -> int:
+        """Count."""
+        calls.append(n)
+        return n
+
+    def gate(call):
+        raise ToolDenied(f"{call.tool.name} is not allowed today")
+
+    done = run(["-c", GATED], tools=[count], gate=gate)
+    assert (done.exit_code, done.stdout) == (0, b"ToolDenied count is not allowed today\n"), done
+    assert calls == []
+    last = done.tools.outcomes[-1]
+    assert (last.outcome, last.message) == ("denied", "count is not allowed today")
+
+
+FAULTY = """
+from host import tools
+try:
+    tools.open_db()
+except Exception as e:
+    print(type(e).__name__, e)
+tools.open_db()
+"""
+
+
+def test_a_tool_fault_stays_on_the_host(guest_workdir) -> None:
+    """Criterion 7: a tool raises KeyError naming a host path. The guest is told only that the
+    tool failed; the path stays in the host's record."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+    secret = "/srv/private/customers-4417.db"
+
+    @tool
+    def open_db() -> int:
+        """Open the database."""
+        raise KeyError(secret)
+
+    done = run(["-c", FAULTY], tools=[open_db])
+    assert done.exit_code == 1, done
+    assert done.stdout == b"ToolError open_db failed (internal error)\n", done
+    assert secret.encode() not in done.stdout + done.stderr
+    assert b"open_db failed (internal error)" in done.stderr
+    assert all(o.fault.startswith("KeyError") for o in done.tools.outcomes[1:]), done.tools
+    assert secret in done.tools.outcomes[-1].fault
+
+
+BUDGET = """
+from host import tools, ToolBudgetExceeded
+seen = []
+for i in range(6):
+    try:
+        seen.append(tools.reverse(b"ab"))
+    except ToolBudgetExceeded:
+        seen.append("budget")
+print(seen)
+"""
+
+
+def test_the_tool_call_limit_holds(guest_workdir) -> None:
+    """Criterion 8: `max_tool_calls=3` counts every frame, discovery included: of seven frames,
+    three are answered and four refused; the guest runs on."""
+    run = _runner()
+    done = run(["-c", BUDGET], tools=_region_tools(), max_tool_calls=3)
+    assert done.exit_code == 0, done
+    assert done.stdout == b"[b'ba', b'ba', 'budget', 'budget', 'budget', 'budget']\n", done
+    assert done.tools.frames == 7
+    assert [o.outcome for o in done.tools.outcomes] == ["ok"] * 3 + ["budget_exceeded"] * 4
+
+
+LATE = """
+from host import tools
+try:
+    tools.a()
+except TimeoutError as e:
+    print(type(e).__name__, e)
+print(tools.b())
+"""
+
+
+def test_a_tool_timeout_ends_the_call_not_the_run(guest_workdir, release) -> None:
+    """Criterion 9: A times out and the guest runs on; B releases A and waits until A's late
+    result has arrived, so it arrives while B's call is in flight; the guest gets B's answer."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+
+    @tool(timeout_s=0.05)
+    def a() -> str:
+        """Wait for the check."""
+        release.wait()
+        return "A's late result"
+
+    @tool
+    def b() -> str:
+        """Release A, wait for its late result, then answer."""
+        release.set()
+        for t in _tool_threads():
+            if t.name == "wasi-python-tool-a":
+                t.join(60)
+        return "B's answer"
+
+    done = run(["-c", LATE], tools=[a, b])
+    assert done.stdout == b"ToolTimeout a timed out after 0.05 s\nB's answer\n", done
+    outcomes = done.tools.outcomes
+    assert [(o.tool, o.outcome, o.abandoned) for o in outcomes[1:]] == [
+        ("a", "timeout", True),
+        ("b", "ok", False),
+    ]
+
+
+PAST_THE_DEADLINE = r"""
+import threading
+import wasi_python
+from wasi_python.tools import tool
+
+release = threading.Event()
+
+
+@tool
+def block() -> int:
+    "Wait for the check, which releases it only after run returns."
+    release.wait()
+    return 1
+
+
+done = wasi_python.run(["-c", "from host import tools\ntools.block()\n"], tools=[block],
+                       deadline_s=3)
+release.set()
+last = done.tools.outcomes[-1]
+print(last.tool, last.outcome, last.abandoned)
+"""
+
+
+def test_a_tool_blocking_past_the_deadline_is_answered() -> None:
+    """Criterion 10: a tool with no timeout_s blocks past the run's deadline; the call is
+    answered `timeout` two ticks before it, so `run` returns. Whether the guest then traps or
+    exits is not asserted: it may finish within the last two ticks. In a child process, with a
+    120 s fail-safe."""
+    assert _child(PAST_THE_DEADLINE) == ["block timeout True"]
+
+
+SIX_CALLS = """
+from host import tools
+for i in range(6):
+    try:
+        tools.stall()
+    except TimeoutError as e:
+        print(e)
+"""
+
+
+def test_abandoned_tools_are_bounded_per_call(guest_workdir, release) -> None:
+    """Criterion 11: four abandoned calls, then two answered at once without starting; the tool
+    threads are counted in `runner.stats()` until they end."""
+    from wasi_python import runner
+    from wasi_python.tools import tool
+
+    run = _runner()
+    starts = []
+
+    @tool(timeout_s=0.05)
+    def stall() -> int:
+        """Wait for the check."""
+        starts.append(1)
+        release.wait()
+        return 1
+
+    before = runner.stats()["tool_threads_running"]
+    done = run(["-c", SIX_CALLS], tools=[stall])
+    assert done.exit_code == 0, done
+    lines = done.stdout.decode().splitlines()
+    assert (
+        lines
+        == ["stall timed out after 0.05 s"] * 4
+        + ["stall timed out: 4 earlier tool calls are still running"] * 2
+    ), lines
+    outcomes = done.tools.outcomes[1:]
+    assert [(o.outcome, o.abandoned) for o in outcomes] == [("timeout", True)] * 4 + [
+        ("timeout", False)
+    ] * 2
+    assert len(starts) == 4
+    assert runner.stats()["tool_threads_running"] == before + 4
+    release.set()
+    _join_tool_threads()
+    assert runner.stats()["tool_threads_running"] == before
+
+
+STALL_FOUR = """
+from host import tools
+for i in range(4):
+    try:
+        tools.stall()
+    except TimeoutError:
+        pass
+print("A done")
+"""
+
+
+def test_one_calls_stalled_tools_do_not_starve_another(guest_workdir, release) -> None:
+    """Criterion 12: call A leaves four tool threads stalled; call B, on another thread, then
+    gets its tool's answer. With a shared pool of four, B's tool would wait behind A's."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+
+    @tool(timeout_s=0.05)
+    def stall() -> int:
+        """Wait for the check."""
+        release.wait()
+        return 1
+
+    @tool(timeout_s=5)
+    def instant() -> str:
+        """Answer at once."""
+        return "now"
+
+    results: dict[str, object] = {}
+
+    def call(key, code, tools) -> None:
+        results[key] = run(["-c", code], tools=tools)
+
+    a = threading.Thread(target=call, args=("A", STALL_FOUR, [stall]))
+    a.start()
+    a.join()
+    b = threading.Thread(
+        target=call, args=("B", "from host import tools\nprint(tools.instant())", [instant])
+    )
+    b.start()
+    b.join()
+    assert results["A"].stdout == b"A done\n", results["A"]
+    assert [o.abandoned for o in results["A"].tools.outcomes[1:]] == [True] * 4
+    assert results["B"].stdout == b"now\n", results["B"]
+    assert results["B"].tools.outcomes[-1].outcome == "ok"
+
+
+TOOL_CANCEL = r"""
+import sys, threading
+import wasi_python
+from wasi_python.tools import tool
+
+started, cancel, release = threading.Event(), threading.Event(), threading.Event()
+
+
+@tool
+def block() -> int:
+    "Wait for the check."
+    started.set()
+    release.wait()
+    return 1
+
+
+def check():
+    started.wait()
+    cancel.set()
+
+
+code = "from host import tools\ntools.block()\nprint('after the tool')\n"
+case = sys.argv[1]
+if case == "cancel":
+    threading.Thread(target=check, daemon=True).start()
+    r = wasi_python.run(["-c", code], tools=[block], cancel=cancel, deadline_s=None, fuel=10**15)
+    last = r.tools.outcomes[-1]
+    print(r.trapped, r.exit_code, r.fuel_used, r.stdout, last.outcome, last.abandoned)
+elif case == "ctrl-c":
+    import signal
+
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # a parent may have ignored it
+    starts = []
+
+    @tool(name="block")
+    def counted() -> int:
+        "Wait for the check."
+        starts.append(1)
+        started.set()
+        release.wait()
+        return 1
+
+    def interrupt():
+        started.wait()
+        signal.raise_signal(signal.SIGINT)  # os.kill on Windows would end the process
+
+    threading.Thread(target=interrupt, daemon=True).start()
+    try:
+        r = wasi_python.run(["-c", code], tools=[counted], deadline_s=None)
+        print("returned", r.trapped)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt", len(starts))
+elif case == "async":
+    import asyncio, concurrent.futures
+
+    pool = concurrent.futures.ThreadPoolExecutor(1)  # a new call runs only if the worker is free
+
+    async def main():
+        call = wasi_python.run_async(
+            ["-c", code], tools=[block], deadline_s=None, executor=pool
+        )
+        task = asyncio.create_task(call)
+        await asyncio.to_thread(started.wait, 120)
+        task.cancel()
+        try:
+            await task
+            print("not cancelled")
+        except asyncio.CancelledError:
+            print("cancelled while the tool blocks", not release.is_set())
+        print((await wasi_python.run_async(["-c", "print('next')"], executor=pool)).stdout)
+
+    asyncio.run(main())
+"""
+
+
+def test_a_cancel_during_a_tool_call_is_named() -> None:
+    """Criterion 13: `cancel` set while a tool blocks: the call is answered `cancelled` within a
+    tick and the run is named "cancelled", with no exit code, no fuel count and nothing the
+    guest would print after the call. In a child process, with a 120 s fail-safe. The answer
+    comes inside CANCEL_TICKS, so this is not a check of spec 030's overdue path."""
+    assert _child(TOOL_CANCEL, "cancel") == ["cancelled None None b'' cancelled True"]
+
+
+def test_ctrl_c_during_a_tool_call() -> None:
+    """Criterion 14: Ctrl-C on the main thread while a tool blocks: `run` raises
+    KeyboardInterrupt, the tool started once, and the child exits though its tool still
+    blocks (its thread is a daemon)."""
+    assert _child(TOOL_CANCEL, "ctrl-c") == ["KeyboardInterrupt 1"]
+
+
+def test_cancelling_an_async_call_during_a_tool_call() -> None:
+    """Criterion 15: the task awaiting `run_async` is cancelled while its tool blocks; it raises
+    `CancelledError` with the tool still blocked, and the one worker is free for the next
+    call."""
+    assert _child(TOOL_CANCEL, "async") == [
+        "cancelled while the tool blocks True",
+        "b'next\\n'",
+    ]
+
+
+def test_tools_run_off_the_guests_thread(guest_workdir) -> None:
+    """Criterion 16: a tool runs on its own thread, in a copy of the caller's context."""
+    import contextvars
+
+    from wasi_python.tools import tool
+
+    run = _runner()
+    request = contextvars.ContextVar("request")
+    seen = []
+
+    @tool
+    def where() -> str:
+        """Say what it sees."""
+        seen.append(threading.get_ident())
+        return request.get("no context")
+
+    def call():
+        request.set("from the caller")
+        return run(["-c", "from host import tools\nprint(tools.where())"], tools=[where])
+
+    done = contextvars.copy_context().run(call)
+    assert done.stdout == b"from the caller\n", done
+    assert seen and seen[0] != threading.get_ident()
+
+
+TWO_CALLS = "from host import tools\nprint(tools.nap(1), tools.nap(2))\n"
+
+
+def test_fuel_is_exact_across_tool_calls(guest, guest_workdir) -> None:
+    """Criterion 17: fuel counts only the guest's instructions. One program, two tool calls,
+    run twice with its tools sleeping different amounts: the same fuel.
+
+    The equality is read through the judge's driver, whose clock and entropy are fixed, with the
+    frame host and bound `run(tools=…)` builds as its host. Through `run` the guest reads the
+    real clock and real entropy, which move even `-c pass` by about 150,000 (spec 036's landing
+    notes; the cache check above says the same), so there it is checked only that a run with
+    tool calls still reports its fuel."""
+    import time
+
+    from wasi_python import runner
+    from wasi_python.tools import tool
+
+    pause = {"s": 0.0}
+
+    @tool
+    def nap(n: int) -> int:
+        """Sleep a little: a perturbation, not a measurement."""
+        time.sleep(pause["s"])
+        return n
+
+    used = []
+    for pause["s"] in (0.05, 0.0):
+        c = {"tools": (nap,), "gate": None, "tool_calls": 1000}
+        host = runner._tool_host(c, None, None)
+        r = guest("snapshot", ["-c", TWO_CALLS], host=host)
+        assert (r.exit_code, r.stdout) == (0, b"1 2\n"), r.describe()
+        assert [o.outcome for o in host.record.outcomes] == ["ok"] * 3
+        used.append(r.fuel)
+    assert used[0] == used[1], used
+    done = _runner()(["-c", TWO_CALLS], tools=[nap], fuel=10**12)
+    assert (done.exit_code, done.stdout) == (0, b"1 2\n"), done
+    assert isinstance(done.fuel_used, int) and done.fuel_used > 0, done
+
+
+def test_no_tools_no_protocol(guest_workdir) -> None:
+    """Criterion 18: without tools=, `from host import tools` raises ImportError with 031's
+    message; the raw door is unchanged (every host= check above)."""
+    run = _runner()
+    done = run(["-c", "from host import tools"])
+    assert done.exit_code == 1, done
+    assert b"ImportError: this run has no tools: the embedder passed none" in done.stderr, done

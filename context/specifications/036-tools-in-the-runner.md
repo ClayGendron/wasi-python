@@ -1,6 +1,7 @@
 # 036 — Tools in the runner
 
-- **Status:** drafted 2026-10-17, split from spec 031 by its pre-build review
+- **Status:** built 2026-10-18 on `spec/036-tools-in-the-runner` (Landing notes); awaiting its
+  build review. Drafted 2026-10-17, split from spec 031 by its pre-build review
   (`../reviews/031-a-tool-protocol-over-the-door-spec-2026-10-17.md`, finding 10). The review's
   findings 1, 2, 7, 9, 11 and 12 that concern the runner are answered here. It changes neither
   the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no
@@ -285,4 +286,241 @@ the run's deadline, and at most 4 abandoned tools per call). Nothing waits on it
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer (a builder agent, Claude Opus 5.5), in the worktree
+`wasi_python-036` on `spec/036-tools-in-the-runner`, from main at `64663de` (031 accepted),
+against main's frozen artifact set `build/sets/s-0cdc7b2bd78db6f5` (never rebuilt;
+`WASI_PYTHON_ARTIFACTS` pointed at it), darwin-arm64, wasmtime-py 49.0.0. Each claim is EXECUTED
+unless it says otherwise. The worktree's `build/` and the scratch folder are not kept, so the
+lines that matter are quoted here. Not yet reviewed.
+
+**What changed.**
+- `src/wasi_python/runner.py`:
+  - `run` and `run_async` take `tools=`, `gate=` and `max_tool_calls=`. `_checked` calls the new
+    `_check_tools` first: an iterable of `Tool`s or functions (a function goes through `tool()`),
+    names unique, the gate callable and not a coroutine function (031's `_is_async`), the limit by
+    `_integer_limit`; `host=` with `tools=`, and `gate=` or an explicit `max_tool_calls=` without
+    `tools=`, raise `TypeError`. `wasi_python.tools` is imported only when `tools` is given.
+  - `Defaults.tool_calls = 1000` (after `file_calls`), checked by `_integer_limit`; `None` means
+    no limit, as for every other limit, and the docstring and README say so (the 031 build
+    review's F7).
+  - `_has_guest_package(manifest)`, cached per path and `_stamp` (no lock); `_run_checked`
+    raises `ArtifactsMissing` naming `recipe … recipes/guest/host/tools.py` before the grants
+    are walked.
+  - `_door(host, admit=None)`: after the address check, `admit(length)`; bytes it returns are
+    the answer and `memory.read` is never called. `_Call(..., admit=None)` passes it on.
+  - `_tool_host(c, stop_at, cancel)` builds the call's `_ToolHost` with a `_Bounded` invoke
+    (`TICK_S`, `stop_at`, the ticker's count, `cancel`, `_ctrl_c_now`, `_count_tool_threads`).
+    `_instance` calls it right after `stop_at` is read, makes the frame host the call's `host`
+    and its `admit` the door's, and puts `tool_host.record` in `Completed`, after the store is
+    closed, on every ending.
+  - `Completed.tools: ToolRecord | None = None`, last.
+  - `stats()` gains `"tool_threads_running"`, from `_tool_threads` under `_tool_threads_lock`;
+    `_after_fork_in_child` makes that lock anew and sets the count to 0 (Decision 8). The
+    `MANIFEST` cache has no lock, so the fork hook does nothing else for it.
+- `src/wasi_python/tools.py`: `MAX_ABANDONED = 4`, `DEADLINE_MARGIN_TICKS = 2`; `_Slot` (one per
+  tool call); `_Bounded`, the invoke of Decisions 3 to 5; `_Interrupted` gains `message` and
+  `fault` (defaults `None`, so 031's two-field use still works), and `_ToolHost` records them.
+- Judge: `tests/unit/test_runner_tools.py` (new; criteria 1 to 3 and guards); 15 checks appended
+  to `tests/checks/test_v1_4_embedding.py` (criteria 4 to 18); and three existing cache checks
+  in that file (`test_runner_caches_the_compiled_module`,
+  `test_fuel_does_not_depend_on_the_module_cache`, `test_runner_refuses_a_cache_others_can_write`)
+  now expect `stats()`'s new key (`**NO_TOOL_THREADS`, `{"tool_threads_running": 0}`). That last
+  edit is a judge change the spec requires (Decision 5 adds the key); the lane accepts it with
+  `--accept-judge`.
+- `README.md`: *Tools* (the API, capabilities, the gate, the record, errors and `bool(...)` for
+  numpy's `bool_`, the limits, own threads, time, abandoned tools and the per-run bound, the
+  count in `stats()`, the refusals, two recipes); *Running it* names the new arguments and
+  `tools`; *The tool protocol* no longer says "a later release". `CHANGELOG.md`: one entry.
+
+**Choices where the spec was silent, or read one way.**
+- **"Less than two ticks left."** The bound's deadline end is reached when the ticker's count is
+  at or past `stop_at - 2`. It is checked before the work starts too, so a call with two ticks
+  or fewer left is answered `timeout` at once ("<name> timed out: the run's deadline is too near
+  to start it"), with no gate or tool run. With exactly two left, starting the work would only
+  abandon it at the first slice.
+- **Ends checked before the start.** A pending Ctrl-C or a set `cancel` also answers
+  `cancelled` at once, unstarted (`abandoned=False`), as does the quota.
+- **Order of the ends** in each slice: a delivered result first (if the work finished, its
+  answer stands, even at an end); then Ctrl-C, `cancel`, the deadline, `timeout_s`.
+- **Messages:** "<name> timed out after 0.05 s" (`timeout_s`, by `:g`), "<name> timed out at
+  the run's deadline", "<name> timed out: 4 earlier tool calls are still running", "<name> was
+  cancelled". They name the configured limit, never a measured time.
+- **The 031 build review's F5** (the catch-all). `_Bounded.__call__` never raises an
+  `Exception`: before its thread starts, a fault is a `tool_error` `_Done` ("(internal error)",
+  `fault` named); after, it is `_Interrupted("tool_error", abandoned=True, …)` with the fault,
+  so the record keeps `op`, `tool` and says the tool may still run; if the work had already
+  finished, its own answer stands. A `BaseException` (an embedder's own SIGINT handler raising
+  `KeyboardInterrupt` in the wait) passes through, as for a raw `host=`: spec 011's stop.
+  Checked by `test_a_fault_in_the_bound_keeps_the_call_in_the_record`.
+- **The 031 build review's F7.** `max_tool_calls=None` is exposed and documented as "no limit"
+  (docstring, README *Tools*); the default is 1,000. numpy's `bool_`: the README says to return
+  `bool(df["x"].any())`.
+- **Thread names.** Each tool thread is `wasi-python-tool-<name>`, so checks join them.
+- **The count's timing.** A thread is counted in before `start()` (out again if `start()`
+  raises) and counted out in its last `finally`, so `stats()` can read one high for an instant
+  while a thread exits; the checks join the threads before they read it.
+
+**Seen failing first.** Before any code: `tests/unit/test_runner_tools.py` gave `30 failed`
+(each `TypeError: run() got an unexpected keyword argument 'tools'`, or `runner` lacking the
+new names). The 16 tool-named checks of `test_v1_4_embedding.py` gave `14 failed, 2 passed`:
+every new check failed on `unexpected keyword argument 'tools'` (in process or in its child)
+except `test_no_tools_no_protocol`, which uses no new name and guards 031's behaviour; the
+other pass was an unrelated check the `-k` filter caught. After the code, the three cache
+checks failed on the new key, as expected (`{'compiled': 1, 'loaded': 0, 'written': 1,
+'tool_threads_running': 0} != {...}`), before their expectation was updated. Then each named
+stand-in was applied to the built code, the checks run, and the files restored byte for byte
+(`restored True`):
+
+| stand-in | its checks, failing |
+|---|---|
+| `admit` called after `memory.read` (c2) | `test_the_door_refuses_by_length_before_reading`, `test_a_frame_host_behind_the_door_counts_a_refused_frame_unread` |
+| a bound that lets the start's exception out (c3) | `test_a_thread_that_cannot_start_is_a_fault` |
+| a frame host that does not count discovery (c8) | `test_the_tool_call_limit_holds` (`[b'ba', b'ba', b'ba', 'budget', …]`) |
+| one result slot per frame host (c9) | `test_a_tool_timeout_ends_the_call_not_the_run` (exit 1), `test_a_late_result_is_dropped_and_each_call_gets_its_own` |
+| a bound by `timeout_s` alone (c10) | `test_a_tool_blocking_past_the_deadline_is_answered` (`TimeoutExpired`, 120 s) |
+| no quota on abandoned threads (c11, not named by the spec) | `test_abandoned_tools_are_bounded_per_call` |
+| a shared pool of four threads (c12) | `test_one_calls_stalled_tools_do_not_starve_another` (B's tool timed out at its 5 s: exit 1, empty stdout) |
+| a bound that does not watch `cancel` (c15) | `test_cancelling_an_async_call_during_a_tool_call`, `test_a_cancel_during_a_tool_call_is_named` (both `TimeoutExpired`) |
+
+**Acceptance, with evidence.** Unit (`tests/unit/test_runner_tools.py`, 30 tests, all pass):
+1. `test_run_refuses_mistakes_before_anything_runs` (17 cases, each through `run` and through
+   `run_async` with an executor whose `submit` must not be reached; `find_artifacts` replaced
+   by one that fails if called): `host=` with `tools=` (twice, one with `tools=[]`); `gate=`
+   and `max_tool_calls=` (`10` and `None`) without `tools=`; duplicate names (two `Tool`s, two
+   plain functions); a gate of `5`; a coroutine gate; `max_tool_calls` of `True`, `-1`, `2**63`,
+   `"10"`; `tools="lookup"`, `tools=<a Tool>`, `tools=[5]`, a function without hints.
+   `test_the_tool_call_limit_has_a_default`: `DEFAULTS.tool_calls == 1000` and
+   `Defaults(1 << 30, 60.0, 16 << 20).tool_calls == 1000`. `test_an_artifact_set_without_the_
+   guest_package_is_refused`: `ArtifactsMissing` matching `recipe … recipes/guest/host/tools.py`,
+   with `_walk_grants` never called; the cache answers again after the file's stamp changes.
+2. `test_the_door_refuses_by_length_before_reading`: refusing `admit`: 0 reads, its bytes
+   written; passing `admit`: 1 read; no `admit`: 1 read; addresses past memory: `HOST_FAULT`,
+   `admit` not called. `test_a_frame_host_behind_the_door_counts_a_refused_frame_unread`: a
+   1 MiB + 1 frame and a frame past `max_calls=1`, both answered with 0 reads.
+3. `test_the_bound_answers_in_order` (the four ends: `timeout_s`, the deadline less two ticks
+   by a fake ticker, `cancel`, the Ctrl-C flag through the runner's own `_tool_host`, the flag
+   still `True` afterwards); `test_too_little_time_or_too_many_abandoned_answers_at_once`
+   (one tick left: no gate, no tool; three left: starts; six calls: 4 started, 4 abandoned, 2
+   at once with the quota's message; a slot frees when its thread ends);
+   `test_a_thread_that_cannot_start_is_a_fault` (`fault` begins `"RuntimeError"`, message
+   "slow failed (internal error)", nothing raised, the count back to 0). Also
+   `test_a_late_result_is_dropped_and_each_call_gets_its_own`,
+   `test_a_fault_in_the_bound_keeps_the_call_in_the_record`,
+   `test_the_tool_runs_in_a_copy_of_the_callers_context`,
+   `test_stats_counts_tool_threads_and_the_fork_hook_resets_it`,
+   `test_completed_has_no_tool_record_by_default`.
+
+End to end (`tests/checks/test_v1_4_embedding.py`, the frozen set), all pass:
+
+4. `test_a_guest_calls_a_tool`: stdout `EMEA 60 ['month', 'sales']\nb'\x00cba'\n`; outcomes
+   `list ok`, `call lookup_region ok`, `call reverse ok`; `tools is None` without `tools=`; a
+   guest that calls `reverse` and spins under `fuel=10**9` returns `trapped == "out of fuel"`
+   with outcomes `list ok`, `call reverse ok` (C6).
+5. `test_a_huge_frame_is_answered_unread`: `b"too_large\n" * 4`, exit 0, four outcomes
+   `(None, "too_large", 268435456)`.
+6. `test_a_gate_refuses_before_the_tool_runs`: stdout `ToolDenied count is not allowed today`;
+   the tool never ran; last outcome `denied` with that message.
+7. `test_a_tool_fault_stays_on_the_host`: stdout `ToolError open_db failed (internal error)`,
+   exit 1 (the second, uncaught call); the path is in neither stream; every call's `fault`
+   begins `KeyError` and holds the path.
+8. `test_the_tool_call_limit_holds`: `[b'ba', b'ba', 'budget', 'budget', 'budget', 'budget']`,
+   `frames == 7`, three `ok` and four `budget_exceeded`.
+9. `test_a_tool_timeout_ends_the_call_not_the_run`: stdout `ToolTimeout a timed out after
+   0.05 s\nB's answer\n`; outcomes A `timeout` abandoned, B `ok`. B sets the event and joins
+   A's thread (`wasi-python-tool-a`) before it returns, so A's late result lands while B's
+   call is in flight.
+10. `test_a_tool_blocking_past_the_deadline_is_answered` (child): `block timeout True`.
+11. `test_abandoned_tools_are_bounded_per_call`: four "stall timed out after 0.05 s", two
+    "stall timed out: 4 earlier tool calls are still running"; abandoned `[True]*4 + [False]*2`;
+    4 starts; `tool_threads_running` 4 above its value before the call, and back once the event
+    is set and the threads are joined.
+12. `test_one_calls_stalled_tools_do_not_starve_another`: A (`A done`, 4 abandoned) on one
+    thread, then B on another: `now`, outcome `ok`.
+13. `test_a_cancel_during_a_tool_call_is_named` (child): `cancelled None None b'' cancelled
+    True`.
+14. `test_ctrl_c_during_a_tool_call` (child, main thread, SIGINT raised from a helper thread
+    once the tool has started): `KeyboardInterrupt 1`; the child exits 0 though the tool's
+    thread still blocks.
+15. `test_cancelling_an_async_call_during_a_tool_call` (child, a one-worker pool):
+    `cancelled while the tool blocks True`, then `b'next\n'`.
+16. `test_tools_run_off_the_guests_thread`: the tool returns the context variable the caller
+    set (`from the caller`), on a thread id other than the caller's.
+17. `test_fuel_is_exact_across_tool_calls`: **read through the judge's driver, not `run`**
+    (a deviation from the criterion's wording). Through `run`, fuel is not repeatable at all:
+    the guest reads the real clock and real entropy. EXECUTED (`fuel_probe.py`, four runs each):
+    `-c pass` without tools gave `82191561, 82095921, 82056035, 82152375`; the two-call program
+    with its tool not sleeping gave `92303775, 92304881, 92265765, 92341194`; with
+    `PYTHONHASHSEED=0` the spread stayed (`82201278 … 82071294`). The existing cache check says
+    the same ("the runner's clock is real and moves the count by about 150,000"). Through the
+    judge's driver (fixed clock and entropy) with `runner._tool_host(...)` as its host, the
+    program's fuel was `92214720` for pauses of 0, 0.05, 0, 0.05 and 0.2 s (`driver_fuel.py`).
+    The check asserts that equality for pauses of 0.05 and 0 s, and, through `run`, that a run
+    with tool calls still reports an `int` `fuel_used`.
+18. `test_no_tools_no_protocol`: exit 1, `ImportError: this run has no tools: the embedder
+    passed none`. Every existing `host=` check passes unchanged.
+
+**The whole.**
+
+19. The recipes, each run once in a throwaway environment against the worktree (scripts in the
+    scratch folder; output quoted):
+    - `WASI_PYTHON_ARTIFACTS=… uv run --isolated --no-project --with langchain-core==1.6.12
+      --with <worktree> python -I recipes/langchain_recipe.py` (a `@langchain_core.tools.tool`
+      `search_orders(customer: str, limit: int = 10)` raising `ToolException` for an unknown
+      customer):
+      ```
+      langchain-core 1.6.12 pydantic 2.14.1
+      0 None
+      (customer: str, limit: int = 10)
+      42.5
+      ToolError no customer 'bob'
+      1 list None ok None None
+      2 call search_orders ok None None
+      3 call search_orders tool_error no customer 'bob' None
+      ```
+    - `… --with mcp==2.3.0 …  python -I recipes/mcp_recipe.py` (mcp 2.3.0 was the current
+      release; an `mcp.server.mcpserver.MCPServer` with one tool, `forecast(city, days=3) ->
+      Forecast` (a `TypedDict`, `structured_output=True`), reached in process through
+      `mcp.Client(server)`, with `run_async` on the client's loop):
+      ```
+      mcp 2.3.0
+      0 None
+      {'city': 'Oslo', 'highs': [4, 6]}
+      ToolError Error executing tool forecast: no forecast for Atlantis
+      1 list None ok None None
+      2 call forecast ok None None
+      3 call forecast tool_error Error executing tool forecast: no forecast for Atlantis None
+      ```
+      Two things the first try found, now in the README: mcp 2's Python names are snake case
+      (`input_schema`, `structured_content`, `is_error`; the wire keeps `structuredContent` and
+      `isError`), so the recipe as first written failed with `AttributeError: 'Tool' object has
+      no attribute 'inputSchema'`; and a server tool returning a bare `dict` gives no structured
+      content (the recipe then returns the text), so the demo server uses a `TypedDict`.
+    - The README's first *Tools* example, run as written (`readme_example.py`): `b'Ada\n'`,
+      `['ok', 'ok']`.
+20. The judge: see below. The artifact set is 031's, unchanged.
+
+**The judge.** In the worktree, no flags, `WASI_PYTHON_ARTIFACTS=…/build/sets/s-0cdc7b2bd78db6f5
+uv run pytest` (`ruff check` and `ruff format --check` on `src tests recipes/guest` clean
+first). Before any change, the same command gave `216/227 pass · 0 gap · 11 blocked · 0 fail
+(unit suite 813/821, 8 skipped)`. After:
+
+```
+wasi_python v1: 231/242 pass · 0 gap · 11 blocked · 0 fail   (unit suite 843/851, 8 skipped)
+  v1.4  embedding           110/110
+ratchet vs c42410a127: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 15 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_tools.py
+================= 1074 passed, 19 skipped in 225.26s (0:03:45) =================
+```
+
+The 11 blocked are this worktree's (source trees, prior-art clones, the oracle, the wheel, three
+systems), as before the change. Gained 15 (the new v1.4 checks), lost 0, grew 0. The lane
+accepts with `--accept-judge` (the judge files above).
+
+**What the reviewer should look at.**
+- `_Bounded` in `tools.py`: the lock between `_abandon` and the thread's `finally` (a result
+  that finishes at an end is delivered, never counted abandoned); the per-call `_abandoned`
+  count; that nothing but a `BaseException` leaves `__call__`.
+- `_door`'s `admit` placement (after the address check, before `memory.read`), and that the raw
+  `host=` path is byte for byte the old one when `admit` is `None`.
+- Criterion 17's deviation (the driver, not `run`) and its evidence.
+- The three cache checks' changed expectations (a judge change).
+- The reading of "less than two ticks" and the ends checked before the start.

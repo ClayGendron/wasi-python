@@ -342,13 +342,15 @@ at `/usr/local/lib`. `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
-`artifacts` and `cancel` (a `threading.Event`: once it is set, the guest
-stops, `trapped` is `"cancelled"`; see *From async code* for how soon). It
+`artifacts`, `cancel` (a `threading.Event`: once it is set, the guest
+stops, `trapped` is `"cancelled"`; see *From async code* for how soon), and
+`tools`, `gate` and `max_tool_calls` (see *Tools*). It
 returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
 `"deadline"`, `"cancelled"`, a trap's kind such as `"stack overflow"`,
 `"unreachable"` or `"memory out of bounds"`, or, for an error with no trap
-code, its first line), `fuel_used` and
-`truncated` (the streams whose output hit the cap). `fuel_used` counts the
+code, its first line), `fuel_used`,
+`truncated` (the streams whose output hit the cap), and `tools` (a call's
+tool record, or `None`). `fuel_used` counts the
 guest's own instructions from the end of instantiation, so it is the same
 whether the module was compiled or loaded from the `.cwasm` cache (measured
 on macOS; Linux maps the memory image itself and never charged for it, and
@@ -733,14 +735,187 @@ The plain `wasmtime run` CLI cannot bind a custom import and refuses the
 binary. With `-W unknown-imports-default` it runs it, but the door then
 answers 0 with no response, which guest code reads as an empty answer.
 
+### Tools
+
+`run(tools=[…])` offers the guest your Python functions. Guest code imports
+them with `from host import tools` and calls them like functions. Between
+the two run JSON frames, protocol 1 (see *The tool protocol*):
+
+```python
+from wasi_python import run
+from wasi_python.tools import ToolError, tool
+
+REGIONS = {"EMEA": {"code": "EMEA", "manager": "Ada"}}
+
+@tool(read_only=True)
+def lookup_region(code: str) -> dict:
+    """Look up a sales region by its code.
+
+    Args:
+        code: The region code, such as "EMEA".
+    """
+    if code not in REGIONS:
+        raise ToolError(f"no region {code!r}")  # the guest reads this message
+    return REGIONS[code]
+
+program = """
+from host import tools
+print(tools.lookup_region("EMEA")["manager"])
+"""
+done = run(["-c", program], tools=[lookup_region])
+done.stdout                                    # b'Ada\n'
+[o.outcome for o in done.tools.outcomes]       # ['ok', 'ok']: the list, then the call
+```
+
+- **The decorator.** `tool()` takes the name, the description and the input
+  schema from the function: its type hints, its docstring up to the first
+  heading, and its `Args:` section. `input_schema=` gives the schema instead,
+  as a dict or a pydantic model. A plain function in `tools=` goes through
+  `tool()`. The guest's function has the same signature and docstring
+  (`help(tools)`), and `wasi_python.tools.stubs(tools)` renders them for a
+  prompt.
+- **A tool runs with your process's authority.** A `read_file(path)` tool is
+  a filesystem, and a `sql(query)` tool is your database: the guest may call
+  it with any arguments its schema allows. So pass capabilities, not
+  services. Make the tools per request, each closing over that caller's
+  authority:
+
+  ```python
+  def tools_for(user):
+      @tool
+      def my_orders(limit: int = 10) -> list[dict]:
+          """This user's latest orders."""
+          return orders.latest(user_id=user.id, limit=min(limit, 50))
+
+      return [my_orders]
+
+  done = run(["-c", code], tools=tools_for(request.user))
+  ```
+
+- **The gate.** `gate=` is called before each tool runs, with a
+  `ToolCall`: `seq`, `tool`, a copy of the validated `arguments`, and
+  `request_bytes`. It allows by returning `None` or `True`. It refuses by
+  raising `ToolDenied(message)`, whose message the guest reads as a
+  `PermissionError`, or by returning `False`. A gate that raises anything
+  else refuses too, and the record keeps its fault. With no gate, every
+  valid call runs: your choice of tools is then the policy.
+- **The record.** `done.tools` is a `ToolRecord`: `frames` (every frame
+  counted), `outcomes` (the first 1,000: `seq`, `op`, `tool`, `outcome`,
+  `message`, `request_bytes`, `response_bytes`, `fault`, `abandoned`) and
+  `unlisted`. It comes back on every ending: an exit, a trap, `"deadline"`
+  and `"cancelled"`. It is `None` for a call without `tools=`. Nothing in it
+  measures time.
+- **Errors stay on the host.** Nothing the guest, a gate or a tool does makes
+  `run` raise. A tool's `ToolError` message crosses (`tool_error`), and so
+  does a `ToolDenied` (`denied`). Any other exception crosses only as "<name>
+  failed (internal error)"; the record's `fault` keeps its type and first
+  line, so a path in an exception never reaches the guest. A result must be
+  JSON: numpy's integers and floats are, but numpy's `bool_` is not, so
+  return `bool(df["x"].any())`, not `df["x"].any()`.
+- **Limits.** At most `max_tool_calls` frames per call, the guest's discovery
+  frame included (default `DEFAULTS.tool_calls`, 1,000; `None` means no
+  limit). Past it the guest gets `ToolBudgetExceeded` and runs on. A request
+  over 1 MiB is refused from its length, before its bytes are copied out of
+  guest memory, so a refused frame costs the host the same whatever its
+  size; an answer over 16 MiB is `too_large`. Arguments are checked within a
+  budget of 100,000 steps (see *The tool protocol*).
+- **Tools run on their own threads.** Each tool call runs its gate, its tool
+  and its result's encoding on a new daemon thread, in a copy of the
+  caller's `contextvars` context. The call's deadline, its `cancel` and
+  Ctrl-C must be answered while a tool blocks, and host code cannot be
+  interrupted; only a thread waiting beside the tool can answer in time. So
+  objects bound to a thread do not work inside a tool or a gate: a `sqlite3`
+  connection made with `check_same_thread` (the default), or a
+  `threading.local`. Context variables do.
+- **Time.** A tool call ends at the first of: the tool's `timeout_s`
+  (`tool(timeout_s=…)`); two ticks (20 ms) before the run's deadline; the
+  run's `cancel`, or the `run_async` task's cancellation; and Ctrl-C. A
+  timeout raises `ToolTimeout` (also a `TimeoutError`) in the guest, which
+  runs on. A cancel or Ctrl-C answers `cancelled`, and the run then stops as
+  `"cancelled"` or raises `KeyboardInterrupt`. There is no per-call default
+  beyond the run's deadline. Fuel counts only the guest's instructions: time
+  spent in a tool adds none.
+- **Abandoned tools.** A Python function cannot be stopped. A tool whose
+  call timed out or was cancelled runs on to its end, unseen; its result is
+  dropped, and its outcome says `abandoned=True`, because its effect may
+  still land. So a call the guest retries after `ToolTimeout` may act twice.
+  One run may hold 4 abandoned tool threads; while it does, its next tool
+  call is answered `timeout` at once, without running. The bound is per run,
+  not per process: each run can leave up to five threads behind (four
+  abandoned, and the one running when the run ended), and there is no
+  process-wide ceiling, which would let one run's stalled tools starve
+  another's. A tool that can hang must bound itself (a timeout on its own
+  network call). `wasi_python.runner.stats()["tool_threads_running"]`
+  counts the tool threads alive in the process, abandoned ones included.
+- **What `run` refuses**, before any work: `host=` with `tools=` (the door
+  is one function: pass `host=` for the raw door or `tools=` for the
+  protocol), `gate=` or `max_tool_calls=` without `tools=`, two tools with
+  one name, a gate that is a coroutine function, and an artifact set from
+  before the tool protocol (`ArtifactsMissing`).
+
+Two recipes follow. They are recipes, not API: the project ships no
+adapter, and each was run once with the versions named (spec 036's landing
+notes).
+
+**A LangChain tool** (`langchain-core==1.6.12`), its own input checked by
+its own pydantic model:
+
+```python
+from langchain_core.tools import ToolException
+from wasi_python.tools import ToolError, tool
+
+def from_langchain(lc_tool):
+    def call(**args):
+        try:
+            return lc_tool.invoke(args)
+        except ToolException as e:
+            raise ToolError(str(e)) from None  # its text is meant for the caller
+
+    return tool(call, name=lc_tool.name, description=lc_tool.description,
+                input_schema=lc_tool.args_schema, validates_input=True)
+```
+
+**An MCP server's tool**, through your own client session (`mcp==2.3.0`).
+The session lives on your event loop; the tool, on its own thread, hands
+each call to that loop. `run_async` keeps the loop free meanwhile. The
+result's structured content (`structuredContent` on the wire,
+`structured_content` in mcp 2's Python) is the value, and an error result
+(`isError`) becomes a `ToolError` with the server's text:
+
+```python
+import asyncio
+from wasi_python import run_async
+from wasi_python.tools import ToolError, tool
+
+def from_mcp(session, loop, listed, timeout_s=30):
+    def call(**args):
+        future = asyncio.run_coroutine_threadsafe(session.call_tool(listed.name, args), loop)
+        result = future.result(timeout=timeout_s)
+        text = " ".join(c.text for c in result.content if c.type == "text")
+        if result.is_error:
+            raise ToolError(text)
+        return result.structured_content if result.structured_content is not None else text
+
+    return tool(call, name=listed.name, description=listed.description or "",
+                input_schema=listed.input_schema, validates_input=True, timeout_s=timeout_s)
+
+async def answer(session, code):  # session: your open mcp.Client
+    loop = asyncio.get_running_loop()
+    tools = [from_mcp(session, loop, t) for t in (await session.list_tools()).tools]
+    return await run_async(["-c", code], tools=tools)
+```
+
+An MCP tool whose name or property names are not Python identifiers needs
+`name=` and a renamed schema, as *The tool protocol* shows under **Names**.
+
 ### The tool protocol
 
 On top of the door the project ships one protocol, through which guest code
 calls the host's tools: `from host import tools`, then
 `tools.lookup_region("EMEA")`. The guest's half is the pure-Python package
 `host` in the stdlib zip. The host's half in Python is `wasi_python.tools`
-(`tool()`, `stubs()`); `run(tools=…)` binds it to the door in a later release
-(spec 036). An embedder in another language serves the protocol from its own
+(`tool()`, `stubs()`), which `run(tools=…)` binds to the door (see *Tools*).
+An embedder in another language serves the protocol from its own
 door function, by the rules below. It is optional: a door that never answers
 it leaves `from host import tools` raising `ImportError`.
 

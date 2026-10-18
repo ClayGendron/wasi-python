@@ -21,6 +21,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   wasmtime, fuel-neutral; `Completed.files` stays `None`); every other call stays wasmtime's.
   Once a call has stopped, these two answer `EIO`, as every runner-served call does. Each guard
   is removed when the published `wasmtime` requirement admits only fixed versions.
+- **Tools in the runner** (spec 036). `run` and `run_async` take `tools=` (decorated or plain
+  functions), `gate=` and `max_tool_calls=` (`DEFAULTS.tool_calls`, 1,000), checked before any
+  work; `host=` and `tools=` exclude each other. The door asks the frame host to admit each frame
+  by its length before it copies it, so a frame over 1 MiB costs the host the same whatever its
+  size. Each tool call runs on its own daemon thread, in a copy of the caller's context, and is
+  answered at the tool's `timeout_s`, two ticks before the deadline, at `cancel` or at Ctrl-C;
+  a tool left running is `abandoned`, and one run may hold 4 of them. `Completed.tools` records
+  every frame, on every ending; `runner.stats()` gains `tool_threads_running`. An artifact set
+  without the guest package is refused (`ArtifactsMissing`). The README's "Tools" gives the
+  API, its limits and their reasons, and LangChain and MCP recipes. The artifact set does not
+  change.
 - **A tool protocol over the door** (spec 031). Guest code can call the host's tools with
   `from host import tools`; the stdlib zip carries the guest's half, the pure-Python package
   `host` (`host/__init__.py`, `host/tools.py`), and the wheel the host's, `wasi_python.tools`

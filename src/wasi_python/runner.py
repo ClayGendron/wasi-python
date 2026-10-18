@@ -52,6 +52,8 @@ if TYPE_CHECKING:
 
     import wasmtime
 
+    from .tools import Tool, ToolCall, ToolRecord, _ToolHost
+
 ARGV0 = "/usr/local/bin/python.wasm"
 NO_HOST = -1
 HOST_FAULT = -2
@@ -207,11 +209,13 @@ class Defaults:
     output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
     async_workers: int = field(default_factory=_default_workers)  # guests run_async runs at once
     file_calls: int = 10_000  # provider calls per call with mounts; then "out of file calls"
+    tool_calls: int | None = 1000  # tool frames per call with tools=; then budget_exceeded
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
         _check_workers(self.async_workers)
         _integer_limit("file_calls", self.file_calls)
+        _integer_limit("tool_calls", self.tool_calls)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -237,6 +241,7 @@ class Completed:
     fuel_used: int | None  # instructions spent, when a fuel cap was given and no deadline hit
     truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
     files: FileRecord | None = None  # a call with mounts: its provider calls and faults (spec 032)
+    tools: ToolRecord | None = None  # a call with tools=: its frames and outcomes (spec 036)
 
 
 @dataclass(frozen=True)
@@ -269,6 +274,9 @@ def run(
     artifacts: Artifacts | None = None,
     cancel: threading.Event | None = None,
     max_file_calls: int | None = _UNSET,
+    tools: Iterable[Tool | Callable[..., Any]] | None = None,
+    gate: Callable[[ToolCall], Any] | None = None,
+    max_tool_calls: int | None = _UNSET,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -286,10 +294,30 @@ def run(
     it.
     `cache_dir=False` keeps compiled modules in this process only, never on disk.
     `cancel`, a `threading.Event`: once it is set and the guest runs, the guest stops within
-    `CANCEL_TICKS` ticks and the call returns `trapped == "cancelled"` (spec 015)."""
+    `CANCEL_TICKS` ticks and the call returns `trapped == "cancelled"` (spec 015).
+    `tools`, each a `wasi_python.tools.Tool` or a plain function (passed through `tool()`), are
+    offered to the guest through the tool protocol (`from host import tools`; spec 036); they
+    exclude `host`. `gate`, called with a `ToolCall` before each tool runs, may refuse it. At most
+    `max_tool_calls` frames are answered (default `DEFAULTS.tool_calls`, 1,000; `None` means no
+    limit); the guest gets `ToolBudgetExceeded` for the rest. Each tool call runs on its own
+    thread, bounded by the tool's `timeout_s`, the deadline, `cancel` and Ctrl-C; the result's
+    `tools` records every frame."""
     _refuse_forked()
     wt = _wasmtime()
-    checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, cancel)
+    checked = _checked(
+        argv,
+        env,
+        stdin,
+        fuel,
+        deadline_s,
+        memory_bytes,
+        output_bytes,
+        cancel,
+        host=host,
+        tools=tools,
+        gate=gate,
+        max_tool_calls=max_tool_calls,
+    )
     checked.update(_check_places(root, grants, mounts, max_file_calls))
     return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
@@ -312,6 +340,9 @@ async def run_async(
     artifacts: Artifacts | None = None,
     executor: concurrent.futures.Executor | None = None,
     max_file_calls: int | None = _UNSET,
+    tools: Iterable[Tool | Callable[..., Any]] | None = None,
+    gate: Callable[[ToolCall], Any] | None = None,
+    max_tool_calls: int | None = _UNSET,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked (spec 015).
 
@@ -319,12 +350,26 @@ async def run_async(
     `executor`, which must run callables on threads of this process, or on the runner's default
     pool of `DEFAULTS.async_workers` threads. If the awaiting task is cancelled, the guest is
     stopped and its worker freed before `CancelledError` is raised; a call still queued never
-    starts. A mount's provider runs on that worker thread, never the event loop's."""
+    starts. A mount's provider runs on that worker thread, never the event loop's; a tool on a
+    thread of its own, and a cancelled task no longer waits for a tool that blocks."""
     import asyncio
     import contextvars
 
     _refuse_forked()
-    checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, None)
+    checked = _checked(
+        argv,
+        env,
+        stdin,
+        fuel,
+        deadline_s,
+        memory_bytes,
+        output_bytes,
+        None,
+        host=host,
+        tools=tools,
+        gate=gate,
+        max_tool_calls=max_tool_calls,
+    )
     checked.update(_check_places(root, grants, mounts, max_file_calls))
     _check_executor(executor)
     wt = _wasmtime()
@@ -712,8 +757,10 @@ def _after_fork_in_child() -> None:
     """Only assignments, and no lock: a lock may have been held by a thread the fork left out, so
     every lock the runner takes is made anew (spec 015's build review, F8)."""
     global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
-    global _held_lock, _zip_lock, _zips
+    global _held_lock, _zip_lock, _zips, _tool_threads_lock
     _pool_lock, _live_lock, _held_lock = threading.Lock(), threading.Lock(), threading.Lock()
+    # A child has none of its parent's tool threads (spec 036, Decision 8).
+    _tool_threads_lock, _tool_threads["running"] = threading.Lock(), 0
     _zip_lock, _zips = threading.Lock(), {}  # the parent's zip folders stay the parent's
     _lock, _epoch_callback_lock, _outputs_lock = (
         threading.Lock(),
@@ -758,8 +805,15 @@ def _checked(
     memory_bytes: Any,
     output_bytes: Any,
     cancel: Any,
+    *,
+    host: Any = None,
+    tools: Any = None,
+    gate: Any = None,
+    max_tool_calls: Any = _UNSET,
 ) -> dict[str, Any]:
-    """Every argument a call's guest depends on, checked before any work (specs 013 to 015)."""
+    """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
+    and 036 for the tools)."""
+    tool_args = _check_tools(host, tools, gate, max_tool_calls)
     limits = DEFAULTS
     if memory_bytes is _UNSET:
         memory_bytes = limits.memory_bytes
@@ -772,7 +826,65 @@ def _checked(
     checked = _check_limits(fuel, deadline_s, memory_bytes, output_bytes)
     checked.update(_check_inputs(argv, env, stdin))
     checked["cancel"] = cancel
+    checked.update(tool_args)
     return checked
+
+
+def _check_tools(host: Any, tools: Any, gate: Any, max_tool_calls: Any) -> dict[str, Any]:
+    """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
+    `Tool`s with unique names, a gate that is not a coroutine function, and the frame limit. A
+    plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
+    given, so `import wasi_python` still does not import it."""
+    if tools is None:
+        if gate is not None:
+            raise TypeError(
+                "gate= without tools= gates nothing: the raw door has no gate; pass tools="
+            )
+        if max_tool_calls is not _UNSET:
+            raise TypeError(
+                "max_tool_calls= without tools= limits nothing: the raw door has no limit; "
+                "pass tools="
+            )
+        return {"tools": None, "gate": None, "tool_calls": None}
+    if host is not None:
+        raise TypeError("pass host= for the raw door or tools= for the tool protocol, not both")
+    from .tools import Tool, _is_async, tool
+
+    if (
+        isinstance(tools, (str, bytes, bytearray, Mapping, Tool))
+        or callable(tools)
+        or not isinstance(tools, Iterable)
+    ):
+        raise TypeError(
+            f"tools must be an iterable of Tool or functions, not {type(tools).__name__}"
+        )
+    checked: list[Tool] = []
+    names: set[str] = set()
+    for i, item in enumerate(tools):
+        if not isinstance(item, Tool):
+            if not callable(item):
+                raise TypeError(
+                    f"tools[{i}] must be a Tool or a function, not {type(item).__name__}"
+                )
+            item = tool(item)
+        if item.name in names:
+            raise ValueError(f"tools[{i}]: another tool is named {item.name!r}")
+        names.add(item.name)
+        checked.append(item)
+    if gate is not None and not callable(gate):
+        raise TypeError(f"gate must be a callable, or None; got {type(gate).__name__}")
+    if gate is not None and _is_async(gate):
+        raise TypeError(
+            "gate is a coroutine function; a gate answers synchronously (async gates come "
+            "with a later specification, decision 15)"
+        )
+    if max_tool_calls is _UNSET:
+        max_tool_calls = DEFAULTS.tool_calls
+    return {
+        "tools": tuple(checked),
+        "gate": gate,
+        "tool_calls": _integer_limit("max_tool_calls", max_tool_calls),
+    }
 
 
 # Grants (spec 017). A grant is a host folder the guest sees at a guest path, read-only unless it
@@ -1532,6 +1644,14 @@ def _run_checked(
     artifacts: Artifacts | None,
 ) -> Completed:
     found = artifacts if artifacts is not None else find_artifacts()
+    if c.get("tools") is not None and not _has_guest_package(found.manifest):
+        from . import ArtifactsMissing
+
+        raise ArtifactsMissing(
+            f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
+            "predates the tool protocol (spec 031), so its guest cannot `from host import "
+            "tools`; tools= needs a set built with the guest package"
+        )
     cache = _cache_dir(cache_dir)
     root = c["root"]
     walked_root, walked = _walk_grants(root, c["grants"], found, cache)
@@ -1714,6 +1834,12 @@ def _instance(
         time.sleep,
         (lambda: any(check() for check in checks)) if checks else None,
     )
+    # Under tools=, the runner is the door's host: the frame host, bound by the same deadline,
+    # cancel and Ctrl-C, and asked to admit each frame by its length before it is read (036).
+    tool_host = _tool_host(c, stop_at, cancel)
+    admit = None
+    if tool_host is not None:
+        host, admit = tool_host, tool_host.admit
 
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
@@ -1763,7 +1889,7 @@ def _instance(
             guest_linker = _guard_linker(wt, engine)
             numbers = []
         table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table)
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit)
         if cancel is not None:
             _watch(store)
         with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
@@ -1786,8 +1912,16 @@ def _instance(
         if scratch is not None:
             scratch.remove()
     truncated = tuple(s.name for s in (out, err) if s.dropped)
+    record = None if tool_host is None else tool_host.record  # on every ending (C6)
     return Completed(
-        done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated, files
+        done.exit_code,
+        bytes(out.data),
+        bytes(err.data),
+        done.trapped,
+        fuel_used,
+        truncated,
+        files,
+        record,
     )
 
 
@@ -1903,9 +2037,10 @@ class _Call:
         cancel: threading.Event | None = None,
         stop_at: int | None = None,
         table: Any = None,
+        admit: Callable[[int], bytes | None] | None = None,
     ) -> None:
         self.context = _context_address(store)
-        self.door = _door(host)
+        self.door = _door(host, admit)  # admit: the frame host's, under tools= (spec 036)
         self.poll = _poll_oneoff(origin_ns, waits)
         self.stopped: BaseException | None = None
         self.cancel = cancel
@@ -2433,8 +2568,15 @@ def _trap_code_name(code: Any) -> str:
     return code.name.lower().replace("_", " ")
 
 
-def _door(host: Host | None) -> Callable[..., int]:
-    """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5)."""
+def _door(
+    host: Host | None, admit: Callable[[int], bytes | None] | None = None
+) -> Callable[..., int]:
+    """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5).
+
+    With `admit` (the tool protocol's frame host, spec 036), each frame's length is offered to
+    it once the addresses are checked and before the frame is read: bytes it returns are the
+    answer, and the frame is never copied out of guest memory, so a refused frame costs the
+    host the same whatever its length. The raw `host=` path passes no `admit`, as before."""
 
     import wasmtime as wt
 
@@ -2457,7 +2599,9 @@ def _door(host: Host | None) -> Callable[..., int]:
         size = memory.data_len(caller)
         if ptr + length > size or out_ptr_ptr + 4 > size or out_len_ptr + 4 > size:
             return HOST_FAULT  # memory.read would clamp a frame that runs past memory
-        response = host(bytes(memory.read(caller, ptr, ptr + length)))
+        response = None if admit is None else admit(length)
+        if response is None:
+            response = host(bytes(memory.read(caller, ptr, ptr + length)))
         if not isinstance(response, (bytes, bytearray, memoryview)):
             return HOST_FAULT
         if memoryview(response).nbytes > MAX_RESPONSE:
@@ -2554,6 +2698,28 @@ def _version_tag(manifest: Path) -> str:
     return _versions[manifest]
 
 
+GUEST_PACKAGE = "recipes/guest/host/tools.py"  # MANIFEST's recipe line for the guest package
+_guest_packages: dict[str, tuple[tuple[int, ...], bool]] = {}  # path: (its stamp, the answer)
+
+
+def _has_guest_package(manifest: Path) -> bool:
+    """Whether MANIFEST names the tool protocol's guest package among its recipes (spec 036,
+    Decision 1). Cached per path and stat stamp, with no lock: a race only reads it twice."""
+    key = str(manifest)
+    stamp = _stamp(os.stat(manifest))
+    hit = _guest_packages.get(key)
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    found = False
+    for line in Path(manifest).read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 3 and parts[0] == "recipe" and parts[-1] == GUEST_PACKAGE:
+            found = True
+            break
+    _guest_packages[key] = (stamp, found)
+    return found
+
+
 def _cache_dir(given: str | os.PathLike[str] | None | bool) -> Path | None:
     if given is False:
         return None
@@ -2580,9 +2746,47 @@ _counts = {"compiled": 0, "loaded": 0, "written": 0}
 
 def stats() -> dict[str, int]:
     """How this process got its compiled modules: compiled from the binary, loaded from a .cwasm,
-    and .cwasm files written. A diagnostic; the judge's cache check reads it."""
+    and .cwasm files written; and `tool_threads_running`, the tool threads alive in this process,
+    abandoned ones included (spec 036, Decision 5). A diagnostic; the judge reads it."""
     with _lock:
-        return dict(_counts)
+        counts = dict(_counts)
+    with _tool_threads_lock:
+        counts["tool_threads_running"] = _tool_threads["running"]
+    return counts
+
+
+# The tool threads alive in this process (spec 036, Decision 5): one per tool call, counted in
+# as it starts and out as it ends, after its call returned or not.
+_tool_threads_lock = threading.Lock()
+_tool_threads = {"running": 0}
+
+
+def _count_tool_threads(delta: int) -> None:
+    with _tool_threads_lock:
+        _tool_threads["running"] += delta
+
+
+def _ctrl_c_now() -> bool:
+    """A Ctrl-C is pending for the call on this (the main) thread: read, never cleared."""
+    return _ctrl_c_watched() and _ctrl_c["pending"]
+
+
+def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost | None:
+    """The call's frame host, for a call with tools=, bound by the call's deadline, its cancel
+    and Ctrl-C (spec 036, Decisions 2 to 5); None otherwise."""
+    if c.get("tools") is None:
+        return None
+    from .tools import _Bounded, _ToolHost
+
+    bound = _Bounded(
+        tick_s=TICK_S,
+        stop_at=stop_at,
+        ticks=lambda: _epoch_ticker.count(),
+        cancel=cancel,
+        ctrl_c=_ctrl_c_now,
+        count=_count_tool_threads,
+    )
+    return _ToolHost(c["tools"], gate=c["gate"], max_calls=c["tool_calls"], invoke=bound)
 
 
 @atexit.register

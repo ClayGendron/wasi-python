@@ -34,6 +34,8 @@ import keyword
 import math
 import numbers
 import re
+import threading
+import time
 import types
 import typing
 from collections.abc import Callable, Iterable, Mapping
@@ -66,6 +68,8 @@ KINDS = (
 )
 TOO_COMPLEX = "the arguments are too complex to check"
 SAME_VALUE_CHAIN = 8  # the most schema nodes a $ref, anyOf or oneOf chain passes on one value
+MAX_ABANDONED = 4  # tool threads one call may leave running before its next call is refused
+DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _HEADINGS = ("Args:", "Arguments:", "Returns:", "Raises:")
@@ -1285,8 +1289,10 @@ class _Done(NamedTuple):
 class _Interrupted(NamedTuple):
     """What a bounded invoke gives when it did not wait for the work (spec 036)."""
 
-    kind: str  # "timeout" or "cancelled"
+    kind: str  # "timeout" or "cancelled"; "tool_error" when the bound itself failed
     abandoned: bool  # the work was left running
+    message: str | None = None  # what the guest is told; by default "<name> timed out" and so on
+    fault: str | None = None  # the bound's own exception, when it failed after the work started
 
 
 class _Work:
@@ -1352,6 +1358,163 @@ def _error(frame_id: Any, kind: str, message: str) -> bytes:
 
 def _inline(work: _Work) -> _Done | _Interrupted:
     return work()
+
+
+class _Slot:
+    """One tool call's result: filled by its own thread, read by its own call only, so a late
+    result of an abandoned call is dropped, never delivered to a later one (spec 036, D4)."""
+
+    __slots__ = ("abandoned", "done", "fault", "filled", "finished", "started")
+
+    def __init__(self) -> None:
+        self.filled = threading.Event()
+        self.done: _Done | None = None
+        self.fault: str | None = None  # the work raised past its own catch-all, or never started
+        self.started = False  # its thread was started
+        self.finished = False  # set under the bound's lock, as its thread ends
+        self.abandoned = False  # set under the bound's lock, when the call was answered without it
+
+
+class _Bounded:
+    """The invoke of spec 036 (Decisions 3 to 5): the work of one tool call runs on a new daemon
+    thread, in a copy of the door thread's context, while the door thread waits beside it in
+    slices of one tick. The call ends at the first of: the work's answer; a pending Ctrl-C or
+    the call's `cancel` (`cancelled`); the call's deadline less two ticks, read from the ticker
+    as spec 010's waits read it, or the tool's `timeout_s` (`timeout`). A call left running is
+    abandoned: its thread runs to its end unseen, and its result is dropped. One call may hold
+    `MAX_ABANDONED` of them; while it does, its next tool call is answered `timeout` at once.
+
+    Everything it needs is injected, so the judge drives it with fakes: `ticks` (the epoch
+    ticker's count), `ctrl_c` (whether a Ctrl-C is pending; read, never cleared), `count` (told
+    +1 and -1 as tool threads start and end), `start` (starts a thread) and `clock` (for
+    `timeout_s`). It never raises an `Exception`: a thread that cannot start, or a fault of its
+    own, is a `tool_error` answer that keeps the call and its tool in the record (the 031 build
+    review's F5)."""
+
+    def __init__(
+        self,
+        *,
+        tick_s: float,
+        stop_at: int | None = None,
+        ticks: Callable[[], int] | None = None,
+        cancel: threading.Event | None = None,
+        ctrl_c: Callable[[], bool] | None = None,
+        count: Callable[[int], Any] = lambda delta: None,
+        start: Callable[[threading.Thread], Any] = threading.Thread.start,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._tick, self._stop_at, self._ticks = tick_s, stop_at, ticks
+        self._cancel, self._ctrl_c, self._count = cancel, ctrl_c, count
+        self._start, self._clock = start, clock
+        self._lock = threading.Lock()
+        self._abandoned = 0  # this call's threads still running after their call was answered
+
+    def _ended(self) -> str | None:
+        """'cancelled' or 'deadline' when the run is ending, else None."""
+        if self._ctrl_c is not None and self._ctrl_c():
+            return "cancelled"
+        if self._cancel is not None and self._cancel.is_set():
+            return "cancelled"
+        if self._stop_at is not None and self._ticks is not None:
+            if self._ticks() >= self._stop_at - DEADLINE_MARGIN_TICKS:
+                return "deadline"
+        return None
+
+    def __call__(self, work: _Work) -> _Done | _Interrupted:
+        name = work.tool.name
+        internal = f"{name} failed (internal error)"
+        slot: _Slot | None = None
+        try:
+            ended = self._ended()
+            if ended == "cancelled":
+                return _Interrupted("cancelled", False, f"{name} was cancelled")
+            if ended == "deadline":
+                too_near = f"{name} timed out: the run's deadline is too near to start it"
+                return _Interrupted("timeout", False, too_near)
+            with self._lock:
+                full = self._abandoned >= MAX_ABANDONED
+            if full:
+                busy = f"{name} timed out: {MAX_ABANDONED} earlier tool calls are still running"
+                return _Interrupted("timeout", False, busy)
+            slot = _Slot()
+            if not self._started(work, slot):
+                return work.failed("tool_error", internal, slot.fault)
+            return self._wait(work, slot)
+        except Exception as e:
+            fault = _fault(e)
+            if slot is None or not slot.started:
+                return work.failed("tool_error", internal, fault)
+            if not self._abandon(slot):  # the work had finished: its answer stands
+                return self._delivered(work, slot)
+            return _Interrupted("tool_error", True, internal, fault)
+
+    def _started(self, work: _Work, slot: _Slot) -> bool:
+        """Start the work's thread; False, with the fault in the slot, if it cannot start."""
+        context = contextvars.copy_context()
+
+        def target() -> None:
+            try:
+                try:
+                    slot.done = context.run(work)
+                except BaseException as e:  # _Work catches its own; this is a last resort
+                    slot.fault = _fault(e)
+                slot.filled.set()
+            finally:
+                with self._lock:
+                    slot.finished = True
+                    if slot.abandoned:
+                        self._abandoned -= 1
+                self._count(-1)
+
+        self._count(1)
+        try:
+            thread = threading.Thread(
+                target=target, name=f"wasi-python-tool-{work.tool.name}", daemon=True
+            )
+            self._start(thread)
+        except Exception as e:  # the operating system's thread limit (spec 036, D5)
+            self._count(-1)
+            slot.fault = _fault(e)
+            return False
+        slot.started = True
+        return True
+
+    def _abandon(self, slot: _Slot) -> bool:
+        """Mark the call answered without its work; False if the work had already finished."""
+        with self._lock:
+            if slot.finished:
+                return False
+            slot.abandoned = True
+            self._abandoned += 1
+            return True
+
+    def _wait(self, work: _Work, slot: _Slot) -> _Done | _Interrupted:
+        name, timeout = work.tool.name, work.tool.timeout_s
+        until = None if timeout is None else self._clock() + timeout
+        while True:
+            pause = self._tick
+            if until is not None:
+                pause = max(0.0, min(pause, until - self._clock()))
+            if slot.filled.wait(pause):
+                return self._delivered(work, slot)
+            ended = self._ended()
+            if ended is None and until is not None and self._clock() >= until:
+                ended = "timeout"
+            if ended is None:
+                continue
+            if not self._abandon(slot):  # it finished just now: its answer stands
+                return self._delivered(work, slot)
+            if ended == "cancelled":
+                return _Interrupted("cancelled", True, f"{name} was cancelled")
+            if ended == "deadline":
+                return _Interrupted("timeout", True, f"{name} timed out at the run's deadline")
+            return _Interrupted("timeout", True, f"{name} timed out after {timeout:g} s")
+
+    @staticmethod
+    def _delivered(work: _Work, slot: _Slot) -> _Done:
+        if slot.done is not None:
+            return slot.done
+        return work.failed("tool_error", f"{work.tool.name} failed (internal error)", slot.fault)
 
 
 class _ToolHost:
@@ -1514,11 +1677,11 @@ class _ToolHost:
         done = self._invoke(work)
         if isinstance(done, _Interrupted):
             what = "timed out" if done.kind == "timeout" else "was cancelled"
-            message = f"{t.name} {what}"
+            message = _bounded(done.message or f"{t.name} {what}")
             answer = _error(frame_id, done.kind, message)
             self._note(
                 ToolOutcome(
-                    seq, op, name, done.kind, message, size, len(answer), None, done.abandoned
+                    seq, op, name, done.kind, message, size, len(answer), done.fault, done.abandoned
                 )
             )
             return answer
