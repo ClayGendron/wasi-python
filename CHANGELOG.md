@@ -21,6 +21,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
     zipimport gives a module in it, `/usr/local/lib/python315.zip/pandas/core/frame.py`, instead
     of `pandas/core/frame.py`, so pandas' `find_stack_level` finds its own frames. Tracebacks show
     the full zip path, as native zip imports do. The zip grows by the longer names.
+  - **The first carried patch, amended**
+    (`recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch`): `np.save` of a masked
+    array to a path raises `NotImplementedError` again, as natively, where the patch had written
+    its data and dropped its mask. A truncated `.npy` file read from a path raises numpy's
+    in-memory `ValueError` message on WASI, a documented difference; the patch's tests and its
+    upstream draft say so.
 - **Security: the sandbox holds on wasmtime 49.0.0** (spec 048). wasmtime-py 49.0.0, the only
   49 release, bundles wasmtime 49.0.0, which carries two advisories that reach a guest; the
   runner now carries both fixes itself, on every call. **GHSA-m9f7-9w4p-gv38** (high, fixed in

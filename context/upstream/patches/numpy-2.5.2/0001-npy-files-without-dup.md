@@ -20,7 +20,26 @@ One behaviour to state in the description: the public `numpy.lib.format.isfileob
 False on WASI for real files, so callers on WASI take the chunked path, as they already do for
 other file-likes.
 
+Amended 2026-10-18 (spec 051, Decision 10; not yet sent, so amended in place). Three more points
+for the description, each in the facts (`../../3-numpy-npy-wasi/pr.md`, "The amendment"):
+
+- **One predicate and the subclass rule.** Native `isfileobj`'s two tests (the `isinstance` and
+  the `fileno()` probe) become a private `_is_real_file(f)`, and `isfileobj(f)` is
+  `_is_real_file(f) and sys.platform != "wasi"`. In `write_array`, on WASI, a real file and an
+  array whose type overrides `tofile` go to that `tofile`, as on other platforms: a masked array
+  saved to a path raises `MaskedArray.tofile`'s `NotImplementedError` instead of being written
+  without its mask. The new test `test_save_masked_without_dup` holds it, with a
+  `BufferedWriter(BytesIO())` that is written in chunks, as natively.
+- **A truncated real file's message on WASI.** A real file is read the way numpy reads an
+  in-memory stream, so a truncated one raises numpy's in-memory `ValueError` ("EOF: reading array
+  data, expected 48 bytes got 47"); the type is native's.
+- **`test_file_truncated`** therefore accepts that message too, behind `sys.platform == "wasi"`,
+  so it passes on WASI once the change is in.
+
 The upstream base is numpy's `main` (`ac61120` when the fix was made); the agent rebases the change
 onto `main` in a scratch clone when the owner asks to send it. The pull request carries both files:
-the fix in `numpy/lib/_format_impl.py` and the test `test_save_load_without_dup` in
-`numpy/lib/tests/test_format.py`. The carried patch is the same added lines, made against 2.5.2.
+the fix in `numpy/lib/_format_impl.py` and the tests (`test_save_load_without_dup`,
+`test_save_masked_without_dup` and the WASI branch of `test_file_truncated`) in
+`numpy/lib/tests/test_format.py`. The carried patch is the same change, made against 2.5.2;
+`../../3-numpy-npy-wasi/fix.patch` predates the amendment, and is remade from the carried patch
+when the change is rebased.

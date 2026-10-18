@@ -61,7 +61,10 @@ runs isolated. `np.save` and `np.load` of paths and open files work, through a
 carried patch (`recipes/patches/numpy-2.5.2/`) until numpy releases the fix;
 `ndarray.tofile` and `np.fromfile` on real files still fail, since WASI cannot
 duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), and
-memory maps are unavailable. A second carried patch gives six of
+memory maps are unavailable. `np.save` of a masked array to a path raises
+`NotImplementedError`, as natively. A truncated `.npy` file read from a path raises the
+`ValueError` numpy gives for in-memory streams ("EOF: reading array data, …"), not native's
+"Failed to read all data for array"; the type is the same. A second carried patch gives six of
 numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a numpy scalar and
 `a.dtype = …` work instead of trapping the guest; the judge scans every build's callback tables
 for that class of mistake. Tracebacks and warnings name a module in the zip by its full zip path,

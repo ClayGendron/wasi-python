@@ -259,6 +259,20 @@ except OSError as e:
 np.savez("/npy/z.npz", x=cases["plain"], y=cases["record"])
 with np.load("/npy/z.npz") as z:
     print("npz", same(z["x"], cases["plain"]) and same(z["y"], cases["record"]))
+try:
+    np.save("/npy/masked.npy", np.ma.masked_array([1, 2, 3], mask=[False, True, False]))
+    back = np.load("/npy/masked.npy")
+    print("masked", "saved", back, type(back).__name__)
+except Exception as e:
+    print("masked", type(e).__name__, e)
+np.save("/npy/short.npy", cases["plain"])
+with open("/npy/short.npy", "r+b") as f:
+    f.truncate(os.path.getsize("/npy/short.npy") - 1)
+try:
+    np.load("/npy/short.npy")
+    print("truncated", "loaded")
+except Exception as e:
+    print("truncated", type(e).__name__)
 """
 
 
@@ -266,11 +280,17 @@ with np.load("/npy/z.npz") as z:
 def test_npy_files_round_trip(guest, which) -> None:
     """Guards a change (spec 021, the first carried patch): `np.save` and `np.load` of real files
     raised OSError 58, because numpy's `tofile` and `fromfile` need `os.dup`, which WASI lacks.
-    The object array and `.npz` always worked and guard."""
+    The object array and `.npz` always worked and guard. A masked array saved to a path raises
+    native's NotImplementedError, where patch 0001 first wrote its data and dropped its mask; a
+    truncated file raises ValueError, native's type, with numpy's in-memory message, a documented
+    difference (spec 051, Decision 10)."""
     r = guest(which, ["-c", NPY])
     assert r.exit_code == 0, r.describe()
     names = ["plain", "record", "0-d", "fortran", "large", "empty", "object", "two", "npz"]
-    assert r.text == "".join(f"{n} True\n" for n in names), r.text
+    want = "".join(f"{n} True\n" for n in names)
+    want += "masked NotImplementedError MaskedArray.tofile() not implemented yet.\n"
+    want += "truncated ValueError\n"
+    assert r.text == want, r.text
 
 
 # Spec 033: the zip keeps each distribution's METADATA, so a package that asks for its own
