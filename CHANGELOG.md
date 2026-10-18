@@ -18,7 +18,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   any member that is not plain and small. Zip64 zips, cp437 names and every error go to
   zipimport's own reader. `python.wasm` grows by about 25 KB. No upstream file changes; a
   courtesy issue for importlib_resources is drafted
-  (`context/upstream/14-importlib-resources-zip-directory/`).
+  (`context/upstream/16-importlib-resources-zip-directory/`).
 - **What numpy's and pandas' own tests found** (spec 051). Three defects, fixed:
   - **numpy callbacks no longer trap the guest** (the second carried patch,
     `recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`). Six C functions were defined

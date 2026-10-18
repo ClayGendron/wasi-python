@@ -361,7 +361,7 @@ All of these grow with the zip. Tier A will nearly quadruple it.
    so zipimport cannot use it (memo, finding 4). The memo's courtesy issue is drafted for the
    owner to send, to python/importlib_resources: "`ZipReader.files()` parses the archive on every
    call; zipimport's directory already has it"
-   (`context/upstream/14-importlib-resources-zip-directory/issue.md`; folder `4-` was taken, the
+   (`context/upstream/16-importlib-resources-zip-directory/issue.md`; folder `4-` was taken, the
    landing notes). Nothing here waits on it.
 
 9. **What a guest sees.** `import _zip_directory` and `import _zip_resources` work, as
@@ -498,7 +498,7 @@ one parse. The answers stay upstream's, byte for byte, and anything odd goes to 
 | `tests/unit/test_build_scripts.py` | `test_freeze_names_each_module` |
 | `README.md` | the recipe paragraph names the two frozen modules; the platform paragraph says `importlib.resources.files()` on a zip gives the runtime's own `Traversable`: the same bytes and listings, upstream's reader for a member that is not plain and small or is opened with a `pwd`, and Decision 6's accepted differences (no `root`, `at`, `glob` and the rest; odd names' implied directories; duplicates and the empty name; equality across `files()` calls; freshness until `invalidate_caches()`); the speed table's plain-reactor row re-measured |
 | `CHANGELOG.md` | the next unreleased section: the zip's directory is read once; resource reads and metadata no longer parse the zip |
-| `context/upstream/14-importlib-resources-zip-directory/issue.md`, `context/upstream/README.md` | the courtesy issue draft and its row (Decision 8) |
+| `context/upstream/16-importlib-resources-zip-directory/issue.md`, `context/upstream/README.md` | the courtesy issue draft and its row (Decision 8) |
 
 Unit checks (no artifacts), each seen failing first because the module or function does not
 exist. They run on the judge's host Python, which may not be 3.15 (it is 3.14.2 on the review's
@@ -720,7 +720,7 @@ than Zip64 and cp437; the truncated zip's read is `"stock"`, by Decision 2's rou
 past the bytes read), and the check asserts that. (2) The fast reader requires the walk of `n`
 entries to end exactly at the directory's size; any other end goes to zipimport's reader. That is
 a little stricter than "another `PK\x01\x02` after `n` entries", always in the safe direction.
-Also: the courtesy issue is `context/upstream/14-importlib-resources-zip-directory/issue.md`,
+Also: the courtesy issue is `context/upstream/16-importlib-resources-zip-directory/issue.md`,
 since folder `4-` was taken; `_zip_directory` imports `sys` lazily inside the metadata wrapper,
 and `_zip_resources` also imports `pathlib` (already loaded by `importlib.metadata` and
 `importlib.resources`), `sys` and `zipimport`.
@@ -882,7 +882,7 @@ unless marked; logs in the worktree's ignored `build/revise035/`.
 - **F5, informational.** Decision 6 now says the built structure (no `Traversable` subclass;
   `importlib.resources.abc` imported only when `ZipDirectoryReader` is first made; the reader made
   through the module's `__getattr__`) and points here; Decision 8 and the Design table name
-  `context/upstream/14-importlib-resources-zip-directory/` (`625a4d6`). The `_zip_resources`
+  `context/upstream/16-importlib-resources-zip-directory/` (`625a4d6`). The `_zip_resources`
   import row above is marked; the final set's figures are below. The courtesy draft now names
   freshness and `pwd` beside odd names (`625a4d6`). The E501 at `scripts/freeze_bootstrap.py:41`
   is fixed (`31581f1`; one word, a docstring, so only `MANIFEST`'s line changes). The landing
