@@ -21,7 +21,9 @@ How the issue in `issue.md` was found and checked. Each claim is EXECUTED unless
   multiplies (`r15`, `r17`) give equal objects.
 - The compiles: `evidence/compare-two-hosts.sh`. aarch64 is the arm64 macOS SDK on the Mac; x86_64
   is the x86_64 Linux SDK in a `linux/amd64` `debian:trixie-slim` container under Rosetta. The arm64
-  Linux SDK in a `linux/arm64` container gives the macOS SDK's object, `9afcef294ca52dad`.
+  Linux SDK in a `linux/arm64` container gives the macOS SDK's object, `9afcef294ca52dad`, and so
+  does the same SDK under the pinned `qemu-aarch64` in the `linux/amd64` container (step 10's
+  layout, inside spec 040's x86_64 build).
 - `evidence/slot-order-objdump-aarch64-vs-x86_64.diff`: only frame offsets differ.
 - `evidence/slot-order-passes-first-differences.diff`: the head of the `-print-after-all` diff
   (18,374 lines on each host): three template-name spellings, then `wasm-isel`'s `__multf3` slots.

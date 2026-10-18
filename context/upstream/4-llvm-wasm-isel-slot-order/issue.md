@@ -62,6 +62,7 @@ clang --target=wasm32-wasip1 -std=c11 -O3 -fno-strict-aliasing -ftrapping-math -
 | `wasi-sdk-33.0-arm64-macos` | macOS 26.5, Apple arm64 | `9afcef294ca52dad` |
 | `wasi-sdk-33.0-arm64-linux` | Debian 13, aarch64 (linux/arm64 container) | `9afcef294ca52dad` |
 | `wasi-sdk-33.0-x86_64-linux` | Debian 13, x86_64 (linux/amd64 container on Apple silicon) | `7daeec0794b49c01` |
+| `wasi-sdk-33.0-arm64-linux`, under `qemu-aarch64` 10.0.13 (user mode) | Debian 13, x86_64 (the same container) | `9afcef294ca52dad` |
 
 Both compiles see the same relative file name (it is recorded in the object). Repeated compiles on
 each host give the same hash.
@@ -109,7 +110,9 @@ pointer-keyed container, or a floating-point heuristic compiled differently for 
 ### Running the aarch64 compiler on x86_64
 
 The `wasi-sdk-33.0-arm64-linux` clang, run on the x86_64 machine under `qemu-aarch64` 10.0.13
-(user mode), gives the aarch64 bytes for the numpy file. That is our workaround until this is fixed.
+(user mode), gives the aarch64 bytes, for the reproducer (the table's last row) and for the numpy
+file. So the difference is in the x86_64 build of clang, not in the machine it runs on. That is our
+workaround until this is fixed.
 
 ---
 
