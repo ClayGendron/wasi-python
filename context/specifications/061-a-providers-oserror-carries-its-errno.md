@@ -1,6 +1,7 @@
 # 061 — A provider's OSError carries its errno
 
-- **Status:** drafted 2026-10-18; revised against its pre-build review
+- **Status:** **built 2026-10-18; awaiting its build review** (Landing notes). Before that:
+  drafted 2026-10-18; revised against its pre-build review
   (`../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18.md`, written in the
   lane's evidence folder, `build/reviews-evidence/061-spec/`, and copied in by the lane;
   verdict: "ready once F1 to F4 are written in", F5 to F7 at the same time, F8 to F10
@@ -550,4 +551,127 @@ claim, F2's reading of the class), this specification governs.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer (Claude Opus 5.5) in the worktree `../wasi_python-061`, on
+`spec/061-a-providers-oserror-carries-its-errno`, from main `5e66995`. Every claim below was run
+(EXECUTED) on macOS arm64, CPython 3.14.2, wasmtime-py 49.0.0, against the frozen artifact set
+`build/sets/s-c4190ca065ada03a` of the main tree (its `SHA256SUMS` hashes to
+`3c0ec02e25e0b91d…`, the set the memo and the review used), unless it says otherwise. The logs
+named here are in the worktree's git-ignored `build/`.
+
+### What was built
+
+- `0dc0ffc`: the confirmation's R1 written into criterion 2 (the `Stat` row's property has a
+  setter), and the status "confirmed for build".
+- `c34e801`: the code, the seven checks and the docs, in one commit so that it is green on its
+  own (the README reference check needs `FileFault`'s regenerated line beside its docstring).
+  - `src/wasi_python/mounts.py`: `_ERRNO_ALIASES`, `_errno_table`, `_HOST_ERRNO`, `_RAISED`,
+    `_ERRNO_SLOT`, `_raised` (Decisions 2 and 3, as the outline); `_Files._invoke` takes a
+    member as the answer, `(0, member)`; `_Files._list` runs `iter()` and each `next()` in a
+    `try` of their own, mapped by a new `_Files._listing_raised` (Decision 5); the module,
+    `FileProvider`, `WritableFileProvider` and `FileFault` docstrings (Decision 10).
+  - `src/wasi_python/runner.py`: `run`'s sentence (Decision 10, F6).
+  - The checks: criteria 1 to 3 in `tests/checks/test_v1_4_embedding.py`, criterion 4 in
+    `tests/checks/test_v1_2_hostile_guest.py`, criteria 5 to 7 in
+    `tests/unit/test_runner_mounts.py`.
+  - `README.md` (*Mounts*: the protocol's sentence, **Raising an OSError**, the fault sentence,
+    the record's `"refused"`; the reference's `FileFault` line, by `tests/harness/api.py
+    --write`) and `CHANGELOG.md` (0.1.0a6, one entry).
+- This commit: these landing notes.
+
+### Seen failing first, and against every stand-in (criteria 1 to 7)
+
+`build/standins/run_standins.py` applies each stand-in to the built `mounts.py` in place (S0
+puts back `5e66995`'s file), runs the seven checks, and copies the built file back from a byte
+copy, checked by its SHA-256. Its report is `build/standins/report.txt`, with one log per
+stand-in. Which checks each failed (c1 to c7 are criteria 1 to 7):
+
+| | fails | what it printed, for the check the spec names |
+|---|---|---|
+| S0 (`5e66995`) | c1 to c7 | c1 `/o`: every name 29; c2: `FileNotFoundError('x')` 29, … ; c3: every guest errno 29; c4: only the set-after row, 29 for 44; c5: `(29, None)` for `(44, None)`; c6: 29 for 44; c7: no `_errno_table` |
+| S1 raw number | c1 c2 c3 c4 c6 | c1 `/o`: `EACCES` 13, `EBUSY` 16, `ECANCELED` 89, `EDQUOT` 69, … |
+| S2 mapped and recorded | c1 c2 c3 c4 c6 | c1: 21 faults (each with the secret in its text); c2: "the runner formatted a mapped raise" |
+| S3 class first | c1 c2 | c2: `PermissionError(EPERM)` 2, `FileNotFoundError(EACCES)` 44 |
+| S4 no class | c2 c3 c5 | c2: `FileNotFoundError('x')` 29, `IsADirectoryError` at read 29 |
+| S5 member as an errno | c2 c3 | c2: `IsADirectoryError` at read 31 for "dir"; c3: every guest errno 29 |
+| S6 `e.errno` | c4 | the property row 44 for 29 (the assertion on answers stops the check before the count of runs) |
+| S7 `isinstance(number, int)` | c4 | `True` 63, the `int` subclass 44 |
+| S8 `isinstance(e, base)` | c4 | the lying `__class__` row 44 (as S6, before the count) |
+| S9 every preview1 name, as an errno | c2 c3 c4 | c4: `trapped == "out of file calls"`; c2: `FileNotFoundError(EINTR)` 27 |
+| S10 not in `_list` | c5 | `(29, None)` for `(44, None)` |
+| S11 the exception kept | c6 | a weak reference alive |
+| S12 by `errno.errorcode` | c2 c7 | c2: `OSError(EOPNOTSUPP)` 29; c7: macOS's 102 not a key |
+| S13 the class whenever | c2 | `TimeoutError(99999)` 73, `FileNotFoundError(EINTR)` 44 |
+| S14 answer objects mapped | c2 | the `Stat` row 44 |
+| S15 `isinstance(e, OSError)` | c4 | `['__class__ (not an OSError)']`: the property ran once |
+| S16 `e.args[0]` | c2 c3 c4 c5 | c4: the set-after row 29 |
+| S17 `names[name]` | c7 | `KeyError: 'ESTALE'` |
+
+Each stand-in fails every check the spec names for it; several fail more.
+
+### The criteria
+
+1. `test_a_raised_oserror_is_the_answer_of_its_errno` passes: 21 of 21 under both mounts, no
+   fault, 42 stats, the secret in neither output nor `repr(done)`.
+2. `test_an_oserrors_class_answers_when_its_errno_cannot` passes: every row as tabled, 7
+   faults, `__str__` called 0 times, one `read` and no `list` for each folder row.
+3. `test_a_write_halfs_raised_oserror_is_a_refusal` passes. The record, printed once
+   (EXECUTED): per mount, `write /created EACCES open`, `write /closed ENOSPC close`, `mkdir
+   /made EEXIST call`, `rename (/a.txt, /moved.txt) EXDEV call`, `remove /b.txt EISDIR call`,
+   then `write /left EDQUOT exit`, each `"refused"`; no fault.
+4. `test_an_oserror_that_names_no_member_stays_a_fault` passes: 16 rows, 15 faults, one `read`
+   each, no property run.
+5. to 7. The three unit checks pass.
+8. No existing check changed; all pass (the judge below).
+9. README: as listed; `uv run python tests/harness/api.py --check` passes after `--write`;
+   `git diff 5e66995 -- tests/public_api.txt` is empty; the reference block's diff is one line,
+   `FileFault`'s summary.
+10. CHANGELOG: the entry, under 0.1.0a6.
+11. The judge (below). The Windows column of the memo stays INFERRED until the release dry run
+    runs criterion 1 on Windows.
+
+### The judge
+
+The fast tier before the change (`build/fast-before.log`, `uv run pytest -m "not slow" -n 3`):
+`wasi_python v1: 315/364 pass · 0 gap · 10 blocked · 0 fail · 39 deselected (unit suite
+1116/1124, 8 skipped)`, v1.4 157/157, v1.2 60/61. After it (`build/fast-after.log`): `319/368
+pass · 0 gap · 10 blocked · 0 fail` (unit suite 1119/1127), v1.4 160/160, v1.2 61/62, `lost 0 ·
+grew 0 · gained 4`.
+
+The full judge once, serially, without `--accept`,
+`WASI_PYTHON_ARTIFACTS=…/build/sets/s-c4190ca065ada03a uv run pytest` (`build/full.log`):
+
+```
+wasi_python v1: 326/368 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1119/1127, 8 skipped)
+  v1.4  embedding           160/160
+  v1.2  portable, sealed    61/62  blocked 1
+ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 4 · grew 0 ·
+  upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py,
+  tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_mounts.py
+1445 passed, 50 skipped in 265.09s (0:04:25)
+```
+
+The 42 blocked are the worktree's missing source trees, oracle, wheel and prior-art clones
+(numpy 17, pandas 16, one each for the rest), not this change. v1.4 gains exactly criteria 1
+to 3, v1.2 criterion 4, and the unit suite criteria 5 to 7. `ruff check` and `ruff format
+--check` are clean on `src/` and `tests/`; `api.py --check` passes. The lane accepts with
+`--accept-judge`, since three judging files gain checks.
+
+### Departures from the specification, each with its reason
+
+- **Criterion 4 is no longer passed by S0.** The spec says "Guards the change (S0 passes it)",
+  written before F10 added the set-after row. That row is a mapped case, so `5e66995` gives it
+  29, not 44: S0 fails criterion 4 on that row only, and passes the rest. Nothing else changes.
+- **Criterion 2 has one more row:** `EISDIR` *returned* at `read`, beside the raised
+  `IsADirectoryError`, so the check compares the two directly ("as a returned `EISDIR` does").
+  It is not a fault and does not change the count of seven.
+- **S6 and S8 fail on the guest's answer first.** Each also runs a property, but the check
+  asserts the answers before the count of runs, so the count's own failure is not reached.
+  S15 is the stand-in whose only failure is the count.
+- **S12 on the fake hosts.** `errno.errorcode` exists only for the real host, so on the memo's
+  three namespaces the stand-in reverses the namespace, one name per number, the last name
+  given winning, as `errorcode` keeps one.
+- **S17 fails on the in-process namespace** (`KeyError`) before the child process runs, so the
+  child's own exit 1 is not separately seen.
+- **One commit for code and docs.** The code and the docs were first committed apart; the code
+  commit alone would fail the README reference check, so the two unpushed branch commits were
+  folded into one with `git reset --soft` and committed again as `c34e801`.
