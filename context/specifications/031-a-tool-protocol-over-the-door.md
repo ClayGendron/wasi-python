@@ -936,3 +936,11 @@ artifact set does not change.
 - The growth list equals the revision's within 68 fuel on six checks, and exactly on the rest.
 - `SHA256SUMS` is unchanged (zip `ee1acace…`, snapshot `0cdc7b2b…`, `python.wasm` `4befe9de…`).
 - `ruff check` and `ruff format --check` are clean on `src tests recipes/guest`.
+
+**Landed 2026-10-18** through the lane: rebased onto main (CHANGELOG conflicts kept both sides),
+the main tree detached at `3059b71` rebuilt steps 70–90 and gave the worktree's `SHA256SUMS`
+byte for byte (zip `ee1acace…`, snapshot `0cdc7b2b…`, `python.wasm` unchanged), spec 048's revised
+documents committed on that HEAD (`c42410a`), accepted with `--accept-judge` and
+`--accept-growth` (the confirmation's reason: two zip members, the snapshot's teardown) as
+`64663de`, the rules tier passed, main fast-forwarded; the frozen set for builders became
+`build/sets/s-0cdc7b2bd78db6f5`. Release dry run 39109451358 on `77bd08e`: every job passed.
