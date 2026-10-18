@@ -364,6 +364,52 @@ Two things the specification did not say:
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the implementer, 2026-10-17, on `spec/033-the-zip-carries-what-packages-need` rebased onto
+main (`8c56437`, no conflict); the revision is commit `f4f64ce`. Evidence: the specification's
+Landing notes, "Revision after the build review", and
+`scratchpad/033-variants/probe-fix.tsv`, `033-judge-3.log`, `033-growth-3.txt`.
+
+1. **Fixed, as prototyped.** In `_types.py` the refusing `__numpy_dtype__` moved from `_CData` to
+   a new `_NoLayout(_CData)`, the base of `Structure`, `Union` and the array, pointer and function
+   types only; `_NumpyDtype.__get__` returns itself when read on `_SimpleCData`.
+   - **Checks, seen failing first on `b25a61d`'s set (EXECUTED):** the `CTYPES` program gains
+     `help(ctypes)` (via `pydoc.Helper` to a `StringIO`), `pydoc.render_doc(ctypes.c_int)`,
+     `pydoc.render_doc(numpy.ctypeslib)` and `np.info(ctypes.c_int)`, after numpy is imported, on
+     both binaries. All four failed with the `OSError` on both. A unit check,
+     `test_the_ctypes_stand_in_documents_itself_with_numpy_loaded`, loads the package with a
+     stand-in `numpy` in `sys.modules`. It failed at `_types.py:33`. Every refusal (`Structure`,
+     `Union`, array, pointer, function type) is asserted there too.
+   - Steps 70 to 90 re-run. New `SHA256SUMS`: `MANIFEST` `9f6019c6…`, snapshot `8d84b3b1…`
+     (65,505,752 bytes), zip `6e3f773a…` (11,162,065 bytes), `python.wasm` `4befe9de…`
+     unchanged. Criterion 2's commands and the litter re-run hold again.
+   - The full judge: `200/204 pass · 0 fail`, `lost 0 · gained 4 · grew 39`, `791 passed, 11
+     skipped`. Criterion 4's account was re-taken in the landing notes. Every growth matches the
+     first build's within about 300 fuel, except the zip (+21,430 bytes) and the snapshot (−1,072
+     bytes).
+2. **Amended as worded.** Criterion 4 now carries your amendment verbatim, marked "Amended from
+   the build review's finding 2", with its reason, and the Status line records it. The five-run
+   evidence after the fix, `$OLD` against the fixed set:
+   - `1/0` plain: +624,428, +492,342, +623,826, +489,246, +495,227; **mean +545,014** (cap 0.6 M);
+   - `import pdb, pydoc, doctest` on the snapshot: +215,063, +77,589, +198,036, −47,727, −71,721;
+     **mean +74,248** (cap 0.2 M);
+   - the types are not built in either (a probe line prints `False False False` plain and `True
+     False False` on the snapshot for `ctypes` loaded, `c_long` built, `ctypes._types` loaded).
+
+   The code was not changed for this. The landing notes give the lane your `--accept-growth`
+   wording, with the re-measured means.
+3. **Fixed.** The Status line and the landing notes now say "heap-layout noise, the collector
+   among it". They cite the perturbation series, and record that the `gc.disable()` pair is not a
+   clean control. The heavy-check evidence for `pandas_csv` and `numpy_csv` stays as it was.
+4. **Fixed.**
+   - Decision 5 "The edges, stated" gains the introspection edge: for a `Structure`, `Union`,
+     pointer, array or function type, `hasattr`, `inspect.getmembers`, `pandas_dtype` and
+     `is_integer_dtype` raise the `OSError`, and what still works.
+   - Decision 5 "numpy's dtypes" gains the refinement (`AttributeError` before numpy loads, as a
+     real `ctypes` type) and where the refusal sits.
+   - The README's platform paragraph and the CHANGELOG state the edge.
+5. **No change**, as the review says. Noted for spec 023: compare `key.lower()` in
+   `sdist_metadata` if a `PKG-INFO` with lower-case headers appears.
+
 ## Verdict
 
 **Revise, then land.** The build does what the specification asks:
