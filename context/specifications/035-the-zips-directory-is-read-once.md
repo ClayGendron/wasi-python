@@ -1,7 +1,9 @@
 # 035 — The zip's directory is read once
 
-- **Status:** **revised against its build review; awaiting the reviewer's confirmation**
-  (2026-10-18; the build review's F1 to F5 answered in the landing notes' last part, "Revised
+- **Status:** **landed 2026-10-18** (accepted on `a0e3cf0` as `24e053b`; the build review
+  confirmed it, `../reviews/035-the-zips-directory-is-read-once-2026-10-18.md`; the release dry
+  run follows, see the Landing notes' last part). Before landing: **revised against its build
+  review; awaiting the reviewer's confirmation** (2026-10-18; the build review's F1 to F5 answered in the landing notes' last part, "Revised
   against the build review"; F3 fixed in code, so the set was rebuilt from pins and judged
   again). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 051 lands before this one** (the lane's order, 2026-10-18): 051 changes every `.pyc` in the zip (each code object's `co_filename` carries `/usr/local/lib/python315.zip/`) and grows plain fuel (`-c pass` +34,790). So this specification's absolute byte and fuel baselines (criterion 9, Decision 10) are restated against 051's set, and that difference is 051's, not a finding. Its per-member directory figures hold: the zip's member list (names, order, dates, compression, modes) is unchanged. drafted 2026-10-17; revised the same day against its pre-build review
   (`../reviews/035-the-zips-directory-is-read-once-spec-2026-10-17.md`), all eight findings
@@ -932,3 +934,24 @@ licence check (no clones in the worktree). `ruff check` and `ruff format --check
 
 Not run here, left to the lane, as before: a build in a clean clone, the release dry run and its
 rebuild jobs on the other hosts (criterion 9).
+
+**Landed 2026-10-18** through the lane. The build review's Confirmation: "Confirmed, it lands"
+(`../reviews/035-the-zips-directory-is-read-once-2026-10-18.md`). Rebased onto main `a03f9c3`:
+two documentation conflicts, both resolved by keeping both sides (the README paragraph keeps
+spec 050's `/dev/null` and `tests` sentences and takes this spec's metadata text; the upstream
+README keeps facts sheets 14 and 15), and this spec's courtesy draft renumbered
+`16-importlib-resources-zip-directory` in `12e2833` because main's facts sheets took 14 and 15.
+`git range-diff` shows every code commit unchanged (`=`); only the landing-notes commit changed,
+by those resolutions. The build review was committed on the detached HEAD as `a0e3cf0`. The main
+tree, detached there, ran `scripts/build.sh --plain` from pins (11 steps, 7m04s under load):
+`python.wasm` 31,786,374 bytes (`42344e2c…`), the snapshot 65,548,702 (`c4190ca0…`), the zip
+11,203,143 (`daf2cdd8…`); `SHA256SUMS` and `MANIFEST` equal the worktree's, byte for byte
+(EXECUTED, `build/lane-035-build.log`). The full judge on that commit: `wasi_python v1: 314/328
+pass · 12 gap · 2 blocked · 0 fail (unit suite 1058/1060, 2 skipped)`, `ratchet vs a0e3cf01d2:
+lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after acceptance, `1372 passed, 4 skipped, 12
+xfailed in 687.32s` (EXECUTED, `build/lane-035-accept.log`). Accepted with `--accept-judge` and
+`--accept-growth` for the review's four growths (plain +25,382 bytes, snapshot +15,584 bytes,
+`test_extra_preopens_work_on_the_snapshot` both orders +1,150,255 fuel) as `24e053b` (history
+line 51); the rules tier passed (24/24); main fast-forwarded. The 0.1.0a4 security review's
+Confirmation looked at this diff at release level and found no security finding. The release
+dry run and its rebuilds on the other hosts follow on main.
