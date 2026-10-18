@@ -349,14 +349,83 @@ and data; they are judged for robustness only.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-- F1:
-- F2:
-- F3:
-- F4:
-- F5:
-- F6:
-- F7:
-- Question 1 (the snapshot's growth, Decision 9 and criterion 14):
+Filled in by the builder, 2026-10-18. The revision is commit `7a587ad` on
+`spec/031-a-tool-protocol-over-the-door`, rebased onto `3b9c9c1` (the conflict in
+`test_v1_4_embedding.py` was two appends, both kept). The spec's Landing notes, "Revision after
+the build review", hold the numbers.
+
+- **F1: fixed.**
+  - Each `enum` and `const` is a `frozenset` of keys, made once by `tool()` (`Tool._keysets`), so
+    a check is one key and one lookup. A schema no `tool()` vetted builds its set on first use,
+    charged.
+  - `_key` charges one step for each value below the one it keys; a `uniqueItems` key costs one
+    more for its item.
+  - `_shown` and `_echo` name a non-string value by its kind and size; nothing is `json.dumps`ed
+    for a message.
+  - The checks: `test_an_enum_costs_one_key_per_value` (your 600-name, 99,990-item frame now
+    answers `ok` with at most 99,990 + 10 key builds, by a counting `_key`; a `const` against
+    100,000 values is "too complex") and `test_messages_never_format_a_whole_value`. Both failed
+    against `d58f2a4`'s code, loaded in place of the new one.
+- **F2: fixed, as you proposed.** A node with `$ref`, `anyOf` or `oneOf` walks a container's
+  children only when it also carries a keyword about them. The schema it delegates to walks
+  them, so the bytes rule holds.
+  - `test_valid_arguments_cost_about_one_step_per_value`, with a stated bound per shape:
+
+    | shape | steps per value | bound |
+    |---|---|---|
+    | order, 5,000 lines | 1.43 | 1.5 |
+    | tree 20 deep, 5,000 leaves | 2.33 | 2.5 |
+    | tree 60 deep | 2.28 | 2.5 |
+    | your recursive union, 60 deep | 2.06 | 2.5 |
+
+  - All four cases failed against the old code.
+  - The tree costs 2.3, not "about two", because its `Optional` parent tries `$ref` before `null`.
+  - A 10,000-line order is about 100,000 steps and is still refused. Decision 3 and the README
+    now state the per-node rule and say a call over about 50,000 values is bulk data.
+- **F3: fixed.**
+  - `_fault` is 032's `_described` text (the type's own name, a `str` check, the first line),
+    made total over `BaseException`.
+  - Both inner handlers catch `BaseException`, and `_message_of` gives a plain `str`.
+  - `test_a_base_exception_never_escapes_the_frame_host` has 8 cases (`SystemExit`, Ctrl-C, a
+    `__str__` raising either, from a tool and from a gate). Against the old code, the Ctrl-C
+    `__str__` case escaped and aborted the pytest session.
+- **F4: fixed.**
+  - The guest refuses a container or bytes at depth 62 or more inside an argument, and an
+    integer outside `-(10**63) < n < 10**64`. Both are `ToolArgumentError`, before `json.dumps`,
+    with no frame sent.
+  - Checks: `test_the_guest_refuses_what_the_host_would_refuse_as_protocol` and
+    `test_a_loose_bytes_answer_is_a_protocol_error`. `"QR=="` is left out of the latter: strict
+    mode accepts it on both halves alike.
+  - Rebuilt from step 70; the new `SHA256SUMS` is in the landing notes (zip `ee1acace…`,
+    snapshot `0cdc7b2b…`, `python.wasm` unchanged).
+- **F5: fixed for the recursion; the catch-all point left to 036's builder.**
+  - `tool()` refuses a same-value chain of more than `SAME_VALUE_CHAIN` = 8 schema nodes, naming
+    it. The check, `test_a_long_same_value_chain_is_refused`, refuses 1,500 nodes and 9 and
+    accepts 7. Decision 4 says so.
+  - The point about 036's `invoke` (never raise, or keep `op`, `tool` and an unknown `abandoned`)
+    is not written into 036's spec: this branch carries one specification. 036's builder should
+    take it from here.
+- **F6: fixed.**
+  - Your 21 mutants, adapted to the new code, plus 10 for the new mechanisms: all 31 are killed.
+  - My first run left two survivors (the key charge removed; arrays walked at every delegating
+    node). The `const` and recursive-union cases were sharpened until both were killed.
+  - Added `test_unique_item_keys_are_charged` and `test_a_result_nested_too_deep_is_a_fault`.
+- **F7: fixed and noted.**
+  - `Tool`'s guard is a context variable that only `tool()` sets, so `dataclasses.replace`
+    raises `TypeError` (`test_only_tool_makes_a_tool`).
+  - The `bool_` and `max_calls=None` notes are in the landing notes, for 036.
+  - Decision 8 is amended for the guest's `"$bytes"` rule, and `pyproject.toml` gains your
+    question 8's comment.
+- **Question 1: accepted as teardown.**
+  - Re-measured on the revised set, five perturbations: `-c pass` on the snapshot is +110,800;
+    `os._exit(0)` is −989. A plain start is +155,809, and +151,746 under `os._exit(0)`.
+  - Decision 9's cost line and criterion 14 are amended to say the snapshot's +0.11 M is in
+    `Py_FinalizeEx`.
+  - The landing notes carry your growth reason, re-measured: zip +12,963 bytes, snapshot +4,197,
+    `os._exit` −989.
+- **The judge** (worktree, its own artifacts, no flags): `223/227 pass · 0 gap · 4 blocked · 0
+  fail` (unit suite 812/819); lost 0, gained 4, grew 40; red only for growth. Ruff is clean on
+  `src tests recipes/guest`.
 
 ## Verdict
 
