@@ -62,6 +62,17 @@ document.
 - **56. Names.** `max_file_calls`, `Defaults.file_calls` and `trapped == "out of file calls"`
   (after `"out of fuel"`), beside the tool protocol's `max_tool_calls`.
 
+### 57 and 58. The zip carries what packages need (spec 033)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** spec 033. Both are decided in the spec as
+  written below, so nothing waits.
+- **57. May it land before "the zip's directory is read once"?** Decision 44 asks for the
+  per-member cut before tier A grows the zip. Spec 033 adds only six members (+0.47 M fuel,
+  +0.19% on a plain start) and is the prerequisite tier A needs either way. Decided: yes.
+- **58. Keep "no ctypes" in the `-V` banner?** After spec 033, `import ctypes` succeeds (a
+  stand-in that names the C types), but no foreign call can be made. Decided: keep the banner,
+  and the README says what the stand-in does.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
