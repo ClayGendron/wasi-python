@@ -869,7 +869,7 @@ ci-39097514484.txt`). EXECUTED unless it says otherwise.
   every call (nothing granted is needed), a root, every grant. A guest can repeat it at will.
   What the bytes hold is the host's (INFERRED: stack or heap leftovers of the thread running the
   guest, possibly pointer fragments). It is a host-memory disclosure to the guest, the adversary
-  of the threat model (§2), reachable with no argument, so §4.15's spirit and §5.5's rule apply:
+  of the threat model (`../research/2026-10-16-a-principal-engineers-direction.md` §2), reachable with no argument, so §4.15's spirit and §5.5's rule apply:
   a security fix in a pinned component is a reason to release. None can be taken yet, because
   no wasmtime-py release carries wasmtime 49.0.2 or later. `context/upstream/12-…/facts.md` is
   a facts sheet for the owner to ask wasmtime-py for one (the Bytecode Alliance AI Tool Use
@@ -884,3 +884,11 @@ ci-39097514484.txt`). EXECUTED unless it says otherwise.
   `ratchet vs 789c841673: lost 0 · … · gained 0 · grew 0 · judge changed: tests/harness/files.py,
   tests/unit/test_runner_mounts.py`, `845 passed, 19 skipped`. `ruff check` and `ruff format
   --check` clean.
+- **Revised against its review** (`../reviews/032-dirent-padding-2026-10-18.md`): the leak is
+  listed under the README's *Safety* → *Not protected* and as a known issue in the CHANGELOG's
+  0.1.0a4 section, naming GHSA-96f6-r43r-8c24 and that a mitigation is being researched (F1);
+  the zero-padding check also cuts buffers inside a header (sizes 22, 23, 47 and 48, F2);
+  `DIRENT_MASKED` and the facts sheet say the padding mask goes once `uv.lock` moves to a
+  wasmtime-py on wasmtime 49.0.2 or later (F3); the evidence script's unused import is gone (F5).
+  Judge: `212/223 pass · 0 fail`, `lost 0 · gained 0 · grew 0`, `845 passed, 19 skipped`; ruff
+  clean.

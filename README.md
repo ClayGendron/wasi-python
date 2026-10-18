@@ -805,7 +805,11 @@ has one.
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
-**Not protected:** a killed process (mid-call, its private root and stdin
+**Not protected:** until a wasmtime-py release carries wasmtime 49.0.2 or
+later, `fd_readdir` on a grant, a root or the stdlib folder (so on every
+call, with nothing granted) copies up to three bytes of uninitialized host
+memory per entry into the guest (wasmtime's advisory GHSA-96f6-r43r-8c24;
+a mitigation is being researched; a mount's own listings write zeros); a killed process (mid-call, its private root and stdin
 folder; at any time after its first call, its 11 MB stdlib zip folder; each
 with its lock file, stay in the temporary folder until another
 process using wasi_python on the same kernel, with the same temporary

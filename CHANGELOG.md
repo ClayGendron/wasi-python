@@ -6,6 +6,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
+- **Known issue: `fd_readdir` copies uninitialized host memory into the guest** (wasmtime's
+  advisory GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2). wasmtime-py 49.0.0, the only 49
+  release, bundles wasmtime 49.0.0, so listing a grant, a root or the stdlib folder (on every
+  call) gives the guest up to three bytes per entry of whatever the host's buffer held. No
+  wasmtime-py release carries the fix yet; a mitigation is being researched. A mount's own
+  listings (spec 032) write zeros.
 - **The stdlib zip carries package metadata** (spec 033). `importlib.metadata.version("numpy")`
   now answers `2.5.2` instead of raising `PackageNotFoundError`, and `distributions()` lists
   numpy, pandas, python-dateutil, six and tzdata at their pinned versions. A wheel keeps exactly

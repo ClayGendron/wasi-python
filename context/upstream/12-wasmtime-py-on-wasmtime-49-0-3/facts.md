@@ -34,6 +34,8 @@ posted, and no agent will post anything.
 4. **What would close it:** a wasmtime-py release whose `ci/download-wasmtime.py` fetches
    `v49.0.3` (or a 50 release); the C API used by wasmtime-py did not change in a patch release
    (INFERRED from wasmtime's versioning).
+   When `uv.lock` moves to such a release, `tests/harness/files.py`'s `DIRENT_MASKED` drops
+   the padding bytes, so the parity compares them again.
 
 ## What the owner might ask
 

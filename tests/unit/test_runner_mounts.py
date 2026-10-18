@@ -669,7 +669,7 @@ def test_a_mount_writes_zero_dirent_padding(placeholder) -> None:
     r = Mounted(MemoryProvider(), placeholder).raw
     d = r.open(3, "d", files.O_DIRECTORY)[1]
     for fd in (3, d):
-        for size in (4096, 25, 50, 80):
+        for size in (4096, 22, 23, 25, 47, 48, 50, 80):  # 22, 23, 47, 48 end in a header's padding
             r.put(files.DIRBUF, b"\xff" * 4096)
             assert r("fd_readdir", fd, files.DIRBUF, size, 0, files.RESULT) == 0
             data, pos, entries = r.get(files.DIRBUF, r.u32(files.RESULT)), 0, 0

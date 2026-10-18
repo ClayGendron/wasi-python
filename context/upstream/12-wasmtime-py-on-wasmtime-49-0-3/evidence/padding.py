@@ -24,7 +24,6 @@ for _ in range(int(sys.argv[1])):
             namlen = struct.unpack_from("<I", data, pos + 16)[0]
             seen[(data[pos + 24 : pos + 24 + namlen], data[pos + 20 : pos + 24])] += 1
             pos += 24 + namlen
-import wasmtime  # noqa: E402
 from importlib.metadata import version  # noqa: E402
 
 print("wasmtime-py", version("wasmtime"), "| (name, d_type and padding): count")

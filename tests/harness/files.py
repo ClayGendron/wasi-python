@@ -289,7 +289,10 @@ class Raw:
         return self("path_symlink", a, n, base, b, m)
 
 
-DIRENT_MASKED = (*range(8, 16), 21, 22, 23)  # d_ino, and the padding after d_type
+# d_ino, and the padding after d_type. The padding is masked only while uv.lock pins a
+# wasmtime-py on wasmtime 49.0.0 (GHSA-96f6-r43r-8c24): once it moves to one on wasmtime 49.0.2
+# or later the reference writes zeros again, and 21 to 24 come back into the parity.
+DIRENT_MASKED = (*range(8, 16), 21, 22, 23)
 
 
 def masked_dirents(data: bytes) -> bytes:
