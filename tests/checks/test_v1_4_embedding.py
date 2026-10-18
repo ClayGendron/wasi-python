@@ -2133,7 +2133,9 @@ def test_an_oserrors_class_answers_when_its_errno_cannot() -> None:
     assert done.files is not None
     faulty = [name for name, _, _, _, want in cases if want == 29]
     assert len(done.files.faults) == len(faulty) == 7, done.files.faults
-    for i in (9, 10):  # the folder rows: one read each, no list
+    folders = [i for i, (_, _, _, action, _) in enumerate(cases) if action == "open"]
+    assert len(folders) == 2, folders
+    for i in folders:  # the folder rows, found by content: one read each, no list
         assert providers[i].calls == {"stat": 0, "list": 0, "read": 1}, providers[i].calls
 
 

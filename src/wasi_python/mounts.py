@@ -136,9 +136,10 @@ class WritableFileProvider(FileProvider, Protocol):
     write half.
 
     Each method of the write half answers `None` for success or an `Errno`: POSIX's contract,
-    in preview1's numbering. An `OSError` it raises is a refusal when it names a member, as for
-    the read half. A file's bytes are staged by the runner and handed over whole at
-    open (a create or a truncation), at close, at sync and at the call's ending.
+    in preview1's numbering. An `OSError` it raises is a refusal when its errno (by name) or,
+    with no errno, its class names a member, as for the read half. A file's bytes are staged by
+    the runner and handed over whole at open (a create or a truncation), at close, at sync and
+    at the call's ending.
     """
 
     # spec 034

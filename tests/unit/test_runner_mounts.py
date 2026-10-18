@@ -1557,8 +1557,9 @@ def test_the_write_half_is_gated(placeholder) -> None:
 
 def test_a_generator_listing_that_raises_answers_its_errno(placeholder) -> None:
     """Criterion 5: a `list` written as a generator runs its body while the runner iterates it,
-    so an `OSError` raised there is the answer of its errno too, before or after a `yield`; the
-    listing is dropped whole, nothing is held, and any other exception stays a fault."""
+    so an `OSError` raised there is the answer of its errno too, before or after a `yield`, and
+    so is one an iterable's own `__iter__` raises; the listing is dropped whole, nothing is
+    held, and any other exception stays a fault."""
     import errno
 
     def generator(make, after_one):
@@ -1572,7 +1573,15 @@ def test_a_generator_listing_that_raises_answers_its_errno(placeholder) -> None:
 
         return how
 
+    class RaisingIterable:
+        """Not a generator: its `__iter__` raises, so `iter()` runs provider code (the build
+        review, F2)."""
+
+        def __iter__(self):
+            raise FileNotFoundError("x")
+
     cases = [
+        (lambda path: RaisingIterable(), 44),
         (generator(lambda: FileNotFoundError(errno.ENOENT, "gone"), False), 44),
         (generator(lambda: FileNotFoundError(errno.ENOENT, "gone"), True), 44),
         (generator(lambda: PermissionError("no"), True), 2),
@@ -1618,6 +1627,27 @@ def test_a_mapped_oserror_leaves_nothing_of_itself(placeholder) -> None:
     assert m.raw.path_filestat(3, "a.txt")[0] == 44
     gc.collect()
     assert [r() for r in refs] == [None, None]
+    record = repr(m.table.record())
+    assert "the-secret-message-061" not in record and "_SecretNotFound" not in record, record
+
+    # The listing's path (the build review, F2): a raise from a generator `list`'s body.
+    listed: list[weakref.ref] = []
+
+    def listing(path):
+        def body():
+            e = _SecretNotFound(errno.ENOENT, "the-secret-message-061")
+            listed.append(weakref.ref(e))
+            yield ("a", "file")
+            raise e
+
+        return body()
+
+    provider = MemoryProvider()
+    provider.answers[("list", "/d")] = listing
+    m = Mounted(provider, placeholder)
+    assert m.raw.open(3, "d", files.O_DIRECTORY) == (44, None)
+    gc.collect()
+    assert [r() for r in listed] == [None]
     record = repr(m.table.record())
     assert "the-secret-message-061" not in record and "_SecretNotFound" not in record, record
 
@@ -1692,7 +1722,9 @@ def test_the_host_errno_table_is_by_name() -> None:
         pass
 
     for bad in (True, Sneaky(errno.ENOENT)):
-        assert Errno.ENOENT not in mounts_module._errno_table({**vars(errno), "ENOENT": bad})
+        assert (
+            Errno.ENOENT not in mounts_module._errno_table({**vars(errno), "ENOENT": bad}).values()
+        )
     without = {k: v for k, v in vars(errno).items() if k != "ESTALE"}
     lacking = mounts_module._errno_table(without)
     assert Errno.ESTALE not in lacking.values() and len(lacking) == len(table) - 1

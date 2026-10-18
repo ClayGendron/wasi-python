@@ -869,8 +869,9 @@ that did not succeed and every write-back the runner owed but did not make,
 whatever the exit code. `paths` is the provider path, or `(src, dst)` for a
 rename; `at` is `"open"`, `"call"` (a `mkdir`, `remove`, `rmdir` or
 `rename`), `"close"`, `"sync"` or `"exit"`; `cause` is `"refused"` (your
-`Errno`, returned or raised), `"fault"` (an exception or a bad answer, also in `faults`, recorded
-as `EIO`) or `"limit"` (the file-call limit came first; no call was made).
+`Errno`, returned or raised), `"fault"` (an exception or a bad answer, also
+in `faults`, recorded as `EIO`) or `"limit"` (the file-call limit came first;
+no call was made).
 `refused_total` counts every one, kept or not: `len(refused) <
 refused_total` says the list was cut. A refused `stat`, `list` or `read` is
 the guest's answer at its open and is not recorded. Whether a refused write
