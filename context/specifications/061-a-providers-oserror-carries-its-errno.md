@@ -1,12 +1,18 @@
 # 061 — A provider's OSError carries its errno
 
-- **Status:** drafted 2026-10-18; awaiting its pre-build review. It changes neither the guest's
+- **Status:** drafted 2026-10-18; revised against its pre-build review
+  (`../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18.md`, written in the
+  lane's evidence folder, `build/reviews-evidence/061-spec/`, and copied in by the lane;
+  verdict: "ready once F1 to F4 are written in", F5 to F7 at the same time, F8 to F10
+  optional); every finding written in (the section "Disposition of the pre-build review");
+  awaiting the reviewer's confirmation. It changes neither the guest's
   imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no review before
   build; one is asked for because it changes a fault boundary that spec 032's security review
   examined (its Decision 4).
 - **Owner:** Clay Gendron
 - **Kind:** the runner and docs; **parallel-safe**, not build-class: `src/wasi_python/mounts.py`
-  (`_Files._invoke`, `_Files._list`, five new private names, four docstrings), judge additions
+  (`_Files._invoke`, `_Files._list`, five new private names, four docstrings) and one
+  sentence of `run`'s docstring in `src/wasi_python/runner.py`, judge additions
   in `tests/checks/test_v1_4_embedding.py`, `tests/checks/test_v1_2_hostile_guest.py` and
   `tests/unit/test_runner_mounts.py`, `README.md`, `CHANGELOG.md`. It touches no `scripts/`,
   `recipes/`, `downloads/SHA256SUMS` or workflow, and not the guest package. **It changes no
@@ -68,19 +74,35 @@ change:
 
 2. **The errno is matched by name, never by number.**
    - At import, `mounts.py` builds a private table, `_HOST_ERRNO: dict[int, Errno]`, from the
-     host's `errno` module: for each member, `getattr(errno, member.name)` maps to the member.
+     host's `errno` module: for each member whose name the host defines, the host's number for
+     that name maps to the member. **A name the host lacks is skipped** (the review, F4): that
+     member is then reached only by a returned `Errno` or by Decision 3's class, and importing
+     `wasi_python` never fails for it. Windows defines `ECANCELED`, `ENOTSUP` and `ENOSYS` only
+     if its C library does (READ, `errnomodule.c`), so a missing name is possible there.
      One alias is added: the host's `EOPNOTSUPP` maps to `ENOTSUP`, because the guest's own C
      library defines `EOPNOTSUPP` as `ENOTSUP` (READ, wasi-libc's `__errno_values.h`). On
      Linux the two share 95 already; on macOS (102) and Windows (`WSAEOPNOTSUPP`) they differ.
    - The table is made by a private function, `_errno_table(names: Mapping[str, object]) ->
-     dict[int, Errno]`, given `vars(errno)`. It keeps only values that are exactly `int`, and
-     keeps the first member for a number (`setdefault`, in `Errno`'s order, then the alias).
-     The unit check feeds it macOS's, Linux's and Windows's numbers (criterion 7).
+     dict[int, Errno]`, given `vars(errno)`. It reads each name with `names.get(name)`, never
+     `names[name]`; it keeps only values that are exactly `int`, and keeps the first member for
+     a number (`setdefault`, in `Errno`'s order, then the alias). The unit check feeds it
+     macOS's, Linux's and Windows's numbers, and a namespace that lacks a name (criterion 7).
    - **Why by name.** A name means the same thing on every host and in the guest; a number does
      not (the memo's table). Every member's name exists on macOS and Linux, with no two members
-     sharing a number on either (EXECUTED); Windows defines all 21 too (READ, CPython's
-     `errnomodule.c`, the WSA values for `EDQUOT`, `ESTALE`, `ETIMEDOUT`; the rest INFERRED).
-     Criterion 1 runs in the release dry run on all three systems and decides Windows.
+     sharing a number on either (EXECUTED). On Windows, CPython defines `EDQUOT`, `ESTALE`,
+     `ETIMEDOUT` and `EOPNOTSUPP` from the WSA values, and `ECANCELED`, `ENOTSUP` and `ENOSYS`
+     only if the C library does (READ, `errnomodule.c`); that MSVC's does is INFERRED.
+     Criterion 1 runs in the release dry run on all three systems and decides Windows; a name
+     missing there costs one wrong answer in that check, never an import error.
+   - **Why this is not a host-specific branch (§4.3; the review, F5).** Spec 032 refused
+     `OSError` partly because accepting it "would bring a host-specific mapping into the
+     runner". The owner's answer to question 54 replaces that reason: a provider may raise, so
+     the runner must read a host's `OSError`. It does so without a branch on the host. There is
+     one code path and no `sys.platform` test. The runner names a meaning, never a host's
+     number: the table is the host's own `errno` module read by the guest's names, so the same
+     name gives the same member everywhere. What does differ by host is the provider's
+     behaviour (for example, Windows raises `PermissionError` for `open()` of a folder). That is
+     the provider's business, and the README documents it (criterion 9).
    - **Why not `errno.errorcode`.** It holds one name per number. On macOS `errorcode[102]` is
      `EOPNOTSUPP`, which is no member, so the alias would be lost. The table is built the other
      way, from the members' names.
@@ -90,25 +112,40 @@ change:
       would consult a `__class__` property, provider code.
    2. **The errno slot:** read through `OSError.__dict__["errno"].__get__(e, type(e))`, the
       member descriptor of `OSError` itself, so a subclass's `errno` property is never run. A
-      value that is exactly an `int` and in `_HOST_ERRNO` gives its member. A `bool`, an `int`
-      subclass, a str, `None` or an unknown number gives nothing here.
-   3. **The class:** the first of six, in this order, that `issubclass(type(e), …)`:
+      value that is exactly an `int` and in `_HOST_ERRNO` gives its member. Only `None` goes on
+      to step 3. Any other value (a `bool`, an `int` subclass, a str, a number not in the table)
+      goes to step 4, a fault.
+   3. **The class, only when the slot is `None`** (the review, F2): the first of six, in this
+      order, that `issubclass(type(e), …)`:
       `FileNotFoundError` → `ENOENT`, `FileExistsError` → `EEXIST`, `IsADirectoryError` →
       `EISDIR`, `NotADirectoryError` → `ENOTDIR`, `PermissionError` → `EACCES`, `TimeoutError` →
       `ETIMEDOUT`.
-   4. **Otherwise `None`:** a fault, `EIO`, as today.
+   4. **Otherwise `None`:** a fault, `EIO`, as today. That includes an errno that is present
+      but names no member, whatever the class: `FileNotFoundError(errno.EINTR, …)` and
+      `TimeoutError(99999, …)` are faults, not `ENOENT` and `ETIMEDOUT`.
 
-   The whole decision runs inside `try`/`except Exception`, answering `None` on any error. It
-   runs no provider code (EXECUTED, the memo's finding 5: a lying property, a hostile `int`, a
-   metaclass that answers yes and a masked `__class__` each gave a fault with none of their code
-   run).
+   The whole decision runs inside `try`/`except Exception`, answering `None` on any error. **The
+   boundary's own reads run no provider code** (EXECUTED, the memo's finding 5 and the review's
+   `probe_versions.txt`, on CPython 3.11 to 3.14): it never calls a subclass's `errno` property,
+   a `__getattribute__` override or a `__class__` property, never a hostile `int`'s `__eq__` or
+   `__hash__`, and never the exception's metaclass (`issubclass(type(e), base)` with a built-in
+   `base` asks `type`). On a mapped raise it never calls `str(e)`. Two things outside the
+   boundary do run provider code, and are not this rule's: CPython's own `raise` calls a
+   metaclass's `__subclasscheck__` once, in the provider's frame, before the boundary sees
+   anything (the review, F1, EXECUTED); and an *unmapped* fault's text is `_described`'s
+   `str(e)`, as today.
    - **Why the errno wins.** `PermissionError(errno.EPERM, …)` must be `EPERM`, not the class's
      `EACCES`. The owner's words: "its errno is then the guest's answer".
    - **Why the class at all.** These six classes are PEP 3151's names for exactly these errnos.
      Without the fallback, the most common idiom, `raise FileNotFoundError(path)`, would still
-     give `EIO`. The class also covers Windows, where a `TimeoutError` from `WAIT_TIMEOUT` carries
-     the C library's `ETIMEDOUT`, a number the host's own `errno` module does not name (READ,
-     `PC/errmap.h`; INFERRED for the number).
+     give `EIO`.
+   - **Why only when the errno is `None`.** The owner's words are "its errno is then the guest's
+     answer (any other exception stays a fault)". An exception that carries an errno has said
+     what it means; when that errno is refused (`EINTR`) or unknown, the class must not quietly
+     replace it. Decision 4's promise then holds: a refused errno always shows in the record.
+     The cost is one rare case: on Windows a `TimeoutError` from `WAIT_TIMEOUT` carries the C
+     library's `ETIMEDOUT`, which the host's `errno` module does not name (READ, `PC/errmap.h`;
+     INFERRED for the number). It is a fault, with its record, rather than `ETIMEDOUT`.
    - **Why `EACCES` for `PermissionError`.** PEP 3151 maps both `EACCES` and `EPERM` to it.
      `EACCES` is the answer of a permission check, and the one spec 032 and the README use for a
      policy's refusal.
@@ -123,23 +160,28 @@ change:
      `EAGAIN` and `EWOULDBLOCK` (a non-blocking "try again", which is false for a whole-file
      provider; EXECUTED, `BlockingIOError`), `EBADF` and `EFAULT` (the guest's own arguments),
      `ENOTCAPABLE` (wasmtime's own sandbox answer), `EMFILE` (the runner's open-file limit),
-     success, and every other number. Each is a fault, `EIO`, with its `FileFault`. So an
-     embedder sees in the record that its errno was not passed on.
+     success, and every other number. Each is a fault, `EIO`, with its `FileFault`, whatever the
+     exception's class (Decision 3). So an embedder sees in the record that its errno was not
+     passed on.
    - `ECANCELED`, `ETIMEDOUT` and `EIO` are also what the runner's own gate answers (cancel,
      deadline, file-call limit). Spec 032 left them to providers; raising them changes nothing:
      only the gate sets `call.ended`, for a returned answer and a raised one alike.
 
-5. **Where it applies: wherever the method's own code runs.**
+5. **Where it applies: three places, named by place** (the review, F10).
    - The method call itself (`_invoke`), for all eight methods.
-   - `iter()` and `next()` on the iterable a `list` returned. A generator method's body runs
-     there, not at the call (EXECUTED: the memo's model, which maps only at the call, still gave
-     a raising generator `EIO` and a fault). The listing is dropped whole: nothing gathered is
+   - `iter()` on the iterable a `list` returned, and each `next()`. A generator method's body
+     runs there, not at the call (EXECUTED: the memo's model, which maps only at the call, still
+     gave a raising generator `EIO` and a fault). The runner cannot tell a generator from any
+     other iterator without running its code, so every iterable's `iter()` and `next()` are
+     mapped alike. The listing is dropped whole: nothing gathered is
      served or held against the staging bound, as on `EIO` today. The iterator is
      closed, as today.
-   - **Not** the answer objects' own code: `read`'s buffer export, a `Stat`'s attribute reads,
-     a listed item's checks, the listing iterator's `close`. An exception there, an `OSError`
-     too, is an answer outside the protocol and stays a fault. These objects are values the
-     method returned; they are not the method.
+   - **Nowhere else.** An exception from `read`'s buffer export (`memoryview(answer)`) or from
+     reading a `Stat`'s attributes (`kind`, `size`, `mtime_ns`), an `OSError` too, is an answer
+     outside the protocol and stays `EIO` and a fault (criterion 2 pins the `Stat` case). A
+     listed item's checks (`_listed`) run no provider code, so nothing can raise there. An
+     exception from the listing iterator's `close` is swallowed by `_close` and recorded
+     nowhere, as today (READ, `mounts.py`, `_close`); this specification does not change that.
    - Shape, for the builder: `_invoke`'s `except Exception as e:` first asks `_raised(e)` and, for
      a member, returns `(0, member)`, the answer; `_list` takes `iter()` and each `next()` into a
      `try` of their own whose `except Exception` asks `_raised` the same way and returns
@@ -150,9 +192,11 @@ change:
    - The guest receives one `i32` from the preview1 call. Its `OSError` text is its own C
      library's `strerror` ("No such file or directory"), never the provider's (EXECUTED, finding
      6). No filename, no message, no class name crosses.
-   - A mapped exception leaves nothing in the record: no message, no type, no traceback. The
-     exception is not stored, so no frame of the provider outlives the call (EXECUTED, finding 5:
-     a weak reference to it is dead after the boundary returns).
+   - A mapped exception leaves nothing in the record: no message, no type, no traceback. **The
+     runner holds no reference to it** (the review, F7). With no reference cycle, the exception
+     and the provider's frame are freed when the boundary returns (EXECUTED, the memo's finding
+     5 and the review's `probe_raw.txt`). A cycle the provider's own frame makes (`err = …;
+     raise err`) is freed by the collector, as a fault's is today.
    - An unmapped `OSError` is a fault as today: `_described` keeps its type and first line, at
      most 200 characters, on the host side only.
 
@@ -172,9 +216,12 @@ change:
 9. **No interaction with specs 053, 054 or 055, or the tool protocol.**
    - 053: async providers stay out of scope. An `async def` method returns a coroutine, a bad
      answer closed at once; a `raise` in its body never runs.
-   - 054: a mount is refused as an import-path server. A guest that puts a mount on its own
-     `sys.path` sees `ENOENT` instead of `EIO` from a raising provider; importlib treats a failed
-     `stat` as missing either way (INFERRED).
+   - 054: a mount is refused as an import-path server. A guest may still put a mount on its own
+     `sys.path`. There, importlib's `FileFinder._fill_cache` catches only `FileNotFoundError`,
+     `PermissionError` and `NotADirectoryError` from its listing (READ, CPython 3.15.0
+     `Lib/importlib/_bootstrap_external.py:1406-1411`; the review, F8). So a raising `list` was
+     an `OSError` out of `import` (`EIO`), and after this change an `ENOENT` reads as a missing
+     module. That is a better answer, and no interaction with 054.
    - 055 (not built) uses the same mount table, so it inherits the rule with no change.
    - Tools keep their own exceptions (`ToolError`, `ToolDenied`, faults; spec 031). A tool's
      `OSError` is still a tool fault.
@@ -188,8 +235,12 @@ change:
     `WritableFileProvider`'s second paragraphs, the module docstring of `mounts.py`, and
     `FileFault`'s summary, "One provider call that raised, or answered outside its protocol",
     which becomes "One provider call that raised an exception that is not an answer, or answered
-    outside its protocol". The README's reference is regenerated with `tests/harness/api.py
-    --write`; only the `FileFault` entry changes.
+    outside its protocol". And `run`'s docstring (`runner.py`, the sentence "no `Exception` a
+    provider, a tool or a gate raises, makes `run` raise: those are recorded in the result")
+    becomes "…makes `run` raise: a provider's `OSError` may be its answer (the README's
+    *Mounts*), and the rest are recorded in the result" (the review, F6). It is not a summary,
+    so no reference line changes for it. The README's reference is regenerated with
+    `tests/harness/api.py --write`; only the `FileFault` entry changes.
 
 11. **Checks first, by counts.** Each new check is run against main's `mounts.py` and seen
     failing before the code changes (a guard, against its stand-ins only), and against each
@@ -200,7 +251,7 @@ change:
 ## Intent
 
 A provider may raise an `OSError` where it would return an `Errno`. The guest gets the member of
-the same name, or of the exception's class when it carries no usable errno, exactly as if the
+the same name, or of the exception's class when it carries no errno at all, exactly as if the
 provider had returned it. Anything outside the closed set stays `EIO` and a fault. The guest
 never sees the provider's text, and the record keeps nothing of the exception.
 
@@ -216,6 +267,7 @@ src/wasi_python/mounts.py   _errno_table(names) -> dict[int, Errno]      (privat
                             _Files._list: iter()/next() mapped the same way
                             docstrings: the module, FileProvider, WritableFileProvider,
                               FileFault's summary
+src/wasi_python/runner.py   run's docstring: one sentence (Decision 10)
 tests/checks/test_v1_4_embedding.py    criteria 1 to 3 (three systems, in the dry run)
 tests/checks/test_v1_2_hostile_guest.py criterion 4 (the judge's machine)
 tests/unit/test_runner_mounts.py       criteria 5 to 7 (raw calls, no guest run)
@@ -233,11 +285,13 @@ def _raised(e: BaseException) -> Errno | None:
         if not issubclass(kind, OSError):
             return None
         number = _ERRNO_SLOT.__get__(e, kind)        # OSError.__dict__["errno"]
-        if type(number) is int and (member := _HOST_ERRNO.get(number)) is not None:
-            return member
-        for base, member in _RAISED:
-            if issubclass(kind, base):
-                return member
+        if number is None:                            # only then the class (F2)
+            for base, member in _RAISED:
+                if issubclass(kind, base):
+                    return member
+            return None
+        if type(number) is int:
+            return _HOST_ERRNO.get(number)            # None: present but unusable, a fault
         return None
     except Exception:
         return None
@@ -249,8 +303,8 @@ In: the above.
 
 Out, each with its reason:
 - Any errno outside the 21 members. The set is spec 032's; widening it is its own change.
-- A raised `OSError` from an answer object's own code (a buffer export, a `Stat`'s attributes,
-  a listed item): Decision 5.
+- A raised `OSError` from an answer object's own code (a buffer export, a `Stat`'s attributes),
+  and the listing iterator's `close`, which `_close` swallows: Decision 5.
 - A record of raised answers (a counter, a `cause` value): Decision 7.
 - Translating a host-folder provider's Windows semantics (for example `open()` of a folder
   raising `PermissionError`, which becomes `EACCES`): the provider's business, documented in the
@@ -278,10 +332,15 @@ what it printed against each.
 | S6 | the errno read as an attribute, `e.errno`, not through `OSError`'s slot |
 | S7 | `isinstance(number, int)` for the errno, not `type(number) is int` |
 | S8 | `isinstance(e, base)` for the class, not `issubclass(type(e), base)` |
-| S9 | a table over every preview1 name the host's `errno` has, not only the members |
+| S9 | `_invoke` returns `(n, None)`, an errno and not an answer, where n is the preview1 number of any name in the host's `errno` that preview1 has, not only the members (the review, F9) |
 | S10 | the mapping at `_invoke` only (the memo's model), not in `_list`'s iteration |
 | S11 | `_invoke` keeps the last exception on the table |
 | S12 | the table built by reverse lookup through `errno.errorcode` |
+| S13 | the class tried whenever the errno gives no member, not only when it is `None` (the draft's reading; the review, F2) |
+| S14 | the mapping also in `_stat`'s and `_read`'s `except`, so an answer object's `OSError` is mapped (the review, F3) |
+| S15 | step 1 written `isinstance(e, OSError)`, not `issubclass(type(e), OSError)` |
+| S16 | the errno read from `e.args[0]`, not from the slot (the review, F10) |
+| S17 | the table reads `names[member.name]`, so a name the host lacks raises (the review, F4) |
 
 **Three systems** (`tests/checks/test_v1_4_embedding.py`, which the release dry run's `verify`
 job runs on Linux, macOS and Windows):
@@ -310,11 +369,17 @@ job runs on Linux, macOS and Windows):
    | `stat` | `FileNotFoundError(errno.EACCES, "x")` (the errno wins) | 2 |
    | `stat` | `OSError(errno.EOPNOTSUPP, "x")` | 58 |
    | `read` | `IsADirectoryError("x")` | `os.open` succeeds and `os.fstat` says a folder, with one `read` call: as a returned `EISDIR` does |
+   | `stat` | a `FileNotFoundError` subclass with errno `errno.ENOENT` whose `__str__` counts its calls | 44; `__str__` called 0 times |
+   | `stat` | `FileNotFoundError(errno.EINTR, "x")`: a present errno that names no member | 29 |
+   | `stat` | `TimeoutError(99999, "x")`: the same | 29 |
+   | `stat` | returns a `Stat` subclass whose `kind` property raises `FileNotFoundError(errno.ENOENT, "x")`: an answer object's own code | 29 |
    | `stat` | `InterruptedError("x")`, `BlockingIOError("x")`, `ConnectionRefusedError("x")`, `OSError("x")`: no errno, no class of the six | 29 each |
 
-   - Faults: exactly the four of the last row.
-   - Fails against: S0; S3 (`PermissionError(EPERM)` gives 2); S4 (`FileNotFoundError("x")`
-     gives 29); S5 (`os.open` of the folder fails with 31).
+   - Faults: exactly seven, those of the last four rows.
+   - Fails against: S0; S2 (the `__str__` row: called once, and a fault); S3
+     (`PermissionError(EPERM)` gives 2); S4 (`FileNotFoundError("x")` gives 29); S5 (`os.open` of
+     the folder fails with 31); S13 (the `EINTR` row gives 44, the `99999` row 73); S14 (the
+     `Stat` row gives 44).
 3. **`test_a_write_halfs_raised_oserror_is_a_refusal`.** A writable mount at `/o` whose provider
    raises, with the host's numbers: `write` at a create, `PermissionError(errno.EACCES, …)`;
    `write` at a close, `OSError(errno.ENOSPC, …)`; `mkdir`, `FileExistsError(errno.EEXIST, …)`;
@@ -342,15 +407,21 @@ job runs on Linux, macOS and Windows):
    | a plain `OSError` whose `errno` is an `int` subclass equal to, and hashing as, `errno.ENOENT` | 29 | 1 |
    | an `OSError` subclass whose `errno` property returns `errno.ENOENT`, its slot `EINTR` | 29 | 1 |
    | an `OSError` subclass whose `__class__` property returns `FileNotFoundError`, errno `None` | 29 | 1 |
-   | an `OSError` subclass whose metaclass's `__subclasscheck__` and `__instancecheck__` return `True` | 29 | 1 |
+   | an `Exception` that is not an `OSError`, whose `__class__` property returns `FileNotFoundError` | 29 | 1 |
+   | a plain `OSError("x")` whose `errno` is set to `errno.ENOENT` after construction (mapped: the slot is read) | 44 | 1 |
    | `ValueError("x")` (unchanged) | 29 | 1 |
 
-   - One fault per case, each `_described`'s text, on one line, at most 200 characters.
-   - The hostile classes' own code ran 0 times (each appends to a list when it runs).
+   - One fault per case but the mapped one, each `_described`'s text, on one line, at most 200
+     characters.
+   - The `errno` property ran 0 times, and each `__class__` property ran 0 times (each appends
+     to a list when it runs). No count covers what the boundary does not do: CPython's own
+     `raise` consults a class's metaclass, and `_described` calls `str(e)` for every unmapped
+     fault, as today (the review, F1). Criterion 2 counts `__str__` on a mapped raise.
    - Exit 0, `trapped is None`, and `run` raises nothing.
    - Fails against: S6 (the property case gives 44, and its code ran once); S7 (the `True` case
-     gives 63, the `int` subclass 44); S8 (the `__class__` case gives 44, and its code ran); S9
-     (the `EINTR` case: `trapped == "out of file calls"` after 20 provider calls).
+     gives 63, the `int` subclass 44); S8 (the first `__class__` case gives 44, and its code
+     ran); S9 (the `EINTR` case: `trapped == "out of file calls"` after 20 provider calls); S15
+     (the second `__class__` case: its code ran once); S16 (the set-after case gives 29).
 
 **Raw calls, no guest** (`tests/unit/test_runner_mounts.py`, through `harness.files.Mounted`):
 
@@ -377,9 +448,13 @@ job runs on Linux, macOS and Windows):
    - Linux's (`EOPNOTSUPP` and `ENOTSUP` both 95): 21 keys, 95 maps to `ENOTSUP`;
    - Windows's (READ and INFERRED, as the memo labels them: `EDQUOT` 10069, `ESTALE` 10070,
      `ETIMEDOUT` 10060, `EOPNOTSUPP` 10045, `ENOTSUP` 129): 22 keys, each member reached;
-   - a namespace whose `ENOENT` is `True`, or an `int` subclass: `ENOENT` is not reached.
+   - a namespace whose `ENOENT` is `True`, or an `int` subclass: `ENOENT` is not reached;
+   - `vars(errno)` without `ESTALE`: no error, one key fewer, and `ESTALE` is not reached;
+   - a child process (`sys.executable -I -c`) that deletes `errno.ESTALE` and then imports
+     `wasi_python`: it exits 0 and prints that `Errno.ESTALE` is not among the table's values.
 
-   Fails against: S0 (no `_errno_table`); S12 (on macOS's numbers, 102 is not a key).
+   Fails against: S0 (no `_errno_table`); S12 (on macOS's numbers, 102 is not a key); S17 (the
+   namespace without `ESTALE` raises `KeyError`, and the child exits 1).
 
 **The judge, the docs and the whole:**
 
@@ -392,29 +467,83 @@ job runs on Linux, macOS and Windows):
    - the protocol's sentence says each method answers "a value or an `Errno`, or raises an
      `OSError`";
    - a paragraph, **Raising an OSError**, says: the errno is matched by name, so `errno.ENOENT`
-     on any host is `Errno.ENOENT`; with no usable errno, the six classes answer; anything else
-     is `EIO` and a fault, `EINTR` and `EAGAIN` included, with the reason; the guest never sees
-     the message; a host-folder provider on Windows still answers `EISDIR` for a folder itself,
-     since Windows raises `PermissionError` there;
+     on any host is `Errno.ENOENT`; with no errno at all, the six classes answer; an errno
+     outside the set is `EIO` and a fault, `EINTR` and `EAGAIN` included, whatever the class,
+     with the reason; the guest never sees the message; **a mapped raise leaves no fault in the
+     record**, so a provider's own bug that raises `FileNotFoundError` reads as the guest's
+     missing file, and a provider that wants its raises seen logs them itself (the review, F6);
+     a host-folder provider on Windows still answers `EISDIR` for a folder itself, since Windows
+     raises `PermissionError` there;
    - the fault sentence reads "Any other exception, or an answer outside the protocol, …";
    - the writable record's `"refused"` reads "(your `Errno`, returned or raised)".
 
-   The docstrings of Decision 10 are changed; `uv run python tests/harness/api.py --write`
+   The docstrings of Decision 10, `run`'s sentence among them, are changed; `uv run python tests/harness/api.py --write`
    regenerates the reference; `--check` passes; `git diff tests/public_api.txt` is empty; the
    reference block's diff touches only `FileFault`.
 10. **CHANGELOG.** One entry under 0.1.0a6: "**A provider may raise `OSError`** (spec 061). Its
     errno, matched by name (never by number, which differs by host), is the guest's answer, as
-    the `Errno` of that name would be. With no usable errno, `FileNotFoundError`,
+    the `Errno` of that name would be. With no errno at all, `FileNotFoundError`,
     `FileExistsError`, `IsADirectoryError`, `NotADirectoryError`, `PermissionError` and
     `TimeoutError` answer `ENOENT`, `EEXIST`, `EISDIR`, `ENOTDIR`, `EACCES` and `ETIMEDOUT`. An
-    errno outside the closed set (`EINTR`, `EAGAIN` and the rest) and any other exception stay
-    a fault, `EIO`. The guest never sees the exception's message, and the record keeps nothing
+    errno outside the closed set (`EINTR`, `EAGAIN` and the rest), whatever the class, and any
+    other exception stay a fault, `EIO`. A mapped raise leaves no fault in the record. The guest never sees the exception's message, and the record keeps nothing
     of it."
 11. **The judge is green.** `ruff check` and `ruff format --check` are clean on `src/` and
     `tests/`. The full `uv run pytest` in the worktree, without `--accept`: lost 0, grew 0; v1.4
     gains 3, v1.2 gains 1, the unit suite gains 3. The lane accepts with `--accept-judge` (three
     judging files gain checks). The release dry run before the next tag shows criterion 1 green
     on Windows; until it does, the memo's Windows column stays INFERRED.
+
+## Disposition of the pre-build review
+
+The review: `../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18.md` (written
+in `build/reviews-evidence/061-spec/`, with its probes; the lane copies it in). Each finding, with
+the lane's ruling where it gave one, and where it went:
+
+- **F1 (medium), criterion 4's "hostile code ran 0 times" cannot pass: fixed.** The metaclass row
+  is dropped: CPython's own `raise` calls `__subclasscheck__` once in the provider's frame, and
+  no boundary calls it, so the row guarded nothing. Criterion 4 now counts only what the
+  boundary must not do and a correct build does not: the `errno` property and the `__class__`
+  properties run 0 times. It says no count covers the metaclass or `__str__` for an unmapped
+  fault. A mapped raise's `__str__` count of 0 moved to criterion 2, against S2. The review's
+  optional row (a non-`OSError` with a `__class__` property) is in, against S15. Decision 3
+  says what the boundary's reads do and do not run.
+- **F2 (medium), the class overriding a present errno: fixed, the reviewer's reading (a).** The
+  class decides only when the slot is `None`; a present errno that names no member is a fault
+  whatever the class (Decision 3, steps 3 and 4, and its reason; Decision 4; the outline). The
+  Windows `WAIT_TIMEOUT` case becomes a fault with its record, said so. Criterion 2 gains
+  `FileNotFoundError(errno.EINTR, "x")` and `TimeoutError(99999, "x")`, 29 each; stand-in S13 is
+  the draft's reading (44 and 73). README and CHANGELOG say "with no errno at all" and "whatever
+  the class".
+- **F3 (medium), the answer-object exclusion unpinned, one sentence wrong: fixed.** Criterion 2
+  gains a `Stat` subclass whose `kind` raises `FileNotFoundError(errno.ENOENT)`: 29 and a fault;
+  stand-in S14 maps in `_stat`'s and `_read`'s `except` (44). Decision 5 now says `_close`
+  swallows an exception from the iterator's `close` and records nothing, as today, and that
+  `_listed` runs no provider code.
+- **F4 (low), a name the host lacks: fixed.** Decision 2: such a name is skipped
+  (`names.get`), and importing `wasi_python` never fails for it. Criterion 7 gains a namespace
+  without `ESTALE` and a child process that deletes `errno.ESTALE` and imports `wasi_python`;
+  stand-in S17 (`names[member.name]`).
+- **F5 (low), §4.3: fixed.** Decision 2 says why the name table is not a host-specific branch,
+  and that the owner's answer to question 54 replaces spec 032's reason.
+- **F6 (low), the README and `run`'s docstring: fixed.** Criterion 9's paragraph says a mapped
+  raise leaves no fault and that a provider that wants its raises seen logs them itself.
+  Decision 10 adds `run`'s sentence (`runner.py:334`); it is not a summary, so the reference
+  changes only in `FileFault`. The CHANGELOG entry says it too.
+- **F7 (low), "no frame outlives the call": fixed.** Decision 6: the runner holds no reference;
+  a cycle the provider's own frame makes is freed by the collector, as a fault's is today.
+- **F8 (nit), the 054 bullet: fixed.** Decision 9 cites `FileFinder._fill_cache`: a raising
+  `list` was an `OSError` out of `import`, and an `ENOENT` now reads as a missing module.
+- **F9 (nit), S9 as an errno: fixed.** S9 is "`_invoke` returns `(n, None)`", an errno, so the
+  `EINTR` loop happens.
+- **F10 (nit), Decision 5's rule by place and the set-after row: fixed.** Decision 5 names the
+  three places and why every iterable's `iter()` and `next()` are mapped (a generator cannot be
+  told from another iterator without running code). Criterion 4 gains a plain `OSError` whose
+  `errno` is set to `ENOENT` after construction, 44; stand-in S16 reads `e.args[0]` (29).
+
+The memo (`../research/2026-10-18-a-providers-oserror-carries-its-errno.md`) is left as written,
+as research memos are. Where this section corrects it (F1's metaclass count, F8's importlib
+claim, F2's reading of the class), this specification governs.
 
 ## Landing notes
 
