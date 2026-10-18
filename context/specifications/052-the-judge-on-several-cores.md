@@ -1,6 +1,9 @@
 # 052 — The judge on several cores
 
-- **Status:** built 2026-10-18; awaiting its build review. Confirmed for build the same day (C1, C2
+- **Status:** built 2026-10-18; revised against its build review the same day
+  (`build/reviews-evidence/052-buildreview/052-the-judge-on-several-cores-2026-10-18.md` in the
+  main tree: "lands once F1 and F2 are fixed"; F1 to F6 answered in its Disposition at the end);
+  awaiting the reviewer's confirmation. Confirmed for build the same day (C1, C2
   written in). Revised against its
   pre-build review and confirmed the same day (the review's Confirmation: "ready to build", with
   conditions C1 and C2, written into Decisions 5 and 9 and criterion 5). Drafted 2026-10-18; reviewed the same day
@@ -112,7 +115,9 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
    |---|---|---|
    | `-n <int>`, `-n auto` | allowed | the parallel run |
    | `-n logical` | refused | needs `psutil`, which is not pinned |
-   | `--maxprocesses`, `--max-worker-restart` | allowed | they only cap workers or restarts |
+   | `--maxprocesses` | allowed | it only caps workers |
+   | `--max-worker-restart 0` | allowed, and set by the judge whenever it distributes | a dead worker is not replaced: its check fails and the run ends (Decision 14; the build review, F1) |
+   | `--max-worker-restart` any other value | refused | a replacement would run the dead worker's check again, and could hang |
    | `--dist load` (what `-n` sets) | allowed | the judge's scheduler replaces it |
    | `--dist` anything else | refused | `each` runs every check once per worker; the others would be silently replaced |
    | `-d` / `--distload` | refused | `--dist load` with no workers: nothing to distribute |
@@ -168,7 +173,11 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
      past any deadline (`runner._epoch_ticker.count = classmethod(lambda cls: 2**62)`), which the
      bound reads at call time. *Reason:* with `deadline_s=3` the guest must reach
      `tools.block()` within three seconds of wall time, or `outcomes[-1]` raises; the same shape as
-     the door check (review F3).
+     the door check (review F3). What removes that bet is the 60 s deadline; the seam brings the
+     run from about 60 s to about 1 s, far from the 120 s fail-safe, and the guest must still
+     reach the tool within 60 s, the margin Decision 9 accepts for the door check too (the build
+     review, F4: without the seam the check passes after the real deadline, 62 s; with the bound
+     broken it fails at the fail-safe).
 10. **The worker count builders and reviewers use is `-n 6` on the project's machine, fewer when
     others are running.** AGENTS.md and `context/progress/README.md` name `uv run pytest -n 6`
     for darwin-arm64 on the 10-core M1 Pro, and `-n auto` on another machine. When another
@@ -206,9 +215,11 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
 12. **The comparison is a harness function.** `tests/harness/sameness.py` holds
     `differences(a, b) -> list[str]`: every difference between two run records in `status`,
     `need`, `area`, `closer`, `facts`, the set of metric names, `bytes`, `passes`, `deselected`,
-    `collected_files` and `suite`; in `reason` for checks whose status in both records is `pass`,
-    `gap` or `blocked` (there the reason is deterministic: a note such as spec 051's coverage line,
-    the gap's first line, the need); and in `fuel` wherever
+    `collected_files`, `suite` and `meta.foreign` (added after the build review, F2: what steered
+    the run from outside the judge, the one `meta` field that decides a verdict); in `reason` for
+    checks whose status in both records is `gap` or `blocked` (there the reason is deterministic:
+    the gap's first line, the need; a pass's note is not compared, see the change below); and in
+    `fuel` wherever
     `abs(a − b) > FUEL_TOLERANCE × max(a, b)`. A `fail`'s reason is not compared: it may name a
     temporary path, and the status comparison already decides. A command,
     `uv run python tests/harness/sameness.py A.json B.json`, prints the differences and exits 1
@@ -238,13 +249,17 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
     of 3 trials (review F1, EXECUTED there). A rename publishes atomically on every system the
     judge runs on, without a lock file; `fcntl` does not exist on Windows, where the release dry
     run judges.
-14. **A worker that dies leaves a `fail`, not an `unrun`.** The controller keeps each failed
-    report that carries no record property (xdist's report for the check that was running when a
-    worker crashed). In its `pytest_sessionfinish`, after the merge, each such node that is a goal
-    check and has no record becomes `fail`, its reason `worker crashed: ` and the first line of
-    xdist's report. xdist deals the dead worker's other scopes again, so only that one check is
-    lost. *Reason:* the run is red either way, but the record should name what happened (review
-    F8).
+14. **A worker that dies leaves a `fail`, and the run ends.** Whenever the judge distributes it
+    sets `--max-worker-restart 0` (in the hook wrapper of Decision 7, before xdist's session reads
+    it), so a dead worker is not replaced. The controller keeps each failed report that carries no
+    record property (xdist's report for the check that was running when a worker crashed). A crash
+    outranks any record of that node: a later record is ignored, and in `pytest_sessionfinish`,
+    after the merge, each such goal check becomes `fail`, its reason `worker crashed: ` and the
+    first line of xdist's report. *Reason:* the run is red either way, but the record should name
+    what happened (review F8). *Revised after the build review (F1, EXECUTED there):* with
+    per-node-id scopes and xdist's restarts, the dead worker's unfinished scopes, the crashed check
+    included, were dealt again; 4 of 9 runs hung, and a finished run recorded the re-run's `pass`
+    while exiting 1. With no restart, 4 of 4 ended at once with the check `fail`.
 
 ## Design
 
@@ -340,7 +355,8 @@ Each is counted; none times anything.
 3. **Workers write nothing and guard nothing.** A unit test calls the plugin's
    `pytest_sessionfinish` with a stand-in session whose config has `workerinput`, `--accept` set
    and scratch `--progress-dir` and `--progress-latest` paths: it fills
-   `workeroutput["wasi_python.collection"]` with exactly the four keys, and the scratch folder holds
+   `workeroutput["wasi_python.collection"]` with exactly the four keys and `foreign` (added after
+   the build review, F2), and the scratch folder holds
    0 files afterwards. Another calls `pytest_configure` with such a config: `HEAD_AT_START` is not
    stashed. In criterion 1's `-n 3` record every check of the suite is present and none is `unrun`.
 4. **The guards hold under `-n`.** The existing spec 029 self-tests (`--accept` refused in a
@@ -354,7 +370,8 @@ Each is counted; none times anything.
    `xdist/` (C1: `iniconfig` loaded with `-p iniconfig`).
 6. **The refusals.** Self-tests, one per refused row of Decision 7's table (`-n logical`,
    `--dist each`, `--dist loadfile`, `-d`, `--no-loadscope-reorder`, `--maxschedchunk 2`,
-   `--tx popen` with `-n 2`, `--px …`, `--rsyncdir …`, `--rsyncignore …`, and `-f` run under a
+   `--tx popen` with `-n 2`, `--px …`, `--rsyncdir …`, `--rsyncignore …`,
+   `--max-worker-restart 1` (added after the build review), and `-f` run under a
    120 s fail-safe): each exits 1 with one line naming the option, before collection, and the
    scratch progress folder and `--progress-latest` path hold 0 files. One self-test per allowed row
    (`-n 2 --maxprocesses 1`, `-n 2 --max-worker-restart 0`, `-n 2 --dist load`,
@@ -546,3 +563,60 @@ lines (serial 645 s, `-n 3` 242 s) and is where the note difference was found.
   of them subprocess runs), 1 in `test_zip_directory.py` and 2 in `test_landing_lane.py`.
 - **Lane, for this landing:** step 3 serial with `--accept-judge`; step 3a compares the
   reviewer's `-n 6` (or `-n 3`) record with the lane's serial one.
+
+**Revised against the build review** (2026-10-18; the review
+`build/reviews-evidence/052-buildreview/052-the-judge-on-several-cores-2026-10-18.md` in the main
+tree, its runs under the session's scratch folder `052-buildreview/`). One commit, `ae30779`, then
+these notes; no rebase (main is frozen for code until the 0.1.0a5 tag). Logs under
+`build/build-052/rev/`.
+
+- **The judge, serial and on three cores, on `ae30779`** (judge hash `6d9421bb5a84` in both
+  records, `dirty: false` in both; `-n 3`, other agents' judges running):
+
+  ```
+  uv run pytest            wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1101/1103, 2 skipped)
+                           ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · judge changed: pyproject.toml, tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py and 7 more
+                           1441 passed, 4 skipped, 12 xfailed in 496.84s; exit 0; wall 534 s, CPU 699 s
+  uv run pytest -n 3       wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1101/1103, 2 skipped)
+                           (the same ratchet line)
+                           1441 passed, 4 skipped, 12 xfailed in 214.18s; exit 0; wall 214 s, CPU 826 s
+  sameness.py serial.json n3.json        (nothing printed) exit 0
+  ```
+
+  0 status differences in 354 checks; 17 of 86 fuel values differ, the largest by 3.0e-7;
+  `meta.foreign` `[]` in both; `meta.workers` 0 and 3; `meta.scheduler` `null` and
+  `JudgeScheduling`. Load average 18 to 23. The fast tier at `-n 3` before the commit: `313/354 pass · 0 gap · 2
+  blocked · 0 fail · 39 deselected`, with one unit failure, criterion 3's test not yet expecting
+  the `foreign` key (fixed in the same commit; `test_several_cores.py` then 32 passed).
+- **F1.** `tests/unit/test_several_cores.py::test_a_dead_workers_check_fails_and_the_run_ends`
+  (`once`, `always`): a check that kills its worker; the run ends under a 120 s fail-safe and the
+  check is `fail`, "worker crashed". Passes 3 of 3 runs (about 2 s each). Against the plugin of
+  `0b4156b` both parameters hung to the fail-safe, in 2 of 2 runs (`rev/f1-standin-1.log`,
+  `-2.log`). `--max-worker-restart 1` joins criterion 6's refused rows.
+- **F2.** `tests/unit/test_landing_lane.py::test_a_plugin_registered_while_collecting_is_foreign_on_any_cores`:
+  in the clone's worktree, a conftest under `tests/unit/zz052/inner/` registers an object plugin
+  of a module with no file; serial and `-n 2` both exit 1 with `steered from outside the judge:
+  plugin steer052`, both records name it in `meta.foreign`, and `sameness` finds no difference.
+  With the worker's handover removed (stand-in `rev/plugin.no-worker-foreign.py`), the `-n 2` run
+  exited 0 and the test failed (`rev/f2-standin.log`). A worker's own loop, xdist's `remote.py`
+  run by execnet as `__channelexec__`, has no file; its `WorkerInteractor` is allowed on a worker
+  only, and only when xdist is at the locked version. Criterion 3's worker output now has a fifth
+  key, `foreign`.
+- **F3.** The progress README's `sameness` line names a gap's or blocked check's reason, not a
+  pass's note, and `meta.foreign`; its option line names `--max-worker-restart 0`. Decision 12's
+  text no longer lists `pass`.
+- **F4.** The tool-deadline stand-in this build's notes claimed had no run behind it (the log
+  holds `command not found: timeout`). The build review's run supplies it: without the seam the
+  check passes after the real deadline (62 s); with the bound broken it fails at the 120 s
+  fail-safe. Decision 9's reason now says what the seam does and does not do.
+
+## Disposition of the build review
+
+| finding | disposition |
+|---|---|
+| F1 (Medium) a dead worker hangs the judge or leaves `pass` | **Fixed** in `ae30779`: `--max-worker-restart 0` set whenever the judge distributes, any other value refused (Decision 7's table, Decision 14); a crash outranks any later record. Self-test (once, always) passes; against the previous plugin it hung to the fail-safe 4 of 4 times. |
+| F2 (Medium) a collection-time plugin escapes the foreign check under `-n` | **Fixed** in `ae30779`: each worker hands its `foreign_steering` findings over in `workeroutput`; the controller takes the union; `sameness` compares `meta.foreign`. Self-test in a clone's worktree: serial and `-n 2` both red, judged the same; without the handover `-n 2` exited 0. |
+| F3 (Low) the progress README still names a pass's reason | **Fixed**: the README line and Decision 12's text. |
+| F4 (Low) the tool-deadline stand-in had no run | **Answered**: the build review's run is cited (62 s pass without the seam; fail at the fail-safe with the bound broken), and Decision 9's reason says the 60 s deadline removes the bet and the seam keeps the check fast. |
+| F5 (Note) `judge_zips` swallows any `OSError` once a home exists | **Kept** as the review reasons: a home that exists is complete; a losing process defers to the winner; no home, the error is raised. |
+| F6 (Note) Decision 12's change is sound | **No change.** |
