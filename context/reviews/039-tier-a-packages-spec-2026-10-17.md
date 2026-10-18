@@ -451,3 +451,76 @@ A confirmation by this reviewer is enough; no second full review is needed.
 The pins, members, pure paths and jobs hold, and the snapshot grows 2,399 fuel and 366 bytes per
 member as estimated; fix the oracle's pyyaml (no cp315 wheel, so it builds with unpinned tools),
 carry tqdm's source, and make the litter test and growth account real, then 039 can be built.
+
+## Confirmation (2026-10-17)
+
+The reviewer, against the revised specification (commit `7f842c6`) and the Disposition above.
+New runs are under the same scratch folder (`039-review/`): `oracle2/`, `pure/`, `jobs2/`,
+`out/c/`, `scripts/gaps.py` → `out/gaps.txt`. Nothing outside this section was edited.
+
+### The ten dispositions
+
+1. **Confirmed, and now executed.** I built the oracle as Decision 11 now says. EXECUTED
+   (`oracle2/`, the pinned uv 0.9.22): the oracle's dependencies plus twenty-nine of the thirty,
+   without pyyaml, lock to 37 packages with no pyyaml entry; `uv sync -v` builds nothing (no
+   `Building` or `Built` line in `oracle2/sync.log`); markupsafe arrives as the cp315 wheel with
+   `_speedups.cpython-315-darwin.so`. pyyaml was staged as `oracle_pure()` describes: the pinned
+   sdist's hash checked, `lib/yaml/` (17 files) and `PKG-INFO` extracted, `PKG-INFO` written as
+   `pyyaml-6.0.3.dist-info/METADATA`, the folder on `PYTHONPATH`. There `yaml` loads from the
+   staged folder, `__with_libyaml__` is `False`, `version("pyyaml")` is `6.0.3`, and markupsafe
+   runs `_speedups`. All seven jobs, as revised (finding 7's edits applied to the drafts), give
+   the same output under seeds 0 and 1, **equal byte for byte to the pure-native outputs**
+   (`out/c/`). So the C-speedups path the drafts never ran does not change a golden line.
+2. **Confirmed.** Carrying the pinned wheel unchanged as `LICENSES/tqdm-4.70.1-source.whl`
+   meets §3.2(a) without relying on anyone else's server, and its hash is the pin's. READ: the
+   judge's set rule (`tests/harness/artifacts.py:27-42`) lists every file under the set, so the
+   new file is covered by `SHA256SUMS`; `wheel_errors` compares every file of the set with the
+   wheel; the licence checks look only at `LICENSES/<component>.txt`. Nothing refuses a
+   non-text file there. The criterion's mutants (missing, one byte changed) are the right ones.
+3. **Confirmed.** The vacuous re-run is gone. The unit check calls `tree_members` directly; READ:
+   `tests/unit/test_build_scripts.py` already imports `make_stdlib_zip` on the host's Python,
+   as the check needs. My hand run (`scripts/stage.py`) is the case it encodes.
+4. **Confirmed.** The new rows match the measurements: 2,014 × 36,000 = 72.5 M; 9,500 per
+   member = 19.1 M; 25 M × 30 = 0.75 G and twice that for 035's comparison. The snapshot rows
+   now cite the two-snapshot runs.
+5. **Confirmed.** Writing the re-base as a proposed amendment that the lane applies to 035 (or
+   035's builder adopts) keeps 039 from editing a confirmed text while the judge change rides in
+   039's diff and `--accept-judge`. The formula, the definition of N, the slope note, the
+   open-once comparison and the "if 035 primes, neither change" rule are as asked
+   (20 M + 6,000 × 2,624 ≈ 35.7 M).
+6. **Confirmed, with one detail to write in (C1).** EXECUTED (`out/gaps.txt`, guest, tier-A
+   zip): `df.style.to_html(): TemplateNotFound: html.tpl`;
+   `nx.graph_atlas(100): TypeError: filename must be a str or bytes object, or a file`; and
+   `df.to_latex()` also names **`html.tpl`** (the Styler loads its HTML template first). Using
+   `e.name` keeps the findings path-free.
+7. **Confirmed.** The versions lines, the cp1250 line, `modules="numpy"` and the formatting
+   requirement are written in; the revised jobs reproduce (point 1).
+8. **Confirmed.** The `dllist` rule, the `CLoader` line, the `__mypyc` assertions, the
+   `with threadpool_limits(…)` block and the autolev note are in.
+9. **Confirmed.** "Rises by two from main's count" and one ordering rule the lane can apply
+   without choosing.
+10. **Confirmed.** sympy's nested notice is a labelled part of `LICENSES/sympy.txt` and checked.
+
+### New points (none blocks the build)
+
+- **C1.** Decision 12's expected findings: write the `df.to_latex()` one as
+  `df.to_latex(): TemplateNotFound: html.tpl` (EXECUTED above), so the gap's digest is known in
+  advance.
+- **C2.** `oracle_env` puts `pure/` on `PYTHONPATH` for every oracle run, so `oracle_available()`
+  depends on `oracle_pure()` too. If the sdist is missing it raises `RuntimeError`, which
+  `oracle_available()` already turns into "oracle unmet" (a skip with its reason), as for the
+  host Python's archive. Say so in one line, so a missing pin reads as a blocked need, not a
+  passing run.
+- **C3.** Cosmetic: the Kind line's wrap was broken by the edit ("two\n source-tree patterns").
+
+### Result
+
+**Confirmed for build,** on one condition: C1's finding string is written into Decision 12
+before the build starts. C2 and C3 are one-line edits the author may make at the same time. No
+further pre-build review is needed. The build review re-runs the oracle's sync (no build step),
+`regen.py --check`, the two gap checks against `tests/known_gaps.toml`, and the growth account
+against Decision 13's rows.
+
+One line: every finding is fixed as written; the revised oracle builds nothing, runs
+markupsafe's C path and stages pyyaml's pure tree, and all seven revised jobs reproduce the
+goldens byte for byte under it. Write in `df.to_latex()`'s `html.tpl`, and 039 can be built.
