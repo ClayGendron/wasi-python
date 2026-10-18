@@ -309,6 +309,7 @@ def run(
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
@@ -345,6 +346,10 @@ def run(
             /usr/local/lib.
         mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
             served from your code, read-only unless it says `writable=True`.
+        import_path: Guest paths put on the guest's `sys.path` after the stdlib zip, in order:
+            each a folder or a zip file inside a read-only grant. The root, a writable grant or
+            a mount may not serve one, no writable grant or mount may lie under one, and no
+            writable grant or root may lie inside the grant serving one.
         env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
             /tmp is writable.
@@ -418,6 +423,7 @@ def run(
         grants=grants,
         mounts=mounts,
         max_file_calls=max_file_calls,
+        import_path=import_path,
     )
     return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
@@ -428,6 +434,7 @@ async def run_async(
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
@@ -463,6 +470,10 @@ async def run_async(
             /usr/local/lib.
         mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
             served from your code, read-only unless it says `writable=True`.
+        import_path: Guest paths put on the guest's `sys.path` after the stdlib zip, in order:
+            each a folder or a zip file inside a read-only grant. The root, a writable grant or
+            a mount may not serve one, no writable grant or mount may lie under one, and no
+            writable grant or root may lie inside the grant serving one.
         env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
             /tmp is writable.
@@ -539,6 +550,7 @@ async def run_async(
         grants=grants,
         mounts=mounts,
         max_file_calls=max_file_calls,
+        import_path=import_path,
     )
     _check_executor(executor)
     wt = _wasmtime()
@@ -986,6 +998,7 @@ def _checked(
     grants: Any = (),
     mounts: Any = (),
     max_file_calls: Any = _UNSET,
+    import_path: Any = (),
 ) -> dict[str, Any]:
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
     and 036 for the tools). The defaults are read once, here, and every check that takes one
@@ -1006,7 +1019,9 @@ def _checked(
     checked.update(_check_inputs(argv, env, stdin))
     checked["cancel"] = cancel
     checked.update(tool_args)
-    checked.update(_check_places(root, grants, mounts, max_file_calls, limits))
+    checked.update(
+        _check_places(root, grants, mounts, max_file_calls, limits, import_path=import_path)
+    )
     return checked
 
 
@@ -1149,20 +1164,91 @@ def _check_grants(grants: Any) -> tuple[Grant, ...]:
 
 
 def _check_places(
-    root: Any, grants: Any, mounts: Any, max_file_calls: Any, limits: Defaults
+    root: Any,
+    grants: Any,
+    mounts: Any,
+    max_file_calls: Any,
+    limits: Defaults,
+    *,
+    import_path: Any = (),
 ) -> dict[str, Any]:
-    """root, grants, mounts and the file-call limit, checked together before any work: a mount
-    may share no guest path with a grant, and a mount at / comes with no root (spec 032)."""
+    """root, grants, mounts, the import path and the file-call limit, checked together before
+    any work: a mount may share no guest path with a grant, and a mount at / comes with no root
+    (spec 032); each import-path entry is served by a read-only grant (spec 054)."""
     checked_root = _check_root(root)
     checked_grants = _check_grants(grants)
+    checked_mounts = _check_mounts(mounts, checked_grants, checked_root)
+    entries, serving = _check_import_path(import_path, checked_grants, checked_mounts, checked_root)
     if max_file_calls is _UNSET:
         max_file_calls = limits.file_calls
     return {
         "root": checked_root,
         "grants": checked_grants,
-        "mounts": _check_mounts(mounts, checked_grants, checked_root),
+        "mounts": checked_mounts,
+        "import_path": entries,
+        "import_serving": serving,
         "file_calls": _integer_limit("max_file_calls", max_file_calls),
     }
+
+
+def _under(path: str, place: str) -> bool:
+    """`path` is at or below `place` by whole components, as wasi-libc matches a preopen; never
+    by text alone (`/code2` is not under `/code`)."""
+    return place == "/" or path == place or path.startswith(place + "/")
+
+
+def _check_import_path(
+    import_path: Any, grants: tuple[Grant, ...], mounts: tuple[Mount, ...], root: Any
+) -> tuple[tuple[str, ...], tuple[int, ...]]:
+    """The import path's entries, as the plain strings `_guest_path` returns (never the caller's
+    objects, which the prelude is built from), and for each the index of the read-only grant that
+    serves it; or TypeError for a type and ValueError for a value (spec 054, Decisions 2 to 4).
+    The place serving an entry is the one with the longest guest prefix, as wasi-libc resolves
+    it, and must be a read-only grant; no writable grant and no mount may lie under an entry."""
+    if isinstance(import_path, (str, bytes, bytearray)) or not isinstance(import_path, Iterable):
+        raise TypeError(f"import_path must be an iterable of str, not {type(import_path).__name__}")
+    # Every place a path can resolve to: (guest path, what it is, its index, writable).
+    places: list[tuple[str, str, int, bool]] = [
+        (g.guest, "grants", i, g.writable) for i, g in enumerate(grants)
+    ]
+    places += [(m.guest, "mounts", i, m.writable) for i, m in enumerate(mounts)]
+    if root is not False:  # a host path or a private root: always writable, at /
+        places.append(("/", "root", -1, True))
+    entries: list[str] = []
+    serving: list[int] = []
+    for i, entry in enumerate(import_path):
+        where = f"import_path[{i}]"
+        if isinstance(entry, str) and str.__str__(entry) == "/":
+            raise ValueError(f"{where}: / cannot be on the import path; name a folder or a zip")
+        path = _guest_path(where, entry)
+        where = f"{where} {path!r}"
+        if path in entries:
+            raise ValueError(f"{where}: another entry is the same")
+        found = [p for p in places if _under(path, p[0])]
+        if not found:
+            raise ValueError(f"{where}: no grant serves it; name a path inside a read-only grant")
+        guest, kind, k, writable = max(found, key=lambda p: len(p[0]))
+        named = "the root" if kind == "root" else f"{kind}[{k}] at {guest}"
+        if kind == "mounts":
+            raise ValueError(
+                f"{where} is served by {named}, a mount; only a read-only grant may serve the "
+                "import path (a provider may also be serving a writable store)"
+            )
+        if writable:
+            raise ValueError(
+                f"{where} is served by {named}, which is writable; only a read-only grant may "
+                "serve the import path"
+            )
+        for other, okind, ok, owritable in places:
+            if okind != "root" and (owritable or okind == "mounts") and _under(other, path):
+                what = "a mount" if okind == "mounts" else "writable"
+                raise ValueError(
+                    f"{where}: {okind}[{ok}] at {other} is {what} and lies under it; nothing "
+                    "writable, and no mount, may lie under an entry"
+                )
+        entries.append(path)
+        serving.append(k)
+    return tuple(entries), tuple(serving)
 
 
 def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mount, ...]:
@@ -1741,10 +1827,15 @@ _after_walk: Callable[[], None] | None = None
 
 
 def _walk_grants(
-    root: str | bool | None, grants: tuple[Grant, ...], found: Artifacts, cache: Path | None
+    root: str | bool | None,
+    grants: tuple[Grant, ...],
+    found: Artifacts,
+    cache: Path | None,
+    import_path: tuple[str, ...] = (),
+    serving: tuple[int, ...] = (),
 ) -> tuple[_Walked | None, list[tuple[str, Grant, _Walked]]]:
     """Every grant and `root`, walked and judged before any work (Decision 4); a missing root is
-    made only once every rule has passed on its existing chain."""
+    made only once every rule has passed on its existing chain, the import path's included."""
     walked_root: _Walked | None = None
     walked: list[tuple[str, Grant, _Walked]] = []
     runtime = _runtime_folders(found, cache)  # first: it makes the module cache if it can
@@ -1755,6 +1846,7 @@ def _walk_grants(
             where = f"grants[{i}] at {grant.guest}"
             walked.append((where, grant, _walk(where, os.fspath(grant.host), judge=True)))
         _judge(walked_root, walked, runtime, _shared_folders())
+        _judge_import_path(walked_root, walked, import_path, serving)
         if walked_root is not None and walked_root.missing:
             try:
                 walked_root = _make_missing("root", walked_root)
@@ -1766,6 +1858,29 @@ def _walk_grants(
             if w is not None:
                 w.close()
         raise
+
+
+def _judge_import_path(
+    root: _Walked | None,
+    grants: list[tuple[str, Grant, _Walked]],
+    import_path: tuple[str, ...],
+    serving: tuple[int, ...],
+) -> None:
+    """Spec 054, Decision 5, by identity: no writable grant, and no root, at or inside the whole
+    folder of a read-only grant that serves an entry. The whole folder, not the entry's
+    subfolder: a link inside a grant reaches any folder of it. A root still to be made carries
+    its deepest existing ancestor's chain, so one to be made inside is refused before it is."""
+    writable = [("root", root)] if root is not None else []
+    writable += [(where, w) for where, g, w in grants if g.writable]
+    for i, (entry, k) in enumerate(zip(import_path, serving, strict=True)):
+        where, _, r = grants[k]
+        for other, w in writable:
+            if r.identity is not None and r.identity in w.chain:
+                raise ValueError(
+                    f"import_path[{i}] {entry!r} is served by {where}, whose folder holds "
+                    f"{other}, which is writable; a guest would plant code there for the import "
+                    "path"
+                )
 
 
 def _runtime_folders(found: Artifacts, cache: Path | None) -> list[tuple[str, Any, Any]]:
@@ -1842,7 +1957,8 @@ def _run_checked(
         )
     cache = _cache_dir(cache_dir)
     root = c["root"]
-    walked_root, walked = _walk_grants(root, c["grants"], found, cache)
+    entries, serving = c.get("import_path", ()), c.get("import_serving", ())
+    walked_root, walked = _walk_grants(root, c["grants"], found, cache, entries, serving)
     preopens: list[_Preopen] = []
     private = None
     try:
@@ -1985,6 +2101,26 @@ def _close(fd: int | None) -> None:
         os.close(fd)
 
 
+def _import_prelude(entries: tuple[str, ...]) -> list[str]:
+    """The `-c` prelude that puts the import path on `sys.path` (spec 054, Decision 7): one
+    expression statement that binds no name in `__main__`. It drops the `linecache` entry the
+    reactor registered for it, so no later `exec` or `eval` of a string shows its source; extends
+    `sys.path` after the stdlib zip; and runs the caller's argv through the reactor's own
+    argument handling, whose exit code it returns. `entries` are the plain strings
+    `_check_import_path` kept, so `repr` is `str`'s own. No entries, no prelude: the argv is
+    today's."""
+    if not entries:
+        return []
+    plain = [str.__str__(e) for e in entries]
+    line = (
+        "__import__('linecache')._interactive_cache.clear() or "
+        f"__import__('sys').path.extend({plain!r}) or "
+        "__import__('sys').exit(__import__('_reactor').run("
+        f"[{ARGV0!r}, *__import__('sys').argv[1:]], dict(__import__('os').environ)))"
+    )
+    return ["-c", line]
+
+
 def _instance(
     wt: Any,
     engine: wasmtime.Engine,
@@ -2032,7 +2168,7 @@ def _instance(
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here (spec 010)
-    wasi.argv = [ARGV0, *argv]
+    wasi.argv = [ARGV0, *_import_prelude(c.get("import_path", ())), *argv]
     fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
     wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
     check = _check_module(wt, engine, fuel is not None)

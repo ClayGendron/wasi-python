@@ -32,6 +32,7 @@ VALUED = {
     "--grant",
     "--grant-writable",
     "--root",
+    "--import-path",
 }
 
 
@@ -83,6 +84,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--grant-writable", dest="grants", action="append", type=lambda v: ("rw", v),
         metavar="GUEST=HOST", help="a host folder the guest sees at GUEST, writable",
+    )  # fmt: skip
+    p.add_argument(
+        "--import-path", dest="import_path", action="append", default=[], metavar="GUEST",
+        help="a guest path put on the import path after the stdlib zip; a read-only --grant "
+        "must serve it",
     )  # fmt: skip
     roots = p.add_mutually_exclusive_group()
     roots.add_argument(
@@ -191,6 +197,8 @@ def _main(args: list[str]) -> int:
         given["snapshot"] = False
     if grants:
         given["grants"] = grants
+    if ns.import_path:
+        given["import_path"] = ns.import_path
     if hasattr(ns, "root"):
         given["root"] = ns.root
     elif ns.private_root:
