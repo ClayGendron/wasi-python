@@ -1,0 +1,8 @@
+snapshot root=True 0 ['/usr/local/lib/python315.zip'] /
+No module named 'evil'
+snapshot mount at / 0 ['/usr/local/lib/python315.zip'] /
+No module named 'evil'
+plain root=True 0 ['/usr/local/lib/python315.zip'] /
+No module named 'evil'
+plain mount at / 0 ['/usr/local/lib/python315.zip'] /
+No module named 'evil'

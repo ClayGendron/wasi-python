@@ -1,0 +1,16 @@
+snapshot ['-V'] equal
+snapshot ['-u', '-c', 'print(1)'] equal
+snapshot ['-c', 'import sys; sys.exit(7)'] equal
+snapshot ['-c', "raise SystemExit('bye')"] equal
+snapshot ['-c', '1/0'] equal
+snapshot ['/code/boom.py'] equal
+snapshot ['/code/nope.py'] equal
+snapshot ['-c', "import sys; print(sys.orig_argv, sorted(k for k in dir() if not k.startswith('__')))"] equal
+plain ['-V'] equal
+plain ['-u', '-c', 'print(1)'] equal
+plain ['-c', 'import sys; sys.exit(7)'] equal
+plain ['-c', "raise SystemExit('bye')"] equal
+plain ['-c', '1/0'] equal
+plain ['/code/boom.py'] equal
+plain ['/code/nope.py'] equal
+plain ['-c', "import sys; print(sys.orig_argv, sorted(k for k in dir() if not k.startswith('__')))"] equal
