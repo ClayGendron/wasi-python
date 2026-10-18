@@ -102,6 +102,11 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    allows. The lane rebases, compares with the reviewed diff, judges
    the exact commit in the main tree, accepts, and fast-forwards main.
    Progress files are never merged: take main's and accept again.
+6b. **Tag only what a dry run passed.** Before a release tag, dispatch
+   the release workflow on main's exact commit and wait for every job
+   to pass on all three systems. Only Windows runs there; a landing
+   never runs it, so a check can pass the lane and still fail the
+   release (0.1.0a4's tag run failed on Windows, 2026-10-18).
 7. **Two strikes, then write it down.** After two failed attempts on
    one hypothesis, stop. Record where you stood and why in the memo
    or specification, and move to work that does not depend on it.
