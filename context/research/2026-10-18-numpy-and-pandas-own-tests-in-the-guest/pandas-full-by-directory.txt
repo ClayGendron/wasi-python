@@ -1,0 +1,41 @@
+pandas/tests/groupby                             612.6G end=1 trap= {'passed': 23980, 'xfailed': 44, 'skipped': 865, 'xpassed': 39, 'failed': 71}
+pandas/tests/arithmetic                          487.2G end=1 trap= {'passed': 17222, 'skipped': 382, 'failed': 1495, 'xfailed': 13}
+pandas/tests/frame                               377.6G end=1 trap= {'passed': 11265, 'xfailed': 46, 'failed': 22, 'skipped': 472, 'xpassed': 42}
+pandas/tests/indexes                             274.8G end=1 trap= {'passed': 15102, 'skipped': 525, 'failed': 250, 'xfailed': 43, 'xpassed': 3}
+pandas/tests/extension                           273.3G end=0 trap= {'passed': 14257, 'skipped': 3878, 'xfailed': 328, 'xpassed': 1}
+pandas/tests/test_aggregation.py                 221.5G end=1 trap= {'passed': 1183, 'skipped': 305, 'xfailed': 1, 'failed': 5}
+pandas/tests/arrays                              218.6G end=1 trap= {'passed': 15447, 'xfailed': 2, 'failed': 159, 'skipped': 635}
+pandas/tests/tseries                             215.0G end=1 trap= {'passed': 5444, 'skipped': 376, 'failed': 15, 'xfailed': 2}
+pandas/tests/series                              206.3G end=1 trap= {'passed': 12696, 'failed': 22, 'skipped': 1125, 'xfailed': 16}
+pandas/tests/window                              174.9G end=1 trap= {'passed': 8725, 'xfailed': 43, 'skipped': 344, 'failed': 6, 'xpassed': 9}
+pandas/tests/io/test_clipboard.py                133.6G end=1 trap= {'passed': 1363, 'error': 363, 'skipped': 1878, 'failed': 336, 'xfailed': 14}
+pandas/tests/resample                            116.0G end=1 trap= {'passed': 3420, 'failed': 112, 'skipped': 51, 'xfailed': 18}
+pandas/tests/reshape                             101.4G end=1 trap= {'passed': 2658, 'skipped': 60, 'failed': 9, 'xfailed': 6}
+pandas/tests/io/parser                           100.1G end=1 trap= {'passed': 3426, 'skipped': 982, 'failed': 134, 'error': 227, 'xfailed': 34}
+pandas/tests/indexing                             97.4G end=1 trap= {'passed': 4273, 'failed': 20, 'skipped': 40, 'xfailed': 28}
+pandas/tests/scalar                               83.5G end=0 trap= {'passed': 3193, 'skipped': 115, 'xfailed': 5}
+pandas/tests/dtypes                               64.2G end=1 trap= {'passed': 4865, 'skipped': 25, 'failed': 3, 'xfailed': 4}
+pandas/tests/strings                              61.2G end=1 trap= {'passed': 3616, 'skipped': 1268, 'xfailed': 13, 'failed': 3}
+pandas/tests/computation                          59.7G end=0 trap= {'skipped': 11137, 'passed': 103, 'xfailed': 5}
+pandas/tests/io/formats                           54.4G end=1 trap= {'passed': 955, 'failed': 336, 'skipped': 27, 'error': 4, 'xfailed': 1}
+pandas/tests/tools                                52.2G end=1 trap= {'passed': 1334, 'skipped': 77, 'failed': 7, 'xfailed': 4}
+pandas/tests/io/json                              41.3G end=1 trap= {'passed': 928, 'skipped': 134, 'failed': 52, 'xfailed': 47, 'error': 1}
+pandas/tests/tslibs                               38.7G end=1 trap= {'passed': 591, 'skipped': 55, 'failed': 1}
+pandas/tests/copy_view                            33.4G end=1 trap= {'passed': 811, 'skipped': 12, 'failed': 13, 'xfailed': 1}
+pandas/tests/base                                 30.8G end=1 trap= {'passed': 1752, 'skipped': 240, 'xfailed': 5, 'failed': 2}
+pandas/tests/generic                              28.2G end=0 trap= {'passed': 1183, 'xfailed': 28, 'skipped': 105}
+pandas/tests/apply                                27.9G end=0 trap= {'passed': 867, 'skipped': 90, 'xfailed': 8}
+pandas/tests/io/sas                               24.2G end=1 trap= {'passed': 12, 'failed': 28, 'error': 73, 'skipped': 2, 'xfailed': 2}
+pandas/tests/util                                 24.0G end=1 trap= {'passed': 964, 'xfailed': 2, 'failed': 10, 'skipped': 2}
+pandas/tests/reductions                           23.5G end=1 trap= {'passed': 497, 'skipped': 8, 'failed': 3}
+pandas/tests/io/excel                             23.1G end=0 trap= {'skipped': 2341, 'passed': 5}
+pandas/tests/libs                                 22.3G end=0 trap= {'passed': 1063, 'skipped': 8}
+pandas/tests/plotting                             20.1G end=0 trap= {'skipped': 7}
+pandas/tests/internals                            18.1G end=0 trap= {'passed': 258}
+pandas/tests/io/xml                               18.0G end=1 trap= {'skipped': 235, 'error': 86, 'passed': 114, 'failed': 2}
+pandas/tests/interchange                          14.1G end=1 trap= {'failed': 50, 'skipped': 80, 'passed': 16}
+pandas/tests/config                               12.5G end=1 trap= {'passed': 22, 'failed': 4, 'skipped': 29}
+pandas/tests/api                                  11.7G end=1 trap= {'passed': 22, 'failed': 1, 'xfailed': 1}
+pandas/tests/construction                         11.2G end=0 trap= {'passed': 1}
+pandas/tests/io/pytables                          10.8G end=None trap= {}
+TOTAL {'skipped': 27915, 'passed': 163633, 'xfailed': 764, 'failed': 3171, 'xpassed': 94, 'error': 754} 4419.3G

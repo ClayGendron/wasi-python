@@ -474,6 +474,30 @@ document.
   and the snapshot check makes any change visible either way.
 - **Also the owner's:** when 1.0 comes. Spec 049 does not decide it.
 
+### 89. numpy's C test modules: reach numpy's core tests, and how? (spec 050)
+
+- **Asked:** 2026-10-18. **Source:** `research/2026-10-18-numpy-and-pandas-own-tests-in-the-guest.md`,
+  finding 7; spec 050, Decision 8. (Number 89 is the next free one when drafted; the lane
+  renumbers if another question took it.)
+- numpy's core tests import five small C modules built only for testing: `_multiarray_tests`,
+  `_umath_tests`, `_rational_tests`, `_operand_flag_tests`, `_struct_ufunc_tests` (and `_simd`).
+  Our build compiles them (they are in `build/numpy-build/numpy/_core/`) but does not link them
+  (`scripts/gen_inittab.py` leaves out `*_tests` and `_simd`). So 25 numpy test files (24 of
+  them in `_core`) cannot run in the guest, and they are the heart of its suite: `test_multiarray`, `test_umath`, `test_ufunc`, `test_numeric`,
+  `test_dtype`, `test_nditer`, `test_indexing`, `test_scalarmath` and 17 more. Spec 050 runs the
+  other 20,658 numpy tests and leaves these out, naming this question as their closer.
+- **The choices:**
+  - **(a) a judge-only binary,** linked from the same objects plus the test modules, built beside
+    the product and never published or put in the wheel. It tests numpy's compiled code with
+    the test modules present, but it is not the product's exact bytes. A later build-class
+    specification: one more link step (and snapshot) in the build; its size and build time
+    are not measured yet.
+    **The agent's recommendation.**
+  - **(b) link the test modules into the product.** The judge then tests the exact bytes, but
+    every user ships test-only code and its private APIs (larger binary, more surface).
+  - **(c) neither.** The 25 files stay out; the golden jobs and the other suites are the oracle.
+- **What waits on it:** only those 25 files. Spec 050 is built and lands without an answer.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

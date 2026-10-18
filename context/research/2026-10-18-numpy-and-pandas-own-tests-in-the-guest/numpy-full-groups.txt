@@ -1,0 +1,4 @@
+numpy/_core/tests/test__exceptions.py            195.3G end=1 trap= {'passed': 8568, 'skipped': 447, 'failed': 12, 'xfailed': 12, 'error': 3}
+numpy/lib/tests/test__datasource.py              211.8G end=1 trap= {'passed': 4832, 'xpassed': 1, 'failed': 7, 'skipped': 169, 'xfailed': 6}
+numpy/fft/tests/test_helper.py                   800.5G end=1 trap= {'passed': 7326, 'skipped': 62, 'xfailed': 7, 'failed': 12}
+TOTAL {'passed': 20726, 'skipped': 678, 'failed': 31, 'xfailed': 25, 'error': 3, 'xpassed': 1} 1207.6G

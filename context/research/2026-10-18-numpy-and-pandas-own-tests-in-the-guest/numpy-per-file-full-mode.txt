@@ -1,0 +1,144 @@
+numpy/_core/tests/test__exceptions.py                             9.8G  {'passed': 11} 
+numpy/_core/tests/test_abc.py                                     9.5G  {'passed': 5} 
+numpy/_core/tests/test_api.py                                    11.5G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_argparse.py                               10.9G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_array_api_info.py                          9.7G  {'passed': 15} 
+numpy/_core/tests/test_array_coercion.py                         12.1G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_array_interface.py                         9.5G  {'error': 1} 
+numpy/_core/tests/test_arraymethod.py                             9.1G error while executing at wasm backtrace: |     0:  0xdd00a - python.wasm!cfunction_call |     1:  0x78bba - python.wasm!_PyObject_MakeTpCall |     2:  0x7954a - python.wasm!PyObject_Vectorcall |     3: 0x1fec60 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal |     4: 0x1f3764 - python.wasm!_PyEval_EvalFrameDefault |     5: 0x1fe897 - python.wasm!_PyEval_Vector |     6: 0x1e5938 - python.wasm!builtin___build_class__ |     7:  0xdc728 - python.wasm!cfunction_vectorcall_FASTCALL_KEYWORDS |     8:  0x7955f - python.wasm!PyObject_Vectorcall |     9: 0x1fec60 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal |    10: 0x1f3764 - python.wasm!_PyEval_EvalFrameDefault |    11: 0x1eb707 - python.wasm!PyEval_EvalCode |    12: 0x1e737b - python.wasm!builtin_exec |    13: 0x1f08e5 - python.wasm!_PyEval_EvalFrameDefault |    14: 0x1fe897 - python.wasm!_PyEval_Vector {} 
+numpy/_core/tests/test_arrayobject.py                            11.3G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_arrayprint.py                             12.3G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_casting_floatingpoint_errors.py           10.4G  {'skipped': 211} 
+numpy/_core/tests/test_casting_unittests.py                      10.7G error while executing at wasm backtrace: |     0:  0xdd00a - python.wasm!cfunction_call |     1:  0x78bba - python.wasm!_PyObject_MakeTpCall |     2:  0x7954a - python.wasm!PyObject_Vectorcall |     3: 0x1fec60 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal |     4: 0x1f3764 - python.wasm!_PyEval_EvalFrameDefault |     5: 0x1fe897 - python.wasm!_PyEval_Vector |     6:  0x798bc - python.wasm!_PyFunction_Vectorcall |     7:  0x7a174 - python.wasm!_PyObject_VectorcallPrepend |     8:  0x7bc2f - python.wasm!method_vectorcall |     9:  0x79427 - python.wasm!_PyVectorcall_Call |    10:  0x79670 - python.wasm!_PyObject_Call |    11:  0x7971c - python.wasm!PyObject_Call |    12: 0x1f0d9b - python.wasm!_PyEval_EvalFrameDefault |    13: 0x1fe897 - python.wasm!_PyEval_Vector |    14:  0x798bc - python.wasm!_PyFunction_Vectorcall {} 
+numpy/_core/tests/test_conversion_utils.py                       11.1G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_cpu_dispatcher.py                         11.1G  {'collect-error': 1} est_cpu_dispatcher.py -- E   ImportError: cannot import name '_umath_tests' from 'numpy._core' (/usr/local/lib/python315.zip/numpy/_core/__init__.pyc)
+numpy/_core/tests/test_cpu_features.py                            9.8G  {'error': 6, 'skipped': 11} 
+numpy/_core/tests/test_custom_dtypes.py                           9.9G error while executing at wasm backtrace: |     0:  0xdc8d5 - python.wasm!cfunction_vectorcall_NOARGS |     1: 0x11c68f - python.wasm!object___reduce_ex___impl |     2: 0x11c545 - python.wasm!object___reduce_ex__ |     3:  0xdca8a - python.wasm!cfunction_vectorcall_O |     4:  0x797a8 - python.wasm!PyObject_CallOneArg |     5: 0x2d77c4 - python.wasm!_Pickle_FastCall |     6: 0x2d3fff - python.wasm!save |     7: 0x2d6ef3 - python.wasm!save_tuple |     8: 0x2d3e11 - python.wasm!save |     9: 0x2d96ff - python.wasm!save_reduce |    10: 0x2d40d5 - python.wasm!save |    11: 0x2ccc80 - python.wasm!dump |    12: 0x2cc77d - python.wasm!_pickle_dump |    13:  0xdc728 - python.wasm!cfunction_vectorcall_FASTCALL_KEYWORDS |    14:  0x79427 - python.wasm!_PyVectorcall_Call {} 
+numpy/_core/tests/test_cython.py                                 10.2G  {'skipped': 26} 
+numpy/_core/tests/test_datetime.py                               14.8G  {'passed': 483, 'skipped': 7, 'xfailed': 4} 
+numpy/_core/tests/test_defchararray.py                           10.5G  {'passed': 100} 
+numpy/_core/tests/test_deprecations.py                           11.2G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_dlpack.py                                 10.2G  {'passed': 95} 
+numpy/_core/tests/test_dtype.py                                  13.9G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_einsum.py                                 20.7G  {'passed': 78} 
+numpy/_core/tests/test_errstate.py                                9.6G  {'passed': 2, 'skipped': 4} 
+numpy/_core/tests/test_extint128.py                              11.0G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_finfo.py                                   9.7G  {'passed': 30} 
+numpy/_core/tests/test_function_base.py                          10.6G  {'passed': 40} 
+numpy/_core/tests/test_getlimits.py                              11.1G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_half.py                                   11.1G  {'passed': 38, 'skipped': 1} 
+numpy/_core/tests/test_hashtable.py                              11.1G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_indexerrors.py                             9.6G  {'passed': 8} 
+numpy/_core/tests/test_indexing.py                               12.1G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_item_selection.py                         11.5G  {'passed': 294} 
+numpy/_core/tests/test_limited_api.py                            10.2G  {'skipped': 99} 
+numpy/_core/tests/test_longdouble.py                              9.9G  {'failed': 4, 'passed': 26, 'skipped': 4} 
+numpy/_core/tests/test_mem_overlap.py                            11.6G  {'collect-error': 1} s/test_mem_overlap.py -- E   ImportError: cannot import name '_umath_tests' from 'numpy._core' (/usr/local/lib/python315.zip/numpy/_core/__init__.pyc)
+numpy/_core/tests/test_mem_policy.py                             10.1G  {'error': 9, 'skipped': 1} 
+numpy/_core/tests/test_memmap.py                                  9.9G  {'error': 3, 'failed': 21} 
+numpy/_core/tests/test_multiarray.py                             21.1G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_multiprocessing.py                         9.5G  {'skipped': 1} 
+numpy/_core/tests/test_multithreading.py                         11.6G  {'collect-error': 1} _multithreading.py -- E   ImportError: cannot import name '_rational_tests' from 'numpy._core' (/usr/local/lib/python315.zip/numpy/_core/__init__.pyc)
+numpy/_core/tests/test_nditer.py                                 13.8G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_nep50_promotions.py                       30.3G  {'passed': 441, 'skipped': 2} 
+numpy/_core/tests/test_numeric.py                                15.8G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_numerictypes.py                           11.0G  {'failed': 1, 'passed': 137} 
+numpy/_core/tests/test_overrides.py                              11.0G  {'failed': 2, 'passed': 153} 
+numpy/_core/tests/test_print.py                                   9.7G  {'passed': 22} 
+numpy/_core/tests/test_protocols.py                               9.5G  {'passed': 2} 
+numpy/_core/tests/test_records.py                                 9.7G error while executing at wasm backtrace: |     0:  0x86aa6 - python.wasm!getset_set |     1:  0xe5a89 - python.wasm!_PyObject_GenericSetAttrWithDict |     2:  0xe5d34 - python.wasm!PyObject_GenericSetAttr |     3: 0x11e766 - python.wasm!wrap_setattr |     4:  0x86e26 - python.wasm!wrapperdescr_call |     5:  0x78bba - python.wasm!_PyObject_MakeTpCall |     6:  0x7954a - python.wasm!PyObject_Vectorcall |     7: 0x1fea27 - python.wasm!_Py_VectorCall_StackRefSteal |     8: 0x1f2e88 - python.wasm!_PyEval_EvalFrameDefault |     9: 0x1fe897 - python.wasm!_PyEval_Vector |    10:  0x798bc - python.wasm!_PyFunction_Vectorcall |    11: 0x116658 - python.wasm!vectorcall_method |    12: 0x11e5ec - python.wasm!slot_tp_setattro |    13:  0xe4bc9 - python.wasm!PyObject_SetAttr |    14: 0x1fc4a2 - python.wasm!_PyEval_EvalFrameDefault {} 
+numpy/_core/tests/test_regression.py                             11.7G error while executing at wasm backtrace: |     0:  0x8751b - python.wasm!method_vectorcall_NOARGS |     1:  0x7955f - python.wasm!PyObject_Vectorcall |     2: 0x1fec60 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal |     3: 0x1f3764 - python.wasm!_PyEval_EvalFrameDefault |     4: 0x1fe897 - python.wasm!_PyEval_Vector |     5:  0x798bc - python.wasm!_PyFunction_Vectorcall |     6:  0x7a2c6 - python.wasm!_PyObject_VectorcallPrepend |     7:  0x7bc2f - python.wasm!method_vectorcall |     8:  0x793de - python.wasm!_PyVectorcall_Call |     9:  0x79670 - python.wasm!_PyObject_Call |    10:  0x7971c - python.wasm!PyObject_Call |    11: 0x1f0d9b - python.wasm!_PyEval_EvalFrameDefault |    12: 0x1fe897 - python.wasm!_PyEval_Vector |    13:  0x798bc - python.wasm!_PyFunction_Vectorcall |    14:  0x78d06 - python.wasm!_PyObject_VectorcallDictTstate {} 
+numpy/_core/tests/test_scalar_ctors.py                           11.0G  {'passed': 197, 'xfailed': 4} 
+numpy/_core/tests/test_scalar_methods.py                         11.5G  {'passed': 233} 
+numpy/_core/tests/test_scalarbuffer.py                           11.0G  {'collect-error': 1} ore._multiarray_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+numpy/_core/tests/test_scalarinherit.py                           9.6G  {'passed': 6} 
+numpy/_core/tests/test_scalarmath.py                             12.7G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/_core/tests/test_scalarprint.py                             9.8G  {'passed': 34, 'skipped': 1} 
+numpy/_core/tests/test_shape_base.py                             11.3G  {'passed': 212, 'skipped': 1} 
+numpy/_core/tests/test_simd.py                                   12.6G  {'collect-error': 1} py._core._simd'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+numpy/_core/tests/test_simd_module.py                            11.1G  {'collect-error': 1} py._core._simd'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+numpy/_core/tests/test_stringdtype.py                            17.0G error while executing at wasm backtrace: |     0:  0xdd00a - python.wasm!cfunction_call |     1:  0x78bba - python.wasm!_PyObject_MakeTpCall |     2:  0x7954a - python.wasm!PyObject_Vectorcall |     3: 0x1fec60 - python.wasm!_Py_VectorCallInstrumentation_StackRefSteal |     4: 0x1f3764 - python.wasm!_PyEval_EvalFrameDefault |     5: 0x1fe897 - python.wasm!_PyEval_Vector |     6:  0x798bc - python.wasm!_PyFunction_Vectorcall |     7:  0x78d06 - python.wasm!_PyObject_VectorcallDictTstate |     8:  0x79ad4 - python.wasm!_PyObject_Call_Prepend |     9: 0x1185b1 - python.wasm!slot_tp_call |    10:  0x78bba - python.wasm!_PyObject_MakeTpCall |    11:  0x7954a - python.wasm!PyObject_Vectorcall |    12: 0x1fea27 - python.wasm!_Py_VectorCall_StackRefSteal |    13: 0x1f1b54 - python.wasm!_PyEval_EvalFrameDefault |    14: 0x1fe897 - python.wasm!_PyEval_Vector {} 
+numpy/_core/tests/test_strings.py                                72.8G  {'passed': 2015, 'skipped': 51} 
+numpy/_core/tests/test_ufunc.py                                  14.3G  {'collect-error': 1} ore._operand_flag_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual env
+numpy/_core/tests/test_umath.py                                  15.6G  {'collect-error': 1} e/tests/test_umath.py -- E   ImportError: cannot import name '_umath_tests' from 'numpy._core' (/usr/local/lib/python315.zip/numpy/_core/__init__.pyc)
+numpy/_core/tests/test_umath_accuracy.py                         11.4G  {'passed': 40, 'skipped': 1} 
+numpy/_core/tests/test_umath_complex.py                          11.9G  {'passed': 328, 'skipped': 5} 
+numpy/_core/tests/test_unicode.py                                10.1G  {'passed': 76} 
+numpy/fft/tests/test_helper.py                                   11.0G  {'passed': 8} 
+numpy/fft/tests/test_pocketfft.py                                13.9G  {'passed': 147, 'skipped': 4} 
+numpy/lib/tests/test__datasource.py                              10.2G  {'error': 25, 'passed': 1} 
+numpy/lib/tests/test__iotools.py                                  9.7G  {'passed': 24} 
+numpy/lib/tests/test__version.py                                  9.5G  {'passed': 8} 
+numpy/lib/tests/test_array_utils.py                               9.4G  {'passed': 4} 
+numpy/lib/tests/test_arraypad.py                                 13.9G  {'passed': 616, 'xpassed': 1} 
+numpy/lib/tests/test_arraysetops.py                              11.6G  {'passed': 117} 
+numpy/lib/tests/test_arrayterator.py                              9.4G  {'passed': 1} 
+numpy/lib/tests/test_format.py                                   15.6G  {'error': 176, 'passed': 25, 'skipped': 3} 
+numpy/lib/tests/test_function_base.py                           102.3G  {'passed': 1422, 'skipped': 73, 'xfailed': 1} 
+numpy/lib/tests/test_histograms.py                               14.4G  {'passed': 68, 'skipped': 1} 
+numpy/lib/tests/test_index_tricks.py                             10.2G  {'passed': 66} 
+numpy/lib/tests/test_io.py                                       18.3G  {'failed': 2, 'passed': 208, 'skipped': 3, 'xfailed': 2} 
+numpy/lib/tests/test_loadtxt.py                                  21.9G  {'error': 6, 'passed': 291, 'skipped': 1, 'xfailed': 3} 
+numpy/lib/tests/test_mixins.py                                    9.6G  {'passed': 11} 
+numpy/lib/tests/test_nanfunctions.py                             36.1G  {'error': 1, 'passed': 1192, 'skipped': 86} 
+numpy/lib/tests/test_packbits.py                                 22.8G  {'passed': 280} 
+numpy/lib/tests/test_polynomial.py                               12.0G  {'passed': 42} 
+numpy/lib/tests/test_recfunctions.py                             10.4G  {'error': 1, 'passed': 50} 
+numpy/lib/tests/test_regression.py                               10.2G  {'failed': 1, 'passed': 24} 
+numpy/lib/tests/test_shape_base.py                               10.4G  {'passed': 76, 'skipped': 1} 
+numpy/lib/tests/test_stride_tricks.py                            11.5G  {'collect-error': 1} ore._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environ
+numpy/lib/tests/test_twodim_base.py                              10.0G  {'passed': 37} 
+numpy/lib/tests/test_type_check.py                                9.9G  {'passed': 51} 
+numpy/lib/tests/test_ufunclike.py                                 9.5G  {'passed': 8} 
+numpy/lib/tests/test_utils.py                                     9.6G  {'passed': 6} 
+numpy/linalg/tests/test_deprecations.py                           9.4G  {'passed': 1} 
+numpy/linalg/tests/test_linalg.py                               151.2G  {'passed': 449, 'skipped': 21, 'xfailed': 2} 
+numpy/linalg/tests/test_regression.py                           123.5G  {'passed': 16} 
+numpy/ma/tests/test_arrayobject.py                                9.4G  {'passed': 5} 
+numpy/ma/tests/test_core.py                                      63.3G  {'failed': 4, 'passed': 4164, 'skipped': 2, 'xfailed': 2} 
+numpy/ma/tests/test_deprecations.py                               9.4G  {'passed': 5} 
+numpy/ma/tests/test_extras.py                                    12.9G  {'passed': 103} 
+numpy/ma/tests/test_mrecords.py                                   9.9G  {'passed': 24} 
+numpy/ma/tests/test_old_ma.py                                    10.8G  {'passed': 41} 
+numpy/ma/tests/test_regression.py                                 9.5G  {'passed': 13} 
+numpy/ma/tests/test_subclassing.py                                9.7G  {'passed': 16} 
+numpy/matrixlib/tests/test_defmatrix.py                           9.9G  {'passed': 44} 
+numpy/matrixlib/tests/test_interaction.py                         9.7G  {'passed': 23} 
+numpy/matrixlib/tests/test_masked_matrix.py                       9.6G  {'passed': 14} 
+numpy/matrixlib/tests/test_matrix_linalg.py                      15.3G  {'passed': 120} 
+numpy/matrixlib/tests/test_multiarray.py                          9.4G  {'passed': 2} 
+numpy/matrixlib/tests/test_numeric.py                             9.4G  {'passed': 2} 
+numpy/matrixlib/tests/test_regression.py                          9.4G  {'passed': 4} 
+numpy/polynomial/tests/test_chebyshev.py                         10.3G  {'passed': 42} 
+numpy/polynomial/tests/test_classes.py                           12.6G  {'passed': 243} 
+numpy/polynomial/tests/test_hermite.py                           10.3G  {'passed': 35} 
+numpy/polynomial/tests/test_hermite_e.py                         10.3G  {'passed': 35} 
+numpy/polynomial/tests/test_laguerre.py                          10.3G  {'passed': 35} 
+numpy/polynomial/tests/test_legendre.py                          10.3G  {'passed': 39} 
+numpy/polynomial/tests/test_polynomial.py                        12.1G  {'passed': 41} 
+numpy/polynomial/tests/test_polyutils.py                          9.5G  {'passed': 10} 
+numpy/polynomial/tests/test_printing.py                          10.1G  {'passed': 78} 
+numpy/polynomial/tests/test_symbol.py                             9.8G  {'passed': 52} 
+numpy/random/tests/test_direct.py                                10.8G  {'failed': 5, 'passed': 90, 'skipped': 5} 
+numpy/random/tests/test_extending.py                              9.5G  {'skipped': 3} 
+numpy/random/tests/test_generator_mt19937.py                     71.0G  {'passed': 315, 'skipped': 7} 
+numpy/random/tests/test_generator_mt19937_regressions.py         11.0G  {'passed': 19} 
+numpy/random/tests/test_random.py                                12.8G  {'passed': 139, 'skipped': 3} 
+numpy/random/tests/test_randomstate.py                           27.9G  {'passed': 177, 'skipped': 4} 
+numpy/random/tests/test_randomstate_regression.py                 9.8G  {'passed': 20, 'skipped': 1} 
+numpy/random/tests/test_regression.py                             9.7G  {'passed': 21} 
+numpy/random/tests/test_seed_sequence.py                          9.4G  {'passed': 3} 
+numpy/random/tests/test_smoke.py                                 16.0G  {'passed': 545, 'skipped': 3} 
+numpy/testing/tests/test_utils.py                                16.6G  {'failed': 1, 'passed': 149} 
+numpy/tests/test__all__.py                                        9.4G  {'passed': 1} 
+numpy/tests/test_configtool.py                                    9.5G  {'skipped': 5} 
+numpy/tests/test_ctypeslib.py                                    11.0G  {'collect-error': 1} ypeslib.py -- E   AttributeError: module 'numpy._core._multiarray_umath' has no attribute '__file__'. Did you mean '.__name__' instead of '.__file__'?
+numpy/tests/test_lazyloading.py                                   9.4G  {'skipped': 1} 
+numpy/tests/test_matlib.py                                        9.9G  {'passed': 8} 
+numpy/tests/test_numpy_config.py                                  9.4G  {'passed': 4} 
+numpy/tests/test_numpy_version.py                                 9.4G  {'passed': 3} 
+numpy/tests/test_public_api.py                                   10.6G  {'failed': 2, 'passed': 12, 'skipped': 1} 
+numpy/tests/test_reloading.py                                     9.4G  {'passed': 2, 'skipped': 1} 
+numpy/tests/test_scripts.py                                       9.4G  {'skipped': 1, 'xfailed': 3} 
+numpy/tests/test_warnings.py                                      9.4G  {'passed': 1} 
+TOTAL {'passed': 17069, 'collect-error': 26, 'error': 228, 'skipped': 656, 'xfailed': 21, 'failed': 43, 'xpassed': 1} fuel 2190.2G files 143

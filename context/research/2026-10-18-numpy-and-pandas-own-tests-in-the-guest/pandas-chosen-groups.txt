@@ -1,0 +1,9 @@
+pandas/tests/groupby                             460.3G end=1 trap= {'passed': 22156, 'xfailed': 36, 'skipped': 865, 'xpassed': 39, 'failed': 71}
+pandas/tests/libs                                 22.4G end=0 trap= {'passed': 1063, 'skipped': 8}
+pandas/tests/io/formats                           53.6G end=1 trap= {'passed': 955, 'failed': 21, 'skipped': 346, 'xfailed': 1}
+pandas/tests/frame                               337.1G end=1 trap= {'passed': 10831, 'xfailed': 46, 'failed': 21, 'skipped': 472, 'xpassed': 42}
+pandas/tests/internals                            18.1G end=0 trap= {'passed': 258}
+pandas/tests/reshape                             101.2G end=1 trap= {'passed': 2657, 'skipped': 61, 'failed': 7, 'xfailed': 6}
+pandas/tests/tslibs                               38.6G end=1 trap= {'passed': 590, 'skipped': 55, 'failed': 1}
+pandas/tests/io/parser                            85.8G end=1 trap= {'passed': 3401, 'skipped': 1113, 'failed': 113, 'xfailed': 34}
+TOTAL {'passed': 41911, 'xfailed': 123, 'skipped': 2920, 'xpassed': 81, 'failed': 234} 1117.1G

@@ -1,0 +1,35 @@
+error numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile -- pytest.PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.FileIO name='/tmp/tmpbo8hd74k' mode='rb' closefd=True>: None
+error numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_bogus -- pytest.PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.FileIO name='/tmp/tmpo6wooumk' mode='rb' closefd=True>: None
+error numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_complex -- pytest.PytestUnraisableExceptionWarning: Exception ignored while finalizing file <_io.FileIO name='/tmp/tmp4qz27541' mode='rb' closefd=True>: None
+failed numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_both_enable_disable_set[feature-feature] -- OSError: [Errno 58] wasi does not support processes.
+failed numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_both_enable_disable_set[feature-same] -- OSError: [Errno 58] wasi does not support processes.
+failed numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_runtime_feature_selection -- OSError: [Errno 58] wasi does not support processes.
+failed numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_bogus -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_complex -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_longdouble.py::TestFileBased::test_tofile_roundtrip -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_numerictypes.py::Test_sctype2char::test_third_party_scalar_type -- ModuleNotFoundError: No module named 'numpy._core._rational_tests'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment
+failed numpy/_core/tests/test_overrides.py::TestArrayLike::test_array_like_fromfile[False] -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_overrides.py::TestArrayLike::test_array_like_fromfile[True] -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_records.py::TestPathUsage::test_tofile_fromfile -- OSError: [Errno 58] Not supported
+failed numpy/_core/tests/test_regression.py::TestRegression::test_fromfile_tofile_seeks -- OSError: [Errno 58] Not supported
+failed numpy/lib/tests/test_format.py::test_file_truncated -- AssertionError: Regex pattern did not match.
+failed numpy/lib/tests/test_format.py::test_huge_header[r] -- OSError: mmap is unavailable on wasm32-wasi
+failed numpy/lib/tests/test_io.py::TestPathUsage::test_save_load_memmap -- OSError: mmap is unavailable on wasm32-wasi
+failed numpy/lib/tests/test_io.py::TestSaveLoad::test_mmap -- OSError: mmap is unavailable on wasm32-wasi
+failed numpy/lib/tests/test_nanfunctions.py::test_memmap_takes_fast_route -- OSError: mmap is unavailable on wasm32-wasi
+failed numpy/lib/tests/test_recfunctions.py::TestRecFunctions::test_structured_to_unstructured -- OSError: mmap is unavailable on wasm32-wasi
+failed numpy/lib/tests/test_regression.py::TestRegression::test_py3_compat -- FileNotFoundError: [Errno 44] No such file or directory: '/dev/null'
+failed numpy/ma/tests/test_core.py::TestMaskedArray::test_copy -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/ma/tests/test_core.py::TestMaskedArray::test_maskedarray_tofile_raises_notimplementederror -- Failed: DID NOT RAISE <class 'NotImplementedError'>
+failed numpy/ma/tests/test_core.py::TestMaskedArrayArithmetic::test_scalar_arithmetic -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/ma/tests/test_core.py::TestMaskedArrayInPlaceArithmetic::test_inplace_addition_scalar -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/random/tests/test_direct.py::TestMT19937::test_ctypes -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/random/tests/test_direct.py::TestPCG64::test_ctypes -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/random/tests/test_direct.py::TestPCG64DXSM::test_ctypes -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/random/tests/test_direct.py::TestPhilox::test_ctypes -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/random/tests/test_direct.py::TestSFC64::test_ctypes -- OSError: ctypes is unavailable on wasm32-wasi
+failed numpy/testing/tests/test_utils.py::test_suppress_warnings_module -- AssertionError: 
+failed numpy/tests/test_public_api.py::test_api_importable -- AssertionError: Modules that are not really public but looked public and can not be imported: ['numpy.conftest']
+failed numpy/tests/test_public_api.py::test_NPY_NO_EXPORT -- AttributeError: module 'numpy._core' has no attribute '_multiarray_tests'. Did you mean '._multiarray_umath' instead of '._multiarray_tests'?
+xpassed numpy/lib/tests/test_arraypad.py::TestLinearRamp::test_object_array -- 
