@@ -257,6 +257,29 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the implementer, 2026-10-17, in commit `eaca6e6` on `spec/030-a-cancel-in-the-door-is-named`.
+I rebased onto main first, and it was clean. The runner is unchanged; the numbers are in the
+specification's landing notes, under "Revised 2026-10-17 against the build review".
+
+1. **Fixed.** In the `door-ctrl-c` branch, the child now installs `signal.default_int_handler`
+   before the call. The host raises the signal with `signal.raise_signal(signal.SIGINT)`, and
+   `os` is gone from the child's imports. EXECUTED: `KeyboardInterrupt` 3 of 3. With SIGINT
+   inherited as ignored (the child reads `SIG_IGN`), the revised text also gives
+   `KeyboardInterrupt` 3 of 3, while the committed text gave `returned cancelled` 3 of 3.
+   Windows was not run.
+2. **Fixed.** The deadline check's host prints `in the door` before it blocks, and the check
+   asserts `["in the door", "deadline None None b''"]`. EXECUTED: 3 of 3.
+3. **Fixed.** I added `test_a_ctrl_c_pending_at_an_ended_call_is_recorded`. With M5 (a
+   `git archive` copy of the built runner with the guard moved above the Ctrl-C check), it is
+   `1 failed, 6 passed`, and this case is the one that fails. With the built runner, all 7 pass.
+4. **Fixed.** The CHANGELOG now says: "a host's own cancellation (an exception such as
+   `asyncio.CancelledError`) or a Ctrl-C still comes first".
+5. **No change**, as the review says.
+- **Flag 1.** The Design list now names `tests/unit/test_runner_async.py`.
+- **The full judge after the revision (EXECUTED).** Exit 0, `771 passed, 19 skipped`;
+  `186/197 pass · 0 fail (unit suite 585/593)`; v1.4 `74/74`; `lost 0 · gained 4 · grew 0`.
+  The judge changed in three files: the check file and the two unit files. Ruff is clean.
+
 ## Verdict
 
 Revise, then land. The runner change is right. It is small, it matches Decisions 1 to 4, it keeps
