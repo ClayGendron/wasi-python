@@ -888,3 +888,78 @@ rule, its unit stand-in, and the 27 renamed lines.
 **Open items.** None blocks the build:
 - The spec's seen-failing counts were written assuming the final `__all__`s. The real counts on
   main are recorded above.
+
+**Revised against the build review** (2026-10-18). The review is
+`049-the-public-api-is-frozen-2026-10-18.md`, by a fresh agent, kept for now at
+`build/reviews-evidence/049-buildreview/` in the main tree. Its verdict: "lands once F1 and F2 are
+fixed; F3 to F6 fixed or answered in writing". All six are fixed. The branch was not rebased.
+Each claim is EXECUTED unless it says otherwise.
+
+1. **F1, fixed** in `bc5292e`. The README's promise paragraph now says a minor release may add
+   "keyword-only arguments whose default keeps today's behaviour" and "dataclass fields placed
+   last with a default (or keyword-only)", as Decision 8 does. It also says what the judge
+   actually enforces: the judge fails on a change until the snapshot is regenerated, and a
+   specification that lists the change is the only thing that regenerates it, which its review
+   checks.
+2. **F2, fixed** in `22cd0bf`. Criterion 10 gains two parts:
+   - an `ast` rule: `runner.py` (read from `runner.__file__`, so a copy on `PYTHONPATH` is the
+     file tested) loads `DEFAULTS` only inside `_current_defaults`;
+   - a lock stand-in whose `__enter__` replaces the binding, as a racing `set_defaults` would, so
+     `set_defaults` must return the value it read inside the lock.
+
+   Each was seen failing on its own mutant copy (`build/f2-mutants.log`, run with
+   `PYTHONPATH=<copy>/src`; each copy's `wasi_python.__file__` was printed first):
+   - `_check_places` reading `DEFAULTS.file_calls` fails with "DEFAULTS read outside
+     _current_defaults: ['runner.py:1159']";
+   - `old = _runner.DEFAULTS` above the lock fails with "the old value is read inside the lock";
+   - the unmutated control passes.
+3. **F3, fixed, not softened**, in `cccc3b9`, with Decision 2's text in `94f148e`. The fix:
+   - `_submit` reads `_current_defaults().async_workers` under `_pool_lock`, at submit time, as it
+     read `DEFAULTS` before 049;
+   - `checked["async_workers"]` is gone;
+   - Decision 2 gains a sentence: the pool's size is process state, not a call's limit, so it is
+     the one exception to one read per call.
+
+   Why fix rather than soften: the reviewer's first option restores the behaviour before 049
+   (the newest value wins) and keeps the documented "up to 12 at once" after one change true.
+   Softening would have documented an unbounded number of pools.
+
+   The new check `test_the_pool_takes_the_newest_size` uses a pool lock that lets a
+   `set_defaults` land as the lock is taken. It failed on the per-call wiring with `(8, 3)`
+   (`build/f3-seen-failing.log`) and passes now. `set_defaults`' docstring and the README's pool
+   sentence say "submitted afterwards".
+4. **F4, fixed** in `94f148e`. Decision 10 now states both rules:
+   - a public constant is documented by being named in backticks in its module's docstring;
+   - an internal name is a `def`, a `class` or a plain assignment in an internal module; names
+     unpacked together, dunders and `Errno`'s members are not internal names.
+5. **F5, fixed** in `cf4c1ec`, with Decision 9's text in `94f148e`. The render records each
+   `dataclass()` parameter that differs from its default (`init`, `repr`, `eq`, `order`,
+   `unsafe_hash`):
+   - the snapshot reads `dataclass Tool: frozen, eq=False`;
+   - the README block reads `@dataclass(frozen=True, eq=False)`.
+
+   Criterion 1's stand-in also drops `eq=False` from its scratch copy. Its diff is then exactly
+   the four `size` and `Tool` lines. Seen failing first: the old snapshot differed
+   (`build/f5-seen-failing.log`).
+6. **F6, fixed** in `94f148e`, with the status line again in the notes commit:
+   - the status line;
+   - Decision 13 ("the builder adds one sentence … on this specification's branch … (condition
+     C2)");
+   - the Design table ("written on the branch (C2)").
+
+The judge after the revision (`build/judge-revised.log`, the same frozen set, on `94f148e`):
+`wasi_python v1: 276/287 pass · 0 gap · 11 blocked · 0 fail (unit suite 934/942, 8 skipped)`;
+v1.4 136/136; `ratchet vs 01238501f8: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 11
+· grew 0 · judge changed: tests/checks/test_v1_4_public_api.py, tests/harness/api.py,
+tests/harness/artifacts.py and 7 more`; `1210 passed, 19 skipped`. `ruff check` and `ruff format
+--check` are clean.
+
+**For the confirmation.** Look at:
+- `_submit`'s read under `_pool_lock`;
+- the two new parts of criterion 10 and `test_the_pool_takes_the_newest_size`;
+- the render's dataclass parameters;
+- the README paragraph against Decision 8;
+- Decision 2's exception and Decision 10's two rules, which are new decision text.
+
+At the rebase on 056, the review's checklist applies ("The rebase on 056"). The checklist's last
+item is now a check: F2's `ast` rule fails on a direct `DEFAULTS` read in `runner.py`.
