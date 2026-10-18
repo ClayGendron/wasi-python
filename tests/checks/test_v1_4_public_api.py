@@ -8,6 +8,7 @@ typed and free of internal names. None needs an artifact set; each counts names,
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import concurrent.futures
 import dataclasses
@@ -291,14 +292,20 @@ class _Stop(Exception):
 
 
 class _Counting:
-    """A lock stand-in that records the binding `run` reads when it is entered and left."""
+    """A lock stand-in that records the binding `run` reads when it is entered and left. With
+    `swap`, entering it also replaces the binding, as another thread's `set_defaults` that took
+    the lock just before would: a caller that read the old value outside the lock returns the
+    wrong one."""
 
-    def __init__(self, runner: Any) -> None:
+    def __init__(self, runner: Any, swap: Any = None) -> None:
         self.runner = runner
+        self.swap = swap
         self.seen: list[tuple[str, Any]] = []
 
     def __enter__(self) -> None:
         self.seen.append(("enter", self.runner.DEFAULTS))
+        if self.swap is not None:
+            self.runner.DEFAULTS = self.swap
 
     def __exit__(self, *exc: Any) -> None:
         self.seen.append(("exit", self.runner.DEFAULTS))
@@ -309,9 +316,33 @@ class _Refusing(concurrent.futures.Executor):
         raise _Stop
 
 
+def _defaults_loads(path: Path) -> list[str]:
+    """Where a module loads the name `DEFAULTS`, outside `_current_defaults`, by `ast`."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    allowed = {
+        id(n)
+        for f in ast.walk(tree)
+        if isinstance(f, ast.FunctionDef) and f.name == "_current_defaults"
+        for n in ast.walk(f)
+    }
+    return [
+        f"{path.name}:{n.lineno}"
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Name)
+        and n.id == "DEFAULTS"
+        and isinstance(n.ctx, ast.Load)
+        and id(n) not in allowed
+    ]
+
+
 def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     import wasi_python
     from wasi_python import runner
+
+    # The runner reads its defaults only through `_current_defaults`, so the count of its calls
+    # below is every read (the build review's F2).
+    direct = _defaults_loads(Path(runner.__file__))
+    assert not direct, f"DEFAULTS read outside _current_defaults: {direct}"
 
     lookups: list[int] = []
 
@@ -322,11 +353,13 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     monkeypatch.setattr(runner, "find_artifacts", found)
     before = wasi_python.defaults()
     new = dataclasses.replace(before, memory_bytes=before.memory_bytes + 4096)
-    lock = _Counting(runner)
+    raced = dataclasses.replace(before, memory_bytes=before.memory_bytes + 8192)
+    lock = _Counting(runner, swap=raced)
     monkeypatch.setattr(wasi_python, "_defaults_lock", lock)
     try:
-        assert wasi_python.set_defaults(new) is before
+        assert wasi_python.set_defaults(new) is raced, "the old value is read inside the lock"
         assert lock.seen == [("enter", before), ("exit", new)]
+        lock.swap = None
         assert wasi_python.defaults() is new
         unset = runner._UNSET
         checked = runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None)
