@@ -1,0 +1,296 @@
+# Review of 059 — The x86_64 rebuild runs natively (pre-build)
+
+- **Date:** 2026-10-18
+- **Reviewer:** a fresh agent (Claude), not the author of the specification or of the research
+  it rests on.
+- **Reviewed:** the specification as drafted, `spec/059-the-x86-64-rebuild-runs-natively` at
+  `d37c021` (`git diff d68a594...HEAD`: one file, 414 lines). Read against: constitution §4.1,
+  §4.2, §4.3, §4.6, §4.9, §4.10, §5.6, §5.7; specs 012, 040 (Decisions 2, 4, 7, 11), 023 (its
+  worktree at `7ccf316`), 057 (its worktree at `0e0541f`), 037 (OpenBLAS); the memos
+  `2026-10-18-byte-identical-wasm-builds-prior-art.md` and
+  `2026-10-17-x86-64-rebuilds-differ-in-one-function.md`; `scripts/line.conf`,
+  `scripts/00_download.sh`, `scripts/steps/10_tools.sh`, `35_stdlib_libs.sh`, `scripts/wasi-cc`,
+  `wasi-cxx`, `recipes/*.cross`, `.github/workflows/release.yml`, `tests/harness/scan.py`
+  (`compiler_table_errors`, `REBUILD_TIMEOUTS`), `tests/checks/test_rules.py`,
+  `tests/harness/jobs.py` (`compare`), `scripts/steps/apply_patches.sh`, CPython's
+  `Platforms/WASI/_build.py` and the build's `cross-build/wasm32-wasip1/Makefile`.
+- **Re-ran:**
+  - `uv run pytest -p no:cacheprovider -q tests/checks/test_rules.py tests/unit/test_scan.py -k
+    "compiler or rebuild or aarch64"` in the 059 worktree: 57 passed, ratchet lost 0
+    (`rules-run.txt` beside this file). The tree stayed clean.
+  - Probes, all in this review's scratch folder (`probe/`, `x86/`), on a copy of the pinned
+    `wasi-sdk-33.0-arm64-macos` (from `build/tools/`) and a fresh unpack of
+    `wasi-sdk-33.0-x86_64-linux.tar.gz` (sha256 `0ba8b5bf…bce`, equal to its pin), each with
+    `-ffp-contract=off` appended to `bin/clang.cfg` and `bin/clang++.cfg` exactly as Decision 1
+    says. The x86_64 SDK ran in `debian@sha256:a29215f6…` on `linux/amd64` (Rosetta), the
+    research folder's image.
+
+## What was verified (EXECUTED unless labelled)
+
+- **Every driver name reads the file.** `clang`, `clang++`, `clang-22`, `wasm32-wasip1-clang`,
+  `wasm32-wasip1-clang++` and `wasm32-wasi-clang`, with `--target=wasm32-wasip1 -### -c`, each
+  print `Configuration file: …/clang.cfg` or `clang++.cfg` and carry `-ffp-contract=off` on the
+  `-cc1` line. `clang -x c++` and `--driver-mode=g++` carry it too. `clang-cpp` loads no file
+  (its line says `-ffp-contract=on`), and its predefined macros equal `clang -E`'s; the flag
+  changes no predefined macro (`clang -dM -E` with and without the flag: identical). So
+  CPython's `CPP=clang-cpp` sees nothing different.
+- **No warning under -Werror.** With `-Werror -Wunused-command-line-argument`: compile, link
+  only, compile-and-link, `-E`, `-M`, `-fsyntax-only` and stdin compile all succeed.
+- **The numpy object through the file.** The build's own `npy_math_complex.c`, preprocessed from
+  `build/numpy-build/compile_commands.json` (324,353 bytes, `2193b9bd4d40aadc`, equal to the
+  memo's), with the memo's code-generation flags and no fp flag on the command line:
+  `2914eb833ad62c93` from the arm64 macOS SDK and from the x86_64 Linux SDK. Without the edit:
+  `20ef33440bb2e944` (arm64) and `d36897438056e356` (x86_64), the memo's pair.
+- **A command-line `-ffp-contract=on` overrides the file**, as Decision 1 says.
+- **Run-time arithmetic is lowered identically.** `double a*b+c` is `f64.mul`, `f64.add` both
+  ways; `long double a*b+c` is two libcalls (`__multf3`, `__addtf3`) both ways; no `fmal`.
+- **The alternatives.** A triple file `bin/wasm32-wasip1.cfg` is not loaded while `clang.cfg`
+  exists (with `--target=wasm32-wasip1`, `wasm32-unknown-wasip1` or none), so the existing file
+  is the one that must carry the flag. `CCC_OVERRIDE_OPTIONS='+-ffp-contract=on'` overrides it,
+  but step 10's gate runs in the build's own environment and would see it on the `-cc1` line;
+  step 35 also runs every tool under `env -i` (READ).
+- **§4.1 and §4.2 hold** (READ). Step 10 already rewrites the unpacked SDK after its tarball's
+  hash is checked (spec 012's `neutral_runtime` replaces its sysroot and builtins); a second
+  line in its configuration file is the same kind of recipe item, made by a hashed recipe file
+  (`10_tools.sh` is in `MANIFEST`). Spec 020's tree check covers source trees only
+  (`apply_patches.sh`; `scan.py` names "the pinned source tarballs' top folders"), so it does
+  not see the toolchain tree. The pinned input stays the verified tarball; the edited tree is a
+  build product of pin plus recipe.
+- **No overriding flag in today's compiles or 023's.** No `-ffp-contract=`, `-ffp-model`,
+  `-ffast-math`, `-Ofast` or `-funsafe-math` in `build/numpy-build` and `build/pandas-build`
+  records, in the seven `compile_commands.json` of the 023 worktree (freetype, harfbuzz,
+  libraqm, sheenbidi, matplotlib, numpy, pandas), in the CPython Makefile, or in the source
+  trees' build files (one hit each in a CUDA helper of numpy's vendored meson and zlib's
+  `nintendods/Makefile`, neither used).
+
+## Findings, most severe first
+
+1. **F1 (medium): the "no compile can miss it" check forbids one spelling, and several others
+   override the file.** (Decision 4, `test_every_compile_contracts_nothing`; Decision 2's gate.)
+   The static and compile-records parts reject only the string `-ffp-contract=`. On a command
+   line after the file, `-ffp-model=precise` gives `-ffp-contract=on`; `-ffast-math`, `-Ofast`,
+   `-funsafe-math-optimizations` and `-ffp-model=fast` give `fast`; `--no-default-config` drops
+   the file (EXECUTED, `-###`). The Makefile part reads five variables only (`CFLAGS`,
+   `CONFIGURE_CFLAGS`, `CONFIGURE_CFLAGS_NODIST`, `OPT`, `BASECFLAGS`) and misses
+   `CFLAGS_NODIST`, `EXTRA_CFLAGS`, `PY_STDMODULE_CFLAGS` and configure's per-module
+   `MODULE_*_CFLAGS` lines.
+   Failure: a later package's `meson.build` or Makefile adds `-ffp-model=precise` (a common
+   "strict IEEE" choice). The numpy file then compiles to `20ef3344…` on arm64 and `d3689743…`
+   on x86_64 again (EXECUTED: exactly the old pair). The new check stays green. The first sign
+   is a `same-bytes` failure in CI, possibly after the emulation has been deleted.
+   Fix: forbid the family, not one spelling: `-ffp-contract=`, `-ffp-model=`, `-ffast-math`,
+   `-Ofast`, `-funsafe-math-optimizations`, `--no-default-config`, `--config`; scan the whole
+   CPython Makefile, not five lines; make the gate require that the `-cc1` line holds
+   `-ffp-contract=off` once and no other `-ffp-contract=` value (not only "no `on`"). The step-10
+   gate cannot see per-compile flags, so the judge's record scan is the only guard for them.
+
+2. **F2 (medium): "the arithmetic does not change" is false for constant-folded expressions, and
+   the stop rule built on it misfires.** (Decision 1, last bullets; Decision 6, "Never
+   `--accept-fewer-passes`"; criterion 4.)
+   LLVM folds `llvm.fmuladd` with constant operands as a *fused* operation (one rounding), while
+   wasm32 evaluates it at run time as a multiply and an add (two roundings). EXECUTED with the
+   pinned clang, `-O2`: `static double g(a,b,c){return a*b+c;}  double h(){return g(0.1,10.0,-1.0);}`
+   returns `0x1p-54` under the default `on` and `0x0p0` under `off`; the `long double` version
+   likewise (`0x3F8D…` against 0). At run time the same expression gives 0 either way. So the flag
+   *can* change results, wherever inlining and propagation folded an `a*b+c`. It changes them
+   toward what the run time computes, which is good, but the spec says it cannot happen.
+   The guard also cannot prove the claim: the goldens print floats to nine digits
+   (`tests/jobs/numpy_random.expected`, `jobs.compare`), and upstream suites mostly use
+   tolerances. 023's pixel goldens may be stricter.
+   Failure: a golden or an upstream test moves in its last bit. Decision 6 says the memo is
+   wrong and the build stops (two strikes). The builder either stalls a correct change or is
+   tempted to edit a golden without a stated reason.
+   Fix: restate the claim narrowly: results computed at run time do not change; values the
+   compiler folded change from one rounding to two, the same value the run time gives. Write the
+   disposition: a moved pass or golden is traced first; if it is a fold, it is the flag's
+   intended effect, recorded with the before and after values, and the golden changes as a judge
+   change with its reason (`--accept-judge`); anything else stops the build as written.
+
+3. **F3 (medium): the fallback is not one line, and the rule check as written forbids it.**
+   (Decision 3 "Switching the fallback on is one line", Decision 4's first and last bullets,
+   Decision 9.)
+   Decision 4's first bullet requires every key's `COMPILER_SDK_DIR` to equal its own SDK; its
+   last bullet allows a different SDK when the switch is thrown. Read literally, throwing the
+   switch turns `test_every_host_compiles_natively_with_the_fallback_kept` red. Decision 9 also
+   needs the workflow timeout back to 360 and `scan.REBUILD_TIMEOUTS` changed. And the fallback
+   with the flag is never run: criterion 3 builds natively only.
+   Failure: the dry run fails on `ubuntu-24.04`; the "same-day, one-line" fallback needs a
+   rule-check rewrite on the day, under pressure.
+   Fix: write the first bullet as "equal to its own SDK, unless the last bullet's switch holds".
+   List the fallback's exact change set (the `line.conf` line, the workflow's `timeout`,
+   `REBUILD_TIMEOUTS`, `--accept-judge`). Add one cheap execution: step 10 alone, in the
+   `linux/amd64` container, with the switch thrown, showing the gate's emulation probes and both
+   new gate lines pass through the emulated clang. That proves "the fallback is runnable" in
+   fact, not only by text.
+
+4. **F4 (low): compiles that leave no record are covered only by what the scripts write.**
+   zlib and xz (autoconf and make), bzip2 and SQLite (direct), step 60's reactor compile, 023's
+   step 37 (qhull) and step 55 (Pillow, kiwisolver), and 037's OpenBLAS `make` leave no
+   `compile_commands.json`. The static part reads flags written in `scripts/`; flags an upstream
+   `configure` or Makefile adds are unseen. A missing record also only lowers the count printed.
+   Fix: derive the expected records from the recipe (each `recipes/*.cross` has its build
+   folder; each must exist when any does, else `blocked`); scan the generated Makefiles of the
+   autoconf builds (`build/xz-build/Makefile`, zlib's) for F1's family; and say that a later
+   make-based build (037's OpenBLAS) brings its own record (for example `make -n` saved under
+   `build/`) into this check when it lands.
+
+5. **F5 (low): source pragmas override the file per block.** `#pragma STDC FP_CONTRACT ON` and
+   `#pragma clang fp contract(on)` bring `llvm.fmuladd` back under the edited file (EXECUTED).
+   None is in a compiled file today or in 023's trees (EXECUTED grep; CPython's mpdecimal
+   `float_control` is MSVC-only; OpenBLAS 0.3.34's are `contract(off)` in non-wasm kernels).
+   Fix: either name pragmas in the spec as out of the check's reach, with `same-bytes` as the
+   backstop, or add a scan of the unpacked source trees for `FP_CONTRACT ON` and
+   `fp contract(on|fast)`.
+
+6. **F6 (low): the zip is probably not one of the hashes that move.** Decision 6 says it moves
+   because `_sysconfigdata` records `CFLAGS`. With the configuration-file route the flag never
+   reaches `CFLAGS` (it is not in the Makefile; READ), so the zip is expected unchanged
+   (INFERRED). The Kind line and the CHANGELOG plan say "every artifact hash changes". Fix:
+   expect `python.wasm`, the snapshot, `MANIFEST` and `SHA256SUMS` to move and the zip to stay,
+   and keep "the builder states why" for either outcome. Related: since `sysconfig` will not
+   show the flag, the README sentence should say that it lives in the toolchain's configuration
+   files and nowhere in the recorded flags.
+
+7. **F7 (low): spec 040's amendment covers one decision, and its last-resort fallback is
+   dropped silently.** Decision 9 changes 040's Decision 11 (the fallback becomes the switch;
+   the 240-minute trip-wire and 360-minute limit stop applying to a native job), and Decision 3
+   changes 040's Decisions 4 and 6, but the amendment line goes under Decision 2 only. 040's own
+   fallback (x86_64 out of the gate, by one reviewed change) is no longer named: if the emulated
+   fallback also fails, nothing says what is next. The owner's decision says 059 "changes specs
+   012 and 040's decisions"; the spec says 012's text stands without saying why. Fix: amendment
+   lines under 040's Decisions 2, 4 and 11; keep "x86_64 leaves the gate" as the step after a
+   failed switch; one sentence on why 012 needs no amendment.
+
+8. **F8 (low): spec 057's rebase list is short by two places.** Besides Decision 4's sentence,
+   057's Scope bullet ("The arm64 Linux wasi-sdk shared by both rebuild jobs") and its F2
+   disposition say the arm64 tarball runs on both legs. A native x86_64 leg removes that shared
+   input. That is a security gain worth one line in 057's rebase: each leg then runs only its
+   own host's compiler.
+
+9. **F9 (low): the pre-landing evidence for x86_64 is Rosetta only; say what happens between
+   landing and the dry run, and what "the first release" means.** Criterion 3 runs the whole
+   three-host build locally, which answers "all three hosts, the whole set" (good: 040 showed
+   the compiler is the only variable, and the flag changes code in every file, so only a full
+   build can show no new difference). Real `ubuntu-24.04` is first seen after landing. A tag run
+   in that window would fail at `same-bytes` and publish nothing, but it would spend an alpha's
+   security review. Fix: no alpha tag between landing and a passing dry run; and say whether an
+   alpha tag counts as "the first release" that starts the emulation's deletion.
+
+10. **F10 (nit): write both trees' files when the emulation is on.** With the switch thrown,
+    step 10 writes `$CSDK`'s files only; `$SDK`'s stay unedited and unread (every name leads to
+    the launcher). Writing both, and gating both, costs a line and removes a case a later
+    reader must reason about.
+
+## Constitution checks
+
+- §4.1: holds. The flag is a recipe item made by step 10 on a downloaded toolchain, as spec 012's
+  runtime swap is; no source tree changes, no patch.
+- §4.2: holds. No pin changes; the six emulation pins stay in `SHA256SUMS` and `MANIFEST`; the
+  fetch becomes conditional inside the key's branch, one literal pin per line.
+- §4.3: holds. The product is one target; the per-host compiler line already existed (012, 040).
+- §4.6: holds. The artifact set's members do not change; their hashes do, recorded.
+- §4.9: holds. Times are benchmark facts in the landing notes; the 120-minute value is a job
+  limit, not a check of speed.
+- §4.10: holds, except F2's claim, which is labelled INFERRED but is contradicted by a cheap
+  execution.
+- §5.2: no open question remains, provided F3's ambiguity is resolved in text.
+- §5.6, §5.7: this review is the required pre-build review; the order (after 023, before 057)
+  is stated.
+- §7: nothing tripped.
+
+## Verdict
+
+Ready once F1 to F3 are written in. F4 to F10 may be written in or answered in writing.
+
+## Confirmation of 059's revision (addendum to the pre-build review)
+
+- **Date:** 2026-10-18
+- **Reviewer:** the same fresh agent that wrote the pre-build review beside this file.
+- **Reviewed:** `807bfcd` on `spec/059-the-x86-64-rebuild-runs-natively` (`git diff d37c021
+  807bfcd`: the specification only, +383 −191), against the review's F1 to F10.
+- **Re-ran:** the greps and file checks below, on main's `build/`, the 023 worktree's `build/`,
+  and the OpenBLAS 0.3.34 and scipy 1.18.1 trees from spec 037's research scratch. Nothing was
+  written in either tree's git.
+
+## Verdict
+
+**Reopened, on two new low findings (N1, N2)**, each a sentence or two of text. F1 to F10 are
+otherwise written in soundly. Once N1 and N2 are written in, the specification is ready to build
+without another round: the lane can check the two sentences.
+
+## F1 to F10
+
+- **F1, written in, with one defect (N1).** The family is named once, as
+  `scan.FP_CONTRACT_OVERRIDES`. The gate accepts `-ffp-contract=off` once and no other value.
+  Criterion 1 plants an input for each part. The whole CPython Makefile is scanned. No tracked
+  file under `scripts/` or `recipes/` holds a member of the family, in 059's tree or in 023's
+  (EXECUTED, `git grep`). But see N1.
+- **F2, written in.** The claim is now narrowed to run-time arithmetic. Decision 6's trace rule
+  is sound: a moved golden or pass is traced first. A fold is recorded with its two values and
+  goes through `--accept-judge` (with `--accept-fewer-passes` for a fallen `passes`). Anything
+  else stops the build. 023's exact pixel goldens fall under the same rule. AGENTS.md rule 4
+  holds, because the edit is a judge change with a trace, not a quiet one.
+- **F3, written in. Mutation-only proof is enough.** Decision 4's first bullet is one rule that
+  is true in both positions of the switch. Today's `line.conf` is one of those legal positions
+  (the switch thrown, with the five names), so a red run on today's tree cannot exist by design.
+  What matters is that each breach is shown failing on the real `scan.compiler_table_errors`, and
+  the seven unit mutations do that. Criterion 3b and criterion 5 then run the check green in both
+  legal positions: thrown on the 3b clone, native on the landed tree. The retired check shows in
+  the ratchet's `ABSENT` line. The fallback's three-line change set is exact. 3b executes step 10
+  with the switch thrown (`scripts/build.sh 10` is a supported form, READ), so "the fallback is
+  runnable" becomes a fact.
+- **F4, written in, but its mechanism does not fit the tree (N2).** Reading the autoconf
+  Makefiles, step 60's files and the whole CPython Makefile is right. All of them exist today
+  (EXECUTED): `build/zlib-build/Makefile`, `build/xz-build/Makefile`,
+  `build/xz-build/src/liblzma/Makefile`, `build/link/make-n.txt` and
+  `build/link/reactor-commands.txt`. Step 60 already writes the last two (READ, `60_link.sh:76`
+  and `:94`). See N2 for the derivation.
+- **F5, written in.** No file in today's seven source trees, numpy's and pandas's build folders,
+  023's eight trees and matplotlib's build folder, or 037's OpenBLAS 0.3.34 and scipy 1.18.1
+  matches `FP_CONTRACT +ON` or `fp contract(on|fast)` (EXECUTED, every file type, tests
+  included). So the grep starts green and stays green for 037. OpenBLAS's `contract(off)` lines
+  do not match. The allowance rule (uncompiled files only; a compiled hit is fixed, never
+  allowed) is right.
+- **F6, written in.** The zip is expected to stay. The README says the flag is in no recorded
+  `CFLAGS`.
+- **F7, written in. Keeping the last resort third is sound.** The order now runs from cheapest to
+  most costly: a re-run, then the switch (the gate stays at three hosts), then x86_64 out of the
+  gate. The third step is spec 040's own Decision 11 text, which was already reviewed and
+  accepted. It rests on spec 012's Decision 8, so 012 needs no amendment, and the spec now says
+  so. The step narrows the gate's scope; it does not change what "the same bytes" means, so the
+  owner's decision stands. One nuance, not a finding: when the third step is taken, the x86_64
+  build stays on whatever compiler setting it then has (emulated, after a failed switch). 040's
+  text already says "x86_64 still builds with the emulated compiler, outside the gate".
+- **F8, F9, F10, written in.** 057's rebase list is complete, and it states the security gain.
+  No tag goes out before a passing dry run, and "the first release" is defined. Both trees' files
+  are written and gated, and 3b checks them.
+
+## New findings
+
+1. **N1 (low): the whole-Makefile scan fails on today's tree, because `--config` is a member of
+   the family.** (Decision 4's record part; criterion 1 says that part "passes today".)
+   CPython's `cross-build/wasm32-wasip1/Makefile` holds wasmtime's own `--config` option on two
+   lines, `HOSTRUNNER=` (line 425) and `PYTHON_FOR_BUILD=` (line 429): `wasmtime run --argv0 …
+   --dir … --config <path>` (EXECUTED). Neither line is a compile. A substring scan of every line
+   turns the new check red on day one, and the builder must then design an exclusion during the
+   build.
+   Fix: match the family only as whole tokens on the compiler's own command lines and
+   compile-flag variables. Or name the two wasmtime lines (`HOSTRUNNER`, `PYTHON_FOR_BUILD`) as
+   the known non-compiler occurrences that the scan skips, with that reason. No other member of
+   the family matches anywhere in the five Makefile and command files, or in the nine
+   `compile_commands.json` (EXECUTED).
+
+2. **N2 (low): the compile records cannot be derived as written.** Decision 4 says each
+   `recipes/*.cross` "names, in its header comment, the build folder the step gives it". Today
+   none does: numpy's and pandas's headers name the package and the spec (READ). The Design
+   section says "Unchanged: … the cross files", so the comment would need an edit the
+   specification forbids. A comment is also a weak source for the judge (the project's rule:
+   "a comment satisfies nothing"). And 023's `wasi-plot-libs.cross` serves **four** meson build
+   folders, not one. `37_plot_libs.sh:38` runs `meson setup "$dir" …` in a loop over FreeType,
+   HarfBuzz, SheenBidi and libraqm (READ; the 023 build has `freetype-build`, `harfbuzz-build`,
+   `sheenbidi-build` and `libraqm-build`, each with a `compile_commands.json`, EXECUTED).
+   Fix: derive the expected folders from code, not comments. Either parse the steps' `meson setup
+   <dir> … --cross-file` lines, or keep a judge constant in `scan.py` listing the meson build
+   folders per step (numpy, pandas; 023 adds its five). The specification that adds a meson build
+   extends the constant. Keep the rule that every listed folder's record must exist once any
+   does.
