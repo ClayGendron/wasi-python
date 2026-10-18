@@ -9,6 +9,8 @@ The issue texts and a reading guide are in the owner's "Upstream issue drafts" d
 | `1-wasmtime-py-last-exception/` | wasmtime-py | `LAST_EXCEPTION` per thread: one thread's host exception is never raised by another thread's call | PR ready (`pr.md`, `fix.patch`, evidence) |
 | `2-wasmtime-py-sigint/` | wasmtime-py | component host functions catch `BaseException`; Ctrl-C at a callback's entry | PR ready for the first; `memo.md` and a prototype for the second, which has no sound fix inside wasmtime-py |
 | `3-numpy-npy-wasi/` | numpy | `np.save` and `np.load` on WASI, where `os.dup` is unsupported | patch and facts; numpy's AI policy requires the owner to write the description |
+| `5-pandas-styler-from-a-zip/` | pandas | the Styler's templates when pandas is imported from a zip archive | patch and facts for spec 041; pandas' policy asks the owner to write the description |
+| `6-networkx-atlas-from-a-zip/` | networkx | the graph atlas when networkx is imported from a zip archive | patch, test and facts for spec 041; networkx's policy asks the owner to write the description |
 
 Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the
 fix was found and checked. When a fix lands upstream and a pin moves past it, record that here

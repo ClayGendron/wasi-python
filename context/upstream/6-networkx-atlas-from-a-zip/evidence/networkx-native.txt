@@ -1,0 +1,16 @@
+# networkx 3.7 sdist + fix.patch; pytest 8.4.2 on uv's CPython 3.15.0a3
+## the new test with atlas.py unpatched
+>           raise TypeError("filename must be a str or bytes object, or a file")
+E           TypeError: filename must be a str or bytes object, or a file
+<home>/.local/share/uv/python/cpython-3.15.0a3-macos-aarch64-none/lib/python3.15/gzip.py:70: TypeError
+1 failed, 8 deselected in 0.08s
+## test_atlas.py with the patch
+9 passed in 0.06s
+## generators' tests with the patch
+598 passed, 34 skipped in 2.94s
+
+# reproducer: the stock networkx 3.7 wheel on PYTHONPATH (zipimport), native CPython 3.15.0
+  File "<scratch>/039-spec/dl/networkx-3.7-py3-none-any.whl/networkx/generators/atlas.py", line 63, in _generate_graphs
+TypeError: filename must be a str or bytes object, or a file
+# the patched package zipped (tests left out), the same interpreter
+[(0, 1), (0, 2)] 1253

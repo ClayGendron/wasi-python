@@ -1,0 +1,49 @@
+diff --git a/networkx/generators/atlas.py b/networkx/generators/atlas.py
+index acd2599..87bdce0 100644
+--- a/networkx/generators/atlas.py
++++ b/networkx/generators/atlas.py
+@@ -60,7 +60,9 @@ def _generate_graphs():
+     This function reads the file given in :data:`.ATLAS_FILE`.
+ 
+     """
+-    with gzip.open(ATLAS_FILE, "rb") as f:
++    # ATLAS_FILE is a path only when networkx is installed as files; from a
++    # zip archive it is a Traversable, which gzip.open cannot take.
++    with ATLAS_FILE.open("rb") as raw, gzip.open(raw, "rb") as f:
+         line = f.readline()
+         while line and line.startswith(b"GRAPH"):
+             # The first two lines of each entry tell us the index of the
+diff --git a/networkx/generators/tests/test_atlas.py b/networkx/generators/tests/test_atlas.py
+index add4741..81f2896 100644
+--- a/networkx/generators/tests/test_atlas.py
++++ b/networkx/generators/tests/test_atlas.py
+@@ -1,9 +1,11 @@
++import zipfile
+ from itertools import groupby
+ 
+ import pytest
+ 
+ import networkx as nx
+ from networkx import graph_atlas, graph_atlas_g
++from networkx.generators import atlas
+ from networkx.generators.atlas import NUM_GRAPHS
+ from networkx.utils import edges_equal, nodes_equal, pairwise
+ 
+@@ -24,6 +26,17 @@ class TestAtlasGraph:
+         assert nodes_equal(G.nodes(), range(3))
+         assert edges_equal(G.edges(), [(0, 1), (0, 2)])
+ 
++    def test_atlas_file_in_a_zip(self, tmp_path, monkeypatch):
++        # From a zip archive, importlib.resources gives a Traversable, not a path.
++        archive = tmp_path / "atlas.zip"
++        with zipfile.ZipFile(archive, "w") as zf:
++            zf.writestr("atlas.dat.gz", atlas.ATLAS_FILE.read_bytes())
++        with zipfile.ZipFile(archive) as zf:
++            monkeypatch.setattr(atlas, "ATLAS_FILE", zipfile.Path(zf, "atlas.dat.gz"))
++            G = graph_atlas(6)
++        assert nodes_equal(G.nodes(), range(3))
++        assert edges_equal(G.edges(), [(0, 1), (0, 2)])
++
+ 
+ class TestAtlasGraphG:
+     """Unit tests for the :func:`~networkx.graph_atlas_g` function."""

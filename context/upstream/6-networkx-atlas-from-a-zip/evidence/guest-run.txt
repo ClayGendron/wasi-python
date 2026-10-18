@@ -1,0 +1,43 @@
+# native: CPython 3.15.0, pandas 3.0.6, jinja2 3.1.6, networkx 3.7 (installed as directories), unpatched
+df.style.to_html() ok 1009 5f3ddbf076412504
+df.to_latex() ok 137 9fdda0e27284342c
+df.style.to_latex() ok 246 7aecf7215aff4e4e
+df.style.to_string() ok 44 7f0b5f9a8659de49
+df.style.to_typst() ok 112 4732dc27e67595ab
+custom ok 1028 c64f7f86630c61cd
+nx.graph_atlas(100) ok 58 b938945ba603d7fe
+nx.graph_atlas_g() ok 13 17b0c062c0ed4c74
+loader FileSystemLoader
+
+# guest: today's plain python.wasm, the 039 drafting zip (3,791 members), stock pandas and networkx
+df.style.to_html() FAIL TemplateNotFound html.tpl
+df.to_latex() FAIL TemplateNotFound html.tpl
+df.style.to_latex() FAIL TemplateNotFound html.tpl
+df.style.to_string() FAIL TemplateNotFound html.tpl
+df.style.to_typst() FAIL TemplateNotFound html.tpl
+custom FAIL TemplateNotFound html.tpl
+nx.graph_atlas(100) FAIL TypeError filename must be a str or bytes object, or a file
+nx.graph_atlas_g() FAIL TypeError filename must be a str or bytes object, or a file
+ Traceback (most recent call last):
+  File "/jobs/files.py", line 33, in <module>
+    from pandas.io.formats.style_render import StylerRenderer
+  File "pandas/io/formats/style_render.py", line 69, in <module>
+  File "pandas/io/formats/style_render.py", line 78, in StylerRenderer
+  File "jinja2/environment.py", line 1016, in get_template
+  File "jinja2/environment.py", line 975, in _load_template
+  File "jinja2/loaders.py", line 126, in load
+  File "jinja2/loaders.py", line 209, in get_source
+jinja2.exceptions.TemplateNotFound: 'html.tpl' not found in search path: '/usr/local/lib/python315.zip/pandas/io/formats/templates'
+ 1 8760004780 None
+
+# guest: the same zip with style_render.pyc and atlas.pyc compiled from the patched sources
+df.style.to_html() ok 1009 5f3ddbf076412504
+df.to_latex() ok 137 9fdda0e27284342c
+df.style.to_latex() ok 246 7aecf7215aff4e4e
+df.style.to_string() ok 44 7f0b5f9a8659de49
+df.style.to_typst() ok 112 4732dc27e67595ab
+custom ok 1028 c64f7f86630c61cd
+nx.graph_atlas(100) ok 58 b938945ba603d7fe
+nx.graph_atlas_g() ok 13 17b0c062c0ed4c74
+loader PackageLoader
+  0 9796209880 None
