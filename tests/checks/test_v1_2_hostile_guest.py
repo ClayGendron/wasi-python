@@ -1737,7 +1737,7 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     refused("V1", ValueError, one, ["code"])
     refused("V2", ValueError, one, ["/code/"])
     refused("V3", ValueError, one, ["/code/../x"])
-    refused("V4", ValueError, one, ["/"])
+    refused("V4", ValueError, one + ": / cannot be on the import path", ["/"])
     refused("V5", ValueError, one, ["/usr/local/lib/x"])
     refused("V6", ValueError, r"import_path\[1\]", ["/code", "/code"])
     refused("V7", ValueError, one, ["/co\0de"])
@@ -1754,6 +1754,10 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     alias = [Mount(mem, "/lib"), Mount(mem, "/work", writable=True)]  # the review's F1
     refused("S7", ValueError, mount, ["/lib/lib"], mounts=alias)
     refused("S8", ValueError, writable, ["/code2"], root=folder("apart"))  # R1: apart from code
+    # The build review's F1 (R3): the match is case-sensitive, as wasi-libc's; a grant at /Code
+    # does not serve /code/lib, which the guest resolves through the root.
+    refused("S9", ValueError, writable, ["/code/lib"], grants=[Grant(code, "/Code")],
+            root=folder("apart"))  # fmt: skip
     # Guest nesting: a writable place, or any mount, under the entry.
     under = "lies under it"
     out = Grant(folder("out-g"), "/code/out", writable=True)
@@ -1761,6 +1765,9 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     refused("G2", ValueError, under, ["/code"], mounts=[Mount(mem, "/code/out")])
     deep = Grant(folder("ab"), "/code/a/b", writable=True)
     refused("G3", ValueError, under, ["/code"], grants=[ro, deep])
+    # The build review's F1 (R8, R9): every entry is judged, not only the first.
+    a = Grant(folder("a", mylib=True), "/a")
+    refused("G4", ValueError, r"import_path\[1\].*" + under, ["/a", "/code"], grants=[a, ro, out])
     # Host nesting: a writable folder inside the serving grant's whole folder.
     holds = "whose folder holds"
     inner = Grant(code / "out", "/out", writable=True)
@@ -1771,6 +1778,7 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
         wrong.append(("H3", "the refused root was made"))
     p_out = Grant(proj / "out", "/out", writable=True)
     refused("H4", ValueError, holds, ["/p/lib"], grants=[Grant(proj, "/p"), p_out])
+    refused("H5", ValueError, r"import_path\[1\].*" + holds, ["/a", "/code"], grants=[a, ro, inner])
     # Allowed.
     lib = folder("lib", mylib=True)
     allowed("A1", ["/work/lib"], grants=[work, Grant(lib, "/work/lib")])

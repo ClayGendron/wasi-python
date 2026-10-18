@@ -3579,6 +3579,24 @@ def test_the_import_path_reaches_every_mode(guest_workdir, which) -> None:
     assert (done.exit_code, done.stdout) == (3, b"['/code/main.py', 's1'] mylib from the grant\n")
     done = with_path([], stdin=b"import mylib; print(mylib.VALUE)\n")
     assert (done.exit_code, done.stdout) == (0, b"mylib from the grant\n"), done
+    # run_async takes it too (the build review, F2: no other check runs that path).
+    import asyncio
+
+    from wasi_python import run_async
+
+    program = ["-c", "import sys, mylib; print(sys.path, mylib.VALUE)"]
+    done = asyncio.run(run_async(program, grants=grants, snapshot=snapshot, import_path=["/code"]))
+    assert done.stdout.decode() == f"{[zip_entry, '/code']} mylib from the grant\n", done
+    # The prelude's two frames, and only with an import path: a call without one keeps today's
+    # argv (the build review, F2; the ratchet's fuel cannot see a prelude added to every call).
+    depth = ["-c", "import traceback; print(len(traceback.extract_stack()))"]
+    assert (call(depth).stdout, with_path(depth).stdout) == (b"2\n", b"4\n")
+    # An entry with a quote, a double quote and a backslash reaches sys.path exactly.
+    odd = _folder(guest_workdir, {"odd.py": "WHO = 'odd'\n"})
+    name = "/a'b\"c\\d"
+    done = run(["-c", "import sys, odd; print(sys.path[-1] == " + repr(name) + ", odd.WHO)"],
+               grants=[Grant(odd, name)], import_path=[name], snapshot=snapshot)  # fmt: skip
+    assert (done.exit_code, done.stdout) == (0, b"True odd\n"), done
     same = [
         (["-V"], None),
         (["-u", "-c", "print(1)"], None),
