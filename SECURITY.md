@@ -30,6 +30,21 @@ alpha; older alphas are not patched.
 - **The release supply chain.** An artifact whose bytes differ from what its pins rebuild, or
   that fails attestation. The README's "Verifying a download" section shows how to check one.
 
+## Upstream advisories the runner handles
+
+The runner uses wasmtime-py 49.0.0, which bundles wasmtime 49.0.0; no wasmtime-py release yet
+carries a wasmtime past it. Two wasmtime advisories fixed since then reach a guest, and the
+runner carries each fix itself, on every call, until the published `wasmtime` requirement admits
+only fixed versions (spec 048):
+
+- **GHSA-m9f7-9w4p-gv38** (high, fixed in wasmtime 49.0.3): on macOS and FreeBSD, a guest with a
+  writable grant or root could rename a symbolic link that points out with a trailing slash and
+  so move a host folder into its sandbox. The runner applies 49.0.3's rule to `path_rename`: a
+  trailing slash on either path needs a source that is a folder, judged without following its
+  own link, and a folder is renamed by its plain name.
+- **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime 49.0.2): `fd_readdir` copied up to three bytes
+  of host memory per entry into the guest. The runner zeroes them.
+
 ## Out of scope
 
 - What the README lists under "Not protected", such as disk use in a granted folder, timing

@@ -16,6 +16,10 @@ to wasmtime's own WASI through a small trampoline instantiated on the guest's me
 read-only placeholder folder the runner owns, so wasi-libc's preopen scan finds it; a file or
 folder opened in a mount gets a number from 2**30 up, which wasmtime never reaches.
 
+A call without mounts shadows only the two calls in `GUARDED` (spec 048), through a table with no
+mounts, so both are forwarded, and every forward of them carries wasmtime 49.0.2's and 49.0.3's
+fixes, which wasmtime 49.0.0, the newest wasmtime-py, lacks.
+
 wasmtime-py is imported only inside functions, so the package imports without the `run` extra.
 """
 
@@ -163,6 +167,20 @@ FORWARD_SAFE = (
     "poll_oneoff",
 )
 
+# The guard (spec 048). wasmtime 49.0.0 carries two advisories that reach a guest, and no
+# wasmtime-py on PyPI carries a wasmtime with their fixes yet:
+# - GHSA-96f6-r43r-8c24 (fixed in wasmtime 49.0.2): fd_readdir copies up to three bytes of
+#   uninitialized host memory into each entry's padding. A forwarded listing is zeroed there.
+# - GHSA-m9f7-9w4p-gv38 (fixed in wasmtime 49.0.3): path_rename puts a source's trailing slash
+#   back before renameat, and macOS and FreeBSD then follow a symbolic link out of the sandbox.
+#   A forwarded rename with a trailing slash on either path needs a source that is a folder,
+#   judged without following its own link, and is forwarded by the plain names.
+# A call without mounts shadows these two only; a call with mounts forwards them the same way.
+# Each guard goes when the published floor admits only patched versions (tests/checks/
+# test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
+GUARDED = ("fd_readdir", "path_rename")
+STAT_PATH = 64  # the source path's offset in the stat trampoline's page; the filestat is at 0
+
 PROVIDER_BASE = 2**30  # provider numbers start here; wasmtime's own never reach it
 MAX_MOUNT_FILES = 1024  # open provider numbers per call
 MAX_PATH = 4096  # bytes; a longer path is ENAMETOOLONG, unread
@@ -217,6 +235,24 @@ def trampoline_wat() -> str:
         lines.append(f'  (func (export "{name}") {sig} (call ${name} {gets}))')
     lines.append(")")
     return "\n".join(lines)
+
+
+def stat_trampoline_wat() -> str:
+    """The source-type check's own trampoline (spec 048, Decision 2): it imports wasmtime's
+    path_filestat_get and defines and exports its own one-page memory, which wasmtime's WASI
+    reads and writes through, so the check never touches a byte of the guest's."""
+    params = SIGNATURES["path_filestat_get"]
+    sig = f"(param {' '.join(params)}) (result i32)"
+    gets = " ".join(f"(local.get {i})" for i in range(len(params)))
+    return "\n".join(
+        [
+            "(module",
+            f'  (import "wasi_snapshot_preview1" "path_filestat_get" (func $stat {sig}))',
+            '  (memory (export "memory") 1 1)',
+            f'  (func (export "path_filestat_get") {sig} (call $stat {gets}))',
+            ")",
+        ]
+    )
 
 
 def _ends(message: str) -> BaseException:
@@ -293,9 +329,12 @@ class _Open:
 @dataclass
 class _Forwards:
     """The trampoline's function handles and argument arrays, for one call's store only: a
-    handle of one store used with another store's context aborts the process."""
+    handle of one store used with another store's context aborts the process. `stat` and
+    `page` are the stat trampoline's path_filestat_get and its own memory (spec 048)."""
 
     funcs: dict[str, Any]
+    stat: Any = None
+    page: Any = None
     slots: dict[str, tuple[Any, Any, Any]] = field(default_factory=dict)
 
 
@@ -391,30 +430,41 @@ class _Files:
 
     def bind(self, wt: Any, store: Any, plain: Any, instance: Any) -> None:
         """Instantiate the trampoline on the guest's memory with wasmtime's own calls from
-        `plain` (today's linker). After the guest, before the fuel cap and `_initialize`."""
+        `plain` (today's linker), and the stat trampoline on its own page (spec 048). After
+        the guest, before the fuel cap and `_initialize`."""
         module = self._runner._trampoline_module(wt, self.engine)
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
-        self.forwards = _Forwards({name: exports[name]._func for name in SIGNATURES})
+        stat_module = self._runner._stat_trampoline_module(wt, self.engine)
+        stat_import = plain.get(store, "wasi_snapshot_preview1", "path_filestat_get")
+        stat = wt.Instance(store, stat_module, [stat_import]).exports(store)
+        self.forwards = _Forwards(
+            {name: exports[name]._func for name in SIGNATURES},
+            stat["path_filestat_get"]._func,
+            stat["memory"],
+        )
 
-    def forward(self, caller: Any, name: str, args: tuple[int, ...]) -> int:
+    def forward(self, caller: Any, name: str, args: tuple[int, ...], stat: bool = False) -> int:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
-        allowance, and set back in a `finally` before any trap or error is raised."""
+        allowance, and set back in a `finally` before any trap or error is raised. `stat`
+        forwards path_filestat_get through the stat trampoline, on its own page (spec 048)."""
         from wasmtime import Trap, WasmtimeError, _ffi
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
-        slot = self.forwards.slots.get(name)
+        key = "stat" if stat else name  # the stat trampoline's own argument slot (N2)
+        slot = self.forwards.slots.get(key)
         if slot is None:
             types = SIGNATURES[name]
             params = (_ffi.wasmtime_val_t * len(types))()
             for i, kind in enumerate(types):
                 kinds = _ffi.WASMTIME_I32 if kind == "i32" else _ffi.WASMTIME_I64
                 params[i].kind = kinds.value
-            slot = (self.forwards.funcs[name], params, (_ffi.wasmtime_val_t * 1)())
-            self.forwards.slots[name] = slot
+            func = self.forwards.stat if stat else self.forwards.funcs[name]
+            slot = (func, params, (_ffi.wasmtime_val_t * 1)())
+            self.forwards.slots[key] = slot
         func, params, results = slot
         for i, (kind, value) in enumerate(zip(SIGNATURES[name], args, strict=True)):
             if kind == "i32":
@@ -902,7 +952,10 @@ class _Files:
     ) -> int:
         entry = self._entry(fd)
         if entry is None:
-            return self.forward(caller, "fd_readdir", (fd, buf, length, cookie, used))
+            errno = self.forward(caller, "fd_readdir", (fd, buf, length, cookie, used))
+            if errno == 0:
+                _zero_padding(_Memory(caller), buf & MASK32, used & MASK32)
+            return errno
         memory = _Memory(caller)
         buf, length, cookie = buf & MASK32, length & MASK32, cookie & MASK64
         if not memory.fits(buf, length):
@@ -1158,9 +1211,57 @@ class _Files:
         self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
     ) -> int:
         if self._entry(fd) is None and self._entry(to) is None:
-            args = (fd, old, old_length, to, new, new_length)
-            return self.forward(caller, "path_rename", args)
+            return self._rename(caller, fd, old, old_length, to, new, new_length)
         return self._across(caller, fd, to, (old, old_length), (new, new_length))
+
+    def _rename(
+        self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
+    ) -> int:
+        """wasmtime 49.0.3's rule (spec 048, Decisions 1 to 3; GHSA-m9f7-9w4p-gv38). With no
+        trailing slash on either path, or a path wasmtime could not read either, the rename is
+        forwarded unchanged. Otherwise the source must be a folder, judged without following its
+        own link: the stat's errno, or ENOTDIR for anything else; and a folder is renamed by the
+        plain names, every trailing slash trimmed from both paths (the same pointers, shorter
+        lengths), so the kernel is never handed a slash-named link to follow. Once a slash is
+        seen, the rename is never forwarded with it (condition C2): a path the guard cannot
+        read whole answers its errno instead."""
+        memory = _Memory(caller)
+        spans = ((old & MASK32, old_length & MASK32), (new & MASK32, new_length & MASK32))
+        readable = all(memory.fits(ptr, length) for ptr, length in spans)
+        if not readable or not any(
+            length and memory.read(ptr + length - 1, 1) == b"/" for ptr, length in spans
+        ):
+            return self.forward(caller, "path_rename", (fd, old, old_length, to, new, new_length))
+        # Either path past MAX_PATH is ENAMETOOLONG, never forwarded, so the host's work stays
+        # bounded; the text is decoded as wasmtime reads both paths before anything else.
+        paths = []
+        for ptr, length in ((old, old_length), (new, new_length)):
+            raw = self._path(memory, ptr, length)
+            if isinstance(raw, int):
+                return raw
+            if isinstance(text := self._text(raw), int):
+                return text
+            paths.append(raw)
+        source, target = _plain(paths[0]), _plain(paths[1])
+        if errno := self._source_type(caller, fd, source):
+            return errno
+        return self.forward(caller, "path_rename", (fd, old, len(source), to, new, len(target)))
+
+    def _source_type(self, caller: Any, fd: int, source: bytes) -> int:
+        """0 when `source` names a folder under `fd`, judged by wasmtime's own path_filestat_get
+        with the follow flag clear, on the stat trampoline's page: the path at STAT_PATH, the
+        64-byte filestat at 0, its filetype at byte 16 (Decision 2). Else the stat's errno, or
+        ENOTDIR for a file or a link (Decision 3)."""
+        forwards = self.forwards
+        if forwards is None or forwards.page is None:
+            return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
+        if STAT_PATH + len(source) > forwards.page.data_len(caller):
+            return ENAMETOOLONG
+        forwards.page.write(caller, source, STAT_PATH)
+        args = (fd, 0, STAT_PATH, len(source), 0)
+        if errno := self.forward(caller, "path_filestat_get", args, stat=True):
+            return errno
+        return 0 if forwards.page.read(caller, 16, 17)[0] == DIRECTORY else ENOTDIR
 
     def _path_link(
         self,
@@ -1178,6 +1279,37 @@ class _Files:
             return self.forward(caller, "path_link", args)
         _lookup(flags)
         return self._across(caller, fd, to, (old, old_length), (new, new_length))
+
+
+def _plain(path: bytes) -> bytes:
+    """A path with its trailing slashes trimmed, but never below one byte, as wasmtime's own
+    `strip_dir_suffix` keeps `/` itself."""
+    return path.rstrip(b"/") or path[:1]
+
+
+def _zero_padding(memory: _Memory, buf: int, used: int) -> None:
+    """Zero the three padding bytes after each entry's d_type in what a forwarded fd_readdir
+    wrote, `[buf, buf + used)` only, walking by 24 + d_namlen (d_next is a cookie, not an
+    offset), as wasmtime 49.0.2 writes them (spec 048, Decision 4; GHSA-96f6-r43r-8c24). The 4
+    bytes at the guest's `used` pointer keep wasmtime's count, even inside the buffer."""
+    if not memory.fits(used, 4):
+        return
+    count = struct.unpack("<I", memory.read(used, 4))[0]
+    if not memory.fits(buf, count):
+        return
+    data = bytearray(memory.read(buf, count))
+    keep = range(used - buf, used - buf + 4)
+    changed, pos = False, 0
+    while pos < count:
+        for at in (pos + 21, pos + 22, pos + 23):
+            if at < count and at not in keep and data[at]:
+                data[at] = 0
+                changed = True
+        if pos + 24 > count:
+            break
+        pos += 24 + struct.unpack_from("<I", data, pos + 16)[0]
+    if changed:
+        memory.write(buf, bytes(data))
 
 
 def _described(e: BaseException) -> str:

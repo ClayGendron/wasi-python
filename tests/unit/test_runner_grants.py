@@ -604,7 +604,9 @@ def _two_sides(tmp_path: Path) -> tuple[files.Raw, files.Mounted]:
         (tmp_path / name).mkdir()
         (tmp_path / name / "w.txt").write_bytes(b"w\n")
         sides.append(tmp_path / name)
-    grant = files.grant_raw([(tree, "/m", False), (sides[0], "/w", True)])
+    # A grant as the runner serves it: wasmtime's own calls, but for the two the guard forwards
+    # with wasmtime 49.0.2's and 49.0.3's fixes (spec 048).
+    grant = files.Guarded([(tree, "/m", False), (sides[0], "/w", True)]).raw
     mount = files.Mounted(files.MemoryProvider(), placeholder, folders=[(sides[1], "/w", True)])
     return grant, mount
 

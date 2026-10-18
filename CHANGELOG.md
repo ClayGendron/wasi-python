@@ -6,12 +6,21 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
-- **Known issue: `fd_readdir` copies uninitialized host memory into the guest** (wasmtime's
-  advisory GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2). wasmtime-py 49.0.0, the only 49
-  release, bundles wasmtime 49.0.0, so listing a grant, a root or the stdlib folder (on every
-  call) gives the guest up to three bytes per entry of whatever the host's buffer held. No
-  wasmtime-py release carries the fix yet; a mitigation is being researched. A mount's own
-  listings (spec 032) write zeros.
+- **Security: the sandbox holds on wasmtime 49.0.0** (spec 048). wasmtime-py 49.0.0, the only
+  49 release, bundles wasmtime 49.0.0, which carries two advisories that reach a guest; the
+  runner now carries both fixes itself, on every call. **GHSA-m9f7-9w4p-gv38** (high, fixed in
+  wasmtime 49.0.3): on macOS and FreeBSD a guest with a writable grant or `root=True` could
+  rename a symbolic link pointing out of its sandbox with a trailing slash, `os.rename("up/",
+  "stolen")`, and the kernel moved the host folder it pointed at into the sandbox. A rename with
+  a trailing `/` on either path now needs a source that is a folder, judged without following
+  the source's own link (`ENOTDIR` otherwise, or the source's own error, such as `ENOENT`), and
+  a folder is renamed by its plain name. **GHSA-96f6-r43r-8c24** (low, fixed in wasmtime
+  49.0.2): `fd_readdir` on a grant, a root or the stdlib folder gave the guest up to three bytes
+  of host memory per entry; the runner now zeroes them. A call without mounts now runs on a
+  guard linker that serves `fd_readdir` and `path_rename` through the runner (forwarded to
+  wasmtime, fuel-neutral; `Completed.files` stays `None`); every other call stays wasmtime's.
+  Once a call has stopped, these two answer `EIO`, as every runner-served call does. Each guard
+  is removed when the published `wasmtime` requirement admits only fixed versions.
 - **A tool protocol over the door** (spec 031). Guest code can call the host's tools with
   `from host import tools`; the stdlib zip carries the guest's half, the pure-Python package
   `host` (`host/__init__.py`, `host/tools.py`), and the wheel the host's, `wasi_python.tools`

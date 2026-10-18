@@ -570,10 +570,9 @@ A path a more specific preopen owns, spelled past the guest's C library
   ends the run as on a grant, with the same `fuel_used`, but `trapped` names
   it (`Invalid flag value Oflags`);
 - `fd_renumber` of an open file answers `ENOTSUP`.
-- each `fd_readdir` entry's three padding bytes are zeros; on a grant, the
-  wasmtime-py 49.0.0 this runner uses fills them from uninitialized host
-  memory (wasmtime's advisory GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2,
-  which no wasmtime-py release carries yet).
+- each `fd_readdir` entry's three padding bytes are zeros, as on a grant: the
+  runner zeroes a grant's listing too, which the wasmtime-py 49.0.0 it uses
+  fills from uninitialized host memory (see *Safety*).
 
 **Time and threads.** A provider runs synchronously on the thread that runs
 the guest; under `run_async` that is a worker thread, never the event loop's.
@@ -921,10 +920,23 @@ has one.
   length and count the guest passed; offsets, flags, cookies and descriptors
   stop in the runner. No host path is opened for a mount: each mount is
   preopened on an empty, read-only folder the runner owns, inside the call's
-  private folder, and a call without mounts runs exactly as before. Nothing a
+  private folder, and a call without mounts runs on wasmtime's own calls but
+  for the two the runner guards (next item). Nothing a
   provider raises or answers makes `run` raise (a `BaseException` that is not
   an `Exception` is raised, as a door host's is); provider calls, open files
   and staged bytes each have a default limit;
+- **two wasmtime fixes the pinned wasmtime-py lacks** (spec 048): no wasmtime-py
+  release yet carries a wasmtime past 49.0.0, so the runner serves two
+  preview1 calls itself, on every call, and forwards them to wasmtime with the
+  fixes of wasmtime 49.0.2 and 49.0.3. A rename with a trailing `/` on either
+  path needs a source that is a folder, judged without following the source's
+  own link (`ENOTDIR` for a file or a link), and a folder is renamed by its
+  plain name: on macOS and FreeBSD wasmtime 49.0.0 lets a guest with a writable
+  grant or root rename a link that points out with a trailing slash and so
+  move a host folder into its sandbox (GHSA-m9f7-9w4p-gv38). Every
+  `fd_readdir` entry's padding is zeroed, where wasmtime 49.0.0 copies up to
+  three bytes of host memory (GHSA-96f6-r43r-8c24). Both cost no fuel, and each
+  goes once the published `wasmtime` requirement admits only fixed versions;
 - **inputs**: `argv` is any iterable of `str`, `env` a mapping of `str` to
   `str`, `stdin` a bytes-like object. One the guest would see differently
   (a NUL, text that is not UTF-8, an `=` or nothing as an env key) raises
@@ -947,11 +959,7 @@ has one.
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
-**Not protected:** until a wasmtime-py release carries wasmtime 49.0.2 or
-later, `fd_readdir` on a grant, a root or the stdlib folder (so on every
-call, with nothing granted) copies up to three bytes of uninitialized host
-memory per entry into the guest (wasmtime's advisory GHSA-96f6-r43r-8c24;
-a mitigation is being researched; a mount's own listings write zeros); a killed process (mid-call, its private root and stdin
+**Not protected:** a killed process (mid-call, its private root and stdin
 folder; at any time after its first call, its 11 MB stdlib zip folder; each
 with its lock file, stay in the temporary folder until another
 process using wasi_python on the same kernel, with the same temporary

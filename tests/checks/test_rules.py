@@ -248,3 +248,99 @@ def test_every_build_host_has_its_whole_table() -> None:
         paths.read_pin_list(),
     )
     assert not errors, scan.report(errors)
+
+
+# Spec 048, Decision 5: the runner carries two guards for wasmtime advisories while the published
+# floor of the `wasmtime` requirement admits a vulnerable wasmtime. Each advisory's patched
+# versions, as its record lists them (`patched_versions` in
+# context/research/2026-10-18-wasmtime-49-advisories/advisories/<id>.json). Never "at or past":
+# wasmtime's releases are not one ordered line (v50.0.0-rc.1 came before v49.0.3).
+WASMTIME_GUARDS = {
+    "GHSA-96f6-r43r-8c24": ("36.0.17", "48.0.4", "49.0.2"),  # fd_readdir's dirent padding
+    "GHSA-m9f7-9w4p-gv38": ("36.0.18", "48.0.6", "49.0.3"),  # path_rename's trailing slash
+}
+ADVISORIES = RESEARCH / "2026-10-18-wasmtime-49-advisories" / "advisories"
+
+
+def _version(text: str) -> tuple[int, int, int]:
+    parts = [int(p) for p in text.strip().split(".")]
+    assert 1 <= len(parts) <= 3, text
+    return (*parts, 0, 0)[:3]  # type: ignore[return-value]
+
+
+def _guard_may_go(requirement: str, patched: tuple[str, ...]) -> bool:
+    """Condition C1: a guard may go only when, for every release line the requirement admits,
+    the advisory lists a patched version in that line at or below the lowest version the
+    requirement admits in it. wasmtime releases only `M.0.P` (READ, the memo's releases.txt), so
+    a line is a major version. An open top, a bound with a minor version, or an operator other
+    than >=, <, <= and == admits lines no list can speak for: the guard stays."""
+    low, high = None, None  # inclusive low; (high, inclusive)
+    for clause in requirement.split(","):
+        clause = clause.strip()
+        op = next((o for o in (">=", "<=", "==", "<") if clause.startswith(o)), None)
+        if op is None:
+            return False
+        version = _version(clause[len(op) :])
+        if version[1] != 0:
+            return False
+        if op in (">=", "=="):
+            low = version if low is None else max(low, version)
+        if op in ("<", "<=", "=="):
+            high = (version, op != "<")
+    if low is None or high is None:
+        return False
+    listed = [_version(v) for v in patched]
+    top, inclusive = high
+    for major in range(low[0], top[0] + 1):
+        lowest = max(low, (major, 0, 0))
+        if lowest > top or (lowest == top and not inclusive):
+            continue  # nothing in this line is admitted
+        if not any(v[0] == major and v <= lowest for v in listed):
+            return False
+    return True
+
+
+def _wasmtime_requirement() -> str:
+    project = tomllib.loads((paths.REPO / "pyproject.toml").read_text())["project"]
+    found = [d for d in project["dependencies"] if re.match(r"wasmtime\s*[<>=!~]", d)]
+    assert len(found) == 1, project["dependencies"]
+    return found[0][len("wasmtime") :].strip()
+
+
+def test_the_rename_and_readdir_guard_match_the_floor() -> None:
+    """Spec 048, criterion 7: each guard is in the runner while the published floor (the
+    `wasmtime` requirement in pyproject.toml, not uv.lock) admits a wasmtime its advisory does
+    not list as patched, and is gone, with its checks, once it does not."""
+    rename, padding = WASMTIME_GUARDS["GHSA-m9f7-9w4p-gv38"], WASMTIME_GUARDS["GHSA-96f6-r43r-8c24"]
+    table = {
+        ">=49,<50": False,  # 49.0.0 is below 49.0.2 and 49.0.3
+        ">=49.0.3,<50": True,  # 49.0.2 and 49.0.3 are at or below 49.0.3
+        ">=49.0.3,<51": False,  # the 50 line has no listed patched version
+        ">=49.0.2,<50": None,  # the padding guard may go, the rename guard not
+        ">=49.0.3": False,  # an open top
+    }
+    for requirement, both in table.items():
+        got = (_guard_may_go(requirement, padding), _guard_may_go(requirement, rename))
+        want = (True, False) if both is None else (both, both)
+        assert got == want, (requirement, got)
+    import json
+
+    for advisory, patched in WASMTIME_GUARDS.items():
+        record = json.loads((ADVISORIES / f"{advisory}.json").read_text())
+        listed = {v["patched_versions"] for v in record["vulnerabilities"]}
+        assert listed == {", ".join(patched)}, (advisory, listed)
+    requirement = _wasmtime_requirement()
+    source = (paths.REPO / "src" / "wasi_python" / "mounts.py").read_text()
+    this = Path(__file__).resolve()
+    tests = [p for p in scan.files_under(paths.REPO, "tests") if p.suffix == ".py" and p != this]
+    errors = []
+    for advisory, patched in WASMTIME_GUARDS.items():
+        where = f"{advisory}: wasmtime{requirement} admits"
+        if not _guard_may_go(requirement, patched):
+            if advisory not in source:
+                errors.append(f"{where} a vulnerable wasmtime, and mounts.py names no guard")
+        else:
+            left = [str(p.relative_to(paths.REPO)) for p in tests if advisory in p.read_text()]
+            if advisory in source or left:
+                errors.append(f"{where} only patched ones; remove the guard and {left}")
+    assert not errors, scan.report(errors)

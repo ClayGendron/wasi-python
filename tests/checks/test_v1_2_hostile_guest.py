@@ -1113,3 +1113,162 @@ def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
     assert out.returncode == 0, out.stderr[-1500:]
     assert out.stdout.strip() == "0 refused 33 1024 True 1024 [[[]], [[]]] []", out.stdout
     assert list(scratch.iterdir()) == []
+
+
+# Spec 048: the sandbox holds on wasmtime 49.0.0. wasmtime 49.0.0's path_rename puts a source's
+# trailing slash back before renameat, and on a kernel that follows a symbolic link named with a
+# trailing slash there (macOS, FreeBSD) a guest with a writable place moves a folder from outside
+# its sandbox in (GHSA-m9f7-9w4p-gv38, fixed in wasmtime 49.0.3). The runner carries 49.0.3's rule.
+
+ESCAPE_GUEST = r"""
+import errno, json, os, sys
+top = sys.argv[1]
+out = {}
+def tried(fn):
+    try:
+        fn()
+        return "ok"
+    except OSError as e:
+        return [type(e).__name__, errno.errorcode.get(e.errno, str(e.errno))]
+out["symlink"] = tried(lambda: os.symlink("../outside", top + "/up"))
+out["rename"] = tried(lambda: os.rename(top + "/up/", top + "/stolen"))
+out["stolen"] = os.path.lexists(top + "/stolen")
+out["up"] = os.path.islink(top + "/up")
+out["read"] = tried(lambda: open(top + "/stolen/canary.txt").read())
+print(json.dumps(out))
+"""
+
+ESCAPE = r"""
+import sys, tempfile
+temp, where, grant, guest = sys.argv[1:5]
+tempfile.tempdir = temp  # the private root is made here, beside the planted folder
+import wasi_python
+from wasi_python import Grant
+if where == "grant":
+    done = wasi_python.run(["-c", guest, "/work"], grants=[Grant(grant, "/work", writable=True)])
+else:
+    done = wasi_python.run(["-c", guest, ""], root=True)
+print(done.exit_code, done.trapped)
+print(done.stdout.decode().strip())
+"""
+
+
+def _follows_slash_links(base: Path) -> str:
+    """Whether this kernel's rename follows a symbolic link named with a trailing slash: only
+    reported, never a condition of a check (spec 048, criterion 1)."""
+    probe = base / "probe"
+    (probe / "target").mkdir(parents=True)
+    try:
+        os.symlink("target", probe / "link")
+    except OSError as e:
+        return f"this host cannot make a symbolic link ({e.errno})"
+    try:
+        os.rename(str(probe / "link") + "/", probe / "moved")
+    except OSError as e:
+        return f"this kernel refuses a trailing-slash link in rename (errno {e.errno})"
+    if (probe / "moved").is_dir() and not (probe / "target").exists():
+        return "this kernel follows a trailing-slash link in rename"
+    return "this kernel renames the link itself"
+
+
+@pytest.mark.parametrize("where", ["grant", "root"])
+def test_a_trailing_slash_symlink_rename_cannot_escape(tmp_path, where) -> None:
+    """Guards a change (spec 048, criterion 1): a guest with a writable place makes a link that
+    climbs out, then renames it with a trailing slash. The rename is refused with ENOTDIR, the
+    folder outside every grant and its canary are unchanged, and nothing named `stolen` exists.
+    In a child whose temporary folder is this check's own, so the private root's parent is too."""
+    _run()
+    temp, grant = tmp_path / "temp", tmp_path / "grant"
+    temp.mkdir()
+    grant.mkdir()
+    outside = (tmp_path if where == "grant" else temp) / "outside"
+    outside.mkdir()
+    (outside / "canary.txt").write_text("CANARY")
+    kernel = _follows_slash_links(tmp_path)
+    out = subprocess.run(
+        [sys.executable, "-c", ESCAPE, str(temp), where, str(grant), ESCAPE_GUEST],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    status, line = out.stdout.strip().splitlines()
+    assert status == "0 None", (kernel, out.stdout)
+    import json
+
+    seen = json.loads(line)
+    assert (seen["stolen"], seen["read"][0]) == (False, "FileNotFoundError"), (kernel, seen)
+    if seen["symlink"] == "ok":  # a host that cannot make links never had the escape
+        assert seen["up"] is True, (kernel, seen)
+        assert seen["rename"] == ["NotADirectoryError", "ENOTDIR"], (kernel, seen)
+    assert sorted(p.name for p in outside.iterdir()) == ["canary.txt"], kernel
+    assert (outside / "canary.txt").read_text() == "CANARY", kernel
+    assert not (grant / "stolen").exists() and not (tmp_path / "stolen").exists(), kernel
+    assert sorted(p.name for p in temp.iterdir()) == (["outside"] if where == "root" else [])
+
+
+RULE_GUEST = r"""
+import errno, json, os
+W = "/work"
+def mv(a, b):
+    try:
+        os.rename(W + "/" + a, W + "/" + b)
+        return "ok"
+    except OSError as e:
+        return errno.errorcode.get(e.errno, str(e.errno))
+out = {}
+long = "./" * 2100 + "s/"  # 4,202 bytes, past the 4,096 a slash-named source is read to
+for a, b in [("f/", "x"), ("s/", "x"), ("missing/", "x"), ("f", "x/"), ("s", "x/"), (long, "x")]:
+    out[("./.../s/" if a == long else a) + " -> " + b] = mv(a, b)
+out["in place"] = [
+    os.path.isdir(W + "/d") and not os.path.islink(W + "/d"),
+    os.path.islink(W + "/s") and os.readlink(W + "/s") == "d",
+    os.path.isfile(W + "/f"),
+    os.path.lexists(W + "/x"),
+]
+for a, b in [("d/", "d2"), ("d2", "d"), ("d", "d4/"), ("d4/", "d"), ("d", "d3")]:
+    out[a + " -> " + b] = mv(a, b)
+out["after"] = sorted(os.listdir(W))
+print(json.dumps(out))
+"""
+
+
+def test_a_trailing_slash_rename_rule(tmp_path) -> None:
+    """Guards a change (spec 048, criterion 2), on every host: in a writable grant with a folder
+    `d`, a file `f` and a link `s` to `d`, a trailing slash on either path of a rename needs a
+    source that is a folder, judged without following the source's own link. A slash-named
+    file or link, as source or as target, is refused with ENOTDIR; a missing one answers its
+    stat's ENOENT; an over-long slash-named source is refused unread (ENAMETOOLONG) and never
+    passed on; `d` and `s` stay in place; a folder renames with or without slashes."""
+    run = _run()
+    from wasi_python import Grant
+
+    grant = tmp_path / "grant"
+    (grant / "d").mkdir(parents=True)
+    (grant / "d" / "in.txt").write_text("in")
+    (grant / "f").write_text("f")
+    try:
+        os.symlink("d", grant / "s")
+    except OSError as e:
+        pytest.skip(f"this host cannot make a symbolic link ({e.errno})")
+    done = run(["-c", RULE_GUEST], grants=[Grant(grant, "/work", writable=True)])
+    assert done.exit_code == 0, done
+    import json
+
+    assert json.loads(done.stdout) == {
+        "f/ -> x": "ENOTDIR",
+        "s/ -> x": "ENOTDIR",
+        "missing/ -> x": "ENOENT",
+        "f -> x/": "ENOTDIR",
+        "s -> x/": "ENOTDIR",
+        "./.../s/ -> x": "ENAMETOOLONG",
+        "in place": [True, True, True, False],
+        "d/ -> d2": "ok",
+        "d2 -> d": "ok",
+        "d -> d4/": "ok",
+        "d4/ -> d": "ok",
+        "d -> d3": "ok",
+        "after": ["d3", "f", "s"],
+    }, _follows_slash_links(tmp_path)
+    assert (grant / "d3" / "in.txt").read_text() == "in"
+    assert os.readlink(grant / "s") == "d" and (grant / "f").read_text() == "f"

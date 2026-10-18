@@ -1748,16 +1748,21 @@ def _instance(
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
-        guest_linker = linker  # a call without mounts: today's linker object, unchanged
-        if mounts:
-            from .mounts import _Files
+        from .mounts import _Files
 
+        staging = STAGING_CEILING if memory_bytes is None else memory_bytes
+        others = [p.guest for p in preopens]
+        if mounts:
             guest_linker = _mount_linker(wt, engine)
             first = 3 + len(preopens)  # the mounts' preopens come after every other
-            staging = STAGING_CEILING if memory_bytes is None else memory_bytes
             numbers = [(mount, first + i) for i, mount in enumerate(mounts)]
-            others = [p.guest for p in preopens]
-            table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
+        else:
+            # A call without mounts: the guard linker, today's but for fd_readdir and
+            # path_rename, served by a table with no mounts, which forwards both with wasmtime
+            # 49.0.2's and 49.0.3's fixes (spec 048, Decision 7).
+            guest_linker = _guard_linker(wt, engine)
+            numbers = []
+        table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table)
         if cancel is not None:
             _watch(store)
@@ -1773,7 +1778,8 @@ def _instance(
             for key in keys:
                 _outputs.pop(key, None)
         if table is not None:  # the record kept, the rest dropped now (the build review, F3)
-            files = table.record()
+            # A guard table is never reported: `files` is None without mounts (spec 048).
+            files = table.record() if mounts else None
             table.release()
         for p in mounted:
             p.walked.close()
@@ -1906,12 +1912,13 @@ class _Call:
         self.stop_at = stop_at
         # "cancelled" or "deadline", from the epoch callback; "out of file calls" (spec 032)
         self.ended: str | None = None
-        self.table = table  # the call's mount table, for a call with mounts (spec 032)
+        self.table = table  # the call's mount table (spec 032), or its guard table (spec 048)
         if table is not None:
             table.call = self
 
     def files(self, caller: Any, name: str, *args: int) -> int:
-        """One of the 29 shadowed calls, for a call with mounts (spec 032)."""
+        """One of the 29 shadowed calls, for a call with mounts (spec 032), or one of the two
+        the guard shadows, for a call without (spec 048)."""
         if self.table is None:
             return EBADF
         return self.table(caller, name, *args)
@@ -2099,7 +2106,9 @@ def _watch(store: Any) -> None:
 
 _linkers: dict[Any, Any] = {}
 _mount_linkers: dict[Any, Any] = {}
+_guard_linkers: dict[Any, Any] = {}
 _trampolines: dict[Any, Any] = {}
+_stat_trampolines: dict[Any, Any] = {}
 
 
 def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
@@ -2142,6 +2151,38 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
             _mount_linkers[engine] = linker
         return linker
+
+
+def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
+    """The engine's third linker, used by every call without mounts (spec 048, Decision 7):
+    today's, plus a shadow over the two calls in `mounts.GUARDED` only (fd_readdir and
+    path_rename), in the shared form, as the mount linker's. Every other call stays wasmtime's
+    own. Defined once per engine, like the others."""
+    from .mounts import GUARDED, SIGNATURES
+
+    with _lock:
+        linker = _guard_linkers.get(engine)
+        if linker is None:
+            linker = _runner_linker(wt, engine)
+            kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
+            for name in GUARDED:
+                ty = wt.FuncType([kinds[p] for p in SIGNATURES[name]], [kinds["i32"]])
+                shadow = _shared("files", EBADF, EIO, name)
+                linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
+            _guard_linkers[engine] = linker
+        return linker
+
+
+def _stat_trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
+    """The rename rule's stat trampoline, with its own one-page memory, compiled once per engine
+    and instantiated per call (spec 048, Decision 2)."""
+    from .mounts import stat_trampoline_wat
+
+    with _lock:
+        module = _stat_trampolines.get(engine)
+        if module is None:
+            module = _stat_trampolines[engine] = wt.Module(engine, stat_trampoline_wat())
+        return module
 
 
 def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
@@ -2552,7 +2593,9 @@ def _release() -> None:
     _check_modules.clear()
     _linkers.clear()
     _mount_linkers.clear()
+    _guard_linkers.clear()
     _trampolines.clear()
+    _stat_trampolines.clear()
     _modules.clear()
     _engines.clear()
 

@@ -236,7 +236,7 @@ class Raw:
         return errno, self.u64(RESULT)
 
     def readdir(self, fd: int, size: int = 4096, cookie: int = 0) -> tuple:
-        """errno, the bytes used, and the buffer with each entry's d_ino and padding zeroed."""
+        """errno, the bytes used, and the buffer with each entry's d_ino zeroed."""
         self.clear()
         errno = self("fd_readdir", fd, DIRBUF, size, cookie, RESULT)
         used = self.u32(RESULT)
@@ -289,23 +289,21 @@ class Raw:
         return self("path_symlink", a, n, base, b, m)
 
 
-# d_ino, and the padding after d_type. The padding is masked only while uv.lock pins a
-# wasmtime-py on wasmtime 49.0.0 (GHSA-96f6-r43r-8c24): once it moves to one on wasmtime 49.0.2
-# or later the reference writes zeros again, and 21 to 24 come back into the parity.
-DIRENT_MASKED = (*range(8, 16), 21, 22, 23)
+# d_ino only. The padding after d_type (21 to 24) is compared: the runner zeroes it on a grant's
+# forwarded listing as a mount writes it (spec 048; wasmtime 49.0.0 fills it from uninitialized
+# host memory, GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2).
+DIRENT_MASKED = tuple(range(8, 16))
 
 
-def masked_dirents(data: bytes) -> bytes:
+def masked_dirents(data: bytes, masked: tuple[int, ...] = DIRENT_MASKED) -> bytes:
     """An fd_readdir buffer with what may differ by design zeroed in each entry's header: d_ino
-    (bytes 8 to 16) and the three padding bytes after d_type (21 to 24), which wasmtime 49.0.0
-    fills from uninitialized host memory (GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2) and a
-    mount writes as zeros. So entries compare by d_next, d_namlen, d_type and name. An entry the
-    buffer cut short is masked as far as it goes."""
+    (bytes 8 to 16), or the bytes `masked` names. So entries compare by d_next, d_namlen, d_type,
+    the padding and the name. An entry the buffer cut short is masked as far as it goes."""
     out = bytearray(data)
     pos = 0
     while pos < len(out):
         header = bytes(out[pos : pos + 24])
-        for i in DIRENT_MASKED:
+        for i in masked:
             if i < len(header):
                 out[pos + i] = 0
         if len(header) < 24:
@@ -418,7 +416,32 @@ def grant_raw(folders: list[tuple[Path, str, bool]], wat: str | None = None) -> 
     return Raw(store, instance.exports(store))
 
 
-class Mounted:
+class _OnStack:
+    """A raw module whose every export runs with its call on this thread's stack."""
+
+    call: Any
+    store: Any
+
+    @contextmanager
+    def entered(self) -> Iterator[None]:
+        """The call on this thread's stack for one export; a stop it recorded is raised as
+        `Ends`, and the call is made live again for the next row."""
+        from wasi_python import runner
+
+        stack = runner._stack()
+        stack.append(self.call)
+        try:
+            yield
+        finally:
+            stack.remove(self.call)
+        stopped = self.call.stopped
+        if stopped is not None:
+            self.call.stopped = None
+            self.store.set_epoch_deadline(2**40)
+            raise Ends(str(stopped))
+
+
+class Mounted(_OnStack):
     """The raw module on the runner's mount linker, with a call on the thread's stack around
     every export: a mount of `provider` at `guest` (preopen 3, on an empty placeholder folder),
     then each (host folder, guest path, writable) in `folders` from 4 up."""
@@ -473,23 +496,53 @@ class Mounted:
             store.set_fuel(fuel)
         self.raw = Raw(store, self.instance.exports(store), self.entered)
 
-    @contextmanager
-    def entered(self) -> Iterator[None]:
-        """The call on this thread's stack for one export; a stop it recorded is raised as
-        `Ends`, and the call is made live again for the next row."""
-        from wasi_python import runner
 
+class Guarded(_OnStack):
+    """The raw module on the runner's guard linker (spec 048), with its call on the thread's
+    stack around every export: what a call without mounts answers. Each (host folder, guest
+    path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the two
+    calls the guard shadows (`fd_readdir`, `path_rename`), which a guard table (no mounts)
+    forwards with the fixes of wasmtime 49.0.2 and 49.0.3."""
+
+    def __init__(
+        self,
+        folders: list[tuple[Path, str, bool]],
+        *,
+        fuel: int | None = None,
+        wat: str | None = None,
+    ) -> None:
+        import wasmtime
+
+        from wasi_python import runner
+        from wasi_python.mounts import _Files
+
+        config = wasmtime.Config()
+        config.epoch_interruption = True
+        config.consume_fuel = fuel is not None
+        self.engine = engine = wasmtime.Engine(config)
+        self.store = store = wasmtime.Store(engine)
+        store.set_epoch_deadline(2**40)
+        if fuel is not None:
+            store.set_fuel(runner.UNMETERED)
+        wasi = wasmtime.WasiConfig()
+        for host, path, writable in folders:
+            wasi.preopen_dir(str(host), path, writable)
+        store.set_wasi(wasi)
+        others = [path for _, path, _ in folders]
+        self.table = _Files([], others, None, 1 << 30, fuel is not None, engine)
+        self.call = runner._Call(store, None, _NoWaits(), 0, None, None, self.table)
+        self.linker = runner._guard_linker(wasmtime, engine)
+        self.plain = runner._linker(wasmtime, engine)
+        self.instance = self.linker.instantiate(store, wasmtime.Module(engine, wat or raw_wat()))
         stack = runner._stack()
         stack.append(self.call)
         try:
-            yield
+            self.table.bind(wasmtime, store, self.plain, self.instance)
         finally:
             stack.remove(self.call)
-        stopped = self.call.stopped
-        if stopped is not None:
-            self.call.stopped = None
-            self.store.set_epoch_deadline(2**40)
-            raise Ends(str(stopped))
+        if fuel is not None:
+            store.set_fuel(fuel)
+        self.raw = Raw(store, self.instance.exports(store), self.entered)
 
 
 class _NoWaits:
