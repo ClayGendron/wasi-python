@@ -1191,38 +1191,30 @@ def test_a_writable_mount_is_checked_before_any_work(mount, match) -> None:
 
 def test_writes_are_bounded(placeholder) -> None:
     """Spec 034, acceptance 12 (guard: the growth bound): with a staging bound of 1,000 bytes, a
-    one-byte `fd_pwrite` at 2**40, a write after a seek to the bound, a size past it, and a
-    second file whose bytes would take the sum past it each answer EFBIG and change nothing;
-    the table's staged count never passes the bound."""
+    size past it, a write after a seek to it, a second file whose bytes would take the sum past
+    it, and a one-byte `fd_pwrite` at 2**40 each answer EFBIG and change nothing; the table's
+    staged count never passes the bound. (Each is asserted before the next, so a runner without
+    the bound fails before it tries to allocate 2**40 bytes.)"""
     provider = MemoryProvider({"/f": b"x" * 10})
     m = Mounted(provider, placeholder, writable=True, staging=1000)
-    r, seen = m.raw, []
+    r = m.raw
     f = r.open(3, "f", 0, ALL)[1]
     assert f is not None and m.table.staged == 10
-    rows = {
-        "pwrite at 2**40": r.write(f, b"y", 2**40),
-        "seek to the bound": r.seek(f, 1000, 0),
-        "a write there": r.write(f, b"y"),
-        "a size past the bound": r("fd_filestat_set_size", f, 1001),
-        "a size at the bound less 10": r("fd_filestat_set_size", f, 990),
-    }
-    seen.append(m.table.staged)
+    assert r("fd_filestat_set_size", f, 1001) == 22
+    assert (r.filestat(f)[3], m.table.staged) == (10, 10)
+    assert r.seek(f, 1000, 0) == (0, 1000)
+    assert r.write(f, b"y") == (22, 0)
+    assert (r.filestat(f)[3], m.table.staged) == (10, 10)
+    assert r("fd_filestat_set_size", f, 990) == 0
+    assert (r.filestat(f)[3], m.table.staged) == (990, 990)
     g = r.open(3, "g", files.O_CREAT, ALL)[1]
     assert g is not None
-    rows["a second file past the sum"] = r.write(g, b"z" * 11)
-    rows["a second file to the sum"] = r.write(g, b"z" * 10)
-    seen.append(m.table.staged)
-    assert rows == {
-        "pwrite at 2**40": (22, 0),
-        "seek to the bound": (0, 1000),
-        "a write there": (22, 0),
-        "a size past the bound": 22,
-        "a size at the bound less 10": 0,
-        "a second file past the sum": (22, 0),
-        "a second file to the sum": (0, 10),
-    }, rows
-    assert seen == [990, 1000]
-    assert r.filestat(f)[3] == 990 and r.filestat(g)[3] == 10
+    assert r.write(g, b"z" * 11) == (22, 0)
+    assert (r.filestat(g)[3], m.table.staged) == (0, 990)
+    assert r.write(g, b"z" * 10) == (0, 10)
+    assert (r.filestat(g)[3], m.table.staged) == (10, 1000)
+    assert r.write(f, b"y", 2**40) == (22, 0)
+    assert (r.filestat(f)[3], m.table.staged) == (990, 1000)
 
 
 def test_an_unlinked_folder_holds_nothing(placeholder) -> None:
