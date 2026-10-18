@@ -1,6 +1,6 @@
 # 023 — matplotlib, the first milestone
 
-- **Status:** drafted 2026-10-17; revised against its pre-build review
+- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
   (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
   for build with five definitions (A to E), now written in. Question 35 (licences, §4.12) was answered on
   2026-10-17: the whole list is approved, so it may be built.
