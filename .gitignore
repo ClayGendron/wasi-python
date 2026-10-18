@@ -16,6 +16,7 @@ __pycache__/
 *.tar.gz
 src/wasi_python/artifacts/
 dist/
+.idea/
 
 # Logs from the build scripts land in build/; keep any copied beside the research.
 !context/research/**/*.log
