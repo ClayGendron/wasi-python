@@ -1,15 +1,18 @@
 # 060 — A per-run budget of request bytes
 
-- **Status:** drafted; revised against its pre-build review; awaiting the reviewer's
-  confirmation. Drafted 2026-10-18 on `spec/060-a-per-run-budget-of-request-bytes` from main
-  `5e66995` (`4111588`); reviewed before build the same day
+- **Status:** confirmed for build 2026-10-18 (the confirmation names no conditions:
+  `build/reviews-evidence/060-spec/060-a-per-run-budget-of-request-bytes-spec-2026-10-18-confirmation.md`
+  in the main tree, "Confirmed. All six findings are answered correctly"). Drafted 2026-10-18 on
+  `spec/060-a-per-run-budget-of-request-bytes` from main `5e66995` (`4111588`); reviewed before
+  build the same day
   (`build/reviews-evidence/060-spec/060-a-per-run-budget-of-request-bytes-spec-2026-10-18.md`
-  in the main tree, for the lane to copy to `../reviews/`; verdict: "ready to build once F1 to
-  F4 are written in", F5 and F6 a sentence each); revised against all six findings with the
-  lane's rulings (the section "Disposition of the pre-build review", near the end, says where
-  each went). It changes neither the guest's imports nor its exports, the artifact set nor the
-  build recipe, so §5.6 does not require a review before build; one was asked because it adds a
-  limit and a public knob, and answers a security review's finding.
+  in the main tree, for the lane to copy to `../reviews/` with its confirmation; verdict: "ready
+  to build once F1 to F4 are written in", F5 and F6 a sentence each); revised against all six
+  findings with the lane's rulings (`d1021ad`; the section "Disposition of the pre-build
+  review", near the end, says where each went); confirmed. It changes neither the guest's
+  imports nor its exports, the artifact set nor the build recipe, so §5.6 does not require a
+  review before build; one was asked because it adds a limit and a public knob, and answers a
+  security review's finding.
 - **Owner:** Clay Gendron
 - **Kind:** runner and docs; **parallel-safe**: `src/` and `tests/` only, with `README.md`,
   `CHANGELOG.md` and this specification. No build-class file: it touches no `scripts/`,
@@ -462,7 +465,7 @@ The landing notes list each with its failing line.
 
    Seen failing on main (the keyword is a `TypeError`). Stand-ins: (h) no budget passed to the
    frame host (four results, 5 frames read); (c) as above (5 frames read: the door read the
-   fourth large frame before `__call__` refused it).
+   third large call's frame, the fourth frame overall, before `__call__` refused it).
 4. **`test_a_call_chain_of_any_depth_hides_bound_keywords`** (v1.4, no artifacts).
    - N8's construction at depth 2 and 3, each hop a class whose `__call__` is the next object,
      the last class's `__call__` a `staticmethod(functools.partial(orders, user_id=42,
