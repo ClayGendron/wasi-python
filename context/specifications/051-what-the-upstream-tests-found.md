@@ -1,6 +1,6 @@
 # 051 — What the upstream tests found
 
-- **Status:** confirmed for build 2026-10-18 (the review's Confirmation; its builder notes stand in the review). drafted 2026-10-18. Revised the same day against its pre-build review
+- **Status:** built 2026-10-18 on `spec/051-what-the-upstream-tests-found`; build-reviewed the same day (`../reviews/051-what-the-upstream-tests-found-2026-10-18.md`: land after F1 to F3; each finding answered in its Disposition and below). **The lane's order (2026-10-18): 051 lands first; 050 rebases onto 051 and re-derives its tables on 051's set** (written into 050's status), so Decision 12 and criterion 5 are done by 050, not here. Confirmed for build 2026-10-18 (the review's Confirmation; its builder notes stand in the review). drafted 2026-10-18. Revised the same day against its pre-build review
   (`../reviews/051-what-the-upstream-tests-found-spec-2026-10-18.md`, findings F1 to F7, each
   answered in its Disposition and written in below); it awaits the reviewer's confirmation. It
   changes the build recipe and the artifact set, so it takes that review before it is built
@@ -545,3 +545,238 @@ standing rule, and wait for nothing here:
   zip path. It is native's form, and the README says so. No default is loosened (§4.15).
 
 ## Landing notes
+
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-051`, branch
+`spec/051-what-the-upstream-tests-found`, from main at `fe67910` (spec 040 accepted). The machine:
+Apple arm64, macOS 26.5, 10 CPUs; Docker 29.7.2 for the Linux arm64 rebuild. Every claim below is
+EXECUTED unless labelled; `uv run` only; the judge ran on the worktree's own `build/artifacts/`,
+never with `--accept`. Scratch scripts and logs are in the session's scratch folder; the numbers
+are written here. Not yet reviewed: the build review (`../reviews/`) is next, then the lane.
+
+**Spec 050 had not landed** when this was built (main has no `tests/upstream/`). The lane's
+order, settled after the build review (its F1): **051 lands first**, and 050 rebases onto 051 and
+re-derives its tables (the seven traps, the `zip-code-names` and `patch-0001-*` classes, the two
+returned files, the `passes` figures) on this rebuilt set. So Decision 12 and criterion 5 are
+050's work, not this branch's; a line in 050's status says so. This branch touches none of 050's
+judge files.
+
+### What changed (three commits, one per part)
+
+- **Part 1** (`fc6fe74`; was `19d0db5` before the build review's F3 rewrite):
+  - `recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`: the author's patch, byte for
+    byte (`context/research/2026-10-18-what-the-upstream-tests-found/author/`).
+  - Its draft `context/upstream/patches/numpy-2.5.2/0002-callback-signatures.md` (six header
+    lines, `Files:` the seven paths, a body pointing to the facts and naming numpy's AI policy's
+    clauses), and the facts sheet `context/upstream/13-numpy-callback-signatures/` (`notes.md`,
+    `pr.md`, `fix.patch` = the carried patch against 2.5.2, to be rebased onto `main` when the
+    owner asks; `evidence/` with the scan and the guest before and after, the native output,
+    and the drafting runs' object types). `context/upstream/README.md` gains row 13.
+  - `tests/harness/wasm.py` learns the function, element, data, code and name sections, and
+    records an element segment that is not an active `funcref` list for table 0, or a data
+    segment that is passive or not placed by a constant, in `Module.unread`.
+  - `tests/harness/callbacks.py`: the scan of Decision 4 (members first, then referenced method
+    arrays, referenced getset arrays, and code-referenced singles not inside a found table; a run
+    is kept from its first referenced entry), `EXCLUDED = {}`, and `findings()`, strict both ways.
+  - `tests/harness/plugin.py`: a `note` fixture; a passing check's note is its reason in
+    `latest.json` (never compared). The scan's check uses it for its coverage.
+  - Checks: `test_callbacks_have_the_types_cpython_calls` (v1.3, fast, `plain binary`; minimums
+    2,500 / 1,000 / 1,500) and `test_callbacks_job_matches_native[plain|snapshot]` (v1.3, slow),
+    over the golden job `tests/jobs/callbacks.py` and its `.expected` from `regen.py` under the
+    pinned oracle (`jobs.JOBS` gains it, so `test_goldens_reproduce_under_the_pinned_oracle`
+    covers it). Unit checks `tests/unit/test_callbacks.py` (7) on wat2wasm modules.
+  - README: carried patches 2; six golden jobs; the callback sentence. CHANGELOG: its bullet.
+- **Part 2** (`24b8ef5`; was `44ede8a`): `scripts/make_stdlib_zip.py --code-prefix` (refuses a prefix not
+  absolute or not ending in `.zip/`); `scripts/steps/70_zip.sh` passes
+  `"/usr/local/lib/python$PYTHON_TAG.zip/"`; a comment at it and at `recipes/reactor_main.c`'s
+  `STDLIB_ZIP` names the other. Checks: `test_a_pandas_warning_names_the_callers_line[plain|
+  snapshot]` and `test_zip_code_objects_carry_the_zip_path` (criterion 2's walk, run in the
+  plain guest because the judge's host Python is 3.14 and cannot unmarshal 3.15 code). Unit
+  checks: `pyc` names every nested code object; the prefix's three refusals. README and
+  CHANGELOG lines.
+- **Part 3** (`06f61aa`; was `fffd8ad`): `recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch` is the
+  author's amended patch, byte for byte. The 0001 draft and `../upstream/3-numpy-npy-wasi/pr.md`
+  gain the three points; `fix.patch` there predates the amendment and is remade on rebase (said
+  in both). `test_npy_files_round_trip` gains the masked and truncated cases. README platform
+  paragraph and CHANGELOG lines.
+
+### The frozen set, rebuilt first
+
+`scripts/build.sh --plain` in the worktree at `fe67910`, before any change: `python.wasm`
+`4befe9de64edc783`, `python-snapshot.wasm` `0cdc7b2bd78db6f5`, `python-stdlib.zip`
+`ee1acace2fc1fb26`. Its `SHA256SUMS` equals main's `build/artifacts/SHA256SUMS` on every line but
+`MANIFEST` (`diff` after dropping that line: empty), as the brief said. The failing-first runs
+below are on this set.
+
+### Criterion 1: seen failing first
+
+On the base set, `uv run pytest tests/checks/test_v1_3_data_stack.py -k "callbacks or
+pandas_warning or zip_code or npy_files"`: 8 failed.
+
+- `test_callbacks_have_the_types_cpython_calls`: exactly the six numpy callbacks, exclusion list
+  empty, minimums met (`scanned 3072 method-array entries, 1989 single definitions, 1125 getset
+  entries, 429 member entries`):
+  - `getter _supports_unaligned: table index 4598 has (i32) -> (i32), called as (i32, i32) -> (i32) (boundarraymethod__supports_unaligned)`
+  - `getter scalar_input: table index 7906 … (array_converter_get_scalar_input)`
+  - `method __copy__: table index 7134 has (i32) -> (i32), called as (i32, i32) -> (i32) (gentype___copy__)`
+  - `method __reduce__: table index 10233 … (sfloat___reduce__)`
+  - `method _get_castingimpl: table index 8262 has (i32, i32) -> (i32), called as (i32, i32, i32) -> (i32) (_get_castingimpl)`
+  - `setter dtype: table index 6169 has (i32, i32) -> (i32), called as (i32, i32, i32) -> (i32) (array_descr_set)`
+- `test_callbacks_job_matches_native[plain]` and `[snapshot]`: `trapped`. Each line alone, plain
+  guest (`evidence/guest-before.txt` in the facts sheet): all six `copy.copy` calls, `a.dtype =
+  np.float32`, the sfloat pickle, `_get_castingimpl(...)` and `.scalar_input` each trap; a control
+  line with no such callback prints `2.5 [0 0 0 0]`. `_supports_unaligned` cannot be reached
+  alone before `_get_castingimpl` works.
+- `test_a_pandas_warning_names_the_callers_line[*]`: `[['ParserWarning',
+  'pandas/io/parsers/readers.py', 1798]]`.
+- `test_zip_code_objects_carry_the_zip_path`: 1,102 `.pyc`, 37,509 code objects, the first
+  `/usr/local/lib/python315.zip/__future__.py: … names __future__.py`.
+- `test_npy_files_round_trip[*]`: `masked saved [1 2 3] ndarray`; the truncated case already
+  gave `truncated ValueError`, as designed (the type only).
+
+### Criterion 2: the build
+
+`scripts/build.sh --plain` in the worktree (every step remakes its outputs). Step 90 first
+refused the then-untracked `0002` patch (`untracked recipe files (stage them first)`); staged,
+step 90 alone then wrote the set.
+- Step 40's log: `applied 0001-npy-files-without-dup.patch`, `applied 0002-callback-signatures.patch`,
+  each file `Applied … cleanly`.
+- Spec 020's zero-diff check: `test_source_tree_matches_its_tarball[numpy]` passes with the two
+  (full judge run below).
+- The scan on the new `python.wasm`: `0 findings` (`evidence/scan-after.txt`).
+- `test_zip_code_objects_carry_the_zip_path`: passes, every code object of the 1,102 `.pyc`,
+  nested ones included.
+- The zip's member list: 1,760 members, the same names, order, dates, compression and modes as
+  the frozen zip's; exactly the 1,102 `.pyc` differ in bytes, no data file.
+
+The new set: `python.wasm` 31,760,992 bytes `5648e4c5143da71d` (the same size; six functions'
+signatures), `python-snapshot.wasm` 65,533,118 bytes `f94dec535086b06c`, `python-stdlib.zip`
+11,203,143 bytes `daf2cdd86357e617`, `MANIFEST` `c4474f7695491e67` (its `diff` with the base: the
+two patch hashes, `reactor_main.c`, `make_stdlib_zip.py`, `70_zip.sh`, and `x-snapshot-zip`).
+
+### Criterion 3: after the build
+
+- The golden job equals the oracle's output on both binaries; each line alone runs
+  (`evidence/guest-after.txt`). The oracle's `regen.py --check` (with `--online` once to set up
+  the worktree's oracle) reproduced the five old goldens before `callbacks.expected` was written.
+- The scan: no finding, no exclusion. Coverage 3,072 method-array entries, 1,989 singles, 1,125
+  getsets, 429 member tables' entries (members are counted only when referenced). The review's
+  figures were 3,072 / 1,990 / 1,125: of 2,029 code-referenced entries, 39 are array starts and
+  1 is inside an array but not its start; the review subtracted the starts only, this scan
+  leaves out every entry inside a found table.
+- Unit checks (`tests/unit/test_callbacks.py`): a referenced mismatch is found (method, getter,
+  single); an unreferenced look-alike is not; findings name no function without a name section;
+  an exclusion that stops matching is a finding; a passive data segment and an element segment
+  of another form are findings; a module with nothing to scan is a finding; `i32.const` operands
+  are read at every position.
+- One limit, written in the scan's docstring: members are found first, so a getset array whose
+  getters all sit at table indices 1 to 20 with no doc would read as members. In this link those
+  twenty are CPython's parser rules (`_tmp_6_rule` …, READ from the name section). Without the
+  member pass the getset count would be 1,278, members misread as getsets.
+
+### Criterion 4: the same bytes on a second host
+
+A clean clone of the branch at `fffd8ad` (the pre-rewrite Part 3; the rewritten `06f61aa` differs from it only in `tests/harness/wasm.py`, `tests/unit/test_callbacks.py` and the facts sheet's `pr.md`, no recipe), built from empty `downloads/` and `build/` in the
+`linux/arm64` container spec 040 used (image `wp040-arm64`: the pinned `debian:trixie-slim`, uv
+0.9.22 checked by hash; its `run-build.sh`): `uname` `Linux 7.0.12-linuxkit aarch64`, Debian 13;
+`00_download: 29 pins, 29 fetched, 29 verified`; step 40 `applied` both patches; `exit: 0`,
+284 s (a benchmark fact). Its `SHA256SUMS` (`9595a1dd752ac96b…`) is byte-identical to the macOS
+worktree build's (`diff`: empty): `python.wasm` `5648e4c5143da71d`, snapshot `f94dec535086b06c`,
+zip `daf2cdd86357e617`, `MANIFEST` `c4474f7695491e67`. The x86_64 and Windows rebuilds are the
+release workflow's (spec 040's gate), not run here.
+
+### Criterion 6: the judge and the growth account
+
+`uv run pytest` (full, slow included) on the rebuilt set: 1,165 passed, 10 skipped;
+`251/254 pass · 0 gap · 3 blocked · 0 fail`; v1.3 27/27; `lost 0 · absent 0 · unrun 0 · gained
+6 · grew 36`, `RED: 36 metric(s) grew`, red only for growth. The 6 gained are this spec's new
+checks. Blocked: `wheel`, `three systems`, `prior-art clones`, as on main. `ruff check` and
+`ruff format --check` clean on `src` and `tests`.
+
+For the lane:
+- `--accept-judge`: the new checks (the scan, the golden job on both binaries, the warning on
+  both, the zip's code names), `tests/jobs/callbacks.py` and its `.expected` (and `jobs.JOBS`),
+  `tests/harness/wasm.py`'s new readers, `tests/harness/callbacks.py`, the plugin's `note`, and
+  `test_npy_files_round_trip`'s two new cases.
+- `--retire`: none (050 has not landed; no trap check exists).
+- `--accept-growth`, the measured account (base set against the new one; `measure.py`, the
+  judge's driver, fixed clock):
+  - **Zip bytes** +28,115 (11,175,028 → 11,203,143, +0.25%): every code object's `co_filename`
+    gains `/usr/local/lib/python315.zip/` (Part 2). The prototype's estimate was +28,360.
+  - **Snapshot bytes** +23,169 (65,509,949 → 65,533,118, +0.035%): the pre-imported modules'
+    code objects in the heap carry the longer names (INFERRED from Part 2; the binary's own
+    size did not change).
+  - **Plain fuel**, from the longer names unmarshalled at each import (Part 2): `-c pass`
+    242,161,579 → 242,196,369 (+34,790, +0.014%); `-c "import pandas"` 4,988,102,407 →
+    4,991,551,151 (+3,448,744, +0.069%). In the judge, every plain-binary check grew by
+    +22,602 to +3,416,842 (+0.009% to +0.093%; `test_longdouble_parses` the most in percent).
+  - **Snapshot fuel** mostly fell: `-c pass` 82,143,381 → 82,060,117 (−83,264); 16 judge checks
+    fell by 1,169 to 130,431 (−0.04% to −0.16%). It grew where the program imports modules
+    after the snapshot: `test_stdlib_debugging_tools_import` +390,672,
+    `test_ctypes_stand_in_names_what_packages_import[snapshot]` +189,714,
+    `test_extra_preopens_work_on_the_snapshot[*]` +160,239,
+    `test_packages_carry_their_metadata[snapshot]` +132,772, `test_the_guest_package_round_trips_
+    through_the_door[snapshot]` +12,476; and `test_fuel_is_exact_across_tool_calls` +16,389. Why
+    the snapshot's start fell was not studied. In all, 53 metrics changed: 37 rose (the ratchet
+    counts 36 past its tolerance) and 16 fell.
+  - **`test_npy_files_round_trip`** +116,270,927 plain (+8.5%) and +3,595,509 snapshot (+1.7%):
+    the check's program gained two cases (a judge change), not product growth.
+  - `python.wasm`'s bytes: unchanged (31,760,992).
+
+The fast judge at the then-committed `fffd8ad` (`uv run pytest -m "not slow"`): 1,157 passed, 10
+skipped, 8 deselected; `243/254 pass · 0 gap · 3 blocked · 0 fail · 8 deselected`; `lost 0 ·
+absent 0 · unrun 0 · gained 4 · grew 31`. Both runs also say `unrun locally 1`:
+`test_every_prior_art_clone_has_its_licence_recorded`, since the worktree has no prior-art
+clones; it is not red, and the main tree has them.
+
+### Criterion 7, and what is left
+
+- README, CHANGELOG, both drafts, the facts sheet and `context/upstream/README.md` say what
+  Decisions 3, 10 and 13 say; `test_carried_patches_follow_the_rules` passes with two patches.
+- Decision 4a's sentence is in the status of each unlanded specification it names (035, 037,
+  038, 039, 041, 042, 043, 044, 045, 046, 047; 040 has landed), on this branch, so the review
+  sees what lands. 035's status also says its absolute byte and fuel baselines move with 051
+  while its per-member figures hold (the build review's F5).
+- Sending either draft upstream is the owner's.
+
+### For the reviewer
+
+- `tests/harness/callbacks.py`'s table rule: members first, a run kept from its first
+  referenced entry, singles left out when inside any found table. The figures above against the
+  review's.
+- `tests/harness/wasm.py` reads a constant expression to its `end`: one `i32.const` gives the
+  offset; any other expression of the extended-constant proposal (`global.get`, `i32.add` …)
+  records its segment in `unread`, so the wall checks still read the binary the scan flags. Only
+  an opcode outside that proposal raises (the build review's F4).
+- The plugin's `note`: a pass's reason is now non-empty for one check.
+- `test_zip_code_objects_carry_the_zip_path` runs in the guest, not on the host (the host's
+  Python is 3.14).
+- The README's sentence placement, and the snapshot fuel's fall, whose cause is not studied.
+
+### Answers to the build review (2026-10-18)
+
+The review (`../reviews/051-what-the-upstream-tests-found-2026-10-18.md`) asked for F1 to F3
+before landing, F4 and F5 small. Each is answered in its Disposition; in short:
+
+- **F1, the order.** 051 first; 050 rebases and re-derives (above, and in 050's status).
+  Decision 4a's sentence is written into each unlanded build-class specification's status here.
+- **F2, three rules unguarded.** `tests/unit/test_callbacks.py`'s module gains a getset whose
+  setter has the wrong type (`st`), a method array that only code points at (`coded`, as numpy's
+  scalar methods), and a method whose function returns nothing (`void`). Each of the review's
+  mutants now fails the unit suite (EXECUTED, applied to `harness/callbacks.py` and restored,
+  `cmp` identical): M2 (setters not checked) loses `setter st`; M11 (code references ignored)
+  turns `method coded` into `single method coded` and the array count from 4 to 3; M8 (results
+  not compared) loses `method void`.
+- **F3, the intermediate commits.** The branch was rewritten from `fe67910` with `git reset
+  --soft` and three part commits with explicit paths; Part 1 carries the blank line, and each
+  commit's `ruff format --check` and `ruff check` were run on its own tree (`git archive`).
+- **F4, extended constants.** As above; a unit check builds a data segment placed by
+  `i32.add (i32.const 16) (i32.const 16)`: it is in `unread`, the next segment is read, and
+  `wall_errors` is empty. Seen failing on the old reader: `WasmError: constant expression longer
+  than one instruction`.
+- **F5, 035.** Its status line (above).
+- **The facts sheet's nit:** `pr.md` no longer says "the table below".
+
+None of these changes a recipe byte or an artifact: the set judged above stands
+(`5648e4c5…`, `f94dec53…`, `daf2cdd8…`, `MANIFEST` `c4474f76…`).
+The full judge on that set after the rewrite (`uv run pytest`, slow included, no `--accept`):
+1,166 passed, 10 skipped; `251/254 pass · 0 gap · 3 blocked · 0 fail`, v1.3 27/27; `lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 6 · grew 36` (red for growth only); `ruff check` and `ruff format --check` clean. The one more pass than before is the new unit check.

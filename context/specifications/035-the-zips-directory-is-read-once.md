@@ -1,6 +1,6 @@
 # 035 — The zip's directory is read once
 
-- **Status:** drafted 2026-10-17; revised the same day against its pre-build review
+- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 051 lands before this one** (the lane's order, 2026-10-18): 051 changes every `.pyc` in the zip (each code object's `co_filename` carries `/usr/local/lib/python315.zip/`) and grows plain fuel (`-c pass` +34,790). So this specification's absolute byte and fuel baselines (criterion 9, Decision 10) are restated against 051's set, and that difference is 051's, not a finding. Its per-member directory figures hold: the zip's member list (names, order, dates, compression, modes) is unchanged. drafted 2026-10-17; revised the same day against its pre-build review
   (`../reviews/035-the-zips-directory-is-read-once-spec-2026-10-17.md`), all eight findings
   written in (its Disposition); its confirmation passed it for build with one condition (C1, the
   second zone's figure) and two clarifications (C2, C3), written in. It changes the build recipe and how the interpreter starts, so it

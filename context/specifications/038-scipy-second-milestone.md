@@ -1,6 +1,6 @@
 # 038 — scipy, the second milestone: the sandbox's edges
 
-- **Status:** confirmed for build. Drafted 2026-10-17; revised the same day against the
+- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build. Drafted 2026-10-17; revised the same day against the
   pre-build review of 037 and 038 (`../reviews/037-scipy-spec-2026-10-17.md`): its findings 2,
   14 and 15 fixed, 16 noted (the review's Disposition), and confirmed there with no condition on
   038. It changes the artifact set (two

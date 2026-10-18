@@ -1,6 +1,6 @@
 # 042 — seaborn and reportlab
 
-- **Status:** drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
+- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
   (`../reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`): all nine findings are written in
   here and in question 73, and the review's Disposition says where; the reviewer's confirmation
   (2026-10-18) passed it for build with three conditions: **C1**, Sarna's licence is in seven

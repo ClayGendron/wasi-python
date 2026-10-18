@@ -1,6 +1,6 @@
 # 050 — numpy's and pandas' own tests under the runtime
 
-- **Status:** confirmed for build with conditions, written in. Drafted 2026-10-18; revised the
+- **Status:** **Spec 051 lands before this one** (the lane's order, 2026-10-18). This specification rebases onto 051 and re-derives its tables on 051's artifact set: the seven `[[trap]]` entries and their gaps (their callbacks are fixed by 051's patch 0002), the six `zip-code-names` classes and the two `patch-0001-*` classes (fixed by 051), `test_casting_unittests.py` and `test_arraymethod.py` (out of `not_selected`), and each group's `passes`. Where its text says 051 edits these files after it lands, this specification does that work itself; 051's Decision 12 is done here. confirmed for build with conditions, written in. Drafted 2026-10-18; revised the
   same day against its pre-build review
   (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-spec-2026-10-18.md`, findings F1
   to F15, each answered in its Disposition and written in below). The review's Confirmation set
