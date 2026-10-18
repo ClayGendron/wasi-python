@@ -184,6 +184,30 @@ def test_progress_history_is_intact() -> None:
     assert not errors, scan.report(errors)
 
 
+def test_the_newest_acceptance_sits_on_the_commit_it_judged() -> None:
+    """Constitution §5.7 (spec 029, Decisions 1 and 2): the newest acceptance commit's first
+    parent is the commit its history line judged, it carries only the two progress files, and it
+    was made on a clean tree. Committed history only, so the lane is never red between accepting
+    and committing."""
+    needs.need("git", "git history")
+    errors = scan.acceptance_errors(paths.REPO)
+    assert not errors, scan.report(errors)
+
+
+def test_the_clean_acceptance_key_is_in_the_judge() -> None:
+    """Rule 1 requires `dirty: false` of an acceptance whose judge holds this file (spec 029).
+    Kept here, among the protected checks, so that deleting the file cannot quietly end the
+    requirement (029's build review, finding 5)."""
+    assert (paths.REPO / scan.FIRST_CLEAN_JUDGE).is_file(), scan.FIRST_CLEAN_JUDGE
+
+
+def test_main_is_linear() -> None:
+    """Constitution §4.14 (spec 029, Decision 3): main moves only by fast-forward."""
+    needs.need("git", "git history")
+    errors = scan.merge_commit_errors(paths.REPO)
+    assert not errors, scan.report(errors)
+
+
 def test_the_version_is_released_by_the_book() -> None:
     """One version in __init__.py, read dynamically, with its changelog section (spec 004)."""
     import importlib.util

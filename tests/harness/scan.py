@@ -4,6 +4,7 @@ one line each; an empty list means the rule holds."""
 from __future__ import annotations
 
 import ast
+import json
 import re
 from collections.abc import Iterable
 from pathlib import Path
@@ -896,3 +897,90 @@ def paths_os_litter() -> set[str]:
     from harness import paths
 
     return set(paths.OS_LITTER)
+
+
+# ---------------------------------------------------------------------------------------------
+# The landing lane (spec 029)
+
+PROGRESS_FILES = ("context/progress/accepted.json", "context/progress/history.jsonl")
+HISTORY_FILE = PROGRESS_FILES[1]
+# Rule 1 requires `dirty: false` of an acceptance whose judge holds this file: 029's own and every
+# later one. Older lines are not re-judged (they all say true: Decision 2).
+FIRST_CLEAN_JUDGE = "tests/unit/test_landing_lane.py"
+
+
+def _committed_json(repo: Path, rev: str, path: str) -> object:
+    text = paths.git("show", f"{rev}:{path}", repo=repo)
+    try:
+        return json.loads(text) if text else None
+    except json.JSONDecodeError:
+        return None
+
+
+def acceptance_errors(repo: Path) -> list[str]:
+    """Rule 1 (spec 029, Decisions 1 and 2), read from committed history only: the newest commit
+    that changed history.jsonl sits on (first parent) the commit its newest line names, changes
+    nothing but the two progress files, and, from 029's judge on, says `dirty: false`."""
+    found = paths.git("rev-list", "-1", "HEAD", "--", HISTORY_FILE, repo=repo)
+    if found is None:
+        return [f"git rev-list -1 HEAD -- {HISTORY_FILE} failed"]
+    c = found.strip()
+    if not c:
+        return []  # nothing accepted yet
+    text = paths.git("show", f"{c}:{HISTORY_FILE}", repo=repo) or ""
+    lines = [x for x in text.splitlines() if x.strip()]
+    try:
+        line = json.loads(lines[-1]) if lines else None
+    except json.JSONDecodeError:
+        line = None
+    if not isinstance(line, dict):
+        return [f"the newest acceptance {c[:12]}: its newest history line is not a JSON object"]
+    n, named = line.get("n"), str(line.get("commit"))
+    errors = []
+    parent = (paths.git("rev-parse", "--verify", "-q", f"{c}^1", repo=repo) or "").strip()
+    if not parent:
+        errors.append(
+            f"the newest acceptance {c[:12]} has no parent; its line {n} judged {named[:12]}"
+        )
+        changed = (
+            paths.git(
+                "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "-z", c, repo=repo
+            )
+            or ""
+        )
+    else:
+        if named != parent:
+            errors.append(
+                f"the newest acceptance {c[:12]} sits on {parent[:12]}, but its history line {n} "
+                f"judged {named[:12]} (carried across a rebase or an amend)"
+            )
+        changed = (
+            paths.git(
+                "diff-tree", "--no-commit-id", "--name-only", "-r", "-z", parent, c, repo=repo
+            )
+            or ""
+        )
+    extra = sorted(set(changed.split("\0")) - set(PROGRESS_FILES) - {""})
+    if extra:
+        more = f" and {len(extra) - 3} more" if len(extra) > 3 else ""
+        errors.append(
+            f"the newest acceptance {c[:12]} also changes {', '.join(extra[:3])}{more}; an "
+            "acceptance commit carries only accepted.json and history.jsonl"
+        )
+    accepted = _committed_json(repo, c, PROGRESS_FILES[0])
+    judge = accepted.get("judge") if isinstance(accepted, dict) else None
+    files = judge.get("files", {}) if isinstance(judge, dict) else {}
+    if FIRST_CLEAN_JUDGE in files and line.get("dirty") is not False:
+        errors.append(
+            f"the newest acceptance's history line {n} says dirty: {line.get('dirty')}; "
+            "an acceptance is made on a clean tree"
+        )
+    return errors
+
+
+def merge_commit_errors(repo: Path) -> list[str]:
+    """Rule 3 (spec 029, Decision 3): no merge commit is reachable from HEAD."""
+    out = paths.git("rev-list", "--merges", "HEAD", repo=repo)
+    if out is None:
+        return ["git rev-list --merges HEAD failed"]
+    return [f"{h[:12]} is a merge commit; main moves only by fast-forward" for h in out.split()]

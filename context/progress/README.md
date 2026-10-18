@@ -51,3 +51,46 @@ run red. A pass that becomes blocked is red too, unless the run says
 | `-m "not slow"` | the fast tier: skip the golden jobs and the oracle |
 
 The full record of the last run is `build/progress/latest.json`.
+
+## The landing lane (spec 029)
+
+Only the lane accepts: in the main tree, on a clean tree, and on a detached HEAD, so main
+moves only by fast-forward onto an acceptance already checked. The judge enforces three of
+these things:
+- `--accept` is refused before collection in a linked worktree whose run would write a
+  `context/progress` folder.
+- It is refused on a tree with a change the judge could see: any tracked change outside
+  `context/progress/`, or an untracked file under `src/`, `tests/`, `scripts/`, `recipes/`,
+  `context/specifications/`, `context/reviews/` or `context/upstream/`, or a judging file.
+- It is refused again when the acceptance is written, if the tree changed or HEAD moved during
+  the run.
+
+The steps, in order:
+
+1. **Wait for a quiet tree.** Nothing else may be uncommitted in the main tree. Other agents'
+   tracked edits block every acceptance, and they are never stashed (constitution §4.14). The
+   lane waits for them to be committed, or for the work to move to a worktree.
+2. **Detach.** Run `git switch --detach <the rebased, reviewed commit>`. It changes no working
+   file that step 1 left. For a change built in the main tree, commit the change, its
+   specification and its review here first, on the detached HEAD.
+3. **Accept.** Run `uv run pytest --accept "<reason>"`, with `--accept-judge` when the judge
+   changed.
+4. **Commit the acceptance alone, at once.** Run `git commit -m "Accept …" --
+   context/progress/accepted.json context/progress/history.jsonl`. The pathspec leaves out
+   anything else that is staged.
+5. **Check it.** Run `uv run pytest tests/checks/test_rules.py`.
+   `test_the_newest_acceptance_sits_on_the_commit_it_judged` reads this commit. Its first
+   parent must be the commit its newest line judged, it must carry nothing else, and its line
+   must say `dirty: false`. If that check fails, run `git reset --soft HEAD^` (a narrowed run
+   can exit 1 only because other checks did not run; read the check's own line). HEAD is still
+   detached and nothing has been pushed, so main has not moved. Then redo step 4.
+6. **Move main.** Run `git switch main && git merge --ff-only <the acceptance commit>`.
+
+A red acceptance commit cannot be repaired by accepting again. A red rule makes the run red,
+and `--accept` refuses a red run. That is why step 5 runs before main moves. What the lane does
+if a red acceptance reaches main anyway is the owner's question (question 70); until it is
+answered, step 5 must not be skipped, and a red acceptance found on main stops the lane: write it
+down under question 70 and change nothing.
+
+The worktree check needs git 2.31 or later (`--path-format=absolute`). Older git fails closed:
+it takes the main tree for a linked worktree, and `--accept` is refused.

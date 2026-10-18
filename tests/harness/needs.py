@@ -90,6 +90,12 @@ def _git() -> bool:
     return r.returncode == 0
 
 
+def _git_history() -> bool:
+    """The whole history is here: a shallow clone's oldest commit has no parent to compare
+    (spec 029, Decision 7)."""
+    return (paths.git("rev-parse", "--is-shallow-repository") or "").strip() == "false"
+
+
 def _source_tree(component: str) -> Callable[[], bool]:
     def met() -> bool:
         from harness import pins
@@ -123,6 +129,7 @@ VOCABULARY: dict[str, Need] = {
         Need("reference build", _reference_build, SPEC_002),
         Need("prior-art clones", _prior_art, "context/prior_art/README.md"),
         Need("git", _git, "-"),
+        Need("git history", _git_history, "-"),
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

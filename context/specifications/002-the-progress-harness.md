@@ -72,6 +72,8 @@
    | `prior-art clones` | `context/prior_art/` holds at least one clone | `context/prior_art/README.md` |
    | `git` | `git rev-parse HEAD` succeeds in the repository | — |
 
+   Amended 2026-10-17 by spec 029 (Decision 7): the need `git history`, met when `git rev-parse --is-shallow-repository` prints `false` (provided by —).
+
    When `$WASI_PYTHON_ARTIFACTS` is set, the artifact directory is
    that path and nothing else; there is no silent fallback. A missing
    file there makes `test_artifact_set_is_complete` fail.

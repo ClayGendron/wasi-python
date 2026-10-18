@@ -135,7 +135,13 @@ def judge_files() -> dict[str, str]:
         p = REPO / rel
         found.update([p] if p.is_file() else p.rglob("*") if p.is_dir() else [])
     for dirpath, dirnames, filenames in os.walk(REPO):  # a stray conftest steers pytest too
-        dirnames[:] = [d for d in dirnames if d not in NOT_SOURCE]
+        # Not into another checkout: a worktree or a repository below the root (spec 029,
+        # Decision 5). Only this walk; one under JUDGE_PATHS stays in the hash.
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d not in NOT_SOURCE and not os.path.lexists(os.path.join(dirpath, d, ".git"))
+        ]
         if "conftest.py" in filenames:
             found.add(Path(dirpath) / "conftest.py")
     return {
@@ -149,6 +155,106 @@ def judge_files() -> dict[str, str]:
 
 def judge_hash(files: dict[str, str]) -> str:
     return sha256_bytes("".join(f"{k}\0{v}\n" for k, v in sorted(files.items())).encode())
+
+
+# ---------------------------------------------------------------------------------------------
+# Git: what the landing lane's rules read (spec 029)
+
+# An untracked file makes the tree dirty when the judge could see it: under the judge's inputs, a
+# judging file, a stray conftest.py anywhere (spec 029, Decision 2, condition D), or a document
+# whose presence can turn a rules check green that the commit fails: a specification, a review,
+# a patch's pull request draft (029's build review, finding 3).
+DIRTY_UNTRACKED = (
+    "src",
+    "tests",
+    "scripts",
+    "recipes",
+    "pyproject.toml",
+    "uv.lock",
+    "context/specifications",
+    "context/reviews",
+    "context/upstream",
+    *JUDGE_PATHS,
+)
+WORKTREE_NOTE = "note: a worktree inside the repository: {} (constitution §4.14 puts them outside)"
+
+
+def git(*args: str, repo: Path | None = None) -> str | None:
+    """git's stdout, run in `repo` (this repository by default); None where git fails or is
+    absent."""
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(repo or REPO), *args], capture_output=True, text=True, check=False
+        )
+    except OSError:
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def linked_worktree(repo: Path | None = None) -> bool:
+    """Whether `repo` is checked out in a linked worktree: its git directory is not the common
+    one. A main tree, a plain clone and a submodule are not (spec 029, Decision 4)."""
+    own = (git("rev-parse", "--absolute-git-dir", repo=repo) or "").strip()
+    common = (
+        git("rev-parse", "--path-format=absolute", "--git-common-dir", repo=repo) or ""
+    ).strip()
+    if not own or not common:
+        return False
+    try:
+        return not os.path.samefile(own, common)
+    except OSError:
+        return own != common
+
+
+def worktrees(repo: Path | None = None) -> list[Path]:
+    """Every worktree of `repo`'s repository, the main tree's first, as `git worktree list`
+    names them."""
+    out = git("worktree", "list", "--porcelain", repo=repo) or ""
+    return [
+        Path(line[len("worktree ") :]) for line in out.splitlines() if line.startswith("worktree ")
+    ]
+
+
+def worktrees_inside(repo: Path | None = None) -> list[str]:
+    """The worktrees below `repo`'s root, relative to it (spec 029, Decision 5)."""
+    root = (repo or REPO).resolve()
+    inside = []
+    for w in worktrees(repo):
+        w = w.resolve()
+        if w != root and w.is_relative_to(root):
+            inside.append(w.relative_to(root).as_posix())
+    return sorted(inside)
+
+
+def _judge_could_see(rel: str) -> bool:
+    rel = rel.rstrip("/")
+    return Path(rel).name == "conftest.py" or any(
+        rel == p or rel.startswith(p + "/") for p in DIRTY_UNTRACKED
+    )
+
+
+def dirty_path(repo: Path | None = None) -> str | None:
+    """The first change the judge could see, or None for a clean tree: any tracked change outside
+    context/progress/, or an untracked file it could see; an untracked .idea/ or a research draft
+    under context/research/ is clean (spec 029, Decision 2)."""
+    out = git("status", "--porcelain", "-z", "--untracked-files=all", repo=repo)
+    entries = (out or "").split("\0")
+    i = 0
+    while i < len(entries):
+        entry, i = entries[i], i + 1
+        if len(entry) < 4:
+            continue
+        code, names = entry[:2], [entry[3:]]
+        if "R" in code or "C" in code:  # a rename or copy: its source follows
+            names.append(entries[i])
+            i += 1
+        for name in names:
+            if code == "??":
+                if _judge_could_see(name):
+                    return name
+            elif not name.startswith("context/progress/"):
+                return name
+    return None
 
 
 # ---------------------------------------------------------------------------------------------

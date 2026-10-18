@@ -317,6 +317,7 @@ def render(
     if run["meta"].get("overrides"):
         names = ", ".join(o.split(" ", 1)[0] for o in run["meta"]["overrides"])
         lines.append(f"JUDGE INPUTS OVERRIDDEN: {names} (see latest.json)")
+    lines += run["meta"].get("notes", [])  # e.g. a worktree inside the repository (spec 029)
     for area, (n_pass, n_all) in area_counts(checks).items():
         mine = Counter(c["status"] for c in checks.values() if c["area"] == area)
         rest = " ".join(f"{k} {mine[k]}" for k in ("gap", "blocked", "fail") if mine[k])

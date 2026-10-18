@@ -48,6 +48,7 @@ class State:
 
 
 STATE = pytest.StashKey[State]()
+HEAD_AT_START = pytest.StashKey[str]()
 METRICS = pytest.StashKey[dict]()
 
 
@@ -101,7 +102,59 @@ def load_gaps(path: Path) -> tuple[dict[str, Gap], list[str]]:
     return gaps, errors
 
 
+WORKTREE_REFUSAL = (
+    "accept: only the landing lane accepts, in the main tree (constitution §5.7); "
+    "this is a linked worktree"
+)
+
+
+def _same_folder(a: Path, b: Path) -> bool:
+    """`os.path.samefile` when both exist, so case and links cannot slip past; otherwise the
+    resolved paths (spec 029, condition A)."""
+    if a.exists() and b.exists():
+        return os.path.samefile(a, b)
+    return a.resolve() == b.resolve()
+
+
+def writes_accepted_state(progress: Path, repo: Path | None = None) -> bool:
+    """Whether `progress` is the context/progress folder of any worktree of this repository, the
+    main tree's included. Any other folder (the self-tests' own) holds no accepted state."""
+    return any(_same_folder(progress, w / "context" / "progress") for w in paths.worktrees(repo))
+
+
+def accept_refusal(reason: str | None, progress: Path, repo: Path | None = None) -> str | None:
+    """Why `--accept` is refused before collection, or None (spec 029, Decisions 2 and 4). Only
+    `--accept` writes; --accept-judge, --accept-growth and --partial write nothing without it.
+    Where git is absent no folder is the repository's, and `--accept` proceeds."""
+    if not reason or not writes_accepted_state(progress, repo):
+        return None
+    if paths.linked_worktree(repo):
+        return WORKTREE_REFUSAL
+    changed = paths.dirty_path(repo)
+    if changed is not None:
+        return (
+            f"accept: refused on a dirty tree: {changed} has a change the judge could see "
+            "(spec 029, Decision 2)"
+        )
+    return None
+
+
+def head_moved(config: pytest.Config) -> str | None:
+    """Why the acceptance would name a commit the judge did not see whole, or None."""
+    start = config.stash.get(HEAD_AT_START, None)
+    now = (paths.git("rev-parse", "HEAD") or "").strip()
+    if start is None or now == start:
+        return None
+    return f"accept: HEAD moved during the run ({start[:12]} to {now[:12]}) (spec 029)"
+
+
 def pytest_configure(config: pytest.Config) -> None:
+    reason, progress = _opt(config, "--accept"), progress_dir(config)
+    refusal = accept_refusal(reason, progress, paths.REPO)
+    if refusal:
+        pytest.exit(refusal, returncode=1)  # before collection; nothing is written
+    if reason and writes_accepted_state(progress, paths.REPO):  # checked again when written
+        config.stash[HEAD_AT_START] = (paths.git("rev-parse", "HEAD") or "").strip()
     config.addinivalue_line("markers", "goal(area): a v1 progress check (spec 002)")
     config.addinivalue_line("markers", "slow: a guest job or the oracle")
     gaps_file = _opt(config, "--known-gaps")
@@ -274,12 +327,13 @@ def run_meta() -> dict:
     return {
         "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit": _git("rev-parse", "HEAD"),
-        "dirty": bool(_git("status", "--porcelain")),
+        "dirty": paths.dirty_path() is not None,  # a change the judge could see (spec 029)
         "platform": f"{sys.platform}-{platform.machine().lower()}",
         "host": paths.sha256_bytes(socket.gethostname().encode())[:12],
         "wasmtime": wasmtime_version,
         "artifact": paths.sha256_file(wasm) if wasm and wasm.is_file() else None,
         "judge": {"hash": paths.judge_hash(files), "files": files},
+        "notes": [paths.WORKTREE_NOTE.format(w) for w in paths.worktrees_inside()],
     }
 
 
@@ -376,7 +430,12 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     green = exitstatus == 0 and not state.gap_errors and not foreign and not addopts
     reason = _opt(config, "--accept")
     accept_line = None
-    if reason:
+    # The tree and HEAD as the acceptance is written, not only as the run began (029's build
+    # review, finding 2): an edit or a commit made meanwhile refuses it.
+    late = (accept_refusal(reason, pdir, paths.REPO) or head_moved(config)) if reason else None
+    if late:
+        red.append(f"--accept refused: {late}")
+    elif reason:
         history_text = _read(pdir / "history.jsonl") or ""
         try:
             new, line = scoreboard.accept(
