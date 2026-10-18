@@ -405,6 +405,105 @@ blocked there. The cost is the owner's to weigh, not a defect.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author (the drafting agent, Claude Opus 5.5), 2026-10-18. Every finding is fixed in the
+specification in place (`context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md`).
+One more run was made for F14, recorded under the spec's "Research it stands on".
+
+- **F1, fixed: the preferred fix** (Decisions 9, 10, 19; criteria 3, 4, 10).
+  - **Classes.** Each class is its own check, `test_upstream_class[<group>-<class>]`. It reads the
+    group's result through a session cache, so the guest runs once per group. While the class
+    has members it fails with one finding per node id. Each class is one ordinary gap in
+    `tests/known_gaps.toml`, with its own closer.
+  - **Traps.** Each trap is the same: `test_upstream_trap[<id>]` now asserts the test runs *without*
+    trapping. It is a gap closed by spec 051, so a fix shows as spec 002's "remove the gap".
+  - **The scoreboard** shows 25 gaps (18 classes, 7 traps) under their closers, in
+    `gaps close with:` and `next:`.
+  - **The group check** passes only when nothing is unknown, so it admits nothing itself.
+  - **Spec 002's states and gaps are unchanged.** It gains dated amendment lines for the need,
+    the `passes` metric, its list, its flag and the acceptance refusal (Decision 19).
+  - **AGENTS.md rule 4 and `context/progress/README.md`** name `tests/upstream/*.toml` and
+    `tests/upstream/expected/`.
+  - **The "not machine-checked" line** names what is still left out (Decision 17).
+- **F2, fixed** (Decision 12; criterion 6).
+  - A fall in `passes` goes to its own ratchet list, `fewer`. It prints as `FEWER …` before any
+    `GREW` line and is never cut.
+  - Accepting a fall needs its own flag, `--accept-fewer-passes "<why>"`, recorded as
+    `fewer_reason`. `--accept-growth` does not accept it, and criterion 6 tests that case.
+  - A rise is reported in `more`, not in `gained`. Criterion 10 now counts gained 12.
+- **F3, fixed** (Decision 10; criterion 5).
+  - Each class lists its sorted node ids in `tests/upstream/expected/<group>/<class>.txt`.
+  - A change names `+<node id>` and `-<node id>` in the check's findings, which breaks the
+    gap's digest. So the fix is an edit of the list, which `git diff` shows by name.
+  - `match` stays as the sorting rule: a listed node that no longer matches shows as `-`. The
+    note on the three unraisable errors says how they can move.
+- **F4, fixed** (Decision 3; criterion 9).
+  - Before staging, the tarball and the patches are compared with the artifact's `MANIFEST`
+    `pin` and `recipe` lines. A difference fails the checks, naming both, and is never "blocked".
+  - Only tarball members are staged. A stray file is left out and listed in `latest.json`.
+- **F5, fixed** (Decisions 9, 11; criterion 4).
+  - The driver writes `C <collector>` from `pytest_collectstart`.
+  - A trap names the last open `S` or `C` line, so `castingimpl-arraymethod` names its collector.
+  - A unit check covers a stream that ends after `C`. The builder records frame 0 from
+    `trap_cause`.
+- **F6, fixed** (Decisions 8, 17; criteria 7, 8). Two rules:
+  - The caps sum to at most 3×10¹² (2.82×10¹² today), enforced by the rules check.
+  - The 1.8×10¹² spent-fuel budget is a review rule. Each landing's notes sum the recorded fuel
+    against it.
+- **F7, fixed** (Decision 20). The builder:
+  - links the two tarballs and the two trees into its worktree;
+  - runs `fetch.py` there, or links the wheels;
+  - sets `WASI_PYTHON_ARTIFACTS` to the frozen set;
+  - confirms `NOT_SOURCE` covers the links;
+  - records the scoreboard line showing all 37 checks ran.
+
+  The lane re-runs criteria 2, 3 and 7.
+- **F8, fixed** (Decision 6; criteria 3, 5).
+  - Decision 6 says it plainly: numpy runs under `judge`; pandas runs under its own `pandas_ci`,
+    layered on `judge`, so `derandomize=True` and `database=None` hold. This matches the review's
+    probe.
+  - The driver writes a `P` line once collection ends. `derandomize=False` or a database is a
+    group finding.
+- **F9, fixed** (Decision 13; criterion 6).
+  - **Judge-only:** `--accept` refuses while any upstream check with an accepted pass or gap is
+    unrun locally, unless `--partial "<why>"`. Plain runs, the release workflow's included, are
+    unaffected, so the needs stay unprotected.
+  - **The lane rule** in `context/progress/README.md`: the landing notes cite `unrun locally 0`.
+  - **The release** is recorded under Scope as a later rule: an accepted run of these checks on
+    the release's artifact hash.
+- **F10, fixed** (Decision 2; criterion 1).
+  - The oracle precedent (spec 002, Decision 11) is cited.
+  - A rules line checks each `kit.txt` line's form.
+  - `fetch.py` writes to a temporary name and renames only after the hash matches.
+  - The unzip refuses absolute names and `..` parts.
+
+  No constitution change is proposed: the oracle set the practice.
+- **F11, fixed** (Decisions 3, 4).
+  - Staging is once per run, of the folders the groups and trap entries name only.
+  - The driver writes `M` lines for modules from `/upstream/tests/`. A product module from the
+    grant is a finding.
+  - The `__init__.py` sentence is corrected in Decision 4 and, by a dated correction line, in the
+    memo: twelve of thirteen folders have one; `_core/tests` has none.
+- **F12, fixed** (Decision 12). `passed_digest` per group is recorded in `latest.json`, reported,
+  not ratcheted. The sentence now promises only that no fall in the number of passes goes
+  unaccepted.
+- **F13, fixed** (Decision 8; the memo's correction line).
+  - `evidence/prototype/drive.py` is the scratch `drive4.py`, copied after the runs under that
+    name.
+  - Decision 8 says the numpy numbers came from sorted file lists. The builder's first run sets
+    the fuel baseline; the pass counts must match.
+  - The 13 minutes are labelled INFERRED.
+- **F14, fixed** (Decision 5).
+  - `--strict-markers --strict-config` are passed, as upstream does.
+  - EXECUTED in the revision runs: pandas `libs` 1,063 passed, 8 skipped; numpy `test_datetime`
+    and `test_io` 688 passed, 2 failed, 6 xfailed, 8 skipped; no configuration error.
+  - The other `addopts` left out are named, with why.
+- **F15, answered** (Decision 15; criterion 10).
+  - The landing notes record the full judge's time before and after.
+  - The cost is stated beside the lane's 180, 239 and 538 s.
+  - The owner's section names the pandas groups as the knob.
+
+Number 89 needed no change.
+
 ## Verdict
 
 **Not ready to build until F1 to F7 are written in.** The method is right, and the drafting

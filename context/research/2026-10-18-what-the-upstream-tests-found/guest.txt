@@ -1,0 +1,17 @@
+## guest (frozen set s-0cdc7b2bd78db6f5, snapshot)
+'import copy, numpy as np; print(copy.copy(np.float64(1.5)))' -> None  | error while executing at wasm backtrace: |     0:  0x8751b - python.wasm!method_ | 
+'import numpy as np; a=np.zeros(4, np.int32); a.dtype=np.float32; print(a)' -> None  | error while executing at wasm backtrace: |     0:  0x86aa6 - python.wasm!getset_ | 
+'import numpy as np; c=np._core._multiarray_umath._array_converter(1, [2]); print(c.scalar_input)' -> None  | error while executing at wasm backtrace: |     0:  0x86924 - python.wasm!getset_ | 
+'import os, tempfile, numpy as np\nd = tempfile.mkdtemp()\nxm = np.ma.masked_array([1, 2, 3], mask=[False, True, False])\np = os.path.join(d, "m.npy")\ntry:\n    np.save(p, xm); print("saved", np.load(p), type(np.load(p)).__name__)\nexcept Exception as e:\n    print(type(e).__name__, e)\nfrom numpy.lib import format\nfor arr in [np.arange(6, dtype=np.int64), np.zeros((0,), np.float64)]:\n    q = os.path.join(d, "t.npy")\n    with open(q, "wb") as f:\n        format.write_array(f, arr)\n    with open(q, "rb+") as f:\n        f.seek(-1, os.SEEK_END); f.truncate()\n    with open(q, "rb") as f:\n        try:\n            format.read_array(f)\n        except Exception as e:\n            print(type(e).__name__, str(e)[:150])' -> 0 saved [1 2 3] ndarray
+ValueError EOF: reading array data, expected 48 bytes got 47
+ValueError EOF: reading array header, expected 118 bytes got 117 |  | 
+## zip code names (plain binary; control = re-marshalled, named = zip path)
+control prog 0 5052861582 ParserWarning pandas/io/parsers/readers.py 1798 | find_stack_level 0 | pandas/core/frame.py 
+control pass 0 242184303  
+control import pandas 0 5046381661  
+named prog 0 5055451860 ParserWarning <string> 4 | find_stack_level 1 | /usr/local/lib/python315.zip/pandas/core/frame.py 
+named pass 0 242226553  
+named import pandas 0 5049011060  
+11269607 /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/051-spec/zipname/control.zip
+11297967 /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/051-spec/zipname/named.zip
+11175028 /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/051-spec/zipname/orig.zip

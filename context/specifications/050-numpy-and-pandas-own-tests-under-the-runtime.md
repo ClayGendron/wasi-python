@@ -1,31 +1,64 @@
 # 050 — numpy's and pandas' own tests under the runtime
 
-- **Status:** drafted 2026-10-18. It changes the judge's design (a second, stricter way to admit
-  known failures, and a metric that must not fall), so it asks for a pre-build design review,
-  though §5.6 does not require one: it changes no import, export, artifact or build recipe.
+- **Status:** drafted 2026-10-18. Revised the same day against its pre-build review
+  (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-spec-2026-10-18.md`, findings F1
+  to F15, each answered in its Disposition and written in below). It changes how the judge admits
+  failure and adds a metric that must not fall. §5.6 does not require a pre-build review, since
+  it changes no import, export, artifact or build recipe, but it asked for one and awaits the
+  reviewer's confirmation.
 - **Owner:** Clay Gendron
-- **Kind:** the judge only. New: `tests/upstream/` (the guest-side driver, the two packages'
-  configuration, the selections and expectations, the test kit's pins and its fetcher),
-  `tests/harness/upstream.py`, `tests/checks/test_v1_3_upstream_suites.py`,
-  `tests/unit/test_upstream.py`. Changed: `tests/harness/needs.py` (one need),
-  `tests/harness/plugin.py` and `tests/harness/scoreboard.py` (the `passes` metric),
-  `tests/harness/guest.py` (the trap's cause kept), the scoreboard's "not machine-checked" line,
-  `context/progress/README.md`, `README.md`, `CHANGELOG.md`, and the research memo it stands on.
+- **Kind:** the judge only.
+  - **New:**
+    - `tests/upstream/`: the guest-side driver, the two packages' configuration, the
+      selections, the admitted failures by node id, the test kit's pins and its fetcher;
+    - `tests/harness/upstream.py`;
+    - `tests/checks/test_v1_3_upstream_suites.py`;
+    - `tests/unit/test_upstream.py`;
+    - 25 entries in `tests/known_gaps.toml`.
+  - **Changed:**
+    - `tests/harness/needs.py` (one need);
+    - `tests/harness/plugin.py` and `tests/harness/scoreboard.py` (the `passes` metric, its
+      own ratchet list and flag, and a refusal to accept with these checks unrun);
+    - `tests/harness/guest.py` (the trap's cause kept);
+    - the scoreboard's "not machine-checked" line;
+    - `context/progress/README.md`, `AGENTS.md` (rule 4 names the new allowance files);
+    - spec 002, by dated amendment lines (Decision 19);
+    - `README.md`, `CHANGELOG.md`;
+    - a dated correction in the research memo.
+
   **Not build-class:** it touches no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or release
   workflow, and rebuilds nothing (Decision 16).
-- **Depends on:** landed specs only. 002 (the harness: checks, gaps, needs, the ratchet, the
-  findings phrase), 020 (each source tree equals its pinned tarball plus the recorded patches;
-  the tests are read from those trees), 021 (the patched numpy tree, whose own test of the patch
-  now runs here too), 017 (read-only grants). It conflicts with nothing in flight: specs 039 and
-  later change the zip, which moves these checks' fuel as it moves every snapshot check's.
-- **Research it stands on:** `../research/2026-10-18-numpy-and-pandas-own-tests-in-the-guest.md`
-  (written with this specification; EXECUTED on the frozen set `s-0cdc7b2bd78db6f5`, its
-  evidence in the drafting session's folder, copied beside it): pytest in the guest and its six
-  adaptations; every number below; the four numpy functions that trap the guest; the zip's
-  relative code names behind 2,428 pandas failures. Also the spike memo ("The first release gate
-  should run numpy's and pandas' own test subsets"), the principal engineer's direction (item 5:
-  "the cheapest way to find the next `os.dup`"), the autonomous-ports memo (lesson 14: "numpy's
-  and pandas' own test subsets, whose pass counts ratchet") and the roadmap, milestone 6.
+- **Depends on:** landed specs only.
+  - 002: the harness (checks, gaps, needs, the ratchet, the findings phrase).
+  - 020: each source tree equals its pinned tarball plus the recorded patches; the tests are
+    read from those trees.
+  - 021: the patched numpy tree, whose own test of the patch runs here too.
+  - 017: read-only grants.
+
+  It conflicts with nothing in flight. Specs 039 and later change the zip, which moves these
+  checks' fuel as it moves every snapshot check's. Spec 051 (drafted) fixes most of what these
+  suites found and edits this specification's files when it lands after this one.
+- **Research it stands on:** `../research/2026-10-18-numpy-and-pandas-own-tests-in-the-guest.md`.
+  It was written with this specification, EXECUTED on the frozen set `s-0cdc7b2bd78db6f5`, with
+  its evidence beside it. It covers pytest in the guest and its six adaptations, every number
+  below, the four numpy functions that trap the guest, and the zip's relative code names behind
+  2,428 pandas failures.
+  - **Earlier memos and plans:**
+    - the spike memo ("The first release gate should run numpy's and pandas' own test subsets");
+    - the principal engineer's direction (item 5: "the cheapest way to find the next `os.dup`");
+    - the autonomous-ports memo (lesson 14: "numpy's and pandas' own test subsets, whose pass
+      counts ratchet");
+    - the roadmap, milestone 6.
+  - **The pre-build review's runs:**
+    - the kit's pins against PyPI;
+    - the staged files against the tarballs' members;
+    - one pandas group run twice to the instruction;
+    - the active hypothesis settings at collection's end;
+    - the classes recounted.
+  - **Revision runs** (EXECUTED 2026-10-18): upstream's `--strict-markers --strict-config` in the
+    guest. pandas `libs` gave 1,063 passed and 8 skipped, as before. numpy `test_datetime.py` and
+    `test_io.py` together gave 688 passed, 2 failed, 6 xfailed and 8 skipped. Neither raised a
+    configuration error.
 
 ## The problem
 
@@ -46,23 +79,29 @@ they found what no golden job could:
 - **carried patch 0001 changes two numpy behaviours** (saving a masked array no longer raises;
   a truncated file's message differs).
 
-This specification makes those suites a judge job: a ratcheted pass count, a fuel metric per
-group, and every failure named with its closer, so the next `os.dup` is found by the judge and
-not by a user.
+This specification makes those suites a judge job:
+- a ratcheted pass count;
+- a fuel metric per group;
+- every known failure shown on the scoreboard as a gap, by node id, with its closer.
+
+So the next `os.dup` is found by the judge and not by a user.
 
 ## Decisions
 
-1. **What runs.** numpy's and pandas' own tests, from the pinned source trees, in the
-   **snapshot** binary, through the judge's own driver (`tests/harness/guest.py`), with pytest
-   running inside the guest. One guest session per group (Decision 8), one check per group. The
-   snapshot, not the plain binary: it is the binary embedders call, its numpy and pandas are the
-   same compiled code, and the plain binary's import path is already proved by the golden jobs;
-   both would double the cost (EXECUTED cost per group, Decision 8).
+1. **What runs.** numpy's and pandas' own tests run inside the guest:
+   - from the pinned source trees;
+   - in the **snapshot** binary;
+   - through the judge's own driver (`tests/harness/guest.py`), with pytest running in the guest;
+   - one guest session per group (Decision 8).
+
+   **The snapshot, not the plain binary.** It is the binary embedders call, and its numpy and
+   pandas are the same compiled code. The plain binary's import path is already proved by the
+   golden jobs. Running both would double the cost (EXECUTED cost per group, Decision 8).
 
 2. **The test kit: seven pure-Python wheels, pinned by the judge.**
    `tests/upstream/kit.txt` holds one line per wheel, `<sha256>  <url>`, as `downloads/SHA256SUMS`
-   does (hashes recomputed from the downloads while drafting; each equals PyPI's published
-   digest):
+   does. The hashes were recomputed from the downloads while drafting; each equals PyPI's
+   published digest, and the pre-build review checked them again (EXECUTED).
 
    ```
    2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9  https://files.pythonhosted.org/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl
@@ -74,68 +113,106 @@ not by a user.
    a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0  https://files.pythonhosted.org/packages/32/46/9cb0e58b2deb7f82b84065f37f3bffeb12413f947f9388e4cac22c4621ce/sortedcontainers-2.4.0-py2.py3-none-any.whl
    ```
 
-   - **The versions.** pytest 9.0.3, the newest pytest pandas 3.0.6 accepts
-     (`pytest>=8.3.4,<9.1`, its `test` extra; READ). hypothesis 6.152.1, the version numpy 2.5.2
-     pins (`requirements/test_requirements.txt`; READ); pandas asks `>=6.116.0`. The others are
-     pytest's and hypothesis's requirements at the versions the dev group already locks
-     (`uv.lock`: pluggy 1.7.0, iniconfig 2.3.1, packaging 26.3, pygments 2.21.0) and
-     sortedcontainers 2.4.0, hypothesis's one requirement (READ: PyPI's `requires_dist`).
-   - **Not the dev group's pytest.** The judge's own pytest is 9.1.1, outside pandas' range, and
-     the guest's kit should move only when the suites need it, not when the judge's tooling
-     does.
+   - **The versions.**
+     - pytest 9.0.3 is the newest pytest pandas 3.0.6 accepts (`pytest>=8.3.4,<9.1`, its `test`
+       extra; READ).
+     - hypothesis 6.152.1 is the version numpy 2.5.2 pins (`requirements/test_requirements.txt`;
+       READ); pandas asks for `>=6.116.0`.
+     - pluggy 1.7.0, iniconfig 2.3.1, packaging 26.3 and pygments 2.21.0 are pytest's
+       requirements at the versions the dev group already locks (`uv.lock`).
+     - sortedcontainers 2.4.0 is hypothesis's one requirement (READ: PyPI's `requires_dist`).
+   - **Not the dev group's pytest.** The judge's own pytest is 9.1.1, outside pandas' range. The
+     guest's kit should move only when the suites need it, not when the judge's tooling does.
+   - **Pinned in the judge, as the oracle is.** The precedent is spec 002, Decision 11: the
+     oracle's packages are pinned in their own `uv.lock` under `tests/`, and the judge's own
+     pytest in `uv.lock`, none of them in `downloads/SHA256SUMS`. The kit is judge input, hashed,
+     and in `JUDGE_PATHS`, so a change to it is a judge change.
    - **Not in `downloads/SHA256SUMS`.** Every line there becomes a `pin` line in `MANIFEST`
-     (`scripts/assemble_artifacts.py`, the `pins` loop; READ), so test-only wheels would change
-     the artifact set and make this build-class. The kit is judge input, pinned in the judge, as
-     the oracle is (spec 002, Decision 11). It is still pinned by URL and SHA-256 and verified
-     before use (§4.2).
-   - **Fetching.** `uv run python tests/upstream/fetch.py` downloads each URL into
-     `build/upstream/wheels/` and keeps a file only if its SHA-256 matches; any mismatch deletes it
-     and exits non-zero. The judge never fetches. The harness unpacks the wheels with `zipfile`;
-     no wheel's code runs natively, only inside the guest (§4.8).
-   - **Licences** (READ, each wheel's metadata): pytest, pluggy, iniconfig MIT; packaging
-     Apache-2.0 OR BSD-2-Clause; pygments BSD-2-Clause; hypothesis MPL-2.0; sortedcontainers
-     Apache-2.0. None ships in the release or the wheel, so §4.12 does not reach them; the memo
-     records them.
+     (`scripts/assemble_artifacts.py`, the `pins` loop; READ). Test-only wheels there would
+     change the artifact set and make this build-class. The kit is still pinned by URL and
+     SHA-256 and verified before use, as §4.2 asks.
+   - **A rules line.** `test_upstream_files_are_well_formed` (Decision 17) checks every `kit.txt`
+     line:
+     - 64 hex digits, two spaces, then a `https://files.pythonhosted.org/` URL;
+     - the URL's basename is a `py3-none-any` or `py2.py3-none-any` wheel.
+   - **Fetching.** `uv run python tests/upstream/fetch.py` downloads each URL to a temporary name
+     in `build/upstream/wheels/`. It renames the file only after its SHA-256 matches; a mismatch
+     deletes it and exits non-zero. The judge never fetches.
+   - **Unpacking.** The harness unpacks the wheels with `zipfile`. It refuses an absolute member
+     name and any member with a `..` part (§4.8: downloads are untrusted, even hashed ones). No
+     wheel's code runs natively; it runs only inside the guest.
+   - **Licences** (READ, each wheel's metadata):
+     - pytest, pluggy, iniconfig: MIT;
+     - packaging: Apache-2.0 OR BSD-2-Clause;
+     - pygments: BSD-2-Clause;
+     - hypothesis: MPL-2.0;
+     - sortedcontainers: Apache-2.0.
 
-3. **Where the tests come from: the pinned source trees, copied read-only.**
-   `tests/harness/upstream.py` stages, for each guest session, a fresh folder under
-   `build/harness/upstream/` and grants it read-only at `/upstream`:
+     None ships in the release or the wheel, so §4.12 does not reach them; the memo records
+     them.
+
+3. **Where the tests come from: the source trees of the artifact's own pins, members only.**
+   Once per judge run, `tests/harness/upstream.py` stages a folder under
+   `build/harness/upstream/<run>/`. Every group and trap check grants it read-only at
+   `/upstream`:
 
    ```
    /upstream/kit/                     the seven wheels, unpacked
    /upstream/judge/drive.py           tests/upstream/drive.py
    /upstream/judge/numpy.ini          tests/upstream/numpy.ini
    /upstream/judge/pandas.ini         tests/upstream/pandas.ini
-   /upstream/tests/numpy/**/tests/    every folder named `tests` under build/numpy-2.5.2/numpy,
-                                        except under numpy/_core/src/ (vendored code's own tests)
+   /upstream/judge/<group>.json       each group's argv (Decision 8)
+   /upstream/tests/numpy/<pkg>/tests/ the test folders the groups and trap entries name, only
    /upstream/tests/pandas/conftest.py build/pandas-3.0.6/pandas/conftest.py
-   /upstream/tests/pandas/tests/      build/pandas-3.0.6/pandas/tests
+   /upstream/tests/pandas/tests/<dir> the pandas groups' folders, with pandas/tests/__init__.py
+                                        and the conftest.py files on their path
    ```
 
-   Files are copied whole (data files included), skipping `__pycache__` and the litter names the
-   harness already skips. The trees are the ones spec 020 proves equal to their pinned tarballs
-   plus the recorded patches, so the tests are the pinned release's, with patch 0001's own test
-   (`test_save_load_without_dup`) among them. **Not a test zip built by the build:** that is a
-   build step, a new build output and a build-class change, for files the judge can read where
-   they already are. **Not the product's zip:** it carries no `tests` folder (0 members,
-   EXECUTED), and must not.
-   pandas' sdist ships no `pandas/tests/io/data` (READ, `tar tzf`): those tests become skips
-   through pandas' own `--no-strict-data-files` (`pandas/conftest.py:106`; Decision 6).
+   - **Tied to the artifact under judgment.** Before staging, the harness reads the artifact's
+     `MANIFEST`. The checks **fail** (they are not blocked) when either of these holds:
+     - the `pin` line for `numpy-<v>.tar.gz` or `pandas-<v>.tar.gz` names another file or hash
+       than the tarball the source tree came from (`pins.source_pair`);
+     - the `recipe` lines for `recipes/patches/<top>/*.patch` differ from the patches in the
+       repository, which spec 020 proves are the ones the tree carries.
+
+     The failure says which, for example `tests from numpy-2.6.0.tar.gz, artifact built from
+     numpy-2.5.2.tar.gz`. A mismatch is a judge-input error, not missing tooling, so it must not
+     hide as "blocked".
+   - **Tarball members only.** The harness reads each tarball's member names once per run. It
+     stages only files whose paths are members. A recorded patch adds no file: 0001 changes two
+     existing files. Any other file found in a staged folder is left out and listed in
+     `build/progress/latest.json`, so a file a build left in a tree never runs in the guest.
+     The review counted numpy's 493 and pandas' 1,122 test files: all are tarball members today
+     (EXECUTED).
+   - **Not a test zip built by the build.** That would be a build step, a new build output and a
+     build-class change, for files the judge can read where they already are.
+   - **Not the product's zip.** The zip carries no `tests` folder (0 members, EXECUTED), and must
+     not.
+   - **pandas' missing test data.** pandas' sdist ships no `pandas/tests/io/data` (READ,
+     `tar tzf`). Those tests become skips through pandas' own `--no-strict-data-files`
+     (`pandas/conftest.py:106`; Decision 6).
 
 4. **How the guest finds them: the test folders join the product's packages.** numpy and pandas
-   are imported from the product (builtin modules and the zip). The driver appends
-   `/upstream/tests/<package path>` to the `__path__` of each package that owns a test folder,
-   before pytest starts:
-
+   are imported from the product (builtin modules and the zip). Before pytest starts, the driver
+   appends `/upstream/tests/<package path>` to the `__path__` of each package that owns a staged
+   test folder:
    - numpy: `numpy`, `numpy._core`, `numpy.lib`, `numpy.linalg`, `numpy.fft`, `numpy.random`,
      `numpy.ma`, `numpy.polynomial`, `numpy.matrixlib`, `numpy.testing`;
    - pandas: `pandas`.
 
-   So `numpy._core.tests._locales` (numpy's test folders are namespace packages; they have no
-   `__init__.py`, READ) and `pandas.tests.extension.base` import from the grant, and nothing of
-   the product is replaced (EXECUTED). One test notices: `test_public_api.py::test_api_importable`
-   finds `numpy.conftest` listed but not importable, because the product carries no
-   `numpy/conftest.py` (Decision 10's class "test-only modules").
+   So `numpy.lib.tests`, `numpy._core.tests._locales` and `pandas.tests.extension.base` import
+   from the grant, and nothing of the product is replaced (EXECUTED). Twelve of numpy's thirteen
+   test folders have an `__init__.py`; `_core/tests` has none and imports as a namespace package
+   (READ, corrected from the memo by the review's finding F11).
+
+   - **The guard.** At session end the driver writes one `M <module> <file>` line for every
+     `sys.modules` entry whose `__file__` starts with `/upstream/tests/`. Any module that is
+     neither under a `tests` package nor `pandas.conftest` is a finding: a product module came
+     from the grant. Appending keeps the product's entry first, so this cannot happen today
+     (READ); the guard makes it checked, not assumed.
+   - **One test notices the setup.** `test_public_api.py::test_api_importable` finds
+     `numpy.conftest` listed but not importable, because the product carries no
+     `numpy/conftest.py`. This is class `test-only-modules` in Decision 10.
 
 5. **pytest's options in the guest, each with its reason (EXECUTED unless marked).** The driver
    calls `pytest.main` with exactly these, then the group's own (Decision 8):
@@ -148,41 +225,63 @@ not by a user.
    | `--basetemp=/tmp/pytest` | pytest's default temporary root calls `os.getuid`, which WASI lacks (it exempts win32 and emscripten, not wasi: `_pytest/compat.py:269`, READ); every `tmp_path` test errored |
    | `-p no:cacheprovider` | the cache would be written into the read-only grant; nothing reads it (INFERRED) |
    | `--import-mode=importlib` | no `sys.path` insertion, and numpy's six `test_regression.py` files cannot clash (INFERRED; `prepend` also ran one file) |
+   | `--strict-markers --strict-config` | upstream's own `addopts`, both packages (READ); a misspelled marker fails instead of passing; EXECUTED in the revision runs with no configuration error |
    | `--rootdir=/upstream/tests -c /upstream/judge/<pkg>.ini` | node ids are `numpy/…` and `pandas/…`; the configuration is Decision 6's |
    | `-q --tb=no --no-header -rN` | the stream (Decision 11) is the record; the terminal report is not read |
 
-   The driver sets `sys.dont_write_bytecode = True` and runs under `python -u`. `/tmp` is in the
-   guest's writable root, as in every judge run (guest.py's root is writable by design). The
-   pytest-on-WASI facts (`getuid`, `/dev/null`) are pytest's to fix; drafting an upstream note
-   is outside this specification (Scope).
+   upstream's other `addopts` are left out: numpy's `-l -ra` and pandas' `--capture=no
+   --durations=30 --junitxml=…`. They shape the terminal report, which nothing reads, or write a
+   file.
 
-6. **Upstream's own configuration, transcribed.** `tests/upstream/numpy.ini` is numpy 2.5.2's
-   `pytest.ini` `filterwarnings` block (`error` and its ignores; READ) plus
-   `ignore::pytest.PytestAssertRewriteWarning` (the driver imports hypothesis before pytest, so
-   `_hypothesis_globals` cannot be rewritten; with `error` this warning stopped the run,
-   EXECUTED; pandas' own configuration ignores it). numpy's markers (`slow`, `valgrind_error`,
-   `leaks_references`, `parallel_threads`, `iterations`, `thread_unsafe`) are registered by the
-   driver, as numpy's `conftest.py` does; numpy's `conftest.py` itself is not used, because it
-   imports `numpy._core._multiarray_tests`, which the product does not link (READ, line 14).
-   `tests/upstream/pandas.ini` is pandas 3.0.6's `[tool.pytest.ini_options]` (READ): its
-   `markers`, `filterwarnings`, `xfail_strict = true` and `empty_parameter_set_mark`; not its
-   `--junitxml` or `--durations`. pandas' `conftest.py` is used as is. The pandas sessions add
-   `--no-strict-data-files`. hypothesis gets numpy's own "np.test() profile" values, registered
-   by the driver as the profile `judge`: `database=None, derandomize=True, deadline=None,
-   print_blob=True`, every health check suppressed. Derandomized and with the driver's seeded
-   random and stepped clock, a group's fuel repeats (Decision 12).
+   The driver sets `sys.dont_write_bytecode = True` and runs under `python -u`. `/tmp` is in the
+   guest's writable root, as in every judge run: `guest.py`'s root is writable by design. The
+   pytest-on-WASI facts (`getuid`, `/dev/null`) are pytest's to fix. Drafting an upstream note is
+   outside this specification (Scope).
+
+6. **Upstream's own configuration, transcribed; the hypothesis profiles stated.**
+   - **numpy.** `tests/upstream/numpy.ini` is numpy 2.5.2's `pytest.ini` `filterwarnings` block
+     (`error` and its ignores; READ), plus `ignore::pytest.PytestAssertRewriteWarning`. That
+     warning comes because the driver imports hypothesis before pytest, so `_hypothesis_globals`
+     cannot be rewritten. With `error` it stopped the run (EXECUTED); pandas' own configuration
+     ignores it.
+
+     The driver registers numpy's markers, as numpy's `conftest.py` does: `slow`,
+     `valgrind_error`, `leaks_references`, `parallel_threads`, `iterations`, `thread_unsafe`.
+     numpy's `conftest.py` itself is not used, because it imports
+     `numpy._core._multiarray_tests`, which the product does not link (READ, line 14).
+   - **pandas.** `tests/upstream/pandas.ini` is pandas 3.0.6's `[tool.pytest.ini_options]`
+     (READ): its `markers`, `filterwarnings`, `xfail_strict = true` and
+     `empty_parameter_set_mark`; not its `--junitxml` or `--durations`. pandas' `conftest.py` is
+     used as is. The pandas sessions add `--no-strict-data-files`.
+   - **The driver's profile.** The driver registers and loads the hypothesis profile `judge`
+     before pytest starts. It holds numpy's own "np.test() profile" values: `database=None,
+     derandomize=True, deadline=None, print_blob=True`, every health check suppressed.
+   - **What each session ends up using:**
+     - numpy sessions run under `judge`.
+     - pandas sessions run under pandas' own `pandas_ci`, which pandas' `conftest.py` registers
+       and loads (`max_examples=15`, two health checks suppressed; `pandas/conftest.py:206–216`).
+       It is registered while `judge` is current, so it inherits `derandomize=True` and
+       `database=None`. The review saw exactly that at collection's end (EXECUTED:
+       `derandomize=True max_examples=15 database=None`).
+
+     So both packages run their own example counts, derandomized and with no database.
+   - **The check of it.** Once collection finishes, the driver writes the active settings into
+     the stream as one line: `P derandomize=<b> database=<repr> max_examples=<n>`. A group whose
+     line shows `derandomize=False` or a database is a finding. With the driver's seeded random
+     and stepped clock, a group's fuel then repeats (Decision 12).
 
 7. **Upstream's own fast selection.** numpy sessions run `-m "not slow"`, `numpy.test()`'s
-   default (`numpy/_pytesttester.py:164`); pandas sessions run `-m "not slow and not network
-   and not db"`, `pandas.test()`'s default (`pandas/util/_tester.py:43`) (READ). Whatever
-   upstream marks slow it also leaves out of its own default run. numpy's slow tests cost 705 G
-   of its 1,207 G for 68 passes (EXECUTED).
+   default (`numpy/_pytesttester.py:164`). pandas sessions run `-m "not slow and not network and
+   not db"`, `pandas.test()`'s default (`pandas/util/_tester.py:43`) (both READ). Whatever
+   upstream marks slow, it also leaves out of its own default run. numpy's slow tests cost 705 G
+   of its 1,207 G, for 68 passes (EXECUTED).
 
 8. **The groups, and what is left out.** Each group is one guest session and one check,
    `test_upstream_suite[<group>]`, so one group's trap or failure never hides another's, and fuel
-   is a metric per group. Each group's fuel cap is about 1.5 times its drafting fuel, so a
-   runaway ends as "out of fuel", a failure (the harness default, 2×10¹¹, is too small for
-   most).
+   is a metric per group. The harness writes each group's argv into `/upstream/judge/<group>.json`
+   (paths, `--ignore`s, marker), so the guest parses no argument list of its own. Each group's
+   fuel cap is about 1.5 times its drafting fuel, so a runaway ends as "out of fuel", which is a
+   failure (the harness default, 2×10¹¹, is too small for most groups).
 
    | group | paths | passed | fuel (drafting) | cap |
    |---|---|---|---|---|
@@ -197,294 +296,486 @@ not by a user.
    | `pandas-tslibs` | `pandas/tests/tslibs` | 590 | 38.6 G | 5.8×10¹⁰ |
    | `pandas-internals` | `pandas/tests/internals` | 258 | 18.1 G | 2.8×10¹⁰ |
    | `pandas-libs` | `pandas/tests/libs` | 1,063 | 22.4 G | 3.4×10¹⁰ |
-   | **all** | | **62,569** | **1,619 G** | |
+   | **all** | | **62,569** | **1,619 G** | **2.47×10¹²** |
 
-   **numpy: all of it that can run.** Every numpy test folder is in a group except `f2py` (it
-   compiles extensions), `typing` (it runs mypy) and `_pyinstaller`. Inside the groups, these
-   files are not selected (`--ignore`), each named with its reason and closer in
+   **How the drafting numbers were made.** The numpy numbers came from explicit file lists in the
+   order `sort` gives (`test_hermite_e.py` before `test_hermite.py`). pytest collects a directory
+   in its own order, which puts those two the other way round. The builder's first run on the
+   specified argv sets the baseline. The pass counts must equal the table's; fuel may differ
+   slightly, and the landing notes give both.
+
+   **numpy: all of it that can run.** Every numpy test folder is in a group except three:
+   `f2py` (it compiles extensions), `typing` (it runs mypy) and `_pyinstaller`. Inside the
+   groups, these files are not selected (`--ignore`). Each is named with its reason and closer in
    `tests/upstream/numpy.toml`:
 
    | files | reason | closes with |
    |---|---|---|
-   | 23 files that import numpy's C test modules (`_core/tests/` `test_api`, `test_argparse`, `test_array_coercion`, `test_arrayobject`, `test_arrayprint`, `test_conversion_utils`, `test_cpu_dispatcher`, `test_deprecations`, `test_dtype`, `test_extint128`, `test_getlimits`, `test_hashtable`, `test_indexing`, `test_mem_overlap`, `test_multiarray`, `test_multithreading`, `test_nditer`, `test_numeric`, `test_scalarbuffer`, `test_scalarmath`, `test_ufunc`, `test_umath`; `lib/tests/test_stride_tricks`) | `_multiarray_tests`, `_umath_tests`, `_rational_tests`, `_operand_flag_tests` are not linked (`scripts/gen_inittab.py:27`) | `context/questions-for-the-owner.md` (question 89) |
+   | 23 files that import numpy's C test modules (`_core/tests` `test_api`, `test_argparse`, `test_array_coercion`, `test_arrayobject`, `test_arrayprint`, `test_conversion_utils`, `test_cpu_dispatcher`, `test_deprecations`, `test_dtype`, `test_extint128`, `test_getlimits`, `test_hashtable`, `test_indexing`, `test_mem_overlap`, `test_multiarray`, `test_multithreading`, `test_nditer`, `test_numeric`, `test_scalarbuffer`, `test_scalarmath`, `test_ufunc`, `test_umath`; `lib/tests/test_stride_tricks`) | `_multiarray_tests`, `_umath_tests`, `_rational_tests`, `_operand_flag_tests` are not linked (`scripts/gen_inittab.py:27`) | `context/questions-for-the-owner.md` (number 89) |
    | `test_simd.py`, `test_simd_module.py` | `_simd` is not linked | the same |
-   | `test_casting_unittests.py`, `test_arraymethod.py` | they trap the guest (Decision 9); `test_arraymethod` at collection | the research memo |
+   | `test_casting_unittests.py`, `test_arraymethod.py` | they trap the guest (Decision 9); `test_arraymethod` at collection | spec 051 |
    | `test_memmap.py` | every test needs `mmap`, which WASI lacks | `README.md` |
    | `tests/test_ctypeslib.py` | it reads `_multiarray_umath.__file__`, which a builtin module has not | `README.md` |
 
+   The scoreboard's "not machine-checked" line names what this leaves out (Decision 17).
+
    **pandas: eight groups, chosen for the product and the budget.** pandas' fast mode over all 40
-   directories costs 3,922 G (EXECUTED), about 13 minutes; too much for a judge that runs on every
-   landing. The eight are the golden job's path (`io/parser` reads CSV, `io/formats` writes it,
-   `groupby`), the frame core (`frame`, `reshape`, `internals`) and the C layers under them
-   (`libs`, `tslibs`): 1,117 G. Left out, by budget alone, with their fast-mode cost:
-   `arithmetic` 489 G, `indexes` 275 G, `extension` 275 G, `arrays` 220 G, `series` 207 G,
-   `window` 176 G, `resample` 116 G, `tseries` 107 G, `indexing` 85 G, `scalar` 79 G, `dtypes`
-   65 G, `strings` 62 G, `computation` 61 G, `tools` 52 G, `io/json` 41 G, `copy_view` 34 G,
-   `base` 31 G and smaller ones; and by cause, `io/pytables` (stops at
-   `importorskip("tables")`), `io/test_clipboard.py` (Qt fixtures), `plotting` (no matplotlib in
-   this set), `io/excel` and `io/sas` (all skips). None trapped (EXECUTED, full mode). Adding a
-   group is a judge change with its drafting numbers.
+   directories costs 3,922 G (EXECUTED). That is about 13 minutes (INFERRED from the drafting
+   machine's rate, Decision 15), too much for a judge that runs on every landing. The eight
+   groups cost 1,117 G:
+   - the golden job's path: `io/parser` reads CSV, `io/formats` writes it, and `groupby`;
+   - the frame core: `frame`, `reshape`, `internals`;
+   - the C layers under them: `libs`, `tslibs`.
 
-   **The budget.** All groups and traps together stay under 1.8×10¹² fuel; a change that grows
-   past it says why. On the drafting machine that is about six minutes (a benchmark fact:
-   numpy `lib` took 25.4 s and pandas `reshape` 30.7 s, compile included).
+   **Left out by budget alone**, with their fast-mode cost: `arithmetic` 489 G, `indexes`
+   275 G, `extension` 275 G, `arrays` 220 G, `series` 207 G, `window` 176 G, `resample` 116 G,
+   `tseries` 107 G, `indexing` 85 G, `scalar` 79 G, `dtypes` 65 G, `strings` 62 G,
+   `computation` 61 G, `tools` 52 G, `io/json` 41 G, `copy_view` 34 G, `base` 31 G, and
+   smaller ones.
 
-9. **Tests that trap the guest are deselected, and each is checked to still trap.** A trap ends
-   the session, so a trapping test cannot run in its group. `tests/upstream/numpy.toml` lists
-   each as a `[[trap]]` entry: a node id or node-id prefix, the trap's cause, the reason and the
-   closer. The group passes them to pytest as `--deselect` (a prefix deselects every
-   parametrization, EXECUTED). Two whole files are `--ignore`d (Decision 8). Then
-   `test_upstream_trap_still_traps[<id>]` runs each entry alone in its own session (cap 5×10¹⁰)
-   and asserts: the guest trapped, the trap's cause is `indirect call type mismatch`, and the last
-   test the stream started (Decision 11) begins with the entry's node id. A trap that no longer
-   traps fails the check with "remove the entry", so a fix is seen the day it lands.
+   **Left out by cause:**
+   - `io/pytables` stops at `importorskip("tables")`;
+   - `io/test_clipboard.py` needs Qt fixtures;
+   - `plotting` has no matplotlib in this set;
+   - `io/excel` and `io/sas` are all skips.
+
+   None trapped (EXECUTED, full mode). Adding a group is a judge change, with its drafting
+   numbers.
+
+   **The budget (two rules).**
+   - **Caps.** The groups' caps and the trap checks' caps (Decision 9) sum to at most 3×10¹².
+     Today they sum to 2.47×10¹² + 7 × 5×10¹⁰ = 2.82×10¹². The rules check enforces it
+     (Decision 17).
+   - **Fuel spent.** The fuel the checks actually use stays under 1.8×10¹² (1.62×10¹² measured).
+     This is a review rule. Each landing's notes sum the 18 checks' recorded `fuel` metrics and
+     say why if the sum is over.
+
+9. **Tests that trap the guest are deselected, and each is a gap until fixed.** A trap ends the
+   session, so a trapping test cannot run in its group. `tests/upstream/numpy.toml` lists each as
+   a `[[trap]]` entry: a node id or node-id prefix, the reason and the closer.
+   - **In the group.** The group passes each entry to pytest as `--deselect` (a prefix
+     deselects every parametrization, EXECUTED). Two whole files are `--ignore`d instead
+     (Decision 8).
+   - **The trap check.** `test_upstream_trap[<id>]` runs each entry alone in its own session
+     (cap 5×10¹⁰). It asserts the run completes without a trap. While the defect lasts it fails
+     with one finding, `trap: <cause> at <node>`. The node is the last `S` (test) or `C`
+     (collector) line in the stream with no matching `R` or `X` line. A trap at collection names
+     its collector this way (the review's F5).
+   - **The gap.** Each trap check is one gap in `tests/known_gaps.toml`. Its `match` is that one
+     finding's count and digest, and it closes with spec 051, which fixes all four functions. So
+     a different cause, or a trap at another test, is red. When the fix lands, the check passes
+     and spec 002's rule says "remove the gap".
 
    | id | node id (prefix) or file | the C function (numpy 2.5.2, READ) |
    |---|---|---|
    | `castingimpl-casting-unittests` | `numpy/_core/tests/test_casting_unittests.py` | `_get_castingimpl(module, args)`, `convert_datatype.c:248`, registered `METH_VARARGS \| METH_KEYWORDS` |
-   | `castingimpl-arraymethod` | `numpy/_core/tests/test_arraymethod.py` | the same (INFERRED: frame 0 `cfunction_call`, at collection) |
+   | `castingimpl-arraymethod` | `numpy/_core/tests/test_arraymethod.py` | the same (INFERRED from frame 0 `cfunction_call`, at collection; the builder records frame 0 from `trap_cause` and marks it EXECUTED) |
    | `castingimpl-stringdtype` | `numpy/_core/tests/test_stringdtype.py::test_cast_method_names` | the same |
    | `descr-set-records` | `numpy/_core/tests/test_records.py::TestRecord::test_assign_dtype_attribute` | `array_descr_set(self, arg)`, `getset.c:388`, a setter |
    | `descr-set-stringdtype` | `numpy/_core/tests/test_stringdtype.py::test_view_distinct_instance` | the same |
    | `gentype-copy` | `numpy/_core/tests/test_regression.py::TestRegression::test_scalar_copy` | `gentype___copy__(self)`, `scalartypes.c.src:2128`, `METH_NOARGS` |
    | `sfloat-reduce` | `numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load` | `sfloat___reduce__(self)`, `_scaled_float_dtype.c:192`, `METH_NOARGS` |
 
-   Each closes with the research memo, which names the follow-up: a carried patch (§4.1) fixing
-   the four signatures, with its upstream pull request drafted. With the traps deselected the
-   `numpy-core` group ran to its end (EXECUTED). `tests/upstream/pandas.toml` has no trap entry:
-   pandas trapped nowhere, in full mode (EXECUTED).
+   With the traps deselected, the `numpy-core` group ran to its end (EXECUTED).
+   `tests/upstream/pandas.toml` has no trap entry: pandas trapped nowhere, in full mode
+   (EXECUTED).
 
-10. **Expected failures are classes, strict both ways.** A test that runs and fails for a known
-    reason is admitted by an `[[expected]]` class in the package's TOML, never by an `xfail`
-    marker or a `known_gaps.toml` entry. A class has: `id`; `group`; `outcome` (`failed` or
-    `error`); either `match` (a regular expression searched in the one-line reason) or `nodes`
-    (an explicit list of node ids); `count`; `digest` (the first 12 hex digits of the SHA-256 of
-    the sorted node ids, one per line); `reason` (one line); `closes_with` (an existing path under
-    `context/` or `README.md`, as spec 002's gaps). The check sorts each failed or errored test
-    into the first class of its group that matches; then:
-    - a test no class takes is a finding: `unexpected <outcome> <node id> — <reason>`;
-    - a class whose tests differ from its `count` and `digest` is a finding:
-      `class <id>: expected <n> (<digest>), saw <m> (<digest>)`. One more or one fewer is red, so
-      a fix shows ("remove or shrink the class"), and a new failure that happens to match a
-      class's text still changes its digest;
-    - a collection error, an `INTERNALERROR`, a pytest exit code other than 0 or 1, a missing end
-      line, a trap or "out of fuel" is a finding, never admitted;
-    - a pass, a skip, an `xfail` and a non-strict `xpass` are upstream's own outcomes and not
-      findings; pandas' strict `xpass` arrives as `failed` (`[XPASS(strict)]`) and needs a class.
+10. **Known failures are classes, each one gap, listed by node id.** A test that runs and fails
+    for a known reason belongs to a class. It is never admitted by an `xfail` marker. Each class
+    is admitted the way spec 002 admits every known failure: as a gap with its closer, on the
+    scoreboard (the review's F1).
+    - **Definition.** A class is an `[[expected]]` entry in the package's TOML: `id`, `group`,
+      `outcome` (`failed` or `error`), `match` (a regular expression searched in the one-line
+      reason), `reason`, `closes_with`.
+    - **Its members.** They are listed, one sorted node id per line, in
+      `tests/upstream/expected/<group>/<class>.txt` (268 lines in all today). A `git diff` of a
+      list shows exactly which tests were admitted or released (the review's F3).
+    - **Sorting.** The group's run sorts each failed or errored test into the first class of its
+      group whose `outcome` and `match` fit.
+    - **The group check, `test_upstream_suite[<group>]`.** It passes when every failure and error
+      falls in a class, and the protocol holds. Its findings are:
+      - a failure no class takes: `unexpected <outcome> <node id> — <reason>`;
+      - a collection error;
+      - an `INTERNALERROR`;
+      - a pytest exit code other than 0 or 1;
+      - a missing `E` line;
+      - a trap, or "out of fuel";
+      - the profile (Decision 6) or the module guard (Decision 4) failing.
 
-    The check reports `N finding(s), digest <12 hex>` (spec 002, Decision 4), so the usual gap
-    machinery still works for a whole check if ever needed. Why classes, not spec 002's gaps
-    alone: a gap admits one check's findings under one closer, and a group's failures have
-    several closers (the README's platform facts, the memo's defects, question 89). Why not a
-    per-test list: 193 of pandas' failures are one cause, and the digest pins the exact set
-    without a 193-line entry. The classes the drafting runs found, by group (EXECUTED; the
-    builder writes each digest from the first run on the frozen set and reviews that the run
-    matches these counts):
+      None of these is ever admitted by a class. The group check passes only when nothing is
+      unknown, so it admits nothing by itself.
+    - **The class check, `test_upstream_class[<group>-<class>]`.** It reads the group's result
+      through a session cache, so the guest runs once per group per judge run. It compares the
+      class's actual members with its list file:
+      - **The list is exact.** The check fails with one finding per member, the node id itself.
+        Its gap admits exactly that set by count and digest (spec 002, Decision 4).
+      - **The list is wrong.** The findings also name each id added (`+<node id>`) and removed
+        (`-<node id>`). So the digest no longer matches the gap, and the check is red with the
+        names in its message. The fix edits the list and the gap together; the review sees the
+        names.
+      - **The class is empty.** The check passes, and its gap fails with spec 002's "remove the
+        gap".
+    - **What it gives.** The scoreboard shows each class as a gap under its closer, in
+      `gaps close with:` and in `next:`. A fix lands as spec 002 says every fix lands: a gap
+      becomes a pass. pass, skip, `xfail` and non-strict `xpass` are upstream's own outcomes, not
+      class members. pandas' strict `xpass` arrives as `failed` with `[XPASS(strict)]` and needs a
+      class if it occurs.
 
-    | group | class | outcome | count | match / nodes | closes with |
+    The classes the drafting runs found, by group (EXECUTED; the review recounted each with
+    these expressions, EXECUTED). The builder writes each list from the first run on the frozen
+    set, and the review compares the lists with these counts:
+
+    | group | class | outcome | count | match | closes with |
     |---|---|---|---|---|---|
     | `numpy-core` | `no-dup` | failed | 8 | `OSError: \[Errno 58\] Not supported` | `README.md` |
     | `numpy-core` | `no-dup-file-left-open` | error | 3 | `PytestUnraisableExceptionWarning: Exception ignored while finalizing file` | `README.md` |
     | `numpy-core` | `no-processes` | failed | 3 | `wasi does not support processes` | `README.md` |
-    | `numpy-core` | `test-only-modules` | failed | 1 | nodes: `test_numerictypes.py::Test_sctype2char::test_third_party_scalar_type` | question 89 |
+    | `numpy-core` | `test-only-modules` | failed | 1 | `No module named 'numpy\._core\._rational_tests'` | `context/questions-for-the-owner.md` |
     | `numpy-lib` | `no-mmap` | failed | 5 | `mmap is unavailable` | `README.md` |
     | `numpy-lib` | `no-dev-null` | failed | 1 | `No such file or directory: '/dev/null'` | `README.md` |
-    | `numpy-lib` | `patch-0001-truncated-message` | failed | 1 | nodes: `numpy/lib/tests/test_format.py::test_file_truncated` | the memo |
+    | `numpy-lib` | `patch-0001-truncated-message` | failed | 1 | `Regex pattern did not match` | spec 051 |
     | `numpy-others` | `no-ctypes` | failed | 8 | `ctypes is unavailable` | `README.md` |
-    | `numpy-others` | `patch-0001-masked-save` | failed | 1 | nodes: `numpy/ma/tests/test_core.py::TestMaskedArray::test_maskedarray_tofile_raises_notimplementederror` | the memo |
-    | `numpy-others` | `test-only-modules` | failed | 2 | nodes: `numpy/tests/test_public_api.py::test_NPY_NO_EXPORT`, `…::test_api_importable` | question 89 |
-    | `numpy-others` | `zip-code-names` | failed | 1 | nodes: `numpy/testing/tests/test_utils.py::test_suppress_warnings_module` | the memo |
-    | `pandas-frame` | `zip-code-names` | failed | 21 | `Warning not set with correct stacklevel` | the memo |
-    | `pandas-groupby` | `zip-code-names` | failed | 71 | the same | the memo |
-    | `pandas-reshape` | `zip-code-names` | failed | 7 | the same | the memo |
-    | `pandas-io-parser` | `zip-code-names` | failed | 73 | the same | the memo |
+    | `numpy-others` | `patch-0001-masked-save` | failed | 1 | `DID NOT RAISE <class 'NotImplementedError'>` | spec 051 |
+    | `numpy-others` | `test-only-modules` | failed | 2 | `not really public but looked public\|has no attribute '_multiarray_tests'` | `context/questions-for-the-owner.md` |
+    | `numpy-others` | `zip-code-names` | failed | 1 | `^AssertionError: ?$` | spec 051 |
+    | `pandas-frame` | `zip-code-names` | failed | 21 | `Warning not set with correct stacklevel` | spec 051 |
+    | `pandas-groupby` | `zip-code-names` | failed | 71 | the same | spec 051 |
+    | `pandas-reshape` | `zip-code-names` | failed | 7 | the same | spec 051 |
+    | `pandas-io-parser` | `zip-code-names` | failed | 73 | the same | spec 051 |
     | `pandas-io-parser` | `no-mmap` | failed | 40 | `mmap is unavailable` | `README.md` |
-    | `pandas-io-formats` | `zip-code-names` | failed | 21 | `Warning not set with correct stacklevel` | the memo |
+    | `pandas-io-formats` | `zip-code-names` | failed | 21 | `Warning not set with correct stacklevel` | spec 051 |
     | `pandas-tslibs` | `no-processes` | failed | 1 | `wasi does not support processes` | `README.md` |
 
-    Totals: numpy 31 failed and 3 errors, pandas 234 failed, matching the drafting runs. `README.md`
-    is the closer only for a fact the README states (a permanent platform fact); the README gains
-    the one it lacks, `/dev/null` (Decision 17).
+    That is 18 classes and 18 gaps. numpy has 31 failed and 3 errors; pandas has 234 failed. A
+    generic `match` (the bare `AssertionError: `) is safe: any other test that fails that way
+    joins the class, shows as `+<node id>`, and turns red. **Closers:**
+    - `README.md` closes only a fact the README states (a permanent platform fact). The README
+      gains the one it lacks, `/dev/null` (Decision 18).
+    - Spec 051 closes the defects it fixes. If 051 is not yet in the repository when this is
+      built, the memo stands in, and 051 moves the closers when it lands.
+    - The flaky-looking `no-dup-file-left-open` errors are unraisable-exception reports, which
+      pytest attaches to whichever test runs when the file is collected. Its list names the three
+      `test_fromfile*` nodes; if another test's change moves them, the `+`/`-` lines show it.
 
 11. **The outcome stream.** The driver writes `/tmp/upstream/outcomes.txt` in the guest's
-    writable root, flushing every line: `S <node id>` when a test starts; `R <outcome> <node id>
-    -- <reason>` for every outcome (passes included; the reason is the crash message's first line,
-    or a skip's reason, at most 200 characters, newlines replaced); `X <node id> -- <reason>` for
-    a collection error; `E <pytest exit code>` last. The host reads it from the run's root after
-    the guest returns, so nothing depends on the guest's stdout buffering or size. On a trap the
-    last `S` line with no `R` line names the test that trapped. The reason is the class's input,
-    so it never contains host paths: the grant's paths are guest paths (`/upstream/…`).
+    writable root, flushing every line:
 
-12. **Metrics: fuel per group, and a pass count that must not fall.** Each group check records
-    `fuel` (the ratchet's 0.01% applies: the drafting runs repeated within 221 instructions in
-    131 G and 68 in 101 G, EXECUTED) and a new metric, **`passes`**: the number of `R passed`
-    lines. The harness learns it: `metric("passes", n)` is allowed (`plugin.py`); in the ratchet
-    (`scoreboard.py`), a `passes` value **below** the accepted one on the same platform is red,
-    with the line `<node>: passes <old> -> <new>`; acceptance keeps the **maximum** of the old and
-    new values, and a fall is accepted only with `--accept-growth "<why>"` (the flag already means
-    "a metric moved the wrong way, and here is why"). So no pass is lost quietly, even to a skip
-    or a deselection (rule 5). `build/progress/latest.json` carries each group's `passes` with its
-    other metrics; `context/progress/README.md` documents the metric.
+    | line | written when |
+    |---|---|
+    | `C <collector node id>` | a collector starts (`pytest_collectstart`) |
+    | `S <node id>` | a test starts |
+    | `R <outcome> <node id> -- <reason>` | every outcome, passes included; the reason is the crash message's first line, or a skip's reason, at most 200 characters, newlines replaced |
+    | `X <node id> -- <reason>` | a collection error |
+    | `P derandomize=… database=… max_examples=…` | collection ends (Decision 6) |
+    | `M <module> <file>` | at session end, for each module from `/upstream/tests/` (Decision 4) |
+    | `E <pytest exit code>` | last |
 
-13. **The needs.** The group and trap checks call `need("snapshot binary", "stdlib zip",
-    "manifest", "wasmtime-py", "source tree numpy" or "source tree pandas", "upstream kit")`.
-    `upstream kit` is new (`needs.py`): met when every file of `tests/upstream/kit.txt` is in
-    `build/upstream/wheels/` with its SHA-256; provided by this specification. Like `oracle` and
-    the source trees it is local tooling, not a protected need: an accepted pass blocked by it is
-    "unrun locally", reported, not red (spec 002, Decision 6). The lane's main tree holds the
-    source trees and fetches the kit once; the landing notes say so.
+    The host reads the file from the run's root after the guest returns, so nothing depends on
+    the guest's stdout buffering or size. On a trap, the last `S` or `C` line with no `R` or `X`
+    line names the test or collector that trapped. The reason is the class's input, so it never
+    contains host paths: the grant's paths are guest paths (`/upstream/…`).
+
+12. **Metrics: fuel per group, and a pass count with its own ratchet and flag.**
+    - **Fuel.** Each group check records `fuel`, and the ratchet's 0.01% applies. The drafting
+      runs repeated within 221 instructions in 131 G and 68 in 101 G, and the review's pair to
+      the instruction (EXECUTED).
+    - **Passes.** Each group check records a new metric, **`passes`**: the number of `R passed`
+      lines. The harness learns it as follows (the review's F2):
+      - **Recording.** `metric("passes", n)` is allowed (`plugin.py`).
+      - **A fall.** In the ratchet (`scoreboard.py`), a `passes` value below the accepted one on
+        the same platform goes to its own list, `fewer`, not to `growth`. It is red. It prints as
+        `FEWER <node>: passes <old> -> <new>`, before any `GREW` line, and is never cut.
+      - **A rise.** A higher value goes to its own reported list, `more`. It is not in `gained`,
+        which counts checks.
+      - **Accepting a fall.** It needs its own flag, `--accept-fewer-passes "<why>"`. The reason
+        is recorded in its own `history.jsonl` field, `fewer_reason`. `--accept-growth` does not
+        accept it: one unrelated growth must not carry a lost pass.
+      - **Without the flag,** acceptance keeps the maximum of the old and new values. With it,
+        the new value is kept.
+    - **A substitution.** A count cannot see one test move from pass to skip while another moves
+      from skip to pass. So each group also records `passed_digest`, the 12 hex digits of the
+      sorted passing ids, in `build/progress/latest.json`. It is reported, not ratcheted. What
+      this decision promises is that **no fall in the number of passes goes unaccepted** (the
+      review's F12).
+    - **Documentation.** `context/progress/README.md` documents the metric, the list and the
+      flag.
+
+13. **The needs, and acceptance with these checks unrun.** The group, class and trap checks call
+    `need("snapshot binary", "stdlib zip", "manifest", "wasmtime-py", "source tree numpy" or
+    "source tree pandas", "upstream kit")`.
+    - **The new need.** `upstream kit` is new (`needs.py`): it is met when every file of
+      `tests/upstream/kit.txt` is in `build/upstream/wheels/` with its SHA-256. This
+      specification provides it.
+    - **Local tooling, not protected.** Like `oracle` and the source trees, it is local tooling:
+      an accepted pass blocked by it is "unrun locally", reported, not red (spec 002, Decision 6).
+      So a run without the kit, such as the release workflow's, stays green.
+    - **But not at acceptance** (the review's F9). `--accept` refuses while any check in
+      `tests/checks/test_v1_3_upstream_suites.py` that has an accepted pass or gap is unrun
+      locally, unless `--partial "<why>"` is given. `--partial` prints on the scoreboard and is
+      recorded. Without this, the lane could accept a change that breaks what the suites catch,
+      on a machine that lost `build/upstream/wheels/`, and keep the old `passes`. This is a
+      judge change only (`scoreboard.py`), not a `scripts/` change.
+    - **The lane rule** in `context/progress/README.md`: the landing notes cite the scoreboard's
+      ratchet line showing `unrun locally 0`.
+    - **A MANIFEST mismatch fails** (Decision 3); it is never a need.
 
 14. **The trap's cause, kept.** `guest.Result.trapped` keeps today's first line, and `Result`
     gains `trap_cause`: the text after the trap message's `Caused by:` line (`wasm trap:
-    indirect call type mismatch`), or `None`. Today's first line is "error while executing at wasm
-    backtrace:" for every such trap (EXECUTED), which cannot tell one cause from another.
+    indirect call type mismatch`), or `None`. Today's first line is "error while executing at
+    wasm backtrace:" for every such trap (EXECUTED), which cannot tell one cause from another.
 
-15. **Marked `slow`, in the full judge.** The group and trap checks are `slow`, like the golden
-    jobs: `uv run pytest -m "not slow"` skips them, the full `uv run pytest` and so the lane runs
-    them. About six minutes on the drafting machine (Decision 8's benchmark fact); the release dry
-    run does not run them, since its workflow is not changed (Scope).
+15. **Marked `slow`, in the full judge.** The group, class and trap checks are `slow`, like the
+    golden jobs. `uv run pytest -m "not slow"` skips them; the full `uv run pytest`, and so the
+    lane, runs them. The release dry run does not run them: its workflow is not changed (Scope).
+    - **The cost** (a benchmark fact, the review's F15). On the drafting machine, the numpy
+      `lib` group took 25.4 s and pandas `reshape` 30.7 s, compile included: about 5 G fuel a
+      second. So the 1.62 T is about six minutes (INFERRED). The lane's last full judges took
+      180 s, 239 s and 538 s, so the full judge roughly doubles.
+    - **The landing notes** record the full judge's time before and after.
+    - **The knob** if it is too much is the pandas groups, never the strictness.
 
-16. **Not build-class.** No file under `scripts/` or `recipes/`, no line of
-    `downloads/SHA256SUMS`, no release workflow, no rebuild. It is a judge change: every new and
-    changed file is under `tests/` (or is the scoreboard's README), so acceptance takes
-    `--accept-judge`. The pre-build design review is asked for in the status line because the
-    `passes` metric and the classes change how the judge admits failure.
+16. **Not build-class.**
+    - **What it does not touch:** no file under `scripts/` or `recipes/`, no line of
+      `downloads/SHA256SUMS`, no release workflow, no rebuild.
+    - **What it is:** a judge change. Every new and changed file is under `tests/`, or is
+      documentation (`context/progress/README.md`, `AGENTS.md`, spec 002's amendment lines, the
+      README, the CHANGELOG, the memo's correction). So acceptance takes `--accept-judge`.
 
-17. **What the README and the CHANGELOG say.** README: the platform paragraph gains "no
-    `/dev/null`" (`os.devnull` names a path that does not exist), and a short "Known defects"
-    list until each closes: `copy.copy` of a numpy scalar, `__copy__` on one, and assigning
-    `ndarray.dtype` end the call in a trap, not an exception; pandas' warnings name a pandas file,
-    not the caller's line; `np.save` of a masked array writes its data without its mask instead
-    of raising. "Measured" gains a row: numpy's and pandas' own tests, 62,569 passing in the
-    guest (the accepted count). The scoreboard's "not machine-checked" line drops "numpy/pandas
-    test subsets". CHANGELOG: one line under the next alpha's "Judge" heading.
+17. **The rules check, and what the scoreboard says it does not check.**
+    `test_upstream_files_are_well_formed` (rules, fast) checks:
+    - every `kit.txt` line (Decision 2);
+    - every `closes_with` exists;
+    - every class has a non-empty list file, sorted and unique, and a gap entry in
+      `known_gaps.toml`;
+    - every trap entry has its gap;
+    - ids are unique per group;
+    - every group's paths and every `not_selected` and `trap` file are tarball members, when the
+      need is met;
+    - the caps' sum is at most 3×10¹² (Decision 8).
 
-18. **The follow-ups this opens, by name, so nothing is left open here.** Each closer above is
-    an existing path when this lands: the memo (written with this specification), `README.md`,
-    and question 89. The memo names three follow-up specifications, each its own work: a carried
-    patch for the four numpy C signatures (Decision 9's table) with its pull request drafted;
-    the zip's code objects compiled under the name they are imported by (a `scripts/` change,
-    build-class); patch 0001's draft amended for its two behaviours. When one lands, it edits the
-    classes or trap entries it closes, as a judge change, and the `passes` metric rises.
+    The scoreboard's "not machine-checked" line drops "numpy/pandas test subsets". It gains
+    "numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups", so
+    the line says exactly what is left.
+
+18. **What the README and the CHANGELOG say.**
+    - **README, the platform paragraph,** gains "no `/dev/null`" (`os.devnull` names a path that
+      does not exist).
+    - **README, a short "Known defects" list,** until each closes:
+      - `copy.copy` of a numpy scalar, `__copy__` on one, and assigning `ndarray.dtype` end the
+        call in a trap, not an exception;
+      - pandas' warnings name a pandas file, not the caller's line;
+      - `np.save` of a masked array writes its data without its mask instead of raising.
+    - **README, "Measured,"** gains a row: numpy's and pandas' own tests, 62,569 passing in the
+      guest (the accepted count), and the number of gaps.
+    - **CHANGELOG:** one line under the next alpha's "Judge" heading.
+
+19. **Spec 002, amended by dated lines, as spec 029 amended its Decision 5.** Spec 002's states
+    (Decision 3) and gaps (Decision 4) are not changed: the classes and traps are ordinary gaps.
+    The amendment lines say this:
+    - **Decision 5 (needs):** the need `upstream kit`, provided by spec 050.
+    - **Decisions 6 and 7 (ratchet, acceptance):**
+      - the `fewer` and `more` lists;
+      - `--accept-fewer-passes` and its `history.jsonl` field `fewer_reason`;
+      - the refusal to accept with these checks unrun locally unless `--partial`.
+    - **Decision 8 (metrics):** `passes`, which must not fall; acceptance keeps the maximum.
+    - **Decision 17 (not machine-checked):** the line's new text.
+
+    `AGENTS.md` rule 4 names `tests/upstream/*.toml` and `tests/upstream/expected/` beside
+    `tests/known_gaps.toml`, as files the judge's acceptance must justify. So does
+    `context/progress/README.md`.
+
+20. **How the builder runs the groups in a worktree** (the review's F7). In a worktree outside
+    the repository (§4.14), `paths.BUILD` and `paths.DOWNLOADS` are the worktree's own, so the
+    source-tree needs are unmet and every check here would be blocked. The builder therefore,
+    before judging:
+    - **Links the inputs.** It makes read-only links in the worktree to the main tree's
+      `downloads/numpy-2.5.2.tar.gz`, `downloads/pandas-3.0.6.tar.gz`, `build/numpy-2.5.2` and
+      `build/pandas-3.0.6`.
+    - **Fetches the kit.** It runs `uv run python tests/upstream/fetch.py` in the worktree, or
+      links `build/upstream/wheels`.
+    - **Points at the frozen set.** It sets `WASI_PYTHON_ARTIFACTS` to the frozen set its class
+      allows (rule 6a).
+
+    It confirms that the judge's conftest walk and `dirty_path` ignore the links (`build/` and
+    `downloads/` are in `NOT_SOURCE`; READ). Its landing notes record the scoreboard line showing
+    the 37 checks ran (11 groups, 18 classes, 7 traps, 1 rule). Criteria 2, 3 and 7 are run
+    there, and the lane re-runs them in the main tree.
 
 ## Intent
 
-The judge runs numpy's and pandas' own tests inside the guest, counts every pass, names every
-failure with what will close it, and turns red when a pass is lost, a failure appears, or a
-known failure goes away unrecorded.
+The judge runs numpy's and pandas' own tests inside the guest and counts every pass. It shows
+every known failure as a gap with what will close it, listed by node id. It turns red when a
+pass is lost, a failure appears, or a known failure goes away unrecorded.
 
 ## Design
 
 ```
 tests/upstream/kit.txt               the seven wheels: "<sha256>  <url>" (Decision 2)
-tests/upstream/fetch.py              downloads the kit into build/upstream/wheels/, verifying each
-                                       hash; never run by the judge
-tests/upstream/drive.py              guest side: kit on sys.path, test folders on the packages'
-                                       __path__ (Decision 4), hypothesis profile `judge`, markers,
-                                       pytest.main with Decision 5's options, the outcome stream
-                                       (Decision 11)
+tests/upstream/fetch.py              downloads the kit into build/upstream/wheels/ (temporary name,
+                                       renamed after the hash matches); never run by the judge
+tests/upstream/drive.py              guest side: kit on sys.path; test folders on the packages'
+                                       __path__ (Decision 4); hypothesis profile `judge`; markers;
+                                       pytest.main with Decision 5's options and the group's JSON;
+                                       the outcome stream (Decision 11)
 tests/upstream/numpy.ini             numpy's pytest.ini filterwarnings, plus one ignore (Decision 6)
 tests/upstream/pandas.ini            pandas' [tool.pytest.ini_options], less junit and durations
-tests/upstream/numpy.toml            marker; packages for __path__; [groups.<name>] paths and
-                                       fuel caps; [[not_selected]]; [[trap]]; [[expected]]
+tests/upstream/numpy.toml            marker; packages for __path__; [groups.<name>] paths and fuel
+                                       caps; [[not_selected]]; [[trap]]; [[expected]]
 tests/upstream/pandas.toml           the same for pandas (no trap entries)
-tests/harness/upstream.py            load and validate the TOML; stage /upstream (Decision 3);
-                                       build each group's argv; run it through guest.run with a
-                                       read-only grant at /upstream; parse the stream; sort into
-                                       classes; findings; passes
+tests/upstream/expected/<group>/<class>.txt
+                                     each class's sorted node ids (Decision 10)
+tests/harness/upstream.py            load and validate the TOML; the MANIFEST tie and the member
+                                       filter; stage /upstream once per run (Decision 3); run a
+                                       group through guest.run with a read-only grant; parse the
+                                       stream; sort into classes; findings; passes; a session
+                                       cache of group results
 tests/harness/guest.py               Result.trap_cause (Decision 14)
 tests/harness/needs.py               the need "upstream kit"
-tests/harness/plugin.py              metric("passes", n) allowed
-tests/harness/scoreboard.py          passes: red when it falls; accept keeps the maximum;
-                                       NOT_MACHINE_CHECKED without "numpy/pandas test subsets"
+tests/harness/plugin.py              metric("passes", n) allowed; --accept-fewer-passes
+tests/harness/scoreboard.py          the fewer and more lists; FEWER lines; accept keeps the
+                                       maximum unless the flag; fewer_reason; refusal when these
+                                       checks are unrun locally; NOT_MACHINE_CHECKED's new text
 tests/checks/test_v1_3_upstream_suites.py
                                      test_upstream_suite[<group>] (11, slow)
-                                     test_upstream_trap_still_traps[<id>] (7, slow)
-                                     test_upstream_expectations_are_well_formed (rules, fast)
-tests/unit/test_upstream.py          the stream parser, the sorting into classes, the digest, the
-                                       argv, on fixed inputs; no guest
-context/progress/README.md           the passes metric
-README.md, CHANGELOG.md              Decision 17
+                                     test_upstream_class[<group>-<class>] (18, slow, gaps today)
+                                     test_upstream_trap[<id>] (7, slow, gaps today)
+                                     test_upstream_files_are_well_formed (rules, fast)
+tests/known_gaps.toml                25 entries: 18 classes, 7 traps
+tests/unit/test_upstream.py          the stream parser, the sorting, the class lists' +/- findings,
+                                       the trap node from S or C lines, the MANIFEST tie, the member
+                                       filter, the safe unzip, the argv, on fixed inputs; no guest
+tests/unit/test_scoreboard.py        the passes metric, FEWER, the flag, the refusal (criterion 6)
+context/progress/README.md, AGENTS.md, spec 002 (amendment lines), README.md, CHANGELOG.md
 context/research/2026-10-18-numpy-and-pandas-own-tests-in-the-guest.md
-                                     the memo, with its evidence folder
+                                     a dated correction (the __init__.py sentence; the driver file)
 ```
 
-A group's run, in order: stage `/upstream`; argv = `-u /upstream/judge/drive.py <package>
-<group>`, the driver reading the group's paths, `--ignore`s, `--deselect`s and marker from a
-JSON file the harness writes into the grant (so no argument parsing is duplicated in the
-guest); `guest.run(snapshot, argv, workdir, stdlib, env={"TMPDIR": "/tmp", "HOME": "/tmp"},
-fuel=<cap>, preopens=[("/upstream", <stage>, False)])`; read the stream; findings; record
-`fuel` and `passes`; assert no finding.
+**A group's run, in order:**
+1. Stage `/upstream` once per judge run, after the MANIFEST tie.
+2. Build the argv: `-u /upstream/judge/drive.py <package> <group>`.
+3. Run it: `guest.run(snapshot, argv, workdir, stdlib, env={"TMPDIR": "/tmp", "HOME": "/tmp"},
+   fuel=<cap>, preopens=[("/upstream", <stage>, False)])`.
+4. Read the stream.
+5. Sort the failures into classes.
+6. Record `fuel` and `passes`.
+7. Cache the result for the group's class checks.
+8. Assert no finding.
 
 ## Scope
 
-In: numpy's test folders as Decision 8 groups them, and the eight pandas groups; the test kit
-pinned and fetched by the judge; the trap entries and their check; the expected classes; the
-`passes` metric; the need; README, CHANGELOG, the scoreboard's line; the memo.
+In:
+- numpy's test folders, as Decision 8 groups them, and the eight pandas groups;
+- the test kit, pinned and fetched by the judge;
+- the trap entries and their gaps;
+- the classes, their lists and their gaps;
+- the `passes` metric, its list and its flag;
+- the need and the acceptance refusal;
+- README, CHANGELOG, AGENTS.md rule 4, spec 002's amendment lines, and the memo's correction.
 
 Out:
-- **Fixing what the suites found.** The four C signatures, the zip's code names and patch 0001's
-  behaviours are follow-up specifications (Decision 18).
-- **numpy's C test modules** and the 25 files that need them: question 89.
-- **The plain binary.** Decision 1.
-- **The rest of pandas** (2.8 T fuel in fast mode) and numpy's slow tests: by budget; each can
-  be added later as a judge change with its numbers.
-- **The release workflow.** These checks do not run in the release dry run; adding the kit and
-  the source trees there is a build-class change of its own.
-- **Other packages' suites** (matplotlib, scipy, tier A): each package's own specification may
+- **Fixing what the suites found.** Spec 051 fixes the four C signatures (with two more its scan
+  found), the zip's code names and patch 0001's behaviours.
+- **numpy's C test modules** and the 25 files that need them: the owner's (number 89).
+- **The plain binary** (Decision 1).
+- **The rest of pandas** (2.8 T fuel in fast mode) **and numpy's slow tests:** left out by
+  budget. Each can be added later as a judge change with its numbers.
+- **The release workflow.** These checks are blocked there, since the kit and the source trees
+  are absent. Before a release, someone should confirm that `history.jsonl` holds an accepted
+  run of these checks on the release's artifact hash, as `three systems` does for platforms.
+  Making that a rule is a later, build-class change to the release rules. This specification
+  only records it, in `context/progress/README.md`.
+- **Other packages' suites** (matplotlib, scipy, tier A). Each package's own specification may
   add groups through this mechanism once it lands.
 - **Upstream notes** to pytest about `getuid` and `/dev/null` on WASI.
-- **Wall-clock.** No check reads a clock (§4.9); the six minutes are a benchmark fact.
+- **Wall-clock.** No check reads a clock (§4.9). The six minutes are a benchmark fact.
 
 ## Acceptance criteria
 
-1. `uv run python tests/upstream/fetch.py` fetches the seven wheels into `build/upstream/wheels/`
-   and each SHA-256 equals its `kit.txt` line; altering one byte of a kept wheel makes the need
-   `upstream kit` unmet (a unit check on a scratch copy). The judge never opens the network.
-2. **Seen failing first.** Before the classes and trap entries are written, the 11 group checks
-   run on the frozen set and fail with the drafting runs' findings (numpy 31 failed and 3
-   errors, pandas 234 failed, and a trap in `numpy-core` while its trap entries are absent); the
-   builder records the counts and compares them with Decision 10's table. Any difference is
+1. **Fetching the kit.**
+   - `uv run python tests/upstream/fetch.py` fetches the seven wheels into
+     `build/upstream/wheels/`, and each SHA-256 equals its `kit.txt` line.
+   - A wheel with one byte changed makes the need `upstream kit` unmet. A unit check shows it on
+     a scratch copy.
+   - A member named `../x` or `/x` is refused by the unzip, also shown by a unit check.
+   - The judge never opens the network.
+2. **Seen failing first.** The builder runs the 11 group checks on the frozen set before
+   writing any class, list, trap entry or gap. They fail with the drafting runs' findings:
+   - numpy: 31 failed and 3 errors;
+   - pandas: 234 failed;
+   - `numpy-core`: a trap while its trap entries are absent.
+
+   The builder records the counts and compares them with Decision 10's table. Any difference is
    explained in the landing notes before a class is written.
-3. With the TOML complete, every `test_upstream_suite[<group>]` passes on the frozen set:
-   no finding; passes per group equal Decision 8's table (62,569 in all). Any difference is
-   explained in the landing notes; the guest is the same bytes on every host, so a host is not
-   an explanation.
-4. Every `test_upstream_trap_still_traps[<id>]` passes: seven traps, each with cause `indirect
-   call type mismatch`, each at a test whose node id begins with its entry. A unit check shows
-   that an entry whose test passes yields "remove the entry".
-5. **Strictness, shown on fixed streams** (`tests/unit/test_upstream.py`): one extra failure
-   matching a class's text turns the class's digest wrong (red); one fewer turns it wrong (red); a
-   failure no class takes is a finding; a collection error, exit code 2 to 5, a missing `E` line,
-   a trap and "out of fuel" are findings; skips, `xfail` and non-strict `xpass` are not.
-6. **The `passes` metric** (unit checks on the ratchet): a value below the accepted one is red
-   with `passes <old> -> <new>`; `--accept-growth` accepts it; without it, acceptance keeps the
-   maximum; a value above is "gained", not red; `metric("passes", …)` is accepted and an unknown
-   name still raises.
-7. **Fuel repeats:** each group run twice in one session (a one-off check by the builder, not a
-   judge check) gives fuel within 0.01%; the landing notes give both values for every group.
-8. `test_upstream_expectations_are_well_formed` (rules) passes: every `closes_with` exists;
-   every class has `count` > 0 and a 12-hex `digest` and exactly one of `match` and `nodes`;
-   ids are unique per group; every group's paths and every `not_selected` and `trap` file exist
-   in the staged source tree when the need is met; the sum of the groups' caps and the trap caps
-   is at most 1.8×10¹² (Decision 8).
-9. The product is untouched and the tests cannot change it: a unit check shows the preopens
-   built for a group grant `/upstream` read-only; the change has no file under `scripts/`,
-   `recipes/`, `downloads/` or `.github/` (`git diff --stat`), so the artifact set is the frozen
-   set's.
-10. `uv run ruff check`, `uv run ruff format --check`, and `uv run pytest` green, with
-    `--accept-judge` naming the new checks and the harness changes; ratchet vs the base: lost 0,
-    grew 0 (no existing check's fuel moves: the harness changes record, they do not run the
-    guest differently), gained 19 (11 groups, 7 traps, 1 rule). The scoreboard's last lines no
-    longer list "numpy/pandas test subsets".
+3. **With the TOML, the lists and the gaps complete,** the run on the frozen set gives:
+   - 11 groups `pass`, 18 classes `gap` and 7 traps `gap`;
+   - `passes` per group equal to Decision 8's table (62,569 in all). Any difference is explained
+     in the landing notes; the guest is the same bytes on every host, so a host is not an
+     explanation.
+   - each pandas group's `P` line shows `derandomize=True database=None max_examples=15`, and
+     each numpy group's shows `derandomize=True database=None`;
+   - no `M` line names a product module.
+4. **Traps.** Every `test_upstream_trap[<id>]` fails with exactly one finding,
+   `trap: wasm trap: indirect call type mismatch at <node>`, admitted by its gap. The node of
+   `castingimpl-arraymethod` is its collector (a `C` line). Unit checks show three things:
+   - a stream that ends after a `C` line names that collector;
+   - an entry whose test now passes makes the check pass, and its gap "remove the gap";
+   - a different cause is a different finding.
+5. **Strictness, shown on fixed streams** (`tests/unit/test_upstream.py`):
+   - a class with one more member than its list fails with `+<node id>`, and with one fewer with
+     `-<node id>`, so its gap's digest no longer matches;
+   - a failure no class takes is a group finding;
+   - a collection error, exit code 2 to 5, a missing `E` line, a trap and "out of fuel" are group
+     findings;
+   - a `P` line with `derandomize=False` is a group finding;
+   - skips, `xfail` and non-strict `xpass` are not findings.
+6. **The `passes` metric** (unit checks on the ratchet):
+   - a value below the accepted one is red, in `fewer`, printed `FEWER <node>: passes
+     <old> -> <new>` before any `GREW` line;
+   - `--accept-fewer-passes` accepts it and records `fewer_reason`;
+   - **in a run with fuel growth and a fall in passes, `--accept-growth` alone is refused;**
+   - without the flag, acceptance keeps the maximum;
+   - a higher value is in `more`, not in `gained`;
+   - `metric("passes", …)` is accepted, and an unknown name still raises;
+   - `--accept` with an accepted upstream check unrun locally is refused unless `--partial`.
+7. **Fuel repeats.** The builder runs each group twice in one session; this is a one-off check
+   by the builder, not a judge check. The two fuel values are within 0.01%, and the landing
+   notes give both for every group. The notes also sum the 18 checks' fuel against the 1.8×10¹²
+   budget.
+8. `test_upstream_files_are_well_formed` passes, with every rule Decision 17 lists. The caps sum
+   to at most 3×10¹².
+9. **The tests are the artifact's, and cannot change it.** Unit checks show:
+   - a `MANIFEST` whose numpy `pin` or patch `recipe` line differs from the tree's tarball or
+     patches makes the checks fail (not blocked), naming both;
+   - a stray file in a scratch tree's test folder is not staged, and is listed;
+   - the preopens built for a group grant `/upstream` read-only.
+
+   The change has no file under `scripts/`, `recipes/`, `downloads/` or `.github/`
+   (`git diff --stat`).
+10. **The full judge.** `uv run ruff check`, `uv run ruff format --check` and `uv run pytest` are
+    green, with `--accept-judge` naming the new checks, the lists, the gaps and the harness
+    changes.
+    - **Ratchet against the base:** lost 0, grew 0, fewer 0. No existing check's fuel moves: the
+      harness changes record, they do not run the guest differently.
+    - **Gained:** 12 (11 groups and the rule). The 25 gaps are on the scoreboard under their
+      closers.
+    - **Unrun locally:** 0.
+    - **The tail:** the scoreboard's last lines carry Decision 17's new "not machine-checked"
+      text.
+    - **The time:** the landing notes give the full judge's time before and after (Decision 15).
 
 ## The owner's choices
 
-None open here: every choice this specification needs is decided above (§5.2). One question is
-new and is the owner's, because it would add a build output: **question 89**, whether to reach
-numpy's 25 core test files that need its C test modules, through a judge-only binary built
-beside the product and never published (the agent's recommendation, as a later build-class
-specification), or by linking the modules into the product, or not at all. This specification
-builds without it: those files are `not_selected`, closed by the question.
+None open here. Every choice this specification needs is decided above (§5.2). One choice is the
+owner's, number 89 in `../questions-for-the-owner.md`, because it would add a build output:
+whether to reach numpy's 25 core test files that need its C test modules, and how. The options
+are:
+- a judge-only binary, built beside the product and never published (the agent's
+  recommendation, as a later build-class specification);
+- linking the modules into the product;
+- neither.
+
+This specification builds without an answer: those files are `not_selected`, closed by number 89.
+The time the full judge takes is the owner's to weigh (Decision 15), and the pandas groups are
+the knob.
 
 ## Landing notes

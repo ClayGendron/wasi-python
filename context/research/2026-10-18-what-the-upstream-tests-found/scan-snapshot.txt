@@ -1,0 +1,9 @@
+checked {'method': 3072, 'getset': 1126, 'member': 3109} elems 17359 names 29323
+MISMATCH getter 'SkippedEntityHandler' -> pyexpat_SetSkippedEntityHandler ('i32', 'i32')->() want (i32, i32)->i32
+MISMATCH getter '_supports_unaligned' -> boundarraymethod__supports_unaligned ('i32',)->('i32',) want (i32, i32)->i32
+MISMATCH getter 'scalar_input' -> array_converter_get_scalar_input ('i32',)->('i32',) want (i32, i32)->i32
+MISMATCH method '__copy__' -> gentype___copy__ ('i32',)->('i32',), flags 0x4 want ('i32', 'i32')->('i32',)
+MISMATCH method '__reduce__' -> sfloat___reduce__ ('i32',)->('i32',), flags 0x4 want ('i32', 'i32')->('i32',)
+MISMATCH method '_get_castingimpl' -> _get_castingimpl ('i32', 'i32')->('i32',), flags 0x3 want ('i32', 'i32', 'i32')->('i32',)
+MISMATCH setter 'SkippedEntityHandler' -> my_SkippedEntityHandler ('i32', 'i32', 'i32')->() want (i32, i32, i32)->i32
+MISMATCH setter 'dtype' -> array_descr_set ('i32', 'i32')->('i32',) want (i32, i32, i32)->i32

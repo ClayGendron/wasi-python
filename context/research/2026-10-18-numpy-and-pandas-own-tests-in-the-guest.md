@@ -2,6 +2,11 @@
 
 - **Status:** executed, 2026-10-18 (a time-boxed prototype in the drafting session's scratch
   folder; nothing in the repository was changed by it).
+- **Corrected 2026-10-18** (spec 050's pre-build review, findings F11 and F13): the drafting
+  first said none of numpy's test folders has an `__init__.py`; only `_core/tests` lacks one.
+  `evidence/prototype/drive.py` is the driver the runs used, copied after them under that name
+  from the scratch folder's `drive4.py`, which `batch2.py` and `hunt.py` name. Nothing else
+  changed.
 - **Owner:** Clay Gendron
 - **Researcher:** the drafting agent (Claude Opus 5.5) of spec 050.
 - **Feeds:** spec 050 (numpy's and pandas' own tests under the runtime), which judges what this
@@ -29,8 +34,9 @@
   used the dev group's pytest 9.1.1 without hypothesis.
 - **The tests:** every `tests` folder under `build/numpy-2.5.2/numpy` (the patched tree), and
   `build/pandas-3.0.6/pandas/tests` with `pandas/conftest.py`. The product's zip holds no
-  `tests` folder (`make_stdlib_zip.py` skips them; 0 members, EXECUTED), and numpy's test
-  folders have no `__init__.py` (READ).
+  `tests` folder (`make_stdlib_zip.py` skips them; 0 members, EXECUTED), and numpy's
+  `_core/tests` has no `__init__.py`; the other twelve test folders have one (READ; corrected,
+  see the status).
 - **The driver** (`evidence/prototype/drive.py`): puts the kit first on `sys.path`; appends
   `/t/tests/<pkg path>` to the `__path__` of `numpy`, `numpy._core`, `numpy.lib`, … and of
   `pandas`, so `numpy._core.tests._locales` and `pandas.tests.extension.base` import from the
