@@ -1237,6 +1237,7 @@ NOT_BY_ID = (
 )
 OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/artifacts")
 ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}
+PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
 JOB_PERMISSIONS = {
     "build": {"contents: read"},
     **{job: {"contents: read"} for job in REBUILD_JOBS},
@@ -1261,11 +1262,12 @@ def _guard_tests(run: str, var: str) -> bool:
 
 
 def release_binding_errors(text: str) -> list[str]:
-    """Every rule of spec 057's Design, one line per breach, each starting with its rule's number,
-    on the workflow without its comments: every reader of the build's files downloads them by an
-    id it has guarded, checks them against the SHA-256 of SHA256SUMS the build job handed on, and
-    acts on nothing else; the publish jobs name their environments, run setup-uv with no cache,
-    and hold only the permissions they use."""
+    """Every rule of spec 057's Design (rules 1 to 18), one line per breach, each starting with its
+    rule's number, on the workflow without its comments: every reader of the build's files
+    downloads them by an id it has guarded, checks them against the SHA-256 of SHA256SUMS the
+    build job handed on, and acts on nothing else; nothing carries on past a failure; PyPI waits
+    on publish and a pushed tag; the publish jobs name their environments, run setup-uv with no
+    cache, and hold only the permissions they use."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     steps = {
@@ -1431,6 +1433,34 @@ def release_binding_errors(text: str) -> list[str]:
                     f"rule 15: {name} has a guard, check or download step with if: or "
                     "continue-on-error:"
                 )
+    # Rule 16: nothing but the build's files lands in release-assets, and a job that holds them
+    # downloads nothing else, so no bytes arrive after its check (spec 057's build review, F1).
+    for name, job_steps in steps.items():
+        downloads = [
+            f.get("with", {})
+            for _, f in job_steps
+            if f.get("uses", "").startswith("actions/download-artifact@")
+        ]
+        for w in downloads:
+            path = w.get("path", "").rstrip("/")
+            if (path == "release-assets" or path.startswith("release-assets/")) and w.get(
+                "artifact-ids"
+            ) != ASSETS_ID:
+                errors.append(
+                    f"rule 16: {name} downloads into release-assets other than by assets-id"
+                )
+        if name in holders and name != "same-bytes" and len(downloads) > 1:
+            errors.append(
+                f"rule 16: {name} holds the build's files but downloads something else too"
+            )
+    # Rule 17: nothing in the release may carry on past a failure: a failed judge, verify leg or
+    # check must stop what needs it (spec 057's build review, F2).
+    if re.search(r"^\s*(- )?continue-on-error:", text, re.M):
+        errors.append("rule 17: the workflow has a continue-on-error:")
+    # Rule 18: PyPI only after publish, and only for a pushed tag with the owner's switch on.
+    pypi = jobs.get("pypi", [])
+    if _job_field(pypi, "if") != PYPI_IF or "publish" not in _needs(pypi):
+        errors.append(f"rule 18: pypi's if: is not {PYPI_IF!r}, or it does not need publish")
     return errors
 
 

@@ -114,7 +114,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `publish` names the `release` environment, `setup-uv`'s cache is off in every job, and every job
   states its own least permissions under a workflow-level `permissions: {}`. The judge checks all
   of it, runs the workflow's own check and guard steps, and runs the download step on fake pins.
-  Nothing in the artifact set or the wheel changes.
+  It also refuses any other download into `release-assets` or into a job that holds it, any
+  `continue-on-error:`, and a `pypi` job that could run before `publish` or outside a pushed tag.
+  `python.wasm`, the snapshot and the zip do not change. `MANIFEST` changes in one line, because
+  it records the download script's hash, so the set's `SHA256SUMS` and the wheel change too.
 
 ## 0.1.0a5 — 2026-10-18
 

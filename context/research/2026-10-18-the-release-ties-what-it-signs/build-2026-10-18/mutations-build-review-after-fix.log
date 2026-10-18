@@ -1,0 +1,68 @@
+real workflow: {'binding': [], 'gate': [], 'attest': [], 'pins': []} behaviour: []
+CAUGHT  M1 rebuild guard binds X86_64_WHEEL_ID, loop drops it
+      [binding] rule 10: same-bytes has no guard step that tests the id it downloads
+CAUGHT  M2 continue-on-error on the rebuild guard
+      [binding] rule 15: same-bytes has a guard, check or download step with if: or continue-on-error:
+      [binding] rule 17: the workflow has a continue-on-error:
+CAUGHT  M5 x86_64 sums-id into the arm64 folder
+      [gate] same-bytes does not download rebuild-linux-arm64's SHA256SUMS by id into rebuilds/ubuntu-24.04-arm
+CAUGHT  M6 continue-on-error on publish's check
+      [binding] rule 9: the check steps are not the same step
+      [binding] rule 15: publish has a guard, check or download step with if: or continue-on-error:
+      [binding] rule 17: the workflow has a continue-on-error:
+CAUGHT  guard removed from attest
+      [binding] rule 10: attest has no guard step that tests the id it downloads
+      [behaviour] LookupError: attest has no step named 'The build job handed on an artifact id' with a run: script
+CAUGHT  guard removed from publish
+      [binding] rule 10: publish has no guard step that tests the id it downloads
+CAUGHT  download by name in pypi
+      [binding] rule 4: pypi downloads an artifact other than by one id alone
+      [binding] rule 10: pypi has no guard step that tests the id it downloads
+      [binding] rule 7: pypi does not download the build's release-assets by id
+      [binding] rule 16: pypi downloads into release-assets other than by assets-id
+CAUGHT  download by name in attest (guard kept)
+      [binding] rule 4: attest downloads an artifact other than by one id alone
+      [binding] rule 10: attest has no guard step that tests the id it downloads
+      [binding] rule 7: attest does not download the build's release-assets by id
+      [binding] rule 16: attest downloads into release-assets other than by assets-id
+CAUGHT  R1 attest: after the check, a guarded by-id download of a rebuild's SHA256SUMS into release-assets (signed)
+      [binding] rule 16: attest downloads into release-assets other than by assets-id
+      [binding] rule 16: attest holds the build's files but downloads something else too
+CAUGHT  R1b publish: the same post-check download before gh release create
+      [binding] rule 16: publish downloads into release-assets other than by assets-id
+      [binding] rule 16: publish holds the build's files but downloads something else too
+MISSED  R1c attest: a run step after the check writes a file into release-assets
+CAUGHT  R2 pypi needs only build (publishes before same-bytes, verify, attest)
+      [binding] rule 18: pypi's if: is not "github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'", or it does not need publish
+CAUGHT  R3 pypi if: gains always() (publishes when publish/attest/same-bytes failed)
+      [binding] rule 18: pypi's if: is not "github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'", or it does not need publish
+CAUGHT  R3b pypi if: no tag condition (a workflow_dispatch dry run reaches PyPI)
+      [binding] rule 18: pypi's if: is not "github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'", or it does not need publish
+CAUGHT  R4 verify job-level continue-on-error (attest signs what verify failed)
+      [binding] rule 17: the workflow has a continue-on-error:
+CAUGHT  R5 build: continue-on-error on The judge step
+      [binding] rule 17: the workflow has a continue-on-error:
+CAUGHT  R6 name collision: both rebuild jobs upload their SHA256SUMS as release-assets, overwrite
+      [gate] rebuild-linux-arm64 does not upload build/artifacts/SHA256SUMS as rebuild-ubuntu-24.04-arm (id: sums)
+      [gate] rebuild-linux-x86-64 does not upload build/artifacts/SHA256SUMS as rebuild-ubuntu-24.04 (id: sums)
+MISSED  R7 verify re-uploads release-assets with overwrite after its checks
+CAUGHT  R8 attest if: always() && tag
+      [attest] attest's or publish's if: is not the pushed-tag condition
+CAUGHT  R9 publish drops same-bytes and verify from needs (attest still needed)
+      [gate] publish does not need same-bytes
+CAUGHT  R10 same-bytes job-level continue-on-error
+      [binding] rule 17: the workflow has a continue-on-error:
+      [gate] same-bytes has a job-level continue-on-error:
+CAUGHT  R11 every check drops the anchor (-c ../SHA256SUMS.sha256)
+      [behaviour] check case fails: SUMS_SHA256 another hash
+      [behaviour] check case fails: the wheel swapped, SHA256SUMS rewritten to match
+CAUGHT  R12 every check drops the no-other-file comparison's exit
+      [behaviour] check case fails: an extra file
+      [behaviour] check case fails: a hidden file
+      [behaviour] check case fails: a sub-folder
+CAUGHT  R13 every guard overwrites its id before testing it
+      [behaviour] guard case fails: empty
+CAUGHT  R14 build hashes SHA256SUMS after the upload
+      [binding] rule 2: build does not hand on the SHA-256 of release-assets/SHA256SUMS, made before the upload, as sums-sha256
+CAUGHT  R15 build's sums step hashes a different file
+      [binding] rule 2: build does not hand on the SHA-256 of release-assets/SHA256SUMS, made before the upload, as sums-sha256

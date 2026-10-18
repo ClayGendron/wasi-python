@@ -1,0 +1,15 @@
+wasi_python v1: 379/416 pass · 2 gap · 35 blocked · 0 fail   (unit suite 1224/1231, 7 skipped)
+  v1.1  artifact set        27/28  blocked 1
+  v1.2  portable, sealed    65/66  blocked 1
+  v1.3  data stack          54/88  gap 2 blocked 32
+  v1.4  embedding           162/162 
+  v1.5  rebuild from pins   31/31  
+  rules constitution rules  40/41  blocked 1
+blocked by: upstream kit 31 · oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+gaps close with: 2026-10-17-matplotlib-on-the-current-line 2
+next: context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md (unblocks 31, closes 0)
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 19 · grew 0 · upstream unrun 31 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_5_rebuild_from_pins.py, tests/harness/scan.py and 1 more
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========== 1603 passed, 42 skipped, 2 xfailed in 453.67s (0:07:33) ============
+exit 0

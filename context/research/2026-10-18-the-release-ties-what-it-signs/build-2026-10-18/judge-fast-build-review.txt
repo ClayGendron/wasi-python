@@ -1,0 +1,12 @@
+=================================== progress ===================================
+wasi_python v1: 367/416 pass · 0 gap · 3 blocked · 0 fail · 46 deselected   (unit suite 1224/1231, 7 skipped)
+  v1.1  artifact set        27/28  blocked 1
+  v1.2  portable, sealed    65/66  blocked 1
+  v1.3  data stack          42/88  
+  v1.4  embedding           162/162 
+  v1.5  rebuild from pins   31/31  
+  rules constitution rules  40/41  blocked 1
+blocked by: prior-art clones 1 · three systems 1 · wheel 1
+next: context/specifications/004-alpha-releases.md (unblocks 2, closes 0)
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 19 · grew 0 · upstream unrun 31 · not selected 32 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_5_rebuild_from_pins.py, tests/harness/scan.py and 1 more
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups

@@ -666,6 +666,7 @@ jobs:
     + """      - name: Create the release
         run: gh release create "$GITHUB_REF_NAME" release-assets/*
   pypi:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
     needs: [build, publish]
     environment: pypi
     permissions:
@@ -756,7 +757,7 @@ BAD_BINDINGS = [
             "      - name: The rebuild jobs handed on artifact ids\n"
             "        continue-on-error: true\n",
         ),
-        {15},
+        {15, 17},
     ),
     # The Confirmation's M6: publish's check step told to carry on.
     (
@@ -766,7 +767,7 @@ BAD_BINDINGS = [
             "      - name: These are the bytes the build job made\n"
             "        continue-on-error: true\n",
         ),
-        {9, 15},
+        {9, 15, 17},
     ),
     (
         (
@@ -775,6 +776,57 @@ BAD_BINDINGS = [
             DOWNLOAD.splitlines()[0] + "\n        if: always()\n",
         ),
         {15},
+    ),
+    # The build review's R1: attest fetches a rebuild's SHA256SUMS into release-assets after its
+    # check, guarded and by id, with that job added to its needs.
+    (
+        (
+            "attest",
+            "      - uses: actions/attest@",
+            "      - name: The rebuild handed on an id\n"
+            "        env:\n"
+            "          R_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}\n"
+            "        run: |\n"
+            '          case "$R_ID" in\n'
+            '            "" | *[!0-9]*) echo "no id"; exit 1 ;;\n'
+            "          esac\n"
+            f"      - uses: actions/download-artifact@{PIN} # v8.0.2\n"
+            "        with:\n"
+            "          artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}\n"
+            "          path: release-assets\n"
+            "          digest-mismatch: error\n"
+            "      - uses: actions/attest@",
+        ),
+        {6, 16},
+    ),
+    # The same move in same-bytes: a rebuild's wheel into release-assets.
+    (
+        (
+            "same-bytes",
+            "          path: rebuilt-wheels/ubuntu-24.04-arm\n",
+            "          path: release-assets\n",
+        ),
+        {16},
+    ),
+    # The build review's R2 to R5: the gate around pypi, and carrying on past a failure.
+    (("pypi", "    needs: [build, publish]\n", "    needs: [build]\n"), {18}),
+    (("pypi", "    if: github.event_name", "    if: always() && github.event_name"), {18}),
+    (
+        (
+            "pypi",
+            "    if: github.event_name == 'push' && github.ref_type == 'tag' && vars",
+            "    if: vars",
+        ),
+        {18},
+    ),
+    (("verify", "    needs: build\n", "    needs: build\n    continue-on-error: true\n"), {17}),
+    (
+        (
+            "build",
+            "      - name: The SHA-256 of SHA256SUMS\n",
+            "      - name: The SHA-256 of SHA256SUMS\n        continue-on-error: true\n",
+        ),
+        {17},
     ),
 ]
 

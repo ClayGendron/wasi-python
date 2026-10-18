@@ -1,6 +1,7 @@
 # 057 — The release ties what it signs to what it built
 
-- **Status:** built 2026-10-18; awaiting its build review. Built on
+- **Status:** built; revised against its build review; awaiting the reviewer's confirmation
+  (2026-10-18; Landing notes, "Revised against the build review"). Built on
   `spec/057-the-release-ties-what-it-signs-to-what-it-built`, rebased onto main `1555a6d`, then
   onto main `c6cdd86` after spec 059 landed (Landing notes, "Rebased onto 059"). Confirmed for
   build 2026-10-18 by its pre-build review's Confirmation, with N1 written in. The review
@@ -24,8 +25,10 @@
     `tests/checks/test_v1_5_rebuild_from_pins.py` and `tests/unit/test_scan.py`.
   - It changes `README.md` (*Releasing*) and `CHANGELOG.md`, and adds a one-line amendment
     note in specs 009 (Decision 1), 012 (Decision 7) and 040 (Decision 6).
-  - It changes no artifact, no pin, no recipe that makes bytes, no `src/` file, and not the
-    guest.
+  - It changes no pin, no recipe that makes bytes, no `src/` file, and not the guest.
+    `python.wasm`, the snapshot and the zip do not change. `MANIFEST` does, in one line: it
+    records the hash of every recipe file, `scripts/00_download.sh` among them. So the set's
+    `SHA256SUMS` and the wheel, which carries both, change too (the build review's F3).
 - **Depends on:** 056 (the a4 security review's findings; its Decision 6 names this
   follow-up, and its question 94 holds the owner's repository settings), landing now. Also
   on 004 (the release workflow), 009 (`attest` and its rules scan), 012 and 040 (the rebuilds
@@ -352,8 +355,11 @@ Two notes ride along:
 11. **Its place in the queue.** It is build-class (`scripts/`, the release workflow), so it
     builds as the only build-class change in flight (§5.7).
     - Spec 023 holds that slot now. This one builds after 023 lands, and rebases then. The
-      next release after a4 waits on it. Its build and review are small (no artifact
-      rebuild; the frozen set judges it).
+      next release after a4 waits on it. Its build and review are small. The three binaries
+      do not change, but `MANIFEST` records the new `scripts/00_download.sh`, so the set is
+      rebuilt from the pins (in the worktree, and by the lane in the main tree), and the judge
+      runs against that set. Main's frozen set fails `test_manifest_recipes_match_the_tree` on
+      this commit (the build review's F3).
     - If 023, or any later specification, edits the workflow first, this one rebases over it.
       Any download it adds must be by id and guarded (rules 4 and 10).
     - The judge change is accepted with `--accept-judge`.
@@ -382,7 +388,7 @@ permissions they use.
   pypi                       needs [build, publish]; environment: pypi; guard; download by id; check
 scripts/00_download.sh       the name check after the summary, under set -f (Decision 5)
 tests/harness/scan.py
-  release_binding_errors(text)          rules 1-15 below, one line per breach
+  release_binding_errors(text)          rules 1-18 below, one line per breach
   action_pin_errors(text)               Decision 7
   unpinned_fetch_errors(script, pins)   every get/research name is in SHA256SUMS
   workflow_step_script(text, job, name) a step's run: block, as text; raises if it is absent
@@ -438,6 +444,14 @@ step's display `- name:`. Its rules:
 15. No guard step, check step or `actions/download-artifact` step carries `if:` or
     `continue-on-error:`. Rule 9's and rule 10's whole-block comparisons would catch it on a
     step with twins. This rule also covers `same-bytes`' rebuild guard, which has none.
+16. Every download whose `path:` is `release-assets`, or lies under it, takes
+    `needs.build.outputs.assets-id`. In every job of rule 7 except `same-bytes`, that download is
+    the job's only `actions/download-artifact` step. So no bytes reach a job that holds the
+    build's files after its check (added for the build review's F1).
+17. The workflow holds no `continue-on-error:`, at any level. A failed judge, `verify` leg or
+    check stops everything that needs it (added for the build review's F2).
+18. `pypi`'s `if:` is exactly the pushed-tag condition plus `&& vars.PYPI_PUBLISH == 'true'`,
+    and its `needs:` holds `publish` (added for the build review's F2).
 
 **`rebuild_gate_errors`, rewritten for two jobs.** It keeps the intent of specs 012 and 040.
 It holds a table of the two jobs: `rebuild-linux-arm64` on `ubuntu-24.04-arm` for 120
@@ -556,7 +570,8 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 120 (spec 059). Its ru
 5. **The judge.**
    - The fast tier first, then the full `uv run pytest` once (AGENTS.md rule 3a), green.
    - The lane accepts with `--accept-judge "<reason>"`.
-   - Lost 0. No fuel or byte growth: no artifact changes.
+   - Lost 0. No fuel or byte growth: the three binaries do not change; `MANIFEST` changes in
+     one recipe line.
    - `ruff check` and `ruff format --check` are clean.
 6. **The dry run after landing passes every job it runs.** The landing notes link it, and
    quote from its logs:
@@ -839,6 +854,73 @@ The rebuild made it pass.
 - **A stale line in main's README.** It was left by 059, and the rebase removes it: "The x86_64
   rebuild compiles under emulation (above), so its job may take up to six hours." It now says
   each job compiles with its own host's clang and has two hours.
+
+### Revised against the build review (2026-10-18)
+
+The build review (`build/reviews-evidence/057-buildreview/057-the-release-ties-what-it-signs-to-what-it-built-2026-10-18.md`
+in the main tree, git-ignored; copied to `../reviews/` by the lane) said: "lands once finding 1
+is fixed". It asked for finding 2 in the same change, and finding 3 as a text fix.
+
+**Disposition.**
+
+- **F1 (a post-check download into `release-assets`): fixed. Rule 16** (Design;
+  `release_binding_errors`):
+  - every download whose `path:` is `release-assets`, or under it, takes `assets-id`;
+  - in every rule-7 job except `same-bytes`, that download is the job's only download.
+
+  Two unit variants: the review's R1 in `attest` (rules 6 and 16; the fixture does not add the
+  rebuild job to `attest`'s needs, so rule 6 fires too), and a rebuild's wheel into
+  `release-assets` in `same-bytes` (rule 16). The reviewer's own `mutate_review.py`, re-run on
+  this commit, now catches R1 and R1b by rule 16 (`mutations-build-review-after-fix.log`).
+- **F2 (the gate around `pypi`, `continue-on-error:`): fixed.**
+  - **Rule 17:** the workflow holds no `continue-on-error:` at any level.
+  - **Rule 18:** `pypi`'s `if:` is exactly the pushed-tag condition plus
+    `&& vars.PYPI_PUBLISH == 'true'`, and its `needs:` holds `publish`.
+  - Five unit variants: R2 (`needs: [build]`), R3 (`always() &&`), R3b (no tag condition), R4
+    (`verify` job-level) and R5 (a `build` step).
+  - The review's script now catches R2, R3, R3b, R4 and R5, by rules 18 and 17.
+  - M2 and M6 now also give rule 17, and their variants say so.
+- **F3 (the artifact claims): fixed in the text.** *Kind*, Decision 11, criterion 5 and the
+  CHANGELOG now say it: `python.wasm`, the snapshot and the zip do not change; `MANIFEST`
+  changes in one line, the recipe hash of `scripts/00_download.sh`; so the set's `SHA256SUMS`
+  and the wheel change too.
+  - **For the lane.** Main's frozen set `s-4eb5418a2b1bb553` fails
+    `test_manifest_recipes_match_the_tree` on this commit. So the lane rebuilds in the main tree
+    (§5.7), and must find the builder's bytes. `SHA256SUMS` is
+    `c353b1d9e59304c9b5283e61695c5f0d4386d9b88502132f8472b38b4520f438`, against the frozen set's
+    `25a101ac…`.
+  - **Two sets, one name.** The new set's snapshot hash, `4eb5418a2b1bb553`, is the old set's,
+    so both carry the same name. The lane records the `SHA256SUMS` beside the name when it
+    freezes the new set.
+- **N1 (a dry run of the branch before landing): answered, no change.** It needs the branch
+  pushed, and the lane does not push spec branches (§4.14). Instead the lane dry-runs main's
+  exact commit right after landing (criterion 6), and no tag follows until that run passes on
+  all three systems (AGENTS.md rule 6b). That run proves the two things only a run can show:
+  `same-bytes`' downloads under `permissions: {}`, and the check under Git for Windows' bash.
+  Both fail closed, before any signing job.
+- **N2 (a `run:` step between the check and the act): answered, no change.** It runs in the
+  same job, under that job's own token. So it is not F4's cross-job path, and it predates this
+  change. A text scan cannot judge what a script writes. R1c stays out of the scans' reach, as
+  the review says.
+- **N3 (collisions and re-uploads fail closed): answered, no change.** Any change to the build's
+  artifact takes away the id the build job handed on, and the next download throws. The worst a
+  compromised host can do is stop the release (Decision 4). R6 is caught by the rebuild gate,
+  and R7 fails closed at run time.
+- **N4 (one vote can still be copied by its own host): answered, no change.** A compromised
+  rebuild host can always cast its own vote falsely. The other job's vote is its own (Decision
+  4), and since 059 no compiler input is shared between the two. This is by design.
+
+**The revision's judge** (against this worktree's set `c353b1d9…`, unchanged since the 059
+rebuild; no file under `scripts/` or `recipes/` changed):
+
+- Fast tier, `-n 3`: 1591 passed, 10 skipped. v1.5 31/31, rules 40/41. Ratchet vs `fdb06c26f1`:
+  "lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 19 · grew 0"
+  (`judge-fast-build-review.txt`).
+- Full judge, serial, without `--accept`: 1603 passed, 42 skipped, 2 xfailed. Scoreboard
+  379/416, 2 gaps, 35 blocked, 0 fail. Ratchet: "lost 0 · absent 0 · unrun 0 · unrun locally
+  21 · gained 19 · grew 0 · judge changed: …" (`judge-full-build-review.txt`).
+- The unit suite grew by 7: `test_scan.py` is 157 (it was 150 after the rebase). The number of
+  counted checks is unchanged.
 
 ### For the reviewer
 
