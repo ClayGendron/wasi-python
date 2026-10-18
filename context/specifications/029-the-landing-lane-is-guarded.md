@@ -4,7 +4,8 @@
   (`../reviews/029-the-landing-lane-is-guarded-spec-2026-10-17.md`), whose confirmation passed it
   for build with four conditions (A to D), written in. Built 2026-10-17; build-reviewed
   (`../reviews/029-the-landing-lane-is-guarded-2026-10-17.md`, verdict: revise first); revised
-  against it the same day (Decisions 2 and 6), awaiting the reviewer's confirmation.
+  against it the same day (Decisions 2 and 6) and confirmed by the reviewer. Landed 2026-10-17
+  (accepted on `567d642` as `b798801`; dry run 39088978405).
 - **Owner:** Clay Gendron
 - **Kind:** judge additions and changes (`tests/checks/test_rules.py`, `tests/harness/plugin.py`,
   `tests/harness/paths.py`'s stray-conftest walk, `run_meta`'s `dirty`, with the rules' logic in
@@ -280,3 +281,9 @@ says 191/193 pass, 2 blocked (`three systems`, `wheel`), 0 fail. The unit suite 
 2 skipped. The ratchet says lost 0, absent 0, unrun 0, gained 3 (the three new rules), grew 0,
 and judge changed. Ruff is clean. Nothing was accepted.
 
+**Landed 2026-10-17** by its own procedure: the change, its specification and its review were
+committed on a detached HEAD (`567d642`); the full judge accepted it with `--accept-judge` (775
+passed, 4 skipped; v1 191/193, the two blocked as before; lost 0, grew 0); the two progress files
+were committed alone (`b798801`); the rules tier passed on that commit (22 passed); and main moved
+by `git merge --ff-only`. Release dry run 39088978405 on `b798801`: every job passed, the arm64
+Linux rebuild from the pins and "the same bytes from every host" included.
