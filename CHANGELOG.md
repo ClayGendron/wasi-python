@@ -28,6 +28,49 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   no longer depend on the order or speed of the run, and the judge's zips folder is safe when
   several processes make it at once. Nothing in the artifact set or the wheel changes.
 
+- **matplotlib, the first milestone** (spec 023). matplotlib 3.11.2 is built in: `import
+  matplotlib; matplotlib.use("agg")`, `plt.plot(...)` and `savefig` to PNG, PDF, PS, EPS or SVG
+  in a granted folder. A fixed line plot's RGBA buffer equals native matplotlib's at the same pins,
+  and its PNG decodes to those pixels (the judge's golden job `plot_line`). Linked in: FreeType
+  2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0 and libraqm 0.10.5 (matplotlib's own wrap versions, for
+  native pixel parity), matplotlib's `ft2font`, `_path`, `_image`, `_backend_agg`,
+  `_c_internal_utils` and `_tri`, kiwisolver 1.5.1 and Pillow 13.0.0's `_imaging`, `_imagingmath`
+  and `_imagingmorph` (zlib only: JPEG and other codecs raise `OSError`). In the zip: matplotlib,
+  `mpl_toolkits`, PIL, kiwisolver, fontTools 4.67.0, cycler 0.12.1, pyparsing 3.3.3 and packaging
+  26.3, each with its METADATA. Not yet: Delaunay triangulation (`_qhull` is left out of the link;
+  explicit triangles work) and `contour` (contourpy), both the next milestone; the snapshot does not
+  pre-import matplotlib (the owner's question 34).
+  - **matplotlib's data** travels inside the zip as one member, `matplotlib/mpl-data.zip`. The
+    runner extracts it once per process into its private zip folder, checks every file as it
+    writes it, compares the whole tree with its record on every call, and grants it read-only at
+    `/usr/local/lib/python315.zip/matplotlib/mpl-data`, the path matplotlib computes. The zip
+    itself now sits in that folder's `lib/`, so `/usr/local/lib` still lists only the zip
+    (spec 017's Decision 2, amended). An embedder without the runner extracts and preopens it
+    itself (the README says how).
+  - **Three more carried patches.**
+    `recipes/patches/matplotlib-3.11.2/0001-ft2font-enums-without-python.patch` is upstream's
+    merged commit `8e5591bc` (pull request #30291, matplotlib 3.12): `ft2font`'s enums no longer
+    take the GIL during static initialization, which hung a statically linked reactor before Python
+    started. `recipes/patches/pillow-13.0.0/0001-arrow-capsule-signatures.patch` and
+    `recipes/patches/kiwisolver-1.5.1/0001-callback-signatures.patch` give two Pillow methods and
+    21 kiwisolver methods and getters the signatures CPython calls them with: spec 051's callback
+    scan found them in the first matplotlib link, and kiwisolver's trapped the guest at
+    `Solver.addConstraint`. Facts sheets for the owner: `context/upstream/17-…` (nothing to send),
+    `18-pillow-arrow-capsule-signatures/` and `19-kiwisolver-callback-signatures/`.
+  - **The build:** two new steps, 37 (the plot libraries) and 55 (Pillow, kiwisolver and
+    matplotlib); the pinned `pkgconf` wheel in step 10; `scripts/wasi-cc` drops `-pthread`, which
+    would have compiled `+atomics` in; step 60 checks the static constructors and target features
+    of every link against the judge's reviewed lists and stops on a new one. Eighteen new pins,
+    among them the Unicode License V3 for HarfBuzz's tables, pinned at a commit of Unicode's own
+    repository.
+  - **The judge:** the milestone job and its PNG decoder (stdlib only); `savefig(dpi=-1)` and a
+    kiwisolver `UnsatisfiableConstraint`; the data grant refuses every write; the static
+    constructor list; the ten target features; fifteen source trees judged against their tarballs
+    (the release workflow's count is 15); every C++ build's exception flags; the licence notices of
+    every new component. The callback scan no longer reads a record whose function sits at a parser
+    rule's table index as a method definition (FreeType's BDF property table). Two known gaps,
+    closed by the research memo's M2.
+
 ## 0.1.0a5 — 2026-10-18
 
 **The first release since 0.1.0a3.** 0.1.0a4 was tagged but never published (see its section):
