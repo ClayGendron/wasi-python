@@ -1,0 +1,168 @@
+{
+ "compiles": [
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 5558,
+   "bytes": 99213032,
+   "sha": "4dc39f0808b94675",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 5462,
+   "bytes": 99213032,
+   "sha": "4dc39f0808b94675",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-drc-judge-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 5750,
+   "bytes": 99294952,
+   "sha": "51dcd0ca839a34b6",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-drc-judge-plain.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 5390,
+   "bytes": 136896072,
+   "sha": "f4ad3658f6818b84",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 10230,
+   "bytes": 136896072,
+   "sha": "f4ad3658f6818b84",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-drc-judge-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 5375,
+   "bytes": 136977992,
+   "sha": "c18e106a350dc6a7",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-drc-judge-snapshot.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 4931,
+   "bytes": 105292416,
+   "sha": "4f7ca6f796f134e7",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 5730,
+   "bytes": 105292416,
+   "sha": "4f7ca6f796f134e7",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-drc-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 5506,
+   "bytes": 105390720,
+   "sha": "a593f1544617b4a8",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-drc-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 5039,
+   "bytes": 142975456,
+   "sha": "4a30d32105222965",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 5659,
+   "bytes": 142975456,
+   "sha": "4a30d32105222965",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-drc-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 7415,
+   "bytes": 143073760,
+   "sha": "2f15cb8bff750a8e",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-drc-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 9443,
+   "bytes": 99213032,
+   "sha": "4dc39f0808b94675",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-plain-again.cwasm"
+  }
+ ],
+ "loads": [
+  {
+   "side": "rs-49.0.0",
+   "loads": "py49.0.0-judge-plain.cwasm",
+   "id": "load",
+   "exit_code": 0,
+   "trapped": null,
+   "trap_cause": null,
+   "fuel_used": 166604192,
+   "module_from": "cwasm",
+   "module_ms": 15.016167000000001,
+   "run_ms": 46.402041,
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "stdout": "hello\n"
+  },
+  {
+   "side": "rs-49.0.3",
+   "loads": "py49.0.0-judge-plain.cwasm",
+   "id": "load",
+   "exit_code": 0,
+   "trapped": null,
+   "trap_cause": null,
+   "fuel_used": 166604192,
+   "module_from": "cwasm",
+   "module_ms": 15.131125,
+   "run_ms": 37.121792,
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "stdout": "hello\n"
+  },
+  {
+   "side": "rs-49.0.0",
+   "loads": "py49.0.0-judge-snapshot.cwasm",
+   "id": "load",
+   "exit_code": 0,
+   "trapped": null,
+   "trap_cause": null,
+   "fuel_used": 83465940,
+   "module_from": "cwasm",
+   "module_ms": 13.54675,
+   "run_ms": 28.743167,
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "stdout": "hello\n"
+  }
+ ]
+}

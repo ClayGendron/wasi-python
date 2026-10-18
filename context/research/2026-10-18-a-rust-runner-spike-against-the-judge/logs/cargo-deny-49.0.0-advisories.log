@@ -1,0 +1,494 @@
+error[vulnerability]: `call_ref` and exception `catch` can drop some fuel accounting, leading to exponential fuel amplification
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0315
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0315
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-m63x-6p34-q65x
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14407
+    ├ Solution: Upgrade to >=48.0.3, <49.0.0 OR >=49.0.1 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Dynamic record lifting can allocate beyond the hostcall fuel limit
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0316
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0316
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-jqpg-j7w6-42pr
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14415
+    ├ Solution: Upgrade to >=36.0.16, <37.0.0 OR >=48.0.3, <49.0.0 OR >=49.0.1 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Mis-typed WebAssembly tag imports can lead to GC heap corruption
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0325
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0325
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-cfhf-m2cr-62wj
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14471
+    ├ Solution: Upgrade to >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Rooting for GC values live across `try_call` may be missing, causing GC heap corruption
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0326
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0326
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-hw8m-q44c-ggrf
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14478
+    ├ Solution: Upgrade to >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Wasmtime component async-lifted callback result count is unvalidated, causing a native stack buffer overflow
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0327
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0327
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-32h6-97mm-8q3c
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14471
+    ├ Solution: Upgrade to >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Panic when invoking an async-lifted function via `call`
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0353
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0353
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-m6w2-jwq2-cv2c
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14737
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Host panic when component `call_async` is cancelled under some conditions
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0354
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0354
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-3r89-v5mq-j5xf
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14741
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Panic viewing component model stream or future as the wrong type
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0355
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0355
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-63h4-6cx9-pjfj
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14733
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Panic on erroneous call-to-host from guest realloc call
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0356
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0356
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-7v24-42x9-pxf7
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14739
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Out-of-bounds zero-length stream writes can panic
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0357
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0357
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-93g3-36p8-x2gc
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14740
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Yielding in a component start function can lead to a host panic
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0358
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0358
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-5hhx-4wrr-3j9g
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14620
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Stack overflow dropping a long chain of recursive types
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0359
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0359
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-wjc8-633q-pwxr
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14735
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Overlapping string transcode in a fused adapter can panic
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0360
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0360
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-54p9-vhhq-8f7q
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14730
+    ├ Solution: Upgrade to >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Panic when pending calls are run after a trap
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0361
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0361
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-hmwq-g22x-qjw5
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14736
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Wasmtime may not properly enforce async-entrypoint requirement
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0362
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0362
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-vcg5-q8m5-8379
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14734
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Component-model handle tables are capped only per instance and charged to no limit
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0363
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0363
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-q554-3cjc-rx7p
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14732
+    ├ Solution: Upgrade to >=36.0.18, <37.0.0 OR >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Exception tags can cause host data structures to be unaligned
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:176:1
+    │
+176 │ wasmtime 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0364
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0364
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-p79w-pv2r-29qp
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14731
+    ├ Solution: Upgrade to >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime`)
+    ├ wasmtime v49.0.0
+      ├── wasi-run-spike-49-0-0 v0.0.0
+      ├── wasmtime-wasi v49.0.0
+      │   └── wasi-run-spike-49-0-0 v0.0.0 (*)
+      ├── wasmtime-wasi-io v49.0.0
+      │   └── wasmtime-wasi v49.0.0 (*)
+      └── wiggle v49.0.0
+          └── wasmtime-wasi v49.0.0 (*)
+
+error[vulnerability]: Guest can panic host through filesystem datetime overflow
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0314
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0314
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-j2g9-4prp-pf6h
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14403
+    ├ Solution: Upgrade to >=36.0.16, <37.0.0 OR >=48.0.3, <49.0.0 OR >=49.0.1 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+error[vulnerability]: WASI preview 0 implementation of `poll_oneoff` circumvents fuel consumption
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0321
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0321
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-j366-h8gg-77pm
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14481
+    ├ Solution: Upgrade to >=36.0.17, <37.0.0 OR >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+error[vulnerability]: Excessive allocated memory on the host when guests don't have stdio
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0322
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0322
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-gqmc-89g8-p25r
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14482
+    ├ Solution: Upgrade to >=36.0.17, <37.0.0 OR >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+error[vulnerability]: fd_readdir copies uninitialized struct padding into guest memory
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0323
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0323
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-96f6-r43r-8c24
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14487
+    ├ Solution: Upgrade to >=36.0.17, <37.0.0 OR >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+error[vulnerability]: Guest can panic host through filesystem timestamp before the epoch on wasip3
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0324
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0324
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-mr2v-56j5-cmfc
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14486
+    ├ Solution: Upgrade to >=48.0.4, <49.0.0 OR >=49.0.2 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+error[vulnerability]: Filesystem sandbox escape when renaming symlinks with trailing slashes
+    ┌─ /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/Cargo.lock:189:1
+    │
+189 │ wasmtime-wasi 49.0.0 registry+https://github.com/rust-lang/crates.io-index
+    │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ security vulnerability detected
+    │
+    ├ ID: RUSTSEC-2026-0352
+    ├ Advisory: https://rustsec.org/advisories/RUSTSEC-2026-0352
+    ├ This is an entry in the RustSec database for the Wasmtime security advisory
+      located at
+      https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-m9f7-9w4p-gv38
+      For more information see the GitHub-hosted security advisory.
+    ├ Announcement: https://github.com/bytecodealliance/wasmtime/pull/14729
+    ├ Solution: Upgrade to >=36.0.18, <37.0.0 OR >=48.0.6, <49.0.0 OR >=49.0.3 (try `cargo update -p wasmtime-wasi`)
+    ├ wasmtime-wasi v49.0.0
+      └── wasi-run-spike-49-0-0 v0.0.0
+
+advisories FAILED

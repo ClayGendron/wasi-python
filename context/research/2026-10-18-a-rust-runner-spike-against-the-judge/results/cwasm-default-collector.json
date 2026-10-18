@@ -1,0 +1,141 @@
+{
+ "compiles": [
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 6069,
+   "bytes": 99213032,
+   "sha": "4dc39f0808b94675",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 4980,
+   "bytes": 99213032,
+   "sha": "48dd5a6b40d56269",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-judge-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 5431,
+   "bytes": 99294952,
+   "sha": "e95d97eba72b6c4b",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-judge-plain.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 4684,
+   "bytes": 136896072,
+   "sha": "f4ad3658f6818b84",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 5808,
+   "bytes": 136896072,
+   "sha": "161e64163eaff6d1",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-judge-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "judge",
+   "which": "snapshot",
+   "ms": 5638,
+   "bytes": 136977992,
+   "sha": "fa075c5a07384139",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-judge-snapshot.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 4942,
+   "bytes": 105292416,
+   "sha": "4f7ca6f796f134e7",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 5447,
+   "bytes": 105292416,
+   "sha": "d37fef544570c1a5",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "runner-fuel",
+   "which": "plain",
+   "ms": 5357,
+   "bytes": 105390720,
+   "sha": "08609d3bcae085dc",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-runner-fuel-plain.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 5027,
+   "bytes": 142975456,
+   "sha": "4a30d32105222965",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.0",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 5413,
+   "bytes": 142975456,
+   "sha": "fa1cd2c230cea4e1",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.0-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "rs-49.0.3",
+   "cfg": "runner-fuel",
+   "which": "snapshot",
+   "ms": 6736,
+   "bytes": 143073760,
+   "sha": "ca4d190301ca5324",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/rs49.0.3-runner-fuel-snapshot.cwasm"
+  },
+  {
+   "side": "py-49.0.0",
+   "cfg": "judge",
+   "which": "plain",
+   "ms": 5501,
+   "bytes": 99213032,
+   "sha": "4dc39f0808b94675",
+   "path": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/py49.0.0-judge-plain-again.cwasm"
+  }
+ ],
+ "loads": [
+  {
+   "side": "rs-49.0.0",
+   "loads": "py49.0.0-judge-plain.cwasm",
+   "error": "failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.0-plain/py.cwasm",
+   "id": "load"
+  },
+  {
+   "side": "rs-49.0.3",
+   "loads": "py49.0.0-judge-plain.cwasm",
+   "error": "failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.3-plain/py.cwasm",
+   "id": "load"
+  },
+  {
+   "side": "rs-49.0.0",
+   "loads": "py49.0.0-judge-snapshot.cwasm",
+   "error": "failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.0-snapshot/py.cwasm",
+   "id": "load"
+  }
+ ]
+}

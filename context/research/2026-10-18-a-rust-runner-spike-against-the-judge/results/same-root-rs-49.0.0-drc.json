@@ -1,0 +1,194 @@
+[
+ {
+  "trial": 0,
+  "job": "numpy_random-plain",
+  "py": 4927927314,
+  "rs_first": 4927927314,
+  "rs_second": 4927927314,
+  "exact": true
+ },
+ {
+  "trial": 0,
+  "job": "numpy_csv-plain",
+  "py": 4943370204,
+  "rs_first": 4943370204,
+  "rs_second": 4943370204,
+  "exact": true
+ },
+ {
+  "trial": 0,
+  "job": "pandas_csv-plain",
+  "py": 5052908327,
+  "rs_first": 5052908327,
+  "rs_second": 5052908327,
+  "exact": true
+ },
+ {
+  "trial": 0,
+  "job": "pandas_tz-snapshot",
+  "py": 136735269,
+  "rs_first": 136735269,
+  "rs_second": 136735269,
+  "exact": true
+ },
+ {
+  "trial": 0,
+  "job": "callbacks-snapshot",
+  "py": 92854953,
+  "rs_first": 92854953,
+  "rs_second": 92854953,
+  "exact": true
+ },
+ {
+  "trial": 0,
+  "job": "compress-plain",
+  "py": 3917590873,
+  "rs_first": 3917590873,
+  "rs_second": 3917590873,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "numpy_random-plain",
+  "py": 4927927314,
+  "rs_first": 4927927314,
+  "rs_second": 4927927314,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "numpy_csv-plain",
+  "py": 4943370204,
+  "rs_first": 4943370204,
+  "rs_second": 4943370204,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "pandas_csv-plain",
+  "py": 5052908361,
+  "rs_first": 5052908361,
+  "rs_second": 5052908361,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "pandas_tz-snapshot",
+  "py": 136735269,
+  "rs_first": 136735269,
+  "rs_second": 136735269,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "callbacks-snapshot",
+  "py": 92854953,
+  "rs_first": 92854953,
+  "rs_second": 92854953,
+  "exact": true
+ },
+ {
+  "trial": 1,
+  "job": "compress-plain",
+  "py": 3917590873,
+  "rs_first": 3917590873,
+  "rs_second": 3917590873,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "numpy_random-plain",
+  "py": 4927927314,
+  "rs_first": 4927927314,
+  "rs_second": 4927927314,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "numpy_csv-plain",
+  "py": 4943370204,
+  "rs_first": 4943370204,
+  "rs_second": 4943370204,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "pandas_csv-plain",
+  "py": 5052908344,
+  "rs_first": 5052908344,
+  "rs_second": 5052908344,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "pandas_tz-snapshot",
+  "py": 136735269,
+  "rs_first": 136735269,
+  "rs_second": 136735269,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "callbacks-snapshot",
+  "py": 92854953,
+  "rs_first": 92854953,
+  "rs_second": 92854953,
+  "exact": true
+ },
+ {
+  "trial": 2,
+  "job": "compress-plain",
+  "py": 3917590873,
+  "rs_first": 3917590805,
+  "rs_second": 3917590873,
+  "exact": false
+ },
+ {
+  "trial": 3,
+  "job": "numpy_random-plain",
+  "py": 4927927314,
+  "rs_first": 4927927314,
+  "rs_second": 4927927314,
+  "exact": true
+ },
+ {
+  "trial": 3,
+  "job": "numpy_csv-plain",
+  "py": 4943370204,
+  "rs_first": 4943370204,
+  "rs_second": 4943370204,
+  "exact": true
+ },
+ {
+  "trial": 3,
+  "job": "pandas_csv-plain",
+  "py": 5052908361,
+  "rs_first": 5052908361,
+  "rs_second": 5052908361,
+  "exact": true
+ },
+ {
+  "trial": 3,
+  "job": "pandas_tz-snapshot",
+  "py": 136735269,
+  "rs_first": 136735269,
+  "rs_second": 136735269,
+  "exact": true
+ },
+ {
+  "trial": 3,
+  "job": "callbacks-snapshot",
+  "py": 92854953,
+  "rs_first": 92854953,
+  "rs_second": 92854953,
+  "exact": true
+ },
+ {
+  "trial": 3,
+  "job": "compress-plain",
+  "py": 3917590873,
+  "rs_first": 3917590788,
+  "rs_second": 3917590873,
+  "exact": false
+ }
+]

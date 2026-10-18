@@ -1,0 +1,19 @@
+[package]
+name = "wasi-run-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT OR Apache-2.0"
+
+# A research spike (2026-10-18): a minimal Rust runner for the wasi_python artifact set, on the
+# same wasmtime the project pins (49.0.3: downloads/SHA256SUMS). Not a product.
+
+[dependencies]
+wasmtime = { version = "=49.0.3" }
+wasmtime-wasi = { version = "=49.0.3", default-features = false, features = ["p1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+
+[profile.release]
+strip = true

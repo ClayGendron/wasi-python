@@ -1,0 +1,65 @@
+py hello-plain#0: exit=0 trapped=None fuel=166604192
+py hello-snapshot#0: exit=0 trapped=None fuel=83465940
+py numpy_csv-plain#0: exit=0 trapped=None fuel=4943370153
+py pandas_csv-plain#0: exit=0 trapped=None fuel=5052908361
+py numpy_random-plain#0: exit=0 trapped=None fuel=4927927314
+py compress-plain#0: exit=0 trapped=None fuel=3917590873
+py sqlite-plain#0: exit=0 trapped=None fuel=5148966104
+py callbacks-snapshot#0: exit=0 trapped=None fuel=92854953
+py pandas_tz-snapshot#0: exit=0 trapped=None fuel=136735269
+py plot_line-snapshot#0: exit=0 trapped=None fuel=7559512753
+py exit3-stderr-plain#0: exit=3 trapped=None fuel=166853859
+py zerodiv-snapshot#0: exit=1 trapped=None fuel=85264320
+py env-argv-snapshot#0: exit=0 trapped=None fuel=83773271
+py grants-ro-rw-snapshot#0: exit=0 trapped=None fuel=85136507
+py fuel-trap-startup-plain#0: exit=None trapped=out of fuel fuel=50000000
+py fuel-trap-loop-snapshot#0: exit=None trapped=out of fuel fuel=1000000000
+py hello-plain#1: exit=0 trapped=None fuel=166604192
+py hello-snapshot#1: exit=0 trapped=None fuel=83465940
+py numpy_csv-plain#1: exit=0 trapped=None fuel=4943370204
+py pandas_csv-plain#1: exit=0 trapped=None fuel=5052908361
+py numpy_random-plain#1: exit=0 trapped=None fuel=4927927314
+py compress-plain#1: exit=0 trapped=None fuel=3917590873
+py sqlite-plain#1: exit=0 trapped=None fuel=5148966104
+py callbacks-snapshot#1: exit=0 trapped=None fuel=92854953
+py pandas_tz-snapshot#1: exit=0 trapped=None fuel=136735269
+py plot_line-snapshot#1: exit=0 trapped=None fuel=7559512753
+py exit3-stderr-plain#1: exit=3 trapped=None fuel=166853859
+py zerodiv-snapshot#1: exit=1 trapped=None fuel=85264320
+py env-argv-snapshot#1: exit=0 trapped=None fuel=83773271
+py grants-ro-rw-snapshot#1: exit=0 trapped=None fuel=85136507
+py fuel-trap-startup-plain#1: exit=None trapped=out of fuel fuel=50000000
+py fuel-trap-loop-snapshot#1: exit=None trapped=out of fuel fuel=1000000000
+py hello-plain#2: exit=0 trapped=None fuel=166604192
+py hello-snapshot#2: exit=0 trapped=None fuel=83465940
+py numpy_csv-plain#2: exit=0 trapped=None fuel=4943370170
+py pandas_csv-plain#2: exit=0 trapped=None fuel=5052908344
+py numpy_random-plain#2: exit=0 trapped=None fuel=4927927280
+py compress-plain#2: exit=0 trapped=None fuel=3917590771
+py sqlite-plain#2: exit=0 trapped=None fuel=5148966070
+py callbacks-snapshot#2: exit=0 trapped=None fuel=92854953
+py pandas_tz-snapshot#2: exit=0 trapped=None fuel=136735269
+py plot_line-snapshot#2: exit=0 trapped=None fuel=7559512753
+py exit3-stderr-plain#2: exit=3 trapped=None fuel=166853859
+py zerodiv-snapshot#2: exit=1 trapped=None fuel=85264320
+py env-argv-snapshot#2: exit=0 trapped=None fuel=83773271
+py grants-ro-rw-snapshot#2: exit=0 trapped=None fuel=85136507
+py fuel-trap-startup-plain#2: exit=None trapped=out of fuel fuel=50000000
+py fuel-trap-loop-snapshot#2: exit=None trapped=out of fuel fuel=1000000000
+{"job": "hello-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [166604192, 166604192, 166604192], "fuel_rs": [166604192, 166604192, 166604192], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 6, "stderr_bytes": 0, "outputs_match": true}
+{"job": "hello-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [83465940, 83465940, 83465940], "fuel_rs": [83465940, 83465940, 83465940], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 6, "stderr_bytes": 0, "outputs_match": true}
+{"job": "numpy_csv-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 1, "fuel_py": [4943370153, 4943370204, 4943370170], "fuel_rs": [4943370170, 4943370204, 4943370170], "py_repeats": false, "rs_repeats": false, "fuel_exact": false, "cross_delta": [-34, 51], "stdout_bytes": 473, "stderr_bytes": 0, "outputs_match": true}
+{"job": "pandas_csv-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 2, "fuel_py": [5052908361, 5052908361, 5052908344], "fuel_rs": [5052908327, 5052908361, 5052908327], "py_repeats": false, "rs_repeats": false, "fuel_exact": false, "cross_delta": [-34, 17], "stdout_bytes": 485, "stderr_bytes": 0, "outputs_match": true}
+{"job": "numpy_random-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 0, "fuel_py": [4927927314, 4927927314, 4927927280], "fuel_rs": [4927927314, 4927927314, 4927927314], "py_repeats": false, "rs_repeats": true, "fuel_exact": false, "cross_delta": [0, 34], "stdout_bytes": 596, "stderr_bytes": 0, "outputs_match": true}
+{"job": "compress-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 0, "fuel_py": [3917590873, 3917590873, 3917590771], "fuel_rs": [3917590873, 3917590873, 3917590482], "py_repeats": false, "rs_repeats": false, "fuel_exact": false, "cross_delta": [-391, 102], "stdout_bytes": 834, "stderr_bytes": 0, "outputs_match": true}
+{"job": "sqlite-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 1, "fuel_py": [5148966104, 5148966104, 5148966070], "fuel_rs": [5148966104, 5148966104, 5148966104], "py_repeats": false, "rs_repeats": true, "fuel_exact": false, "cross_delta": [0, 34], "stdout_bytes": 1103, "stderr_bytes": 0, "outputs_match": true}
+{"job": "callbacks-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 0, "fuel_py": [92854953, 92854953, 92854953], "fuel_rs": [92854953, 92854953, 92854953], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 349, "stderr_bytes": 0, "outputs_match": true}
+{"job": "pandas_tz-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 0, "fuel_py": [136735269, 136735269, 136735269], "fuel_rs": [136735269, 136735269, 136735269], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 165, "stderr_bytes": 0, "outputs_match": true}
+{"job": "plot_line-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [true, true], "n_written": 1, "fuel_py": [7559512753, 7559512753, 7559512753], "fuel_rs": [7559512685, 7559512685, 7559512702], "py_repeats": true, "rs_repeats": false, "fuel_exact": false, "cross_delta": [-68, -51], "stdout_bytes": 159, "stderr_bytes": 0, "outputs_match": true}
+{"job": "exit3-stderr-plain", "exit": [3, 3], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [166853859, 166853859, 166853859], "fuel_rs": [166853859, 166853859, 166853859], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 4, "stderr_bytes": 5, "outputs_match": true}
+{"job": "zerodiv-snapshot", "exit": [1, 1], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [85264320, 85264320, 85264320], "fuel_rs": [85264320, 85264320, 85264320], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 7, "stderr_bytes": 160, "outputs_match": true}
+{"job": "env-argv-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [83773271, 83773271, 83773271], "fuel_rs": [83773271, 83773271, 83773271], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 23, "stderr_bytes": 0, "outputs_match": true}
+{"job": "grants-ro-rw-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 1, "fuel_py": [85136507, 85136507, 85136507], "fuel_rs": [85136507, 85136507, 85136507], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 70, "stderr_bytes": 0, "outputs_match": true}
+{"job": "fuel-trap-startup-plain", "exit": [null, null], "trapped": ["out of fuel", "out of fuel"], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [50000000, 50000000, 50000000], "fuel_rs": [50000000, 50000000, 50000000], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 0, "stderr_bytes": 0, "outputs_match": true}
+{"job": "fuel-trap-loop-snapshot", "exit": [null, null], "trapped": ["out of fuel", "out of fuel"], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "written_equal": true, "golden": [null, null], "n_written": 0, "fuel_py": [1000000000, 1000000000, 1000000000], "fuel_rs": [1000000000, 1000000000, 1000000000], "py_repeats": true, "rs_repeats": true, "fuel_exact": true, "cross_delta": [0, 0], "stdout_bytes": 0, "stderr_bytes": 0, "outputs_match": true}
+outputs matched 16/16; fuel exact 10/16; wrote /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/rust-spike/results/judge-rs-49.0.0-drc.json

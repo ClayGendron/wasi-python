@@ -1,0 +1,25 @@
+py hello-snapshot#0: 0 None 83417525
+py hello-snapshot-hashseed0#0: 0 None 83474826
+py numpy-sum-plain#0: 0 None 1075147491
+py exit3-stderr-snapshot#0: 3 None 83644527
+py memory-cap-snapshot#0: 1 None 85194692
+py grants-ro-rw-snapshot#0: 0 None 84786145
+py deadline-unmetered-snapshot#0: None deadline None
+py deadline-metered-snapshot#0: None deadline None
+py hello-snapshot#1: 0 None 83419820
+py hello-snapshot-hashseed0#1: 0 None 83523899
+py numpy-sum-plain#1: 0 None 1074742646
+py exit3-stderr-snapshot#1: 3 None 83648166
+py memory-cap-snapshot#1: 1 None 85247818
+py grants-ro-rw-snapshot#1: 0 None 84886270
+py deadline-unmetered-snapshot#1: None deadline None
+py deadline-metered-snapshot#1: None deadline None
+{"job": "hello-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [83417525, 83419820], "fuel_rs": [83507879, 83462545], "errors": [], "fuel_spread_ppm": 1083.2, "fuel_spread_py_ppm": 27.5, "fuel_spread_rs_ppm": 543.5, "outputs_match": true}
+{"job": "hello-snapshot-hashseed0", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [83474826, 83523899], "fuel_rs": [83521412, 83475191], "errors": [], "fuel_spread_ppm": 587.9, "fuel_spread_py_ppm": 587.9, "fuel_spread_rs_ppm": 553.7, "outputs_match": true}
+{"job": "numpy-sum-plain", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [1075147491, 1074742646], "fuel_rs": [1074822684, 1074879424], "errors": [], "fuel_spread_ppm": 376.7, "fuel_spread_py_ppm": 376.7, "fuel_spread_rs_ppm": 52.8, "outputs_match": true}
+{"job": "exit3-stderr-snapshot", "exit": [3, 3], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [83644527, 83648166], "fuel_rs": [83697513, 83606351], "errors": [], "fuel_spread_ppm": 1090.4, "fuel_spread_py_ppm": 43.5, "fuel_spread_rs_ppm": 1090.4, "outputs_match": true}
+{"job": "memory-cap-snapshot", "exit": [1, 1], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [85194692, 85247818], "fuel_rs": [85203236, 85157572], "errors": [], "fuel_spread_ppm": 1059.8, "fuel_spread_py_ppm": 623.9, "fuel_spread_rs_ppm": 536.2, "outputs_match": true}
+{"job": "grants-ro-rw-snapshot", "exit": [0, 0], "trapped": [null, null], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [84786145, 84886270], "fuel_rs": [84798976, 84837322], "errors": [], "fuel_spread_ppm": 1180.9, "fuel_spread_py_ppm": 1180.9, "fuel_spread_rs_ppm": 452.3, "outputs_match": true}
+{"job": "deadline-unmetered-snapshot", "exit": [null, null], "trapped": ["deadline", "deadline"], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [null, null], "fuel_rs": [null, null], "errors": [], "outputs_match": true}
+{"job": "deadline-metered-snapshot", "exit": [null, null], "trapped": ["deadline", "deadline"], "exit_equal": true, "trapped_equal": true, "stdout_equal": true, "stderr_equal": true, "rw_equal": true, "fuel_py": [null, null], "fuel_rs": [null, null], "errors": [], "outputs_match": true}
+outputs matched 8/8; wrote /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/rust-spike/results/runner-rs-49.0.3.json

@@ -1,0 +1,5 @@
+   Compiling wasi-run-spike v0.0.0 (/Users/claygendron/Git/Repos/wasi_python/build/rust-spike)
+    Finished `release` profile [optimized] target(s) in 4.47s
+real 4.50
+user 20.54
+sys 0.56

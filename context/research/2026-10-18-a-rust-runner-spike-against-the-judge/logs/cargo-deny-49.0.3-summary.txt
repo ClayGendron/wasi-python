@@ -1,0 +1,22 @@
+warning[duplicate]: found 2 duplicate entries for crate 'cpufeatures'
+warning[duplicate]: found 2 duplicate entries for crate 'getrandom'
+warning[duplicate]: found 2 duplicate entries for crate 'hashbrown'
+warning[duplicate]: found 2 duplicate entries for crate 'io-lifetimes'
+warning[license-not-encountered]: license was not encountered
+warning[duplicate]: found 2 duplicate entries for crate 'syn'
+warning[duplicate]: found 2 duplicate entries for crate 'thiserror'
+warning[duplicate]: found 2 duplicate entries for crate 'thiserror-impl'
+warning[duplicate]: found 2 duplicate entries for crate 'wasm-encoder'
+warning[duplicate]: found 2 duplicate entries for crate 'wast'
+warning[duplicate]: found 3 duplicate entries for crate 'windows-sys'
+warning[duplicate]: found 2 duplicate entries for crate 'windows-targets'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_aarch64_gnullvm'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_aarch64_msvc'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_i686_gnu'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_i686_gnullvm'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_i686_msvc'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_x86_64_gnu'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_x86_64_gnullvm'
+warning[duplicate]: found 2 duplicate entries for crate 'windows_x86_64_msvc'
+advisories ok, bans ok, licenses ok, sources ok
+advisories ok, bans ok, licenses ok, sources ok

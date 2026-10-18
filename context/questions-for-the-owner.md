@@ -100,8 +100,14 @@ document.
   - After 0.1.0 and the wasmtime 50 pin: a separate Node package on that core.
   - Keep the Python wheel on wasmtime-py, and keep bundling the artifacts in it, asking PyPI
     for the size raise (question 64).
-- **The owner, 2026-10-18 (in part):** "have an opus agent run the rust spike". The spike is
-  running; the other parts stay open until its memo is in.
+- **The owner, 2026-10-18 (in part):** "have an opus agent run the rust spike". **The spike
+  (`research/2026-10-18-a-rust-runner-spike-against-the-judge.md`):** with the same wasmtime and
+  Config, a Rust `run()` gives the same outputs on 16 of 16 judge jobs and the same fuel to the
+  instruction; the only steady gap (3e-5, matplotlib) comes from the wasmtime patch version, not
+  Rust against Python. A Rust core is 376 lines here, an 8.7 to 13.9 MB binary, about 190 crates,
+  all permissive. It also found that wasmtime-py 49.0.0 embeds wasmtime 49.0.0 (only the CLI is
+  49.0.3). The memo leaves the verdict as it was: adopt in part, after 0.1.0. The rest of the
+  question stays yours.
 - **Meanwhile:** nothing else changes.
 
 ### 95. Documentation commits between a release's dry run and its tag

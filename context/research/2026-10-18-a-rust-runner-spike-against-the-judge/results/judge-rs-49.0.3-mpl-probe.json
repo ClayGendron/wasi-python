@@ -1,0 +1,93 @@
+{
+ "label": "rs-49.0.3-mpl-probe",
+ "binary": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/target/release/wasi-run-spike",
+ "repeats": 2,
+ "python_driver_wall_s": 12.16,
+ "rust_wall_s": 11.85,
+ "rust_module_ms": {
+  "mpl-fontcache-snapshot#0": [
+   "compiled",
+   7310.171167
+  ]
+ },
+ "rows": [
+  {
+   "job": "mpl-fontcache-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    6644021525,
+    6644021525
+   ],
+   "fuel_rs": [
+    6644224541,
+    6644224541
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": false,
+   "cross_delta": [
+    203016,
+    203016
+   ],
+   "stdout_bytes": 3,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "mpl-savefig-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    7135571655,
+    7135571621
+   ],
+   "fuel_rs": [
+    7135803252,
+    7135803252
+   ],
+   "py_repeats": false,
+   "rs_repeats": true,
+   "fuel_exact": false,
+   "cross_delta": [
+    231597,
+    231631
+   ],
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  }
+ ]
+}

@@ -1,0 +1,409 @@
+{
+ "label": "rs-49.0.0-epoch",
+ "binary": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/v49_0_0/target/release/wasi-run-spike-49-0-0",
+ "repeats": 2,
+ "python_driver_wall_s": 23.72,
+ "rust_wall_s": 27.72,
+ "rust_module_ms": {
+  "hello-plain#0": [
+   "compiled",
+   12155.859292000001
+  ],
+  "hello-snapshot#0": [
+   "compiled",
+   8798.231375
+  ]
+ },
+ "rows": [
+  {
+   "job": "hello-plain",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    166604192,
+    166604192
+   ],
+   "fuel_rs": [
+    166604192,
+    166604192
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "hello-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    83465940,
+    83465940
+   ],
+   "fuel_rs": [
+    83465940,
+    83465940
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 6,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "exit3-stderr-plain",
+   "exit": [
+    3,
+    3
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    166853859,
+    166853859
+   ],
+   "fuel_rs": [
+    166853859,
+    166853859
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 4,
+   "stderr_bytes": 5,
+   "outputs_match": true
+  },
+  {
+   "job": "zerodiv-snapshot",
+   "exit": [
+    1,
+    1
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    85264320,
+    85264320
+   ],
+   "fuel_rs": [
+    85264320,
+    85264320
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 7,
+   "stderr_bytes": 160,
+   "outputs_match": true
+  },
+  {
+   "job": "env-argv-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    83773271,
+    83773271
+   ],
+   "fuel_rs": [
+    83773271,
+    83773271
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 23,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "grants-ro-rw-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 1,
+   "fuel_py": [
+    85136507,
+    85136507
+   ],
+   "fuel_rs": [
+    85136507,
+    85136507
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 70,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "sqlite-plain",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    true,
+    true
+   ],
+   "n_written": 1,
+   "fuel_py": [
+    5148966104,
+    5148966104
+   ],
+   "fuel_rs": [
+    5148966104,
+    5148966104
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 1103,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "callbacks-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    true,
+    true
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    92854953,
+    92854953
+   ],
+   "fuel_rs": [
+    92854953,
+    92854953
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 349,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "pandas_tz-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    true,
+    true
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    136735269,
+    136735269
+   ],
+   "fuel_rs": [
+    136735269,
+    136735269
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 165,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "fuel-trap-loop-snapshot",
+   "exit": [
+    null,
+    null
+   ],
+   "trapped": [
+    "out of fuel",
+    "out of fuel"
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    1000000000,
+    1000000000
+   ],
+   "fuel_rs": [
+    1000000000,
+    1000000000
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 0,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  }
+ ]
+}

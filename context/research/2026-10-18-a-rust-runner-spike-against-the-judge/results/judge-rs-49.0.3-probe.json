@@ -1,0 +1,93 @@
+{
+ "label": "rs-49.0.3-probe",
+ "binary": "/Users/claygendron/Git/Repos/wasi_python/build/rust-spike/target/release/wasi-run-spike",
+ "repeats": 2,
+ "python_driver_wall_s": 6.87,
+ "rust_wall_s": 7.62,
+ "rust_module_ms": {
+  "listdir-snapshot#0": [
+   "compiled",
+   6335.7705
+  ]
+ },
+ "rows": [
+  {
+   "job": "listdir-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    85839832,
+    85839832
+   ],
+   "fuel_rs": [
+    85839832,
+    85839832
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 4,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  },
+  {
+   "job": "stat-snapshot",
+   "exit": [
+    0,
+    0
+   ],
+   "trapped": [
+    null,
+    null
+   ],
+   "exit_equal": true,
+   "trapped_equal": true,
+   "stdout_equal": true,
+   "stderr_equal": true,
+   "written_equal": true,
+   "golden": [
+    null,
+    null
+   ],
+   "n_written": 0,
+   "fuel_py": [
+    107674727,
+    107674727
+   ],
+   "fuel_rs": [
+    107674727,
+    107674727
+   ],
+   "py_repeats": true,
+   "rs_repeats": true,
+   "fuel_exact": true,
+   "cross_delta": [
+    0,
+    0
+   ],
+   "stdout_bytes": 5,
+   "stderr_bytes": 0,
+   "outputs_match": true
+  }
+ ]
+}

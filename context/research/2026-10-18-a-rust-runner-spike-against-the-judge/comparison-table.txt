@@ -1,0 +1,183 @@
+Table 1. Judge mode: tests/harness/guest.py (wasmtime-py 49.0.0) against the Rust spike on wasmtime 49.0.3
+  (3 runs per side per job; Rust binary wasi-run-spike)
+
+  job                        outputs  golden  exit/trap    fuel exact py fuel (each run)                       rust fuel (each run)
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  hello-plain                same     -       exit 0       yes        166604192,166604192,166604192            166604192,166604192,166604192
+  hello-snapshot             same     -       exit 0       yes        83465940,83465940,83465940               83465940,83465940,83465940
+  numpy_csv-plain            same     yes     exit 0       yes        4943370204,4943370204,4943370204         4943370204,4943370204,4943370204
+  pandas_csv-plain           same     yes     exit 0       yes        5052908361,5052908361,5052908361         5052908361,5052908361,5052908361
+  numpy_random-plain         same     yes     exit 0       no         4927927280,4927927314,4927927280         4927927280,4927927314,4927927280
+  compress-plain             same     yes     exit 0       no         3917590635,3917590873,3917590788         3917590720,3917590873,3917590873
+  sqlite-plain               same     yes     exit 0       no         5148966070,5148966104,5148966104         5148966104,5148966104,5148966104
+  callbacks-snapshot         same     yes     exit 0       no         92854953,92854953,92854953               92854919,92854953,92854953
+  pandas_tz-snapshot         same     yes     exit 0       no         136735269,136735235,136735269            136735269,136735269,136735269
+  plot_line-snapshot         same     yes     exit 0       no         7559512634,7559512634,7559512634         7559744196,7559744196,7559744145
+  exit3-stderr-plain         same     -       exit 3       yes        166853859,166853859,166853859            166853859,166853859,166853859
+  zerodiv-snapshot           same     -       exit 1       yes        85264320,85264320,85264320               85264320,85264320,85264320
+  env-argv-snapshot          same     -       exit 0       yes        83773271,83773271,83773271               83773271,83773271,83773271
+  grants-ro-rw-snapshot      same     -       exit 0       yes        85136507,85136507,85136507               85136507,85136507,85136507
+  fuel-trap-startup-plain    same     -       out of fuel  yes        50000000,50000000,50000000               50000000,50000000,50000000
+  fuel-trap-loop-snapshot    same     -       out of fuel  yes        1000000000,1000000000,1000000000         1000000000,1000000000,1000000000
+
+  outputs equal 16/16; fuel equal on every run 10/16
+
+Table 2a. Judge mode: the same, the Rust spike on wasmtime 49.0.0 (crate-default collector)
+  (3 runs per side per job; Rust binary wasi-run-spike-49-0-0)
+
+  job                        outputs  golden  exit/trap    fuel exact py fuel (each run)                       rust fuel (each run)
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  hello-plain                same     -       exit 0       yes        166604192,166604192,166604192            166604192,166604192,166604192
+  hello-snapshot             same     -       exit 0       yes        83465940,83465940,83465940               83465940,83465940,83465940
+  numpy_csv-plain            same     yes     exit 0       no         4943370204,4943370204,4943370204         4943370204,4943370204,4943370187
+  pandas_csv-plain           same     yes     exit 0       no         5052908361,5052908327,5052908361         5052908327,5052908361,5052908361
+  numpy_random-plain         same     yes     exit 0       no         4927927280,4927927314,4927927280         4927927314,4927927314,4927927314
+  compress-plain             same     yes     exit 0       no         3917590873,3917590839,3917590873         3917590873,3917590788,3917590873
+  sqlite-plain               same     yes     exit 0       yes        5148966104,5148966104,5148966104         5148966104,5148966104,5148966104
+  callbacks-snapshot         same     yes     exit 0       yes        92854953,92854953,92854953               92854953,92854953,92854953
+  pandas_tz-snapshot         same     yes     exit 0       yes        136735269,136735269,136735269            136735269,136735269,136735269
+  plot_line-snapshot         same     yes     exit 0       no         7559512583,7559512515,7559512583         7559512583,7559512583,7559512583
+  exit3-stderr-plain         same     -       exit 3       yes        166853859,166853859,166853859            166853859,166853859,166853859
+  zerodiv-snapshot           same     -       exit 1       yes        85264320,85264320,85264320               85264320,85264320,85264320
+  env-argv-snapshot          same     -       exit 0       yes        83773271,83773271,83773271               83773271,83773271,83773271
+  grants-ro-rw-snapshot      same     -       exit 0       yes        85136507,85136507,85136507               85136507,85136507,85136507
+  fuel-trap-startup-plain    same     -       out of fuel  yes        50000000,50000000,50000000               50000000,50000000,50000000
+  fuel-trap-loop-snapshot    same     -       out of fuel  yes        1000000000,1000000000,1000000000         1000000000,1000000000,1000000000
+
+  outputs equal 16/16; fuel equal on every run 11/16
+
+Table 2b. Judge mode: the same, the Rust spike on wasmtime 49.0.0 with the drc collector
+  (3 runs per side per job; Rust binary wasi-run-spike-49-0-0)
+
+  job                        outputs  golden  exit/trap    fuel exact py fuel (each run)                       rust fuel (each run)
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  hello-plain                same     -       exit 0       yes        166604192,166604192,166604192            166604192,166604192,166604192
+  hello-snapshot             same     -       exit 0       yes        83465940,83465940,83465940               83465940,83465940,83465940
+  numpy_csv-plain            same     yes     exit 0       no         4943370153,4943370204,4943370170         4943370170,4943370204,4943370170
+  pandas_csv-plain           same     yes     exit 0       no         5052908361,5052908361,5052908344         5052908327,5052908361,5052908327
+  numpy_random-plain         same     yes     exit 0       no         4927927314,4927927314,4927927280         4927927314,4927927314,4927927314
+  compress-plain             same     yes     exit 0       no         3917590873,3917590873,3917590771         3917590873,3917590873,3917590482
+  sqlite-plain               same     yes     exit 0       no         5148966104,5148966104,5148966070         5148966104,5148966104,5148966104
+  callbacks-snapshot         same     yes     exit 0       yes        92854953,92854953,92854953               92854953,92854953,92854953
+  pandas_tz-snapshot         same     yes     exit 0       yes        136735269,136735269,136735269            136735269,136735269,136735269
+  plot_line-snapshot         same     yes     exit 0       no         7559512753,7559512753,7559512753         7559512685,7559512685,7559512702
+  exit3-stderr-plain         same     -       exit 3       yes        166853859,166853859,166853859            166853859,166853859,166853859
+  zerodiv-snapshot           same     -       exit 1       yes        85264320,85264320,85264320               85264320,85264320,85264320
+  env-argv-snapshot          same     -       exit 0       yes        83773271,83773271,83773271               83773271,83773271,83773271
+  grants-ro-rw-snapshot      same     -       exit 0       yes        85136507,85136507,85136507               85136507,85136507,85136507
+  fuel-trap-startup-plain    same     -       out of fuel  yes        50000000,50000000,50000000               50000000,50000000,50000000
+  fuel-trap-loop-snapshot    same     -       out of fuel  yes        1000000000,1000000000,1000000000         1000000000,1000000000,1000000000
+
+  outputs equal 16/16; fuel equal on every run 10/16
+
+Table 2c. Judge mode, the Rust side with epoch_interruption on (the runner's Config), 49.0.0
+  (2 runs per side per job; Rust binary wasi-run-spike-49-0-0)
+
+  job                        outputs  golden  exit/trap    fuel exact py fuel (each run)                       rust fuel (each run)
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  hello-plain                same     -       exit 0       yes        166604192,166604192                      166604192,166604192
+  hello-snapshot             same     -       exit 0       yes        83465940,83465940                        83465940,83465940
+  exit3-stderr-plain         same     -       exit 3       yes        166853859,166853859                      166853859,166853859
+  zerodiv-snapshot           same     -       exit 1       yes        85264320,85264320                        85264320,85264320
+  env-argv-snapshot          same     -       exit 0       yes        83773271,83773271                        83773271,83773271
+  grants-ro-rw-snapshot      same     -       exit 0       yes        85136507,85136507                        85136507,85136507
+  sqlite-plain               same     yes     exit 0       yes        5148966104,5148966104                    5148966104,5148966104
+  callbacks-snapshot         same     yes     exit 0       yes        92854953,92854953                        92854953,92854953
+  pandas_tz-snapshot         same     yes     exit 0       yes        136735269,136735269                      136735269,136735269
+  fuel-trap-loop-snapshot    same     -       out of fuel  yes        1000000000,1000000000                    1000000000,1000000000
+
+  outputs equal 10/10; fuel equal on every run 10/10
+
+Table 3. Runner mode: the Rust spike (49.0.3) against wasi_python.run (wasmtime-py 49.0.0)
+  (wasmtime's own random and clocks; 2 runs per side; fuel cannot repeat exactly here)
+
+  job                          outputs  exit/trap    py fuel                  rust fuel                spread ppm (all / py / rust)
+  -----------------------------------------------------------------------------------------------------------------------------------
+  hello-snapshot               same     exit 0       83417525,83419820        83507879,83462545        1083.2 / 27.5 / 543.5
+  hello-snapshot-hashseed0     same     exit 0       83474826,83523899        83521412,83475191        587.9 / 587.9 / 553.7
+  numpy-sum-plain              same     exit 0       1075147491,1074742646    1074822684,1074879424    376.7 / 376.7 / 52.8
+  exit3-stderr-snapshot        same     exit 3       83644527,83648166        83697513,83606351        1090.4 / 43.5 / 1090.4
+  memory-cap-snapshot          same     exit 1       85194692,85247818        85203236,85157572        1059.8 / 623.9 / 536.2
+  grants-ro-rw-snapshot        same     exit 0       84786145,84886270        84798976,84837322        1180.9 / 1180.9 / 452.3
+  deadline-unmetered-snapshot  same     deadline     -,-                      -,-                      - (fuel is None after a deadline)
+  deadline-metered-snapshot    same     deadline     -,-                      -,-                      - (fuel is None after a deadline)
+
+  outputs equal 8/8
+
+Table 4. One root, three runs: judge driver, then the Rust spike (49.0.0, drc) twice on the same folder
+
+  trial job                    py           rust 1st     rust 2nd     equal
+  0     numpy_random-plain     4927927314   4927927314   4927927314   yes
+  0     numpy_csv-plain        4943370204   4943370204   4943370204   yes
+  0     pandas_csv-plain       5052908327   5052908327   5052908327   yes
+  0     pandas_tz-snapshot     136735269    136735269    136735269    yes
+  0     callbacks-snapshot     92854953     92854953     92854953     yes
+  0     compress-plain         3917590873   3917590873   3917590873   yes
+  1     numpy_random-plain     4927927314   4927927314   4927927314   yes
+  1     numpy_csv-plain        4943370204   4943370204   4943370204   yes
+  1     pandas_csv-plain       5052908361   5052908361   5052908361   yes
+  1     pandas_tz-snapshot     136735269    136735269    136735269    yes
+  1     callbacks-snapshot     92854953     92854953     92854953     yes
+  1     compress-plain         3917590873   3917590873   3917590873   yes
+  2     numpy_random-plain     4927927314   4927927314   4927927314   yes
+  2     numpy_csv-plain        4943370204   4943370204   4943370204   yes
+  2     pandas_csv-plain       5052908344   5052908344   5052908344   yes
+  2     pandas_tz-snapshot     136735269    136735269    136735269    yes
+  2     callbacks-snapshot     92854953     92854953     92854953     yes
+  2     compress-plain         3917590873   3917590805   3917590873   no
+  3     numpy_random-plain     4927927314   4927927314   4927927314   yes
+  3     numpy_csv-plain        4943370204   4943370204   4943370204   yes
+  3     pandas_csv-plain       5052908361   5052908361   5052908361   yes
+  3     pandas_tz-snapshot     136735269    136735269    136735269    yes
+  3     callbacks-snapshot     92854953     92854953     92854953     yes
+  3     compress-plain         3917590873   3917590788   3917590873   no
+
+  equal 22/24
+
+Table 5. Serialized modules (.cwasm): wasmtime-py 49.0.0 against the Rust spike
+
+  Rust Config: crate-default collector (copying)
+  side       config       module    compile ms       bytes  sha256[:16]
+  py-49.0.0  judge        plain           6069    99213032  4dc39f0808b94675
+  rs-49.0.0  judge        plain           4980    99213032  48dd5a6b40d56269
+  rs-49.0.3  judge        plain           5431    99294952  e95d97eba72b6c4b
+  py-49.0.0  judge        snapshot        4684   136896072  f4ad3658f6818b84
+  rs-49.0.0  judge        snapshot        5808   136896072  161e64163eaff6d1
+  rs-49.0.3  judge        snapshot        5638   136977992  fa075c5a07384139
+  py-49.0.0  runner-fuel  plain           4942   105292416  4f7ca6f796f134e7
+  rs-49.0.0  runner-fuel  plain           5447   105292416  d37fef544570c1a5
+  rs-49.0.3  runner-fuel  plain           5357   105390720  08609d3bcae085dc
+  py-49.0.0  runner-fuel  snapshot        5027   142975456  4a30d32105222965
+  rs-49.0.0  runner-fuel  snapshot        5413   142975456  fa1cd2c230cea4e1
+  rs-49.0.3  runner-fuel  snapshot        6736   143073760  ca4d190301ca5324
+  py-49.0.0  judge        plain           5501    99213032  4dc39f0808b94675
+  rs-49.0.0 loads py49.0.0-judge-plain.cwasm: failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.0-plain/py.cwasm
+  rs-49.0.3 loads py49.0.0-judge-plain.cwasm: failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.3-plain/py.cwasm
+  rs-49.0.0 loads py49.0.0-judge-snapshot.cwasm: failed deserialization for: /Users/claygendron/Git/Repos/wasi_python/build/rust-spike/work/cwasm/load-49.0.0-snapshot/py.cwasm
+
+  Rust Config: collector set to deferred reference counting (drc)
+  side       config       module    compile ms       bytes  sha256[:16]
+  py-49.0.0  judge        plain           5558    99213032  4dc39f0808b94675
+  rs-49.0.0  judge        plain           5462    99213032  4dc39f0808b94675
+  rs-49.0.3  judge        plain           5750    99294952  51dcd0ca839a34b6
+  py-49.0.0  judge        snapshot        5390   136896072  f4ad3658f6818b84
+  rs-49.0.0  judge        snapshot       10230   136896072  f4ad3658f6818b84
+  rs-49.0.3  judge        snapshot        5375   136977992  c18e106a350dc6a7
+  py-49.0.0  runner-fuel  plain           4931   105292416  4f7ca6f796f134e7
+  rs-49.0.0  runner-fuel  plain           5730   105292416  4f7ca6f796f134e7
+  rs-49.0.3  runner-fuel  plain           5506   105390720  a593f1544617b4a8
+  py-49.0.0  runner-fuel  snapshot        5039   142975456  4a30d32105222965
+  rs-49.0.0  runner-fuel  snapshot        5659   142975456  4a30d32105222965
+  rs-49.0.3  runner-fuel  snapshot        7415   143073760  2f15cb8bff750a8e
+  py-49.0.0  judge        plain           9443    99213032  4dc39f0808b94675
+  rs-49.0.0 loads py49.0.0-judge-plain.cwasm: exit 0, fuel 166604192, stdout 'hello\n', load 15 ms
+  rs-49.0.3 loads py49.0.0-judge-plain.cwasm: exit 0, fuel 166604192, stdout 'hello\n', load 15 ms
+  rs-49.0.0 loads py49.0.0-judge-snapshot.cwasm: exit 0, fuel 83465940, stdout 'hello\n', load 14 ms
+
+Table 6. Probes for the plot_line gap on 49.0.3 (drc; 2 runs per side)
+
+  listdir-snapshot         py [85839832, 85839832]  rust [85839832, 85839832]  rust - py [0, 0]
+  stat-snapshot            py [107674727, 107674727]  rust [107674727, 107674727]  rust - py [0, 0]
+  mpl-fontcache-snapshot   py [6644021525, 6644021525]  rust [6644224541, 6644224541]  rust - py [203016, 203016]
+  mpl-savefig-snapshot     py [7135571655, 7135571621]  rust [7135803252, 7135803252]  rust - py [231597, 231631]
+
