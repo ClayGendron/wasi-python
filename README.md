@@ -498,6 +498,55 @@ What grants do not do:
   files and the other grants by identity, which a bind mount shares and a
   second mount of a network share may not.
 
+#### The import path
+
+```python
+lib = Path.home() / "agent-lib"  # holds helpers.py, and tools.zip with a package toolbox
+done = run(
+    ["-c", "import helpers, toolbox; print(helpers.VERSION)"],
+    grants=[Grant(lib, "/lib")],
+    import_path=["/lib", "/lib/tools.zip"],
+)
+```
+
+`import_path=` names guest paths the program may import from; on the command
+line, `--import-path GUEST` (repeatable). They go on `sys.path` after the
+stdlib zip, in the order given. Each entry is a folder or a zip file inside a
+**read-only grant**, and the runner refuses, before any work:
+
+- an entry the root, a writable grant or a mount serves (the guest resolves a
+  path by its longest guest prefix, and so does the check), or that nothing
+  serves. A mount never serves the import path: one provider can be mounted
+  read-only and writable at once, and a later call would import what an
+  earlier one wrote through the writable mount;
+- a writable grant, or any mount, whose guest path lies under an entry;
+- a writable grant, or `root`, whose host folder lies inside the folder of
+  the grant serving an entry: the whole grant, not just the entry's
+  subfolder (a link inside a grant reaches any folder of it);
+- a relative path, `/`, `/usr/local/lib` or under it, or the same entry twice.
+
+The runner does not look for the entry: a missing one, or a file that is not
+a zip, is skipped, as Python skips a bad `PYTHONPATH` entry. No `.pyc` is ever
+written (not even when a program sets `sys.dont_write_bytecode = False`: the
+refused write is quiet), and a valid `.pyc` already in an entry, made for
+CPython 3.15, is used.
+
+Entries come after the runtime, so a module the runtime has (the stdlib's,
+numpy's, pandas', the tool protocol's `host`) is always the runtime's, on both
+binaries: name your packages apart. But a module the runtime looks for and
+lacks is taken from an entry: C accelerators (`_decimal`, `_uuid`, `_hashlib`),
+other platforms' modules (`nt`, `msvcrt`, `fcntl`, `pwd`, `termios`), and the
+profile's optional dependencies (`pytz`, `pyarrow`, `numexpr`, `bottleneck`).
+On the plain binary that also happens for packages the snapshot imported when
+it was built: an entry's `pytz.py` is imported by `import pandas` on the plain
+binary, not on the snapshot. Ship such a name only on purpose.
+
+The runner puts the entries on `sys.path` with a one-line `-c` prelude before
+your argv, which then runs your program exactly as before; a program that
+walks its own stack sees two more frames. Across calls the runner cannot see:
+granting a folder writable in one call and importing from it in another runs
+whatever the first call left there.
+
 ### Mounts
 
 A mount serves a guest's files from your own code: a database, an object
@@ -780,8 +829,9 @@ versions every write should quota or rate-limit its writes and answer
 `EDQUOT`.
 
 **State across runs is yours.** A writable mount whose provider keeps its
-state holds what a later run meets: modules (with a writable mount at `/`, a
-`-c` program has `/`, its working directory, first on `sys.path`) and data
+state holds what a later run meets: modules a later run imports from it (by
+adding it to its own `sys.path`; the runner never puts a mount or a writable
+place there) and data
 files that change a later run's answers (`/etc/mime.types`,
 `/usr/share/zoneinfo/…`). Give each untrusted program its own writable
 namespace, or check what it left. The runtime's own files stay the stdlib
@@ -830,7 +880,9 @@ HOST` is the guest's `/`, writable, and made if missing; `--private-root` gives
 it a fresh private `/`, removed after the call (`root=True`); without either the
 program has no `/` at all, only its grants (`--no-root` says so explicitly).
 `--root` given twice, or two of the three together, is a usage error. A guest path given here cannot hold `=`. `run`'s
-errors number the grants from 0, across both options, in the order typed. The
+errors number the grants from 0, across both options, in the order typed.
+`--import-path GUEST` (repeatable) puts a guest path a `--grant` serves on the
+import path, in the order typed (see *The import path*). The
 program itself is read from the host with `--stdin`, since the guest does not
 see the host's folders, only its root and its grants:
 
@@ -929,6 +981,11 @@ Any other embedder does the same three things:
 3. **Call `_initialize`** (the plain reactor only) **and then `run`**,
    once per instance, with argv (`argv[0]` is `/usr/local/bin/python.wasm`)
    and the environment given through WASI. `run` returns the exit status.
+
+The import path holds only the stdlib zip. A host that adds entries should add
+read-only ones only, after the zip; since it owns argv, it may do it as the
+runner does, with a `-c` prelude that extends `sys.path` and then calls
+`_reactor.run(argv, environ)`.
 
 The plain `wasmtime run` CLI cannot bind a custom import and refuses the
 binary. With `-W unknown-imports-default` it runs it, but the door then
@@ -2022,8 +2079,11 @@ has one.
   reads its root afterwards (see "Not protected");
 - no network, no processes, no shared libraries; two imports only, WASI
   preview1 and the one door;
-- only the stdlib zip is on the import path, and `site` does not run, so
-  modules, `.pth` files or a `pyvenv.cfg` planted in a root never run
+- only the stdlib zip and the read-only entries the embedder names are on the
+  import path; each is served by a read-only grant, and nothing the same call
+  can write lies under one (across calls, see *The import path*). `site`
+  does not run, so modules, `.pth` files or a `pyvenv.cfg` planted in a root
+  never run
   (`sys.flags.no_site` is 1; `exit`, `quit`, `help` and `license` exist
   as in native Python);
 - every door frame is bounded by guest memory, and nothing a frame or a

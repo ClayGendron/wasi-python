@@ -6,6 +6,16 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a5 — unreleased
 
+- **Read-only code on the import path** (spec 054). Added: `run(import_path=[…])` and
+  `run_async(import_path=[…])`, and `wasi-python run --import-path GUEST`. Each entry, a folder
+  or a zip file inside a read-only grant, goes on `sys.path` after the stdlib zip. The runner
+  refuses, before any work, an entry the root, a writable grant or a mount serves, a writable
+  grant or a mount under an entry, and a writable grant or root inside the grant serving one.
+  No `.pyc` is written. A module the runtime has is always the runtime's; one it looks for and
+  lacks (`_hashlib`, `pytz`, …) is taken from an entry, on the plain binary also for packages
+  the snapshot pre-imported (README, *The import path*). Fixed (docs): the README no longer says
+  a writable mount at `/` puts `/` on a `-c` program's `sys.path`; nothing writable is ever
+  there.
 - **The public API is frozen and documented** (spec 049).
   - **Added:** `defaults()` and `set_defaults()`, which replace assigning
     `wasi_python.runner.DEFAULTS` (that still works, unpromised, until the internal name
