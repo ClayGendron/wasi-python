@@ -5,7 +5,8 @@
   it for build with no conditions (its three notes for the builder are in the review). Built
   2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); build-reviewed
   (`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land);
-  revised against it the same day, awaiting the reviewer's confirmation.
+  revised against it the same day and confirmed. Landed 2026-10-17 (accepted on `aac0a98` as
+  `f2429cb`; dry run 39091681324).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: the shared host function's except branch
   and its entry guard), judge checks in `tests/checks/test_v1_4_embedding.py`, `CHANGELOG.md`.
@@ -241,3 +242,10 @@ worktree's logs go with it at landing.
   `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 ·
   judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_async.py,
   tests/unit/test_runner_cancel.py`. Not accepted.
+
+**Landed 2026-10-17** through the lane: rebased onto main (range-diff: both commits unchanged),
+judged on a detached HEAD, accepted with `--accept-judge` (v1.4 77/77; lost 0, grew 0). The
+first acceptance was refused by spec 029's dirty-tree guard, because a reviewer's file changed
+during the run; the lane committed that review on the detached HEAD (`aac0a98`) and accepted
+again (`f2429cb`, the two progress files alone; the rules tier passed on it). Release dry run
+39091681324 on `f2429cb`: every job passed, the Windows verify job included.
