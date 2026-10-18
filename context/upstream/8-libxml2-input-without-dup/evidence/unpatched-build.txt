@@ -1,0 +1,3 @@
+# without fix.patch: make libxml2.la (configure as in notes.md)
+<scratch>/src/libxml2-2.15.4/xmlIO.c:1230:12: error: call to undeclared function 'dup'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+<scratch>/src/libxml2-2.15.4/xmlIO.c:1264:14: error: call to undeclared function 'dup'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]

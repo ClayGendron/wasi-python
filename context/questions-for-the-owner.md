@@ -315,6 +315,33 @@ document.
 - **Meanwhile:** spec 043 is drafted and can be reviewed; it is not built until this is answered.
   qhull's licence, which 043 also ships now that qhull is linked, is already approved.
 
+### 82. lxml and regex: before scipy, and what lxml leaves out (specs 046 and 047)
+
+- **Asked:** 2026-10-18. **Source:** `specifications/046-lxml.md` (Decisions 8, 14 and 15) and
+  `specifications/047-regex.md` (Decision 9). Each spec decides as written below, so nothing
+  waits.
+- **(a) Order.** Decision 48 puts all of tier B after scipy. lxml (with libxml2 and libxslt) and
+  regex need nothing from scipy, matplotlib or tier A: each depends only on landed
+  specifications. May they take a free build-class slot before 037 and 038? The agent
+  recommends yes: both are small, each carries one patch, and pandas' `read_html` default and
+  every `regex` import wait on them. **Meanwhile:** both queue after 038, as decision 48 says.
+- **(b) `lxml.isoschematron`.** It reads its XSL and RELAX NG files by path at import, which fails
+  from the zip, and those files carry terms §4.12 does not name: the ISO/IEC schema's own
+  permission notice, Rick Jelliffe's zlib-style notice on the skeleton stylesheets, and two
+  stylesheets lxml's `LICENSES.txt` calls "unlicensed". Spec 046 leaves the module and its files
+  out, with a stand-in whose `ImportError` points to `lxml.etree.Schematron`, which works. The
+  agent recommends keeping it out for 0.1.0; bringing it in needs your approval of those terms
+  and a carried patch to read the files from the zip.
+- **(c) lxml's inherited code.** lxml's `_elementpath.py` is under ElementTree's terms (the same
+  text CPython's `xml.etree` carries) and `lxml/html/_difflib.py` is a fork of CPython's
+  `difflib` (PSF). Spec 046 reads both as inside the CPython family already approved and ships
+  lxml's `doc/licenses/elementtree.txt` with its notices. The agent recommends confirming that
+  reading.
+- **Upstream.** Spec 046's libxml2 patch (files without `dup()` on WASI) and spec 047's regex
+  patch (five callbacks with the wrong signature, a trap on WebAssembly) have facts sheets in
+  `upstream/8-libxml2-input-without-dup/` and `upstream/9-regex-callback-signatures/`, in
+  question 80's form. Nothing is sent.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

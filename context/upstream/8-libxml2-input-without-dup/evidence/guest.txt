@@ -1,0 +1,104 @@
+# guest: scratch python.wasm (sha256 958fa1f6...), libxml2 2.15.4 + fix.patch, libxslt 1.1.45, lxml 6.1.3 etree.c/objectify.c; plain reactor; DATA=/data read-only, OUT=/out writable
+<o>-</o>libxml compiled -> (2, 15, 4)
+libxml runtime -> (2, 15, 4)
+libxslt -> (1, 1, 45)
+features -> ['catalog', 'html', 'iconv', 'regexp', 'schematron', 'xmlschema', 'xpath']
+has iconv/zlib -> {'iconv'}
+xpath count -> 2.0
+xpath ns -> ['{urn:a}b']
+xpath str -> y
+xpath fn -> r-3
+exslt regex -> ['2']
+tostring -> b'<r xmlns:a="urn:a"><i n="1">x</i><i n="2">y<a:b/></i><!-- c --><?pi d?></r>'
+c14n -> b'<r xmlns:a="urn:a"><i n="1">x</i><i n="2">y<a:b></a:b></i><!-- c --><?pi d?></r>'
+pretty -> b'<a>\n  <b>1</b>\n  <c/>\n</a>\n'
+xslt -> <?xml version="1.0"?>
+<out total="3" max="2"><v>***y</v><v>***x</v></out>
+xslt html -> <html>
+<head>
+<meta charset="UTF-8">
+<title>t</title>
+</head>
+<body><p>2</p></body>
+</html>
+
+objectify -> (42, 's', 'FloatElement')
+html parse -> b'<html><body><p>a<b>b</b></p><p>c</p></body></html>'
+lxml.html -> ['/x', '/y']
+lxml.html text -> a b c
+html tostring meta -> b'<html><head><meta charset="utf-8"><title>x</title></head><body>&#233;</body></html>'
+cssselect absent -> RAISES ImportError cssselect does not seem to be installed. See https://pypi.org/project/cssselect/
+parse windows-1252 -> True
+write windows-1252 -> True
+parse iso-8859-2 -> True
+write iso-8859-2 -> True
+parse koi8-r -> True
+write koi8-r -> True
+parse shift_jis -> True
+write shift_jis -> True
+parse euc-jp -> True
+write euc-jp -> True
+parse gb2312 -> True
+write gb2312 -> RAISES LookupError unknown encoding: 'gb2312'
+parse big5 -> True
+write big5 -> RAISES LookupError unknown encoding: 'big5'
+parse utf-16 -> True
+write utf-16 -> True
+xxe default -> RAISES XMLSyntaxError Entity 'e' not defined, line 1, column 63 (<string>, line 1)
+xxe resolve -> b'<r>SECRET\n</r>'
+xxe net -> b'<r/>'
+billion laughs -> RAISES XMLSyntaxError Maximum entity amplification factor exceeded, see xmlCtxtSetMaxAmplification., line 1, column 4 (<string>, line 1)
+parse path -> v
+parse path twice -> d
+parse missing -> RAISES OSError Error reading file '<DATA>/nope.xml': failed to load "<DATA>/nope.xml": No such file or directory
+iterparse path -> [('end', 'e'), ('end', 'd')]
+xinclude -> b'<!DOCTYPE top>\n<top xmlns:xi="http://www.w3.org/2001/XInclude"><d k="v"><e/></d></top>'
+xslt document() -> <?xml version="1.0"?>
+<o>v</o>
+
+dtd validate -> True
+xsd -> True
+relaxng -> True
+schematron -> True
+isoschematron -> RAISES OSError Error reading file '/usr/local/lib/python315.zip/lxml/isoschematron/resources/xsl/XSD2Schtrn.xsl': failed to load "/usr/local/lib/python315.zip/lxml/isoschematr
+write path -> b'<w>1</w>'
+write gz -> b'<w>1</w>'
+parse gz decompress -> RAISES XMLSyntaxError Start tag expected, '<' not found, line 1, column 1 (w.xml.gz, line 1)
+write stdout - -> None
+
+read_html default -> {'a': [1, 2], 'b': ['x', 'y']}
+read_html lxml -> {'a': [1, 2], 'b': ['x', 'y']}
+read_xml lxml -> {'a': [1, 2], 'b': ['x', 'y']}
+read_xml xpath -> {'a': [2], 'b': ['y']}
+read_xml stylesheet -> {'s': [10, 20]}
+to_xml lxml -> <?xml version='1.0' encoding='utf-8'?>
+<data>
+  <row>
+    <index>0</index>
+    <a>1</a>
+    <b>x</b>
+  </row>
+  <row>
+    <index>1</index>
+    <a>2</a>
+    <b>y</b>
+  </row>
+</data>
+to_xml etree -> <?xml version="1.0" encoding="utf-8"?>
+<data>
+  <row>
+    <index>0</index>
+    <a>1</a>
+    <b>x</b>
+  </row>
+  <row>
+    <index>1</index>
+    <a>2</a>
+    <b>y</b>
+  </row>
+</data>
+
+docx Document() -> RAISES PackageNotFoundError Package not found at '/usr/local/lib/python315.zip/docx/templates/default.docx'
+/prog/lxml_probe.py:63: DeprecationWarning: The (non-ISO) Schematron feature is deprecated and will be removed from libxml2 and lxml. Use 'lxml.isoschematron' instead.
+  show("schematron", lambda: etree.Schematron(etree.XML(b"<schema xmlns='http://www.ascc.net/xml/schematron'><pattern name='p'><rule context='r'><assert test='@k'>k</assert></rule></pattern></schema>")).validate(etree.XML(b"<r k='1'/>")))
+EXIT 0 FUEL 5743354381 {'exit_code': 0, 'trapped': None, 'fuel_used': 5743354381, 'truncated': ()}

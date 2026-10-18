@@ -1,0 +1,31 @@
+# guest with fix.patch and recipes' module-name header: regex_probe.py
+version -> 2026.9.29
+fuzzy -> colou
+fuzzy counts -> (2, 1, 0)
+bestmatch -> (6, 10)
+unicode props -> ['αβγ', '中文']
+graphemes -> ['é', 'a', '👩\u200d💻']
+words V1 -> ['can', 't', 'stop', 'now']
+casefold full -> True
+named lists -> ['cat', 'dog']
+captures -> ['a', 'b', 'c']
+overlapped -> ['12', '23', '34', '45']
+reverse -> ['three', 'two', 'one']
+partial -> True
+set ops -> ['d', 'c', 't', 'n']
+recursion -> True
+atomic/possessive -> ('aaab', None)
+branch reset -> ('b',)
+variable lookbehind -> ['Smith', 'Jones']
+posix -> abc
+subf -> host at user
+split -> ['', 'a', ' ', 'b', '']
+timeout arg ok -> a
+re compat -> 10/2026
+escape -> a\.b\*c
+unicode version -> True
+compile cache -> x
+error -> RAISES error missing ) at position 2
+catastrophic bounded -> None
+big unicode cats -> [979, 1149, 290, 965, 16]
+EXIT 0 FUEL 655820606 {'exit_code': 0, 'trapped': None, 'fuel_used': 655820606, 'truncated': ()}

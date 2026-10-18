@@ -1,0 +1,14 @@
+# guest WITHOUT fix.patch (module-name header kept): each call alone
+## p.groupindex
+EXIT None FUEL 477917355 {'exit_code': None, 'trapped': 'bad signature'
+## pickle.dumps(p)
+EXIT None FUEL 476941083 {'exit_code': None, 'trapped': 'bad signature'
+## m.capturesdict()
+EXIT None FUEL 478711460 {'exit_code': None, 'trapped': 'bad signature'
+## m.allcaptures()
+EXIT None FUEL 477733526 {'exit_code': None, 'trapped': 'bad signature'
+## m.allspans()
+EXIT None FUEL 476913158 {'exit_code': None, 'trapped': 'bad signature'
+## m.groups()
+('x', '2')
+EXIT 0 FUEL 528107967 {'exit_code': 0, 'trapped': None

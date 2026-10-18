@@ -41,6 +41,7 @@ the commit in the memo that cites it.
 | `cloudflare-agents` (cloudflare/agents, cloned 2026-10-17, sparse: `packages/codemode/src`, `docs/codemode`) | code mode: TypeScript types generated from tool schemas, the `ToolDispatcher` RPC back to the host, approval by replay | MIT | 7dd51c51 |
 | `smolagents` (huggingface/smolagents, cloned 2026-10-17, sparse: `src/smolagents`) | `@tool` and `Tool`, how the code agent's tools reach generated code, the remote executors that ship tool source into the sandbox | Apache-2.0 | 96f33faa |
 | `pydantic-ai` (pydantic/pydantic-ai, cloned 2026-10-17, sparse: `pydantic_ai_slim/pydantic_ai`, `src/pydantic_ai_harness/pydantic_ai_harness`) | schemas from type hints and docstrings, `ModelRetry`, approval and deferred tools, the harness's code mode on Monty | MIT | 1640d152 |
+| `boomslang` (HubSpot/boomslang, cloned 2026-10-18) | lxml for `wasm32-wasip1`: `cpython/lxml-wasi/` (libxml2 and libxslt configured static with no threads, modules or zlib; the sdist's generated `etree.c` and `objectify.c` compiled directly; a libxml2 change for WASI's missing `dup()`), and how its builtins table names `lxml.etree` and `lxml.objectify` | Apache-2.0 (`LICENSE`) | f1de75a |
 
 Removed: `bashkit` (everruns/bashkit; no licence file in the clone).
 Its Wizer snapshot of CPython 3.14 and its HTTP door are studied
