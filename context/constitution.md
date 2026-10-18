@@ -25,6 +25,10 @@
   contains, and the order of work, live in `roadmap.md`.
   Amended 2026-10-17 by the owner's answer to question 43: the default
   profile's other packages' licences (§4.12).
+  Amended 2026-10-18 by the owner's answers to questions 70, 73, 81
+  and 83: contourpy, the barcode modules' four-clause BSD and CC BY 4.0
+  for three scikit-learn datasets (§4.12), and one unpushed acceptance
+  commit may be soft-reset (§4.14).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -178,8 +182,15 @@ works.
     networkx, sympy, mpmath, toolz, joblib, cloudpickle, threadpoolctl,
     seaborn, scikit-learn, statsmodels and lxml (BSD-3-Clause),
     defusedxml and typing-extensions (PSF-2.0), tqdm (MPL-2.0 AND MIT)
-    and regex (Apache-2.0 AND CNRI-Python). Each ships with its
-    notice.
+    and regex (Apache-2.0 AND CNRI-Python). Approved 2026-10-18:
+    contourpy (BSD-3-Clause, its GIST-derived code under matplotlib's
+    LICENSE_YORICK; question 81); Tyler C. Sarna's barcode modules in
+    reportlab (BSD-4-Clause: every material that mentions barcodes says
+    "This product includes software developed by Tyler C. Sarna.";
+    question 73); scikit-learn's and statsmodels' bundled code as
+    specs 044 and 045 list it, and CC BY 4.0 for scikit-learn's digits,
+    breast cancer and wine data, shipped with attribution (question 83).
+    Each ships with its notice.
 13. **Tooling.** `uv` only. `ruff check`, `ruff format --check` and
     `pytest` green on `src/` and `tests/` before any landing. No
     dependency added to `pyproject.toml` without a reason written in
@@ -190,7 +201,9 @@ works.
     main's tip; the branch is never pushed and is deleted with its
     worktree when the specification lands or is abandoned. No other
     branch or worktree unless asked. Main moves only by fast-forward,
-    through the landing lane (§5.7). Never `git checkout`, `git
+    through the landing lane (§5.7). One exception (question 70): an
+    acceptance commit that is unpushed and breaks rule 1 may be undone
+    with `git reset --soft`; a pushed one stops the lane. Never `git checkout`, `git
     restore` or `git stash` a file carrying uncommitted work.
 15. **Safe by default.** Every limit has a default (memory, time,
     output); no channel to the host opens without an explicit argument

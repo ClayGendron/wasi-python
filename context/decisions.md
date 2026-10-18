@@ -8,6 +8,66 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 49–89. The overnight questions (answered 2026-10-18)
+
+The owner went through every question written overnight on 2026-10-18, in rounds, with the
+agent's recommendation beside each. The full questions, with their facts, are in git history
+(`questions-for-the-owner.md` before this change) and in the specifications they cite.
+
+- **49, answered:** nothing is cut from 0.1.0. The owner: "we need to have the tool protocol, a
+  byo file system for embedders, async host functions, sessions, so basically cancel nothing for
+  0.1.0". So 0.1.0 carries the cancel fix (030), the tool protocol (031, 036), the filesystem
+  provider (032) and writable mounts (034), and also async host functions, read-only code on the
+  import path and bounded sessions (state across agent turns). The three new ones need
+  specifications; sessions need their research first (`research/2026-10-17-state-across-agent-turns.md`).
+- **50–53, answered:** keep the tool protocol's defaults as built.
+- **54, answered:** a provider may also raise `OSError`; its errno is then the guest's answer
+  (any other exception stays a fault, `EIO`). A follow-up change to spec 032's provider.
+- **55, 56 and 72, answered:** keep as built (staging bounded by `memory_bytes`, the
+  `max_file_calls` names, one buffer per open).
+- **57–63, answered:** keep all as decided: 033 landed first; the `-V` banner keeps "no ctypes";
+  spec 035's reader replaces `zipfile.Path` for the zip's packages, and its three run-time
+  replacements are a recipe under §4.1, not a carried patch; scipy is not pre-imported until
+  measured (with question 34's numbers); OpenBLAS's backport is carried in git until 0.3.35;
+  x86_64 compiles with the emulated aarch64 clang.
+- **64:** still open (wait, then assess from the measured wheel).
+- **70, answered:** yes, unpushed only. If a bad acceptance commit reaches `main` unpushed, the
+  lane may `git reset --soft` that one commit (constitution §4.14); a pushed one stops the lane
+  and comes to the owner.
+- **71, answered:** the POSIX rule: unclosed files are handed to the provider at every ending
+  that returns a result, a cancel and a deadline included. Spec 034 lands as built.
+- **73, answered:** (a) reportlab's fonts stay out for good; (b) the agent drafts a facts sheet
+  on the `zipimporter._files` bug for the owner to send; (c) the four-clause BSD of Tyler C.
+  Sarna's barcode modules is approved with its advertising clause (§4.12): a later change ships
+  `reportlab/graphics/barcode/`, adds a QR code and a Code 128 barcode to the PDF golden, and
+  puts "This product includes software developed by Tyler C. Sarna." in the README's barcode
+  line, the CHANGELOG, and any later material that mentions barcodes.
+- **80, answered:** for projects that restrict AI-written contributions, the upstream draft is a
+  facts sheet (spec 020's six header lines) from which the owner writes and files in their own
+  words.
+- **81, answered:** contourpy (BSD-3-Clause) approved, with `LICENSE_YORICK` covering its
+  GIST-derived code (§4.12). Spec 043 is unblocked.
+- **82, answered:** (a) lxml (046) and regex (047) may take a free build-class slot before
+  scipy (037, 038); (b) `lxml.isoschematron` stays out for 0.1.0; (c) lxml's ElementTree and
+  difflib-derived files are read as inside the approved CPython family; (d) the agent drafts a
+  wasi-libc and musl facts sheet on GB18030.
+- **83, answered:** all as decided in specs 044 and 045: scikit-learn's and statsmodels'
+  bundled code approved; CC BY 4.0 approved for scikit-learn's digits, breast cancer and wine
+  data (§4.12), all six datasets ship with an attribution part; the two sample photographs and
+  statsmodels' fourteen datasets without public-domain terms stay out. Specs 044 and 045 are
+  unblocked.
+- **84:** settled by events: spec 048's mitigation landed before any release.
+- **85, answered:** the exact 49.0.3 rule (as landed); symlinks are not refused.
+- **86, answered:** facts sheet 12 stays the standing ask; the shadow is removed with the pin
+  that moves past wasmtime 49.0.3.
+- **87, answered:** both, after 0.1.0a4 (with the fix) is on PyPI: the owner yanks 0.1.0a3 and
+  publishes a GitHub security advisory for wasi-python; the agent drafts the advisory text.
+- **88, answered:** the stricter promise: a deprecated thing survives at least **two** final
+  minor releases (as CPython's PEP 387), the rest as spec 049 writes it. Spec 049 is revised to
+  say so before it is built.
+- **89, answered:** (a), a judge-only binary linked with numpy's test modules, never shipped:
+  a later build-class specification.
+
 ### 43–48. What else the default profile carries
 
 - **Source:** `research/2026-10-17-what-else-the-default-profile-carries.md` (tiers A to D).
