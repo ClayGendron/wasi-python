@@ -1465,3 +1465,27 @@ def test_a_close_stopped_by_a_cancel_is_owed(placeholder) -> None:
             assert record.refused == (
                 RefusedWrite("/m", "write", ("/f.txt",), Errno.EIO, "exit", "limit"),
             )
+
+
+def test_a_refused_rename_or_removal_moves_no_descriptor(placeholder) -> None:
+    """Spec 034, Decision 7 (the build review, F1(b)): descriptors follow only a namespace call
+    the provider accepted. A rename the provider refuses leaves a descriptor at its `src`
+    writing back to `src` and one at its `dst` still writing back to `dst`; a refused `remove`
+    unlinks nothing; a refused `rmdir` leaves a folder descriptor that still asks the provider."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder, writable=True).raw
+    f, g = r.open(3, "a.txt", 0, ALL)[1], r.open(3, "b.txt", 0, ALL)[1]
+    d = r.open(3, "d", files.O_DIRECTORY)[1]
+    assert None not in (f, g, d)
+    assert (r.write(f, b"A"), r.write(g, b"B")) == ((0, 1), (0, 1))
+    provider.answers[("rename", "/a.txt")] = Errno.EACCES
+    provider.answers[("remove", "/b.txt")] = Errno.EACCES
+    provider.answers[("rmdir", "/d")] = Errno.EACCES
+    assert r.rename(3, "a.txt", 3, "b.txt") == 2
+    assert r.path_call("path_unlink_file", 3, "b.txt") == 2
+    assert r.path_call("path_remove_directory", 3, "d") == 2
+    reads = provider.calls["read"]
+    assert r.open(d, "x.txt")[0] == 0 and provider.calls["read"] == reads + 1
+    assert (r("fd_close", f), r("fd_close", g)) == (0, 0)
+    assert provider.writes() == [b"Aello, mount\n", b"B\n"]
+    assert [e[1] for e in provider.log if e[0] == "write"] == ["/a.txt", "/b.txt"]

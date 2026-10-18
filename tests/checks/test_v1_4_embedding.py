@@ -3307,3 +3307,48 @@ def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
     }, out
     assert copy2[0] == "/work/c.txt" and provider.tree["/c.txt"] == provider.tree["/a.txt"]
     assert (list(ro.iterdir()), list(w2.iterdir())) == ([], [])
+
+
+UNLINKED_AT_THE_ENDING = r"""
+import _host, os, sys
+held = os.open("/w/a.txt", os.O_WRONLY)  # "r+": one read, no write at open
+os.write(held, b"stale")
+os.replace("/w/b.txt", "/w/a.txt")  # the held file is replaced while open
+temp = os.open("/w/t", os.O_RDWR | os.O_CREAT | os.O_EXCL)
+os.write(temp, b"temp")
+os.remove("/w/t")  # removed while open, as TemporaryFile does
+if sys.argv[1] == "os._exit":
+    os._exit(0)
+_host.call(b"cancel")
+while True:
+    pass
+"""
+
+
+@BINARY
+def test_unlinked_files_are_not_written_back_at_the_ending(which) -> None:
+    """Spec 034, Decisions 7 and 8 (the build review, F1(a)): a file replaced by a rename while
+    open and a file removed while open, both left open at an ending that is not their close
+    (`os._exit`, a cancel): the walk writes neither back, so the provider holds the
+    replacement's bytes and no temporary name, and the only `write` is the create at open."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _runner()
+    for ending, trapped in (("os._exit", None), ("cancel", "cancelled")):
+        provider, event = MemoryProvider(), threading.Event()
+        done = run(
+            ["-c", UNLINKED_AT_THE_ENDING, ending],
+            mounts=[Mount(provider, "/w", writable=True)],
+            host=lambda frame, e=event: (e.set(), b"")[1],
+            cancel=event,
+            snapshot=which == "snapshot",
+        )
+        assert (done.trapped, done.stderr) == (trapped, b""), (ending, done)
+        assert provider.log == [
+            ("rename", "/b.txt", "/a.txt"),
+            ("write", "/t", b""),
+            ("remove", "/t"),
+        ], (ending, provider.log)
+        assert provider.tree["/a.txt"] == b"b\n" and "/t" not in provider.tree, ending
+        assert (done.files.refused, done.files.refused_total) == ((), 0)

@@ -680,7 +680,8 @@ of file calls"`. A clean file closes with no call. So a refused write shows
 at the close or the `fsync` (a `with` block or `close()` raises the
 `OSError` of your `Errno`), not at the `write`. After a stop the runner makes
 at most min(1,024, the file calls left) such writes, handing over at most the
-staged bytes (1 GiB by default, the `memory_bytes` bound): each takes your
+staged bytes (the `memory_bytes` bound: 1 GiB by default, 4 GiB when it is
+`None`): each takes your
 provider's time, so a mounted run may return after its deadline by that much.
 A provider that must honour the deadline answers `ETIMEDOUT`, which is
 recorded. Nothing is written back when the call raises (a door host's or your
@@ -712,7 +713,10 @@ or a guard, none a way out of the mount:
 - two descriptors on one path have two buffers, and the later write-back
   replaces the earlier;
 - a write past the staged-bytes bound is `EFBIG` (a guest can grow a file to
-  the bound with one `truncate`);
+  the bound with one `truncate`). The bound counts each buffer's length; the
+  host may hold up to about an eighth more for a grown buffer (Python's
+  `bytearray` over-allocates), and a write-back hands over one transient copy
+  of the buffer;
 - a rename or link between a mount and another writable preopen is `EXDEV`
   (`shutil.move` then copies and removes); to a read-only one, `EPERM`;
 - `os.link` and `os.symlink` within a mount are `ENOTSUP`: the protocol has no

@@ -1500,3 +1500,104 @@ def test_a_stopped_host_gets_no_write_back(case, want) -> None:
     creates = "[('write', '/1.txt', b''), ('write', '/2.txt', b'')"
     walked = ", ('write', '/1.txt', b'dirty')" if case == "a Ctrl-C in the walk" else ""
     assert (ended, log) == (want, creates + walked + "]"), out.stdout
+
+
+WRITE_FAULTS = {  # spec 034 (the build review, F2): answers outside the write half's protocol
+    "a fake Errno of 0": (lambda: _FakeErrno(0), "bad answer: _FakeErrno"),
+    "a fake Errno past i32": (lambda: _FakeErrno(2**32 + 8), "bad answer: _FakeErrno"),
+    "0": (lambda: 0, "bad answer: int"),
+    "a coroutine": (lambda: _coroutine(), "bad answer: coroutine"),
+    "an exception whose type's name raises": (
+        lambda: _raising(_Nameless("x"))(None),
+        "_Nameless: x",
+    ),
+}
+WRITE_FAULT_GUEST = r"""
+import json, os, sys
+out = {}
+for i in range(int(sys.argv[1])):
+    try:
+        open(f"/w/open{i}", "w")
+        out[f"open{i}"] = "answered"
+    except OSError as e:
+        out[f"open{i}"] = e.errno
+    f = open(f"/w/close{i}", "w")
+    f.write("x")
+    try:
+        f.close()
+        out[f"close{i}"] = "answered"
+    except OSError as e:
+        out[f"close{i}"] = e.errno
+    try:
+        os.mkdir(f"/w/call{i}")
+        out[f"call{i}"] = "answered"
+    except OSError as e:
+        out[f"call{i}"] = e.errno
+    fd = os.open(f"/w/exit{i}", os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    os.write(fd, b"x")  # left for the walk
+print(json.dumps(out))
+"""
+
+
+@BOTH
+def test_a_write_half_fault_never_escapes(snapshot) -> None:
+    """Guards a change (spec 034, Decision 2; the build review, F2): an answer of the write half
+    outside its protocol (a fake Errno whose int is 0 or past i32, a 0, a coroutine, an
+    exception whose type's name raises) at a create at open, a write-back at close, a namespace
+    call and the walk gives the guest EIO, one fault and one RefusedWrite(EIO, "fault") each;
+    no fake answer is taken for success or for its own number, run raises nothing, and no
+    coroutine is left to warn that it was never awaited."""
+    import gc
+    import json
+    import warnings
+
+    from harness.files import MemoryProvider
+    from wasi_python import Errno, Mount, RefusedWrite
+
+    run = _run()
+    provider, names = MemoryProvider({}), list(WRITE_FAULTS)
+
+    def hostile(make, content_only):
+        def answer(path, data=b"x"):
+            return make() if data or not content_only else None
+
+        return answer
+
+    for i, name in enumerate(names):
+        make = WRITE_FAULTS[name][0]
+        provider.answers[("write", f"/open{i}")] = hostile(make, False)
+        provider.answers[("write", f"/close{i}")] = hostile(make, True)
+        provider.answers[("write", f"/exit{i}")] = hostile(make, True)
+        provider.answers[("mkdir", f"/call{i}")] = hostile(make, False)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        done = run(
+            ["-c", WRITE_FAULT_GUEST, str(len(names))],
+            mounts=[Mount(provider, "/w", writable=True)],
+            snapshot=snapshot,
+        )
+        gc.collect()
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    answers = json.loads(done.stdout)
+    assert answers == {
+        f"{at}{i}": 29 for i in range(len(names)) for at in ("open", "close", "call")
+    }
+    want_refused, want_faults = [], []
+    for i, name in enumerate(names):
+        for at, method, path in (
+            ("open", "write", f"/open{i}"),
+            ("close", "write", f"/close{i}"),
+            ("call", "mkdir", f"/call{i}"),
+        ):
+            want_refused.append(RefusedWrite("/w", method, (path,), Errno.EIO, at, "fault"))
+            want_faults.append((method, path, name))
+    for i, name in enumerate(names):
+        want_refused.append(RefusedWrite("/w", "write", (f"/exit{i}",), Errno.EIO, "exit", "fault"))
+        want_faults.append(("write", f"/exit{i}", name))
+    assert done.files.refused == tuple(want_refused), done.files.refused
+    assert all(type(r.errno) is Errno for r in done.files.refused)
+    faults = [(f.method, f.path, f.error) for f in done.files.faults]
+    assert len(faults) == len(want_faults), faults
+    for (method, path, error), (m, p, name) in zip(faults, want_faults, strict=True):
+        assert (method, path) == (m, p) and error.startswith(WRITE_FAULTS[name][1]), (name, error)
+    assert not [w for w in caught if "never awaited" in str(w.message)], caught

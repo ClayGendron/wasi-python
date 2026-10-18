@@ -1,7 +1,9 @@
 # 034 — Writable mounts
 
-- **Status:** built 2026-10-18 (Landing notes), on 032 as landed (`987012e`), awaiting its
-  build review, which is also a security review (acceptance 15). Drafted 2026-10-17; reviewed
+- **Status:** built 2026-10-18 (Landing notes); its build review, which is also a security
+  review (`../reviews/034-writable-mounts-2026-10-18.md`; verdict: not yet, but close), is
+  answered by a revision on main `3a9588f` (the Landing notes' last part), awaiting the
+  reviewer's confirmation and the owner's answer to question 71. Drafted 2026-10-17; reviewed
   before build the same day
   (`../reviews/034-writable-mounts-spec-2026-10-17.md`, which is also a security review of the
   design; verdict: not ready as written, but close) and revised against its ten findings (its
@@ -1054,3 +1056,72 @@ checks were written into the same files while step 1's judge ran), `2fcfbee` (st
 notes) and `7588daa` (`test_writes_are_bounded` asserts each row before the next, so a runner
 without the bound fails before it allocates 2**40 bytes; left out of `2fcfbee` by mistake, and
 in the tree every judge and guard run above used).
+
+**Revised 2026-10-18 against the build review** (`../reviews/034-writable-mounts-2026-10-18.md`,
+F1 to F6), by the implementer, after rebasing onto main `3a9588f` (spec 031, 032's
+dirent-padding and Linux-parity fixes). The rebase's conflicts were all two appends at one place
+(`CHANGELOG.md`, `tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_mounts.py`,
+`tests/unit/test_runner_grants.py`), resolved by keeping both; main's `mounts.py` change (reads
+near `2**63` as Linux answers) merged with this one's `readable` check untouched. EXECUTED
+unless it says otherwise; the frozen set is now `build/sets/s-0cdc7b2bd78db6f5`.
+
+- **F1, the two unguarded rules, now checked.** `test_unlinked_files_are_not_written_back_at_the_
+  ending` (v1.4, both binaries): a file replaced by `os.replace` while open and a file removed
+  while open, both left open at `os._exit(0)` and at a cancel: the provider's log is exactly
+  `rename("/b.txt", "/a.txt")`, `write("/t", b"")`, `remove("/t")`; `/a.txt` holds `b"b\n"`
+  and `/t` is gone. `test_a_refused_rename_or_removal_moves_no_descriptor` (unit): a rename the
+  provider refuses (EACCES) leaves the `src` descriptor writing back to `/a.txt` and the `dst`
+  one to `/b.txt`; a refused `remove` unlinks nothing; a refused `rmdir` leaves the folder
+  descriptor asking the provider. Seen failing on the review's mutants, applied one at a time
+  and restored byte for byte (`build/mutants-f1f2.log`): M6 (the walk writes back unlinked
+  files) fails the first, both binaries; M5 (a rename's descriptors follow when refused) and
+  M5b (a removal unlinks when refused) fail the second.
+- **F2, the write half's answers judged by type, now checked.** `test_a_write_half_fault_never_
+  escapes` (v1.2, both binaries): a fake `Errno` whose int is 0, one past i32, `0`, a coroutine
+  and an exception whose type's name raises, each answered to a create at open, a write-back at
+  close, a `mkdir` and the walk: 15 `EIO`s to the guest, 20 faults with their texts, 20
+  `RefusedWrite(…, Errno.EIO, at, "fault")` each holding a real `Errno`, `run` raising nothing,
+  no "never awaited" warning. Seen failing on M1 (`isinstance` for `Errno`) and M2 (a falsy
+  answer is success), both binaries.
+- **F3, composing with 048.** Not implemented now, as the lane asked: 048 lands first. The served
+  rename is made ready: which trailing `/` makes a served rename need a folder source is one
+  constant, `mounts.RENAME_SLASH_NEEDS_FOLDER = (True, False)` (the source's, the destination's),
+  read by `_path_rename` (one `stat` of the source, `ENOTDIR` unless a folder). After rebasing
+  onto 048, exactly this changes: the constant becomes `(True, True)`; `_path_rename`'s branch
+  for two wasmtime numbers calls 048's `self._rename(...)`, not a bare forward (034 forwards no
+  other rename: `_across` answers `EXDEV` or `EPERM`); `_write_sides`' grant side in
+  `test_runner_grants.py` becomes 048's writable `files.Guarded`; and the raw rows
+  `rename 'a.txt' 'newname/'`, `rename 'a.txt' 'b.txt/'` and `rename 'a.txt' 'a.txt/'` answer
+  `ENOTDIR` (54) on both sides, the same on every host (moved to `WASMTIME_ROWS`), while
+  `rename 'd' 'f/'` stays 0 (`d` is a folder). The served rename already answers in the guard's
+  order for those rows (the source's `stat`, then `ENOTDIR`); the other slash rows (`'a.txt/'
+  'c'`, `'d/' 'f'`, `'missing/' 'x'`, `'a.txt/' 'a.txt'`) do not change. 048's padding, its
+  `forward(..., stat=True)`, `_Forwards.stat`/`.page`, `PRIVATE` in `bind` and `_zeroed` are
+  untouched by 034, and `walk()` on a guard table does nothing (its `table` and `owed` are empty);
+  `files = table.record() if mounts else None` stays 048's.
+- **F4, growth without a temporary.** A buffer grows by `_grow`, from one shared 64 KiB block of
+  zeros, so neither `fd_filestat_set_size` nor a gap write makes a temporary of the gap's size:
+  growing a buffer to 64 MiB peaks at 1.014 times the size under `tracemalloc` (the review's
+  2.00). The bound still counts a buffer's length; `bytearray`'s over-allocation may hold up to
+  about an eighth more, which the README now says, beside the one transient copy a write-back
+  hands over (Decision 10).
+- **F5, question 71:** unchanged; the build keeps Decision 8's answer and waits on the owner.
+- **F6.** The README's walk bound reads "the `memory_bytes` bound: 1 GiB by default, 4 GiB when it
+  is `None`". `_write_back` copies the buffer only after the gate lets the call through. The
+  Linux runs used the image `python:3.13-slim@sha256:7c61056e61ac89e852de05f3dc6fa51a6dd2181797bceed46aa725dd7cb2cd3b`
+  (its digest, recorded now): in it, on the revised tree, the raw write rows, the write
+  differences, 032's `test_raw_calls_answer_as_a_grant_does` (now passing on Linux after main's
+  fix), `test_unlinked_files_are_not_written_back_at_the_ending`,
+  `test_a_writable_mount_answers_as_a_writable_grant_does` and
+  `test_writes_land_at_every_ending` (the snapshot) passed. Owed buffers following renames: no
+  check added (the review agrees it is nearly unreachable).
+
+The fifteen guards, re-run on the revised source (`build/guards-revised.log`; `mounts.py`
+`4f643905fc0e…`, `runner.py` `620389e3ab9d…`, restored byte for byte), each fail the checks the
+table above names.
+
+The judge after the revision (`WASI_PYTHON_ARTIFACTS=…/build/sets/s-0cdc7b2bd78db6f5 uv run
+pytest`, `build/judge-revised.log`): `wasi_python v1: 238/249 pass · 0 gap · 11 blocked · 0 fail
+(unit suite 831/839, 8 skipped)`, v1.2 53/54, v1.4 109/109, `ratchet vs 947036ec8d: lost 0 ·
+absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0`, `1069 passed, 19 skipped`.
+`ruff check` and `ruff format --check` clean.

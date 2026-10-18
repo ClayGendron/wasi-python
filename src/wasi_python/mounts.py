@@ -275,6 +275,12 @@ PATH_FILESTAT_SET_SIZE, FD_FILESTAT_SET_SIZE = 1 << 19, 1 << 22
 RIGHTS = (1 << 30) - 1  # wasmtime 49's Rights::all()
 FILE_RIGHTS = RIGHTS & ~FD_WRITE  # a file opened read-only, as wasmtime reports it
 OFFSET_TOP = 2**63  # an offset, a position or a size from here on: the host's EINVAL
+# Which trailing `/` makes a rename served in a writable mount need a folder source: (the
+# source's, the destination's). The parity's reference is a writable grant on wasmtime 49.0.0,
+# which strips the destination's `/` (spec 034, the build review, F3). Spec 048 carries 49.0.3's
+# rule, where either path's `/` counts; once 034 is rebased onto 048 this becomes (True, True).
+RENAME_SLASH_NEEDS_FOLDER = (True, False)
+ZEROS = bytes(1 << 16)  # the block a buffer grows from (the build review, F4)
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
 FILESTAT = "<QQB7xQQQQQ"  # dev, ino, filetype, nlink, size, atim, mtim, ctim: 64 bytes
 FDSTAT = "<BxH4xQQ"  # filetype, flags, rights base and inheriting: 24 bytes
@@ -961,11 +967,12 @@ class _Files:
     def _write_back(self, caller: Any, entry: _Open, at: str) -> tuple[int, bool]:
         """A dirty buffer's whole content handed to the provider, at close or sync: (errno,
         made). On success the buffer is clean; on a refusal it stays dirty."""
-        mount, data = entry.mount, bytes(entry.data)  # a copy the provider may keep
-        errno, made = self._change(caller, mount, "write", at, (entry.path,), data)
-        if made and errno == 0:
+        if errno := self._gate(caller):
+            return errno, False  # not made: owed at a close, still dirty at a sync
+        data = bytes(entry.data)  # a copy the provider may keep, made only for a call that is made
+        if (errno := self._made(entry.mount, "write", at, (entry.path,), (data,))) == 0:
             entry.dirty = False
-        return errno, made
+        return errno, True
 
     def _fd_datasync(self, caller: Any, fd: int) -> int:
         entry = self._entry(fd)
@@ -1059,7 +1066,7 @@ class _Files:
         if size < len(data):
             del data[size:]
         else:
-            data.extend(bytes(size - len(data)))
+            _grow(data, size)
         self._changed(entry)
         return 0
 
@@ -1169,8 +1176,7 @@ class _Files:
                 return EFBIG
             data = entry.data
             assert isinstance(data, bytearray)
-            if at > len(data):
-                data.extend(bytes(at - len(data)))
+            _grow(data, at)
             data[at : at + size] = memory.read(buf, size)
             self._changed(entry)
         if offset is None:
@@ -1721,20 +1727,24 @@ class _Files:
         for one in resolved:
             if isinstance(one, int):
                 return one
-        (src, src_folder), (dst, _) = resolved  # type: ignore[misc]
+        (src, _), (dst, _) = resolved  # type: ignore[misc]
         mount, lasts = a.mount, [text.rsplit("/", 1)[-1] for text in texts]
+        needs_folder = any(
+            counts and text.endswith("/")
+            for counts, text in zip(RENAME_SLASH_NEEDS_FOLDER, texts, strict=True)
+        )
         if "/" in (src, dst) or {".", ".."} & set(lasts):
             return EBUSY  # the mount itself, or a name ending in `.` or `..` (Linux's answer)
         if self._above(mount, src) or self._above(mount, dst):
             return EBUSY  # the guest's view of other preopens stays where it was put
         if dst.startswith(src + "/"):
             return EINVAL  # into its own subfolder
-        if src == dst or src_folder:
+        if src == dst or needs_folder:
             # onto itself, or a source that must be a folder: one `stat` decides it
             errno, kind, _, _ = self._stat(caller, mount, src)
             if errno:
                 return errno
-            if src_folder and kind != "dir":
+            if needs_folder and kind != "dir":
                 return ENOTDIR
             if src == dst:
                 return 0
@@ -1858,6 +1868,14 @@ def _described(e: BaseException) -> str:
     except Exception:
         return name
     return f"{name}: {lines[0]}" if lines else name
+
+
+def _grow(data: bytearray, size: int) -> None:
+    """Zeros appended to `data` up to `size` bytes, from one shared 64 KiB block, so a growth
+    makes no temporary of the gap's size (the build review, F4)."""
+    block = memoryview(ZEROS)
+    while len(data) < size:
+        data += block[: size - len(data)]
 
 
 def _dots(ino: int) -> _Listing:
