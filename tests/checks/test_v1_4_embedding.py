@@ -2691,6 +2691,57 @@ def test_bound_keywords_are_fixed_however_the_partial_is_reached() -> None:
     assert tool(plain).input_schema["properties"]["limit"] == {"type": "integer", "default": 10}
 
 
+LATE_GATE = """
+from host import tools
+try:
+    tools.transfer(amount=5)
+except Exception as e:
+    print(type(e).__name__)
+print("after the call")
+"""
+
+
+@pytest.mark.parametrize("end", ["timeout", "cancel"])
+def test_a_gate_that_allows_late_runs_no_tool(guest_workdir, release, end) -> None:
+    """Spec 056, criterion 3 (the a4 security review's F2): the gate is still deciding when the
+    call is answered `timeout` (the tool's `timeout_s`) or `cancelled` (the run's `cancel`, set
+    once the gate is entered). `run` returns; the gate then allows; the tool never runs. The
+    gate ran once, and the tool thread ends."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+    ran: list = []
+    gated: list = []
+    entered = threading.Event()
+
+    @tool(timeout_s=0.05 if end == "timeout" else None)
+    def transfer(amount: int) -> str:
+        """Move money."""
+        ran.append(amount)
+        return "sent"
+
+    def gate(call):
+        gated.append(call.seq)
+        entered.set()
+        release.wait()
+        return True
+
+    cancel = threading.Event()
+    if end == "cancel":
+        threading.Thread(target=lambda: entered.wait(60) and cancel.set(), daemon=True).start()
+    done = run(["-c", LATE_GATE], tools=[transfer], gate=gate, cancel=cancel, deadline_s=None)
+    last = done.tools.outcomes[-1]
+    if end == "timeout":
+        assert (done.exit_code, done.stdout) == (0, b"ToolTimeout\nafter the call\n"), done
+        assert (last.outcome, last.abandoned) == ("timeout", True)
+    else:
+        assert (done.trapped, done.stdout) == ("cancelled", b""), done
+        assert (last.outcome, last.abandoned) == ("cancelled", True)
+    release.set()
+    _join_tool_threads()
+    assert (gated, ran, _tool_threads()) == ([2], [], [])
+
+
 # Writable mounts (spec 034): a provider's write half, served at open, at close, at fsync and at
 # every ending. The guest asks the door for the provider's counts between its steps, so each
 # step's calls are counted exactly; the provider's own log holds every write-half call whole.

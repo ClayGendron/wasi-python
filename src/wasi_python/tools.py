@@ -1361,7 +1361,9 @@ class _Work:
         self.tool, self.seq, self.frame_id = tool, seq, frame_id
         self._gate, self._args, self._size = host._gate, args, host._size
 
-    def __call__(self) -> _Done:
+    def __call__(self, proceed: Callable[[], bool] | None = None) -> _Done:
+        """`proceed`, from the bound, is asked once the gate has allowed and before the tool
+        starts: False when the call was already answered, so the tool never runs (spec 056)."""
         t = self.tool
         args = self._args
         if self._gate is not None:
@@ -1381,6 +1383,8 @@ class _Work:
             if verdict is not None and verdict is not True:
                 why = f"TypeError: the gate returned {type(verdict).__name__}, not None or a bool"
                 return self.failed("denied", refused, why[:FAULT_CHARS])
+        if proceed is not None and not proceed():
+            return self.failed("cancelled", f"{t.name} was not run: its call had ended")
         internal = f"{t.name} failed (internal error)"
         try:
             value = t.fn(**args)
@@ -1513,7 +1517,7 @@ class _Bounded:
         def target() -> None:
             try:
                 try:
-                    slot.done = context.run(work)
+                    slot.done = context.run(work, functools.partial(self._proceed, slot))
                 except BaseException as e:  # _Work catches its own; this is a last resort
                     slot.fault = _fault(e)
                 slot.filled.set()
@@ -1536,6 +1540,13 @@ class _Bounded:
             return False
         slot.started = True
         return True
+
+    def _proceed(self, slot: _Slot) -> bool:
+        """Whether the tool may start: False once the call was answered without it. Taken under
+        the lock `_abandon` takes, so a call is either answered before its tool starts (the tool
+        never runs) or after (it runs on, abandoned): the a4 security review's F2, spec 056."""
+        with self._lock:
+            return not slot.abandoned
 
     def _abandon(self, slot: _Slot) -> bool:
         """Mark the call answered without its work; False if the work had already finished or

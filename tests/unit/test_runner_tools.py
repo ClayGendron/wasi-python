@@ -596,6 +596,79 @@ def test_a_result_filled_before_an_end_is_delivered(release, monkeypatch) -> Non
     assert bound._abandoned == 0
 
 
+def test_a_call_ended_at_its_gate_never_runs_its_tool(release) -> None:
+    """Spec 056 (the a4 security review's F2): the gate moves one end of the call (the tool's
+    `timeout_s` on a fake clock, the deadline on a fake ticker, `cancel`), then waits until the
+    call has been answered and released. It allows; the tool never runs, and the thread ends.
+    A gate that allowed before the end still starts its tool, which then runs on (abandoned),
+    as before."""
+    ran: list = []
+    gated: list = []
+
+    def make(timeout_s=None):
+        @tool(name="transfer", timeout_s=timeout_s)
+        def transfer() -> str:
+            """Move money."""
+            ran.append(1)
+            return "sent"
+
+        return transfer
+
+    moved, reads = threading.Event(), []
+
+    def clock() -> float:  # the first read sets the call's end at 1.0; after the move, 9.0
+        reads.append(1)
+        return 9.0 if len(reads) > 1 and moved.is_set() else 0.0
+
+    ticks = Ticks(0)
+    cancel = threading.Event()
+    ends = [
+        ("timeout", make(1.0), dict(clock=clock), moved.set),
+        ("timeout", make(), dict(stop_at=10, ticks=ticks), lambda: setattr(ticks, "n", 8)),
+        ("cancelled", make(), dict(cancel=cancel), cancel.set),
+    ]
+    for want, transfer, kw, end in ends:
+        answered = threading.Event()
+
+        def gate(call, end=end, answered=answered):
+            gated.append(call.seq)
+            end()
+            answered.wait(60)  # a fail-safe, not a timing: set once the host has answered
+            return True
+
+        counted: list = []
+        bound = T._Bounded(tick_s=0.001, count=counted.append, **kw)
+        host = T._ToolHost([transfer], gate=gate, invoke=bound)
+        assert kind(host(call_frame("transfer"))) == want
+        assert _last(host).abandoned is True
+        answered.set()
+        for t in threading.enumerate():
+            if t.name == "wasi-python-tool-transfer":
+                t.join(60)
+        assert (ran, sum(counted), bound._abandoned) == ([], 0, 0)
+    assert gated == [1, 1, 1]
+
+    # The other order: the gate allowed, the tool started, then the call was cancelled.
+    cancel = threading.Event()
+    bound = T._Bounded(tick_s=0.001, cancel=cancel)
+    slow = _blocking(release, ran, then=cancel.set)
+    host = T._ToolHost([slow], gate=lambda call: True, invoke=bound)
+    assert kind(host(call_frame("slow"))) == "cancelled"
+    assert (_last(host).abandoned, ran) == (True, [1])
+
+
+def test_the_tool_starts_only_if_its_call_was_not_answered() -> None:
+    """Spec 056, F2: the check between the gate and the tool, and the mark of an answered call,
+    are taken under one lock, so exactly one of them wins."""
+    bound = T._Bounded(tick_s=0.001)
+    slot = T._Slot()
+    assert bound._abandon(slot) is True
+    assert bound._proceed(slot) is False
+    slot = T._Slot()
+    assert bound._proceed(slot) is True
+    assert bound._abandon(slot) is True  # the tool runs on, abandoned, as spec 036 says
+
+
 def test_completed_has_no_tool_record_by_default() -> None:
     done = runner.Completed(0, b"", b"", None, None)
     assert done.tools is None and done.files is None
