@@ -151,7 +151,7 @@ preference for a checkout.
    `.github/workflows/` and `scripts/`, which are build-class (AGENTS.md rule 2). They belong to
    one follow-up specification, "the release ties what it signs to what it built", to be
    drafted after this one. None blocks a4 (the review). N3's repository settings (rulesets on
-   `main` and `v*`, a protected environment) are the owner's to set: question 91 in
+   `main` and `v*`, a protected environment) are the owner's to set: question 94 in
    `../questions-for-the-owner.md`.
 
 7. **The notes.**
@@ -201,7 +201,7 @@ In: F1, F2 (fixed, with checks); F3, F5, N2, N4 (documented); a disposition of e
 
 Out, each with its home:
 - F4, N1 and N3's workflow part: the follow-up build-class specification (Decision 6).
-- N3's repository settings: the owner (question 91).
+- N3's repository settings: the owner (question 94).
 - F3's budget: a specification after 049 lands (Decision 4).
 - The guest package (`recipes/guest/host/`): unchanged; it renders what the descriptor says, so
   a dropped name is gone from the guest without a rebuild.
@@ -257,7 +257,7 @@ CPython 3.14.2, wasmtime-py 49.0.0, against the frozen artifact set
   `ToolCall.arguments` holds; a call that ends while its gate decides; "The host's cost per
   frame"), *Mounts* ("A path is a name, not a host path"), *Safety* (the wasmtime fixes are in
   the runner) and *Not protected* (frame CPU); one CHANGELOG entry under 0.1.0a4.
-- `897a7b9`: this specification, and question 91 in `../questions-for-the-owner.md`.
+- `897a7b9`: this specification, and question 94 in `../questions-for-the-owner.md`.
 
 Each commit was checked green on its own for the files it carries: the F1 commit's index,
 exported alone, passes `ruff check`, `ruff format --check` and the tool checks and units (224
@@ -361,7 +361,7 @@ the reviewer to confirm.
 - **N2: documented** (`7e52c94`): README *Safety*, the fixes are in the runner, not the artifacts.
 - **N3: split** (Decision 6): the workflow part (`enable-cache: false`, an environment named on
   `publish`) goes to the F4 follow-up; the repository settings (rulesets on `main` and `v*`, a
-  protected environment) are the owner's: question 91.
+  protected environment) are the owner's: question 94.
 - **N4: documented** (`7e52c94`): README, the gate item.
 - **N5, N6: nothing**: documented with their reasons (README *Abandoned tools*; spec 034,
   Decisions 8 and 10).
@@ -372,7 +372,7 @@ the reviewer to confirm.
 
 - The follow-up build-class specification (F4, N1, N3's workflow part) and the request-byte
   budget specification (F3) are named, not drafted.
-- Question 91 waits on the owner. Its number is the next free one on main and on the sibling
+- Question 94 waits on the owner. Its number is the next free one on main and on the sibling
   branches at the time of writing; the lane renumbers it if another branch lands a 91 first.
 - Spec 049 rewrites `tools.py`'s docstrings and renames its constants. This change adds one
   private field, one function, two private constants and three short blocks, and changes no
