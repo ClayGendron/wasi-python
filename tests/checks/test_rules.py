@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths, scan, scoreboard
+from harness import history, needs, paths, scan
 
 pytestmark = pytest.mark.goal("rules")
 
@@ -172,23 +172,34 @@ def test_known_gaps_are_well_formed() -> None:
     assert not errors, scan.report(errors)
 
 
-def _committed(path: Path) -> str | None:
+def _committed_volumes() -> dict[str, bytes] | None:
+    """Every history volume in HEAD's tree, with its committed bytes (spec 062, Decision 10)."""
     if not needs.VOCABULARY["git"].met():
         return None
-    rel = path.relative_to(paths.REPO)
-    r = subprocess.run(
-        ["git", "-C", str(paths.REPO), "show", f"HEAD:{rel}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return r.stdout if r.returncode == 0 else None
+    rel = paths.PROGRESS.relative_to(paths.REPO).as_posix()
+    listed = paths.git("ls-tree", "--name-only", "HEAD", "--", f"{rel}/")
+    if listed is None:
+        return None
+    out = {}
+    for path in listed.split("\n"):
+        name = path.rsplit("/", 1)[-1]
+        if path and history.first_line_of(name) is not None:
+            r = subprocess.run(
+                ["git", "-C", str(paths.REPO), "show", f"HEAD:{path}"],
+                capture_output=True,
+                check=False,
+            )
+            if r.returncode == 0:
+                out[name] = r.stdout
+    return out
 
 
 def test_progress_history_is_intact() -> None:
-    history = paths.HISTORY.read_text() if paths.HISTORY.is_file() else ""
+    """Every volume of the history (spec 062): the chain, the names, the budget, the replay with
+    every digest, volume 1's seal, and every committed volume only extended."""
     accepted = paths.ACCEPTED.read_text() if paths.ACCEPTED.is_file() else None
-    errors = scoreboard.history_errors(history, accepted, _committed(paths.HISTORY))
+    found = history.found_in(paths.PROGRESS)
+    errors = history.errors(found, accepted, _committed_volumes(), history.SEALED)
     assert not errors, scan.report(errors)
 
 

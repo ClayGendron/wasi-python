@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterable
 from pathlib import Path
 
-from harness import paths
+from harness import history, paths
 
 SKIP_PARTS = {"__pycache__", ".venv", ".pytest_cache", ".ruff_cache"}
 
@@ -1079,8 +1079,9 @@ def paths_os_litter() -> set[str]:
 # ---------------------------------------------------------------------------------------------
 # The landing lane (spec 029)
 
-PROGRESS_FILES = ("context/progress/accepted.json", "context/progress/history.jsonl")
-HISTORY_FILE = PROGRESS_FILES[1]
+ACCEPTED_FILE = "context/progress/accepted.json"
+PROGRESS_DIR = "context/progress"
+VOLUMES_GLOB = ":(glob)context/progress/history*.jsonl"  # every history volume (spec 062)
 # Rule 1 requires `dirty: false` of an acceptance whose judge holds this file: 029's own and every
 # later one. Older lines are not re-judged (they all say true: Decision 2).
 FIRST_CLEAN_JUDGE = "tests/unit/test_landing_lane.py"
@@ -1095,16 +1096,26 @@ def _committed_json(repo: Path, rev: str, path: str) -> object:
 
 
 def acceptance_errors(repo: Path) -> list[str]:
-    """Rule 1 (spec 029, Decisions 1 and 2), read from committed history only: the newest commit
-    that changed history.jsonl sits on (first parent) the commit its newest line names, changes
-    nothing but the two progress files, and, from 029's judge on, says `dirty: false`."""
-    found = paths.git("rev-list", "-1", "HEAD", "--", HISTORY_FILE, repo=repo)
+    """Rule 1 (spec 029, Decisions 1 and 2; spec 062, Decision 11), read from committed history
+    only: the newest commit that changed a history volume sits on (first parent) the commit the
+    newest line of its newest volume names, changes nothing but accepted.json and that volume,
+    and, from 029's judge on, says `dirty: false`."""
+    found = paths.git("rev-list", "-1", "HEAD", "--", VOLUMES_GLOB, repo=repo)
     if found is None:
-        return [f"git rev-list -1 HEAD -- {HISTORY_FILE} failed"]
+        return [f"git rev-list -1 HEAD -- {VOLUMES_GLOB} failed"]
     c = found.strip()
     if not c:
         return []  # nothing accepted yet
-    text = paths.git("show", f"{c}:{HISTORY_FILE}", repo=repo) or ""
+    listed = paths.git("ls-tree", "--name-only", c, "--", f"{PROGRESS_DIR}/", repo=repo) or ""
+    vols = sorted(
+        (history.first_line_of(p.rsplit("/", 1)[-1]), p)
+        for p in listed.split("\n")
+        if p and history.first_line_of(p.rsplit("/", 1)[-1]) is not None
+    )
+    if not vols:
+        return [f"the newest acceptance {c[:12]} leaves no history volume in its tree"]
+    newest = vols[-1][1]
+    text = paths.git("show", f"{c}:{newest}", repo=repo) or ""
     lines = [x for x in text.splitlines() if x.strip()]
     try:
         line = json.loads(lines[-1]) if lines else None
@@ -1137,14 +1148,14 @@ def acceptance_errors(repo: Path) -> list[str]:
             )
             or ""
         )
-    extra = sorted(set(changed.split("\0")) - set(PROGRESS_FILES) - {""})
+    extra = sorted(set(changed.split("\0")) - {ACCEPTED_FILE, newest, ""})
     if extra:
         more = f" and {len(extra) - 3} more" if len(extra) > 3 else ""
         errors.append(
             f"the newest acceptance {c[:12]} also changes {', '.join(extra[:3])}{more}; an "
-            "acceptance commit carries only accepted.json and history.jsonl"
+            "acceptance commit carries only accepted.json and its newest history volume"
         )
-    accepted = _committed_json(repo, c, PROGRESS_FILES[0])
+    accepted = _committed_json(repo, c, ACCEPTED_FILE)
     judge = accepted.get("judge") if isinstance(accepted, dict) else None
     files = judge.get("files", {}) if isinstance(judge, dict) else {}
     if FIRST_CLEAN_JUDGE in files and line.get("dirty") is not False:

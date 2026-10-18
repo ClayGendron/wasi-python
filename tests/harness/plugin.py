@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths, scoreboard
+from harness import history, needs, paths, scoreboard
 
 
 @dataclass
@@ -98,7 +98,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     g.addoption("--partial", metavar="REASON", help="allow accepted passes to be blocked")
     g.addoption("--retire", metavar="NODEID", action="append", default=[], help="drop a check")
-    g.addoption("--progress-dir", metavar="DIR", help="where accepted.json and history.jsonl live")
+    g.addoption(
+        "--progress-dir", metavar="DIR", help="where accepted.json and the history volumes live"
+    )
     g.addoption("--progress-latest", metavar="FILE", help="where the run record is written")
     g.addoption("--known-gaps", metavar="FILE", help="the known gaps file")
 
@@ -792,12 +794,11 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if late:
         red.append(f"--accept refused: {late}")
     elif reason:
-        history_text = _read(pdir / "history.jsonl") or ""
         try:
             new, line = scoreboard.accept(
                 run,
                 accepted,
-                history_text,
+                history.lines(pdir),
                 ratchet,
                 green=green,
                 reason=reason,
@@ -812,9 +813,10 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         else:
             pdir.mkdir(parents=True, exist_ok=True)
             (pdir / "accepted.json").write_text(scoreboard.dumps(new))
-            with (pdir / "history.jsonl").open("a") as f:
+            where = history.target(pdir, line)  # spec 062: the newest volume, or a new one
+            with where.open("a", encoding="utf-8", newline="\n") as f:
                 f.write(line + "\n")
-            accept_line = f"accepted: {pdir / 'history.jsonl'} line {json.loads(line)['n']}"
+            accept_line = f"accepted: {where} line {json.loads(line)['n']}"
             ratchet = scoreboard.compare(run, new, root)  # re-judged against what was accepted
             red = [r for r in red if r.startswith("tests/known_gaps.toml")]
             red += ratchet.red(partial=bool(partial))

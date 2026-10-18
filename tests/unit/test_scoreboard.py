@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from harness import paths, scoreboard
+from harness import history, paths, scoreboard
 
 PLAT = "darwin-arm64"
 FILE = "tests/checks/test_v1_2_portable_and_sealed.py"
@@ -121,10 +121,11 @@ def test_a_changed_judge_is_reported_not_red() -> None:
     assert r.judge_changed == ["tests/conftest.py"] and r.red(partial=False) == []
 
 
-def _accept(rec, base, history="", **kw):
+def _accept(rec, base, text="", **kw):
     r = scoreboard.compare(rec, base)
     kw.setdefault("green", True)
-    return scoreboard.accept(rec, base, history, r, reason="because", **kw)
+    lines = [x for x in text.split("\n") if x.strip()]
+    return scoreboard.accept(rec, base, lines, r, reason="because", **kw)
 
 
 def test_the_judge_changed_line_says_how_many_files_it_leaves_out() -> None:
@@ -220,48 +221,50 @@ def test_the_ratchet_and_red_lines_survive_the_line_cap() -> None:
 
 def test_history_lines_chain_and_name_what_they_wrote() -> None:
     first_acc, first = _accept(run({A: check("pass")}), None)
-    history = first + "\n"
-    second_acc, second = _accept(run({A: check("pass")}), first_acc, history)
-    history += second + "\n"
+    text = first + "\n"
+    second_acc, second = _accept(run({A: check("pass")}), first_acc, text)
+    text += second + "\n"
     one, two = json.loads(first), json.loads(second)
     assert (one["n"], one["prev"]) == (1, None)
     assert (two["n"], two["prev"]) == (2, paths.sha256_bytes(first.encode()))
     assert two["accepted"] == paths.sha256_bytes(scoreboard.dumps(second_acc).encode())
-    assert two["passed"] == [A] and two["platform"] == PLAT and two["at"]
-    assert scoreboard.history_errors(history, scoreboard.dumps(second_acc), first + "\n") == []
+    assert one["passed_added"] == [A] and two["passed_added"] == two["passed_removed"] == []
+    assert two["passed_digest"] == history.digest([A]) and "passed" not in two
+    assert two["platform"] == PLAT and two["at"] and two["schema"] == 2
+    found = {history.FIRST: text.encode()}
+    committed = {history.FIRST: (first + "\n").encode()}
+    assert history.errors(found, scoreboard.dumps(second_acc), committed) == []
 
 
 def test_history_errors_catch_tampering() -> None:
     acc1, l1 = _accept(run({A: check("pass")}), None)
     acc2, l2 = _accept(run({A: check("pass")}), acc1, l1 + "\n")
-    history = f"{l1}\n{l2}\n"
+    text = f"{l1}\n{l2}\n"
     good = scoreboard.dumps(acc2)
     edited = good.replace('"pass"', '"fail"')
-    assert scoreboard.history_errors(history, edited, None) == [
-        "accepted.json is not the file the last history line wrote"
-    ]
-    rewritten = history.replace('"because"', '"other"', 1)
-    assert "history line 2: prev does not hash line 1" in scoreboard.history_errors(
-        rewritten, good, None
-    )
-    assert scoreboard.history_errors(rewritten, good, history)[-1] == (
+
+    def errors(t, accepted, committed=None):
+        found = {history.FIRST: t.encode()} if t else {}
+        return history.errors(found, accepted, committed and {history.FIRST: committed.encode()})
+
+    assert errors(text, edited) == ["accepted.json is not the file the last history line wrote"]
+    rewritten = text.replace('"because"', '"other"', 1)
+    assert "history line 2: prev does not hash line 1" in errors(rewritten, good)
+    assert errors(rewritten, good, text)[-1] == (
         "history.jsonl does not extend its committed version (a line was rewritten)"
     )
-    assert scoreboard.history_errors("", good, None) == [
-        "accepted.json exists but the history is empty"
-    ]
+    assert errors("", good) == ["accepted.json exists but the history is empty"]
 
 
 def test_systems_that_passed_read_the_history(work) -> None:
-    history = work / "history.jsonl"
     lines = [
         {"artifact": "art", "platform": "darwin-arm64", "passed": [A]},
         {"artifact": "art", "platform": "linux-x86_64", "passed": [A]},
         {"artifact": "other", "platform": "win32-amd64", "passed": [A]},
         {"artifact": "art", "platform": "win32-amd64", "passed": [B]},
     ]
-    history.write_text("".join(json.dumps(x) + "\n" for x in lines))
-    assert scoreboard.systems_that_passed(history, "art") == {"darwin", "linux"}
+    (work / history.FIRST).write_text("".join(json.dumps(x) + "\n" for x in lines))
+    assert history.systems_that_passed(work, "art") == {"darwin", "linux"}
 
 
 def test_the_scoreboard_fits_in_25_lines_and_names_the_next_document() -> None:

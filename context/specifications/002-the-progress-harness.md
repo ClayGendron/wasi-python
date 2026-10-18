@@ -74,6 +74,8 @@
 
    Amended 2026-10-17 by spec 029 (Decision 7): the need `git history`, met when `git rev-parse --is-shallow-repository` prints `false` (provided by —).
 
+   Amended 2026-10-18 by spec 062 (Decisions 1 and 7): `three systems` reads every volume of the history (`history.jsonl`, then `history-<n>.jsonl`), replaying each line's passed set; on a history that does not replay it is not met.
+
    Amended 2026-10-18 by spec 050 (Decision 13): the need `upstream kit`, met when every wheel of `tests/upstream/kit.txt` is in `build/upstream/wheels/` with its SHA-256 (provided by spec 050; `uv run python tests/upstream/fetch.py` fetches it). It is local tooling, not protected.
 
    When `$WASI_PYTHON_ARTIFACTS` is set, the artifact directory is
@@ -89,7 +91,10 @@
    plus `at` (UTC time), `platform`, `host` (a hash of the host name),
    `commit`, `artifact`, `wasmtime`, `reason`, `judge_reason`,
    `growth_reason`, `partial_reason`, `retired`, and the list of checks
-   that passed. After every
+   that passed. (Amended 2026-10-18 by spec 062: the history continues in
+   volumes named by their first line, each within `1 << 19` bytes, chained as
+   one; a line written since then records the change in the passed set and a
+   digest of the whole set, not the list.) After every
    run the plugin compares the run with `accepted.json` by node id; for
    each accepted `pass`:
    - now `fail` or `gap` → **lost**, red;

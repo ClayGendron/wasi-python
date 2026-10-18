@@ -1,12 +1,13 @@
 # 062 — The progress history stays small
 
-- **Status:** drafted; revised against its pre-build review (F1 to F3 written in, F4 to F6 as
-  build conditions); confirmed for build by the lane. The review:
+- **Status:** built 2026-10-18; awaiting its build review. Built on
+  `spec/062-the-progress-history-stays-small` (the Landing notes). Before that it was revised
+  against its pre-build review, with F1 to F3 written in and F4 to F6 as build conditions, now
+  built and evidenced in the Landing notes, and the lane confirmed it for build. The review is
   `build/reviews-evidence/062-spec/062-the-progress-history-stays-small-spec-2026-10-18.md` in
   the main tree, which the lane copies to `context/reviews/` ("ready to build once F1 to F3 are
-  written in"); every finding is answered in the Disposition at the end. Drafted 2026-10-18 on
-  `spec/062-the-progress-history-stays-small` from main `f6b3f75`. Urgent: every landing is
-  blocked until it lands (Intent).
+  written in"), and every finding is answered in the Disposition. Drafted 2026-10-18 from main
+  `f6b3f75`. It is urgent: every landing is blocked until it lands (Intent).
 - **Date:** 2026-10-18
 - **Owner:** Clay Gendron
 - **Kind:** a judge change; parallel-safe, not build-class (§5.7). It adds one harness module
@@ -483,7 +484,132 @@ there is no second spec review.
 
 ## Landing notes
 
-None yet: confirmed for build by the lane.
+**Built 2026-10-18** on `spec/062-the-progress-history-stays-small`, from the confirmed spec
+(`6fdd1fd`), by the drafting agent. Not accepted and not pushed: only the lane accepts. Every
+judge run used the frozen set `build/sets/s-8eb9e35734deeb21` of the main tree
+(`WASI_PYTHON_ARTIFACTS`). Logs are in the worktree's git-ignored `build/` (`062-*.log`).
+
+**What was built.** `tests/harness/history.py` (new): the volume rules, `passed_sets(lines,
+verify=True)`, `last_passed` with its one-entry cache, `target`, `errors`, `systems_that_passed`,
+`SEALED`, `ACCEPT_PATHSPEC` and `ACCEPT_COMMANDS`, and the counter `OPS`. `scoreboard.accept`
+takes `history_lines`, writes format 2, and refuses an oversize line or a history that does not
+replay. The plugin writes to `history.target` with `newline="\n"` and prints the volume's path.
+`needs._three_systems`, `test_same_bytes_passed_on_three_systems`,
+`test_progress_history_is_intact` (every volume, every committed volume, `SEALED`) and rule 1
+(`scan.acceptance_errors`) read every volume. The checks are `tests/unit/test_history.py` (30)
+and new cases in `test_plugin.py` (2) and `test_landing_lane.py` (7); the old tests of the moved
+functions in `test_scoreboard.py` and `test_plugin.py` now call `history`. Documents:
+`context/progress/README.md` (the history in volumes; the line-N one-liner, run once on line 59;
+step 4's two commands and the stray-name line; "Before a release" says "the history"),
+`context/README.md`, and one amendment each in specs 002 and 029.
+
+**The checks came first.** On main's harness, `tests/unit/test_history.py` fails at import
+(`ImportError: cannot import name 'history' from 'harness'`), and so do the new cases in
+`test_plugin.py` and `test_landing_lane.py`, which import it.
+
+**Each criterion's evidence.**
+1. `test_a_line_records_what_changed_not_every_pass`: a line after 5,000 unchanged passes is
+   under 4,096 bytes. It has no `passed`, and it names exactly the 10 ids added and the 3 removed.
+2. `test_many_more_acceptances_*`: volume 1 is a 1,020,789-byte look-alike, followed by 500
+   acceptances as the checks grow to 1,500. Volume 1's bytes are unchanged. Every file is at most
+   `1 << 20` bytes, and every format-2 line ends within `BUDGET`. There are at least 4 volumes,
+   each named after its first line. `errors` is empty against the halfway commit and the seal. The
+   replayed set equals the run's passes at every line. `systems_that_passed` equals the direct
+   answer for every artifact, and for `art5` it is `{darwin, win32}`, because linux failed the
+   probe on every run.
+3. `test_progress_history_is_intact` passes on main's 59 lines (`history.jsonl` alone), and
+   `test_mains_lines_replay_to_their_passed_lists` passes. On the built branch, `git diff f6b3f75
+   -- context/progress/history.jsonl context/progress/accepted.json` prints nothing (0 bytes), and
+   `context/progress/` holds no `history-*.jsonl`. The judge runs below left both files' SHA-256
+   unchanged (`build/062-progress-before.txt`).
+4. Cases (a) to (o) and the numeric-order case each give their named error, starting from a
+   history that is clean. Also added: a volume's first line whose `n` is not a number is reported,
+   not raised. Without the fix, that check failed with `ValueError: Unknown format code 'd'`.
+5. `test_committed_volumes_only_grow`.
+6. `test_three_systems_reads_every_volume`: `{darwin, linux, win32}` for A, and nothing for B.
+7. `test_accept_starts_a_volume_when_the_newest_is_full_and_says_where`: lines 61 and 62 go to
+   `history-00061.jsonl`. The run prints the path, `history.jsonl` keeps its bytes, and the volume
+   holds no `\r`.
+8. `test_an_oversize_line_is_refused_*`, both through `accept` and through the plugin: the run is
+   red and nothing is written.
+9. Cases (a) to (e) in `test_landing_lane.py`.
+10. `test_the_lanes_commit_takes_exactly_the_acceptance` and
+    `test_the_readme_quotes_the_lanes_commit_commands`.
+11. `test_each_caller_computes_only_the_digests_it_must` (counts below).
+12. `test_three_systems_on_a_broken_history_is_not_met`.
+
+**The stand-ins** were applied as scratch copies of the module, swapped into the live module by a
+small pytest plugin kept in the session's scratchpad. They were never committed. Each run is
+logged in `build/062-standins.log`, and every one fails its checks:
+- C1a, today's `accept`: the line is 435,570 bytes. C1b, a change taken against `accepted.json`:
+  435,696 bytes.
+- C2a, today's writer: volume 1's bytes change. C2b, a roll decided after writing: line 210 ends
+  at byte 576,044 of `history-00060.jsonl`. C2c, volumes numbered by count: the volume is named
+  `history-00002.jsonl` where `history-00060.jsonl` was expected. C2d, a replay that ignores
+  `passed_removed`: the three-systems answer is wrong (it fails at artifact `art` with the empty
+  set, because a later `passed_added` no longer applies).
+- C3a, format-2 keys required on every line: "history line 1: no schema" from the real intact
+  check. C3b, `SEALED` off by one digit: "history.jsonl is not the sealed volume".
+- C4a, today's check on `history.jsonl` alone: 15 cases error in their fixture, because it calls
+  the untouched three-volume history red, and the old-format move fails. C4b, no old-format rule:
+  `[]` for case (l). C4c, volumes sorted by name: `history-100000` comes before `history-99999`.
+- C5, a committed check on `history.jsonl` alone: volume 2's loss is missed.
+- C6a and C6b: `{'darwin'}`. C6c: `{'darwin', 'win32'}`.
+- C7, today's plugin: no `accepted: …history-00061.jsonl line 61` line is printed.
+- C8: "DID NOT RAISE AcceptRefused", twice.
+- C9, today's `acceptance_errors`: (b), (c), (d) and (e) fail ("DID NOT RAISE"); (a) holds, as it
+  should.
+- C10, today's pathspec: the commit holds only `accepted.json`, and the README check fails.
+- C11a, an `accept` that verifies every line: 502 digests. C11b, a three-systems read that
+  verifies: 500 digests. C11c, `errors` without verifying: 0 digests where 500 were expected, and
+  4(h) fails.
+- C12: the `ValueError` gets out.
+
+**F2's operation counts** (from `history.OPS`, printed by the checks):
+- Criterion 2's 500 acceptances, while writing:
+  - 999 digests: each acceptance's new line, plus the check of the newest line's digest, which the
+    first acceptance skips because volume 1's newest line is old-format;
+  - 81,137,136 bytes hashed;
+  - 3,350,033 JSON bytes parsed.
+  The review projected 7,540,480,222 bytes hashed and 1,045,123,016 parsed if `accept` verified
+  every line on every call.
+- One intact check of that history: 500 digests (one per format-2 line), 40,569,438 bytes hashed,
+  3,479,741 bytes parsed.
+- `accept` with a cold cache: 2 digests and 10,440 bytes hashed. It parses the whole history once
+  (3,479,741 bytes) and checks no earlier digest.
+- `accept` with a warm cache: 2 digests. It parses only the newest line, 7,656 bytes.
+- `systems_that_passed`: 0 digests, 3,479,741 bytes parsed.
+
+**The volume rotation, shown in a scratch copy.** `context/progress/` was copied to the
+scratchpad. Then `uv run pytest -m "not slow" -n 3 --progress-dir=<copy>
+--progress-latest=<copy>/latest.json --accept=… --accept-judge=… --partial=…` was run against
+the set. It is allowed in a worktree because the folder is not the repository's (spec 029). It
+ended with `accepted: <copy>/history-00060.jsonl line 60`:
+- `history.jsonl` is still 1,037,524 bytes, and its SHA-256 equals `SEALED`;
+- `history-00060.jsonl` is 5,450 bytes, and line 60's `prev` hashes line 59;
+- `history.errors` over the copy, with `f6b3f75`'s `history.jsonl` as committed and `SEALED`,
+  returns `[]` (`build/062-rotation-verify.txt`).
+
+Line 60 removed 48 ids: the slow checks that the fast tier deselected. The lane's serial,
+unnarrowed acceptance will remove none of them. That line is larger than 2 KB mostly because its
+`judge_changed` names 11 files.
+
+**The judge lines.**
+- The fast tier, `uv run pytest -m "not slow" -n 3` (`build/062-build-fast-2.log`): exit 0, 1500
+  passed, 26 skipped. `wasi_python v1: 326/390 pass · 0 gap · 18 blocked · 0 fail · 46
+  deselected (unit suite 1174/1182, 8 skipped)`; rules 25/26, blocked 1.
+- The full judge, `uv run pytest`, serial, without `--accept` (`build/062-full-judge.log`): exit 0,
+  1512 passed, 58 skipped, 2 xfailed:
+  `wasi_python v1: 338/390 pass · 2 gap · 50 blocked · 0 fail (unit suite 1174/1182, 8 skipped)`
+  `ratchet vs 7c3d606d09: lost 0 · absent 0 · unrun 0 · unrun locally 36 · gained 0 · grew 0 ·
+  upstream unrun 31 · judge changed: tests/checks/test_rules.py,
+  tests/checks/test_v1_2_portable_and_sealed.py, tests/harness/history.py and 8 more`.
+  The only blocks are local tooling this worktree lacks: the source trees, the upstream kit, the
+  oracle, the prior-art clones, `wheel`, and `three systems` (which main's history has never met).
+  The run is red only by `judge changed`, which the lane accepts with `--accept-judge`.
+  `history.jsonl` and `accepted.json` kept their SHA-256 (`shasum -a 256 -c
+  build/062-progress-before.txt`: both OK), and no volume was created.
+- `ruff check` and `ruff format --check` on `src`, `tests` and `recipes/guest` are clean.
 
 One line: new history lines store only what changed in the passed set, and the history continues
 in files named by their first line, each under half the limit, chained as one, with lines 1 to 59

@@ -19,7 +19,7 @@ context/
   research/            # RESEARCH — dated memos: executed experiments, study of precedent, placeholders for research still to do
   specifications/      # SPECIFY — numbered work packages to implement, retired on landing
   reviews/             # REVIEW — one record per review of a built change (or of a spec before build)
-  progress/            # the harness's accepted state: accepted.json and an append-only history.jsonl
+  progress/            # the harness's accepted state: accepted.json and an append-only history in volumes
   embedders.txt        # names no code may use (constitution §4.5); data the harness reads
   questions-for-the-owner.md  # decisions only the owner can make, asked while the owner is away
 ```

@@ -1,16 +1,46 @@
 # /context/progress
 
 The accepted state of the progress harness
-(`../specifications/002-the-progress-harness.md`). Two files, written
-only by `uv run pytest --accept "<reason>"`, never by hand.
+(`../specifications/002-the-progress-harness.md`). Written only by
+`uv run pytest --accept "<reason>"`, never by hand.
 
 - `accepted.json`: for each v1 check, its last accepted status, the
   commit and artifact it was seen on, and its metrics (fuel, bytes)
   per platform, plus the hash of every judging file.
-- `history.jsonl`: one line per acceptance, append-only. Each line
-  carries the hash of the line before it and of the `accepted.json`
-  it wrote, so `test_progress_history_is_intact` notices a hand edit
-  or a rewritten line.
+- **The history**: one line per acceptance, append-only, in volumes
+  (spec 062). Each line carries the hash of the line before it and of
+  the `accepted.json` it wrote, so `test_progress_history_is_intact`
+  notices a hand edit or a rewritten line.
+
+## The history in volumes (spec 062)
+
+The history is one hash-chained sequence of lines, kept in several files so that no tracked file
+passes the rules check's limit of `1 << 20` bytes.
+
+- **Volume 1 is `history.jsonl`**: lines 1 to 59, sealed. Its SHA-256 is pinned in
+  `tests/harness/history.py` (`SEALED`), and nothing is ever appended to it again.
+- **Every later volume is named after its first line**: `history-00060.jsonl` begins with line 60.
+  Line numbers are global, so a landing note cites "history line 61" as before, and may add the
+  volume the `accepted:` line printed. To find line N, take the volume with the largest first line
+  not above N.
+- **A volume rolls only when full.** A new line goes to the newest volume while that volume stays
+  within `BUDGET` (`1 << 19` bytes, half the limit); otherwise it begins a new volume. The intact
+  check holds it both ways: no line past the budget, no volume begun early.
+- **New lines record a change.** Lines 1 to 59 carry the full `passed` list. A line written since
+  spec 062 has `"schema": 2`, the node ids that started passing (`passed_added`) and stopped
+  passing (`passed_removed`) since the line before, and a digest of the whole passed set
+  (`passed_digest`). A line's passed set is found by replay from line 1. The digest catches an
+  inconsistent change, not a forgery: what catches a deliberate edit is the chain, the
+  committed-prefix check and rule 1.
+- **Only the intact check verifies every digest.** `--accept` checks the newest line's, and
+  `three systems` none. On a history that does not replay, `three systems` is not met, and the
+  intact check says why.
+
+Line N's passed set:
+
+```
+uv run python -c "import sys; sys.path.insert(0, 'tests'); from harness import history, paths; print(sorted(list(history.passed_sets(history.lines(paths.PROGRESS)))[N - 1]))"
+```
 
 ## How to read a run
 
@@ -150,9 +180,17 @@ The steps, in order:
    path) or of the harness, written in the landing notes and fixed by its own judge change. Nobody
    re-runs to make it go away. When the rebase did change a judged file or code, the notes say so,
    and the landing is not counted.
-4. **Commit the acceptance alone, at once.** Run `git commit -m "Accept …" --
-   context/progress/accepted.json context/progress/history.jsonl`. The pathspec leaves out
-   anything else that is staged.
+4. **Commit the acceptance alone, at once** (spec 062). Run, in this order:
+
+   ```
+   git add -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+   git commit -m "Accept …" -- context/progress/accepted.json ':(glob)context/progress/history*.jsonl'
+   ```
+
+   `git add` comes first because a new volume is untracked, and `git commit -- <path>` refuses a
+   path git does not know. The pathspec leaves out anything else that is staged, and any change to
+   this README. A stray file such as `history-70.jsonl` would match the glob too, but the intact
+   check is red on it ("an unrecognised history file"), so `--accept` has already refused.
 5. **Check it.** Run `uv run pytest tests/checks/test_rules.py`.
    `test_the_newest_acceptance_sits_on_the_commit_it_judged` reads this commit. Its first
    parent must be the commit its newest line judged, it must carry nothing else, and its line
@@ -174,7 +212,7 @@ every upstream check ran on the commit accepted. `--accept` itself refuses other
 `--partial`.
 
 **Before a release** (recorded, not yet a rule): the release workflow has neither the kit nor the
-source trees, so these checks are blocked there. Someone should confirm that `history.jsonl`
+source trees, so these checks are blocked there. Someone should confirm that the history
 holds an accepted run of them on the release's artifact hash, as `three systems` does for
 platforms. Making that a rule is a later, build-class change to the release rules.
 

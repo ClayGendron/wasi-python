@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths, plugin, sameness, scan, scoreboard
+from harness import history, needs, paths, plugin, sameness, scan, scoreboard
 
 GIT = shutil.which("git")
 HISTORY = "context/progress/history.jsonl"
@@ -204,6 +204,121 @@ def test_rule_1_is_blocked_in_a_shallow_clone(repo, tmp_path, monkeypatch) -> No
         rule_1()
     with pytest.raises(pytest.skip.Exception, match="needs: git history"):
         rule_3()
+
+
+# ---------------------------------------------------------------------------------------------
+# Rule 1 across history volumes (spec 062, criterion 9) and the lane's commit (criterion 10)
+
+PROGRESS = "context/progress"
+
+
+def accept_volume(repo: Path, *, new: bool = False, named: str | None = None, dirty=False) -> str:
+    """An acceptance line written into the newest volume, or, with `new`, a volume begun with it,
+    as `--accept` would after spec 062. Returns the volume's path in the repository."""
+    folder = repo / PROGRESS
+    n = len(history.lines(folder)) + 1
+    vol = folder / history.volume_name(n) if new else history.volumes(folder)[-1]
+    line = {"n": n, "commit": named or git(repo, "rev-parse", "HEAD"), "dirty": dirty}
+    with vol.open("a", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(line) + "\n")
+    files = {scan.FIRST_CLEAN_JUDGE: "x"}
+    write(repo, ACCEPTED, json.dumps({"judge": {"files": files}, "n": n}) + "\n")
+    return f"{PROGRESS}/{vol.name}"
+
+
+def two_old_acceptances(repo: Path) -> None:
+    for n in range(2):
+        write(repo, "src/code.py", f"x = {n}\n")
+        commit(repo, "code")
+        accept(repo)
+        commit_acceptance(repo)
+    write(repo, "src/code.py", "x = 10\n")
+    commit(repo, "the change accepted into a new volume")
+
+
+def test_an_acceptance_that_begins_a_volume_holds(repo) -> None:
+    two_old_acceptances(repo)
+    vol = accept_volume(repo, new=True)
+    assert vol.endswith("history-00003.jsonl")
+    commit(repo, "Accept", ACCEPTED, vol)
+    rule_1()
+    write(repo, "src/code.py", "x = 11\n")
+    commit(repo, "more")
+    assert accept_volume(repo) == vol  # the next one goes into the same volume
+    commit(repo, "Accept", ACCEPTED, vol)
+    rule_1()
+
+
+def test_an_acceptance_in_a_volume_carried_across_a_rebase_fails(repo) -> None:
+    two_old_acceptances(repo)
+    git(repo, "checkout", "-q", "-b", "side")
+    write(repo, "src/side.py", "s = 1\n")
+    judged = commit(repo, "the side's code")
+    vol = accept_volume(repo, new=True)
+    commit(repo, "Accept", ACCEPTED, vol)
+    git(repo, "checkout", "-q", "main")
+    write(repo, "src/other.py", "y = 1\n")
+    commit(repo, "main moved")
+    git(repo, "checkout", "-q", "side")
+    git(repo, "rebase", "-q", "main")
+    parent = git(repo, "rev-parse", "HEAD^1")
+    with pytest.raises(AssertionError) as e:
+        rule_1()
+    assert f"sits on {parent[:12]}, but its history line 3 judged {judged[:12]}" in str(e.value)
+
+
+def test_an_acceptance_in_a_volume_that_also_changes_volume_1_fails(repo) -> None:
+    two_old_acceptances(repo)
+    vol = accept_volume(repo, new=True)
+    with (repo / HISTORY).open("a") as f:
+        f.write("{}\n")
+    commit(repo, "Accept", ACCEPTED, vol, HISTORY)
+    with pytest.raises(AssertionError, match=f"also changes {HISTORY}"):
+        rule_1()
+
+
+def test_a_dirty_acceptance_in_a_volume_fails(repo) -> None:
+    two_old_acceptances(repo)
+    vol = accept_volume(repo, new=True, dirty=True)
+    commit(repo, "Accept", ACCEPTED, vol)
+    with pytest.raises(AssertionError, match="history line 3 says dirty: True"):
+        rule_1()
+
+
+def test_a_commit_that_deletes_the_newest_volume_fails(repo) -> None:
+    two_old_acceptances(repo)
+    before = (repo / ACCEPTED).read_text()
+    vol = accept_volume(repo, new=True)
+    commit(repo, "Accept", ACCEPTED, vol)
+    rule_1()
+    (repo / vol).unlink()
+    write(repo, ACCEPTED, before)  # accepted.json put back to line 2's
+    commit(repo, "drop the newest acceptance", ACCEPTED, vol)
+    with pytest.raises(AssertionError) as e:
+        rule_1()
+    assert f"also changes {vol}" in str(e.value)
+    assert "its history line 2 judged" in str(e.value)
+
+
+def test_the_lanes_commit_takes_exactly_the_acceptance(repo) -> None:
+    write(repo, f"{PROGRESS}/README.md", "the folder\n")
+    two_old_acceptances(repo)
+    vol = accept_volume(repo, new=True)
+    write(repo, f"{PROGRESS}/README.md", "edited meanwhile\n")
+    write(repo, "src/staged.py", "z = 1\n")
+    git(repo, "add", "--", "src/staged.py")
+    git(repo, "add", "--", *history.ACCEPT_PATHSPEC)
+    git(repo, "commit", "-q", "-m", "Accept", "--", *history.ACCEPT_PATHSPEC)
+    assert set(git(repo, "show", "--name-only", "--format=", "HEAD").split()) == {ACCEPTED, vol}
+    assert git(repo, "diff", "--cached", "--name-only") == "src/staged.py"  # still staged
+    assert git(repo, "diff", "--name-only") == f"{PROGRESS}/README.md"  # still changed
+    rule_1()
+
+
+def test_the_readme_quotes_the_lanes_commit_commands() -> None:
+    readme = (RULES_FILE.parents[2] / "context" / "progress" / "README.md").read_text()
+    for command in history.ACCEPT_COMMANDS:
+        assert command in readme, command
 
 
 # ---------------------------------------------------------------------------------------------

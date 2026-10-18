@@ -35,7 +35,10 @@ Code's default `.claude/worktrees/`) changes the main tree's judge hash.
    `context/progress/history.jsonl` and nothing else. An acceptance appended but not yet committed
    does not move `<c>`, so the lane is never red between accepting and committing. Older history
    is not re-judged (23 of 31 past acceptance commits also carried code; the newest, `cb0c5a6`,
-   carries only the two files; the review's `rule1.py`).
+   carries only the two files; the review's `rule1.py`). Amended 2026-10-18 by spec 062
+   (Decisions 11 and 12): `<c>` is the newest commit that changed any history volume
+   (`:(glob)context/progress/history*.jsonl`), its line is the newest of its newest volume, and it
+   carries `accepted.json` and that volume only; step 4 adds them with `git add` first.
 2. **`dirty` means a change the judge could see, and an acceptance refuses it.** `run_meta`
    records `dirty` as true when `git status --porcelain` shows any tracked change anywhere
    (`context/progress/` excepted) or any untracked file under the judge's inputs (`src/`,

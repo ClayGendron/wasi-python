@@ -17,7 +17,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from harness import paths
+from harness import history, paths
 
 AREAS = {
     "v1.1": "artifact set",
@@ -172,15 +172,10 @@ def dumps(obj: dict) -> str:
     return json.dumps(obj, sort_keys=True, indent=1) + "\n"
 
 
-def last_history_line(history_text: str) -> str | None:
-    lines = [line for line in history_text.split("\n") if line.strip()]
-    return lines[-1] if lines else None
-
-
 def accept(
     run: dict,
     accepted: dict | None,
-    history_text: str,
+    history_lines: list[str],
     ratchet: Ratchet,
     *,
     green: bool,
@@ -191,7 +186,9 @@ def accept(
     retire: list[str] = (),
     fewer_reason: str | None = None,
 ) -> tuple[dict, str]:
-    """(new accepted.json content, the history line to append), or AcceptRefused."""
+    """(new accepted.json content, the history line to append), or AcceptRefused. The line is
+    in format 2 (spec 062, Decision 6): the change in the passed set since the newest of
+    `history_lines`, and a digest of the whole set."""
     refusals = []
     if not green:
         refusals.append("the run is not green (or PYTEST_ADDOPTS or a foreign plugin is set)")
@@ -225,6 +222,10 @@ def accept(
         refusals.append(f"--retire names checks that are not absent: {', '.join(unknown)}")
     if refusals:
         raise AcceptRefused("; ".join(refusals))
+    try:
+        before = history.last_passed(history_lines)
+    except ValueError as e:
+        raise AcceptRefused(f"the history does not replay: {e} (spec 062)") from None
 
     meta = run["meta"]
     platform = meta["platform"]
@@ -258,12 +259,13 @@ def accept(
             "metrics": metrics,
         }
     new = {"schema": 1, "commit": meta["commit"], "judge": meta["judge"], "checks": checks}
-    prev = last_history_line(history_text)
+    prev = history_lines[-1] if history_lines else None
+    passes = {n for n, c in run["checks"].items() if c["status"] == "pass"}
     counts = {
         area: f"{n_pass}/{n_all}" for area, (n_pass, n_all) in area_counts(run["checks"]).items()
     }
     line = {
-        "n": sum(1 for x in history_text.split("\n") if x.strip()) + 1,
+        "n": len(history_lines) + 1,
         "prev": paths.sha256_bytes(prev.encode()) if prev else None,
         "at": meta["at"],
         "commit": meta["commit"],
@@ -280,57 +282,21 @@ def accept(
         "retired": sorted(retire),
         "judge_changed": ratchet.judge_changed,
         "counts": counts,
-        "passed": sorted(n for n, c in run["checks"].items() if c["status"] == "pass"),
+        "schema": 2,
+        "passed_added": sorted(passes - before),
+        "passed_removed": sorted(before - passes),
+        "passed_digest": history.digest(passes),
         "accepted": paths.sha256_bytes(dumps(new).encode()),
     }
-    return new, json.dumps(line, sort_keys=True)
-
-
-def history_errors(
-    history_text: str, accepted_text: str | None, committed: str | None
-) -> list[str]:
-    """The history's `prev` chain, its last `accepted` hash, and that it extends its commit."""
-    errors = []
-    lines = [line for line in history_text.split("\n") if line.strip()]
-    prev = None
-    for i, line in enumerate(lines, 1):
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
-            errors.append(f"history line {i} is not JSON")
-            break
-        want = paths.sha256_bytes(prev.encode()) if prev else None
-        if entry.get("prev") != want:
-            errors.append(f"history line {i}: prev does not hash line {i - 1}")
-        if entry.get("n") != i:
-            errors.append(f"history line {i}: n is {entry.get('n')}")
-        prev = line
-    if lines and not errors:
-        last = json.loads(lines[-1])
-        if accepted_text is None:
-            errors.append("history has lines but accepted.json is missing")
-        elif last.get("accepted") != paths.sha256_bytes(accepted_text.encode()):
-            errors.append("accepted.json is not the file the last history line wrote")
-    if not lines and accepted_text is not None:
-        errors.append("accepted.json exists but the history is empty")
-    if committed is not None and not history_text.startswith(committed):
-        errors.append("history.jsonl does not extend its committed version (a line was rewritten)")
-    return errors
-
-
-def systems_that_passed(history: Path, artifact: str) -> set[str]:
-    """The operating systems whose accepted runs passed the guest on this artifact's bytes."""
-    if not history.is_file():
-        return set()
-    probe = "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]"
-    systems = set()
-    for line in history.read_text().splitlines():
-        if not line.strip():
-            continue
-        entry = json.loads(line)
-        if entry.get("artifact") == artifact and probe in entry.get("passed", []):
-            systems.add(entry["platform"].split("-")[0])
-    return systems
+    text = json.dumps(line, sort_keys=True)
+    size = len(text.encode()) + 1
+    if size > history.BUDGET:  # spec 062, Decision 9: never written, even once
+        raise AcceptRefused(
+            f"the history line would be {size} bytes, over the volume budget of "
+            f"{history.BUDGET} (spec 062)"
+        )
+    history.remember(text, passes)
+    return new, text
 
 
 def area_counts(checks: dict) -> dict[str, tuple[int, int]]:

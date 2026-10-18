@@ -53,13 +53,13 @@ def _wheel() -> bool:
 
 
 def _three_systems() -> bool:
-    from harness import scoreboard
+    from harness import history
 
     d = paths.artifact_dir()
     wasm = d / "python.wasm" if d else None
     if wasm is None or not wasm.is_file():
         return False
-    return scoreboard.systems_that_passed(paths.HISTORY, paths.sha256_file(wasm)) >= {
+    return history.systems_that_passed(paths.PROGRESS, paths.sha256_file(wasm)) >= {
         "linux",
         "darwin",
         "win32",

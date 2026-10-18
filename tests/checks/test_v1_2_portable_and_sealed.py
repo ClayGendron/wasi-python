@@ -71,7 +71,7 @@ def test_nothing_is_a_shared_library(artifacts, guest) -> None:
 def test_same_bytes_passed_on_three_systems() -> None:
     needs.need("three systems")
     d = paths.artifact_dir()
-    from harness import scoreboard
+    from harness import history
 
-    systems = scoreboard.systems_that_passed(paths.HISTORY, paths.sha256_file(d / "python.wasm"))
+    systems = history.systems_that_passed(paths.PROGRESS, paths.sha256_file(d / "python.wasm"))
     assert systems >= {"linux", "darwin", "win32"}, sorted(systems)

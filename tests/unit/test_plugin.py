@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import paths, plugin, scoreboard
+from harness import history, paths, plugin
 
 INNER = """
 import pytest
@@ -145,10 +145,10 @@ def test_accept_writes_the_baseline_and_a_chained_history(inner) -> None:
     base = _accept_baseline(inner)
     assert base["checks"]["test_inner.py::test_ok"]["status"] == "pass"
     _accept_baseline(inner)
-    history = (inner.progress / "history.jsonl").read_text()
+    text = (inner.progress / "history.jsonl").read_text()
     accepted_text = (inner.progress / "accepted.json").read_text()
-    assert scoreboard.history_errors(history, accepted_text, None) == []
-    assert [json.loads(x)["n"] for x in history.splitlines()] == [1, 2]
+    assert history.errors(history.found_in(inner.progress), accepted_text, None) == []
+    assert [json.loads(x)["n"] for x in text.splitlines()] == [1, 2]
 
 
 def test_a_lost_pass_is_red_and_cannot_be_accepted(inner) -> None:
@@ -450,3 +450,45 @@ def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
     assert next(iter(entry["metrics"].values()))["passes"] == 4
     last = (inner.progress / "history.jsonl").read_text().splitlines()[-1]
     assert json.loads(last)["fewer_reason"] == "upstream moved one"
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 062: the plugin writes the line where history.target says, and says so (criteria 7, 8)
+
+
+def _filler_volume(progress: Path, lines: int, passed=()) -> bytes:
+    """An old-format history.jsonl over the volume budget; each line carries `passed`, so the
+    history replays. The plugin does not check the chain, so the fillers need none."""
+    text = "".join(
+        json.dumps({"n": n, "passed": sorted(passed), "reason": "x" * 9_000}, sort_keys=True) + "\n"
+        for n in range(1, lines + 1)
+    )
+    (progress / "history.jsonl").write_text(text)
+    data = (progress / "history.jsonl").read_bytes()
+    assert len(data) > history.BUDGET
+    return data
+
+
+def test_accept_starts_a_volume_when_the_newest_is_full_and_says_where(inner) -> None:
+    before = _filler_volume(inner.progress, 60)
+    result, _ = inner("--accept", "into a new volume", fail=False)
+    assert result.ret == 0, result.stdout.str()
+    volume = inner.progress / "history-00061.jsonl"
+    result.stdout.fnmatch_lines([f"*accepted: {volume} line 61*"])
+    assert (inner.progress / "history.jsonl").read_bytes() == before
+    result, _ = inner("--accept", "into the same volume", fail=False)
+    assert result.ret == 0, result.stdout.str()
+    result.stdout.fnmatch_lines([f"*accepted: {volume} line 62*"])
+    assert [json.loads(x)["n"] for x in volume.read_text().splitlines()] == [61, 62]
+    assert [p.name for p in history.volumes(inner.progress)] == ["history.jsonl", volume.name]
+    assert b"\r" not in volume.read_bytes()
+
+
+def test_an_oversize_line_is_refused_through_the_plugin(inner) -> None:
+    gone = [f"tests/checks/test_gone.py::test_number[{i:060d}]" for i in range(7_000)]
+    before = _filler_volume(inner.progress, 1, passed=gone)
+    result, _ = inner("--accept", "too big", fail=False)
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(["*--accept refused: the history line would be*bytes, over*"])
+    assert (inner.progress / "history.jsonl").read_bytes() == before
+    assert sorted(p.name for p in inner.progress.iterdir()) == ["history.jsonl"]
