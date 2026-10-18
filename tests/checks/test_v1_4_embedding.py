@@ -1525,7 +1525,16 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
         snapshot=which == "snapshot",
     )
     assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
-    no = {"stat": 0, "list": 0, "read": 0}
+    no = {
+        "stat": 0,
+        "list": 0,
+        "read": 0,
+        "write": 0,
+        "mkdir": 0,
+        "remove": 0,
+        "rmdir": 0,
+        "rename": 0,
+    }
     steps = [json.loads(line) for line in done.stdout.decode().splitlines()]
     assert steps == [
         ["read", "hello, mount\n", no | {"read": 1}],
@@ -1540,7 +1549,10 @@ def test_a_mount_serves_reads(guest_workdir, which) -> None:
         ["grant", "a,b\n1,2\n", no],
     ], done.stdout
     assert done.files is not None
-    assert dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2}
+    write_half = {"write": 0, "mkdir": 0, "remove": 0, "rmdir": 0, "rename": 0}  # spec 034
+    assert (
+        dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2} | write_half
+    )
     assert done.files.faults == ()
 
 
@@ -1736,7 +1748,16 @@ def test_the_file_call_limit_stops_the_run() -> None:
         )
         ending = (done.exit_code, done.trapped, done.fuel_used, done.stdout)
         assert ending == (None, "out of file calls", None, b""), (cancel, done)
-        assert provider.calls == {"stat": 5, "list": 0, "read": 0}
+        assert provider.calls == {
+            "stat": 5,
+            "list": 0,
+            "read": 0,
+            "write": 0,
+            "mkdir": 0,
+            "remove": 0,
+            "rmdir": 0,
+            "rename": 0,
+        }
         assert done.files is not None and dict(done.files.calls) == provider.calls
     assert DEFAULTS.file_calls == 10_000
     provider = MemoryProvider()
@@ -2547,3 +2568,480 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(guest_workdir, rel
     assert (record.frames, len(record.outcomes), record.unlisted) == (1005, 1000, 5)
     assert sum(o.abandoned for o in record.outcomes) == 0
     assert record.abandoned == 4
+
+
+# Writable mounts (spec 034): a provider's write half, served at open, at close, at fsync and at
+# every ending. The guest asks the door for the provider's counts between its steps, so each
+# step's calls are counted exactly; the provider's own log holds every write-half call whole.
+
+WRITES = r"""
+import _host, json, os
+
+def calls():
+    return json.loads(_host.call(b"calls"))
+
+def step(name, fn):
+    before = calls()
+    value = fn()
+    after = calls()
+    moved = {k: after[k] - before[k] for k in after if after[k] != before[k]}
+    print(json.dumps([name, value, moved]))
+
+def w():
+    f = open("/work/a.txt", "w")
+    f.write("new")
+    f.close()
+
+held = {}
+
+def x_open():
+    held["x"] = open("/work/n.txt", "x")
+
+def append():
+    with open("/work/b.txt", "a") as f:
+        f.write("more")
+
+def read_plus():
+    with open("/work/b.txt", "r+") as f:
+        return f.read()
+
+def fsynced():
+    f = open("/work/s.txt", "w")
+    f.write("s")
+    f.flush()
+    os.fsync(f.fileno())
+    f.close()
+
+def pandas_round_trip():
+    import pandas as pd
+    pd.DataFrame({"a": [1, 2], "b": ["x", "y"]}).to_csv("/work/p.csv", index=False)
+    return pd.read_csv("/work/p.csv").to_dict("list")
+
+step("w, a write and a close", w)
+step("w then close", lambda: open("/work/c.txt", "w").close())
+step("x", x_open)
+step("exists while open", lambda: os.path.exists("/work/n.txt"))
+step("close the x", lambda: held.pop("x").close())
+step("a on an existing file", append)
+step("r+ with no write", read_plus)
+step("a write, an fsync and a close", fsynced)
+step("mkdir", lambda: os.mkdir("/work/m"))
+step("remove", lambda: os.remove("/work/c.txt"))
+step("rmdir", lambda: os.rmdir("/work/m"))
+step("rename", lambda: os.rename("/work/b.txt", "/work/b2.txt"))
+step("pandas", pandas_round_trip)
+"""
+NONE_WRITTEN = {"write": 0, "mkdir": 0, "remove": 0, "rmdir": 0, "rename": 0}
+
+
+@BINARY
+def test_a_writable_mount_serves_writes(guest_workdir, which) -> None:
+    """Spec 034, acceptance 1: `"w"`, a write and a close make two `write`s (`b""` at open, the
+    bytes at close); `open(p, "w").close()` one; `"x"` one `stat` and one `write(b"")`, and the
+    file exists while it is open; `"a"` one `read` and one `write` of the old bytes then the new;
+    `"r+"` with no write one `read`; a write, an `fsync` and a close one content `write`;
+    `mkdir`, `remove`, `rmdir` and `rename` one call each; pandas round-trips a CSV; the record's
+    counts are the provider's own, all eight, and nothing is refused."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _runner()
+    provider = MemoryProvider()
+    done = run(
+        ["-c", WRITES],
+        mounts=[Mount(provider, "/work", writable=True)],
+        host=_mount_host(provider),
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    steps = [json.loads(line) for line in done.stdout.decode().splitlines()]
+    pandas_calls = steps[-1][2]
+    assert steps[:-1] == [
+        ["w, a write and a close", None, {"write": 2}],
+        ["w then close", None, {"write": 1}],
+        ["x", None, {"stat": 1, "write": 1}],
+        ["exists while open", True, {"stat": 1}],
+        ["close the x", None, {}],
+        ["a on an existing file", None, {"read": 1, "write": 1}],
+        ["r+ with no write", "b\nmore", {"read": 1}],
+        ["a write, an fsync and a close", None, {"write": 2}],
+        ["mkdir", None, {"mkdir": 1}],
+        ["remove", None, {"remove": 1}],
+        ["rmdir", None, {"rmdir": 1}],
+        ["rename", None, {"rename": 1}],
+    ], done.stdout
+    assert steps[-1][:2] == ["pandas", {"a": [1, 2], "b": ["x", "y"]}], steps[-1]
+    assert pandas_calls.get("write") == 2, pandas_calls  # b"" at open, the CSV at close
+    assert [e for e in provider.log if e[1] != "/p.csv"] == [
+        ("write", "/a.txt", b""),
+        ("write", "/a.txt", b"new"),
+        ("write", "/c.txt", b""),
+        ("write", "/n.txt", b""),
+        ("write", "/b.txt", b"b\nmore"),
+        ("write", "/s.txt", b""),
+        ("write", "/s.txt", b"s"),
+        ("mkdir", "/m"),
+        ("remove", "/c.txt"),
+        ("rmdir", "/m"),
+        ("rename", "/b.txt", "/b2.txt"),
+    ]
+    assert provider.tree["/b2.txt"] == b"b\nmore" and "/b.txt" not in provider.tree
+    assert provider.tree["/p.csv"] == b"a,b\n1,x\n2,y\n"
+    assert dict(done.files.calls) == provider.calls and len(provider.calls) == 8
+    assert (done.files.refused, done.files.refused_total) == ((), 0)
+
+
+REFUSALS = r"""
+import json, os
+out = {}
+
+def attempt(name, fn):
+    try:
+        fn()
+        out[name] = "ok"
+    except OSError as e:
+        out[name] = e.errno
+
+def denied():
+    with open("/work/denied.txt", "w") as f:
+        f.write("x")
+
+attempt("close", denied)
+held = open("/work/sync.txt", "w")
+held.write("y")
+held.flush()
+attempt("fsync", lambda: os.fsync(held.fileno()))
+attempt("close after the fsync", held.close)
+attempt("create", lambda: open("/work/create.txt", "w"))
+attempt("a refused stat at a writing open", lambda: open("/work/stat.txt", "x"))
+attempt("mkdir", lambda: os.mkdir("/work/nomk"))
+attempt("rename", lambda: os.rename("/work/a.txt", "/work/norename"))
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_refused_writes_are_recorded_on_exit_0(which) -> None:
+    """Spec 034, acceptance 4: a provider that refuses a content `write` with EACCES: the
+    guest's `with` block raises PermissionError at its close, the guest exits 0, and the record
+    names the refusal (`at == "close"`); a refused fsync is recorded at "sync" and again at the
+    close; a refused create fails the open and is recorded at "open"; a refused `stat` at a
+    writing open records nothing; a refused `mkdir` and `rename` are recorded at "call".
+    `refused_total` counts each."""
+    from harness.files import MemoryProvider
+    from wasi_python import Errno, Mount, RefusedWrite
+
+    run = _runner()
+    provider = MemoryProvider()
+
+    def content_refused(path, data):
+        return Errno.EACCES if data else None
+
+    provider.answers.update(
+        {
+            ("write", "/denied.txt"): content_refused,
+            ("write", "/sync.txt"): content_refused,
+            ("write", "/create.txt"): Errno.EACCES,
+            ("stat", "/stat.txt"): Errno.EACCES,
+            ("mkdir", "/nomk"): Errno.EACCES,
+            ("rename", "/a.txt"): Errno.EACCES,
+        }
+    )
+    done = run(
+        ["-c", REFUSALS],
+        mounts=[Mount(provider, "/work", writable=True)],
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    assert json.loads(done.stdout) == {
+        "close": 2,
+        "fsync": 2,
+        "close after the fsync": 2,
+        "create": 2,
+        "a refused stat at a writing open": 2,
+        "mkdir": 2,
+        "rename": 2,
+    }
+    a = Errno.EACCES
+    assert done.files.refused == (
+        RefusedWrite("/work", "write", ("/denied.txt",), a, "close", "refused"),
+        RefusedWrite("/work", "write", ("/sync.txt",), a, "sync", "refused"),
+        RefusedWrite("/work", "write", ("/sync.txt",), a, "close", "refused"),
+        RefusedWrite("/work", "write", ("/create.txt",), a, "open", "refused"),
+        RefusedWrite("/work", "mkdir", ("/nomk",), a, "call", "refused"),
+        RefusedWrite("/work", "rename", ("/a.txt", "/norename"), a, "call", "refused"),
+    ), done.files.refused
+    assert done.files.refused_total == len(done.files.refused)
+    assert done.files.faults == ()
+
+
+FOLLOW = r"""
+import _host, json, os, tempfile
+out = {}
+
+def mark(name):
+    _host.call(b"mark:" + name.encode())
+
+def calls():
+    return sum(json.loads(_host.call(b"calls")).values())
+
+mark("temporary")
+with tempfile.TemporaryFile(dir="/tmp") as f:
+    f.write(b"hello")
+    f.seek(0)
+    out["temporary"] = f.read().decode()
+mark("named")
+with tempfile.NamedTemporaryFile("wb", dir="/tmp", delete=False) as f:
+    out["named"] = f.name
+    f.write(b"x")
+    f.flush()
+    os.replace(f.name, "/tmp/final.bin")
+mark("renamed while open")
+f = open("/tmp/old.txt", "w")
+os.rename("/tmp/old.txt", "/tmp/new.txt")
+f.write("moved")
+f.close()
+mark("replaced while open")
+f = open("/tmp/held.txt", "w")
+open("/tmp/other.txt", "w").close()
+os.rename("/tmp/other.txt", "/tmp/held.txt")
+f.write("lost")
+f.close()
+mark("a folder renamed while open")
+os.mkdir("/tmp/dir1")
+with open("/tmp/dir1/x.txt", "w") as f:
+    f.write("x")
+fd = os.open("/tmp/dir1", os.O_RDONLY | os.O_DIRECTORY)
+os.rename("/tmp/dir1", "/tmp/dir2")
+relative = os.open("x.txt", os.O_RDONLY, dir_fd=fd)
+out["a relative open after the rename"] = os.read(relative, 5).decode()
+mark("a folder removed while open")
+os.mkdir("/tmp/gone")
+g = os.open("/tmp/gone", os.O_RDONLY | os.O_DIRECTORY)
+os.rmdir("/tmp/gone")
+os.mkdir("/tmp/gone")
+with open("/tmp/gone/y", "w"):
+    pass
+before = calls()
+for name, fn in [
+    ("a relative open", lambda: os.open("y", os.O_RDONLY, dir_fd=g)),
+    ("a relative stat", lambda: os.stat("y", dir_fd=g)),
+]:
+    try:
+        fn()
+        out[name] = "found"
+    except OSError as e:
+        out[name] = e.errno
+out["provider calls through the removed folder"] = calls() - before
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_open_files_follow_the_guests_renames_and_removals(which) -> None:
+    """Spec 034, acceptance 9 (guards: the create at open, unlinking, the unlinked-folder rule):
+    in a writable mount at /tmp, `TemporaryFile` writes, reads back and closes with one
+    `write(b"")` at open, one `remove` and no other write, leaving nothing; `NamedTemporaryFile`
+    with `os.replace` inside its `with` lands the bytes at the final name only; a file renamed
+    while open is written back to its new name only; a file replaced while open is never written
+    back; a folder renamed while open resolves later relative opens under its new name; a folder
+    removed and made again answers a relative open and stat through the old descriptor ENOENT,
+    with no provider call (the re-list is the unit check's)."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _runner()
+    provider = MemoryProvider({})
+
+    def host(frame: bytes) -> bytes:
+        if frame.startswith(b"mark:"):
+            provider.log.append(("mark", frame[5:].decode()))
+            return b""
+        return json.dumps(provider.calls).encode()
+
+    done = run(
+        ["-c", FOLLOW],
+        mounts=[Mount(provider, "/tmp", writable=True)],
+        host=host,
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    out = json.loads(done.stdout)
+    named = out.pop("named")[len("/tmp") :]
+    assert out == {
+        "temporary": "hello",
+        "a relative open after the rename": "x",
+        "a relative open": 44,
+        "a relative stat": 44,
+        "provider calls through the removed folder": 0,
+    }, out
+    parts: dict[str, list] = {}
+    for entry in provider.log:
+        if entry[0] == "mark":
+            parts[entry[1]] = []
+        else:
+            list(parts.values())[-1].append(entry)
+    temporary = parts["temporary"]
+    assert [e[0] for e in temporary] == ["write", "remove"], temporary
+    name = temporary[0][1]
+    assert temporary == [("write", name, b""), ("remove", name)]
+    assert parts["named"] == [
+        ("write", named, b""),
+        ("rename", named, "/final.bin"),
+        ("write", "/final.bin", b"x"),
+    ], parts["named"]
+    assert parts["renamed while open"] == [
+        ("write", "/old.txt", b""),
+        ("rename", "/old.txt", "/new.txt"),
+        ("write", "/new.txt", b"moved"),
+    ]
+    assert parts["replaced while open"] == [
+        ("write", "/held.txt", b""),
+        ("write", "/other.txt", b""),
+        ("rename", "/other.txt", "/held.txt"),
+    ]
+    tree = provider.tree
+    assert (tree["/final.bin"], tree["/new.txt"], tree["/held.txt"]) == (b"x", b"moved", b"")
+    assert {name, named, "/old.txt", "/other.txt", "/dir1"}.isdisjoint(tree), sorted(tree)
+    assert tree["/dir2/x.txt"] == b"x" and tree["/gone"] is None
+
+
+ENDING = r"""
+import _host, os, sys
+ending = sys.argv[1]
+fd = os.open("/work/f.txt", os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+os.write(fd, b"data")  # never closed: no Python object closes it at the end
+if ending == "os._exit":
+    os._exit(3)
+elif ending == "an uncaught exception":
+    raise ValueError("uncaught")
+elif ending == "out of fuel":
+    while True:
+        pass
+elif ending in ("deadline", "cancel"):
+    _host.call(ending.encode())
+    while True:
+        pass
+elif ending == "out of file calls":
+    while True:
+        os.stat("/work/f.txt")
+"""
+ENDINGS = {  # each ending's (exit_code, trapped, a fuel count or not)
+    "exit 0": (0, None, True),
+    "os._exit": (3, None, True),
+    "an uncaught exception": (1, None, True),
+    "out of fuel": (None, "out of fuel", True),
+    "deadline": (None, "deadline", False),
+    "cancel": (None, "cancelled", False),
+}
+
+
+@BINARY
+def test_writes_land_at_every_ending(guest_workdir, which) -> None:
+    """Spec 034, acceptance 5: a file written with `os.write` and never closed is written back
+    once, by the ending's walk, whatever ends the guest: an exit 0, `os._exit(3)`, an uncaught
+    exception, its fuel cap, its deadline, a cancel. Each ends as the same guest does with a
+    writable grant, and an exit's `fuel_used` is still counted. At the file-call limit no
+    content write is made, and the record names the file once, at "exit", for the limit. The
+    deadline is reached by the ticker's count (the door moves the call's deadline to now)."""
+    from harness.files import MemoryProvider
+    from wasi_python import Errno, Grant, Mount, RefusedWrite, runner
+
+    run = _runner()
+    cap = 400_000_000  # past start-up on both binaries (spec 032)
+
+    def host(event: threading.Event):
+        def answer(frame: bytes) -> bytes:
+            if frame == b"deadline":
+                runner._stack()[-1].stop_at = runner._epoch_ticker.count()
+            else:
+                event.set()
+            return b""
+
+        return answer
+
+    for ending, (code, trapped, counted) in ENDINGS.items():
+        ends = []
+        for side in ("grant", "mount"):
+            event = threading.Event()
+            provider = MemoryProvider({})
+            folder = Path(tempfile.mkdtemp(prefix="ending-", dir=guest_workdir))
+            places = (
+                {"mounts": [Mount(provider, "/work", writable=True)]}
+                if side == "mount"
+                else {"grants": [Grant(folder, "/work", writable=True)]}
+            )
+            done = run(
+                ["-c", ENDING, ending],
+                host=host(event),
+                cancel=event,
+                deadline_s=600,
+                fuel=cap if ending == "out of fuel" else 10**12,
+                snapshot=which == "snapshot",
+                **places,
+            )
+            ends.append((done.exit_code, done.trapped, done.fuel_used is not None))
+            if side == "mount":
+                assert provider.log == [("write", "/f.txt", b""), ("write", "/f.txt", b"data")]
+                assert (done.files.refused, done.files.refused_total) == ((), 0), ending
+                if ending == "out of fuel":
+                    assert done.fuel_used == cap
+            else:
+                assert (folder / "f.txt").read_bytes() == b"data", ending
+        assert ends == [(code, trapped, counted)] * 2, (ending, ends)
+    provider = MemoryProvider({})
+    done = run(
+        ["-c", ENDING, "out of file calls"],
+        mounts=[Mount(provider, "/work", writable=True)],
+        max_file_calls=5,
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.trapped, done.fuel_used) == (None, "out of file calls", None)
+    assert provider.writes() == [b""] and provider.total() == 5
+    assert done.files.refused == (
+        RefusedWrite("/work", "write", ("/f.txt",), Errno.EIO, "exit", "limit"),
+    )
+    assert done.files.refused_total == 1
+
+
+THREE_DIRTY = r"""
+import os
+fds = [os.open(f"/work/{n}.txt", os.O_WRONLY | os.O_CREAT | os.O_TRUNC) for n in (1, 2, 3)]
+for fd in fds:
+    os.write(fd, b"bytes of %d" % fd)
+print(all(fd >= 2**30 for fd in fds) and fds == sorted(fds))
+"""
+
+
+def test_a_failed_write_back_at_the_ending_is_recorded() -> None:
+    """Spec 034, acceptance 6: three dirty files at the ending; the provider refuses the first
+    (EIO), raises ValueError for the second and takes the third: run raises nothing; the record
+    holds the first ("refused") and the second ("fault", EIO, at "exit") and names the fault;
+    the third is written; the walk made exactly three writes, in ascending provider number."""
+    from harness.files import MemoryProvider
+    from wasi_python import Errno, Mount, RefusedWrite
+
+    run = _runner()
+    provider = MemoryProvider({})
+
+    def refused(path, data):
+        return Errno.EIO if data else None
+
+    def raises(path, data):
+        if data:
+            raise ValueError("the store broke")
+
+    provider.answers.update({("write", "/1.txt"): refused, ("write", "/2.txt"): raises})
+    done = run(["-c", THREE_DIRTY], mounts=[Mount(provider, "/work", writable=True)])
+    assert (done.exit_code, done.stdout) == (0, b"True\n"), done
+    walk = [e[1] for e in provider.log if e[0] == "write" and e[2]]
+    assert walk == ["/1.txt", "/2.txt", "/3.txt"]
+    assert provider.tree["/3.txt"].startswith(b"bytes of ")
+    e = Errno.EIO
+    assert done.files.refused == (
+        RefusedWrite("/work", "write", ("/1.txt",), e, "exit", "refused"),
+        RefusedWrite("/work", "write", ("/2.txt",), e, "exit", "fault"),
+    )
+    assert [(f.method, f.path, f.error) for f in done.files.faults] == [
+        ("write", "/2.txt", "ValueError: the store broke")
+    ]

@@ -1272,3 +1272,231 @@ def test_a_trailing_slash_rename_rule(tmp_path) -> None:
     }, _follows_slash_links(tmp_path)
     assert (grant / "d3" / "in.txt").read_text() == "in"
     assert os.readlink(grant / "s") == "d" and (grant / "f").read_text() == "f"
+
+
+# Writable mounts (spec 034): a writable mount at / cannot reach the runtime's files, a
+# read-only grant inside it, another mount, or the host.
+
+WRITABLE_ROOT = r"""
+import json, os, sys, tempfile
+scratch = sys.argv[1]
+tempfile.tempdir = scratch
+sys.path.insert(0, sys.argv[3])
+import wasi_python
+from harness.files import MemoryProvider
+from wasi_python import Grant, Mount
+
+root, out_mount = MemoryProvider(), MemoryProvider({})
+data = os.path.join(scratch, "data")
+os.mkdir(data)
+looked = []
+
+def host(frame):
+    if frame == b"look":  # the call's placeholder, seen from the embedder's side
+        folders = [n for n in os.listdir(scratch) if n.startswith("wasi-python-")]
+        looked.append([sorted(os.listdir(os.path.join(scratch, n, "mount")))
+                       for n in folders if os.path.isdir(os.path.join(scratch, n, "mount"))])
+        return b""
+    return str(root.total() + out_mount.total()).encode()
+
+guest = '''
+import _host, json, os, numpy, pandas
+out = {}
+def row(name, fn):
+    before = int(_host.call(b"total"))
+    try:
+        fn()
+        value = "ok"
+    except OSError as e:
+        value = e.errno
+    out[name] = [value, int(_host.call(b"total")) - before]
+for base in ("/usr/local/lib/x", "/usr/./local/lib/x", "/data/x"):
+    row("write " + base, lambda b=base: open(b, "w"))
+    row("mkdir " + base, lambda b=base: os.mkdir(b))
+    row("remove " + base, lambda b=base: os.remove(b))
+    row("rename into " + base, lambda b=base: os.rename("/a.txt", b))
+row("rmdir /usr", lambda: os.rmdir("/usr"))
+row("rmdir /usr/local", lambda: os.rmdir("/usr/local"))
+row("rename /usr", lambda: os.rename("/usr", "/usr2"))
+row("rename /work", lambda: os.rename("/work", "/work2"))
+row("rename to the nested writable mount", lambda: os.rename("/a.txt", "/work/out/a.txt"))
+row("rename to the read-only grant", lambda: os.rename("/a.txt", "/data/a.txt"))
+row("rename into itself", lambda: os.rename("/d", "/d/e"))
+with open("/fine.txt", "w") as f:
+    f.write("fine")
+_host.call(b"look")
+out["imports"] = [numpy.__name__, pandas.__name__]
+print(json.dumps(out))
+'''
+mounts = [Mount(root, "/", writable=True), Mount(out_mount, "/work/out", writable=True)]
+done = wasi_python.run(["-c", guest], mounts=mounts, grants=[Grant(data, "/data")], host=host,
+                       snapshot=sys.argv[2] == "1")
+left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-") and n != "data"]
+print(json.dumps([done.exit_code, done.stderr.decode()[-500:], json.loads(done.stdout or "{}"),
+                  looked, left, root.tree.get("/fine.txt", b"").decode(), os.listdir(data)]))
+"""
+
+
+@BOTH
+def test_a_writable_root_mount_keeps_the_runtime_and_other_grants(guest_workdir, snapshot) -> None:
+    """Guards a change (spec 034, acceptance 10; guards: the EBUSY rule, the rule across, the
+    dst-inside-src rule): a writable mount at / with a read-only grant at /data and a writable
+    mount at /work/out: writing, making, removing or renaming into the zip's folder (spelled
+    plainly or past wasi-libc) or the grant is EPERM with no provider call; an rmdir or rename
+    above a nested preopen is EBUSY; a rename to the nested writable mount is EXDEV and to the
+    grant EPERM; a rename into its own subfolder is EINVAL, all with no call. numpy and pandas
+    import; the placeholder is empty while the guest writes and gone after."""
+    _run()
+    scratch = Path(tempfile.mkdtemp(prefix="writable-root-", dir=guest_workdir))
+    tests = str(paths.REPO / "tests")
+    out = subprocess.run(
+        [sys.executable, "-c", WRITABLE_ROOT, str(scratch), "1" if snapshot else "0", tests],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    import json
+
+    exit_code, stderr, rows, looked, left, fine, data = json.loads(out.stdout)
+    assert (exit_code, stderr) == (0, ""), stderr
+    imports = rows.pop("imports")
+    want = {}
+    for base in ("/usr/local/lib/x", "/usr/./local/lib/x", "/data/x"):
+        for verb in ("write", "mkdir", "remove", "rename into"):
+            want[f"{verb} {base}"] = [63, 0]
+    want |= {
+        "rmdir /usr": [10, 0],
+        "rmdir /usr/local": [10, 0],
+        "rename /usr": [10, 0],
+        "rename /work": [10, 0],
+        "rename to the nested writable mount": [75, 0],
+        "rename to the read-only grant": [63, 0],
+        "rename into itself": [28, 0],
+    }
+    assert rows == want, {k: (rows.get(k), v) for k, v in want.items() if rows.get(k) != v}
+    assert imports == ["numpy", "pandas"]
+    assert (looked, left, fine, data) == ([[[]]], [], "fine", [])
+
+
+DIRTY = (
+    "import _host, os\n"
+    "fds = [os.open(f'/w/{n}.txt', os.O_WRONLY | os.O_CREAT) for n in (1, 2)]\n"
+    "for fd in fds:\n"
+    "    os.write(fd, b'dirty')\n"
+)
+
+
+def test_a_call_that_raises_writes_nothing_back() -> None:
+    """Guards a change (spec 034, acceptance 7; guard: the skip when the call raises): when the
+    call will raise rather than return, the ending's walk makes no write-back: a door host's
+    KeyboardInterrupt, and a provider's KeyboardInterrupt in the walk's first write (the second
+    file is never written). The Ctrl-C and exit-hook rows are the next check's, in children."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _run()
+    provider = MemoryProvider({})
+
+    def interrupts(frame):
+        raise KeyboardInterrupt
+
+    with pytest.raises(KeyboardInterrupt):
+        run(
+            ["-c", DIRTY + "_host.call(b'stop')\n"],
+            mounts=[Mount(provider, "/w", writable=True)],
+            host=interrupts,
+        )
+    assert provider.writes() == [b"", b""]  # the creates at open, and no content
+    provider = MemoryProvider({})
+
+    def first(path, data):
+        if data:
+            raise KeyboardInterrupt
+
+    provider.answers[("write", "/1.txt")] = first
+    with pytest.raises(KeyboardInterrupt):
+        run(["-c", DIRTY], mounts=[Mount(provider, "/w", writable=True)])
+    assert provider.writes("/1.txt") == [b"", b"dirty"] and provider.writes("/2.txt") == [b""]
+
+
+STOPPED = r"""
+import asyncio, signal, sys, tempfile
+sys.path.insert(0, sys.argv[2])
+import wasi_python
+from harness.files import MemoryProvider
+from wasi_python import Mount, runner
+
+case = sys.argv[1]
+provider = MemoryProvider({})
+mounts = [Mount(provider, "/w", writable=True)]
+dirty = (
+    "import _host, os\n"
+    "fds = [os.open(f'/w/{n}.txt', os.O_WRONLY | os.O_CREAT) for n in (1, 2)]\n"
+    "for fd in fds:\n"
+    "    os.write(fd, b'dirty')\n"
+)
+if case == "a Ctrl-C in the door":
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # a parent may have ignored it
+
+    def host(frame):
+        signal.raise_signal(signal.SIGINT)  # os.kill on Windows would end the process
+        return b""
+
+    try:
+        wasi_python.run(["-c", dirty + "_host.call(b'x')\n"], mounts=mounts, host=host)
+        print("returned")
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+elif case == "a Ctrl-C in the walk":
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+
+    def first(path, data):
+        if data:
+            signal.raise_signal(signal.SIGINT)  # deferred: the walk stops after this call
+
+    provider.answers[("write", "/1.txt")] = first
+    try:
+        wasi_python.run(["-c", dirty], mounts=mounts)
+        print("returned")
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+else:  # the exit hook stops a run_async call (spec 015), called directly as its check does
+
+    def host(frame):
+        runner._stop_async_calls()
+        return b""
+
+    code = dirty + "_host.call(b'x')\nwhile True:\n    pass\n"
+    done = asyncio.run(wasi_python.run_async(["-c", code], mounts=mounts, host=host))
+    print(done.trapped)
+print(provider.log)
+"""
+
+
+@pytest.mark.parametrize(
+    ("case", "want"),
+    [
+        ("a Ctrl-C in the door", "KeyboardInterrupt"),
+        ("a Ctrl-C in the walk", "KeyboardInterrupt"),
+        ("the exit hook", "cancelled"),
+    ],
+)
+def test_a_stopped_host_gets_no_write_back(case, want) -> None:
+    """Guards a change (spec 034, acceptance 7; guards: the skip when the call raises, the skip
+    at the exit hook): in a child, a Ctrl-C the door host sends itself makes run raise
+    KeyboardInterrupt with no content write; one sent during the walk's first write stops the
+    walk there (the second file is never written) and is raised; a run_async call stopped by
+    spec 015's exit hook makes no content write."""
+    _run()
+    out = subprocess.run(
+        [sys.executable, "-c", STOPPED, case, str(paths.REPO / "tests")],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    ended, log = out.stdout.splitlines()
+    creates = "[('write', '/1.txt', b''), ('write', '/2.txt', b'')"
+    walked = ", ('write', '/1.txt', b'dirty')" if case == "a Ctrl-C in the walk" else ""
+    assert (ended, log) == (want, creates + walked + "]"), out.stdout

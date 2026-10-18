@@ -334,27 +334,51 @@ def write_tree(root: Path, tree: Mapping[str, bytes | None] = TREE) -> Path:
     return root
 
 
+METHODS = ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename")
+_UNSET = object()
+
+
 class MemoryProvider:
-    """A provider over an in-memory tree that counts its own calls by method, and records every
-    path it was given. `read` follows the protocol's contract: EISDIR for a folder, ENOTDIR when a
-    parent is a file. Thread-safe: one provider may serve concurrent calls."""
+    """A provider over an in-memory tree that counts its own calls by method (all eight, spec 034)
+    and records every path it was given, and every write-half call whole in `log`. It follows the
+    protocol's contract: `read` answers EISDIR for a folder and ENOTDIR when a parent is a file;
+    the write half answers as Decision 2 of spec 034 says. `answers` overrides one method on one
+    path: an `Errno` is answered, an exception is raised, a callable is called with the method's
+    arguments. Thread-safe: one provider may serve concurrent calls."""
 
     def __init__(self, tree: Mapping[str, bytes | None] = TREE) -> None:
         from wasi_python import Errno, Stat
 
         self.Errno, self.Stat = Errno, Stat
         self.tree = dict(tree)
-        self.calls = {"stat": 0, "list": 0, "read": 0}
+        self.calls = dict.fromkeys(METHODS, 0)
         self.paths: list[tuple[str, str]] = []
-        self._lock = threading.Lock()
+        self.log: list[tuple[Any, ...]] = []
+        self.answers: dict[tuple[str, str], Any] = {}
+        self._lock = threading.RLock()
 
-    def _count(self, method: str, path: str) -> None:
+    def _count(self, method: str, path: str, *more: Any) -> Any:
+        """Count one call, and give its override (or `_UNSET`)."""
         with self._lock:
             self.calls[method] += 1
             self.paths.append((method, path))
+            if method in METHODS[3:]:
+                self.log.append((method, path, *more))
+                if method == "rename":
+                    self.paths.append((method, more[0]))
+            answer = self.answers.get((method, path), _UNSET)
+        if isinstance(answer, BaseException):
+            raise answer
+        if callable(answer) and not isinstance(answer, self.Errno):
+            return answer(path, *more)
+        return answer
 
     def total(self) -> int:
         return sum(self.calls.values())
+
+    def writes(self, path: str | None = None) -> list[bytes]:
+        """The data of every `write` call, in order (to one path, when given)."""
+        return [e[2] for e in self.log if e[0] == "write" and (path is None or e[1] == path)]
 
     def _missing(self, path: str) -> Any:
         """ENOTDIR when an ancestor is a file, else ENOENT."""
@@ -363,40 +387,135 @@ class MemoryProvider:
             ancestor = "/" + "/".join(parts[:i])
             if self.tree.get(ancestor, None) is not None:
                 return self.Errno.ENOTDIR
+            if ancestor not in self.tree:
+                return self.Errno.ENOENT
         return self.Errno.ENOENT
+
+    def _parent(self, path: str) -> Any:
+        """None when the parent is a folder, else ENOENT or ENOTDIR."""
+        parent = path.rsplit("/", 1)[0] or "/"
+        if self._is_dir(parent):
+            return None
+        return self.Errno.ENOTDIR if parent in self.tree else self._missing(parent)
 
     def _is_dir(self, path: str) -> bool:
         return path == "/" or (path in self.tree and self.tree[path] is None)
 
+    def _children(self, path: str) -> list[str]:
+        prefix = path.rstrip("/") + "/"
+        return [p for p in self.tree if p.startswith(prefix)]
+
     def stat(self, path: str) -> Any:
-        self._count("stat", path)
-        if self._is_dir(path):
-            return self.Stat("dir")
-        if path in self.tree:
-            return self.Stat("file", size=len(self.tree[path] or b""))
-        return self._missing(path)
+        if (answer := self._count("stat", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if self._is_dir(path):
+                return self.Stat("dir")
+            if path in self.tree:
+                return self.Stat("file", size=len(self.tree[path] or b""))
+            return self._missing(path)
 
     def list(self, path: str) -> Any:
-        self._count("list", path)
-        if path in self.tree and self.tree[path] is not None:
-            return self.Errno.ENOTDIR
-        if not self._is_dir(path):
-            return self._missing(path)
-        prefix = path.rstrip("/") + "/"
-        names = []
-        for p, data in sorted(self.tree.items()):
-            rest = p[len(prefix) :] if p.startswith(prefix) else None
-            if rest and "/" not in rest:
-                names.append((rest, "dir" if data is None else "file"))
-        return names
+        if (answer := self._count("list", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if path in self.tree and self.tree[path] is not None:
+                return self.Errno.ENOTDIR
+            if not self._is_dir(path):
+                return self._missing(path)
+            prefix = path.rstrip("/") + "/"
+            names = []
+            for p, data in sorted(self.tree.items()):
+                rest = p[len(prefix) :] if p.startswith(prefix) else None
+                if rest and "/" not in rest:
+                    names.append((rest, "dir" if data is None else "file"))
+            return names
 
     def read(self, path: str) -> Any:
-        self._count("read", path)
-        if self._is_dir(path):
-            return self.Errno.EISDIR
-        if path in self.tree:
-            return self.tree[path]
-        return self._missing(path)
+        if (answer := self._count("read", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if self._is_dir(path):
+                return self.Errno.EISDIR
+            if path in self.tree:
+                return self.tree[path]
+            return self._missing(path)
+
+    # The write half (spec 034, Decision 2).
+
+    def write(self, path: str, data: bytes) -> Any:
+        if (answer := self._count("write", path, data)) is not _UNSET:
+            return answer
+        with self._lock:
+            if self._is_dir(path):
+                return self.Errno.EISDIR
+            if (refused := self._parent(path)) is not None:
+                return refused
+            self.tree[path] = bytes(data)
+            return None
+
+    def mkdir(self, path: str) -> Any:
+        if (answer := self._count("mkdir", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if self._is_dir(path) or path in self.tree:
+                return self.Errno.EEXIST
+            if (refused := self._parent(path)) is not None:
+                return refused
+            self.tree[path] = None
+            return None
+
+    def remove(self, path: str) -> Any:
+        if (answer := self._count("remove", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if self._is_dir(path):
+                return self.Errno.EISDIR
+            if path not in self.tree:
+                return self._missing(path)
+            del self.tree[path]
+            return None
+
+    def rmdir(self, path: str) -> Any:
+        if (answer := self._count("rmdir", path)) is not _UNSET:
+            return answer
+        with self._lock:
+            if path not in self.tree:
+                return self._missing(path)
+            if self.tree[path] is not None:
+                return self.Errno.ENOTDIR
+            if self._children(path):
+                return self.Errno.ENOTEMPTY
+            del self.tree[path]
+            return None
+
+    def rename(self, src: str, dst: str) -> Any:
+        if (answer := self._count("rename", src, dst)) is not _UNSET:
+            return answer
+        with self._lock:
+            if src not in self.tree:
+                return self._missing(src)
+            if (refused := self._parent(dst)) is not None:
+                return refused
+            folder = self.tree[src] is None
+            if dst == src:
+                return None
+            if folder and dst.startswith(src + "/"):
+                return self.Errno.EINVAL
+            if dst in self.tree:
+                if not folder and self.tree[dst] is None:
+                    return self.Errno.EISDIR
+                if folder and self.tree[dst] is not None:
+                    return self.Errno.ENOTDIR
+                if folder and self._children(dst):
+                    return self.Errno.ENOTEMPTY
+                del self.tree[dst]
+            moved = {src: self.tree.pop(src)}
+            for p in self._children(src):
+                moved[dst + p[len(src) :]] = self.tree.pop(p)
+            for p, data in moved.items():
+                self.tree[p if p != src else dst] = data
+            return None
 
 
 def grant_raw(folders: list[tuple[Path, str, bool]], wat: str | None = None) -> Raw:
@@ -443,8 +562,9 @@ class _OnStack:
 
 class Mounted(_OnStack):
     """The raw module on the runner's mount linker, with a call on the thread's stack around
-    every export: a mount of `provider` at `guest` (preopen 3, on an empty placeholder folder),
-    then each (host folder, guest path, writable) in `folders` from 4 up."""
+    every export: a mount of `provider` at `guest` (preopen 3, on an empty placeholder folder;
+    writable when `writable`), then each (host folder, guest path, writable) in `folders` from
+    4 up."""
 
     def __init__(
         self,
@@ -459,6 +579,7 @@ class Mounted(_OnStack):
         wat: str | None = None,
         cancel: Any = None,
         stop_at: int | None = None,
+        writable: bool = False,
     ) -> None:
         import wasmtime
 
@@ -475,12 +596,17 @@ class Mounted(_OnStack):
             store.set_fuel(runner.UNMETERED)
         wasi = wasmtime.WasiConfig()
         wasi.preopen_dir(str(placeholder), guest, False)
-        for host, path, writable in folders:
-            wasi.preopen_dir(str(host), path, writable)
+        for host, path, rw in folders:
+            wasi.preopen_dir(str(host), path, rw)
         store.set_wasi(wasi)
         others = [path for _, path, _ in folders]
         self.table = _Files(
-            [(Mount(provider, guest), 3)], others, file_calls, staging, fuel is not None, engine
+            [(Mount(provider, guest, writable=writable), 3)],
+            others,
+            file_calls,
+            staging,
+            fuel is not None,
+            engine,
         )
         self.call = runner._Call(store, None, _NoWaits(), 0, cancel, stop_at, self.table)
         self.linker = runner._mount_linker(wasmtime, engine)

@@ -1,12 +1,16 @@
-"""Read-only mounts (spec 032): a provider's files at a guest path, served from embedder code.
+"""Mounts (specs 032 and 034): a provider's files at a guest path, served from embedder code.
 
     from wasi_python import Mount, run
 
     done = run(argv, mounts=[Mount(files, "/work")])
+    done = run(argv, mounts=[Mount(store, "/work", writable=True)])
 
 A provider answers three methods on normalized, absolute paths (`/` is the mount itself): `stat`,
-`list` and `read`, each returning a value or an `Errno`, never raising. The runner owns every
-descriptor, offset, flag, cookie and pointer; the provider sees only normalized paths.
+`list` and `read`, each returning a value or an `Errno`, never raising. A writable mount's
+provider also answers the write half (`write`, `mkdir`, `remove`, `rmdir`, `rename`), each `None`
+or an `Errno`; a file's bytes are staged in the runner and handed over whole at open (a create or
+truncation), at close, at sync and at the call's ending. The runner owns every descriptor, offset,
+flag, cookie and pointer; the provider sees only normalized paths.
 
 How it works: on a call with mounts, the guest's 29 preview1 calls that act on a descriptor and
 are not forward-safe are shadowed (`SHADOWED`). Each finds its call on the thread's stack (spec
@@ -90,13 +94,34 @@ class FileProvider(Protocol):
     def read(self, path: str) -> bytes | bytearray | memoryview | Errno: ...
 
 
+class WritableFileProvider(FileProvider, Protocol):
+    """A writable mount's provider (spec 034, for type checkers): the read half and the write
+    half, each answering `None` for success or an `Errno`, POSIX's contract in preview1's
+    numbering. `write` replaces a file's whole content, creating it if missing (`write(path,
+    b"")` is how a create or a truncation at open reaches it); `data` is a copy it may keep.
+    `remove` answers EISDIR for a folder; `rmdir` ENOTEMPTY for a folder that holds anything;
+    `rename` moves within the mount with POSIX's replace rule."""
+
+    def write(self, path: str, data: bytes) -> None | Errno: ...
+
+    def mkdir(self, path: str) -> None | Errno: ...
+
+    def remove(self, path: str) -> None | Errno: ...
+
+    def rmdir(self, path: str) -> None | Errno: ...
+
+    def rename(self, src: str, dst: str) -> None | Errno: ...
+
+
 @dataclass(frozen=True)
 class Mount:
-    """A provider the guest sees at `guest`, read-only: an absolute guest path, or `/` for the
-    guest's whole filesystem (not with `root=`). `run` checks every mount before any work."""
+    """A provider the guest sees at `guest`: an absolute guest path, or `/` for the guest's
+    whole filesystem (not with `root=`). Read-only unless `writable=True` (spec 034), which needs
+    the provider's write half. `run` checks every mount before any work."""
 
     provider: Any
     guest: str
+    writable: bool = field(default=False, kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -110,12 +135,31 @@ class FileFault:
 
 
 @dataclass(frozen=True)
+class RefusedWrite:
+    """One write-half call the provider did not accept, or a write-back the runner owed and did
+    not make (spec 034, Decision 11). `mount` is the mount's guest path; `paths` the provider
+    path, or (src, dst) for a rename; `errno` the provider's answer, or EIO for a fault or the
+    limit; `at` is "open", "call", "close", "sync" or "exit"; `cause` is "refused", "fault" or
+    "limit"."""
+
+    mount: str
+    method: str
+    paths: tuple[str, ...]
+    errno: Errno
+    at: str
+    cause: str
+
+
+@dataclass(frozen=True)
 class FileRecord:
-    """A call's provider calls: each method's count (zeros included) and the first 1,000 faults.
-    No times, and no exception objects, so a result holds no frame of the call."""
+    """A call's provider calls: each method's count (all eight, zeros included), the first 1,000
+    faults, the first 1,000 refused writes and how many there were in all (so a cut list says
+    so). No times, and no exception objects, so a result holds no frame of the call."""
 
     calls: Mapping[str, int]
     faults: tuple[FileFault, ...] = ()
+    refused: tuple[RefusedWrite, ...] = ()
+    refused_total: int = 0
 
 
 # The 29 preview1 calls that act on a descriptor and are not forward-safe, with their raw
@@ -191,15 +235,27 @@ MAX_NAME = 255  # bytes in one path component, and in one listed name
 MAX_IOVECS = 1024
 PREAD_CHUNK = 64 * 1024  # wasmtime 49's MAX_READ_SIZE_ALLOC, which fd_pread reads by
 FAULTS_KEPT = 1000
+REFUSED_KEPT = 1000
 STAGING_CEILING = 4 << 30  # wasm32's own ceiling, when memory_bytes is None
 FUEL_ALLOWANCE = 1000  # covers the trampoline's few instructions; set back after each forward
 FUEL_MAX = 2**63 - 1
-METHODS = ("stat", "list", "read")
+METHODS = ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename")
+WRITE_HALF = METHODS[3:]  # a writable mount's provider has each of these (spec 034)
 
 MASK32, MASK64 = 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF
 # preview1 errno values the runner answers itself
-EBADF, ECANCELED, EFAULT, EFBIG, EILSEQ, EINVAL, EIO = 8, 11, 21, 22, 25, 28, 29
-EISDIR, EMFILE, ENAMETOOLONG, ENOENT, ENOTDIR, ENOTSUP, EPERM, ETIMEDOUT = (
+EBADF, EBUSY, ECANCELED, EEXIST, EFAULT, EFBIG, EILSEQ, EINVAL, EIO = (
+    8,
+    10,
+    11,
+    20,
+    21,
+    22,
+    25,
+    28,
+    29,
+)
+EISDIR, EMFILE, ENAMETOOLONG, ENOENT, ENOTDIR, ENOTSUP, EPERM, ETIMEDOUT, EXDEV = (
     31,
     33,
     37,
@@ -208,14 +264,17 @@ EISDIR, EMFILE, ENAMETOOLONG, ENOENT, ENOTDIR, ENOTSUP, EPERM, ETIMEDOUT = (
     58,
     63,
     73,
+    75,
 )
 DIRECTORY, REGULAR_FILE = 3, 4  # filetypes
 O_CREAT, O_DIRECTORY, O_EXCL, O_TRUNC = 1, 2, 4, 8
 APPEND, DSYNC, NONBLOCK, RSYNC, SYNC = 1, 2, 4, 8, 16
 ATIM, ATIM_NOW, MTIM, MTIM_NOW = 1, 2, 4, 8
-FD_SEEK, FD_WRITE, PATH_FILESTAT_SET_SIZE, FD_FILESTAT_SET_SIZE = 1 << 2, 1 << 6, 1 << 19, 1 << 22
+FD_READ, FD_SEEK, FD_WRITE, FD_READDIR = 1 << 1, 1 << 2, 1 << 6, 1 << 14
+PATH_FILESTAT_SET_SIZE, FD_FILESTAT_SET_SIZE = 1 << 19, 1 << 22
 RIGHTS = (1 << 30) - 1  # wasmtime 49's Rights::all()
 FILE_RIGHTS = RIGHTS & ~FD_WRITE  # a file opened read-only, as wasmtime reports it
+OFFSET_TOP = 2**63  # an offset, a position or a size from here on: the host's EINVAL
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
 FILESTAT = "<QQB7xQQQQQ"  # dev, ino, filetype, nlink, size, atim, mtim, ctim: 64 bytes
 FDSTAT = "<BxH4xQQ"  # filetype, flags, rights base and inheriting: 24 bytes
@@ -311,6 +370,7 @@ class _Mounted:
     guest: str
     dev: int  # _siphash13 of the guest path
     nested: tuple[str, ...]  # more specific preopens, as paths within this mount
+    writable: bool = False  # the embedder said so (spec 034); else no write-half call is made
 
 
 @dataclass
@@ -321,13 +381,17 @@ class _Open:
     path: str  # within the mount, normalized
     kind: str  # "file" or "dir"
     preopen: bool = False
-    data: bytes = b""  # a file's staged bytes
+    data: bytes | bytearray = b""  # a file's staged bytes; its buffer, if it may write
     position: int = 0
     append: bool = False
     nonblock: bool = False
     listing: _Listing | None = None  # the encoded entries and where each starts, dots first
     fresh: bool = False  # the listing has not yet served a pass from cookie 0
     held: int = 0  # staged bytes this descriptor holds
+    readable: bool = True  # wasmtime's open mode: FD_READ asked for, or not opened to write
+    writable: bool = False  # it may write (spec 034): CREAT or TRUNC, or FD_WRITE asked for
+    dirty: bool = False  # the provider has not been given these bytes
+    unlinked: bool = False  # the guest removed or replaced its path in this call (Decision 7)
 
 
 @dataclass
@@ -398,7 +462,11 @@ class _Files:
                 and (g.startswith(mount.guest + "/") or (mount.guest == "/" and g != "/"))
             )
             mounted = _Mounted(
-                mount.provider, mount.guest, runner._siphash13(mount.guest.encode()), nested
+                mount.provider,
+                mount.guest,
+                runner._siphash13(mount.guest.encode()),
+                nested,
+                mount.writable is True,
             )
             self.mounts.append(mounted)
             self.table[number] = _Open(mounted, "/", "dir", preopen=True)
@@ -407,9 +475,14 @@ class _Files:
         self.calls = dict.fromkeys(METHODS, 0)
         self.total = 0
         self.faults: list[FileFault] = []
+        self.refused: list[RefusedWrite] = []
+        self.refused_total = 0
         self.staged = 0
-        self.opened = 0  # provider numbers in use
+        self.opened = 0  # provider numbers in use, owed ones included
         self.free: list[int] = []
+        # Closed for the guest, written back at the ending (spec 034, Decision 5): out of `table`
+        # (so no call finds them; N2) and out of `free` (so no open reuses the number).
+        self.owed: dict[int, _Open] = {}
         self.next = PROVIDER_BASE
         self.forwards: _Forwards | None = None
         # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
@@ -417,13 +490,43 @@ class _Files:
         self.call: _Call | None = None
 
     def record(self) -> FileRecord:
-        return FileRecord(types.MappingProxyType(dict(self.calls)), tuple(self.faults))
+        return FileRecord(
+            types.MappingProxyType(dict(self.calls)),
+            tuple(self.faults),
+            tuple(self.refused),
+            self.refused_total,
+        )
+
+    def walk(self) -> None:
+        """The ending's write-backs (spec 034, Decision 8), made after the guest has stopped by
+        any ending that returns a result, on the call's thread, outside every host function:
+        one `write` for each dirty buffer of a writable mount that is not unlinked, owed buffers
+        included, in ascending provider number. Its own counted call path, never `_ask`: no
+        cancel or deadline check (the guest is gone), never `call.ended` or the epoch or the
+        fuel. Bounded by construction: at most MAX_MOUNT_FILES buffers, the staging bound in
+        bytes, and the file calls left; a write-back past the limit is recorded, not made. It
+        makes no call once the interpreter is exiting or a Ctrl-C is pending: no result will
+        carry a record then, and provider code must not run."""
+        r = self._runner
+        for number in sorted([*self.table, *self.owed]):
+            entry = self.table[number] if number in self.table else self.owed[number]
+            if entry.kind != "file" or not entry.dirty or entry.unlinked:
+                continue
+            if r._hook["exiting"] or (r._ctrl_c_watched() and r._ctrl_c["pending"]):
+                return
+            paths = (entry.path,)
+            if self.limit is not None and self.total >= self.limit:
+                self._refuse(entry.mount, "write", paths, Errno.EIO, "exit", "limit")
+            else:
+                self._made(entry.mount, "write", "exit", paths, (bytes(entry.data),))
+            entry.dirty = False
 
     def release(self) -> None:
         """Drop what the call held once it has ended (the build review, F3): the staged files
         and listings, the trampoline's handles and the link back to the call, so nothing waits
         for the cyclic collector."""
         self.table.clear()
+        self.owed.clear()
         self.mounts.clear()
         self.forwards = None
         self.stop_fuel = None
@@ -514,29 +617,89 @@ class _Files:
 
     # The provider (Decisions 3, 4, 8 and 10).
 
-    def _ask(self, caller: Any, mount: _Mounted, method: str, path: str) -> tuple[int, Any]:
+    def _ask(self, caller: Any, mount: _Mounted, method: str, *args: Any) -> tuple[int, Any]:
         """One provider call, counted, or the errno that stops it first: the call's cancel, its
         deadline, then the file-call limit. (0, answer) when the provider answered."""
+        if errno := self._gate(caller):
+            return errno, None
+        return self._invoke(mount, method, args)
+
+    def _gate(self, caller: Any) -> int:
+        """0, or the errno that stops a provider call while the guest runs (Decision 10 of spec
+        032): the call's cancel, its deadline, then the file-call limit, which names the end."""
         r, call = self._runner, self.call
         if call is not None and call.cancel is not None and call.cancel.is_set():
             r._epoch_now(caller)  # named "cancelled" by the epoch callback at the next entry
-            return ECANCELED, None
+            return ECANCELED
         if call is not None and call.stop_at is not None:
             if r._epoch_ticker.count() >= call.stop_at:
                 r._epoch_now(caller)  # an interrupt at the next entry: "deadline"
-                return ETIMEDOUT, None
+                return ETIMEDOUT
         if self.limit is not None and self.total >= self.limit:
             if call is not None and call.ended is None:
                 call.ended = "out of file calls"
             r._epoch_now(caller)  # in the same step: the guest stops at its next entry
-            return EIO, None
+            return EIO
+        return 0
+
+    def _invoke(self, mount: _Mounted, method: str, args: tuple[Any, ...]) -> tuple[int, Any]:
+        """The provider call itself, counted, inside the fault boundary: (0, answer), or EIO with
+        the fault recorded. A BaseException that is not an Exception is let through: it is the
+        call's stop (spec 032, Decision 4)."""
         self.total += 1
         self.calls[method] += 1
         try:
-            return 0, getattr(mount.provider, method)(path)
+            return 0, getattr(mount.provider, method)(*args)
         except Exception as e:
-            self._fault(method, path, _described(e))
+            self._fault(method, args[0], _described(e))
             return EIO, None
+
+    # The write half (spec 034, Decisions 2, 5 and 11).
+
+    def _change(
+        self, caller: Any, mount: _Mounted, method: str, at: str, paths: tuple[str, ...], *data: Any
+    ) -> tuple[int, bool]:
+        """One write-half call: (errno, made). Not made (cancel, deadline, limit) means the
+        provider never saw it: nothing is recorded here, since the guest gets the errno and a
+        write-back owed by a close or sync is recorded once, by the ending (N3, Decision 5)."""
+        if errno := self._gate(caller):
+            return errno, False
+        return self._made(mount, method, at, paths, data), True
+
+    def _made(
+        self, mount: _Mounted, method: str, at: str, paths: tuple[str, ...], data: tuple[Any, ...]
+    ) -> int:
+        """Call the provider and judge its answer by its real type: None is success, an exact
+        Errno is a refusal, anything else (an awaitable included) a fault, answered EIO. Every
+        refusal and fault is recorded."""
+        errno, answer = self._invoke(mount, method, (*paths, *data))
+        if errno:
+            self._refuse(mount, method, paths, Errno.EIO, at, "fault")
+            return EIO
+        try:
+            if answer is None:
+                return 0
+            if type(answer) is Errno:  # exact: an enum with members has no subclass
+                self._refuse(mount, method, paths, answer, at, "refused")
+                return int(answer)
+            self._bad(method, paths[0], answer)
+        except Exception as e:
+            self._fault(method, paths[0], _described(e))
+        self._refuse(mount, method, paths, Errno.EIO, at, "fault")
+        return EIO
+
+    def _refuse(
+        self,
+        mount: _Mounted,
+        method: str,
+        paths: tuple[str, ...],
+        errno: Errno,
+        at: str,
+        cause: str,
+    ) -> None:
+        self.refused_total += 1
+        if len(self.refused) < REFUSED_KEPT:
+            self.refused.append(RefusedWrite(mount.guest, method, paths, errno, at, cause))
 
     def _fault(self, method: str, path: str, error: str) -> None:
         if len(self.faults) < FAULTS_KEPT:
@@ -574,8 +737,11 @@ class _Files:
             self._fault("stat", path, _described(e))
             return EIO, "", 0, 0
 
-    def _read(self, caller: Any, mount: _Mounted, path: str) -> tuple[int, bytes | None]:
-        """(0, bytes) for a file, (0, None) for a folder (EISDIR), or (errno, None)."""
+    def _read(
+        self, caller: Any, mount: _Mounted, path: str, buffer: bool = False
+    ) -> tuple[int, bytes | bytearray | None]:
+        """(0, bytes) for a file (a bytearray when `buffer`, for a descriptor that may write),
+        (0, None) for a folder (EISDIR), or (errno, None)."""
         errno, answer = self._ask(caller, mount, "read", path)
         if errno:
             return errno, None
@@ -587,7 +753,7 @@ class _Files:
             with memoryview(answer) as view:  # judged in bytes before any copy (Decision 8)
                 if self.staged + view.nbytes > self.staging:
                     return EFBIG, None
-                return 0, view.tobytes()
+                return 0, (bytearray(view) if buffer else view.tobytes())
         except Exception as e:
             self._fault("read", path, _described(e))
             return EIO, None
@@ -613,10 +779,7 @@ class _Files:
                 kind_of, (str, bytes, bytearray, memoryview)
             ):
                 return self._bad("list", path, answer), None, 0
-            data, offsets = bytearray(), array("I")
-            for index, name in enumerate((b".", b"..")):
-                offsets.append(len(data))
-                data += struct.pack(DIRENT, index + 1, ino, len(name), DIRECTORY) + name
+            data, offsets = _dots(ino)
             seen: set[bytes] = set()
             names = 0  # the bytes of the name objects the set holds
             prefix = path.rstrip("/") + "/"
@@ -690,6 +853,8 @@ class _Files:
         parts = text.split("/")
         if any(len(part.encode()) > MAX_NAME for part in parts):
             return ENAMETOOLONG
+        if base.unlinked:
+            return ENOENT  # an open, removed folder holds nothing (spec 034, Decision 7)
         stack = [p for p in base.path.split("/") if p]
         floor = len(stack)
         for part in parts:
@@ -733,7 +898,9 @@ class _Files:
         _aligned(ptr, align)
         return 0
 
-    def _filestat(self, entry: _Open, kind: str, size: int, mtime: int, path: str) -> bytes:
+    def _filestat(
+        self, entry: _Open, kind: str, size: int, mtime: int, path: str, links: int = 1
+    ) -> bytes:
         filetype = DIRECTORY if kind == "dir" else REGULAR_FILE
         ino = self._runner._siphash13(path.encode())
         return struct.pack(
@@ -741,7 +908,7 @@ class _Files:
             entry.mount.dev,
             ino,
             filetype,
-            1,
+            links,
             size if kind == "file" else 0,
             mtime,
             mtime,
@@ -770,25 +937,56 @@ class _Files:
         entry = self._entry(fd)
         if entry is None:
             return self.forward(caller, "fd_close", (fd,))
+        number = fd & MASK32
         if entry.preopen:
             errno = self.forward(caller, "fd_close", (fd,))
             if errno == 0:
-                self._drop(fd & MASK32)  # wasmtime freed the number: it is no longer the mount's
+                self._drop(number)  # wasmtime freed the number: it is no longer the mount's
             return errno
-        self._drop(fd & MASK32)
-        return 0
+        if not (entry.dirty and not entry.unlinked):
+            self._drop(number)
+            return 0
+        # A dirty buffer: one write-back, then the number is freed whatever the answer, as
+        # POSIX's close frees the descriptor even when it fails (spec 034, Decision 5).
+        errno, made = self._write_back(caller, entry, "close")
+        if made:
+            self._drop(number)
+        else:
+            # Not made (cancel, deadline, limit): owed. Closed for the guest, but the number
+            # stays reserved, counted in `opened` and its bytes in `staged`, until the ending.
+            del self.table[number]
+            self.owed[number] = entry
+        return errno
+
+    def _write_back(self, caller: Any, entry: _Open, at: str) -> tuple[int, bool]:
+        """A dirty buffer's whole content handed to the provider, at close or sync: (errno,
+        made). On success the buffer is clean; on a refusal it stays dirty."""
+        mount, data = entry.mount, bytes(entry.data)  # a copy the provider may keep
+        errno, made = self._change(caller, mount, "write", at, (entry.path,), data)
+        if made and errno == 0:
+            entry.dirty = False
+        return errno, made
 
     def _fd_datasync(self, caller: Any, fd: int) -> int:
         entry = self._entry(fd)
         if entry is None or entry.preopen:
             return self.forward(caller, "fd_datasync", (fd,))
-        return 0 if entry.kind == "file" else EBADF
+        return self._sync(caller, entry)
 
     def _fd_sync(self, caller: Any, fd: int) -> int:
         entry = self._entry(fd)
         if entry is None or entry.preopen:
             return self.forward(caller, "fd_sync", (fd,))
-        return 0 if entry.kind == "file" else EBADF
+        return self._sync(caller, entry)
+
+    def _sync(self, caller: Any, entry: _Open) -> int:
+        """A dirty buffer's write-back, its answer the guest's; a clean one, an unlinked one or
+        one that may not write needs no call (spec 034, Decision 5). A folder is EBADF."""
+        if entry.kind != "file":
+            return EBADF
+        if entry.dirty and not entry.unlinked:
+            return self._write_back(caller, entry, "sync")[0]
+        return 0
 
     def _fd_fdstat_get(self, caller: Any, fd: int, ptr: int) -> int:
         entry = self._entry(fd)
@@ -799,7 +997,12 @@ class _Files:
             return errno
         if entry.kind == "file":
             flags = (APPEND if entry.append else 0) | (NONBLOCK if entry.nonblock else 0)
-            data = struct.pack(FDSTAT, REGULAR_FILE, flags, FILE_RIGHTS, FILE_RIGHTS)
+            rights = RIGHTS  # as wasmtime reports a file by its open mode
+            if not entry.readable:
+                rights &= ~(FD_READ | FD_READDIR)
+            if not entry.writable:
+                rights &= ~FD_WRITE
+            data = struct.pack(FDSTAT, REGULAR_FILE, flags, rights, rights)
         else:
             data = struct.pack(FDSTAT, DIRECTORY, 0, DIR_RIGHTS, DIR_RIGHTS)
         memory.write(ptr & MASK32, data)
@@ -833,7 +1036,8 @@ class _Files:
         if errno := self._result(memory, ptr, 64, 8):
             return errno
         # No provider call: the kind and size are the staged bytes', and the times are 0.
-        stat = self._filestat(entry, entry.kind, len(entry.data), 0, entry.path)
+        links = 0 if entry.unlinked else 1  # an unlinked file has no name left (spec 034)
+        stat = self._filestat(entry, entry.kind, len(entry.data), 0, entry.path, links)
         memory.write(ptr & MASK32, stat)
         return 0
 
@@ -841,16 +1045,46 @@ class _Files:
         entry = self._entry(fd)
         if entry is None or entry.preopen:
             return self.forward(caller, "fd_filestat_set_size", (fd, size))
-        return EPERM if entry.kind == "file" else EBADF
+        if entry.kind != "file":
+            return EBADF
+        if not entry.mount.writable:
+            return EPERM  # a read-only grant's answer
+        size &= MASK64
+        if size >= OFFSET_TOP or not entry.writable:
+            return EINVAL  # the host's ftruncate: past i64, or a descriptor not open to write
+        if not self._fits(entry, size):
+            return EFBIG
+        data = entry.data
+        assert isinstance(data, bytearray)
+        if size < len(data):
+            del data[size:]
+        else:
+            data.extend(bytes(size - len(data)))
+        self._changed(entry)
+        return 0
+
+    def _fits(self, entry: _Open, size: int) -> bool:
+        """Whether a buffer may become `size` bytes: judged against the staging bound on the new
+        size, before a byte is allocated (spec 034, Decision 4)."""
+        return size <= len(entry.data) or self.staged - entry.held + size <= self.staging
+
+    def _changed(self, entry: _Open) -> None:
+        """A buffer was written or resized: counted at its size, and dirty, even when its bytes
+        are the same, as a grant's file has its mtime touched."""
+        self.staged += len(entry.data) - entry.held
+        entry.held = len(entry.data)
+        entry.dirty = True
 
     def _fd_filestat_set_times(self, caller: Any, fd: int, atim: int, mtim: int, flags: int) -> int:
         entry = self._entry(fd)
-        if entry is None or entry.preopen:
+        if entry is None or (entry.preopen and not entry.mount.writable):
             return self.forward(caller, "fd_filestat_set_times", (fd, atim, mtim, flags))
         flags = _flags(flags, 0xF, 0xFFFF, "Fstflags")
         if (flags & ATIM and flags & ATIM_NOW) or (flags & MTIM and flags & MTIM_NOW):
             return EINVAL
-        return EPERM
+        # Times are the provider's (spec 034, Decision 9): a writable mount accepts and ignores
+        # them, its own preopen included, as a writable grant accepts the call.
+        return 0 if entry.mount.writable else EPERM
 
     def _fd_read(self, caller: Any, fd: int, iovs: int, count: int, nread: int) -> int:
         entry = self._entry(fd)
@@ -875,8 +1109,8 @@ class _Files:
             return chosen
         if errno := self._result(memory, nread, 4, 4):
             return errno
-        if entry.kind != "file":
-            return EBADF
+        if entry.kind != "file" or not entry.readable:
+            return EBADF  # a folder, or a file opened only to write (spec 034)
         at = entry.position if offset is None else offset
         buf, size = chosen
         # As Linux answers a grant (the reference, Decision 6): an offset past i64, or a read
@@ -897,7 +1131,7 @@ class _Files:
         entry = self._entry(fd)
         if entry is None or entry.preopen:
             return self.forward(caller, "fd_write", (fd, iovs, count, nwritten))
-        return self._writes(caller, iovs, count, nwritten)
+        return self._writes(caller, entry, iovs, count, None, nwritten)
 
     def _fd_pwrite(
         self, caller: Any, fd: int, iovs: int, count: int, offset: int, nwritten: int
@@ -905,17 +1139,44 @@ class _Files:
         entry = self._entry(fd)
         if entry is None or entry.preopen:
             return self.forward(caller, "fd_pwrite", (fd, iovs, count, offset, nwritten))
-        return self._writes(caller, iovs, count, nwritten)
+        return self._writes(caller, entry, iovs, count, offset & MASK64, nwritten)
 
-    def _writes(self, caller: Any, iovs: int, count: int, nwritten: int) -> int:
-        """A write on a descriptor opened read-only: the host refuses it with EBADF."""
+    def _writes(
+        self, caller: Any, entry: _Open, iovs: int, count: int, offset: int | None, nwritten: int
+    ) -> int:
+        """A write into a buffer, as wasmtime writes a writable grant's file (spec 034, Decision
+        4): the first non-empty ciovec; on an append descriptor at the end, `fd_pwrite`'s offset
+        ignored; past the end, zeros in the gap. No provider call. A descriptor that may not
+        write, or a folder, is the host's EBADF."""
         memory = _Memory(caller)
         chosen = self._iovecs(memory, iovs, count)
         if isinstance(chosen, int):
             return chosen
         if errno := self._result(memory, nwritten, 4, 4):
             return errno
-        return EBADF
+        if entry.kind != "file":
+            return EBADF
+        at = entry.position if offset is None else offset
+        if at >= OFFSET_TOP and not entry.append:
+            return EINVAL  # the host's pwrite past i64, judged before the descriptor's mode
+        if not entry.writable:
+            return EBADF
+        if entry.append:
+            at = len(entry.data)
+        buf, size = chosen
+        if size:  # an empty write changes nothing, as on a grant
+            if not self._fits(entry, at + size):
+                return EFBIG
+            data = entry.data
+            assert isinstance(data, bytearray)
+            if at > len(data):
+                data.extend(bytes(at - len(data)))
+            data[at : at + size] = memory.read(buf, size)
+            self._changed(entry)
+        if offset is None:
+            entry.position = len(entry.data) if entry.append else at + size
+        memory.write(nwritten & MASK32, struct.pack("<I", size))
+        return 0
 
     def _fd_seek(self, caller: Any, fd: int, offset: int, whence: int, ptr: int) -> int:
         entry = self._entry(fd)
@@ -970,7 +1231,9 @@ class _Files:
             return errno
         if entry.kind != "dir":
             return EBADF
-        if entry.listing is None or (cookie == 0 and not entry.fresh):
+        if entry.unlinked:
+            pass  # only its dots, kept since it was unlinked, with no provider call
+        elif entry.listing is None or (cookie == 0 and not entry.fresh):
             # The listing made at open serves the first pass; from cookie 0 after that, the
             # folder is listed again, as rewinddir expects.
             ino = self._runner._siphash13(entry.path.encode())
@@ -1087,7 +1350,9 @@ class _Files:
             return ENOTSUP
         if oflags & O_DIRECTORY and oflags & (O_CREAT | O_EXCL | O_TRUNC):
             return EINVAL
-        if oflags & (O_CREAT | O_TRUNC) or base_rights & FD_WRITE:
+        mount = entry.mount
+        writes = bool(oflags & (O_CREAT | O_TRUNC) or base_rights & FD_WRITE)  # "may write"
+        if writes and not mount.writable:
             return EPERM  # a read-only grant's answer, before any provider call (Decision 6)
         resolved = self._resolve(entry, text)
         if isinstance(resolved, int):
@@ -1095,8 +1360,12 @@ class _Files:
         path, folder_only = resolved
         if self.opened >= MAX_MOUNT_FILES:
             return EMFILE  # before the provider: no call, none counted
-        mount = entry.mount
-        if oflags & O_DIRECTORY:
+        if writes:
+            opened = self._open_writing(caller, mount, path, folder_only, oflags, base_rights)
+            if isinstance(opened, int):
+                return opened
+            opened.append, opened.nonblock = bool(fdflags & APPEND), bool(fdflags & NONBLOCK)
+        elif oflags & O_DIRECTORY:
             ino = self._runner._siphash13(path.encode())
             errno, listing, held = self._list(caller, mount, path, ino)
             if errno:
@@ -1116,6 +1385,68 @@ class _Files:
         number = self._take(opened)
         memory.write(out & MASK32, struct.pack("<I", number))
         return 0
+
+    def _open_writing(
+        self, caller: Any, mount: _Mounted, path: str, folder_only: bool, oflags: int, rights: int
+    ) -> _Open | int:
+        """An open that may write, on a writable mount (spec 034, Decision 3): the table read
+        top to bottom, at most two provider calls, a create or a truncation made at open by
+        `write(path, b"")`. The buffer starts clean. A call the gate stops owes nothing: no
+        buffer exists yet, so the open answers that errno and nothing is recorded (N3)."""
+        creat, trunc = oflags & O_CREAT, oflags & O_TRUNC
+        if oflags & O_DIRECTORY or folder_only:
+            # A folder is never opened to write; a name that must be a folder is not a file.
+            # Linux's answers, wasmtime's reference: the mount itself exists (EEXIST for "x"),
+            # a create there is EISDIR, else as found.
+            if path == "/":
+                return EEXIST if creat and oflags & O_EXCL else EISDIR
+            if creat and folder_only:
+                return EISDIR
+            errno, kind, _, _ = self._stat(caller, mount, path)
+            return errno or (EISDIR if kind == "dir" else ENOTDIR)
+        data: bytes | bytearray = bytearray()
+        if creat and oflags & O_EXCL:  # "x": a name no one holds, exact within the call
+            errno, kind, _, _ = self._stat(caller, mount, path)
+            if errno == 0:
+                return EEXIST
+            if errno != ENOENT or (errno := self._create(caller, mount, path)):
+                return errno
+        elif creat and trunc:  # "w": one call creates or truncates
+            if errno := self._create(caller, mount, path):
+                return errno
+        elif trunc:
+            errno, kind, _, _ = self._stat(caller, mount, path)
+            if errno:
+                return errno
+            if kind == "dir":
+                return EISDIR
+            if errno := self._create(caller, mount, path):
+                return errno
+        else:  # "a", O_CREAT | O_WRONLY, "r+": the bytes, or a create when missing
+            errno, got = self._read(caller, mount, path, buffer=True)
+            if errno == ENOENT and creat:
+                if errno := self._create(caller, mount, path):
+                    return errno
+            elif errno:
+                return errno
+            elif got is None:
+                return EISDIR
+            else:
+                data = got
+        return _Open(
+            mount,
+            path,
+            "file",
+            data=data,
+            held=len(data),
+            readable=bool(rights & FD_READ),
+            writable=True,
+        )
+
+    def _create(self, caller: Any, mount: _Mounted, path: str) -> int:
+        """A create or a truncation at open: one `write(path, b"")`, recorded at "open" when it
+        is refused."""
+        return self._change(caller, mount, "write", "open", (path,), b"")[0]
 
     def _path_filestat_get(
         self, caller: Any, fd: int, flags: int, ptr: int, length: int, out: int
@@ -1186,7 +1517,12 @@ class _Files:
 
     def _read_paths(self, caller: Any, paths: tuple[tuple[int, int], ...]) -> int:
         """0 when every path can be read as wasmtime reads it, else the errno."""
-        memory = _Memory(caller)
+        texts = self._texts(caller, paths)
+        return texts if isinstance(texts, int) else 0
+
+    def _texts(self, caller: Any, paths: tuple[tuple[int, int], ...]) -> list[str] | int:
+        """Every path read and decoded as wasmtime reads it, or the first errno."""
+        memory, texts = _Memory(caller), []
         for ptr, length in paths:
             raw = self._path(memory, ptr, length)
             if isinstance(raw, int):
@@ -1194,25 +1530,97 @@ class _Files:
             text = self._text(raw)
             if isinstance(text, int):
                 return text
-        return 0
+            texts.append(text)
+        return texts
+
+    # The namespace calls of a writable mount (spec 034, Decisions 6 and 7). The answers the
+    # runner gives itself, with no provider call, are Linux's on a writable grant (wasmtime's
+    # reference, EXECUTED in the build's probe); macOS differs on some, which the parity table
+    # asserts per system.
 
     def _path_create_directory(self, caller: Any, fd: int, ptr: int, length: int) -> int:
         entry = self._entry(fd)
         if entry is None:
             return self.forward(caller, "path_create_directory", (fd, ptr, length))
-        return self._refused(caller, entry, (ptr, length))
+        return self._namespace(caller, entry, ptr, length, "mkdir")
 
     def _path_remove_directory(self, caller: Any, fd: int, ptr: int, length: int) -> int:
         entry = self._entry(fd)
         if entry is None:
             return self.forward(caller, "path_remove_directory", (fd, ptr, length))
-        return self._refused(caller, entry, (ptr, length))
+        return self._namespace(caller, entry, ptr, length, "rmdir")
 
     def _path_unlink_file(self, caller: Any, fd: int, ptr: int, length: int) -> int:
         entry = self._entry(fd)
         if entry is None:
             return self.forward(caller, "path_unlink_file", (fd, ptr, length))
-        return self._refused(caller, entry, (ptr, length))
+        return self._namespace(caller, entry, ptr, length, "remove")
+
+    def _namespace(self, caller: Any, entry: _Open, ptr: int, length: int, method: str) -> int:
+        """`mkdir`, `remove` or `rmdir`: one provider call after the path rules, or the answer
+        the runner gives itself: the mount itself, a name ending in `/`, `.` or `..` (one `stat`
+        decides it), and an `rmdir` strictly above a more specific preopen (EBUSY)."""
+        if entry.kind != "dir":
+            return EBADF
+        texts = self._texts(caller, ((ptr, length),))
+        if isinstance(texts, int):
+            return texts
+        if not entry.mount.writable:
+            return EPERM  # a read-only grant's answer, before any provider call
+        resolved = self._resolve(entry, texts[0])
+        if isinstance(resolved, int):
+            return resolved
+        path, folder_only = resolved
+        last, mount = texts[0].rsplit("/", 1)[-1], entry.mount
+        if path == "/":  # the mount itself, as a grant's own preopen answers
+            return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
+        if folder_only and (method != "mkdir" or last in (".", "..")):
+            errno, kind, _, _ = self._stat(caller, mount, path)
+            if errno:
+                return errno
+            if kind != "dir":
+                return ENOTDIR
+            return {"mkdir": EEXIST, "remove": EISDIR, "rmdir": EINVAL}[method]
+        if method == "rmdir" and self._above(mount, path):
+            return EBUSY  # the guest's view of other preopens stays where it was put
+        errno, _ = self._change(caller, mount, method, "call", (path,))
+        if errno == 0 and method != "mkdir":
+            self._follow(mount, path)
+        return errno
+
+    def _above(self, mount: _Mounted, path: str) -> bool:
+        """Whether `path` is strictly above a more specific preopen's guest path."""
+        prefix = "/" if path == "/" else path + "/"
+        return any(nested.startswith(prefix) for nested in mount.nested)
+
+    def _follow(self, mount: _Mounted, src: str, dst: str | None = None) -> None:
+        """After `remove(src)` or `rmdir(src)` (no `dst`), or `rename(src, dst)`, succeeded,
+        this call's descriptors follow it, as POSIX's follow the file (Decision 7): those at the
+        removed path, or at or under the rename's `dst`, are unlinked; then those at or under its
+        `src` take the same path under `dst`. Owed buffers follow too: their bytes are the
+        file's."""
+        entries = [e for e in (*self.table.values(), *self.owed.values()) if e.mount is mount]
+        live = [e for e in entries if not e.preopen and not e.unlinked]
+        for e in live:
+            if dst is None and e.path == src:
+                self._unlink(e)
+            elif dst is not None and (e.path == dst or e.path.startswith(dst + "/")):
+                self._unlink(e)
+        if dst is not None:
+            for e in live:
+                if not e.unlinked and (e.path == src or e.path.startswith(src + "/")):
+                    e.path = dst + e.path[len(src) :]
+
+    def _unlink(self, entry: _Open) -> None:
+        """A descriptor whose path the guest removed or replaced: a file keeps its buffer for
+        reads and writes and is never written back; a folder holds nothing from now on, its
+        kept listing replaced by the dots."""
+        entry.unlinked = True
+        if entry.kind == "dir":
+            listing = _dots(self._runner._siphash13(entry.path.encode()))
+            held = sys.getsizeof(listing[0]) + sys.getsizeof(listing[1])
+            self.staged += held - entry.held
+            entry.listing, entry.held, entry.fresh = listing, held, True
 
     def _path_filestat_set_times(
         self,
@@ -1233,7 +1641,16 @@ class _Files:
         fst = _flags(fst, 0xF, 0xFFFF, "Fstflags")
         if (fst & ATIM and fst & ATIM_NOW) or (fst & MTIM and fst & MTIM_NOW):
             return EINVAL
-        return self._refused(caller, entry, (ptr, length))
+        if not entry.mount.writable:
+            return self._refused(caller, entry, (ptr, length))
+        if entry.kind != "dir":
+            return EBADF
+        texts = self._texts(caller, ((ptr, length),))
+        if isinstance(texts, int):
+            return texts
+        resolved = self._resolve(entry, texts[0])
+        # Times are the provider's (Decision 9): accepted and ignored, with no provider call.
+        return resolved if isinstance(resolved, int) else 0
 
     def _path_symlink(
         self, caller: Any, old: int, old_length: int, fd: int, new: int, new_length: int
@@ -1241,12 +1658,19 @@ class _Files:
         entry = self._entry(fd)
         if entry is None:
             return self.forward(caller, "path_symlink", (old, old_length, fd, new, new_length))
-        return self._refused(caller, entry, (old, old_length), (new, new_length))
+        refused = self._refused(caller, entry, (old, old_length), (new, new_length))
+        if refused != EPERM or not entry.mount.writable:
+            return refused
+        return ENOTSUP  # the protocol has no link (Decision 9)
 
-    def _across(self, caller: Any, a: int, b: int, *paths: tuple[int, int]) -> int:
-        """A rename or link that names a number of the table: each side must be a folder (a
-        number of wasmtime's is asked of wasmtime, with no side effect), then the paths are
-        read; a read-only side refuses, as across two read-only grants."""
+    def _across(
+        self, caller: Any, a: int, b: int, paths: tuple[tuple[int, int], ...], follow: bool = False
+    ) -> int:
+        """A rename or link between two descriptors that are not one mount's, at least one of
+        them a number of the table: each side must be a folder (a number of wasmtime's is asked
+        of wasmtime, with no side effect), then the paths are read; a read-only side refuses
+        (EPERM), as across a writable and a read-only grant; two sides that may both be written
+        are two filesystems (EXDEV), so `shutil.move` copies (Decision 6)."""
         for fd in (a, b):
             entry = self._entry(fd)
             if entry is not None:
@@ -1254,7 +1678,18 @@ class _Files:
                     return EBADF
             elif not self._wasmtime_folder(caller, fd):
                 return EBADF
-        return self._read_paths(caller, paths) or EPERM
+        if errno := self._read_paths(caller, paths):
+            return errno
+        for fd in (a, b):
+            entry = self._entry(fd)
+            if entry is not None and not entry.mount.writable:
+                return EPERM
+        for fd in (a, b):
+            if self._entry(fd) is None and not self._wasmtime_writable(caller, fd):
+                return EPERM
+        if follow:
+            return EINVAL  # a link that follows links, as wasmtime answers between writable sides
+        return EXDEV
 
     def _wasmtime_folder(self, caller: Any, fd: int) -> bool:
         """Whether wasmtime's number is a folder: fd_fdstat_set_rights answers ENOTSUP on any
@@ -1262,12 +1697,51 @@ class _Files:
         rights = self.forward(caller, "fd_fdstat_set_rights", (fd, 0, 0))
         return rights == ENOTSUP and self.forward(caller, "fd_allocate", (fd, 0, 0)) == EBADF
 
+    def _wasmtime_writable(self, caller: Any, fd: int) -> bool:
+        """Whether wasmtime's folder may be written: `path_create_directory` of the empty path
+        answers EPERM on a read-only one, before the path is looked at, and ENOENT on a writable
+        one; it makes nothing (EXECUTED on Linux and macOS in the build's probe)."""
+        return self.forward(caller, "path_create_directory", (fd, 0, 0)) != EPERM
+
     def _path_rename(
         self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
     ) -> int:
-        if self._entry(fd) is None and self._entry(to) is None:
+        a, b = self._entry(fd), self._entry(to)
+        if a is None and b is None:  # two of wasmtime's numbers: spec 048's rule
             return self._rename(caller, fd, old, old_length, to, new, new_length)
-        return self._across(caller, fd, to, (old, old_length), (new, new_length))
+        paths = ((old, old_length), (new, new_length))
+        if a is None or b is None or a.mount is not b.mount or not a.mount.writable:
+            return self._across(caller, fd, to, paths)
+        if a.kind != "dir" or b.kind != "dir":
+            return EBADF
+        texts = self._texts(caller, paths)
+        if isinstance(texts, int):
+            return texts
+        resolved = [self._resolve(base, text) for base, text in ((a, texts[0]), (b, texts[1]))]
+        for one in resolved:
+            if isinstance(one, int):
+                return one
+        (src, src_folder), (dst, _) = resolved  # type: ignore[misc]
+        mount, lasts = a.mount, [text.rsplit("/", 1)[-1] for text in texts]
+        if "/" in (src, dst) or {".", ".."} & set(lasts):
+            return EBUSY  # the mount itself, or a name ending in `.` or `..` (Linux's answer)
+        if self._above(mount, src) or self._above(mount, dst):
+            return EBUSY  # the guest's view of other preopens stays where it was put
+        if dst.startswith(src + "/"):
+            return EINVAL  # into its own subfolder
+        if src == dst or src_folder:
+            # onto itself, or a source that must be a folder: one `stat` decides it
+            errno, kind, _, _ = self._stat(caller, mount, src)
+            if errno:
+                return errno
+            if src_folder and kind != "dir":
+                return ENOTDIR
+            if src == dst:
+                return 0
+        errno, _ = self._change(caller, mount, "rename", "call", (src, dst))
+        if errno == 0:
+            self._follow(mount, src, dst)
+        return errno
 
     def _rename(
         self, caller: Any, fd: int, old: int, old_length: int, to: int, new: int, new_length: int
@@ -1329,11 +1803,19 @@ class _Files:
         new: int,
         new_length: int,
     ) -> int:
-        if self._entry(fd) is None and self._entry(to) is None:
+        a, b = self._entry(fd), self._entry(to)
+        if a is None and b is None:
             args = (fd, flags, old, old_length, to, new, new_length)
             return self.forward(caller, "path_link", args)
-        _lookup(flags)
-        return self._across(caller, fd, to, (old, old_length), (new, new_length))
+        flags = _lookup(flags)
+        paths = ((old, old_length), (new, new_length))
+        if a is None or b is None or a.mount is not b.mount or not a.mount.writable:
+            return self._across(caller, fd, to, paths, follow=bool(flags & 1))
+        if a.kind != "dir" or b.kind != "dir":
+            return EBADF
+        if errno := self._read_paths(caller, paths):
+            return errno
+        return EINVAL if flags & 1 else ENOTSUP  # the protocol has no link (Decision 9)
 
 
 def _plain(path: bytes) -> bytes:
@@ -1376,6 +1858,15 @@ def _described(e: BaseException) -> str:
     except Exception:
         return name
     return f"{name}: {lines[0]}" if lines else name
+
+
+def _dots(ino: int) -> _Listing:
+    """A listing's first two entries, `.` and `..`, encoded as wasmtime writes them."""
+    data, offsets = bytearray(), array("I")
+    for index, name in enumerate((b".", b"..")):
+        offsets.append(len(data))
+        data += struct.pack(DIRENT, index + 1, ino, len(name), DIRECTORY) + name
+    return data, offsets
 
 
 def _kind(value: Any) -> bool:
@@ -1438,4 +1929,13 @@ def _set_fuel(context: Any, fuel: int) -> None:
         WasmtimeError._from_ptr(error)  # owned, so freed; a metered store never refuses
 
 
-__all__ = ["Errno", "FileFault", "FileProvider", "FileRecord", "Mount", "Stat"]
+__all__ = [
+    "Errno",
+    "FileFault",
+    "FileProvider",
+    "FileRecord",
+    "Mount",
+    "RefusedWrite",
+    "Stat",
+    "WritableFileProvider",
+]

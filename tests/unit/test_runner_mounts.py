@@ -149,7 +149,16 @@ def test_the_file_call_limit_names_the_end(placeholder) -> None:
     m.store.set_epoch_deadline(2**40)
     assert r.path_filestat(3, "a.txt")[0] == 29  # spec 030's guard: no host function runs
     assert provider.calls["stat"] == 2
-    assert m.table.record().calls == {"stat": 2, "list": 0, "read": 0}
+    assert m.table.record().calls == {
+        "stat": 2,
+        "list": 0,
+        "read": 0,
+        "write": 0,
+        "mkdir": 0,
+        "remove": 0,
+        "rmdir": 0,
+        "rename": 0,
+    }
 
 
 def test_a_named_end_holds_under_the_epoch_callback(monkeypatch) -> None:
@@ -435,7 +444,16 @@ def test_a_listing_is_kept_and_listed_again_from_cookie_zero(placeholder) -> Non
     assert provider.calls["list"] == 1
     assert r.readdir(d) == first and provider.calls["list"] == 2
     e = r.open(3, "d")[1]
-    assert provider.calls == {"stat": 0, "list": 2, "read": 1}
+    assert provider.calls == {
+        "stat": 0,
+        "list": 2,
+        "read": 1,
+        "write": 0,
+        "mkdir": 0,
+        "remove": 0,
+        "rmdir": 0,
+        "rename": 0,
+    }
     assert r.readdir(e) == first and provider.calls["list"] == 3
 
 
@@ -1091,3 +1109,367 @@ def test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes(tmp_path) -> N
 
     done = run(["-c", "import os; print(len(os.listdir('/usr/local/lib')))"])
     assert (done.exit_code, done.files) == (0, None), done
+
+
+# Writable mounts (spec 034): the runner's own guards, which do not depend on the host.
+
+WRITE_HALF = ("write", "mkdir", "remove", "rmdir", "rename")
+ALL = files.RIGHTS_ALL
+
+
+def _written(provider: MemoryProvider) -> dict[str, int]:
+    return {k: provider.calls[k] for k in WRITE_HALF}
+
+
+def test_a_writable_mount_is_asked_for(placeholder) -> None:
+    """Spec 034, acceptance 8 (guard: the writable check): a mount not made writable, over a
+    provider that has the write half, answers every write-shaped call EPERM and never calls the
+    write half."""
+    provider = MemoryProvider()
+    r = Mounted(provider, placeholder).raw
+    f = r.open(3, "a.txt")[1]
+    assert f is not None
+    rows = {
+        "x": r.open(3, "n", files.O_CREAT | files.O_EXCL, ALL)[0],
+        "w": r.open(3, "a.txt", files.O_CREAT | files.O_TRUNC, ALL)[0],
+        "truncate": r.open(3, "a.txt", files.O_TRUNC)[0],
+        "create": r.open(3, "n", files.O_CREAT)[0],
+        "r+": r.open(3, "a.txt", 0, ALL)[0],
+        "mkdir": r.path_call("path_create_directory", 3, "n"),
+        "remove": r.path_call("path_unlink_file", 3, "a.txt"),
+        "rmdir": r.path_call("path_remove_directory", 3, "e"),
+        "rename": r.rename(3, "a.txt", 3, "c"),
+        "link": r.link(3, "a.txt", 3, "c"),
+        "symlink": r.symlink("a.txt", 3, "l"),
+        "path set-times": r.path_set_times(3, "a.txt", 0),
+        "file set-times": r("fd_filestat_set_times", f, 0, 0, 0),
+        "preopen set-times": r("fd_filestat_set_times", 3, 0, 0, 0),
+        "set size": r("fd_filestat_set_size", f, 0),
+    }
+    assert rows == dict.fromkeys(rows, 63), rows
+    assert _written(provider) == dict.fromkeys(WRITE_HALF, 0)
+
+
+class _Missing(MemoryProvider):
+    def __init__(self, method: str) -> None:
+        super().__init__()
+        setattr(self, method, None)
+
+
+class _AsyncWrite(MemoryProvider):
+    async def write(self, path, data):  # type: ignore[override]
+        return None
+
+
+@pytest.mark.parametrize(
+    ("mount", "match"),
+    [
+        (Mount(MemoryProvider(), "/w", writable="yes"), r"mounts\[0\] at /w: writable must be"),
+        (Mount(MemoryProvider(), "/w", writable=1), "writable must be True or False"),
+        (Mount(MemoryProvider(), "/w", writable=None), "writable must be True or False"),
+        *[
+            (Mount(_Missing(m), "/w", writable=True), rf"mounts\[0\] at /w: .*no callable {m}")
+            for m in WRITE_HALF
+        ],
+        (Mount(_AsyncWrite(), "/w", writable=True), r"write\(\) is a coroutine function"),
+    ],
+)
+def test_a_writable_mount_is_checked_before_any_work(mount, match) -> None:
+    """Spec 034, acceptance 8: `writable` must be a real bool, and a writable mount's provider
+    must have the whole write half, none of it a coroutine function; each is a TypeError naming
+    the mount, raised by run and run_async before the provider or a door host is called."""
+    import asyncio
+
+    from wasi_python import run, run_async
+
+    frames: list[bytes] = []
+    for call in (run, lambda *a, **k: asyncio.run(run_async(*a, **k))):
+        with pytest.raises(TypeError, match=match):
+            call(["-c", "pass"], host=frames.append, mounts=[mount])
+    assert (mount.provider.total(), frames) == (0, [])
+
+
+def test_writes_are_bounded(placeholder) -> None:
+    """Spec 034, acceptance 12 (guard: the growth bound): with a staging bound of 1,000 bytes, a
+    one-byte `fd_pwrite` at 2**40, a write after a seek to the bound, a size past it, and a
+    second file whose bytes would take the sum past it each answer EFBIG and change nothing;
+    the table's staged count never passes the bound."""
+    provider = MemoryProvider({"/f": b"x" * 10})
+    m = Mounted(provider, placeholder, writable=True, staging=1000)
+    r, seen = m.raw, []
+    f = r.open(3, "f", 0, ALL)[1]
+    assert f is not None and m.table.staged == 10
+    rows = {
+        "pwrite at 2**40": r.write(f, b"y", 2**40),
+        "seek to the bound": r.seek(f, 1000, 0),
+        "a write there": r.write(f, b"y"),
+        "a size past the bound": r("fd_filestat_set_size", f, 1001),
+        "a size at the bound less 10": r("fd_filestat_set_size", f, 990),
+    }
+    seen.append(m.table.staged)
+    g = r.open(3, "g", files.O_CREAT, ALL)[1]
+    assert g is not None
+    rows["a second file past the sum"] = r.write(g, b"z" * 11)
+    rows["a second file to the sum"] = r.write(g, b"z" * 10)
+    seen.append(m.table.staged)
+    assert rows == {
+        "pwrite at 2**40": (22, 0),
+        "seek to the bound": (0, 1000),
+        "a write there": (22, 0),
+        "a size past the bound": 22,
+        "a size at the bound less 10": 0,
+        "a second file past the sum": (22, 0),
+        "a second file to the sum": (0, 10),
+    }, rows
+    assert seen == [990, 1000]
+    assert r.filestat(f)[3] == 990 and r.filestat(g)[3] == 10
+
+
+def test_an_unlinked_folder_holds_nothing(placeholder) -> None:
+    """Spec 034, acceptance 9's raw part (guard: the unlinked-folder rule): a folder open while
+    the guest removes it and makes it again answers every path call through the old descriptor
+    ENOENT and lists only `.` and `..` from cookie 0, each with no provider call; a file open
+    while the guest removes it keeps its buffer and is never written back."""
+    provider = MemoryProvider()
+    m = Mounted(provider, placeholder, writable=True)
+    r = m.raw
+    d = r.open(3, "e", files.O_DIRECTORY)[1]
+    f = r.open(3, "a.txt", 0, ALL)[1]
+    assert d is not None and f is not None
+    assert r.write(f, b"kept") == (0, 4)
+    rows = {
+        "rmdir": r.path_call("path_remove_directory", 3, "e"),
+        "mkdir": r.path_call("path_create_directory", 3, "e"),
+        "remove": r.path_call("path_unlink_file", 3, "a.txt"),
+    }
+    y = r.open(3, "e/y", files.O_CREAT, ALL)[1]
+    assert y is not None and r("fd_close", y) == 0
+    assert rows == {"rmdir": 0, "mkdir": 0, "remove": 0}
+    before = provider.total()
+    rows = {
+        "open": r.open(d, "y")[0],
+        "open to write": r.open(d, "z", files.O_CREAT, ALL)[0],
+        "stat": r.path_filestat(d, "y")[0],
+        "readlink": r.readlink(d, "y")[0],
+        "set-times": r.path_set_times(d, "y", 0),
+        "mkdir": r.path_call("path_create_directory", d, "z"),
+        "remove": r.path_call("path_unlink_file", d, "y"),
+        "rmdir": r.path_call("path_remove_directory", d, "z"),
+        "rename": r.rename(d, "y", 3, "z"),
+        "re-list": r.readdir_names(d),
+        "the file's bytes": (r.seek(f, 0, 0), r.read(f, [4])),
+        "the file's sync": r("fd_sync", f),
+        "the file's close": r("fd_close", f),
+    }
+    assert rows == {
+        "open": 44,
+        "open to write": 44,
+        "stat": 44,
+        "readlink": 44,
+        "set-times": 44,
+        "mkdir": 44,
+        "remove": 44,
+        "rmdir": 44,
+        "rename": 44,
+        "re-list": (0, [(".", 3), ("..", 3)]),
+        "the file's bytes": ((0, 0), (0, 4, b"kept")),
+        "the file's sync": 0,
+        "the file's close": 0,
+    }, rows
+    assert provider.total() == before
+    assert provider.tree["/e/y"] == b"" and "/a.txt" not in provider.tree
+
+
+def test_the_runner_answers_namespace_calls_it_can(placeholder, tmp_path) -> None:
+    """Spec 034, Decision 6: the calls the runner answers with no provider call: the mount
+    itself (Linux's answers, wasmtime's reference), a rename into its own subfolder, a rename or
+    rmdir strictly above a more specific preopen (EBUSY), a rename or link to another
+    descriptor (EPERM when that side is read-only, EXDEV when both may be written), a link or
+    symlink within (ENOTSUP); and a rename onto itself, one `stat`."""
+    rw, ro = tmp_path / "rw", tmp_path / "ro"
+    rw.mkdir()
+    ro.mkdir()
+    (rw / "w.txt").write_bytes(b"w")
+    (ro / "r.txt").write_bytes(b"r")
+    provider = MemoryProvider()
+    folders = [(rw, "/rw", True), (ro, "/ro", False), (tmp_path / "rw", "/m/d/inner", True)]
+    m = Mounted(provider, placeholder, writable=True, folders=folders)
+    r = m.raw
+    rows = {
+        "mkdir of the mount": r.path_call("path_create_directory", 3, "."),
+        "remove of the mount": r.path_call("path_unlink_file", 3, "."),
+        "rmdir of the mount": r.path_call("path_remove_directory", 3, "."),
+        "rename of the mount": r.rename(3, ".", 3, "q"),
+        "rename onto the mount": r.rename(3, "a.txt", 3, "."),
+        "rename into its own subfolder": r.rename(3, "e", 3, "e/sub"),
+        "rmdir above a nested preopen": r.path_call("path_remove_directory", 3, "d"),
+        "rename above a nested preopen": r.rename(3, "d", 3, "q"),
+        "rename onto a folder above one": r.rename(3, "e", 3, "d"),
+        "rmdir at a nested preopen": r.path_call("path_remove_directory", 3, "d/inner"),
+        "rename to a writable grant": r.rename(3, "a.txt", 4, "c"),
+        "rename from a writable grant": r.rename(4, "w.txt", 3, "c"),
+        "rename to a read-only grant": r.rename(3, "a.txt", 5, "c"),
+        "link to a writable grant": r.link(3, "a.txt", 4, "c"),
+        "link to a read-only grant": r.link(3, "a.txt", 5, "c"),
+        "link within": r.link(3, "a.txt", 3, "c"),
+        "symlink within": r.symlink("a.txt", 3, "l"),
+    }
+    assert rows == {
+        "mkdir of the mount": 20,
+        "remove of the mount": 31,
+        "rmdir of the mount": 28,
+        "rename of the mount": 10,
+        "rename onto the mount": 10,
+        "rename into its own subfolder": 28,
+        "rmdir above a nested preopen": 10,
+        "rename above a nested preopen": 10,
+        "rename onto a folder above one": 10,
+        "rmdir at a nested preopen": 63,
+        "rename to a writable grant": 75,
+        "rename from a writable grant": 75,
+        "rename to a read-only grant": 63,
+        "link to a writable grant": 75,
+        "link to a read-only grant": 63,
+        "link within": 58,
+        "symlink within": 58,
+    }, rows
+    assert provider.total() == 0
+    assert (r.rename(3, "a.txt", 3, "./a.txt"), r.rename(3, "nope", 3, "nope")) == (0, 44)
+    assert dict(provider.calls) == {**dict.fromkeys(provider.calls, 0), "stat": 2}
+    assert sorted(p.name for p in rw.iterdir()) == ["w.txt"]
+
+
+SPIN_DIRTY = (
+    "import os\n"
+    "flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC\n"
+    "fds = [os.open(f'/w/{{n}}.txt', flags) for n in range({files})]\n"
+    "for fd in fds:\n"
+    "    os.write(fd, b'dirty')\n"
+)
+
+
+def test_the_walk_is_bounded_and_keeps_its_record(placeholder) -> None:
+    """Spec 034, acceptance 12 (guards: the limit in the walk, the fault catch in the walk,
+    `refused_total`): when the walk's write-backs would pass `max_file_calls`, the provider's
+    calls stop exactly at the limit, each unmade write-back is one RefusedWrite for the limit,
+    and the run keeps its exit and its fuel count (the walk names no end and spends no fuel:
+    exactly, on the table, below; a guest's fuel differs run to run, so `run()` shows only that
+    it is counted); a walk `write` that raises does not stop the walk; 1,001 refused `mkdir`s
+    and one refused write-back are 1,000 kept and 1,002 counted."""
+    needs.need("runner", "artifact dir")
+    from wasi_python import RefusedWrite, run
+
+    code = SPIN_DIRTY.format(files=4)
+    ends = []
+    for limit in (None, 6):  # 4 creates, then 2 of the 4 write-backs
+        provider = MemoryProvider({})
+        mounts = [Mount(provider, "/w", writable=True)]
+        done = run(["-c", code], mounts=mounts, max_file_calls=limit, fuel=10**12)
+        ends.append((done.exit_code, done.trapped, done.fuel_used is not None))
+    assert ends == [(0, None, True)] * 2, ends
+    assert provider.total() == 6 and provider.writes() == [b""] * 4 + [b"dirty"] * 2
+    assert done.files.refused == tuple(
+        RefusedWrite("/w", "write", (f"/{n}.txt",), Errno.EIO, "exit", "limit") for n in (2, 3)
+    )
+    provider = MemoryProvider({})
+    m = Mounted(provider, placeholder, writable=True, file_calls=1, fuel=10**6)
+    f = m.raw.open(3, "n", files.O_CREAT | files.O_TRUNC, ALL)[1]
+    assert f is not None and m.raw.write(f, b"n") == (0, 1)
+    fuel = m.store.get_fuel()
+    m.table.walk()
+    assert (m.store.get_fuel(), m.call.ended, m.call.stopped) == (fuel, None, None)
+    assert provider.writes() == [b""] and m.table.record().refused_total == 1
+    provider = MemoryProvider({})
+
+    def raises(path, data):
+        if data:
+            raise ValueError("broke")
+
+    provider.answers[("write", "/0.txt")] = raises
+    done = run(["-c", SPIN_DIRTY.format(files=2)], mounts=[Mount(provider, "/w", writable=True)])
+    assert done.exit_code == 0 and provider.writes("/1.txt") == [b"", b"dirty"]
+    assert [r.cause for r in done.files.refused] == ["fault"]
+    provider = MemoryProvider({})
+    provider.answers[("mkdir", "/m")] = Errno.EACCES
+    provider.answers[("write", "/0.txt")] = lambda path, data: Errno.ENOSPC if data else None
+    code = SPIN_DIRTY.format(files=1) + (
+        "for _ in range(1001):\n"
+        "    try:\n"
+        "        os.mkdir('/w/m')\n"
+        "    except PermissionError:\n"
+        "        pass\n"
+    )
+    done = run(["-c", code], mounts=[Mount(provider, "/w", writable=True)])
+    assert done.exit_code == 0, done
+    assert (len(done.files.refused), done.files.refused_total) == (1000, 1002)
+    assert {r.method for r in done.files.refused} == {"mkdir"}
+
+
+OWED = f"""(module
+  (import "{P1}" "path_open"
+    (func $open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (import "{P1}" "fd_write" (func $write (param i32 i32 i32 i32) (result i32)))
+  (import "{P1}" "path_filestat_get" (func $stat (param i32 i32 i32 i32 i32) (result i32)))
+  (import "{P1}" "fd_close" (func $close (param i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 100) "f.txt")
+  (data (i32.const 200) "a.txt")
+  (data (i32.const 220) "g.txt")
+  (data (i32.const 300) "\\90\\01\\00\\00\\04\\00\\00\\00")
+  (data (i32.const 400) "data")
+  (func (export "run") (local $fd i32)
+    (i32.store (i32.const 600) (call $open (i32.const 3) (i32.const 0) (i32.const 100)
+      (i32.const 5) (i32.const 9) (i64.const {files.RIGHTS_ALL}) (i64.const 0) (i32.const 0)
+      (i32.const 500)))
+    (local.set $fd (i32.load (i32.const 500)))
+    (i32.store (i32.const 604) (call $write (local.get $fd) (i32.const 300) (i32.const 1)
+      (i32.const 504)))
+    (i32.store (i32.const 608) (call $stat (i32.const 3) (i32.const 0) (i32.const 200)
+      (i32.const 5) (i32.const 512)))
+    (i32.store (i32.const 612) (call $close (local.get $fd)))
+    (i32.store (i32.const 616) (call $open (i32.const 3) (i32.const 0) (i32.const 220)
+      (i32.const 5) (i32.const 0) (i64.const {files.READ_RIGHTS}) (i64.const 0) (i32.const 0)
+      (i32.const 580)))))"""
+
+
+def test_a_close_stopped_by_a_cancel_is_owed(placeholder) -> None:
+    """Spec 034, acceptance 16 (guard: the reserved number): a guest writes a provider file; a
+    provider whose `stat` sets the call's cancel is called, and the file's `fd_close` follows
+    with no function entry between: the close answers ECANCELED, an open after it makes no call,
+    the number stays reserved (not free, still counted), and the walk writes it back once, with
+    nothing refused. With the file-call limit instead: the close answers EIO, no write is made,
+    and the record names the file once, at "exit", for the limit."""
+    from wasi_python import RefusedWrite
+
+    for case in ("cancel", "limit"):
+        cancel = threading.Event()
+        provider = MemoryProvider()
+        if case == "cancel":
+            provider.answers[("stat", "/a.txt")] = lambda path, c=cancel: (c.set(), Stat("file"))[1]
+        m = Mounted(
+            provider,
+            placeholder,
+            writable=True,
+            wat=OWED,
+            cancel=cancel,
+            file_calls=2 if case == "limit" else None,
+        )
+        with m.entered():
+            m.instance.exports(m.store)["run"](m.store)
+        answers = struct.unpack("<5I", m.raw.get(600, 20))
+        number = m.raw.u32(500)
+        stopped = 11 if case == "cancel" else 29
+        assert answers == (0, 0, 0, stopped, stopped), (case, answers)
+        assert number not in m.table.table and number in m.table.owed, case
+        assert number not in m.table.free and m.table.opened == 1, case
+        assert provider.writes() == [b""] and provider.total() == 2, case
+        m.table.walk()
+        record = m.table.record()
+        if case == "cancel":
+            assert provider.writes() == [b"", b"data"]
+            assert (record.refused, record.refused_total) == ((), 0)
+        else:
+            assert provider.writes() == [b""]
+            assert record.refused == (
+                RefusedWrite("/m", "write", ("/f.txt",), Errno.EIO, "exit", "limit"),
+            )

@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import Artifacts
 from . import artifacts as find_artifacts
-from .mounts import STAGING_CEILING, FileRecord, Mount
+from .mounts import METHODS, STAGING_CEILING, FileRecord, Mount
 
 if TYPE_CHECKING:
     import concurrent.futures
@@ -1000,7 +1000,11 @@ def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mo
         text = _text(f"mounts[{i}]: the guest path", mount.guest)
         guest = "/" if text == "/" else _guest_path(f"mounts[{i}]", text)
         where = f"mounts[{i}] at {guest}"
-        for method in ("stat", "list", "read"):
+        if type(mount.writable) is not bool:
+            raise TypeError(f"{where}: writable must be True or False, not {mount.writable!r}")
+        # A writable mount's provider has the write half too (spec 034, Decision 1).
+        methods = METHODS if mount.writable else METHODS[:3]
+        for method in methods:
             function = getattr(mount.provider, method, None)
             if not callable(function):
                 raise TypeError(f"{where}: the provider has no callable {method}()")
@@ -1017,7 +1021,7 @@ def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mo
                 "with root="
             )
         seen.add(guest)
-        checked.append(Mount(mount.provider, guest))
+        checked.append(Mount(mount.provider, guest, writable=mount.writable))
     return tuple(checked)
 
 
@@ -1895,6 +1899,10 @@ def _instance(
         with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
             done = _drive(wt, guest_linker, store, module, call, fuel, every, check, plain=linker)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
+        if table is not None:
+            # Spec 034, Decision 8: what the guest wrote is handed over at every ending that
+            # returns a result, after the fuel is read; a call that raises never gets here.
+            table.walk()
     finally:
         # The store holds every descriptor the guest opened; a guest can open them until the
         # host refuses. Close it first, so the clean-up below has descriptors to work with, and
