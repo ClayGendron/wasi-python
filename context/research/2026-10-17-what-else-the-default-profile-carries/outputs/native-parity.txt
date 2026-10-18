@@ -1,0 +1,22 @@
+== networkx
+2 0.4376
+pagerank: ModuleNotFoundError No module named 'scipy'
+== pypdf
+1 Hello agent
+True
+== html5lib
+{'a': {0: 1}, 'b': {0: 'x'}}
+== pyyaml
+{'a': [1, 2], 'b': {'c': 'x'}} False
+a:
+- 1
+- 2
+b:
+  c: x
+
+== mpmath
+3.14159265358979323846264338328 1.71828182845904523536028747135
+== xmltodict
+{'a': {'b': '1'}}
+== charset-normalizer
+cp1006

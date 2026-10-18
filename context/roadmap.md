@@ -21,7 +21,7 @@ profile's other packages are to be chosen (below).
 | numpy, pandas | shipped (0.1.0a1) |
 | matplotlib | M1 specified and confirmed (spec 023); M2 (triangulation, contourpy) next |
 | scipy | researched (`research/2026-10-17-what-scipy-needs.md`, the OpenBLAS memo); its licences, SIMD and placement decided (`decisions.md`, 25 to 31) |
-| others | to be chosen: `research/2026-10-17-what-else-the-default-profile-carries.md` (in progress) |
+| others | researched (`research/2026-10-17-what-else-the-default-profile-carries.md`: tiers A to D); to be chosen by the owner (questions 43 to 48) |
 
 ### Milestones
 

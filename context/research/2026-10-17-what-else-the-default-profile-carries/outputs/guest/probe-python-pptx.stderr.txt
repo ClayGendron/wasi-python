@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import pptx; print('ok')
+    ^^^^^^^^^^^
+  File "pptx/__init__.py", line 9, in <module>
+  File "pptx/api.py", line 14, in <module>
+  File "pptx/package.py", line 8, in <module>
+  File "pptx/opc/package.py", line 14, in <module>
+  File "pptx/opc/oxml.py", line 7, in <module>
+ModuleNotFoundError: No module named 'lxml'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

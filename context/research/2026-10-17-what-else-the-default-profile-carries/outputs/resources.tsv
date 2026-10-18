@@ -1,0 +1,13 @@
+zip	case	fuel_used	exit
+small	pass	287818179	0
+small	import zoneinfo	337367057	0
+small	one ZoneInfo	986372267	0
+small	two ZoneInfo	1247087606	0
+small	import pytz	367708607	0
+small	pytz.timezone	155299111965	0
+large	pass	678816963	0
+large	import zoneinfo	726882312	0
+large	one ZoneInfo	1946198963	0
+large	two ZoneInfo	2789109690	0
+large	import pytz	758012277	0
+large	pytz.timezone	500337890135	0

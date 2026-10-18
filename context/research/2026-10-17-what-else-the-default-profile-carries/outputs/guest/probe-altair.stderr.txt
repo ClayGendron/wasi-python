@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import altair as alt; print(alt.__version__)
+    ^^^^^^^^^^^^^^^^^^^^
+  File "altair/__init__.py", line 4, in <module>
+  File "importlib/metadata/__init__.py", line 1101, in version
+  File "importlib/metadata/__init__.py", line 1073, in distribution
+  File "importlib/metadata/__init__.py", line 467, in from_name
+importlib.metadata.PackageNotFoundError: No package metadata was found for altair. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

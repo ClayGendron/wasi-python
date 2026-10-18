@@ -1,0 +1,46 @@
+probe	exit	fuel_used	stdout_tail	stderr_tail
+openpyxl	1	6533271255		FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']
+xlsxwriter	1	6013159044		xlsxwriter.exceptions.FileCreateError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']
+odfpy	0	5871027923	True	
+xlrd	0	987205907	2.0.2	
+pyxlsb	0	914583006	ok	
+pypdf	0	1977100001	1 Hello agent | True	
+pdfminer.six	1	2689539586		ModuleNotFoundError: No module named 'cryptography'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+beautifulsoup4	0	2087788536	1	
+html5lib	0	6415160893	{'a': {0: 1}, 'b': {0: 'x'}}	
+pyyaml	0	1004098556	{'a': [1, 2], 'b': {'c': 'x'}} False | a: | - 1 | - 2 | b: |   c: x	
+tomli-w	0	808759263	{'a': {'b': [1, 2]}}	
+jinja2	1	6077969910	HI	jinja2.exceptions.TemplateNotFound: 'html.tpl' not found in search path: '/usr/local/lib/python315.zip/pandas/io/formats/templates'
+tabulate	1	6720093515		pandas.errors.InvalidVersion: Invalid version: 'unknown'
+pytz	0	500252101072	2026-07-01T00:00:00+02:00	
+charset-normalizer	0	1574664471	cp1006	
+networkx	0	5026740408	2 0.4376 | pagerank: ModuleNotFoundError No module named 'scipy'	
+sympy	1	1928600314		ImportError: cannot import name 'c_long' from 'ctypes' (/usr/local/lib/python315.zip/ctypes.pyc)
+mpmath	0	1476748486	3.14159265358979323846264338328 1.71828182845904523536028747135	
+patsy	1	5683685793		ModuleNotFoundError: No module named 'packaging'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+joblib	0	2293718527	[0, 1, 4, 9] | [0, 1, 4, 9]	
+threadpoolctl	1	1256548660		AttributeError: module 'ctypes' has no attribute 'c_uint32'
+attrs	0	1119387074	P(x=1)	
+more-itertools	0	923746021	[[0, 1], [2, 3], [4]]	
+toolz	0	932263091	{1: ['a'], 2: ['bb', 'cc']}	
+rich	0	1241829644	┏━━━┳━━━┓ | ┃ a ┃ b ┃ | ┡━━━╇━━━┩ | │ 1 │ x │ | └───┴───┘	
+pygments	0	1446306045	130	
+markdown-it-py	0	1417499270	<h1>hi <em>x</em></h1>	
+markdown	1	2894202070		ModuleNotFoundError: No module named 'tables'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+tqdm	0	2226211603	499500	100%|██████████| 1000/1000 [00:00<00:00, 2786912.96it/s]
+typing-extensions	0	961205127	ok	
+xmltodict	0	1205647350	{'a': {'b': '1'}}	
+docx2txt	0	978402410	ok	
+plotly	1	2206775101		importlib.metadata.PackageNotFoundError: No package metadata was found for plotly. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+narwhals	0	5990873439	(1, 1)	
+altair	1	2210678010		importlib.metadata.PackageNotFoundError: No package metadata was found for altair. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+jsonschema	1	1494510776		ModuleNotFoundError: No module named 'rpds'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+requests	1	3090589240		FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']
+httpx	0	1624416901	ok	
+pydantic	1	1173516186		ModuleNotFoundError: No module named 'pydantic_core'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+python-docx	1	1229745455		ModuleNotFoundError: No module named 'lxml'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+python-pptx	1	1186969601		ModuleNotFoundError: No module named 'lxml'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+seaborn	1	1112784864		ModuleNotFoundError: No module named 'matplotlib'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+statsmodels	1	1108747066		ModuleNotFoundError: No module named 'statsmodels'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+socket	0	766217209	<class 'socket.socket'>	
+threading	0	704200074	RuntimeError can't start new thread	

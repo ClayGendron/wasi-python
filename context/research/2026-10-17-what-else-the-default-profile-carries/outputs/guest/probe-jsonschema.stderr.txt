@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import jsonschema; print('ok')
+    ^^^^^^^^^^^^^^^^^
+  File "jsonschema/__init__.py", line 13, in <module>
+  File "jsonschema/_format.py", line 11, in <module>
+  File "jsonschema/exceptions.py", line 15, in <module>
+  File "referencing/__init__.py", line 5, in <module>
+  File "referencing/_core.py", line 9, in <module>
+ModuleNotFoundError: No module named 'rpds'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

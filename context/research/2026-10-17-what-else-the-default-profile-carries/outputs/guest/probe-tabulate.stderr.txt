@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import pandas as pd; print(pd.DataFrame({'a': [1], 'b': ['x']}).to_markdown())
+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "pandas/core/frame.py", line 2983, in to_markdown
+  File "pandas/compat/_optional.py", line 174, in import_optional_dependency
+  File "pandas/util/version/__init__.py", line 225, in __init__
+pandas.errors.InvalidVersion: Invalid version: 'unknown'

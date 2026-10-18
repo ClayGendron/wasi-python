@@ -1,0 +1,25 @@
+Traceback (most recent call last):
+  File "xlsxwriter/workbook.py", line 387, in close
+  File "xlsxwriter/workbook.py", line 803, in _store_workbook
+  File "xlsxwriter/packager.py", line 138, in _create_package
+  File "xlsxwriter/packager.py", line 499, in _write_content_types_file
+  File "xlsxwriter/packager.py", line 175, in _filename
+  File "tempfile.py", line 401, in mkstemp
+  File "tempfile.py", line 128, in _sanitize_params
+  File "tempfile.py", line 366, in gettempdir
+  File "tempfile.py", line 359, in _gettempdir
+  File "tempfile.py", line 223, in _get_default_tempdir
+FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+    df = pd.DataFrame({"a": [1, 2]}); b = io.BytesIO(); df.to_excel(b, engine="xlsxwriter", index=False)
+                                                        ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/core/generic.py", line 2300, in to_excel
+  File "pandas/io/formats/excel.py", line 1023, in write
+  File "pandas/io/excel/_base.py", line 1403, in close
+  File "pandas/io/excel/_xlsxwriter.py", line 239, in _save
+  File "xlsxwriter/workbook.py", line 389, in close
+xlsxwriter.exceptions.FileCreateError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']

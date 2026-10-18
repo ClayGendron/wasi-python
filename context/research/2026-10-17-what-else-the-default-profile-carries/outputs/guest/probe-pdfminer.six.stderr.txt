@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "<string>", line 20, in <module>
+    from pdfminer.high_level import extract_text
+  File "pdfminer/high_level.py", line 9, in <module>
+  File "pdfminer/converter.py", line 15, in <module>
+  File "pdfminer/image.py", line 8, in <module>
+  File "pdfminer/layout.py", line 14, in <module>
+  File "pdfminer/pdfinterp.py", line 11, in <module>
+  File "pdfminer/pdfdevice.py", line 13, in <module>
+  File "pdfminer/pdfpage.py", line 7, in <module>
+  File "pdfminer/pdfdocument.py", line 13, in <module>
+ModuleNotFoundError: No module named 'cryptography'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

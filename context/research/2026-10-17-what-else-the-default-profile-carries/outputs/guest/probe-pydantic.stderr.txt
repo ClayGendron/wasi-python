@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import pydantic; print('ok')
+    ^^^^^^^^^^^^^^^
+  File "pydantic/__init__.py", line 5, in <module>
+  File "pydantic/_migration.py", line 5, in <module>
+  File "pydantic/warnings.py", line 5, in <module>
+  File "pydantic/version.py", line 7, in <module>
+ModuleNotFoundError: No module named 'pydantic_core'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

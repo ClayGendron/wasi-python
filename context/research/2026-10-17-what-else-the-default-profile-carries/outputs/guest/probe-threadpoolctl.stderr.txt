@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import threadpoolctl; print(threadpoolctl.threadpool_info())
+    ^^^^^^^^^^^^^^^^^^^^
+  File "threadpoolctl.py", line 56, in <module>
+AttributeError: module 'ctypes' has no attribute 'c_uint32'

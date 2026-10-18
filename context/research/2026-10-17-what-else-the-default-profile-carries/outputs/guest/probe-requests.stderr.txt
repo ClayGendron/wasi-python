@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+    import requests
+  File "requests/__init__.py", line 158, in <module>
+  File "requests/utils.py", line 82, in <module>
+  File "certifi/core.py", line 41, in where
+  File "contextlib.py", line 203, in __enter__
+  File "importlib/resources/_common.py", line 113, in _tempfile
+  File "tempfile.py", line 401, in mkstemp
+  File "tempfile.py", line 128, in _sanitize_params
+  File "tempfile.py", line 366, in gettempdir
+  File "tempfile.py", line 359, in _gettempdir
+  File "tempfile.py", line 223, in _get_default_tempdir
+FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']

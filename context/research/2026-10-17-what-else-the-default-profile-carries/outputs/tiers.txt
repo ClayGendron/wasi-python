@@ -1,0 +1,19 @@
+tier                                                 members  deflated_bytes  plain_start_fuel
+A1 office and documents                              310      1818136         24.2 M
+A2 web text and formats                              148      1071329         11.5 M
+A3 maths and modelling (pure)                        1257     11341634        97.9 M
+A4 small utilities                                   296      1856292         23.1 M
+A5 seaborn (after matplotlib)                        55       532281          4.3 M
+A? pytz                                              611      416498          47.6 M
+B scikit-learn (python part)                         415      3539203         32.3 M
+B statsmodels (python part) + formulaic deps (est.)  641      5091054         49.9 M
+B lxml (python part) + python-docx + python-pptx     270      1323421         21.0 M
+B regex (python part)                                4        86821           0.3 M
+C plotly                                             1534     9749007         119.5 M
+C pdfminer.six                                       183      6747293         14.3 M
+C rich stack                                         523      2828330         40.7 M
+C xarray                                             127      1614079         9.9 M
+C faker                                              753      3010002         58.7 M
+today: scipy (python part)                           610      5573340         47.5 M
+today: matplotlib set (python part)                  909      11070094        70.8 M
+A total (without pytz)                               2066     16619672        161.0 M

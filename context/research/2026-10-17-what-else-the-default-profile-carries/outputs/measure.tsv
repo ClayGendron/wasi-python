@@ -1,0 +1,116 @@
+name	version	licence	requires	native_files	native_bytes	members	py_members	deflated_bytes	unpacked_bytes	metadata	threading	network	subprocess	ctypes	tops
+altair	6.3.0	Copyright (c) 2015-2025, Vega-Altair Dev; BSD License	jinja2,jsonschema,narwhals,packaging,typing-extensions	0	0	64	55	1143565	6107559	5	2	3	0	0	.lock,altair
+annotated-types	0.8.0	MIT		0	0	4	2	12548	37369	0	0	0	0	0	.lock,annotated_types
+anyio	4.15.1	MIT	exceptiongroup,idna,typing_extensions	0	0	48	46	338610	946269	0	5	8	2	0	.lock,anyio
+attrs	26.1.0	MIT		0	0	22	19	91573	215235	1	1	0	0	0	.lock,attr,attrs
+beautifulsoup4	4.15.0	MIT License; MIT License	soupsieve,typing-extensions	0	0	17	15	174035	451703	0	0	0	0	0	.lock,bs4
+bokeh	3.10.1	BSD-3-Clause	jinja2,narwhals,numpy,packaging,pillow,pyyaml,tornado,xyzservices	0	0	1313	372	7001915	26697431	1	8	2	3	0	.lock,bokeh
+bottleneck	1.6.0	Simplified BSD	numpy	4	349104	16	15	28833	64065	0	0	0	0	0	.lock,bottleneck
+branca	0.8.2	MIT; MIT License	jinja2	0	0	12	5	43725	124800	0	0	1	0	0	.lock,branca
+certifi	2026.7.22	MPL-2.0; Mozilla Public License 2.0 (MPL 2.0)		0	0	6	3	133530	243762	0	0	0	0	0	.lock,certifi
+cffi	2.1.1	MIT-0	pycparser	1	229408	21	20	184174	440775	0	0	0	0	6	.lock,cffi
+chardet	7.7.0	0BSD		17	2102152	39	31	739134	1181273	0	0	0	0	0	.lock,chardet
+charset-normalizer	3.5.2	MIT		2	917200	14	12	88605	213477	0	0	0	0	0	.lock,charset_normalizer
+cloudpickle	3.1.2	BSD-3-Clause; BSD License		0	0	4	3	25077	57567	0	1	0	0	0	.lock,cloudpickle
+colorama	0.4.6	BSD License		0	0	7	6	18135	43343	0	0	0	0	1	.lock,colorama
+contourpy	1.4.0	BSD-3-Clause	numpy	1	902336	19	17	60948	163122	0	0	0	0	0	.lock,contourpy
+cryptography	50.0.2	Apache-2.0 OR BSD-3-Clause	cffi,typing-extensions	1	11300096	80	78	236291	750789	0	1	0	0	0	.lock,cryptography
+cycler	0.12.1	Copyright (c) 2015, matplotlib project; BSD License		0	0	3	1	10223	27148	0	0	0	0	0	.lock,cycler
+cytoolz	1.2.0	BSD-3-Clause	toolz,toolz	5	1242296	7	6	7490	19724	1	0	0	0	0	.lock,cytoolz
+defusedxml	0.7.1	PSFL; Python Software Foundation License		0	0	12	11	20236	41019	0	1	0	0	0	.lock,defusedxml
+docx2txt	0.9	?		0	0	3	2	2998	5668	0	0	0	0	0	.lock,docx2txt
+duckdb	1.5.6	MIT License		1	45408576	44	41	201938	650402	1	0	0	0	0	.lock,adbc_driver_duckdb,duckdb
+et-xmlfile	2.0.0	MIT; MIT License		0	0	4	3	15180	32156	0	0	0	0	0	.lock,et_xmlfile
+faker	40.43.0	MIT License; MIT License	tzdata	0	0	753	751	3010002	7699862	0	0	0	0	0	.lock,faker
+folium	0.20.0	MIT; MIT License	branca,jinja2,numpy,requests,xyzservices	0	0	53	48	175877	421704	0	0	1	0	0	.lock,folium
+fonttools	4.67.0	MIT		6	3009120	345	342	2252945	5673225	0	2	0	3	1	.lock,fontTools
+formulaic	1.2.2	MIT	interface-meta,narwhals,numpy,pandas,scipy,typing-extensions,wrapt,wrapt	0	0	59	58	237141	563759	0	0	0	0	0	.lock,formulaic
+fpdf2	2.8.9	LGPL-3.0-only	defusedxml,Pillow,fonttools	0	0	40	36	699260	1909522	0	0	1	0	0	.lock,fpdf
+geopandas	1.2.0	BSD-3-Clause	numpy,packaging,pandas,pyogrio,pyproj,shapely	0	0	32	31	298120	861424	0	0	1	0	0	.lock,geopandas
+h11	0.16.0	MIT; MIT License		0	0	13	11	42836	103109	0	0	0	0	0	.lock,h11
+html5lib	1.1	MIT License; MIT License	six,webencodings	0	0	34	33	223470	634922	0	0	0	0	0	.lock,html5lib
+httpcore	1.0.9	BSD-3-Clause	certifi,h11	0	0	33	31	164754	421961	0	1	18	0	0	.lock,httpcore
+httpx	0.28.1	BSD-3-Clause; BSD License	anyio,certifi,httpcore,idna	0	0	25	23	156579	420540	0	0	7	0	0	.lock,httpx
+idna	3.20	BSD-3-Clause		0	0	12	10	67215	184834	0	0	0	0	0	.lock,idna
+interface-meta	2.0.1	MIT		0	0	12	10	20188	47235	0	0	0	0	0	.lock,interface_meta
+jinja2	3.1.6	BSD License	MarkupSafe	0	0	27	25	308352	847793	0	1	0	0	0	.lock,jinja2
+joblib	1.6.0	BSD-3-Clause	cloudpickle	0	0	45	44	263997	581233	0	28	2	4	1	.lock,joblib
+jsonschema	4.26.0	MIT	attrs,jsonschema-specifications,referencing,rpds-py	0	0	26	24	95753	327854	1	0	1	1	0	.lock,jsonschema
+jsonschema-specifications	2025.9.1	MIT	referencing	0	0	23	2	9858	39335	0	0	0	0	0	.lock,jsonschema_specifications
+kiwisolver	1.5.1	=========================; BSD License		1	221992	4	2	1220	2800	0	0	0	0	0	.lock,kiwisolver
+lxml	6.1.3	BSD-3-Clause		7	17874632	39	29	190217	520479	0	0	3	0	0	.lock,lxml
+markdown	3.11.1	BSD-3-Clause		0	0	34	33	194804	468505	0	0	0	0	0	.lock,markdown
+markdown-it-py	4.2.0	MIT License	mdurl	0	0	69	66	141580	307282	0	0	0	0	0	.lock,markdown_it
+markupsafe	3.0.4	BSD-3-Clause		1	50656	4	2	10294	30809	1	0	0	0	0	.lock,markupsafe
+matplotlib	3.11.2	License agreement for matplotlib version; Python Software Foundation License	contourpy,cycler,fonttools,kiwisolver,numpy,packaging,pillow,pyparsing,python-dateutil	9	5497400	395	179	7600837	16804782	2	4	2	10	2	.lock,matplotlib,mpl_toolkits,pylab
+mdurl	0.1.2	MIT License		0	0	8	6	10188	19690	0	0	0	0	0	.lock,mdurl
+more-itertools	11.2.1	MIT		0	0	5	3	105475	261166	0	1	0	0	0	.lock,more_itertools
+mpmath	1.4.1	BSD-3-Clause		0	0	56	55	733133	2005397	0	2	0	0	0	.lock,mpmath
+narwhals	2.27.1	MIT		0	0	165	163	1092914	3330824	2	0	0	0	0	.lock,narwhals
+networkx	3.7	BSD-3-Clause		0	0	290	288	1729805	4534957	1	1	0	0	0	.lock,networkx
+nltk	3.10.3	Apache License, Version 2.0; Apache Software License	defusedxml,click,joblib,regex,tqdm	0	0	302	300	2281600	5649937	0	5	5	18	0	.lock,nltk
+numexpr	2.14.2	MIT	numpy	1	186688	18	6	72691	213885	0	2	0	2	0	.lock,numexpr
+numpy	2.5.4	BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0		19	7875952	182	172	1491524	4032681	2	1	1	3	5	.lock,numpy
+odfpy	1.4.1	Apache Software License; GNU General Public License (GPL); GNU Library or Lesser General Public License (LGPL)	defusedxml	0	0	35	34	199051	618883	0	0	0	0	0	.lock,odf
+openpyxl	3.1.5	MIT; MIT License	et-xmlfile	0	0	191	190	496825	1116996	0	0	0	0	0	.lock,openpyxl
+orjson	3.13.0	MPL-2.0 AND (Apache-2.0 OR MIT)		1	253952	3	1	466	644	0	0	0	0	0	.lock,orjson
+packaging	26.3	Apache-2.0 OR BSD-2-Clause		0	0	24	22	223646	587429	0	0	0	2	1	.lock,packaging
+pandas	3.0.6	BSD 3-Clause License; BSD License	numpy,numpy,python-dateutil,tzdata,tzdata	45	17825344	308	298	3600395	9764798	1	1	1	3	3	.lock,pandas
+patsy	1.0.3	2-clause BSD; BSD License	numpy,packaging	0	0	31	30	328532	833565	0	0	0	0	0	.lock,patsy
+pdfminer.six	20260107	MIT	charset-normalizer,cryptography	0	0	183	32	6747293	8853802	1	0	0	0	0	.lock,pdfminer
+pdfplumber	0.11.10	MIT License	pdfminer.six,Pillow,pypdfium2	0	0	22	20	108200	254761	0	0	0	1	0	.lock,pdfplumber
+pillow	13.0.0	MIT-CMU		26	10670432	99	97	679340	1656260	0	0	0	4	0	.lock,PIL
+plotly	7.1.0	MIT	narwhals,packaging	0	0	1534	1503	9749007	36141865	2	0	0	0	0	.lock,_plotly_utils,plotly
+polars	2.0.0	Copyright (c) 2025 Ritchie Vink; MIT License	polars-runtime-32	0	0	218	216	1469335	4729801	1	7	1	2	1	.lock,polars
+pyarrow	26.0.0	Apache-2.0		38	116291032	63	32	315343	1034003	1	1	1	1	1	.lock,pyarrow
+pycparser	3.11	BSD-3-Clause		0	0	9	7	92684	294749	0	0	0	1	0	.lock,pycparser
+pydantic	2.14.1	MIT	annotated-types,pydantic-core,typing-extensions,typing-inspection	0	0	108	105	903690	2336047	3	1	0	1	0	.lock,pydantic
+pydantic-core	2.50.1	MIT	typing-extensions	1	4336368	4	2	46962	198241	0	0	0	0	0	.lock,pydantic_core
+pygments	2.21.0	BSD-2-Clause		0	0	344	343	1991115	4385336	1	0	5	2	0	.lock,pygments
+pymupdf	1.28.2	Dual Licensed - GNU AFFERO GPL 3.0 or Ar		4	48925568	19	17	1326970	5252877	0	1	0	1	0	.lock,fitz,pymupdf
+pyparsing	3.3.3	MIT		0	0	20	17	240935	623615	0	1	0	0	0	.lock,pyparsing
+pypdf	6.21.1	BSD-3-Clause	typing_extensions	0	0	61	59	827254	2347019	0	0	0	1	0	.lock,pypdf
+pypdfium2	5.14.0	BSD-3-Clause, Apache-2.0, dependency lic		1	7278480	48	45	175454	418654	0	1	0	0	14	.lock,pypdfium2,pypdfium2_cfg,pypdfium2_cli,pypdfium2_raw
+python-calamine	0.9.0	MIT		1	1985440	3	1	386	594	0	0	0	0	0	.lock,python_calamine
+python-dateutil	2.9.0.post0	Dual License; BSD License; Apache Software License	six	0	0	20	18	284915	471343	0	0	0	1	1	.lock,dateutil
+python-docx	1.2.0	MIT; MIT License	lxml,typing_extensions	0	0	120	95	413599	1866260	0	0	0	0	0	.lock,docx
+python-pptx	1.0.2	MIT; MIT License	Pillow,XlsxWriter,lxml,typing-extensions	0	0	111	101	719605	1686979	0	0	0	0	0	.lock,pptx
+pytz	2026.5	MIT; MIT License		0	0	611	6	416498	944035	1	1	0	0	0	.lock,pytz
+pyxlsb	1.0.10	LGPLv3+; GNU Lesser General Public License v3 or later (LGPLv3+)		0	0	8	7	17458	40956	0	0	0	0	0	.lock,pyxlsb
+pyyaml	6.0.3	MIT; MIT License		1	381736	19	18	89782	261690	0	0	0	0	0	.lock,_yaml,yaml
+referencing	0.37.0	MIT	attrs,rpds-py,typing-extensions	0	0	9	7	29433	76158	0	0	0	0	0	.lock,referencing
+regex	2026.9.29	Apache-2.0 AND CNRI-Python		1	809360	4	3	86821	252646	0	1	0	0	0	.lock,regex
+reportlab	5.0.1	BSD license (see license.txt for details; BSD License	pillow,charset-normalizer	0	0	192	159	2743033	5486656	0	0	2	1	0	.lock,reportlab
+requests	2.34.2	Apache-2.0; Apache Software License	charset_normalizer,idna,urllib3,certifi	0	0	21	19	120945	289685	0	2	7	0	0	.lock,requests
+rich	15.0.0	MIT; MIT License	markdown-it-py,pygments	0	0	102	100	685447	1755823	0	4	0	0	2	.lock,rich
+rpds-py	2026.9.1	MIT		1	978016	3	1	221	292	0	0	0	0	0	.lock,rpds
+scikit-image	0.26.0	Files: *; BSD License	numpy,scipy,networkx,pillow,imageio,tifffile,packaging,lazy-loader	54	16393288	235	189	7520499	9889890	1	3	1	1	0	.lock,skimage
+scikit-learn	1.9.1	BSD-3-Clause	numpy,scipy,joblib,narwhals,threadpoolctl	70	14861832	415	351	3539203	9092195	3	5	2	1	0	.lock,sklearn
+scipy	1.18.1	Copyright (c) 2001-2002 Enthought, Inc. ; BSD License	numpy	109	39874464	610	604	5573340	14487561	1	13	0	1	4	.lock,scipy
+seaborn	0.13.2	BSD License	numpy,pandas,matplotlib	0	0	55	54	532281	1234671	0	0	2	0	1	.lock,seaborn
+shapely	2.2.0	BSD-3-Clause	numpy	5	4162696	44	43	169626	486926	0	1	0	0	0	.lock,shapely
+six	1.17.0	MIT; MIT License		0	0	2	1	18167	43163	0	0	0	0	0	.lock,six
+sniffio	1.3.1	MIT OR Apache-2.0; MIT License; Apache Software License		0	0	7	5	3703	8168	0	1	0	0	0	.lock,sniffio
+soupsieve	3.0.3	MIT		0	0	9	7	84563	215751	0	1	0	0	0	.lock,soupsieve
+statsmodels	0.15.0	BSD-3-Clause	numpy,scipy,pandas,patsy,packaging,formulaic	26	9830512	555	452	4761119	15895428	0	2	1	1	0	.lock,statsmodels
+sympy	1.14.0	BSD; BSD License	mpmath	0	0	880	854	8550164	24793782	2	5	1	8	6	.lock,isympy,sympy
+tabula-py	2.10.0	The MIT License (MIT); MIT License	pandas,numpy,distro	0	0	10	7	12028031	13416188	1	0	1	2	0	.lock,tabula
+tabulate	0.10.0	MIT		0	0	2	1	42439	104332	1	0	0	0	0	.lock,tabulate
+textblob	0.20.1	MIT	nltk	0	0	31	24	663763	2333012	0	0	0	0	0	.lock,textblob
+threadpoolctl	3.7.0	BSD-3-Clause		0	0	2	1	29197	74479	0	1	0	0	1	.lock,threadpoolctl
+tiktoken	0.14.0	MIT License	regex,requests	1	2936224	9	7	27819	62172	0	2	1	0	0	.lock,tiktoken,tiktoken_ext
+tomli-w	1.2.0	MIT License		0	0	4	2	6801	13748	0	0	0	0	0	.lock,tomli_w
+toolz	1.2.0	BSD-3-Clause		0	0	17	16	63088	161943	1	0	0	0	0	.lock,tlz,toolz
+tqdm	4.70.1	MPL-2.0 AND MIT	colorama	0	0	34	31	113055	228700	1	4	2	0	0	.lock,tqdm
+typing-extensions	4.16.0	PSF-2.0		0	0	2	1	71916	180958	0	0	0	0	0	.lock,typing_extensions
+typing-inspection	0.4.4	MIT	typing-extensions	0	0	5	3	14809	38963	0	0	0	0	0	.lock,typing_inspection
+tzdata	2026.5	Apache-2.0		0	0	628	22	239078	516563	0	0	0	0	0	.lock,tzdata
+urllib3	2.8.0	MIT		0	0	39	36	237707	572193	1	4	20	0	0	.lock,urllib3
+webencodings	0.6.1	BSD License		0	0	4	3	10250	24427	0	0	0	0	0	.lock,webencodings
+wordcloud	1.9.6	MIT	numpy,pillow,matplotlib	1	205640	10	7	107785	187082	0	0	0	0	0	.lock,wordcloud
+wrapt	2.5.1	BSD-2-Clause		1	123296	15	14	72606	184485	1	2	0	0	0	.lock,wrapt
+xarray	2026.9.0	Apache-2.0	numpy,packaging,pandas	0	0	127	123	1614079	4664362	5	3	0	1	0	.lock,xarray
+xlrd	2.0.2	BSD; BSD License		0	0	11	10	143254	349748	0	0	0	0	0	.lock,xlrd
+xlsxwriter	3.2.9	BSD-2-Clause; BSD License		0	0	43	42	335623	1041657	0	0	0	0	0	.lock,xlsxwriter
+xmltodict	1.0.4	MIT		0	0	2	1	12502	27361	0	0	0	0	0	.lock,xmltodict
+xyzservices	2026.9.1	BSD-3-Clause		0	0	6	4	50324	878996	1	0	1	0	0	.lock,xyzservices

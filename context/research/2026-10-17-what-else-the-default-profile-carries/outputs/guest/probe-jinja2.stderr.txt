@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    print(len(pd.DataFrame({"a": [1.5]}).style.format("{:.1f}").to_html()) > 0)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/core/frame.py", line 1432, in style
+  File "pandas/io/formats/style.py", line 38, in <module>
+  File "pandas/io/formats/style_render.py", line 69, in <module>
+  File "pandas/io/formats/style_render.py", line 78, in StylerRenderer
+  File "jinja2/environment.py", line 1016, in get_template
+  File "jinja2/environment.py", line 975, in _load_template
+  File "jinja2/loaders.py", line 126, in load
+  File "jinja2/loaders.py", line 209, in get_source
+jinja2.exceptions.TemplateNotFound: 'html.tpl' not found in search path: '/usr/local/lib/python315.zip/pandas/io/formats/templates'

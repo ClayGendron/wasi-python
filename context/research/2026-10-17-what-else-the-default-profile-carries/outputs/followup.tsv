@@ -1,0 +1,18 @@
+probe	exit	fuel_used	stdout_tail	stderr_tail
+pass, meta zip	0	684707028		
+pandas loader type	0	5452251899	<class 'zipimport.zipimporter'>	
+jinja2 PackageLoader on zip	0	5707603040	/usr/local/lib/python315.zip /usr/local/lib/python315.zip/pandas/io/formats/templates	
+openpyxl, root=True	0	6677409828	True	
+xlsxwriter in_memory, no /tmp	0	1369813647	True	
+pandas xlsxwriter in_memory, no /tmp	0	6679274467	(2, 1)	
+requests import, root=True	0	2964032366	AttributeError module '_socket' has no attribute 'getaddrinfo'	
+import pytz	0	757679838		
+pytz.timezone	0	500249201669		
+pytz.timezone, small zip	0	757691200		
+zoneinfo baseline	0	1945780706		
+tabulate with metadata	0	6710521802	|    |   a | b   | | |---:|----:|:----| | |  0 |   1 | x   |	
+plotly with metadata	1	8193803427		FileNotFoundError: Validator JSON file not found: /usr/local/lib/python315.zip/plotly/validators/_validators.json
+markdown tables with metadata	0	3234268627	<table> | <thead> | <tr> | <th>a</th> | </tr> | </thead> | <tbody> | <tr> | <td>1</td> | </tr> | </tbody> | </table>	
+altair with metadata	1	2788150874		ModuleNotFoundError: No module named 'rpds'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+sympy, ctypes	0	680124543	['WinError']	
+charset-normalizer longer	0	1729418691	cp1250	

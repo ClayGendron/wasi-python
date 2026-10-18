@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+    import patsy, pandas as pd; df = pd.DataFrame({"y": [1., 2, 3], "x": [1., 0, 2], "g": list("aba")})
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "patsy/__init__.py", line 87, in <module>
+  File "patsy/highlevel.py", line 18, in <module>
+  File "patsy/design_info.py", line 28, in <module>
+  File "patsy/util.py", line 46, in <module>
+ModuleNotFoundError: No module named 'packaging'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

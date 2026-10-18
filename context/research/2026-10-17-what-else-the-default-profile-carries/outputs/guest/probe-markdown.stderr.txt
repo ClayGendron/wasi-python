@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import markdown; print(markdown.markdown('# hi', extensions=['tables']))
+                           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "markdown/core.py", line 508, in markdown
+  File "markdown/core.py", line 128, in __init__
+  File "markdown/core.py", line 181, in registerExtensions
+  File "markdown/core.py", line 227, in build_extension
+  File "importlib/__init__.py", line 88, in import_module
+  File "<frozen importlib._bootstrap>", line 1390, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1350, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1302, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'tables'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?

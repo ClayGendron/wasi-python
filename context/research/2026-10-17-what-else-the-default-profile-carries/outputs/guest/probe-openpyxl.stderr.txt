@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+    b = io.BytesIO(); wb.save(b); b.seek(0)
+                      ~~~~~~~^^^
+  File "openpyxl/workbook/workbook.py", line 386, in save
+  File "openpyxl/writer/excel.py", line 294, in save_workbook
+  File "openpyxl/writer/excel.py", line 275, in save
+  File "openpyxl/writer/excel.py", line 77, in write_data
+  File "openpyxl/writer/excel.py", line 215, in _write_worksheets
+  File "openpyxl/writer/excel.py", line 199, in write_worksheet
+  File "openpyxl/worksheet/_writer.py", line 52, in __init__
+  File "openpyxl/worksheet/_writer.py", line 36, in create_temporary_file
+  File "tempfile.py", line 639, in NamedTemporaryFile
+  File "tempfile.py", line 128, in _sanitize_params
+  File "tempfile.py", line 366, in gettempdir
+  File "tempfile.py", line 359, in _gettempdir
+  File "tempfile.py", line 223, in _get_default_tempdir
+FileNotFoundError: [Errno 44] No usable temporary directory found in ['/tmp', '/tmp', '/var/tmp', '/usr/tmp', '/']

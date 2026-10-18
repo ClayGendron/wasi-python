@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import statsmodels.api; print('ok')
+    ^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'statsmodels'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
