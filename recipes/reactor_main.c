@@ -7,6 +7,11 @@
  * The argument handling is Python (recipes/reactor_bootstrap.py), compiled at build time into
  * reactor_bootstrap.h (scripts/freeze_bootstrap.py, step 60) and loaded as the module `_reactor`
  * when the interpreter starts, so no start compiles source and a snapshot carries it ready to call.
+ *
+ * The interpreter starts in two phases (spec 035, Decision 3). Between them, before anything is
+ * read from the stdlib zip, the frozen module `_zip_directory` (recipes/zip_directory.py, compiled
+ * the same way into zip_directory.h) puts its reader of the zip's directory in zipimport's place.
+ * It is an embedder's frozen module (PyImport_FrozenModules).
  */
 #include <Python.h>
 #include <marshal.h>
@@ -17,6 +22,7 @@
 #include <wasi/libc.h>
 
 #include "reactor_bootstrap.h"
+#include "zip_directory.h"
 
 /* The one entry on the guest's import path: the stdlib zip, named for the interpreter this file is
  * compiled into (/usr/local/lib/python315.zip), so the two cannot disagree. The same path is
@@ -25,6 +31,13 @@
 #define STR_(x) #x
 #define STR(x) STR_(x)
 #define STDLIB_ZIP L"/usr/local/lib/python" STR(PY_MAJOR_VERSION) STR(PY_MINOR_VERSION) ".zip"
+
+/* The recipe modules the frozen importer finds after its bootstrap table, so they cannot shadow
+ * zipimport (Python/import.c, look_up_frozen). */
+static const struct _frozen recipe_modules[] = {
+    {"_zip_directory", ZIP_DIRECTORY, (int)sizeof ZIP_DIRECTORY, 0},
+    {NULL, NULL, 0, 0},
+};
 
 #ifndef PREIMPORT
 #define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
@@ -150,6 +163,11 @@ init_interpreter(int fixed_hash_seed)
     if (!PyStatus_Exception(status)) {
         status = PyConfig_SetString(&config, &config.stdlib_dir, STDLIB_ZIP);
     }
+    /* The core phase only: the builtin and frozen importers work, and nothing has touched the
+     * zip. CPython's private two-phase start, restored in 3.15 (gh-142417); a CPython without it
+     * fails this link, and spec 035's Decision 4 (an audit hook) takes its place. */
+    config._init_main = 0;
+    PyImport_FrozenModules = recipe_modules;
     if (!PyStatus_Exception(status)) {
         status = Py_InitializeFromConfig(&config);
     }
@@ -157,9 +175,32 @@ init_interpreter(int fixed_hash_seed)
     if (PyStatus_Exception(status)) {
         Py_ExitStatusException(status);
     }
-    if (PyImport_GetMagicNumber() != REACTOR_BOOTSTRAP_MAGIC) {
-        fputs("python.wasm: the frozen bootstrap was compiled for another Python\n", stderr);
+    if (PyImport_GetMagicNumber() != REACTOR_BOOTSTRAP_MAGIC
+        || PyImport_GetMagicNumber() != ZIP_DIRECTORY_MAGIC) {
+        fputs("python.wasm: a frozen recipe module was compiled for another Python\n", stderr);
         abort();
+    }
+    /* The value the main phase sets anyway: without it the modules this phase imports (zipimport,
+     * _frozen_importlib_external) keep no __file__ (FrozenImporter._resolve_filename). */
+    PyObject *zip = PyUnicode_FromWideChar(STDLIB_ZIP, -1);
+    if (zip == NULL || PySys_SetObject("_stdlib_dir", zip) < 0) {
+        PyErr_Print();
+        abort();
+    }
+    Py_DECREF(zip);
+    PyObject *reader = PyImport_ImportModule("_zip_directory");
+    PyObject *installed = reader ? PyObject_CallMethod(reader, "install", NULL) : NULL;
+    Py_XDECREF(reader);
+    if (installed == NULL) {
+        PyErr_Print();
+        abort();
+    }
+    Py_DECREF(installed);
+    /* The main phase: the path hooks, zipimport's among them, then encodings, read from the zip
+     * by the reader just installed. */
+    status = _Py_InitializeMain();
+    if (PyStatus_Exception(status)) {
+        Py_ExitStatusException(status);
     }
     PyObject *code = PyMarshal_ReadObjectFromString((const char *)REACTOR_BOOTSTRAP,
                                                     (Py_ssize_t)sizeof REACTOR_BOOTSTRAP);

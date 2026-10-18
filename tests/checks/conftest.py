@@ -67,13 +67,14 @@ def guest_workdir():
 
 @pytest.fixture
 def guest(guest_workdir: Path, metric) -> Callable:
-    """`guest(which, argv, files=…, env=…, host=…, fuel=…)` runs the artifact once.
+    """`guest(which, argv, files=…, env=…, host=…, fuel=…, stdlib=…)` runs the artifact once.
 
     It names its needs before it runs anything, so a check that uses it is `blocked`, never
     `fail`, when the artifact is absent. It records the run's fuel as the check's metric (the
-    last run wins, so a check runs its measured program last)."""
+    last run wins, so a check runs its measured program last). `stdlib` names another zip to
+    grant in the artifact zip's place (spec 035, Decision 11)."""
 
-    def run(which: str, argv: list[str], *, record: bool = True, **kw):
+    def run(which: str, argv: list[str], *, record: bool = True, stdlib: Path | None = None, **kw):
         needs.need("artifact dir", NEED_OF[which], "stdlib zip", "manifest", "wasmtime-py")
         from harness import guest as driver
 
@@ -85,7 +86,7 @@ def guest(guest_workdir: Path, metric) -> Callable:
             argv,
             workdir=guest_workdir,
             python_version=m.python,
-            stdlib=d / "python-stdlib.zip",
+            stdlib=stdlib or d / "python-stdlib.zip",
             **kw,
         )
         if record:
