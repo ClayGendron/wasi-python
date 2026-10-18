@@ -179,3 +179,56 @@ minor.
 The parity now ignores only the three padding bytes wasmtime 49.0.0 leaves undefined, a new check
 holds the mount to zeros, and it lands after the leak is named under "Not protected" and the
 check cuts a header short.
+
+## Confirmation (2026-10-18)
+
+By the reviewer, on `8ed8b82` (on `70cf66c`, which `git range-diff` shows equal to `ced2145`) in
+the worktree `../wasi_python-032b`, rebased onto main `1868a54`. I read the Disposition and
+`git show 8ed8b82`. Scripts and logs are under
+`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/`
+(`judge2.log`; `mut/shortpad_mutant.py`, `mut/run-shortpad-*.log`).
+
+1. **F1: fixed (READ).** README *Safety* → *Not protected* opens with the leak. It names the
+   grant, the root and the stdlib folder ("so on every call, with nothing granted"), up to three
+   bytes per entry, GHSA-96f6-r43r-8c24, and the condition that ends it (a wasmtime-py on
+   wasmtime 49.0.2 or later). The CHANGELOG's 0.1.0a4 section has the same as a known issue. Both
+   say a mitigation is being researched, which matches spec 048, now drafted in the main tree.
+   Nit, not a condition: the README's new lines leave one line about 120 characters long ("…write
+   zeros); a killed process (mid-call, …"); it renders the same.
+2. **F2: fixed (EXECUTED).** The sizes are now 4096, 22, 23, 25, 47, 48, 50 and 80. A new mutant
+   (`shortpad_mutant.py`) writes `0x04` at offset 21 only when the buffer cuts a header to 22 or 23
+   bytes, leaving full headers correct. Results:
+   - The new check fails: `(3, 22, 0, …\x03\x04)`.
+   - The parity still passes, since it masks those bytes.
+   - The check as it was in `ced2145` passes the same mutant.
+
+   So the new sizes are what catch a short header.
+3. **F3: fixed (READ).** The comment on `DIRENT_MASKED` and fact 4 in the facts sheet both name the
+   trigger: `uv.lock` moving to a wasmtime-py on wasmtime 49.0.2 or later brings bytes 21 to 24
+   back into the parity.
+4. **F4:** this one is for the lane, and no change was needed. The next release dry run is the
+   parity's first run on Linux and Windows.
+5. **F5: fixed (READ).**
+
+Also fixed: the landing notes now name the principal engineer's memo for "§2" (READ).
+
+**Judge (EXECUTED).** `WASI_PYTHON_ARTIFACTS=…/s-8d84b3b190fe9bce uv run pytest` in the worktree,
+no flags, exit 0:
+- `wasi_python v1: 212/223 pass · 0 gap · 11 blocked · 0 fail (unit suite 633/641, 8 skipped)`
+- `ratchet vs 789c841673: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 0 · grew 0 ·
+  judge changed: tests/harness/files.py, tests/unit/test_runner_mounts.py`
+- `845 passed, 19 skipped`
+
+These equal the Disposition's numbers. `ruff check` and `ruff format --check` on `src` and `tests`
+are clean. The worktree is clean.
+
+GHSA-m9f7-9w4p-gv38, the writable-grant sandbox escape, is outside this fix. Spec 048 owns it. As
+the coordinator noted, spec 048 will also assert zero padding on grants. Until then this fix
+needs only to be honest, and it is.
+
+**Result: the dirent-padding fix lands.** F1, F2, F3 and F5 are fixed, F2's fix fails its mutant,
+and there are no conditions. For the lane: `--accept-judge` (the judge changed), and the next
+release dry run.
+
+One line: the leak is named where users look, the check now cuts headers short and catches it,
+and the fix lands.
