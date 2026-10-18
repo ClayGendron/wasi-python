@@ -342,6 +342,39 @@ document.
   `upstream/8-libxml2-input-without-dup/` and `upstream/9-regex-callback-signatures/`, in
   question 80's form. Nothing is sent.
 
+### 83. What scikit-learn and statsmodels bundle (specs 044 and 045)
+
+- **Asked:** 2026-10-18. **Source:** `specifications/044-scikit-learn.md` (Decisions 10 and 11)
+  and `specifications/045-statsmodels.md` (Decisions 9 and 13). Decision 43 approved
+  scikit-learn and statsmodels (BSD-3-Clause), formulaic and interface-meta (MIT) and wrapt
+  (BSD-2-Clause). §4.12 approves by component, and both sdists carry code and data from others,
+  each with its own notice (READ while drafting).
+- **(a) scikit-learn's bundled code:** libsvm (BSD-3-Clause style, in `svm.cpp`'s header),
+  liblinear (BSD-3-Clause style, `COPYRIGHT`), array-api-compat and array-api-extra (MIT),
+  liac-arff (MIT), packaging's version module (BSD-2-Clause), numpydoc's `docscrape.py`
+  (BSD-2-Clause), MurmurHash3 (public domain), and a copy of a scipy module (BSD-3-Clause). The
+  agent recommends approving them: every family is one §4.12 already names. Each ships with its
+  notice in `LICENSES/scikit-learn.txt`.
+- **(b) scikit-learn's data:** six datasets (iris, digits, diabetes, breast cancer, wine,
+  Linnerud) ship inside scikit-learn's distribution with no notice of their own; the agent
+  recommends shipping them as scikit-learn distributes them. Its two sample photographs are under
+  Creative Commons Attribution 2.0 and cannot be decoded here (no JPEG decoder); spec 044 leaves
+  their folder out, and the agent recommends keeping it out.
+- **(c) statsmodels' bundled code:** what `COPYRIGHTS.txt` lists (code from numpy, scipy, pandas,
+  matplotlib, scikit-learn and qsturng-py, BSD or MIT) and two folders with their own BSD-3-Clause
+  licences (`factor_rotation`, `libqsturng`). The agent recommends approving them.
+- **(d) statsmodels' datasets:** each states its own terms. Sixteen say public domain and ship.
+  Thirteen do not: eight are "used with express permission of the original author, who retains
+  all rights" or "included with permission of the author" (ccard, committee, copper, cpunish,
+  fair, scotland, spector, star98), one is under the World Bank's terms of use (fertility), one
+  cites a journal (china_smoking), and three state nothing (cancer, heart, interest_inflation).
+  Spec 045 leaves those thirteen's data files out (their loaders raise `FileNotFoundError`) and
+  keeps the modules, which `statsmodels.api` imports. The agent recommends keeping them out:
+  permission given to statsmodels is not a licence to this project, and the public-domain sets
+  cover the usual examples (OLS on longley, time series on the Nile, sunspots and CO2).
+- **Meanwhile:** specs 044 and 045 are drafted and can be reviewed; neither is built until this
+  is answered, as spec 043 waits on question 81.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

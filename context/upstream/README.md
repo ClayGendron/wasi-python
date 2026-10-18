@@ -14,6 +14,8 @@ The issue texts and a reading guide are in the owner's "Upstream issue drafts" d
 | `7-matplotlib-qhull-devnull/` | matplotlib | Delaunay triangulation on WASI, where `/dev/null` does not exist and opening it could make a host file | patch and a facts sheet for spec 043 (question 80); matplotlib's guide keeps AI tools from opening pull requests, so the owner writes it |
 | `8-libxml2-input-without-dup/` | libxml2 | files read and written by name on WASI, which has no `dup()`; without it libxml2 2.15.4 does not compile for `wasm32-wasip1` | patch and a facts sheet for spec 046 (question 80); no contributor guide found, so the owner writes it |
 | `9-regex-callback-signatures/` | regex | five callbacks defined with one parameter where CPython passes two, a trap on WebAssembly | patch and a facts sheet for spec 047 (question 80); no contributor guide found, so the owner writes it |
+| `10-scikit-learn-html-repr-from-a-zip/` | scikit-learn | the HTML representation's style sheets, read by path at import, so `import sklearn` fails from a zip archive | patch and a facts sheet for spec 044 (question 80); scikit-learn asks that no AI-written text go into a description, so the owner writes it |
+| `11-statsmodels-datasets-from-a-zip/` | statsmodels | the bundled datasets, read by a path beside each module, so none loads from a zip archive | patch and a facts sheet for spec 045 (question 80); statsmodels asks for a disclosure, the contributor's own words and a regression test, so the owner writes it |
 
 Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the
 fix was found and checked. When a fix lands upstream and a pin moves past it, record that here

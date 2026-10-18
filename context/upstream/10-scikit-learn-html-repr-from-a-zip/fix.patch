@@ -1,0 +1,44 @@
+diff --git a/sklearn/utils/_repr_html/estimator.py b/sklearn/utils/_repr_html/estimator.py
+index aa356ca..f9a9abe 100644
+--- a/sklearn/utils/_repr_html/estimator.py
++++ b/sklearn/utils/_repr_html/estimator.py
+@@ -4,8 +4,8 @@
+ import html
+ from contextlib import closing
+ from inspect import isclass
++from importlib.resources import files
+ from io import StringIO
+-from pathlib import Path
+ 
+ from sklearn import config_context
+ from sklearn.utils._repr_html.base import _IDCounter
+@@ -13,13 +13,12 @@ from sklearn.utils._repr_html.features import _features_html
+ 
+ 
+ def _get_css_style():
+-    estimator_css_file = Path(__file__).parent / "estimator.css"
+-    params_css_file = Path(__file__).parent / "params.css"
+-    features_css_file = Path(__file__).parent / "features.css"
+-
+-    estimator_css = estimator_css_file.read_text(encoding="utf-8")
+-    params_css = params_css_file.read_text(encoding="utf-8")
+-    features_css = features_css_file.read_text(encoding="utf-8")
++    # Read as package resources, so that it also works when scikit-learn is
++    # imported from a zip archive.
++    here = files(__package__)
++    estimator_css = here.joinpath("estimator.css").read_text(encoding="utf-8")
++    params_css = here.joinpath("params.css").read_text(encoding="utf-8")
++    features_css = here.joinpath("features.css").read_text(encoding="utf-8")
+ 
+     return f"{estimator_css}\n{params_css}\n{features_css}"
+ 
+@@ -560,8 +559,7 @@ def estimator_html_repr(estimator):
+             is_fitted_css_class=is_fitted_css_class,
+             is_fitted_icon=is_fitted_icon,
+         )
+-        with open(str(Path(__file__).parent / "estimator.js"), "r") as f:
+-            script = f.read()
++        script = files(__package__).joinpath("estimator.js").read_text(encoding="utf-8")
+ 
+         html_end = (
+             f"</div></div><script>{script}"

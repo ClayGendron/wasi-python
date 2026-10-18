@@ -1,0 +1,152 @@
+# statsmodels 0.15.0's datasets from a zip, natively (2026-10-18). Host: macOS arm64, CPython 3.15.0 (the
+# line's pinned host Python), numpy 2.5.2, pandas 3.0.6, scipy 1.18.1, statsmodels 0.15.0 (PyPI's
+# macosx_11_0_arm64 wheel). zip_pkg.py zips statsmodels' Python and data files; probe_datasets.py loads every
+# bundled dataset and prints a digest of each frame ("test" in the list is the test runner, not a dataset).
+# Paths are shortened to <scratch> and <site-packages>.
+
+## 1. stock, on disk
+anes96 (944, 11) 22b4ad5b01a53aca
+cancer (301, 2) 90a3277da2ce1911
+ccard (72, 5) 46472b05a3ed6962
+china_smoking (8, 4) afcdfdc7e67cf6fa
+co2 (2284, 1) c1aee33fe646016f
+committee (20, 6) c0d9ffb7e1ff68f4
+copper (25, 6) 22cdd07dddea38af
+cpunish (17, 7) d9223f5d5cb0acbd
+danish_data (55, 5) aed97ce8483a7f1e
+elnino (61, 13) e37a5910045e016c
+engel (235, 2) 523ad1ba41e8c827
+fair (6366, 9) 4b0c94871271acb8
+fertility (219, 58) fb064e3a88336ca4
+grunfeld (220, 5) db339b7b9b8b5c25
+heart (69, 3) 3fba7717962f0a00
+interest_inflation (107, 4) a3d216aaf74b5470
+longley (16, 7) 5609e8d58d7cd250
+macrodata (203, 14) db8f387002dd1d26
+modechoice (840, 9) 08d6aa98861a9270
+nile (100, 2) 5b0bff7278876658
+randhie (20190, 10) c802933c356aae27
+scotland (32, 8) f0edb1116f1e3514
+spector (32, 4) 8b49b50d91ceaba1
+stackloss (21, 4) 828a84169a5c69c2
+star98 (303, 22) f92210b91a6024a2
+statecrime (51, 7) 2936001983388259
+strikes (62, 2) 504cc59e3e6b9133
+sunspots (309, 2) bda784c31e4bb4c5
+test AttributeError
+loaded 28 of 29 from site-packages
+
+## 2. stock, from a zip
+anes96 NotADirectoryError
+cancer NotADirectoryError
+ccard NotADirectoryError
+china_smoking NotADirectoryError
+co2 NotADirectoryError
+committee NotADirectoryError
+copper NotADirectoryError
+cpunish NotADirectoryError
+danish_data NotADirectoryError
+elnino NotADirectoryError
+engel NotADirectoryError
+fair NotADirectoryError
+fertility NotADirectoryError
+grunfeld NotADirectoryError
+heart NotADirectoryError
+interest_inflation NotADirectoryError
+longley NotADirectoryError
+macrodata NotADirectoryError
+modechoice NotADirectoryError
+nile NotADirectoryError
+randhie NotADirectoryError
+scotland NotADirectoryError
+spector NotADirectoryError
+stackloss NotADirectoryError
+star98 NotADirectoryError
+statecrime NotADirectoryError
+strikes NotADirectoryError
+sunspots NotADirectoryError
+test AttributeError
+loaded 0 of 29 from sm.zip
+
+## 3. patched (fix.patch applied), from a zip
+anes96 (944, 11) 22b4ad5b01a53aca
+cancer (301, 2) 90a3277da2ce1911
+ccard (72, 5) 46472b05a3ed6962
+china_smoking (8, 4) afcdfdc7e67cf6fa
+co2 (2284, 1) c1aee33fe646016f
+committee (20, 6) c0d9ffb7e1ff68f4
+copper (25, 6) 22cdd07dddea38af
+cpunish (17, 7) d9223f5d5cb0acbd
+danish_data (55, 5) aed97ce8483a7f1e
+elnino (61, 13) e37a5910045e016c
+engel (235, 2) 523ad1ba41e8c827
+fair (6366, 9) 4b0c94871271acb8
+fertility (219, 58) fb064e3a88336ca4
+grunfeld (220, 5) db339b7b9b8b5c25
+heart (69, 3) 3fba7717962f0a00
+interest_inflation (107, 4) a3d216aaf74b5470
+longley (16, 7) 5609e8d58d7cd250
+macrodata (203, 14) db8f387002dd1d26
+modechoice (840, 9) 08d6aa98861a9270
+nile (100, 2) 5b0bff7278876658
+randhie (20190, 10) c802933c356aae27
+scotland (32, 8) f0edb1116f1e3514
+spector (32, 4) 8b49b50d91ceaba1
+stackloss (21, 4) 828a84169a5c69c2
+star98 (303, 22) f92210b91a6024a2
+statecrime (51, 7) 2936001983388259
+strikes (62, 2) 504cc59e3e6b9133
+sunspots (309, 2) bda784c31e4bb4c5
+test AttributeError
+loaded 28 of 29 from sm-patched.zip
+
+## 4. patched, on disk
+anes96 (944, 11) 22b4ad5b01a53aca
+cancer (301, 2) 90a3277da2ce1911
+ccard (72, 5) 46472b05a3ed6962
+china_smoking (8, 4) afcdfdc7e67cf6fa
+co2 (2284, 1) c1aee33fe646016f
+committee (20, 6) c0d9ffb7e1ff68f4
+copper (25, 6) 22cdd07dddea38af
+cpunish (17, 7) d9223f5d5cb0acbd
+danish_data (55, 5) aed97ce8483a7f1e
+elnino (61, 13) e37a5910045e016c
+engel (235, 2) 523ad1ba41e8c827
+fair (6366, 9) 4b0c94871271acb8
+fertility (219, 58) fb064e3a88336ca4
+grunfeld (220, 5) db339b7b9b8b5c25
+heart (69, 3) 3fba7717962f0a00
+interest_inflation (107, 4) a3d216aaf74b5470
+longley (16, 7) 5609e8d58d7cd250
+macrodata (203, 14) db8f387002dd1d26
+modechoice (840, 9) 08d6aa98861a9270
+nile (100, 2) 5b0bff7278876658
+randhie (20190, 10) c802933c356aae27
+scotland (32, 8) f0edb1116f1e3514
+spector (32, 4) 8b49b50d91ceaba1
+stackloss (21, 4) 828a84169a5c69c2
+star98 (303, 22) f92210b91a6024a2
+statecrime (51, 7) 2936001983388259
+strikes (62, 2) 504cc59e3e6b9133
+sunspots (309, 2) bda784c31e4bb4c5
+test AttributeError
+loaded 28 of 29 from smdisk
+
+## 5. lines 1 and 3 compared, last line set aside
+equal
+
+## 6. patched, with spec 045's leave-outs (left-out.txt, 35 names) applied to the zip; zip_hybrid.py loads the extension modules by name
+statsmodels.api imports
+spector FileNotFoundError statsmodels/datasets/spector/spector.csv
+longley (16, 7)
+
+## 7. spec 045's draft golden job: native (seeds 0 and 1), and patched with the leave-outs from the zip
+6a855bc1a8edded73b6f32808c0922e6753124f4b7b8c96a070c70f3df2bad29  native, PYTHONHASHSEED=0
+6a855bc1a8edded73b6f32808c0922e6753124f4b7b8c96a070c70f3df2bad29  native, PYTHONHASHSEED=1
+6a855bc1a8edded73b6f32808c0922e6753124f4b7b8c96a070c70f3df2bad29  patched with leave-outs, from the zip
+
+## 8. elec_equip (not in statsmodels.datasets.__all__, so not in items 1 to 4): stock on disk, stock from a zip, patched from a zip, patched on disk
+elec_equip (257, 1) 298133d3f7490d37
+elec_equip NotADirectoryError
+elec_equip (257, 1) 298133d3f7490d37
+elec_equip (257, 1) 298133d3f7490d37

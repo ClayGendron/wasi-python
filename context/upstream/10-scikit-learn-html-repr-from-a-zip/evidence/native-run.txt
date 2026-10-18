@@ -1,0 +1,29 @@
+# scikit-learn 1.9.1 from a zip, natively (2026-10-18). Host: macOS arm64, CPython 3.15.0 (the line's
+# pinned host Python), numpy 2.5.2, scipy 1.18.1 (macosx_12_0_arm64), scikit-learn 1.9.1 (PyPI's
+# macosx_12_0_arm64 wheel). zip_pure.py zips the package's Python files; zip_hybrid.py imports them from
+# the zip and loads the extension modules from site-packages by name, as the guest's builtins are.
+# Paths are shortened to <scratch>.
+
+## 1. stock package from the zip: import_probe.py
+import sklearn -> NotADirectoryError pure-stock.zip/sklearn/utils/_repr_html/estimator.css'
+import sklearn.base -> NotADirectoryError pure-stock.zip/sklearn/utils/_repr_html/estimator.css'
+from sklearn.linear_model import LinearRegression -> NotADirectoryError pure-stock.zip/sklearn/utils/_repr_html/estimator.css'
+import statsmodels.api -> ok
+
+## 2. patched package (fix.patch applied) from the zip: import_probe.py
+import sklearn -> ok
+import sklearn.base -> ok
+from sklearn.linear_model import LinearRegression -> ok
+import statsmodels.api -> ok
+sklearn from zip: True
+
+## 3. html_repr.py: stock on disk, then patched from the zip
+from zip: False html 55811 e469424ee4aff962
+all_estimators 208
+from zip: True html 55811 e469424ee4aff962
+all_estimators 208
+
+## 4. spec 044's draft golden job: native (seeds 0 and 1) and patched from the zip
+22c6a48f84e48b1c342bdc72b63781dd18500f94213c495d1dc1f006a1ac6a96  native, PYTHONHASHSEED=0
+22c6a48f84e48b1c342bdc72b63781dd18500f94213c495d1dc1f006a1ac6a96  native, PYTHONHASHSEED=1
+22c6a48f84e48b1c342bdc72b63781dd18500f94213c495d1dc1f006a1ac6a96  patched, from the zip
