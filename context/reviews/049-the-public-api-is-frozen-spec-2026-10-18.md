@@ -1,0 +1,396 @@
+# Review of spec 049 before build: the public API is frozen and documented
+
+- **Reviewed:** `context/specifications/049-the-public-api-is-frozen.md` as drafted at `ff8cfb2`
+  (main). This is a voluntary pre-build review. §5.6 does not require one, because the spec
+  changes no guest import or export, no artifact and no recipe. The spec asks for one anyway.
+- **Reviewer:** a fresh agent (Claude Opus 5.5). It did not write the specification or the
+  survey.
+- **Read:** `AGENTS.md`; the constitution (§3, §4.5, §4.9, §4.10, §4.13–§4.15, §5.2, §5.4–§5.7,
+  §6); owner question 88 in `context/questions-for-the-owner.md`; the drafter's survey
+  (`survey.py`, `probe_annotations.py`, `probe_internal_names.py` and their outputs, beside the
+  draft in the scratchpad); `src/wasi_python/__init__.py`, `tools.py` (head, `tool`), `runner.py`
+  (`Defaults`, `DEFAULTS`, `Completed`, `Grant`, `run`, `run_async`, `_submit`, `_checked`, the
+  `raise` sites), `mounts.py` (`Errno`, `FileProvider`), `cli.py` (`_parser`, `main`);
+  `README.md` (every `DEFAULTS` and `wasi_python.runner` line, the Grants and Safety passages on
+  exceptions, the tools examples); `pyproject.toml`; `.gitattributes`;
+  `.github/workflows/release.yml` (its Python and OS matrix); `tests/harness/paths.py`
+  (`JUDGE_PATHS`, `judge_files`) and `artifacts.py` (`wheel_errors`); every test line that names
+  a constant to be renamed; spec 034's branch `spec/034-writable-mounts` at `9822812`, its diff
+  against main and its build review; `context/roadmap.md` (milestone 6, the agent-runtime
+  features).
+- **Executed** (scripts in this folder, `uv run` only, nothing in the repository changed):
+  - `determinism.py`, run with `uv run --no-project --python 3.11|3.12|3.13|3.14`. It renders every
+    public parameter (kind, annotation, default `repr`), every dataclass field and every `Errno`
+    member. Output, shortened:
+    `3.11.14 sig sha 8714031ef100 raw __doc__ sha 871466297d5a cleandoc sha e5eccc615a8d`,
+    `3.12.12 … 8714031ef100 … 871466297d5a … e5eccc615a8d`,
+    `3.13.11 … 8714031ef100 … 8565a192242a … e5eccc615a8d`,
+    `3.14.2 … 8714031ef100 … 8565a192242a … e5eccc615a8d`. `diff sig-311.txt sig-314.txt`
+    prints nothing. On every version, an undocumented dataclass gets `__doc__ ==
+    "NoDoc(a: int, b: 'str | None' = None)"`. On every version, `inspect.getdoc` of an
+    undocumented `RuntimeError` subclass returns `"Unspecified run-time error."`.
+  - `probe_internal_full.py` repeats the drafter's internal-name probe more widely: all 18 tools
+    constants, the three `__init__` constants, both module docstrings and method docstrings. It
+    finds `docstring hits: 7`, the same seven the spec lists, and `spec references in public
+    docstrings (all paragraphs): 14`.
+  - `probe2.py` found the following. All 12 public dataclasses are frozen. `Defaults(…,
+    file_calls=None)` is accepted. `stats()` gives `{'compiled': 0, 'loaded': 0, 'written': 0,
+    'tool_threads_running': 0}` without importing wasmtime. `FileProvider.stat/list/read` and
+    `Tool.__call__` have no docstring.
+  - A short inline run (`uv run python -c …`) shows that `Defaults` accepts `None` for
+    `memory_bytes`, `deadline_s`, `output_bytes`, `tool_calls` and `file_calls`.
+  - `readme_probe.py`: a rough count of backticked README tokens that are internal module-level
+    names. It is used only to show that a general rule would be noisy (`os` 18, `EPERM` 5, …).
+  - `grep -rnwE` over `tests scripts src recipes .github pyproject.toml` for the 21 names to be
+    renamed found 38 lines (listed in F10).
+  - I did not run the judge (`uv run pytest`). Nothing has been built, and this review judges a
+    design.
+
+A term used below. A **render** is the plain-text description of the public surface that
+`tests/harness/api.py` would print (Decision 9). The snapshot file and the README block are both
+made from it.
+
+## Findings, most severe first
+
+### F1 (medium). `tool`'s first overload rejects the README's own call form
+
+**Evidence (READ).** Change 3 declares `tool(fn: Callable[..., Any], /) -> Tool` and
+`tool(*, name=…, …) -> Callable[[Callable[..., Any]], Tool]`. The README calls `tool` with a
+function *and* keywords:
+
+- `README.md:876`: `return tool(call, name=lc_tool.name, description=lc_tool.description, …`
+- `README.md:901`: `return tool(call, name=listed.name, description=listed.description or "", …`
+
+The judge does the same: `tests/unit/test_tools.py:235–259` has
+`tool(square, input_schema=…)` and `tool(square, timeout_s=…)`. Neither overload accepts that
+form. Once `py.typed` ships, every type checker rejects the README's MCP and LangChain adapters.
+The implementation's `fn` is also positional-or-keyword (`tools.py:211`), so `tool(fn=f)` works
+at run time. The `/` would declare a narrower promise than the code keeps, and it would freeze
+that promise.
+
+**Fix.** Write the overloads as:
+
+- `tool(fn: Callable[..., Any], /, *, name: str | None = None, …) -> Tool`
+- `tool(fn: None = None, /, *, name: …, …) -> Callable[[Callable[..., Any]], Tool]`
+
+Then decide in Decision 5 whether `fn=` by keyword is promised. The reviewer suggests it is not:
+keep the `/`, and say so. Criterion 7 should also evaluate each overload's annotations, not only
+count them.
+
+### F2 (medium). Frozen annotations are narrower than the values `run` accepts
+
+**Evidence (EXECUTED and READ).** `Defaults.memory_bytes: int`, `deadline_s: float`,
+`output_bytes: int` and `file_calls: int` all accept `None` (EXECUTED above). The README says
+"pass `None` for no limit" (`README.md:1081`). Under `py.typed`, a checker would reject
+`set_defaults(dataclasses.replace(defaults(), deadline_s=None))`, which is the spec's own idiom
+with a `None`. Only `tool_calls` says `int | None`.
+
+The same problem affects Change 1. It writes `host` as `Callable[[bytes], bytes] | None`, but
+`run` accepts any of `bytes | bytearray | memoryview` from a host (`runner.py:2605`). Decision
+12's check only tests that an annotation *evaluates*, so it cannot see either defect.
+
+**Fix.** Add a fourth change: annotate the five `Defaults` limits as `int | None` or
+`float | None`. Write `host` as `Callable[[bytes], bytes | bytearray | memoryview] | None`. Each
+change is one line and changes no behaviour. Fixing these after 0.1.0 would change a frozen
+field type, and Decision 8 does not clearly allow that as an addition.
+
+### F3 (medium). The README check misses the bare `DEFAULTS`, and the Scope keeps three of them
+
+**Evidence (READ).** Decision 10 checks the README only for dotted
+`wasi_python.runner|mounts|cli` references. Three more lines name the internal binding with no
+module prefix:
+
+- `README.md:533` `` `DEFAULTS.file_calls` ``
+- `README.md:690` `` `DEFAULTS.async_workers` ``
+- `README.md:818` `` `DEFAULTS.tool_calls` ``
+
+Line 697's `dataclasses.replace(DEFAULTS, …` goes away with the dotted rewrite. The other three
+survive. The Scope says "the README's prose sections stay as they are apart from the three
+references", so the builder may not touch them. After this spec, `wasi_python.DEFAULTS` does not
+exist. A user who reads `DEFAULTS.file_calls` has nothing to type.
+
+**Fix.** Count `DEFAULTS` as a fourth README pattern, matched as the backticked token `DEFAULTS`
+with or without a dot. The README count seen failing first becomes 6, not 3. Replace each with
+`defaults().file_calls` and so on, and widen the Scope to cover them. More generally, the README
+rule can name every upper-case module-level constant *defined* (not imported) in an internal
+module, minus `Errno`'s member names. That does not collide with ordinary words such as `main`.
+
+### F4 (medium). Decision 6's list of exceptions is incomplete, and Decision 8 then freezes it
+
+**Evidence (READ).** Decision 6 says that once work starts, `run` raises only `RuntimeError` (a
+fork, or shutdown), `KeyboardInterrupt` or `CancelledError`. It also says "nothing a guest, a
+provider or a tool does makes either raise". The code and the README say more:
+
+- `README.md:438–439`: a swapped folder raises `RuntimeError`, and a folder removed before
+  wasmtime opens it raises **wasmtime's `WasmtimeError`**.
+- `runner.py:632` raises `FileExistsError` and `runner.py:1321` raises `NotADirectoryError`
+  while a root is prepared. `runner.py:1248/1253` raise `ctypes.WinError` (an `OSError`).
+  `runner.py:1436/1545/2007` raise `RuntimeError` for a changed zip copy, a changed folder and
+  "lost track of a call".
+- `README.md:1101–1103`: "a `BaseException` that is not an `Exception` is raised" from a
+  provider, and the same holds for a door host. So host code can make `run` raise.
+
+Decision 6 also says "a new failure is raised as one of the types the function already
+documents". With that rule, the undocumented `OSError` and `WasmtimeError` are either a broken
+promise on day one, or a change that needs a deprecation later.
+
+**Fix.** Write the list as it is, with no change in behaviour (the Scope rules that out):
+
+- `OSError`, for a host filesystem failure while preparing the root, the private folders or the
+  cache;
+- `RuntimeError`, for a folder or zip that changed between its check and its use;
+- `wasmtime.WasmtimeError`, while the runner lets it through. Promise it only as "an error from
+  wasmtime-py", or say that it is not promised;
+- any `BaseException` that is not an `Exception`, raised by the embedder's own `host`, provider,
+  tool or gate, propagates.
+
+Change "nothing a guest, a provider or a tool does" to "no `Exception` a provider or tool raises,
+and nothing a guest does". The `Raises:` sections in Decision 10 should then name the same types.
+
+### F5 (medium). Docstrings are not deterministic across Python versions as a render would read them
+
+**Evidence (EXECUTED).** Decision 9 makes the *signature* render version-proof, and that holds:
+the same SHA on 3.11 to 3.14. But the README block (Decision 11) is built from docstrings. Raw
+`__doc__` differs between 3.12 and 3.13 (`871466…` against `8565a1…`), because 3.13 strips the
+indentation when it compiles. `inspect.cleandoc` gives the same text on all four versions.
+
+Two more traps would make criterion 5 pass on an undocumented name:
+
+- A dataclass with no docstring gets the auto-generated `__doc__` `"NoDoc(a: int, …)"`. That text
+  also prints annotations in a version-dependent form.
+- `inspect.getdoc` inherits a base class's docstring: `"Unspecified run-time error."`.
+
+The spec does not pin how docstrings are read, or whether `api.py --check` covers the README
+block. Criterion 11 runs only `--check` on 3.11.
+
+**Fix.** Decision 9 should say three things:
+
+1. Docstrings are read as `inspect.cleandoc(vars(obj).get("__doc__") or "")`, or with
+   `ast.get_docstring` from the source.
+2. A dataclass whose `__doc__` starts with `f"{cls.__name__}("` counts as undocumented.
+3. `--check` compares both the snapshot and the README block, so criterion 11 covers both.
+
+Also pin how annotations are read. Use the stored string, which the
+`from __future__ import annotations` in every public module guarantees, and assert that import
+in the render. On 3.14, `inspect.signature` without it evaluates annotations, and the names
+imported under `TYPE_CHECKING` (`Tool`, `ToolCall`, `ToolRecord` in `runner.py:55`) would raise
+`NameError`.
+
+### F6 (medium). Order with spec 034: build after it, not beside it
+
+**Evidence (READ).** 034 is past its build review and has been revised (`9822812`). Its worktree
+still has uncommitted changes. Its diff rewrites `run`'s docstring (`runner.py:285–291`), and
+that rewrite keeps `DEFAULTS.file_calls`. It also adds `WritableFileProvider`, `RefusedWrite`,
+`Mount.writable` and two `FileRecord` fields, and 172 README lines. 049 rewrites the same
+docstrings (`run`, `Mount`, `FileRecord`, `FileProvider`) and the README.
+
+034's new public docstrings put the spec number in the summary line. For example,
+`WritableFileProvider`'s first line is "A writable mount's provider (spec 034, for type
+checkers)". That breaks Decision 10's summary rule. Decision 13's "if this lands first" path
+therefore makes a reviewed 034 grow by about 16 documented items, a regenerated README block and
+a snapshot diff. 034 would then need its review again.
+
+**Fix.** Say in Depends on and Decision 13 that **034 lands first**. 049 starts from main after
+that. It may build its render and checks (Decisions 9 and 11, criteria 1–4 and 7–9) before then,
+because those touch only `tests/`. Its docstring pass waits. Keep the "rebases and adds exactly"
+list as the reviewer's checklist for the snapshot diff, not as 034's work.
+
+### F7 (medium-low). `set_defaults` with threads and `run_async`: three reads, a racy swap, and pools that overlap
+
+**Evidence (READ).**
+
+- One call reads `DEFAULTS` three times: `_checked` (`runner.py:817`), `_check_tools` (`:882`)
+  and `_check_places` (`:975`). A `set_defaults` on another thread between those reads gives one
+  call a mix of the old and new limits. It can do this today by assignment, but now it is the
+  blessed API.
+- "Returns the previous one" is a read followed by a write. Two threads that race can both get
+  the same "previous" value and lose a restore.
+- `_submit` (`runner.py:438–445`) builds a new pool when `async_workers` changes, and calls
+  `shutdown(wait=False)` on the old one. Both the old pool's running calls *and its queued calls*
+  still run. So after shrinking from 8 to 4, up to 12 guests can run at once. The README's
+  "8 workers bound one process at about 8.3 GiB" is then briefly false.
+
+`run_async` checks its limits on the caller's thread when it is called. That part is sound.
+
+**Fix.** State the rule in Decision 2: "a call reads the defaults once, when it is made; a call
+already made keeps what it read". Make `_checked` take the one read and pass it to
+`_check_tools` and `_check_places`. That keeps behaviour on one thread and is a small runner
+change, so name it in the Scope. Do the swap in `set_defaults` under a lock. Have the
+`set_defaults` docstring (`Args:` and a note) say that a new `async_workers` applies to calls
+submitted afterwards, and that calls already queued on the old pool still run there. Criterion
+10 can count the reads: one `DEFAULTS` read per call, through a stand-in object that counts
+attribute reads.
+
+### F8 (low-medium). Decision 8 contradicts itself, and its process rule has no home that later drafters read
+
+**Evidence (READ).** "Security … This is the only exception." But a few lines earlier, "a
+tighter default (a smaller limit) may come in a minor release". That is an incompatible change
+without a deprecation, so it is a second exception. A program that ran in 50 s breaks when the
+deadline drops to 30 s.
+
+Decision 13 binds "every later specification" with a Kind-line phrase and a CHANGELOG rule. It
+is written only inside 049, so a drafter who never reads 049 never sees it. Question 88 also
+leaves out options the owner should see:
+
+- where the promise is recorded (the constitution §5, the roadmap, or this spec);
+- that the command line and its JSON keys are frozen too;
+- that `stats()` keys are promised.
+
+The "Owner's choices" text still says the question is in a `questions.md` beside the draft. It is
+already question 88 on main (`questions-for-the-owner.md:433`).
+
+**Fix.**
+
+- Name two exceptions: security, and a tighter default in a minor release, as a "Changed" line.
+- Copy Decision 13's rules into `context/README.md`'s specification stage, or into the checked
+  specification header (`test_specifications_have_their_header_and_sections`), so they bind by
+  where they live.
+- Add the record-it-where choice and the CLI line to question 88.
+- Bring the stale sentence up to date.
+
+### F9 (low). `Artifacts` is made by users, so its field order is promised
+
+**Evidence (READ).** Decision 5 counts `Artifacts` among what "the runner makes". But
+`run(artifacts=…)` takes one, and the judge builds one by position:
+`tests/checks/test_v1_2_hostile_guest.py:239` has
+`wasi_python.Artifacts(probe, real.plain, real.stdlib_zip, real.manifest)`. So does
+`tests/unit/test_runner_tools.py:155`.
+
+**Fix.** Move `Artifacts` to the user-made group, which promises field order.
+
+### F10 (low). The rename count is off, and a blind `grep -w` would rename names that are not the package's
+
+**Evidence (EXECUTED).** `grep -rnwE` over `tests scripts src recipes .github pyproject.toml`
+for the 21 names gives 38 lines. These are not renames:
+
+- `tests/harness/wasm.py:15,144,149`: the harness's own `KINDS`, a wasm section table;
+- `tests/harness/paths.py:37,92` and `tests/unit/test_checks_wiring.py:20`: the harness's own
+  `ARTIFACTS_ENV`;
+- `recipes/guest/host/__init__.py:9,62` and `recipes/guest/host/tools.py:18`: the guest's
+  `PROTOCOL`, which the spec excludes.
+
+The real renames are about 25 lines:
+
+- `tests/test_api.py`: 8 lines;
+- `tests/harness/paths.py:5,99`;
+- `tests/unit/test_runner_tools.py`: 3 lines;
+- `tests/unit/test_guest_tools.py`: 4 lines (`T.PROTOCOL`, `T.KINDS` ×3);
+- `tests/unit/test_tools.py`: 11 lines, one of them a docstring.
+
+The spec's "about 35" and "`KINDS` 6, `ARTIFACTS_ENV` 7" count the harness's own names (§4.10).
+No `scripts/`, `.github/` or `src/` file outside `tools.py` and `__init__.py` names them. That
+supports "not build-class".
+
+**Fix.** List the files and lines. Tell the builder to rename by module-qualified references
+(`T.`, `wasi_python.`), never with a word-boundary replace.
+
+### F11 (low). `PROTOCOL` becomes private on the host, while the guest exports it
+
+**Evidence (READ).** `recipes/guest/host/__init__.py:62` has `PROTOCOL` in the guest package's
+`__all__`, and `tests/unit/test_guest_tools.py:283` asserts it. Decision 8 says that the
+protocol "is versioned by its number". After this spec, an embedder has no supported way to ask
+the host which protocol it speaks. "When in doubt, private" is a sound rule, but it should be
+applied on purpose here.
+
+**Fix.** Keep `PROTOCOL` (or `PROTOCOLS`) public in `wasi_python.tools.__all__`, 9 names. Or
+state in Decision 3 why the number stays README-only.
+
+### F12 (low). The size of the README reference, and spec numbers inside it
+
+**Evidence (EXECUTED and INFERRED).** Decision 10 asks for about 116 described items: 53 `Args:`
+entries, 57 `Attributes:` entries and 6 `Raises:` sections. About 16 more come with 034. `run`
+and `run_async` share 18 arguments, which must have the same text. Rendered as Decision 11
+says, the README gains roughly 300–400 lines, from 1,254 now (INFERRED, about two to three lines
+per item plus two 20-line signatures). The prose sections still teach the same arguments. The
+summary rule bans spec numbers only in the first paragraph. The other paragraphs hold 14 spec
+references today (EXECUTED), and they would print in the user-facing reference.
+
+**Fix.** In the README render, show `run_async` as "`run`'s arguments except `cancel`, plus:"
+and describe only `executor`. The docstrings stay complete for `help()` and for IDE hovers.
+Either extend "names no specification" to the whole public docstring, with spec citations moved
+to `#` comments, or strip `(spec NNN)` in the render. The reviewer prefers the first, because it
+can be checked.
+
+### F13 (low). Notes for the builder, no change in decision
+
+- **CLI actions.** The parser's actions are argparse's private classes (`_StoreAction`,
+  `_AppendAction`, `_StoreTrueAction`), and `--root` uses the package's own `_Once`
+  (`cli.py:89`). Render them through a fixed map (`store`, `append`, `store_true`, `once`), not
+  by class name.
+- **Calling a `Tool`.** "Calling it" is promised (Decision 3), but `__call__` is a dunder and has
+  no docstring. Render it explicitly. Decide whether `*args, **kwargs` need `Args:` entries; the
+  reviewer suggests they are exempt.
+- **"Every public name has a docstring"** holds only for top-level names. `FileProvider.stat`,
+  `list` and `read` have none (EXECUTED). Criterion 5's first count should include them.
+- **`stats()`.** `compiled`, `loaded` and `written` describe the `.cwasm` cache, which Decision 8
+  leaves unpromised. Promise the keys and that they are counts, not what they count.
+- **Stand-ins.** Let `api.py` take the package's path, so the scratch-copy stand-ins in criteria 1
+  and 4 can point the child interpreter at the copy. Write both files with `newline="\n"`. The
+  release workflow runs the judge on Windows, and `.gitattributes` says LF.
+- **Parsing docstrings.** Do not reuse or extend `tools._HEADINGS` to parse `Attributes:`. That
+  tuple decides how a *tool's* description is cut for the guest, so changing it is a behaviour
+  change. The harness gets its own small parser.
+- **The CLI's `kind`.** Its JSON `kind` value on exit 1 is `type(e).__name__`. Since Decision 6
+  promises types, say that `kind` names one of them.
+
+## What holds
+
+- **The surface (READ).** Two modules, one command and two variables is the right size. Every
+  name in the 18 and the 8 is reached by the README's teaching. `Defaults` must be public for
+  `set_defaults` to be usable. A function is the right way to replace a re-exported `DEFAULTS`,
+  for the reason Decision 2 gives: assigning `wasi_python.DEFAULTS` would silently do nothing.
+  Leaving the internal modules' names alone avoids rewriting nearly every test.
+- **Signature determinism (EXECUTED).** Built from `inspect.Parameter` strings and
+  `dataclasses.fields` under the future import, the signature render has the same SHA on 3.11,
+  3.12, 3.13 and 3.14. Across platforms (READ), nothing in the surface depends on the OS except
+  the CPU-count factory, which the spec renders as `<factory>`. The release workflow already runs
+  the judge on Linux, Windows and macOS (`release.yml:213`).
+- **The survey's numbers (EXECUTED).** The internal-name probe gives 7 docstring hits with the
+  wider scope. 19 undocumented `run` arguments and 57 public fields match the survey's field
+  lists. All 12 public dataclasses are frozen.
+- **034's list (READ).** Decision 13's list matches the branch at `9822812` exactly:
+  `RefusedWrite`'s six fields, `WritableFileProvider`'s five methods, `Mount.writable`
+  (keyword-only) and `FileRecord.refused` / `refused_total` (last).
+- **The wheel (READ).** `[tool.hatch.build.targets.wheel] packages = ["src/wasi_python"]` takes a
+  tracked `py.typed` with no change to `pyproject.toml` (a judge file). The wheel rule's change
+  is one line. `tests/public_api.txt` is under `tests/`, so it is in `JUDGE_PATHS`, and every API
+  change shows as a judge change, as Decision 9 intends.
+- **Size of the judge change.** It adds one check file (10 checks), `tests/harness/api.py`
+  (INFERRED: 300–400 lines), a snapshot of about 200 lines, about 25 renamed lines in six test
+  files, and one wheel-rule line with its synthetic-wheel stand-in. That is moderate. Each part
+  is a counting check.
+- **One builder (INFERRED).** The spec is not build-class and needs no artifact rebuild. One
+  builder can do it in the stated order, once F6's order is followed.
+
+## Constitution checks
+
+- **§4.5 (embedder-neutral):** met. Nothing names an embedder.
+- **§4.9 (tests count):** met. Every criterion counts names, lines or items, and none reads a
+  clock. Criterion 10 can also count `DEFAULTS` reads (F7).
+- **§4.10 (claims carry evidence):** mostly met. The rename count overstates (F10). The PEP
+  claims are honestly marked INFERRED.
+- **§4.13 (tooling, no dependency without a reason):** met. No dependency is added, and the
+  reason for leaving out mypy and pyright is written. `typing.get_overloads` exists from 3.11.
+- **§4.15 (safe by default):** met. No default is loosened. Decision 8 restates that loosening is
+  the owner's call. F2's annotation fixes change no value.
+- **§5.2 (no open questions):** met for the build. Question 88 is a confirmation, and the spec
+  decides. Bring the stale sentence up to date (F8).
+- **§5.4 and §5.7 (one landing at a time):** met, but name the order with 034 (F6).
+- **§5.6 (pre-build review):** not required. This review was asked for.
+- **§6.4 (smallest thing):** mostly met. The README reference is the largest part, so trim its
+  duplication (F12).
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+## Verdict
+
+**Ready to build once F1 to F7 are written in.** The design is sound: a judge-hashed snapshot,
+an underscore rule checked by `ast`, functions instead of an assignable global, and a promise
+with its own rules. No finding is high. Four would freeze a mistake into 0.1.0: the overload
+(F1), the narrow annotations (F2), the incomplete exception list (F4) and the leftover `DEFAULTS`
+(F3). Two would make the README check unstable (F5) or force 034 to grow after its review (F6).
+F7 makes `set_defaults` say what it does under threads. F8 to F13 are wording and builder notes.
+
+One line: the frozen surface is the right one, but fix `tool`'s overload, the `None`-taking
+annotations, the exception list and the README's bare `DEFAULTS` before freezing, read
+docstrings with `cleandoc`, and land 034 first.
