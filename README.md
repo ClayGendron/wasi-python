@@ -20,12 +20,12 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
-Published as GitHub release assets (xz, 8 to 20 MB) and as the `wasi-python`
+Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
 wheel on PyPI, which carries the same files and a `wasi_python.artifacts()`
 function that returns their paths.
 
@@ -38,20 +38,21 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 2, each with an upstream pull request drafted for the owner to send (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 5, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.2 MB (3.15 line) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 36.9 MB / 70.9 MB / 21.9 MB (3.15 line, with matplotlib; spec 023's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 81.9M guest instructions on 3.15 |
+| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 83.4M guest instructions on 3.15 with matplotlib (81.9M before) |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
-| one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms; 151M / 4.90G guest instructions (spec 035's landing notes, 2026-10-18: the zip's directory read once) |
+| one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); 167M / 4.92G guest instructions with matplotlib's members in the zip (151M / 4.90G before; spec 023) |
+| a line plot saved as PNG, snapshot, matplotlib not pre-imported | 7.10G guest instructions with a fresh font cache (a fresh `HOME`), 5.11G with a kept `MPLCONFIGDIR` (spec 023) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 
-The platform's facts, documented rather than patched (with two carried patches,
-below), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with five carried patches,
+below and under *matplotlib in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
 
@@ -162,6 +163,46 @@ and these facts follow from it:
 
 Temporary data goes to files under `TMPDIR` (`/tmp` by default in `run`).
 
+### matplotlib in the guest
+
+matplotlib 3.11.2 is built in, on the Agg backend (spec 023):
+
+```python
+done = run(["-c", "import matplotlib; matplotlib.use('agg'); import matplotlib.pyplot as plt;"
+            " plt.plot([1, 3, 2]); plt.savefig('/out/plot.png')"],
+           grants=[Grant("/tmp/job-17", "/out", writable=True)],
+           env={"MPLCONFIGDIR": "/out/.matplotlib"})  # a writable folder for its font cache
+```
+
+A line plot's pixels are native matplotlib's at the same pins (FreeType 2.14.3, HarfBuzz
+14.1.0, the judge's golden job). The PNG file's bytes are not native's: native Pillow deflates
+with zlib-ng, the guest's with zlib, so equal pixels make a different file. PNG, PDF, PS, EPS and
+SVG save; Pillow is built with zlib only, so JPEG and the other codecs raise `OSError`; only the
+non-interactive backends are in the zip. A Delaunay `Triangulation(x, y)` raises `ImportError`
+for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNotFoundError` for
+`contourpy`: both are matplotlib's next milestone. Five more facts follow from the sandbox:
+
+- **matplotlib's data** (`mpl-data`: fonts, `matplotlibrc`, styles) travels in the stdlib zip as
+  one member, `matplotlib/mpl-data.zip`. `run` extracts it once per process into its private
+  folder, beside its copy of the zip, checks every file as it writes it, compares the whole tree
+  with its record before every call (and extracts it again on any difference), and grants it
+  read-only at `/usr/local/lib/python315.zip/matplotlib/mpl-data`, the path matplotlib computes.
+  Every process pays that extraction at its first call, plotting or not (about 200 files, 9.7
+  MB). An embedder without `run` extracts and preopens it itself (see *Running it*).
+- **The font cache.** matplotlib writes its font list to `MPLCONFIGDIR`, else `$HOME/.matplotlib`.
+  `run` makes `HOME` fresh on every call, so each call that imports matplotlib rebuilds the list
+  (about 2 G guest instructions); the snapshot does not pre-import matplotlib. To keep the cache
+  between calls, set `MPLCONFIGDIR` (`env=`) to a writable grant you keep.
+- **A shared, writable `MPLCONFIGDIR` is trusted by later calls**: its JSON names font files, so
+  one call can make the next parse a font of its choosing. Share one only between calls you trust
+  alike.
+- **No writable `/tmp`, no matplotlib**: with no root and no writable grant at `/tmp` (the default
+  since 0.1.0a3) and no `MPLCONFIGDIR`, `import matplotlib` raises `OSError` ("Matplotlib requires
+  access to a writable cache directory"). Give the call `root=True`, a writable grant at `/tmp`,
+  or `MPLCONFIGDIR` in a writable grant.
+- **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
+  drawing and saving never start one.
+
 ## Hosts
 
 The binaries use WebAssembly's exception-handling proposal in its standard
@@ -189,12 +230,13 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: two today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: five today, numpy's `.npy` fix and its callback
+signatures, matplotlib's enum fix from upstream, and Pillow's and kiwisolver's callback
 signatures):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, eleven steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, thirteen steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -372,7 +414,11 @@ done.exit_code, done.stdout        # (0, b'6\n')
 `run` extra is kept, empty, for compatibility. An embedder that brings its own
 wasmtime binding (another version, or another language's host) installs with
 `pip install --no-deps wasi-python` and uses `wasi_python.artifacts()` for the
-files; importing `wasi_python` never loads wasmtime, only `run` does.
+files; importing `wasi_python` never loads wasmtime, only `run` does. Such an embedder
+preopens the stdlib zip read-only at `/usr/local/lib`, in a folder holding nothing else, and,
+for matplotlib, extracts the zip's member `matplotlib/mpl-data.zip` (an archive of plain files)
+into a folder of its own and preopens it read-only at
+`/usr/local/lib/python315.zip/matplotlib/mpl-data`.
 
 By default the guest has nothing writable: no `/`, no `/tmp` and no
 `HOME`, only the read-only stdlib and whatever the embedder grants (since
@@ -383,7 +429,8 @@ call a fresh private directory as its `/`, writable, removed afterwards
 (what a call got by default before 0.1.0a3); `root=` a path gives it that host
 directory instead, writable, at `/`. `grants=` hands it host folders, each
 read-only unless it says otherwise (see *Grants*). The stdlib zip is never in a root: every call sees it read-only
-at `/usr/local/lib`. `run` also takes `env`, `stdin`, `host` (a function from
+at `/usr/local/lib`, and matplotlib's data read-only at
+`/usr/local/lib/python315.zip/matplotlib/mpl-data` (see *matplotlib in the guest*). `run` also takes `env`, `stdin`, `host` (a function from
 request bytes to response bytes, bound to the door), `snapshot` (the
 default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
@@ -2310,11 +2357,15 @@ deadline (see *Tools*, "The host's cost per frame"); timing
 
 **In the first release:** CPython, numpy, pandas, zlib, python-dateutil,
 tzdata, six, the host door, the snapshot. **Since then:** `sqlite3`, `bz2` and
-`lzma` (SQLite 3.54.1, bzip2 1.0.8, liblzma from xz 5.8.4).
+`lzma` (SQLite 3.54.1, bzip2 1.0.8, liblzma from xz 5.8.4); matplotlib 3.11.2's
+first milestone (spec 023: line plots and PNG, PDF, PS and SVG saves on Agg, with
+FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0, libraqm 0.10.5, Pillow 13.0.0's core
+with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packaging).
 
-**Out, with the one fact that decides each:** matplotlib (its data folder
-needs a decision on the guest's filesystem; then FreeType, HarfBuzz, qhull,
-kiwisolver, contourpy, Pillow); scipy (Fortran: f2c as Pyodide does; months);
+**Out, with the one fact that decides each:** matplotlib's Delaunay triangulation
+(`_qhull` needs a second carried patch, for a writable `/dev/null`) and `contour`
+(contourpy's own build), both its next milestone; pre-importing matplotlib in the snapshot
+(the owner's question 34); scipy (Fortran: f2c as Pyodide does; months);
 threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
 (`compression.zstd`: libzstd needs its own research and licence approval);
 SQLite's `load_extension` (WASI has no `dlopen`); pip inside the guest.
