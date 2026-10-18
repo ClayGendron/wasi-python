@@ -78,10 +78,21 @@ document.
 - **Asked:** 2026-10-17 (overnight). **Source:** spec 033. Both are decided in the spec as
   written below, so nothing waits.
 - **57. May it land before "the zip's directory is read once"?** Decision 44 asks for the
-  per-member cut before tier A grows the zip. Spec 033 adds only six members (+0.47 M fuel,
-  +0.19% on a plain start) and is the prerequisite tier A needs either way. Decided: yes.
+  per-member cut before tier A grows the zip. Spec 033 adds only seven members and is the
+  prerequisite tier A needs either way. Its pre-build review measured the cost on a prototype of
+  the confirmed design:
+  - a plain start: +0.54 M fuel (+0.22%);
+  - a plain `import numpy`: about +1 M;
+  - each snapshot call: about +0.15 M;
+  - the zip and the snapshot: about +21 KB and +7 KB.
+
+  Two costs that only programs asking for metadata pay are larger. On the snapshot, the first
+  metadata lookup in a process costs about 0.36 G, of which about 0.14 G is new.
+  `import numpy.testing` costs +136 M. Spec 035 cuts the lookup's directory scan (most of the
+  0.36 G), but not, as far as is known, the new 0.14 G. Decided: yes.
 - **58. Keep "no ctypes" in the `-V` banner?** After spec 033, `import ctypes` succeeds (a
-  stand-in that names the C types), but no foreign call can be made. Decided: keep the banner,
+  stand-in that names and sizes the C types and gives numpy their dtypes), but no foreign call
+  can be made. Decided: keep the banner,
   and the README says what the stand-in does.
 
 ### 59 and 60. The zip's directory is read once
