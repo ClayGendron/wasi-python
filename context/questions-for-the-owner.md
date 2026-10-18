@@ -430,6 +430,33 @@ document.
   wasi-python, or both, once the fix is released? These are outward-facing; the agent does
   neither. SECURITY.md's process applies.
 
+### 88. The public API's promise for 0.x (spec 049)
+
+
+- **Asked:** 2026-10-18. **Source:** `specifications/049-the-public-api-is-frozen.md`, Decision
+  8. It is decided in the specification as written below, so nothing waits for build. The
+  README will state the promise, so an answer is wanted before 0.1.0 is tagged.
+- **What is promised, and from when?** Spec 049 freezes the public surface: the 18 names in
+  `wasi_python`, the 8 in `wasi_python.tools`, the `wasi-python run` command and two
+  environment variables. Everything else is internal. The promise it writes, starting at 0.1.0
+  (the first final release; alphas may still change anything):
+  - a **patch** release (0.1.1) changes nothing on the public surface;
+  - a **minor** release (0.2.0) may add names, keyword-only arguments, fields placed last,
+    command options; it may remove or change only what an earlier final minor release
+    deprecated;
+  - a **deprecation** warns at use (`DeprecationWarning`), says so in the docstring's first
+    line and in the CHANGELOG, and keeps working for at least one final minor release;
+  - a **security fix** may break the surface in any release, without a deprecation, named
+    under "Security";
+  - a **looser default** still needs the owner's decision (§4.15); a tighter one may come in a
+    minor release.
+- **The other ways:** a stricter promise (one minor release is short; CPython's own rule, PEP
+  387, keeps a deprecated thing for at least two releases), or a looser one (no promise at all
+  until 1.0, which is what `0.x` means under strict semver). The agent recommends the rule as
+  written: it is the usual Python library practice for 0.x, it costs one release of warning,
+  and the snapshot check makes any change visible either way.
+- **Also the owner's:** when 1.0 comes. Spec 049 does not decide it.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
