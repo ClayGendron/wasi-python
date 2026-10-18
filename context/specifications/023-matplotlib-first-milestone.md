@@ -1,6 +1,6 @@
 # 023 — matplotlib, the first milestone
 
-- **Status:** **built 2026-10-18; awaiting its build review** (the landing notes below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
+- **Status:** **built 2026-10-18; revised against its build review (F1 to F7: six fixed, F4 the lane's rebase checklist); awaiting the reviewer's confirmation** (the landing notes below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
   (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
   for build with five definitions (A to E), now written in. Question 35 (licences, §4.12) was answered on
   2026-10-17: the whole list is approved, so it may be built.
@@ -491,3 +491,96 @@ ratchet vs 4921daffeb: lost 1 · absent 0 · unrun 0 · unrun locally 1 · gaine
   (it is not in `MANIFEST`, being under `tests/`).
 - Decision 6's two lower-than-expected growths (above): the per-member cost is spec 035's.
 - Not run here: the arm64 Linux rebuild (criterion 3) and the release dry run (criterion 5).
+
+### Revised against the build review
+
+The build review (a fresh agent, 2026-10-18; its file and evidence are under the main tree's
+`build/reviews-evidence/023-buildreview/` until the lane copies the review into
+`context/reviews/`) found the build does what this specification says and rebuilds to the same
+bytes at a third checkout path. Its verdict: lands once F1 and F2 are fixed, F3 to F7 fixed or
+answered in writing. Commits: `8500f38` (F2, F3), `93f1f54` (F1, F5), `cbac924` (F6),
+`af59f3c` (F7), and the commit carrying this section.
+
+**The judge after the fixes**, the full run (slow checks and the upstream groups included) on the
+set rebuilt from pins, with the wheel rebuilt as spec 028 builds it (52,070,398 bytes: the README
+in its description grew):
+
+```
+1417 passed, 9 skipped, 14 xfailed in 595.05s (0:09:55)
+wasi_python v1: 342/358 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1075/1082, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs 4921daffeb: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 25 · grew 85 · more 1 · judge changed: pyproject.toml, … and 29 more
+```
+
+Gained 25: the 23 above, `test_the_readme_carries_the_licences_credit_lines` (F1) and
+`test_matplotlib_finds_its_data_through_the_runner` (F7). The door-deadline check passed. The
+growth list is the one above, the same 90 metric changes on the same checks (85 growths); each
+fuel figure moved by under 16,000 instructions against the earlier run (the upstream groups by up
+to 0.00001%), within the judge's tolerance. Nothing new grew.
+
+## Disposition (filled in by the builder, for the reviewer's confirmation)
+
+Of the build review's seven findings (`build/reviews-evidence/023-buildreview/023-matplotlib-first-milestone-2026-10-18.md`
+in the main tree), six are fixed here, each with a check seen failing on its mutant, and one (F4)
+is answered: it is the lane's checklist for a rebase that has not happened yet. The branch is not
+rebased: main is frozen for code until the 0.1.0a5 tag.
+
+1. **F1, FreeType's credit line: fixed** (`93f1f54`). The README, which is the wheel's long
+   description, now says in *matplotlib in the guest*, as `docs/FTL.TXT` asks: "Portions of this
+   software are copyright © 2026 The FreeType Project (https://freetype.org). All rights
+   reserved." The year is 2026, the latest year FreeType 2.14.3's headers name (the review,
+   READ). A new rules check, `test_the_readme_carries_the_licences_credit_lines`
+   (`scan.credit_errors`), fails while a `freetype-*` file is pinned and the README lacks the
+   sentence (line breaks and a blockquote's `>` read as spaces). EXECUTED: with `©` written `(c)`
+   the check failed; with the line it passes.
+2. **F2, the constructor list compared as a set: fixed** (`8500f38`).
+   `constructors.list_errors` counts each name (`Counter`), then compares the order;
+   `REVIEWED_CONSTRUCTORS` is now in link order (`init`, `__wasilibc_initialize_environ_eagerly`,
+   `_GLOBAL__I_000100`, `_mi_process_init`, `register_builtin_extensions`,
+   `_GLOBAL__sub_I_kiwisolver.cpp`, `__cxx_global_var_init`, `__cxx_global_var_init.5`,
+   `_GLOBAL__sub_I_unique.cpp`). EXECUTED with the review's own `ctor_mutant.py` on the real
+   binary: one more `__cxx_global_var_init` gives `__cxx_global_var_init: a static constructor no
+   review has read (1 more than reviewed)`, one more `_GLOBAL__I_000100` the same for it; the real
+   list gives none. `tests/unit/test_constructors.py` holds both mutants, a new and a missing
+   name, and another order. Step 60 runs the same function, so the build stops on them too.
+3. **F3, the parser-rule exemption: fixed** (`8500f38`). A single definition at table index 1 to
+   20 is skipped only when the name section names the function there `*_rule` or `_PyPegen_*`;
+   any other function there, or a module without names, is checked as a method. Two unit checks:
+   at index 1 a function named `_tmp_6_rule` is skipped; one named `handler` or `_rule_handler` is
+   a finding, also with the names cleared. EXECUTED: with the guard removed both mutant cases fail
+   (2 failed); with it, 12 pass with the real binary's scan
+   (`test_callbacks_have_the_types_cpython_calls`, still 1,989 singles). The member rule's older
+   assumption (type codes 0 to 20 against table indices) is unchanged: a member array is found
+   by its shape before any table, and the module docstring states its cost; guarding it the same
+   way would change spec 051's scan beyond this finding, so it is left to a later change.
+4. **F4, the rebase: answered.** Not done; the lane says when. Its checklist, as the review lists
+   it: the CHANGELOG entry moves from `0.1.0a5 — unreleased` to the next unreleased section;
+   `runner.py` is merged with spec 054's `_run_checked` and preopen list, the order kept as zip,
+   then matplotlib's data, then the import-path entries, and
+   `test_matplotlib_data_is_granted_read_only`, `test_usr_local_lib_holds_only_the_zip`,
+   `test_matplotlib_finds_its_data_through_the_runner` and 054's checks run on the merge; spec
+   049's API check (`tests/harness/api.py --check`) sees `MPL_DATA_MEMBER`, `MPL_DATA_GUEST` and
+   the new private functions as internal names (the README names none of them in code spans);
+   the README's facts table is merged by hand. After the rebase the full judge runs again.
+5. **F5, stale documents: fixed** (`93f1f54`). The README's build row is 8 min 13 s with its source
+   (a clean clone, spec 023's landing notes); the README's first line, `pyproject.toml`'s
+   `description` (a judge change) and the package docstring say numpy, pandas and matplotlib. The
+   extraction time is in a dated research memo,
+   `context/research/2026-10-18-matplotlib-data-extraction-time.md`, with the script and both
+   runs (median 89.6 ms in the landing notes' run, 77.9 ms in the memo's at load 22; the per-call
+   comparison 2.4 and 2.7 ms).
+6. **F6, an unchecked binary left in `build/out/`: fixed** (`cbac924`, with the new file in
+   `8500f38`). Step 60's gate is now `check_constructors` in `scripts/steps/constructors.sh`,
+   sourced by step 60: a binary that fails is removed before the step stops. A unit check runs the
+   function with a stand-in check that passes and one that fails; with the `rm` disabled the
+   failing case fails (EXECUTED).
+7. **F7, matplotlib through `wasi_python.run`: fixed** (`af59f3c`).
+   `test_matplotlib_finds_its_data_through_the_runner` runs `import matplotlib` through the real
+   runner (`root=True`) and asserts `get_data_path()` is the granted path, its `fonts/ttf` holds
+   the 40 fonts and `matplotlibrc` is read from there (backend `Agg`). EXECUTED: it fails on main's
+   set and passes on this one; about 0.5 s.
+
+Step 60's script changed and a recipe was added, so the set was rebuilt from pins (6 min 45 s):
+`python.wasm`, the snapshot and the zip are byte for byte the reviewed ones (`e0224891…`,
+`8eb9e357…`, `16ee747c…`); only `MANIFEST` changes (`01fbade7…`: the new recipe line for
+`scripts/steps/constructors.sh` and step 60's hash). The growth list is unchanged (below).
