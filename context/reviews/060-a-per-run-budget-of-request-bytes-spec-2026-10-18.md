@@ -1,0 +1,334 @@
+# Review of 060 — A per-run budget of request bytes, and N8 (the specification, before build)
+
+- **Date:** 2026-10-18
+- **Reviewer:** a fresh agent (Claude Opus 5.5), not the author. I wrote none of the spec, the
+  memo or the code. I read `AGENTS.md`; the constitution (§4.15 in its own words, §5.2, §5.6);
+  specs 049 (Decisions 8 and 13), 053, 055 (not landed) and 056 (Decision 4); the 0.1.0a4
+  security review (F3, and its Confirmation's item 2, N8) and its a5 addendum, under
+  `build/reviews-evidence/a4-security/` in the main tree; 053's pre-build review, for the shape;
+  and the code the spec changes (`tools.py`: `_ToolHost.__init__`, `admit`, `__call__`,
+  `_answer`, `_parse`, `_nesting`, `_decoded`, `_bound_keywords`, `_type_hints`, `_derived`,
+  `_make`; `runner.py`: `Defaults`, `_integer_limit`, `_checked`, `_check_tools`, `_door`,
+  `_tool_host`, `stats`; `recipes/guest/host/tools.py` and `__init__.py`; the README's *Tools*,
+  the kinds table and *Not protected*; `tests/public_api.txt`;
+  `tests/checks/test_v1_4_public_api.py::test_set_defaults_changes_what_run_reads`). Each claim
+  is labelled EXECUTED, READ or INFERRED.
+- **Reviewed:** `spec/060-a-per-run-budget-of-request-bytes` at `4111588`, on main `5e66995`
+  (`git diff 5e66995..4111588`): the spec, the memo
+  `research/2026-10-18-a-per-run-budget-of-request-bytes.md` and its evidence folder. The diff
+  touches only `context/` (READ).
+- **Ran (EXECUTED, darwin-arm64, CPython 3.14.2, and 3.11.14 where named; wasmtime-py 49.0.0;
+  the frozen set `build/sets/s-c4190ca065ada03a`, read only).** Nothing was written in either git
+  tree; probes ran from the worktree's existing `.venv`, with `src/` identical to main. Scripts
+  and outputs sit in `probes/` beside this file:
+  - `p1_shapes.py` → `p1_shapes.txt`: host CPU per ~1 MiB admitted frame, 17 shapes (the memo
+    had 5).
+  - `p2_n8.py` → `p2_n8_py314.txt`, `p2_n8_py311.txt`: N8 on main, and Decision 8's walk,
+    written from the Decision's words (not copied from the memo's probe), over 28 callables.
+  - `p3_budget_run.py` → `p3_budget_run.txt`: the Design's `admit` sketch as a monkeypatched
+    prototype, driven through `run`: criterion 3 frame by frame, an async tool, a gate, frames
+    sent after `budget_exceeded`, and a flood of `list` frames.
+  - `p4_list_cost.py` → `p4_list_cost.txt`: host CPU per `list` frame by the tool list's size.
+  - `p5_metaclass_fix.py` → `p5_metaclass_fix.txt`: Decision 8's walk plus one rule for a class
+    hop, over P2's 28 cases.
+  - `fast_tier.txt`: `uv run pytest -m "not slow" -n 3` in the worktree, without `--accept`
+    (the scoreboard; see the end).
+
+## What holds
+
+- **The budget is checked before a byte is read (READ, EXECUTED).** `_door` calls
+  `admit(length)` after the address checks and copies the frame only when `admit` returns
+  `None` (`runner.py`, `_door`). Under the prototype, frames refused by the budget never reached
+  `_ToolHost.__call__`: 60 frames of 1,000,071 bytes gave 16 reads and 44 `budget_exceeded`
+  (P3, "after"). So frames sent after `budget_exceeded` cost only `admit` (the memo's 2.85 µs),
+  and `max_tool_calls` still bounds how many.
+- **What it counts is the cost F3 names.** Every frame `admit` lets through is parsed, whatever
+  the answer: P1's `protocol` frames (bad JSON at the end, an unknown op) cost 0.06 to 0.24 s per
+  MiB, and all of them are admitted, so all would spend. Counting admitted lengths, not claimed
+  ones, is right: the judge already sends a frame that claims 1 GiB (memo, `tally060.txt`).
+- **No bypass through async tools or gates (EXECUTED P3, READ).** An async tool's frame takes the
+  same `admit` → `__call__` → `_parse` path; the prototype refused its third 400,072-byte frame
+  exactly as for a sync tool (`[300000, 300000, 'budget', 2]`, 4 reads). A gate runs only after
+  the parse, on an admitted frame, so a denied call has already spent its bytes (P3: `denied`
+  with 400,071 request bytes). The raw path (`host(frame)` with nothing pending) admits in
+  `__call__`, so it counts the same way.
+- **The worst shape still holds (EXECUTED P1).** Of 17 shapes, the memo's empty objects under
+  `Any` is still the worst, 0.317 s/MiB here. Next: `[[]]` (0.280), `{"":0}` (0.296),
+  `list[int]` zeros (0.245), `list[float]` (0.218), unique keys under `dict[str, int]` (0.236).
+  Invalid UTF-8 costs nothing; one long escaped string, 0.03 to 0.07. So "about 5 s here, about
+  10 s on the review's Mac" for 16 MiB stands.
+- **The default is sound.** No legitimate path the judge drives comes near it (the memo's
+  tally: 63,300 bytes at most through `run`). A frame is already capped at 1 MiB, and `bytes`
+  cross as base64 (READ, `recipes/guest/host/tools.py:78`), so a 300,000-byte argument is a
+  400,071-byte frame (P3). A guest that sends a big dataframe through a tool must already chunk
+  it into frames under 1 MiB; 16 MiB is 16 such chunks, about 12 MB of binary. The README's
+  recipes send tens of bytes. The rejected 4 MiB and 64 MiB are argued correctly. I agree with
+  16 MiB.
+- **§4.15 is read correctly (READ).** Its words: "Every limit has a default (memory, time,
+  output) … A change that loosens a default needs the owner's decision, not only a review."
+  This adds a limit with a default and loosens nothing, so no owner's decision is needed. The
+  spec's paraphrase ("asks the owner only for a looser default") is faithful.
+- **The failure path is consistent (READ, EXECUTED P3).** `budget_exceeded` is an existing kind
+  in the snapshot's `outcome kinds`; the guest maps it to `ToolBudgetExceeded`
+  (`recipes/guest/host/tools.py:37`) and keeps no "used up" state, so a later frame that fits
+  is answered (P3: the fourth call, `b"ab"`, returns 2). The record's refusal is like
+  `admit`'s others (`op=None`, `tool=None`, the claimed length). `stats()` keeps no per-run tool
+  counts (READ), so it does not change. The order in `admit` (frames, then 1 MiB, then bytes) is
+  right, and criterion 1's stand-in (d) pins it.
+- **Spec 049 (READ).** The four snapshot lines match the file's format and places
+  (`tests/public_api.txt` lines 23, 117, 138, 147). The keyword is placed last in `run` and
+  `run_async`, the field last in `Defaults` with a default. The `TypeError` without `tools=`
+  mirrors `max_tool_calls`. Reading the field from the `limits` that `_checked` already passes
+  to `_check_tools` keeps one read per call, and stand-in (g) is caught by
+  `test_set_defaults_changes_what_run_reads` (it counts `_current_defaults` calls through `run`
+  and `run_async` with `tools=`).
+- **N8 is real and Decision 8 closes it (EXECUTED P2).** On main, depth 2, 3 and 5 publish
+  `api_key`, `limit` and `user_id`, with the secret in the descriptor; under the walk, `limit`
+  only, with `api_key` and `user_id` fixed. The same on 3.11.14. Of the other cases, none
+  changes: a function, a partial, nested partials, a partial subclass with its own `__call__`, a
+  callable object, a bound method, a `MethodType` over a partial, a dict subclass with
+  `__call__`, a classmethod `__call__`, a property `__call__`, an instance-level `__call__` (with
+  and without a class `__call__`), `__signature__` set, `lru_cache`, `singledispatch`,
+  `operator.itemgetter`, `operator.methodcaller`, `len` and `str.upper`. The C-slot stop is
+  needed and sufficient for those. Cycles of one and two objects end with the walk's
+  `TypeError`.
+
+## Acceptance criteria against the design
+
+1. Sound in shape, with two gaps: "whatever the answer" is not tested, and one frame's length
+   must be positive (F3 (a), (d)).
+2. Sound. Stand-ins (e), (f) and (g) are each caught (READ). The builder must keep the existing
+   four-argument calls of `_check_tools` working (F3 (e)).
+3. Sound as an outcome check, and the expected output is right (EXECUTED P3: under a 1,000,000
+   budget, `[300000, 300000, 'budget', 2]`, outcomes `list ok, call ok, call ok, None
+   budget_exceeded, call ok`, the tool ran 3 times, admitted 800,243 bytes; under the default,
+   `[300000, 300000, 300000, 2]`). But its claimed failure under stand-in (c) depends on where
+   the mutant puts the check, and the wire sizes are not given (F3 (b), (c)).
+4. Sound for N8. It misses the metaclass hop (F2).
+5. to 7. Sound.
+
+## Findings, most severe first
+
+1. **F1. `list` frames cost the host in proportion to the tool list, not to request bytes, and
+   the spec says the guest does not choose that cost. Medium; write in (a fix, or the bound
+   stated).** (Scope's "Answer bytes"; Decision 11's *Not protected* rewrite; EXECUTED P3, P4.)
+   - Each `{"op":"list"}` frame is 26 bytes. `_answer` encodes the full descriptor list again for
+     each one, on the door's thread, holding the GIL (READ, `_answer`: `_encode(body)` per frame),
+     and the door then copies the answer into guest memory.
+   - Per `list` frame, the frame host alone (P4): 0.05 ms with 5 tools (13 KB list); 1.10 ms with
+     100 tools (448 KB); 4.37 ms with 300 (1.9 MB); 21.95 ms with 1,000 (10.5 MB). At the default
+     1,000 frames that is up to 1.1 s, 4.4 s and 22 s of host CPU, for 26 KB of request bytes,
+     which the budget never sees. Through `run` with 100 tools and `max_tool_calls=None`, 5,000
+     list frames took 6.07 s of process CPU for 130,000 request bytes (P3).
+   - So Scope's reason ("an answer is made by the embedder's own tool … the guest does not choose
+     its cost") is wrong for `list`: the embedder chose the list's size, but the guest chooses
+     how often it is encoded. And Decision 11's new *Not protected* text ("up to the call's
+     request-byte budget") would overclaim. The same is true, to a smaller degree, of the fixed
+     cost per admitted small frame (about 20 µs) and per refused frame (about 3 µs): both are
+     bounded by `max_tool_calls`, and with `max_tool_calls=None` only by the deadline.
+   - **Failure:** an embedder offering a large tool set (an MCP adapter in front of a big server)
+     lowers `max_tool_request_bytes` for untrusted guests, reads the README, and believes host
+     CPU is bounded by it. A guest spends seconds of GIL-held CPU per run on `list` frames.
+   - **Fix (preferred, small, in `src/` only):** encode the list once per frame host. The body
+     differs per frame only in `id`, so keep the encoded tools array and splice it, or cache the
+     whole answer per `id`. A list frame then costs about a small frame's 20 µs, and
+     `max_tool_calls` bounds it like any small frame. A unit counts `_encode` calls: one for many
+     `list` frames. **Or, if kept out of scope:** say so in Scope with the right reason and bound
+     (`max_tool_calls` × one encode of the list), and make Decision 11's *Not protected* and
+     "host's cost per frame" text name both limits: request bytes by the budget, frame count
+     (and so `list` answers and fixed costs) by `max_tool_calls`.
+2. **F2. Decision 8 does not "stop where `inspect` stops" at a class: a metaclass's `__call__`
+   still publishes a partial's bound values. Low; write in.** (Decision 8, the Intent's
+   "however deep", criterion 4; EXECUTED P2 and P5, on 3.14.2 and 3.11.14.)
+   - For a class, `inspect.signature` reads a user-defined metaclass `__call__` first (then
+     `__new__`, then `__init__`). `_type_hints` also reads `type(cls).__call__`. The walk stops
+     at any class (`isinstance(target, type)`).
+   - Case: `class Meta(type): __call__ = staticmethod(p)`, with `p = partial(orders, user_id=42,
+     api_key=SECRET)` and `orders`' annotations copied onto `p` (a partial has a `__dict__`);
+     `tool(Orders)` for `class Orders(metaclass=Meta)`. On main and under Decision 8's walk: props
+     `['api_key', 'limit', 'user_id']`, fixed `[]`, the secret in the descriptor (P2). It is
+     N8's own class of construction (one hop, grafted annotations), so it is as unlikely as N8.
+     But the spec sets out to close the class, and its Intent promises it.
+   - **Fix:** treat a class like any other hop. Drop `isinstance(target, type)` from the stop
+     list and let the class reach the `type(target).__call__` step, which stops at once for an
+     ordinary class (`type.__call__` is a slot wrapper) and follows a user-defined metaclass
+     `__call__`. P5 ran exactly that: the metaclass case then publishes `limit` only and fixes
+     `api_key` and `user_id`, and the other 27 cases are unchanged. (A class's `__init__` or
+     `__new__` partial needs no rule: without a metaclass `__call__`, a class's hints do not read,
+     so `tool()` refuses it unless `input_schema=` is given, and then no default is published;
+     P2's "class with partialmethod `__init__`" row.) Add the metaclass case to criterion 4, with
+     a stand-in (k): the walk stops at a class (the case leaks).
+3. **F3. Criteria that a wrong build could pass, or that read wrong. Low-medium; write in.**
+   (Criteria 1 to 3; EXECUTED P3, READ.)
+   - (a) **"Whatever the answer" is untested.** Every frame in criterion 1 can be a valid call.
+     A build that refunds bytes for a frame answered `protocol`, or counts only frames that
+     parse, passes. Add: the first 600-byte frame is not JSON (answered `protocol`, 1 parse), and
+     `admit(401)` is still refused. Stand-in (l): no bytes counted for a `protocol` answer.
+   - (b) **Criterion 3 does not catch stand-in (c) as claimed.** If the mutant checks the budget
+     in `__call__` before `_answer`, the refused outcome still has `op is None` and the guest's
+     output is the same; only a mutant that checks after the parse gives `op == "call"`.
+     Criterion 1 still catches (c), so this is no hole overall, but the claim is wrong. Fix:
+     criterion 3 counts frames read by wrapping `_ToolHost.__call__`: 4 under the budget
+     (`[26, 400071, 400071, 75]` in P3), 5 under the default.
+   - (c) **Say the wire sizes.** Three 300,000-byte arguments look like 900,000 bytes, under the
+     1,000,000 budget. They are 400,071 bytes each on the wire, as base64 in a `$bytes` object, so
+     the third is refused. One sentence saves the builder and the build reviewer a doubt.
+   - (d) **A zero-length frame passes every budget.** `0 + 0 > 0` is false, so with
+     `max_calls=1, max_bytes=0`, a frame 1 of length 0 is admitted. Criterion 1 must give frame 1
+     a positive length. Decision 4's "0 refuses every frame" should read "every non-empty frame"
+     (an empty frame costs one failed decode); or the rule refuses everything at 0. Either is
+     fine; the text and the build must agree.
+   - (e) **Existing calls of `_check_tools`.** `tests/unit/test_runner_tools.py:162-167` calls it
+     with four positional arguments. The new parameter needs a default and must not take
+     `limits`' place (keyword-only is safest). Otherwise the builder must edit a judge file to go
+     green, which AGENTS.md rule 4 forbids without its own reason.
+4. **F4. The 055 hand-off has no reader if 060 lands first. Low; write in.** (Decision 7.)
+   055's rule covers "every argument of `run`", but its list of "how each applies is decided
+   here" names only 053 and 054, and its per-turn table lists `max_tool_calls` without this
+   one. 055's builder reads 055, not 060. Fix: 060's landing adds one bullet to 055's rule list
+   and the word `max_tool_request_bytes` to its `max_file_calls, max_tool_calls` row ("per turn,
+   set once on the session", 060 Decision 7). That is a spec edit, not a judge change. If 055
+   lands first, 060's builder does the same in `Session`. INFERRED: without it, a session still
+   gets the default per turn through `_checked`, so nothing is unsafe; only the knob is missing.
+5. **F5. The 049 rules cited for the CHANGELOG. Note.** (Decisions 2, 9 and 11.) 049's exception
+   1 (a tighter default) is a "Changed" line; exception 2 is a "Security" line. The spec invokes
+   both and writes only Security. Before 0.1.0 either is allowed; for the record, cite
+   exception 2 alone (it is the honest one: the default does not "keep today's behaviour", which
+   the minor-release rule otherwise asks of a new keyword), or add the Changed line too.
+6. **F6. Decision 8 also fixes a crash on main. Note; say so.** (EXECUTED P2.) On 3.14.2,
+   `tool()` on a `__call__` cycle raises `RecursionError` out of `inspect.signature`, which
+   `_derived` does not catch; its docstring promises `TypeError` or `ValueError`. On 3.11.14 it
+   is a `TypeError` from `_type_hints`. Under the walk both are the walk's `TypeError`. Name it in
+   Decision 8 and the CHANGELOG bullet, and note that criterion 4's cycle case is "seen failing on
+   main" by type on 3.14 and by message on 3.11.
+
+## Constitution checks
+
+- **§4.15:** holds. A new limit with a default; nothing loosened (its words quoted above). With
+  F1 fixed or stated, the README describes the bound truthfully.
+- **§4.4:** holds. No import, no export, no new kind; the door is unchanged; refused frames are
+  never read.
+- **§4.9 / AGENTS.md "tests count operations":** holds. The criteria count parses, frames,
+  outcomes and tool runs; times are benchmark facts in the memo only.
+- **§5.2:** holds. Every choice is decided; 055's interaction is decided (F4 is about who reads
+  it). Nothing waits on the owner.
+- **§5.6:** a pre-build review is not required (no import, export, artifact or recipe change);
+  this one was asked for, as for 053.
+- **049, Decision 13:** holds. The Kind line says "changes the public API"; the four lines and
+  their rules are listed; `--write` and `--accept-judge` are named.
+- **Build class:** none. `src/`, `tests/`, `README.md`, `CHANGELOG.md` only (READ, Kind line);
+  the guest docstring change is rightly left to the next guest change.
+- **§7:** nothing tripped. The probes are my own.
+
+## Scoreboard
+
+`uv run pytest -m "not slow" -n 3` in the worktree, against the frozen set, without `--accept`:
+1431 passed, 18 skipped in 2 min 17 s; `wasi_python v1: 315/364 pass · 0 gap · 10 blocked ·
+0 fail` (unit suite 1116/1124, 8 skipped; v1.4 157/157); ratchet vs `588ec65390`: lost 0, grew
+0 (EXECUTED, `probes/fast_tier.txt`). The diff touches only `context/`, so this is main's
+state, and the worktree stayed clean (`git status`). The full judge was not run: no code
+changed.
+
+## Verdict
+
+**Ready to build once F1 to F4 are written in.** F5 and F6 are a sentence each. The design is
+right: it counts the cost F3 names, decides it before a byte is read, fails the way the frame
+limit fails, takes a sound default, and changes the API by 049's rules. The N8 walk closes N8
+without moving any ordinary callable. What is missing is honesty about the one guest-driven cost
+the budget cannot see (`list`), one more hop for N8 (a metaclass), and criteria tight enough
+that a refund or a misplaced check cannot pass.
+
+## One line
+
+Right budget, right place, right default; but cache or state the `list` cost, follow a
+metaclass's `__call__`, and tighten three criteria before building.
+
+## Confirmation of 060's revision (addendum to the pre-build review)
+
+- **Date:** 2026-10-18
+- **Reviewer:** the same fresh agent that wrote the pre-build review beside this file
+  (`060-a-per-run-budget-of-request-bytes-spec-2026-10-18.md`). Not the author.
+- **Reviewed:** `git diff 4111588 d1021ad` on `spec/060-a-per-run-budget-of-request-bytes`. It
+  touches the spec, the memo's new addendum, and `list_splice_060.py` / `.txt` (READ). I read
+  the whole revised spec, its "Disposition of the pre-build review" section, and the memo's
+  addendum and splice probe.
+- **Ran (EXECUTED, darwin-arm64, CPython 3.14.2):** `probes/p6_confirm.py` →
+  `probes/p6_confirm.txt` (the run's full output, P5's table included, is in `p6_full.txt`). It
+  runs from the worktree's existing `.venv`. Nothing was written in either git tree. No judge run
+  was needed: the revision touches only `context/`, so the earlier fast-tier result (main's
+  state) still stands.
+
+## Each finding
+
+1. **F1: confirmed fixed.** Decision 12 now encodes the descriptors array once per frame host
+   and splices in the `id`. Scope no longer says the guest does not choose an answer's cost. The
+   Problem, the Intent and Decision 11's README text for *The host's cost per frame* and *Not
+   protected* now name both limits and what each bounds. They claim nothing for the byte budget
+   beyond parsing. That is the bound I measured.
+   - **The splice gives the same bytes as today (READ, EXECUTED).** `_encode` is
+     `json.dumps(..., ensure_ascii=True, allow_nan=False, separators=(",", ":"))` with no key
+     sorting. So `{"v":1,"id":<id>,"ok":true,"tools":<array>}` is byte for byte `_encode` of the
+     body. P6 checks this for `id` 0, 1, `_MAX_ID` and `null`. Its descriptions hold non-ASCII
+     text, U+2028, quotes, a backslash and an astral character. An empty tool list matches too.
+     The memo's probe checks an integer and `null`.
+   - **Criterion 5 is strong enough.** It counts `_encode` calls: one for five `list` frames,
+     against five on main. It compares each answer byte for byte. It keeps `too_large` on every
+     `list` frame. Stand-in (m) is caught by the count, and stand-in (n) by the byte comparison.
+     *Note:* "once, at its first `list` frame" rules out encoding when the frame host is built,
+     where the count would read 0. The Decision says this, so the builder is bound by it.
+2. **F2: confirmed fixed.** Decision 8 drops classes from the list of places the walk stops, and
+   the Design says the same. Criterion 4 adds the metaclass case, the empty result for an
+   ordinary class, and stand-in (k).
+   - P6 tried four more class hops. An `Enum` class (`EnumType.__call__` is a Python function), a
+     dataclass and a `NamedTuple` describe exactly as on main.
+   - A metaclass whose `__call__` is a `partialmethod` was already refused on main, because its
+     hints do not read. It is still refused, now earlier, with the walk's `partialmethod`
+     message. So no tool that main accepts is newly refused.
+   - P5's 27 other callables, re-run inside P6, are unchanged.
+3. **F3: confirmed fixed, all five parts (READ).**
+   - (a) Criterion 1 opens with a 600-byte frame that is not JSON. It is answered `protocol` and
+     still spends its bytes. Stand-in (l) covers a build that refunds them. Decision 1 says "No
+     answer refunds bytes."
+   - (b) Criterion 3 wraps `_ToolHost.__call__` and counts the frames read: 4 under the budget,
+     5 under the default. Stand-in (c) now rests on that count.
+   - (c) The wire sizes are given: 400,071 bytes per 300,000-byte argument, 26 for discovery, 75
+     for `b"ab"`. The sums are right: 800,168 bytes after two calls, and 800,243 bytes for the
+     four frames read, as P3 measured.
+   - (d) Frame 1 is 26 bytes long. The case of an empty frame under `max_bytes=0` is pinned.
+     Decisions 1 and 4 say "every non-empty frame".
+   - (e) Decision 5 makes the `_check_tools` keyword keyword-only, with a default, after
+     `limits`. The no-tools result keeps its three keys, and `_tool_host` reads the key with
+     `.get`. This matches the existing calls I cited, and criterion 6 forbids editing any judge
+     file.
+   - *Nit, no action needed:* criterion 3's stand-in (c) says "the door read the fourth large
+     frame". It is the third large call (the fourth frame overall). The count of 5 is right
+     either way.
+4. **F4: confirmed fixed.** Decision 7 says who carries the knob in either order. If 060 lands
+   first, it gives the exact bullet and table cell for 055's text. If 055 lands first, it names
+   the `Session` keyword, the `Args:` entry, the snapshot line and a unit with its stand-in.
+   Criteria 6, 8 and 9 and the Design follow. The fifth snapshot line falls under the same 049
+   rule as Decision 9's, and criterion 6 allows it ("five if 055 has landed first").
+5. **F5: confirmed fixed.** Decisions 9 and 11 now give two CHANGELOG lines: a Security line
+   (049, Decision 8, exception 2) and a Changed line (exception 1). Each cites its exception.
+6. **F6: confirmed stated.** Decision 8 names the 3.14 `RecursionError`, and the Security entry
+   says the walk turns it into the promised `TypeError`. Criterion 4 says how the cycle case
+   fails on main on each Python version.
+
+## Constitution checks
+
+No change from the review. §4.15 holds: one new limit with a default, and nothing loosened. The
+tool-list fix only makes a cost smaller and changes no default. §4.4 holds: the wire is
+unchanged, byte for byte. No check measures time: criterion 5 counts encodes, and the splice's
+timings sit in the memo as benchmark facts. The work is not build-class. The edit to 055's text
+is a context change, not a judge change.
+
+## Verdict
+
+**Confirmed.** All six findings are answered correctly. The two design changes (the splice and
+the class hop) held when I ran them, and the criteria now catch the wrong builds I named. 060 is
+ready to build.
+
+## One line
+
+Confirmed: the list is encoded once with the same bytes, a metaclass hop is closed with nothing
+else moved, and the criteria are tight.
