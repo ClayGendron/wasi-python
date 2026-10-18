@@ -1,6 +1,6 @@
 # Upstream 5: pandas' Styler from a zip archive
 
-Status: **patch drafted; the pull request's description is the owner's to write** (pandas'
+Status: **patch drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's, in the owner's words** (pandas'
 automated contributions policy, see `pr.md`). Nothing was posted. Carried by spec 041 once built.
 
 ## How it was found
@@ -10,6 +10,8 @@ The default-profile memo ran jinja2 in the guest and saw `df.style` and `df.to_l
 it a known gap with a check; spec 041 closes it with this patch.
 
 ## The fix
+
+When spec 041 is built, `fix.patch` is copied byte for byte to `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moves unchanged to `context/upstream/patches/`. This folder then keeps these notes and `evidence/`.
 
 `fix.patch` (1 file, +6 −1): `StylerRenderer` keeps `FileSystemLoader` when its `templates`
 folder is a directory, and uses `jinja2.PackageLoader("pandas", "io/formats/templates")` when it

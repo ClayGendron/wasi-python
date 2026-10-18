@@ -1,13 +1,16 @@
 # 041 — Files read by path from the zip
 
-- **Status:** drafted 2026-10-17. It changes the build recipe and the artifact set, so it is
-  reviewed once more before it is built (constitution §5.6). It is build-class: it touches
-  `scripts/`, `recipes/patches/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It
-  carries two upstream patches (§4.1), so the pre-build review reads both patches and both pull
-  request drafts (spec 020, Decision 8).
+- **Status:** drafted 2026-10-17. Revised the same day against its pre-build review
+  (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
+  written in here and in the two upstream folders, and the review's Disposition says where. The
+  review's confirmation is pending. It changes the build recipe and the artifact set, so it is
+  reviewed before it is built (constitution §5.6). It is build-class: it touches `scripts/`,
+  `recipes/patches/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries two
+  upstream patches (§4.1), so the review reads both patches and both drafts (spec 020,
+  Decision 8).
 - **Owner:** Clay Gendron
 - **Kind:** two carried patches (`recipes/patches/pandas-3.0.6/`, `recipes/patches/networkx-3.7/`)
-  with their pull request drafts; the build recipe (networkx's pin moves from its wheel to its
+  with their upstream facts sheets; the build recipe (networkx's pin moves from its wheel to its
   sdist in `downloads/SHA256SUMS` and `scripts/00_download.sh`; `scripts/steps/70_zip.sh`;
   `scripts/make_stdlib_zip.py` gains `--entry-points`; `scripts/assemble_artifacts.py`); judge
   additions and changes (one golden job, the two known-gap checks of spec 039 widened and their
@@ -45,11 +48,17 @@
     zip (3,791 members), with and without the two members compiled from the patched sources by
     step 70's own `pyc` under the line's Python 3.15.0; natively on CPython 3.15.0 with the same
     versions; networkx's own tests on the patched sdist with pytest 8.4.2;
-  - pandas' and networkx's contributor policies on automated contributions (READ, their
-    contributor guides, 2026-10-17).
+  - pandas' and networkx's contributor policies on automated contributions (READ 2026-10-17):
+    - pandas: the contributor guide's "Automated contributions policy" and its issue rules,
+      `AGENTS.md`, and `.github/PULL_REQUEST_TEMPLATE.md`;
+    - networkx: `CONTRIBUTING.rst`, with its note addressed to AI tools, and `AGENTS.md`;
+    - the related issues pandas#38775 and #39733 and networkx#3929, #6936 and #7033.
 
-  The evidence is in `../upstream/5-pandas-styler-from-a-zip/evidence/` and
-  `../upstream/6-networkx-atlas-from-a-zip/evidence/`.
+    The files were read on `main` with `gh api`, and the issues with `gh issue view`.
+
+  The evidence is in `context/upstream/5-pandas-styler-from-a-zip/evidence/` and
+  `context/upstream/6-networkx-atlas-from-a-zip/evidence/`. The pre-build review's own runs
+  repeat and extend it (its "Ran" list).
 
 ## The problem
 
@@ -73,17 +82,34 @@ as known gaps and names this specification as their closer.
 
 ## Decisions
 
-1. **Both are fixed in the packages' own source, as carried patches (§4.1).** A recipe was
+1. **Both are fixed in the packages' own source, as carried patches (§4.1).** §4.1 prefers a
+   recipe file, a stand-in module included. A recorded recipe under `recipes/` is no hidden
+   source change: spec 035 replaces stdlib functions at run time that way. So a recipe was
    looked for first (§4.1, §6.2), and none fits:
-   - **Templates or the atlas as files beside the zip.** Rejected. The path pandas computes is
-     inside the zip's own file name, so no folder can exist there. Loose files would also add to
-     the artifact set, which is the product (§4.6).
-   - **A stand-in module for jinja2's loader, or a recipe that swaps `StylerRenderer.loader`
-     after import.** Rejected. It changes upstream behaviour at run time without changing the
-     source, so it hides a source change from the tree check, the `MANIFEST` and the CHANGELOG.
-     §7 forbids exactly that. Spec 035's run-time replacements are different: they replace
-     whole stdlib functions with ours, and judge checks prove the results equal upstream's
-     (question 60).
+   - **Templates or the atlas as real files the loader can find.** Rejected. The path pandas
+     computes lies inside the zip's own file name. A plain folder cannot exist there. A folder
+     preopened at exactly `/usr/local/lib/python315.zip/pandas/io/formats/templates` could
+     satisfy `FileSystemLoader` (INFERRED: wasi-libc resolves a path against the preopen with
+     the longest matching prefix). But:
+     - the runner refuses such a grant, because the path is inside the runtime's own folder
+       (EXECUTED by the review: "is the runtime's own (/usr/local/lib)");
+     - shipping it would add loose files to the artifact set (§4.6);
+     - it would add a second runtime preopen to every embedder's contract (§2.4);
+     - it would not help networkx.
+   - **A run-time recipe.** Rejected, on §6.2's and §6.4's grounds.
+     - **Swapping `StylerRenderer.loader` after import cannot work at all.** The failure is
+       raised inside `StylerRenderer`'s class body, at `env.get_template("html.tpl")`
+       (`style_render.py`, line 78), during the import itself (EXECUTED: the drafting run's
+       traceback and the review's). The import fails before any swap could run.
+     - **A recipe that would work is wider than the patch.** It would either replace
+       `jinja2.FileSystemLoader` for every user of jinja2 before pandas imports it, or rewrite
+       pandas' module at import. For networkx it would replace the private `_generate_graphs`
+       with a copy of upstream's code.
+     - **Spec 020 would not see it.** Its tree check would not cover such a recipe.
+     - **It would have no exit.** No upstream release would ever let it be deleted.
+
+     A carried patch is the smallest change. It is checked against its tarball, and it leaves
+     once upstream releases the fix.
    - **Giving 035's `Traversable` an `__fspath__` or a `read`, so that `gzip.open` takes it.**
      Rejected. `os.fspath` would give a path no `open` can read. A `read` attribute would make
      `gzip.open` treat the path object as a stream; it would also differ from `zipfile.Path`,
@@ -91,8 +117,27 @@ as known gaps and names this specification as their closer.
    - **`importlib.resources.as_file`.** Rejected. It copies the resource to a temporary file,
      and with nothing writable by default there is no temporary folder (spec 025, §4.15).
 
-   Each fix is a few lines, correct on every install, and wanted upstream, so each is carried as
-   a patch with its pull request drafted, and deleted once a pinned release carries it.
+   Each fix is a few lines, correct on every install, and an upstream bug. So each is carried as
+   a patch, and deleted once a pinned release carries the fix. Each patch comes with a drafted
+   upstream record for the owner.
+   - **The drafts are facts sheets, not pull request text** (question 80, recommended answer).
+     Both projects refuse AI-written words in their issues and pull requests.
+     - **pandas:** the contributor must "fully review and modify" a tool's output, and "must not
+       use AI to speak for you". A disclosure names the harness, model and reasoning level. A
+       pull request needs a triaged issue the contributor claimed with `/take`.
+     - **networkx:** its `CONTRIBUTING.rst` asks AI assistants "do not generate or suggest a PR"
+       and to tell their user to engage manually. It closes violating pull requests without
+       review. Its `AGENTS.md` adds a two-week wait after an issue.
+   - **Each draft states its project's rules in full.** It gives the defect, the reproduction,
+     the history, the patch, the evidence and the route the rules allow, so the owner can write
+     and file in their own words, or not engage.
+   - **Spec 020's six header lines are kept**, so its rules accept the draft unchanged.
+   - **Sending is the owner's (§7).** When the owner asks, an agent prepares a branch rebased
+     onto upstream's `main` in a scratch clone and hands over the branch and the facts. It never
+     writes the description and never acts on the project's GitHub.
+
+   Whether upstream takes either fix does not change what is carried here. §4.1 needs the
+   patch recorded and its upstream record drafted, and both are.
 2. **pandas: `PackageLoader` only when the templates folder is not a directory.** The patch,
    `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch` (879 bytes, SHA-256
    `0b6b418b…ce7d`), changes one statement in `style_render.py`:
@@ -122,16 +167,32 @@ as known gaps and names this specification as their closer.
    - **`from_custom_template`** puts a `FileSystemLoader` on the caller's folder before
      `StylerRenderer.loader` in a `ChoiceLoader`. A custom template in a granted folder that
      extends a built-in one finds both (EXECUTED: the `custom` line below).
-   - **EXECUTED while drafting** (`../upstream/5-pandas-styler-from-a-zip/evidence/`): in the
+   - **EXECUTED while drafting** (`context/upstream/5-pandas-styler-from-a-zip/evidence/`): in the
      guest with stock pandas, six Styler calls raised `TemplateNotFound: html.tpl`; with the
      patched member they gave output equal to native CPython 3.15.0, by length and SHA-256:
      `df.style…to_html()` (1,009 characters), `df.to_latex()` (137),
      `df.style.to_latex(environment="longtable", caption=…)` (246), `to_string()` (44),
      `to_typst()` (112), and the custom template (1,028); the loader was `PackageLoader`.
-     Natively, the patched module keeps `FileSystemLoader`.
-   - The patch adds no pandas test (the draft says why: a zip-imported pandas cannot be built
-     in pandas' test suite, and a forced `PackageLoader` branch fails under its editable CI).
-     This project's judge holds the behaviour (Decision 7).
+     Natively, the patched module keeps `FileSystemLoader`. The pre-build review repeated this
+     with a seventh call and full SHA-256. It also found pandas' own Styler and `to_latex` tests
+     equal on stock and patched installs (911 passed, 2 failed for want of matplotlib, 2
+     skipped, both).
+   - **The comment's wording.** The patch's comment says the `else` branch means "pandas was
+     imported from a zip archive". Strictly, it serves any install whose templates folder is not
+     a directory. The carried patch keeps the reviewed wording. The pandas facts sheet suggests
+     "for example, when pandas is imported from a zip archive" for the owner's own version.
+   - **No pandas test in the carried patch.** pandas' suite cannot import a zip-imported pandas,
+     because its compiled extensions cannot load from a zip. The review wrote a test that forces
+     the branch:
+     - it monkeypatches `Path.is_dir` to return `False`;
+     - it reloads `style_render`;
+     - it skips on #62123's `ValueError`;
+     - it asserts a `PackageLoader`.
+
+     It passed on a patched install and failed on stock (EXECUTED). The facts sheet offers it to
+     the owner, with its limits: a directory install, a skip under editable CI, and a module
+     reload in the suite. Whether to send it is the owner's call. The carried patch stays as
+     reviewed, and this project's judge holds the behaviour in the guest (Decision 7).
 3. **networkx: open the resource, then decompress the stream.** The patch,
    `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` (2,061 bytes, SHA-256
    `3b8b6d2d…5384`), changes one line of `networkx/generators/atlas.py`, with a two-line comment:
@@ -149,35 +210,59 @@ as known gaps and names this specification as their closer.
    The patch also adds `test_atlas_file_in_a_zip` to `networkx/generators/tests/test_atlas.py`:
    it writes `atlas.dat.gz` into a zip under `tmp_path`, points `atlas.ATLAS_FILE` at a
    `zipfile.Path` with `monkeypatch`, and checks `graph_atlas(6)` as `test_graph` does. The
-   carried patch is the pull request, test included, as numpy's is. The zip never holds it
+   carried patch is the whole change the facts sheet describes, test included, as numpy's is. The zip never holds it
    (step 70 skips `tests/`).
 
-   **EXECUTED while drafting** (`../upstream/6-networkx-atlas-from-a-zip/evidence/`): natively,
-   with the stock wheel on `PYTHONPATH`, `nx.graph_atlas(6)` raised the `TypeError`; with the
-   patched package zipped it gave `[(0, 1), (0, 2)]` and `graph_atlas_g()` 1,253 graphs. The new
-   test failed without the fix and passed with it; `test_atlas.py` gave 9 passed, and
-   `networkx/generators/tests` gave 598 passed and 34 skipped (pytest 8.4.2, uv's CPython
-   3.15.0a3). In the guest, `graph_atlas(100)` and `graph_atlas_g()` gave results equal to
-   native.
+   **EXECUTED** (`context/upstream/6-networkx-atlas-from-a-zip/evidence/`):
+   - **Natively, from a zip.** With the stock wheel on `PYTHONPATH`, `nx.graph_atlas(6)` raised
+     the `TypeError`. With the patched package zipped, it gave `[(0, 1), (0, 2)]`, and
+     `graph_atlas_g()` gave 1,253 graphs.
+   - **The new test** failed without the fix and passed with it. `test_atlas.py` gave 9 passed.
+   - **The wider tests.** The counts depend on the optional packages installed.
+     - On the line's CPython 3.15.0 with numpy and pandas (the pre-build review),
+       `networkx/generators/tests` gave 614 passed and 18 skipped. The whole `networkx` suite
+       gave 8,390 passed, 341 skipped and 741 xfailed.
+     - While drafting, on uv's CPython 3.15.0a3 without them, the generators' tests gave 598
+       passed and 34 skipped. Both runs used pytest 8.4.2.
+   - **In the guest,** `graph_atlas(100)` and `graph_atlas_g()` gave results equal to native.
+     The review added `graph_atlas(0)` and `graph_atlas(1252)`, and found `ATLAS_FILE` is a
+     `zipfile.Path` there before 035.
 4. **How a wheel takes a patch: it does not; the package comes from its sdist.** Spec 020
    applies a patch to a source tree unpacked from a pinned tarball, and §4.1 states the rule in
    those words. networkx is a wheel in spec 039. This specification pins **networkx's sdist in
-   place of its wheel** and stages it as 039 stages pyyaml and markupsafe. The rule, for this
-   and every later pure-Python package that needs a patch: **pin its sdist, unpack it, call
-   `patch_tree`, stage its package folder in `build/pure-install/`, and take its metadata from
-   the sdist.** A wheel is never unpacked and patched.
+   place of its wheel** and stages it as 039 stages pyyaml and markupsafe. A wheel is never
+   unpacked and patched. **The rule, for this and every later pure-Python package that needs a
+   patch:**
+   1. pin its sdist, unpack it, call `patch_tree`, stage its package folder in
+      `build/pure-install/`, and take its metadata from the sdist;
+   2. show, in the specification that moves it and with the sdist unpatched, that step 70's
+      `walk` of the staged package equals `wheel_members` of the release's pure wheel, name for
+      name and byte for byte. List each difference and why it is harmless;
+   3. show that `PKG-INFO` equals the wheel's `METADATA`, and that any `entry_points.txt` equals
+      the wheel's.
+
+   This does not hold for every project:
+   - a wheel may hold files its build backend generates, such as a version file from
+     setuptools-scm or compiled data;
+   - an sdist made by flit or hatchling carries no `.egg-info/entry_points.txt` (INFERRED from
+     those backends' sdist layouts).
+
+   Where the wheel has an `entry_points.txt` and the sdist has none, that specification decides
+   what to do. It may generate nothing, as 033 did for numpy and pandas, or say why the entry
+   points matter. networkx, below, is the rule's first instance.
    - **Why not patch the wheel.** That needs a second kind of patched archive in three places:
      a step that unpacks and repacks a wheel, the judge's `tree_drift` (it extracts tarballs),
      and spec 020's `<top>` rule (the top of a pinned tarball, from its file name). It would add
      an option to `make_stdlib_zip.py` that packs a wheel from a folder. That is more new
      machinery than the sdist route, for the same bytes. The sdist is also what upstream
-     releases as source, so the carried patch and the pull request are made against the same
+     releases as source, so the carried patch and anything the owner files upstream rest on the same
      files.
    - **The same members, EXECUTED.** The sdist's `networkx/`, walked by step 70's `walk`, gives
      289 members; the wheel's `wheel_members` gives 290 outside `.dist-info`. The 289 are the
      same names and bytes. The one left over is **`networkx/conftest.py`, which is not packed**,
-     because `walk` skips `conftest.py` (`SKIP_NAMES`) and `wheel_members` does not. It is pytest's configuration; nothing imports
-     it at run time. The sdist's `PKG-INFO` equals the wheel's `METADATA` byte for byte, and
+     because `walk` skips `conftest.py` (`SKIP_NAMES`) and `wheel_members` does not. It is
+     pytest's configuration; nothing imports it at run time. The pre-build review found the raw
+     trees the same 598 files (EXECUTED). The sdist's `PKG-INFO` equals the wheel's `METADATA` byte for byte, and
      `networkx.egg-info/entry_points.txt` equals the wheel's `entry_points.txt` byte for byte.
      Its `LICENSE.txt` equals the wheel's `licenses/LICENSE.txt` (`cmp`).
    - **The pin** (PyPI's JSON, 2026-10-17; the hash recomputed from the downloaded file):
@@ -200,11 +285,21 @@ as known gaps and names this specification as their closer.
    meant anything in the guest. networkx's file is different: it is in the pinned sdist, its
    bytes equal the wheel's, and dropping it would change what `entry_points()` answers from
    039's zip. So it is kept, with one small option:
-   - `--entry-points <PKG-INFO> <file>` (repeatable) packs `<file>`, bytes unchanged, as
-     `<name>-<version>.dist-info/entry_points.txt`, with the folder name computed from the
-     `PKG-INFO` exactly as `--metadata` computes it (033, Decision 2: the same function).
-   - The build stops, with one line naming the file, when the `PKG-INFO` is not also given with
-     `--metadata` (an entry-points file never goes into a folder without its `METADATA`).
+   - **The option.** `--entry-points <PKG-INFO> <file>` (repeatable) is served by a new
+     function, `sdist_entry_points(pkg_info, path) -> (bytes, member name)`, beside 033's
+     `sdist_metadata`. It reads the `PKG-INFO`'s `Name:` and `Version:` headers with
+     `sdist_metadata`'s own parsing and naming. It returns `<file>`'s bytes, unchanged, as
+     `<name>-<version>.dist-info/entry_points.txt`.
+   - **The match is by the computed folder name, not by the path string.** After all inputs are
+     gathered, `main` stops when no `<that folder>/METADATA` member exists. The stop is one line
+     naming both files. So an entry-points file never goes into a folder without its `METADATA`,
+     however the `PKG-INFO` path was spelled. A clash with a wheel's own `entry_points.txt` is
+     already stopped by `main`'s "comes from two inputs" rule.
+   - **Why not today's `--file`.** `--file "<…>/entry_points.txt=networkx-3.7.dist-info/
+     entry_points.txt"` would pack the same member with no new code. But it would write the
+     folder name by hand, a second time, where a version bump must find it. And nothing would
+     check that the folder has its `METADATA`. The option computes the name once, with the same
+     function as `--metadata`, and guards it.
    - networkx's one entry point is its test backend (`nx_loopback`, in a `tests` module the zip
      does not hold). networkx removes it itself when it lists backends (`backends.py:95`, READ),
      so keeping the file changes nothing networkx does, and keeps `entry_points()` equal to
@@ -228,35 +323,60 @@ as known gaps and names this specification as their closer.
    - The two drafts move from `../upstream/5-pandas-styler-from-a-zip/pr.md` and
      `../upstream/6-networkx-atlas-from-a-zip/pr.md` to
      `../upstream/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.md` and
-     `../upstream/patches/networkx-3.7/0001-graph-atlas-from-a-zip.md` (`git mv`, unchanged). Each
-     folder's `fix.patch` is copied, byte for byte, to the patch path. The numbered folders keep
-     `notes.md` and `evidence/`. They are drafted now, outside `upstream/patches/`, because
-     spec 020's rules fail a draft there whose patch is not yet carried.
+     `../upstream/patches/networkx-3.7/0001-graph-atlas-from-a-zip.md` (`git mv`, unchanged).
+     - Each folder's `fix.patch` is copied, byte for byte, to the patch path. It is then removed
+       from the numbered folder, so one copy exists (criterion 3), and `notes.md` names the
+       carried path.
+     - The numbered folders keep `notes.md` and `evidence/`. Every evidence link in the drafts is
+       written as a repository path (`context/upstream/<folder>/evidence/…`), so it stays true
+       after the move.
+     - They are drafted now, outside `upstream/patches/`, because spec 020's rules fail a draft
+       there whose patch is not yet carried.
+     - The drafts are facts sheets (Decision 1). Spec 020's rules read only the six header lines
+       and the `Files:` paths, so they accept them as they are (EXECUTED by the review on
+       `patch_errors`).
 7. **The checks.** Each is seen failing first (Acceptance, criterion 1).
    - **A golden job, `tests/jobs/files_from_the_zip.py`**, run on the plain binary and compared
      with its `.expected` like the others (`jobs.compare`, the versions line first:
      `pandas`, `jinja2`, `networkx`). It prints in full: `df.style.set_uuid("job")` with a
      format and a highlight `.to_html()`; `df.to_latex()`; `df.style.to_latex(environment=
-     "longtable", caption=…)`; `.to_string()`; `.to_typst()`; a custom template written to the
-     job's output folder that extends `html_table.tpl`, through
-     `Styler.from_custom_template(out_dir, html_table=…)`; `nx.graph_atlas(100)`'s name and
-     sorted edges; `len(nx.graph_atlas_g())` and its total edge count. The drafting probe
-     (`evidence/files.py`) is its model: the job prints the texts, not their digests. The
-     uuid is fixed, so the HTML holds no random id. The oracle runs stock pandas and networkx,
-     so equal output proves the patches change no result. `jobs.JOBS` gains it.
+     "longtable", caption=…)`; `.to_string()`; `.to_typst()`; a custom template that extends
+     `html_table.tpl`, through `Styler.from_custom_template(data_dir, html_table=…)`;
+     `nx.graph_atlas(100)`'s name and sorted edges; `len(nx.graph_atlas_g())` and its total edge
+     count.
+     - The custom template is written to the job's **data folder**, never its output folder.
+       Every file in the output folder is compared byte for byte (`jobs.render`; the
+       convention `tests/jobs/compress.py` states).
+     - The drafting probe (`context/upstream/5-pandas-styler-from-a-zip/evidence/files.py`) is
+       its model. The job prints the texts, not their digests.
+     - The uuid is fixed, so the HTML holds no random id.
+     - The oracle runs stock pandas and networkx natively, where the bug does not occur. So
+       equal output shows that the patches change no result **on the job's calls**. The golden
+       cannot tell which loader served the guest. The Styler check below ties the result to the
+       patched branch.
+     - `jobs.JOBS` gains it.
    - **Spec 039's two known-gap checks become passing checks.**
      `test_pandas_styler_renders_from_the_zip` and `test_networkx_atlas_reads_from_the_zip` run
      on `[plain, snapshot]` (039 runs them on plain only). The Styler check also calls
      `to_string()`, `to_typst()` and `from_custom_template`, and asserts that
      `type(StylerRenderer.loader).__name__ == "PackageLoader"` in the guest, so the patched
-     branch is the one that served it. The atlas check also calls `graph_atlas_g()`. Each still
-     asserts no findings. Their two entries leave `tests/known_gaps.toml`.
+     branch is the one that served it.
+     - The loader assertion is itself a finding, not an uncaught exception. Importing
+       `StylerRenderer` raises `TemplateNotFound` on the starting set (EXECUTED by the review).
+       So the check catches that and records `StylerRenderer: TemplateNotFound: html.tpl`, and a
+       wrong loader's name is recorded as a finding too.
+     - The atlas check also calls `graph_atlas_g()`.
+     - Each check still asserts no findings, in 039's path-free `N finding(s), digest …` form.
+     - Their two entries leave `tests/known_gaps.toml`.
    - **Unit, `test_an_sdists_entry_points_go_beside_its_metadata`** in
      `tests/unit/test_build_scripts.py`: a temporary `PKG-INFO` (`Name: Some.Pkg`,
      `Version: 1.0`) and an `entry_points.txt`; the members built from `--metadata` and
      `--entry-points` are `some_pkg-1.0.dist-info/METADATA` and `…/entry_points.txt` with the
-     files' bytes; `--entry-points` without the matching `--metadata` stops with one line naming
-     the file. It calls the functions directly, as 033's unit checks do.
+     files' bytes. `--entry-points` whose computed folder has no `METADATA` member stops with
+     one line naming both files. The same `PKG-INFO` given as `x/PKG-INFO` to `--metadata` and
+     as `./x/PKG-INFO` to `--entry-points` does not stop. It calls `sdist_metadata` and
+     `sdist_entry_points` directly, and
+     the folder check through the same function `main` uses, as 033's unit checks do.
    - **Spec 020's checks cover the patches with no new code:** `test_carried_patches_follow_the_
      rules` (each patch's draft, its `Files:` line, the CHANGELOG naming each patch path, the
      README's count) and `test_source_tree_matches_its_tarball` (pandas' tree is its tarball plus
@@ -293,7 +413,8 @@ as known gaps and names this specification as their closer.
 An agent's code in the default profile can style a frame and export it to HTML, LaTeX, text or
 Typst, and can read networkx's graph atlas, from the zip, with results equal to native Python's.
 The two fixes are upstream's own lines, carried as recorded patches until upstream releases
-them, and the owner holds a drafted pull request for each.
+them. For each, the owner holds a facts sheet that states the project's rules, from which the
+owner may write and file in their own words.
 
 ## Design
 
@@ -303,7 +424,8 @@ them, and the owner holds a drafted pull request for each.
 | `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` | new: `../upstream/6-networkx-atlas-from-a-zip/fix.patch`, byte for byte (Decision 3) |
 | `context/upstream/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.md` | moved from `../upstream/5-pandas-styler-from-a-zip/pr.md` (Decision 6) |
 | `context/upstream/patches/networkx-3.7/0001-graph-atlas-from-a-zip.md` | moved from `../upstream/6-networkx-atlas-from-a-zip/pr.md` (Decision 6) |
-| `context/upstream/README.md` | the two rows say the drafts moved to `patches/` and the patches are carried |
+| `context/upstream/README.md` | the two rows say the facts sheets moved to `patches/` and the patches are carried |
+| `context/upstream/5-…/notes.md`, `context/upstream/6-…/notes.md` | name the carried patch path; `fix.patch` removed from each folder (Decision 6) |
 | `downloads/SHA256SUMS`, `scripts/00_download.sh` | networkx's sdist in place of its wheel (Decision 4) |
 | `scripts/make_stdlib_zip.py` | `--entry-points <PKG-INFO> <file>` (Decision 5) |
 | `scripts/steps/70_zip.sh` | unpack, patch and stage networkx's sdist; `--metadata` and `--entry-points` for it; its `--wheel` line removed (Decision 6) |
@@ -321,8 +443,9 @@ them, and the owner holds a drafted pull request for each.
 ## Scope
 
 In: Decisions 1 to 9. Out:
-- **Sending the pull requests:** the owner's (§7). Both projects ask that their descriptions be
-  the contributor's own words, so the drafts hold the facts, not the text (the drafts say so).
+- **Filing anything upstream:** the owner's (§7), in the owner's own words, by the route each
+  facts sheet sets out (Decision 1). No agent opens, comments on or pushes to either project.
+  The carried patches do not wait on it.
 - **The `importlib.resources` loader for pandas** (a `FunctionLoader` over `files()`): offered
   to pandas' maintainers in the draft as an alternative, not carried.
 - **Other packages that read their own files by path.** None other is known in today's profile
@@ -338,13 +461,16 @@ In: Decisions 1 to 9. Out:
    - `test_files_from_the_zip_job_matches_native`: the guest's output differs from the golden
      (the job stops at `TemplateNotFound: html.tpl`);
    - the two widened checks: the Styler check's findings name `TemplateNotFound: html.tpl` for
-     every call, and the atlas check's name the `TypeError` for both calls; on `snapshot` too;
+     every call and for the loader assertion (`StylerRenderer: TemplateNotFound: html.tpl`, a
+     finding, not an uncaught error), and the atlas check's name the `TypeError` for both calls;
+     on `snapshot` too;
    - with the networkx sdist staged but its patch file removed, the atlas check fails as
      before; with the patch file present but `build/networkx-3.7` left unpatched,
      `test_source_tree_matches_its_tarball` fails naming `networkx/generators/atlas.py`;
    - with either draft removed, `test_carried_patches_follow_the_rules` fails naming it;
    - `test_an_sdists_entry_points_go_beside_its_metadata`: against 039's `make_stdlib_zip.py`
-     (no `--entry-points`).
+     (no `sdist_entry_points`); and against a mutant whose guard compares path strings, the
+     case where the same `PKG-INFO` is spelled two ways (`./x/PKG-INFO` and `x/PKG-INFO`).
 2. **The zip's names and bytes.** A full build from pins in a clean clone gives a `python.wasm`
    byte for byte the one it started from (`cmp`). Against the starting set's zip, sorted name
    lists (`unzip -Z1 … | LC_ALL=C sort`) differ only in `networkx/conftest.pyc`, removed; every
@@ -370,11 +496,18 @@ In: Decisions 1 to 9. Out:
 
 ## The owner's choices
 
-None open here. The owner's answer to question 32 (carry a fix rather than wait for upstream,
-with its pull request drafted) is applied as written. Sending either pull request is the owner's
-(§7), and both projects ask that the description be the contributor's own words, which the
-drafts in `../upstream/5-pandas-styler-from-a-zip/pr.md` and
-`../upstream/6-networkx-atlas-from-a-zip/pr.md` respect.
+None open here. The owner's answer to question 32 is applied as written: carry a fix rather
+than wait for upstream, with its upstream record drafted.
+
+Question 80 in `../questions-for-the-owner.md` was recorded by this specification's pre-build
+review. It asks whether, for a project that refuses AI-written contributions, the draft should
+be a facts sheet from which the owner writes and files in their own words. This specification
+applies the recommended answer (Decision 1). The two facts sheets keep spec 020's six header
+lines, so spec 020's rules accept them unchanged. Nothing in the build waits on the answer:
+- if the owner answers otherwise, only the two sheets' bodies change;
+- the patches, the build and the judge do not.
+
+Filing anything upstream is the owner's (§7).
 
 ## Landing notes
 

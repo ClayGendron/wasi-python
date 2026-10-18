@@ -1,6 +1,6 @@
 # Upstream 6: networkx's graph atlas from a zip archive
 
-Status: **patch and test drafted; the pull request's description is the owner's to write**
+Status: **patch and test drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's, in the owner's words**
 (networkx's automated contributions policy, see `pr.md`). Nothing was posted. Carried by spec 041
 once built.
 
@@ -10,6 +10,8 @@ Spec 039's drafting ran `nx.graph_atlas(100)` in the guest and saw the `TypeErro
 it a known gap with a check; spec 041 closes it with this patch.
 
 ## The fix
+
+When spec 041 is built, `fix.patch` is copied byte for byte to `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moves unchanged to `context/upstream/patches/`. This folder then keeps these notes and `evidence/`.
 
 `fix.patch` (2 files, +16 −1): `_generate_graphs` opens `ATLAS_FILE` with its own `open("rb")`
 and hands the file object to `gzip.open`; `test_atlas_file_in_a_zip` reads the atlas through a
@@ -25,4 +27,4 @@ All under `evidence/`, run 2026-10-17 while drafting spec 041.
 |---|---|---|
 | `files.py` | the probe (see upstream 5) | ours |
 | `guest-run.txt` | the guest before (`TypeError`) and after (equal to native) | EXECUTED |
-| `networkx-native.txt` | the new test failing without the fix and passing with it; the generators' tests (598 passed, 34 skipped); the one-line reproducer with the stock wheel on `PYTHONPATH`, and the patched package zipped | EXECUTED |
+| `networkx-native.txt` | the new test failing without the fix and passing with it; the generators' tests (598 passed, 34 skipped on uv's CPython 3.15.0a3 without numpy or pandas; the pre-build review got 614 passed, 18 skipped on the line's 3.15.0 with them); the one-line reproducer with the stock wheel on `PYTHONPATH`, and the patched package zipped | EXECUTED |

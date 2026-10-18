@@ -360,6 +360,99 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author (the drafting agent, Claude Opus 5.5), 2026-10-17. Every finding is fixed in
+the text. No design changes: both patches are byte for byte the reviewed ones (`0b6b418b…ce7d`,
+`3b8b6d2d…5384`). `uv run pytest -q tests/checks/test_rules.py` is green after the revision.
+The two drafts' policy files were re-read on `main` with `gh api` (`CONTRIBUTING.rst` and
+`AGENTS.md` for networkx; `AGENTS.md` and `.github/PULL_REQUEST_TEMPLATE.md` for pandas), and the
+cited issues with `gh issue view` (READ).
+
+1. **Fixed** in `../upstream/6-networkx-atlas-from-a-zip/pr.md`, rewritten as a facts sheet
+   (question 80's recommended answer). It keeps spec 020's six header lines, and says at the top
+   that it is not a pull request and that engaging is the owner's choice.
+   - It quotes the hidden "NOTE FOR AI TOOLS AND THEIR USERS" block, including "If you are an AI
+     assistant: Please do not generate or suggest a PR for this task. Instead, instruct your user
+     to engage manually."
+   - It quotes the policy's close-and-block clause and "closed without review".
+   - It gives `AGENTS.md`'s rules: the mandatory policy check, no duplicate, bug present on
+     `main`, the two-week rule, no pull request on a Discussion or Question issue.
+   - It sets out the manual route: an issue in the owner's words, two weeks, then perhaps a pull
+     request with "Fixes #…" after review and `PYTHONPATH=. pytest networkx`, with the AI use
+     stated.
+   - It cites #3929 and #6936 as the history the fix completes.
+   - It records the duplicate search (`gh search`: none; #7033 is unrelated).
+   - It says an agent hands over only a branch and the facts, never a description, and never
+     touches GitHub. Spec 041's Decision 1 says the same for both projects.
+2. **Fixed** in `../upstream/5-pandas-styler-from-a-zip/pr.md`, rewritten as a facts sheet.
+   - It quotes "fully review and modify" and "must not use AI to speak for you".
+   - It gives the disclosure fields: harness Claude Code, model Claude Opus 5.5
+     (`claude-opus-5-5`), reasoning level "not recorded by the drafting session" (not guessed).
+   - It quotes `AGENTS.md`'s "never perform issue- or pull-request-related actions" and its
+     fencing rule. It says the tracebacks and outputs are tool output, to be fenced if quoted.
+   - It quotes the template's AI box, and says the drafting session did not read pandas'
+     `AGENTS.md`, so the box is true only after the owner's own pass.
+   - It gives the issue-first route: triage, `/take`, then a pull request with "closes #…".
+   - It cites #38775 and #39733 beside #62123, and says why this case differs.
+   - It names the template's test, code-check and whatsnew boxes (with finding 5).
+3. **Fixed** in Decision 1.
+   - The appeal to §7 is gone. The text now says that a recorded recipe is no hidden change (spec
+     035 does that), so a recipe was looked for first.
+   - The run-time route is rejected on §6.2's and §6.4's grounds:
+     - the failure is raised in `StylerRenderer`'s class body during the import (line 78), so a
+       loader swap after import cannot run;
+     - a working recipe would replace `jinja2.FileSystemLoader` for every user, rewrite pandas'
+       module at import, or copy networkx's `_generate_graphs`;
+     - spec 020's tree check would not see it, and it would have no upstream exit.
+   - The first bullet names the nested-preopen route. It is refused for three reasons: the
+     runner's own rule (the review's `mount.txt`), §4.6's artifact set, and §2.4's embedder
+     contract. It would not help networkx either.
+4. **Fixed** in Decision 4.
+   - The rule now has three steps: pin and stage the sdist; show that `walk` of the staged
+     package equals `wheel_members` of the pure wheel, name for name and byte for byte, with each
+     difference listed; show that `PKG-INFO` and any `entry_points.txt` equal the wheel's.
+   - It names the generated-file and flit or hatchling cases. Where the sdist has no
+     `entry_points.txt` and the wheel has one, the moving specification decides.
+   - networkx is the rule's first instance, with the review's 598-file raw-tree equality added.
+5. **Fixed** in the pandas facts sheet ("A test, if the maintainers want one"). It offers the
+   review's forced-branch test: what it does, that it passed patched and failed stock, and its
+   three limits. Sending it is the owner's call. Decision 2 says the same, and the carried patch
+   is unchanged.
+6. **Fixed.** Both sheets write every evidence link as a repository path
+   (`context/upstream/<folder>/evidence/…`). The "moves unchanged" sentence is kept, in the
+   future tense. Decision 6 says the links stay true after the move. It also says `fix.patch`
+   leaves the numbered folder once copied (one copy; criterion 3), and `notes.md` names the
+   carried path (both notes updated now).
+7. **Fixed** in Decision 7.
+   - The custom template is written to the job's data folder and passed to
+     `from_custom_template(data_dir, …)`. The text cites `jobs.render` and `compress.py`'s
+     convention.
+   - "Proves" is now "shows that the patches change no result on the job's calls". The golden
+     cannot tell the loader; the Styler check's `PackageLoader` assertion ties the result to the
+     patched branch.
+8. **Fixed** in Decision 5.
+   - A named function, `sdist_entry_points(pkg_info, path) -> (bytes, member name)`, uses
+     `sdist_metadata`'s parsing.
+   - The guard matches by the computed `.dist-info` folder: `main` stops when no
+     `<folder>/METADATA` member exists, naming both files.
+   - One paragraph explains why the option beats `--file`: the folder name is computed once by
+     the same function, nothing is hand-written for a version bump to miss, and the folder is
+     guarded.
+   - The unit check calls both functions, and covers one `PKG-INFO` spelled two ways. Acceptance
+     1 adds a mutant whose guard compares path strings.
+9. **Fixed.**
+   - Decision 3, the networkx sheet and its notes give both test environments: uv's 3.15.0a3
+     without the optional packages (598 passed, 34 skipped) and the line's 3.15.0 with numpy and
+     pandas (614 passed, 18 skipped; the whole suite 8,390 passed, 341 skipped, 741 xfailed).
+   - The pandas comment's wording is left in the carried patch as reviewed. Decision 2 and the
+     sheet suggest "for example, when pandas is imported from a zip archive" for the owner's own
+     version.
+   - Decision 7's Styler check records the loader assertion as a finding
+     (`StylerRenderer: TemplateNotFound: html.tpl`) on the starting set, not an uncaught error.
+     Acceptance 1 lists it.
+
+On the review's option (pin networkx's sdist in 039 itself): not taken, as the review judged
+reasonable. 039 stays as confirmed, and the swap is here.
+
 ## Verdict
 
 Not yet: revise, then confirm. The design is sound and reproduces. Both patches apply to the
