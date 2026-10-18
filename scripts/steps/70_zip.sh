@@ -27,6 +27,7 @@ for pkg in pillow kiwisolver matplotlib; do
   [ -d "$B/plot-install/$pkg" ] || die "build/plot-install/$pkg is missing: run step 55"
 done
 [ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
+[ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"  # spec 047
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -51,6 +52,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/plot-install/kiwisolver" \
   --tree "$B/plot-install/matplotlib" \
   --tree "$B/lxml-install" \
+  --tree "$B/regex-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -64,6 +66,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
   --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
   --metadata "$B/lxml-6.1.3/PKG-INFO" \
+  --metadata "$B/regex-2026.9.29/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

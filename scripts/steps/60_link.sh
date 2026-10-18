@@ -1,6 +1,6 @@
 #!/bin/sh
-# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023), lxml
-# with libxml2 and libxslt (spec 046), zlib, bz2, lzma, sqlite3 and the host door into CPython as
+# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023), regex
+# (spec 047), lxml with libxml2 and libxslt (spec 046), zlib, bz2, lzma, sqlite3 and the host door into CPython as
 # builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o (spec
 # 003), and with recipes/iconv_refusals.c, which refuses GB18030 at iconv_open (spec 046,
@@ -26,10 +26,17 @@ for lib in libxml2.a libxslt.a libexslt.a; do
 done
 [ -d "$B/lxml-build/lxml" ] || die "build/lxml-build/lxml is missing: run step 54"
 PM="$B/plot-modules"
+[ -d "$B/regex-build/regex" ] || die "build/regex-build/regex is missing: run step 53"
+# The generated inittab declares CPython's internal _PyImport_SwapPackageContext itself, as this
+# header declares it (spec 047, Decision 4): a CPython that changes it stops here, not at run time.
+grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcontext);$' \
+  "$CP/Include/internal/pycore_import.h" \
+  || die "Include/internal/pycore_import.h no longer declares _PyImport_SwapPackageContext as gen_inittab.py does"
 remove "$L" "$OUT/python.wasm"
 mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
-  PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" lxml="$B/lxml-build"
+  PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" regex="$B/regex-build" \
+  lxml="$B/lxml-build"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
@@ -39,7 +46,8 @@ mkdir -p "$L/archives" "$OUT"
 archives=""
 deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
-  kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" lxml:"$B/lxml-build"; do
+  kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" regex:"$B/regex-build" \
+  lxml:"$B/lxml-build"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do

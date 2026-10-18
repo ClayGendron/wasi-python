@@ -32,6 +32,7 @@ PACKAGES = {
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
+    "regex": "2026.9.29",  # spec 047
     # matplotlib (spec 023): the package, its compiled dependencies, the C libraries linked in, the
     # header-only C++ compiled in, and the pure packages in the zip. qhull is built, not linked.
     "matplotlib": "3.11.2",
@@ -110,6 +111,14 @@ LXML_NOTICES = (
     "doc/licenses/BSD.txt",
     "doc/licenses/elementtree.txt",
 )
+# What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
+# a modified file (spec 047, Decision 10): keyed by the patch's path, which the notice names, so a
+# patch added or deleted without its line here stops the build.
+MODIFIED = {
+    "recipes/patches/regex-2026.9.29/0001-callback-signatures.patch": (
+        "five callbacks gain the parameter CPython passes"
+    ),
+}
 PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
 
@@ -207,6 +216,24 @@ def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
             return (comment + "\n").encode()
         start = end + 2
     raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
+def modified_notice(root: Path, top: str) -> bytes:
+    """One line per carried patch of a tree: the files it changes, read from the patch itself,
+    the patch's path and what it does; then that the rest is compiled as released."""
+    lines = []
+    for patch in sorted((root / "recipes" / "patches" / top).glob("[0-9][0-9][0-9][0-9]-*.patch")):
+        rel = patch.relative_to(root).as_posix()
+        if rel not in MODIFIED:
+            raise SystemExit(f"{rel}: no line in MODIFIED says what it changes")
+        files = re.findall(r"^\+\+\+ b/(\S+)$", patch.read_text(), re.M)
+        if not files:
+            raise SystemExit(f"{rel}: changes no file")
+        lines.append(
+            f"This build modifies {', '.join(files)} with {rel} ({MODIFIED[rel]}); "
+            "the module is otherwise compiled as released.\n"
+        )
+    if not lines:
+        raise SystemExit(f"recipes/patches/{top}: no carried patch, so no modification notice")
+    return "".join(lines).encode()
 
 
 def main() -> None:
@@ -285,6 +312,11 @@ def main() -> None:
         ],
         "libxslt": [("libxslt Copyright", (b / "libxslt-1.1.45" / "Copyright").read_bytes())],
         "lxml": [(f"lxml {n}", (b / "lxml-6.1.3" / n).read_bytes()) for n in LXML_NOTICES],
+        # spec 047, Decision 10: Apache-2.0 headed by its CNRI derivation, then the modified file
+        "regex": [
+            ("regex LICENSE.txt", (b / "regex-2026.9.29" / "LICENSE.txt").read_bytes()),
+            ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
+        ],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],

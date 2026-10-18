@@ -36,6 +36,7 @@ STEPS = (
     "37_plot_libs",
     "40_numpy",
     "50_pandas",
+    "53_regex",
     "54_lxml",
     "55_matplotlib",
     "60_link",
@@ -340,7 +341,7 @@ def fold(text: str, cols: int) -> list[str]:
     return rows
 
 
-def go_when(tree: Tree, step: str, k: int, n: int = 15, also: str = ""):
+def go_when(tree: Tree, step: str, k: int, n: int = 16, also: str = ""):
     """Create go/<step> once a frame names the step, its [k/n] and `also`."""
     want = f"[{k}/{n}] {step} "
 
@@ -408,7 +409,7 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
         shell=sh, env=tree.env(lang), cols=cols, react=go_when(tree, "40_numpy", 8)
     )
     drawn = frames(raw)
-    assert (tree.root / "go" / "40_numpy").exists(), "no frame named 40_numpy and [8/15]"
+    assert (tree.root / "go" / "40_numpy").exists(), "no frame named 40_numpy and [8/16]"
     assert code == plain.returncode == (1 if fails else 0), plain.stdout
     assert screen(raw, cols) == fold(plain.stdout, cols)
     assert all(len(f) <= cols - 1 for f in drawn), [f for f in drawn if len(f) >= cols]
@@ -419,7 +420,7 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
     else:
         assert spinners <= set("|/-\\"), spinners
         assert all(f.isascii() for f in drawn)
-    numpy = [f for f in drawn if "[8/15] 40_numpy " in f]
+    numpy = [f for f in drawn if "[8/16] 40_numpy " in f]
     if timings:
         assert any(" / ~" in f for f in numpy), numpy
         if cols == 80:
@@ -480,7 +481,7 @@ def test_ctrl_c_interrupts_the_step_and_leaves_nothing(work, shell) -> None:
     sent = []
 
     def react(p: Pty) -> None:
-        if not sent and any("[8/15] 40_numpy " in f for f in frames(p.data)):
+        if not sent and any("[8/16] 40_numpy " in f for f in frames(p.data)):
             sent.append(os.write(p.master, b"\x03"))
 
     p = Pty([SHELLS[shell], str(tree.root / "scripts/build.sh")], tree.env(), tree.root, 80)
@@ -502,7 +503,7 @@ def test_term_waits_for_the_step_then_stops_before_the_next(work, shell) -> None
 
     def react(p: Pty) -> None:
         go = tree.root / "go" / "40_numpy"
-        if not go.exists() and any("[8/15] 40_numpy " in f for f in frames(p.data)):
+        if not go.exists() and any("[8/16] 40_numpy " in f for f in frames(p.data)):
             p.proc.send_signal(signal.SIGTERM)  # to build.sh alone, not its process group
             go.touch()
 
@@ -527,7 +528,7 @@ def test_term_during_the_last_step_ends_without_a_summary(work) -> None:
 
     def react(p: Pty) -> None:
         go = tree.root / "go" / "90_artifacts"
-        if not go.exists() and any("[15/15] 90_artifacts " in f for f in frames(p.data)):
+        if not go.exists() and any("[16/16] 90_artifacts " in f for f in frames(p.data)):
             p.proc.send_signal(signal.SIGTERM)
             go.touch()
 
@@ -557,7 +558,7 @@ def test_the_ticker_ends_itself_when_the_build_is_gone(work) -> None:
     drawn_before: list[int] = []
 
     def react(p: Pty) -> None:
-        if not drawn_before and any("[8/15] 40_numpy " in f for f in frames(p.data)):
+        if not drawn_before and any("[8/16] 40_numpy " in f for f in frames(p.data)):
             os.kill(int((tree.root / "build.pid").read_text()), signal.SIGKILL)
             drawn_before.append(len(frames(p.data)))
             (tree.root / "go" / "40_numpy").touch()
@@ -579,7 +580,7 @@ def test_a_renderer_failure_stops_the_ticker_too(work) -> None:
     code, raw = tree.pty(react=go_when(tree, "00_download", 1))
     assert (tree.root / "go" / "00_download").exists(), "no frame before the failure"
     assert code != 0
-    assert not any("[1/15]" in row for row in screen(raw, 80)), screen(raw, 80)
+    assert not any("[1/16]" in row for row in screen(raw, 80)), screen(raw, 80)
 
 
 # --------------------------------------------------------------------------------------------
@@ -791,8 +792,8 @@ def test_a_whole_build_ends_with_its_summary(work) -> None:
         )
     }
     total = (2 * len(STEPS) + 1) * CLOCK_STEP  # the summary's reading less the build's first
-    assert lines[16:] == [
-        f"done: 15 steps in {total // 60}m{total % 60:02d}s; the artifact set is in "
+    assert lines[17:] == [
+        f"done: 16 steps in {total // 60}m{total % 60:02d}s; the artifact set is in "
         "build/artifacts/",
         f"  python.wasm 4 bytes  {sums['python.wasm']}",
         f"  python-snapshot.wasm 9 bytes  {sums['python-snapshot.wasm']}",

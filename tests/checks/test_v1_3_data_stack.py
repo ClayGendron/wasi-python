@@ -309,6 +309,7 @@ DISTRIBUTIONS = (
     "pillow",
     "pyparsing",
     "python-dateutil",
+    "regex",
     "six",
     "tzdata",
 )  # matplotlib and its distributions: spec 023; lxml: spec 046

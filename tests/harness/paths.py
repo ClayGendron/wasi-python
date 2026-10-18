@@ -55,6 +55,7 @@ LICENCE_COMPONENTS = (
     "six",
     "wasi-libc",
     "llvm-runtimes",
+    "regex",  # spec 047, Decision 10
     # matplotlib (spec 023, Decision 9)
     "matplotlib",
     "pillow",
@@ -85,6 +86,7 @@ PACKAGES = (
     "python-dateutil",
     "tzdata",
     "six",
+    "regex",
     "matplotlib",
     "pillow",
     "kiwisolver",

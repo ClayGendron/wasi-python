@@ -170,6 +170,64 @@ def test_stdlib_c_modules_are_builtin(guest, which) -> None:
     assert (r.exit_code, r.text.strip()) == (0, "[]"), r.text or r.describe()
 
 
+DOTTED_NAMES = """
+import importlib, json, sys
+dotted = sorted(n for n in sys.builtin_module_names if "." in n)
+wrong = []
+for n in dotted:
+    try:
+        got = importlib.import_module(n).__name__
+    except Exception as e:
+        got = f"import {type(e).__name__}"
+    if got != n:
+        wrong.append([n, got])
+print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
+"""
+# Importing every dotted builtin pulls in most of each package (spec 047, Decision 7): 5.0 G
+# fuel on the plain reactor and 0.1 G on the snapshot before regex (its pre-build review's
+# finding 10). One program per binary, each with a budget; a figure above half its budget is a
+# finding for the build review, and a plain run past its budget is split per top-level package,
+# never narrowed to fewer modules.
+DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
+# matplotlib's package needs its data folder and a writable cache folder to import, as in its
+# own checks (spec 023): granted here, so its builtins are named like every other.
+MPL_ENV = {"MPLCONFIGDIR": "/mplconfig"}
+
+
+@BINARY
+def test_dotted_builtins_keep_their_import_names(guest, which) -> None:
+    """Every builtin with a dot in its name imports as a module whose `__name__` is that name, as
+    a native import from a shared library gives it (spec 047, Decision 4). CPython gives a builtin
+    no package context, so a single-phase module (regex's `_regex`, scipy's f2py modules) keeps
+    its short `m_name` unless the inittab's wrapper sets the context around its init function;
+    pickle then looks for a top-level module that does not exist. General: a later single-phase
+    package is caught the same way, and fixed by a recipe, never by an exemption here."""
+    r = guest(which, ["-c", DOTTED_NAMES], env=MPL_ENV, mpl_data=True, fuel=DOTTED_FUEL[which])
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    got = json.loads(r.text)
+    assert got["dotted"] > 0, r.text
+    assert got["wrong"] == [], f"{got['wrong']} (of {got['dotted']} dotted builtins)"
+
+
+REGEX = """
+import json, sys
+import regex
+print(json.dumps({"builtin": "regex._regex" in sys.builtin_module_names,
+                  "regex": regex.__version__}))
+"""
+
+
+@BINARY
+def test_regex_is_builtin_at_manifest_version(guest, which) -> None:
+    """`regex._regex` is a builtin, and regex is the version MANIFEST names (spec 047, Decision
+    10)."""
+    r = guest(which, ["-c", REGEX])
+    assert r.exit_code == 0, r.describe()
+    m = paths.parse_manifest((paths.artifact_dir() / "MANIFEST").read_text())
+    want = {"builtin": True, "regex": m.packages.get("regex")}
+    assert json.loads(r.text) == want, f"guest says {r.text.strip()}, want {want}"
+
+
 def test_wheel_carries_the_artifact_set(artifacts) -> None:
     needs.need("wheel")
     wheels = sorted(paths.DIST.glob("wasi_python-*.whl"))

@@ -31,6 +31,7 @@ SOURCE_PATTERNS = {
     "bzip2": re.compile(r"bzip2-[\w.]+\.tar\.gz"),
     "xz": re.compile(r"xz-[\w.]+\.tar\.gz"),
     "sqlite": re.compile(r"sqlite-autoconf-\d+\.tar\.gz"),
+    "regex": re.compile(r"regex-[\w.]+\.tar\.gz"),  # spec 047
     # matplotlib (spec 023): its five C libraries and three packages
     "freetype": re.compile(r"freetype-[\w.]+\.tar\.xz"),
     "harfbuzz": re.compile(r"harfbuzz-[\w.]+\.tar\.xz"),

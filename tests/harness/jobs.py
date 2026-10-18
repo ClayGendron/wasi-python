@@ -41,6 +41,7 @@ JOBS = (
     "plot_line",
     "plot_callbacks",
     "lxml_xml",
+    "regex_features",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the

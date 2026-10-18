@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 6, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 7, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 40.4 MB / 74.4 MB / 22.1 MB (3.15 line, with matplotlib and lxml; spec 046's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -51,8 +51,8 @@ promises.
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 
-The platform's facts, documented rather than patched (with six carried patches,
-below and under *matplotlib in the guest* and *lxml in the guest*), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with seven carried patches,
+below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
 
@@ -162,6 +162,22 @@ and these facts follow from it:
   shelf holds the lock directory too.
 
 Temporary data goes to files under `TMPDIR` (`/tmp` by default in `run`).
+
+### regex in the guest
+
+regex 2026.9.29 is built in (spec 047): `regex._regex` is a builtin module and regex's Python
+package is in the zip, so `import regex` gives fuzzy matching, full Unicode properties (from
+regex's own tables, never the host's), graphemes, variable-length lookbehind, `captures()` and
+the rest, with native regex's answers at the same pin (the judge's golden job
+`regex_features`). A compiled pattern pickles and loads back, as natively: every builtin's init
+function runs inside CPython's package context, so `regex._regex` keeps its import name. Five of
+regex's callbacks are defined with one parameter where CPython passes two, which WebAssembly
+traps on; a carried patch (`recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`)
+gives them the second, until regex releases the change. One edge: `timeout=` counts the guest's
+clock, so whether a match times out depends on the host's speed; the embedder's fuel and
+deadline are the limits that hold. Its licence is Apache-2.0 and CNRI-Python:
+`LICENSES/regex.txt` is regex's `LICENSE.txt`, then a line naming the patched file, and CNRI's
+Python 1.6 licence is in `LICENSES/cpython.txt`.
 
 ### matplotlib in the guest
 
@@ -342,13 +358,13 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: six today, numpy's `.npy` fix and its callback
-signatures, matplotlib's enum fix from upstream, Pillow's and kiwisolver's callback
+recorded patches (`recipes/patches/`: seven today, numpy's `.npy` fix and its callback
+signatures, matplotlib's enum fix from upstream, Pillow's, kiwisolver's and regex's callback
 signatures, and libxml2's file input without `dup()`):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, fifteen steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, sixteen steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -388,7 +404,8 @@ The steps (`scripts/steps/`): unpack the toolchain and a pinned host Python
 hashed wheels, offline; build CPython with its own `Platforms/WASI` driver;
 build zlib, numpy and pandas outside their source trees, cross-compiling with
 meson, and the C libraries behind `bz2`, `lzma` and `sqlite3` (bzip2, liblzma
-from xz with xz's own `configure`, and SQLite's one-file amalgamation); build libxml2
+from xz with xz's own `configure`, and SQLite's one-file amalgamation); compile regex's two C
+files; build libxml2
 and libxslt with their own `configure`s and compile lxml's two modules from the C its sdist
 ships; link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot

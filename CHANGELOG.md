@@ -49,6 +49,21 @@ release` dates it and tags the release (context/specifications/004-alpha-release
     later package to the same rule: neither binary names the checkout or the builder's home.
   - **Licences:** `LICENSES/libxml2.txt` (with the notices of `dict.c`, `list.c` and
     `timsort.h`), `LICENSES/libxslt.txt` and `LICENSES/lxml.txt`.
+- **regex is built in** (spec 047). regex 2026.9.29's `regex._regex` is a builtin module and its
+  Python package is in the zip with its `METADATA`: fuzzy matching, full Unicode properties from
+  regex's own tables, graphemes, variable-length lookbehind and `captures()` give native regex's
+  answers (the golden job `regex_features`). One carried patch,
+  `recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`, gives five callbacks the
+  parameter CPython passes (`Pattern.groupindex`, pickling a pattern, `Match.capturesdict()`,
+  `allcaptures()` and `allspans()` each trapped the guest without it); its upstream facts sheet
+  is `context/upstream/patches/regex-2026.9.29/0001-callback-signatures.md`, for the owner to
+  send. Every builtin's init function now runs inside CPython's package context, set to its
+  dotted name, as a native import from a shared library does, so a single-phase module keeps its
+  import name (`regex._regex`, and a compiled pattern pickles); numpy's, pandas' and
+  matplotlib's modules are multi-phase and do not change. The judge checks every dotted
+  builtin's `__name__` on both binaries. Licence: Apache-2.0 and CNRI-Python, in
+  `LICENSES/regex.txt` with a line naming the patched file. `timeout=` counts the guest's clock;
+  fuel and the deadline are the limits that hold.
 
 - **The judge's small follow-ups** (spec 070). The README's **Limits** now says that a refused
   discovery frame (`max_tool_calls=0`, or a request budget too small for it) makes `from host

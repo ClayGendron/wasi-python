@@ -1,0 +1,49 @@
+diff --git a/src/_regex.c b/src/_regex.c
+index 90f9212..9befc4e 100644
+--- a/src/_regex.c
++++ b/src/_regex.c
+@@ -19406,7 +19406,7 @@ static PyObject* match_spans(MatchObject* self, PyObject* args) {
+ }
+ 
+ /* MatchObject's 'allspans' method. */
+-static PyObject* match_allspans(MatchObject* self) {
++static PyObject* match_allspans(MatchObject* self, PyObject* Py_UNUSED(ignored)) {
+     PyObject* list;
+     size_t i;
+     PyObject* result;
+@@ -19445,7 +19445,7 @@ static PyObject* match_captures(MatchObject* self, PyObject* args) {
+ }
+ 
+ /* MatchObject's 'allcaptures' method. */
+-static PyObject* match_allcaptures(MatchObject* self) {
++static PyObject* match_allcaptures(MatchObject* self, PyObject* Py_UNUSED(ignored)) {
+     PyObject* list;
+     size_t i;
+     PyObject* result;
+@@ -19564,7 +19564,7 @@ failed:
+ }
+ 
+ /* MatchObject's 'capturesdict' method. */
+-static PyObject* match_capturesdict(MatchObject* self) {
++static PyObject* match_capturesdict(MatchObject* self, PyObject* Py_UNUSED(ignored)) {
+     PyObject* result;
+     PyObject* keys;
+     Py_ssize_t g;
+@@ -23114,7 +23114,7 @@ error:
+ }
+ 
+ /* PatternObject's 'groupindex' method. */
+-static PyObject* pattern_groupindex(PyObject* self_) {
++static PyObject* pattern_groupindex(PyObject* self_, void* Py_UNUSED(closure)) {
+     PatternObject* self;
+ 
+     self = (PatternObject*)self_;
+@@ -23123,7 +23123,7 @@ static PyObject* pattern_groupindex(PyObject* self_) {
+ }
+ 
+ /* PatternObject's '_pickled_data' method. */
+-static PyObject* pattern_pickled_data(PyObject* self_) {
++static PyObject* pattern_pickled_data(PyObject* self_, void* Py_UNUSED(closure)) {
+     PatternObject* self;
+     PyObject* pickled_data;
+ 

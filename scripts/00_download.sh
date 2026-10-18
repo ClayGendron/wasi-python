@@ -95,6 +95,8 @@ get https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz zl
 get https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz
 get https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.gz xz-5.8.4.tar.gz
 get https://sqlite.org/2026/sqlite-autoconf-3540100.tar.gz sqlite-autoconf-3540100.tar.gz
+# regex (spec 047): its sdist, whose two C files are compiled and whose package goes in the zip
+get https://files.pythonhosted.org/packages/fc/f2/af1da9d3ceed77bfcdce40427d49ba0be94e4fe84245e3bfef68c10e75b6/regex-2026.9.29.tar.gz regex-2026.9.29.tar.gz
 # matplotlib (spec 023): the five C libraries at matplotlib 3.11.2's own wrap versions, which give
 # native pixel parity; qhull and SheenBidi saved under names that are their top folders (the
 # release workflow's tree check names a tree by its file)

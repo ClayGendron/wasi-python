@@ -448,3 +448,54 @@ def test_a_binary_that_fails_the_constructor_check_is_removed(tmp_path, passes) 
     else:
         assert r.returncode == 1 and r.stdout == "checked\n" and not binary.exists(), r
         assert "it is removed" in r.stderr, r.stderr
+
+
+# Spec 047, Decision 4: every builtin's init function runs inside CPython's package context.
+
+
+def test_the_inittab_registers_each_module_through_its_package_context(
+    tmp_path, monkeypatch
+) -> None:
+    """The generated inittab registers a wrapper for every entry, each wrapper sets the package
+    context to its entry's dotted name around the init function and restores it, and no entry
+    registers its init function directly: what `_PyImport_RunModInitFunction` does for a module
+    loaded from a shared library, which a builtin otherwise never gets."""
+    import re
+
+    import gen_inittab
+
+    built = {
+        "regexb": ["regex/_regex"],
+        "npb": ["numpy/_core/_multiarray_umath", "numpy/random/_pcg64"],
+    }
+    for folder, modules in built.items():
+        for module in modules:
+            so = tmp_path / folder / (module + gen_inittab.SUFFIX)
+            so.parent.mkdir(parents=True, exist_ok=True)
+            so.write_bytes(b"!<arch>\n")
+    out = tmp_path / "inittab.c"
+    argv = ["gen_inittab.py", str(out), f"regex={tmp_path / 'regexb'}", f"numpy={tmp_path / 'npb'}"]
+    monkeypatch.setattr(sys, "argv", argv)
+    gen_inittab.main()
+    text = out.read_text()
+    want = {
+        "regex._regex": "_regex",
+        "numpy._core._multiarray_umath": "_multiarray_umath",
+        "numpy.random._pcg64": "_pcg64",
+    }
+    assert "extern const char *_PyImport_SwapPackageContext(const char *);" in text
+    wrappers = dict(
+        re.findall(
+            r"static PyObject \*(\w+)\(void\)\s*\{[^}]*?"
+            r'_PyImport_SwapPackageContext\("([\w.]+)"\);[^}]*?'
+            r"PyInit_\w+\(\);[^}]*?_PyImport_SwapPackageContext\(\w+\);[^}]*?\}",
+            text,
+        )
+    )
+    assert sorted(wrappers.values()) == sorted(want), text
+    for wrapper, dotted in wrappers.items():
+        body = text[text.index(f"*{wrapper}(void)") :].split("}", 1)[0]
+        assert f"PyInit_{want[dotted]}();" in body, body
+    registered = dict(re.findall(r'PyImport_AppendInittab\("([\w.]+)", (\w+)\);', text))
+    assert registered == {dotted: w for w, dotted in wrappers.items()}, text
+    assert not [f for f in registered.values() if f.startswith("PyInit_")], text
