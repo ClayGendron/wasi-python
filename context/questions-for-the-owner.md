@@ -109,6 +109,7 @@ document.
   agents are trained on, and keeps the export's C small. (b) After 0.1.0, unless an embedder
   runs untrusted sessions in a shared process before then: the gap already exists for `run`,
   the README states it, and a cap is its own design (shadowing `path_open` per store).
+
 ### 93. May a read-only mount serve an import-path entry?
 
 - **Asked:** 2026-10-18. **Source:** `specifications/054-read-only-code-on-the-import-path.md`

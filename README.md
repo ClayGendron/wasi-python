@@ -1695,6 +1695,7 @@ def run(
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
@@ -1721,6 +1722,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `root`: The host folder the guest sees as /, writable, made if missing. `False` or `None` (the default) gives no / and nothing writable; `True` gives a fresh private folder, removed after the call.
 - `grants`: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
 - `mounts`: Providers whose files the guest sees at their guest paths, each a `Mount`, served from your code, read-only unless it says `writable=True`.
+- `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
 - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
 - `stdin`: The guest's standard input, whole; `None` is empty.
 - `host`: The door's host function: called with each request's bytes, it returns the response's. Excludes `tools`.
@@ -1758,6 +1760,7 @@ async def run_async(
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
     mounts: Iterable[Mount] = (),
+    import_path: Iterable[str] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
@@ -2063,6 +2066,7 @@ Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn
 | `--no-snapshot` |  | store_true |
 | `--grant` | `GUEST=HOST` | append |
 | `--grant-writable` | `GUEST=HOST` | append |
+| `--import-path` | `GUEST` | append |
 | `--root` | `HOST` | once |
 | `--private-root` |  | store_true |
 | `--no-root` |  | store_true |

@@ -99,6 +99,7 @@ def run -> Completed
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
   param grants: Iterable[Grant] = ()  keyword-only
   param mounts: Iterable[Mount] = ()  keyword-only
+  param import_path: Iterable[str] = ()  keyword-only
   param env: Mapping[str, str] | None = None  keyword-only
   param stdin: bytes | bytearray | memoryview | None = None  keyword-only
   param host: Callable[[bytes], bytes | bytearray | memoryview] | None = None  keyword-only
@@ -119,6 +120,7 @@ async def run_async -> Completed
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
   param grants: Iterable[Grant] = ()  keyword-only
   param mounts: Iterable[Mount] = ()  keyword-only
+  param import_path: Iterable[str] = ()  keyword-only
   param env: Mapping[str, str] | None = None  keyword-only
   param stdin: bytes | bytearray | memoryview | None = None  keyword-only
   param host: Callable[[bytes], bytes | bytearray | memoryview] | None = None  keyword-only
@@ -232,6 +234,7 @@ command wasi-python = wasi_python.cli:main
   option --no-snapshot  store_true
   option --grant GUEST=HOST  append
   option --grant-writable GUEST=HOST  append
+  option --import-path GUEST  append
   option --root HOST  once
   option --private-root  store_true
   option --no-root  store_true
