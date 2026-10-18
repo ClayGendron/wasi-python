@@ -1,7 +1,8 @@
 # 057 — The release ties what it signs to what it built
 
-- **Status:** drafted 2026-10-18; revised against its pre-build review; awaiting the reviewer's
-  confirmation. The review (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
+- **Status:** confirmed for build 2026-10-18 (the review's Confirmation, N1 written in);
+  build-class: builds after spec 023 lands. Drafted 2026-10-18, then revised against its
+  pre-build review. The review (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
   in the main tree, git-ignored; copied to `../reviews/` by the lane) said "ready once F1 to F5
   are written in". They are written in, and the Disposition below says where. Drafted on
   `spec/057-the-release-ties-what-it-signs-to-what-it-built` from main `d70690a`.
@@ -372,7 +373,7 @@ permissions they use.
   pypi                       needs [build, publish]; environment: pypi; guard; download by id; check
 scripts/00_download.sh       the name check after the summary, under set -f (Decision 5)
 tests/harness/scan.py
-  release_binding_errors(text)          rules 1-14 below, one line per breach
+  release_binding_errors(text)          rules 1-15 below, one line per breach
   action_pin_errors(text)               Decision 7
   unpinned_fetch_errors(script, pins)   every get/research name is in SHA256SUMS
   workflow_step_script(text, job, name) a step's run: block, as text; raises if it is absent
@@ -412,15 +413,22 @@ step's display `- name:`. Its rules:
 8. In each such job, the step right after that download is the check step. It binds
    `SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}`. Its `run:` checks `SHA256SUMS.sha256`
    and `-c SHA256SUMS`, and compares `find . -mindepth 1` with the listed names.
-9. The check steps are the same text.
-10. Before every download, an earlier step in the same job binds that download's
-    `artifact-ids` expression in `env:`. Its `run:` refuses `"" | *[!0-9]*)`. The guards
-    before the `release-assets` downloads are the same text.
+9. The check steps are the same step: their whole blocks are equal, every key (`name:`,
+   `env:`, `run:`, and any other), not only their `run:`.
+10. Before every download, an earlier step in the same job (its guard) binds that download's
+    `artifact-ids` expression in `env:` to a variable, and its `run:` tests that very
+    variable: either `case "$<VAR>" in` with a `"" | *[!0-9]*)` branch that exits 1, or a
+    `for <v> in … "$<VAR>" …; do` loop whose body is `case "$<v>" in` with that branch. A
+    variable that is bound but never tested does not count. The guards before the
+    `release-assets` downloads are the same step, whole blocks compared as in rule 9.
 11. No `run:` script contains `${{`.
 12. `publish` has `environment: release`, and `pypi` has `environment: pypi`.
 13. Every `astral-sh/setup-uv` step has `enable-cache: false`.
 14. The workflow-level `permissions:` is `{}`, and each job's permissions are exactly its row
     in Decision 6's table.
+15. No guard step, check step or `actions/download-artifact` step carries `if:` or
+    `continue-on-error:`. Rule 9's and rule 10's whole-block comparisons would catch it on a
+    step with twins. This rule also covers `same-bytes`' rebuild guard, which has none.
 
 **`rebuild_gate_errors`, rewritten for two jobs.** It keeps the intent of specs 012 and 040.
 It holds a table of the two jobs: `rebuild-linux-arm64` on `ubuntu-24.04-arm` for 120
@@ -438,7 +446,9 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
   permissions beyond `contents: read`.
 - `same-bytes` needs `build` and both rebuild jobs.
 - `same-bytes` downloads each job's `sums-id` into `rebuilds/<runner>` and each job's
-  `wheel-id` into `rebuilt-wheels/<runner>`.
+  `wheel-id` into `rebuilt-wheels/<runner>`. Each `artifact-ids` is paired with the `path:`
+  in its own `with:` block, and with its own job's runner, as today's rule pairs `name:` with
+  `path:`. A download of one job's id into the other job's folder fails the rule.
 - `same-bytes` keeps its `cmp` of a rebuild's `SHA256SUMS` with the set's, and both of its
   loops run over both runners.
 - No step of `same-bytes` swallows a failure (`||` or `set +e`).
@@ -514,7 +524,12 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
    unchanged `test_releases_attest_and_verify_their_assets`.
 3. **The unit tests.**
    - `test_scan.py` feeds a good workflow to `release_binding_errors`, and it passes. Then
-     one bad variant per rule (14), each yielding exactly its own error.
+     one bad variant per rule (15), each yielding exactly its own error.
+   - Three more, from the Confirmation's mutations:
+     - M1: `same-bytes`' rebuild guard still binds `X86_64_WHEEL_ID`, but its loop no longer
+       tests it. Rule 10 names it.
+     - M2: `continue-on-error: true` on that rebuild guard. Rule 15 names it.
+     - M6: `continue-on-error: true` on `publish`'s check step. Rules 9 and 15 name it.
    - Rule 4 also gets one variant per refused input (`name`, `pattern`, `github-token`,
      `run-id`, `repository`, `merge-multiple`, `skip-decompress`), and one each for
      `gh run download` and `actions/github-script`.
@@ -524,7 +539,8 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
      their error.
    - `unpinned_fetch_errors` passes a good script, and names an unpinned `get`.
    - The rewritten `rebuild_gate_errors` passes a good workflow, and each of its rules has a
-     bad variant yielding exactly its own error.
+     bad variant yielding exactly its own error. That includes M5: `same-bytes` downloads the
+     x86_64 job's `sums-id` into `rebuilds/ubuntu-24.04-arm`.
 4. **The workflow parses** with PyYAML in a throwaway environment. The memo's
    `probe_workflow.py` reports 0 problems on it, against 23 on `d70690a`.
 5. **The judge.**
@@ -596,5 +612,22 @@ text is at `build/reviews-evidence/057-review/disposition.md`.
   - N1's loop runs under `set -f` (Decision 5; the memo re-ran it on three hosts).
 
 The acceptance counts are restated: 19 new checks, against 13 before the review.
+
+## The Confirmation's note (2026-10-18)
+
+The reviewer confirmed `bec7597` for build once its note N1 was written in. The Confirmation
+is appended to the review, and its scripts are in `confirmation/` beside it. N1 (low) is one
+rule's wording. Three fresh mutations got through the rules as written: M1, M2 and M6. Each
+fails closed later, except M6, which would publish bytes that were never checked. All five
+items are written in:
+
+1. Rules 9 and 10 compare whole steps, every key, not only `run:`.
+2. Rule 15: no guard, check or download step carries `if:` or `continue-on-error:`.
+3. Rule 10's guard must test the variable that holds that download's id, not just bind it.
+4. One unit variant each for M1, M2 and M6 (acceptance 3).
+5. The rewritten `rebuild_gate_errors` pairs each job's id with its own runner's `path:`
+   (M5), with its unit variant.
+
+The count of new checks stays 19. Only the unit variants grow.
 
 ## Landing notes
