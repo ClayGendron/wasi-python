@@ -1050,5 +1050,7 @@ for `--accept-judge`: 032's five three-key `calls` literals gain the write half'
 (Decision 11), and the harness provider gains the write half.
 
 Commits on `spec/034-writable-mounts`: `bb354ba` (build steps 1 to 3, as one commit: step 2's
-checks were written into the same files while step 1's judge ran) and the step 4 commit that
-carries these notes.
+checks were written into the same files while step 1's judge ran), `2fcfbee` (step 4 and these
+notes) and `7588daa` (`test_writes_are_bounded` asserts each row before the next, so a runner
+without the bound fails before it allocates 2**40 bytes; left out of `2fcfbee` by mistake, and
+in the tree every judge and guard run above used).
