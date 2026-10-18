@@ -778,6 +778,84 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
         assert r.get(files.DIRBUF + count, 1) == b"\xff", offset  # nothing past it
 
 
+def _over_its_listing(tmp_path, monkeypatch, then=None):
+    """A guard over the folder `d` (`.`, `..`, `x.txt`: entries at 0, 25 and 51, 80 bytes) whose
+    guest listing, once wasmtime has written it, gets 0xA5 in every entry's padding, as host
+    bytes would be; `then(self, caller, name, args, stat)` replaces the guard's own listing."""
+    real = mounts_module._Files.forward
+
+    def forward(self, caller, name, args, stat=False):
+        if stat and name == "fd_readdir" and then is not None:
+            return then(self, caller, name, args, stat, real)
+        errno = real(self, caller, name, args, stat)
+        if name == "fd_readdir" and not stat and errno == 0:
+            memory = mounts_module._Memory(caller)
+            for pos in (0, 25, 51):
+                memory.write((args[1] & 0xFFFFFFFF) + pos + 21, b"\xa5\xa5\xa5")
+        return errno
+
+    monkeypatch.setattr(mounts_module._Files, "forward", forward)
+    tree = files.write_tree(tmp_path / "tree")
+    g = files.Guarded([(tree, "/m", False)])
+    d = g.raw.open(3, "d", files.O_DIRECTORY)[1]
+    g.raw.put(files.DIRBUF, b"\xff" * 4096)
+    return tree, g, d
+
+
+def test_a_listing_that_cannot_be_listed_again_is_zeroed_whole(tmp_path, monkeypatch) -> None:
+    """Decision 4's fallback (the build review's confirmation, C1): with `used` over its own
+    listing and the guard's second listing failing, the guest gets EIO, a count of 0 and a
+    listing of zeros: no byte of the first listing, its host bytes included, is left; nothing
+    past it is touched."""
+    _, g, d = _over_its_listing(tmp_path, monkeypatch, lambda *a: EBADF)
+    r, used = g.raw, files.DIRBUF + 16
+    assert r("fd_readdir", d, files.DIRBUF, 4096, 0, used) == 29  # EIO
+    assert r.u32(used) == 0
+    assert r.get(files.DIRBUF, 80) == bytes(80)
+    assert r.get(files.DIRBUF + 80, 1) == b"\xff"
+
+
+def test_a_listing_that_shrinks_between_the_two_is_zeroed_past_the_second(
+    tmp_path, monkeypatch
+) -> None:
+    """Decision 4 (C1): the folder loses its file between the guest's listing and the guard's
+    second one. The guest gets the second listing (`.` and `..`, 51 bytes) with zero padding,
+    and the first listing's bytes past it, host bytes included, are zeroed."""
+
+    def emptied(self, caller, name, args, stat, real):
+        for child in (tree / "d").iterdir():
+            child.unlink()
+        return real(self, caller, name, args, stat)
+
+    tree = tmp_path / "tree"
+    _, g, d = _over_its_listing(tmp_path, monkeypatch, emptied)
+    r, used = g.raw, files.DIRBUF + 16
+    assert r("fd_readdir", d, files.DIRBUF, 4096, 0, used) == 0
+    assert r.u32(used) == 51
+    data = r.get(files.DIRBUF, 80)
+    assert [data[pos + 21 : pos + 24] for pos in (0, 25)] == [b"\0\0\0", bytes(3)], data.hex()
+    assert data[51:80] == bytes(29), data.hex()
+    assert r.get(files.DIRBUF + 80, 1) == b"\xff"
+
+
+def test_the_second_listing_never_outgrows_the_guests_memory(tmp_path, monkeypatch) -> None:
+    """Decision 4 (C2): the guard's second listing asks for no more than the guest's buffer can
+    hold in its memory, `min(length, memory - buf)`, so its page never grows past the guest's
+    memory and a `length` past the store's memory limit is not a way to EIO: the answer is
+    wasmtime's 0 and the listing's padding is zero."""
+    for length, limit in ((0xFFFFFFF0, None), (0x3FFF0000, 64 << 20)):
+        _, g, d = _over_its_listing(tmp_path / hex(length), monkeypatch)
+        if limit is not None:
+            g.store.set_limits(memory_size=limit)
+        r, used = g.raw, files.DIRBUF + 16
+        assert r("fd_readdir", d, files.DIRBUF, length, 0, used) == 0, hex(length)
+        assert r.u32(used) == 80
+        data = r.get(files.DIRBUF, 80)
+        assert all(data[p + 21 : p + 24] == bytes(3) for p in (0, 25, 51)), data.hex()
+        guest = g.instance.exports(g.store)["memory"].data_len(g.store)
+        assert g.table.forwards.page.data_len(g.store) <= guest, hex(length)
+
+
 def test_the_rename_is_forwarded_by_its_plain_names(tmp_path, monkeypatch) -> None:
     """Decision 1 (the build review, F2): once a slash-named source passes as a folder, the
     rename is forwarded with every trailing slash trimmed from both paths, so whatever replaces

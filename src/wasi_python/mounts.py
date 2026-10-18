@@ -997,9 +997,10 @@ class _Files:
         walk reads each d_namlen from the guest's buffer, which only wasmtime has written,
         unless the guest's `used` pointer lies over the listing: wasmtime writes the count there
         last, over whatever field it lands on (a d_namlen the walk would follow included; the
-        build review, F1). Then the folder is listed again on the guard's own page, its padding
-        zeroed there, and written out as wasmtime writes a listing, the entries and then the
-        count at `used`; bytes the first listing wrote past the second are zeroed. If the folder
+        build review, F1). Then the folder is listed again on the guard's own page, for no more
+        than the guest's memory holds from `buf`, its padding zeroed there, and written out as
+        wasmtime writes a listing, the entries and then the count at `used`; bytes the first
+        listing wrote past the second are zeroed. If the folder
         cannot be listed again, the first listing is zeroed whole, the count is 0, and the
         answer is EIO. Answers the errno the guest gets."""
         memory = _Memory(caller)
@@ -1015,6 +1016,9 @@ class _Files:
             return 0
         forwards = self.forwards
         assert forwards is not None and forwards.page is not None  # it just forwarded
+        # No more than the guest's memory can hold from `buf` (the confirmation, C2), so the
+        # page, the listing and its count after it, never grows past the guest's own memory.
+        length = min(length, memory.size - max(buf, 8))
         page, at = forwards.page, (length + 3) & ~3  # the listing at 0, its count after it
         errno = 0
         short = at + 4 - page.data_len(caller)

@@ -167,8 +167,10 @@ spec 032's machinery, removed when the pin moves.
    `used` lies over the listing** (the build review's F1), wasmtime's count, written last, may
    have replaced a `d_namlen` the walk would follow, so the walk cannot trust the guest's bytes.
    The guard then lists the folder again on its own page (the trampoline of Decision 2 also
-   imports `fd_readdir`; its page grows to the guest's buffer length when needed), with the same
-   descriptor, cookie and length, zeroes that copy's padding, and writes it out as wasmtime 49.0.2
+   imports `fd_readdir`; its page grows when needed), with the same descriptor and cookie and a
+   length of no more than the guest's memory holds from `buf` (`min(length, memory −
+   max(buf, 8))`, the confirmation's C2, so the page never grows past the guest's own memory),
+   zeroes that copy's padding, and writes it out as wasmtime 49.0.2
    writes a listing: the entries, then the count at `used`; bytes the first listing wrote past the
    second are zeroed. If the folder cannot be listed again (the page cannot grow, or the second
    listing fails or does not fit), the first listing and the count are zeroed and the answer is
@@ -557,12 +559,12 @@ plugin that drops each forward's fuel restore, criterion 4 failed: `('returned 5
 ### The scoreboard
 
 The full judge, `WASI_PYTHON_ARTIFACTS=…/build/sets/s-0cdc7b2bd78db6f5 uv run pytest` on the
-finished tree after the build review's fixes, rebased onto `b5b7869` (not accepted;
-`context/progress/` untouched; `build/judge-review-fix-full.log`), `uv run ruff check` and `uv run ruff
+finished tree after the build review's fixes and the confirmation's C1 and C2, on `b5b7869`
+(not accepted; `context/progress/` untouched; `build/judge-confirm-full.log`), `uv run ruff check` and `uv run ruff
 format --check` on `src tests recipes/guest`: both clean.
 
 ```
-wasi_python v1: 220/231 pass · 0 gap · 11 blocked · 0 fail   (unit suite 818/826, 8 skipped)
+wasi_python v1: 220/231 pass · 0 gap · 11 blocked · 0 fail   (unit suite 821/829, 8 skipped)
   v1.1  artifact set        24/25  blocked 1
   v1.2  portable, sealed    48/49  blocked 1
   v1.3  data stack          20/21  blocked 1
@@ -574,14 +576,14 @@ next: context/research/2026-10-16-reproducible-builds-on-linux.md (unblocks 7, c
 ratchet vs c42410a127: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_2_hostile_guest.py, tests/harness/files.py and 2 more
 not machine-checked: publication · copying from prior art · numpy/pandas test subsets
   licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree
-================= 1038 passed, 19 skipped in 194.00s (0:03:14) =================
+================= 1041 passed, 19 skipped in 195.08s (0:03:15) =================
 ```
 
 - **lost 0, grew 0**: no accepted pass is lost and no fuel or byte metric grew, across every
   check that runs a guest, so the guard is fuel-neutral suite-wide (criterion 8). No artifact
   changed.
 - **gained 4**: the new checks in `tests/checks/` (criterion 1's two cases, criterion 2,
-  criterion 7). The unit checks count in the unit suite (818/826 with the F2 check; the 8 skips are Windows-only
+  criterion 7). The unit checks count in the unit suite (821/829 with the F2, C1 and C2 checks; the 8 skips are Windows-only
   or need what this host lacks, as before).
 - **11 blocked**: the fast baseline before the change (`uv run pytest -m "not slow"`) showed 10;
   the 11th is `oracle 1` in v1.3, a slow data-stack check the fast run deselects. Nothing this
@@ -620,6 +622,29 @@ was rebased onto main's `b5b7869` first (main had gained one review file). Each 
   72 before 16, so each case shows its own catch.
 - **F5, the 034 notes: extended** (next section).
 - **F6, the citation: fixed** (Seen failing first, above).
+
+The reviewer's Confirmation confirmed F1 to F6 and set two conditions, now met:
+
+- **C1, the second listing's two failure branches get checks.**
+  `test_a_listing_that_cannot_be_listed_again_is_zeroed_whole` forces the guard's second
+  listing to fail with `used` at `buf + 16` and host bytes in the first listing's padding. It
+  asserts `EIO`, a count of 0, the 80 bytes all zero, and the next byte untouched.
+  `test_a_listing_that_shrinks_between_the_two_is_zeroed_past_the_second` empties the folder
+  between the two listings. It asserts errno 0, a count of 51, zero padding, bytes 51 to 80 zero,
+  and the next byte untouched. With the reviewer's mutants applied in memory by a scratch plugin
+  (`_Files._zeroed` recompiled with the one-line change; `build/confirm-c1-seen-failing.txt`):
+  under **M17** (the first listing's tail not zeroed) the shrink check fails, with the old `x.txt`
+  entry and its `a5a5a5` padding still past byte 51; under **M18** (the `EIO` fallback leaves the
+  first listing) the fallback check fails, `assert 80 == 0`.
+- **C2, the page is capped at the guest's memory.** The second listing asks for `min(length,
+  memory − max(buf, 8))`: the reviewer's `memory − buf`, with 8 bytes kept so the listing's count
+  also fits, so the page never grows past the guest's memory even for a `buf` below 8 (a listing
+  reaching the last 8 bytes of memory from there is cut that short, which no real program
+  meets). `test_the_second_listing_never_outgrows_the_guests_memory` asserts errno 0, a count of
+  80 and zero padding for a `length` of `0xFFFFFFF0` with no limit, and for 1 GiB under a 64 MiB
+  store limit. It also asserts that the page is no larger than the guest's 128 KiB. Before the
+  cap it failed: `assert 4294967296 <= 131072` (the page had grown to 4 GiB); the 64 MiB case
+  answered `EIO` (the reviewer's probe C).
 
 ### How spec 034 must compose with this
 
