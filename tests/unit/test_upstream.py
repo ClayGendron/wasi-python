@@ -729,3 +729,12 @@ def test_a_manifest_mismatch_fails_the_checks_through_prepare_not_blocks(work, m
         assert s.prepare("numpy") == []  # the other package is the artifact's and stages
     finally:
         s.close()
+
+
+def test_a_trap_check_whose_entry_started_but_whose_session_did_not_finish_fails() -> None:
+    """The build review's confirmation (mutant F6a): the entry's test started, then the session
+    ended without its E line and without a trap (the driver died, say). That is a finding."""
+    text = "C \nC numpy/tests/test_a.py\nS numpy/tests/test_a.py::t[0]\n"
+    run = upstream.GuestRun(1, None, None, 1, "", "Traceback: boom")
+    findings = upstream.trap_findings(upstream.parse_stream(text), run, "numpy/tests/test_a.py::t")
+    assert len(findings) == 1 and findings[0].startswith("no E line"), findings
