@@ -444,20 +444,9 @@ def _make(
         _MAKING.reset(making)
 
 
-def _is_async(fn: Any) -> bool:
-    while isinstance(fn, functools.partial):
-        fn = fn.func
-    if inspect.iscoroutinefunction(fn) or inspect.isasyncgenfunction(fn):
-        return True
-    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
-        call = type(fn).__call__
-        return inspect.iscoroutinefunction(call) or inspect.isasyncgenfunction(call)
-    return False
-
-
 def _is_async_generator(fn: Any) -> bool:
-    """Whether calling `fn` makes an async generator, read as `_is_async` reads a callable:
-    through `partial`s, and at an object's `__call__` (spec 053, Decision 1)."""
+    """Whether calling `fn` makes an async generator, read through `partial`s and at an
+    object's `__call__` (spec 053, Decision 1)."""
     while isinstance(fn, functools.partial):
         fn = fn.func
     if inspect.isasyncgenfunction(fn):
@@ -1711,16 +1700,17 @@ class _ToolLoop:
             raise
         thread = self._thread if self._given is None else None
         while not post.ended.wait(_LOOP_POLL_S):
-            started = post.started if ops is None else ops.started(post)
-            if post.ended.is_set():
-                break
-            if future.done() and not started:
-                # Cancelled before its first step: its body, its `finally` included, never ran
-                # (the Confirmation's C-1).
+            # `future.done()` first, then `ended`: the wrapper sets `ended` in its `finally`
+            # before its task completes, so a done future with `ended` unset is a wrapper whose
+            # body never ran (the Confirmation's C-1). Read in this order, neither fact can go
+            # stale (the build review's F1: a `started` read before them could).
+            if future.done() and not post.ended.is_set():
                 _close_awaitable(awaitable)
                 raise asyncio.CancelledError("cancelled before it started")
             if loop.is_closed() or (thread is not None and not thread.is_alive()):
-                if not started:
+                if post.ended.is_set():
+                    break
+                if not (post.started if ops is None else ops.started(post)):
                     _close_awaitable(awaitable)
                 raise RuntimeError("the call's tool loop has stopped")
         if post.skipped:

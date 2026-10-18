@@ -1209,6 +1209,9 @@ done.stdout                                    # b'Ada\n'
     is a "(internal error)" fault in the record, never an exception in
     your loop. A `CancelledError` met while the run is being cancelled is
     answered `cancelled`.
+    Tasks the tool spawns are yours: under `run_async` their exceptions
+    reach your loop as asyncio delivers them, so a `KeyboardInterrupt` from
+    one reaches your `asyncio.run`.
   - **What it does not do.** Under `run_async`, tasks an async tool spawns
     outlive the call: the runner cancels only its own (under `run`, the
     call's loop cancels everything on it when it closes). An abandoned

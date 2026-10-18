@@ -521,6 +521,49 @@ class CountingLock:
         self.lock.release()
 
 
+def test_a_tool_that_ran_is_never_reported_as_not_started(caller, monkeypatch) -> None:
+    """The build review's F1: the work thread's wait must not decide "cancelled before it
+    started" from a read that went stale. The loop is busy when the post arrives, so the wait
+    passes its first slice with `started` and `ended` both false. Then, inside the wait's first
+    read of the posted future, the loop is released and the read returns only once the wrapper
+    has run the tool to its end and the future has completed. The tool ran, so the call must be
+    answered with its value; a wait that trusts a `started` read taken before that answers
+    `tool_error`, "CancelledError: cancelled before it started"."""
+    effects: list = []
+    hold = threading.Event()
+    real_post = asyncio.run_coroutine_threadsafe
+
+    class Released:
+        """The posted future, whose first `done()` lets the loop run the wrapper to its end."""
+
+        def __init__(self, future: Any) -> None:
+            self.future, self.first = future, True
+
+        def done(self) -> bool:
+            if self.first:
+                self.first = False
+                hold.set()
+                concurrent.futures.wait([self.future], timeout=60)  # a fail-safe, not a timing
+            return self.future.done()
+
+    monkeypatch.setattr(
+        T.asyncio, "run_coroutine_threadsafe", lambda coro, loop: Released(real_post(coro, loop))
+    )
+
+    @tool
+    async def transfer(amount: int) -> str:
+        """Move money."""
+        effects.append(amount)
+        return "done"
+
+    caller.loop.call_soon_threadsafe(hold.wait, 60)  # busy when the post arrives
+    host = _host([transfer], loop=caller.loop)
+    assert answer(host(call_frame("transfer", {"amount": 100}))) == ("ok", "done")
+    assert effects == [100]
+    o = _last(host)
+    assert (o.outcome, o.fault, o.abandoned) == ("ok", None, False)
+
+
 def test_the_first_step_takes_the_lock_once() -> None:
     """The Confirmation's C-2: the wrapper's first step is one acquisition of the bound's lock
     that checks the call is unanswered, marks the start and records the task. Built from 056's
@@ -764,6 +807,17 @@ def test_close_ends_the_calls_loop(caller) -> None:
             post = T._Post(None)
             post.loop, post.started = closed, True
             post.task = asyncio.Future(loop=closed)
+            T._cancel_post(post)
+
+            # A loop that closes between the check and the call (the build review's N1).
+            class Closing:
+                def is_closed(self) -> bool:
+                    return False
+
+                def call_soon_threadsafe(self, *args: Any) -> None:
+                    raise RuntimeError("Event loop is closed")
+
+            post.loop = Closing()
             T._cancel_post(post)
             gc.collect()
     finally:
