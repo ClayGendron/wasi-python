@@ -74,7 +74,9 @@
   the line's **pinned** wheel (`cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl`, from
   `downloads/`). So 3.3.0 is the only released Cython that carries the fix, and nothing else
   motivated the cap. `sklearn/meson.build:22-59` checks only a minimum, and only when not
-  cross-compiling (READ). (See finding 12 for the evidence the text should cite.)
+  cross-compiling (READ). On the drafting run's 3.3.0 native build, issue 7846's case
+  round-trips and 6,110 of scikit-learn's own tests pass (EXECUTED; finding 12 has the
+  details and the evidence the text should cite).
 - **No OpenMP, serial joblib.** READ: `_openmp_helpers.pxd` defines the fallbacks under
   `#ifndef _OPENMP`; joblib 1.6.0's `_multiprocessing_helpers.py:13-19` sets `mp = None` when
   `_multiprocessing` is missing, and each backend's `effective_n_jobs` returns 1 when `mp is
@@ -200,9 +202,9 @@
    Medium: §4.12 says each component "ships with its notice", and a `.pyc` drops comments, so
    the zip holds the code without its notice.
    - READ: `sklearn/utils/_pprint.py` is CPython's `pprint`, adapted, under the "PYTHON
-     SOFTWARE FOUNDATION LICENSE VERSION 2" given in full in its comment header, with the "brief summary of changes" that licence's
-     clause 3 asks for (lines 5-67,
-     "Copyright (c) 2001 … 2018 Python Software Foundation; All Rights Reserved"). Every
+     SOFTWARE FOUNDATION LICENSE VERSION 2" given in full in its comment header, with the
+     "brief summary of changes" that licence's clause 3 asks for (lines 5-67, "Copyright (c)
+     2001 … 2018 Python Software Foundation; All Rights Reserved"). Every
      estimator's `repr` imports it (`base.py:452`). `sklearn/utils/_testing.py:575-577`: "The
      following is derived from pytest, Copyright (c) 2004-2017 Holger Krekel and others,
      Licensed under MIT License"; the module ships (it is not under `tests/`).
@@ -299,8 +301,8 @@
 
 9. **(045) One data table ships with no stated terms, and Decision 10 names files that do not
    stay.** Low.
-   - EXECUTED (`find` over the package): `statsmodels/sandbox/rlsdata.txt` (50 rows of a
-     regression data set) ships; nothing in the package reads it (EXECUTED: `grep`) and it
+   - EXECUTED (`find` over the package): `statsmodels/sandbox/rlsdata.txt` (a 50-line
+     table of a regression data set) ships; nothing in the package reads it (EXECUTED: `grep`) and it
      states no terms, the same class as cancer and heart. Every `.html` and `.dat` file in the
      package is under `datasets/*/src/`, which Decision 9 leaves out, so "statsmodels' HTML
      templates and `.dat` tables" do not stay.
@@ -323,8 +325,9 @@
     - EXECUTED (today's guest): with no root, `HOME` is unset and `pwd` is missing, so
       `expanduser("~/scikit_learn_data")` returns the path unchanged and `makedirs` raises
       `FileNotFoundError: [Errno 44] … '~'` before any network call. With `--root`, the runner
-      provides a `HOME` under `/tmp`, the folder is made there, and the download fails with
-      `URLError: unknown url type: https`.
+      provides a `HOME` under `/tmp` and the folder is made there (EXECUTED), and `urlopen` of
+      an `https` URL raises `URLError: unknown url type: https` (EXECUTED), so the fetch fails
+      there instead (INFERRED; nothing was fetched).
     - Fix: the check names its grant configuration (none, as written), and the README states
       both outcomes. The same holds for statsmodels' `get_rdataset(…, cache=True)`.
 
@@ -338,9 +341,19 @@
       drafting run's Cython 3.3.0 native build (`tools/p7846.py`), a scikit-learn cyfunction
       (`murmurhash._murmurhash3_bytes_array_s32`) wrapped with `functools.wraps` has a
       `__annotate__` that pickles and unpickles; `KDTree` and `BallTree` round-trip through
-      `pickle`. scikit-learn's own tests on that build: RESULT_LINE.
+      `pickle`. scikit-learn's own tests on that build, single-threaded (`OMP_NUM_THREADS=1`,
+      `OPENBLAS_NUM_THREADS=1`), `--pyargs`: `sklearn.svm` 308 passed; `sklearn.tree` 799;
+      `sklearn.neighbors` 1,515; `test_cython_blas`, `sklearn._loss`, `test_hdbscan` and
+      `test_k_means` 2,264; `test_sgd`, `test_coordinate_descent`,
+      `test_pairwise_distances_reduction` and `test_t_sne` 763 (1 xfailed);
+      `test_gradient_boosting` 129; `test_forest` 332. 6,110 passed, none failed
+      (`out/sk33-g*.txt`). Stopped at my time box, with no failure up to then:
+      `sklearn.ensemble._hist_gradient_boosting` (124 passed, 100 skipped, about half the
+      file set) and `test_iforest` (51 passed).
     - Fix: cite the pinned wheel, PR 34533 (the only reason) and 34584 (3.2.10 unreleased), and
-      the test run; drop the pickling sentence as evidence.
+      the test run; drop the pickling sentence as evidence. Since no scikit-learn release was
+      built with 3.3.0, have the builder repeat this native test subset with the line's Cython in
+      stage 1 (minutes, single-threaded) and record it in the landing notes.
 
 13. **(044, 045) The facts sheets.** Low.
     - READ (scikit-learn's `AGENTS.md`): "Every summary, pull request description, or work
