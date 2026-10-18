@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from harness import needs, paths, zips
+from harness import jobs, needs, paths, zips
 
 pytestmark = pytest.mark.goal("v1.3")
 
@@ -39,6 +39,7 @@ served = dict(zd.served)
 print(json.dumps({
     "served": served,
     "reader": zipimport._read_directory is zd.read_directory,
+    "resources": zipimport.zipimporter.get_resource_reader is zd.get_resource_reader,
     "encodings": isinstance(sys.modules["encodings"].__spec__.loader, zipimport.zipimporter),
     "origin": zd.__spec__.origin,
     "zipimport": zipimport.__file__,
@@ -55,6 +56,7 @@ def test_the_zip_reader_is_ours_from_the_first_import(guest, which) -> None:
     assert got == {
         "served": {ZIP: "fast"},
         "reader": True,
+        "resources": True,
         "encodings": True,
         "origin": "frozen",
         "zipimport": f"{ZIP}/zipimport.py",
@@ -168,3 +170,174 @@ def test_a_reread_after_invalidate_caches_is_the_fast_read(guest, judge_zips, no
     slope = judge_zips.slope(fuel["small"], fuel["padded"])
     note(f"{slope:,.0f} fuel per member; the re-read on small.zip {fuel['small']:,}")
     assert slope <= 30_000, f"the re-read grows {slope:,.0f} fuel per member (bound 30,000)"
+
+
+ZONES = "import zoneinfo, importlib.resources\n"
+PARIS = ZONES + "zoneinfo.ZoneInfo('Europe/Paris')\n"
+TOKYO = PARIS + "zoneinfo.ZoneInfo('Asia/Tokyo')\n"
+
+
+def _fuel(guest, which: str, code: str, **kw) -> int:
+    r = guest(which, ["-c", code], **kw)
+    assert r.exit_code == 0, r.describe()
+    return r.fuel
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_a_zone_load_does_not_grow_with_the_zip(guest, judge_zips, note, which) -> None:
+    """A first time zone reads its file through the reactor's resource reader, which answers from
+    zipimport's dict, so it costs the same on any zip; a second zone costs its own file and its
+    folder's import (criterion 4)."""
+    if which == "snapshot":
+        a, c, b = (_fuel(guest, which, code) for code in (ZONES, TOKYO, PARIS))
+        note(f"Paris {b - a:,}; Tokyo after it {c - b:,}")
+        assert b - a <= 15_000_000, f"a first zone costs {b - a:,} fuel on the snapshot (15 M)"
+        assert c - b <= 2_000_000, f"a second zone costs {c - b:,} fuel (2 M)"
+        return
+    pa = _fuel(guest, which, ZONES, stdlib=judge_zips.padded)
+    pb = _fuel(guest, which, PARIS, stdlib=judge_zips.padded)
+    a = _fuel(guest, which, ZONES, stdlib=judge_zips.small)
+    c = _fuel(guest, which, TOKYO, stdlib=judge_zips.small)
+    b = _fuel(guest, which, PARIS, stdlib=judge_zips.small)
+    slope = judge_zips.slope(b - a, pb - pa)
+    note(f"Paris {b - a:,} (padded {pb - pa:,}, {slope:,.0f} per member); Tokyo {c - b:,}")
+    assert max(b - a, pb - pa) <= 20_000_000, f"a first zone costs {b - a:,}, {pb - pa:,} (20 M)"
+    assert slope <= 1_000, f"a first zone grows {slope:,.0f} fuel per member (1,000)"
+    assert c - b <= 2_000_000, f"a second zone costs {c - b:,} fuel (2 M)"
+
+
+RESOURCES = """
+import importlib.resources as ir, json, posixpath, zipfile
+Z = "/usr/local/lib/python315.zip"
+zf = zipfile.ZipFile(Z)
+names = zf.namelist()
+zroot = zipfile.Path(zf)
+bad = []
+
+top = ir.files("tzdata").parent  # the zip's root, so pandas need not be imported
+
+def ours(at):
+    return top.joinpath(at)
+
+def answers(p):
+    return [p.is_file(), p.is_dir(), p.exists(), p.name, str(p)]
+
+def error(run):
+    try:
+        run()
+    except Exception as e:
+        return type(e).__name__
+    return None
+
+root = ir.files("tzdata")
+zones = 0
+for name in names:
+    if name.startswith("tzdata/zoneinfo/") and not name.endswith("/"):
+        zones += 1
+        if root.joinpath(name[len("tzdata/"):]).read_bytes() != zf.read(name):
+            bad.append(["bytes", name])
+entries = sorted({n for n in zroot.root.namelist() if n.startswith(("tzdata/", "pandas/"))})
+dirs = ["tzdata/", "pandas/"] + [n for n in entries if n.endswith("/")]
+for d in dirs:
+    mine = sorted(c.name for c in ours(d).iterdir())
+    theirs = sorted(c.name for c in zroot.joinpath(d).iterdir())
+    if mine != theirs:
+        bad.append(["iterdir", d, len(mine), len(theirs)])
+odd = ["tzdata/missing", "tzdata/zoneinfo/UTC/", "tzdata/missing/", "tzdata/zoneinfo"]
+for at in entries + odd:
+    if answers(ours(at)) != answers(zroot.joinpath(at)):
+        bad.append(["answers", at, answers(ours(at)), answers(zroot.joinpath(at))])
+zi = "tzdata/zoneinfo/tzdata.zi"
+for how in ("read_text", "rt", "r+"):
+    read = {
+        "read_text": lambda p: p.read_text(encoding="utf-8"),
+        "rt": lambda p: p.open("rt").read(),
+        "r+": lambda p: p.open("r+").read(),
+    }[how]
+    if read(ours(zi)) != read(zroot.joinpath(zi)):
+        bad.append(["text", how])
+if ir.read_binary("tzdata.zoneinfo", "UTC") != zf.read("tzdata/zoneinfo/UTC"):
+    bad.append(["read_binary"])
+utc, tzd = "tzdata/zoneinfo/UTC", "tzdata/zoneinfo/"
+cases = {
+    "iterdir on a file": lambda p: list(p(utc).iterdir()),
+    "open a missing name": lambda p: p("tzdata/missing").open("rb"),
+    "open a directory": lambda p: p(tzd).open("rb"),
+    "read_bytes a missing name": lambda p: p("tzdata/missing").read_bytes(),
+    "open('w') a file": lambda p: p(utc).open("w"),
+    "open('w') a directory": lambda p: p(tzd).open("w"),
+    "open('rb', encoding=)": lambda p: p(utc).open("rb", encoding="utf-8"),
+}
+for k, run in cases.items():
+    mine, theirs = error(lambda: run(ours)), error(lambda: run(zroot.joinpath))
+    if mine != theirs or mine is None:
+        bad.append(["error", k, mine, theirs])
+kinds = [type(root).__name__, type(top).__name__]
+print(json.dumps({"type": kinds, "zones": zones, "dirs": len(dirs), "entries": len(entries),
+                  "bad": bad[:10]}))
+"""
+
+GUEST_ZIP = f"""
+import importlib.resources as ir, io, json, sys, zipfile
+Z = "/zips/res.zip"
+sys.path.insert(0, Z)
+zf = zipfile.ZipFile(Z)
+pkg = ir.files("{zips.RESOURCE_PACKAGE}")
+got = {{"type": type(pkg).__name__}}
+got["lzma"] = pkg.joinpath("lzma.txt").read_bytes() == zf.read("{zips.RESOURCE_PACKAGE}/lzma.txt")
+try:
+    pkg.joinpath("badcrc.txt").read_bytes()
+    got["badcrc"] = None
+except Exception as e:
+    got["badcrc"] = type(e).__name__
+with pkg.joinpath("big.bin").open("rb") as f:
+    got["stream"] = type(f).__name__
+    chunks = iter(lambda: f.read(65536), b"")
+    got["big"] = b"".join(chunks) == zf.read("{zips.RESOURCE_PACKAGE}/big.bin")
+got["plain"] = pkg.joinpath("plain.txt").read_text(encoding="utf-8")
+print(json.dumps(got))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_resources_read_as_zipfile_reads_them(guest, which) -> None:
+    """Resources in a zip on the import path are the reactor's own `Traversable`, with
+    `zipfile.Path`'s bytes, listings, answers and errors; a guest's zip whose member is not plain
+    and small is read by `zipfile` itself, with its checks and its stream (criterion 5)."""
+    if which == "plain":
+        data = zips.resource_zip()
+        zips.check_resource_zip(data)
+        got = _json(guest(which, ["-c", GUEST_ZIP], files={"/zips/res.zip": data}))
+        assert got == {
+            "type": "ZipDirectoryPath",
+            "lzma": True,
+            "badcrc": "BadZipFile",
+            "stream": "ZipExtFile",
+            "big": True,
+            "plain": "plain\n",
+        }, got
+    got = _json(guest(which, ["-c", RESOURCES]))
+    assert got["type"] == ["ZipDirectoryPath"] * 2 and not got["bad"], got
+    assert got["zones"] > 500 and got["dirs"] > 50 and got["entries"] > 1000, got
+
+
+def _job(guest, which: str, job: str):
+    files = {f"/jobs/{job}.py": jobs.script(job).read_bytes(), "/out/.keep": b""}
+    r = guest(which, [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    assert r.exit_code == 0, f"{job}: {r.describe()}"
+    (r.root / "out" / ".keep").unlink()
+    return r, jobs.render(r.stdout, r.root / "out")
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_the_pandas_tz_job_matches_native(guest, note, which) -> None:
+    """A Paris timestamp and a Tokyo range, read from `tzdata` as native reads them, print what
+    native pandas prints; on the snapshot the job costs at most 60 M fuel beyond its imports
+    (criterion 7; it cost 961 M when every zone read parsed the zip)."""
+    base = _fuel(guest, which, "import pandas, zoneinfo, importlib.resources")
+    r, out = _job(guest, which, "pandas_tz")
+    why = jobs.compare(jobs.expected_path("pandas_tz").read_bytes(), out)
+    assert why is None, why
+    note(f"the job beyond its imports: {r.fuel - base:,} fuel")
+    if which == "snapshot":
+        assert r.fuel - base <= 60_000_000, f"the job costs {r.fuel - base:,} beyond its imports"

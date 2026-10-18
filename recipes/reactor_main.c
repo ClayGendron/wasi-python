@@ -10,8 +10,9 @@
  *
  * The interpreter starts in two phases (spec 035, Decision 3). Between them, before anything is
  * read from the stdlib zip, the frozen module `_zip_directory` (recipes/zip_directory.py, compiled
- * the same way into zip_directory.h) puts its reader of the zip's directory in zipimport's place.
- * It is an embedder's frozen module (PyImport_FrozenModules).
+ * the same way into zip_directory.h) puts its reader of the zip's directory in zipimport's place,
+ * and its resource reader on zipimporter; `_zip_resources` (zip_resources.h) loads on first use.
+ * Both are an embedder's frozen modules (PyImport_FrozenModules).
  */
 #include <Python.h>
 #include <marshal.h>
@@ -23,6 +24,7 @@
 
 #include "reactor_bootstrap.h"
 #include "zip_directory.h"
+#include "zip_resources.h"
 
 /* The one entry on the guest's import path: the stdlib zip, named for the interpreter this file is
  * compiled into (/usr/local/lib/python315.zip), so the two cannot disagree. The same path is
@@ -36,6 +38,7 @@
  * zipimport (Python/import.c, look_up_frozen). */
 static const struct _frozen recipe_modules[] = {
     {"_zip_directory", ZIP_DIRECTORY, (int)sizeof ZIP_DIRECTORY, 0},
+    {"_zip_resources", ZIP_RESOURCES, (int)sizeof ZIP_RESOURCES, 0},
     {NULL, NULL, 0, 0},
 };
 
@@ -176,7 +179,8 @@ init_interpreter(int fixed_hash_seed)
         Py_ExitStatusException(status);
     }
     if (PyImport_GetMagicNumber() != REACTOR_BOOTSTRAP_MAGIC
-        || PyImport_GetMagicNumber() != ZIP_DIRECTORY_MAGIC) {
+        || PyImport_GetMagicNumber() != ZIP_DIRECTORY_MAGIC
+        || PyImport_GetMagicNumber() != ZIP_RESOURCES_MAGIC) {
         fputs("python.wasm: a frozen recipe module was compiled for another Python\n", stderr);
         abort();
     }

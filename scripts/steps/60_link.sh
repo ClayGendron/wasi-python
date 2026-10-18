@@ -83,11 +83,14 @@ link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-mo
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \
   > "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "the reactor's bootstrap did not compile"; }
-# The zip's directory reader (spec 035, Decision 5): a frozen module of the reactor's own, named
-# as CPython names its frozen modules.
+# The zip's directory reader and resource reader (spec 035, Decision 5): frozen modules of the
+# reactor's own, named as CPython names its frozen modules.
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/zip_directory.py" "$L/zip_directory.h" \
   ZIP_DIRECTORY "<frozen _zip_directory>" \
   >> "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "recipes/zip_directory.py did not compile"; }
+"$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/zip_resources.py" "$L/zip_resources.h" \
+  ZIP_RESOURCES "<frozen _zip_resources>" \
+  >> "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "recipes/zip_resources.py did not compile"; }
 printf '%s\n%s\n' "$compile" "$link" > "$L/reactor-commands.txt"
 eval "$compile" > "$L/reactor-compile.log" 2>&1 || { tail -n 20 "$L/reactor-compile.log"; die "the reactor's compile failed"; }
 eval "$link" > "$L/reactor-link.log" 2>&1 || { tail -n 20 "$L/reactor-link.log"; die "the reactor's link failed"; }

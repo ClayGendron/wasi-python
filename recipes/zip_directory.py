@@ -7,7 +7,8 @@ own `_read_directory` (the same keys, the same tuples, in the same order) with o
 directory and one `_struct` unpack per member, where zipimport makes about a dozen Python calls
 per member. Anything outside the plain case goes to zipimport's own reader, kept here as
 `stock_read_directory`: Zip64, a cp437 name, any inconsistency, any error. So those zips, and
-every error message, are upstream's.
+every error message, are upstream's. It also gives zipimporter a resource reader on that same dict
+(`_zip_resources`, loaded on first use), so a resource read does not parse the zip again.
 
 It imports only `_io`, `_struct` and `zipimport` (and, through it, `_frozen_importlib_external`),
 which the interpreter's core phase can import. Step 60 compiles it with the guest's own Python
@@ -122,8 +123,17 @@ def read_directory(archive):
     return files
 
 
+def get_resource_reader(self, fullname):
+    """Return the ResourceReader for a module in a zip file: one on zipimport's own dict."""
+    from _zip_resources import ZipDirectoryReader
+
+    return ZipDirectoryReader(self, fullname)
+
+
 def install():
-    """Put the reader in zipimport's place (where zipimport's separator is `/`, as in the guest)."""
+    """Put the reader in zipimport's place, and the resource reader on zipimporter (where
+    zipimport's separator is `/`, as in the guest)."""
     if zipimport.path_sep != "/":
         return
     zipimport._read_directory = read_directory
+    zipimport.zipimporter.get_resource_reader = get_resource_reader

@@ -158,6 +158,181 @@ def test_the_judges_zips_have_what_they_claim(work) -> None:
                                                            "pad3/pkg/d.txt"}  # fmt: skip
 
 
+# Part 2: the resource reader's path and member reader.
+
+
+class FakeLoader:
+    """What `ZipDirectoryPath` asks of a zipimporter: its archive, its prefix and its dict."""
+
+    def __init__(self, archive: str, files: dict, prefix: str = "") -> None:
+        self.archive, self.files, self.prefix = archive, files, prefix
+
+    def _get_files(self) -> dict:
+        return self.files
+
+    def is_package(self, fullname: str) -> bool:
+        return True
+
+
+@pytest.fixture
+def zr():
+    return _load("zip_resources")
+
+
+NAMES = {
+    "pkg/": None,
+    "pkg/zone/": None,
+    "pkg/zone/UTC": ("x",),
+    "pkg/zone/Paris": ("x",),
+    "pkg/a": ("x",),  # a file beside a same-named folder
+    "pkg/a/": None,
+    "pkg/a/b": ("x",),
+    "//lead.py": ("x",),
+    "//": None,  # the folder zipimport implies for "//lead.py"
+}
+
+
+def test_the_zip_path_answers_as_a_traversable(zr) -> None:
+    files = dict(NAMES)
+    root = zr.ZipDirectoryPath(FakeLoader("/z/x.zip", files))
+    at = lambda p: p._at  # noqa: E731
+    assert at(root.joinpath("pkg", "zone", "UTC")) == "pkg/zone/UTC"
+    assert at(root / "pkg" / "zone") == "pkg/zone/"
+    assert at(root.joinpath("pkg/zone/UTC/")) == "pkg/zone/UTC/"
+    assert at(root.joinpath("pkg", "missing/")) == "pkg/missing/"
+    assert at(root.joinpath("//lead.py")) == "//lead.py"
+    assert at(root.joinpath("pkg", "a")) == "pkg/a"
+    assert at(root.joinpath()) == ""
+    pkg = root / "pkg"
+    utc, utc_dir, missing_dir = pkg / "zone/UTC", pkg / "zone/UTC/", pkg / "missing/"
+    assert [utc.is_file(), utc.is_dir(), utc.exists()] == [True, False, True]
+    assert [utc_dir.is_file(), utc_dir.is_dir(), utc_dir.exists()] == [False, True, False]
+    assert [missing_dir.is_file(), missing_dir.is_dir(), missing_dir.exists()] == [
+        False,
+        True,
+        False,
+    ]
+    assert [root.is_file(), root.is_dir(), root.exists()] == [False, True, False]
+    assert [(pkg / "zone").name, utc.name, root.name, utc_dir.name] == [
+        "zone",
+        "UTC",
+        "x.zip",
+        "UTC",
+    ]
+    assert (pkg / "zone/x.tar.gz").suffixes == [".tar", ".gz"] and root.suffix == ".zip"
+    assert at(utc.parent) == "pkg/zone/" and at(pkg.parent) == "" and str(root.parent) == "/z"
+    assert [str(root), str(utc), str(pkg)] == [
+        "/z/x.zip/",
+        "/z/x.zip/pkg/zone/UTC",
+        "/z/x.zip/pkg/",
+    ]
+    assert utc == root.joinpath("pkg/zone/UTC") and hash(utc) == hash(pkg / "zone" / "UTC")
+    assert utc != pkg and (utc == "/z/x.zip/pkg/zone/UTC") is False
+    assert utc.__eq__("pkg/zone/UTC") is NotImplemented
+    with pytest.raises(ValueError, match="Can't listdir a file"):
+        utc.iterdir()
+    assert zr._maps == {}, "a map before any listing"
+    assert sorted(p.name for p in (pkg / "zone").iterdir()) == ["Paris", "UTC"]
+    assert sorted(at(p) for p in pkg.iterdir()) == ["pkg/a", "pkg/a/", "pkg/zone/"]
+    # zipfile.Path's own rule (`_is_child`) on zipimport's names: "//" is the root's child.
+    assert [at(p) for p in root.iterdir()] == ["pkg/", "//"]
+    built = zr._maps["/z/x.zip"]
+    assert built[0] is files
+    list(pkg.iterdir())
+    assert zr._maps["/z/x.zip"] is built, "the map was built again for the same dict"
+    root._loader.files = dict(files, **{"pkg/new": ("x",)})
+    assert "new" in [p.name for p in pkg.iterdir()]
+    assert zr._maps["/z/x.zip"][0] is root._loader.files
+
+
+def _member_zip(folder: Path, zd, members: dict) -> FakeLoader:
+    archive = folder / "m.zip"
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for name, (data, method) in members.items():
+            info = zipfile.ZipInfo(name, zips.DATE)
+            info.compress_type = method
+            z.writestr(info, data)
+    archive.write_bytes(out.getvalue())
+    return FakeLoader(str(archive), zd.read_directory(str(archive)))
+
+
+def test_the_zip_path_opens_as_zipfile_path_does(zr, zd, work) -> None:
+    text = "zoneinfo: ü\n"
+    loader = _member_zip(work, zd, {"d/t.txt": (text.encode(), zipfile.ZIP_DEFLATED)})
+    root = zr.ZipDirectoryPath(loader)
+    t = root / "d" / "t.txt"
+    with t.open("rb") as f:
+        assert f.read() == text.encode()
+    for mode in ("r", "rt", "r+"):
+        with t.open(mode, encoding="utf-8") as f:
+            assert f.read() == text, mode
+    assert t.read_text(encoding="utf-8") == text and t.read_bytes() == text.encode()
+    for mode in ("w", "br", "x", "a"):
+        with pytest.raises(ValueError):
+            t.open(mode)
+    with pytest.raises(ValueError, match="encoding args invalid"):
+        t.open("rb", encoding="utf-8")
+    with pytest.raises(FileNotFoundError):
+        (root / "d/missing").open("rb")
+    with pytest.raises(IsADirectoryError):
+        (root / "d").open("rb")
+    with pytest.raises(IsADirectoryError):
+        (root / "d").open("w")
+    reader = zr.ZipDirectoryReader(FakeLoader(loader.archive, loader.files, "d/"), "pkg.sub")
+    assert reader.files()._at == "d/sub/"
+    plain = zr.ZipDirectoryReader(FakeLoader(loader.archive, loader.files), "d")
+    assert plain.files()._at == "d/" and plain.is_resource("t.txt") is True
+    assert plain.is_resource("missing") is False and plain.is_resource("") is False
+
+
+class _ZipfileStub:
+    calls: list = []
+
+    def __init__(self, root, at=""):
+        self.at = at
+        _ZipfileStub.calls.append((root, at))
+
+    def open(self, mode="r", *args, **kwargs):
+        return io.BytesIO(b"from zipfile")
+
+
+def _patch(data: bytes, offset: int, value: bytes) -> bytes:
+    return data[:offset] + value + data[offset + len(value) :]
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["plain", "lzma", "over 1 MiB", "bad crc", "encrypted", "local name", "inflates past"],
+)
+def test_the_member_reader_hands_odd_members_to_zipfile(zr, zd, work, monkeypatch, case) -> None:
+    body = b"a member that inflates\n" * 50
+    method = zipfile.ZIP_LZMA if case == "lzma" else zipfile.ZIP_DEFLATED
+    if case == "over 1 MiB":
+        body, method = b"x" * (zr.LIMIT + 1), zipfile.ZIP_STORED
+    loader = _member_zip(work, zd, {"d/m.bin": (body, method)})
+    data = Path(loader.archive).read_bytes()
+    cd = data.rfind(b"PK\x01\x02")
+    if case == "bad crc":
+        crc = struct.unpack_from("<I", data, cd + 16)[0]
+        data = _patch(data, cd + 16, struct.pack("<I", crc ^ 1))
+    if case == "encrypted":
+        data = _patch(data, 6, struct.pack("<H", 1))
+    if case == "local name":
+        data = _patch(data, 30, b"e")
+    if case == "inflates past":
+        data = _patch(data, cd + 24, struct.pack("<I", len(body) - 10))
+    Path(loader.archive).write_bytes(data)
+    loader.files = zd.read_directory(loader.archive)
+    _ZipfileStub.calls = []
+    monkeypatch.setattr(zipfile, "Path", _ZipfileStub)
+    got = (zr.ZipDirectoryPath(loader) / "d/m.bin").read_bytes()
+    if case == "plain":
+        assert (got, _ZipfileStub.calls) == (body, [])
+    else:
+        assert (got, _ZipfileStub.calls) == (b"from zipfile", [(loader.archive, "d/m.bin")])
+
+
 @pytest.fixture(autouse=True)
 def _no_private_modules_left():
     yield
