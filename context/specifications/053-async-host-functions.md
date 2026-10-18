@@ -1,6 +1,7 @@
 # 053 — Async host functions
 
-- **Status:** drafted 2026-10-18; reviewed before build the same day
+- **Status:** **built 2026-10-18; awaiting its build review** (Landing notes). Drafted
+  2026-10-18; reviewed before build the same day
   (`../reviews/053-async-host-functions-spec-2026-10-18.md`, written in the lane's evidence
   folder, `build/reviews-evidence/053-review/`, and copied in by the lane; verdict: "ready once
   F1 to F4 are written in", F5 to F8 small text edits); revised against it (the section "Revised
@@ -867,4 +868,239 @@ Both are now in:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer (a builder agent, Claude Opus 5.5) in the worktree
+`wasi_python-053` on `spec/053-async-host-functions`, which the lane had rebased onto main with
+spec 056 landed (`0b98029`). The judge ran against the lane's frozen artifact set
+`build/sets/s-c4190ca065ada03a` (spec 035's; never rebuilt; `WASI_PYTHON_ARTIFACTS` pointed at
+it), on darwin-arm64 with wasmtime-py 49.0.0 and Python 3.14.2. Each claim is EXECUTED unless it
+says otherwise. Logs and scripts are under the worktree's `build/053/`, which is not kept, so the
+lines that matter are quoted here. Not yet reviewed.
+
+**Commits.**
+- `c3bd5d5`: the checks first (criteria 1 to 19);
+- `9f407b0`: the code;
+- `2e2ab18`: two checks strengthened against their stand-ins, and the docstrings of `run` and
+  `run_async`;
+- `70009e6`: README and CHANGELOG;
+- this commit: these notes.
+
+**056 against what this spec quotes (Decision 5).** 056's landed text and code agree with what
+Decision 5 quotes; nothing differed (READ, `src/wasi_python/tools.py` at `0b98029`, and
+`context/specifications/056-the-a4-security-reviews-findings.md`, Decision 3):
+- `_Work.__call__(proceed)` asks `proceed` after the gate (or at once with no gate) and before
+  `t.fn`;
+- `_Bounded._proceed(slot)` is `not slot.abandoned`, read under `self._lock`, a plain
+  `threading.Lock`;
+- a skipped tool returns `failed("cancelled", "<name> was not run: its call had ended")`, which
+  nobody reads;
+- "The record is not changed": the outcome keeps `abandoned=True`.
+
+This build extends that rule to awaitables in the same terms. A skipped awaitable gets the same
+unread `cancelled` answer, and the record is unchanged.
+
+**What changed.**
+- **`src/wasi_python/tools.py`.**
+  - `tool()` refuses an async generator function (`_is_async_generator`, through `partial`s and
+    at a callable object's `__call__`) where it refused every async function. Its docstring says
+    how an async tool runs, with no specification number.
+  - `_Work.__call__(proceed=None, ops=None)`: an awaitable returned by the gate or by the tool
+    goes to `self._loop.run(awaitable, ops)`. `_NotStarted` gives 056's skip answer. A
+    `CancelledError` met while the bound's ends say the run is being cancelled is answered
+    `cancelled` (Decision 6, `_Work._cancelling`).
+  - New internals: `_ToolLoop` (`_get`, `_serve`, `run`, `_wrapper`, `close`), `_Post`, `_Ops`,
+    `_NotStarted`, `_cancel_post`, `_close_awaitable`, and the constants `_LOOP_THREAD`
+    (`"wasi-python-tool--loop"`) and `_LOOP_POLL_S` (0.01, the runner's tick).
+  - `_Slot` gains `post`.
+  - `_Bounded._abandon` asks a started awaitable's task to cancel, after it has released the
+    lock; `_Bounded._begin(slot, task)` is the one locked first step; `_Bounded._started` passes
+    `_Ops(self, slot)` to the work.
+  - `_ToolHost(..., tool_loop=None)` keeps a `_ToolLoop` (a private one by default) and gains
+    `close()`.
+- **`src/wasi_python/runner.py`.**
+  - `run_async` sets `checked["tool_loop"] = asyncio.get_running_loop()`.
+  - `_is_async_callable` (with no import of `wasi_python.tools`) refuses an async `host=` in
+    `_check_tools`.
+  - An async generator gate is refused where a coroutine gate was.
+  - `_tool_host` builds `_ToolLoop(c.get("tool_loop"), count=_count_tool_threads)`.
+  - `_instance`'s `finally` calls `tool_host.close()` first.
+  - The docstrings of `run` and `run_async` gain a sentence each, with no specification number.
+- **The judge.**
+  - `tests/unit/test_async_tools.py` (new, 10 checks: criteria 1 to 8, the C-2 check included).
+  - Ten checks appended to `tests/checks/test_v1_4_embedding.py` (criteria 9 to 18).
+  - The judge change of criterion 19: `test_tools.py`'s row and five rows in
+    `test_runner_tools.py`'s `MISTAKES`. The coroutine-gate row is replaced by an async
+    generator gate row, and four async `host=` rows are added. Nothing else changed.
+- **README.** *Tools* gains **Async tools** (the example, where it runs, stopped not abandoned,
+  faults, what it does not do, what is counted). *Abandoned tools* now says "a sync function".
+  *What `run` refuses* is updated. The MCP recipe is now an `async def`, and *From async code*'s
+  bullet points to async tools.
+- **CHANGELOG.** `0.1.0a5 — unreleased`: Added async tools and gates; Changed, an async `host=`
+  is refused.
+
+**Choices where the spec was silent, or read one way.**
+- **`_Bounded._begin`, not `_start`.** `_Bounded._start` already holds the injected thread
+  starter (spec 036), so the C-2 method is named `_begin(slot, task)`. It does exactly what the
+  Confirmation's C-2 asks: one acquisition that checks `not slot.abandoned`, then marks
+  `slot.post.started` and records the task. The wrapper's first step calls only it, through
+  `_Ops.start`.
+- **Criterion 5's C-2 check.** The spec described a hook injected between the predicate and the
+  mark. The single method has no such gap to hook, so the check gives the bound a counting lock
+  instead. That lock fails at once on a second acquisition by its holder, rather than hanging.
+  The check then asserts one acquisition for each answer, `True` and `False`. Both of the spec's
+  stand-ins fail it (below).
+- **The unrequested `CancelledError` while cancelling** (Decision 6) applies to a gate's
+  awaitable too: `cancelled`, otherwise `denied`, failing closed.
+- **Fail-safes.** Each tool whose wait could, in a regression, never end has a `timeout_s` of
+  30 s: criterion 7's C-1 tool and criterion 8's two ended-loop tools. Under such a regression
+  the call is answered `timeout`, which the check refuses, instead of hanging the judge.
+  Criterion 16 runs `run` on a helper thread joined with a 120 s fail-safe.
+- **Fake clocks.** A `Clock` whose first read in a call (from which the bound sets the call's
+  end) gives 0. The first try used a clock read straight from the tool's flag: the work thread
+  could set the flag before the door thread set the end, which then never came (seen hanging,
+  then fixed; not a code defect).
+- **Criterion 18's twins** have one docstring. With different docstrings the discovery answers
+  differed, so fuel differed by 7,321 (92,025,871 against 92,033,192).
+
+**Seen failing first.**
+- Against `0b98029` (before any code):
+  - `tests/unit/test_async_tools.py` gave `8 failed, 2 errors` (`TypeError: … async tools
+    come with a later specification (decision 15)`, and `T.asyncio` missing);
+  - the ten end-to-end checks gave `10 failed` (the same `TypeError`, in process or in the
+    child).
+- Then each named stand-in was applied to the built code, its checks run, and the file restored
+  byte for byte (`build/053/mutants.txt`; `restored True` each time):
+
+| stand-in | its checks |
+|---|---|
+| c3/c11: a bound that abandons without cancelling | `test_every_end_cancels_a_started_task` and `test_a_timeout_cancels_an_async_tool`: 2 failed (`[]`). The first try of the end-to-end check passed this stand-in, because the loop's closing at the run's end cancelled A anyway. Tool B now reports A's cancel count, which the call's end must already have produced. |
+| c4: the wait ends at the cancel, as a wait on the cancelled posted future does | `test_a_task_that_ignores_its_cancel_holds_its_slot`: failed. The fifth call started, where the quota should have answered at once. The first form of this stand-in, `… and not future.done()`, equals the built code (the runner never cancels the posted future, so it is done only when the task is) and passed, so it was replaced. |
+| c5: Decision 4 as first drafted, no first-step check | `test_an_answered_call_starts_no_awaitable`: `assert [1] == []` |
+| C-2: `_proceed`, then the mark in a second acquisition | `test_the_first_step_takes_the_lock_once`: 2 acquisitions |
+| C-2: `_proceed` called while holding the lock | the same check: "the bound's lock was taken twice" (it would deadlock) |
+| c6: 036's `_Work`, no check after the gate | `test_a_late_gate_skips_an_async_tool`: failed |
+| c7/C-1: the wait without the posted future's end | `test_faults_in_an_awaitable_stay_in_the_record`: `'timeout' == 'tool_error'` at the 30 s fail-safe |
+| c8/F3: the loop's thread without its `finally` | `test_a_loop_that_ends_is_closed_and_ends_the_wait` and `test_close_ends_the_calls_loop`: 2 failed |
+| c10: a private loop under `run_async` | `test_run_async_awaits_tools_on_the_callers_loop`: `b'' tool_error … False True` |
+| c16: a `close()` that waits for the loop | `test_an_async_tool_that_ignores_its_cancel_is_bounded`: "run waited for the tasks that ignore their cancel", at 120 s. The first form called `run` directly and hung the judge, which led to the helper thread. |
+| c17: one loop for the process | `test_one_calls_blocked_loop_does_not_starve_another`: B's run failed |
+
+**Acceptance, with evidence.**
+
+*Unit* (`tests/unit/test_async_tools.py`: 10 passed, 15 runs in a row; `test_tools.py`,
+`test_runner_tools.py` and `test_guest_tools.py`: 221 passed):
+
+1. Criterion 1, `test_async_callables_are_accepted_and_async_generators_refused`:
+   - the descriptors are equal;
+   - `partial(fetch)` and an async `__call__` are accepted;
+   - an async generator is refused;
+   - a coroutine gate reaches 1 lookup through `run` and 1 submit through `run_async`;
+   - the async generator gate and the four async `host=` forms each raise with 0 lookups and 0
+     submits.
+2. Criterion 2: the tool ran on `caller-loop` with the caller's context variable, and the
+   adapter did too; the async gate's `False` gave `denied` with the tool counter at 0, and its
+   `True` gave counter 1; with no loop given, one `wasi-python-tool--loop` thread is started
+   at the first awaitable and stays one after three calls, while sync tools start none. After
+   `close()` the thread is gone, the loop is closed and the count is 0.
+3. Criterion 3: each of the four ends answered its kind, abandoned, with exactly 1
+   `CancelledError` per case and the count back. The Ctrl-C flag is still set afterwards.
+4. Criterion 4: four `stubborn timed out after 1 s`, two answered at once with the quota's
+   message, 4 starts, the count at 4 until the release, then 0.
+5. Criterion 5:
+   - with the busy loop the body ran 0 times and the coroutine is `CORO_CLOSED`; the async gate's
+     body ran 0 times and so did the tool; the coroutine the work thread held unposted was
+     closed; 0 `RuntimeWarning`s in all;
+   - the C-2 check: 1 acquisition for each answer.
+6. Criterion 6: with a sync gate and with an async gate, the tool's function was called 0 times;
+   the sync gate posted nothing; the count is back.
+7. Criterion 7: every row of the table, including the C-1 row (`tool_error`, `CancelledError…`,
+   body 0, `CORO_CLOSED`, the work thread ended, the loop still open and running, 0 warnings).
+8. Criterion 8:
+   - `close()` cancelled the spawned task once and closed the loop;
+   - with an ignoring task, `close()` returned while 1 thread was still alive, and the loop
+     closed after the release;
+   - on the caller's loop, the check's own task was still pending;
+   - `cancel` and `close` on a closed loop gave 0 log records and 0 warnings;
+   - both ended-loop cases answered `tool_error` with a fault, closed the loop, ended the thread
+     and brought the count back, and a later call was answered `tool_error` naming "stopped".
+
+*End to end* (`tests/checks/test_v1_4_embedding.py`, the frozen set; all pass):
+
+9. Criterion 9: stdout `EMEA 60 ['month', 'sales']\nb'\x00cba'\n`; the outcomes `list ok`,
+   `call ok`, `call ok`; both tools on `wasi-python-tool--loop`; no loop thread afterwards; the
+   count back.
+10. Criterion 10 (child): `b'42\n' ok None True True` (the value; `ok`; no fault; the caller's
+    loop; the `Future` pending when awaited).
+11. Criterion 11: `a timed out after 0.5 s\nB's answer; A cancelled 1\n`; the outcomes A
+    `timeout` abandoned, B `ok`; A's task saw `[1]`.
+12. Criterion 12 (child): `timeout block timed out at the run's deadline [1] True`, then the
+    same under `run_async`.
+13. Criterion 13 (child): `cancelled [1]`, then `b'next\n'`.
+14. Criterion 14 (child): `cancelled None None b'' cancelled True [1] True`.
+15. Criterion 15 (child): `KeyboardInterrupt [1] True`.
+16. Criterion 16: six lines as expected, 4 starts, `tool_threads_running` 5 above its value
+    before (four work threads and the loop's thread), then back after the release.
+17. Criterion 17: A `A done`, with its tool seen blocking; B `now`, `ok`.
+18. Criterion 18: fuel `[92025871, 92025871, 92025871]` through the judge's driver (async with
+    0 and with 50 `sleep(0)`, and the sync twin).
+
+*The whole:*
+
+19. Criterion 19: the judge change listed above, and nothing else. Every 031, 036 and 056 check
+    passes.
+20. Criterion 20: the recipes.
+    - The README's *Async tools* example, extracted from the README as written (`build/053/
+      readme_async_example.py`, with a final `print`): `b'1.08\n'`.
+    - The MCP recipe, extracted as written and run against an in-memory `MCPServer` with one
+      tool, `forecast(city, days=3) -> Forecast` (a `TypedDict`, `structured_output=True`),
+      through `mcp.Client(server)`. The command was `uv run --isolated --no-project --with
+      mcp==2.3.0 --with <worktree> python -I build/053/mcp_recipe.py`, with mcp 2.3.0. Output:
+
+      ```
+      0 None
+      {'city': 'Oslo', 'highs': [4, 6]}
+      ToolError Error executing tool forecast
+      1 list None ok None None
+      2 call forecast ok None None
+      3 call forecast tool_error Error executing tool forecast None
+      ```
+
+      The server logs its own traceback for the Atlantis error on stderr; that is mcp's logging,
+      not the runner's.
+21. Criterion 21: **not done here.** Spec 049 landed on main (`6d6dfc5`, accepted; `3dfdab4`)
+    while this was being built, and the coordinator said not to rebase. A read-only `git
+    merge-tree --write-tree main HEAD` shows conflicts in `CHANGELOG.md`,
+    `context/questions-for-the-owner.md`, `src/wasi_python/runner.py` and
+    `src/wasi_python/tools.py`. After the rebase, the lane or the builder runs `uv run python
+    tests/harness/api.py --write` and checks that `tests/public_api.txt` is unchanged, and that
+    the README block changes only in the entries for `tool`, `run` and `run_async`.
+22. Criterion 22: `ruff check` and `ruff format --check` are clean on `src` and `tests`. The full
+    judge (`WASI_PYTHON_ARTIFACTS=…/s-c4190ca065ada03a uv run pytest`, no flags):
+
+    ```
+    wasi_python v1: 300/342 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1069/1077, 8 skipped)
+      v1.4  embedding           139/139
+    ratchet vs 4921daffeb: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 10 · grew 0 · upstream unrun 31 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_async_tools.py, tests/unit/test_runner_tools.py and 1 more
+    ================= 1369 passed, 50 skipped in 260.42s (0:04:20) =================
+    ```
+
+    The 42 blocked are this worktree's: numpy's and pandas' source trees, the oracle, the
+    prior-art clones, the other source trees, three systems and the wheel. The fast tier gave
+    `293/342 pass · 0 fail`, `lost 0 · gained 10 · grew 0`.
+
+**For the build review.**
+- **The locked steps.** Check these against Decision 4 and the Confirmation's C-2:
+  - `_Bounded._begin` and `_Bounded._abandon`: the latter reads `slot.post.started` under the
+    lock and cancels after releasing it;
+  - `_Ops.post`, the check before posting, and `_Ops.started`, read under the lock in the work
+    thread's wait.
+- **`_ToolLoop.run`'s wait.** Its four ends; the order of the `ended` check before the C-1
+  branch, since the wrapper sets `ended` in its `finally` before the task completes; and the
+  wrapper coroutine closed if `run_coroutine_threadsafe` refuses the post.
+- **`_ToolLoop._serve`.** It swallows a `BaseException` out of `run_forever` and out of the
+  run-down, so no "Exception in thread" is printed, and it closes the loop in an inner
+  `finally`.
+- **`_wrapper`.** It catches `BaseException` except `GeneratorExit`. A fault in its own first
+  step is kept as the call's error.
+- **`_instance`.** `close()` is first in its `finally`, before `store.close()`.
+- **The rebase onto 049** (criterion 21), and 049's renames inside `_Bounded`.
+- **The two strengthened checks** (criteria 11 and 16) and the replaced c4 stand-in.
