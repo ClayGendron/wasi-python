@@ -116,6 +116,27 @@ document.
   do not change, and a carried patch would stay carried for good (upstream builds `_struct`
   outside the bootstrap).
 
+### 61 and 62. scipy (spec 037)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/037-scipy.md`, Decisions 5 and
+  11. Each is decided in the specification as written below, so nothing waits.
+- **61. Pre-import scipy in the default snapshot?** The scipy counterpart of question 34. Spec
+  037 leaves the snapshot unchanged, so a first `import scipy.stats` on the snapshot pays
+  scipy's whole import, and plain calls that never use scipy pay nothing for it. Pre-importing
+  would make scipy calls much cheaper but cost every call some fuel and every instance more
+  starting memory, as matplotlib's would (34: +23.4 M fuel, +17.5 MB). Decided: not
+  pre-imported. The build of 037 measures the import fuel on both binaries and the snapshot's
+  bytes and `pass` fuel with `scipy.stats` pre-imported (its Acceptance, criterion 5); the agent
+  brings the numbers back, with 34's.
+- **62. A 1.1 MB carried patch in git?** OpenBLAS's `void` convention (upstream's merged
+  #6008 to #6082, backported by our script) touches 1,664 files: about 1.1 MB of text, about
+  116 KB compressed (EXECUTED on the research patch), with a `Files:` line of about 49 KB, as spec
+  020's rule requires. §4.6 says nothing large lives in git. Decided: it is carried, under
+  `recipes/patches/OpenBLAS-0.3.34/`. It is source text, not an artifact; generating it at build
+  time instead would be an unrecorded source change (§7); and it is deleted when OpenBLAS
+  0.3.35 releases the convention. The alternative is to wait for 0.3.35, which question 32
+  already declined.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
