@@ -888,3 +888,99 @@ b5633ecc06ef7b804d74313674118d9746dc553d3a7d75158da5db2e4928a5f8  python-stdlib.
 - The main tree needs the three new pins in `downloads/` (`scripts/00_download.sh` fetches them).
 - Spec 047 (regex) shares the oracle's `pyproject.toml` and `uv.lock`, step 60 and
   `gen_inittab.py`; whichever lands second rebases.
+
+### Revised against the build review (2026-10-18)
+
+The build review (`build/reviews-evidence/046-buildreview/046-lxml-2026-10-18.md`, the lane's
+copy) said: lands once F1 is fixed, F2 with it, F3 and F4 nits. The lane ruled F1's order: try
+(d) first, a guard whose handle fails every conversion, and pin each mode with a check. Commit
+`ae3e66c`. Evidence under the worktree's `build/046/f1/`. Every claim is EXECUTED.
+
+- **F1, (d), on the second try.** The first try failed every conversion. Strict XML then raised
+  "Invalid bytes" and `recover=True` kept no root, but the HTML parser still fell back to
+  windows-1252 (`modes.guard-d.txt`): it opens a declared encoding only after converting
+  `<a A="/>` through it and getting the same eight bytes back (`htmlCharEncCheckAsciiCompatible`,
+  `HTMLparser.c:3620`, READ). The second try passes ASCII through, which is GB18030's own
+  single-byte range and so the right decoding, and fails with `EILSEQ` at the first byte above
+  it. Encoding *to* GB18030 stays refused at the open. `iconv`, `iconv_open` and `iconv_close`
+  are wrapped; their one caller is `libxml2.a(encoding.o)` (`llvm-nm` over every archive of the
+  link). Every mode now reads nothing wrongly (`gb18030.revised.txt`, against the first guard's
+  `gb18030.old-guard.txt`):
+
+  | mode | the first guard (refused at the open) | the revised guard |
+  |---|---|---|
+  | strict XML | `XMLSyntaxError` "Unsupported encoding" | `XMLSyntaxError` "Invalid bytes in character encoding" |
+  | `XMLParser(recover=True)` | `'������ҳ…'`, no exception | no root (`None`); `ERR_INVALID_ENCODING` logged |
+  | `lxml.html.document_fromstring` | `'ÖÐÎÄÍøÒ³…'` and the rest, no exception | the ASCII before the first Chinese character only (`<p>` empty, the next `<p>` gone); `ERR_INVALID_ENCODING` logged |
+  | `pd.read_html` | `{'Ãû': ['ÖÐÎÄ']}` | `ImportError` (lxml finds no table; bs4 is not in the build) |
+  | `encoding="gb18030"` to read or write | `LookupError` | `LookupError` |
+  | Python's codec, then lxml (XML, HTML, `read_html`) | every character | every character |
+
+  A table wholly before the first non-ASCII byte is still read (`ascii_table.txt`:
+  `{'a': [1]}`). GBK documents are unaffected. The new check
+  `test_gb18030_is_never_silently_wrong` (both binaries) asserts each row; it fails on the first
+  guard's set (`seen-failing-old-guard.txt`: "Unsupported encoding" where "Invalid bytes" is
+  wanted). The encodings check's GB18030 row now reads `parse RAISES XMLSyntaxError Invalid bytes
+  in character encoding, line 1, column 39`. Decision 9 records the choice and why (a), (b) and
+  (c) were not taken; (c), routing to wasi-libc's GBK decoder, needs no new tables but would read
+  two-byte forms by GBK's mapping, so it stays a later option behind a whole-repertoire
+  measurement. The README says what each mode does and gives the working route (decode with
+  CPython's `gb18030` codec, give lxml the text).
+- **F2.** The README's encodings table is now said to be `etree`'s XML parser's, and a paragraph
+  says that in HTML and recover mode a "document fails" row loses its text from the first
+  unreadable character without raising, with the review's cp932 example, `parser.error_log`, and
+  Python's codecs as the way round. The CHANGELOG says it too.
+- **F3.** The README's facts: 40.4 MB / 74.4 MB / 22.1 MB and 8 min 35 s (spec 046's landing
+  notes). The Status bullet no longer says "Awaiting the review's confirmation" of the pre-build
+  review.
+- **F4.** The facts sheet's "What it does not cover" gains the descriptor-ownership change for
+  `xmlReaderForFd` and `xmlCtxtReadFd` callers on WASI, and that lxml calls neither.
+
+**The set after the revision** (the guard changed, so steps 60 to 90 were rebuilt; steps 36 and
+54 are unchanged). Its artifact and `MANIFEST` lines:
+
+```
+a4e7b1c296b75dd5a75b8d1179b34260bbe487c6fd7c929e10ae0b0470abc1fe  MANIFEST
+38c2077fe6c48e06980c0aaf0c52891aac6fe99974318e846ccf36319a24b745  python-snapshot.wasm
+b5633ecc06ef7b804d74313674118d9746dc553d3a7d75158da5db2e4928a5f8  python-stdlib.zip
+c22f1a83347bf314ddfe89a8da1f798fb12fa74d5effe0c36b65e85ccb0c2701  python.wasm
+```
+
+- `python.wasm` 40,374,948 bytes (+3,458,451 over main, +329 over the first guard), snapshot
+  74,364,930 (+3,463,206), zip unchanged; wheel 54,341,137 bytes (+2,242,906 over main's
+  52,098,231).
+- **Same bytes:** a clean clone of `ae3e66c` built from empty in the `linux/arm64` container
+  (Debian's `python3` installed first, as before): 15 steps in 7 min 49 s, `SHA256SUMS` equal to
+  macOS's on every line; the file's SHA-256 `ae86137a…` (`build/046/f1/linux/`).
+- **Fuel** (seeded guest, twice each, identical): plain `-c pass` 167,180,268 and snapshot
+  83,425,451, unchanged; `import lxml.etree` 473,908,889 plain and 124,505,517 snapshot,
+  `import lxml.html` 559,005,250 and 155,609,406 (each +14 over the first guard: the wrapped
+  calls' setup). The encodings check costs 30,590,893,720 (30,740,266,296 before: GB18030 now
+  stops at its first non-ASCII byte).
+- **The judge**, the fast tier with `-n 3` (green but growth, and the wheel check until the wheel
+  was rebuilt), then the full `uv run pytest` once, serially, on `ae3e66c`
+  (`build/046/f1/full-judge.txt`):
+
+```
+wasi_python v1: 403/419 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1191/1198, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 23 · grew 75 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_lxml.py and 12 more
+RED: 75 metric(s) grew
+1594 passed, 9 skipped, 14 xfailed in 1001.95s (0:16:41)
+```
+
+  The two new checks are the gain over the first run (21 → 23). The growth list
+  (`build/046/f1/growth-full.txt`) names the same 80 metrics with the same causes as above.
+
+## Disposition (by the builder; for the reviewer's confirmation)
+
+1. **F1, fixed by (d).** The guard opens a GB18030 decode whose handle passes ASCII and fails at
+   the first byte above it; encoding to GB18030 is refused. Strict XML, `recover=True`, the HTML
+   parser and `read_html` each read no character wrongly, and
+   `test_gb18030_is_never_silently_wrong` holds each mode on both binaries. Decision 9, the
+   README, the CHANGELOG and `recipes/iconv_refusals.c`'s header say so; (a), (b) and (c) are
+   recorded as not taken, (c) as a later option.
+2. **F2, fixed.** The README's HTML and recover caveat for the "document fails" rows, with the
+   cp932 example.
+3. **F3, fixed.** The README's facts table and the Status bullet.
+4. **F4, fixed.** The facts sheet's "What it does not cover" line.
