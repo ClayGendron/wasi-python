@@ -6,7 +6,8 @@
 # this order (the triple appears only inside the build-Python's path, which goes first), replace
 # the rest. Each Python distribution's METADATA rides along (spec 033): a wheel's from the wheel,
 # numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
-# in wasi-sdk); the recipe's stand-in package takes its place.
+# in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
+# `host` (spec 031), rides along as the project's own code; the snapshot does not pre-import it.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -40,6 +41,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/ctypes_stand_in/_types.py=ctypes/_types.py" \
   --file "$HERE/recipes/ctypes_stand_in/util.py=ctypes/util.py" \
   --file "$HERE/recipes/mmap_stub.py=mmap.py" \
+  --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
+  --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \
   --replace "$WASI_SDK_DIR=wasi-sdk" \
   --replace "$WASMTIME_DIR=wasmtime" \

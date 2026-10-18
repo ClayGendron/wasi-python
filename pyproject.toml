@@ -52,8 +52,22 @@ artifacts = ["src/wasi_python/artifacts"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
-extend-exclude = ["recipes", "fixtures", "scripts", "build", "downloads", "context"]
+# The guest package (recipes/guest/, spec 031) is linted and formatted like src/; it stays
+# compatible with Python 3.11, since the unit checks load it on the host's Python. The rest of
+# recipes/ is other projects' shapes (stand-ins, shims, patches) and is left alone.
+src = ["src", "tests", "recipes/guest"]
+extend-exclude = [
+    "recipes/mmap_stub.py",
+    "recipes/numpy_host_shim.py",
+    "recipes/reactor_bootstrap.py",
+    "recipes/ctypes_stand_in",
+    "recipes/patches",
+    "fixtures",
+    "scripts",
+    "build",
+    "downloads",
+    "context",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

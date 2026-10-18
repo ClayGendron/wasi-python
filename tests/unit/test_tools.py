@@ -1,0 +1,920 @@
+"""The tool protocol's host half (spec 031), with no guest: `tool()` describes and vets, the
+validator checks without coercion inside a counted budget, and the frame host answers raw frames
+in a fixed order, as a raw `host=` would see them. Nothing here measures time."""
+
+from __future__ import annotations
+
+import functools
+import json
+import numbers
+import subprocess
+import sys
+from typing import Any, Literal
+
+import pytest
+
+from wasi_python import tools as T
+from wasi_python.tools import Tool, ToolDenied, ToolError, tool
+
+
+def frame(op: str = "call", *, v: Any = 1, id: Any = 1, **fields: Any) -> bytes:
+    return json.dumps({"v": v, "id": id, "op": op, **fields}).encode()
+
+
+def call_frame(name: str, args: Any, **fields: Any) -> bytes:
+    return frame("call", tool=name, args=args, **fields)
+
+
+def answer(raw: bytes) -> dict:
+    assert isinstance(raw, bytes), type(raw)
+    text = raw.decode("ascii")  # every answer is ASCII JSON (ensure_ascii)
+    return json.loads(text)
+
+
+def kind(raw: bytes) -> str | None:
+    a = answer(raw)
+    return None if a["ok"] else a["error"]["kind"]
+
+
+class Counter:
+    """A gate and a tool that count their calls."""
+
+    def __init__(self) -> None:
+        self.gate_calls = 0
+        self.tool_calls = 0
+
+    def gate(self, call: T.ToolCall) -> None:
+        self.gate_calls += 1
+
+
+def counting_tools(counter: Counter) -> list[Tool]:
+    @tool
+    def echo(x: Any) -> Any:
+        """Give back what it was given."""
+        counter.tool_calls += 1
+        return x
+
+    @tool
+    def count(n: int) -> int:
+        """Count to n."""
+        counter.tool_calls += 1
+        return n
+
+    return [echo, count]
+
+
+# -------------------------------------------------------------------------------------------------
+# 1. A tool is described by its hints and docstring.
+
+
+def lookup_region(
+    code: str,
+    level: Literal["country", "region"],
+    data: bytes,
+    pair: tuple[int, ...],
+    counts: dict[str, int],
+    year: int = 2026,
+    note: str | None = None,
+) -> dict[str, int]:
+    """Look up a sales region by its code.
+
+    Args:
+        code: The region code, such as "EMEA".
+        level: How fine the answer is.
+        year: The fiscal year,
+            from 2000 on.
+
+    Returns:
+        The region's numbers.
+    """
+    return {"code": len(code)}
+
+
+LOOKUP_REGION = {
+    "name": "lookup_region",
+    "description": "Look up a sales region by its code.",
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "code": {"type": "string", "description": 'The region code, such as "EMEA".'},
+            "level": {"enum": ["country", "region"], "description": "How fine the answer is."},
+            "data": {"type": "string", "contentEncoding": "base64"},
+            "pair": {"type": "array", "items": {"type": "integer"}},
+            "counts": {"type": "object", "additionalProperties": {"type": "integer"}},
+            "year": {
+                "type": "integer",
+                "description": "The fiscal year, from 2000 on.",
+                "default": 2026,
+            },
+            "note": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None},
+        },
+        "required": ["code", "level", "data", "pair", "counts"],
+        "additionalProperties": False,
+    },
+    "outputSchema": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "annotations": {"readOnlyHint": True},
+}
+
+
+def test_a_tool_is_described_by_its_hints_and_docstring() -> None:
+    t = tool(read_only=True)(lookup_region)
+    assert isinstance(t, Tool)
+    assert t.descriptor() == LOOKUP_REGION
+    assert (t.name, t.description) == ("lookup_region", "Look up a sales region by its code.")
+    assert t("EMEA", "region", b"", (), {}) == {"code": 4}  # callable on the host
+
+    def plain(flag: bool, scale: float, nothing: None, anything: Any, items: list[str]) -> None:
+        pass
+
+    p = tool(plain)
+    assert p.descriptor() == {
+        "name": "plain",
+        "description": "",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "flag": {"type": "boolean"},
+                "scale": {"type": "number"},
+                "nothing": {"type": "null"},
+                "anything": {},
+                "items": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["flag", "scale", "nothing", "anything", "items"],
+            "additionalProperties": False,
+        },
+        "outputSchema": {"type": "null"},
+    }
+    named = tool(name="other", description="Said here.", destructive=True, open_world=True)(plain)
+    assert named.descriptor()["name"] == "other"
+    assert named.descriptor()["description"] == "Said here."
+    assert named.descriptor()["annotations"] == {"destructiveHint": True, "openWorldHint": True}
+
+    # The list answer keeps the order the embedder gave.
+    host = T._ToolHost([t, p, named])
+    a = answer(host(frame("list", id=7)))
+    assert a == {"v": 1, "id": 7, "ok": True, "tools": [LOOKUP_REGION, *a["tools"][1:]]}
+    assert [d["name"] for d in a["tools"]] == ["lookup_region", "plain", "other"]
+    host = T._ToolHost([named, t, p])
+    assert [d["name"] for d in answer(host(frame("list")))["tools"]] == [
+        "other",
+        "lookup_region",
+        "plain",
+    ]
+
+
+def test_importing_the_package_does_not_load_the_tools() -> None:
+    """Decision 1: `import wasi_python` leaves `wasi_python.tools` unloaded (spec 015's F6)."""
+    probe = "import sys, wasi_python; print('wasi_python.tools' in sys.modules)"
+    r = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, check=True)
+    assert r.stdout.strip() == "False", r.stdout + r.stderr
+
+
+# -------------------------------------------------------------------------------------------------
+# 2. A tool that cannot be described is refused.
+
+
+def schema(properties: dict, **more: Any) -> dict:
+    return {"type": "object", "properties": properties, **more}
+
+
+async def fetch(url: str) -> str:
+    return url
+
+
+def _cycle() -> dict:
+    return schema(
+        {"x": {"$ref": "#/$defs/A"}},
+        **{"$defs": {"A": {"anyOf": [{"$ref": "#/$defs/B"}]}, "B": {"$ref": "#/$defs/A"}}},
+    )
+
+
+def no_hint(x) -> None:  # noqa: ANN001
+    pass
+
+
+def star(*xs: int) -> None:
+    pass
+
+
+def stars(**kw: int) -> None:
+    pass
+
+
+def positional(x: int, /) -> None:
+    pass
+
+
+def bad_default(x: int = None) -> None:  # type: ignore[assignment]
+    pass
+
+
+def set_default(x: list[int] = {1}) -> None:  # type: ignore[assignment]  # noqa: B006
+    pass
+
+
+def set_hint(x: set[int]) -> None:
+    pass
+
+
+def fixed_tuple(x: tuple[int, str]) -> None:
+    pass
+
+
+def int_keys(x: dict[int, str]) -> None:
+    pass
+
+
+def square(x: int) -> int:
+    return x
+
+
+REFUSED = [
+    # (what, the call, the exception, words its message must hold)
+    (
+        "a from property",
+        lambda: tool(square, input_schema=schema({"from": {}})),
+        ValueError,
+        "'from'",
+    ),
+    (
+        "a max-results property",
+        lambda: tool(square, input_schema=schema({"max-results": {}})),
+        ValueError,
+        "'max-results'",
+    ),
+    (
+        "a required name not in properties",
+        lambda: tool(square, input_schema=schema({"x": {}}, required=["x", "y"])),
+        ValueError,
+        "'y'",
+    ),
+    ("x: int = None", lambda: tool(bad_default), ValueError, "int | None = None"),
+    ("a NaN timeout_s", lambda: tool(square, timeout_s=float("nan")), ValueError, "timeout_s"),
+    (
+        "an infinite timeout_s",
+        lambda: tool(square, timeout_s=float("inf")),
+        ValueError,
+        "timeout_s",
+    ),
+    ("a zero timeout_s", lambda: tool(square, timeout_s=0), ValueError, "timeout_s"),
+    ("a bool timeout_s", lambda: tool(square, timeout_s=True), TypeError, "timeout_s"),
+    ("a partial without name=", lambda: tool(functools.partial(square, 1)), TypeError, "name="),
+    ("an async def", lambda: tool(fetch), TypeError, "decision 15"),
+    ("no hint", lambda: tool(no_hint), TypeError, "'x'"),
+    ("*args", lambda: tool(star), TypeError, "'xs'"),
+    ("**kwargs", lambda: tool(stars), TypeError, "'kw'"),
+    ("a positional-only parameter", lambda: tool(positional), TypeError, "'x'"),
+    ("a default with no JSON form", lambda: tool(set_default), ValueError, "'x'"),
+    ("a hint outside the list", lambda: tool(set_hint), TypeError, "'x'"),
+    ("a fixed tuple", lambda: tool(fixed_tuple), TypeError, "'x'"),
+    ("a dict with int keys", lambda: tool(int_keys), TypeError, "'x'"),
+    ("a bad name", lambda: tool(square, name="2fast"), ValueError, "'2fast'"),
+    ("a keyword as a name", lambda: tool(square, name="class"), ValueError, "'class'"),
+    ("a lambda", lambda: tool(lambda x: x), ValueError, "<lambda>"),
+    (
+        "a root that is not an object",
+        lambda: tool(square, input_schema={"type": "array"}),
+        ValueError,
+        "object",
+    ),
+    (
+        "pattern",
+        lambda: tool(square, input_schema=schema({"x": {"type": "string", "pattern": "^a+$"}})),
+        ValueError,
+        "pattern",
+    ),
+    (
+        "array items",
+        lambda: tool(
+            square,
+            input_schema=schema({"x": {"type": "array", "items": [{"type": "string"}]}}),
+            validates_input=True,
+        ),
+        ValueError,
+        "items",
+    ),
+    (
+        "a remote $ref",
+        lambda: tool(
+            square,
+            input_schema=schema({"x": {"$ref": "https://example.org/s.json"}}),
+            validates_input=True,
+        ),
+        ValueError,
+        "$ref",
+    ),
+    (
+        "a $ref cycle that does not descend",
+        lambda: tool(square, input_schema=_cycle(), validates_input=True),
+        ValueError,
+        "$ref",
+    ),
+]
+
+
+@pytest.mark.parametrize("what, make, error, words", REFUSED, ids=[r[0] for r in REFUSED])
+def test_a_tool_that_cannot_be_described_is_refused(what, make, error, words) -> None:
+    with pytest.raises(error) as refused:
+        make()
+    assert words in str(refused.value), str(refused.value)
+
+
+def test_validates_input_lets_unknown_keywords_through_but_never_a_cycle() -> None:
+    s = schema({"x": {"type": "string", "pattern": "^a+$"}})
+    t = tool(square, input_schema=s, validates_input=True)
+    assert t.descriptor()["inputSchema"] == s
+    # The pattern is the tool's to check: the validator skips it.
+    host = T._ToolHost([t])
+    assert kind(host(call_frame("square", {"x": "bbb"}))) is None
+    with pytest.raises(ValueError, match=r"\$ref"):
+        tool(square, input_schema=_cycle(), validates_input=True)
+    # A cycle that descends into the value is how a recursive schema is written: allowed.
+    tree = schema(
+        {"t": {"$ref": "#/$defs/T"}},
+        **{"$defs": {"T": {"type": "array", "items": {"$ref": "#/$defs/T"}}}},
+    )
+    tool(square, input_schema=tree)
+
+
+class Model:
+    """Anything with model_json_schema() (a pydantic model class), never imported."""
+
+    @classmethod
+    def model_json_schema(cls) -> dict:
+        return schema({"code": {"type": "string", "title": "Code"}}, required=["code"])
+
+
+def test_a_schema_may_come_from_a_model() -> None:
+    seen = []
+
+    def lookup(**kw: Any) -> str:
+        seen.append(kw)
+        return "ok"
+
+    t = tool(lookup, input_schema=Model)
+    assert t.input_schema == Model.model_json_schema()
+    host = T._ToolHost([t])
+    assert answer(host(call_frame("lookup", {"code": "EMEA"})))["value"] == "ok"
+    assert seen == [{"code": "EMEA"}]
+    assert kind(host(call_frame("lookup", {"code": "EMEA", "x": 1}))) == "invalid_arguments"
+
+
+# -------------------------------------------------------------------------------------------------
+# 3. A vetted schema cannot change.
+
+
+def take(n: Any = None) -> Any:
+    return n
+
+
+def test_a_vetted_schema_cannot_change() -> None:
+    given = schema({"n": {"type": "integer"}}, required=["n"])
+    t = tool(take, input_schema=given)
+    before = t.descriptor()
+    given["properties"]["n"]["type"] = "string"
+    given["properties"]["n"]["pattern"] = "^x$"
+    given["required"].append("m")
+    handed = t.input_schema
+    handed["properties"]["n"]["type"] = "string"
+    t.descriptor()["inputSchema"]["properties"].clear()
+    assert t.descriptor() == before
+    assert t.input_schema == before["inputSchema"]
+    host = T._ToolHost([t])
+    assert answer(host(call_frame("take", {"n": 3})))["value"] == 3
+    assert kind(host(call_frame("take", {"n": "3"}))) == "invalid_arguments"
+    # Compared and hashed by identity.
+    u = tool(take, input_schema=schema({"n": {"type": "integer"}}, required=["n"]))
+    assert t != u and t == t
+    assert len({t, u, t}) == 2
+    with pytest.raises(AttributeError):
+        t.name = "other"  # type: ignore[misc]
+    with pytest.raises(TypeError, match="tool()"):
+        Tool("x", "", square, {"type": "object"}, None)
+
+
+# -------------------------------------------------------------------------------------------------
+# 4. The validator does not coerce, and it works inside a counted budget.
+
+DEFS = {"$defs": {"Pos": {"type": "integer", "minimum": 1}}}
+
+TABLE = [
+    # (schema, value, passes)
+    ({"type": "integer"}, 7, True),
+    ({"type": "integer"}, "7", False),
+    ({"type": "integer"}, True, False),
+    ({"type": "integer"}, 5.0, False),
+    ({"type": "number"}, 5, True),
+    ({"type": "number"}, 5.5, True),
+    ({"type": "number"}, True, False),
+    ({"type": "boolean"}, True, True),
+    ({"type": "boolean"}, 1, False),
+    ({"type": "null"}, None, True),
+    ({"type": "null"}, 0, False),
+    ({"type": "string"}, "a", True),
+    ({"type": "string"}, b"a", False),  # $bytes against a string schema
+    ({"type": ["string", "null"]}, None, True),
+    ({"type": ["string", "null"]}, 1, False),
+    ({"type": "array"}, [1], True),
+    ({"type": "array"}, {"a": 1}, False),
+    ({"type": "object"}, {"a": 1}, True),  # no properties: open
+    ({"type": "object"}, [1], False),
+    ({"enum": [1]}, 1, True),
+    ({"enum": [1]}, True, False),
+    ({"enum": [1]}, 1.0, False),
+    ({"enum": [{"a": 1}]}, {"a": True}, False),
+    ({"enum": [{"a": 1}]}, {"a": 1}, True),
+    ({"const": 1}, 1.0, False),
+    ({"const": 1}, 1, True),
+    ({"const": [1]}, [True], False),
+    ({"const": [1]}, [1], True),
+    ({"const": None}, None, True),
+    ({"type": "array", "uniqueItems": True}, [1, True], True),
+    ({"type": "array", "uniqueItems": True}, [1, 1.0], True),
+    ({"type": "array", "uniqueItems": True}, [1, 1], False),
+    ({"type": "array", "uniqueItems": True}, [{"a": [1]}, {"a": [1]}], False),
+    ({"type": "array", "uniqueItems": True}, [{"a": [1]}, {"a": [True]}], True),
+    ({"properties": {"a": {"type": "integer"}}, "required": ["a"]}, {"a": 1}, True),
+    ({"properties": {"a": {"type": "integer"}}, "required": ["a"]}, {"a": 1, "b": 2}, False),
+    ({"properties": {"a": {"type": "integer"}}, "required": ["a"]}, {}, False),
+    ({"properties": {"a": {}}, "additionalProperties": True}, {"a": 1, "b": 2}, True),
+    ({"properties": {"a": {}}, "additionalProperties": False}, {"b": 2}, False),
+    ({"type": "object", "additionalProperties": {"type": "integer"}}, {"x": 1}, True),
+    ({"type": "object", "additionalProperties": {"type": "integer"}}, {"x": "1"}, False),
+    ({"type": "object", "minProperties": 1}, {}, False),
+    ({"type": "object", "maxProperties": 1}, {"a": 1, "b": 2}, False),
+    ({"type": "object", "maxProperties": 2}, {"a": 1, "b": 2}, True),
+    ({"type": "array", "items": {"type": "integer"}}, [1, 2], True),
+    ({"type": "array", "items": {"type": "integer"}}, [1, "2"], False),
+    ({"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}, ["a", 1, 2], True),
+    ({"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}, ["a", "b"], False),
+    ({"prefixItems": [{"type": "string"}], "items": {"type": "integer"}}, [1], False),
+    ({"prefixItems": [{"type": "string"}], "items": False}, ["a", 1], False),
+    ({"prefixItems": [{"type": "string"}]}, ["a", 1], True),
+    ({"type": "array", "minItems": 2}, [1], False),
+    ({"type": "array", "maxItems": 1}, [1, 2], False),
+    ({"anyOf": [{"type": "integer"}, {"type": "string"}]}, "a", True),
+    ({"anyOf": [{"type": "integer"}, {"type": "string"}]}, None, False),
+    ({"oneOf": [{"type": "integer"}, {"type": "number"}]}, 1, False),  # both match
+    ({"oneOf": [{"type": "integer"}, {"type": "number"}]}, 1.5, True),
+    ({"$ref": "#/$defs/Pos", **DEFS}, 1, True),
+    ({"$ref": "#/$defs/Pos", **DEFS}, 0, False),
+    ({"$ref": "#/$defs/Pos", **DEFS}, 1.0, False),
+    ({"type": "number", "minimum": 1}, 0.5, False),
+    ({"type": "number", "maximum": 1}, 1, True),
+    ({"type": "number", "exclusiveMinimum": 1}, 1, False),
+    ({"type": "number", "exclusiveMaximum": 1}, 0.999, True),
+    ({"type": "number", "exclusiveMaximum": 1}, 1.0, False),
+    ({"multipleOf": 3}, 9, True),
+    ({"multipleOf": 3}, 10, False),
+    ({"multipleOf": 3}, 9.0, True),
+    ({"multipleOf": 3}, 9.5, False),
+    ({"type": "string", "maxLength": 1}, "é", True),  # code points, not bytes
+    ({"type": "string", "maxLength": 1}, "\U0001f600", True),
+    ({"type": "string", "maxLength": 1}, "ab", False),
+    ({"type": "string", "minLength": 2}, "a", False),
+    ({"type": "string", "contentEncoding": "base64"}, b"x", True),
+    ({"type": "string", "contentEncoding": "base64"}, "eA==", False),
+    # Bytes are accepted only where the schema says so, never where it says nothing.
+    ({}, b"x", False),
+    (True, b"x", False),
+    ({"type": "object"}, {"a": b"x"}, False),
+    ({"type": "array"}, [[b"x"]], False),
+    ({"prefixItems": [{"type": "string"}]}, ["a", b"x"], False),
+    ({"anyOf": [{"type": "string", "contentEncoding": "base64"}, {"type": "null"}]}, b"x", True),
+    (
+        {"$ref": "#/$defs/B", "$defs": {"B": {"type": "string", "contentEncoding": "base64"}}},
+        b"",
+        True,
+    ),
+    ({"title": "T", "description": "d", "format": "date", "examples": [1]}, "anything", True),
+    (True, 1, True),
+    (False, 1, False),
+]
+
+
+@pytest.mark.parametrize("s, value, passes", TABLE)
+def test_the_validator_does_not_coerce(s, value, passes) -> None:
+    v = T._Validator(s)
+    error = v.check(value)
+    assert (error is None) == passes, error
+    assert not v.exhausted
+
+
+def test_bytes_cross_only_where_the_schema_says_so() -> None:
+    @tool
+    def text(s: str) -> str:
+        return s
+
+    @tool
+    def blob(b: bytes) -> int:
+        return len(b)
+
+    @tool
+    def anything(x: Any) -> Any:
+        return x
+
+    host = T._ToolHost([text, blob, anything])
+    assert kind(host(call_frame("text", {"s": {"$bytes": "eA=="}}))) == "invalid_arguments"
+    assert kind(host(call_frame("anything", {"x": {"$bytes": "eA=="}}))) == "invalid_arguments"
+    assert kind(host(call_frame("anything", {"x": [{"y": {"$bytes": ""}}]}))) == "invalid_arguments"
+    assert answer(host(call_frame("blob", {"b": {"$bytes": "eHl6"}})))["value"] == 3
+    assert kind(host(call_frame("blob", {"b": "eHl6"}))) == "invalid_arguments"
+
+
+# pydantic 2.14.1's schema for Node = RootModel[Union[list[Node], list[Union[int, Node]]]]
+# (EXECUTED in the pre-build review, recursive_union.txt), written here so pydantic is not a
+# dependency.
+NODE = {
+    "anyOf": [
+        {"items": {"$ref": "#/$defs/Node"}, "type": "array"},
+        {"items": {"anyOf": [{"type": "integer"}, {"$ref": "#/$defs/Node"}]}, "type": "array"},
+    ],
+    "title": "Node",
+}
+TREE = schema({"tree": {"$ref": "#/$defs/Node"}}, required=["tree"], **{"$defs": {"Node": NODE}})
+
+
+def deep(levels: int, leaf: Any) -> Any:
+    value = leaf
+    for _ in range(levels):
+        value = [value]
+    return value
+
+
+def test_a_recursive_union_is_checked_within_the_budget() -> None:
+    v = T._Validator(TREE)
+    assert v.check({"tree": deep(3, 1)}) is None  # an ordinary value passes
+    v = T._Validator(TREE)
+    error = v.check({"tree": deep(62, "leaf")})  # fails only at its deepest leaf
+    assert error == "the arguments are too complex to check", error
+    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS == 100_000
+    # And through a frame: 62 levels inside args is the most a frame may carry.
+    t = tool(square, name="walk", input_schema=TREE)
+    host = T._ToolHost([t])
+    a = answer(host(call_frame("walk", {"tree": deep(62, "leaf")})))
+    assert a["error"] == {
+        "kind": "invalid_arguments",
+        "message": "walk: the arguments are too complex to check",
+    }
+
+
+def test_unique_items_take_one_pass() -> None:
+    s = {"type": "array", "uniqueItems": True}
+    v = T._Validator(s)
+    items = [*range(50_000), 0]
+    error = v.check(items)
+    assert error is not None and "unique" in error, error
+    assert not v.exhausted
+    assert v.keys == 50_001  # one key per item, then the repeat is found: no pairwise comparison
+    assert v.steps <= 50_001 + 1
+    v = T._Validator(s)
+    error = v.check(list(range(100_001)))  # about 600 KB as a frame
+    assert error == "the arguments are too complex to check", error
+    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+
+
+# -------------------------------------------------------------------------------------------------
+# 5. Frames follow the protocol's rules.
+
+
+def nested(total: int) -> bytes:
+    """A call frame nested `total` levels, its envelope (the frame and args) included."""
+    return call_frame("echo", {"x": deep(total - 2, 0)})
+
+
+def raw_call(args_text: str, name: str = "echo") -> bytes:
+    head = json.dumps({"v": 1, "id": 1, "op": "call", "tool": name}, separators=(",", ":"))
+    return (head[:-1] + ',"args":' + args_text + "}").encode()
+
+
+BAD_FRAMES = [
+    ("not UTF-8", b'{"v":1,"id":1,"op":"list","x":"\xff"}'),
+    ("UTF-16", frame("list").decode().encode("utf-16")),
+    ("UTF-32", frame("list").decode().encode("utf-32")),
+    ("nested 65 levels", nested(65)),
+    ("NaN", raw_call('{"x":NaN}')),
+    ("Infinity", raw_call('{"x":-Infinity}')),
+    ("1e400", raw_call('{"x":1e400}')),
+    ("a 65-character integer", raw_call('{"x":' + "9" * 65 + "}")),
+    ("a duplicate key", b'{"v":1,"v":1,"id":1,"op":"list"}'),
+    ("a duplicate key, escaped", b'{"v":1,"\\u0076":1,"id":1,"op":"list"}'),
+    ("a lone surrogate in a value", raw_call('{"x":"\\ud800"}')),
+    ("a $bytes that is not a string", raw_call('{"x":{"$bytes":5}}')),
+    ("a $bytes that is not base64", raw_call('{"x":{"$bytes":"!!"}}')),
+    ("a $bytes with another key", raw_call('{"x":{"$bytes":"QQ==","y":1}}')),
+    ("a top-level array", b'[{"v":1,"id":1,"op":"list"}]'),
+    ("v: 0", frame("list", v=0)),
+    ("no v", b'{"id":1,"op":"list"}'),
+    ("v: true", frame("list", v=True)),
+    ("an unknown op", frame("batch")),
+    ("a tool that is not a string", frame("call", tool=5, args={})),
+    ("not JSON", b'{"v":1,'),
+]
+
+
+@pytest.mark.parametrize("what, raw", BAD_FRAMES, ids=[b[0] for b in BAD_FRAMES])
+def test_frames_follow_the_protocols_rules(what, raw) -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    a = answer(host(raw))
+    assert a["v"] == 1 and a["ok"] is False, a
+    assert a["error"]["kind"] == "protocol", a
+    assert len(a["error"]["message"]) <= 4096
+    assert (c.gate_calls, c.tool_calls) == (0, 0)
+    assert host.record.frames == 1
+    assert [o.outcome for o in host.record.outcomes] == ["protocol"]
+
+
+def test_the_frame_rules_name_versions_ops_tools_and_arguments() -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    a = answer(host(frame("list", v=0, id=3)))
+    assert a["id"] == 3 and "version 1" in a["error"]["message"], a
+    a = answer(host(frame("fly")))
+    assert "list" in a["error"]["message"] and "call" in a["error"]["message"], a
+    a = answer(host(call_frame("nope", {})))
+    assert a["error"]["kind"] == "unknown_tool" and "echo" in a["error"]["message"], a
+    a = answer(host(call_frame("count", {"n": "7"})))
+    assert a["error"]["kind"] == "invalid_arguments", a
+    assert (c.gate_calls, c.tool_calls) == (0, 0)
+    # Echoed only when it is an int from 0 to 2**53 - 1.
+    for sent, echoed in [(5, 5), (0, 0), (2**53 - 1, 2**53 - 1), (2**53, None), (-1, None)]:
+        assert answer(host(frame("list", id=sent)))["id"] == echoed
+    for sent in [True, "5", 1.0, None, [1]]:
+        assert answer(host(frame("list", id=sent)))["id"] is None
+
+
+def test_the_frame_limits_pass_at_their_bounds() -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    assert kind(host(nested(64))) is None  # 64 levels in all: 62 inside args
+    assert kind(host(raw_call('{"x":' + "9" * 64 + "}"))) is None
+    assert answer(host(raw_call('{"x":"\\ud83d\\ude00"}')))["value"] == "\U0001f600"  # a pair
+    assert answer(host(raw_call('{"x":"[{\\"]"}')))["value"] == '[{"]'  # brackets in a string
+    assert (c.gate_calls, c.tool_calls) == (4, 4)
+
+
+class CountingPattern:
+    """A compiled pattern whose finditer counts the matches it yields."""
+
+    def __init__(self, pattern) -> None:
+        self.pattern, self.matches = pattern, 0
+
+    def finditer(self, text: str):
+        for m in self.pattern.finditer(text):
+            self.matches += 1
+            yield m
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '"' + '\\"' * 400_000,  # an unterminated string of escaped quotes: n**2 for a regex
+        '"' * 800_000,  # quotes alone
+        "[" * 65 + '"' + "]" * 65,
+        '{"a":"\\\\"}',
+    ],
+    ids=["escaped quotes", "quotes", "brackets", "escaped backslash"],
+)
+def test_the_nesting_scan_is_one_pass(monkeypatch, text) -> None:
+    """Decision 4, rule 3, on a guest's frame of up to 1 MiB: one token per match, each character
+    seen once, whatever the frame (a regular expression retried at every quote is quadratic)."""
+    counter = CountingPattern(T._TOKEN)
+    monkeypatch.setattr(T, "_TOKEN", counter)
+    T._nesting(text)
+    assert counter.matches <= len(text)
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    assert kind(host(text.encode())) == "protocol"
+
+
+def test_a_long_integer_is_refused_whatever_the_process_allows() -> None:
+    before = sys.get_int_max_str_digits()
+    sys.set_int_max_str_digits(0)
+    try:
+        c = Counter()
+        host = T._ToolHost(counting_tools(c), gate=c.gate)
+        assert kind(host(raw_call('{"x":' + "9" * 65 + "}"))) == "protocol"
+        assert kind(host(raw_call('{"x":' + "9" * 5000 + "}"))) == "protocol"
+        assert c.tool_calls == 0
+    finally:
+        sys.set_int_max_str_digits(before)
+
+
+def test_a_lone_surrogate_in_a_key_is_echoed_and_encodes() -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    raw = host(raw_call('{"\\ud800":1}', "count"))
+    assert b"\\ud800" in raw  # echoed, as an escape: the answer is ASCII
+    assert kind(raw) == "protocol"
+    assert answer(raw)["error"]["message"].count("\ud800") == 1
+
+
+def test_the_cap_and_the_budget_answer_from_the_length_alone() -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate, max_calls=2)
+    over = host.admit(T.TOOL_REQUEST_BYTES + 1)  # no bytes at all
+    assert kind(over) == "too_large" and answer(over)["id"] is None
+    assert host.admit(T.TOOL_REQUEST_BYTES) is None  # at the cap: admitted
+    f = frame("list")
+    assert kind(host(f[:0] + b" " * (T.TOOL_REQUEST_BYTES - len(f)) + f)) is None
+    past = host.admit(10)
+    assert kind(past) == "budget_exceeded"
+    assert kind(host(frame("list"))) == "budget_exceeded"  # the raw path counts it too
+    assert host.record.frames == 4
+    assert [o.outcome for o in host.record.outcomes] == [
+        "too_large",
+        "ok",
+        "budget_exceeded",
+        "budget_exceeded",
+    ]
+    assert (c.gate_calls, c.tool_calls) == (0, 0)
+    # max_calls=0 refuses the first frame, the guest's discovery.
+    assert kind(T._ToolHost([], max_calls=0)(frame("list"))) == "budget_exceeded"
+
+
+def test_every_frame_is_counted_once_on_both_paths() -> None:
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate)
+    f = call_frame("count", {"n": 2})
+    assert host.admit(len(f)) is None  # the door's path: admit, then the bytes
+    assert answer(host(f))["value"] == 2
+    assert host.record.frames == 1
+    assert answer(host(f))["value"] == 2  # the raw path: the frame host admits it itself
+    assert host.record.frames == 2
+    assert host.admit(len(f) + 1) is None  # a runner that admits one length and sends another
+    a = answer(host(f))
+    assert a["error"]["kind"] == "protocol", a
+    assert host.record.frames == 3
+    assert [o.seq for o in host.record.outcomes] == [1, 2, 3]
+    assert [o.outcome for o in host.record.outcomes] == ["ok", "ok", "protocol"]
+    assert host.record.outcomes[2].fault is not None
+    assert c.tool_calls == 2
+
+
+# -------------------------------------------------------------------------------------------------
+# 6. The gate decides after validation.
+
+
+def test_the_gate_decides_after_validation() -> None:
+    received = []
+
+    @tool
+    def count(n: int, tags: list[str] = ()) -> int:  # type: ignore[assignment]
+        received.append((n, list(tags)))
+        return n
+
+    def run(gate) -> dict:
+        host = T._ToolHost([count], gate=gate)
+        a = answer(host(call_frame("count", {"n": 1, "tags": ["a"]})))
+        return {"answer": a, "outcome": host.record.outcomes[-1]}
+
+    seen = []
+
+    def watch(verdict):
+        def gate(call: T.ToolCall):
+            seen.append(call)
+            if isinstance(verdict, BaseException):
+                raise verdict
+            return verdict
+
+        return gate
+
+    assert run(watch(None))["answer"]["value"] == 1
+    assert run(watch(True))["answer"]["value"] == 1
+    assert len(received) == 2
+    call = seen[0]
+    assert (call.seq, call.tool, call.arguments, call.request_bytes) == (
+        1,
+        count,
+        {"n": 1, "tags": ["a"]},
+        len(call_frame("count", {"n": 1, "tags": ["a"]})),
+    )
+
+    for verdict, message, faulted in [
+        (False, "count was refused", False),
+        (ToolDenied("not on a Sunday"), "not on a Sunday", False),
+        (ToolError("ask the owner"), "ask the owner", False),
+        (KeyError("/etc/secret"), "count was refused", True),
+        (SystemExit(3), "count was refused", True),
+        ("yes", "count was refused", True),
+        (1, "count was refused", True),
+    ]:
+        r = run(watch(verdict))
+        assert r["answer"]["error"] == {"kind": "denied", "message": message}, (verdict, r)
+        assert (r["outcome"].fault is not None) == faulted, (verdict, r["outcome"])
+    assert len(received) == 2  # no refused call reached the tool
+    assert run(watch(KeyError("x")))["outcome"].fault == "KeyError: 'x'"
+
+    def meddle(call: T.ToolCall) -> None:
+        call.arguments["n"] = 99
+        call.arguments["tags"].append("b")
+
+    assert run(meddle)["answer"]["value"] == 1
+    assert received[-1] == (1, ["a"])  # the tool's copy is its own
+
+    # Invalid arguments never reach the gate.
+    seen.clear()
+    host = T._ToolHost([count], gate=watch(None))
+    assert kind(host(call_frame("count", {"n": "1"}))) == "invalid_arguments"
+    assert seen == []
+
+
+# -------------------------------------------------------------------------------------------------
+# 7. Only chosen text crosses, and it is bounded.
+
+
+class Big:
+    """A numpy-like integer: registered with numbers.Integral, not an int."""
+
+    def __init__(self, n: int) -> None:
+        self.n = n
+
+    def __int__(self) -> int:
+        return self.n
+
+    __index__ = __int__
+
+
+numbers.Integral.register(Big)
+
+
+class Real:
+    """A numpy-like float: registered with numbers.Real, not a float."""
+
+    def __init__(self, x: float) -> None:
+        self.x = x
+
+    def __float__(self) -> float:
+        return self.x
+
+
+numbers.Real.register(Real)
+
+
+def test_only_chosen_text_crosses_and_is_bounded() -> None:
+    results: dict[str, Any] = {}
+
+    @tool
+    def give(what: str) -> Any:
+        r = results[what]
+        if isinstance(r, BaseException):
+            raise r
+        return r
+
+    host = T._ToolHost([give])
+
+    def ask(what: str, value: Any) -> tuple[dict, T.ToolOutcome]:
+        results[what] = value
+        a = answer(host(call_frame("give", {"what": what})))
+        return a, host.record.outcomes[-1]
+
+    a, o = ask("long", ToolError("x" * 5000))
+    assert a["error"]["kind"] == "tool_error" and a["error"]["message"] == "x" * 4096
+    assert o.fault is None and o.message == "x" * 4096
+    a, o = ask("denied", ToolDenied("no"))
+    assert a["error"] == {"kind": "denied", "message": "no"}
+    a, o = ask("leak", KeyError("/home/owner/secret.txt"))
+    assert a["error"] == {"kind": "tool_error", "message": "give failed (internal error)"}
+    assert "secret" not in json.dumps(a)
+    assert o.fault == "KeyError: '/home/owner/secret.txt'"
+    for what, value in [("int key", {1: "a"}), ("set", {1, 2}), ("inf", float("inf"))]:
+        a, o = ask(what, value)
+        assert a["error"] == {"kind": "tool_error", "message": "give failed (internal error)"}, a
+        assert o.fault is not None and len(o.fault) <= 200, (what, o)
+    a, o = ask("only $bytes", {"$bytes": "QQ=="})
+    assert a["error"]["message"] == "give failed (internal error)"
+    a, o = ask("long fault", ValueError("y" * 1000 + "\nsecond line"))
+    assert o.fault == ("ValueError: " + "y" * 1000)[:200]
+    a, _ = ask("numpy-like", {"n": Big(7), "x": Real(0.5), "t": (1, 2), "b": b"\x00"})
+    assert a["value"] == {"n": 7, "x": 0.5, "t": [1, 2], "b": {"$bytes": "AA=="}}
+    a, o = ask("huge", "x" * (17 << 20))
+    assert a["error"]["kind"] == "too_large" and "16777216" in a["error"]["message"], a
+    assert o.outcome == "too_large"
+
+
+# -------------------------------------------------------------------------------------------------
+# 8. The record is bounded.
+
+
+def test_the_record_is_bounded() -> None:
+    @tool
+    def f(a: int) -> int:
+        return a
+
+    host = T._ToolHost([f], max_calls=None)
+    for _ in range(1500):
+        raw = host(call_frame("f", {"a": 1, "k" * 10_000: 1}))
+        assert kind(raw) == "invalid_arguments"
+    big = call_frame("f", {"a": 1, "k" * 1_000_000: 1})
+    assert len(big) <= T.TOOL_REQUEST_BYTES  # it fits the cap, so it reaches the validator
+    a = answer(host(big))
+    assert a["error"]["kind"] == "invalid_arguments", a
+    assert "k" * 64 in a["error"]["message"] and "k" * 65 not in a["error"]["message"]
+    r = host.record
+    assert (r.frames, len(r.outcomes), r.unlisted) == (1501, 1000, 501)
+    assert all(o.message is None or len(o.message) <= 4096 for o in r.outcomes)
+    assert all("k" * 65 not in (o.message or "") for o in r.outcomes)
+    assert r.outcomes[0].request_bytes == len(call_frame("f", {"a": 1, "k" * 10_000: 1}))
+    assert r.outcomes[0].tool == "f" and r.outcomes[0].op == "call"
+    assert not any(o.abandoned for o in r.outcomes)

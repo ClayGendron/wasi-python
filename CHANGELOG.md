@@ -12,6 +12,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   call) gives the guest up to three bytes per entry of whatever the host's buffer held. No
   wasmtime-py release carries the fix yet; a mitigation is being researched. A mount's own
   listings (spec 032) write zeros.
+- **A tool protocol over the door** (spec 031). Guest code can call the host's tools with
+  `from host import tools`; the stdlib zip carries the guest's half, the pure-Python package
+  `host` (`host/__init__.py`, `host/tools.py`), and the wheel the host's, `wasi_python.tools`
+  (`tool()`, the frame host, `stubs()`), which `import wasi_python` does not load. The binary,
+  its imports and its exports are unchanged: frames are JSON, protocol 1, through the one door.
+  The README's "The tool protocol" gives the frames, the kinds, the request rules, the schema
+  subset and the validation budget, for an embedder in any language. `run(tools=…)` comes with
+  spec 036. Costs: the zip grows by 2 members (12,613 bytes) and the snapshot by 4,170 bytes;
+  a plain start by about 0.16 M fuel (+0.065%) and a snapshot start by about 0.11 M (+0.13%).
 - **The stdlib zip carries package metadata** (spec 033). `importlib.metadata.version("numpy")`
   now answers `2.5.2` instead of raising `PackageNotFoundError`, and `distributions()` lists
   numpy, pandas, python-dateutil, six and tzdata at their pinned versions. A wheel keeps exactly

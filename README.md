@@ -22,7 +22,7 @@ directories and host functions you hand it.
 |---|---|
 | `python.wasm` | a WASI reactor: CPython plus numpy, pandas, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 8 to 20 MB) and as the `wasi-python`
@@ -729,6 +729,136 @@ Any other embedder does the same three things:
 The plain `wasmtime run` CLI cannot bind a custom import and refuses the
 binary. With `-W unknown-imports-default` it runs it, but the door then
 answers 0 with no response, which guest code reads as an empty answer.
+
+### The tool protocol
+
+On top of the door the project ships one protocol, through which guest code
+calls the host's tools: `from host import tools`, then
+`tools.lookup_region("EMEA")`. The guest's half is the pure-Python package
+`host` in the stdlib zip. The host's half in Python is `wasi_python.tools`
+(`tool()`, `stubs()`); `run(tools=…)` binds it to the door in a later release
+(spec 036). An embedder in another language serves the protocol from its own
+door function, by the rules below. It is optional: a door that never answers
+it leaves `from host import tools` raising `ImportError`.
+
+**Frames.** One compact UTF-8 JSON object per door call, each way. `v` is
+the protocol version, 1; `id` is the guest's number for the frame, echoed when
+it is an integer from 0 to 2**53 - 1, else `null`, and never trusted.
+
+```text
+request    {"v": 1, "id": 7, "op": "list"}
+           {"v": 1, "id": 8, "op": "call", "tool": "lookup_region", "args": {"code": "EMEA"}}
+answer     {"v": 1, "id": 7, "ok": true, "tools": [descriptor, ...]}
+           {"v": 1, "id": 8, "ok": true, "value": <JSON>}
+           {"v": 1, "id": 8, "ok": false, "error": {"kind": "denied", "message": "..."}}
+descriptor {"name", "description", "inputSchema", "outputSchema"?, "annotations"?}
+bytes      {"$bytes": "<base64>"}
+```
+
+The descriptor uses MCP's field names. The `list` answer keeps the order the
+embedder gave the tools. An unknown version or operation is a `protocol`
+answer naming what the host serves; `batch` is reserved. A field a peer may
+ignore can be added within a version; one it must act on bumps `v`.
+
+**Kinds**, and what the guest raises (each a `host.ToolError`, with the kind
+in `.kind`):
+
+| kind | guest class | when |
+|---|---|---|
+| `protocol` | `ToolProtocolError` | the frame breaks a rule below, or the answer does not match |
+| `unknown_tool` | `ToolArgumentError` (also `TypeError`) | no tool has that name |
+| `invalid_arguments` | `ToolArgumentError` | the arguments do not fit the input schema |
+| `denied` | `ToolDenied` (also `PermissionError`) | the gate or the tool refused |
+| `tool_error` | `ToolError` | the tool failed; only a message it chose crosses |
+| `timeout` | `ToolTimeout` (also `TimeoutError`) | the call ran out of time |
+| `cancelled` | `ToolCancelled` | the run was cancelled during the call |
+| `too_large` | `ToolTooLarge` | a request over 1 MiB, or an answer over 16 MiB |
+| `budget_exceeded` | `ToolBudgetExceeded` | the run's frames are used up (1,000 by default) |
+
+A cancelled run is stopped at the guest's next function entry, so do not rely
+on `except ToolCancelled` for clean-up.
+
+**The rules for a request**, in this order, before any schema is read; each
+failure is a `protocol` answer. They are the protocol's own, so the answer is
+the same whatever the host's Python or its settings:
+
+1. at most 1 MiB, judged from the length before the bytes are read;
+2. strict UTF-8 (never UTF-16 or UTF-32);
+3. nested at most 64 levels, its envelope included, counted outside strings
+   (so 62 levels inside `args`);
+4. JSON with no `NaN` or `Infinity`, no number that overflows a double
+   (`1e400`), no integer literal over 64 characters, and no repeated key;
+5. no lone surrogate (`"\ud800"`) in a key or a value; a surrogate pair is
+   fine;
+6. an object at the top.
+
+Then a `{"$bytes": "<base64>"}` object, exactly that one key holding strict
+base64, becomes bytes; any other `$bytes` object is a `protocol` answer. Then
+the version, the operation, the tool's name (`unknown_tool`), and the
+arguments against the tool's input schema (`invalid_arguments`). Every frame
+counts toward the run's budget, the guest's discovery frame included; past it
+the guest gets `ToolBudgetExceeded` and runs on. Answers are encoded as ASCII
+JSON, so an echoed lone surrogate still encodes. A message is at most 4,096
+characters, and each piece of guest text it repeats is cut to 64 first.
+
+**The schema subset.** The validator checks `type`, `enum`, `const`,
+`properties`, `required`, `additionalProperties` (a boolean or a schema;
+absent, it closes an object schema that lists `properties`, which is
+stricter than JSON Schema), `minProperties`, `maxProperties`, `items` (one
+schema), `prefixItems`, `minItems`, `maxItems`, `uniqueItems`, `anyOf`,
+`oneOf`, a local `$ref` into `$defs` or `definitions`, the four numeric bounds,
+`multipleOf` (a positive integer), `minLength` and `maxLength` (in code points),
+and `contentEncoding: "base64"`. It ignores the annotations (`title`,
+`description`, `default`, `examples`, `format`, `deprecated`, `readOnly`,
+`writeOnly`, `contentMediaType`, `discriminator`, `$schema`, `$id`,
+`$comment`). `tool()` refuses any other keyword unless the tool checks its
+own input (`validates_input=True`, and then those keywords are skipped).
+`pattern` is among them on purpose: an embedder's regular expression run on a
+megabyte of guest text can backtrack without end. The array form of `items`,
+a `$ref` that is not local, and a `$ref` cycle that never descends into the
+value are refused even then.
+
+- **No coercion.** `integer` is an integer, never `true` and never `5.0`
+  (stricter than JSON Schema); `number` is never a boolean. `enum`, `const`
+  and `uniqueItems` compare by JSON type and value: `true` never equals `1`,
+  and `1.0` never equals `1`.
+- **Bytes** are accepted only where the schema says `{"type": "string",
+  "contentEncoding": "base64"}`, never where it says nothing.
+- **A budget of 100,000 steps per frame:** each schema node visited and each
+  `uniqueItems` key made is a step, and past it the call is
+  `invalid_arguments`, "the arguments are too complex to check". Validation
+  runs on the door's thread, where no deadline or cancel can stop host code,
+  and a recursive schema whose `anyOf` branches overlap would otherwise
+  double its work at each level. An ordinary call needs about one step per
+  JSON value; a call with more than 100,000 values is bulk data, which
+  belongs in a granted folder.
+
+**Results** cross as JSON: a dict with `str` keys, a list or tuple, `str`,
+`bool`, `int`, a finite `float`, `None`, bytes as `$bytes`, and numpy's
+scalars as `int` or `float`. Anything else, an exception that is not a
+`ToolError`, or a gate that raises anything but `ToolDenied` or `ToolError`,
+reaches the guest only as "<name> failed (internal error)" or "<name> was
+refused"; the host's record keeps the exception's type and first line.
+
+**Names.** A tool's name is a letter, then up to 63 letters, digits or
+underscores, and not a Python keyword. The guest calls a tool with its
+properties as keyword arguments, so `tool()` refuses a property that is not
+a Python identifier or is a keyword (`from`, `class`, `max-results`). Rename
+it, and map it back in the function:
+
+```python
+from wasi_python.tools import tool
+
+schema = {"type": "object", "properties": {"sender": {"type": "string"}},
+          "required": ["sender"]}
+
+@tool(name="search_mail", input_schema=schema)
+def search_mail(**args):
+    return mail.search(**{"from": args["sender"]})
+```
+
+`stubs(tools)` renders each tool as the `def` line and docstring the guest's
+function carries, under `from host import tools`, for a prompt.
 
 ## Safety
 

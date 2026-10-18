@@ -7,7 +7,8 @@
   `Completed.tools`). It changes the artifact set, so the revision was re-reviewed before build
   (constitution §5.6): **confirmed for build with conditions, written in** (the review's
   "Confirmation": C1 in Decisions 3 and 5 and criterion 4; C3 in Decision 4 and criterion
-  5; C4 in criterion 8; C5 in Decision 5 and criterion 5).
+  5; C4 in criterion 8; C5 in Decision 5 and criterion 5). **Built 2026-10-18** on
+  `spec/031-a-tool-protocol-over-the-door`; awaiting its build review (see Landing notes).
 - **Owner:** Clay Gendron
 - **Kind:** build-class (constitution §5.7: it adds files under `recipes/` and changes
   `scripts/steps/70_zip.sh`). A new host module (`src/wasi_python/tools.py`), the guest package
@@ -472,4 +473,248 @@ spec 036's. Nothing waits on them.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree
+`wasi_python-031`, on darwin-arm64, wasmtime 49.0.0. Every number below was EXECUTED there
+unless it is labelled otherwise. The worktree's logs and scratch scripts go when it does, so the
+numbers are written here. Not yet reviewed: the build review (`../reviews/`) is next, and the
+lane's acceptance after it.
+
+### What changed
+
+- `src/wasi_python/tools.py` (new): `tool()`, `Tool`, `ToolCall`, `ToolOutcome`, `ToolRecord`,
+  `ToolError`, `ToolDenied`, `stubs()`; the hint mapper; schema vetting (`_vet`, `_Vetting`); the
+  validator (`_Validator`, with `steps`, `keys` and `exhausted`); the frame rules (`_parse`); and
+  the frame host `_ToolHost` (`admit`, `__call__`, `record`). `_Work` is the callable `invoke`
+  runs; `_Interrupted(kind, abandoned)` is what a bounded invoke (spec 036) gives back when it
+  did not wait. `runner.py` and `__init__.py` are unchanged.
+- `recipes/guest/host/__init__.py` and `recipes/guest/host/tools.py` (new), and two `--file`
+  lines in `scripts/steps/70_zip.sh`.
+- `pyproject.toml`: ruff lints and formats `recipes/guest/`. `extend-exclude` now names the
+  other recipe files one by one, because ruff's `recipes/*.py` glob also matched files inside
+  `recipes/guest/`. `src` gains `recipes/guest`, so `host` sorts as first-party.
+- The judge: `tests/unit/test_tools.py` and `tests/unit/test_guest_tools.py` (new); three checks
+  appended to `tests/checks/test_v1_4_embedding.py`; and `tests/checks/test_rules.py`'s ruff
+  checks now also cover `recipes/guest`. That last one is a judge change.
+- `README.md`: "The tool protocol" (Decision 12), the recipe that renames a property, and the
+  zip's row in "What you get". `CHANGELOG.md`: one entry.
+
+### The artifact set
+
+The worktree's first build matched main's frozen set before any change (`diff` of
+`build/artifacts/SHA256SUMS` against `build/sets/s-8d84b3b190fe9bce/SHA256SUMS`: no output).
+The new set, from `scripts/build.sh --from 70`, is below. A full rebuild of all 11 steps
+(`scripts/build.sh`, 5m17s) gave the same `SHA256SUMS` byte for byte (`cmp` exit 0):
+
+```
+5d3de5f6a195660225d9a0413633cddd8a3679efa0f929514daa6a5499f3d8ca  MANIFEST
+f901330ae27b813ac44e0cdc85dd1d727bd1b57ab348812124e1319489caa4c9  python-snapshot.wasm
+d3b21ac850f19bbd1f4cbc7fc3ce29e890ef6ac2f3fae1fc2059e50350330c31  python-stdlib.zip
+4befe9de64edc783996ab006e6179b704a73a520b67431135df103db9db9625d  python.wasm
+```
+
+- Every `LICENSES/` line is unchanged, and so is `python.wasm`, as Decision 9 says.
+- `MANIFEST` gains two recipe lines (`afa4ae76…` `recipes/guest/host/__init__.py`, `b3959ae3…`
+  `recipes/guest/host/tools.py`). It also changes `70_zip.sh`'s hash and `x-snapshot-zip`.
+- The zip: 1,100 to 1,102 `.pyc` (658 data files, as before); 11,162,065 to 11,174,678 bytes
+  (+12,613). The snapshot: 65,505,752 to 65,509,922 bytes (+4,170).
+
+### The cost (Decision 9), and where it differs
+
+Method: `-c pass` through the judge's driver (a fixed clock and fixed entropy), on main's frozen
+set and on the new set. Each was run under five heap perturbations: an environment variable of
+0, 17, 300, 4,000 and 12,000 bytes.
+
+| start | mean | min | max | of a start |
+|---|---|---|---|---|
+| plain | +157,362 | +146,573 | +168,898 | +0.065% of 242.0 M |
+| snapshot | +110,800 | +87,167 | +122,141 | +0.135% of 82.0 M |
+
+- **Plain start: as predicted.** Decision 9 said about +156,000.
+- **Snapshot start: not as predicted.** Decision 9 said a snapshot start would not pay. It pays
+  about +0.11 M.
+  - It is a cost per member, not a one-off shift in the heap. A variant zip with only
+    `host/__init__.py` (steps 70 to 90, then put back) cost +46,456 on the snapshot (min
+    +44,304, max +50,644) and +81,182 on a plain start, over the same five perturbations.
+  - The cause is not found. zipimport's parsed directory is frozen in the snapshot (spec 035
+    says the same). Nothing in `recipes/reactor_bootstrap.py` or `reactor_main.c` calls
+    `invalidate_caches` (READ).
+  - Spec 033's acceptance also recorded +0.07 M per snapshot call, for 7 members.
+  - That was two experiments on one question, so I stopped there (AGENTS.md, rule 7). It is
+    left to the review and to spec 035.
+- **The judge's growth list** (the full run, against `context/progress/accepted.json`): 2 byte
+  metrics and 41 fuel metrics rose, 38 of them past the ratchet (its "grew 40"); 6 fell.
+  - The two byte metrics are the zip (+12,613) and the snapshot (+4,170).
+  - Light plain checks grew +150 k to +161 k (for example `test_guest_runs_here[plain]`
+    +158,167).
+  - Light snapshot checks grew +47 k to +115 k (`test_guest_runs_here[snapshot]` +101,353).
+  - The heavy jobs moved both ways, by up to a few parts in ten thousand:
+    `test_pandas_csv_job_matches_native` +2,190,579 (of 5.69 G),
+    `test_sqlite_job_matches_native` +1,460,436, `test_npy_files_round_trip[snapshot]`
+    +496,054, `test_default_integer_width_is_documented` +453,812, and
+    `test_numpy_csv_job_matches_native` −447,228. These are inside the range spec 033's
+    acceptance took as heap-layout noise (pandas_csv +2,499,701 there).
+- **A growth reason for the lane:** "spec 031: 2 more zip members (+12,613 bytes; snapshot
+  +4,170 bytes; python.wasm unchanged); about +0.16 M fuel per plain start, as predicted, and
+  about +0.11 M per snapshot start, which Decision 9 did not predict (a cost per member, cause
+  not found, see the landing notes); heavy jobs within ±2.2 M".
+- **Criterion 14's "nothing else grows" does not hold as written**, because of the snapshot
+  start. The review should decide whether that blocks this landing, or waits on spec 035.
+
+### Each criterion
+
+Seen failing first: criteria 1 to 10 failed at import or collection before the code existed
+(`ModuleNotFoundError` for `wasi_python.tools`; `FileNotFoundError` for the recipe package).
+Criteria 11 and 13 failed against the old set: `No module named 'host'`, and the zip without
+`host/*.pyc`. The stand-ins below were run by a scratch script that patched one property out of
+the built code and then ran the checks:
+
+| stand-in | the check it breaks | result |
+|---|---|---|
+| a `Tool` holding the caller's dict | 3 | 1 failed |
+| equality by `==` | 4, the table | 9 failed (`enum`, `const`, `uniqueItems` rows) |
+| a naive validator: every branch, pairwise `uniqueItems`, the same counter, stopped at 10× the budget | 4, the budget | 2 failed: "stand-in passed the budget: 1000001 steps" on both |
+| a host on `json.loads`'s defaults | 5 | 10 failed (NaN, Infinity, 1e400, a 65-character integer, both duplicate keys, the digit limit, …) |
+| the gate run before validation | 6 | 1 failed |
+| `str(exception)` sent to the guest | 7 | 1 failed: the secret path crossed |
+| a frame host that skips the schema | 12 | 1 failed: the forged frames reached the tool |
+
+The rest of the evidence, criterion by criterion:
+
+1. `test_a_tool_is_described_by_its_hints_and_docstring` passes. It compares the whole
+   descriptor (an `Args:` section, a continued description, a default, a `Literal`, an
+   optional, `bytes`, `tuple[int, ...]`, `dict[str, int]`, `readOnlyHint`, the output schema)
+   and the order of the `list` answer for two orderings. Added:
+   `test_importing_the_package_does_not_load_the_tools` (Decision 1), in a subprocess.
+2. `test_a_tool_that_cannot_be_described_is_refused` is 26 cases, each naming its parameter or
+   keyword, and covers every refusal the criterion lists. With
+   `test_validates_input_lets_unknown_keywords_through_but_never_a_cycle`, `pattern` passes under
+   `validates_input=True` and the non-descending cycle does not.
+3. `test_a_vetted_schema_cannot_change` passes. A `Tool` cannot be built except by `tool()`
+   (`__post_init__` checks a private token), so no unvetted schema reaches a frame host.
+4. The table is 85 rows (`test_the_validator_does_not_coerce`). On the budget:
+   `test_a_recursive_union_is_checked_within_the_budget` gives "too complex" with
+   `steps <= 100,000`, directly and through a frame. In `test_unique_items_take_one_pass`,
+   50,000 distinct items and a repeat are refused with `keys == 50,001`, and 100,001 distinct
+   integers are "too complex" with `steps <= 100,000`.
+5. `test_frames_follow_the_protocols_rules` covers 21 bad frames. Every answer is ASCII JSON;
+   the gate and the tool stay at 0; there is one frame and one `protocol` outcome each. The
+   bounds pass: 64 levels in all, a 64-character integer, a surrogate pair, brackets inside a
+   string. The digit limit holds under `sys.set_int_max_str_digits(0)`. The surrogate key is
+   echoed as `\ud800` and encodes. Admission by length alone is checked. Each frame is counted
+   once on both paths, and a mismatched admitted length is `protocol`, recorded with a fault.
+   Added after the builder's own security reading (below):
+   `test_the_nesting_scan_is_one_pass`, in four cases, counts the scan's tokens (at most one per
+   character) on an unterminated string of 400,000 escaped quotes, on 800,000 quotes, and on
+   two more.
+6. `test_the_gate_decides_after_validation` passes: allow by `None` and `True`; refuse by
+   `False`, `ToolDenied`, `ToolError`, `KeyError`, `SystemExit`, `"yes"` and `1`, with a fault
+   only for the stray ones. A meddling gate leaves the tool's copy alone. An invalid frame
+   never reaches the gate.
+7. `test_only_chosen_text_crosses_and_is_bounded` passes: the 4,096 cut; a `KeyError` that
+   names a path; an `int` key, a set, `inf` and a `$bytes`-only dict all fault; a fault is cut
+   at 200 characters; numpy-like scalars, tuples and bytes encode; a 17 MiB result is
+   `too_large`, naming `16777216`.
+8. `test_the_record_is_bounded` passes: `frames == 1501`, 1,000 outcomes, `unlisted == 501`,
+   every message ≤ 4,096, every echoed key ≤ 64. The 1,000,000-character key reaches
+   `invalid_arguments` (C4).
+9. `test_the_guest_package_speaks_the_hosts_protocol`, plus four more guest checks: every kind
+   maps to its class and bases, and an unknown kind is a plain `ToolError`; a mismatched answer
+   is `ToolProtocolError`; the `(**kwargs)` fallback; the three `ImportError`s; and an empty
+   tool list.
+10. `test_stubs_match_the_guest_signatures` passes: the `def` lines and the docstrings (through
+    `ast`) equal the guest's, over every mapped hint. On the real guest, CPython 3.15 in wasm,
+    the guest's `inspect.signature` lines equal the host's `stubs()` lines (host 3.14.2):
+    `True`, with the package on a read-only grant before the zip lines existed.
+11. `test_the_guest_package_round_trips_through_the_door` passes on both binaries. The output
+    is `EMEA 60 ['month', 'sales']` and `b'\x00cba'`; the record is `list ok`, `call ok`,
+    `call ok`, 3 frames. Fuel: snapshot 95,408,513; plain 5,005,322,033 (the plain binary
+    imports pandas).
+12. `test_a_forged_frame_is_validated_first` passes: both forged frames are `invalid_arguments`,
+    and neither the tool nor the gate is called.
+13. `test_the_zip_carries_the_host_package` passes, and so does
+    `test_manifest_recipes_match_the_tree`.
+14. The full judge, `uv run pytest`, run 2026-10-18 on the final tree (logs in the worktree):
+
+    ```
+    wasi_python v1: 204/208 pass · 0 gap · 4 blocked · 0 fail   (unit suite 750/757, 7 skipped)
+      v1.1  artifact set        24/25  blocked 1
+      v1.2  portable, sealed    40/41  blocked 1
+      v1.3  data stack          20/21  blocked 1
+      v1.4  embedding           81/81
+      v1.5  rebuild from pins   18/18
+      rules constitution rules  21/22  blocked 1
+    blocked by: oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+    ratchet vs 92df8325a4: lost 0 · absent 0 · unrun 0 · unrun locally 2 · gained 4 · grew 40 · judge changed: pyproject.toml, tests/checks/test_rules.py, tests/checks/test_v1_4_embedding.py and 2 more
+    RED: 40 metric(s) grew
+    954 passed, 11 skipped in 172.89s
+    ```
+
+    The run before the nesting fix below had the same scoreboard (746/753 units). The growth
+    list matched it to within 34 fuel on three checks, and exactly on the rest.
+
+    It is red only for the growth above. The lane needs `--accept-judge` (the new and changed
+    check files, and ruff's paths) and `--accept-growth`. `ruff check` and
+    `ruff format --check` are clean on `src`, `tests` and `recipes/guest`.
+15. **Not done here: the release dry run** (`gh workflow run release.yml --ref <branch>`). It
+    needs a push, which a builder does not do. It is the lane's, on the reviewed commit, as for
+    spec 033.
+
+### The builder's choices where the specification is silent
+
+The review should confirm or reject each of these.
+
+- **`PYTHONPATH` is not read by the runtime.** The reactor starts from
+  `PyConfig_InitIsolatedConfig` (`recipes/reactor_main.c`). So the development run of
+  Decision 9 put the read-only grant on `sys.path` in the program itself.
+- **Bytes are checked at every schema node.** A `bytes` value is refused at any node with no
+  `type`, `anyOf`, `oneOf` or `$ref`: `{}`, `true`, an open object's values, an array with no
+  `items`. That is how Decision 3's "accepted as bytes only where its schema says so" is held.
+  As a result every JSON value costs at least one validation step, which matches the budget's
+  stated basis of one visit per value. A tool hinted `Any` therefore cannot receive bytes.
+- **The guest refuses any dict with a `"$bytes"` key.** Decision 8 says "only key". The host
+  would answer a two-key `$bytes` object `protocol` anyway, so the guest names it as a
+  `ToolArgumentError` first.
+- **A result nested deeper than 62 levels is a fault.** This is the same bound as the
+  arguments, so the guest's parser meets a bounded answer.
+- **A gate that raises `ToolError` refuses with kind `denied`.** A tool that raises it fails
+  with `tool_error`.
+- **Signatures render the same text on every Python version.** Annotations are shown through a
+  private `_Hint` whose `repr` is the text (`Literal['a', None]`, `int | None`), so the host's
+  `stubs()` and the guest's `help()` agree across 3.11 to 3.15. An optional property with no
+  schema `default` shows `= ...`, and it is not sent. A `bytes` default is written in the
+  schema as `{"$bytes": …}` and shown as bytes.
+- **Over the cap, the budget answer comes first.** `admit` answers `budget_exceeded` before
+  `too_large`, so a frame that is past `max_calls` and over the cap is `budget_exceeded`.
+
+### A finding of the builder's own, fixed before review
+
+- **The nesting scan was quadratic on a guest's frame.** The first version stripped strings
+  with `re.sub` and a linear-per-match pattern (`"[^"\\]*(?:\\.[^"\\]*)*"`). On an
+  unterminated string, that pattern is retried at every quote.
+- A frame of `"` followed by `\"` repeated (1 MiB fits about 524,000 pairs) then costs about
+  n²/2 steps on the door's thread, where no deadline or cancel can stop it. All of that comes
+  before `json.loads`, which would refuse such a frame at once.
+- Benchmark fact (EXECUTED, a scratch timing, not a check), for the old regex: 0.349 s at
+  10,001 characters, 1.378 s at 20,001 and 5.412 s at 40,001. It quadruples each time the frame
+  doubles, so about an hour at 1 MiB (INFERRED).
+- The new scan, one `finditer` over escape pairs, quotes and brackets, takes 0.051 s at 800,001
+  characters (EXECUTED, the same script).
+- The check counts tokens, not time. It failed first because `_TOKEN` did not exist; the old
+  code had no token pass to count.
+
+### For the reviewer (security: guest-controlled frames)
+
+- `_parse`: the nesting scan (one `_TOKEN` pass, fixed above), then strict UTF-8, the hooks,
+  and the surrogate and `$bytes` walk. Is any frame of 1 MiB or less super-linear anywhere
+  before the validator? Also check `_key` for `uniqueItems`: one counted step per item, but a
+  nested item's key costs its size, which is linear in the frame.
+- `_Validator`: is every path counted? Look at `$ref` and its siblings, `anyOf` short-circuit,
+  `oneOf` trying every branch, and `uniqueItems` keys (made before `items` is visited).
+- `_Vetting.no_cycle`: does any `$ref` chain that stays on one value escape it? For example
+  through `prefixItems`, which counts as descending.
+- `_Work` and the gate: every `BaseException` from a gate, a tool, `str(e)` or the encoder is
+  caught; nothing but a `ToolError`'s own text reaches the guest.
+- `__call__`'s catch-all answers `protocol` for a bug in the frame host. Check that it cannot
+  hide a refusal.
+- The guest package runs with the guest's privileges only. It trusts nothing from the answer
+  beyond JSON types (`v`, `id` and `ok` are type-checked; `$bytes` is decoded strictly).

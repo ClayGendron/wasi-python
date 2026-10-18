@@ -1882,3 +1882,101 @@ def test_a_mount_at_tmp_means_no_home(guest_workdir) -> None:
         )
         assert (done.exit_code, done.stdout) == (0, b"None\n"), (given, done)
     assert not (root / "tmp").exists() or list((root / "tmp").iterdir()) == []
+
+
+# -------------------------------------------------------------------------------------------------
+# The tool protocol through the door (spec 031): the frame host passed as a raw host=, its record
+# read from the object. Spec 036 binds it to run(tools=…).
+
+TOOL_PROGRAM = """
+from host import tools
+import pandas
+r = tools.lookup_region("EMEA")
+df = pandas.DataFrame(r["months"])
+print(r["code"], int(df["sales"].sum()), list(df.columns))
+print(tools.reverse(b"abc\\x00"))
+"""
+
+
+def _region_tools() -> list:
+    from wasi_python.tools import tool
+
+    @tool(read_only=True)
+    def lookup_region(code: str) -> dict:
+        """Look up a sales region by its code.
+
+        Args:
+            code: The region code, such as "EMEA".
+        """
+        return {"code": code, "months": [{"month": m, "sales": 10 * m} for m in (1, 2, 3)]}
+
+    @tool
+    def reverse(data: bytes) -> bytes:
+        """Reverse some bytes."""
+        return data[::-1]
+
+    return [lookup_region, reverse]
+
+
+@BINARY
+def test_the_guest_package_round_trips_through_the_door(guest, which) -> None:
+    """Criterion 11: `from host import tools`, two calls, one result fed to pandas, bytes both
+    ways; the record lists the discovery and both calls."""
+    from wasi_python.tools import _ToolHost
+
+    host = _ToolHost(_region_tools())
+    r = guest(which, ["-c", TOOL_PROGRAM], host=host)
+    assert r.exit_code == 0, r.describe()
+    assert r.text == "EMEA 60 ['month', 'sales']\nb'\\x00cba'\n", r.text
+    record = host.record
+    assert [(o.op, o.tool, o.outcome) for o in record.outcomes] == [
+        ("list", None, "ok"),
+        ("call", "lookup_region", "ok"),
+        ("call", "reverse", "ok"),
+    ], record
+    assert (record.frames, record.unlisted) == (3, 0)
+
+
+FORGED = """
+import _host, json
+for args in ({"n": "seven"}, {"n": 7, "extra": 1}):
+    frame = {"v": 1, "id": 1, "op": "call", "tool": "count", "args": args}
+    answer = json.loads(_host.call(json.dumps(frame).encode()))
+    print(answer["ok"], answer["error"]["kind"])
+"""
+
+
+def test_a_forged_frame_is_validated_first(guest) -> None:
+    """Criterion 12: frames the guest writes itself, past the package, are checked against the
+    schema before the gate or the tool sees them."""
+    from wasi_python.tools import _ToolHost, tool
+
+    calls = []
+
+    @tool
+    def count(n: int) -> int:
+        calls.append(n)
+        return n
+
+    gated = []
+    host = _ToolHost([count], gate=gated.append)
+    r = guest("snapshot", ["-c", FORGED], host=host)
+    assert r.exit_code == 0, r.describe()
+    assert r.text.split("\n")[:2] == ["False invalid_arguments", "False invalid_arguments"], r.text
+    assert (calls, gated) == ([], [])
+    assert [o.outcome for o in host.record.outcomes] == ["invalid_arguments"] * 2
+
+
+def test_the_zip_carries_the_host_package(artifacts) -> None:
+    """Criterion 13: the guest package is in the stdlib zip, compiled; its recipe files are in
+    MANIFEST's recipe lines (the check that they cover every tracked recipe also runs)."""
+    import zipfile
+
+    needs.need("stdlib zip", "manifest")
+    with zipfile.ZipFile(artifacts.path("python-stdlib.zip")) as z:
+        names = set(z.namelist())
+    assert {"host/__init__.pyc", "host/tools.pyc"} <= names, sorted(
+        n for n in names if n.startswith("host")
+    )
+    recipes = artifacts.manifest().recipes
+    assert {"recipes/guest/host/__init__.py", "recipes/guest/host/tools.py"} <= set(recipes)
