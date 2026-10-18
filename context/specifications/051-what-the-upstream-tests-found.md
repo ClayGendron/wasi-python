@@ -1,6 +1,6 @@
 # 051 — What the upstream tests found
 
-- **Status:** drafted 2026-10-18. Revised the same day against its pre-build review
+- **Status:** confirmed for build 2026-10-18 (the review's Confirmation; its builder notes stand in the review). drafted 2026-10-18. Revised the same day against its pre-build review
   (`../reviews/051-what-the-upstream-tests-found-spec-2026-10-18.md`, findings F1 to F7, each
   answered in its Disposition and written in below); it awaits the reviewer's confirmation. It
   changes the build recipe and the artifact set, so it takes that review before it is built

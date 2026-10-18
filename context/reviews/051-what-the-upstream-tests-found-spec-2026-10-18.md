@@ -354,3 +354,135 @@ so the build-class order must be written down (F3). F5 to F7 are small.
 One line: the patch, the zip names and the masked-array rule are right; make the scan count
 only tables something references (no exclusions, and Cython's single definitions covered), and
 name 051's place among the build-class specs, before building.
+
+## Confirmation (2026-10-18): spec 051
+
+By the reviewer (the same fresh agent, Claude Opus 5.5). I checked the revised
+`context/specifications/051-what-the-upstream-tests-found.md` at `749f6c7` against the
+Disposition above and the revision's files in
+`context/research/2026-10-18-what-the-upstream-tests-found/author/`.
+
+**New evidence** (EXECUTED; `uv run` only; scripts in this review folder; nothing in the
+repository changed):
+
+- **The scan as now specified** (`scan/as_specified.py`, on the frozen plain `python.wasm`). It
+  follows Decision 4: a table counts only when its start address is an aligned data word or an
+  `i32.const` operand, and code-referenced single `PyMethodDef`s are added.
+  - 737 runs; 5 unreferenced, exactly the six false lines.
+  - Referenced method-array entries: **3,072** (minimum 2,500).
+  - Referenced getset entries: **1,125** (minimum 1,000).
+  - Code-referenced singles: **2,029**, of which **1,990** are not also an array's start
+    (minimum 1,500). 0 mismatches among them.
+  - No referenced run points at any of the coincidence functions (`bool_new`,
+    `tok_underflow_interactive`, `_tmp_112_rule`, `pyexpat_SetSkippedEntityHandler`). The six
+    numpy callbacks are all in referenced runs.
+- **The amended patches.** `author/0001-npy-files-without-dup.patch` and `author/0002-…` (0002
+  is byte-identical to the reviewed one) go on a fresh extraction of the pinned tarball through
+  `scripts/steps/apply_patches.sh`: both are applied, exit 0, with no offset.
+  - The patched `_is_real_file` holds native's two tests (`isinstance` and the `fileno()`
+    probe).
+  - `isfileobj` is `_is_real_file(f) and sys.platform != "wasi"`.
+  - The subclass rule uses `_is_real_file(fp)`.
+- **The amended tests, natively.** The author's `p0001_tests_native.py`, pointed at my patched
+  tree, runs under the pinned oracle (Python 3.15.0, numpy 2.5.2) with WASI simulated:
+  `test_file_truncated passed`, `test_save_masked_without_dup passed` (its new
+  `BufferedWriter(BytesIO())` case included), `test_save_load_without_dup passed 161`.
+- **The golden job's private calls, natively** (`author/private_native.py`, under the oracle):
+  `sfloat _ScaledFloatTestDType 2.0`, `castingimpl _BoundArrayMethod True`, `scalar_input (True,
+  False)`. These match the Disposition.
+
+### Each finding
+
+- **F1, confirmed.**
+  - The scan keeps only referenced tables, and the exclusion list is empty.
+  - The rule for later packages is a carried patch or an upstream release, never an exclusion.
+  - Findings name the entry and its table index, adding the function's name only when present.
+  - A unit check covers an unreferenced look-alike.
+  - My rerun of the rule as written gives the figures the specification cites.
+- **F2, confirmed.**
+  - Code-referenced singles are scanned, and coverage counts are reported.
+  - Decision 4 lists what stays out.
+  - Builder note: define a single as a code-referenced entry that is not inside a found array.
+    Then no entry is counted twice: 39 of the 2,029 are array starts, and the minimum holds
+    either way (1,990 ≥ 1,500).
+- **F3, confirmed.**
+  - "Depends on" names 051's slot: the next build-class landing after 050.
+  - The 035 rule says whichever lands second restates its byte and fuel comparisons, and
+    either case is spelled out.
+  - Decision 4a says, package by package, what the scan means, and the lane adds one sentence
+    to each unlanded build-class spec.
+  - Builder note: Decision 4a lets 051's branch carry a scipy patch if 037 or 038 lands first
+    and the scan finds a mismatch there. Such a patch follows §4.1 in full: its own upstream
+    draft, a `MANIFEST` hash, a CHANGELOG line. It is read by 051's build review like 0002. If
+    it is more than a signature fix, the lane's split rule applies.
+- **F4, confirmed.** It follows 050's C1, as answered (see below):
+  - the eight emptied classes stay with empty lists and lose their gaps;
+  - the seven trap checks are retired through the new absent-gap reporting;
+  - the two returned files may surface a new trap, which gets an entry, a gap and a named
+    follow-up, without holding back the rest.
+- **F5, confirmed** (EXECUTED above).
+  - The real-file predicate is native's.
+  - The `BufferedWriter(BytesIO())` case is tested.
+  - `test_file_truncated` accepts numpy's in-memory message on WASI, and the upstream draft
+    carries that test change. So the README's platform fact can go when upstream releases the
+    patch.
+- **F6, confirmed.**
+  - The minimum counts are set, and today's counts clear them: 3,072 / 1,125 / 1,990.
+  - A passive data segment or an unknown element form is a finding.
+  - `tests/harness/wasm.py` is reused and extended.
+  - Note: the getset minimum has the least room, 12%. If a later spec removes a module with
+    many getsets, the minimum moves with a stated reason, as a judge change.
+- **F7, confirmed.**
+  - The zip check walks nested code objects.
+  - The two zip-path constants name each other.
+  - The private calls run natively, and the job sets `np._ScaledFloatTestDType` as numpy's own
+    test does.
+  - Zip measurements use the plain binary.
+
+### Verdict on the revision
+
+**Confirmed for build.** Every finding is fixed as its disposition says. The scan's rule, rerun
+as written, has no false positive, keeps the six real callbacks, and clears its own minimum
+counts. The amended 0001 applies through the project's applier, and its three tests pass
+natively. The two builder notes need no change to the specification.
+
+One line: all seven fixes hold; 051 is confirmed for build, and it takes the next build-class
+slot after 050 lands.
+
+## Confirmation (2026-10-18): spec 050's condition C1
+
+I checked the revised `context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md`
+at `749f6c7` against condition C1 of the 050 confirmation, and against `tests/harness/scoreboard.py`
+(`compare`, `accept`, `Ratchet.red`) as it stands.
+
+- **What a fixed class becomes: met.** Answer (a) is written into Decision 10:
+  - an emptied class keeps its empty list file as a passing check, and its gap is removed;
+  - the scoreboard shows gap → pass, and a returning failure shows as `+<node id>`;
+  - a class is deleted only when its `match` can no longer occur, as a judge change with
+    `--retire`.
+
+  Decision 17's rule now allows an empty list with no gap, and requires a non-empty list to have
+  exactly one gap. Criterion 8 adds unit checks for all three cases. Criterion 4 adds an emptied
+  class that passes and a returning failure.
+- **What a fixed trap becomes: met, and stated.** Decision 9: the trap check passes, its gap is
+  removed, and the same landing deletes the `[[trap]]` entry so the tests rejoin their group.
+  The trap check is retired. Keeping no trap guard is reasoned: the group guards the tests, and
+  any new trap fails the group.
+- **The absent-gap reporting: met.** Decision 19's amendment line, with a unit check in
+  criterion 8, reports an accepted `gap` whose check is absent "from a run that collected its
+  whole file" as `absent`, as `compare` already does for an accepted pass. So `--retire` can
+  take it. This matches the existing rule in `compare`: absent when the file is gone, or was
+  collected whole.
+  - Builder note: `Ratchet.red` already turns any `absent` red until retired. That applies to
+    gaps too, which is right: a vanished allowance is retired on purpose, not left behind.
+  - Builder note: in the unit check, put the gap branch beside the pass branch in `compare`. Do
+    not widen the `acc["status"] == "pass"` test, because that would also report a vanished gap
+    as `lost`.
+- **The builder note on patch-created files** is written into Decision 3: a `---` side of
+  `/dev/null` and its `+++ b/` path.
+
+**C1 is met.** Spec 050 stays confirmed for build. Its status line already says so.
+
+One line: 050's C1 is written in as the preferred answer (fixed classes stay as passing guards;
+fixed traps rejoin their group and their checks are retired through the new absent-gap
+reporting), so 050 is confirmed for build.
