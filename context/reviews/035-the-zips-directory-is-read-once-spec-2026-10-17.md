@@ -430,3 +430,114 @@ A sound recipe whose reader matches zipimport on every zip tried and whose start
 3.15.0. But its metadata path fails its own bound, and its resource reader would read a
 guest's zip less strictly, and all at once. Fix those, pin the `Traversable`'s exact answers,
 and keep `zipimport.__file__`, and it can be built.
+
+## Confirmation (2026-10-17)
+
+The same reviewer re-read the revised specification (commit `46d53f4`): Decisions 2 to 7, 10 and
+11, the Design table, the unit checks, and Acceptance 1 to 9. I also re-read the reworded
+question 59 and the Disposition above. Nothing in `src/`, `tests/`, `scripts/`, `recipes/` or
+the spec was edited; nothing was committed; `scripts/build.sh` and the judge were not run.
+Scripts and outputs are under
+`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/035-review/confirm/`.
+They used the same copy of `build/artifacts/` (hashes checked), the judge's driver for guest
+fuel, and the build's host CPython 3.15.0 through `uv run --no-project --python …` for host runs.
+
+- `member_reader.py`: Decision 6's member reader, written from the revised text alone. It
+  serves stored or deflate members only, with both sizes at most 1 MiB. It checks the local
+  header (signature, encryption bit, method, and the name compared with `at.encode("utf-8")`).
+  It inflates with `decompressobj(-15).decompress(raw, file_size + 1)`, then requires `eof`,
+  exactly `file_size` bytes and the CRC-32. Anything else opens through `zipfile.Path`.
+- `hostile.py` → `hostile.txt` and `dup_overlap.py` → `dup_overlap.txt` (host 3.15.0): 15 zips and
+  16 member reads, each in 64 KiB chunks through our reader and through `zipfile.Path`.
+- `measure2.py` → `measure2.txt` and `measure3.py` → `measure3.txt` (guest): a zone load through
+  the member reader against `get_data`, and a metadata miss through the split `zip_children`,
+  on the artifact zip (both binaries) and the padded zip (plain).
+
+### The eight dispositions
+
+1. **Confirmed.** Decision 7 now uses upstream's split over zipimport's keys, and only
+   `iterdir()` builds the children map. Re-measured (EXECUTED, `measure2.txt`, a full
+   `version("nope")` miss with the split `zip_children` in place):
+   - snapshot: **9.42 M**, against the 20 M bound;
+   - plain: 9.59 M on the artifact zip and 33.87 M on the padded zip, a slope of **4,622 per
+     member** against 6,000.
+   Both match the Disposition's 4,608 and about 4,600.
+2. **Confirmed. The stricter option (a) holds on every hostile member tried.** EXECUTED
+   (`hostile.txt`): our bytes, or our exception type, equal `zipfile.Path`'s in all 15 cases of `hostile.txt`.
+   The route is as Decision 6 says:
+   - plain small deflate and stored members take the fast path, with the right bytes;
+   - LZMA and bzip2 go to `zipfile`, with the right bytes;
+   - a bad CRC gives `BadZipFile` (through `zipfile`);
+   - the encryption bit gives `RuntimeError` (through `zipfile`);
+   - a local name that differs gives `BadZipFile`;
+   - a local method that differs, and a deflate stream one byte short, go to `zipfile`, which
+     reads them;
+   - stored and deflate members of 2 MiB stream through a `ZipExtFile`, which check 5's
+     "not a `BytesIO`" row relies on;
+   - a lying bomb (50 MB of zeros declared as 100 bytes) is capped at 101 bytes and handed to
+     `zipfile`, which gives 100 bytes;
+   - an honest 50 MB inflate is over the limit, and streams through `zipfile`;
+   - an overlapped entry under another name fails the local-name test and gets `zipfile`'s
+     `BadZipFile`.
+   The one gap Decision 6 accepts, overlap, is closed in practice too
+   (`dup_overlap.txt`). A same-named second entry on the first entry's header fails the CRC
+   test, and `zipfile` raises `Bad CRC-32`, as upstream does. No fast-path read allocates more
+   than 1 MiB + 1 bytes.
+   - Cost (EXECUTED, `measure2.txt`): a first `ZoneInfo("Europe/Paris")` through the member
+     reader is **7.34 M** on the snapshot and 7.38 M and 7.37 M plain on the two zips (a slope
+     of −3 per member). The bounds are 15 M and 20 M. Against `get_data` it costs 0.69 M more on
+     the snapshot.
+   Question 59's new wording matches.
+3. **Confirmed.** Decision 6 now writes out every predicate, `joinpath`'s `resolve_dir` rule,
+   `name`, `parent`, `str`, `==` and `open`'s modes. Each matches `zipfile.Path` in 3.15 as I
+   read it and as `trav.txt` ran it. The three accepted differences are listed, and the README
+   row names them. Check 5 and the unit check carry the rows asked for.
+4. **Confirmed.** Decision 3 sets `sys._stdlib_dir` in phase 1, and check 1 asserts both values.
+   This is the variant `two_phase.txt` ran.
+5. **Confirmed.** The history, the rule for a re-pin (point B at once), and B's per-event cost
+   are written in, with how to measure that cost and a 5,000-fuel ceiling. The hook's
+   no-exception rule is written in.
+6. **Confirmed.** The fixture's `stdlib=` keyword is in Decision 11 and the Design table.
+   `compile_module()` and `render()` are outside the version gate, so the unit check runs on
+   3.14. `stock_read_directory` is a global looked up at each call.
+7. **Confirmed,** with one figure to correct (C1 below).
+8. **Confirmed.**
+
+### New points (none blocks the build)
+
+- **C1. Decision 10's "a second zone, about 0.6 M" is too low for check 4's case.** EXECUTED
+  (`measure3.txt`): check 4's C − B, `Asia/Tokyo` after `Europe/Paris`, is about **1.34 M**
+  on the snapshot and 1.36 M plain through the member reader. Through `get_data` it is
+  1.32 M and 1.30 M, so the member reader adds only 20,000 to 60,000. Most of it is
+  importing the new package `tzdata.zoneinfo.Asia`; with that package already imported the
+  zone costs 0.86 M and 0.83 M. The memo's 0.6 M was for zones in an already-imported folder.
+  So the 2 M bound holds, but with about 0.65 M of headroom (about 33%), not threefold. That
+  margin also covers `ZipDirectoryPath`'s own `joinpath` and `resolve_dir`. Correct the table
+  row to "about 1.35 M (it imports `tzdata.zoneinfo.Asia`)". The landing notes give the
+  measured C − B.
+- **C2. "The directory's name, byte for byte" needs one word on how.** zipimport's toc keeps
+  the decoded name, not the raw bytes. So the test is the local name against
+  `at.encode("utf-8")`, as the prototype does. A cp437-named member then always goes to
+  `zipfile`, which is the safe direction. Say so in Decision 6, so a builder does not keep raw
+  names in a second table.
+- **C3.** The member reader may open the archive with `_io.open_code`, as zipimport and
+  Decision 2 do, so an embedder's open-code hook sees every read. That is optional; say which.
+
+### Result
+
+**Confirmed for build,** on one condition: C1's table row is corrected in Decision 10 before
+the build starts. C2 and C3 are one-line clarifications the author may write in at the same
+time. No further pre-build review is needed. The build review re-runs checks 4 and 6 and the
+member-reader unit check against the built artifacts.
+
+One line: every finding is fixed as written. The stricter member reader matches
+`zipfile.Path` on all 16 hostile member reads tried, and never allocates more than 1 MiB. The split
+metadata path measures 9.4 M and 4,622 per member, inside its bounds. Correct the
+second-zone figure, and 035 can be built.
+
+### The author's note on the conditions (written in by the lane, 2026-10-17)
+
+- C1: Decision 10's table now gives the second zone as about 1.35 M, mostly the import of
+  `tzdata.zoneinfo.Asia`; the bound stays 2 M.
+- C2: Decision 6's local-header test compares the name as `at.encode("utf-8")`.
+- C3: Decision 6's member reader opens the archive with `_io.open_code`, as zipimport does.

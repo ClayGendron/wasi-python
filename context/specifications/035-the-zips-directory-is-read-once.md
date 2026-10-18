@@ -2,7 +2,8 @@
 
 - **Status:** drafted 2026-10-17; revised the same day against its pre-build review
   (`../reviews/035-the-zips-directory-is-read-once-spec-2026-10-17.md`), all eight findings
-  written in (its Disposition). It changes the build recipe and how the interpreter starts, so it
+  written in (its Disposition); its confirmation passed it for build with one condition (C1, the
+  second zone's figure) and two clarifications (C2, C3), written in. It changes the build recipe and how the interpreter starts, so it
   was reviewed before it is built (constitution §5.6). It is build-class: it touches `recipes/`
   and `scripts/` (§5.7).
 - **Owner:** Clay Gendron
@@ -263,7 +264,10 @@ All of these grow with the zip. Tier A will nearly quadruple it.
      - the toc entry's method is stored (0) or deflate (8), and its `file_size` and `data_size`
        are each at most **1 MiB** (1,048,576 bytes);
      - the local header at the entry's offset has the right signature, the encryption bit
-       (`0x1`) clear, the directory's method, and the directory's name, byte for byte;
+       (`0x1`) clear, the directory's method, and the directory's name, byte for byte, compared
+       as `at.encode("utf-8")` (zipimport keeps only the decoded name, so a cp437-named member
+       always goes to `zipfile`, the safe direction);
+     - the archive is opened with `_io.open_code(archive)`, as zipimport opens it;
      - the data is read as `data_size` bytes and, for deflate, inflated by
        `zlib.decompressobj(-15).decompress(raw, file_size + 1)`, so no read makes more than
        1 MiB + 1 bytes; the result is exactly `file_size` bytes, the stream is complete, and
@@ -365,7 +369,7 @@ All of these grow with the zip. Tier A will nearly quadruple it.
     | snapshot `-c pass` | 81.9 M | 81.9 M | the ratchet (check 9) |
     | first zone after `import zoneinfo, importlib.resources`, snapshot | 205.6 M | about 7 M plus `_zip_resources`' import | ≤ 15 M (check 4) |
     | the same, plain | 255.7 M | 11 M to 14 M plus that import | ≤ 20 M on both zips; slope ≤ 1,000 per member |
-    | a second zone | about 182 M | about 0.6 M | ≤ 2 M |
+    | a second zone | about 182 M | about 1.35 M (mostly importing `tzdata.zoneinfo.Asia`) | ≤ 2 M |
     | metadata miss after `import importlib.metadata`, snapshot | 218.9 M | about 10 M plus that import | ≤ 20 M (check 6) |
     | the same, plain, slope | 132,458 per member | about 4,600 (the split's, `children.txt`; the memo's 4,472 was the same split) | ≤ 6,000 per member |
     | pandas time-zone job, snapshot, after `import pandas, zoneinfo, importlib.resources` | 961.0 M | about 29 M | ≤ 60 M (check 7) |
