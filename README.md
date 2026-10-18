@@ -1,7 +1,7 @@
 # wasi_python
 
-**A statically linked CPython for WebAssembly hosts, with numpy and pandas
-compiled in. No browser, no JavaScript. A few pinned releases, not every
+**A statically linked CPython for WebAssembly hosts, with numpy, pandas and
+matplotlib compiled in. No browser, no JavaScript. A few pinned releases, not every
 version of everything.**
 
 One `python.wasm` for `wasm32-wasip1` that runs on a WASI host with
@@ -39,7 +39,7 @@ promises.
 | fact | value |
 |---|---|
 | upstream patches | upstream patches carried: 5, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
-| build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
+| build from pinned sources, downloads present | 8 min 13 s (macOS arm64, 10 cores, with matplotlib's two steps; spec 023's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 36.9 MB / 70.9 MB / 21.9 MB (3.15 line, with matplotlib; spec 023's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 83.4M guest instructions on 3.15 with matplotlib (81.9M before) |
@@ -202,6 +202,12 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   or `MPLCONFIGDIR` in a writable grant.
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
   drawing and saving never start one.
+
+FreeType's licence asks every binary distribution to say this in its documentation, and this
+README is the wheel's description:
+
+> Portions of this software are copyright © 2026 The FreeType Project (https://freetype.org).
+> All rights reserved.
 
 ## Hosts
 

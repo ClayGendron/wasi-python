@@ -1,7 +1,7 @@
 [project]
 name = "wasi-python"
 dynamic = ["version"]
-description = "A statically linked CPython for WebAssembly hosts (wasm32-wasip1) with numpy and pandas compiled in."
+description = "A statically linked CPython for WebAssembly hosts (wasm32-wasip1) with numpy, pandas and matplotlib compiled in."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"

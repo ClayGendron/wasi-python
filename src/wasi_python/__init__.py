@@ -1,4 +1,4 @@
-"""wasi_python: a static CPython for WebAssembly hosts, with numpy and pandas compiled in.
+"""wasi_python: a static CPython for WebAssembly hosts, with numpy, pandas and matplotlib inside.
 
 One call runs one program in a fresh, sealed guest::
 

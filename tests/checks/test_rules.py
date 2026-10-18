@@ -27,6 +27,14 @@ def test_no_module_level_name_is_bound_twice() -> None:
     assert not hits, scan.report(hits)
 
 
+def test_the_readme_carries_the_licences_credit_lines() -> None:
+    """Constitution §4.12: FreeType's licence makes a credit line in the distribution's
+    documentation a condition of binary redistribution; the README, the wheel's description,
+    carries it while FreeType is pinned (spec 023's build review, F1)."""
+    errors = scan.credit_errors(paths.README.read_text(), paths.read_pin_list())
+    assert not errors, scan.report(errors)
+
+
 def test_carried_patches_follow_the_rules() -> None:
     """Constitution §4.1 (spec 020): every carried patch has its pull request draft, its CHANGELOG
     line and a safe shape, and the README counts them."""

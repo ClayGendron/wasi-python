@@ -303,6 +303,25 @@ def cpp_exception_errors(root: Path) -> list[str]:
     return errors
 
 
+# FreeType's licence (docs/FTL.TXT, §2): a binary distribution says this in its documentation.
+FREETYPE_CREDIT = (
+    "Portions of this software are copyright © 2026 The FreeType Project "
+    "(https://freetype.org). All rights reserved."
+)
+
+
+def credit_errors(readme: str, pinned: Iterable[str]) -> list[str]:
+    """The credit lines the linked libraries' licences ask of the distribution's documentation
+    (spec 023's build review, F1): the README, which is also the wheel's description, carries
+    FreeType's while FreeType is pinned. Line breaks and a blockquote's `>` are read as spaces."""
+    text = " ".join(re.sub(r"^\s*>\s?", "", line) for line in readme.splitlines()).split()
+    if any(n.lower().startswith("freetype-") for n in pinned) and FREETYPE_CREDIT not in " ".join(
+        text
+    ):
+        return [f"README.md does not say FreeType's credit line: {FREETYPE_CREDIT!r}"]
+    return []
+
+
 def pure_python_errors(pinned: Iterable[str]) -> list[str]:
     names = [paths.norm(n) for n in pinned]
     return [
