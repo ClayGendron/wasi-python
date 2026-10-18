@@ -53,6 +53,7 @@ class State:
     lines: list[str] = field(default_factory=list)
     facts: dict[str, dict] = field(default_factory=dict)  # node id -> the check's `fact` values
     crashed: dict[str, str] = field(default_factory=dict)  # failed reports carrying no record
+    collections: int = 0  # workers that handed their collection over (the build review, F7)
     worker_foreign: list[str] = field(default_factory=list)  # what steered a worker (F2)
 
 
@@ -65,6 +66,7 @@ METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: spec 050, Decision 12
 WORKERS = pytest.StashKey[int]()
 RECORD_PROPERTY = "wasi_python.record"  # a goal check's record, on a worker's report
 SUITE_PROPERTY = "wasi_python.suite"  # a unit test's tally, on a worker's report
+AREA_PROPERTY = "wasi_python.area"  # a goal check's area, on its setup report (review F7)
 WORKER_OUTPUT = "wasi_python.collection"  # a worker's collection, in its workeroutput
 COLLECTION_KEYS = ("areas", "deselected", "collected_files", "narrowed_files")
 
@@ -325,10 +327,14 @@ def _carry(item: pytest.Item, rep: pytest.TestReport) -> None:
     """On a worker, the node's current record (or a unit test's tally) rides on its report to the
     controller, which keeps the last one per node (spec 052, Decision 3)."""
     state = item.config.stash[STATE]
-    if area_of(item) is None:
+    area = area_of(item)
+    if area is None:
         if rep.when == "call" or (rep.when == "setup" and not rep.passed):
             rep.user_properties.append((SUITE_PROPERTY, [bool(rep.passed), bool(rep.skipped)]))
-    elif item.nodeid in state.records:
+        return
+    if rep.when == "setup":  # known to the controller even if no worker finishes cleanly (F7)
+        rep.user_properties.append((AREA_PROPERTY, [item.nodeid, area]))
+    if item.nodeid in state.records:
         record = json.loads(json.dumps(state.records[item.nodeid]))  # plain values, a snapshot
         rep.user_properties.append((RECORD_PROPERTY, [item.nodeid, record]))
 
@@ -354,6 +360,9 @@ class Controller:
                 if record.get("facts"):
                     state.facts[node] = record["facts"]
                 carried = True
+            elif name == AREA_PROPERTY:
+                node, area = value
+                state.areas[node] = area
             elif name == SUITE_PROPERTY:
                 passed, skipped = value
                 state.suite_total += 1
@@ -368,6 +377,7 @@ class Controller:
         if not out:
             return  # a worker that died sends nothing; the others collected the same checks
         state = self.config.stash[STATE]
+        state.collections += 1
         state.areas.update(out["areas"])
         state.deselected += [n for n in out["deselected"] if n not in state.deselected]
         state.collected_files.update(out["collected_files"])
@@ -661,7 +671,15 @@ def foreign_steering(config: pytest.Config) -> list[str]:
             if module == "__channelexec__" and is_worker(config) and xdist_dir is not None:
                 # xdist's worker loop: xdist/remote.py, sent to the worker and run by execnet
                 # under this name, so its class has no file (spec 052, the build review, F2).
-                if type(plugin).__qualname__ == "WorkerInteractor":
+                code = getattr(getattr(type(plugin), "__init__", None), "__code__", None)
+                made_in = Path(code.co_filename).resolve() if code is not None else None
+                # The class's code must come from xdist's own remote.py (execnet compiles it under
+                # its real file name), never from a class that only takes the name (review F8).
+                if (
+                    type(plugin).__qualname__ == "WorkerInteractor"
+                    and made_in is not None
+                    and made_in.is_relative_to(xdist_dir)
+                ):
                     continue
             defined = _module_file(sys.modules.get(module))  # an object: its type's module file
             if defined is None or not allowed(defined):
@@ -749,6 +767,11 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     root = Path(str(config.rootpath))
     ratchet = scoreboard.compare(run, accepted, root)
     red = ratchet.red(partial=bool(partial)) if accepted else []
+    if config.stash.get(WORKERS, 0) and not state.collections:  # spec 052, the build review F7
+        red.append("no worker handed its collection over: the record is incomplete")
+    unknown = sorted(n for n in state.crashed if n not in state.areas)
+    if unknown:
+        red.append("a worker crashed while running " + ", ".join(unknown[:3]))
     if foreign:
         red.append("steered from outside the judge: " + "; ".join(foreign[:3]))
     if state.gap_errors:

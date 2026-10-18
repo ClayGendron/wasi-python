@@ -507,14 +507,31 @@ def pytest_configure(config):
 """
 
 
-def test_a_plugin_registered_while_collecting_is_foreign_on_any_cores(clone_worktree) -> None:
+SPOOF_CONFTEST = """
+class WorkerInteractor:  # xdist's worker loop by name and module only (the build review, F8)
+    def __init__(self):
+        pass
+
+
+WorkerInteractor.__module__ = "__channelexec__"
+
+
+def pytest_configure(config):
+    config.pluginmanager.register(WorkerInteractor(), "spoof052")
+"""
+STEERS = {"steer052": STEER_CONFTEST, "spoof052": SPOOF_CONFTEST}
+
+
+@pytest.mark.parametrize("name", STEERS)
+def test_a_plugin_registered_while_collecting_is_foreign_on_any_cores(clone_worktree, name) -> None:
     """The build review's F2: a conftest that pytest loads only while collecting (below an
     argument, in a folder not named test*) is loaded by the workers alone under -n; each worker
-    hands what steers it to the controller. Serial and -n 2 are both red, and judged the same."""
+    hands what steers it to the controller. Serial and -n 2 are both red, and judged the same.
+    F8: so is a class that takes the name of xdist's worker loop without its code."""
     folder = clone_worktree / "tests" / "unit" / "zz052"
     try:
         (folder / "inner").mkdir(parents=True)
-        (folder / "inner" / "conftest.py").write_text(STEER_CONFTEST)
+        (folder / "inner" / "conftest.py").write_text(STEERS[name])
         (folder / "inner" / "test_zz052.py").write_text("def test_unit():\n    pass\n")
         records = []
         for tag, cores in (("serial", []), ("n2", ["-n", "2"])):
@@ -522,9 +539,9 @@ def test_a_plugin_registered_while_collecting_is_foreign_on_any_cores(clone_work
             r = judge(clone_worktree, "tests/unit/zz052", ONE_CHECK, *cores,
                       "--progress-latest", str(latest))  # fmt: skip
             assert r.returncode == 1, (tag, r.stdout[-2000:] + r.stderr[-2000:])
-            assert "steered from outside the judge: plugin steer052" in r.stdout, tag
+            assert f"steered from outside the judge: plugin {name}" in r.stdout, tag
             records.append(json.loads(latest.read_text()))
-        assert all(any("steer052" in f for f in rec["meta"]["foreign"]) for rec in records)
+        assert all(any(name in f for f in rec["meta"]["foreign"]) for rec in records)
         assert sameness.differences(*records) == []
     finally:
         shutil.rmtree(folder, ignore_errors=True)

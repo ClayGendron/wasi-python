@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import types
 from pathlib import Path
@@ -225,38 +226,61 @@ import pytest
 
 pytestmark = pytest.mark.goal("rules")
 
-def test_a():
-    pass
-
-def test_crash(request):
-    mark = Path(os.environ["CRASH_MARK"])
-    if os.environ["CRASH_HOW"] == "always" or not mark.exists():
+def die_if(every_check: bool = False):
+    how, mark = os.environ["CRASH_HOW"], Path(os.environ["CRASH_MARK"])
+    if how == "every" or (not every_check and (how == "always" or not mark.exists())):
         mark.touch()
         os._exit(1)  # the worker dies mid-check
 
+def test_a():
+    die_if(every_check=True)
+
+def test_crash():
+    die_if()
+
 def test_b():
-    pass
+    die_if(every_check=True)
 
 def test_c():
-    pass
+    die_if(every_check=True)
 """
+CRASHES = {  # (workers, CRASH_HOW, whether every worker dies)
+    "once": ("2", "once", False),
+    "always": ("2", "always", False),
+    "-n 1": ("1", "once", True),  # the only worker dies (the build review, F7)
+    "every worker": ("2", "every", True),  # each worker dies at its first check (F7)
+}
 
 
-@pytest.mark.parametrize("how", ["once", "always"])
-def test_a_dead_workers_check_fails_and_the_run_ends(suite, monkeypatch, how) -> None:
-    """Decision 14, as the build review's F1 measured it: no worker is restarted, the run ends
-    (bounded by a 120 s fail-safe, never a sleep), and the check that was running is `fail`,
-    "worker crashed", even if xdist would run it again elsewhere."""
+@pytest.mark.parametrize("case", CRASHES)
+def test_a_dead_workers_check_fails_and_the_run_ends(suite, monkeypatch, case) -> None:
+    """Decision 14, as the build review's F1 and F7 measured it: no worker is restarted, the run
+    ends (bounded by a 120 s fail-safe, never a sleep), and a check that was running when its
+    worker died is `fail`, "worker crashed", even if xdist would run it again elsewhere and even
+    if no worker finishes. The scoreboard never says 0 fail, and a run in which no worker handed
+    its collection over says so in a red line."""
+    workers, how, all_die = CRASHES[case]
     (suite.path / "test_goals.py").write_text(CRASH)
     (suite.path / "gaps.toml").write_text("")
     monkeypatch.setenv("CRASH_MARK", str(suite.path / "crashed"))
     monkeypatch.setenv("CRASH_HOW", how)
-    result, record = suite.run(f"crash-{how}", "-n", "2", "test_goals.py", timeout=120)
+    result, record = suite.run(
+        f"crash-{how}-{workers}", "-n", workers, "test_goals.py", timeout=120
+    )
     assert record is not None, result.stdout.str()[-3000:]
-    crash = record["checks"]["test_goals.py::test_crash"]
-    assert crash["status"] == "fail" and crash["reason"].startswith("worker crashed"), crash
+    checks = record["checks"]
+    crashed = [n for n, r in checks.items() if r["reason"].startswith("worker crashed")]
+    assert crashed and all(checks[n]["status"] == "fail" for n in crashed), checks
+    if how != "every":
+        assert "test_goals.py::test_crash" in crashed, checks
+    else:
+        assert not any(r["status"] == "pass" for r in checks.values()), checks
     assert result.ret != 0
-    assert record["meta"]["workers"] == 2
+    assert record["meta"]["workers"] == int(workers)
+    scoreboard = board(result)
+    assert re.search(r"· [1-9][0-9]* fail", scoreboard[0]), scoreboard[0]
+    incomplete = "no worker handed its collection over: the record is incomplete"
+    assert any(incomplete in line for line in scoreboard) is all_die, scoreboard
 
 
 # ---------------------------------------------------------------------------------------------
