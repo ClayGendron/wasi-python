@@ -190,7 +190,7 @@ class Mount:
 
     # spec 032; writable: spec 034
 
-    provider: Any
+    provider: FileProvider
     guest: str
     writable: bool = field(default=False, kw_only=True)
 

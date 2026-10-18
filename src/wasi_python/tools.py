@@ -257,6 +257,41 @@ class ToolRecord:
     abandoned: int = 0
 
 
+# The two shapes a type checker sees (spec 049, Decision 5): `fn` positionally, or none.
+@typing.overload
+def tool(
+    fn: Callable[..., Any],
+    /,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    input_schema: Any = None,
+    validates_input: bool = False,
+    timeout_s: float | None = None,
+    read_only: bool = False,
+    destructive: bool = False,
+    idempotent: bool = False,
+    open_world: bool = False,
+) -> Tool: ...
+
+
+@typing.overload
+def tool(
+    fn: None = None,
+    /,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    input_schema: Any = None,
+    validates_input: bool = False,
+    timeout_s: float | None = None,
+    read_only: bool = False,
+    destructive: bool = False,
+    idempotent: bool = False,
+    open_world: bool = False,
+) -> Callable[[Callable[..., Any]], Tool]: ...
+
+
 def tool(
     fn: Callable[..., Any] | None = None,
     *,

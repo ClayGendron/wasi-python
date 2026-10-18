@@ -221,11 +221,11 @@ class Defaults:
     """
 
     # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
-    memory_bytes: int
-    deadline_s: float
-    output_bytes: int
+    memory_bytes: int | None
+    deadline_s: float | None
+    output_bytes: int | None
     async_workers: int = field(default_factory=_default_workers)
-    file_calls: int = 10_000
+    file_calls: int | None = 10_000
     tool_calls: int | None = 1000
 
     def __post_init__(self) -> None:
@@ -311,7 +311,7 @@ def run(
     mounts: Iterable[Mount] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
-    host: Host | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
     snapshot: bool = True,
     fuel: int | None = None,
     deadline_s: float | None = _UNSET,
@@ -430,7 +430,7 @@ async def run_async(
     mounts: Iterable[Mount] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
-    host: Host | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
     snapshot: bool = True,
     fuel: int | None = None,
     deadline_s: float | None = _UNSET,
