@@ -1798,7 +1798,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
 - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
 - `stdin`: The guest's standard input, whole; `None` is empty.
-- `host`: The door's host function: called with each request's bytes, it returns the response's. Excludes `tools`.
+- `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
 - `snapshot`: `True` runs the snapshot binary, with the stack pre-imported; `False` the plain reactor.
 - `fuel`: A cap on the guest's executed instructions; past it the call ends "out of fuel". `None` (the default) sets no cap.
 - `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
@@ -1808,8 +1808,8 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `artifacts`: The artifact set to run; `None` finds it with `artifacts()`.
 - `cancel`: A `threading.Event`. Once it is set and the guest runs, the guest stops within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
 - `max_file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
-- `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. Excludes `host`.
-- `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+- `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async (an `async def`, or a function returning an awaitable): it is awaited on the event loop that awaits `run_async`, or, under `run`, on a loop of the call's own; it never starts once its call has been answered, and is cancelled when its call ends. Excludes `host`.
+- `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
 
 **Raises:**
@@ -2121,7 +2121,7 @@ Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn
 
 **Raises:**
 
-- `TypeError`: An argument has the wrong type, the function is async, or a type hint has no schema.
+- `TypeError`: An argument has the wrong type, the function is an async generator function, or a type hint has no schema.
 - `ValueError`: A name or a schema the protocol does not allow.
 
 ### The command
