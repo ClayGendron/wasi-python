@@ -481,7 +481,8 @@ What grants do not do:
 A mount serves a guest's files from your own code: a database, an object
 store, a permission layer. The guest opens, reads, lists and stats them with
 ordinary calls (`open`, `os.listdir`, `os.stat`, `pandas.read_csv`); your
-provider answers each one. Mounts are read-only (writable mounts come later).
+provider answers each one. Mounts are read-only unless you say
+`writable=True` (see *Writable mounts* below).
 
 ```python
 from wasi_python import Errno, Mount, Stat, run
@@ -508,7 +509,7 @@ class Files:  # paths are absolute within the mount: "/" is the mount itself
 
 done = run(["-c", "import pandas; print(pandas.read_csv('/work/a.csv'))"],
            mounts=[Mount(Files({"/a.csv": b"x,y\n1,2\n"}), "/work")])
-done.files.calls  # {'stat': 0, 'list': 0, 'read': 1}
+done.files.calls  # {'stat': 0, 'list': 0, 'read': 1, 'write': 0, 'mkdir': 0, ...}
 ```
 
 **The protocol.** A provider has three methods, each given a normalized
@@ -613,10 +614,142 @@ layer can be bridged from the worker thread with
 are specified; an `async def` method is refused.
 
 `done.files` (a `FileRecord`, `None` for a call without mounts) holds `calls`,
-each method's count (zeros included), and `faults`, the first 1,000
-`FileFault(method, path, error)`, where `error` is the exception's type and
-first line, or `"bad answer: <type>"`. It holds no exception object and no
-times.
+each of the eight methods' counts (zeros included, read-only mounts too),
+`faults`, the first 1,000 `FileFault(method, path, error)`, where `error` is
+the exception's type and first line, or `"bad answer: <type>"`, and, for
+writable mounts, `refused` and `refused_total` (below). It holds no exception
+object and no times.
+
+#### Writable mounts
+
+`Mount(provider, guest, writable=True)` lets the guest write there: create,
+write, append, truncate, make and remove folders, rename within the mount.
+Nothing is writable unless you say so: `writable` is keyword-only and must be
+`True` or `False` (`"yes"`, `1` or `None` is a `TypeError`), and a read-only
+mount never calls the write half, whatever your provider has. A writable
+mount's provider has five more methods, checked before any work (each
+callable, none `async def`), each answering `None` for success or an `Errno`:
+
+```python
+class Store(Files):  # the read half above, plus:
+    def write(self, path, data):  # the whole file; create it if missing
+        if self.tree.get(path, b"") is None:
+            return Errno.EISDIR
+        self.tree[path] = data  # `data` is a bytes copy you may keep
+    def mkdir(self, path):
+        if path in self.tree:
+            return Errno.EEXIST
+        self.tree[path] = None
+    def remove(self, path):  # a file; EISDIR for a folder
+        ...
+    def rmdir(self, path):  # an empty folder; ENOTEMPTY otherwise
+        ...
+    def rename(self, src, dst):  # POSIX's replace rule, within the mount
+        ...
+
+done = run(["-c", "import pandas as pd; pd.DataFrame({'a': [1]}).to_csv('/work/out.csv')"],
+           mounts=[Mount(Store({}), "/work", writable=True)])
+```
+
+Each keeps POSIX's contract in preview1's numbers: `write` is `EISDIR` on a
+folder, `ENOENT` for a missing parent and `ENOTDIR` for a file parent; `mkdir`
+is `EEXIST` when the path exists; `remove` is `EISDIR` on a folder (Linux's
+answer) and `ENOENT` when missing; `rmdir` is `ENOTEMPTY`, `ENOTDIR` or
+`ENOENT`; `rename` replaces a file with a file and an empty folder with a
+folder, and is `ENOTEMPTY`, `EISDIR` (a file onto a folder), `ENOTDIR` (a
+folder onto a file) or `ENOENT` (no `src`). Your quotas, permissions and
+conflicts (`EACCES`, `EROFS`, `ENOSPC`, `EDQUOT`, `ESTALE`, `EBUSY`,
+`ETIMEDOUT`) reach the guest unchanged; the runner does not know why.
+
+**A file exists from its open.** A create or a truncation reaches you at open
+as `write(path, b"")`, so you see an empty first version of every file a guest
+creates, and a create you refuse fails the `open`, as on a grant. `open(p,
+"w")` is one `write(p, b"")`; `"x"` is a `stat`, then the `write` if the name
+is free (exact within a call, and as atomic across writers as your `stat`
+then `write`); `"a"` and `os.open(p, O_CREAT | O_WRONLY)` are a `read`, then
+the `write` only if the file is missing; `"r+"` is a `read`. So
+`tempfile.TemporaryFile`, `mkstemp` then `rename`, lock files and
+`os.path.exists` of a file held open all behave as on a grant.
+
+**The bytes are handed over whole.** What the guest writes goes into a
+buffer the runner holds for that descriptor, with no provider call. The
+whole file reaches you as one `write(path, data)` when the guest closes it,
+at `os.fsync` or `os.fdatasync`, and at the call's ending, whatever ends it:
+an exit, `os._exit`, a trap, `"out of fuel"`, its deadline, a cancel, `"out
+of file calls"`. A clean file closes with no call. So a refused write shows
+at the close or the `fsync` (a `with` block or `close()` raises the
+`OSError` of your `Errno`), not at the `write`. After a stop the runner makes
+at most min(1,024, the file calls left) such writes, handing over at most the
+staged bytes (1 GiB by default, the `memory_bytes` bound): each takes your
+provider's time, so a mounted run may return after its deadline by that much.
+A provider that must honour the deadline answers `ETIMEDOUT`, which is
+recorded. Nothing is written back when the call raises (a door host's or your
+provider's `BaseException`, or a Ctrl-C), nor when the interpreter is exiting
+(a `run_async` call stopped by the exit hook): provider code must not run
+then, and no result could report a refusal. Bytes still in a Python buffer
+when the guest stops by `os._exit` or a trap never reached the runner (a
+normal exit's finalization closes Python's files).
+
+**The record.** `done.files.refused` holds the first 1,000
+`RefusedWrite(mount, method, paths, errno, at, cause)`: every write-half call
+that did not succeed and every write-back the runner owed but did not make,
+whatever the exit code. `paths` is the provider path, or `(src, dst)` for a
+rename; `at` is `"open"`, `"call"` (a `mkdir`, `remove`, `rmdir` or
+`rename`), `"close"`, `"sync"` or `"exit"`; `cause` is `"refused"` (your
+`Errno`), `"fault"` (an exception or a bad answer, also in `faults`, recorded
+as `EIO`) or `"limit"` (the file-call limit came first; no call was made).
+`refused_total` counts every one, kept or not: `len(refused) <
+refused_total` says the list was cut. A refused `stat`, `list` or `read` is
+the guest's answer at its open and is not recorded. Whether a refused write
+fails the run is yours to decide.
+
+**What differs from a writable grant**, each the price of whole-file staging
+or a guard, none a way out of the mount:
+
+- a file's unflushed writes are seen only through the descriptor that made
+  them, until its close or `fsync` (a grant shows them at once to `stat`, a
+  listing and another open);
+- two descriptors on one path have two buffers, and the later write-back
+  replaces the earlier;
+- a write past the staged-bytes bound is `EFBIG` (a guest can grow a file to
+  the bound with one `truncate`);
+- a rename or link between a mount and another writable preopen is `EXDEV`
+  (`shutil.move` then copies and removes); to a read-only one, `EPERM`;
+- `os.link` and `os.symlink` within a mount are `ENOTSUP`: the protocol has no
+  links;
+- `os.utime` and the other set-times calls succeed and change nothing, with no
+  provider call: times are your provider's (`os.stat` shows your `mtime_ns`);
+- a rename or `rmdir` strictly above a more specific preopen (`/usr` under a
+  writable mount at `/`) is `EBUSY`, where a grant may remove a nested grant's
+  empty host folder;
+- the runner sees only this call's own changes: a file renamed or removed by
+  you or another run while a descriptor is open is written back to the path
+  the descriptor holds (a guest's own renames and removals are followed, as
+  POSIX descriptors follow the file);
+- a file left open when the interpreter exits during a `run_async` call is
+  not written back.
+
+**Cost.** Every write-half call, every create at open and every write-back
+counts toward `max_file_calls`. Each close or `fsync` of a changed file hands
+you the whole file, so a guest that grows a file to the bound and loops
+"write one byte, `fsync`" can make up to `max_file_calls` write-backs of up to
+the bound each (10,000 × 1 GiB with the defaults, in practice limited by the
+deadline), where a grant writes one byte per sync. A provider that persists or
+versions every write should quota or rate-limit its writes and answer
+`EDQUOT`.
+
+**State across runs is yours.** A writable mount whose provider keeps its
+state holds what a later run meets: modules (with a writable mount at `/`, a
+`-c` program has `/`, its working directory, first on `sys.path`) and data
+files that change a later run's answers (`/etc/mime.types`,
+`/usr/share/zoneinfo/…`). Give each untrusted program its own writable
+namespace, or check what it left. The runtime's own files stay the stdlib
+zip's: a write, a create or a rename at or under `/usr/local/lib` (however it
+is spelled) is `EPERM`, and a read-only grant inside a writable mount stays
+read-only. The runner makes no `HOME` in a mount, writable or not; a writable
+mount at `/tmp` holds `tempfile`'s files; pass `HOME` in `env=` if you need
+one. sqlite3 over a mount is not supported (it needs ranged writes and
+locking).
 
 ### From any language
 
@@ -1115,16 +1248,19 @@ has one.
 - **grants** are read-only unless they say otherwise, checked before any
   work, and checked again after wasmtime opens them (see *Grants*); the stdlib
   zip is a read-only grant on every call;
-- **mounts** (see *Mounts*) are read-only; a provider is your code, called
-  only with normalized paths, after the runner has checked every pointer,
-  length and count the guest passed; offsets, flags, cookies and descriptors
-  stop in the runner. No host path is opened for a mount: each mount is
-  preopened on an empty, read-only folder the runner owns, inside the call's
-  private folder, and a call without mounts runs on wasmtime's own calls but
-  for the two the runner guards (next item). Nothing a
-  provider raises or answers makes `run` raise (a `BaseException` that is not
-  an `Exception` is raised, as a door host's is); provider calls, open files
-  and staged bytes each have a default limit;
+- **mounts** (see *Mounts*) are read-only unless you pass `writable=True`,
+  your explicit grant of a write channel into your own code; a provider is
+  your code, called only with normalized paths, after the runner has checked
+  every pointer, length and count the guest passed; offsets, flags, cookies
+  and descriptors stop in the runner. No host path is opened for a mount:
+  each mount, writable or not, is preopened on an empty, read-only folder the
+  runner owns, inside the call's private folder, and every write is served
+  from the runner's buffer or your provider, so nothing a guest writes
+  reaches a host file through a mount; a call without mounts runs on
+  wasmtime's own calls but for the two the runner guards (next item). Nothing
+  a provider raises or answers makes `run` raise (a `BaseException` that is
+  not an `Exception` is raised, as a door host's is); provider calls, open
+  files and staged bytes each have a default limit;
 - **two wasmtime fixes the pinned wasmtime-py lacks** (spec 048): no wasmtime-py
   release yet carries a wasmtime past 49.0.0, so the runner serves two
   preview1 calls itself, on every call, and forwards them to wasmtime with the

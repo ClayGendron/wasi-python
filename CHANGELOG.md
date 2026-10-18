@@ -74,6 +74,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   spec 036. Costs: the zip grows by 2 members (12,963 bytes) and the snapshot by 4,197 bytes;
   a plain start by about 0.16 M fuel (+0.064%); a snapshot's start and program by nothing, its
   teardown (`Py_FinalizeEx`) by about 0.11 M (+0.14% of a `-c pass` call).
+- **Writable mounts** (spec 034). `Mount(provider, guest, writable=True)` lets a guest create,
+  write, append, truncate, make and remove folders and rename within a namespace your code
+  serves. A writable mount's provider adds `write` (the whole file), `mkdir`, `remove`, `rmdir`
+  and `rename`, each answering `None` or an `Errno`. A create or truncation reaches it at open as
+  `write(path, b"")`; a file's bytes are handed over whole at close, at `fsync` and at every
+  ending that returns a result (not when the call raises or the interpreter is exiting).
+  `done.files.refused` and `refused_total` record every refused or unmade write, even on exit
+  0 (`RefusedWrite`; `WritableFileProvider` for type checkers). Links are `ENOTSUP`; times are
+  accepted and ignored; a rename to another writable preopen is `EXDEV`. Nothing is writable
+  unless you say so. **`FileRecord.calls` now has eight keys** (the write half's zeros
+  included) for every call with mounts, read-only ones too.
 - **The stdlib zip carries package metadata** (spec 033). `importlib.metadata.version("numpy")`
   now answers `2.5.2` instead of raising `PackageNotFoundError`, and `distributions()` lists
   numpy, pandas, python-dateutil, six and tzdata at their pinned versions. A wheel keeps exactly

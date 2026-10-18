@@ -1,10 +1,12 @@
 # 034 — Writable mounts
 
-- **Status:** drafted 2026-10-17; reviewed before build the same day
+- **Status:** built 2026-10-18 (Landing notes), on 032 as landed (`987012e`), awaiting its
+  build review, which is also a security review (acceptance 15). Drafted 2026-10-17; reviewed
+  before build the same day
   (`../reviews/034-writable-mounts-spec-2026-10-17.md`, which is also a security review of the
   design; verdict: not ready as written, but close) and revised against its ten findings (its
   Disposition), and confirmed for build with one condition (N1, where the walk sits), written
-  in; the confirmation's builder notes N2 to N4 are in the review. Not built. It is written on spec
+  in; the confirmation's builder notes N2 to N4 are in the review. It is written on spec
   032 as built for review (`spec/032-a-filesystem-provider`, commit `c69cb31`, read only; its
   seams are named here by function: `_Files`, `_ask`, `_take`, `_drop`, `_across`,
   `FileRecord.calls`). 032 may change in its build review. **034 rebases on what lands:** where
@@ -752,4 +754,301 @@ deadline means for a mounted run.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer (a fresh agent, Claude Opus 5.5), in the worktree
+`wasi_python-034` on `spec/034-writable-mounts`, from 032 as landed on main (`987012e`), against
+the frozen artifact set `build/sets/s-8d84b3b190fe9bce` (never rebuilt). Each claim is EXECUTED
+unless it says otherwise. The worktree's `build/` logs named here are not kept; their lines are
+quoted.
+
+**032's pieces, by their landed names.** None was renamed. `_ask` is split in two: `_gate` (the
+call's cancel, its deadline, then the file-call limit, which names the end) and `_invoke` (the
+counted provider call inside the fault boundary); `_ask` is `_gate` then `_invoke`, so the read
+half is unchanged. The write half goes through `_change` (`_gate`, then `_made`, which judges the
+answer by its real type and records every refusal); the walk calls `_made` alone, never `_gate`
+or `_ask`. The walk sits in `_instance` after `_fuel_used` and before `table.record()` (N1).
+
+**What changed.**
+- `src/wasi_python/mounts.py`: `Mount.writable` (keyword-only, `False`); `WritableFileProvider`;
+  `RefusedWrite`; `FileRecord.refused` and `refused_total` (last); `METHODS` of eight; the
+  descriptor's `readable`, `writable`, `dirty` and `unlinked`; the open table
+  (`_open_writing`, `_create`); the buffer (`_writes`, `_fd_filestat_set_size`, `_fits`,
+  `_changed`); write-back at close and sync (`_write_back`, `_sync`), owed buffers in their own
+  map `_Files.owed` (N2: `_entry` never finds them; their numbers stay out of `free` and in
+  `opened`, their bytes in `staged`); the namespace calls (`_namespace`, `_path_rename`,
+  `_path_link`, `_path_symlink`), `_above` (EBUSY), `_across` (EPERM or EXDEV, with
+  `_wasmtime_writable`), `_follow` and `_unlink` (Decision 7, the unlinked-folder rule in
+  `_resolve` and `_fd_readdir`); set-times accepted on a writable mount, its preopen included;
+  `FD_WRITE` (and, for a write-only descriptor, no `FD_READ`/`FD_READDIR`) in a file's fdstat;
+  `nlink` 0 for an unlinked file's fstat; `walk()`; `_dots` (the listing's first entries,
+  shared by `_list` and `_unlink`).
+- `src/wasi_python/runner.py`: `_check_mounts` checks `writable` (a real bool) and a writable
+  provider's five methods (callable, not a coroutine function) and keeps `writable`; `_instance`
+  calls `table.walk()` after `_fuel_used`; `run`'s docstring.
+- `src/wasi_python/__init__.py`: exports `RefusedWrite` and `WritableFileProvider`.
+- Judge: `tests/harness/files.py` (the in-memory provider gains the write half, counts all eight
+  methods, logs every write-half call whole, and answers per method and path from `answers`;
+  `Mounted(writable=)`); `tests/unit/test_runner_mounts.py`, `tests/unit/test_runner_grants.py`,
+  `tests/checks/test_v1_4_embedding.py`, `tests/checks/test_v1_2_hostile_guest.py` (below).
+  **The judge change to 032's checks (Decision 11)**, found by searching for `calls ==` and for
+  three-key literals: `test_v1_4_embedding.py`, `test_a_mount_serves_reads`'s `no = {…}` (each
+  step's difference of the provider's counts) and its `dict(done.files.calls) == provider.calls
+  == {"stat": 2, "list": 2, "read": 2}`, and `test_the_file_call_limit_stops_the_run`'s
+  `provider.calls == {"stat": 5, "list": 0, "read": 0}`; `test_runner_mounts.py`,
+  `test_the_file_call_limit_names_the_end`'s `m.table.record().calls == {"stat": 2, "list": 0,
+  "read": 0}` and `test_a_listing_is_kept_and_listed_again_from_cookie_zero`'s `provider.calls ==
+  {"stat": 0, "list": 2, "read": 1}`. Each only gains the five zero keys. One harness change
+  besides: the provider's `_missing` stops at the first missing ancestor (ENOENT), as POSIX
+  does; no 032 row depends on the difference (all 032 checks pass).
+- `README.md` (*Mounts* gains *Writable mounts*; the *Safety* bullet), `CHANGELOG.md` (an
+  *Added* line and the eight keys).
+
+**The Linux reference, run before the dry run.** Decision 12's reference is wasmtime 49 on
+Linux, and the build order planned a release dry run to fill the per-system rows. The builder
+also ran the grant side on Linux: in a `python:3.13-slim` container (Docker, linux/arm64), with
+wasmtime-py's `manylinux2014_aarch64` 49.0.0 wheel fetched from the URL pinned in `uv.lock`, its
+SHA-256 checked against the lock (`263b924576d9…`) and unpacked under the session's scratch
+folder, the worktree and the frozen set mounted read-only, and a stand-in for pytest's
+decorators (pytest is not installed there). Two probes of a writable grant (154 rows, Linux and
+macOS) set the answers the runner gives itself; then, in that container, the unit tests
+`test_raw_write_calls_answer_as_a_writable_grant_does` and `test_the_write_differences_are_as_
+decided`, and the v1.4 checks `test_a_writable_mount_answers_as_a_writable_grant_does`,
+`test_writes_land_at_every_ending` and `test_a_writable_mount_serves_writes` (both binaries),
+`test_links_and_times_in_a_writable_mount`, `test_a_failed_write_back_at_the_ending_is_recorded`,
+`test_open_files_follow_the_guests_renames_and_removals` and `test_refused_writes_are_recorded_on_
+exit_0` (the snapshot), and 032's `test_a_mount_answers_as_a_grant_does` (the snapshot), all
+passed. **Windows was not run:** a row whose grant answer is the host's
+own error is asserted on POSIX hosts only, as 032's are (`WASMTIME_ROWS` names the rows
+wasmtime answers alike everywhere); the mount's own answers are asserted everywhere. The release
+dry run's Windows `verify` job is the lane's.
+
+Rows where Linux and macOS differ (both EXECUTED; the mount gives Linux's everywhere, and the
+grant's is compared only on Linux; `LINUX_ROWS`, 34 raw rows, and `LINUX_ROWS_V14`, one):
+`unlink` of a folder (`d`, `e`, `d/`, `e/`, `.`, `d/.`, `e/.`, `d/..`): Linux 31, macOS 63;
+`rename` naming `.` or `..` last on either side, or the mount itself: Linux 10, macOS 28; a
+create with a trailing `/` (`"w"`, `"x"`, `"a"`, `O_CREAT | O_RDONLY`, `"x"` with `O_TRUNC`, on
+`new/`, `a.txt/` and `d/`): Linux 31, macOS 28; `"x"` of `.`: Linux 20, macOS 31; `fd_pwrite` at
+`2**63` on a read-only descriptor: Linux 28, macOS 8; `path_filestat_set_times` of a missing
+path: Linux 0, macOS 44; `os.remove` of a folder (v1.4): Linux 31, macOS 63.
+
+**A finding for the lane, outside 034.** In the same container, 032's
+`test_raw_calls_answer_as_a_grant_does` fails on Linux in 7 rows, on this branch and on main
+(`1868a54`) alike: five `fd_readdir` rows, where the grant's entries carry `0xff` in the padding
+after `d_type`; `fd_pread` and `fd_read` at `2**63 - 1` (grant 28, mount 0); and
+`path_filestat_get` of `a.txt/` and `a.txt/.` (grant 0 with the file's stat, mount 54; both in
+`HOST_ROWS`, which Linux asserts). The release dry run's Linux `verify` job would fail on them;
+main's review `../reviews/032-dirent-padding-2026-10-18.md` concerns the first. 034 changes none
+of those rows.
+
+**Seen failing first.** Each step's new checks against the code before the step:
+- Step 1, on 032's runner (`build/step1-seen-failing.log`): `test_runner_mounts.py` did not
+  import (`TypeError: Mount.__init__() got an unexpected keyword argument 'writable'`);
+  `test_a_writable_mount_serves_writes[plain, snapshot]` (the same `TypeError`) and
+  `test_refused_writes_are_recorded_on_exit_0[plain, snapshot]` (`ImportError: cannot import name
+  'RefusedWrite'`).
+- Step 2, on step 1's runner (`build/step2-seen-failing.log`): `test_an_unlinked_folder_holds_
+  nothing`, `test_the_runner_answers_namespace_calls_it_can`, `test_open_files_follow_the_guests_
+  renames_and_removals[plain, snapshot]` (the guest died with a traceback),
+  `test_a_writable_root_mount_keeps_the_runtime_and_other_grants[plain, snapshot]` (`rmdir /usr`:
+  63 where 10 is decided), and acceptance 1 and 4 with their namespace rows (exit 1; a refused
+  `mkdir` answered 63).
+- Step 3, on step 2's runner (`build/step3-seen-failing.log`): `test_writes_land_at_every_
+  ending[plain, snapshot]` (`[('write', '/f.txt', b'')]`: no content written back),
+  `test_a_failed_write_back_at_the_ending_is_recorded` (`[] == ['/1.txt', '/2.txt', '/3.txt']`),
+  `test_the_walk_is_bounded_and_keeps_its_record`, `test_a_close_stopped_by_a_cancel_is_owed`,
+  `test_a_call_that_raises_writes_nothing_back` (`DID NOT RAISE`: no walk to raise from) and
+  `test_a_stopped_host_gets_no_write_back[a Ctrl-C in the walk]`. Its door and exit-hook rows
+  passed there (with no walk there is nothing to skip); their guards fail them below.
+- Step 4: the raw parity rows, written against step 3's runner, found two differences, each
+  fixed in the runner to the grant's answer: an unlinked file's `nlink` in fstat (0; the runner
+  said 1) and `"x"` of the mount's own `.` (Linux 20; the runner said 31).
+
+**Guards, removed one at a time** (`build/guards.log`; a script swaps one mutation into the
+built `mounts.py` or `runner.py`, runs the named checks, and restores the files byte for byte,
+checked by SHA-256: `mounts.py` `a6a0ed929a86…`, `runner.py` `620389e3ab9d…`, the files as
+committed); each named check passes with its guard in place:
+
+| guard removed | its checks, failing |
+|---|---|
+| the writable check (`_Mounted.writable` always true) | `test_a_writable_mount_is_asked_for` |
+| the create at open (`_create` makes no call) | `test_a_writable_mount_serves_writes[plain, snapshot]`, `test_open_files_follow_the_guests_renames_and_removals[plain, snapshot]` |
+| the growth bound (`_fits` always true) | `test_writes_are_bounded` (it fails before its `2**40` row, which would then allocate a TiB) |
+| the dst-inside-src rule | `test_a_writable_root_mount_keeps_the_runtime_and_other_grants[plain, snapshot]`, `test_the_runner_answers_namespace_calls_it_can` |
+| the `EBUSY` rule (`_above` always false) | the same three |
+| the rule across: `EXDEV` (answered 0) | the same three |
+| the rule across: `EPERM` to a read-only side | the same three |
+| the unlinking of file descriptors | `test_an_unlinked_folder_holds_nothing`, `test_open_files_follow_the_guests_renames_and_removals[plain, snapshot]` |
+| the unlinked-folder rule (`_resolve` and `_fd_readdir`) | the same three |
+| the reserved number (an owed close frees its number) | `test_a_close_stopped_by_a_cancel_is_owed` |
+| the fault catch in the walk (the provider called bare) | `test_a_failed_write_back_at_the_ending_is_recorded`, `test_the_walk_is_bounded_and_keeps_its_record` |
+| the limit in the walk | `test_the_walk_is_bounded_and_keeps_its_record`, `test_a_close_stopped_by_a_cancel_is_owed`, `test_writes_land_at_every_ending[plain, snapshot]` |
+| the skip when the call raises (the walk in `_instance`'s `finally`, and no pending-Ctrl-C check) | `test_a_call_that_raises_writes_nothing_back`, `test_a_stopped_host_gets_no_write_back[a Ctrl-C in the door, a Ctrl-C in the walk]` |
+| the skip at the exit hook | `test_a_stopped_host_gets_no_write_back[the exit hook]` |
+| `refused_total` (the record gives `len(refused)`) | `test_the_walk_is_bounded_and_keeps_its_record` |
+
+**Acceptance, with evidence.**
+1. `test_a_writable_mount_serves_writes` (both binaries): `"w"`, a write and a close: `{write:
+   2}`, logged `write("/a.txt", b"")` then `write("/a.txt", b"new")`; `open(p, "w").close()`:
+   `{write: 1}`; `"x"`: `{stat: 1, write: 1}`, and `os.path.exists` while open is `True`; `"a"`:
+   `{read: 1, write: 1}` writing `b"b\nmore"`; `"r+"` with no write: `{read: 1}`; a write, an
+   `fsync` and a close: `{write: 2}` (`b""`, then `b"s"` at the `fsync`, none at the clean
+   close); `os.mkdir`, `os.remove`, `os.rmdir`, `os.rename`: one call each; pandas `to_csv` then
+   `read_csv` round-trips (`b"a,b\n1,x\n2,y\n"`, two `write`s); `done.files.calls ==
+   provider.calls`, eight keys; `refused == ()`, `refused_total == 0`.
+2. `test_a_writable_mount_answers_as_a_writable_grant_does` (both binaries; macOS and the Linux
+   container): 39 rows equal in value and in the tree the guest lists after each (create, `"x"`
+   on an existing file and on a name just created, creates under a missing parent and a file, a
+   folder opened to write, `O_CREAT | O_RDONLY` then `os.write`, append, `"w"` and
+   `os.truncate`, `pwrite` past the end, a seek past the end then a write, a write on a read-only
+   descriptor, `pwrite` on an append descriptor, `fstat` after a write, the `mkdir`, `rmdir`,
+   `remove` and eight `rename` rows, `rename` and `link` to a read-only grant, `TemporaryFile`,
+   `NamedTemporaryFile` with `os.replace` inside its `with`, `shutil.copyfile`, `shutil.copy2`,
+   an atomic save by `os.replace`, `shutil.rmtree`, `shutil.move` to another writable grant, a
+   sorted listing); `os.remove` of a folder is the mount's 31 everywhere. Six rows of Decision
+   12's table, as decided: unflushed writes (`stat` size 1 on the grant, 0 on the mount), two
+   descriptors (`"2211"`, `"1111"`), a rename to another writable preopen (0, 75), a link and a
+   symlink within (0, 58; the grant's on POSIX), `utime` (the grant's `mtime_ns`
+   2,000,000,000; the provider's 0).
+3. `test_raw_write_calls_answer_as_a_writable_grant_does`: 228 rows, each on a fresh tree, the
+   whole result and the tree left after the call's ending compared: nine open shapes on nine
+   paths (81), the sync flags, `O_DIRECTORY` with a write right and with `O_CREAT` or `O_TRUNC`;
+   on a write-opened file, fdstat and filestat, writes with one and two `ciovec`s, `pwrite` past
+   the end, at `2**63` and at `2**64 - 1`, an empty `pwrite`, a seek past the end and to `2**63`
+   then a write, the three sizes, `fd_sync` and `fd_datasync`, `APPEND` set and cleared,
+   `fd_allocate`, the set-times flags; an append open; the write calls on a read-only and a
+   write-only descriptor, a folder and the preopen; path set-times on eight paths; `mkdir`,
+   `unlink` and `rmdir` on 21 paths each; 35 `rename` rows; renames and links to and from a
+   read-only folder and with the follow flag; a file renamed and a file removed while open. All
+   equal on macOS, and in the Linux container, but for `LINUX_ROWS` above.
+   `test_the_write_differences_are_as_decided` asserts Decision 12's table in raw calls (also
+   passing in the container).
+4. `test_refused_writes_are_recorded_on_exit_0` (both binaries): the `with` block's close raises
+   errno 2; the run exits 0; `refused` is exactly the close (`"close"`), the `fsync` and the
+   close after it (`"sync"`, `"close"`), the create (`"open"`), the `mkdir` and the `rename`
+   (`"call"`; `paths == ("/a.txt", "/norename")`), all `EACCES`, `"refused"`; the refused `stat`
+   of an `"x"` open records nothing; `refused_total == 6`.
+5. `test_writes_land_at_every_ending` (both binaries): for an exit 0, `os._exit(3)`, an uncaught
+   exception, `"out of fuel"` (cap 400,000,000; `fuel_used` equals it), `"deadline"` and
+   `"cancelled"`, the provider's log is exactly `write("/f.txt", b"")`, `write("/f.txt",
+   b"data")`, `refused == ()`, and `(exit_code, trapped, fuel_used is not None)` equals the same
+   guest's on a writable grant, whose file holds `b"data"`: `(0, None, True)`, `(3, None,
+   True)`, `(1, None, True)`, `(None, "out of fuel", True)`, `(None, "deadline", False)`,
+   `(None, "cancelled", False)`. The deadline is reached by the ticker's count: the door sets the
+   call's `stop_at` to the ticker's count, and the epoch callback names it (the call has a
+   `cancel` that is never set, so the callback runs every `CANCEL_TICKS`). With
+   `max_file_calls=5`: `"out of file calls"`, only `write(b"")` made, 5 calls, and `refused`
+   is one `RefusedWrite("/work", "write", ("/f.txt",), EIO, "exit", "limit")`.
+6. `test_a_failed_write_back_at_the_ending_is_recorded`: three descriptors from 2**30, ascending;
+   the walk's writes are `/1.txt`, `/2.txt`, `/3.txt` in that order; `run` raises nothing;
+   `refused` holds `/1.txt` (`"refused"`) and `/2.txt` (`"fault"`, EIO), both at `"exit"`;
+   `faults` is `("write", "/2.txt", "ValueError: the store broke")`; `/3.txt` is written.
+7. `test_a_call_that_raises_writes_nothing_back`: a door host's `KeyboardInterrupt` is raised
+   from `run`, and the provider saw only the two creates; a provider's `KeyboardInterrupt` in
+   the walk's first write is raised, and `/2.txt` saw only its create.
+   `test_a_stopped_host_gets_no_write_back` (children): a Ctrl-C the door sends itself:
+   `KeyboardInterrupt`, the creates only; one sent from the walk's first write:
+   `KeyboardInterrupt`, the creates and that one write; a `run_async` call whose door calls
+   `_stop_async_calls()`: `cancelled`, the creates only.
+8. `test_a_writable_mount_is_asked_for`: 15 write-shaped calls on a mount not made writable,
+   over the harness provider (which has the write half), are all 63, and the five write-half
+   counts stay 0. `test_a_writable_mount_is_checked_before_any_work`: 9 cases (`writable` of
+   `"yes"`, `1`, `None`; each of the five methods missing; an `async def write`), each a
+   `TypeError` naming `mounts[0] at /w`, through `run` and `run_async`, the provider's and a door
+   host's counts 0. 025's `test_nothing_is_writable_by_default` passes unchanged.
+9. `test_open_files_follow_the_guests_renames_and_removals` (both binaries, a writable mount at
+   `/tmp`): `TemporaryFile(dir="/tmp")` (N4) reads back `"hello"`, logging exactly
+   `write(name, b"")` and `remove(name)`, and leaves nothing; `NamedTemporaryFile` with
+   `os.replace` inside its `with`: `write(temp, b"")`, `rename(temp, "/final.bin")`,
+   `write("/final.bin", b"x")`; a file renamed while open: written to `/new.txt` only; a file
+   replaced while open: never written back (`/held.txt` stays `b""`); a folder renamed while
+   open: a relative open through it reads `x` from `/dir2`; a folder removed and made again: a
+   relative open and stat through the old descriptor are 44 and 44 with 0 provider calls.
+   `test_an_unlinked_folder_holds_nothing` (raw): through the old descriptor, `path_open` (to
+   read and to write), `path_filestat_get`, `path_readlink`, set-times and the four namespace
+   calls are 44, and the re-list from cookie 0 gives only `.` and `..`, with no provider call; a
+   file removed while open keeps its bytes for reads and closes with no call.
+10. `test_a_writable_root_mount_keeps_the_runtime_and_other_grants` (both binaries, a child):
+    writing, making, removing and renaming into `/usr/local/lib/x`, `/usr/./local/lib/x` and
+    `/data/x`: 63 with 0 provider calls each; `rmdir` of `/usr` and `/usr/local`, renaming `/usr`
+    and `/work`: 10; renaming `/a.txt` to `/work/out/a.txt`: 75, to `/data/a.txt`: 63; `/d` to
+    `/d/e`: 28; all with 0 calls; numpy and pandas import; the placeholder, looked at after a
+    successful write, is `[[]]`, and nothing is left after.
+11. `test_links_and_times_in_a_writable_mount`: `os.link` and `os.symlink` within: 58; `os.link`
+    to a writable grant: 75, to a read-only grant: 63; `os.utime` of a file and of `/work`
+    succeed; each with 0 provider calls; `os.stat` then shows the provider's `mtime_ns` (7);
+    `shutil.copy2` within succeeds and copies the bytes.
+12. `test_writes_are_bounded`: with a bound of 1,000, a size of 1,001, a write after a seek to
+    1,000, a second file's 11 bytes past 990 held, and a one-byte `fd_pwrite` at `2**40` are
+    each 22 and change nothing; the table's `staged` is 10, 10, 990, 990, 1,000, 1,000 after
+    each step. `test_the_walk_is_bounded_and_keeps_its_record`: four dirty files with
+    `max_file_calls=6`: exactly 6 provider calls (four creates, two write-backs), two
+    `RefusedWrite`s for `/2.txt` and `/3.txt` at `"exit"`, `"limit"`; the run's
+    `(exit_code, trapped)` equal the unlimited run's and its `fuel_used` is counted. A guest's
+    fuel differs from run to run (`-c pass`: 82,029,747 and 82,076,937, two runs), so "the same
+    `fuel_used`" is asserted exactly on the table: a walk past the limit leaves the store's fuel,
+    `call.ended` and `call.stopped` as they were. A walk `write` that raises `ValueError` does not
+    stop the walk (the next file is written). 1,001 refused `mkdir`s and one refused walk
+    write-back: `len(refused) == 1000`, all `mkdir`, and `refused_total == 1002`.
+13. 032's checks pass with only their record shape changed (the five literals above). 032's
+    acceptance 10 and 12 (`test_a_call_without_mounts_is_unchanged`,
+    `test_forwards_cost_no_fuel_and_keep_traps`) pass unchanged; the ratchet shows `grew 0`.
+14. The judge, below. **Not run here:** `--accept-judge` (the lane's) and the release dry run
+    (the lane's; Linux was run in a container, above, Windows not at all).
+15. The build review's: not written by the implementer.
+16. `test_a_close_stopped_by_a_cancel_is_owed` (raw WAT, one exported function: open, write,
+    a `stat` whose provider sets `cancel`, close, open, with no function entry between): the
+    answers are `(0, 0, 0, 11, 11)`; the number is in `owed`, not in `table` or `free`, and
+    `opened == 1`; the provider saw 2 calls; the walk then writes `b"data"` once and `refused` is
+    empty. Under `max_file_calls=2` instead: `(0, 0, 0, 29, 29)`, no content write, and
+    `refused` is the file once at `"exit"`, `"limit"`.
+
+**Where the specification was silent, the builder decided** (each for the reviewer to judge):
+- *A name ending in `/`, `.` or `..`* in a namespace call or a writing open is decided by one
+  `stat`, answered as Linux answers (a dir: `EEXIST` for `mkdir`, `EISDIR` for `remove` and a
+  writing open, `EINVAL` for `rmdir`; a file: `ENOTDIR`); a create with a trailing `/` is
+  `EISDIR` with no call; the mount itself (`/`) is answered with no call; a rename's source
+  with a trailing `/` must be a folder (one `stat`), its destination's trailing `/` is ignored,
+  as wasmtime does on Linux and macOS.
+- *Whether wasmtime's folder may be written*, for the rule across: `path_create_directory` of
+  the empty path, forwarded, answers `EPERM` on a read-only folder before it looks at the path
+  and `ENOENT` on a writable one, making nothing (probed on Linux and macOS).
+- *A link with the follow flag* is `EINVAL` once the paths are read, as wasmtime answers.
+- *An empty write* changes nothing and leaves the buffer clean, as a grant's file is unchanged
+  (both systems: size 13, 0 written, for an empty `pwrite` at 100).
+- *Offsets:* an `fd_pwrite` offset or a position at or above `2**63` is `EINVAL` before the
+  descriptor's mode is judged (Linux's order) and before the growth bound; on an append
+  descriptor it is ignored, as wasmtime ignores it.
+- *A descriptor's open mode,* as wasmtime keeps it: one opened without `FD_READ` that may write
+  refuses reads (`EBADF`) and reports no `FD_READ` or `FD_READDIR`; `fd_filestat_set_size` on a
+  descriptor that may not write is `EINVAL` (the host's `ftruncate`); `fd_sync` on it is 0.
+- *Set-times through a path* on a writable mount is accepted with no call even for a missing
+  path (Linux answers 0 there too; macOS 44) or a file named with a trailing `/` (a grant: 54).
+- *`FileFault.path` for a rename* is its `src`; `RefusedWrite.paths` has both.
+- *An owed buffer follows the guest's later renames and removals* (`_follow` walks `owed`
+  too), so its bytes go to the name the file has at the ending, or nowhere if it was removed.
+
+**For the build review (also a security review, acceptance 15).** Look first at:
+`_path_open`'s order (the write-shaped `EPERM` on a read-only mount before `_resolve`, then
+`EMFILE`, then `_open_writing`, whose calls are at most two); `_resolve`'s unlinked check;
+`_namespace` and `_path_rename` (the no-call answers before any provider call; `_above`;
+`_follow` after success only); `_across` and `_wasmtime_writable`; `_writes`, `_fits` and
+`_fd_filestat_set_size` (the bound judged on the new size before any allocation); `_fd_close`'s
+owed branch and `owed` (N2); `_change`, `_made` and `_refuse` (answers judged by type, a
+coroutine closed, every refusal counted); `walk` (no `_gate`, no `call.ended`, the exit hook
+and a pending Ctrl-C, the limit, `_made`'s fault boundary, a `BaseException` let through); and
+in `runner.py` the walk's place in `_instance` (after `_fuel_used`, inside the `try`, so a call
+that raises never reaches it) and `_check_mounts`. Question 71 (the walk after a deadline or a
+cancel) is still the owner's to answer before the lane lands this.
+
+**The judge** (`WASI_PYTHON_ARTIFACTS=…/build/sets/s-8d84b3b190fe9bce uv run pytest`, on the
+final tree, `build/judge-final.log`): `wasi_python v1: 230/241 pass · 0 gap · 11 blocked · 0
+fail (unit suite 649/657, 8 skipped)`, v1.2 51/52, v1.4 103/103, `ratchet vs 789c841673: lost 0
+· absent 0 · unrun 0 · unrun locally 9 · gained 18 · grew 0 · judge changed:
+tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py,
+tests/harness/files.py and 2 more`, `879 passed, 19 skipped`. Before the build: `212/223 pass`,
+`844 passed`. `ruff check` and `ruff format --check` clean on `src` and `tests`. The judge change
+for `--accept-judge`: 032's five three-key `calls` literals gain the write half's zeros
+(Decision 11), and the harness provider gains the write half.
+
+Commits on `spec/034-writable-mounts`: `bb354ba` (build steps 1 to 3, as one commit: step 2's
+checks were written into the same files while step 1's judge ran) and the step 4 commit that
+carries these notes.

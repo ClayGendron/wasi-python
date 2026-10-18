@@ -285,9 +285,10 @@ def run(
     fresh private directory for the call, removed after it. `grants`, each a `Grant`, are host
     folders the guest sees at their guest paths, read-only unless they say otherwise (spec 017).
     The stdlib zip is always granted, read-only, at /usr/local/lib. `mounts`, each a `Mount`, are
-    providers whose files the guest sees at their guest paths, read-only, served from the
-    embedder's code (spec 032); at most `max_file_calls` provider calls are made (default
-    `DEFAULTS.file_calls`), and then the call ends "out of file calls". `memory_bytes`,
+    providers whose files the guest sees at their guest paths, served from the embedder's code,
+    read-only unless a mount says `writable=True` (specs 032 and 034); at most `max_file_calls`
+    provider calls are made (default `DEFAULTS.file_calls`), and then the call ends "out of file
+    calls". `memory_bytes`,
     `deadline_s` and `output_bytes` default to `DEFAULTS`; `None` means no limit. The guest's
     environment starts from `BASE_ENV` (`/tmp` for temporary files, `zoneinfo` on the zip's
     tzdata) and a `HOME` made fresh for the call where `/tmp` is writable, with `env` laid over

@@ -3045,3 +3045,265 @@ def test_a_failed_write_back_at_the_ending_is_recorded() -> None:
     assert [(f.method, f.path, f.error) for f in done.files.faults] == [
         ("write", "/2.txt", "ValueError: the store broke")
     ]
+
+
+WRITE_PARITY = r"""
+import json, os, shutil, sys, tempfile
+B = sys.argv[1]
+rows = []
+
+def tree():
+    out = []
+    for path, folders, names in os.walk(B):
+        rel = os.path.relpath(path, B)
+        out += [os.path.normpath(os.path.join(rel, d)) + "/" for d in folders]
+        for n in names:
+            with open(os.path.join(path, n), "rb") as f:
+                out.append(os.path.normpath(os.path.join(rel, n)) + "=" + f.read().hex())
+    return sorted(out)
+
+def row(name, fn):
+    try:
+        value = fn()
+    except OSError as e:
+        value = ["errno", e.errno]
+    rows.append([name, value, tree()])
+
+def put(path, data, mode="w"):
+    with open(path, mode) as f:
+        return f.write(data)
+
+def with_fd(path, flags, fn):
+    fd = os.open(path, flags)
+    try:
+        return fn(fd)
+    finally:
+        os.close(fd)
+
+def second_x():
+    held = open(B + "/x.txt", "x")
+    try:
+        return open(B + "/x.txt", "x")
+    finally:
+        held.close()
+
+def temporary():
+    with tempfile.TemporaryFile(dir=B) as f:
+        f.write(b"hello")
+        f.seek(0)
+        return f.read().decode()
+
+def named():
+    with tempfile.NamedTemporaryFile("wb", dir=B, delete=False) as f:
+        f.write(b"x")
+        f.flush()
+        os.replace(f.name, B + "/final.bin")
+    with open(B + "/final.bin", "rb") as f:
+        return f.read().decode()
+
+def save():
+    put(B + "/save.tmp", "saved")
+    os.replace(B + "/save.tmp", B + "/save.txt")
+
+def rmtree():
+    os.makedirs(B + "/t/u")
+    put(B + "/t/u/f", "f")
+    shutil.rmtree(B + "/t")
+
+W, R, A = os.O_RDWR, os.O_RDONLY, os.O_WRONLY | os.O_APPEND
+row("create", lambda: put(B + "/new.txt", "n"))
+row("x on an existing file", lambda: open(B + "/a.txt", "x"))
+row("a second x of a name just created", second_x)
+row("create under a missing parent", lambda: put(B + "/missing/x", "n"))
+row("create under a file", lambda: put(B + "/a.txt/x", "n"))
+row("open a folder for writing", lambda: open(B + "/d", "w"))
+row("O_CREAT | O_RDONLY, then a write", lambda: with_fd(B + "/cr.txt", os.O_CREAT | R,
+                                                       lambda fd: os.write(fd, b"q")))
+row("append", lambda: put(B + "/a.txt", "++", "a"))
+row("truncate by w", lambda: put(B + "/b.txt", ""))
+row("os.truncate", lambda: os.truncate(B + "/a.txt", 3))
+row("pwrite past the end", lambda: with_fd(B + "/a.txt", W, lambda fd: os.pwrite(fd, b"z", 10)))
+row("a seek past the end, then a write", lambda: with_fd(
+    B + "/a.txt", W, lambda fd: (os.lseek(fd, 20, 0), os.write(fd, b"s"))))
+row("a write on a read-only descriptor", lambda: with_fd(B + "/a.txt", R,
+                                                        lambda fd: os.write(fd, b"x")))
+row("pwrite on an append descriptor", lambda: with_fd(B + "/b.txt", A,
+                                                     lambda fd: os.pwrite(fd, b"P", 0)))
+row("fstat size after a write", lambda: with_fd(
+    B + "/new.txt", W, lambda fd: (os.write(fd, b"12345"), os.fstat(fd).st_size)))
+row("mkdir of an existing path", lambda: os.mkdir(B + "/d"))
+row("mkdir under a missing parent", lambda: os.mkdir(B + "/missing/x"))
+row("rmdir of a non-empty folder", lambda: os.rmdir(B + "/d"))
+row("rmdir of a file", lambda: os.rmdir(B + "/a.txt"))
+row("remove of a folder", lambda: os.remove(B + "/e"))
+row("remove of a missing file", lambda: os.remove(B + "/missing.txt"))
+row("rename a file to a new name", lambda: os.rename(B + "/new.txt", B + "/new2.txt"))
+row("rename a file over a file", lambda: os.rename(B + "/new2.txt", B + "/b.txt"))
+row("rename a folder over an empty folder", lambda: (os.mkdir(B + "/g"),
+                                                    os.rename(B + "/d", B + "/g")))
+row("rename a folder over a non-empty folder", lambda: (os.mkdir(B + "/h"), put(B + "/h/k", "k"),
+                                                       os.rename(B + "/e", B + "/h")))
+row("rename a file over a folder", lambda: os.rename(B + "/a.txt", B + "/e"))
+row("rename a folder over a file", lambda: os.rename(B + "/e", B + "/a.txt"))
+row("rename a folder into its own subfolder", lambda: os.rename(B + "/g", B + "/g/sub"))
+row("rename a path onto itself", lambda: os.rename(B + "/a.txt", B + "/a.txt"))
+row("rename to a read-only grant", lambda: os.rename(B + "/a.txt", "/ro/a.txt"))
+row("link to a read-only grant", lambda: os.link(B + "/a.txt", "/ro/a.txt"))
+row("TemporaryFile", temporary)
+row("NamedTemporaryFile and os.replace", named)
+row("shutil.copyfile", lambda: shutil.copyfile(B + "/a.txt", B + "/copy.txt"))
+row("shutil.copy2", lambda: shutil.copy2(B + "/b.txt", B + "/copy2.txt"))
+row("os.replace, an atomic save", save)
+row("shutil.rmtree", rmtree)
+row("shutil.move to another writable preopen", lambda: (put(B + "/mv.txt", "m"),
+                                                       shutil.move(B + "/mv.txt", "/w2/mv.txt")))
+row("sorted listing", lambda: sorted(os.listdir(B)))
+
+# Decision 12's deliberate differences, asserted as its table says.
+f = open(B + "/u.txt", "w")
+f.write("u")
+f.flush()
+row("unflushed writes", lambda: os.stat(B + "/u.txt").st_size)
+f.close()
+one, two = open(B + "/two.txt", "w"), open(B + "/two.txt", "r+")
+one.write("1111")
+one.flush()
+two.write("22")
+two.flush()
+two.close()
+one.close()
+row("two descriptors, one path", lambda: open(B + "/two.txt").read())
+row("rename to another writable preopen", lambda: os.rename(B + "/save.txt", "/w2/save.txt"))
+row("link within", lambda: os.link(B + "/a.txt", B + "/l.txt"))
+row("symlink within", lambda: os.symlink("a.txt", B + "/s"))
+row("utime", lambda: (os.utime(B + "/a.txt", (1, 2)), os.stat(B + "/a.txt").st_mtime_ns))
+print(json.dumps(rows))
+"""
+WRITE_DIFFERENCES = {  # the grant's answer, the mount's (Decision 12)
+    "unflushed writes": (1, 0),
+    "two descriptors, one path": ("2211", "1111"),
+    "rename to another writable preopen": (None, ["errno", 75]),
+    "link within": (None, ["errno", 58]),
+    "symlink within": (None, ["errno", 58]),
+    "utime": ([None, 2000000000], [None, 0]),
+}
+LINUX_ROWS_V14 = {"remove of a folder": ["errno", 31]}  # the mount's everywhere; macOS says 63
+
+
+@BINARY
+def test_a_writable_mount_answers_as_a_writable_grant_does(guest_workdir, which) -> None:
+    """Spec 034, acceptance 2: the same tree as an in-memory writable mount and as a writable
+    grant on disk: each row gives the same result or errno and leaves the same tree, read by
+    the guest after each change. Decision 12's deliberate differences are asserted as its table
+    says. A row whose grant answer is the host's own error is asserted on POSIX hosts, and the
+    mount's answer to `os.remove` of a folder is Linux's everywhere."""
+    from harness.files import MemoryProvider, write_tree
+    from wasi_python import Grant, Mount
+
+    run = _runner()
+    base = Path(tempfile.mkdtemp(prefix="write-parity-", dir=guest_workdir))
+    results = {}
+    for side in ("grant", "mount"):
+        tree = write_tree(base / f"tree-{side}")
+        ro, w2 = base / f"ro-{side}", base / f"w2-{side}"
+        ro.mkdir()
+        w2.mkdir()
+        grants = [Grant(ro, "/ro"), Grant(w2, "/w2", writable=True)]
+        provider = MemoryProvider()
+        if side == "grant":
+            grants.append(Grant(tree, "/work", writable=True))
+        mounts = [Mount(provider, "/work", writable=True)] if side == "mount" else []
+        done = run(
+            ["-c", WRITE_PARITY, "/work"],
+            grants=grants,
+            mounts=mounts,
+            snapshot=which == "snapshot",
+        )
+        assert (done.exit_code, done.stderr) == (0, b""), done
+        results[side] = {name: (value, listing) for name, value, listing in json.loads(done.stdout)}
+        if side == "mount":
+            assert done.files.faults == ()  # each refusal is a row's errno, recorded
+            assert {r.at for r in done.files.refused} <= {"open", "call"}
+            assert sorted(p.name for p in tree.iterdir()) == ["a.txt", "b.txt", "d", "e"]
+        assert sorted(p.name for p in ro.iterdir()) == []
+    grant, mount = results["grant"], results["mount"]
+    assert len(grant) == len(mount) == 45, len(grant)
+    for name, (want_grant, want_mount) in WRITE_DIFFERENCES.items():
+        if os.name == "posix":  # a Windows grant's answers are the host's: the dry run's
+            assert grant[name][0] == want_grant, (name, grant[name][0])
+        assert mount[name][0] == want_mount, (name, mount[name][0])
+    for name, value in LINUX_ROWS_V14.items():
+        assert mount[name][0] == value, (name, mount[name][0])
+    differ = {}
+    for name in grant:
+        if name in WRITE_DIFFERENCES or (name in LINUX_ROWS_V14 and sys.platform != "linux"):
+            continue
+        host = isinstance(grant[name][0], list) and grant[name][0][:1] == ["errno"]
+        if grant[name][0] != mount[name][0] and (os.name == "posix" or not host):
+            differ[name] = (grant[name][0], mount[name][0])
+        if grant[name][1] != mount[name][1] and os.name == "posix":
+            differ[name + " (tree)"] = (grant[name][1], mount[name][1])
+    assert differ == {}, differ
+
+
+LINKS_AND_TIMES = r"""
+import _host, json, os, shutil
+out = {}
+
+def row(name, fn):
+    before = int(_host.call(b"total"))
+    try:
+        value = fn()
+    except OSError as e:
+        value = ["errno", e.errno]
+    out[name] = [value, int(_host.call(b"total")) - before]
+
+row("link within", lambda: os.link("/work/a.txt", "/work/l.txt"))
+row("symlink within", lambda: os.symlink("a.txt", "/work/s"))
+row("link to a writable grant", lambda: os.link("/work/a.txt", "/w2/l.txt"))
+row("link to a read-only grant", lambda: os.link("/work/a.txt", "/ro/l.txt"))
+row("utime of a file", lambda: os.utime("/work/a.txt", (1, 2)))
+row("utime of the mount", lambda: os.utime("/work", (1, 2)))
+out["stat after"] = os.stat("/work/a.txt").st_mtime_ns
+row("shutil.copy2 within", lambda: shutil.copy2("/work/a.txt", "/work/c.txt"))
+print(json.dumps(out))
+"""
+
+
+def test_links_and_times_in_a_writable_mount(guest_workdir) -> None:
+    """Spec 034, acceptance 11: `os.link` and `os.symlink` within a writable mount are ENOTSUP,
+    `os.link` to a writable grant EXDEV and to a read-only grant EPERM, each with no provider
+    call; `os.utime` of a file and of the mount's own path succeeds with no call, and `os.stat`
+    then shows the provider's `mtime_ns`; `shutil.copy2` within the mount succeeds."""
+    from harness.files import MemoryProvider
+    from wasi_python import Grant, Mount, Stat
+
+    class Timed(MemoryProvider):
+        def stat(self, path):
+            answer = super().stat(path)
+            return Stat(answer.kind, answer.size, 7) if isinstance(answer, Stat) else answer
+
+    run = _runner()
+    provider = Timed()
+    ro = Path(tempfile.mkdtemp(prefix="ro-", dir=guest_workdir))
+    w2 = Path(tempfile.mkdtemp(prefix="w2-", dir=guest_workdir))
+    done = run(
+        ["-c", LINKS_AND_TIMES],
+        mounts=[Mount(provider, "/work", writable=True)],
+        grants=[Grant(ro, "/ro"), Grant(w2, "/w2", writable=True)],
+        host=lambda frame: str(provider.total()).encode(),
+    )
+    assert (done.exit_code, done.stderr) == (0, b""), done
+    out = json.loads(done.stdout)
+    copy2 = out.pop("shutil.copy2 within")
+    assert out == {
+        "link within": [["errno", 58], 0],
+        "symlink within": [["errno", 58], 0],
+        "link to a writable grant": [["errno", 75], 0],
+        "link to a read-only grant": [["errno", 63], 0],
+        "utime of a file": [None, 0],
+        "utime of the mount": [None, 0],
+        "stat after": 7,
+    }, out
+    assert copy2[0] == "/work/c.txt" and provider.tree["/c.txt"] == provider.tree["/a.txt"]
+    assert (list(ro.iterdir()), list(w2.iterdir())) == ([], [])
