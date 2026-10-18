@@ -105,16 +105,11 @@ closes_with = "README.md"
 # until fixed. None today: the seven that trapped on numpy 2.5.2 (four C callbacks called through
 # pointers of another signature) run in numpy-core since spec 051's patch 0002.
 
-
-
-
-
-
-
-
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
 # fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
+# A class a fix emptied keeps its id, an empty list and the closer that emptied it, as a record,
+# and has no gap (C1). Failures that come back need a gap with a new closer, not this one.
 
 [[expected]]
 id = "no-dup"

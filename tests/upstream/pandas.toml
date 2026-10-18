@@ -50,6 +50,8 @@ fuel = 35_000_000_000
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
 # fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
+# A class a fix emptied keeps its id, an empty list and the closer that emptied it, as a record,
+# and has no gap (C1). Failures that come back need a gap with a new closer, not this one.
 
 [[expected]]
 id = "zip-code-names"
