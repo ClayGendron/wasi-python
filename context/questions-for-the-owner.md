@@ -341,6 +341,11 @@ document.
   patch (five callbacks with the wrong signature, a trap on WebAssembly) have facts sheets in
   `upstream/8-libxml2-input-without-dup/` and `upstream/9-regex-callback-signatures/`, in
   question 80's form. Nothing is sent.
+- **(d) A wasi-libc report** (added after the specs' pre-build review, finding 2). wasi-libc's
+  iconv (musl's) decodes 1,617 of GB18030's 56,926 characters to the wrong character with no
+  error. Spec 046 refuses GB18030 at `iconv_open` by a link-time wrap, so lxml raises
+  "Unsupported encoding" instead of returning wrong text. Should the agent draft a facts sheet
+  for wasi-libc (and musl) in question 80's form? The agent recommends yes; nothing waits on it.
 
 ### 83. What scikit-learn and statsmodels bundle (specs 044 and 045)
 
@@ -374,6 +379,32 @@ document.
   cover the usual examples (OLS on longley, time series on the Nile, sunspots and CO2).
 - **Meanwhile:** specs 044 and 045 are drafted and can be reviewed; neither is built until this
   is answered, as spec 043 waits on question 81.
+
+### 84 to 87. A sandbox escape in wasmtime 49.0.0 (GHSA-m9f7-9w4p-gv38)
+
+- **Asked:** 2026-10-18 (overnight). **Source:** `research/2026-10-18-wasmtime-49-advisories.md`.
+  **Urgent:** EXECUTED on arm64 macOS against main's artifacts with wasmtime-py 49.0.0: a guest
+  with a writable grant or `root=True` ran `os.symlink("../outside", "up"); os.rename("up/",
+  "stolen")`; the kernel followed the trailing-slash symlink and moved a folder from outside every
+  grant into the sandbox; the guest read its canary and wrote into it; `run()` returned 0. The
+  default call (nothing writable) and read-only grants are not affected. wasmtime fixed it in
+  49.0.3; no wasmtime-py release carries 49.0.2 or later (PyPI's newest is 49.0.0). The published
+  **0.1.0a3** is affected. A smaller advisory (GHSA-96f6-r43r-8c24: up to 3 bytes of host memory
+  per directory entry, on every listing) affects every call.
+- **What the agent is doing meanwhile:** a specification (048) to shadow `path_rename` with
+  wasmtime 49.0.3's own rule wherever a writable place exists, and to zero `fd_readdir`'s padding
+  on every call, reusing spec 032's shadow machinery (src only, no artifact change); then build,
+  review and land it. 0.1.0 is not released without it.
+- **84.** For 0.1.0a4: land the mitigation first (the agent's recommendation), or ship with the
+  escape documented?
+- **85.** Also refuse `path_symlink` wherever a writable place exists (defence in depth; a
+  guest's `os.symlink` then fails), or only fix `path_rename` (the precise 49.0.3 rule, nothing
+  legitimate changes)? The agent drafts the precise rule and records this as the alternative.
+- **86.** Keep facts sheet 12 (`upstream/12-wasmtime-py-on-wasmtime-49-0-3/`) as the standing
+  ask for a wasmtime-py release on wasmtime ≥ 49.0.3, and remove the shadow when the pin moves?
+- **87.** The published 0.1.0a3: yank it on PyPI, publish a GitHub security advisory for
+  wasi-python, or both, once the fix is released? These are outward-facing; the agent does
+  neither. SECURITY.md's process applies.
 
 ## The owner's direction for the product (2026-10-17)
 
