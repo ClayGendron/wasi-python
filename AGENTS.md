@@ -74,6 +74,15 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
 3. **Write the check before the code.** A new behaviour gets a check
    (or a gap entry naming its closer) first. A new failure mode, once
    seen, becomes a check, so it cannot come back.
+3a. **Loop on the fast tier; run the full judge once.** `uv run pytest
+   -m "not slow"` skips the guest jobs, the oracle and the upstream
+   suites (3 min 48 s on darwin-arm64, against about 9 min for the full
+   run, 2026-10-18). Iterate on it while building or reviewing, and run
+   a slow check you are changing alone by its node id. The full
+   `uv run pytest` runs once per stage, at its end: the builder's before
+   it writes "built", the reviewer's before its verdict (the reviewer
+   re-runs the counted tests, constitution §5.6), and the lane's on the
+   exact commit it accepts.
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
    golden output, `tests/known_gaps.toml`, the upstream suites'
    allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`)
