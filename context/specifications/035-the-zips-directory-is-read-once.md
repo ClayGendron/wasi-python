@@ -1,6 +1,9 @@
 # 035 — The zip's directory is read once
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 051 lands before this one** (the lane's order, 2026-10-18): 051 changes every `.pyc` in the zip (each code object's `co_filename` carries `/usr/local/lib/python315.zip/`) and grows plain fuel (`-c pass` +34,790). So this specification's absolute byte and fuel baselines (criterion 9, Decision 10) are restated against 051's set, and that difference is 051's, not a finding. Its per-member directory figures hold: the zip's member list (names, order, dates, compression, modes) is unchanged. drafted 2026-10-17; revised the same day against its pre-build review
+- **Status:** **revised against its build review; awaiting the reviewer's confirmation**
+  (2026-10-18; the build review's F1 to F5 answered in the landing notes' last part, "Revised
+  against the build review"; F3 fixed in code, so the set was rebuilt from pins and judged
+  again). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 051 lands before this one** (the lane's order, 2026-10-18): 051 changes every `.pyc` in the zip (each code object's `co_filename` carries `/usr/local/lib/python315.zip/`) and grows plain fuel (`-c pass` +34,790). So this specification's absolute byte and fuel baselines (criterion 9, Decision 10) are restated against 051's set, and that difference is 051's, not a finding. Its per-member directory figures hold: the zip's member list (names, order, dates, compression, modes) is unchanged. drafted 2026-10-17; revised the same day against its pre-build review
   (`../reviews/035-the-zips-directory-is-read-once-spec-2026-10-17.md`), all eight findings
   written in (its Disposition); its confirmation passed it for build with one condition (C1, the
   second zone's figure) and two clarifications (C2, C3), written in. It changes the build recipe and how the interpreter starts, so it
@@ -741,7 +744,7 @@ and `_zip_resources` also imports `pathlib` (already loaded by `importlib.metada
 | pandas time-zone job beyond its imports, snapshot (check 7) | 968.8 M | **33.5 M** (plain 38.1 M) | 60 M |
 | `version("numpy")` after `import importlib.metadata`, snapshot | 360.9 M | **148.1 M** | |
 | `import numpy.testing`, snapshot | 600.6 M | **387.7 M** | |
-| importing `_zip_resources`, snapshot | | **1.31 M** after `importlib.resources`, **1.24 M** after `importlib.metadata` | |
+| importing `_zip_resources`, snapshot | | **1.31 M** after `importlib.resources`, **1.24 M** after `importlib.metadata` (swapped and off; the build review measured 1.27 M and 1.32 M; the final set's figures are in "Revised against the build review") | |
 
 As spec 033 asked: part 3 recovered 212.8 M of `version("numpy")` and 212.9 M of `import
 numpy.testing`, the directory scan. What remains of `version("numpy")`, 148 M, is reading and
@@ -772,7 +775,9 @@ skipped, 0 failed; `271/274 pass · 0 gap · 3 blocked · 0 fail`, the three blo
   heap objects. Measured at step 1 (the same growth, then +2.1 M): the heap gained 12 objects, and
   the extra fuel is in the first `isinstance` per type, which fills `io.IOBase`'s ABC caches,
   sets keyed by object address, so their cost moves with the heap's layout; the same loop run a
-  second time was 1.1 M cheaper on the new set than on the old. Layout, not work.
+  second time was 1.1 M cheaper on the new set than on the old. Layout, not work. (Superseded:
+  the build review found that step-1 figure does not repeat on the final set; the growth and
+  its reason are restated with the final set's numbers in "Revised against the build review".)
 
   Two snapshot checks that grew past the tolerance at steps 1 and 2 are within it here
   (`test_unbuffered_output_survives_a_hard_exit[snapshot]`, +2,029 at step 2;
@@ -792,3 +797,138 @@ before the import; abort on any failure); the fallback rules in `recipes/zip_dir
 `ZipDirectoryReader` (the design change above); `iterdir` on odd names (`"//"` lists under the
 root, by `zipfile.Path`'s own `_is_child` rule over zipimport's names); and the layout reading of
 the one fuel growth.
+
+### Revised against the build review
+
+By the implementer, 2026-10-18, against the build review
+(`035-the-zips-directory-is-read-once-2026-10-18.md`, written in the lane's scratchpad
+`build/reviews-evidence/035-buildreview/`, not yet in git; F1 to F4 and the informational F5).
+Not rebased: main moved (spec 050, AGENTS.md rule 3a) and the lane rebases. Every check below was
+written before its fix and seen failing first. EXECUTED on darwin-arm64 with the judge's driver
+unless marked; logs in the worktree's ignored `build/revise035/`.
+
+- **F1, five unchecked rules, now checked** (`5e30cfe`, `tests/unit/test_zip_directory.py`).
+  Three zips join `ODD` in `test_odd_zips_go_to_the_stock_reader`: a local-header offset past the
+  directory, a negative archive offset (the end record's directory offset raised by 10), and a
+  Zip64 extra (compressed size `0xFFFFFFFF`) with a plain end record and no `PK\x06\x06`. A new
+  `test_the_odd_zips_have_what_they_claim` asserts each zip's feature, so the check cannot pass on
+  a zip that lacks it (and that `zipfile` reads the Zip64-extra zip). A new
+  `test_metadata_leaves_a_prefixed_zip_to_upstream` puts a zipimporter for `<zip>/sub` (prefix
+  `sub/`) in `sys.path_importer_cache` and asserts its root reaches `stock_zip_children` while the
+  archive's own root is answered from the dict. A new case, `stream not ended`, in
+  `test_the_member_reader_hands_odd_members_to_zipfile`: a deflate stream with no final block
+  (sync-flushed), marked deflated, whose output has the right size and CRC, reaches `zipfile`.
+  On the review's mutants (its `mutate.py`, on a `git archive` copy, restored and `cmp`-clean;
+  `build/revise035/f1-mutants.log`): `no_offset_check`, `no_arc_check` and `no_entry_max32` each
+  fail their zip's two cases; `zr_zip_children_prefix` fails the prefix check; `zr_no_eof` fails
+  the new case; HEAD passes all. `no_header_checks` still passes, as the review expected: those
+  two tests are implied by `arc_offset < 0` (INFERRED from the arithmetic, `header - cd_size -
+  cd_offset`). The optional host differential against `build/Python-3.15.0/Lib/zipimport.py` is
+  not added: the unit suite runs without a build tree, and the named cases cover the surviving
+  mutants.
+- **F2, staleness, now said** (`625a4d6`). Decision 6's accepted differences gain
+  "Freshness": answers reflect zipimport's view of the zip, refreshed by
+  `importlib.invalidate_caches()`, as imports do; a zip rewritten in place lists its old names
+  and distributions until then, a moved `METADATA` raises `MetadataNotFound` (a
+  `FileNotFoundError`, not a `PackageNotFoundError`), and the bytes stay current because a stale
+  entry fails the member reader's checks. The README's list says the same, and the Design
+  table's README row names it. No code change: this is Decision 7's design.
+- **F3, `pwd`, fixed in code** (`dce6cd3`). `ZipDirectoryPath.open(mode="r", *args, pwd=None,
+  **kwargs)`: with `pwd` `None` the fast reader serves as before; any other `pwd` goes to
+  `zipfile.Path.open(mode, *args, pwd=pwd, **kwargs)`. Why code rather than a README line, by
+  §6 and the spec's own promises: the owner accepted question 59 with a closed list of
+  differences, and `pwd` is not on it; the Intent says "the answers stay upstream's"; and
+  question 59 sends encrypted members to `zipfile.Path`, which without `pwd` could never decrypt
+  one, so the documented route would leave a guest's encrypted member unreadable through
+  `files()` where upstream reads it. The fix is a few lines of a recipe file (§6.2: a recipe, no
+  patch), works the same on every host (§6.3), and is the smallest change that keeps the spec's
+  promise (§6.4); a new accepted difference would have widened what the owner accepted. The
+  checks, both seen failing first with `ValueError: encoding args invalid for binary operation`
+  (`build/revise035/f3-unit-failfirst.log`, `f3-failfirst.log`): in
+  `test_the_zip_path_opens_as_zipfile_path_does`, reads with `pwd` `None`, `b"k"` and `"k"`, binary
+  and text, equal the host `zipfile.Path`'s (3.15's `ZipFile.open` ignores a password, of any
+  type, for an unencrypted member: its type test is inside the encrypted branch, READ
+  `Lib/zipfile/__init__.py:1812-1817`); `test_a_password_goes_to_zipfile`, with `zipfile.Path`
+  stubbed, sees a plain member opened with `pwd=b"k"` reach `zipfile` with that password; and
+  check 5 (`test_resources_read_as_zipfile_reads_them`, both binaries) compares `open("rb"|"r",
+  pwd=…)` reads of `tzdata.zi` with `zipfile.Path`'s for the same three values. The README says
+  a `pwd` read goes to `zipfile`; Decision 6's `open` is written with it.
+- **The binaries changed, so the set was rebuilt from pins** (`scripts/build.sh --plain`, every
+  step, exit 0, `build/revise035/build.log`): `python.wasm` 31,786,374 bytes `42344e2c…`,
+  `python-snapshot.wasm` 65,548,702 bytes `c4190ca0…`, the zip 11,203,143 bytes `daf2cdd8…`
+  (unchanged, still byte for byte 051's), `MANIFEST` `7c9ab793…`. Against the reviewed build, `MANIFEST`
+  differs in exactly two `recipe` lines (`recipes/zip_resources.py`, `scripts/freeze_bootstrap.py`,
+  the latter for F5's docstring). `_zip_resources` is 16,841 bytes marshalled (was 16,766);
+  `_zip_directory` 7,907 and `_reactor` 9,859, unchanged.
+- **F4, the growth reason restated on the final set** (`build/revise035/growth.log`, the review's
+  `growth.py`, main's set `s-f94dec535086b06c` against this one). The check's fuel:
+  `[root first]` 847,440,276 → 848,590,531 and `[data first]` 847,440,410 → 848,590,665, each
+  **+1,150,255 (+0.136%)**. The probe split out:
+
+  | snapshot | objects, types | setup | a plain loop (`type(o) is int`) | first `isinstance(o, io.IOBase)` loop | second |
+  |---|---|---|---|---|---|
+  | main | 62,302, 343 | 407,050,351 | 237,075,875 | 531,703,344 | 452,554,777 |
+  | 035, final | 62,315, 343 | 406,969,480 (−80,871) | 237,034,514 (−41,361) | 533,067,838 (+1,364,494) | 453,338,054 (+783,277) |
+
+  The reason, for `--accept-growth`: the heap holds 13 more objects (INFERRED: `_zip_directory` and
+  what it keeps) and the same 343 types. Setup and a plain loop over the same objects fell. All the
+  growth is in `isinstance(o, io.IOBase)`, whose ABC caches are sets of types hashed by address,
+  so its cost moves with where the snapshot's heap puts the types (INFERRED). 13 objects at about
+  7,300 fuel each explain about 0.1 M of the two loops' 2.15 M; the rest follows the layout,
+  which moved again with F3's change (INFERRED; the same check grew +902,876 on the reviewed
+  build, +1,150,255 on this one).
+  Not work the probe does: nothing in it touches the zip. The step-1 claim ("1.1 M cheaper the
+  second time") is withdrawn; it does not hold on the reviewed or the final set.
+- **F5, informational.** Decision 6 now says the built structure (no `Traversable` subclass;
+  `importlib.resources.abc` imported only when `ZipDirectoryReader` is first made; the reader made
+  through the module's `__getattr__`) and points here; Decision 8 and the Design table name
+  `context/upstream/14-importlib-resources-zip-directory/` (`625a4d6`). The `_zip_resources`
+  import row above is marked; the final set's figures are below. The courtesy draft now names
+  freshness and `pwd` beside odd names (`625a4d6`). The E501 at `scripts/freeze_bootstrap.py:41`
+  is fixed (`31581f1`; one word, a docstring, so only `MANIFEST`'s line changes). The landing
+  notes' "Lost 0; gained 20" is joined by the one "unrun locally" check, the prior-art licence
+  check, as on the review's run: the worktree has no clones.
+
+**The final set's numbers** (`build/revise035/measure.log`, the review's `measure.py`, and the
+checks' own notes; before is main's set):
+
+| what | before | after |
+|---|---|---|
+| plain start, slope (check 2) | 77,700 per member | **25,058** per member |
+| plain `-c pass` | 242,196,369 | **150,988,365** |
+| plain `import pandas` | 4,991,551,117 | **4,898,859,993** |
+| snapshot `-c pass` | 82,060,117 | **81,868,626** |
+| snapshot `import pandas` | 82,082,564 | **81,892,613** |
+| re-read after `invalidate_caches()`, plain slope (check 8) | | **25,911** per member |
+| first zone, snapshot (check 4) | 206,573,835 | **8,560,452**; Tokyo after it **1,340,678** |
+| first zone, plain, small / padded | | **8,688,525 / 8,764,350**, 14 per member; Tokyo 1,378,516 |
+| metadata miss, snapshot (check 6) | 221,967,070 | **11,041,335** |
+| the same, plain, small / padded | | **15,692,259 / 40,044,753**, 4,612 per member |
+| pandas time-zone job beyond its imports (check 7) | | **33,408,424** snapshot, 38,289,547 plain |
+| `version("numpy")` after `import importlib.metadata`, snapshot | 360,991,107 | **148,086,666** |
+| `import numpy.testing`, snapshot | 600,649,333 | **387,706,546** |
+| importing `_zip_resources` alone, snapshot | | **1,414,814** after `importlib.resources`, **1,337,710** after `importlib.metadata` |
+
+Every bound holds with the margins of the first build.
+
+**The judge.** The full `uv run pytest` (slow checks included), once, after the rebuild
+(`build/revise035/judge-full.log`; the fast tier was the loop before it, as AGENTS.md rule 3a
+asks): **1,221 passed, 10 skipped**; `wasi_python v1: 271/274 pass · 0 gap · 3 blocked · 0 fail
+(unit suite 950/957, 7 skipped)`, the three blocked as on main; ratchet against `614520fff6`:
+`lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 20 · grew 4`, exit 1 only for
+`RED: 4 metric(s) grew`, the four below (`build/revise035/ratchet.txt`: every metric against
+`accepted.json`; 53 fell, none grew besides these). The unrun-locally check is the prior-art
+licence check (no clones in the worktree). `ruff check` and `ruff format --check` are clean on
+`src tests`.
+
+**Growth, for the accept** (`--accept-growth`), replacing the list above:
+
+- `test_binary_is_a_core_wasm_module[plain]`: bytes 31,760,992 → 31,786,374 (+25,382): the two
+  frozen modules (24,748 bytes marshalled) and the frozen-module table.
+- `test_binary_is_a_core_wasm_module[snapshot]`: bytes 65,533,118 → 65,548,702 (+15,584): the
+  same data in the snapshot's image and (INFERRED) the one more module in its heap.
+- `test_extra_preopens_work_on_the_snapshot[root first, data first]`: fuel +1,150,255 each
+  (+0.136%): F4's account above, layout of the `isinstance` loops, not work.
+
+Not run here, left to the lane, as before: a build in a clean clone, the release dry run and its
+rebuild jobs on the other hosts (criterion 9).
