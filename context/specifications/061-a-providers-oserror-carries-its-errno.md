@@ -5,7 +5,10 @@
   lane's evidence folder, `build/reviews-evidence/061-spec/`, and copied in by the lane;
   verdict: "ready once F1 to F4 are written in", F5 to F7 at the same time, F8 to F10
   optional); every finding written in (the section "Disposition of the pre-build review");
-  awaiting the reviewer's confirmation. It changes neither the guest's
+  **confirmed for build 2026-10-18 (R1 written in)**: the reviewer's confirmation of `06c6222`
+  (`../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18-confirmation.md`,
+  written in the same evidence folder and copied in by the lane; "confirmed — ready to build",
+  with one low note, R1, written into criterion 2). It changes neither the guest's
   imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no review before
   build; one is asked for because it changes a fault boundary that spec 032's security review
   examined (its Decision 4).
@@ -372,7 +375,7 @@ job runs on Linux, macOS and Windows):
    | `stat` | a `FileNotFoundError` subclass with errno `errno.ENOENT` whose `__str__` counts its calls | 44; `__str__` called 0 times |
    | `stat` | `FileNotFoundError(errno.EINTR, "x")`: a present errno that names no member | 29 |
    | `stat` | `TimeoutError(99999, "x")`: the same | 29 |
-   | `stat` | returns a `Stat` subclass whose `kind` property raises `FileNotFoundError(errno.ENOENT, "x")`: an answer object's own code | 29 |
+   | `stat` | returns a `Stat` subclass whose `kind` property raises `FileNotFoundError(errno.ENOENT, "x")`: an answer object's own code. `Stat` is a frozen dataclass whose `__init__` sets `kind` with `object.__setattr__`, so the property has a setter that stores nothing the runner reads; without one, building the subclass raises `AttributeError` inside `stat`, a fault under S14 too (the confirmation, R1) | 29 |
    | `stat` | `InterruptedError("x")`, `BlockingIOError("x")`, `ConnectionRefusedError("x")`, `OSError("x")`: no errno, no class of the six | 29 each |
 
    - Faults: exactly seven, those of the last four rows.
