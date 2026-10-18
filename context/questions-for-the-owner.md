@@ -190,6 +190,27 @@ document.
   The alternative is a judge escape that accepts a failing state, which neither recommends.
 - **Meanwhile:** the README says to stop and write it down here.
 
+### 71 and 72. Writable mounts (spec 034)
+
+- **Asked:** 2026-10-17. **Source:** `specifications/034-writable-mounts.md`, Decisions 8 and
+  12. Each is decided in the specification as written below, so nothing waits.
+- **71. Write back after a cancel or a deadline?** The runner holds what the guest wrote to a
+  mount until close, `fsync` or the end of the run. Spec 034 hands every unclosed file to the
+  provider at every ending that returns a result: an exit, a trap, out of fuel, the deadline, a
+  cancel. Its reason is POSIX's: bytes a killed process wrote are still in the file. The cost is
+  provider calls after a cancel or a deadline, at most one per open file (1,024), each counted
+  in `max_file_calls`. A cancelled `run_async` raises `CancelledError`, so its write-backs'
+  refusals reach only the provider. A run that raises (Ctrl-C) writes nothing back. The other
+  way is "a stop means stop": write nothing after a cancel or a deadline, and list each unwritten
+  file in the result. Keep the POSIX rule? The agent recommends yes; vfs's own design flushes on
+  every exit, its timeout included (vfs spec 169 §b5).
+- **72. One buffer per open, not per path.** Two descriptors on one path in one run hold two
+  buffers, and the later write-back wins; a file's unflushed writes, and a new file, are seen
+  by other opens only after its close or `fsync`. This is vfs's staging model, and it keeps the
+  provider to whole-file calls. Sharing one buffer per path would remove these differences from a
+  host folder, at the cost of reference-counted buffers. Keep one per open? The agent
+  recommends yes, until a real program needs the other.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
