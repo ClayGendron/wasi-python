@@ -6,8 +6,8 @@
   constitution §5.7), so it builds after spec 027 lands (condition C). Built 2026-10-17 on
   `spec/028-pip-install-wasi-python`; build-reviewed
   (`../reviews/028-pip-install-wasi-python-2026-10-17.md`, verdict: lands once finding 2 is
-  fixed and a dry run passes); revised against it the same day (findings 1 to 3), awaiting
-  the reviewer's confirmation and the release dry run.
+  fixed and a dry run passes); revised against it the same day (findings 1 to 3) and confirmed.
+  Landed 2026-10-17 (accepted on `f7b8df2` as `d98249b`; dry run 39090912968).
 - **Owner:** Clay Gendron
 - **Kind:** packaging (`pyproject.toml`: the dependency, the empty extra, the dev group;
   `uv.lock`), the runner (`src/wasi_python/runner.py`: its module docstring at line 9 and
@@ -185,3 +185,10 @@ The lane accepts with `--accept-judge`. `ruff check` and `ruff format --check` c
   567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 3 · grew 0 · judge changed:
   pyproject.toml, tests/checks/test_v1_4_embedding.py, uv.lock`. `ruff check` and `ruff format
   --check` clean. Criterion 4's release dry run is still outstanding: it needs the push.
+
+**Landed 2026-10-17** through the lane: rebased onto main (range-diff: both commits unchanged),
+judged on a detached HEAD at `f7b8df2` (778 passed, 4 skipped; v1 lost 0, grew 0), accepted with
+`--accept-judge` (`d98249b`, the two progress files alone; the rules tier passed on it), and main
+fast-forwarded. Release dry run 39090912968 on `d98249b`: every job passed; the verify job on
+Windows, Linux and macOS installed the wheel as plain `wasi-python @ ./<wheel>`, ran a program
+and the command line, and asserted the `[run]` metadata (criterion 4).
