@@ -150,7 +150,8 @@ document.
   GPL-2.0, and four aarch64 runtime libraries. They are build tools only, and nothing of them
   ships. This holds until upstream fixes the tie, and an LLVM issue is drafted for the owner to
   send. An emulated compile is slower, so the release gate waits longer for the x86_64 rebuild
-  (360-minute job limit).
+  (360-minute job limit; at 240 minutes the owner is asked before the next build-class
+  specification lands, spec 040 Decision 11).
 - **Decided: yes.** It fixes the whole class, not one tie. It changes no artifact byte. Without
   it the only other routes are an untraced flag or building LLVM ourselves. The alternative is
   to leave x86_64 outside the gate until a wasi-sdk release agrees across hosts, which has no

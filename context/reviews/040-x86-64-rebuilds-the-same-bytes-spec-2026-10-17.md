@@ -301,6 +301,96 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+Each finding is fixed in the specification as revised on 2026-10-17. The author is Claude Opus
+5.5, the drafter of 040.
+
+1. **Fixed.**
+   - **Decision 5, the launcher's contract.** The name the launcher was called by maps to a
+     driver mode, exactly: `clang` to none, `clang++` to `--driver-mode=g++`, `clang-cpp` to
+     `--driver-mode=cpp`. Any other name stops it with one line.
+   - **Decision 5's gate** runs five probes: the link to the launcher, `clang -v`'s
+     `InstalledDir`, a `clang-cpp` probe (`__clang__` expanded, `__cplusplus` not), `clang++ -v`
+     naming `clang++.cfg`, and the loader's search.
+   - **Decision 7's unit test** gains the `clang-cpp` case and a refused name (`clang-cl`).
+   - **Criterion 1** sees both fail on the draft contract's launcher. **Criterion 3** requires
+     the cpp probe in the x86_64 log and CPython's `PLATFORM_TRIPLET=wasm32-wasi` in step 20's
+     log.
+2. **Fixed.**
+   - **Decision 5, the launcher.** It unsets every `QEMU_` variable before it runs qemu, and
+     passes `-U LD_PRELOAD -U LD_LIBRARY_PATH -U LD_AUDIT`.
+   - **Step 10** writes an empty `$T/aarch64-root/etc/ld.so.cache`. The builder confirms with
+     `LD_DEBUG=libs` that the guest's loader then searches only the root. That probe is one of
+     the gate's five. It is INFERRED, from reading glibc's cache loader, that a too-short file
+     counts as no cache; a probe that shows otherwise is a failed attempt under rule 7.
+   - **The unit test** asserts that no `QEMU_` name reaches the stand-in emulator and that the
+     three `-U` flags do.
+   - **The rule check** reads the launcher's code for both.
+3. **Fixed** in Decisions 6 and 11, and criteria 3 and 5.
+   - **(a) A trip-wire.** At 240 minutes of x86_64 rebuild time, the landing notes say so. The
+     owner is then asked, in the questions file, before the next build-class specification
+     lands. Question 63 now names it.
+   - **(b) A same-day fallback.** It applies if dry run 2 first runs after landing and its
+     x86_64 rebuild fails, times out, or differs. One change through the lane does all of
+     this:
+     - it removes `ubuntu-24.04` from the matrix and `include`, both `same-bytes` loops and its
+       two downloads, and `REBUILD_RUNNERS`;
+     - it restores spec 012's README sentence with the run's link;
+     - it keeps the launcher, the pins and the rule check, so x86_64 still builds, outside the
+       gate;
+     - it is recorded in 040's landing notes (the run, the job and its first failing line),
+       the CHANGELOG and the memo's addendum;
+     - it is reviewed and accepted with `--accept-judge`, and it lands before anything else.
+   - **(c) Per-runner limits.** The timeout comes from the matrix: 120 minutes for arm64, 360
+     for x86_64. The workflow scan requires both.
+   - **(d)** The runner's tools step prints `nproc` and `binfmt_misc`. The scan requires both.
+   - **(e)** Criterion 3 says the container build takes hours, runs in the background, and is
+     no CI figure.
+4. **Fixed**, in Decision 12, which names the queue: 028 (in build), then 040, 033, 035, 023,
+   037, 039.
+   - 040 goes next after 028: it is small, moves no number, and gates every later compile from
+     its first build.
+   - **033 and 035 are confirmed but go after 040.** 033 compiles nothing. 035 compiles one
+     changed file (`reactor_main.c`), which is gated at once. If 040 is not confirmed when 028
+     lands, 033 and then 035 take the slots, and 040 the next one. Neither waits on 040.
+   - 023 comes before 037. It adds the most C and C++ before scipy, so its ties are found by
+     its own builder.
+   - 037 follows its own dependencies. 039 is last: it compiles nothing, and the roadmap puts
+     scipy first.
+   - 031 compiles nothing, so its place does not matter to 040.
+   - What 037 does after 040 is already written in its revision (`fe71eb0`). Decision 12 says
+     so and lists it.
+5. **Fixed.** The old check is retired, not renamed silently. Decision 8 and criterion 4 name
+   `--retire tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_a_second_host`
+   with `--accept-judge`. The growth branch is dropped: the judge tracks bytes only for
+   `python.wasm` and the zip, which do not move. So there is no `--accept-growth`, and any
+   growth is a defect.
+6. **Fixed.**
+   - **The gate** has five probes (finding 1). It includes the check that `$SDK/bin/clang`
+     resolves to a link to `$CSDK/bin/clang-emulated`.
+   - **The rule check** reads `10_tools.sh` and the launcher without comments (`_code_lines`).
+     It requires `10_tools.sh` to name `clang-emulated`, `aarch64-root`, `ld.so.cache` and the
+     gate's probes, and the launcher to carry the `-U` flags, the `QEMU_` clearing and the
+     three names with their modes.
+   - `test_scan.py` gains one mutation per rule.
+7. **Fixed.**
+   - **Decision 5's contract** states the closure: the emulated driver may run only the
+     launcher, for `-cc1` and `-cc1as`, and `$CSDK/bin/wasm-ld`. It states why the launcher sits
+     beside the real clang: `argv[0]` gives the `InstalledDir`, and the RPATH is
+     `$ORIGIN/../lib`.
+   - **Decision 6** prints `/proc/sys/fs/binfmt_misc/`'s entries on each runner, so a runner
+     that would hide a gap is visible.
+8. **Fixed.**
+   - **Decision 2** now says "an aarch64 build of the pinned clang": Mach-O on macOS, one ELF
+     build on both Linux hosts.
+   - **Decision 1** lists `-Wno-unsupported-floating-point-opt -w`. It says the warning flags
+     change no object (the review's run), and that the count is 65,227 with `-w` and 65,236
+     without.
+   - **Decision 5** names the member `./usr/bin/qemu-aarch64`.
+   - **Decision 3** records the review's fetch of the five URLs and the `curl --retry 3` point.
+
+The rules check passes on the revision: `uv run pytest -q tests/checks/test_rules.py`, 22
+passed (EXECUTED).
+
 ## Verdict
 
 - **Not ready to build as written, but the route is right and proven.** The cause, the fix and
