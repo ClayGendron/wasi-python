@@ -1279,14 +1279,16 @@ The public API is the names below: what `wasi_python` and
 command, and the environment variables `WASI_PYTHON_ARTIFACTS` and
 `WASI_PYTHON_CACHE`. Everything else is internal and may change in any
 release: every other name, and the modules `runner`, `mounts` and `cli`.
-`tests/public_api.txt` records this surface, and the judge fails on any
-change to it that no specification lists.
+`tests/public_api.txt` records this surface. The judge fails on any change
+to it until the snapshot is regenerated, and a regeneration is made only by
+a specification that lists the change, which its review checks.
 
 The promise starts at 0.1.0, the first final release; alphas may still
 change anything. Versions are `0.MINOR.PATCH`. A patch release changes no
 public name, signature, field, default or command option. A minor release
-may add names, keyword-only arguments, dataclass fields placed last with a
-default, `Errno` members, `stats()` keys, command options and JSON keys. It
+may add names, keyword-only arguments whose default keeps today's
+behaviour, dataclass fields placed last with a default (or keyword-only),
+`Errno` members, `stats()` keys, command options and JSON keys. It
 removes or changes something only after a deprecation: a
 `DeprecationWarning`, a docstring that begins "Deprecated since 0.N: use X
 instead." and a CHANGELOG line, all at once. A thing deprecated in 0.N still
