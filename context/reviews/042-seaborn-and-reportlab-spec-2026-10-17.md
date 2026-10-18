@@ -398,3 +398,96 @@ The pins, the sdist-equals-wheel proof, the font leave-out and both goldens all 
 reportlab's barcode, glyph-list and QR code carry notices the zip drops, one of them an
 unapproved four-clause BSD, so this needs those notices, a check and an owner answer (or the
 barcode folder left out) before it is built.
+
+## Confirmation (2026-10-18)
+
+By the reviewer, against the revision committed in `b831693` (the specification, question 73
+and the Disposition). Runs are in the same scratch folder (`042-review/`):
+- `tools/members2.py` → `added199.zip`: the members and bytes, and the notices' leading
+  comment blocks.
+- `tools/scipy_paths.py`: seaborn's scipy-path attributes.
+- `tools2/`: the revised jobs, copied from the drafting folder and equal to its
+  `evidence-v2/`. Their native runs are `out/v2-*`. Their guest runs, on the revision's `z5.zip`
+  after I proved its 199 new members equal mine, are `out/g2-*`.
+
+### The nine dispositions
+
+1. **Confirmed, with one correction (condition C1).**
+   - EXECUTED: with `reportlab/fonts/` and `reportlab/graphics/barcode/` left out, step 70's
+     rules give **199 members**: seaborn 55 (541,099 bytes) and reportlab 144 (1,495,093).
+     That is **2,036,192 bytes** as two standalone zips. The 199 equal `z5.zip`'s, name for
+     name and byte for byte, and `z5.zip` has no barcode member. The barcode folder is 16
+     members. Its 124,642 bytes is the difference of the two sums; as a standalone zip it is
+     124,664. Either figure is fine.
+   - EXECUTED: the leading `#` blocks are 31 lines (`barcode/__init__.py`, holding Sarna's
+     acknowledgement sentence), 45 (`_glyphlist.py`) and 22 (`qrencoder.py`, ending at a blank
+     line), as Decision 7 says.
+   - READ: the MIT text is `downloads/wasi-libc-161b3195-LICENSE-MIT`. It is pinned in
+     `SHA256SUMS` and `00_download.sh`, hashes to `23f18e03…cca3` and is 1,023 bytes. It is a
+     generic MIT text with no holder named, so it fits the QR encoder's "Licensed under the MIT
+     license".
+   - **But `test.py` does not carry Sarna's notice.** Sarna's copyright and licence appear in
+     exactly **seven** files: `__init__`, `code128`, `code39`, `code93`, `common`, `fourstate`
+     and `usps` (EXECUTED: a search for "Tyler C. Sarna" in the wheel's `.py` files). In
+     `graphics/barcode/test.py`, Sarna appears only in prose at line 192: "Several years ago
+     Ty Sarna contributed a barcode module…" (READ). It has no copyright line and no licence.
+   - The fallback is right: the barcode folder stays out until the owner answers question 73
+     (c), the PDF golden has no barcode or QR line, and the checks hold both. Question 73 (c)
+     asks the question plainly and quotes the clause.
+2. **Confirmed.**
+   - EXECUTED natively (oracle's CPython 3.15.0, numpy's OpenBLAS wheel, 037's scipy pin):
+     with scipy, `seaborn.matrix._no_scipy`, `seaborn._statistics._no_scipy` and
+     `gaussian_kde.__module__` give `False False scipy.stats._kde`. With scipy blocked they
+     give `True True seaborn.external.kde`. So `test_seaborn_takes_its_scipy_paths`
+     distinguishes the two paths.
+   - The kde, violin and clustermap lines are now labelled as not run in a guest with scipy,
+     under rule 7. Decisions 3, 8, 9 and 12 say scipy's import is in seaborn's numbers.
+3. **Confirmed.** Decision 8 states the three outcomes as I ran them. The new check asserts
+   the `PermissionError` naming `'~'` with only `/cfg` writable. The guest has no network
+   (`unknown url type: https`), and in that setup the error comes from `os.makedirs` before
+   any fetch. The README and CHANGELOG rows say so.
+4. **Confirmed.** Decision 10 names Accelerate, cites the OpenBLAS reproduction, and `regen.py`
+   runs under 037's `oracle_env`.
+5. **Confirmed.**
+   - The three job versions are listed.
+   - EXECUTED: I re-ran the versions now described natively, with OpenBLAS numpy, 037's scipy
+     and the single-thread settings, under `PYTHONHASHSEED` 0 and 1 and with
+     `TZ=Asia/Tokyo LC_ALL=de_DE.UTF-8`. `statistical_plots` gave 18 identical lines, equal to
+     the revision's `statistical_plots.native-scipy.txt`. `pdf_reports` gave 11 identical
+     lines, equal to the revision's native file.
+   - EXECUTED in the guest on `z5.zip`: `pdf_reports`' 11 lines equal native (15,852,565,377
+     fuel). `statistical_plots`' first 17 lines, including the new `objects` line, equal
+     native, and the 18th raises `RuntimeError: clustermap requires scipy to be available`
+     (27,284,234,515 fuel). Both fuel numbers are the revision's, exactly.
+6. **Confirmed.** Both notice checks compare bytes when the pins are present and check the
+   headings otherwise. The reportlab check also checks the acknowledgement line. Each is seen
+   failing both ways.
+7. **Confirmed.** Decision 7 cites 039's sympy precedent. Question 73 names appdirs, husl and
+   numpydoc.
+8. **Confirmed.** Decision 5 has one mechanism whichever way 023 lands, and matches names
+   before the `.pyc` rename, with a mutant in the unit check.
+9. **Confirmed.** The `seaborn.objects` line uses `so.Agg`, not `so.PolyFit`, and equals
+   native in the guest (EXECUTED above).
+
+### Conditions
+
+- **C1.** Correct "eight" to "seven" Sarna files in Decision 4a (the list drops `test.py`),
+  Decision 7 ("a line naming the eight files") and question 73's barcode fact. It is a licence
+  fact the notice will state, so it must be exact. The builder may make this text-only fix at
+  the start of the build and say so in the landing notes; no re-review is needed.
+- **C2.** The line naming Sarna's seven files goes in the part's heading, outside the bytes
+  that `test_reportlab_notice_carries_its_third_party_parts` compares with the wheel's
+  31-line block. Otherwise the check's "byte for byte" cannot hold.
+- **C3.** The barcode folder ships only through the later change that follows a "yes" to
+  question 73 (c), with Sarna's acknowledgement wherever barcodes are named. Until then the
+  leave-out and its two assertions stand, as Decision 4a says.
+
+### Result
+
+**Confirmed for build**, under C1 to C3. It builds after 023 and 039, with scipy in the set,
+as Decision 13 says. Nothing here waits on the owner: the barcode folder stays out until
+question 73 (c) is answered.
+
+One line: every finding is fixed and re-runs clean (199 members, the notice blocks, the scipy
+paths, both goldens natively and in the guest), so 042 is confirmed for build, once "eight"
+Sarna files becomes "seven" and the naming line sits outside the compared bytes.

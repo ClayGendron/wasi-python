@@ -3,7 +3,12 @@
 - **Status:** drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
   (`../reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`): all nine findings are written in
   here and in question 73, and the review's Disposition says where; the reviewer's confirmation
-  is pending. It changes the build recipe and the artifact set, so it is reviewed before it is
+  (2026-10-18) passed it for build with three conditions: **C1**, Sarna's licence is in seven
+  files, not eight (`graphics/barcode/test.py` names him only in prose) — the builder corrects
+  "eight" in Decisions 4a and 7 and in question 73 at the start of the build and records it;
+  **C2**, the line naming Sarna's files sits in the notice's heading, outside the block the new
+  check compares byte for byte; **C3**, the barcode folder ships only through the later change
+  that follows a "yes" to question 73 (c), with Sarna's acknowledgement. It changes the build recipe and the artifact set, so it is reviewed before it is
   built (constitution §5.6). It is build-class: it touches `scripts/`, `downloads/SHA256SUMS`
   and the release workflow (§5.7). It carries no upstream patch.
 - **Owner:** Clay Gendron
