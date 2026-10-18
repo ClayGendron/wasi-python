@@ -552,7 +552,7 @@ async def run_async(
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
         args = (_run_checked, wt, checked, host, snapshot, cache_dir, artifacts)
-        future = _submit(executor, checked["async_workers"], work, *args)
+        future = _submit(executor, work, *args)
         try:
             return await asyncio.wrap_future(future)
         except asyncio.CancelledError:
@@ -593,13 +593,13 @@ _live: set[threading.Event] = set()
 _hook = {"registered": False, "exiting": False}
 
 
-def _submit(
-    executor: Any, workers: int, fn: Callable[..., Any], *args: Any
-) -> concurrent.futures.Future[Any]:
-    """Submit to the caller's executor, or to the default pool of `workers` threads (the call's
-    one read of the defaults), made anew when that size changed.
-    The lookup, any resize and the submit share one lock, so a resize on another thread never
-    leaves a submit facing a pool that is shut down."""
+def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.futures.Future[Any]:
+    """Submit to the caller's executor, or to the default pool, made anew when
+    `async_workers` changed. The pool's size is process state, not a call's limit: it is read
+    here, under the pool's lock, so the newest `set_defaults` always wins and a call that read
+    its limits earlier never sizes the pool back (spec 049, the build review's F3). The lookup,
+    any resize and the submit share one lock, so a resize on another thread never leaves a
+    submit facing a pool that is shut down."""
     import concurrent.futures
 
     if executor is not None:
@@ -607,7 +607,7 @@ def _submit(
     with _pool_lock:
         if _hook["exiting"]:  # the exit hook has run: never start a pool's call again
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        size = workers
+        size = _current_defaults().async_workers
         if _pool["pool"] is None or _pool["size"] != size:
             old = _pool["pool"]
             new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
@@ -990,7 +990,8 @@ def _checked(
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
     and 036 for the tools). The defaults are read once, here, and every check that takes one
     takes it from this read, so a `set_defaults` on another thread never gives a call a mix of
-    the old and new limits (spec 049, Decision 2); `async_workers` is kept for `run_async`."""
+    the old and new limits (spec 049, Decision 2). `async_workers` is not a call's limit:
+    `_submit` reads it under the pool's lock."""
     limits = _current_defaults()
     tool_args = _check_tools(host, tools, gate, max_tool_calls, limits)
     if memory_bytes is _UNSET:
@@ -1006,7 +1007,6 @@ def _checked(
     checked["cancel"] = cancel
     checked.update(tool_args)
     checked.update(_check_places(root, grants, mounts, max_file_calls, limits))
-    checked["async_workers"] = limits.async_workers
     return checked
 
 

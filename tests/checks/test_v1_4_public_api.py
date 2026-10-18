@@ -396,3 +396,46 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     with pytest.raises(_Stop):
         asyncio.run(runner.run_async(["-c", "pass"], executor=_Refusing(), tools=[noop]))
     assert len(reads) == 2, "run_async reads the defaults once"
+
+
+class _Racing:
+    """The pool's lock, with a `set_defaults` on another thread landing just as it is taken."""
+
+    def __init__(self, real: Any, swap: Any) -> None:
+        self.real = real
+        self.swap = swap
+
+    def __enter__(self) -> None:
+        import wasi_python
+
+        wasi_python.set_defaults(self.swap)
+        self.real.acquire()
+
+    def __exit__(self, *exc: Any) -> None:
+        self.real.release()
+
+
+def test_the_pool_takes_the_newest_size(monkeypatch) -> None:
+    """The size of `run_async`'s own pool is process state, not a call's limit: it is read
+    under the pool's lock, so a call that read its limits before a `set_defaults` never sizes
+    the pool back (the build review's F3)."""
+    import wasi_python
+    from wasi_python import runner
+
+    def found() -> Any:
+        raise _Stop
+
+    monkeypatch.setattr(runner, "find_artifacts", found)
+    before = wasi_python.defaults()
+    workers = 3 if before.async_workers != 3 else 2
+    monkeypatch.setattr(
+        runner,
+        "_pool_lock",
+        _Racing(runner._pool_lock, dataclasses.replace(before, async_workers=workers)),
+    )
+    try:
+        with pytest.raises(_Stop):
+            asyncio.run(runner.run_async(["-c", "pass"]))
+        assert runner._pool["size"] == workers, (runner._pool["size"], workers)
+    finally:
+        wasi_python.set_defaults(before)

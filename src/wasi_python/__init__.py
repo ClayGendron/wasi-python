@@ -144,10 +144,10 @@ def set_defaults(new: Defaults) -> Defaults:
 
         set_defaults(dataclasses.replace(defaults(), async_workers=4))
 
-    A new `async_workers` applies to `run_async` calls made afterwards: the next one without an
-    `executor` makes a pool of the new size. Calls already running or queued on the old pool
-    still run there, so for a while both pools' workers may run guests (after 8 to 4, up to 12
-    at once).
+    A new `async_workers` applies to `run_async` calls submitted afterwards: the next one
+    without an `executor` makes a pool of the new size, whatever limits it read. Calls already
+    running or queued on the old pool still run there, so for a while both pools' workers may
+    run guests (after 8 to 4, up to 12 at once).
 
     Args:
         new: The limits calls read from now on, already checked by `Defaults`.
