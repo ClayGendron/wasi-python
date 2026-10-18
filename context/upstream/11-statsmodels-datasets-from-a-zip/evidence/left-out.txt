@@ -33,3 +33,4 @@ statsmodels/datasets/scotland/scotvote.csv
 statsmodels/datasets/spector/spector.csv
 statsmodels/datasets/star98/r_glm.s
 statsmodels/datasets/star98/star98.csv
+statsmodels/sandbox/rlsdata.txt

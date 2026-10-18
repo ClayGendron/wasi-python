@@ -1,5 +1,5 @@
 diff --git a/statsmodels/datasets/elec_equip/data.py b/statsmodels/datasets/elec_equip/data.py
-index 2c2b80e..54b0a49 100644
+index 2c2b80e..1a39398 100644
 --- a/statsmodels/datasets/elec_equip/data.py
 +++ b/statsmodels/datasets/elec_equip/data.py
 @@ -1,5 +1,4 @@
@@ -14,22 +14,22 @@ index 2c2b80e..54b0a49 100644
  def _get_data():
 -    curr_dir = Path(__file__).resolve().parent
 -    data = pd.read_csv(curr_dir / "elec_equip.csv")
-+    with du.open_data_file(__file__, "elec_equip.csv") as csv_file:
++    with du._open_data_file(__file__, "elec_equip.csv") as csv_file:
 +        data = pd.read_csv(csv_file)
      data.index = pd.to_datetime(data.pop("DATE"))
      return data
  
 diff --git a/statsmodels/datasets/utils.py b/statsmodels/datasets/utils.py
-index 542aae8..e2fceb2 100644
+index 542aae8..2307262 100644
 --- a/statsmodels/datasets/utils.py
 +++ b/statsmodels/datasets/utils.py
-@@ -424,6 +424,39 @@ def strip_column_names(df):
+@@ -424,6 +424,43 @@ def strip_column_names(df):
      return df
  
  
-+def open_data_file(base_file, file_name):
++def _open_data_file(base_file, file_name):
 +    """
-+    Open a data file that ships beside a dataset module
++    Open a data file that ships beside a dataset module.
 +
 +    Parameters
 +    ----------
@@ -47,15 +47,19 @@ index 542aae8..e2fceb2 100644
 +    Notes
 +    -----
 +    When statsmodels is imported from a zip archive, ``base_file`` names a
-+    path inside the archive, which is not a directory on disk. The file is
-+    then read as a package resource with ``importlib.resources``.
++    path inside the archive, which is not a directory on disk. A dataset
++    module's file is then read as a package resource with
++    ``importlib.resources``. Any other missing file raises
++    ``FileNotFoundError``, as before.
 +    """
 +    filename = Path(base_file).resolve().parent / file_name
-+    if filename.is_file():
++    datasets_dir = Path(__file__).parent
++    base_dir = Path(base_file).parent
++    if filename.is_file() or not base_dir.is_relative_to(datasets_dir):
 +        return filename.open("rb")
 +    from importlib.resources import files
 +
-+    package_dir = Path(base_file).parent.relative_to(Path(__file__).parent)
++    package_dir = base_dir.relative_to(datasets_dir)
 +    package = ".".join(("statsmodels", "datasets", *package_dir.parts))
 +    return files(package).joinpath(file_name).open("rb")
 +
@@ -63,7 +67,7 @@ index 542aae8..e2fceb2 100644
  def load_csv(base_file, csv_name, sep=",", convert_float=False):
      """
      Standard simple csv loader
-@@ -445,11 +478,10 @@ def load_csv(base_file, csv_name, sep=",", convert_float=False):
+@@ -445,11 +482,10 @@ def load_csv(base_file, csv_name, sep=",", convert_float=False):
      DataFrame
          The data read from the CSV file.
      """
@@ -72,7 +76,7 @@ index 542aae8..e2fceb2 100644
      engine = "python" if sep != "," else "c"
      kwargs = {"float_precision": "high"} if (engine == "c" and PD_LT_3_1_0) else {}
 -    data = read_csv(filename, sep=sep, engine=engine, **kwargs)
-+    with open_data_file(base_file, csv_name) as csv_file:
++    with _open_data_file(base_file, csv_name) as csv_file:
 +        data = read_csv(csv_file, sep=sep, engine=engine, **kwargs)
      if convert_float:
          data = data.astype(float)

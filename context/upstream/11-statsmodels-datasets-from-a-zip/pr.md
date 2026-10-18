@@ -33,7 +33,8 @@ READ on 2026-10-18 in the 0.15.0 sdist, `docs/source/dev/ai-policy.rst` ("AI Pol
   Opus 5.5 (`claude-opus-5-5`) wrote the patch and these facts; the reasoning-effort setting was
   not recorded; do not guess it.
 - **Code quality:** `ruff` clean with the project's configuration (the two files pass
-  `ruff check`, EXECUTED), numpydoc docstrings (the new helper has one).
+  `ruff check`, EXECUTED, item 10), numpydoc docstrings (the new helper has one). The helper is
+  private (`_open_data_file`), so it adds no public API and needs no docs entry.
 - **Testing:** "When fixing a bug, include a regression test that fails against `main` and
   passes with your change", with full coverage of new lines. `fix.patch` carries no test; one is
   sketched below for you to write.
@@ -69,11 +70,15 @@ loaded 0 of 29 from sm.zip
 and the message names the CSV inside the archive:
 `NotADirectoryError: [Errno 20] Not a directory: '…/sm.zip/statsmodels/datasets/longley/longley.csv'`.
 
-**The change** (`fix.patch`, 2 files, +37 −6). A new helper in `statsmodels/datasets/utils.py`,
-`open_data_file(base_file, file_name)`, opens the data file beside `base_file` in binary mode:
-from disk when it is a file there, exactly as before, and otherwise as a package resource,
-`importlib.resources.files(package).joinpath(file_name).open("rb")`, where `package` is
-`statsmodels.datasets.<subfolder>`, found from `base_file`'s folder relative to `utils.py`'s.
+**The change** (`fix.patch`, 2 files, +41 −6). A new private helper in
+`statsmodels/datasets/utils.py`, `_open_data_file(base_file, file_name)`, opens the data file
+beside `base_file` in binary mode: from disk when it is a file there, exactly as before; or,
+when `base_file`'s folder lies under `statsmodels/datasets/` and the file is not on disk, as a
+package resource, `importlib.resources.files(package).joinpath(file_name).open("rb")`, where
+`package` is `statsmodels.datasets.<subfolder>`. Any other path opens as before, so a missing
+file beside a user's own module still raises `FileNotFoundError` (item 9). The first draft fell
+back for every path and turned that case into a `ValueError` from `relative_to`; spec 045's
+review found it.
 `load_csv` passes the open file to `read_csv` with the same arguments; `elec_equip` reads through
 the helper too and drops its unused `Path` import. On disk nothing changes but that `read_csv`
 gets a file object instead of a path.
@@ -87,14 +92,17 @@ CPython 3.15.0, pandas 3.0.6, statsmodels 0.15.0 from PyPI):
   zip and gives the stock digest patched, from the zip and from disk (item 8);
 - a program that fits OLS on longley, a Logit on anes96, a Poisson GLM on randhie and ARIMA on
   the Nile, among others, prints the same bytes natively and from the patched zip (item 7;
-  `evidence/statistical_models-draft.py`).
+  `evidence/statistical_models-draft.py`);
+- `load_csv` with a `base_file` outside statsmodels' datasets: a missing CSV raises
+  `FileNotFoundError` and a present one loads, stock on disk and patched from the zip and on
+  disk (item 9).
 
 **A test you could add.** In `statsmodels/datasets/tests/`: copy one dataset's package (its
 `__init__.py`, `data.py` and CSV) and `utils.py` into a zip under `statsmodels/datasets/`, or
 zip the installed `statsmodels/datasets` folder, put the zip first on `sys.path` in a subprocess
 or with a fresh import of a renamed copy, and check `load_pandas().data` equals the on-disk
 frame. It fails before the change (`NotADirectoryError`) and passes after. A smaller unit test:
-call `open_data_file` with a `base_file` under a path that is not a directory and a
+call `_open_data_file` with a `base_file` under a path that is not a directory and a
 monkeypatched `importlib.resources.files`. Which fits statsmodels' conventions, and the
 coverage, is yours to judge.
 

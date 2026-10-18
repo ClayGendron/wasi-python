@@ -349,35 +349,59 @@ document.
 
 ### 83. What scikit-learn and statsmodels bundle (specs 044 and 045)
 
-- **Asked:** 2026-10-18. **Source:** `specifications/044-scikit-learn.md` (Decisions 10 and 11)
-  and `specifications/045-statsmodels.md` (Decisions 9 and 13). Decision 43 approved
-  scikit-learn and statsmodels (BSD-3-Clause), formulaic and interface-meta (MIT) and wrapt
-  (BSD-2-Clause). §4.12 approves by component, and both sdists carry code and data from others,
-  each with its own notice (READ while drafting).
-- **(a) scikit-learn's bundled code:** libsvm (BSD-3-Clause style, in `svm.cpp`'s header),
+- **Asked:** 2026-10-18; corrected the same day after the specifications' pre-build review
+  (`reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`, findings 1, 2 and 9).
+  **Source:** `specifications/044-scikit-learn.md` (Decisions 10 and 11) and
+  `specifications/045-statsmodels.md` (Decisions 9 and 13). Decision 43 approved scikit-learn
+  and statsmodels (BSD-3-Clause), formulaic and interface-meta (MIT) and wrapt (BSD-2-Clause).
+  §4.12 approves by component, and both sdists carry code and data from others. Each part below
+  is decided in the specifications as the agent recommends, so the drafts stand; neither is
+  built until you answer.
+- **(a) scikit-learn's bundled code:** libsvm (BSD-3-Clause style, `svm.cpp`'s header),
   liblinear (BSD-3-Clause style, `COPYRIGHT`), array-api-compat and array-api-extra (MIT),
-  liac-arff (MIT), packaging's version module (BSD-2-Clause), numpydoc's `docscrape.py`
-  (BSD-2-Clause), MurmurHash3 (public domain), and a copy of a scipy module (BSD-3-Clause). The
-  agent recommends approving them: every family is one §4.12 already names. Each ships with its
-  notice in `LICENSES/scikit-learn.txt`.
-- **(b) scikit-learn's data:** six datasets (iris, digits, diabetes, breast cancer, wine,
-  Linnerud) ship inside scikit-learn's distribution with no notice of their own; the agent
-  recommends shipping them as scikit-learn distributes them. Its two sample photographs are under
-  Creative Commons Attribution 2.0 and cannot be decoded here (no JPEG decoder); spec 044 leaves
-  their folder out, and the agent recommends keeping it out.
-- **(c) statsmodels' bundled code:** what `COPYRIGHTS.txt` lists (code from numpy, scipy, pandas,
-  matplotlib, scikit-learn and qsturng-py, BSD or MIT) and two folders with their own BSD-3-Clause
-  licences (`factor_rotation`, `libqsturng`). The agent recommends approving them.
-- **(d) statsmodels' datasets:** each states its own terms. Sixteen say public domain and ship.
-  Thirteen do not: eight are "used with express permission of the original author, who retains
-  all rights" or "included with permission of the author" (ccard, committee, copper, cpunish,
-  fair, scotland, spector, star98), one is under the World Bank's terms of use (fertility), one
-  cites a journal (china_smoking), and three state nothing (cancer, heart, interest_inflation).
-  Spec 045 leaves those thirteen's data files out (their loaders raise `FileNotFoundError`) and
-  keeps the modules, which `statsmodels.api` imports. The agent recommends keeping them out:
-  permission given to statsmodels is not a licence to this project, and the public-domain sets
-  cover the usual examples (OLS on longley, time series on the Nile, sunspots and CO2).
-- **Meanwhile:** specs 044 and 045 are drafted and can be reviewed; neither is built until this
+  liac-arff (MIT), two of packaging's modules (BSD-2-Clause), numpydoc's `docscrape.py`
+  (BSD-2-Clause), a few lines adapted from django's `slugify` (BSD-3-Clause), CPython's `pprint`
+  adapted as `utils/_pprint.py` (the PSF licence, given in full in its header), code derived from
+  pytest in `utils/_testing.py` (MIT), MurmurHash3 (public domain), a copy of a scipy module and
+  code adapted from networkx (both BSD-3-Clause, their notices already shipped), and the Glasgow
+  Information Retrieval Group's English stop-word list (no terms stated; a list of common words).
+  **Recommended and decided: approve them.** Every licence family is one §4.12 already names;
+  each notice ships in `LICENSES/scikit-learn.txt`, numpydoc's and django's texts pinned by URL
+  and hash because the sdist lacks them, and a check holds the parts.
+- **(b) scikit-learn's data.** The six datasets carry no licence text in the sdist, but three
+  are copies of sets their source licenses:
+  - **digits, breast cancer and wine** are "a copy of" UCI's sets, which UCI publishes under
+    **Creative Commons Attribution 4.0 International**, a licence §4.12 does not name;
+  - **iris** is "taken from Fisher's paper" (1936); UCI's own copy is CC BY 4.0 but differs
+    from scikit-learn's in two points;
+  - **diabetes** (Efron et al., 2004) and **Linnerud** (Tenenhaus, 1998) state no terms.
+
+  **Recommended and decided: approve CC BY 4.0 for these three data sets and ship all six,**
+  with an attribution part in `LICENSES/scikit-learn.txt` (title, creators, UCI's URL, the
+  licence and its URL; iris credited to Fisher's paper). CC BY 4.0 asks only for that
+  attribution, and these are the sets scikit-learn's loaders, examples and agents' code use. If
+  you decline, spec 044 leaves the three CSVs and their descriptions out, their loaders raise
+  `FileNotFoundError`, and its golden job and checks move to iris, diabetes and generated data.
+- **(c) scikit-learn's two sample photographs** (`china.jpg`, `flower.jpg`) are under CC BY 2.0,
+  also attribution-only. The licence is not what separates them from the datasets: the guest has
+  no JPEG decoder, so their only loaders can never work here, and they would be 339,640 bytes
+  carried for nothing. **Recommended and decided: leave their folder out;** the loaders raise
+  `ModuleNotFoundError` naming it.
+- **(d) statsmodels' bundled code:** what its `COPYRIGHTS.txt` lists (code from numpy, scipy,
+  pandas, matplotlib, scikit-learn and qsturng-py, BSD or MIT) and two folders with their own
+  BSD-3-Clause licences (`factor_rotation`, `libqsturng`). **Recommended and decided: approve.**
+- **(e) statsmodels' data:** each dataset states its own terms. Sixteen say public domain and
+  ship. Thirteen do not: eight are "used with express permission of the original author, who
+  retains all rights" or "included with permission of the author" (ccard, committee, copper,
+  cpunish, fair, scotland, spector, star98), one is under the World Bank's terms of use
+  (fertility), one cites a journal (china_smoking), and three state nothing (cancer, heart,
+  interest_inflation). One more table, `sandbox/rlsdata.txt`, states nothing and is read by no
+  code. **Recommended and decided: leave all fourteen out** (spec 045 keeps the dataset modules,
+  which `statsmodels.api` imports; their loaders raise `FileNotFoundError`): permission given to
+  statsmodels is not a licence to this project, and the public-domain sets cover the usual
+  examples (OLS on longley, time series on the Nile, sunspots and CO2). Unlike (b), these are
+  not attribution licences but missing or personal permissions, which nothing here can satisfy.
+- **Meanwhile:** specs 044 and 045 are drafted, reviewed and revised; neither is built until this
   is answered, as spec 043 waits on question 81.
 
 ### 84 to 87. A sandbox escape in wasmtime 49.0.0 (GHSA-m9f7-9w4p-gv38)

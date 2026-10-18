@@ -1,13 +1,15 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** drafted 2026-10-18. Not yet reviewed. It changes the build recipe and the artifact
-  set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
+- **Status:** drafted 2026-10-18; revised the same day against its pre-build review
+  (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): every finding that
+  concerns it is fixed here, and the review's Disposition says where. It changes the build
+  recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
   `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries one
   upstream patch (§4.1). It is not built until the owner answers question 83 (the terms of what
   statsmodels bundles, its datasets above all); everything else is decided here.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (four pins; a new step 59; `scripts/make_stdlib_zip.py`'s
-  `--leave-out` taking exact names; `scripts/gen_inittab.py`'s rename table;
+  new `--leave-out-file` option; `scripts/gen_inittab.py`'s rename table;
   `scripts/steps/60_link.sh`; `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`),
   recipe files (a cross file, a build-time stand-in for `setuptools_scm`, four one-line rename
   headers, a per-file include map), one carried patch to statsmodels with its facts sheet, judge
@@ -71,8 +73,8 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
 ## Decisions
 
 1. **What goes in.**
-   - **statsmodels 0.15.0:** its 26 extension modules as builtins, and its Python package (502
-     members, 3,775,184 bytes as step 70 packs them, plus one `METADATA`; Decisions 9 and 10).
+   - **statsmodels 0.15.0:** its 26 extension modules as builtins, and its Python package (501
+     members, 3,774,712 bytes as step 70 packs them, plus one `METADATA`; Decisions 9 and 10).
    - **formulaic 1.2.2, interface-meta 2.0.1 and wrapt 2.5.1**, pure wheels: 59, 12 and 15
      members with their `METADATA`, 86 in all, 349,174 bytes (EXECUTED while drafting, step 70's
      rules).
@@ -189,8 +191,10 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
 
 6. **The pure wheels.** Step 70 gains three `--wheel "$(pinned …)"` lines. Each is packed as
    step 70 packs every wheel (tests, sources and `.pyi` skipped; `METADATA` kept). None has an
-   `entry_points.txt`, and none reads a file by path (READ: `grep` for `__file__`,
-   `importlib.resources` and `entry_points`). What a guest sees: `wrapt.__wrapt__._using_c_extension`
+   `entry_points.txt`, and none reads a file by path or queries entry points at import (READ:
+   `grep` for `__file__`, `importlib.resources` and `entry_points`; wrapt's
+   `importer.discover_post_import_hooks` calls `importlib.metadata.entry_points`, but only when
+   a program calls it). What a guest sees: `wrapt.__wrapt__._using_c_extension`
    is `False`, and formulaic builds model matrices as natively.
 
 7. **One carried patch: datasets read as package resources when not on disk.**
@@ -203,20 +207,38 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
      zipped): every loader raises
      `NotADirectoryError: [Errno 20] Not a directory: '…/statsmodels/datasets/longley/longley.csv'`
      (tool output, path shortened); none of the 29 loads (the 28 and `elec_equip`).
-   - **The change** (2 files, +37 −6, SHA-256
-     `a83b56a1e52e211d49c83f8380f2ae1b66b383d9729144f761318674265add58`, applies to the pinned
-     sdist with `git apply` and no offset, EXECUTED): a new helper,
-     `statsmodels.datasets.utils.open_data_file(base_file, file_name)`, returns the data file
-     beside `base_file` opened in binary mode: from disk when it is a file there, as today, and
-     otherwise as a package resource, `importlib.resources.files("statsmodels.datasets.<name>")`,
-     the package found from `base_file`'s folder relative to `utils.py`'s. `load_csv` and
+   - **The change** (2 files, +41 −6, 2,979 bytes, SHA-256
+     `751e719065100f7b1373b663c9e1b4b9ebdae0a68aa3b31d1f1b8c34d5e8db58`, applies to the pinned
+     sdist with `git apply` and no offset, EXECUTED): a new **private** helper,
+     `statsmodels.datasets.utils._open_data_file(base_file, file_name)`, returns the data file
+     beside `base_file` opened in binary mode: from disk when it is a file there, as today; when
+     `base_file`'s folder lies under `statsmodels/datasets/` and the file is not on disk, as a
+     package resource, `importlib.resources.files("statsmodels.datasets.<name>")`, the package
+     found from that folder relative to `utils.py`'s; and otherwise from disk as before, so a
+     missing file beside a user's own module still raises `FileNotFoundError` (EXECUTED: stock,
+     and patched from the zip and on disk; the first draft, `a83b56a1…dd58`, fell back for every
+     path and raised `ValueError` there, the review's finding 7). Being private, it adds no
+     public API, so statsmodels' rule that a public function needs a docs entry does not
+     apply; its numpydoc docstring's summary line ends with a period. `load_csv` and
      `elec_equip`'s loader read through it; `elec_equip`'s now unused `Path` import goes. `ruff
      check` passes on both files (EXECUTED).
    - **What it changes, measured** (EXECUTED): with the patch, all 29 datasets load from the zip
      and from disk, and each frame's digest equals the stock package's on disk; the golden job
      from the zip model prints native's output byte for byte.
-   - **Why a patch and not a recipe.** The read is statsmodels' own line. A recipe would replace
-     its file in the zip, an unrecorded source change (§7).
+   - **Why a patch and not a recipe** (041's reasoning, Decision 1 as revised there). §4.1
+     prefers a recipe, a stand-in module included, and a recipe under `recipes/`, hashed in
+     `MANIFEST` and reviewed, is a recorded change. So a recipe was looked for first:
+     - **The CSVs as real files where `load_csv` looks.** The path lies inside the zip's own file
+       name; no folder can exist there, and a preopen at that path is refused by the runner as
+       the runtime's own folder (041's review, EXECUTED there).
+     - **A run-time replacement could work here, unlike scikit-learn's case,** because the read
+       runs when a loader is called, not at import. It is rejected on the other grounds 041
+       gives: it would replace a public function, `load_csv`, and `elec_equip`'s private
+       `_get_data`, with copies of upstream's code, which is wider than the patch; spec 020's tree
+       check would not see it; and no upstream release would ever let it be deleted.
+
+     A carried patch is the smallest change, checked against the tarball, and deleted once a
+     pinned release carries the fix.
    - **Its facts sheet**, `context/upstream/11-statsmodels-datasets-from-a-zip/pr.md` with
      `fix.patch`, `notes.md` and `evidence/`, in question 80's form: statsmodels' AI policy
      (READ, `docs/source/dev/ai-policy.rst` in the sdist) asks that no AI output be pasted into
@@ -243,25 +265,44 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
      original sources, which no loader reads, READ: `grep`; several are of the thirteen). Each
      dataset's `__init__.py` and `data.py` stay, because `statsmodels/datasets/__init__.py`
      imports 28 of the modules (all but `elec_equip`), and `statsmodels.api` imports that: leaving a folder out would
-     break `import statsmodels.api`. 52 members in all leave (EXECUTED: every name matched).
+     break `import statsmodels.api`.
+   - **And one table with no stated terms:** `statsmodels/sandbox/rlsdata.txt`, a 50-line table
+     of a regression data set, which nothing in the package reads (EXECUTED by the review: `grep`)
+     and which states no terms, the same class as cancer and heart (the review's finding 9).
+   - 53 members in all leave: 36 arguments, 21 file names and 15 folders (EXECUTED: every
+     argument matched a member).
    - **How it shows:** a left-out dataset's `load()` and `load_pandas()` raise
-     `FileNotFoundError` naming its file (EXECUTED in the zip model: `spector` →
-     `FileNotFoundError: …/statsmodels/datasets/spector/spector.csv`, while `import
-     statsmodels.api` and `longley` work). The README lists the thirteen.
-   - **`--leave-out` takes an exact name.** 042's option takes folder prefixes ending in `/`.
-     This specification extends it: an argument that does not end in `/` must equal one member's
-     name exactly, and the build stops naming any argument that matches nothing, as 042's rule
-     does for folders. The unit check (Decision 12) holds both forms. Step 70 gains one
-     `--leave-out` line per name and per `src/` folder, 35 lines, generated by no script: they
-     are written out in `70_zip.sh`, so the review reads each.
+     `FileNotFoundError` (EXECUTED in the zip model, through CPython's `zipfile.Path`: `spector`
+     → `FileNotFoundError: …/statsmodels/datasets/spector/spector.csv`, while `import
+     statsmodels.api` and `longley` work). The message is the resource reader's, and spec 035
+     replaces that reader (its `ZipDirectoryPath.open` raises `FileNotFoundError` for a missing
+     name, Decision 6 there, and promises nothing about the message). So the check asserts the
+     type only, and the landing notes record the message the built guest gives (the review's
+     finding 8). The README lists the thirteen.
+   - **A separate option, `--leave-out-file NAME`, so 042's rule and its check stay** (the
+     review's finding 5, its option (a)). 042's `--leave-out PREFIX` takes folder prefixes ending
+     in `/`, stops on one without it, and `test_a_left_out_folder_is_not_packed` pins that
+     stop; neither changes. The new option is repeatable; its argument must equal one member's
+     name **as its input gives it, before `.py` becomes `.pyc`** (so `x.py`, never `x.pyc`), and
+     the build stops naming any argument that matches nothing, through the same `matched` record
+     042's `left_out` keeps. Step 70 gains 15 `--leave-out` lines (the `src/` folders) and 21
+     `--leave-out-file` lines, generated by no script: they are written out in `70_zip.sh`, so
+     the review reads each.
    - Question 83 asks the owner whether to approve any of the thirteen; the agent recommends
      keeping them out. The golden job uses public-domain datasets only.
 
 10. **The zip.** Step 70 gains `--tree "$B/statsmodels-install"`, `--metadata
     "$B/statsmodels-0.15.0/PKG-INFO"` (`Name: statsmodels`, `Version: 0.15.0`, READ), the three
-    `--wheel` lines and Decision 9's leave-outs. What stays that is not code: the sixteen
-    datasets' files, statsmodels' HTML templates and `.dat` tables, and 20 templates
-    (19 `*.pyx.in` and `_blas_int.pxi.in`) an install also carries; no trimming here.
+    `--wheel` lines and Decision 9's leave-outs. What stays that is not code (EXECUTED by the
+    drafting run's recount after the review's finding 9, step 70's rules with the 36
+    leave-outs): the sixteen public-domain datasets' CSV files, `macrodata/macrodata.dta`, the
+    R scripts beside public-domain sets (`longley/R_gls.s`, `R_lm.s`, `stackloss/R_stackloss.s`,
+    `sunspots/R_sunspots.s`, `sunspots/arima_mod.R`), `stats/libqsturng/CH.r`, the licence texts
+    (`factor_rotation/LICENSE.txt` and `COPYRIGHTS.txt`, `libqsturng/LICENSE.txt`), two notes in
+    `sandbox/` (`tools/TODO.txt`, `stats/notes_fdr.txt`), `pyproject.toml`, and 20 templates
+    (19 `*.pyx.in` and `_blas_int.pxi.in`) an install also carries. Every `.html` and `.dat`
+    file the package has is under a `datasets/*/src/` folder and leaves with it (the first
+    draft said otherwise). No trimming here.
 
 11. **What is in, what is out, and how an absence shows.** Each line is a check or a golden line
     (Decision 12), and each goes in the README.
@@ -274,8 +315,14 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
       (044, Decision 9), and `multiprocessing.cpu_count()` is 1 in the guest (EXECUTED today:
       `wasi-python run`).
     - **Absent by the sandbox, documented, not gaps:**
-      - `sm.datasets.get_rdataset` and `sm.datasets.webuse` download (no network); the build
-        records the exception each raises inside the fuel limit;
+      - `sm.datasets.get_rdataset` and `sm.datasets.webuse` download (no network). With the
+        default `cache=False` they go straight to `urlopen`, and an `https` URL raises `URLError:
+        unknown url type: https` in today's guest (EXECUTED by the review). With `cache=True`
+        they first make a cache folder under `~/statsmodels_data`, which with no root fails as
+        044's fetchers do (`FileNotFoundError` on `'~'`) and with a root is made under the
+        runner's `/tmp` `HOME` before the same `URLError` (044, Decision 9; INFERRED for
+        statsmodels from the same `expanduser` and `makedirs`). The check names its grant
+        configuration (none) and records what is raised; the README states both cases;
       - `statsmodels.tsa.x13.x13_arima_analysis` runs the X-13ARIMA-SEATS program in a
         subprocess (`tsa/x13.py:96`), which the guest cannot start and does not carry: it raises
         `X13NotFoundError` (`tsa/x13.py:107`, READ);
@@ -320,7 +367,7 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
       - `test_statsmodels_reads_its_datasets_from_the_zip[plain, snapshot]`: each of the sixteen
         public-domain datasets loads with native's shape (the shapes written in the check).
       - `test_left_out_datasets_say_so[plain]`: each of the thirteen raises `FileNotFoundError`
-        naming its file; `import statsmodels.api` works.
+        (the type only, Decision 9); `import statsmodels.api` works.
       - `test_formula_engines_run_pure[plain, snapshot]`: `wrapt.__wrapt__._using_c_extension` is
         `False`; for a small frame, `formulaic.model_matrix("y ~ x + C(g)", frame)` and patsy's
         `dmatrices` give the same column names and, column by column, the same values (their
@@ -331,17 +378,19 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
       - `test_statsmodels_modules_are_builtin[plain, snapshot]`: each of the 26 imports and is
         built in, the four renamed among them.
     - **Rules and artifact checks (judge changes, under `--accept-judge`):** v1.1,
-      `test_left_out_dataset_files_are_not_in_the_zip` (none of Decision 9's 20 names and no
-      member under a `datasets/*/src/` folder); v1.5, `SOURCE_PATTERNS` and
+      `test_left_out_dataset_files_are_not_in_the_zip` (none of Decision 9's 21 file names and
+      no member under a `datasets/*/src/` folder); v1.5, `SOURCE_PATTERNS` and
       `needs.SOURCE_COMPONENTS` gain `statsmodels`, the tree count rises by one, the patched-tree
       check covers the patch; rules, `patch_errors` on the patch and its draft;
       `paths.PACKAGES` and `LICENCE_COMPONENTS` gain the four; 033's metadata check gains the
       four.
     - **Build-time gates:** the version gate (Decision 3), the include log (Decision 5), the
-      module count, step 60's detector.
-    - **Unit checks:** `test_a_left_out_name_must_match_one_member` (042's `left_out` with an
-      exact name: the member goes; a name matching nothing is named; a name that is a folder
-      prefix without `/` matches only that exact member); the stand-in's `get_version` on a
+      module count, step 60's detector, and 044's weak-duplicate gate and link-map check
+      (044, Decision 6), which run over every package's archives and so cover statsmodels'.
+    - **Unit checks:** `test_a_left_out_file_must_match_one_member` (`--leave-out-file`: the
+      named member goes and nothing else, not even a member that merely starts with the name;
+      a name matching nothing is named; `x.pyc` does not match the member that comes from
+      `x.py`); 042's `test_a_left_out_folder_is_not_packed` unchanged; the stand-in's `get_version` on a
       small `PKG-INFO` (the version; a file without one named); `gen_inittab.py`'s four renames.
 
 13. **Licences** (§4.12). statsmodels, formulaic, interface-meta (approved as MIT) and wrapt
@@ -362,12 +411,13 @@ only, BLAS and LAPACK through scipy's `cython_blas` and `cython_lapack`. Four th
     | metric | expected | finding if outside |
     |---|---|---|
     | `python.wasm` bytes | about +3.9 MB (INFERRED: Pyodide 314.0.7's statsmodels `.so`, 4.24 MB, times 0.92) | +2.5 to +5.5 MB |
-    | the zip's members | +589 (503 statsmodels with its `METADATA`, 86 for the three wheels; EXECUTED) | any other count without a named reason |
-    | the zip's bytes | about +4.12 MB (3,775,184 + 349,174, EXECUTED) | ≤ +4.5 MB |
-    | plain `-c pass` | +589 × 26,900 ≈ +15.8 M, plus 26 inittab entries, measured | ≤ +589 × 30,000 = +17.7 M, plus the named rest |
-    | snapshot `-c pass` | +589 × 2,399 ≈ +1.4 M | ≤ +589 × 3,500 = +2.1 M |
+    | the zip's members | +588 (502 statsmodels with its `METADATA`, 86 for the three wheels; EXECUTED) | any other count without a named reason |
+    | the zip's bytes | about +4.12 MB (3,774,712 + 349,174, EXECUTED) | ≤ +4.5 MB |
+    | plain `-c pass` | +588 × 26,900 ≈ +15.8 M, plus 26 inittab entries, measured | ≤ +588 × 30,000 = +17.6 M, plus the named rest |
+    | snapshot `-c pass` | +588 × 2,399 ≈ +1.4 M | ≤ +588 × 3,500 = +2.1 M |
     | 033's metadata check, 035's comparison | four more distributions: ≤ 25 M each per read | above it |
-    | every existing golden job | the plain-start growth only | more |
+    | 042's `statistical_plots` job and any check that imports seaborn | the plain-start growth plus `import statsmodels`, measured: seaborn's `regression.py:10-15` tries `import statsmodels` when seaborn is imported (READ by the review), and `statsmodels/__init__.py` imports only `_version` | more than the plain-start row plus 2 M |
+    | every other existing golden job | the plain-start growth only | more |
 
     The wheel's growth is recorded against PyPI's limit (question 64).
 
@@ -408,9 +458,9 @@ the datasets load from the zip; no data with unapproved terms ships.
 | `recipes/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.patch` | new: `../upstream/11-statsmodels-datasets-from-a-zip/fix.patch`, byte for byte (Decision 7) |
 | `context/upstream/patches/statsmodels-0.15.0/0001-datasets-from-a-zip.md` | moved from `../upstream/11-…/pr.md`, unchanged |
 | `context/upstream/README.md`, `context/upstream/11-…/notes.md` | the row says the patch is carried; `fix.patch` removed from the folder |
-| `scripts/make_stdlib_zip.py` | `--leave-out` takes an exact member name (Decision 9) |
+| `scripts/make_stdlib_zip.py` | the new `--leave-out-file` option; 042's `--leave-out` unchanged (Decision 9) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | statsmodels' modules, four renames (Decisions 5, 8) |
-| `scripts/steps/70_zip.sh` | the tree, its metadata, three wheels, 35 leave-outs (Decisions 6, 9, 10) |
+| `scripts/steps/70_zip.sh` | the tree, its metadata, three wheels, 15 `--leave-out` and 21 `--leave-out-file` lines (Decisions 6, 9, 10) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 59 in `ALL`; `PACKAGES`, `WHEELS`; `LICENSES/statsmodels.txt` (Decision 13) |
 | `tests/jobs/statistical_models.py`, `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `tests/harness/jobs.py` | the golden, the oracle's pins, `JOBS`, the recording platform (Decision 12) |
 | `tests/checks/test_v1_3_default_profile.py` | the five behaviour checks |
@@ -453,16 +503,19 @@ In: Decisions 1 to 15. Out:
 5. **The numbers recorded:** the three binaries', the zip's and the wheel's bytes; the zip's
    members; the modules linked and the final rename set; plain and snapshot `-c pass`; `import
    statsmodels.api` and the golden's fuel on both binaries; the snapshot's bytes and `pass` fuel
-   if it pre-imported statsmodels; the exceptions `get_rdataset` and `hdrboxplot` raise.
+   if it pre-imported statsmodels; the exceptions `get_rdataset` and `hdrboxplot` raise; the
+   message a left-out dataset's `FileNotFoundError` carries under 035's reader; `statistical_plots`'
+   fuel before and after (the seaborn row); and **which answer question 80 had** when this
+   landed, as 041's condition C1 asks, with the facts sheet in that answer's form.
 6. **The release:** a release dry run passes every job (criterion 3's run).
 
 ## The owner's choices
 
 None open here. One is recorded in `../questions-for-the-owner.md` as **83**, shared with spec
 044: the terms of what statsmodels bundles (the code named in `COPYRIGHTS.txt`, two folders with
-their own BSD licences, and its datasets), with the thirteen datasets left out until the owner
-says otherwise. This specification is drafted and can be reviewed; it is not built until 83 is
-answered.
+their own BSD licences, and its datasets), each part decided here as recommended: the thirteen
+datasets' files and `sandbox/rlsdata.txt` left out until the owner says otherwise. This
+specification is not built until 83 is answered.
 
 ## Landing notes
 

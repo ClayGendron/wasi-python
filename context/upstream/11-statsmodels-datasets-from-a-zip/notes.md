@@ -16,16 +16,24 @@ When spec 045 is built, `fix.patch` is copied byte for byte to
 and `pr.md` moves unchanged to `context/upstream/patches/`. This folder then keeps these notes
 and `evidence/`.
 
-`fix.patch` (2 files, +37 −6, 2,783 bytes): SHA-256
-`a83b56a1e52e211d49c83f8380f2ae1b66b383d9729144f761318674265add58`. It was made with `git diff`
+`fix.patch` (2 files, +41 −6, 2,979 bytes): SHA-256
+`751e719065100f7b1373b663c9e1b4b9ebdae0a68aa3b31d1f1b8c34d5e8db58`. It was made with `git diff`
 under a cleared configuration (`env -i`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`),
 and applies to the `statsmodels-0.15.0.tar.gz` sdist (SHA-256 `5d257fe5…ecbc`, equal to PyPI's)
-with `git apply` and no offset (EXECUTED). `ruff check` passes on both changed files.
+with `git apply` and no offset (EXECUTED). `ruff check` passes on both changed files under
+statsmodels' configuration (EXECUTED, item 10; statsmodels pins no ruff version, ruff 0.14.0).
+
+**Revised after spec 045's pre-build review** (findings 7 and 9): the helper is now private
+(`_open_data_file`), its summary line ends with a period, and it falls back to a package
+resource only for a `base_file` under `statsmodels/datasets/`, so a missing file elsewhere is a
+`FileNotFoundError` as before (the first draft, `a83b56a1…dd58`, raised `ValueError`). The
+leave-out list gained `statsmodels/sandbox/rlsdata.txt`. The evidence was re-run.
 
 ## Spec 045's leave-outs
 
 Spec 045 also leaves out the data files of thirteen datasets whose stated terms the owner has
-not approved, and every `datasets/*/src/` folder (`evidence/left-out.txt`, 35 names). That is
+not approved, every `datasets/*/src/` folder, and `sandbox/rlsdata.txt`
+(`evidence/left-out.txt`, 36 names). That is
 this project's licence rule, not part of the upstream change. With both applied, `import
 statsmodels.api` works and a left-out dataset raises `FileNotFoundError` naming its file
 (`evidence/native-run.txt`, item 6).
@@ -37,7 +45,7 @@ All under `evidence/`, run 2026-10-18 while drafting spec 045.
 | file | what | label |
 |---|---|---|
 | `zip_pkg.py`, `zip_pure.py`, `zip_filter.py`, `zip_hybrid.py` | the zips, the leave-out filter, and the runner that imports from a zip with extension modules loaded by name | ours |
-| `probe_datasets.py`, `elec.py`, `restricted.py` | every dataset loaded with a digest per frame (`elec_equip` apart, as it is not in `__all__`); the left-out probe | ours |
+| `probe_datasets.py`, `elec.py`, `outside.py`, `restricted.py` | every dataset loaded with a digest per frame (`elec_equip` apart, as it is not in `__all__`); the left-out probe | ours |
 | `statistical_models-draft.py` | spec 045's drafted golden job | ours |
-| `left-out.txt` | spec 045's 35 leave-outs | ours |
+| `left-out.txt` | spec 045's 36 leave-outs | ours |
 | `native-run.txt` | stock and patched, on disk and from a zip; the leave-outs; the job equal natively and from the zip | EXECUTED |

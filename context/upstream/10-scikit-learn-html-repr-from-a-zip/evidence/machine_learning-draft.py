@@ -89,7 +89,7 @@ hgb = HistGradientBoostingClassifier(max_iter=30, random_state=0)
 Xw, yw = wine.data, wine.target
 Xw_tr, Xw_te, yw_tr, yw_te = train_test_split(Xw, yw, random_state=0, stratify=yw)
 hgb.fit(Xw_tr, yw_tr)
-print("hist gradient boosting accuracy", f(hgb.score(Xw_te, yw_te)), "iterations", hgb.n_iter_)
+print("hist gradient boosting accuracy", f(hgb.score(Xw_te, yw_te)))
 
 frame = pd.DataFrame({"city": ["a", "b", "a", "c", "b", "c", "a", "b"], "x": [1.0, 2.5, 3.0, 0.5, 2.0, 1.5, 4.0, 3.5]})
 target = [0, 1, 0, 1, 1, 1, 0, 1]

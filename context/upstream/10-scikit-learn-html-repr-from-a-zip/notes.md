@@ -17,11 +17,19 @@ When spec 044 is built, `fix.patch` is copied byte for byte to
 folder, and `pr.md` moves unchanged to `context/upstream/patches/`. This folder then keeps these
 notes and `evidence/`.
 
-`fix.patch` (1 file, +8 −10, 1,848 bytes): SHA-256
-`1aafac3873917af878a8174a3431fafdada6e05ad49cd17fb37297b5af74b12b`. It was made with `git diff`
+`fix.patch` (1 file, +8 −10, 1,850 bytes): SHA-256
+`35064ebbecb4ef05fe069f572fcd661ead3738b8e58413c7a07b40a8032b5680`. It was made with `git diff`
 under a cleared configuration (`env -i`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`),
 and applies to the `scikit_learn-1.9.1.tar.gz` sdist (SHA-256 `629cada3…2977`, equal to PyPI's)
-with `git apply` and no offset (EXECUTED). `ruff check` passes on the changed file.
+with `git apply` and no offset (EXECUTED). It passes `ruff check` and `ruff format --check`
+under scikit-learn's own configuration with ruff 0.12.2, the version
+`sklearn/_min_dependencies.py` pins (EXECUTED, `evidence/native-run.txt` item 5).
+
+**Corrected after spec 044's pre-build review** (finding 3): the first `fix.patch`
+(`1aafac38…b12b`, 1,848 bytes) put `from importlib.resources import files` after `from inspect
+import isclass`, which fails scikit-learn's `I001` import-order rule; these notes then said
+`ruff check` passed, which was checked under another configuration. The import now sorts before
+`inspect`; the evidence was re-run with it.
 
 ## Evidence
 

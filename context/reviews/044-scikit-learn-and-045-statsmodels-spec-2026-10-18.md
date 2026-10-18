@@ -410,6 +410,104 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+The author (the drafting agent), 2026-10-18. Every finding is fixed in the text; none is
+answered instead. Both specifications' Status lines cite this review. Re-runs are EXECUTED in
+the drafting scratch folder (`…/scratchpad/044-spec/`) and recorded in the facts sheets'
+`evidence/native-run.txt`, both regenerated.
+
+1. **Fixed (044 Decisions 10 and 11, question 83 (b) and (c)).** Decision 11 now names each of
+   the six datasets' source and stated terms: digits, breast cancer and wine CC BY 4.0 at UCI
+   (dataset pages 80, 17, 109); iris from Fisher's 1936 paper, UCI's differing copy CC BY 4.0;
+   diabetes and Linnerud none stated. Decided as recommended to the owner: they ship, with an
+   attribution part in `LICENSES/scikit-learn.txt` (title, creators, source URL, licence and
+   its URL; iris credited to Fisher); if the owner declines, the three CSVs and descriptions
+   leave by `--leave-out-file`, their loaders raise `FileNotFoundError`, and the golden and
+   checks move to iris, diabetes and `make_classification`, revised before confirmation.
+   Decision 10 says how the photographs differ: both licences are attribution-only, so the
+   licence does not separate them; use does (no JPEG decoder, 339,640 bytes for loaders that
+   can never work). Question 83 (b) and (c) state both, each with its recommendation.
+2. **Fixed (044 Decision 11, Decision 13, question 83 (a)).** The notice gains `_pprint.py`'s PSF
+   header (lines 7-67, with its summary of changes), `_testing.py`'s pytest attribution (lines
+   575-577), and `_structures.py` beside `version.py`. django's `slugify` adaptation gets django's
+   `LICENSE` pinned by an immutable URL (commit `1dae4ac1`, SHA-256 `b846415d…a669`, 1,552
+   bytes, EXECUTED); networkx's adaptation is covered by 039's networkx notice; the Glasgow
+   stop-word list is named in Q83(a) with the reason no notice ships. The sweep is concrete:
+   every shipped `.py`, `.pyx`, `.c` and `.cpp` with "Copyright", "License" or "adapted / derived
+   / copied / taken from" in its comments is paired with a part or a written reason, the list goes
+   in the landing notes, and an unpaired line stops the landing. New check
+   `test_scikit_learn_notice_carries_its_bundled_parts` (v1.1), seen failing on a notice without
+   the `_pprint.py` part.
+3. **Fixed (044 Decision 7; `upstream/10-…/fix.patch`, `notes.md`, `pr.md`, evidence).** The import
+   now sorts before `from inspect import isclass`. New `fix.patch`: 1,850 bytes, SHA-256
+   `35064ebbecb4ef05fe069f572fcd661ead3738b8e58413c7a07b40a8032b5680`, +8 −10; it passes `ruff
+   check` and `ruff format --check` under scikit-learn's own configuration with ruff 0.12.2
+   (EXECUTED, evidence item 5). `notes.md` records the correction and the old hash; the evidence
+   was re-run: the patched zip imports, the HTML representation's digest is `e469424e…` as stock,
+   208 estimators, and the (revised) golden is equal natively under both seeds and from the zip
+   (`c21ec297…`).
+4. **Fixed (044 and 045 Decision 7).** Both "why a patch" paragraphs are rewritten in 041's form:
+   a recorded recipe is looked for first; the files-where-it-looks route is ruled out by the
+   path inside the zip's name and the runner's refusal; for scikit-learn a run-time swap cannot
+   run (the read is in the module body at import) and a working recipe would be an import hook
+   or a replacement module; for statsmodels a run-time replacement could work (call time) and is
+   rejected on width (a public function and a private one copied), on 020's blindness and on the
+   missing exit.
+5. **Fixed, option (a) (045 Decision 9, 12, Design).** A separate `--leave-out-file NAME`:
+   repeatable, exact, matched against the name before `.py` becomes `.pyc`, stopping on an
+   unmatched argument through 042's `matched` record. 042's `--leave-out` and
+   `test_a_left_out_folder_is_not_packed` are unchanged. New unit check
+   `test_a_left_out_file_must_match_one_member` (an exact name; no prefix match; `x.pyc` does not
+   match `x.py`'s member). Step 70 carries 15 `--leave-out` and 21 `--leave-out-file` lines.
+6. **Fixed (044 Decision 6, 13, 14, Design; 045 Decision 12).** A pre-link gate,
+   `scripts/weak_duplicates.py` with `recipes/weak-duplicates-allowed.txt`, lists weak
+   definitions in the link's archives that another archive also defines and stops on any not
+   reviewed (`std::` and the C++ runtime allowed by rule); a post-link check reads
+   `build/link/python.map` for every renamed generator name and none of `mt_rand`, `set_seed`,
+   `bounded_rand_int`. It runs over every package, and 045 says it inherits it. A unit check holds
+   the scanner; acceptance criterion 1 sees it fail on a build without `_newrand`'s rename. The
+   "authority" text now separates strong clashes (step 60's detector) from weak ones (the gate).
+7. **Fixed (045 Decision 7; `upstream/11-…`).** The helper is private, `_open_data_file`, its
+   summary line ends with a period, and it falls back to the package resource only when
+   `base_file`'s folder `is_relative_to` `statsmodels/datasets/`; otherwise the original open runs,
+   so a missing file beside a user's module raises `FileNotFoundError` (EXECUTED, evidence item 9:
+   stock, patched from the zip and patched on disk). New `fix.patch`: 2,979 bytes, SHA-256
+   `751e719065100f7b1373b663c9e1b4b9ebdae0a68aa3b31d1f1b8c34d5e8db58`, +41 −6, `ruff check` clean
+   (item 10). The 29 datasets and the golden were re-run, unchanged (`6a855bc1…`). The facts sheet
+   says both changes.
+8. **Fixed (045 Decision 9, 12, acceptance criterion 5).** `test_left_out_datasets_say_so` asserts
+   the type only; Decision 9 says the message is the resource reader's, that 035's
+   `ZipDirectoryPath.open` promises none, and the landing notes record the built guest's message.
+9. **Fixed (045 Decisions 9 and 10, question 83 (e)).** `sandbox/rlsdata.txt` leaves by
+   `--leave-out-file` (36 arguments, 53 members leave; 501 members and 3,774,712 bytes stay, plus
+   `METADATA`, EXECUTED with step 70's functions; the growth table moves to +588 members).
+   Decision 10's list is corrected to what stays (the sixteen CSVs, `macrodata.dta`, the
+   public-domain sets' R scripts, `libqsturng/CH.r`, the licence texts, two sandbox notes,
+   `pyproject.toml`, the 20 templates), and says every `.html` and `.dat` leaves with `src/`.
+10. **Fixed (045 Decision 14, acceptance criterion 5).** A growth row for 042's
+    `statistical_plots` and any seaborn import: plain-start growth plus `import statsmodels`,
+    measured, bounded at the plain row plus 2 M; the landing notes record that job's fuel before
+    and after.
+11. **Fixed (044 Decisions 9 and 13; 045 Decision 11).** Both outcomes are stated with the review's
+    evidence: with no root, `FileNotFoundError` on `'~'` before any network call; with a root, the
+    folder under the runner's `HOME` and then `URLError: unknown url type: https`. 044's check names
+    its configuration (no root, no grant) and asserts the first; the README states both.
+    statsmodels' `get_rdataset` and `webuse` are stated for `cache=False` and `cache=True`, and its
+    check names its configuration.
+12. **Fixed (044 Decision 2, 14, acceptance criterion 5).** Decision 2 now cites the pinned Cython
+    wheel (all 66 of 7852's `CythonFunction.c` lines, the review's run), pull requests 34533 (the
+    only reason for the cap) and 34584 (3.2.10 unreleased), and the review's test run (the
+    `__annotate__` round trip, `KDTree`/`BallTree` pickling, 6,110 tests passed); the pickling
+    sentence is dropped as evidence. Stage 1 repeats that native, single-threaded test subset with
+    the line's Cython, and the landing notes record the counts.
+13. **Fixed (`upstream/10-…/pr.md`; 044 Decision 7 and 045 acceptance criterion 5).** The
+    scikit-learn sheet ends with the `AGENTS.md` disclosure, verbatim, under its own heading. Both
+    specifications' landing notes must say which answer question 80 had, as 041's condition C1
+    asks, with the facts sheet in that answer's form.
+14. **Fixed.** The golden no longer prints `hgb.n_iter_` (044 Decision 13; the draft in
+    `upstream/10-…/evidence/` revised and re-run); libsvm's header is lines 1-31 (044 Decision 11);
+    045 Decision 6 says no wheel queries entry points **at import**, naming wrapt's
+    `discover_post_import_hooks` as the call-time exception.
+
 ## Verdict
 
 **044: Not yet — revise, then confirm.** The design is sound and reproduces: the pins, the

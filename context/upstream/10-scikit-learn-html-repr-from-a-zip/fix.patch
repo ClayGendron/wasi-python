@@ -1,12 +1,13 @@
 diff --git a/sklearn/utils/_repr_html/estimator.py b/sklearn/utils/_repr_html/estimator.py
-index aa356ca..f9a9abe 100644
+index aa356ca..c9583df 100644
 --- a/sklearn/utils/_repr_html/estimator.py
 +++ b/sklearn/utils/_repr_html/estimator.py
-@@ -4,8 +4,8 @@
+@@ -3,9 +3,9 @@
+ 
  import html
  from contextlib import closing
- from inspect import isclass
 +from importlib.resources import files
+ from inspect import isclass
  from io import StringIO
 -from pathlib import Path
  

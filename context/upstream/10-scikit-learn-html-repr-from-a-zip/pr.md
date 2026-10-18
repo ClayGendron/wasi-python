@@ -80,7 +80,11 @@ text is the same either way.
   55,811 characters, with the same digest, from the patched zip as from the stock package on
   disk (the id counters normalised); `all_estimators()` finds 208 in both (item 3);
 - a 30-line program that fits and scores a dozen estimators on the bundled datasets prints the
-  same bytes natively and from the patched zip (item 4; `evidence/machine_learning-draft.py`).
+  same bytes natively and from the patched zip (item 4; `evidence/machine_learning-draft.py`);
+- the changed file passes `ruff check` and `ruff format --check` under scikit-learn's own
+  configuration with ruff 0.12.2, the version `sklearn/_min_dependencies.py` pins (item 5). The
+  first draft of the change put the new import after `from inspect import isclass` and failed
+  `I001`; this one sorts it.
 
 **A test you could add.** scikit-learn's suite has no zip-import test. One that copies
 `sklearn/utils/_repr_html/` into a zip, imports `estimator` from it under another package name,
@@ -92,3 +96,12 @@ after; writing it in scikit-learn's test conventions is yours.
   `_repr_html_` failing in the same layouts; the resource read fixes both.
 - *`pkgutil.get_data`.* It works too; `importlib.resources` is what scikit-learn's datasets
   already use (`sklearn/datasets/_base.py`).
+
+## The disclosure scikit-learn's `AGENTS.md` asks for
+
+scikit-learn's `AGENTS.md` asks that every summary an AI agent generates end with this text,
+verbatim. This sheet is such a summary, so it ends with it; if you write the pull request, the
+disclosure in it is yours to word as the policy above asks.
+
+> This pull request includes code written with the assistance of AI.
+> The code has **not yet been reviewed** by a human.

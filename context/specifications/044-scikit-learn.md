@@ -1,7 +1,9 @@
 # 044 — scikit-learn
 
-- **Status:** drafted 2026-10-18. Not yet reviewed. It changes the build recipe and the artifact
-  set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
+- **Status:** drafted 2026-10-18; revised the same day against its pre-build review
+  (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings
+  that concern it are fixed here, and the review's Disposition says where. It changes the build
+  recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
   `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries one
   upstream patch (§4.1). It is not built until the owner answers question 83 (the licences of
   what scikit-learn bundles); everything else is decided here.
@@ -62,7 +64,8 @@ new here is small but sharp:
 - **Its extension modules collide in a static link.** 69 modules. Three pairs share an init
   name (`_gradient_boosting`, `_tree`, `_utils`), its `_cyutility` shares one with pandas' and
   scipy's, and its svm wrappers `#include` helper C files whose functions are not `static`:
-  nineteen C names are defined in two or three modules (EXECUTED, the native build's objects).
+  nineteen C names are defined in two or three modules, eighteen strong and one weak (EXECUTED,
+  the native build's objects).
   Natively each module is its own shared object, so none of this shows.
 - **It reads its own files by path at import.** `sklearn/utils/_repr_html/estimator.py` reads
   three CSS files with `Path(__file__).parent / "estimator.css"` when the module is imported, and
@@ -94,17 +97,35 @@ new here is small but sharp:
      stand-in (step 40).
    - **Cython 3.3.0 against scikit-learn's `<3.2.6`.** `pyproject.toml` asks
      `cython>=3.1.2,<3.2.6`, with the comment that the cap waits for Cython issue 7846 and should
-     become `!=3.2.6,!=3.2.7,!=3.2.8,!=3.2.9` once a release fixes it (READ). Issue 7846 is
-     "`cyfunction.__annotate__` objects can't be unpickled", seen on 3.2.6 (READ, GitHub). Its
-     fix (pull request 7852, merged 2026-07-25 into `master`) is in 3.3.0: the 3.3.0 sdist's
-     `Cython/Utility/CythonFunction.c` defines `__annotate_cython__` and its test file has
-     `test_pickle_unpickle` (EXECUTED: `grep` in the pinned 3.3.0 sdist, SHA-256
-     `eed0d93f…88b8`). The cap is pip's; scikit-learn's `meson.build` checks Cython's version
-     only when not cross-compiling (READ, `sklearn/meson.build:22-59`), and this project runs meson directly.
-     The native build compiled all 69 modules with 3.3.0, and the golden job's pickling
-     (`joblib.dump` of a fitted forest, read back) ran (EXECUTED). **No fallback Cython:** 3.2.9,
-     037's fallback, is one of the releases the cap excludes; a failure with 3.3.0 stops the
-     build and becomes a memo (AGENTS.md rule 7).
+     become `!=3.2.6,!=3.2.7,!=3.2.8,!=3.2.9` once a release fixes it (READ).
+     - **Why the cap exists, and only that.** scikit-learn's pull request 34533 ("BLD Pin
+       cython<3.2.6 to avoid Cython __annotate__ pickling bug", one file, `pyproject.toml`)
+       names its issue 34525 and nothing else; 34584 extends the exclusion to 3.2.9 because the
+       fix "will be released in 3.2.10", which is not on PyPI (READ by the review, `gh`). Issue
+       7846 is "`cyfunction.__annotate__` objects can't be unpickled": a cyfunction wrapped with
+       `functools.update_wrapper`, seen when loky sends it to a worker process.
+     - **The fix is in the line's pinned Cython.** Cython pull request 7852 closed 7846, merged
+       into `master` on 2026-07-25; 3.3.0b1 followed on 2026-08-14. All 66 lines 7852 adds to
+       `Cython/Utility/CythonFunction.c` are in the pinned wheel,
+       `cython-3.3.0-cp315-cp315-macosx_11_0_arm64.whl` from `downloads/` (EXECUTED by the
+       review). So 3.3.0 is the only released Cython that carries the fix.
+     - **The cap is pip's.** scikit-learn's `meson.build` checks only a minimum, and only when not
+       cross-compiling (READ, `sklearn/meson.build:22-59`); this project runs meson directly.
+     - **Tested on 3.3.0** (EXECUTED by the review on the drafting run's native build of all 69
+       modules with the line's Cython): a scikit-learn cyfunction
+       (`murmurhash._murmurhash3_bytes_array_s32`) wrapped with `functools.wraps` pickles and
+       unpickles its `__annotate__`; `KDTree` and `BallTree` round-trip through `pickle`; and
+       6,110 of scikit-learn's own tests pass single-threaded, none failing (`sklearn.svm`,
+       `sklearn.tree`, `sklearn.neighbors`, `test_cython_blas`, `sklearn._loss`,
+       `test_hdbscan`, `test_k_means`, `test_sgd`, `test_coordinate_descent`,
+       `test_pairwise_distances_reduction`, `test_t_sne`, `test_gradient_boosting`,
+       `test_forest`; the review's `out/sk33-g1.txt` to `g6.txt`). The guest cannot reproduce
+       7846's own case, since it starts no worker process.
+     - **The builder repeats that test subset in stage 1** (Decision 14), natively with the
+       line's Cython, single-threaded, since no scikit-learn release was built with 3.3.0, and
+       records the counts in the landing notes.
+     - **No fallback Cython:** 3.2.9, 037's fallback, is one of the releases the cap excludes; a
+       failure with 3.3.0 stops the build and becomes a memo (AGENTS.md rule 7).
    - numpy's cap `<2.6.0` holds 2.5.2 and scipy's `<1.19.0` holds 1.18.1 (READ).
 
 3. **No OpenMP, by the SDK, checked at build time.** scikit-learn asks
@@ -226,10 +247,27 @@ new here is small but sharp:
      generates inside the module's `.p` folder; each entry's suffix is chosen to match one
      compile command, and step 58 dies unless the include log shows each entry exactly once,
      as 037's step 57 does.
-   - **Step 60's detector is the authority.** The list above is the native build's. The wasm
-     link may show more or fewer (a C++ inline function the native build emitted weak, a name
-     shared with numpy, pandas or scipy). Each one step 60 names is fixed by a header entry,
-     never ignored, and the landing notes list the final set.
+   - **Strong clashes: step 60's detector.** The list above is the native build's. The wasm
+     link may show more or fewer strong clashes (a name shared with numpy, pandas or scipy).
+     Step 60's `clashes()` stops on each `duplicate symbol` and `signature mismatch`; each is
+     fixed by a header entry, never ignored, and the landing notes list the final set.
+   - **Weak duplicates: a new gate, because the detector cannot see them.** `bounded_rand_int`
+     is `inline` inside `extern "C"` (`newrand.h:29`, READ), so it is a weak definition in
+     `libsvm_template.cpp`'s and `_newrand`'s objects (EXECUTED by the review, `nm -m`). The
+     linker keeps one weak definition and says nothing (INFERRED from the ELF and wasm linkers'
+     rules), and each copy calls its own translation unit's `mt_rand`: a missed rename would make
+     one module draw silently from another's generator. So step 60 gains a gate, before the
+     link: `scripts/weak_duplicates.py` (new, ours) lists, with the SDK's `llvm-nm`, every weak
+     definition in the archives the link takes whose name is also defined, weak or strong, in
+     another archive's object, and stops on any not in `recipes/weak-duplicates-allowed.txt`
+     (reviewed; names whose demangled form is in `std::` or the C++ runtime, `__cxa_*`,
+     `__clang_call_terminate`, are allowed by rule, not listed). It runs over every package's
+     archives, so 045 and any later package inherit it. **After the link,** a second check reads
+     `build/link/python.map` (step 60 already writes it): it must define each of this decision's
+     renamed generator names (`sklearn_libsvm_mt_rand`, `sklearn_liblinear_set_seed`,
+     `sklearn_newrand_bounded_rand_int` and the rest) and none of the three original generator
+     names, `mt_rand`, `set_seed` and `bounded_rand_int`. A unit check holds the scanner
+     (Decision 13).
 
 7. **One carried patch: the HTML representation's styles read as package resources.**
    `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` (§4.1, spec
@@ -243,15 +281,31 @@ new here is small but sharp:
      `NotADirectoryError: [Errno 20] Not a directory: '…/python315.zip/sklearn/utils/_repr_html/estimator.css'`
      (tool output, path shortened). `estimator_html_repr` also opens `estimator.js` the same
      way. Upstream `main` still reads all four by path (READ, 2026-10-18).
-   - **The change** (1 file, +8 −10, SHA-256
-     `1aafac3873917af878a8174a3431fafdada6e05ad49cd17fb37297b5af74b12b`, applies to the pinned
-     sdist with `git apply` and no offset, EXECUTED): the four reads go through
+   - **The change** (1 file, +8 −10, 1,850 bytes, SHA-256
+     `35064ebbecb4ef05fe069f572fcd661ead3738b8e58413c7a07b40a8032b5680`, applies to the pinned
+     sdist with `git apply` and no offset, EXECUTED; it passes `ruff check` and
+     `ruff format --check` under scikit-learn's own configuration with ruff 0.12.2, the version
+     `sklearn/_min_dependencies.py` pins, EXECUTED; the first draft, `1aafac38…b12b`, failed that
+     `ruff check` on import order, the review's finding 3): the four reads go through
      `importlib.resources.files(__package__)`, which reads a file on disk and a member of a zip
      alike; `pathlib.Path`'s import goes. The JavaScript file, which is UTF-8 (two `✔`), is read as
      UTF-8 rather than in the locale's encoding, as upstream `main` already reads it.
-   - **Why a patch and not a recipe.** The reads are scikit-learn's own lines, run at import. A
-     recipe would have to replace scikit-learn's file in the zip, an unrecorded source change
-     (§7).
+   - **Why a patch and not a recipe** (041's reasoning, Decision 1 as revised there). §4.1
+     prefers a recipe, a stand-in module included, and a recipe under `recipes/`, hashed in
+     `MANIFEST` and reviewed, is a recorded change. So a recipe was looked for first, and none
+     fits:
+     - **The style sheets as real files where the module looks.** The path lies inside the zip's
+       own file name; no folder can exist there, and a preopen at that path is refused by the
+       runner as the runtime's own folder (041's review, EXECUTED there).
+     - **A run-time swap cannot work.** The read runs in the module body, at
+       `_CSS_STYLE = _get_css_style()` (line 29), during `import sklearn` itself (EXECUTED in the
+       zip model). The import fails before any swap could run.
+     - **A recipe that would work is wider than the patch:** an import hook that rewrites the
+       module's source, or a replacement module copied from upstream. Spec 020's tree check would
+       not see it, and no upstream release would ever let it be deleted.
+
+     A carried patch is the smallest change: eight lines, checked against the tarball, and
+     deleted once a pinned release carries the fix.
    - **What it changes, measured** (EXECUTED): with the patch, from the zip model, scikit-learn
      imports; `estimator_html_repr` of a pipeline gives the same 55,811 characters, SHA-256
      prefix `e469424e…`, as the stock package on disk (counters normalised); `all_estimators()`
@@ -263,7 +317,10 @@ new here is small but sharp:
      requires a disclosure). When this specification is built, `fix.patch` is copied byte for
      byte to the path above and `pr.md` moves unchanged to
      `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md`, as 041
-     does for its two. Nothing is sent; the owner decides whether to engage.
+     does for its two. Nothing is sent; the owner decides whether to engage. The sheet ends with
+     the disclosure scikit-learn's `AGENTS.md` asks every agent-written summary to end with,
+     verbatim. **Question 80 is still open:** as 041's condition C1 asks, the landing notes say
+     which answer it had when this specification landed, and the sheet's form follows it.
 
 8. **The extension modules become builtins.** Step 60 adds `sklearn` to its package loop
    (023's install-path inittab names, from `extension-modules.txt`) and to the `_host` line:
@@ -295,9 +352,15 @@ new here is small but sharp:
      (039's `dllist`), so `threadpool_limits` is a no-op, as KMeans uses it.
    - **Absent by the sandbox, documented, not gaps:**
      - `sklearn.datasets.fetch_*` (OpenML, California housing, 20 newsgroups, LFW, covtype,
-       KDD, RCV1, species, Olivetti): they download (no network, §4.15) and cache under
-       `~/scikit_learn_data` (no `HOME`, nothing writable by default). The build records the
-       exception `fetch_california_housing()` raises; the README names it.
+       KDD, RCV1, species, Olivetti): they download (no network, §4.15) into a cache under
+       `~/scikit_learn_data`. What they raise depends on the grants (EXECUTED by the review in
+       today's guest): **with no root**, `HOME` is unset and `pwd` is missing, so
+       `expanduser("~/scikit_learn_data")` returns the path unchanged and `os.makedirs` raises
+       `FileNotFoundError: [Errno 44] … '~'` before any network call; **with a root**
+       (`--root`, `root=True`), the runner gives a `HOME` under `/tmp`, the folder is made there,
+       and `urlopen` of an `https` URL raises `URLError: unknown url type: https` (EXECUTED for
+       `urlopen`; INFERRED for the fetcher, which was not run against the network). The README
+       states both; the check (Decision 13) runs with no root and asserts the first.
      - `load_sample_image` and `load_sample_images`: the two JPEGs are left out (Decision 10),
        so they raise `ModuleNotFoundError: No module named 'sklearn.datasets.images'`. They
        could not be decoded anyway: 023's Pillow has no JPEG decoder (042, Decision 8).
@@ -309,11 +372,17 @@ new here is small but sharp:
 10. **The zip.** Step 70 gains `--tree "$B/sklearn-install"`, `--metadata
     "$B/scikit_learn-1.9.1/PKG-INFO"` (033's option; `Name: scikit-learn`, `Version: 1.9.1`,
     READ) and `--leave-out sklearn/datasets/images/` (042's option).
-    - **Why the sample images are left out.** `china.jpg` and `flower.jpg` are under Creative
-      Commons Attribution 2.0 (READ: `sklearn/datasets/images/README.txt`), a licence the owner
-      has not approved (§4.12), and the guest cannot decode them. The folder goes whole, its
-      `__init__.py` and `README.txt` too, so the loaders fail by name rather than return an
-      empty set. Question 83 asks the owner to confirm.
+    - **Why the sample photographs are left out, while the datasets stay.** `china.jpg` and
+      `flower.jpg` are under Creative Commons Attribution 2.0 (READ:
+      `sklearn/datasets/images/README.txt`), and three of the datasets are copies of sets their
+      source publishes under CC BY 4.0 (Decision 11). Both are attribution-only licences that
+      §4.12 does not name, so the licence is not what separates them. **Use is:** the guest
+      cannot decode a JPEG (023's Pillow has no JPEG decoder, 042's Decision 8), so the
+      photographs' only loaders could never work here, and their 339,640 bytes would be
+      carried for nothing; the datasets are what the loaders, the golden and agents' code use.
+      So the photographs' folder goes whole, its `__init__.py` and `README.txt` too, and the
+      loaders fail by name rather than return an empty set. Question 83 records this and asks
+      the owner to confirm both.
     - **What stays that is not code:** the six datasets' CSV files and descriptions, the HTML
       representation's CSS and JavaScript, and 24 Tempita templates (`*.tp`) and one `.pxi.in`
       that an install also carries. Members cost fuel on a plain start; trimming them needs an
@@ -326,24 +395,72 @@ new here is small but sharp:
     components by name, and the build waits for that answer.
     - `LICENSES/scikit-learn.txt`: `COPYING` (BSD-3-Clause, its `license-files`), then each
       bundled notice, labelled with its path in the sdist: libsvm's (BSD-3-Clause style, the
-      header of `svm/src/libsvm/svm.cpp`, lines 1-30, cut as `hacl_notice` cuts HACL*'s);
+      header of `svm/src/libsvm/svm.cpp`, lines 1-31, cut as `hacl_notice` cuts HACL*'s);
       liblinear's `svm/src/liblinear/COPYRIGHT` (BSD-3-Clause style); `externals/array_api_compat/LICENSE`
       and `externals/array_api_extra/LICENSE` (MIT); the MIT header of `externals/_arff.py`
-      (liac-arff); the BSD-2-Clause header of `externals/_packaging/version.py` (packaging);
-      and the public-domain statement of `utils/src/MurmurHash3.cpp`. `externals/_scipy` is
-      scipy's code (BSD-3-Clause, already shipped with scipy's notice).
+      (liac-arff); the BSD-2-Clause headers of `externals/_packaging/version.py` and
+      `externals/_packaging/_structures.py` (packaging); the public-domain statement of
+      `utils/src/MurmurHash3.cpp`; **the PSF licence header of `utils/_pprint.py`** (lines 7-67:
+      CPython's `pprint`, adapted, "Copyright (c) 2001, … 2018 Python Software Foundation; All
+      Rights Reserved", the PSF License Version 2 in full and the "brief summary of changes" its
+      clause 3 asks for; every estimator's `repr` imports it, `base.py:452`); and **the pytest
+      attribution of `utils/_testing.py`** (lines 575-577: "derived from pytest, Copyright (c)
+      2004-2017 Holger Krekel and others, Licensed under MIT License"; the module ships, it is
+      not under `tests/`). Comments do not survive compilation to `.pyc`, so these parts are
+      the only place the zip's users meet those notices (the review's finding 2).
+      `externals/_scipy` is scipy's code (BSD-3-Clause, already shipped with scipy's notice);
+      `utils/graph.py`'s "code adapted from networkx" is covered by networkx's notice, which
+      039 ships.
       `externals/_numpydoc/docscrape.py` is numpydoc's (BSD-2-Clause) and carries no header, so
       its notice is numpydoc's own `LICENSE.txt`, pinned by an immutable URL in the licence
       block of `00_download.sh`, as 039 pins the MPL text:
       `https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt`
       saved as `numpydoc-894c8c47-LICENSE.txt`, SHA-256
       `0b78243e9446fe949093d69a7656b3d147d6b98bc48c975c9b4c290d8159033d`, 1,298 bytes (EXECUTED:
-      the last commit to touch the file, and its bytes equal `main`'s). The builder lists every vendored component
-      against a part of this file, as 037 does for scipy's.
+      the last commit to touch the file, and its bytes equal `main`'s).
+      `datasets/_base.py:1547`'s `_filter_filename` is "adapted from the `slugify` function of
+      django" (BSD-3-Clause); its notice is django's `LICENSE`, pinned the same way:
+      `https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE`
+      saved as `django-1dae4ac1-LICENSE`, SHA-256
+      `b846415d1b514e9c1dff14a22deb906d794bc546ca6129f950a18cd091e2a669`, 1,552 bytes (EXECUTED:
+      the last commit to touch the file; equal to `main`'s). `feature_extraction/_stop_words.py`
+      holds a list of English stop words "taken from the Glasgow Information Retrieval Group",
+      which states no terms; a list of common words carries no notice to ship, and question 83
+      names it.
+    - **The sweep is concrete.** The builder lists every shipped `.py`, `.pyx`, `.c` and `.cpp`
+      file of the tree whose comments hold "Copyright", "License" or "adapted / derived / copied
+      / taken from", and pairs each with a part of this file or a written reason why none is
+      needed (scikit-learn's own SPDX lines; an attribution covered by a notice already in
+      `LICENSES/`). The list goes in the landing notes; an unpaired line stops the landing.
+      `test_scikit_learn_notice_carries_its_bundled_parts` (Decision 13) holds the parts.
     - `scripts/assemble_artifacts.py` builds that file and adds `scikit-learn` to `PACKAGES`.
-    - **Data.** The six bundled datasets ship as scikit-learn distributes them, with no notice of
-      their own in the sdist (EXECUTED: no licence text in `datasets/descr/*.rst` or beside the
-      CSVs). Question 83 names them so the owner's approval covers them by name.
+    - **Data: the six bundled datasets, their sources and stated terms.** The sdist carries no
+      licence text beside the CSVs or in `datasets/descr/*.rst` (EXECUTED), but three of the six
+      are copies of sets whose source states a licence (the review's finding 1, EXECUTED there on
+      UCI's pages):
+      - **digits, breast cancer, wine:** the descriptions call each "a copy of" the UCI set
+        (`descr/digits.rst`, `breast_cancer.rst`, `wine_data.rst`, READ), and UCI publishes each
+        under **Creative Commons Attribution 4.0 International** (optical recognition of
+        handwritten digits, `https://archive.ics.uci.edu/dataset/80`; breast cancer Wisconsin
+        diagnostic, `/dataset/17`; wine, `/dataset/109`);
+      - **iris:** "taken from Fisher's paper" (1936; `descr/iris.rst`); UCI's own copy
+        (`/dataset/53`) is also CC BY 4.0 but differs from scikit-learn's in two points, so its
+        licence is not plainly this copy's source;
+      - **diabetes** (Efron, Hastie, Johnstone and Tibshirani, 2004) and **Linnerud**
+        (Tenenhaus, 1998): no terms stated anywhere the drafting run or the review found.
+
+      **Decided, as recommended to the owner in question 83: they ship,** with an attribution
+      part in `LICENSES/scikit-learn.txt` for the three UCI sets (title, creator as the `DESCR`
+      cites them, source URL, "CC BY 4.0", the licence's URL, and "unchanged from scikit-learn
+      1.9.1's copy") and a line for iris naming Fisher's paper and UCI's copy. CC BY 4.0 asks only
+      for that attribution, which this part gives, the `DESCR` texts already carry the
+      citations, and these are the sets the loaders, the golden and agents' code use. **If the
+      owner declines** CC BY 4.0 for these three: before the build, the three CSV files and their
+      descriptions are left out with `--leave-out-file` (spec 045's Decision 9, brought into this
+      specification if 045 has not landed), their loaders then raise `FileNotFoundError`, the
+      golden's digits, breast cancer and wine lines are replaced by lines on iris, diabetes and
+      `make_classification`, and the checks lose those three loaders; the specification is
+      revised to say so before it is confirmed for build.
 
 12. **What the set costs, so growth can be told from regression.** The base is whatever main
     holds when the builder starts (037, 038, 039, 042 and 043 all move it). This
@@ -389,7 +506,8 @@ new here is small but sharp:
       (inertia, cluster sizes); PCA (explained variance ratio, `|components|`); linear and ridge
       regression on diabetes; an RBF `SVC` on breast cancer (accuracy, support vector counts,
       AUC) and a `LinearSVC`; a k-d tree k-NN's five-fold scores on digits; a
-      `HistGradientBoostingClassifier` on wine; a `ColumnTransformer` with `OneHotEncoder` over a
+      `HistGradientBoostingClassifier` on wine (its accuracy only: the drafting job also printed
+      `n_iter_`, which 037's rule forbids, and the revised draft drops it); a `ColumnTransformer` with `OneHotEncoder` over a
       pandas frame; TF-IDF on four sentences; a fitted forest through `joblib.dump` and `load` in
       memory, predicting the same. The draft is not repository code: the builder writes the job
       from it, clean under `ruff format` and `ruff check`.
@@ -404,9 +522,10 @@ new here is small but sharp:
         native's shapes; `estimator_html_repr(make_pipeline(StandardScaler(),
         LogisticRegression()))` holds a line of `estimator.css` (the patch's proof); `len(all_estimators())`
         equals native's 208 (EXECUTED in the zip model).
-      - `test_scikit_learn_says_what_it_lacks[plain]`: `load_sample_images()` raises
-        `ModuleNotFoundError` naming `sklearn.datasets.images`; `fetch_california_housing()`
-        raises the exception the build recorded, inside the fuel limit.
+      - `test_scikit_learn_says_what_it_lacks[plain]`, with no root and no grant (the runner's
+        default): `load_sample_images()` raises `ModuleNotFoundError` naming
+        `sklearn.datasets.images`; `fetch_california_housing()` raises `FileNotFoundError`
+        before any network call, inside the fuel limit (Decision 9).
       - `test_scikit_learn_modules_are_builtin[plain, snapshot]`: each of the 69 names in the
         build's list imports and is built in, by the form 023's and 037's checks use; the four
         renamed modules among them.
@@ -425,7 +544,14 @@ new here is small but sharp:
       `install_from_plan.py --modules-only` on a small install plan (the list written, nothing
       copied); `gen_inittab.py`'s four new renames and its clash check on them;
       `stage_scipy_cimports.sh` against a fake scipy build folder (the six files placed; a
-      missing one named).
+      missing one named); `scripts/weak_duplicates.py` on two small wasm objects compiled from
+      two C files that each define the same `inline` function (named), the same pair with one
+      renamed (clean), and a `std::` template (allowed by rule) (Decision 6).
+    - **The notice (v1.1), `test_scikit_learn_notice_carries_its_bundled_parts`:**
+      `LICENSES/scikit-learn.txt` holds each part Decision 11 names, each matched against the
+      bytes of its source in the pinned sdist (or, for numpydoc and django, the pinned licence
+      text). Seen failing against a copy of the built set whose notice lacks the `_pprint.py`
+      part.
 
 14. **Ordering, and one builder** (§5.7: one build-class specification in flight, one landing at
     a time).
@@ -450,8 +576,10 @@ new here is small but sharp:
     - **Not split; built in four stages, each green before the next:** (1) the pin, the patch
       and its facts sheet, the staged cimports, the cross file and `meson setup` alone, with the
       OpenMP gate (if meson refuses the cross build, the builder stops and writes a memo);
-      (2) `ninja`, the renames and the include log; (3) step 60 with the clash detector and the
-      constructors, step 70; (4) the oracle, the job, the checks, the README and the account.
+      (2) `ninja`, the renames and the include log; (3) step 60 with the clash detector, the
+      weak-duplicate gate, the link-map check and the constructors, step 70; (4) the oracle, the
+      job, the checks, the README and the account. Stage 1 also repeats, natively with the line's
+      Cython and single-threaded, the review's subset of scikit-learn's own tests (Decision 2).
 
 ## Intent
 
@@ -464,7 +592,7 @@ lets scikit-learn read its own style sheets from the zip.
 
 | file | change |
 |---|---|
-| `downloads/SHA256SUMS`, `scripts/00_download.sh` | the sdist, and numpydoc's licence text in the licence block (Decisions 2, 11) |
+| `downloads/SHA256SUMS`, `scripts/00_download.sh` | the sdist, and numpydoc's and django's licence texts in the licence block (Decisions 2, 11) |
 | `scripts/steps/58_sklearn.sh` | new: unpack, patch, stage cimports, render the map, configure, the OpenMP gate, build, the include log, stage the package, the module list (Decision 5) |
 | `scripts/stage_scipy_cimports.sh` | new: `build/scipy-cimport/` (Decision 4) |
 | `recipes/wasi-sklearn.cross` | new (Decision 5) |
@@ -473,15 +601,16 @@ lets scikit-learn read its own style sheets from the zip.
 | `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md` | moved from `../upstream/10-…/pr.md`, unchanged |
 | `context/upstream/README.md`, `context/upstream/10-…/notes.md` | the row says the patch is carried; `fix.patch` removed from the folder |
 | `scripts/install_from_plan.py` | `--modules-only` (Decision 5) |
+| `scripts/weak_duplicates.py`, `recipes/weak-duplicates-allowed.txt` | new: the weak-duplicate gate before the link, its reviewed list; and the link-map check after it, in step 60 (Decision 6) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | scikit-learn's modules and archives, four renames (Decisions 6, 8) |
 | `scripts/steps/70_zip.sh` | the tree, its metadata, the images left out (Decision 10) |
-| `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 58 in `ALL`; `PACKAGES`; `LICENSES/scikit-learn.txt` (Decision 11) |
+| `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | step 58 in `ALL`; `PACKAGES`; `LICENSES/scikit-learn.txt` with its bundled notices and the datasets' attribution part (Decision 11) |
 | `tests/jobs/machine_learning.py`, `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `tests/harness/jobs.py` | the golden, the oracle's pin and `OMP_NUM_THREADS=1`, `JOBS`, the recording platform (Decision 13) |
 | `tests/checks/test_v1_3_default_profile.py` | the four behaviour checks |
-| `tests/checks/test_v1_1_artifact_set.py`, `tests/harness/paths.py`, `pins.py`, `needs.py`, `scan.py`, `tests/checks/test_v1_3_data_stack.py` | the judge changes (Decision 13) |
-| `tests/unit/…` | the three unit checks |
+| `tests/checks/test_v1_1_artifact_set.py`, `tests/harness/paths.py`, `pins.py`, `needs.py`, `scan.py`, `tests/checks/test_v1_3_data_stack.py` | the judge changes, `test_scikit_learn_notice_carries_its_bundled_parts` among them (Decision 13) |
+| `tests/unit/…` | the four unit checks |
 | `.github/workflows/release.yml` | the tree count, one more |
-| `README.md`, `CHANGELOG.md` | scikit-learn in "What the default profile carries"; serial `n_jobs`, no OpenMP, the absent fetchers and images, the 32-bit index arrays; the patch by path |
+| `README.md`, `CHANGELOG.md` | scikit-learn in "What the default profile carries"; serial `n_jobs`, no OpenMP, the fetchers' two failures (no root; a root), the left-out photographs, the 32-bit index arrays; the bundled datasets with their sources and terms; the patch by path |
 
 ## Scope
 
@@ -501,7 +630,9 @@ In: Decisions 1 to 14. Out:
 
 1. **The checks exist and were seen failing first** on the set the builder starts from, each
    recorded in the landing notes: the golden and the four behaviour checks with
-   `ModuleNotFoundError: No module named 'sklearn'`; `test_scikit_learn_reads_its_files_from_the_zip`
+   `ModuleNotFoundError: No module named 'sklearn'`; the notice check against a notice without
+   the `_pprint.py` part; the weak-duplicate gate against a build without `_newrand`'s rename
+   header (it names `bounded_rand_int`); `test_scikit_learn_reads_its_files_from_the_zip`
    and the golden again on a build without the patch (`NotADirectoryError` at `import sklearn`),
    which the builder runs once; the images check against a zip built without `--leave-out`;
    the unit checks before their code; the constructor list without the new names.
@@ -520,16 +651,22 @@ In: Decisions 1 to 14. Out:
    members; the modules linked; the final rename set; the new constructors by name; plain and
    snapshot `-c pass`; `import sklearn` and the golden's fuel on both binaries; the snapshot's
    bytes and `pass` fuel if it pre-imported scikit-learn; the guest's memory after the golden;
-   the exception `fetch_california_housing()` raises.
+   what `fetch_california_housing()` raises with no root and with a root; the counts of the
+   native Cython 3.3.0 test subset (Decision 2); the notice sweep's list (Decision 11); and
+   **which answer question 80 had** when this landed, as 041's condition C1 asks, with the facts
+   sheet in that answer's form.
 6. **The release:** a release dry run passes every job (criterion 3's run).
 
 ## The owner's choices
 
-None open here. One is recorded in `../questions-for-the-owner.md` as **83**: the licences of
-what scikit-learn bundles (libsvm, liblinear, array-api-compat, array-api-extra, liac-arff,
-packaging's version module, numpydoc's docscrape, MurmurHash3, its six datasets) and of what
-spec 045's statsmodels bundles; and the sample images left out. This specification is drafted
-and can be reviewed; it is not built until 83 is answered, as 043 waits on 81.
+None open here. One is recorded in `../questions-for-the-owner.md` as **83**, each part decided
+here as recommended: the licences of what scikit-learn bundles (libsvm, liblinear,
+array-api-compat, array-api-extra, liac-arff, packaging's modules, numpydoc's docscrape, django's
+`slugify`, CPython's `pprint`, pytest's code, MurmurHash3, the Glasgow stop-word list); its six
+datasets, three of them CC BY 4.0 at UCI (decided: they ship with attribution; Decision 11 says
+what changes if the owner declines); the photographs left out (Decision 10); and what spec
+045's statsmodels bundles. This specification is not built until 83 is answered, as 043 waits
+on 81.
 
 ## Landing notes
 
