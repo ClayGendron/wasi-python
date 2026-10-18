@@ -1764,7 +1764,7 @@ PROTOCOL = 1
 #### `wasi_python.tools.Tool`
 
 ```python
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Tool:
     name: str
     description: str

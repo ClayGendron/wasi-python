@@ -231,10 +231,20 @@ def _class(name: str, cls: type) -> dict[str, Any]:
         "members": _members(cls),
         "fields": [],
         "frozen": None,
+        "options": [],
         "enum": [],
     }
     if dataclasses.is_dataclass(cls):
-        item["frozen"] = cls.__dataclass_params__.frozen
+        params = cls.__dataclass_params__
+        item["frozen"] = params.frozen
+        # Each other parameter that differs from dataclass()'s default: `Tool`'s eq=False is
+        # its identity equality (the build review's F5).
+        item["options"] = [
+            f"{k}={getattr(params, k)}"
+            for k, default in (("init", True), ("repr", True), ("eq", True), ("order", False),
+                               ("unsafe_hash", False))
+            if getattr(params, k) != default
+        ]  # fmt: skip
         for f in dataclasses.fields(cls):
             if f.name.startswith("_"):
                 continue
@@ -793,6 +803,7 @@ def _class_lines(c: dict[str, Any]) -> list[str]:
     head = f"{c['kind']} {c['name']}{bases}"
     if c["kind"] == "dataclass":
         head += ": frozen" if c["frozen"] else ": not frozen"
+        head += "".join(f", {p}" for p in c["options"])
     lines = [head]
     for f in c["fields"]:
         kw = "  kw_only" if f["kw_only"] else ""
@@ -886,7 +897,8 @@ def _reference_item(modname: str, item: dict[str, Any], mod_doc: str) -> list[st
     else:
         bases = f"({', '.join(item['bases'])})" if item["bases"] else ""
         if item["kind"] == "dataclass":
-            lines.append(f"@dataclass(frozen={item['frozen']})")
+            extra = "".join(f", {p}" for p in item["options"])
+            lines.append(f"@dataclass(frozen={item['frozen']}{extra})")
         lines.append(f"class {name}{bases}:")
         for f in item["fields"]:
             default = "" if f["default"] == "required" else f" = {f['default']}"

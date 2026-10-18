@@ -148,7 +148,7 @@ environment WASI_PYTHON_ARTIFACTS
 environment WASI_PYTHON_CACHE
 module wasi_python.tools
 constant PROTOCOL = 1
-dataclass Tool: frozen
+dataclass Tool: frozen, eq=False
   field name: str = required
   field description: str = required
   field fn: Callable[..., Any] = required

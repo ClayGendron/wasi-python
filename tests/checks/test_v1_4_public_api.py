@@ -91,13 +91,19 @@ def test_the_public_api_matches_its_snapshot(tmp_path) -> None:
         f"the public API differs from its snapshot; a change a specification lists is "
         f"regenerated with {api.WRITE}:\n" + api.diff(old, snapshot, "snapshot", "live")
     )
-    # Stand-in: a scratch copy where Stat.size's default is 1 differs by that one line.
+    # Stand-ins: a scratch copy where Stat.size's default is 1, and where Tool compares by value
+    # (`eq=False` dropped), differs by exactly those lines.
     copy = _copy(tmp_path)
     _edit(copy / "mounts.py", "    size: int = 0\n", "    size: int = 1\n")
+    _edit(copy / "tools.py", "@dataclass(frozen=True, eq=False)\n", "@dataclass(frozen=True)\n")
     changed, _ = api.render(copy)
     lines = _changed(api.diff(snapshot, changed, "snapshot", "stand-in"))
-    assert [line[0] for line in lines] == ["-", "+"], lines
-    assert all("field size" in line for line in lines), lines
+    assert lines == [
+        "-  field size: int = 0",
+        "+  field size: int = 1",
+        "-dataclass Tool: frozen, eq=False",
+        "+dataclass Tool: frozen",
+    ], lines
 
 
 # -------------------------------------------------------------------------------------------------
