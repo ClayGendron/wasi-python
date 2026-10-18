@@ -354,6 +354,14 @@ def test_the_zip_path_opens_as_zipfile_path_does(zr, zd, work) -> None:
             t.open(mode)
     with pytest.raises(ValueError, match="encoding args invalid"):
         t.open("rb", encoding="utf-8")
+    # `pwd`, zipfile.Path.open's keyword: None reads as usual; a password goes to zipfile, which
+    # uses it only for an encrypted member (and ignores it, of any type, for a plain one).
+    theirs = zipfile.Path(loader.archive, "d/t.txt")
+    for pwd in (None, b"k", "k"):
+        with t.open("rb", pwd=pwd) as f, theirs.open("rb", pwd=pwd) as g:
+            assert f.read() == g.read() == text.encode(), pwd
+        with t.open("r", pwd=pwd, encoding="utf-8") as f:
+            assert f.read() == text, pwd
     with pytest.raises(FileNotFoundError):
         (root / "d/missing").open("rb")
     with pytest.raises(IsADirectoryError):
@@ -374,13 +382,27 @@ def test_the_zip_path_opens_as_zipfile_path_does(zr, zd, work) -> None:
 
 class _ZipfileStub:
     calls: list = []
+    opened: list = []
 
     def __init__(self, root, at=""):
         self.at = at
         _ZipfileStub.calls.append((root, at))
 
-    def open(self, mode="r", *args, **kwargs):
+    def open(self, mode="r", *args, pwd=None, **kwargs):
+        _ZipfileStub.opened.append((mode, args, pwd, kwargs))
         return io.BytesIO(b"from zipfile")
+
+
+def test_a_password_goes_to_zipfile(zr, zd, work, monkeypatch) -> None:
+    """A plain member opened with a password is zipfile's to open, with that password."""
+    loader = _member_zip(work, zd, {"d/m.bin": (b"plain", zipfile.ZIP_DEFLATED)})
+    _ZipfileStub.calls, _ZipfileStub.opened = [], []
+    monkeypatch.setattr(zipfile, "Path", _ZipfileStub)
+    member = zr.ZipDirectoryPath(loader) / "d/m.bin"
+    assert member.read_bytes() == b"plain" and _ZipfileStub.calls == []
+    assert member.open("rb", pwd=b"k").read() == b"from zipfile"
+    assert _ZipfileStub.calls == [(loader.archive, "d/m.bin")]
+    assert _ZipfileStub.opened == [("rb", (), b"k", {})]
 
 
 def _patch(data: bytes, offset: int, value: bytes) -> bytes:

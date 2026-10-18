@@ -165,7 +165,7 @@ class ZipDirectoryPath:
         names = _children(self._loader, files).get(self._at.rstrip("/"), ())
         return iter([self._next(name) for name in names])
 
-    def open(self, mode="r", *args, **kwargs):
+    def open(self, mode="r", *args, pwd=None, **kwargs):
         if self.is_dir():
             raise IsADirectoryError(self)
         if mode[0] != "r":
@@ -175,14 +175,17 @@ class ZipDirectoryPath:
         toc = self._loader._get_files().get(self._at)
         if toc is None:
             raise FileNotFoundError(self)
-        try:
-            data = _read_member(self._loader.archive, self._at, toc)
-        except Exception:
-            data = None
+        data = None
+        if pwd is None:  # a password, as zipfile.Path.open takes it, is zipfile's to use
+            try:
+                data = _read_member(self._loader.archive, self._at, toc)
+            except Exception:
+                data = None
         if data is None:
             import zipfile
 
-            return zipfile.Path(self._loader.archive, self._at).open(mode, *args, **kwargs)
+            path = zipfile.Path(self._loader.archive, self._at)
+            return path.open(mode, *args, pwd=pwd, **kwargs)
         if "b" in mode:
             if args or kwargs:
                 raise ValueError("encoding args invalid for binary operation")

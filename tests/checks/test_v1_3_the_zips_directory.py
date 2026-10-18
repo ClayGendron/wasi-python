@@ -258,6 +258,10 @@ for how in ("read_text", "rt", "r+"):
     }[how]
     if read(ours(zi)) != read(zroot.joinpath(zi)):
         bad.append(["text", how])
+for pwd in (None, b"k", "k"):  # zipfile.Path.open's keyword; a plain member ignores it
+    for mode in ("rb", "r"):
+        if ours(zi).open(mode, pwd=pwd).read() != zroot.joinpath(zi).open(mode, pwd=pwd).read():
+            bad.append(["pwd", mode, repr(pwd)])
 if ir.read_binary("tzdata.zoneinfo", "UTC") != zf.read("tzdata/zoneinfo/UTC"):
     bad.append(["read_binary"])
 utc, tzd = "tzdata/zoneinfo/UTC", "tzdata/zoneinfo/"
