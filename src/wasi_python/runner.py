@@ -200,16 +200,33 @@ def _check_workers(value: Any) -> int:
 
 @dataclass(frozen=True)
 class Defaults:
-    """The limits a call has when it names none. `run` reads `DEFAULTS` at call time; the values
-    are checked here, by `run`'s rules, so an error from `run` always names what its caller
-    passed (spec 013). `async_workers` sizes `run_async`'s default pool (spec 015)."""
+    """The limits a call has when it names none: `defaults()` returns the ones in force, and
+    `set_defaults()` replaces them.
 
-    memory_bytes: int  # the guest's linear memory
-    deadline_s: float  # wall-clock time, by epoch interruption (costs nothing per instruction)
-    output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
-    async_workers: int = field(default_factory=_default_workers)  # guests run_async runs at once
-    file_calls: int = 10_000  # provider calls per call with mounts; then "out of file calls"
-    tool_calls: int | None = 1000  # tool frames per call with tools=; then budget_exceeded
+    The values are checked here by `run`'s own rules, so an error from `run` always names what
+    its caller passed. Each limit but `async_workers` takes `None` for no limit.
+
+    Attributes:
+        memory_bytes: The most linear memory a guest may hold, in bytes.
+        deadline_s: The wall-clock seconds a call may run, enforced by epoch interruption,
+            which costs nothing per instruction.
+        output_bytes: The most bytes kept per stream; bytes past it are dropped and the stream
+            is named in `truncated`.
+        async_workers: How many guests `run_async`'s own pool runs at once; by default the CPU
+            count, at most 8.
+        file_calls: The most provider calls a call with mounts makes; then it ends "out of file
+            calls".
+        tool_calls: The most tool-protocol frames a call with tools answers; past it the guest
+            gets `ToolBudgetExceeded`.
+    """
+
+    # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
+    memory_bytes: int
+    deadline_s: float
+    output_bytes: int
+    async_workers: int = field(default_factory=_default_workers)
+    file_calls: int = 10_000
+    tool_calls: int | None = 1000
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
@@ -237,26 +254,50 @@ _UNSET: Any = _Unset()
 
 @dataclass(frozen=True)
 class Completed:
-    """How one program ended."""
+    """How one program ended: what `run` returns.
 
-    exit_code: int | None  # run's return value or proc_exit's code; None when it trapped
+    Attributes:
+        exit_code: The program's exit status: its return value, or the code it passed to exit.
+            `None` when it trapped.
+        stdout: What the guest wrote to standard output, up to the output limit.
+        stderr: What the guest wrote to standard error, up to the output limit.
+        trapped: `None` when the program ended by itself. Otherwise one of four fixed strings,
+            "out of fuel", "deadline", "cancelled" or "out of file calls", or wasmtime's words:
+            a trap's plain name ("stack overflow"), or an error's first line. The four strings
+            are promised; wasmtime's words are not.
+        fuel_used: The guest's instructions spent, when a `fuel` cap was given and no deadline
+            hit; else `None`.
+        truncated: The streams ("stdout", "stderr") whose output passed the limit.
+        files: For a call with mounts, its provider calls, faults and refused writes; else
+            `None`.
+        tools: For a call with tools, every frame counted and the first 1,000 listed; else
+            `None`.
+    """
+
+    exit_code: int | None
     stdout: bytes
     stderr: bytes
-    trapped: str | None  # None, "out of fuel", "deadline", "cancelled", the trap code's plain
-    # name ("stack overflow"), or, for a trap without a code, its message's first line
-    fuel_used: int | None  # instructions spent, when a fuel cap was given and no deadline hit
-    truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
-    files: FileRecord | None = None  # a call with mounts: its provider calls and faults (spec 032)
-    tools: ToolRecord | None = None  # a call with tools=: its frames and outcomes (spec 036)
+    trapped: str | None
+    fuel_used: int | None
+    truncated: tuple[str, ...] = ()
+    files: FileRecord | None = None  # spec 032
+    tools: ToolRecord | None = None  # spec 036
 
 
 @dataclass(frozen=True)
 class Grant:
-    """A host folder the guest sees at `guest`, read-only unless `writable=True` (spec 017).
+    """A host folder the guest sees at a guest path, read-only unless `writable=True`.
 
-    `host` is a str or os.PathLike[str]; `guest` an absolute guest path. A grant may be nested in
-    another; `run` checks every grant before any work."""
+    A grant may be nested in another; `run` checks every grant before any work.
 
+    Attributes:
+        host: The host folder, a str or os.PathLike[str].
+        guest: Where the guest sees it: an absolute guest path, not / and not the runtime's
+            own /usr/local/lib.
+        writable: Whether the guest may write there. Keyword-only.
+    """
+
+    # spec 017
     host: str | os.PathLike[str]
     guest: str
     writable: bool = field(default=False, kw_only=True)
@@ -286,29 +327,78 @@ def run(
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
-    `root` is the host directory the guest sees as `/`, writable. By default (`False`, or `None`)
-    the guest has no `/` and nothing writable, only its grants (spec 025); `root=True` makes a
-    fresh private directory for the call, removed after it. `grants`, each a `Grant`, are host
-    folders the guest sees at their guest paths, read-only unless they say otherwise (spec 017).
-    The stdlib zip is always granted, read-only, at /usr/local/lib. `mounts`, each a `Mount`, are
-    providers whose files the guest sees at their guest paths, served from the embedder's code,
-    read-only unless a mount says `writable=True` (specs 032 and 034); at most `max_file_calls`
-    provider calls are made (default `DEFAULTS.file_calls`), and then the call ends "out of file
-    calls". `memory_bytes`,
-    `deadline_s` and `output_bytes` default to `DEFAULTS`; `None` means no limit. The guest's
-    environment starts from `BASE_ENV` (`/tmp` for temporary files, `zoneinfo` on the zip's
-    tzdata) and a `HOME` made fresh for the call where `/tmp` is writable, with `env` laid over
-    it.
-    `cache_dir=False` keeps compiled modules in this process only, never on disk.
-    `cancel`, a `threading.Event`: once it is set and the guest runs, the guest stops within
-    `CANCEL_TICKS` ticks and the call returns `trapped == "cancelled"` (spec 015).
-    `tools`, each a `wasi_python.tools.Tool` or a plain function (passed through `tool()`), are
-    offered to the guest through the tool protocol (`from host import tools`; spec 036); they
-    exclude `host`. `gate`, called with a `ToolCall` before each tool runs, may refuse it. At most
-    `max_tool_calls` frames are answered (default `DEFAULTS.tool_calls`, 1,000; `None` means no
-    limit); the guest gets `ToolBudgetExceeded` for the rest. Each tool call runs on its own
-    thread, bounded by the tool's `timeout_s`, the deadline, `cancel` and Ctrl-C; the result's
-    `tools` records every frame."""
+    The guest sees no host folder but the read-only stdlib, and what `root`, `grants` and
+    `mounts` give it. Every argument is checked before any work. A call that names no limit has
+    the ones `defaults()` returns, read once, when the call is made. Nothing a guest does, and
+    no `Exception` a provider, a tool or a gate raises, makes `run` raise: those are recorded in
+    the result. A new failure is raised as one of the types below, or a subclass of one;
+    messages may change.
+
+    Args:
+        argv: The guest's arguments after the program's name, as for `python`: `["-c", code]`,
+            `["script.py"]` or `["-m", "module"]`.
+        root: The host folder the guest sees as /, writable, made if missing. `False` or
+            `None` (the default) gives no / and nothing writable; `True` gives a fresh private
+            folder, removed after the call.
+        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only
+            unless it says `writable=True`. The stdlib zip is always granted, read-only, at
+            /usr/local/lib.
+        mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
+            served from your code, read-only unless it says `writable=True`.
+        env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
+            empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
+            /tmp is writable.
+        stdin: The guest's standard input, whole; `None` is empty.
+        host: The door's host function: called with each request's bytes, it returns the
+            response's. Excludes `tools`.
+        snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
+            the plain reactor.
+        fuel: A cap on the guest's executed instructions; past it the call ends "out of
+            fuel". `None` (the default) sets no cap.
+        deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
+            `defaults().deadline_s`, 60. `None` means no limit.
+        memory_bytes: The most linear memory the guest may hold, in bytes. Default:
+            `defaults().memory_bytes`, 1 GiB. `None` means no limit.
+        output_bytes: The most bytes kept per stream; the rest are dropped and the stream
+            named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no
+            limit.
+        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
+            write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
+            `False` keeps them in this process only, never on disk.
+        artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+        cancel: A `threading.Event`. Once it is set and the guest runs, the guest stops
+            within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
+        max_file_calls: The most provider calls a call with mounts makes; then it ends "out
+            of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
+        tools: Host functions offered to the guest through the tool protocol (`from host
+            import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes
+            through `tool()`. Excludes `host`.
+        gate: Called with a `ToolCall` before each tool runs. It allows by returning `None`
+            or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+        max_tool_calls: The most tool-protocol frames a call answers; the guest gets
+            `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
+            means no limit. Needs `tools`.
+
+    Returns:
+        How the program ended.
+
+    Raises:
+        TypeError: An argument has the wrong type; raised before any work.
+        ValueError: An argument is out of range; raised before any work.
+        ArtifactsMissing: There is no usable artifact set.
+        ImportError: wasmtime-py cannot load; its own error is chained as the cause.
+        OSError: A host filesystem call failed while the root, the private folders, the zip's
+            copy or the cache was prepared (its subclasses, such as FileExistsError, included).
+        RuntimeError: This process was forked after it ran a guest; or a folder or the zip's
+            copy changed between the runner's check and its use.
+        wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
+            wasmtime's own open. The type is wasmtime-py's and is not promised.
+        KeyboardInterrupt: Ctrl-C.
+        BaseException: One that is not an `Exception`, raised by your own host, provider, tool
+            or gate, propagates.
+    """
+    # Defaults: spec 013; roots: spec 025; grants: spec 017; mounts: specs 032 and 034;
+    # cancel: spec 015; tools: spec 036; exceptions written down by spec 049, Decision 6.
     _refuse_forked()
     wt = _wasmtime()
     checked = _checked(
@@ -354,14 +444,80 @@ async def run_async(
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
 ) -> Completed:
-    """`run` from async code, on a worker thread, so the event loop is never blocked (spec 015).
+    """`run` from async code, on a worker thread, so the event loop is never blocked.
 
-    The arguments are `run`'s, checked here before anything is queued. The call runs on
-    `executor`, which must run callables on threads of this process, or on the runner's default
-    pool of `DEFAULTS.async_workers` threads. If the awaiting task is cancelled, the guest is
-    stopped and its worker freed before `CancelledError` is raised; a call still queued never
-    starts. A mount's provider runs on that worker thread, never the event loop's; a tool on a
-    thread of its own, and a cancelled task no longer waits for a tool that blocks."""
+    The arguments are `run`'s, without `cancel`, plus `executor`; they are checked, and the
+    defaults read, before anything is queued. If the awaiting task is cancelled, the guest is
+    stopped and its worker freed before `asyncio.CancelledError` is raised; a call still queued
+    never starts. A mount's provider runs on the worker thread, never the event loop's; a tool
+    runs on a thread of its own.
+
+    Args:
+        argv: The guest's arguments after the program's name, as for `python`: `["-c", code]`,
+            `["script.py"]` or `["-m", "module"]`.
+        root: The host folder the guest sees as /, writable, made if missing. `False` or
+            `None` (the default) gives no / and nothing writable; `True` gives a fresh private
+            folder, removed after the call.
+        grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only
+            unless it says `writable=True`. The stdlib zip is always granted, read-only, at
+            /usr/local/lib.
+        mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
+            served from your code, read-only unless it says `writable=True`.
+        env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
+            empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
+            /tmp is writable.
+        stdin: The guest's standard input, whole; `None` is empty.
+        host: The door's host function: called with each request's bytes, it returns the
+            response's. Excludes `tools`.
+        snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
+            the plain reactor.
+        fuel: A cap on the guest's executed instructions; past it the call ends "out of
+            fuel". `None` (the default) sets no cap.
+        deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
+            `defaults().deadline_s`, 60. `None` means no limit.
+        memory_bytes: The most linear memory the guest may hold, in bytes. Default:
+            `defaults().memory_bytes`, 1 GiB. `None` means no limit.
+        output_bytes: The most bytes kept per stream; the rest are dropped and the stream
+            named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no
+            limit.
+        cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
+            write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
+            `False` keeps them in this process only, never on disk.
+        artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+        executor: Where the call runs: a `concurrent.futures.Executor` that runs callables
+            on threads of this process (a process or interpreter pool is refused). `None` (the
+            default) uses the runner's own pool of `defaults().async_workers` threads.
+        max_file_calls: The most provider calls a call with mounts makes; then it ends "out
+            of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
+        tools: Host functions offered to the guest through the tool protocol (`from host
+            import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes
+            through `tool()`. Excludes `host`.
+        gate: Called with a `ToolCall` before each tool runs. It allows by returning `None`
+            or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+        max_tool_calls: The most tool-protocol frames a call answers; the guest gets
+            `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
+            means no limit. Needs `tools`.
+
+    Returns:
+        How the program ended.
+
+    Raises:
+        TypeError: An argument has the wrong type; raised before any work.
+        ValueError: An argument is out of range; raised before any work.
+        ArtifactsMissing: There is no usable artifact set.
+        ImportError: wasmtime-py cannot load; its own error is chained as the cause.
+        OSError: A host filesystem call failed while the root, the private folders, the zip's
+            copy or the cache was prepared (its subclasses, such as FileExistsError, included).
+        RuntimeError: This process was forked after it ran a guest; the interpreter is shutting
+            down; or a folder or the zip's copy changed between the runner's check and its use.
+        wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
+            wasmtime's own open. The type is wasmtime-py's and is not promised.
+        asyncio.CancelledError: The awaiting task was cancelled; the guest was stopped and its
+            worker freed first.
+        BaseException: One that is not an `Exception`, raised by your own host, provider, tool
+            or gate, propagates.
+    """
+    # spec 015
     import asyncio
     import contextvars
 
@@ -2781,9 +2937,14 @@ _counts = {"compiled": 0, "loaded": 0, "written": 0}
 
 
 def stats() -> dict[str, int]:
-    """How this process got its compiled modules: compiled from the binary, loaded from a .cwasm,
-    and .cwasm files written; and `tool_threads_running`, the tool threads alive in this process,
-    abandoned ones included (spec 036, Decision 5). A diagnostic; the judge reads it."""
+    """Counts kept by this process, a diagnostic.
+
+    `tool_threads_running` counts the tool threads alive in this process, abandoned ones
+    included. `compiled`, `loaded` and `written` count how this process got its compiled
+    modules: compiled from the binary, loaded from a .cwasm file, and .cwasm files written; what
+    they count may change with the cache. A later release may add keys.
+    """
+    # spec 036, Decision 5; the judge reads it.
     with _lock:
         counts = dict(_counts)
     with _tool_threads_lock:

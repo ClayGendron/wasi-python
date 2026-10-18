@@ -1,5 +1,4 @@
-"""The tool protocol's host half (spec 031): tools an embedder offers a guest, and the frame host
-that answers the guest's protocol frames through the door.
+"""Tools: host functions an embedder offers a guest, and the protocol that carries their calls.
 
 A tool is a host function with a name, a description and an input schema (JSON Schema)::
 
@@ -16,11 +15,16 @@ A tool is a host function with a name, a description and an input schema (JSON S
             raise ToolError(f"no region {code!r}")  # the guest reads this message
         return REGIONS[code]
 
-The guest calls it as `from host import tools; tools.lookup_region("EMEA")`. Between the two run
-JSON frames, protocol 1, through the door (`README.md`, "The tool protocol"). The rules for
-those frames, the schema subset and the bounds are the protocol's own, not the host Python's, so
-an answer is the same on every host. `import wasi_python` does not import this module.
+The guest calls it as `from host import tools; tools.lookup_region("EMEA")`, and
+`run(tools=[lookup_region])` offers it. Between the two run JSON frames through the door, in
+the protocol whose number is `PROTOCOL` (README.md, "The tool protocol"). The rules for those
+frames, the schema subset and the bounds are the protocol's own, not the host Python's, so an
+answer is the same on every host; they change only with `PROTOCOL`. `import wasi_python` does
+not import this module.
 """
+
+# The tool protocol's host half (spec 031): the tools, and the frame host that answers the
+# guest's frames through the door.
 
 from __future__ import annotations
 
@@ -122,8 +126,22 @@ _MAKING = contextvars.ContextVar("wasi_python_tools_making", default=False)
 
 @dataclass(frozen=True, eq=False)
 class Tool:
-    """A host function offered to the guest, made by `tool()`. Immutable; compared and hashed
-    by identity. Calling it calls the function."""
+    """A host function offered to the guest, made only by `tool()`. Immutable; compared and
+    hashed by identity. Calling it calls the function.
+
+    Attributes:
+        name: The name the guest calls it by.
+        description: What the guest is told it does.
+        fn: The function it calls.
+        validates_input: Whether schema keywords outside the protocol's subset are let through,
+            unchecked, for a tool that checks its own input.
+        timeout_s: The longest one call may run, in seconds; `None` for no bound beyond the
+            run's own.
+        read_only: A label shown to the guest as MCP's readOnlyHint; it grants nothing.
+        destructive: A label shown as MCP's destructiveHint; it grants nothing.
+        idempotent: A label shown as MCP's idempotentHint; it grants nothing.
+        open_world: A label shown as MCP's openWorldHint; it grants nothing.
+    """
 
     name: str
     description: str
@@ -170,13 +188,20 @@ class Tool:
         return d
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the function with these arguments, on this thread, unchecked."""
         return self.fn(*args, **kwargs)
 
 
 @dataclass(frozen=True)
 class ToolCall:
-    """What a gate sees: the frame's number in this call (from 1), the tool, a deep copy of the
-    validated and decoded arguments (the tool gets its own), and the frame's length."""
+    """What a gate sees of one tool call.
+
+    Attributes:
+        seq: The frame's number in this call, from 1.
+        tool: The tool the guest called.
+        arguments: A deep copy of the validated and decoded arguments; the tool gets its own.
+        request_bytes: The frame's length in bytes.
+    """
 
     seq: int
     tool: Tool
@@ -186,24 +211,45 @@ class ToolCall:
 
 @dataclass(frozen=True)
 class ToolOutcome:
-    """One frame, as the record lists it. Nothing in it measures time (§4.9)."""
+    """One frame, as the record lists it. Nothing in it measures time.
+
+    Attributes:
+        seq: The frame's number in this call, from 1.
+        op: "list", "call", or `None` when the frame was not read.
+        tool: The tool's name, or the name the guest gave, cut to 64 characters.
+        outcome: "ok", or one of the protocol's kinds of failure (README.md, "The tool
+            protocol").
+        message: What the guest was told on a failure.
+        request_bytes: The frame's length in bytes.
+        response_bytes: The answer's length in bytes.
+        fault: An exception not meant for the guest: its type and first line.
+        abandoned: Whether the tool still ran when the guest was answered.
+    """
 
     seq: int
-    op: str | None  # "list", "call", or None when the frame was not read
-    tool: str | None  # the tool's name, or the guest's cut to 64 characters
-    outcome: str  # "ok" or a kind
-    message: str | None  # what the guest was told on a failure
+    op: str | None
+    tool: str | None
+    outcome: str
+    message: str | None
     request_bytes: int
     response_bytes: int
-    fault: str | None = None  # an exception not meant for the guest: its type and first line
-    abandoned: bool = False  # the tool still ran when the guest was answered
+    fault: str | None = None
+    abandoned: bool = False
 
 
 @dataclass(frozen=True)
 class ToolRecord:
-    """Every frame of one call counted, the first 1,000 listed. `abandoned` counts every call
-    answered while its tool ran on, listed or not (spec 036, the build review's F2), so a guest
-    cannot hide a tool still running with the embedder's authority behind 1,000 cheap frames."""
+    """Every frame of one call counted, the first 1,000 listed.
+
+    Attributes:
+        frames: Every frame the guest sent.
+        outcomes: The first 1,000 frames, each a `ToolOutcome`.
+        unlisted: How many frames are counted but not listed.
+        abandoned: Every call answered while its tool ran on, listed or not, so a guest cannot
+            hide a tool still running with your authority behind 1,000 cheap frames.
+    """
+
+    # abandoned: spec 036, the build review's F2
 
     frames: int
     outcomes: tuple[ToolOutcome, ...]
@@ -224,15 +270,37 @@ def tool(
     idempotent: bool = False,
     open_world: bool = False,
 ) -> Any:
-    """Describe a function as a tool: `@tool`, or `@tool(...)` with arguments.
+    """Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn, ...)`.
 
-    The name is `name` or the function's own; the description is `description`, or the
-    docstring up to its first section heading. The input schema is derived from the type hints
-    and a Google-style `Args:` section, or given as `input_schema=` (a dict whose root is an
-    object, or anything with `model_json_schema()`). Every schema is vetted against the
-    protocol's subset; `validates_input=True` lets keywords outside it through, unchecked, for
-    a tool that checks its own input. `timeout_s` bounds one call (spec 036). The four hints are
-    the embedder's labels, shown to the guest as MCP's annotations; they grant nothing."""
+    The input schema is derived from the type hints and a Google-style `Args:` section, or
+    given. Every schema is vetted against the protocol's subset. The four hints are your
+    labels, shown to the guest as MCP's annotations; they grant nothing.
+
+    Args:
+        fn: The function. Without it, `tool(...)` returns a decorator.
+        name: The name the guest calls it by; by default the function's own.
+        description: What the guest is told it does; by default the docstring up to its first
+            section heading.
+        input_schema: The input schema instead of the derived one: a dict whose root is an
+            object, or anything with `model_json_schema()`.
+        validates_input: Let schema keywords outside the protocol's subset through, unchecked,
+            for a tool that checks its own input.
+        timeout_s: The longest one call may run, in seconds; `None` for no bound beyond the
+            run's own.
+        read_only: Shown to the guest as MCP's readOnlyHint.
+        destructive: Shown to the guest as MCP's destructiveHint.
+        idempotent: Shown to the guest as MCP's idempotentHint.
+        open_world: Shown to the guest as MCP's openWorldHint.
+
+    Returns:
+        The `Tool`, or, without `fn`, a decorator that makes one.
+
+    Raises:
+        TypeError: An argument has the wrong type, the function is async, or a type hint has
+            no schema.
+        ValueError: A name or a schema the protocol does not allow.
+    """
+    # timeout_s: spec 036
     options = dict(
         name=name,
         description=description,
@@ -1912,7 +1980,15 @@ def _docstring(descriptor: dict) -> str:
 
 def stubs(tools: Iterable[Tool | Callable[..., Any]]) -> str:
     """Python stubs for a prompt: each tool as a `def` with the signature and docstring the
-    guest's function carries, under a first line `from host import tools`."""
+    guest's function carries, under a first line `from host import tools`.
+
+    Args:
+        tools: The tools, each a `Tool` or a plain function, which goes through `tool()`.
+
+    Raises:
+        TypeError: A plain function `tool()` refuses.
+        ValueError: A plain function `tool()` refuses.
+    """
     out = ["from host import tools", ""]
     for t in tools:
         t = t if isinstance(t, Tool) else tool(t)

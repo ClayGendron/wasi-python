@@ -74,8 +74,13 @@ class Errno(enum.IntEnum):
 
 @dataclass(frozen=True)
 class Stat:
-    """What `stat` answers: "file" or "dir", the size in bytes (0 to 2**63 - 1) and the
-    modification time in nanoseconds (0 to 2**64 - 1). A bool is refused for either number."""
+    """What a provider's `stat` answers for a path.
+
+    Attributes:
+        kind: "file" or "dir".
+        size: The size in bytes, 0 to 2**63 - 1. A bool is refused.
+        mtime_ns: The modification time in nanoseconds, 0 to 2**64 - 1. A bool is refused.
+    """
 
     kind: str
     size: int = 0
@@ -83,41 +88,107 @@ class Stat:
 
 
 class FileProvider(Protocol):
-    """The protocol a mount's provider follows (for type checkers). Paths are absolute within
-    the mount and normalized by the runner. `read` answers EISDIR when the path itself is a
-    folder and ENOTDIR when a parent is a file. A provider answers; it does not raise."""
+    """What a mount's provider answers, for type checkers: a read-only mount's three methods.
 
-    def stat(self, path: str) -> Stat | Errno: ...
+    Paths are absolute within the mount (/ is the mount itself) and normalized by the runner.
+    A provider answers each call with a value or an `Errno`; it does not raise. An exception,
+    or an answer outside the protocol, gives the guest EIO and adds a `FileFault` to the
+    result; one that is not an `Exception` stops the call and is raised from `run`.
+    """
 
-    def list(self, path: str) -> Iterable[tuple[str, str]] | Errno: ...
+    def stat(self, path: str) -> Stat | Errno:
+        """What the path is: a `Stat`, whose kind for / must be "dir", or an `Errno`.
 
-    def read(self, path: str) -> bytes | bytearray | memoryview | Errno: ...
+        Args:
+            path: An absolute path within the mount.
+        """
+
+    def list(self, path: str) -> Iterable[tuple[str, str]] | Errno:
+        """A folder's entries, as (name, kind) pairs, or an `Errno`.
+
+        A name is one path component: not empty, . or .., no / or NUL, at most 255 bytes of
+        UTF-8, and no repeats. A kind is "file" or "dir".
+
+        Args:
+            path: An absolute path within the mount.
+        """
+
+    def read(self, path: str) -> bytes | bytearray | memoryview | Errno:
+        """A file's whole content, or an `Errno`: EISDIR when the path itself is a folder, and
+        ENOTDIR when a parent is a file.
+
+        Args:
+            path: An absolute path within the mount.
+        """
 
 
 class WritableFileProvider(FileProvider, Protocol):
-    """A writable mount's provider (spec 034, for type checkers): the read half and the write
-    half, each answering `None` for success or an `Errno`, POSIX's contract in preview1's
-    numbering. `write` replaces a file's whole content, creating it if missing (`write(path,
-    b"")` is how a create or a truncation at open reaches it); `data` is a copy it may keep.
-    `remove` answers EISDIR for a folder; `rmdir` ENOTEMPTY for a folder that holds anything;
-    `rename` moves within the mount with POSIX's replace rule."""
+    """What a writable mount's provider answers, for type checkers: the read half and the
+    write half.
 
-    def write(self, path: str, data: bytes) -> None | Errno: ...
+    Each method of the write half answers `None` for success or an `Errno`: POSIX's contract,
+    in preview1's numbering. A file's bytes are staged by the runner and handed over whole at
+    open (a create or a truncation), at close, at sync and at the call's ending.
+    """
 
-    def mkdir(self, path: str) -> None | Errno: ...
+    # spec 034
+    def write(self, path: str, data: bytes) -> None | Errno:
+        """Replace a file's whole content, creating the file if it is missing.
 
-    def remove(self, path: str) -> None | Errno: ...
+        A create or a truncation at open reaches the provider as `write(path, b"")`.
 
-    def rmdir(self, path: str) -> None | Errno: ...
+        Args:
+            path: An absolute path within the mount.
+            data: The file's new content, a copy the provider may keep.
+        """
 
-    def rename(self, src: str, dst: str) -> None | Errno: ...
+    def mkdir(self, path: str) -> None | Errno:
+        """Make a folder.
+
+        Args:
+            path: An absolute path within the mount.
+        """
+
+    def remove(self, path: str) -> None | Errno:
+        """Remove a file; EISDIR for a folder.
+
+        Args:
+            path: An absolute path within the mount.
+        """
+
+    def rmdir(self, path: str) -> None | Errno:
+        """Remove a folder; ENOTEMPTY for one that holds anything.
+
+        Args:
+            path: An absolute path within the mount.
+        """
+
+    def rename(self, src: str, dst: str) -> None | Errno:
+        """Move a file or folder within the mount, by POSIX's rule for replacing `dst`.
+
+        Args:
+            src: The absolute path, within the mount, of what moves.
+            dst: The absolute path, within the mount, it moves to.
+        """
 
 
 @dataclass(frozen=True)
 class Mount:
-    """A provider the guest sees at `guest`: an absolute guest path, or `/` for the guest's
-    whole filesystem (not with `root=`). Read-only unless `writable=True` (spec 034), which needs
-    the provider's write half. `run` checks every mount before any work."""
+    """A provider whose files the guest sees at a guest path, read-only unless
+    `writable=True`.
+
+    `run` checks every mount before any work.
+
+    Attributes:
+        provider: The provider: a `FileProvider`, or a `WritableFileProvider` for a writable
+            mount.
+        guest: Where the guest sees it: an absolute guest path, or / for the guest's whole
+            filesystem (not with `root=`).
+        writable: Whether the guest may write there; it needs the provider's write half.
+            Keyword-only.
+    """
+
+    # spec 032; writable: spec 034
 
     provider: Any
     guest: str
@@ -126,8 +197,13 @@ class Mount:
 
 @dataclass(frozen=True)
 class FileFault:
-    """One provider call that raised or answered outside its protocol: the method, the path it
-    was given, and the exception's type and first line (or "bad answer: <type>")."""
+    """One provider call that raised, or answered outside its protocol.
+
+    Attributes:
+        method: The provider's method, such as "read".
+        path: The path it was given; a rename's source.
+        error: The exception's type and first line, or "bad answer: <type>".
+    """
 
     method: str
     path: str
@@ -137,10 +213,18 @@ class FileFault:
 @dataclass(frozen=True)
 class RefusedWrite:
     """One write-half call the provider did not accept, or a write-back the runner owed and did
-    not make (spec 034, Decision 11). `mount` is the mount's guest path; `paths` the provider
-    path, or (src, dst) for a rename; `errno` the provider's answer, or EIO for a fault or the
-    limit; `at` is "open", "call", "close", "sync" or "exit"; `cause` is "refused", "fault" or
-    "limit"."""
+    not make.
+
+    Attributes:
+        mount: The mount's guest path.
+        method: The provider's method, such as "write".
+        paths: The provider path, or (src, dst) for a rename.
+        errno: The provider's answer, or EIO for a fault or the limit.
+        at: When: "open", "call", "close", "sync" or "exit".
+        cause: Why: "refused", "fault" or "limit".
+    """
+
+    # spec 034, Decision 11
 
     mount: str
     method: str
@@ -152,9 +236,15 @@ class RefusedWrite:
 
 @dataclass(frozen=True)
 class FileRecord:
-    """A call's provider calls: each method's count (all eight, zeros included), the first 1,000
-    faults, the first 1,000 refused writes and how many there were in all (so a cut list says
-    so). No times, and no exception objects, so a result holds no frame of the call."""
+    """A call's provider calls, counted. No times, and no exception objects, so a result holds
+    no frame of the call.
+
+    Attributes:
+        calls: Each method's count, all eight methods, zeros included.
+        faults: The first 1,000 faults.
+        refused: The first 1,000 refused writes.
+        refused_total: How many writes were refused in all, so a cut list says so.
+    """
 
     calls: Mapping[str, int]
     faults: tuple[FileFault, ...] = ()

@@ -491,13 +491,14 @@ def future_errors(package: Path = PACKAGE) -> list[str]:
 def internal_names(package: Path = PACKAGE) -> set[str]:
     """Names an internal module defines at module level: a def, a class, or a plain assignment
     (`X = …`). Names unpacked together (`EBADF, EIO = 8, 29`) are preview1's own numbers, the
-    words a document uses for them, and Errno's member names are public through `Errno`."""
+    words a document uses for them; Errno's member names are public through `Errno`; and a
+    dunder such as `__all__` belongs to every module."""
     found = {
         name
         for filename in INTERNAL_FILES
         if (package / filename).is_file()
         for name, how in bindings(package / filename, imports=False)
-        if how != "unpack"
+        if how != "unpack" and not (name.startswith("__") and name.endswith("__"))
     }
     return found - errno_members(package)
 
