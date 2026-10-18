@@ -57,6 +57,23 @@ document.
   written into §5.7 and AGENTS.md rule 2. It is the one change that shortens the road to 0.1.0
   noticeably (INFERRED).
 - **Meanwhile:** the queue stays serial, as §5.7 says.
+### 94. The release path's repository settings
+
+- **Asked:** 2026-10-18. **Source:** the 0.1.0a4 security review's note N3
+  (`build/reviews-evidence/a4-security/0.1.0a4-security-review-2026-10-18.md`, git-ignored),
+  `specifications/056-the-a4-security-reviews-findings.md`, Decision 6. Nothing in 0.1.0a4
+  waits on it: the review does not block on N3.
+- **The fact:** the release path's human controls cannot be seen from the repository. The
+  `publish` job (`contents: write`) has no protected environment, and branch and tag protection
+  cannot be verified from a checkout (READ, the review). Spec 029's landing-lane guards are a
+  process aid on the agent's side, not a control.
+- **The question:** will you add rulesets on `main` and on `v*` tags (no force push, no deletion,
+  pushes by you only) and a protected environment, with you as the required reviewer, for the
+  `publish` and `pypi` jobs? These are settings on your GitHub account; the agent cannot set
+  them. The workflow side (naming the environment in `release.yml`, `enable-cache: false`) goes
+  in the follow-up build-class specification that 056 names.
+- **The agent's recommendation:** yes, before 0.1.0 final. Then the follow-up names the
+  environment in the workflow.
 
 ## The owner's direction for the product (2026-10-17)
 
