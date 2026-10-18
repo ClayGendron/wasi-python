@@ -10,6 +10,7 @@ can be compared with `==`.
 
 from __future__ import annotations
 
+import re
 import struct
 import threading
 from collections.abc import Callable, Iterator, Mapping
@@ -332,6 +333,53 @@ def write_tree(root: Path, tree: Mapping[str, bytes | None] = TREE) -> Path:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
     return root
+
+
+# Spec 058: rows of spec 034's v1.4 write parity (`WRITE_PARITY`) whose grant answer is the host
+# system's, asserted exactly per system (keyed by `sys.platform`), and the mount's answer, the same
+# on every host. A Windows grant renames a folder over a file (release run 39135024458, EXECUTED;
+# wasmtime renames by `std::fs::rename`, READ), where POSIX and the mount answer ENOTDIR (54); so
+# `e` is gone, `a.txt` is a folder and `shutil.copyfile` of it makes no `copy.txt`. A Windows grant
+# also opens every file without `FILE_SHARE_DELETE` (wasmtime 49's `maybe_dir`, READ), so a
+# `TemporaryFile` cannot unlink its open file and a `NamedTemporaryFile` cannot be `os.replace`d
+# inside its `with`: each leaves a `tmp…` name, and there is no `final.bin`. Those two rows'
+# grant answers are the host's errno, left out on Windows as before.
+TEMPORARY = "<a tempfile name>"  # a listing slot that takes a name `tempfile` makes
+TEMPORARY_NAME = re.compile(r"tmp[a-z0-9_]{8}")  # tempfile's prefix and its 8 random characters
+_POSIX_LISTING = ["a.txt", "b.txt", "copy.txt", "copy2.txt", "cr.txt", "e", "final.bin", "g", "h",
+                  "save.txt", "x.txt"]  # fmt: skip
+WRITE_MOUNT: dict[str, object] = {
+    "rename a folder over a file": ["errno", 54],
+    "sorted listing": _POSIX_LISTING,
+}
+WRITE_BY_SYSTEM: dict[str, dict[str, object]] = {
+    "rename a folder over a file": {"linux": ["errno", 54], "darwin": ["errno", 54], "win32": None},
+    "sorted listing": {
+        "linux": _POSIX_LISTING,
+        "darwin": _POSIX_LISTING,
+        "win32": ["a.txt", "b.txt", "copy2.txt", "cr.txt", "g", "h", "save.txt", TEMPORARY,
+                  TEMPORARY, "x.txt"],
+    },
+}  # fmt: skip
+
+
+def write_by_system(row: str, system: str) -> object:
+    """The grant's answer to `row` on `system` (a `sys.platform`): a KeyError for a system the
+    table does not name, so an unknown host fails rather than passes."""
+    return WRITE_BY_SYSTEM[row][system]
+
+
+def answer_matches(want: object, got: object) -> bool:
+    """`want == got`, except that a `TEMPORARY` slot in a listing matches one name `tempfile`
+    makes, whole (so a listing with the same names in the same places, and nothing else)."""
+    if isinstance(want, list) and TEMPORARY in want:
+        if not isinstance(got, list) or len(got) != len(want):
+            return False
+        return all(
+            w == g or (w == TEMPORARY and isinstance(g, str) and bool(TEMPORARY_NAME.fullmatch(g)))
+            for w, g in zip(want, got, strict=True)
+        )
+    return want == got
 
 
 METHODS = ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename")

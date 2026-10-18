@@ -16,6 +16,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   the snapshot pre-imported (README, *The import path*). Fixed (docs): the README no longer says
   a writable mount at `/` puts `/` on a `-c` program's `sys.path`; nothing writable is ever
   there.
+- **A Windows grant renames a folder over a file** (spec 058). The 0.1.0a4 release run stopped
+  on Windows, where a writable grant lets `os.rename` replace a file with a folder; a mount
+  answers `ENOTDIR` (54) there as on every host, and as a Linux or macOS grant does. The judge
+  now asserts that row's grant answer, and the listing that follows from it, exactly per system,
+  and the mount's answer everywhere; Linux's and macOS's assertions are unchanged. The README
+  names it, and a second Windows difference the same run showed: a Windows grant cannot remove or
+  rename a file the guest holds open, so `tempfile.TemporaryFile` fails there. Nothing in the
+  runtime or the artifact set changes.
 - **The public API is frozen and documented** (spec 049).
   - **Added:** `defaults()` and `set_defaults()`, which replace assigning
     `wasi_python.runner.DEFAULTS` (that still works, unpromised, until the internal name

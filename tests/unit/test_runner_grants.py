@@ -1113,3 +1113,42 @@ def test_the_write_differences_are_as_decided(tmp_path) -> None:
     ).raw
     assert nested_mount.path_call("path_remove_directory", 3, "d/./inner") == 63
     assert nested_mount.path_call("path_remove_directory", 3, "d") == 10
+
+
+# The Windows grant's listing at the v1.4 parity's "sorted listing" row, as release run
+# 39135024458 printed it (EXECUTED, both binaries; spec 058): the two `tmp…` names are a
+# `TemporaryFile` and a `NamedTemporaryFile` whose open file Windows would not unlink or rename.
+WINDOWS_LISTING = ["a.txt", "b.txt", "copy2.txt", "cr.txt", "g", "h", "save.txt", "tmp7zr2b8wp",
+                   "tmpwlt5wwnt", "x.txt"]  # fmt: skip
+
+
+@pytest.mark.parametrize("system", ["linux", "darwin", "win32"])
+def test_the_write_parity_asserts_each_systems_grant(system) -> None:
+    """Spec 058: the v1.4 write parity's per-system table gives each of the three systems its own
+    grant answer, exactly, and one mount answer for all. A Windows grant renames a folder over a
+    file and lists what follows from that; Linux's and macOS's grants answer `ENOTDIR` (54) and
+    list what the mount lists. A `tmp…` slot takes only a name `tempfile` makes; a system the
+    table does not name is an error, never a pass."""
+    rename = files.write_by_system("rename a folder over a file", system)
+    listing = files.write_by_system("sorted listing", system)
+    mount = files.WRITE_MOUNT["sorted listing"]
+    assert files.WRITE_MOUNT["rename a folder over a file"] == ["errno", 54]
+    assert files.answer_matches(mount, mount)
+    if system == "win32":
+        assert rename is None
+        assert files.answer_matches(listing, WINDOWS_LISTING)
+        assert files.answer_matches(listing, [*WINDOWS_LISTING[:7], "tmp5nmlsrcc", "tmp6scne7rq",
+                                              "x.txt"])  # fmt: skip
+        assert not files.answer_matches(listing, mount)
+        for slot in ("tmp7zr2b8w", "tmp7zr2b8wpq", "tmp7ZR2B8WP", "final.bin"):
+            assert not files.answer_matches(listing, [*WINDOWS_LISTING[:7], slot,
+                                                      *WINDOWS_LISTING[8:]])  # fmt: skip
+        assert not files.answer_matches(listing, WINDOWS_LISTING[:-1])
+    else:
+        assert rename == ["errno", 54]
+        assert listing == mount
+        assert files.answer_matches(listing, mount)
+        assert not files.answer_matches(listing, WINDOWS_LISTING)
+        assert not files.answer_matches(listing, [n for n in mount if n != "e"])
+    with pytest.raises(KeyError):
+        files.write_by_system("sorted listing", "freebsd")

@@ -765,7 +765,8 @@ is free (exact within a call, and as atomic across writers as your `stat`
 then `write`); `"a"` and `os.open(p, O_CREAT | O_WRONLY)` are a `read`, then
 the `write` only if the file is missing; `"r+"` is a `read`. So
 `tempfile.TemporaryFile`, `mkstemp` then `rename`, lock files and
-`os.path.exists` of a file held open all behave as on a grant.
+`os.path.exists` of a file held open all behave as on a Linux or macOS grant
+(a Windows grant differs, below).
 
 **The bytes are handed over whole.** What the guest writes goes into a
 buffer the runner holds for that descriptor, with no provider call. The
@@ -828,6 +829,16 @@ or a guard, none a way out of the mount:
   POSIX descriptors follow the file);
 - a file left open when the interpreter exits during a `run_async` call is
   not written back.
+
+**On Windows** a writable grant answers as Windows does, and a mount as it
+does on every host:
+
+- `os.rename` of a folder onto a file replaces the file on a Windows grant; a
+  mount never does, and answers `ENOTDIR`, as a Linux or macOS grant does;
+- a Windows grant cannot remove or rename a file the guest holds open
+  (`PermissionError`), so `tempfile.TemporaryFile` and an `os.replace` inside
+  a `NamedTemporaryFile`'s `with` fail there and leave their `tmp…` file; a
+  mount allows both.
 
 **Cost.** Every write-half call, every create at open and every write-back
 counts toward `max_file_calls`. Each close or `fsync` of a changed file hands

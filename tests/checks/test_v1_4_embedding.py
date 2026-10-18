@@ -3368,8 +3368,17 @@ def test_a_writable_mount_answers_as_a_writable_grant_does(guest_workdir, which)
     grant on disk: each row gives the same result or errno and leaves the same tree, read by
     the guest after each change. Decision 12's deliberate differences are asserted as its table
     says. A row whose grant answer is the host's own error is asserted on POSIX hosts, and the
-    mount's answer to `os.remove` of a folder is Linux's everywhere."""
-    from harness.files import MemoryProvider, write_tree
+    mount's answer to `os.remove` of a folder is Linux's everywhere. Spec 058: the rows whose
+    grant answer is the host system's (a Windows grant renames a folder over a file) are asserted
+    exactly per system, the mount's answer everywhere, and compared as parity on POSIX hosts."""
+    from harness.files import (
+        WRITE_BY_SYSTEM,
+        WRITE_MOUNT,
+        MemoryProvider,
+        answer_matches,
+        write_by_system,
+        write_tree,
+    )
     from wasi_python import Grant, Mount
 
     run = _runner()
@@ -3406,10 +3415,16 @@ def test_a_writable_mount_answers_as_a_writable_grant_does(guest_workdir, which)
         assert mount[name][0] == want_mount, (name, mount[name][0])
     for name, value in LINUX_ROWS_V14.items():
         assert mount[name][0] == value, (name, mount[name][0])
+    for name in WRITE_BY_SYSTEM:  # the host system's answer, exactly; the mount's everywhere
+        want = write_by_system(name, sys.platform)
+        assert answer_matches(want, grant[name][0]), (name, sys.platform, grant[name][0])
+        assert mount[name][0] == WRITE_MOUNT[name], (name, mount[name][0])
     differ = {}
     for name in grant:
         if name in WRITE_DIFFERENCES or (name in LINUX_ROWS_V14 and sys.platform != "linux"):
             continue
+        if name in WRITE_BY_SYSTEM and os.name != "posix":
+            continue  # asserted above; on POSIX hosts still compared as parity, value and tree
         host = isinstance(grant[name][0], list) and grant[name][0][:1] == ["errno"]
         if grant[name][0] != mount[name][0] and (os.name == "posix" or not host):
             differ[name] = (grant[name][0], mount[name][0])
