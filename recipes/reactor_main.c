@@ -19,7 +19,9 @@
 #include "reactor_bootstrap.h"
 
 /* The one entry on the guest's import path: the stdlib zip, named for the interpreter this file is
- * compiled into (/usr/local/lib/python315.zip), so the two cannot disagree. */
+ * compiled into (/usr/local/lib/python315.zip), so the two cannot disagree. The same path is
+ * written once more, as the name the zip's code objects carry: scripts/steps/70_zip.sh's
+ * --code-prefix (spec 051). */
 #define STR_(x) #x
 #define STR(x) STR_(x)
 #define STDLIB_ZIP L"/usr/local/lib/python" STR(PY_MAJOR_VERSION) STR(PY_MINOR_VERSION) ".zip"

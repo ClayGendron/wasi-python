@@ -3,7 +3,7 @@
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
         [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
-        [--replace <old>=<new>]... out.zip
+        [--replace <old>=<new>]... [--code-prefix </guest/path/to/the.zip/>] out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
 guest's: both are the line's version, scripts/line.conf; UNCHECKED_HASH, so no source mtime is consulted). Every member is deflated
@@ -16,6 +16,13 @@ bytes from any host (spec 012, Decision 5). Their host keys are set to fixed val
 host wrote (HOST_KEYS, NUMPY_BUILD_KEYS); a key that is absent, or that does not read back as its
 fixed value once rewritten, stops the build. Then each --replace rewrites its text in the two, in
 the order given; an old text found in neither stops the build. Both run before compiling.
+
+Each module's code is compiled under its member name after --code-prefix (spec 051): the guest
+path of the zip itself and a slash, so `co_filename` is what zipimport gives a source in the same
+zip, `/usr/local/lib/python315.zip/pandas/core/frame.py`. zipimport takes a .pyc's code as it is,
+and pandas and numpy find their own frames by that name. The prefix must be absolute and end in
+`.zip/`; it is a constant of the line's version, never a host path. Without it, the name is the
+member's alone, as before.
 
 Package metadata (spec 033): a wheel keeps two files of its .dist-info, METADATA and
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
@@ -137,6 +144,7 @@ def sdist_metadata(path: Path) -> tuple[bytes, str]:
 
 
 def pyc(source: bytes, name: str) -> bytes:
+    """A .pyc of the source; `name` is the file name its code objects carry."""
     code = compile(source, name, "exec", dont_inherit=True, optimize=0)
     return bytes(_code_to_hash_pyc(code, importlib.util.source_hash(source), checked=False))
 
@@ -230,8 +238,11 @@ def main() -> None:
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
     ap.add_argument("--replace", action="append", default=[])
+    ap.add_argument("--code-prefix", default="")
     ap.add_argument("out", type=Path)
     a = ap.parse_args()
+    if a.code_prefix and not (a.code_prefix.startswith("/") and a.code_prefix.endswith(".zip/")):
+        raise SystemExit(f"--code-prefix {a.code_prefix!r}: must be absolute and end in .zip/")
     if sys.version_info[:2] != TARGET:
         raise SystemExit(
             f"compile with Python {TARGET[0]}.{TARGET[1]}, not {sys.version.split()[0]}"
@@ -256,7 +267,7 @@ def main() -> None:
                     text = text.replace(old, new)
                 data = text.encode()
                 rewritten.add(kind)
-            data, name = pyc(data, name), name + "c"
+            data, name = pyc(data, a.code_prefix + name), name + "c"
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
         entries[name] = data

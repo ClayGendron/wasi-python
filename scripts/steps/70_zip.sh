@@ -8,6 +8,9 @@
 # numpy's and pandas' from their pinned sdists' PKG-INFO. CPython's own ctypes stays out (no libffi
 # in wasi-sdk); the recipe's stand-in package takes its place. The tool protocol's guest package,
 # `host` (spec 031), rides along as the project's own code; the snapshot does not pre-import it.
+# Each module's code is compiled under the name zipimport gives a source in the same zip, the
+# archive's guest path plus the member (spec 051): that path is recipes/reactor_main.c's
+# STDLIB_ZIP, written there once more, and step 80's ZIP.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -29,6 +32,7 @@ mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --lib "$CP/Lib" --skip ctypes \
+  --code-prefix "/usr/local/lib/python$PYTHON_TAG.zip/" \
   --tree "$NUMPY_SITE" \
   --tree "$B/pandas-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \

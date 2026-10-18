@@ -64,7 +64,9 @@ duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), a
 memory maps are unavailable. A second carried patch gives six of
 numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a numpy scalar and
 `a.dtype = …` work instead of trapping the guest; the judge scans every build's callback tables
-for that class of mistake. `importlib.metadata` gives each package's name, version and entry
+for that class of mistake. Tracebacks and warnings name a module in the zip by its full zip path,
+`/usr/local/lib/python315.zip/pandas/core/frame.py`, as native zip imports do, so pandas'
+warnings point at the caller's line. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
 process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
 about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`

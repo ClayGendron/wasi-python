@@ -271,6 +271,35 @@ STAND_IN_TYPES = (
 STAND_IN_CONSTANTS = ("DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL", "WinError")
 
 
+def test_the_zips_code_carries_the_name_it_is_given() -> None:
+    """Spec 051, Decision 7: `pyc` compiles under the name it is given, and every nested code
+    object carries it, so the zip's code names the path zipimport gives the module."""
+    import marshal
+
+    name = "/usr/local/lib/python3XY.zip/pkg/mod.py"
+    src = b"class A:\n    def f(self):\n        return [x for x in (lambda: [1])()]\n"
+    names = set()
+
+    def walk(code) -> None:
+        names.add(code.co_filename)
+        for c in code.co_consts:
+            if hasattr(c, "co_filename"):
+                walk(c)
+
+    walk(marshal.loads(make_stdlib_zip.pyc(src, name)[16:]))
+    assert names == {name}
+
+
+@pytest.mark.parametrize("prefix", ["usr/local/lib/python315.zip/", "/usr/local/lib/x/", "/a.zip"])
+def test_the_zip_refuses_a_code_prefix_that_is_not_an_absolute_zip_path(
+    prefix, monkeypatch, tmp_path
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["make_stdlib_zip.py", "--lib", str(tmp_path)])
+    sys.argv += ["--code-prefix", prefix, str(tmp_path / "out.zip")]
+    with pytest.raises(SystemExit, match="must be absolute and end in .zip/"):
+        make_stdlib_zip.main()
+
+
 def test_the_ctypes_stand_in_names_and_refuses() -> None:
     ct = _load_stand_in()
     assert not [n for n in STAND_IN_TYPES if n in vars(ct)], "built at import"

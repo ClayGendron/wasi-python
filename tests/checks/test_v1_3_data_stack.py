@@ -482,3 +482,62 @@ def test_callbacks_job_matches_native(guest, which) -> None:
         jobs.expected_path("callbacks").read_bytes(), _job_on(guest, which, "callbacks")
     )
     assert why is None, why
+
+
+# Spec 051, Decision 9: the warning's fourth line is the caller's; pandas' find_stack_level skips
+# the frames whose code names a file under pandas' own folder.
+WARN = """import io, json, os, warnings; warnings.simplefilter("always")
+import pandas as pd
+with warnings.catch_warnings(record=True) as w:
+    pd.read_csv(io.StringIO("a;b\\n1;2\\n"), sep=None)
+code = pd.core.frame.DataFrame.__init__.__code__.co_filename
+print(json.dumps({
+    "warnings": [[x.category.__name__, x.filename, x.lineno] for x in w],
+    "co_filename": code,
+    "rule": os.path.dirname(pd.__file__) + "/core/frame.py",
+}))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_a_pandas_warning_names_the_callers_line(guest, which) -> None:
+    """A pandas warning points at the user's line, as natively: the zip's code objects carry the
+    path zipimport gives the module (`/usr/local/lib/python3XY.zip/<member>.py`), so pandas'
+    `find_stack_level` recognises its own frames (spec 051, Decisions 6 to 9)."""
+    r = guest(which, ["/job/warn.py"], files={"/job/warn.py": WARN.encode()})
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    assert got["warnings"] == [["ParserWarning", "/job/warn.py", 4]], got["warnings"]
+    assert got["co_filename"] == got["rule"], got
+
+
+ZIP_NAMES = """
+import json, marshal, sys, zipfile
+archive = next(p for p in sys.path if p.endswith(".zip"))
+codes, bad = 0, []
+
+def walk(code, want):
+    global codes
+    codes += 1
+    if code.co_filename != want and len(bad) < 5:
+        bad.append(f"{want}: {code.co_name} names {code.co_filename}")
+    for c in code.co_consts:
+        if hasattr(c, "co_filename"):
+            walk(c, want)
+
+with zipfile.ZipFile(archive) as z:
+    names = [n for n in z.namelist() if n.endswith(".pyc")]
+    for n in names:
+        walk(marshal.loads(z.read(n)[16:]), archive + "/" + n[:-1])
+print(json.dumps({"archive": archive, "pyc": len(names), "codes": codes, "bad": bad}))
+"""
+
+
+def test_zip_code_objects_carry_the_zip_path(guest) -> None:
+    """Every code object in every `.pyc` of the zip, nested ones included, names its file as
+    zipimport would name a source in the same zip: the archive's path, a slash, the member less
+    its `c` (spec 051, Decision 7; criterion 2)."""
+    r = guest("plain", ["-c", ZIP_NAMES], record=False)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    assert got["pyc"] > 1000 and not got["bad"], got

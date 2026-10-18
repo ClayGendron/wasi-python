@@ -17,6 +17,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
     definitions, for any callback whose type is not the one CPython calls it with
     (`test_callbacks_have_the_types_cpython_calls`); a mismatch is fixed by a patch or an
     upstream release, never excused.
+  - **pandas' warnings point at the caller's line.** The zip's code objects now carry the name
+    zipimport gives a module in it, `/usr/local/lib/python315.zip/pandas/core/frame.py`, instead
+    of `pandas/core/frame.py`, so pandas' `find_stack_level` finds its own frames. Tracebacks show
+    the full zip path, as native zip imports do. The zip grows by the longer names.
 - **Security: the sandbox holds on wasmtime 49.0.0** (spec 048). wasmtime-py 49.0.0, the only
   49 release, bundles wasmtime 49.0.0, which carries two advisories that reach a guest; the
   runner now carries both fixes itself, on every call. **GHSA-m9f7-9w4p-gv38** (high, fixed in
