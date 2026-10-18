@@ -3,8 +3,9 @@
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/030-a-cancel-in-the-door-is-named-spec-2026-10-17.md`), whose confirmation passed
   it for build with no conditions (its three notes for the builder are in the review). Built
-  2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); awaiting its
-  build review.
+  2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); build-reviewed
+  (`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land);
+  revised against it the same day, awaiting the reviewer's confirmation.
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: the shared host function's except branch
   and its entry guard), judge checks in `tests/checks/test_v1_4_embedding.py`, `CHANGELOG.md`.
@@ -69,6 +70,7 @@ A cancel is named a cancel wherever the guest is when it lands.
 src/wasi_python/runner.py              the shared host function's except branch and entry guard
 tests/checks/test_v1_4_embedding.py    the checks below, in the existing CANCEL_RUN child
 tests/unit/test_runner_cancel.py       the except branch with a fake call (no artifacts)
+tests/unit/test_runner_async.py        its fake call gains `ended` (the build review, flag 1)
 CHANGELOG.md                           0.1.0a4: Fixed
 ```
 
@@ -197,5 +199,45 @@ put first on `PYTHONPATH`.
   accepts.
 
 Criterion 6 (`--accept-judge`) is the lane's: the judge changed
-(`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_cancel.py`), and only the lane
-accepts.
+(`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_async.py`,
+`tests/unit/test_runner_cancel.py`), and only the lane accepts.
+
+**Revised 2026-10-17 against the build review**
+(`../reviews/030-a-cancel-in-the-door-is-named-2026-10-17.md`, verdict: revise, then land), by
+the implementer, after `git rebase main` (clean; main had moved by documents only). The runner is
+unchanged by the revision. Each claim is labelled; the numbers are written here because the
+worktree's logs go with it at landing.
+- **Finding 1 (High): the Ctrl-C check no longer uses `os.kill`.** On Windows `os.kill` with
+  SIGINT terminates the process, and the release's Windows verify job runs this file. The
+  `door-ctrl-c` branch now installs `signal.default_int_handler` before the call and the host
+  raises the signal with `signal.raise_signal(signal.SIGINT)`, as the file's `CTRL_C` script
+  does; `os` left the child's imports. EXECUTED: the child run directly gives
+  `KeyboardInterrupt` 3 of 3. With SIGINT inherited as ignored (a parent sets `SIG_IGN` and
+  starts the child; the child reads its inherited handler as `1`, `SIG_IGN`): the revised text
+  gives `KeyboardInterrupt` 3 of 3, exit 0; the committed text gave `returned cancelled` 3 of 3,
+  so the old check would have failed there. Windows itself was not run (INFERRED: it now behaves
+  as the `CTRL_C` check, which is green on the Windows verify job, per the review).
+- **Finding 2: the deadline check proves the door was reached.** Its host prints `in the door`
+  before it blocks, and the check asserts `["in the door", "deadline None None b''"]`. EXECUTED:
+  that output 3 of 3.
+- **Finding 3: the unit case holding M5.**
+  `test_a_ctrl_c_pending_at_an_ended_call_is_recorded`: `ended` set, `_ctrl_c_watched` patched
+  to `True`, `_ctrl_c["pending"]` set: `_shared` returns `stopped`, records a
+  `KeyboardInterrupt`, does not serve the call and clears the flag. Seen failing first, EXECUTED:
+  against a `git archive HEAD` copy of the built runner with the entry guard moved above the
+  Ctrl-C check (M5), `1 failed, 6 passed`, this case the failure; against the built runner,
+  `7 passed`.
+- **Finding 4: the CHANGELOG sentence** now says a host's own cancellation (an exception such as
+  `asyncio.CancelledError`) or a Ctrl-C still comes first. An ordinary `Exception` becomes
+  `HOST_FAULT` (spec 006) and records nothing, so a cancel set before it is still named
+  `"cancelled"`.
+- **Finding 5:** no change, as the review says.
+- **Flag 1:** the Design list now names `tests/unit/test_runner_async.py`.
+- EXECUTED, after the revision: the other new cases run directly, 3 of 3 each:
+  `cancelled None None b''` for both sizes. `uv run ruff check src tests` and `uv run ruff format
+  --check src tests`: clean. The full judge
+  (`WASI_PYTHON_ARTIFACTS=… uv run pytest`): exit 0, `771 passed, 19 skipped`; `wasi_python v1:
+  186/197 pass · 0 gap · 11 blocked · 0 fail (unit suite 585/593, 8 skipped)`; v1.4 `74/74`;
+  `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 ·
+  judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_async.py,
+  tests/unit/test_runner_cancel.py`. Not accepted.

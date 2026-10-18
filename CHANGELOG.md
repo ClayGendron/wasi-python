@@ -38,7 +38,8 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   ticks ended with `trapped="error while executing at wasm backtrace:"`; so did a deadline that
   passed there under `cancel=`. They now end `"cancelled"` and `"deadline"`, with `exit_code`
   and `fuel_used` `None`, as they do while the guest computes. The door's answer is still not
-  delivered then, and a host's own exception or a Ctrl-C still comes first.
+  delivered then, and a host's own cancellation (an exception such as
+  `asyncio.CancelledError`) or a Ctrl-C still comes first.
 
 ## 0.1.0a3 — 2026-10-17
 

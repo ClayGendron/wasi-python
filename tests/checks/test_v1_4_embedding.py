@@ -889,7 +889,7 @@ def test_cancelling_an_async_call_stops_its_guest(work) -> None:
 
 
 CANCEL_RUN = r"""
-import asyncio, math, os, signal, sys, threading
+import asyncio, math, signal, sys, threading
 import wasi_python
 from wasi_python import runner
 
@@ -941,6 +941,7 @@ elif case == "door-deadline":
     deadline_s = 0.05
 
     def blocks(frame):
+        print("in the door", flush=True)  # the guest reached the door before its deadline
         ticks(math.ceil(deadline_s / runner.TICK_S) + 2)  # from the host's own start
         return b"ok"
 
@@ -949,9 +950,10 @@ elif case == "door-deadline":
     )
     show(r)
 elif case == "door-ctrl-c":
+    signal.signal(signal.SIGINT, signal.default_int_handler)  # a parent may have ignored it
 
     def blocks(frame):
-        os.kill(os.getpid(), signal.SIGINT)
+        signal.raise_signal(signal.SIGINT)  # os.kill on Windows would end the process
         event.set()
         ticks(runner.CANCEL_TICKS + 2)
         return b"ok"
@@ -1012,8 +1014,9 @@ def test_a_cancel_during_a_door_call_is_named(size) -> None:
 def test_a_deadline_during_a_door_call_under_cancel_is_named() -> None:
     """Guards a change: under `cancel=` (never set), a deadline that passes while the host blocks
     in a door call, counted in ticks, names the run "deadline", with no exit code and no fuel
-    count (spec 030)."""
-    assert _child(CANCEL_RUN, "door-deadline") == ["deadline None None b''"]
+    count (spec 030). The host's first line proves the guest reached the door before its
+    deadline (spec 030's build review, finding 2)."""
+    assert _child(CANCEL_RUN, "door-deadline") == ["in the door", "deadline None None b''"]
 
 
 def test_ctrl_c_before_a_cancel_in_the_door() -> None:

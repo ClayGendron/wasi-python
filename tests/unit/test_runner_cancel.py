@@ -104,6 +104,20 @@ def test_an_ended_call_is_not_served(shared) -> None:
     assert call.stopped is None
 
 
+def test_a_ctrl_c_pending_at_an_ended_call_is_recorded(shared, monkeypatch) -> None:
+    """The entry guard sits after the Ctrl-C check (spec 015's order; the pre-build review's
+    third builder note): a call with `ended` set and a Ctrl-C pending records KeyboardInterrupt
+    and is not served (spec 030's build review, finding 3)."""
+    monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: True)
+    monkeypatch.setitem(runner._ctrl_c, "pending", True)
+    call = FakeCall()
+    call.ended = "cancelled"
+    assert shared(call) == STOPPED
+    assert isinstance(call.stopped, KeyboardInterrupt)
+    assert call.served == 0
+    assert runner._ctrl_c["pending"] is False
+
+
 def test_a_live_call_is_served(shared) -> None:
     """The control: with neither `stopped` nor `ended` set, the host function answers."""
     call = FakeCall()
