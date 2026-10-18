@@ -197,11 +197,14 @@ class ToolOutcome:
 
 @dataclass(frozen=True)
 class ToolRecord:
-    """Every frame of one call counted, the first 1,000 listed."""
+    """Every frame of one call counted, the first 1,000 listed. `abandoned` counts every call
+    answered while its tool ran on, listed or not (spec 036, the build review's F2), so a guest
+    cannot hide a tool still running with the embedder's authority behind 1,000 cheap frames."""
 
     frames: int
     outcomes: tuple[ToolOutcome, ...]
     unlisted: int
+    abandoned: int = 0
 
 
 def tool(
@@ -1480,9 +1483,11 @@ class _Bounded:
         return True
 
     def _abandon(self, slot: _Slot) -> bool:
-        """Mark the call answered without its work; False if the work had already finished."""
+        """Mark the call answered without its work; False if the work had already finished or
+        filled its slot (its thread may not have reached its `finally` yet: the build review's
+        F3), so its answer stands and nothing is counted."""
         with self._lock:
-            if slot.finished:
+            if slot.finished or slot.filled.is_set():
                 return False
             slot.abandoned = True
             self._abandoned += 1
@@ -1543,6 +1548,7 @@ class _ToolHost:
         self._descriptors = [t.descriptor() for t in self._tools]
         self._gate, self._max_calls, self._invoke = gate, max_calls, invoke
         self._frames = 0
+        self._abandoned = 0  # calls answered while their tool ran on, listed or not
         self._outcomes: list[ToolOutcome] = []
         self._pending: tuple[int, int] | None = None  # (seq, length) admitted, not yet read
         self._size = 0
@@ -1553,9 +1559,12 @@ class _ToolHost:
             frames=self._frames,
             outcomes=tuple(self._outcomes),
             unlisted=self._frames - len(self._outcomes),
+            abandoned=self._abandoned,
         )
 
     def _note(self, outcome: ToolOutcome) -> None:
+        if outcome.abandoned:
+            self._abandoned += 1
         if len(self._outcomes) < RECORD_OUTCOMES:
             self._outcomes.append(outcome)
 

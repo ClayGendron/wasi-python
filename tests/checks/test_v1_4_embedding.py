@@ -2045,15 +2045,29 @@ for _ in range(4):
 """
 
 
-def test_a_huge_frame_is_answered_unread(guest_workdir) -> None:
+def test_a_huge_frame_is_answered_unread(guest_workdir, monkeypatch) -> None:
     """Criterion 5: under tools=, four frames of 256 MiB are each answered `too_large` from
-    their length alone (the door asks before it copies), and the run exits 0."""
+    their length alone, and the run exits 0. The bytes the runner reads out of guest memory are
+    counted: `run` must give the door the frame host's `admit`, so no read comes near a frame's
+    size (the build review's F1; the frame host's own admit on a raw path gives the same
+    answers after copying each frame)."""
+    import wasmtime
+
     run = _runner()
+    reads: list[int] = []
+    read = wasmtime.Memory.read
+
+    def counted(self, store, start=None, stop=None):
+        reads.append((stop or 0) - (start or 0))
+        return read(self, store, start, stop)
+
+    monkeypatch.setattr(wasmtime.Memory, "read", counted)
     done = run(["-c", HUGE_FRAMES], tools=_region_tools())
     assert (done.exit_code, done.stdout) == (0, b"too_large\n" * 4), done
     assert [(o.op, o.outcome, o.request_bytes) for o in done.tools.outcomes] == [
         (None, "too_large", 268_435_456)
     ] * 4
+    assert max(reads, default=0) < 1 << 20, (len(reads), max(reads, default=0))
 
 
 GATED = """
@@ -2481,3 +2495,40 @@ def test_no_tools_no_protocol(guest_workdir) -> None:
     done = run(["-c", "from host import tools"])
     assert done.exit_code == 1, done
     assert b"ImportError: this run has no tools: the embedder passed none" in done.stderr, done
+
+
+LISTS_FIRST = r"""
+import _host, json
+frame = json.dumps({"v": 1, "id": 1, "op": "list"}).encode()
+for _ in range(1000):
+    _host.call(frame)
+from host import tools
+for i in range(4):
+    try:
+        tools.stall()
+    except TimeoutError:
+        pass
+print("done")
+"""
+
+
+def test_abandoned_calls_are_counted_past_the_listed_outcomes(guest_workdir, release) -> None:
+    """The build review's F2: with no frame limit, a guest spends the record's 1,000 listed
+    outcomes on `list` frames, then abandons four tool calls. The record's `abandoned` still
+    counts them, though none is listed."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+
+    @tool(timeout_s=0.05)
+    def stall() -> int:
+        """Wait for the check."""
+        release.wait()
+        return 1
+
+    done = run(["-c", LISTS_FIRST], tools=[stall], max_tool_calls=None)
+    assert (done.exit_code, done.stdout) == (0, b"done\n"), done
+    record = done.tools
+    assert (record.frames, len(record.outcomes), record.unlisted) == (1005, 1000, 5)
+    assert sum(o.abandoned for o in record.outcomes) == 0
+    assert record.abandoned == 4

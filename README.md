@@ -801,8 +801,9 @@ done.stdout                                    # b'Ada\n'
   valid call runs: your choice of tools is then the policy.
 - **The record.** `done.tools` is a `ToolRecord`: `frames` (every frame
   counted), `outcomes` (the first 1,000: `seq`, `op`, `tool`, `outcome`,
-  `message`, `request_bytes`, `response_bytes`, `fault`, `abandoned`) and
-  `unlisted`. It comes back on every ending: an exit, a trap, `"deadline"`
+  `message`, `request_bytes`, `response_bytes`, `fault`, `abandoned`),
+  `unlisted`, and `abandoned`: every call answered while its tool ran on,
+  listed or not, so 1,000 cheap frames cannot hide one. It comes back on every ending: an exit, a trap, `"deadline"`
   and `"cancelled"`. It is `None` for a call without `tools=`. Nothing in it
   measures time.
 - **Errors stay on the host.** Nothing the guest, a gate or a tool does makes

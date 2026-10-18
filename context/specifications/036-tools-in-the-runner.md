@@ -1,7 +1,9 @@
 # 036 — Tools in the runner
 
-- **Status:** built 2026-10-18 on `spec/036-tools-in-the-runner` (Landing notes); awaiting its
-  build review. Drafted 2026-10-17, split from spec 031 by its pre-build review
+- **Status:** built 2026-10-18 on `spec/036-tools-in-the-runner` (Landing notes); reviewed
+  the same day (`../reviews/036-tools-in-the-runner-2026-10-18.md`: not yet, F1 to F5) and
+  revised against it (Landing notes, "Revised against the build review"); awaiting the
+  reviewer's confirmation. Drafted 2026-10-17, split from spec 031 by its pre-build review
   (`../reviews/031-a-tool-protocol-over-the-door-spec-2026-10-17.md`, finding 10). The review's
   findings 1, 2, 7, 9, 11 and 12 that concern the runner are answered here. It changes neither
   the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no
@@ -99,8 +101,10 @@ and one call's stalled tools must not starve another's.
    - the tool's `timeout_s`;
    - the call's deadline less two ticks, read from `stop_at` and the epoch ticker's count as
      spec 010's waits read them, so the guest gets `ToolTimeout` before the run ends inside the
-     door. If less than two ticks are left, the call is answered `timeout` at once, and neither
-     gate nor tool runs;
+     door. If two ticks or fewer are left, the call is answered `timeout` at once, and neither
+     gate nor tool runs (amended 2026-10-18 by the build review's F5: "less than two" before;
+     with exactly two left the end is already reached, so a started call would only be
+     abandoned at its first slice);
    - the call's `cancel` event;
    - a pending Ctrl-C on the main thread. The wait reads spec 011's flag and never clears it;
      `_shared` clears it, as today.
@@ -141,14 +145,20 @@ and one call's stalled tools must not starve another's.
    - **Ctrl-C:** the answer is `cancelled`, and `_shared` raises `KeyboardInterrupt` after the
      door returns, as today.
    - **Fuel** counts only guest instructions. A tool's time never changes `fuel_used`, and a call
-     whose tools answer the same spends the same fuel (031's list order makes discovery the same).
+     whose tools answer the same spends the same fuel, given the same clock and entropy (the
+     judge's driver); `run`'s real clock and entropy move any program's fuel by about 10^5
+     (031's list order makes discovery the same). (The clause on the clock and entropy amended
+     2026-10-18 by the build review, which accepted criterion 17's deviation.)
 
 7. **The record in the result.** `Completed` gains `tools: ToolRecord | None = None`, last, so
    positional use is unchanged; it is `None` for a call without `tools=`, as 032's `files` is
    for a call without mounts. With `tools=` it is returned on every ending: an exit, a trap,
    `"deadline"` and `"cancelled"` (the review's C6). Only when `run` raises (a Ctrl-C) is there
    no `Completed`. `ToolRecord` and `ToolOutcome` are 031's. The command line's JSON
-   does not change.
+   does not change. `ToolRecord` gains `abandoned: int = 0`, last: every call answered while its
+   tool ran on, counted whether or not its outcome is listed, so a guest cannot push those
+   records past the 1,000 listed with cheap frames under a higher limit or none (amended
+   2026-10-18 by the build review's F2).
 
 8. **Fork.** There is no pool or queue to reset: a forked child has none of its parent's tool
    threads, and spec 015's refusal of a runner used before the fork still applies. If the
@@ -220,6 +230,11 @@ outcome, and the check asserts the outcome and the record, never a duration.
    with 4 abandoned is answered at once and its work never starts; a thread start that raises
    `RuntimeError` gives a `tool_error` outcome whose `fault` begins `"RuntimeError"`, and
    nothing raises (C2). Stand-in for the last: a bound that lets the start's exception out.
+   (Amended 2026-10-18 by the build review: exactly two ticks left also answers at once (F5);
+   a result whose thread finished, or only filled its slot, before an end is seen is delivered
+   and never counted abandoned, two cases driven by a fake ticker (F3); the fork hook is
+   checked in a forked child (F4); 1,000 `list` frames then four abandoned calls give
+   `record.abandoned == 4` (F2).)
 
 **End to end** (`tests/checks/test_v1_4_embedding.py`, the built artifact set):
 4. `test_a_guest_calls_a_tool`: `run(tools=[…])`, the guest imports and calls two tools, one
@@ -229,7 +244,11 @@ outcome, and the check asserts the outcome and the record, never a duration.
    (C6; criteria 10 and 13 cover `"deadline"` and `"cancelled"`).
 5. `test_a_huge_frame_is_answered_unread`: under `tools=`, a guest sends four frames of 256 MiB
    through `_host.call`; each is answered `too_large`, the guest catches each, and the run exits
-   0 with four `too_large` outcomes whose `request_bytes` is 268,435,456.
+   0 with four `too_large` outcomes whose `request_bytes` is 268,435,456. The bytes the runner
+   reads from guest memory are counted, and no read reaches 1 MiB, so the check sees that `run`
+   gives the door the frame host's `admit` (amended 2026-10-18 by the build review's F1;
+   stand-in: `run` passing no `admit`). A further check, `test_abandoned_calls_are_counted_
+   past_the_listed_outcomes`, runs the build review's F2 probe end to end.
 6. `test_a_gate_refuses_before_the_tool_runs`: the guest catches `PermissionError` and prints the
    gate's message; the tool's counter is 0; the outcome is `denied` with that message.
 7. `test_a_tool_fault_stays_on_the_host`: a tool raises `KeyError` naming a host path; the path
@@ -269,8 +288,12 @@ outcome, and the check asserts the outcome and the record, never a duration.
     not watch `cancel`.
 16. `test_tools_run_off_the_guests_thread`: a tool sees a `contextvars` value the caller set,
     and a thread id other than the caller's.
-17. `test_fuel_is_exact_across_tool_calls`: one program with two tool calls, run twice under a
-    fuel cap, its tools sleeping different amounts each time; `fuel_used` is equal.
+17. `test_fuel_is_exact_across_tool_calls`: one program with two tool calls, run twice, its
+    tools sleeping different amounts each time: the fuel is equal through the judge's driver,
+    with `runner._tool_host` as its host; through `run`, `fuel_used` is an `int` (amended
+    2026-10-18 by the build review, which accepted the deviation: `run`'s real clock and
+    entropy move even `-c pass` by about 10^5, so equality through `run` holds for no
+    program).
 18. `test_no_tools_no_protocol`: without `tools=`, `from host import tools` raises
     `ImportError` with 031's message; every existing `host=` check passes unchanged.
 
@@ -524,3 +547,55 @@ accepts with `--accept-judge` (the judge files above).
 - Criterion 17's deviation (the driver, not `run`) and its evidence.
 - The three cache checks' changed expectations (a judge change).
 - The reading of "less than two ticks" and the ends checked before the start.
+
+### Revised against the build review (2026-10-18)
+
+The build review (`../reviews/036-tools-in-the-runner-2026-10-18.md`; written in the scratch
+folder, which the lane copies in) found F1 to F6. First the branch was rebased onto main
+`3a9588f` (spec 032's Linux-parity fix): `git rebase main`, no conflict. Each new check below
+was seen failing first, against the reviewed code `18f5bd1` or against the review's named
+mutant, and passes on the revision (EXECUTED; `revision_mutants.py` applied each mutant, ran the
+named checks and restored the files, `restored True`).
+
+- **F1 (`run` passes `admit`).** `test_a_huge_frame_is_answered_unread` now counts the bytes
+  read through `wasmtime.Memory.read` in process and asserts no read reaches 1 MiB. Against
+  M20 (`host, admit = tool_host, None`): `FAILED`. On the revision: passes.
+- **F2 (abandoned calls hidden past the listed 1,000).** Chosen: `ToolRecord.abandoned: int = 0`,
+  last, counted in `_ToolHost._note` for every outcome with `abandoned=True`, listed or not
+  (`src/` only; the artifact set does not change). Always listing abandoned outcomes was the
+  other option; a count keeps the list's bound simple and answers the question the embedder
+  asks ("is any tool of this run still running?"). Checks:
+  `test_abandoned_calls_are_counted_past_the_listed_outcomes`, unit (through `_ToolHost` and
+  `_Bounded`) and end to end (the review's probe: 1,000 `list` frames, then four abandoned
+  calls, `max_tool_calls=None`: `frames 1005`, `listed 1000`, `unlisted 5`, 0 abandoned listed,
+  `abandoned == 4`). Both failed against `18f5bd1` (`AttributeError: 'ToolRecord' object has no
+  attribute 'abandoned'`) and against the count removed. README *Tools* and Decision 7 say so.
+- **F3 (the finish/abandon window).** `_abandon` now also returns `False` when
+  `slot.filled.is_set()`, under the lock: a result in hand is the answer, and the thread's
+  `finally` then decrements nothing. Two unit checks drive the order with a fake ticker:
+  `test_a_result_that_finished_at_an_end_is_delivered` (case A) and
+  `test_a_result_filled_before_an_end_is_delivered` (case B: a slot whose `filled.set()` holds
+  the thread before its `finally`). Case B failed against `18f5bd1` (`timeout`, abandoned) and
+  against the fix undone (`if slot.finished:`); M8 (`_abandon` ignores both) fails both cases.
+- **F4 (the fork hook in process).** The in-process call is gone.
+  `test_the_fork_hook_resets_the_tool_thread_count` runs a fresh interpreter that counts 7
+  tool threads, forks, and reads the child: `child 0 True` (count 0, a new lock), then
+  `parent 7`. Against M13 (the hook keeps the count): `FAILED`. Skipped where there is no
+  `fork`.
+- **F5 (the text).** Decision 4 now says "two ticks or fewer"; a case with exactly two left was
+  added to `test_too_little_time_or_too_many_abandoned_answers_at_once` (a tool with a short
+  `timeout_s`, so a wrong boundary fails instead of hanging). Against M4 (`>` for `>=`):
+  `FAILED` (the first try used a tool with no `timeout_s`, and M4 hung until the 240 s
+  watchdog; changed so it fails at once). Criterion 17 and Decision 6 are amended as the
+  review accepted ("given the same clock and entropy"); criteria 3 and 5 name the new checks.
+- **F6.** No change asked.
+
+The judge on the revision (worktree, no flags; `ruff check` and `ruff format --check` on
+`src tests recipes/guest` clean):
+
+```
+wasi_python v1: 232/243 pass · 0 gap · 11 blocked · 0 fail   (unit suite 847/855, 8 skipped)
+  v1.4  embedding           111/111
+ratchet vs 947036ec8d: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 16 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_tools.py
+================= 1079 passed, 19 skipped in 205.60s (0:03:25) =================
+```

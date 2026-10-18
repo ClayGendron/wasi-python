@@ -9,7 +9,10 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import json
+import os
 import struct
+import subprocess
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -348,6 +351,14 @@ def test_too_little_time_or_too_many_abandoned_answers_at_once(release) -> None:
     host = T._ToolHost([_blocking(release, started)], gate=gated.append, invoke=bound)
     assert kind(host(call_frame("slow"))) == "timeout"
     assert (started, gated, _last(host).abandoned) == ([], [], False)
+    # Exactly two ticks left: the end is already reached, so the same (the build review's F5).
+    bound = T._Bounded(tick_s=0.001, stop_at=12, ticks=Ticks(10))
+    host = T._ToolHost(
+        [_blocking(release, started, timeout_s=0.01)], gate=gated.append, invoke=bound
+    )
+    assert kind(host(call_frame("slow"))) == "timeout"
+    assert (started, gated, _last(host).abandoned) == ([], [], False)
+    assert _last(host).message == "slow timed out: the run's deadline is too near to start it"
     # Three ticks left: the call starts.
     host = _host([_blocking(release, started, timeout_s=0.01)], stop_at=13, ticks=Ticks(10))
     assert kind(host(call_frame("slow"))) == "timeout" and started == [1]
@@ -448,20 +459,141 @@ def test_the_tool_runs_in_a_copy_of_the_callers_context(release) -> None:
 # The count of tool threads, the fork hook and the record's default.
 
 
-def test_stats_counts_tool_threads_and_the_fork_hook_resets_it(monkeypatch) -> None:
+def test_stats_counts_tool_threads() -> None:
     before = runner.stats()["tool_threads_running"]
     runner._count_tool_threads(1)
     assert runner.stats()["tool_threads_running"] == before + 1
     runner._count_tool_threads(-1)
-    lock = runner._tool_threads_lock
-    monkeypatch.setattr(runner, "_fork", {"used": False, "forked": False})
-    monkeypatch.setitem(runner._tool_threads, "running", 7)
+    assert runner.stats()["tool_threads_running"] == before
+
+
+FORK_HOOK = r"""
+import os, sys
+from wasi_python import runner
+
+runner._count_tool_threads(7)  # as if seven tool threads ran in the parent
+lock = runner._tool_threads_lock
+pid = os.fork()
+if pid == 0:
+    fresh = runner._tool_threads_lock is not lock
+    os.write(1, f"child {runner.stats()['tool_threads_running']} {fresh}\n".encode())
+    os._exit(0)
+os.waitpid(pid, 0)
+print("parent", runner.stats()["tool_threads_running"])
+"""
+
+
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="no fork on this system")
+def test_the_fork_hook_resets_the_tool_thread_count() -> None:
+    """Decision 8, in a forked child (the build review's F4): the child has none of its
+    parent's tool threads, and a lock of its own. Run in a fresh process, since the hook
+    rebinds every lock of the runner."""
+    out = subprocess.run(
+        [sys.executable, "-I", "-c", FORK_HOOK], capture_output=True, text=True, timeout=120
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    assert out.stdout.splitlines() == ["child 0 True", "parent 7"], out.stdout
+
+
+def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
+    """The build review's F2: with no frame limit, 1,000 `list` frames fill the listed
+    outcomes; the four abandoned calls after them are still counted in `abandoned`."""
+    started: list = []
+    bound = T._Bounded(tick_s=0.001)
+    host = T._ToolHost([_blocking(release, started, timeout_s=0.01)], max_calls=None, invoke=bound)
+    listing = json.dumps({"v": 1, "id": 1, "op": "list"}).encode()
+    for _ in range(T.RECORD_OUTCOMES):
+        assert json.loads(host(listing))["ok"]
+    assert [kind(host(call_frame("slow"))) for _ in range(5)] == ["timeout"] * 5
+    record = host.record
+    assert (record.frames, len(record.outcomes), record.unlisted) == (1005, 1000, 5)
+    assert record.abandoned == 4  # the fifth was answered at once, never started
+    assert T.ToolRecord(1, (), 0).abandoned == 0  # the field is last, with a default
+
+
+def _held_slot(monkeypatch, hold: threading.Event, filled: threading.Event) -> None:
+    """Make each slot's `filled.set()` hold the tool's thread after setting it, before the
+    thread's `finally` runs: the window the build review's F3 found."""
+
+    class Held(threading.Event):
+        def set(self) -> None:
+            super().set()
+            filled.set()
+            hold.wait(60)  # a fail-safe, not a timing: the check sets it
+
+    made = T._Slot.__init__
+
+    def init(self) -> None:
+        made(self)
+        self.filled = Held()
+
+    monkeypatch.setattr(T._Slot, "__init__", init)
+
+
+def test_a_result_that_finished_at_an_end_is_delivered(release) -> None:
+    """The build review's F3, case A: the work finishes and its thread ends before the bound
+    sees the deadline; its answer stands, and nothing is counted abandoned."""
+    gate = threading.Event()
+
+    @tool
+    def quick() -> str:
+        """Answer once released."""
+        gate.wait(60)
+        return "done"
+
+    seen = []
+
+    def ticks() -> int:
+        seen.append(1)
+        if len(seen) == 1:
+            return 0  # before the start
+        gate.set()
+        for t in threading.enumerate():
+            if t.name == "wasi-python-tool-quick":
+                t.join(60)
+        return 100  # past the deadline
+
+    bound = T._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
+    host = T._ToolHost([quick], invoke=bound)
+    assert value(host(call_frame("quick"))) == "done"
+    assert (_last(host).outcome, _last(host).abandoned, bound._abandoned) == ("ok", False, 0)
+
+
+def test_a_result_filled_before_an_end_is_delivered(release, monkeypatch) -> None:
+    """The build review's F3, case B: the work has filled its slot, but its thread has not yet
+    reached its `finally`, when the bound sees the deadline. The result is in hand, so it is
+    the answer, and the call is not counted abandoned, now or after the thread ends."""
+    gate, hold, filled = threading.Event(), threading.Event(), threading.Event()
+    _held_slot(monkeypatch, hold, filled)
+
+    @tool
+    def quick() -> str:
+        """Answer once released."""
+        gate.wait(60)
+        return "done"
+
+    seen = []
+
+    def ticks() -> int:
+        seen.append(1)
+        if len(seen) == 1:
+            return 0  # before the start
+        gate.set()
+        filled.wait(60)  # the slot is filled; its thread is held before its finally
+        return 100  # past the deadline
+
+    bound = T._Bounded(tick_s=0.001, stop_at=50, ticks=ticks)
+    host = T._ToolHost([quick], invoke=bound)
     try:
-        runner._after_fork_in_child()
-        assert runner._tool_threads["running"] == 0
-        assert runner._tool_threads_lock is not lock
+        answer = host(call_frame("quick"))
+        assert (_last(host).outcome, _last(host).abandoned, bound._abandoned) == ("ok", False, 0)
+        assert value(answer) == "done"
     finally:
-        runner._tool_threads["running"] = before
+        hold.set()
+        for t in threading.enumerate():
+            if t.name == "wasi-python-tool-quick":
+                t.join(60)
+    assert bound._abandoned == 0
 
 
 def test_completed_has_no_tool_record_by_default() -> None:
