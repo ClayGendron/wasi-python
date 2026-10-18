@@ -766,8 +766,17 @@ MESON_BUILDS = (
     "libraqm-build",
     "matplotlib-build",
 )
-# The Makefiles autoconf generates for the C libraries, and step 60's two command files.
-AUTOCONF_MAKEFILES = ("zlib-build/Makefile", "xz-build/Makefile", "xz-build/src/liblzma/Makefile")
+# The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's: spec 046), and
+# step 60's two command files.
+AUTOCONF_MAKEFILES = (
+    "zlib-build/Makefile",
+    "xz-build/Makefile",
+    "xz-build/src/liblzma/Makefile",
+    "libxml2-build/Makefile",
+    "libxslt-build/Makefile",
+    "libxslt-build/libxslt/Makefile",
+    "libxslt-build/libexslt/Makefile",
+)
 LINK_RECORDS = ("link/make-n.txt", "link/reactor-commands.txt")
 CPYTHON_MAKEFILE = "Python-*/cross-build/wasm32-wasip1/Makefile"
 # What step 10's code must name: the two files, the flag, and the -### probe, matched on its -cc1
