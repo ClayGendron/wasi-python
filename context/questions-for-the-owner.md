@@ -156,6 +156,25 @@ document.
   to leave x86_64 outside the gate until a wasi-sdk release agrees across hosts, which has no
   date.
 
+### 64. The wheel and PyPI's file-size limit
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/039-tier-a-packages.md`,
+  Decision 13. Nothing in spec 039 waits on it; 0.1.0's PyPI upload does.
+- **The fact:** PyPI refuses a file over 100.0 MiB unless the project's own limit is raised
+  ("100.0 MiB by default; individual projects may differ … we can sometimes increase your
+  limit", READ: `https://pypi.org/help/`, 2026-10-17). The `wasi-python` wheel carries the
+  whole artifact set. Its three large files deflate to about 38.7 MB today (EXECUTED while
+  drafting 039: `python.wasm` 7.6 MB, the snapshot 20.1 MB, the zip 10.9 MB, which is already
+  deflated). Tier A adds about 16.5 MB of zip. With matplotlib M1, scipy and tier B as their
+  documents estimate, the wheel reaches about 95 to 110 MB before 0.1.0 (INFERRED).
+- **The question:** before 0.1.0, will you ask PyPI to raise `wasi-python`'s limit (an action on
+  your account), or should the agent plan another route? The other routes each cost something
+  the project has chosen against: publishing the snapshot binary as a second wheel makes one
+  install two packages; a smaller default profile undoes decisions 43 and 48.
+- **The agent's recommendation:** ask for the raise once spec 023 has landed, citing the
+  measured wheel. Each landing until then records the wheel's size (039's landing notes do), so
+  the request carries real numbers.
+
 ### 70. A red acceptance commit that reached main
 
 - **Asked:** 2026-10-17 (overnight). **Source:** spec 029's build review
