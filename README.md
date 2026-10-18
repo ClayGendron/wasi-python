@@ -67,7 +67,9 @@ process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (whi
 about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`
 works: it sizes wasm32's C types and gives numpy their dtypes, but it loads no library and calls
 nothing; each such use raises `OSError`, as a missing library does, which is why `-V` still says
-"no ctypes". The snapshot runs only beside the exact stdlib zip it was built
+"no ctypes". So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
+array or function type (the stand-in computes no layouts), and with it `inspect.getmembers` and
+`hasattr(t, "__numpy_dtype__")` on such a type; `help()` and `dir()` work. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
 offsets are part of the snapshot.
 

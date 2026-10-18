@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import pydoc
 import shutil
 import subprocess
 import sys
+import types
 import zipfile
 
 import pytest
@@ -338,3 +340,24 @@ def test_the_ctypes_stand_in_names_and_refuses() -> None:
         twin = kind.__ctype_be__
         assert twin is kind if ct.sizeof(kind) == 1 else twin.__ctype_le__ is kind, kind
     assert importlib.import_module(f"{ct.__name__}.util").find_library("c") is None
+
+
+def test_the_ctypes_stand_in_documents_itself_with_numpy_loaded(monkeypatch) -> None:
+    """help() and np.info read `__numpy_dtype__` on every base class: only the types without a
+    layout refuse it, never the module or a simple type (review 033, finding 1). A stand-in
+    `numpy` in sys.modules plays numpy's part."""
+    numpy = types.ModuleType("numpy")
+    numpy.dtype = lambda code: ("dtype", code)
+    monkeypatch.setitem(sys.modules, "numpy", numpy)
+    ct = _load_stand_in()
+    assert ct.c_double.__numpy_dtype__ == ("dtype", "d")
+    assert ct.c_long.__ctype_be__.__numpy_dtype__ == ("dtype", ">l")
+    assert "c_long" in pydoc.render_doc(ct)
+    assert "c_long" in pydoc.render_doc(ct.c_long)
+    assert "__numpy_dtype__" in pydoc.allmethods(ct.c_long)
+
+    class S(ct.Structure):
+        _fields_ = [("a", ct.c_int)]
+
+    for kind in (S, ct.Union, ct.c_int * 2, ct.POINTER(ct.c_int), ct.CFUNCTYPE(None)):
+        _refuses(lambda kind=kind: kind.__numpy_dtype__)

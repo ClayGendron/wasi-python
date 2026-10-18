@@ -7,9 +7,15 @@
   `ctypes/__init__`) is in Decisions 5, 7 and 10, Design and criterion 2. Condition 2 (the caps
   re-based) is in criterion 4. It changes the build recipe and the artifact set (constitution
   §5.6), and it is build-class (it touches `scripts/` and `recipes/`; §5.7). Built 2026-10-17 on
-  `spec/033-the-zip-carries-what-packages-need`, awaiting its build review: two of criterion 4's
-  caps are exceeded (by 24,482 and 15,125 fuel, both shown to be the collector's timing), and the
-  release dry run is the lane's (Landing notes).
+  `spec/033-the-zip-carries-what-packages-need`. Build-reviewed
+  (`../reviews/033-the-zip-carries-what-packages-need-2026-10-17.md`, verdict: revise, then land)
+  and revised the same day against it: finding 1 fixed (the refusing `__numpy_dtype__` moved off
+  the shared base, so `help(ctypes)` works with numpy loaded, with a check); **criterion 4
+  amended from the build review's finding 2** (checks above 300 M fuel judged by a five-run
+  perturbation mean); two checks over their absolute caps attributed to heap-layout noise (the
+  collector among it), finding 3; the remaining edges written into Decision 5 and the README,
+  finding 4. Awaiting the reviewer's confirmation; the release dry run is the lane's (Landing
+  notes).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (`scripts/make_stdlib_zip.py`, `scripts/steps/70_zip.sh`), recipe
   files (`recipes/ctypes_stand_in/__init__.py`, `_types.py` and `util.py` replace
@@ -214,7 +220,11 @@ silent wrong answer, and it would disguise the platform (§4.11). Decision 5 clo
    - Every simple type has a class-level `__numpy_dtype__`. It returns
      `sys.modules["numpy"].dtype(cls._type_)`: exactly what numpy computes for a real ctypes
      simple type (`numpy/_core/_dtype_ctypes.py`, `_from_ctypes_scalar`). It is a fact about
-     the type, not a foreign call. numpy is loaded whenever numpy asks.
+     the type, not a foreign call. numpy is loaded whenever numpy asks. **Before numpy is
+     loaded,** reading it raises `AttributeError`, so `hasattr(t, "__numpy_dtype__")` is
+     `False`, as for a real `ctypes` type, which has no such attribute (the build review's
+     finding 4). Read on the abstract simple base itself, it returns the descriptor, so `help()`
+     can document it.
    - Each numeric simple type (codes `?`, `b`, `B`, `h`, `H`, `l`, `L`, `q`, `Q`, `f`, `d`,
      `g`) has `__ctype_le__`, which is the type itself on little-endian wasm32, and
      `__ctype_be__`:
@@ -226,7 +236,11 @@ silent wrong answer, and it would disguise the platform (§4.11). Decision 5 clo
      `numpy.ctypeslib.as_ctypes_type` reads these (`_ctypeslib.py:394`).
    - Every other stand-in type has a `__numpy_dtype__` that raises the `OSError`: `Structure`
      and `Union` subclasses, `POINTER(…)`, `CFUNCTYPE(…)` and array types. The stand-in
-     computes no layouts. Without the attribute, numpy would fall back to `dtype('O')`.
+     computes no layouts. Without the attribute, numpy would fall back to `dtype('O')`. The
+     refusing attribute sits on a base used only by these types, never on the base the simple
+     types share: `help()` and `np.info` read the attribute on every base class, and on the
+     shared base it made `help(ctypes)` raise whenever numpy was loaded, on every snapshot call
+     (the build review's finding 1).
 
      The review's prototype gave `c_double` → `float64`, `c_long` → `int32`,
      `c_longdouble` → `float128` and `c_void_p` → `uint32`. With it, `hasattr(np, "ctypeslib")`
@@ -294,6 +308,15 @@ silent wrong answer, and it would disguise the platform (§4.11). Decision 5 clo
 
    This is accepted. No importer named here does it. A callback object that exists but cannot be
    called would disguise the platform.
+
+   A third edge, under introspection (the build review's finding 4, EXECUTED there): for a
+   `Structure` or `Union` subclass and for a pointer, array or function type,
+   `hasattr(t, "__numpy_dtype__")`, `inspect.getmembers(t)`, and pandas' `pandas_dtype(t)` and
+   `is_integer_dtype(t)` raise the `OSError`. `dir(t)`, `pydoc.render_doc(t)`,
+   `inspect.getmembers_static(t)`, `pickle`, `copy`, and object arrays and Series holding `t`
+   work. This is the price of refusing rather than letting numpy make `dtype('O')`, and it is
+   accepted. `help(ctypes)`, `help()` of a simple type, `np.info` of one, and
+   `inspect.getmembers` of `numpy`, `numpy.ctypeslib` and `pandas` all work.
 
    **Why a stand-in that refuses, not more.** A stand-in that made instances (`c_int(3).value`)
    would mimic `ctypes` without its truncation or its memory, and would disguise the platform
@@ -673,6 +696,20 @@ In: the above. Out:
      | the snapshot's `bytes` (`test_binary_is_a_core_wasm_module[snapshot]`) | +7,285 | ≤ +20 KB |
      | the plain binary's `bytes` | 0 | 0 |
 
+   - **Amended from the build review's finding 2**
+     (`../reviews/033-the-zip-carries-what-packages-need-2026-10-17.md`), in its words:
+
+     > A check above 300 M fuel that exceeds its absolute cap (the ≤ +0.6 M plain row or the
+     > ≤ +0.2 M snapshot row) is within the criterion when the account shows, for that check, its
+     > program run on both sets five times: once as is and once each with `_k = [object() for _ in
+     > range(K)]` first (K = 10, 100, 1000, 3000). The mean of the five growths must be within the
+     > cap, and the stand-in's types must not be built. Programs at or below 300 M fuel keep their
+     > absolute caps unchanged.
+
+     Why: on programs of 0.3 to 1 G that allocate heavily, an unrelated heap perturbation moves
+     the growth by about 135 K (plain) and 287 K (snapshot), while the mean equals the seven
+     members' per-start cost (the review's `probe-noise.tsv`). The mean is what a real per-run
+     cost moves, so a regression stays visible, and no check is excepted by name.
    - **A heavy check above +2.5 M needs evidence.** For any plain check above 1 G fuel that grows
      by more than +2.5 M (inside its 0.2%), the account shows two things for that check:
      - that the stand-in's types were not built, by a copy of its program ending with
@@ -702,7 +739,9 @@ as questions 57 and 58 in `../questions-for-the-owner.md`; nothing waits on them
 
 Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, uv 0.9.22, in the worktree
 `wasi_python-033` on `spec/033-the-zip-carries-what-packages-need` (from `d98249b`); not yet
-reviewed. Each claim is labelled. Scratch outputs are under
+reviewed at first; build-reviewed and revised the same day (the last section below). Each claim
+is labelled. The sections before the revision describe the first build (`e58f4f3`, `b25a61d`);
+where the revision changed a number, its section gives the new one. Scratch outputs are under
 `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/`
 (`033-old/` today's set, `033-variants/` the split sets and probes, `033-mutant/` the mutant).
 
@@ -782,7 +821,7 @@ file (`cmp` exits 0); the litter was removed after. **Not done here: the release
 (`gh workflow run release.yml --ref <branch>`, its `rebuild` and `same-bytes` jobs). That is the
 lane's, on the reviewed commit, and its run number goes here.
 
-**The new artifact set** (EXECUTED). Its `SHA256SUMS`, apart from the unchanged `LICENSES/` lines:
+**The first build's artifact set** (EXECUTED; superseded by the revision's). Its `SHA256SUMS`, apart from the unchanged `LICENSES/` lines:
 
 ```
 413f8494cbeb258bc0ea8a7d56e3f4929f5c6890b73bad2349905b99a4e71e0a  MANIFEST
@@ -814,18 +853,13 @@ change for the two scripts, and the stub's line is replaced by the three package
 | the snapshot's bytes | +7,285 | −1,042 | ≤ +20 KB | ✓ |
 | the plain binary's bytes | 0 | 0 | 0 | ✓ |
 
-**Two caps are exceeded. Per criterion 4 these are findings for the build review, not reasons to
-accept.** Neither program was measured by the confirmation. The evidence that both are the
-collector's timing (EXECUTED, `033-variants/probe-1.tsv`, the judge's own driver):
-- `import pdb, pydoc, doctest` on the snapshot: +215,074 (old 535,114,853, new 535,329,927). The
-  same program after `import gc; gc.disable()`: **−85,342** (528,473,344 to 528,388,002).
-- `1/0` on the plain binary: +624,397. After `gc.disable()`: **+460,162**, below the plain-start
-  cost (+541,683 for `-c pass` in the same run).
-- The types were not built in either: neither program names a C type.
-
-They exceed their caps by 4.1% and 7.6%. The fix would be a cap that is relative for
-programs past a few hundred M of fuel, as the confirmation did for the heavy plain ones; that is
-the reviewer's and the owner's call, not the builder's.
+**Two absolute caps were exceeded** on the first build: `uncaught_errors_print_as_native[plain]`
+by 24,482 and `stdlib_debugging_tools_import` by 15,125. I first called this the collector's
+timing, citing a `gc.disable()` pair. The build review (finding 3) showed that pair is not a clean
+control: written on two lines, the same programs grow +194,628 and +546,311 with the collector
+off. The cause is **heap-layout noise, the collector among it**. Criterion 4 is amended from the
+review's finding 2, and both checks are judged by the five-run perturbation mean in the revision
+below. Neither program builds the stand-in's types.
 
 **A heavy check above +2.5 M.** None: `pandas_csv` is the largest at +2,499,648. Its evidence
 anyway (EXECUTED, `033-variants/jobs.tsv`): a copy ending with a print of whether `ctypes`' types
@@ -875,3 +909,107 @@ and `ruff format --check` are clean on `src/` and `tests/`. **For the lane:** th
 needs `--accept-judge` (the two changed test files) and `--accept-growth`, which can cite the
 table only after the build review answers the two over-cap findings. Then the release dry run
 (criteria 3 and 5).
+
+### Revision after the build review (2026-10-17)
+
+The review (`../reviews/033-the-zip-carries-what-packages-need-2026-10-17.md`) said: revise, then
+land. The branch was first rebased onto main (`8c56437`, spec 030's runner and docs), with no
+conflict. Scratch outputs: `033-variants/probe-fix.tsv`, `033-judge-3.log`, `033-growth-3.txt`.
+
+**Finding 1, fixed** (READ: the diff). In `recipes/ctypes_stand_in/_types.py` the refusing
+`__numpy_dtype__` moved off `_CData`, the base of every stand-in type, onto a new `_NoLayout(_CData)`
+that only `Structure`, `Union`, and the array, pointer and function types derive from.
+`_NumpyDtype.__get__` returns the descriptor itself when read on `_SimpleCData`. Every refusal
+holds (the unit checks below).
+
+**Its checks, seen failing first** (EXECUTED, on the first build's set `e9875f22…` and code).
+- The guest check's program gains four steps after numpy is imported: `help(ctypes)` (through
+  `pydoc.Helper` writing to a `StringIO`), `pydoc.render_doc(ctypes.c_int)`,
+  `pydoc.render_doc(numpy.ctypeslib)` and `np.info(ctypes.c_int)`. On both binaries all four
+  failed with `OSError: ctypes is unavailable on wasm32-wasi`.
+- A unit check, `test_the_ctypes_stand_in_documents_itself_with_numpy_loaded`, loads the package
+  with a stand-in `numpy` in `sys.modules`: simple dtypes and a twin's, `pydoc.render_doc` of the
+  package and of `c_long`, `pydoc.allmethods(c_long)`, and the refusal on a `Structure`,
+  `Union`, array, pointer and function type. It failed at `_types.py:33` with the `OSError`.
+- With the fix, both pass (the judge below).
+
+**The artifact set after the fix** (EXECUTED: steps 70 to 90, then the full judge). Its
+`SHA256SUMS`, apart from the unchanged `LICENSES/` lines:
+
+```
+9f6019c6c30dd126c3d3fb2cf4e312028bd23143b3abe75c4b23982a053bec71  MANIFEST
+8d84b3b190fe9bce1c12ff051d40a3cc53d78e754481bba8a8692aa6532fbfe8  python-snapshot.wasm
+6e3f773af3f14ba4fc540279ff1c1aafb40f646234c044e3755ec2ec652aae78  python-stdlib.zip
+4befe9de64edc783996ab006e6179b704a73a520b67431135df103db9db9625d  python.wasm
+```
+
+- `python.wasm` is unchanged (`cmp`); the snapshot is 65,505,752 bytes (−1,072); the zip
+  11,162,065 bytes (+21,430), 1,758 members.
+- Criterion 2's commands again: the names diff is the same nine lines, `1750 shared; 0 differ:
+  []`, the five `cmp`s exit 0.
+- Criterion 3's litter re-run again: the same `SHA256SUMS` (`cmp`).
+
+**Criterion 4's account after the fix** (EXECUTED; `033-growth-3.txt`, against main's
+`accepted.json`):
+
+| metric | measured | cap | |
+|---|---|---|---|
+| plain `-c pass`-sized checks (11, 217 M to 243 M) | +530,503 to +565,390 | ≤ +0.6 M | ✓ |
+| plain import-only: `numpy_and_pandas_are_builtin[plain]`, `nothing_is_a_shared_library`, `default_integer_width`, `longdouble_parses` | +1,143,679; +1,391,844; +872,919; +1,255,710 | ≤ +1.5 M | ✓ |
+| plain heavy: `numpy_csv`, `pandas_csv`, `numpy_random`, `compress`, `sqlite`, `npy_files_round_trip[plain]` | +0.0257%, +0.0440% (+2,499,718), +0.0025%, +0.0191%, +0.0213%, +0.0725% | ≤ +0.2% | ✓ |
+| other plain ≤ 1 G: `guest_has_no_network`, `gzip_round_trips` | +533,060; +592,080 | ≤ +0.6 M | ✓ |
+| `uncaught_errors_print_as_native[plain]` (671 M) | +624,513 as is; **five-run mean +545,014** | ≤ +0.6 M, amended | ✓ |
+| snapshot checks (18 of 19) | −326,133 to +104,686 | ≤ +0.2 M | ✓ |
+| `stdlib_debugging_tools_import` (snapshot, 535 M) | +215,114 as is; **five-run mean +74,248** | ≤ +0.2 M, amended | ✓ |
+| the zip's bytes | +21,430 | ≤ +25 KB | ✓ |
+| the snapshot's bytes | −1,072 | ≤ +20 KB | ✓ |
+| the plain binary's bytes | 0 | 0 | ✓ |
+
+**The five-run evidence for the two checks** (EXECUTED, `probe-fix.tsv`, the judge's own driver,
+`$OLD` against the fixed set; each run is the check's program, as is or after
+`_k = [object() for _ in range(K)]` on its own line):
+
+| program | K = 0 | 10 | 100 | 1000 | 3000 | mean | cap |
+|---|---|---|---|---|---|---|---|
+| `1/0`, plain | +624,428 | +492,342 | +623,826 | +489,246 | +495,227 | **+545,014** | 0.6 M |
+| `import pdb, pydoc, doctest; print('ok')`, snapshot | +215,063 | +77,589 | +198,036 | −47,727 | −71,721 | **+74,248** | 0.2 M |
+
+The types were not built in either (EXECUTED: each program with a line that prints
+`'ctypes' in sys.modules`, `'c_long' in vars(ctypes)` and `'ctypes._types' in sys.modules`
+prints `False False False` on the plain binary and `True False False` on the snapshot, where numpy
+has imported `ctypes`). The means equal the seven members' per-start cost (plain `-c pass`
++541,714, snapshot `-c pass` +67,212, same run).
+
+The other figures re-measure unchanged by the fix (EXECUTED, `probe-fix.tsv`): plain
+`import numpy` +1,038,887, plain `import pandas` +1,329,949; `import numpy.testing` on the
+snapshot +136,223,986. The heavy-check evidence above (`pandas_csv`, `numpy_csv`) stands: no
+heavy check exceeds +2.5 M (`pandas_csv` +2,499,718).
+
+**The scoreboard** (EXECUTED, `uv run pytest`, full tier, on the rebased branch, no `--accept`):
+
+```
+wasi_python v1: 200/204 pass · 0 gap · 4 blocked · 0 fail   (unit suite 591/598, 7 skipped)
+  v1.1  artifact set        24/25  blocked 1
+  v1.2  portable, sealed    40/41  blocked 1
+  v1.3  data stack          20/21  blocked 1
+  v1.4  embedding           77/77
+  v1.5  rebuild from pins   18/18
+  rules constitution rules  21/22  blocked 1
+blocked by: oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+ratchet vs aac0a98618: lost 0 · absent 0 · unrun 0 · unrun locally 2 · gained 4 · grew 39 · judge changed: tests/checks/test_v1_3_data_stack.py, tests/unit/test_build_scripts.py
+791 passed, 11 skipped
+```
+
+`ruff check` and `ruff format --check` are clean on `src/` and `tests/`.
+
+**Findings 3 and 4.** The attribution now reads "heap-layout noise, the collector among it" in
+the Status line and above. Decision 5 states the introspection edge, the `AttributeError` before
+numpy loads, and where the refusal sits; the README states the edge.
+
+**For the lane.** Accept with `--accept-judge` (the two changed test files) and
+`--accept-growth`, for example: *"spec 033: 7 more zip members, about +0.54 M per plain start and
++0.07 M per snapshot call; the zip +21 KB, the snapshot about −1 KB, python.wasm unchanged; every
+check within criterion 4's caps as amended by review 033's finding 2 (uncaught_errors[plain] and
+stdlib_debugging_tools_import are over the absolute caps by heap-layout noise; their perturbation
+means, +545,014 and +74,248, are within them)"*. Then the clean-clone build and the release dry
+run (criteria 2, 3 and 5), whose run number goes here.

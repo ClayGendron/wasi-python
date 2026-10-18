@@ -38,6 +38,8 @@ class _NumpyDtype:
     `_from_ctypes_scalar`). Without it numpy would treat the type as a plain class: dtype('O')."""
 
     def __get__(self, obj, cls=None):
+        if cls is _SimpleCData:  # the abstract base, read by help() and np.info: no dtype
+            return self
         numpy = sys.modules.get("numpy")
         if numpy is None:  # only numpy asks, and numpy is loaded then
             raise AttributeError("__numpy_dtype__")
@@ -56,10 +58,9 @@ class _CType(type):
 
 
 class _CData(metaclass=_CType):
-    """Every stand-in type: no instance, no layout, no foreign call."""
+    """Every stand-in type: no instance, no foreign call."""
 
     _size_ = None  # None: no layout is computed (Structure, Union)
-    __numpy_dtype__ = _Refused()
     from_buffer = from_buffer_copy = from_address = from_param = in_dll = classmethod(_refuse)
 
     def __new__(cls, *args, **kwargs):
@@ -68,6 +69,15 @@ class _CData(metaclass=_CType):
 
 class _SimpleCData(_CData):
     __numpy_dtype__ = _NumpyDtype()
+
+
+class _NoLayout(_CData):
+    """Structure, Union, array, pointer and function types. numpy reads `__numpy_dtype__` first;
+    without it numpy would make dtype('O'), so it refuses. It sits here, not on _CData, so that
+    help() and np.info, which read every base class, still document the module and the simple
+    types."""
+
+    __numpy_dtype__ = _Refused()
 
 
 def _simple(name, code, size, numpy_code=None):
@@ -87,7 +97,7 @@ def _array_type(element, length):
         size = None if element._size_ is None else element._size_ * length
         _arrays[key] = _CType(
             f"{element.__name__}_Array_{length}",
-            (_CData,),
+            (_NoLayout,),
             {"_type_": element, "_length_": length, "_size_": size, "__module__": _MODULE},
         )
     return _arrays[key]
@@ -156,11 +166,11 @@ for _t in dict.fromkeys(_numeric):  # an alias once
         _t.__ctype_be__ = _twin
 
 
-class Structure(_CData):
+class Structure(_NoLayout):
     __module__ = _MODULE
 
 
-class Union(_CData):
+class Union(_NoLayout):
     __module__ = _MODULE
 
 
@@ -170,7 +180,7 @@ _pointers = {}
 def POINTER(cls):
     if cls not in _pointers:
         name = f"LP_{getattr(cls, '__name__', cls)}"
-        _pointers[cls] = _CType(name, (_CData,), {"_type_": cls, "_size_": _POINTER_SIZE})
+        _pointers[cls] = _CType(name, (_NoLayout,), {"_type_": cls, "_size_": _POINTER_SIZE})
     return _pointers[cls]
 
 
@@ -182,7 +192,7 @@ def CFUNCTYPE(restype, *argtypes, **kwargs):
     if key not in _functions:
         _functions[key] = _CType(
             "CFunctionType",
-            (_CData,),
+            (_NoLayout,),
             {"_restype_": restype, "_argtypes_": argtypes, "_size_": _POINTER_SIZE},
         )
     return _functions[key]

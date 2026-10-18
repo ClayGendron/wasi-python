@@ -23,7 +23,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   loads no library, makes no instance and touches no memory: each raises
   `OSError("ctypes is unavailable on wasm32-wasi")`. So `import pandas.io.clipboard` and
   `import numpy.ctypeslib` now import, and sympy's and threadpoolctl's import-time names resolve.
-  The types are built on first use, so `import numpy` does not pay for them. `-V` still says
+  The types are built on first use, so `import numpy` does not pay for them. `help(ctypes)` and
+  `np.info` of a C type work; asking numpy or pandas for the dtype of a `Structure`, `Union`,
+  pointer, array or function type raises the `OSError` (no layout is computed). `-V` still says
   "no ctypes": no foreign function can be called.
 - **`pip install wasi-python` runs programs** (spec 028). wasmtime-py (`wasmtime>=49,<50`) is
   now a required dependency, so the plain install runs `wasi_python.run` and `wasi-python run`;

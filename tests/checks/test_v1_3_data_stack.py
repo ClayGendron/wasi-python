@@ -387,6 +387,24 @@ step("dtype(c_long)", lambda: np.dtype(ctypes.c_long) == np.int32)
 step("dtype(c_int32 be)", lambda: np.dtype(ctypes.c_int32.__ctype_be__) == np.dtype(">i4"))
 step("as_ctypes_type", lambda: np.ctypeslib.as_ctypes_type(np.int32) is ctypes.c_long)
 step("hasattr(np, 'ctypeslib')", lambda: hasattr(np, "ctypeslib"))
+
+# Introspection with numpy loaded (review 033, finding 1): help() and np.info read every base.
+import io, pydoc
+
+def helped(thing):
+    out = io.StringIO()
+    pydoc.Helper(output=out).help(thing)
+    return "ctypes" in out.getvalue()
+
+def info(thing):
+    out = io.StringIO()
+    np.info(thing, output=out)
+    return bool(out.getvalue())
+
+step("help(ctypes)", lambda: helped(ctypes))
+step("pydoc.render_doc(ctypes.c_int)", lambda: "c_long" in pydoc.render_doc(ctypes.c_int))
+step("pydoc.render_doc(numpy.ctypeslib)", lambda: "ctypeslib" in pydoc.render_doc(np.ctypeslib))
+step("np.info(ctypes.c_int)", lambda: info(ctypes.c_int))
 frame = pd.DataFrame({"a": [1, 2, 3]})
 refused("ndarray.ctypes", lambda: np.arange(3).ctypes)
 refused("from_dataframe", lambda: pd.api.interchange.from_dataframe(frame.__dataframe__()))
