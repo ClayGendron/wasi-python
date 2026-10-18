@@ -219,6 +219,24 @@ document.
   host folder, at the cost of reference-counted buffers. Keep one per open? The agent
   recommends yes, until a real program needs the other.
 
+### 80. Upstream drafts where a project refuses AI-written contributions
+
+- **Asked:** 2026-10-17 (overnight). **Source:** spec 041's pre-build review
+  (`reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`, findings 1 and 2).
+  Numbered 80 to stay clear of the specifications being drafted tonight.
+- §4.1 asks each carried patch to have "its upstream pull request drafted under
+  `context/upstream/patches/` for the owner to send". networkx's `CONTRIBUTING.rst` tells AI
+  assistants not to generate or suggest a PR and to have the user engage manually, and closes
+  PRs that break its policy; pandas asks that AI output be reviewed and modified by the
+  contributor, disclosed with harness, model and effort, and tied to a triaged issue the
+  contributor claimed.
+- **The question:** for such projects, should the "draft" be a facts sheet (the defect, the
+  reproduction, the evidence, the patch we carry) from which the owner writes and files the
+  issue or PR in their own words, rather than PR text? The agent recommends yes, and that
+  spec 020's draft rules accept a facts sheet with the same six header lines.
+- **Meanwhile:** spec 041's drafts are being rewritten as facts sheets that say so; nothing is
+  sent.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
