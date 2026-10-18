@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import struct
+import sys
 import tempfile
 from pathlib import Path
 
@@ -340,14 +341,24 @@ HOST_ROWS = {
     "open 'a.txt/'",
     "open 'a.txt/.'",
     "open 'x' * 256",
-    "pstat 'a.txt/'",
-    "pstat 'a.txt/.'",
     "pstat 'a.txt/x'",
     "pstat 'a\\x00'",
     "pstat 'x' * 256",
     "readlink 'a.txt'",
     "readlink 'd'",
     "readlink 'a.txt/'",
+}
+# Rows whose grant answer differs between POSIX systems, compared only on the systems named
+# (the landing notes, "Revised after landing", second part). A read whose end passes 2**63 - 1
+# is EINVAL on Linux, the reference, and the mount answers so everywhere; macOS answers 0. A
+# stat of `a.txt/` or `a.txt/.` is ENOTDIR on macOS and on the mount, as an open of either is
+# on every system; Linux's grant answers the file's stat (cap-std strips the trailing slash in
+# stat_at but not in open), a deliberate difference in Decision 6.
+SYSTEM_ROWS = {
+    "pread at 2**63 - 1": {"linux"},
+    "read at 2**63 - 1": {"linux"},
+    "pstat 'a.txt/'": {"darwin"},
+    "pstat 'a.txt/.'": {"darwin"},
 }
 
 
@@ -578,7 +589,9 @@ def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
     differ = {
         label: (want[label], got[label])
         for label in want
-        if want[label] != got[label] and (POSIX or label not in HOST_ROWS)
+        if want[label] != got[label]
+        and (POSIX or label not in HOST_ROWS)
+        and sys.platform in SYSTEM_ROWS.get(label, {sys.platform})
     }
     assert differ == {}, differ
     assert sorted(p.name for p in (tmp_path / "w-mount").iterdir()) == ["w.txt"]
@@ -632,3 +645,24 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
     assert (g("fd_prestat_get", gf, files.RESULT), m("fd_prestat_get", mf, files.RESULT)) == (8, 8)
     # Letter case is the provider's: this one's names are exact.
     assert m.open(3, "A.TXT")[0] == 44
+    # Reads at the end of i64, as Linux answers a grant (the reference), on every system: the
+    # end of an fd_read past 2**63 - 1 is EINVAL; fd_pread counts at most 64 KiB of it.
+    top = 2**63 - 1
+    assert [m.pread(mf, [size], at)[0] for size, at in [
+        (4, top), (4, top - 3), (4, top - 4), (1, top), (1, top - 1),
+        (100_000, top - 65_535), (100_000, top - 65_536),
+    ]] == [28, 28, 0, 28, 0, 28, 0]  # fmt: skip
+    for at, size, errno in [
+        (top, 4, 28),
+        (top - 3, 4, 28),
+        (top - 4, 4, 0),
+        (top - 99_999, 100_000, 28),
+        (top - 100_000, 100_000, 0),
+    ]:  # noqa: E501
+        m.seek(mf, at, 0)
+        assert m.read(mf, [size])[0] == errno, (at, size)
+    m.seek(mf, top, 0)
+    assert (m.read(mf, [0])[0], m.read(mf, [])[0]) == (0, 0)  # nothing to read: no refusal
+    # A trailing slash or slash-dot on a file names a folder: ENOTDIR, as macOS answers and as
+    # an open of it answers everywhere (Linux's grant answers the file's stat to a stat).
+    assert (m.path_filestat(3, "a.txt/")[0], m.path_filestat(3, "a.txt/.")[0]) == (54, 54)

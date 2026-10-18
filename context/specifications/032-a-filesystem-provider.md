@@ -307,6 +307,7 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | `fileno()` of an opened file | the lowest free number | `2**30` or above | no host handle per file (Decision 1) |
    | `select.select` on an opened file | accepted (a low number) | `ValueError` in the guest (`FD_SETSIZE` is 1,024); `select.poll` and `selectors` work | the high range; CPython refuses before the runner sees it |
    | a later `iovec` past memory, after a non-empty one (build review, F4.1) | read: wasmtime checks only up to the first non-empty `iovec` | `EFAULT` | every `iovec` is checked (Decision 7) |
+   | `stat` of a file with a trailing `/` or `/.` (`a.txt/`, `a.txt/.`; after landing) | Linux: the file's stat (cap-std strips the trailing slash in `stat_at`, not in `open`); macOS: `ENOTDIR` | `ENOTDIR` | the path names a folder (POSIX), as an open of it answers on every system and on the mount; one answer for both calls |
    | the three padding bytes after each `fd_readdir` entry's `d_type` (after landing) | whatever wasmtime 49.0.0's buffer held: uninitialized host memory (GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2) | zeros | the runner encodes every entry itself; the parity compares the fields, not the padding |
    | an argument the ABI cannot carry: an undefined flag or enum value, an integer out of its type's range, a misaligned pointer (build review, F4.2) | the run ends; `trapped` is `error while executing at wasm backtrace:` | the run ends, with the same `fuel_used`; `trapped` is wiggle's own text, such as `Invalid flag value Oflags` | the runner raises the error itself, as the call's stop |
 
@@ -892,3 +893,44 @@ ci-39097514484.txt`). EXECUTED unless it says otherwise.
   wasmtime-py on wasmtime 49.0.2 or later (F3); the evidence script's unused import is gone (F5).
   Judge: `212/223 pass · 0 fail`, `lost 0 · gained 0 · grew 0`, `845 passed, 19 skipped`; ruff
   clean.
+
+**Revised after landing, second part, 2026-10-18 (a judge change): Linux's answers.** The spec
+034 builder ran `test_raw_calls_answer_as_a_grant_does` on Linux (a `python:3.13-slim`
+linux/arm64 container, wasmtime-py 49.0.0's manylinux aarch64 wheel from `uv.lock`'s pinned URL,
+hash-checked, the worktree mounted read-only) and found four rows that macOS never showed. The
+`verify` job runs this file on Linux, so the next dry run would have failed. Reproduced the same
+way (EXECUTED), then decided per row, Linux being Decision 6's reference:
+
+- **`fd_read` and `fd_pread` at 2**63 − 1: the mount now answers as Linux.** On Linux a
+  grant's read is `EINVAL` when its end would pass 2**63 − 1 (the kernel's `rw_verify_area`):
+  `fd_read` of 4 bytes at 2**63 − 4 is 28 and at 2**63 − 5 is 0; of 100,000 bytes, 28 at
+  2**63 − 100,000 and 0 one lower. `fd_pread` reads through wasmtime's stream, which asks for at
+  most `MAX_READ_SIZE_ALLOC`, 64 KiB, at a time (READ, `crates/wasi/src/lib.rs:31`,
+  `p2/filesystem.rs:88`): 100,000 bytes are 28 at 2**63 − 65,536 and 0 at 2**63 − 65,537; a read
+  with no non-empty buffer is 0. macOS answers 0 to all of these. `_reads` now refuses exactly
+  what Linux refuses (`PREAD_CHUNK`); refusing more weakens no guard. The two parity rows are
+  compared on Linux only (`SYSTEM_ROWS`), and `test_the_deliberate_differences_are_as_decided`
+  asserts the mount's answers at seven pread and five read points on every system; on main's
+  `mounts.py` it fails (`[0, 0, 0, …] != [28, 28, 0, …]`).
+- **`path_filestat_get` of `a.txt/` and `a.txt/.`: kept `ENOTDIR`, a deliberate difference.**
+  Linux's grant answers the file's stat (0, a regular file of 13 bytes), but an `open` of the
+  same paths is 54 on Linux, macOS and the mount, and so is `readlink`; macOS's stat is 54; a
+  trailing slash names a folder (POSIX). Matching Linux would make the mount call one path a
+  file to `stat` and not a folder to `open`. The cause is cap-std's own resolution stripping the
+  trailing slash before the last component's syscall in `stat_at` (INFERRED from the answers;
+  `open` keeps it) — the same mechanism family as GHSA-m9f7-9w4p-gv38, which spec 048 handles
+  for `path_rename` (`../research/2026-10-18-wasmtime-49-advisories.md` §1), but a read-only
+  stat with no side effect, so not that escape. The rows are compared on macOS only, Decision
+  6's table and the README have a row, and the deliberate test asserts the mount's 54.
+- **The judge change and its reason:** `SYSTEM_ROWS` in `tests/unit/test_runner_grants.py`
+  names the systems where each of the four rows is compared, because the grant's answer differs
+  between POSIX systems; the mount's own answer for each is asserted on every system.
+- **Run:** the whole `tests/unit/test_runner_grants.py` on Linux as uid 1000 (the host venv's
+  pure-Python pytest mounted read-only, the repository's conftest off, since its plugin writes
+  progress files): `18 passed, 2 skipped` (the two Windows-only checks); as root,
+  `test_the_walk_judges_links` fails because every folder is writable to the superuser, as the
+  README says, which predates 032. On macOS: `18 passed, 2 skipped`. The full judge on macOS
+  (`…/s-8d84b3b190fe9bce`): `212/223 pass · 0 gap · 11 blocked · 0 fail (unit suite 633/641, 8
+  skipped)`, `ratchet vs 8e42777c9f: lost 0 · … · gained 0 · grew 0 · judge changed:
+  tests/unit/test_runner_grants.py`, `845 passed, 19 skipped`; ruff clean. The v1.4 rows of
+  acceptance 2 were not rerun on Linux here.

@@ -168,6 +168,7 @@ MAX_MOUNT_FILES = 1024  # open provider numbers per call
 MAX_PATH = 4096  # bytes; a longer path is ENAMETOOLONG, unread
 MAX_NAME = 255  # bytes in one path component, and in one listed name
 MAX_IOVECS = 1024
+PREAD_CHUNK = 64 * 1024  # wasmtime 49's MAX_READ_SIZE_ALLOC, which fd_pread reads by
 FAULTS_KEPT = 1000
 STAGING_CEILING = 4 << 30  # wasm32's own ceiling, when memory_bytes is None
 FUEL_ALLOWANCE = 1000  # covers the trampoline's few instructions; set back after each forward
@@ -823,9 +824,14 @@ class _Files:
         if entry.kind != "file":
             return EBADF
         at = entry.position if offset is None else offset
-        if at >= 2**63:
-            return EINVAL  # the host refuses an offset past i64, as wasmtime's read does
         buf, size = chosen
+        # As Linux answers a grant (the reference, Decision 6): an offset past i64, or a read
+        # whose end would pass it, is EINVAL (the kernel's rw_verify_area). fd_pread reads
+        # through wasmtime's stream, which asks for at most MAX_READ_SIZE_ALLOC (64 KiB) at a
+        # time (crates/wasi/src/lib.rs:31), so only that much counts there.
+        count = size if offset is None else min(size, PREAD_CHUNK)
+        if at >= 2**63 or (count and at + count > 2**63 - 1):
+            return EINVAL
         data = entry.data[at : at + size]
         memory.write(buf, data)
         if offset is None:
