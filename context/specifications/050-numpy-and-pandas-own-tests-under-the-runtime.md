@@ -1,11 +1,14 @@
 # 050 — numpy's and pandas' own tests under the runtime
 
-- **Status:** drafted 2026-10-18. Revised the same day against its pre-build review
+- **Status:** confirmed for build with conditions, written in. Drafted 2026-10-18; revised the
+  same day against its pre-build review
   (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-spec-2026-10-18.md`, findings F1
-  to F15, each answered in its Disposition and written in below). It changes how the judge admits
-  failure and adds a metric that must not fall. §5.6 does not require a pre-build review, since
-  it changes no import, export, artifact or build recipe, but it asked for one and awaits the
-  reviewer's confirmation.
+  to F15, each answered in its Disposition and written in below). The review's Confirmation set
+  one condition, C1: what a fixed class or trap becomes. It is written into Decisions 9, 10, 17
+  and 19 and criteria 4 and 8. The Confirmation's builder notes stay in the review; one of them,
+  a file a recorded patch creates, is written into Decision 3. This specification changes how the
+  judge admits failure and adds a metric that must not fall. §5.6 did not require a pre-build
+  review, since it changes no import, export, artifact or build recipe; it asked for one.
 - **Owner:** Clay Gendron
 - **Kind:** the judge only.
   - **New:**
@@ -179,8 +182,9 @@ So the next `os.dup` is found by the judge and not by a user.
      numpy-2.5.2.tar.gz`. A mismatch is a judge-input error, not missing tooling, so it must not
      hide as "blocked".
    - **Tarball members only.** The harness reads each tarball's member names once per run. It
-     stages only files whose paths are members. A recorded patch adds no file: 0001 changes two
-     existing files. Any other file found in a staged folder is left out and listed in
+     stages only files whose paths are members, or files a recorded patch creates (read from
+     each patch's `+++ b/` lines whose `---` side is `/dev/null`). Today no recorded patch creates
+     a file: 0001 and spec 051's 0002 change existing files only. Any other file found in a staged folder is left out and listed in
      `build/progress/latest.json`, so a file a build left in a tree never runs in the guest.
      The review counted numpy's 493 and pandas' 1,122 test files: all are tarball members today
      (EXECUTED).
@@ -363,8 +367,14 @@ So the next `os.dup` is found by the judge and not by a user.
      its collector this way (the review's F5).
    - **The gap.** Each trap check is one gap in `tests/known_gaps.toml`. Its `match` is that one
      finding's count and digest, and it closes with spec 051, which fixes all four functions. So
-     a different cause, or a trap at another test, is red. When the fix lands, the check passes
-     and spec 002's rule says "remove the gap".
+     a different cause, or a trap at another test, is red.
+   - **When the fix lands** (condition C1), the trap check passes and its gap is removed, as spec
+     002 says. The same landing then removes the `[[trap]]` entry, so its tests run in their
+     group again, under the group's classes. That makes the trap check absent, so the landing
+     retires it with `--retire`. The harness reports an accepted `gap` whose check is absent as
+     `absent` too, not only an accepted pass (Decision 19), so `--retire` can take it. A trap
+     entry is not kept as a guard: once its tests are back in the group, the group guards
+     them, and any new trap fails the group.
 
    | id | node id (prefix) or file | the C function (numpy 2.5.2, READ) |
    |---|---|---|
@@ -413,8 +423,12 @@ So the next `os.dup` is found by the judge and not by a user.
         (`-<node id>`). So the digest no longer matches the gap, and the check is red with the
         names in its message. The fix edits the list and the gap together; the review sees the
         names.
-      - **The class is empty.** The check passes, and its gap fails with spec 002's "remove the
-        gap".
+      - **The class is empty** (condition C1). The check passes, and its gap fails with spec
+        002's "remove the gap". The fix removes the gap and **keeps the class**, with an empty
+        list file, as a passing check: the scoreboard shows gap → pass. The class keeps guarding.
+        If the same failure comes back, it shows as `+<node id>` and the check is red. A class is
+        deleted only when its `match` can no longer occur, for example after a re-pin; that is a
+        judge change with `--retire`.
     - **What it gives.** The scoreboard shows each class as a gap under its closer, in
       `gaps close with:` and in `next:`. A fix lands as spec 002 says every fix lands: a gap
       becomes a pass. pass, skip, `xfail` and non-strict `xpass` are upstream's own outcomes, not
@@ -545,8 +559,8 @@ So the next `os.dup` is found by the judge and not by a user.
     `test_upstream_files_are_well_formed` (rules, fast) checks:
     - every `kit.txt` line (Decision 2);
     - every `closes_with` exists;
-    - every class has a non-empty list file, sorted and unique, and a gap entry in
-      `known_gaps.toml`;
+    - every class has a list file, sorted and unique; a non-empty list has exactly one gap entry
+      in `known_gaps.toml`, and an empty list has none (condition C1);
     - every trap entry has its gap;
     - ids are unique per group;
     - every group's paths and every `not_selected` and `trap` file are tarball members, when the
@@ -576,7 +590,9 @@ So the next `os.dup` is found by the judge and not by a user.
     - **Decisions 6 and 7 (ratchet, acceptance):**
       - the `fewer` and `more` lists;
       - `--accept-fewer-passes` and its `history.jsonl` field `fewer_reason`;
-      - the refusal to accept with these checks unrun locally unless `--partial`.
+      - the refusal to accept with these checks unrun locally unless `--partial`;
+      - an accepted `gap` whose check is absent from a run that collected its whole file is
+        reported `absent`, as an accepted pass is, so `--retire` can take it (condition C1).
     - **Decision 8 (metrics):** `passes`, which must not fall; acceptance keeps the maximum.
     - **Decision 17 (not machine-checked):** the line's new text.
 
@@ -719,7 +735,9 @@ Out:
    `castingimpl-arraymethod` is its collector (a `C` line). Unit checks show three things:
    - a stream that ends after a `C` line names that collector;
    - an entry whose test now passes makes the check pass, and its gap "remove the gap";
-   - a different cause is a different finding.
+   - a different cause is a different finding;
+   - an emptied class with its list file emptied and its gap removed passes, and a returning
+     failure shows as `+<node id>` (condition C1).
 5. **Strictness, shown on fixed streams** (`tests/unit/test_upstream.py`):
    - a class with one more member than its list fails with `+<node id>`, and with one fewer with
      `-<node id>`, so its gap's digest no longer matches;
@@ -743,6 +761,10 @@ Out:
    budget.
 8. `test_upstream_files_are_well_formed` passes, with every rule Decision 17 lists. The caps sum
    to at most 3×10¹².
+   - **Unit checks:** an empty list with no gap passes the rule; an empty list with a gap, and a
+     non-empty list without one, each fail it (condition C1).
+   - **A scoreboard unit check:** an accepted `gap` whose check is absent is reported `absent`,
+     and `--retire` accepts it.
 9. **The tests are the artifact's, and cannot change it.** Unit checks show:
    - a `MANIFEST` whose numpy `pin` or patch `recipe` line differs from the tree's tarball or
      patches makes the checks fail (not blocked), naming both;

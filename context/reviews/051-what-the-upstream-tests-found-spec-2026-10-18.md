@@ -268,6 +268,74 @@ finds.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author (the drafting agent, Claude Opus 5.5), 2026-10-18. Every finding is fixed in
+`context/specifications/051-what-the-upstream-tests-found.md`, in place. The revision runs are
+in `051-review/author/`; the spec's "Research it stands on" lists them.
+
+- **F1, fixed** (Decision 4; criteria 1 and 3).
+  - **References.** The scan keeps a table only when its start address is referenced: an
+    aligned data word, or an `i32.const` operand in code. The operands are read by the `0x41`
+    byte and its LEB, which can only add references, never lose one.
+  - **No exclusions.** The exclusion list is empty. The review's figures are cited: 737 runs,
+    the 5 unreferenced ones being exactly the six false lines, and all six real callbacks
+    referenced. The strict-both-ways mechanism stays for a reviewed real case only.
+  - **The rule for later packages:** a mismatch is fixed by a carried patch or an upstream
+    release, never by an exclusion.
+  - **Findings** name the entry and its table index; the function's name is added when the name
+    section is present.
+  - **A unit check** shows an unreferenced look-alike is not reported.
+- **F2, fixed** (Decision 4; criteria 1 and 3).
+  - Single `PyMethodDef`s referenced from code are scanned: Cython's `__pyx_mdef_…` and
+    CPython's own. The review's figures are cited: 2,029 entries, 1,976 of them Cython's, and 0
+    mismatches. So "pandas is clean" now covers its module functions.
+  - The check reports its coverage counts: arrays, singles, getsets, members.
+  - Decision 4 lists what is still out of the scan.
+- **F3, fixed** ("Depends on"; Decision 4a).
+  - **051's place:** the next build-class slot after 050 lands, behind any build-class landing
+    already in the lane.
+  - **With 035:** whichever of 035 and 051 lands second restates its byte and fuel comparisons
+    against the base it lands on. If 035 is second, the zip's code names are part of its base,
+    not a finding.
+  - **For every already-reviewed spec,** Decision 4a says what the scan means: 037/038 (scipy's
+    hand-written C is the likeliest place; if scipy lands first, 051's rebuild scans it and fixes
+    a mismatch as a carried scipy patch); 039 and 042 (pure Python); 043 (pybind11); 044 and 045
+    (Cython, now covered by the singles); 046 (libxml2's callbacks are out of scope); 047 (its
+    patch must leave the scan green); 035, 040, 041 (no compiled package).
+  - **The lane's sentence.** When 051 lands, the lane adds one sentence to each unlanded
+    build-class spec's status: the scan is green, and a mismatch is fixed by a patch or an
+    upstream release, never by an exclusion.
+- **F4, fixed, following 050's C1, answered (a)** (Decision 12; criterion 5).
+  - The eight emptied classes stay with empty lists and lose their gaps: six `zip-code-names`,
+    `patch-0001-masked-save`, and now `patch-0001-truncated-message` too (see F5).
+  - The seven trap checks pass, their gaps are removed, their entries are deleted, and the
+    checks are retired with `--retire`. 050's C1 write-in has the harness report an accepted gap
+    whose check is absent as `absent`, so `--retire` can take it.
+  - The two returned files get classes only with closers. A new trap in them gets an entry, a
+    gap and a named follow-up, and does not hold back the three parts.
+- **F5, fixed** (Decision 10).
+  - **The predicate.** 0001 now factors native's two tests into `_is_real_file(f)`, and
+    `isfileobj` is `_is_real_file(f) and sys.platform != "wasi"`. The subclass rule uses the
+    predicate, so a `BufferedWriter(BytesIO())` is not a real file on WASI either.
+  - **The tests.** `test_save_masked_without_dup` gains that case. `test_file_truncated` accepts
+    numpy's in-memory message on WASI, and the upstream draft carries the same test change.
+  - **Seen working** (EXECUTED): the amended patch applies through the project's applier. Its
+    three tests (`test_file_truncated`, `test_save_masked_without_dup`, and
+    `test_save_load_without_dup` over 161 arrays) pass natively under the pinned oracle with WASI
+    simulated.
+- **F6, fixed** (Decision 4; criterion 3).
+  - **Minimum counts:** 2,500 method-array entries, 1,000 getsets, 1,500 singles.
+  - **No silent passes:** a passive data segment or an unknown element form is a finding, with a
+    unit check.
+  - **No second parser:** the scan reuses `tests/harness/wasm.py`, which learns the element,
+    data, code-bytes and name sections.
+- **F7, fixed** (Decision 14; Decision 5; criterion 2).
+  - The zip unit check walks nested code objects.
+  - The two copies of the zip path carry comments naming each other.
+  - The golden job's private calls were run natively (EXECUTED: `_ScaledFloatTestDType 2.0`,
+    `_BoundArrayMethod True`, `(True, False)`). The sfloat pickle needs
+    `np._ScaledFloatTestDType = SF` first, as numpy's own test does; the job says so.
+  - Zip measurements use the plain binary.
+
 ## Verdict
 
 **Ready to build once F1 to F3 are written in. F4 follows 050's answer to its condition C1.**

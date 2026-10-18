@@ -1,8 +1,10 @@
 # 051 — What the upstream tests found
 
-- **Status:** drafted 2026-10-18. It changes the build recipe and the artifact set, so it is
-  reviewed once more before it is built (constitution §5.6). **Build-class** (§5.7): it touches
-  `recipes/patches/` and `scripts/`.
+- **Status:** drafted 2026-10-18. Revised the same day against its pre-build review
+  (`../reviews/051-what-the-upstream-tests-found-spec-2026-10-18.md`, findings F1 to F7, each
+  answered in its Disposition and written in below); it awaits the reviewer's confirmation. It
+  changes the build recipe and the artifact set, so it takes that review before it is built
+  (constitution §5.6). **Build-class** (§5.7): it touches `recipes/patches/` and `scripts/`.
 - **Owner:** Clay Gendron
 - **Kind:** a second carried numpy patch (`recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`)
   and its upstream facts sheet; carried patch 0001 amended, with its draft; a recipe change to the
@@ -16,6 +18,18 @@
   020 (carried patches: the applier, the rules, the zero-diff check), 021 (patch 0001, amended
   here), 012 (the same bytes from any host), 003 (the zip is bytecode only, compiled by the pinned
   host Python).
+
+  **Its place among the build-class specifications** (§5.7; the review's F3). Not landed and
+  build-class today: 035, 037, 038, 039, 040, 041, 042 to 047. 051 takes the next build-class slot
+  after 050 lands, and waits for any build-class landing already in the lane.
+  - **With 035.** Both change what the snapshot and the zip measure. 035's criterion 9 asks for a
+    zip "byte for byte 033's" and calls any plain fuel growth a finding; this one grows the zip
+    and the plain binary's fuel (Decision 8). **Whichever of 035 and 051 lands second restates
+    its byte and fuel comparisons against the base it lands on.** If 051 is second, its growth
+    account is measured on 035's set. If 035 is second, its criterion 9 compares with 051's zip,
+    and the zip's code names are part of that base, not a finding.
+  - **With every later package** (Decision 4a). After 051, the callback scan runs in the fast
+    tier on every build. A package spec that lands later meets it in its own judge run.
 - **Research it stands on:** `../research/2026-10-18-numpy-and-pandas-own-tests-in-the-guest.md`
   (findings 3, 4 and 5); spec 047's facts sheet `../upstream/9-regex-callback-signatures/` (the
   same class of defect in regex, carried as a patch); owner question 80 (facts sheets where a
@@ -35,6 +49,23 @@
   - a prototype zip whose code objects carry the zip path (`evidence/rename.py`), run with the
     plain binary against a control zip re-marshalled the same way without renaming;
   - every guest behaviour below beside the oracle's (Python 3.15.0, numpy 2.5.2, pandas 3.0.6).
+
+  **The pre-build review's runs** (its "Executed" list):
+  - both patches applied by `scripts/steps/apply_patches.sh` to a fresh extraction;
+  - the scan reproduced, then extended with references (737 runs, 5 unreferenced: the six false
+    lines) and with code-referenced single definitions (2,029 more entries, 0 mismatches);
+  - clang's `-Wcast-function-type-mismatch` shown unable to tell the bug from CPython's idiom;
+  - `pandas/tests/reshape` with the renamed zip: 2,664 passed, 0 failed, where the frozen zip
+    gave 7 stack-level failures.
+
+  **Revision runs** (EXECUTED 2026-10-18, scratch folder `051-review/author/`):
+  - 0001 amended again for F5, and both patches applied by the project's own applier to a fresh
+    extraction ("applied" for both);
+  - 0001's three tests (`test_file_truncated`, `test_save_masked_without_dup`,
+    `test_save_load_without_dup` over its 161 arrays) run natively under the pinned oracle with
+    the patched module, `sys.platform` set to `"wasi"` and `os.dup` raising: all passed;
+  - the golden job's three private calls run natively: `_ScaledFloatTestDType 2.0` after a
+    pickle round trip, `_BoundArrayMethod True`, and `(True, False)`.
 
 ## The problem
 
@@ -113,46 +144,112 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
    apply, and `convert_datatype.h`'s context has moved (EXECUTED). The README's count of carried
    patches becomes 2, and `context/upstream/README.md`'s table gains the row.
 
-4. **A scan for the whole class, as a judge check.** `tests/harness/callbacks.py` reads the linked
-   `python.wasm`, without running it: its types, function section, element segment (the table
-   index a C function pointer holds) and active data segments (the static memory image), and
-   names from the name section. It finds CPython's callback tables in the image and checks every
-   entry's function type against the type CPython calls it with:
-   - **`PyMethodDef`** arrays (16-byte entries `{name, meth, flags, doc}` ending in a zero
-     entry): `METH_VARARGS`, `METH_NOARGS`, `METH_O` → `(i32, i32) -> i32`;
-     `METH_VARARGS|METH_KEYWORDS` and `METH_FASTCALL` → 3 parameters;
-     `METH_FASTCALL|METH_KEYWORDS` → 4; `METH_METHOD|METH_FASTCALL|METH_KEYWORDS` → 5;
-     `METH_CLASS`, `METH_STATIC`, `METH_COEXIST` ignored;
-   - **`PyGetSetDef`** arrays (20-byte entries `{name, get, set, doc, closure}`): getter
-     `(i32, i32) -> i32`, setter `(i32, i32, i32) -> i32`;
-   - **`PyMemberDef`** arrays (`{name, type ≤ 20, offset, flags, doc}`) are found first and
-     skipped, so a member's type code is never read as a function pointer, and so are the bytes
-     of the method arrays when getsets are sought.
+4. **A scan for the whole class, as a judge check, counting only what something references.**
+   `tests/harness/callbacks.py` reads the linked `python.wasm` without running it. It reuses
+   `tests/harness/wasm.py` (§6.4): the type, import and function sections that file already
+   reads, plus four it learns to read here:
+   - the element section (the table index a C function pointer holds);
+   - the data section (the static memory image);
+   - the code section's bytes;
+   - the name section, when present.
 
-   EXECUTED on the frozen plain binary in about a second. It read 3,073 method entries and 1,129
-   getset entries, and skipped 1,004 member entries. It reported all six numpy callbacks of
-   Decision 1 and nothing from pandas (Cython writes the right signatures). It also reported six
-   matches in CPython's own data that are not callback tables: getters named `EncodingMap`,
-   `moduledef`, `builtin_method`, `SkippedEntityHandler`; a setter `SkippedEntityHandler`
-   (pyexpat's handler table, whose layout begins like a getset's); a method `bytes`. Each was
-   checked by name to be a struct of another shape or a coincidence of bytes (INFERRED from the
-   function each points at: a parser rule, `bool_new`, pyexpat's setters).
+   A passive data segment, or an element segment in any form but an active `funcref` list, is a
+   finding, not a skip: the scan must never pass by reading less.
 
-   The check is `test_callbacks_have_the_types_cpython_calls` (v1.3, fast, needs `plain binary`).
-   Its findings are the mismatches less a reviewed exclusion list in the check: those six
-   `(kind, entry name, function name)` triples, each with its reason. The list is strict both
-   ways. An excluded triple that no longer appears is a finding ("remove the exclusion"), so the
-   list cannot rot. The scan reads the plain binary only. The snapshot is the same code and the
-   same table, made from it by Wizer; its image differs by the heap, and on the frozen
-   snapshot the scan took about 10 s and gave the same six numpy callbacks plus one exclusion.
-   **Why the judge, not a build step:** one implementation, kept apart from the build it
-   judges (spec 002's lesson 2). It runs on every judge run, the lane's and the release
-   workflow's (`release.yml` runs `uv run pytest`), so no set with a mismatch is accepted or
-   released. Every later package compiled in (scipy, matplotlib, lxml, regex) is scanned the
-   same way. regex's five getters (spec 047) are this class and shape (INFERRED).
-   **Out of the scan, and said so in its docstring:** `tp_*` slots of static type objects,
-   `PyType_Slot` arrays, number/sequence/mapping method structs, and C callbacks passed to C APIs
-   (`qsort`, LAPACK). The first two can follow when a defect shows the need.
+   **What it checks.** It finds CPython's callback tables in the image, and keeps only tables
+   that something points at (the review's F1). A table is kept when its start address appears
+   either as an aligned 4-byte word in the data image or as an `i32.const` operand in the code
+   section. The operands are found by reading each `0x41` byte and the LEB number after it. That
+   over-approximates, so it can only add references, never lose one. The tables are:
+   - **`PyMethodDef` arrays**: 16-byte entries `{name, meth, flags, doc}` ending in a zero entry.
+     Referenced from a type's `tp_methods`, a `PyModuleDef`, a `PyType_Slot`, or code.
+   - **Single `PyMethodDef`s referenced from code** (the review's F2). These are Cython's
+     `__pyx_mdef_…` for every module-level `def`, and CPython's own single definitions. A single
+     is kept when a code operand points at a 16-byte entry with an identifier name, valid flags
+     and a valid table index.
+   - **`PyGetSetDef` arrays**: 20-byte entries `{name, get, set, doc, closure}`, referenced the
+     same way.
+   - **`PyMemberDef` arrays** (`{name, type ≤ 20, offset, flags, doc}`) are found first and
+     skipped. So a member's type code is never read as a function pointer, and so are the bytes
+     of method arrays when getsets are sought.
+
+   Each entry's function type must be the type CPython calls it with:
+   - `METH_VARARGS`, `METH_NOARGS`, `METH_O` → `(i32, i32) -> i32`;
+   - `METH_VARARGS|METH_KEYWORDS` and `METH_FASTCALL` → 3 parameters;
+   - `METH_FASTCALL|METH_KEYWORDS` → 4;
+   - `METH_METHOD|METH_FASTCALL|METH_KEYWORDS` → 5;
+   - getter → `(i32, i32) -> i32`; setter → `(i32, i32, i32) -> i32`;
+   - `METH_CLASS`, `METH_STATIC` and `METH_COEXIST` are ignored.
+
+   A finding names the entry and its table index, `<kind> <entry name>: table index <n> has
+   <type>, called as <type>`, with the function's name added when the name section has it.
+
+   **What it found on the frozen plain binary** (EXECUTED by the drafting runs, and with
+   references by the review):
+   - **Without references:** 3,073 method entries, 1,129 getset entries and 1,004 member
+     entries, in about a second. That reported the six numpy callbacks of Decision 1, plus six
+     lines that are not callback tables: getters named `EncodingMap`, `moduledef`,
+     `builtin_method`, `SkippedEntityHandler`, a setter `SkippedEntityHandler`, and a method
+     `bytes`.
+   - **With references:** of 737 runs, exactly 5 have no reference, and they are those six
+     lines (pyexpat's getter and setter are one run). All six real numpy callbacks sit in
+     referenced runs.
+   - **The singles** add 2,029 entries, 1,976 of them Cython's, with no mismatch. So pandas'
+     module functions (`lib.is_scalar`, `groupby.group_sum`, …) are checked, and clean.
+
+   **So the exclusion list is empty.** The check keeps the strict-both-ways mechanism for a
+   reviewed real case only: an excluded entry that no longer appears is a finding. The rule for
+   every later package is that a mismatch is fixed by a carried patch or an upstream release,
+   never by an exclusion.
+
+   **The check.** `test_callbacks_have_the_types_cpython_calls` is v1.3, fast, and needs
+   `plain binary`. Besides its findings, it asserts minimum counts, set from today with room to
+   spare, so a toolchain change cannot make it pass by finding nothing (the review's F6):
+   - at least 2,500 entries in referenced method arrays;
+   - at least 1,000 referenced getset entries;
+   - at least 1,500 referenced single definitions.
+
+   It reports its coverage (arrays, singles, getsets, members) in its message and in
+   `latest.json`. It reads the plain binary only. The snapshot is the same code and the same
+   table, made from it by Wizer; its image differs by the heap.
+
+   **Why the judge, not a build step.** One implementation, kept apart from the build it judges
+   (spec 002's lesson 2). It runs on every judge run, the lane's and the release workflow's
+   (`release.yml` runs `uv run pytest`), so no set with a mismatch is accepted or released. A
+   compile-time warning cannot replace it: clang's `-Wcast-function-type-mismatch` flags the bug
+   and CPython's ordinary `(PyCFunction)` cast alike (the review, EXECUTED).
+
+   **Out of the scan, and said so in its docstring:**
+   - `tp_*` slots of static type objects;
+   - `PyType_Slot` arrays;
+   - number, sequence and mapping method structs;
+   - C callbacks passed to C APIs (`qsort`, LAPACK).
+
+   The first two can follow when a defect shows the need.
+
+   4a. **What the scan means for specifications already reviewed** (the review's F3). It changes
+   none of their texts. It adds one condition to each build-class landing after 051: the
+   callback scan is green, and a mismatch it finds is fixed by a carried patch or an upstream
+   release, never by an exclusion. When 051 lands, the lane adds that sentence to the status of
+   each specification below that has not landed. By package:
+   - **039 (tier A) and 042 (seaborn, reportlab):** pure Python. They add nothing the scan
+     reads, beyond reportlab's small C accelerators if 042 builds them; those are scanned like
+     any other.
+   - **037 and 038 (scipy):** hand-written C and C++, plus f2py and Cython wrappers. f2py and
+     Cython write their own tables; scipy's hand-written modules are the likeliest place for
+     this mistake. If 037 or 038 lands before 051, 051's rebuild scans them, and a mismatch
+     found there is fixed in 051's branch as a carried scipy patch, named in its landing notes.
+     If they land after, their own builds meet the scan.
+   - **043 (matplotlib's second milestone):** contourpy through pybind11, whose dispatcher
+     calls with the right types (INFERRED). Its first milestone's C extensions, if already
+     linked, are scanned now: the drafting scan of the frozen set (which has no matplotlib)
+     says nothing of them.
+   - **044 (scikit-learn) and 045 (statsmodels):** almost all Cython, whose single definitions
+     are now covered.
+   - **046 (lxml):** Cython over libxml2. Its libxml2 callbacks are C-to-C and out of the scan.
+   - **047 (regex):** the five getters its carried patch fixes are this class and shape. With
+     047's patch the scan must be green; without it, the scan would name them (INFERRED).
+   - **035, 040, 041:** add no compiled package.
 
 5. **The guest checks, seen failing first.** A golden job `tests/jobs/callbacks.py` with its
    `.expected` from the pinned oracle (spec 002, Decision 11), run on both binaries by
@@ -163,13 +260,16 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
    - `a = np.zeros(4, np.int32); a.dtype = np.float32` under `warnings.catch_warnings(record=True)`:
      the array and the warning categories (natively `[0. 0. 0. 0.] ['DeprecationWarning']`,
      EXECUTED);
-   - `pickle.loads(pickle.dumps(np._core._multiarray_umath._get_sfloat_dtype()(2.0)))` and its
-     scaling (`sfloat___reduce__`);
+   - `pickle.loads(pickle.dumps(SF(2.0)))` and its scaling (`sfloat___reduce__`), where
+     `SF = np._core._multiarray_umath._get_sfloat_dtype()` and `np._ScaledFloatTestDType = SF`
+     first, as numpy's own test does (pickle finds the type by its repr);
    - `repr(_get_castingimpl(np.dtypes.Float64DType, np.dtypes.Int64DType))` reduced to its class
      name, and that object's `_supports_unaligned`;
    - `_array_converter(1, [2]).scalar_input`.
 
-   Natively the job ends. On the frozen set it traps at the first `copy.copy` (EXECUTED: the
+   Natively the job ends. The three private calls give `_ScaledFloatTestDType 2.0`,
+   `_BoundArrayMethod True` and `(True, False)` (EXECUTED in the revision runs). On the frozen set
+   it traps at the first `copy.copy` (EXECUTED: the
    program's first line traps), so the check fails with "trapped" before the patch. That is the
    seen-failing-first evidence; the landing notes name each line that trapped, by running each
    line alone. The private calls stay in the job on purpose: they are the scan's findings,
@@ -239,12 +339,22 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
     - **`np.save` of a masked array to a file.** Natively, a real file is written with
       `array.tofile`, and `MaskedArray.tofile` raises `NotImplementedError`. Patch 0001 sends real
       files down the chunked path on WASI, which drops the mask silently: data loss where native
-      refuses. Patch 0001 is amended in place (it is ours, and not yet sent): in `write_array`,
-      after the pickle branch, on WASI, when `fp` is a real file and `type(array).tofile` is not
-      `ndarray.tofile`, the subclass's own `tofile` decides (`array.T.tofile(fp)` for a
-      Fortran-ordered array, as the native branch does). Ten lines added, plus a test,
-      `test_save_masked_without_dup`, next to the patch's other test (`evidence/patches/`). It
-      applies to the pinned tarball with no offset. EXECUTED natively with `sys.platform`
+      refuses. Patch 0001 is amended in place (it is ours, and not yet sent):
+      - **One predicate.** Native `isfileobj`'s two tests, the `isinstance` and the `fileno()`
+        probe, become one private predicate, `_is_real_file(f)`. `isfileobj(f)` returns
+        `_is_real_file(f) and sys.platform != "wasi"` (the review's F5). So "a real file" means
+        on WASI exactly what it means natively: a `BufferedWriter` over a `BytesIO` is not one.
+      - **The subclass rule.** In `write_array`, after the pickle branch, on WASI, when
+        `_is_real_file(fp)` and `type(array).tofile` is not `ndarray.tofile`, the subclass's own
+        `tofile` decides (`array.T.tofile(fp)` for a Fortran-ordered array, as the native branch
+        does).
+      - **Its test.** `test_save_masked_without_dup` sits next to the patch's other test. Its
+        last line saves the masked array to `io.BufferedWriter(io.BytesIO())`, which must write,
+        as natively.
+
+      The amended patch is in the review folder (`051-review/author/`). It applies with the
+      project's applier. Its three tests pass natively with WASI simulated (revision runs,
+      EXECUTED). The drafting runs also checked, natively with `sys.platform`
       `"wasi"` and `os.dup` raising: a C-ordered, a Fortran-ordered and an empty array still
       round-trip through a real file; a masked array, C- or Fortran-ordered, raises native's
       `NotImplementedError: MaskedArray.tofile() not implemented yet.`; a masked array saved to
@@ -255,11 +365,23 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
       in-memory stream, so a truncated one raises `ValueError: EOF: reading array data, expected
       48 bytes got 47`. Natively, a real file raises `ValueError: Failed to read all data for
       array. …`. The type is the same; the message is the one numpy itself gives for `BytesIO`
-      (EXECUTED both). Changing it would add WASI-only code to the upstream patch for a message.
+      (EXECUTED both). Changing it would add WASI-only code to numpy's reader for a message.
       It is a deliberate difference, written in the README's platform paragraph.
+      - **numpy's own test.** `test_file_truncated` expects the native message, so it would fail
+        on WASI once numpy takes 0001. The amended 0001 therefore also changes that test: on
+        WASI its pattern accepts the in-memory message too, behind
+        `if sys.platform == "wasi"`. It passes natively under simulated WASI (revision runs,
+        EXECUTED).
+      - **In spec 050,** this empties the class `patch-0001-truncated-message` (Decision 12).
+      - **Upstream.** The upstream draft proposes the same test change, so the README fact stays
+        true while the test passes everywhere.
     - **The draft.** `context/upstream/patches/numpy-2.5.2/0001-npy-files-without-dup.md` and the
-      facts in `../upstream/3-numpy-npy-wasi/pr.md` gain both points: the subclass rule, and the
-      message a real file now gives on WASI. The `Files:` line is unchanged.
+      facts in `../upstream/3-numpy-npy-wasi/pr.md` gain three points:
+      - the `_is_real_file` predicate and the subclass rule;
+      - the message a real file now gives on WASI;
+      - the change to `test_file_truncated`, and why.
+
+      The `Files:` line is unchanged: the same two files.
     - **The check.** `test_npy_files_round_trip` (spec 021) gains two cases on both binaries: a
       masked array saved to a path raises `NotImplementedError` with native's message (seen
       failing first: the frozen set prints `saved [1 2 3] ndarray`, EXECUTED), and a truncated
@@ -272,18 +394,28 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
     branch, `spec/051-what-the-upstream-tests-found`, in three commits (Part 1, Part 2, Part 3)
     so the review reads each alone; landed as one. If the pre-build review finds one part not
     ready, the lane splits that part into its own specification and the rest goes on.
-    Acceptance: `--accept-judge` (the new checks, the golden job, the exclusion list, spec 050's
-    TOML) and `--accept-growth` with the build's measured account. Growth is expected: the zip's
+    Acceptance: `--accept-judge` (the new checks, the golden job, `wasm.py`'s readers, spec 050's
+    edits), `--retire` (050's seven trap checks) and `--accept-growth` with the build's measured
+    account. Growth is expected: the zip's
     bytes, every plain-binary run's fuel (Part 2), and the snapshot's numbers.
 
-12. **What it changes in spec 050's judge, if 050 has landed** (a judge change, in this branch):
-    - every `[[trap]]` entry is removed, because none traps any more;
-    - `test_casting_unittests.py` and `test_arraymethod.py` leave `not_selected` and run in
-      `numpy-core`. Their outcomes are new: classes are added only for failures with a named
-      closer, and the landing notes give the counts;
-    - the `zip-code-names` classes (193 pandas failures and 1 numpy failure) are removed;
-    - the `patch-0001-masked-save` class is removed;
-    - `patch-0001-truncated-message` closes with `README.md`.
+12. **What it changes in spec 050's judge, if 050 has landed** (a judge change, in this branch,
+    following 050's condition C1):
+    - **The classes stay, emptied.** The six `zip-code-names` classes (193 pandas failures and 1
+      numpy failure), `patch-0001-masked-save` and `patch-0001-truncated-message` empty. Each
+      keeps its class and an empty list file, and its gap is removed, so the scoreboard shows
+      eight gaps become passes. Each keeps guarding: a returning failure shows as `+<node id>`.
+    - **The trap entries go.** In the same acceptance:
+      - the seven trap checks first pass, and their gaps are removed;
+      - the seven `[[trap]]` entries are deleted, so their tests run in `numpy-core` again;
+      - the seven trap checks, now absent, are retired with `--retire` (050, Decision 9). The
+        landing notes say so, with the trap checks' last results.
+    - **Two files return.** `test_casting_unittests.py` and `test_arraymethod.py` leave
+      `not_selected` and run in `numpy-core`. They have never run past their first trap (the
+      drafting hunt stopped at its cap of 40), so their outcomes are new (the review's F4):
+      - a failure gets a class only with a named closer, and the landing notes give the counts;
+      - a new trap in them gets a `[[trap]]` entry, a gap and a named follow-up specification,
+        and the notes say so. It does not hold back the three parts that work.
 
     The `passes` metric rises; the notes give each group's new count.
 
@@ -297,6 +429,19 @@ numpy's and pandas' own tests, run in the guest (spec 050), found three defects 
 
     The CHANGELOG names the new patch and its path, the amended 0001, and the zip's code names.
 
+14. **Notes for the builder** (the review's F7).
+    - **The unit check over the built zip** walks nested code objects (`co_consts`), not only
+      each module's top-level code. `compile` names them all today; a later writer might not.
+    - **The path is written in two places:** the step 70 prefix and `STDLIB_ZIP`
+      (`recipes/reactor_main.c:25`). A comment at each site names the other.
+      `test_a_pandas_warning_names_the_callers_line` catches drift at judge time.
+    - **The golden job's private calls** were confirmed natively in the revision runs. The
+      `.expected` file is still made by `regen.py` from the oracle, as for every job.
+    - **Measuring a zip change needs the plain binary.** A snapshot runs only beside the zip it
+      was made with. With another zip it exited 1 after 0.76 G fuel (the review, EXECUTED).
+    - **Order of the three commits:** Part 1, Part 2, Part 3. The scan's check comes with Part 1,
+      so the review sees it red on the frozen set and green on the rebuilt one.
+
 ## Intent
 
 The defects numpy's and pandas' own tests found are fixed or written down. The judge scans every
@@ -307,7 +452,8 @@ before any user meets it.
 
 ```
 recipes/patches/numpy-2.5.2/0002-callback-signatures.patch   six callbacks, seven files (Decision 2)
-recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch  amended: the subclass rule and its test (Decision 10)
+recipes/patches/numpy-2.5.2/0001-npy-files-without-dup.patch  amended: _is_real_file, the subclass rule, its test,
+                                                                 test_file_truncated on WASI (Decision 10)
 context/upstream/13-numpy-callback-signatures/                 notes.md, pr.md (facts), fix.patch, evidence/
 context/upstream/patches/numpy-2.5.2/0002-callback-signatures.md   six header lines; body points to the facts
 context/upstream/patches/numpy-2.5.2/0001-npy-files-without-dup.md amended body
@@ -315,21 +461,27 @@ context/upstream/3-numpy-npy-wasi/pr.md                        the two behaviour
 context/upstream/README.md                                     row 13
 scripts/make_stdlib_zip.py                                     --code-prefix; pyc(source, prefix + name)
 scripts/steps/70_zip.sh                                        --code-prefix "/usr/local/lib/python$PYTHON_TAG.zip/"
-tests/harness/callbacks.py                                     the scan (Decision 4)
+tests/harness/wasm.py                                          element, data, code bytes, name sections
+tests/harness/callbacks.py                                     the scan (Decision 4): references, singles,
+                                                                 minimum counts, coverage
 tests/checks/test_v1_3_data_stack.py                           test_callbacks_have_the_types_cpython_calls,
                                                                  test_callbacks_job_matches_native[*],
                                                                  test_a_pandas_warning_names_the_callers_line[*],
                                                                  test_npy_files_round_trip's two new cases
 tests/jobs/callbacks.py, callbacks.expected                    the golden job, from the oracle
-tests/unit/test_callbacks.py                                   the scan on small modules built with wat2wasm
+tests/unit/test_callbacks.py                                   the scan on small modules built with wat2wasm:
+                                                                 a referenced mismatch is found; an unreferenced
+                                                                 look-alike is not; a code-referenced single is
+                                                                 checked; a passive segment is a finding
 tests/upstream/numpy.toml, pandas.toml                         Decision 12, if 050 has landed
 README.md, CHANGELOG.md                                        Decision 13
 ```
 
 ## Scope
 
-In: the six numpy callbacks; the scan of method and getset tables; the zip's code names; patch
-0001's masked-array rule and its documented message.
+In: the six numpy callbacks; the scan of referenced method and getset tables and of
+code-referenced single definitions; the zip's code names; patch 0001's masked-array rule, its
+documented message and numpy's own test of it; spec 050's classes and traps as Decision 12 says.
 
 Out:
 - **Scanning `tp_*` slots and other C callback paths** (Decision 4).
@@ -341,8 +493,8 @@ Out:
 ## Acceptance criteria
 
 1. **Seen failing first, on the frozen set.**
-   - `test_callbacks_have_the_types_cpython_calls` reports the six numpy callbacks (and, with
-     the exclusion list empty, the six non-callback matches).
+   - `test_callbacks_have_the_types_cpython_calls` reports exactly the six numpy callbacks, with
+     the exclusion list empty, and its minimum counts are met.
    - `test_callbacks_job_matches_native[*]` traps.
    - `test_a_pandas_warning_names_the_callers_line[*]` reports `pandas/io/parsers/readers.py:1798`.
    - The masked-array case of `test_npy_files_round_trip` reports `saved`.
@@ -352,18 +504,30 @@ Out:
    - step 40's log names both patches applied;
    - spec 020's zero-diff check passes with exactly the two;
    - `python.wasm`'s six callbacks have the types Decision 2 names (the scan says so);
-   - every `.pyc` in the zip has `co_filename` equal to `/usr/local/lib/python315.zip/` plus its
-     member name less `c` (a unit check over the built zip);
+   - every code object in every `.pyc` in the zip, nested ones included (`co_consts`, walked
+     recursively), has `co_filename` equal to `/usr/local/lib/python315.zip/` plus its member
+     name less `c` (a unit check over the built zip);
    - the zip's member list equals the frozen set's.
 3. After the build, every check in criterion 1 passes. The golden job equals the oracle's output
-   on both binaries. The scan's findings are empty with its six reviewed exclusions, and an
-   exclusion that stops matching is a finding (a unit check on a crafted module).
+   on both binaries. The scan's findings are empty, with no exclusion. Its coverage is at least
+   the minimum counts, and close to the review's figures; the notes give them. Unit checks on
+   crafted modules show:
+   - a referenced mismatch is found;
+   - an unreferenced look-alike is not;
+   - an exclusion that stops matching is a finding;
+   - a passive data segment is a finding.
 4. **Spec 012:** the same-bytes rebuild on a second host (the release dry run's arm64 Linux job)
    gives the same `python.wasm`, zip and snapshot as the macOS build.
-5. If spec 050 has landed, its suites pass with Decision 12's edits. No trap entry is left.
-   `numpy-core` runs the two returned files. Each group's `passes` is reported, and none falls.
+5. If spec 050 has landed, its suites pass with Decision 12's edits:
+   - the eight emptied classes pass, with their gaps removed;
+   - the seven trap checks are retired;
+   - `numpy-core` runs the two returned files. Any new trap there has its entry, its gap and a
+     named follow-up;
+   - each group's `passes` is reported, and none falls.
 6. `uv run ruff check`, `uv run ruff format --check`, and `uv run pytest` green.
-   - `--accept-judge` names the new checks, the job, the exclusions and spec 050's TOML.
+   - `--accept-judge` names the new checks, the job, `wasm.py`'s new readers and spec 050's
+     edits.
+   - `--retire` names the seven trap checks, with their last results.
    - `--accept-growth` gives the build's measured account: zip bytes, the plain binary's fuel,
      and the snapshot's fuel and bytes, each with its cause.
    - Ratchet: lost 0.
