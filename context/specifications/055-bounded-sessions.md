@@ -1,9 +1,12 @@
 # 055 — Bounded sessions
 
-- **Status:** drafted 2026-10-18; awaiting its pre-build review (required: it changes the
-  guest's exports). §5.6 asks for a review of this specification by an agent or person who did
-  not write it, recorded as `../reviews/055-bounded-sessions-spec-YYYY-MM-DD.md`, before any
-  build. It is build-class, so after that review it waits for a free build-class slot (§5.7).
+- **Status:** revised against its pre-build review; awaiting the reviewer's confirmation.
+  Drafted 2026-10-18; reviewed before build the same day, as §5.6 requires since it changes
+  the guest's exports (`../reviews/055-bounded-sessions-spec-2026-10-18.md`, also a security
+  review of the design; verdict: ready once F1 to F7 are written in), and revised against all
+  fifteen findings (the Disposition, at the end, says where each went). F4 follows the landing
+  lane's ruling: the lifetime is tightened, not left to the owner. It is build-class, so once
+  confirmed it waits for a free build-class slot (§5.7).
 - **Owner:** Clay Gendron
 - **Kind:** **build-class.** The guest's recipe (`recipes/reactor_main.c`: a new export, `turn`;
   `recipes/reactor_bootstrap.py`: the turn's Python), so both binaries, `MANIFEST`'s recipe
@@ -20,9 +23,14 @@
   032 and 036, landed. Build-class work ahead of it (035, in build; then the queue the roadmap
   orders) may also edit `recipes/reactor_main.c` or `recipes/reactor_bootstrap.py`;
   build-class work is serial, so this is built from main after the work ahead of it has landed
-  (the roadmap puts 055 last in the build-class queue, after 044 and 045). Specs 053 (async host functions) and 054
-  (read-only code on the import path) are drafted in parallel and will most likely land first;
-  Decision 5's rule carries what they add to `run` into `Session`.
+  (the roadmap puts 055 last in the build-class queue, after 044 and 045). Specs 053 (async
+  host functions) and 054 (read-only code on the import path) are drafted in parallel and will
+  most likely land first;
+  Decision 5's rule carries what they add to `run` into `Session`, and Decision 5 says how
+  each applies in a session. **056** (the 0.1.0a4 security review's fixes to `tool()` and the
+  frame host: partial keywords bounded, no tool run after its call is answered) lands first:
+  a session keeps its tools and their late threads across turns, so those fixes matter more
+  here (the review, F12).
 - **Research it stands on:** `../research/2026-10-17-state-across-agent-turns.md` (option 1:
   a live instance per session through a second export; its prototype E2, the per-turn fuel and
   memory figures, and E1b's resting shadow stack); this specification's addendum,
@@ -59,8 +67,9 @@ variables, DataFrames, functions, classes, lambdas.
   rest.
 - **Ended:** a session that will run no more turns. Its store is closed and its folders are
   removed.
-- **Idle bound:** the longest a session may stay at rest. **Lifetime:** the longest a session
-  may exist from its opening.
+- **Idle bound:** the longest a session may stay at rest. **Lifetime:** how long after its
+  opening a session's guest may run: no guest instruction runs past it (Decision 9 gives the
+  exact promise).
 
 ## Decisions
 
@@ -82,8 +91,27 @@ variables, DataFrames, functions, classes, lambdas.
      exception (Decision 3), and returns 1. The session goes on.
    - **The return value** is the turn's exit status, 0 to 255, as `run` returns one for the
      same code given with `-c`: 0 when the code finished; 1 when it raised (the traceback is on
-     stderr); the code of a `SystemExit` it raised (Decision 4). **−1** means refused: `run` was
-     already called in this instance, or `len` is negative. A refused turn runs no Python.
+     stderr); the code of a `SystemExit` it raised (Decision 4). **−1** means refused, and only
+     the C side refuses (below). A refused turn runs no Python.
+   - **The C side owns the range** (the review, F1). Guest code can import `_reactor` and
+     replace its functions (EXECUTED by the review, `pa_reactor_patch`: `replaced: 300 -1` on
+     both binaries), so what Python returns is guest-controlled. The export therefore: calls
+     the turn function through a strong reference it took when the bootstrap was loaded
+     (`init_interpreter`), never through `sys.modules["_reactor"]`, so replacing
+     `_reactor.turn` or deleting the module changes nothing; maps a result that is an `int` to
+     its low byte (`& 0xFF`, the rule `SystemExit`'s status follows) and anything else, a
+     failed call included (printed with `PyErr_Print`), to 1. So `turn` returns −1 **only** for
+     its own refusals, which this runner never triggers, and Decision 7's "lost track" rule
+     names only a runner fault. Nothing a guest does makes `session.run` raise.
+   - **The C refusals, each returning −1 with no Python run** (the review, F8): `run` was
+     already called in this instance; `len` is negative; or a turn is in progress or did not
+     return. An `in_turn` flag is set when `turn` starts and cleared only when it returns
+     normally; a trap or `proc_exit` unwinds without running C, so after one the flag stays set
+     and every later `turn` is refused, as is a re-entrant `turn` from a door callback. The
+     guest thereby defends itself against any embedder that breaks the next rule.
+   - **Copy, then free.** The export copies the buffer into a `bytes` object and frees the
+     buffer before any Python runs, so a large turn never holds twice its size. `turn(0, 0)`
+     is an empty turn: it returns 0.
    - **`run` and `turn` exclude each other in one instance.** A `run` after a `turn` returns 70
      with the message `python.wasm: run() may be called once per instance, and not after
      turn()`, as a second `run` does today. A `turn` after a `run` returns −1.
@@ -95,21 +123,33 @@ variables, DataFrames, functions, classes, lambdas.
    - **After a trap or an exit** (`proc_exit`, which wasmtime raises as an exit trap), the host
      must not call `turn` again. wasmtime allows it (the addendum, finding 1), but a trap
      unwinds the guest without running CPython's cleanup, so the interpreter's state is not
-     safe to enter. Ending the session is the host's job.
+     safe to enter. Ending the session is the host's job; the guest also refuses such a call
+     (the `in_turn` flag, below).
    - **The plain reactor** needs `_initialize` once before the first `turn`, as before `run`.
      The first `turn` then initializes the interpreter, as `run` does (a random hash secret).
-   - The C function sets `pinned = 0` first, as `run` does; it refuses before anything else if
-     `run_called` is set; it sets a new flag, `turned`, which `run` checks beside `run_called`.
+   - The C function sets `pinned = 0` first, as `run` does; it makes the refusals above before
+     anything else; it sets a new flag, `turned`, which `run` checks beside `run_called`.
 
 3. **What a turn does in the guest.** The Python half is a new function in the frozen
    bootstrap, `_reactor.turn(source, environ)`, compiled into the reactor at step 60 as today.
    `source` is the buffer's bytes, or `None` for the NULL case; `environ` is the WASI
-   environment on the first turn and `None` after.
-   - **The first turn sets up the session, once.** `os.environ` from WASI, `sys.argv` set to
-     `[""]` (as the interactive interpreter has it), and `_refresh(False)`: `random` and
-     `numpy.random` reseeded from WASI entropy, logging's start time, `zoneinfo`'s path. Later
-     turns reseed nothing, so `random.seed(1)` in one turn governs the next turn's draws, as in
-     any interpreter.
+   environment and argv on the first turn and `None` after.
+   - **The first turn sets up the session, once.** `os.environ` from WASI; any WASI arguments
+     after `argv[0]` appended to `sys.path`, in order, after the stdlib zip (the session's
+     import path, Decision 5); `sys.argv` set to `[""]` (as the interactive interpreter has it)
+     and `sys.orig_argv` to `[ARGV0]`; `builtins.exit` and `builtins.quit` rebound (below); and
+     `_refresh(False)`: `random` and `numpy.random` reseeded from WASI entropy, logging's start
+     time, `zoneinfo`'s path. This setup is not a numbered turn, prints nothing and registers
+     nothing in `linecache`, so `<turn 1>` is the embedder's first code as written. Later turns
+     reseed nothing, so `random.seed(1)` in one turn governs the next turn's draws, as in any
+     interpreter.
+   - **`exit()` and `quit()` leave stdin open** (the review, F13). `site`'s `Quitter` closes
+     `sys.stdin` before it raises `SystemExit` (EXECUTED by the review,
+     `pc_exit_closes_stdin`). In `run` that does not matter, since the program ends; in a
+     session, which goes on after `exit()` (Decision 4), every later `sys.stdin.read()` would
+     raise `ValueError`. So the session's setup rebinds both names to instances of a subclass
+     of `site`'s `Quitter` whose call raises `SystemExit(code)` without closing stdin; their
+     `repr` is unchanged.
    - **Each turn's code is named `<turn N>`**, N counting from 1 in this instance, and is
      registered in `linecache` (as `_reactor.run` does for `-c`), so a traceback shows the
      source lines of the turn that raised and of any earlier turn whose function it called.
@@ -146,7 +186,7 @@ variables, DataFrames, functions, classes, lambdas.
      life is the embedder's to set (its bounds, `close()`), and the turn's exit status still
      tells the embedder what the code asked for. The research's first recommendation leaned
      the other way ("a trap or an exit ends the session"); the owner's decision 21 settles only
-     traps, so this is the agent's choice, recorded for the owner as question 91.
+     traps, so this is the agent's choice, recorded for the owner as question 92.
    - **`os._exit(n)` does end the session.** It calls WASI's `proc_exit`, which wasmtime raises
      as an exit trap: the guest's stack unwinds without CPython's cleanup, as at any trap.
      The turn's `exit_code` is `n`, and the session ends with `ended == "exit"` (Decision 8).
@@ -174,11 +214,28 @@ variables, DataFrames, functions, classes, lambdas.
      returns `""`.
    - **The rule for arguments `run` gains.** A session takes every argument of `run` except
      `argv`, `stdin` and `cancel`, with `run`'s meaning, as `run` stands when this is built.
-     Two specifications drafted beside this one will most likely have landed by then: 054's
-     `import_path=` is per session, applied at the first turn as `run` applies it before its
-     program; 053's async tools and gate work in a session's turns as in `run`'s call, and a
-     turn by `run_async` passes its loop as `run_async` does. The builder adds each such
-     argument to Decision 17's lines, and the review checks them against this rule.
+     Two specifications drafted beside this one will most likely have landed by then, and how
+     each applies is decided here (the review, F5 and F11):
+     - **054's `import_path=`** is per session, checked at the opening by 054's rules (its
+       Decisions 2 to 5 and 9: guest paths served by read-only grants, nothing writable under
+       one). `run` applies it through an argv prelude (054, Decision 7); a session has no argv
+       and `turn` takes source, so that prelude does not carry over. Instead the session's WASI
+       argv is `[ARGV0, *entries]`, and the first turn's setup (Decision 3) appends
+       `argv[1:]` to `sys.path` after the zip. This is the guest-side mechanism 054 foresaw
+       ("if a later build-class change rebuilds the bootstrap … the mechanism may move into the
+       guest"); `run`'s prelude is unchanged. No turn number is consumed, no line moves, and
+       nothing is printed (criterion 30). Without `import_path=`, argv is `[ARGV0]`.
+     - **053's async tools and gate** work in a session's turns as in `run`'s call. A session
+       driven by `session.run` (synchronous) owns **one** private tool loop for its whole
+       life, not one per turn: a session's tools persist across turns, and an async tool that
+       caches a loop-bound client (HTTP, MCP) on its first await must find the same loop in
+       turn 2. At each turn's end the loop's pending tool tasks are cancelled, as 053 does at a
+       call's end; the loop is closed when the session ends. A turn by `run_async` uses the
+       caller's loop, as 053's `run_async` does. The README says: an async tool that caches a
+       loop-bound object needs all of a session's turns on one loop (all through `run`, or all
+       from one event loop).
+     The builder adds each such argument to Decision 17's lines, and the review checks them
+     against this rule.
    - **`session.run(code: str, *, fuel=<session's>, deadline_s=<session's>,
      output_bytes=<session's>, cancel=None) -> Completed`** runs one turn and returns how it
      ended.
@@ -221,10 +278,19 @@ variables, DataFrames, functions, classes, lambdas.
    - walks the root and grants, makes a private root for `root=True`, makes HOME where `/tmp`
      is writable, makes the scratch folder (empty stdin, the mounts' placeholder), all as `run`
      makes them for one call, and keeps them, held open, for the session's life;
-   - makes the store: the memory cap, the WASI config with the preopens, argv `[ARGV0]` and
-     env, the two output keys, the linker (the mount linker with mounts, the guard linker
-     without), the mount table, and the epoch callback (`_watch`), so that every turn can be
-     stopped (Decision 10);
+   - makes the store: the memory cap, the WASI config with the preopens, argv (`[ARGV0]`, plus
+     the import path's entries, Decision 5) and env, the two output keys, the linker (the mount
+     linker with mounts, the guard linker without), the mount table, and the epoch callback
+     (`_watch`), so that every turn can be stopped (Decision 10);
+   - takes the session's **clock base**, `origin_ns = time.perf_counter_ns()`, once, as the WASI
+     config is made, and keeps it for every turn (the review, F6). wasmtime's monotonic clock
+     counts from the store's WASI context, made once; the guest's `time.sleep` reaches
+     `poll_oneoff` as an absolute monotonic time (EXECUTED by the review, `pd_sleep_abstime`:
+     `ABSTIME=True`), which the runner turns into a wait by subtracting `perf_counter_ns() -
+     origin_ns` (READ, `_poll_oneoff`). A base taken per turn, as `_instance` takes one per
+     call, would make `time.sleep(1)` an hour into a session wait about an hour, until the
+     deadline killed the session. Each turn's `_poll_oneoff` is built with the session's base
+     (criterion 31);
    - instantiates the module. Instantiation runs no guest code: neither binary has a start
      section (spec 008, Decision 2, checked by the judge). The preopen identity check (spec 017,
      Decision 5) runs here, once.
@@ -239,15 +305,21 @@ variables, DataFrames, functions, classes, lambdas.
       forked after the session was used (as `run`).
    2. builds the turn's call: a fresh pair of `_Stream`s put behind the store's two output keys
       (the output cap is per turn; the addendum, finding 4); the turn's fuel (`set_fuel`) and
-      epoch deadline, armed as `_instance` arms them today; its `stop_at`, waits and checks; a
+      epoch deadline, armed as `_instance` arms them today, with the turn's effective deadline,
+      the lesser of its `deadline_s` and the session's lifetime left (Decision 9); its
+      `stop_at`, waits and checks, on the session's clock base (Decision 6); a
       new frame host for `tools=` (Decision 11); the mount table's per-turn counters (Decision
       11); and a `_Call` for the turn, pushed on the calling thread's stack while the turn runs.
-   3. runs, under the deferred Ctrl-C and an active epoch ticker: on the first turn only, the
-      plain reactor's `_initialize`; then `host_alloc(len)`; then, if it returned a pointer
-      within memory, the code is written there; then `turn(pointer, len)`, with 0 as the pointer
-      when `host_alloc` returned 0 or a pointer past memory. **All of it is the turn's**: its
-      fuel, its deadline, its cancel. A trap or exit in `_initialize` or `host_alloc` is the
-      turn's, as in `run`.
+   3. runs, under the deferred Ctrl-C and an active epoch ticker: if the turn's stop is already
+      set (its `cancel`, or a `close()`), no guest code runs and the turn returns `trapped ==
+      "cancelled"` with the session left as it was, at rest and untouched, the same rule as a
+      `run_async` turn cancelled while queued (the review, F10), unless the stop was a
+      `close()`, which ends it as `"closed"`. Otherwise: on the first turn only, the plain
+      reactor's `_initialize`; then `host_alloc(len)`; then, if it returned a pointer `p` with
+      `p != 0` and `p + len` at most the memory's size (the check `_door` makes, the review's
+      F8), the code is written there; then `turn(p, len)`, with 0 as the pointer when that check
+      fails. **All of it is the turn's**: its fuel, its deadline, its cancel. A trap or exit in
+      `_initialize` or `host_alloc` is the turn's, as in `run`.
    4. reads how it ended, by `_drive`'s rules as they stand: an exit trap is an exit; a trap is
       named by `_trap_name`; a recorded stop holds; a named end (`cancelled`, `deadline`, `out
       of file calls`) holds. `fuel_used` is read by `_fuel_used`'s rules.
@@ -257,8 +329,9 @@ variables, DataFrames, functions, classes, lambdas.
       session is closed before `run` returns or raises.
 
    A turn's return value of −1, or any value outside −1 to 255, means the runner and the guest
-   disagree. It is a runner fault: the session ends with `"error"` and `run` raises
-   `RuntimeError("wasi_python lost track of a session")`, as `_drive` raises for a lost call.
+   disagree. Since the C side owns the range (Decision 2), no guest code can produce it: it is a
+   runner fault, the session ends with `"error"`, and `run` raises `RuntimeError("wasi_python
+   lost track of a session")`, as `_drive` raises for a lost call.
 
 8. **How a session ends, and what `ended` says.** A session ends at the first of these. Each
    closes the store at once, removes HOME, the scratch folder and a private root, releases the
@@ -268,24 +341,28 @@ variables, DataFrames, functions, classes, lambdas.
    |---|---|---|
    | `close()`, or leaving a `with` block | `"closed"` | a turn it interrupted returns `trapped == "cancelled"` (Decision 10) |
    | the idle bound passed while at rest | `"idle"` | no turn ran; the next call raises `SessionEnded` |
-   | the lifetime passed | `"lifetime"` | a turn running when it passed returns normally; the session ends as it returns (Decision 9) |
+   | the lifetime passed | `"lifetime"` | at rest: no turn ran, and the next call raises `SessionEnded`; during a turn: the turn's effective deadline was the lifetime's remainder, so it returns `trapped == "deadline"` (or its result, if it finished first) and the session ends as it returns (Decision 9) |
    | a turn called `os._exit` (`proc_exit`) | `"exit"` | `exit_code` is the code, `trapped` is `None` |
-   | a turn trapped, or the runner stopped it | the turn's `trapped`: `"out of fuel"`, `"deadline"`, `"cancelled"`, `"out of file calls"`, or wasmtime's name for the trap (`"stack overflow"`, …) | `exit_code` is `None`, as in `run` |
+   | a turn trapped, or the runner stopped it after guest code ran | the turn's `trapped`: `"out of fuel"`, `"deadline"`, `"cancelled"`, `"out of file calls"`, or wasmtime's name for the trap (`"stack overflow"`, …) | `exit_code` is `None`, as in `run` |
    | `run` raised after the guest started (Ctrl-C; a `BaseException` from the embedder's host, provider, tool or gate; a lost call) | `"error"` | none: `run` raises, as it does today |
 
-   - **A `MemoryError` does not end a session**, nor does an exception, a `SystemExit`, or a
-     truncated output. The addendum (finding 3) shows the memory cap is met as a Python
+   - **A `MemoryError` does not end a session**, nor does an exception, a `SystemExit`, a
+     truncated output, or a cancel that was set before the turn's guest code began (Decision
+     7). The addendum (finding 3) shows the memory cap is met as a Python
      exception, with every later turn running.
    - **After it has ended**, `run` and `run_async` raise `SessionEnded`, whose `reason` is
-     `ended`. `close()` does nothing. `ended` never changes again.
+     `ended`. `close()` does nothing. `ended` is set once, by the first cause, under the
+     session's state lock, before anything is closed, and never changes again (the review,
+     F10).
    - **A trap ends the session in this version** (decision 21). Keeping the last good state
      after a trap needs a memory image taken at rest (the research's option 4): a later
      specification.
    - **Closing is a stop, not a shutdown.** No guest code runs at close: no `Py_FinalizeEx`, no
-     `atexit` handler, no flush of files the program left open. The idle reaper and the
-     collector close sessions on threads where running guest code would be wrong, and a stop
-     costs nothing to bound. The README says so: write and close files within a turn. What a
-     turn wrote to WASI is already with the host (grants) or the provider (mounts, Decision 11).
+     `atexit` handler, no flush of files the program left open, and no write-back to a mount's
+     provider. The idle reaper and the collector close sessions on threads where running guest
+     or provider code would be wrong, and a stop costs nothing to bound. The README says so:
+     write and close files within a turn. What a turn wrote to WASI is already with the host
+     (grants) or was offered to the provider at that turn's ending (mounts, Decision 11).
    - The fixed strings `"closed"`, `"idle"`, `"lifetime"`, `"exit"` and `"error"` are promised,
      with `Completed.trapped`'s four. wasmtime's trap names are not (049, Decision 5).
 
@@ -304,23 +381,41 @@ variables, DataFrames, functions, classes, lambdas.
    - **Where they are enforced: host bookkeeping, no guest timer.** The guest runs nothing at
      rest and cannot see time pass, so nothing in the guest enforces them (the addendum,
      section 7). The runner checks them in two places:
-     - **at each call**, before the turn starts: a bound that has passed ends the session with
-       its reason, and the call raises `SessionEnded`;
+     - **at each call**, before the turn starts: a bound that has passed (the lifetime included,
+       at or after the moment) ends the session with its reason, and the call raises
+       `SessionEnded`;
      - **by one reaper thread per process**, a daemon started with the first session. It sleeps
        until the earliest moment any open session's bound passes, recomputed when a session
        opens, finishes a turn or ends, and ends each session whose bound has passed and that
        has no turn running. Without it, an abandoned session would hold its memory (about
        37 MiB resident after a pandas turn, up to its `memory_bytes`; the research, E5b) until
        someone touched it, which is what the bounds exist to prevent.
-   - **A running turn is never cut by a bound.** A turn's limits are fixed when it starts: its
-     own deadline bounds it. If the lifetime passes during a turn, the turn returns its result
-     normally and the session ends as it returns (`ended == "lifetime"`). So a session exists at
-     most its lifetime plus one turn's deadline (60 s by default). A turn's deadline does not
-     shrink as the session ages, so the same turn ends the same way whenever it is sent.
+   - **The lifetime caps each turn's deadline** (the review, F4; the landing lane's ruling of
+     2026-10-18: tighten, so the owner's one hour holds, rather than wait for the owner). No
+     turn starts at or after the lifetime: the call raises `SessionEnded("lifetime")`. Each
+     turn's effective deadline is the lesser of its own `deadline_s` and the lifetime left when
+     it starts, converted to ticks as `deadline_s` is (rounded up to a whole tick); a turn with
+     `deadline_s=None` still gets the lifetime left. A turn the cap stops returns `trapped ==
+     "deadline"`, and the session ends with `"lifetime"`, because the lifetime set that
+     deadline; a turn its own deadline stops ends the session with `"deadline"`. A turn that
+     finishes before the cap returns normally, and if the lifetime has passed by its end, the
+     session ends as it returns (`"lifetime"`).
+   - **The exact promise.** No guest instruction runs later than the opening plus the
+     lifetime, to within the deadline's own precision (one tick, `TICK_S`, plus the epoch
+     check's slack, as for any deadline: spec 010). What can still happen after that moment is
+     exactly what `run` allows after its own deadline, and no more: a raw `host=` function or a
+     provider call already in flight is waited for (the runner never kills embedder code; a
+     tool call is answered at the deadline and its thread abandoned, spec 036); and the turn's
+     mount write-backs, made after the guest has stopped, run as at `run`'s ending, bounded by
+     the file calls left and the staging bound, not by the clock (spec 034, Decision 8). The
+     session's store, folders and memory are released as soon as that turn returns. The idle
+     bound needs no cap: a running turn is never idle.
    - **Injectable, so the judge never sleeps.** The reaper's waiting takes an injected clock and
      wait, as spec 010's `_Waits` and spec 036's `_Bounded` do, and its one step,
      `_reap(now)`, ends what is due at `now` and returns how long to wait. The checks drive
-     `_session_clock` and `_reap` with fakes (criteria 13 and 14).
+     `_session_clock` and `_reap` with fakes (criteria 13 and 14). The lifetime's cap on a
+     turn's deadline is computed from `_session_clock`, so criterion 14 drives it with the fake
+     clock too.
 
 10. **Concurrency: one turn at a time; any thread; sessions share nothing.**
     - **One turn at a time.** A session holds a small state lock around two flags, `ended` and
@@ -329,7 +424,10 @@ variables, DataFrames, functions, classes, lambdas.
       the turn's own thread included (a raw host function or a provider calling back into its
       own session), and from a tool's thread. Blocking instead would queue a model's next turn
       behind a runaway one, invisibly, and the next turn's code usually depends on the last
-      one's result anyway.
+      one's result anyway. `busy` is cleared in a `finally` on every path, so no host error can
+      leave a session the reaper skips forever (the review, F10). The reaper takes the state
+      lock, finds `busy` clear and the bound passed, sets `ended`, and only then closes, so a
+      racing `run` sees `SessionEnded`, never a closed store.
     - **Any thread.** Turns may run on whichever thread calls, one after another; the store may
       be closed from another thread (the addendum, finding 2). Each turn pushes its own call on
       its own thread's stack, so the shared host functions (spec 011) serve it.
@@ -348,6 +446,9 @@ variables, DataFrames, functions, classes, lambdas.
       condition is therefore "its `cancel` is set, or the session is closing", and the
       session's store always has the epoch callback (Decision 6). That costs one Python call
       per `CANCEL_TICKS` ticks of compute and no fuel; the ticker runs during every turn.
+      **`close()` blocks** until the turn returns, which includes a raw `host=` function or a
+      provider call in flight; called from a coroutine, it blocks that event loop. Its
+      docstring says so.
     - **No cap on sessions per process.** Each session is opened by an explicit call, holds at
       most its `memory_bytes`, and is reclaimed by its bounds; a count cap would be policy over
       the embedder's own process, which the embedder already controls by opening fewer.
@@ -366,11 +467,19 @@ variables, DataFrames, functions, classes, lambdas.
         turn, which ends the session (Decision 8);
       - **at the end of every turn that returns a result**, dirty buffers are handed to their
         providers, as `run` does at its ending (spec 034, Decision 8; the owner's decision 71).
-        An open file stays open; its buffer is clean afterwards. A buffer owed for a file the
-        guest closed is dropped once written. So the embedder sees what a turn wrote, through
-        its provider, when the turn's result arrives, which is the nearest a session gets to
-        POSIX's rule that a write is visible at once. Write-backs count against that turn's
-        file calls, as at `run`'s ending.
+        An open file stays open; a buffer that was written is clean afterwards. A buffer owed
+        for a file the guest closed is dropped once written. So the embedder sees what a turn
+        wrote, through its provider, when the turn's result arrives, which is the nearest a
+        session gets to POSIX's rule that a write is visible at once. Write-backs count against
+        that turn's file calls, as at `run`'s ending.
+      - **A write-back the file-call limit refuses stays dirty** (the review, F7). Today
+        `_Files.walk` records the refusal and marks the buffer clean, which is right for `run`,
+        whose ending is final (READ, `mounts.py`, `walk`). In a session that would lose the
+        bytes quietly while the guest believes the file written. So in a session a refused
+        write-back is recorded in that turn's `files.refused` (cause `"limit"`), and the buffer
+        stays dirty (an owed buffer stays owed), to be offered again at the next turn's ending.
+        A session that ends at rest never offers it (closing is a stop, Decision 8); the earlier
+        turn's record already named the refusal.
       - The staging bound stays `memory_bytes` for the session.
     - **Tools** are fixed for the session: the guest lists them once, when `host.tools` is first
       imported, and keeps the functions (READ, `recipes/guest/host/tools.py`). Per turn:
@@ -379,35 +488,69 @@ variables, DataFrames, functions, classes, lambdas.
         that first imported `host.tools`, and in no later turn's;
       - the turn's deadline, cancel and Ctrl-C bound its tool calls, as in `run` (spec 036).
       - **Abandoned tool threads are counted per session**, not per turn: at most
-        `MAX_ABANDONED` (4) at once across the session's turns. A per-turn count would let a
-        session strand four threads per turn for an hour. The count falls as the threads end,
-        as it does today within a call.
+        `_MAX_ABANDONED` (4; 049 makes the name private) at once across the session's turns. A
+        per-turn count would let a session strand four threads per turn for an hour. The count
+        falls as the threads end, as it does today within a call. An abandoned tool's effect may
+        land during a later turn of the same session, or after `close()`; 056 stops a tool from
+        starting after its call is answered, but one already running runs to its end (the
+        review, F12). The README's abandoned-tools text says so.
+    - **What a session holds on the host, for its whole life** (the review, F2). A session keeps
+      its store, so it keeps every host file descriptor its guest opened, up to the process's
+      limit, until it ends: up to its idle bound after the last turn, at most its lifetime. One
+      call's guest can take every descriptor the process has (EXECUTED by the review,
+      `pb_fd_exhaust`: 1,014 files under a soft limit of 1,024, 122,870 under macOS's default,
+      after which the host's own `open()` failed with `EMFILE`). For `run` that lasts one call
+      (the 0.1.0a2 security review's F11; the README's *Not protected*); a session stretches it.
+      It also holds up to `memory_bytes` of linear memory and up to `memory_bytes` of mount
+      staging on the host. No descriptor cap exists today, for `run` or a session; a cap per
+      store is a later specification (Decision 22), and whether it comes before 0.1.0 is the
+      owner's (question 92). The README's *Sessions* and *Not protected* say all this, and
+      advise a short `idle_s` for untrusted code and a prompt `close()`.
+    - **A session is one trust domain** (the review, F3). Every turn runs inside whatever the
+      earlier turns left: an earlier turn can hook `builtins`, `compile`, `exec`,
+      `sys.displayhook`, `sys.excepthook`, `sys.settrace`, `print` or `_reactor`'s module
+      globals, and so read every later turn's source and data, rewrite what later turns print,
+      or make them report exit 0 (Decision 2's C-side entry and range narrow the worst case but
+      cannot close this: the guest is the whole interpreter). What any turn or tool put in the
+      guest, a secret included, stays readable for the rest of the session. The README's
+      *Sessions* and *Not protected* say: a turn's output and exit status are only as
+      trustworthy as the least trusted turn before it; never send a more trusted turn (a check
+      whose exit code the embedder believes, a turn that holds a token) after less trusted
+      code in the same session; open a new session for it.
     - **A raw `host=`** is the same callable for every turn; the runner keeps nothing for it.
 
 12. **From async code: `run_async`.** `await session.run_async(code, …)` runs the turn on
     `executor` or on `run_async`'s default pool, as `wasi_python.run_async` does (spec 015),
     with the same rules: arguments checked in the coroutine before anything is queued; the
+    session's `busy` flag claimed in the coroutine before the turn is queued, so a queued turn
+    is not idle and a second concurrent `run_async` fails at once (the review, F10); the
     calling context copied to the worker; a task cancelled while its turn is still queued never
-    starts it, and the session is untouched; **a task cancelled while its turn runs stops the
-    turn, which ends the session with `"cancelled"`**, and then `CancelledError` is raised once
-    the worker has returned. At interpreter exit, a turn running on a worker is stopped with
-    `run_async`'s other guests (spec 015's exit hook).
+    starts it, `busy` is released, and the session is untouched; **a task cancelled while its
+    turn runs stops the turn, which ends the session with `"cancelled"`**, and then
+    `CancelledError` is raised once the worker has returned. At interpreter exit, a turn
+    running on a worker is stopped with `run_async`'s other guests (spec 015's exit hook).
 
 13. **Fork, exit and the collector.**
     - **Fork.** In a process forked after a session was used, `run` and `run_async` raise
       `RuntimeError`, as `wasi_python.run` does (spec 015). `close()` in the child marks the
       session ended and touches neither the store nor any folder: they are the parent's. The
       child has no reaper, an empty registry and `sessions_open` of 0
-      (`_after_fork_in_child`). The collector's
-      finalizer (below) does nothing in a forked child.
+      (`_after_fork_in_child`). The collector's finalizer (below) does nothing in a forked
+      child.
     - **Exit.** An exit hook, registered with the first session (so it runs before `_release`
-      frees the engines), closes every session at rest. A session whose turn is still running is
-      closed when that turn returns. Folders left by a killed process are swept by spec 016's
-      sweep, as `run`'s are.
-    - **The collector.** A session no one references is closed by a `weakref.finalize` on its
-      state, which holds the store and the folders but not the `Session` object. The reaper
-      holds sessions weakly. So a dropped session is closed when it is collected, or by its idle
-      bound if a reference cycle delays the collector.
+      frees the engines), stops the reaper and waits for its current step, then closes every
+      session at rest. A session whose turn is still running is closed when that turn
+      returns. Folders left by a killed process are swept by spec 016's sweep, as `run`'s
+      are.
+    - **The collector.** A session no one references is ended through a `weakref.finalize` on
+      its state, which holds the store and the folders but not the `Session` object. The
+      finalizer runs wherever the collector fires: on any thread, inside another session's host
+      function, or on the reaper while it holds a lock. So it takes no lock and closes nothing:
+      it only marks the state dropped and wakes the reaper, which ends and closes it on its own
+      thread (the review, F9; the `_outputs_lock` comment records this project meeting a
+      finalizer inside a locked block before). The reaper holds sessions weakly. So a dropped
+      session is closed soon after it is collected, or by its idle bound if a reference cycle
+      delays the collector.
 
 14. **Each turn returns a `Completed`.** No new result type. The fields mean what they mean for
     `run`, for the turn alone:
@@ -436,8 +579,12 @@ variables, DataFrames, functions, classes, lambdas.
     fuel of the same code in a fresh run. The first turn reseeds from WASI entropy and reads the
     real clock, which moves its count. The judge checks only that later turns repeat closely:
     the research saw two sessions' identical turns agree to within 9 instructions (EXECUTED, E2,
-    four sessions); criterion 16 allows 1,000, a hundred times that, and a wider band seen in
-    build is a finding, not a reason to widen the check.
+    four sessions), but in the door-loop prototype, without the `ast` split, the echo or
+    `linecache` (the review, F15). So before the band is fixed, the builder measures the spread
+    of turns 2 to 6 through the real export, over at least five sessions each on macOS and on
+    Linux, and records it in the landing notes. Criterion 16 allows 1,000 instructions; if the
+    measured spread exceeds 10 (a hundredth of the band), that is a finding for the review, not
+    a reason to widen the check.
 
 17. **The public API under spec 049.** This specification changes the surface 049 freezes.
     Every line of `tests/public_api.txt` it adds or changes, and the rule of 049's Decision 8
@@ -463,7 +610,8 @@ variables, DataFrames, functions, classes, lambdas.
     10: `Args:`, `Attributes:` and `Raises:` sections, no specification numbers in a public
     docstring, no internal name. `Session.run`'s and `run_async`'s `Raises:` name exactly:
     `TypeError`, `ValueError` (a bad argument; the session stays open), `SessionEnded`,
-    `RuntimeError` (a turn already running; a forked process; a lost call), `KeyboardInterrupt`
+    `RuntimeError` (a turn already running; a forked process; a lost call, which only a runner
+    fault produces, Decision 2), `KeyboardInterrupt`
     (`run`) or `asyncio.CancelledError` (`run_async`), and a `BaseException` raised by the
     embedder's own host, provider, tool or gate. The constructor's `Raises:` names the types
     049's Decision 6 lists for `run` before any work and while a call is prepared. An argument
@@ -501,8 +649,12 @@ variables, DataFrames, functions, classes, lambdas.
       it ends);
     - the per-session and per-turn table (Decision 5), the echo, `SystemExit`, and how a session
       ends (Decision 8's table);
-    - the bounds and their defaults, that a running turn is never cut, and the reaper;
+    - the bounds and their defaults, the lifetime's cap on a turn's deadline and its exact
+      promise (Decision 9), and the reaper;
     - "closing is a stop": write and close files within a turn;
+    - what a session holds on the host for its life, and that it is one trust domain
+      (Decision 11), in *Sessions* and in *Not protected*; an abandoned tool may land during a
+      later turn; async tools that cache loop-bound objects (Decision 5);
     - **the owner's decision 22: state that outlives a process.** A recipe in which a turn writes
       its state as files to a writable grant (`df.to_csv`, `json.dump`, or `df.to_pickle`;
       Parquet is not available, since pyarrow is not built) and a later session or `run` reads
@@ -536,22 +688,31 @@ variables, DataFrames, functions, classes, lambdas.
     - **A session pool, or a session shared between callers**: never; a session belongs to its
       opener (Decision 1).
     - **A cap on sessions per process**: none (Decision 10).
+    - **A cap on open host descriptors per store**, for `run` and sessions alike: a later
+      specification (the mount and guard linkers show how `path_open` can be shadowed); its
+      place before or after 0.1.0 is the owner's (question 92). Until then, Decision 11's
+      README text.
 
 ## Intent
 
 An embedder opens a session, sends an agent's code one turn at a time, and gets one result per
 turn, each costing a fraction of a fresh run, with variables, functions and data kept between
 them. Every turn has its own fuel, deadline, output cap, cancel, file-call and tool-call
-allowance; the session has one memory cap, an idle bound and a lifetime, all with defaults. A
-trap, an `os._exit`, a bound or `close()` ends the session and frees everything it held at once;
-an exception, a `SystemExit` or a full heap does not. `run()` is exactly as it was.
+allowance; the session has one memory cap, an idle bound and a lifetime, all with defaults, and
+no guest code runs past its lifetime. A trap, an `os._exit`, a bound or `close()` ends the
+session and frees everything it held at once; an exception, a `SystemExit` or a full heap does
+not, and nothing a guest does makes `session.run` raise. `run()` is exactly as it was.
 
 ## Design
 
 ```
-recipes/reactor_main.c            export "turn"(ptr, len) -> i32; the `turned` flag; run() refuses
-                                  after a turn; turn() refuses after run()
-recipes/reactor_bootstrap.py      _reactor.turn(source, environ): first-turn setup, <turn N>,
+recipes/reactor_main.c            export "turn"(ptr, len) -> i32; the `turned` and `in_turn`
+                                  flags; run() refuses after a turn; turn() refuses after run(),
+                                  during or after an unfinished turn, and a negative length; a
+                                  strong reference to the bootstrap's turn; the 0..255 clamp;
+                                  copy, then free
+recipes/reactor_bootstrap.py      _reactor.turn(source, environ): first-turn setup (env, the
+                                  import path from argv, exit/quit rebound, reseed), <turn N>,
                                   linecache, the echo, the interactive interpreter's reporting,
                                   SystemExit's status, the flush
 src/wasi_python/runner.py         Session (open, run, run_async, close, ended, context manager);
@@ -560,9 +721,10 @@ src/wasi_python/runner.py         Session (open, run, run_async, close, ended, c
                                   wait); the state lock; per-turn streams behind the output keys;
                                   the per-turn _Call on the existing _drive rules; stats()'s
                                   sessions_open; the fork and exit hooks extended
-src/wasi_python/mounts.py         _Files: per-turn counters reset; owed buffers dropped once written
+src/wasi_python/mounts.py         _Files: per-turn counters reset; owed buffers dropped once
+                                  written; in a session, a refused write-back stays dirty
 src/wasi_python/tools.py          _Bounded: an abandoned-thread count that a session shares
-                                  across its turns
+                                  across its turns; with 053, one tool loop per session
 src/wasi_python/__init__.py       Session, SessionEnded in __all__
 tests/harness/guest.py            turns(): the judge's own driver for `turn` on one instance
 tests/unit/test_guest.py          turns() checked against a stand-in module that exports `turn`
@@ -606,10 +768,14 @@ which drives `turn` on one instance without the runner and is itself checked in
    and prints `41`. Stand-in: a `turn` that finalizes (the fourth returns non-zero or traps).
 2. `test_run_and_turn_exclude_each_other`: an instance that ran `run` gets −1 from `turn`, and
    no Python runs (stdout and stderr empty); an instance that ran `turn` gets 70 from `run`, with
-   the message of Decision 2 on stderr. A negative length gets −1.
+   the message of Decision 2 on stderr. A negative length gets −1. A `turn` called from the
+   door during a turn (re-entrant) gets −1; a `turn` after a turn that ran out of fuel gets −1
+   with no Python run; `turn(0, 0)` returns 0. Stand-in: an export without the `in_turn` flag
+   (the after-trap call runs Python).
 3. `test_a_null_code_buffer_is_a_memory_error`: `turn(0, 10)` returns 1, stderr's last line is
    `MemoryError: no memory for this turn's code`, and a next `turn` with `print(1)` returns 0.
-   The same on the plain reactor after `_initialize`.
+   The same on the plain reactor after `_initialize`. Stand-in: an export that reads the NULL
+   buffer (it traps).
 
 **Unit** (`tests/unit/test_runner_sessions.py`, no artifacts unless named):
 4. `test_session_refuses_mistakes_before_anything_runs`: each of `run`'s argument mistakes (one
@@ -654,8 +820,10 @@ which drives `turn` on one instance without the runner and is itself checked in
     ends `ZeroDivisionError: division by zero\n`, and its traceback names `<turn 2>` and shows
     the line `1/0`; a function defined in turn 1 that raises, called in turn 3, shows turn 1's
     source line in turn 3's traceback; `raise SystemExit(3)` returns 3; `sys.exit("bye")` returns
-    1 with `bye\n` on stderr; after each, a turn reading earlier variables returns 0, and
-    `ended is None` throughout.
+    1 with `bye\n` on stderr; `exit(5)` returns 5, and a later `print(repr(sys.stdin.read()))`
+    prints `''` (the review, F13); after each, a turn reading earlier variables returns 0, and
+    `ended is None` throughout. Stand-ins: a runner that ends the session on `SystemExit`; a
+    setup that leaves `site`'s `exit` (stdin then raises `ValueError`).
 12. `test_os_exit_and_a_trap_end_the_session`: (a) `os._exit(4)` returns `exit_code == 4`,
     `trapped is None`; `ended == "exit"`; the next `run` raises `SessionEnded` with `reason ==
     "exit"`; `sessions_open` is back to its value before the opening. (b) A metered session
@@ -663,19 +831,29 @@ which drives `turn` on one instance without the runner and is itself checked in
     `ended == "out of fuel"`. (c) `deadline_s=0.5` on one turn of an unmetered session with
     `while True: pass`: `trapped == "deadline"`, `ended == "deadline"`. (d) `cancel` set by a tool
     that runs inside the turn: `trapped == "cancelled"`, `ended == "cancelled"`. In each,
-    `sessions_open` returns to its value before.
+    `sessions_open` returns to its value before. (e) A `cancel` already set when `session.run`
+    is called: `trapped == "cancelled"`, `fuel_used is None`,
+    `ended is None`, and a next turn reads an earlier variable (Decision 7). Stand-in for (a):
+    a runner that keeps the session after an exit trap.
 13. `test_the_idle_bound_by_an_injected_clock`: `_session_clock` replaced by a counter the check
     advances. Opened at t = 0 with the default bounds: a turn at t = 0 returns 0; at t = 899.9
     (from the last turn's end) a turn returns 0; at 900.0 past that turn's end, `run` raises
     `SessionEnded` with `reason == "idle"`, `ended == "idle"`, and `sessions_open` is back. A
     session opened with `idle_s=None, lifetime_s=None` runs a turn at t = 10^6.
     `_reap(now)` with `now` past an untouched session's idle bound ends it (`"idle"`) with no call
-    from the embedder. No sleep anywhere.
+    from the embedder. No sleep anywhere. Stand-ins: bounds enforced only by the reaper (the
+    call at 900.0 runs); bounds enforced only at call time (the untouched session stays open).
 14. `test_the_lifetime_by_an_injected_clock`: turns every 600 s of fake time (under the idle
     bound) return 0 until the call at t = 3600, which raises `SessionEnded` with `reason ==
-    "lifetime"`. A turn whose tool advances the fake clock past 3600 while it runs returns
-    `exit_code == 0` with its output, and afterwards `ended == "lifetime"`. `lifetime_s=None`
-    keeps a session past t = 10^6.
+    "lifetime"`. A turn whose tool advances the fake clock past 3600 while it runs, then
+    returns, finishes with `exit_code == 0` and its output, and afterwards `ended ==
+    "lifetime"`. **The cap** (Decision 9): at fake t = 3599.5, a turn with the default 60 s
+    deadline running `while True: pass` returns `trapped == "deadline"` and `ended ==
+    "lifetime"`; the same turn at t = 0 with `deadline_s=0.5` gives `ended == "deadline"`; a
+    turn with `deadline_s=None` at t = 3599.5 is stopped the same way. The epoch deadline the
+    turn armed is read (through a test hook on the arming, as a count of ticks) and equals
+    `ceil(0.5 / TICK_S)` for the capped turn. `lifetime_s=None` keeps a session past t = 10^6.
+    Stand-in: a turn whose deadline is not capped (the capped turn's armed ticks are 6,000).
 15. `test_per_turn_limits_are_per_turn`: (a) fuel: a metered session with budget B; a turn whose
     cost lies between B/2 and B (the builder calibrates its loop count from a measured count and
     records it in the landing notes) runs three times, each `exit_code == 0` and `fuel_used <= B`,
@@ -693,13 +871,20 @@ which drives `turn` on one instance without the runner and is itself checked in
     `np.zeros(300_000_000, np.int8)` returns 1 with `_ArrayMemoryError` on stderr; a turn that
     appends 64 KiB `bytearray`s until `MemoryError`, catches it and keeps the list returns 0; a
     next turn whose code is 1 MiB (a comment pads it) returns 1 with `MemoryError: no memory for
-    this turn's code`; a short turn then returns 0; `ended is None` throughout.
+    this turn's code`; a short turn then returns 0; `ended is None` throughout. Stand-in: a
+    runner that ends the session on a turn's `MemoryError`.
 18. `test_mounts_and_grants_across_turns`: a writable mount whose provider records writes: turn 1
     opens `/m/out.txt`, `os.write`s `a` and leaves it open: when `run` returns, the provider has
     received one write of `b"a"`; turn 2 writes `b` to the same descriptor and closes it: the
     provider's last write is `b"ab"`; each turn's `files.calls` counts only its own calls. A
     writable grant: a file turn 1 writes is on the host when turn 1 returns. `max_file_calls=3`
     with a turn that makes more ends it `"out of file calls"` and the session with it.
+    **A refused write-back** (the review, F7): with a `max_file_calls` the turn exhausts
+    exactly before its ending, a dirty open file's write-back is in that turn's
+    `files.refused` with cause `"limit"`; the next turn makes no write to that file, and at its
+    ending the provider receives the bytes. Stand-ins: write-backs only at close (turn 1's
+    `b"a"` is missing when it returns); today's `walk`, which marks a refused buffer clean (the
+    next turn's ending sends nothing).
 19. `test_sessions_share_nothing`: two sessions on two threads, turns interleaved by events:
     `x = 1` in A, `x = 2` in B, then each prints its own `x`; a file A writes in its private root
     (`root=True`) does not exist in B's; `sessions_open` rises by 2 and returns.
@@ -711,7 +896,8 @@ which drives `turn` on one instance without the runner and is itself checked in
     and scratch); `close()` again does nothing; `run` raises `SessionEnded("closed")`; a `with`
     block that raises inside closes the session too. A `close()` from another thread while a tool
     blocks inside a turn returns only after the turn has returned with `trapped == "cancelled"`
-    (the check orders this by events), and `ended == "closed"`.
+    (the check orders this by events), and `ended == "closed"`. Stand-in: a `close()` that
+    returns before the turn has returned (the check sees the order reversed).
 22. `test_run_async_on_a_session`: a turn by `run_async` returns its `Completed`; a task
     cancelled while a tool blocks inside its turn raises `CancelledError`, the session's `ended`
     is `"cancelled"`, and a new session on the same executor then runs a turn. A task cancelled
@@ -725,8 +911,10 @@ which drives `turn` on one instance without the runner and is itself checked in
     turn that reads a file in its private root. (b) A child process opens a `root=True` session,
     runs a turn and exits without `close()`: the child prints the folder names the runner holds
     (`runner._held`) before it exits, and after it exits none of them exists in the temporary
-    folder. (c) A session dropped without `close()`: after `gc.collect()`,
-    `sessions_open` is back to its value before.
+    folder. (c) A session dropped without `close()`: after `gc.collect()` and one reaper step
+    (`_reap`, driven by the check), `sessions_open` is back to its value before, and the
+    finalizer itself took no lock (it is called while the check holds the registry lock, and
+    returns). Stand-in: no finalizer (the count stays up).
 25. `test_a_session_on_the_plain_reactor`: `Session(snapshot=False)` runs `print(1)` then
     `print(2)`: `1\n` then `2\n`, both `exit_code == 0`.
 
@@ -741,12 +929,101 @@ which drives `turn` on one instance without the runner and is itself checked in
     (the judge changed: Decision 19's export lists, 049's render, the new checks) and
     `--accept-growth` with the bytes' reason; lost 0.
 
+**Added by the pre-build review** (end to end unless named):
+30. `test_the_import_path_in_a_session` (054 is expected to land first; if it has not, this
+    criterion and Decision 5's import-path text move to 054, as whichever lands second carries
+    the other's interplay): a session with `import_path=["/lib"]` and a read-only grant of a
+    folder holding `mylib.py` imports `mylib` in turn 1, whose traceback for a raising call
+    shows `<turn 1>` line 2 as written; `sys.path` ends with `"/lib"` after the zip; turn 1's
+    stdout holds only its own output; a writable grant under `/lib` is refused at the opening
+    with 054's error and zero folders made. Stand-in: an import path prepended to turn 1's code
+    (the line number moves).
+31. `test_a_turn_waits_on_the_sessions_clock_base` (unit, fakes): a `_poll_oneoff` built for a
+    turn whose `_Call` is made when the injected clock reads the session's base plus 3,600 s;
+    the guest asks for an absolute wait ending at base plus 3,601 s (`ABSTIME`, as
+    `time.sleep(1)` sends it); the wait is exactly 1 s of fake time. End to end: a test hook
+    reads each turn's `_Call` clock base, equal in turns 1 and 3 of one session. Stand-in: a
+    base taken per turn (the wait is 3,601 s, cut by the deadline).
+32. `test_a_guest_cannot_make_session_run_raise` (the review, F1): turn 1 sets
+    `_reactor.turn = lambda s, e: -1`; turn 2 `print(1)` returns `exit_code == 0` with `1\n` (the
+    C side's strong reference); turn 3 sets `_reactor._exit_code = lambda e: 300` and raises
+    `SystemExit`: `exit_code == 44` (300's low byte); turn 4 sets it to return `"x"` and raises
+    `SystemExit`: `exit_code == 1`; turn 5 runs `del __import__("sys").modules["_reactor"]`, and
+    turn 6 `print(2)` returns 0. No call raises, and `ended is None` throughout. Stand-in:
+    today's text (a turn returning −1 or 300, and `session.run` raises `RuntimeError`).
+33. `test_close_on_the_turns_own_thread`: a session with a raw `host=` whose function calls
+    `session.close()` and returns `b""`: `close()` returns at once (no deadlock; the check's
+    120 s fail-safe), the turn returns `trapped == "cancelled"`, and `ended == "closed"`.
+    Stand-in: a `close()` that always waits (the child hits the fail-safe).
+
 ## The owner's choices
 
-None open here. The owner's decisions 18 to 22 and 49 are carried as written. Four choices are
-the agent's where those decisions are silent, and are recorded for the owner as question 91 in
-`../questions-for-the-owner.md`; nothing waits on it: `SystemExit` keeps the session (Decision
-4); closing is a stop with no shutdown (Decision 8); a running turn is never cut by the lifetime
-(Decision 9); the final expression is echoed (Decision 3).
+None open here. The owner's decisions 18 to 22 and 49 are carried as written. Question 92 in
+`../questions-for-the-owner.md` records, for the owner, three choices that are the agent's
+where those decisions are silent, and one placement; nothing waits on it: `SystemExit` keeps
+the session (Decision 4); closing is a stop with no shutdown (Decision 8); the final expression
+is echoed (Decision 3); and whether a cap on open host descriptors per store comes before or
+after 0.1.0 (Decision 11, Decision 22). The lifetime is no longer among them: following the
+landing lane's ruling on the review's F4, a turn's deadline is capped at the lifetime left, so
+the owner's one hour holds as a bound on guest execution (Decision 9).
+
+## Disposition of the pre-build review
+
+The review: `../reviews/055-bounded-sessions-spec-2026-10-18.md` (verdict: ready once F1 to F7
+are written in). Every finding is fixed in this revision; none is declined.
+
+- **F1 (high), a guest can make `session.run` raise.** Fixed in the export (Decision 2): the C
+  side calls the bootstrap's turn through a strong reference taken at initialization, maps an
+  `int` result to its low byte and anything else to 1, so −1 comes only from C refusals and
+  Decision 7's "lost track" names only a runner fault. Check: criterion 32 (replaced
+  `_reactor.turn`, `_exit_code` returning 300 and a non-int, a deleted module).
+- **F2 (medium), descriptors and host memory held for the session's life.** Documented in
+  Decision 11 ("What a session holds on the host") and in Decision 20's README text (*Sessions*
+  and *Not protected*), with the advice of a short `idle_s` and a prompt `close()`. A
+  per-store descriptor cap is recorded as a later specification (Decision 22); its place
+  relative to 0.1.0 is put to the owner (question 92).
+- **F3 (medium), one trust domain.** Documented in Decision 11 ("A session is one trust
+  domain") and in the README text of Decision 20: a turn is only as trustworthy as the least
+  trusted turn before it; never send a more trusted turn after less trusted code.
+- **F4 (medium), the lifetime loosened the owner's number.** Tightened, by the landing lane's
+  ruling: no turn starts at or after the lifetime, and each turn's effective deadline is the
+  lesser of its own and the lifetime left (Decision 9), with the exact promise written there
+  (no guest instruction past the lifetime, within a tick; afterwards only what `run` allows
+  past its own deadline: an embedder call in flight and the turn's write-backs). Terms,
+  Decisions 7, 8 and 9, the Intent and criterion 14 follow; item 3 is removed from the owner's
+  question.
+- **F5 (medium), 054's import path.** Decided (Decision 5): the session's WASI argv carries the
+  entries, and the first turn's unnumbered setup (Decision 3) appends them to `sys.path`; no
+  line moves, nothing is printed; `run`'s prelude is unchanged. Check: criterion 30.
+- **F6 (medium), the clock base.** `origin_ns` is per session (Decision 6), each turn's waits
+  are built on it (Decision 7). Check: criterion 31.
+- **F7 (medium-low), refused write-backs.** In a session a write-back the limit refuses is
+  recorded and stays dirty (owed stays owed) for the next turn's ending (Decision 11). Check:
+  criterion 18's new part.
+- **F8 (low), the export defends itself.** The `in_turn` flag refuses re-entry and any call
+  after a trap or exit; the buffer is copied then freed before Python runs; `turn(0, 0)` is an
+  empty turn; the host checks `p + len` against memory as `_door` does (Decisions 2 and 7).
+  Check: criterion 2.
+- **F9 (low), finalizer and reaper locks.** The finalizer takes no lock and only marks the state
+  and wakes the reaper; the exit hook stops the reaper and waits for its step first (Decision
+  13). Check: criterion 24(c).
+- **F10 (low), concurrency details.** Written in: `ended` set once under the lock before any
+  close (Decision 8); `busy` cleared in a `finally`, and the reaper's order (Decision 10);
+  `run_async` claims `busy` in the coroutine and releases it if cancelled while queued
+  (Decision 12); a cancel set before guest code runs leaves the session untouched, unless it
+  was a `close()` (Decision 7, criterion 12(e)); `close()` blocks, documented (Decision 10).
+- **F11 (low), 053's loop.** One private tool loop per session for synchronous turns, its
+  tasks cancelled at each turn's end and closed at the session's end; `run_async` turns use the
+  caller's loop; a README line on loop-bound caches (Decision 5).
+- **F12 (low), 056 first.** Added to *Depends on*; the README's abandoned-tools text says an
+  abandoned tool may land during a later turn or after `close()` (Decision 11).
+- **F13 (low), `exit()` closes stdin.** The session's setup rebinds `exit` and `quit` to a
+  `Quitter` subclass that does not close stdin (Decision 3). Check: criterion 11.
+- **F14 (low), stand-ins.** Named for criteria 3, 11, 12, 13, 14, 17, 18, 21 and 24(c); the
+  added criteria 30 to 33 each name one, and 33 covers `close()` on the turn's own thread.
+- **F15 (low), the fuel band.** The builder measures the spread through the real export, over
+  at least five sessions each on macOS and Linux, before the band is fixed; a spread above 10
+  is a finding (Decision 16). The review's note on 049's `_MAX_ABANDONED` is taken (Decision
+  11).
 
 ## Landing notes

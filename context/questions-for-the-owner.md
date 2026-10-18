@@ -74,15 +74,16 @@ document.
   in the follow-up build-class specification that 056 names.
 - **The agent's recommendation:** yes, before 0.1.0 final. Then the follow-up names the
   environment in the workflow.
-### 91. Four choices in bounded sessions where your decisions are silent
+### 92. Bounded sessions: three choices where your decisions are silent, and one placement
 
 - **Asked:** 2026-10-18. **Source:** `specifications/055-bounded-sessions.md` (Decisions 3, 4,
-  8 and 9); `research/2026-10-18-bounded-sessions.md`. Nothing waits on it: spec 055 decides
-  each as written below, so its pre-build review and its build go ahead. An answer that differs
-  changes one decision and its checks before 055 is built, or in a follow-up after.
+  8, 11 and 22) and its pre-build review (`reviews/055-bounded-sessions-spec-2026-10-18.md`,
+  F2); `research/2026-10-18-bounded-sessions.md`. Nothing waits on it: spec 055 decides each
+  as written below, so its confirmation and its build go ahead. An answer that differs changes
+  one decision and its checks before 055 is built, or in a follow-up after.
 - **The facts.** Your decisions 18 to 22 set the export, the scope, the bounds (15 minutes idle,
-  1 hour), "a trap ends the session" and the README's files pattern. Four behaviours they do not
-  cover had to be chosen:
+  1 hour), "a trap ends the session" and the README's files pattern. Three behaviours they do
+  not cover had to be chosen:
   1. **`sys.exit()` in a turn keeps the session** (Decision 4). The turn reports the exit status,
      as `run` would, and the next turn still has every variable. Model code ends scripts with
      `sys.exit(main())` by habit; Jupyter keeps its kernel the same way. `os._exit()` still ends
@@ -91,16 +92,23 @@ document.
   2. **Closing is a stop, not a shutdown** (Decision 8). No guest code runs at close or expiry:
      no `atexit` handlers, no flush of files a program left open. What a turn wrote to its
      folders or mounts is already delivered at the end of that turn.
-  3. **A running turn is never cut by the lifetime** (Decision 9). A turn's own deadline bounds
-     it. If the hour passes during a turn, the turn returns its result and the session ends
-     then. So a session lives at most 1 hour plus one turn's deadline (60 s by default).
-  4. **A turn's last expression is echoed** (Decision 3), as in a notebook: `df.head()` as the
+  3. **A turn's last expression is echoed** (Decision 3), as in a notebook: `df.head()` as the
      last line prints the frame. It costs about 0.58 M instructions for a four-line turn, under
      1% of a fresh run.
-- **The question:** keep these four as decided, or change any?
-- **The agent's recommendation:** keep all four. Each follows the interactive interpreters
-  agents are trained on, keeps a turn's limits fixed when it starts, and keeps the export's C
-  small (no finalize path).
+
+  The one-hour lifetime is not among them: a turn's deadline is capped at the lifetime left, so
+  no guest code runs past the hour (Decision 9; the landing lane's ruling on the review's F4).
+- **The placement.** A guest can open every host file descriptor the process has (the review
+  measured 122,870 on macOS, after which the host's own `open()` failed). For `run` that lasts
+  one call; a session holds them until it ends, up to its idle bound or the hour. No limit on
+  descriptors exists today, for `run` or sessions. Spec 055 documents it, advises a short
+  `idle_s` for untrusted code, and records a cap per store as a later specification.
+- **The questions:** (a) keep the three choices as decided, or change any? (b) Should the
+  descriptor cap come before 0.1.0, or after?
+- **The agent's recommendation:** (a) keep all three: each follows the interactive interpreters
+  agents are trained on, and keeps the export's C small. (b) After 0.1.0, unless an embedder
+  runs untrusted sessions in a shared process before then: the gap already exists for `run`,
+  the README states it, and a cap is its own design (shadowing `path_open` per store).
 
 ## The owner's direction for the product (2026-10-17)
 
