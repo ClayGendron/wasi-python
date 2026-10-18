@@ -1,6 +1,6 @@
 # 058 — A Windows grant renames a folder over a file
 
-- **Status:** built 2026-10-18; its build review
+- **Status:** **landed 2026-10-18** (accepted on `24b1d2c` as `13577d0`; Windows evidence: the release dry run on main, cited in the Landing notes when it ends). Before landing: built 2026-10-18; its build review
   (`../reviews/058-windows-renames-a-folder-over-a-file-2026-10-18.md`, copied by the lane;
   verdict: lands once F1 is fixed) is answered by a revision (the last part of the Landing
   notes); awaiting the reviewer's confirmation; Windows evidence by the dry run after landing.
@@ -309,3 +309,18 @@ once F1 is fixed"; F2 to F5 answered in writing. Its Disposition (also
   deselected`. `ruff check` and `ruff format --check` clean. The review ran the full judge on the
   build (`0 fail`, `lost 0`) and the touched tests on Linux (`5 passed`); this revision changes
   only text and a comment.
+
+**Landed 2026-10-18** through the lane. The build review
+(`../reviews/058-windows-renames-a-folder-over-a-file-2026-10-18.md`: "lands once F1 is fixed")
+was answered in `c9d4920` (F1 fixed, F2 to F5 answered; text and one comment only, checked by
+the lane: `git diff --stat 05b56df c9d4920` touches the spec, README, CHANGELOG and one comment
+in `tests/harness/files.py`). Rebased onto main `94167a8` (specs 049 and 054): one CHANGELOG
+conflict, both entries kept. The review was committed on the detached HEAD as `24b1d2c`. The
+full judge there, on spec 035's artifact set: `wasi_python v1: 340/354 pass · 12 gap · 2 blocked
+· 0 fail (unit suite 1068/1070, 2 skipped)`, `ratchet vs 24b1d2cd19: lost 0 · absent 0 · unrun 0
+· gained 0 · grew 0` after acceptance, `1408 passed, 4 skipped, 12 xfailed in 574.81s`
+(EXECUTED, `build/lane-058-accept.log`). Accepted with `--accept-judge` as `13577d0` (history
+line 55); the rules tier passed (24/24); main fast-forwarded. The 0.1.0a4 tag run (#46,
+39135024458) was cancelled by the owner's instruction once its Windows verify had failed; nothing
+was published. The Windows evidence for this fix is the release dry run dispatched on main next
+(AGENTS.md rule 6b).
