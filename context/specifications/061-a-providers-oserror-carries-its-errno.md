@@ -1,6 +1,11 @@
 # 061 — A provider's OSError carries its errno
 
-- **Status:** **built 2026-10-18; awaiting its build review** (Landing notes). Before that:
+- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
+  confirmation.** The build review
+  (`../reviews/061-a-providers-oserror-carries-its-errno-2026-10-18.md`, written in
+  `build/reviews-evidence/061-buildreview/` and copied in by the lane): "lands once F1 is
+  fixed"; F1 fixed, F2, F3, N1 and N2 written in, N3 and N4 answered (the Landing notes'
+  "Revised against the build review"). Before that:
   drafted 2026-10-18; revised against its pre-build review
   (`../reviews/061-a-providers-oserror-carries-its-errno-spec-2026-10-18.md`, written in the
   lane's evidence folder, `build/reviews-evidence/061-spec/`, and copied in by the lane;
@@ -319,8 +324,9 @@ Out, each with its reason:
 
 Each check below is new and is written before the code. Each is seen failing first against
 main's `mounts.py` where the behaviour is missing, and against each stand-in it names: a
-deliberate mutant of the built code. A check that guards a property today's code already has
-(criterion 4) is seen failing against its stand-ins only. The landing notes list each check with
+deliberate mutant of the built code. Criterion 4 guards a property today's code already has,
+so main fails it only on its one mapped row (the errno set after construction), and its other
+rows are seen failing against its stand-ins (the build review, F3). The landing notes list each check with
 what it printed against each.
 
 **The stand-ins.**
@@ -345,6 +351,9 @@ what it printed against each.
 | S15 | step 1 written `isinstance(e, OSError)`, not `issubclass(type(e), OSError)` |
 | S16 | the errno read from `e.args[0]`, not from the slot (the review, F10) |
 | S17 | the table reads `names[member.name]`, so a name the host lacks raises (the review, F4) |
+| R1 | the build review's: `iter()` outside the mapped `try` in `_list` |
+| R2 | the build review's: `_listing_raised` keeps the mapped exception on the table |
+| R4 | the build review's: `_errno_table` takes `isinstance(number, int)`, not an exact `int` |
 
 **Three systems** (`tests/checks/test_v1_4_embedding.py`, which the release dry run's `verify`
 job runs on Linux, macOS and Windows):
@@ -398,7 +407,8 @@ job runs on Linux, macOS and Windows):
 
 **The judge's machine** (`tests/checks/test_v1_2_hostile_guest.py`):
 
-4. **`test_an_oserror_that_names_no_member_stays_a_fault`.** Guards the change (S0 passes it).
+4. **`test_an_oserror_that_names_no_member_stays_a_fault`.** Guards the change: S0 fails only
+   the set-after row, a mapped case (the build review, F3).
    Each case is one mount, raising from `read`; the run has `max_file_calls=20`:
 
    | exception | the guest | provider calls |
@@ -429,21 +439,28 @@ job runs on Linux, macOS and Windows):
 
 **Raw calls, no guest** (`tests/unit/test_runner_mounts.py`, through `harness.files.Mounted`):
 
-5. **`test_a_generator_listing_that_raises_answers_its_errno`.** A provider whose `list` is a
-   generator, on four paths: it raises `FileNotFoundError(errno.ENOENT, …)` before its first
+5. **`test_a_generator_listing_that_raises_answers_its_errno`.** First, a `list` that returns
+   an iterable, not a generator, whose `__iter__` raises `FileNotFoundError("x")`: 44, so
+   `iter()` is mapped (the build review, F2). Then a provider whose `list` is a generator, on
+   four paths: it raises `FileNotFoundError(errno.ENOENT, …)` before its first
    `yield`; the same after one `yield`; `PermissionError("x")` after one `yield`; `ValueError`
    after one `yield`.
-   - The raw `open` with `O_DIRECTORY` answers 44, 44, 2 and 29.
+   - The raw `open` with `O_DIRECTORY` answers 44 for the iterable, then 44, 44, 2 and 29.
    - Faults: one, the `ValueError`'s.
    - `table.staged` is back to its value before each, and no provider number is held.
-   - Fails against: S0 and S10 (the first three give 29, with a fault each).
+   - Fails against: S0 and S10 (the generator rows give 29, with a fault each); R1 (the
+     iterable gives 29).
 6. **`test_a_mapped_oserror_leaves_nothing_of_itself`.** A provider whose `stat` holds a local
    object and raises a `FileNotFoundError` subclass with errno `errno.ENOENT` and a secret
    message; the check holds a weak reference to each.
    - The raw `path_filestat` answers 44.
    - After `gc.collect()`, both weak references are dead.
    - `repr(table.record())` holds neither the message nor the class's name.
-   - Fails against: S0 (the record holds both); S11 (both references alive).
+   - The same for the listing's path (the build review, F2): a generator `list` that yields
+     once and then raises the weakly referenced exception answers 44; after `gc.collect()` the
+     reference is dead, and the record holds neither the message nor the class's name.
+   - Fails against: S0 (the record holds both); S11 (both references alive); R2 (the listing's
+     reference alive).
 7. **`test_the_host_errno_table_is_by_name`.** `_errno_table` given:
    - `vars(errno)`: the values are exactly the 21 members, each reached; the keys are each
      member's `getattr(errno, name)`, and `errno.EOPNOTSUPP` too where it differs from
@@ -452,13 +469,15 @@ job runs on Linux, macOS and Windows):
    - Linux's (`EOPNOTSUPP` and `ENOTSUP` both 95): 21 keys, 95 maps to `ENOTSUP`;
    - Windows's (READ and INFERRED, as the memo labels them: `EDQUOT` 10069, `ESTALE` 10070,
      `ETIMEDOUT` 10060, `EOPNOTSUPP` 10045, `ENOTSUP` 129): 22 keys, each member reached;
-   - a namespace whose `ENOENT` is `True`, or an `int` subclass: `ENOENT` is not reached;
+   - a namespace whose `ENOENT` is `True`, or an `int` subclass: `ENOENT` is not among the
+     table's *values* (the build review, F1: a test of keys is vacuous);
    - `vars(errno)` without `ESTALE`: no error, one key fewer, and `ESTALE` is not reached;
    - a child process (`sys.executable -I -c`) that deletes `errno.ESTALE` and then imports
      `wasi_python`: it exits 0 and prints that `Errno.ESTALE` is not among the table's values.
 
    Fails against: S0 (no `_errno_table`); S12 (on macOS's numbers, 102 is not a key); S17 (the
-   namespace without `ESTALE` raises `KeyError`, and the child exits 1).
+   namespace without `ESTALE` raises `KeyError`, and the child exits 1); R4 (`ENOENT` among
+   the values).
 
 **The judge, the docs and the whole:**
 
@@ -658,7 +677,8 @@ to 3, v1.2 criterion 4, and the unit suite criteria 5 to 7. `ruff check` and `ru
 
 ### Departures from the specification, each with its reason
 
-- **Criterion 4 is no longer passed by S0.** The spec says "Guards the change (S0 passes it)",
+- **Criterion 4 is no longer passed by S0** (since the build review, the spec's own text: F3).
+  The spec said "Guards the change (S0 passes it)",
   written before F10 added the set-after row. That row is a mapped case, so `5e66995` gives it
   29, not 44: S0 fails criterion 4 on that row only, and passes the rest. Nothing else changes.
 - **Criterion 2 has one more row:** `EISDIR` *returned* at `read`, beside the raised
@@ -672,6 +692,79 @@ to 3, v1.2 criterion 4, and the unit suite criteria 5 to 7. `ruff check` and `ru
   given winning, as `errorcode` keeps one.
 - **S17 fails on the in-process namespace** (`KeyError`) before the child process runs, so the
   child's own exit 1 is not separately seen.
+- **Two private names beyond the "five" of the Kind line** (the build review, N1):
+  `_ERRNO_ALIASES`, the alias Decision 2 asks for, held as a dict; and
+  `_Files._listing_raised`, the `_list` half of Decision 5's "asks `_raised` the same way".
+  Both private; `api.py --check` passes.
 - **One commit for code and docs.** The code and the docs were first committed apart; the code
   commit alone would fail the README reference check, so the two unpushed branch commits were
   folded into one with `git reset --soft` and committed again as `c34e801`.
+
+### Revised against the build review (2026-10-18)
+
+The build review (`../reviews/061-a-providers-oserror-carries-its-errno-2026-10-18.md`) re-ran
+the fast tier and the full judge with the same counts, re-made six stand-ins and added seven
+mutants of its own (R1 to R7), probed 37 hostile exceptions, and found every criterion met but
+criterion 7, one of whose rows guarded nothing. Its verdict: "lands once F1 is fixed". The
+lane's rulings: fix F1 and add both F2 rows, each shown killing its mutant; F3 as wording; N1
+in the departures; N2 in the docs; the folder rows found by content; N3 and N4 answered in a
+sentence each.
+
+**What changed** (`68f9f8f`, and this commit for the spec):
+- `tests/unit/test_runner_mounts.py`: criterion 7's `True` and `int`-subclass row asserts on
+  the table's `.values()`; criterion 5 gains a non-generator iterable whose `__iter__` raises
+  `FileNotFoundError("x")`, answered 44; criterion 6 gains the listing path, a weak reference
+  to an exception raised from a generator `list`, dead after `gc.collect()`, and a record
+  without its message or class name.
+- `tests/checks/test_v1_4_embedding.py`: criterion 2's folder rows are found by their action
+  (`"open"`), with a check that there are two, not by index.
+- `src/wasi_python/mounts.py`: `WritableFileProvider`'s docstring names the no-errno class rule.
+- `README.md`: the record's `"refused"` sentence rewrapped to the paragraph's width.
+- This specification: the stand-ins' preamble and criterion 4 say S0 fails criterion 4's
+  set-after row; criteria 5, 6 and 7 carry the new rows and R1, R2 and R4; R1, R2 and R4 join
+  the stand-ins' table; N1 joins the departures.
+
+**The stand-ins again** (`build/standins/run_standins.py`, now with R1, R2 and R4 re-made from
+the review's `mutants.py`; report `build/standins/report.txt`, EXECUTED): every one of S0 to
+S17 fails the same checks as before (S10 now also fails criterion 6, by the listing row), and:
+- R1 (`iter()` unmapped) fails criterion 5: `assert (29, None) == (44, None)`, the iterable row;
+- R2 (the listing's exception kept) fails criterion 6: the listing's weak reference is alive;
+- R4 (`isinstance(number, int)` in the table) fails criterion 7:
+  `<Errno.ENOENT: 44> not in dict_values([...])`. Before the fix all seven checks passed it.
+
+**The judge.** The fast tier (`build/fast-revised.log`): `319/368 pass · 0 gap · 10 blocked ·
+0 fail` (unit suite 1119/1127), v1.4 160/160, v1.2 61/62, `lost 0 · grew 0 · gained 4`. The
+full judge once, serially, no flags, on `68f9f8f` (`build/full-revised.log`):
+
+```
+wasi_python v1: 326/368 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1119/1127, 8 skipped)
+  v1.2  portable, sealed    61/62  blocked 1
+  v1.4  embedding           160/160
+ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 4 · grew 0 ·
+  upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py,
+  tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_mounts.py
+1445 passed, 50 skipped in 370.36s (0:06:10)
+```
+
+The rows added are inside existing checks, so the counts are the build's. `ruff check` and
+`ruff format --check` are clean; `api.py --check` passes; `tests/public_api.txt` is unchanged.
+
+**Disposition of the build review:**
+- **F1 (low), criterion 7's row tested keys: fixed** (`68f9f8f`). It tests `.values()`; R4,
+  which passed all seven checks before, now fails criterion 7.
+- **F2 (low), `iter()` and the listing's reference unpinned: fixed** (`68f9f8f`). Criterion 5's
+  iterable row kills R1; criterion 6's listing row kills R2.
+- **F3 (nit), criterion 4's wording: fixed** (this commit). The preamble and criterion 4 say S0
+  fails the set-after row, a mapped case; the landing notes' departure now points at it.
+- **N1, two private names beyond five: written in** as a departure (`_ERRNO_ALIASES`,
+  `_Files._listing_raised`).
+- **N2, docs: fixed** (`68f9f8f`). `WritableFileProvider`'s sentence: "when its errno (by name)
+  or, with no errno, its class names a member"; the README line rewrapped.
+- **The extra `EISDIR` row's index: fixed** (`68f9f8f`). The folder rows are found by content.
+- **N3, the `KeyboardInterrupt` in `Store.__del__`: not this change.** It comes from an
+  existing Ctrl-C check's pending signal landing in a later store's deallocator, none of the
+  new checks sends a signal, no result changed, and neither the builder's runs nor the
+  revised runs here printed it; it belongs with the Ctrl-C checks if it recurs.
+- **N4, `_raised`'s `try` and `_RAISED`'s order untestable: kept as written.** They are the
+  "total" promise of Decision 3 and a deterministic order for a class that inherits two of the
+  six; no input reaches either, which is the point of a guard, so no check is added.
