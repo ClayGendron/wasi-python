@@ -1900,10 +1900,10 @@ def _instance(
         with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
             done = _drive(wt, guest_linker, store, module, call, fuel, every, check, plain=linker)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
-        if table is not None:
-            # Spec 034, Decision 8: what the guest wrote is handed over at every ending that
-            # returns a result, after the fuel is read; a call that raises never gets here.
-            table.walk()
+        # Spec 034, Decision 8: what the guest wrote is handed over at every ending that returns
+        # a result, after the fuel is read; a call that raises never gets here. Every call has a
+        # table since spec 048; a guard table's walk does nothing (no mount, nothing owed).
+        table.walk()
     finally:
         # The store holds every descriptor the guest opened; a guest can open them until the
         # host refuses. Close it first, so the clean-up below has descriptors to work with, and

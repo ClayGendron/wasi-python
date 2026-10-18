@@ -705,11 +705,11 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
 
 
 # Spec 034, acceptance 3: the raw write rows. Each row runs on a fresh tree, as a writable grant
-# (plain wasmtime) and as a writable mount (the runner's mount linker over the in-memory
-# provider); preopen 3 is the tree on each side, 4 a writable folder and 5 a read-only one. A
-# row's whole result (the errno and every byte written; dev, ino, times and numbers masked) and
-# the tree it leaves, after the call's ending, are compared. Decision 12's deliberate
-# differences are asserted in the test after this one.
+# (wasmtime behind spec 048's guard, as every call without mounts runs) and as a writable mount (the
+# runner's mount linker over the in-memory provider); preopen 3 is the tree on each side, 4 a
+# writable folder and 5 a read-only one. A row's whole result (the errno and every byte written;
+# dev, ino, times and numbers masked) and the tree it leaves, after the call's ending, are compared.
+# Decision 12's deliberate differences are asserted in the test after this one.
 
 C, X, T, D = files.O_CREAT, files.O_EXCL, files.O_TRUNC, files.O_DIRECTORY
 R, RW = files.READ_RIGHTS, files.RIGHTS_ALL
@@ -961,6 +961,20 @@ WASMTIME_ROWS = {
     "open O_DIRECTORY and O_TRUNC",
     "r+ then allocate",
     "path set times, bad flags",
+    *(
+        "rename 'a.txt' 'newname/'",
+        "rename 'a.txt' 'b.txt/'",
+        "rename 'a.txt' 'a.txt/'",
+    ),
+}
+# A file renamed to a name ending in `/`: ENOTDIR, the source's stat deciding it, on the guarded
+# grant (spec 048 carries wasmtime 49.0.3's rule; 49.0.0 strips the target's `/` and renames)
+# and on the mount (`RENAME_SLASH_NEEDS_FOLDER`), the same on every host.
+SLASH_ROWS = {
+    "rename 'a.txt' 'newname/'": 54,
+    "rename 'a.txt' 'b.txt/'": 54,
+    "rename 'a.txt' 'a.txt/'": 54,
+    "rename 'd' 'f/'": 0,  # a folder: renamed by its plain names
 }
 
 
@@ -974,7 +988,7 @@ def _write_sides(root: Path) -> tuple[files.Raw, Path, files.Mounted, files.Memo
         (ro / "r.txt").write_bytes(b"r")
         out.append([(w, "/w", True), (ro, "/ro", False)])
     tree = files.write_tree(root / "tree")
-    grant = files.grant_raw([(tree, "/m", True), *out[0]])
+    grant = files.Guarded([(tree, "/m", True), *out[0]]).raw  # spec 048's guarded grant
     placeholder = root / "placeholder"
     placeholder.mkdir()
     provider = files.MemoryProvider()
@@ -1019,6 +1033,8 @@ def test_raw_write_calls_answer_as_a_writable_grant_does(tmp_path) -> None:
         got = _attempt(fn, mount.raw)
         mount.table.walk()  # the call's ending
         want_tree, got_tree = _on_disk(tree), _in_memory(provider)
+        if label in SLASH_ROWS and (want, got) != (SLASH_ROWS[label],) * 2:
+            linux[label] = (SLASH_ROWS[label], want, got)
         if label in LINUX_ROWS:
             if got != LINUX_ROWS[label]:
                 linux[label] = (LINUX_ROWS[label], got)
@@ -1084,7 +1100,7 @@ def test_the_write_differences_are_as_decided(tmp_path) -> None:
     if POSIX:
         inner = tree / "d" / "inner"
         inner.mkdir()
-        nested = files.grant_raw([(tree, "/m", True), (inner, "/m/d/inner", True)])
+        nested = files.Guarded([(tree, "/m", True), (inner, "/m/d/inner", True)]).raw
         assert nested.path_call("path_remove_directory", 3, "d/./inner") == 0
     placeholder = tmp_path / "nested-placeholder"
     placeholder.mkdir()

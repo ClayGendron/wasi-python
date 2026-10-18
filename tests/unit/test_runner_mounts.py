@@ -998,7 +998,9 @@ def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:
     finally:
         g.table.__class__.__call__ = real  # type: ignore[method-assign]
     assert sorted(set(seen)) == ["fd_readdir", "path_rename"]
-    assert g.table.record().calls == {"stat": 0, "list": 0, "read": 0}
+    assert g.table.record().calls == dict.fromkeys(
+        ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename"), 0
+    )  # spec 034's eight keys (Decision 11)
 
 
 def _answer(fn, *args, **kw) -> object:
@@ -1489,3 +1491,62 @@ def test_a_refused_rename_or_removal_moves_no_descriptor(placeholder) -> None:
     assert (r("fd_close", f), r("fd_close", g)) == (0, 0)
     assert provider.writes() == [b"Aello, mount\n", b"B\n"]
     assert [e[1] for e in provider.log if e[0] == "write"] == ["/a.txt", "/b.txt"]
+
+
+GATED = f"""(module
+  (import "{P1}" "path_open"
+    (func $open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (import "{P1}" "path_filestat_get" (func $stat (param i32 i32 i32 i32 i32) (result i32)))
+  (import "{P1}" "path_create_directory" (func $mkdir (param i32 i32 i32) (result i32)))
+  (import "{P1}" "path_rename" (func $rename (param i32 i32 i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 100) "new.txt")
+  (data (i32.const 200) "a.txt")
+  (data (i32.const 220) "newdir")
+  (func (export "run")
+    (i32.store (i32.const 600) (call $stat (i32.const 3) (i32.const 0) (i32.const 200)
+      (i32.const 5) (i32.const 512)))
+    (i32.store (i32.const 604) (call $mkdir (i32.const 3) (i32.const 220) (i32.const 6)))
+    (i32.store (i32.const 608) (call $rename (i32.const 3) (i32.const 200) (i32.const 5)
+      (i32.const 3) (i32.const 220) (i32.const 6)))
+    (i32.store (i32.const 612) (call $open (i32.const 3) (i32.const 0) (i32.const 100)
+      (i32.const 7) (i32.const 9) (i64.const {files.RIGHTS_ALL}) (i64.const 0) (i32.const 0)
+      (i32.const 500)))))"""
+PAST_THE_LIMIT = (
+    "import os\n"
+    "for i in range(50):\n"
+    "    try:\n"
+    "        {call}\n"
+    "    except OSError:\n"
+    "        pass\n"
+    "print('after the loop')\n"
+)
+
+
+def test_the_write_half_is_gated(placeholder) -> None:
+    """Spec 034, Decision 10 (the build review's confirmation, N1): a create at open and a
+    namespace call are provider calls like any other. Past `max_file_calls`, `mkdir`s and
+    writing opens stop at exactly the limit and the run ends "out of file calls"; once the
+    call's cancel is set (by a provider's `stat`, with no function entry after it), a `mkdir`,
+    a `rename` and a create at open each answer ECANCELED with no provider call."""
+    needs.need("runner", "artifact dir")
+    from wasi_python import run
+
+    for call in ("os.mkdir(f'/w/d{i}')", "open(f'/w/f{i}', 'w')"):
+        provider = MemoryProvider({})
+        done = run(
+            ["-c", PAST_THE_LIMIT.format(call=call)],
+            mounts=[Mount(provider, "/w", writable=True)],
+            max_file_calls=5,
+        )
+        assert (done.exit_code, done.trapped, done.stdout) == (None, "out of file calls", b"")
+        assert provider.total() == 5 and done.files.calls == provider.calls, call
+    cancel = threading.Event()
+    provider = MemoryProvider()
+    provider.answers[("stat", "/a.txt")] = lambda path: (cancel.set(), Stat("file"))[1]
+    m = Mounted(provider, placeholder, writable=True, wat=GATED, cancel=cancel)
+    with m.entered():
+        m.instance.exports(m.store)["run"](m.store)
+    assert struct.unpack("<4I", m.raw.get(600, 16)) == (0, 11, 11, 11)
+    assert provider.total() == 1 and _written(provider) == dict.fromkeys(WRITE_HALF, 0)
+    assert m.table.record().refused_total == 0  # an unmade call is not a refusal (N3)

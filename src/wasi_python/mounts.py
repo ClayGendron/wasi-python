@@ -276,10 +276,12 @@ RIGHTS = (1 << 30) - 1  # wasmtime 49's Rights::all()
 FILE_RIGHTS = RIGHTS & ~FD_WRITE  # a file opened read-only, as wasmtime reports it
 OFFSET_TOP = 2**63  # an offset, a position or a size from here on: the host's EINVAL
 # Which trailing `/` makes a rename served in a writable mount need a folder source: (the
-# source's, the destination's). The parity's reference is a writable grant on wasmtime 49.0.0,
-# which strips the destination's `/` (spec 034, the build review, F3). Spec 048 carries 49.0.3's
-# rule, where either path's `/` counts; once 034 is rebased onto 048 this becomes (True, True).
-RENAME_SLASH_NEEDS_FOLDER = (True, False)
+# source's, the destination's). Either path's counts, as wasmtime 49.0.3's rule, which spec 048
+# carries for a grant's rename (GHSA-m9f7-9w4p-gv38): the parity's reference is a guarded grant
+# (spec 034, the build review, F3). The source is judged by one `stat`, after the runner's own
+# answers (the path rules, EBUSY, EINVAL) and before the provider's `rename`: for a slash-named
+# rename that is the guard's order, the stat's errno or ENOTDIR before anything is renamed.
+RENAME_SLASH_NEEDS_FOLDER = (True, True)
 ZEROS = bytes(1 << 16)  # the block a buffer grows from (the build review, F4)
 DIR_RIGHTS = RIGHTS & ~(FD_SEEK | FD_WRITE | PATH_FILESTAT_SET_SIZE | FD_FILESTAT_SET_SIZE)
 FILESTAT = "<QQB7xQQQQQ"  # dev, ino, filetype, nlink, size, atim, mtim, ctim: 64 bytes
