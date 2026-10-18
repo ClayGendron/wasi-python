@@ -448,3 +448,101 @@ The protocol, its frame rules and its guest package are right and linear, but th
 budget counts visits, not work: an `enum` costs its whole list per value and wrappers re-walk
 their values, so fix F1 and F2 together before landing; the snapshot's +0.11 M is teardown and
 can be accepted.
+
+## Confirmation (2026-10-18)
+
+- **Reviewed:** commit `7a587ad` on `spec/031-a-tool-protocol-over-the-door`, rebased onto
+  `3b9c9c1` (main with this review), against the Disposition above. I read the diff
+  `2788f49..7a587ad` of `src/wasi_python/tools.py`, `recipes/guest/host/tools.py` and
+  `pyproject.toml`, and the amended Decision 9, criterion 14 and landing notes. Scripts and
+  outputs are under
+  `/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/rev031b/`
+  (and the first round's scripts, rerun, in `rev031/`).
+- **The judge** (EXECUTED, `uv run pytest` in the worktree, no flags, its own artifacts; every
+  `SHA256SUMS` line OK, and they equal the landing notes': zip `ee1acace…`, snapshot `0cdc7b2b…`,
+  `python.wasm` `4befe9de…` unchanged): `223/227 pass · 0 gap · 4 blocked · 0 fail (unit suite
+  812/819)`, `lost 0 · gained 4 · grew 40`, red only for growth, 1035 passed. `git status` clean
+  after.
+
+### Each disposition against its finding
+
+- **F1: confirmed fixed.** EXECUTED (`enum_cost.py`): the 600-name, 99,990-item frame answers
+  `ok` with **99,990 calls of `_key`** (was 60,093,990); as a benchmark fact, 0.14 s for a 600- or
+  a 2,000-value `Literal` (was 5.15 s and 17.78 s). `cost.py`: cases B and C make at most one key
+  call per counted step, and no message is formatted from a whole value (0 characters, was
+  1,238,010). READ: `_key` charges one step per value below the one keyed; `_shown` names a
+  container by kind and size. But see N1: the key sets are keyed by `id()`.
+- **F2: confirmed fixed.** EXECUTED (`walk.py`): the order is 1.43 steps per value; the recursive
+  tree is 1.50 at depth 5, 20 and 40 (was 7.97, 22.65, 41.76); the 10,064-value tree now passes
+  (15,085 steps). A 70,002-value order is still "too complex", as the amended Decision 3 and README
+  say (about 50,000 values). READ: a delegating node walks children only when it also carries a
+  keyword about them, so the bytes rule still holds.
+- **F3: confirmed fixed.** EXECUTED (`base.py`): all four cases that escaped are now answered
+  (`tool_error` "(internal error)" and `denied` "was refused"). `_fault` is 032's `_described`,
+  total over `BaseException` (READ).
+- **F4: confirmed fixed.** EXECUTED (`guest.py`): 63 nested lists and integers of 65 and 5,001
+  digits are each `ToolArgumentError` with no frame; 62 levels and 64 digits pass. The 19 hostile
+  answers behave as before.
+- **F5: confirmed for the recursion.** EXECUTED (`misc.py`): the 1,500-`$ref` chain is refused by
+  `tool()`, naming the bound. A bound of 8 nodes is above what pydantic emits (an `Optional`
+  union through an alias is 5; INFERRED). The catch-all point is left to 036's builder; I agree,
+  and it should go into 036's pre-build notes.
+- **F6: confirmed.** EXECUTED (`mutants.txt`): my 21 mutants adapted, plus 10 for the new
+  mechanisms (an uncharged linear `enum` scan, no key charge, delegating nodes walking objects
+  and arrays, `_shown` dumping whole, the two `BaseException` narrowings, the chain bound, the
+  guest's integer bound, the `Tool` guard): **31 of 31 killed**. Narrowing `_described` to
+  `Exception` kills the session (a `KeyboardInterrupt` escapes), which counts as killed.
+  `git diff` empty after.
+- **F7: confirmed.** EXECUTED: `dataclasses.replace`, `copy.replace` and a direct `Tool(...)` each
+  raise `TypeError`.
+- **Question 1: confirmed.** EXECUTED (`snapfuel.txt`, five perturbations, main's frozen set
+  against the revised set): snapshot `-c pass` +110,800 (min +87,167, max +122,141), `os._exit(0)`
+  −989; plain `pass` +155,809, `os._exit(0)` +151,746. These are the landing notes' numbers
+  exactly. The amended Decision 9 and criterion 14 say what I found: the start and the program
+  pay nothing; teardown pays; the per-member reading is labelled INFERRED.
+- **The frame rules** (EXECUTED, `fuzz_parse.txt`): the 41 hostile frames give the same outcomes as
+  before, and the 1 MiB shapes stay linear.
+
+### New finding
+
+**N1 — Medium. The `enum` and `const` key sets are keyed by `id()`, so a `Tool` that is pickled or
+deep-copied can check a value against another node's set.**
+- `Tool._keysets` maps `(id(node), word)` to a frozenset, and the validator looks a node up by
+  `id(s)` (READ, `_keysets`, `_Validator.keyset`). The ids are only valid for the schema objects
+  that were alive when `tool()` ran.
+- After `copy.deepcopy` or a pickle round trip, every entry is stale (EXECUTED, `pickled.py`:
+  2 of 2). That alone is safe: a lookup misses and the set is rebuilt, charged.
+- But when the original `Tool` is freed before `pickle.loads`, the new schema's dicts reuse the
+  freed ids, and a node finds **another** node's set. EXECUTED (`pickled2.py`, `pickled3.py`): a
+  tool with 30 single-value `enum` properties, unpickled in the same process after the original
+  was freed. Collisions happened in 200 of 200 round trips. Through the frame host, 20 round trips
+  **accepted 117 values the schema forbids** (for example `p4` given `v18`), and refused valid
+  ones.
+- Only the embedder can pickle a `Tool`, so a guest cannot cause it. But an `enum` is often an
+  allow-list a capability relies on (`table: Literal["public_a", "public_b"]`), and the failure
+  is silent. Pickling tools to a worker, or caching them, is ordinary embedder code.
+- Fix (`src/` only; the artifact set does not change): keep the node with its set,
+  `(node, frozenset)`, and use the entry only when `entry[0] is s`; or drop `_keysets` from the
+  `Tool`'s pickled and copied state. Add a check: a `Tool` pickled, the original freed, then
+  unpickled, refuses another property's value. Seen failing first against `7a587ad`.
+
+### Verdict
+
+**031 lands once N1 is fixed.** Everything from the first round is fixed and confirmed. N1 is
+new, small, host-side only and needs no rebuild. The lane checks that the fix is the one
+named, with its check seen failing first against `7a587ad`, and that the diff touches only
+`src/wasi_python/tools.py` and `tests/unit/test_tools.py`. It needs no further review round.
+Then it judges the exact commit in the main tree with `--accept-judge` (the new and changed check
+files and ruff's paths) and this growth reason, which is the landing notes' re-measured text and
+which I reproduced:
+
+`--accept-growth "spec 031: the zip gains 2 members (+12,963 bytes) and the snapshot +4,197 bytes; python.wasm unchanged; a plain start +~0.16 M fuel from reading 2 more zip members, as Decision 9 predicted; a snapshot start +~0.11 M, all of it in Py_FinalizeEx after the program (an os._exit(0) run differs by -989), not in the start or the program (Decision 9 and criterion 14 as amended); heavy jobs move within +-2.2 M, heap-layout noise as in spec 033's acceptance"`
+
+Criterion 15 (the release dry run) stays the lane's, on the reviewed commit.
+
+### One line
+
+Every finding is fixed and confirmed (31 of 31 mutants killed; 99,990 key builds instead of
+60 million; 1.5 steps per value), and the snapshot's growth is teardown. One new bug blocks:
+the key sets are keyed by `id()`, which an unpickled `Tool` can mismatch. Fix that host-side,
+then land.
