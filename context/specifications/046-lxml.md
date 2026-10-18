@@ -1,6 +1,7 @@
 # 046 — lxml, with libxml2 and libxslt built in
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **built 2026-10-18; awaiting its build review** (landing notes below; branch
+  `spec/046-lxml`, rebased onto main `ff5c568`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): all ten findings that concern it
   (1, 2, 4 to 8) are written in, and the review's Disposition says where. Awaiting the review's
   confirmation. It changes the build recipe and the artifact
@@ -639,4 +640,222 @@ body changes before the build moves it.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-046`, branch
+`spec/046-lxml`, from main `1555a6d`, then rebased onto main `ff5c568` (spec 059 landed: every
+compile carries `-ffp-contract=off`) and rebuilt from an empty `build/`. The machine: Apple
+arm64, macOS 26.5, 10 cores; Docker 29.7.2 with the research image `wp040-arm64` (pinned
+`debian:trixie-slim`, uv 0.9.22 by hash). Every claim is EXECUTED unless labelled. Evidence
+files are under the worktree's git-ignored `build/046/`. Owner question 82(a) is answered
+(decisions.md: lxml may take a free build-class slot before scipy), so the review's first
+condition holds. Not yet reviewed: the build review is next, then the lane.
+
+### What changed
+
+- Commit `2423e3f` (the build) and `dbab055` (spec 059's compile records after the rebase).
+- **Pins** (`downloads/SHA256SUMS`, `scripts/00_download.sh`): `libxml2-2.15.4.tar.xz`
+  `98087fd1…`, `libxslt-1.1.45.tar.xz` `9acfe684…`, `lxml-6.1.3.tar.gz` `45222d94…`; each
+  downloaded and its SHA-256 recomputed, equal to GNOME's `.sha256sum` files and PyPI's JSON.
+- **Step 36** (`scripts/steps/36_xml_libs.sh`), **step 54** (`scripts/steps/54_lxml.sh`), in
+  `build.sh`'s `ALL` after 35 and 50 (fifteen steps).
+- **The patch** `recipes/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.patch`, byte for
+  byte `context/upstream/8-libxml2-input-without-dup/fix.patch` (`cmp`); its facts sheet moved
+  unchanged (git: rename, 100%) to
+  `context/upstream/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.md`; the upstream
+  index row updated. It applies with no offset ("Applied patch xmlIO.c cleanly").
+- **Recipes:** `recipes/iconv_refusals.c` (the GB18030 guard) and
+  `recipes/lxml_isoschematron_stand_in.py`.
+- **Step 60:** lxml in the inittab and the link, the step-36 and step-54 presence checks, the guard
+  compiled by the reactor's own compile command (`$guard`, recorded in
+  `build/link/reactor-commands.txt`) and linked with `-Wl,--wrap=iconv_open`. **Step 70:** the
+  tree, `PKG-INFO` and the stand-in. **`assemble_artifacts.py`:** the three packages and notices.
+- **The judge:** `tests/checks/test_v1_3_lxml.py` (new), two v1.1 checks, the golden job
+  `lxml_xml` and the oracle's `lxml==6.1.3` (`uv.lock` gains its wheels; the three hashes the spec
+  names are the locked ones), the lists in `paths.py`, `pins.py`, `needs.py`, `jobs.py`,
+  `test_v1_3_data_stack.DISTRIBUTIONS`, `scan.AUTOCONF_MAKEFILES` (059's records), the synthetic
+  set and a unit case in `test_artifact_rules.py`, `test_build_progress.py`'s step list; the
+  release workflow's tree count 15 → 18.
+- `README.md` (*lxml in the guest*, the profile rows, six patches, fifteen steps, a *Not
+  protected* line on XSLT), `CHANGELOG.md` (0.1.0a6 — unreleased).
+
+### Departures from the text, each with its reason
+
+1. **pkg-config is the pinned pkgconf** (`PKG_CONFIG="$PKGCONF"`), with the empty search path.
+   Decision 3 names this for once spec 023 has landed, and it had. It was also forced: under
+   `env -i` the first `pkg-config` on `PATH` is the pinned wheel's Python entry script, which
+   fails without `PYTHONPATH` ("pkg-config not found"). `config.log`: `PKG_CONFIG=…/pkgconf`,
+   `PKG_CONFIG_LIBDIR=…/no-pkg-config`; nothing was queried.
+2. **The notices are read from the unpacked trees under `build/`** (each its tarball plus its
+   recorded patches, which the tree check proves), as every other notice in
+   `assemble_artifacts.py` is, not from the tarball directly. `head_notice` stops the build if
+   `dict.c`, `list.c` or `timsort.h` is missing or its notice is not in its first two comments.
+3. **The judge reads libxml2's and libxslt's `Copyright` files for content**
+   (`paths.MORE_LICENCE`), where the top-level search alone would have checked them for presence
+   only (it matches `LICENSE` and `COPYING`, not `Copyright`).
+4. **The whole-repertoire case is two checks**: the encodings table (40 G budget, measured
+   30,740,266,296) and the README's workaround (20 G budget, measured 5,953,475,454), both slow
+   and on the snapshot. One case would have cost about 36.7 G against one 40 G budget.
+5. **A write into a read-only grant raises `PermissionError`**, an `OSError`; the check names the
+   exact type.
+6. **Two cases added in Decision 10's spirit:** no descriptor stays open after the file cases
+   (counted with `fstat` over 3 to 255, because wasmtime need not hand the lowest free number to
+   the next open: an earlier form of the check that compared the next number was wrong, see
+   below), and an `exsl:document` into a writable grant writes (the README's claim).
+7. **`test_binaries_hold_no_build_path` searches for the home folder only when it has three or
+   more path parts** (`/Users/<name>`, `/home/<name>`): a container's `/root` is too short to be
+   distinctive, and the checkout's own path is always searched. The check overlaps the existing
+   `test_artifacts_carry_no_build_path` (which reads every file of the set for the checkout's
+   path); the new one adds the home folder and counts the hits.
+8. **`test_build_progress.py`** names steps by `STEPS.index(…)` instead of fixed slices, so the
+   next new step does not move them again.
+9. **No meson build is added**, so `scan.MESON_BUILDS` is unchanged; libxml2's and libxslt's
+   four autoconf Makefiles join `scan.AUTOCONF_MAKEFILES`, which `test_every_compile_contracts_nothing`
+   reads (green). Step 54's compile flags are in the script, which 059's recipe scan reads.
+
+### Acceptance criteria
+
+1. **Seen failing first** (the set built from main `1555a6d` in this worktree, the same
+   `SHA256SUMS` as the main tree's set then: `python.wasm` `e0224891…`):
+   - all thirteen v1.3 cases, both v1.1 lxml cases, `test_manifest_is_well_formed` (no package
+     line for libxml2, libxslt or lxml) and `test_licence_notices_cover_every_component` failed
+     (`build/046/seen-failing-checks.txt`: 17 failed, 5 passed); the guest said
+     `ModuleNotFoundError: No module named 'lxml'`, and `read_html` said pandas' own
+     "`Import lxml` failed". `test_binaries_hold_no_build_path` passed there, as the spec says.
+   - step 36 with the patch folder moved aside: `xmlIO.c:1230:12` and `:1264:14`, "call to
+     undeclared function 'dup'", 2 errors (`build/046/unpatched-libxml2-make.out`); on that
+     unpatched tree `test_source_tree_matches_its_tarball[libxml2]` failed, `xmlIO.c: modified`.
+   - a build without the two catalog defines: both `test_binaries_hold_no_build_path` cases and
+     `test_artifacts_carry_no_build_path` failed, one hit each of the checkout and the home
+     folder in each binary.
+   - a build without the guard (no `--wrap=iconv_open`): the encodings check ran out of its 40 G
+     budget. GB18030 alone, given 2,000 G, took 101,511,959,955 fuel and printed
+     `gb18030 | parse 55309/56926 bad 1617 e.g. U+F900,U+F901,U+F902,U+F903` with no error,
+     the review's row (`build/046/seen-failing-guard-gb18030.txt`). With the guard the whole
+     table costs 30.7 G: the refusal also saves about 100 G of decoding.
+   - The golden matched native on its first guest run; its input did not change.
+2. **The build.** From an empty `build/` after the rebase: 15 steps in 8 min 35 s, every step ok
+   (`build/046/build-rebased.log`). `lxml.etree` and `lxml.objectify` linked as builtins, no
+   `signature mismatch` or `duplicate symbol`; `inittab.c: 70 modules`. `MANIFEST` has 65 `pin`
+   lines and 25 `package` lines, among them `package libxml2 2.15.4`, `package libxslt 1.1.45`,
+   `package lxml 6.1.3`, the three pins, and `recipe` lines for the patch, both recipes and both
+   steps. Before the rebase, steps 36 to 90 were run five more times (the experiments above and
+   their restores), and each restore gave the same `SHA256SUMS` (`diff`); after it, the macOS
+   build from empty and the Linux container's build from empty agree (criterion 3).
+   - Step 36: no warning in libxml2, libxslt or libexslt; `libxml2.a` 1,553,934 bytes
+     (`3789a08d…`), `libxslt.a` 282,042 (`72863d38…`), `libexslt.a` 83,974 (`5e0e4d74…`),
+     the same before and after 059's flag. No `/Users` string in any archive; `libxml2.a` holds
+     `file:///etc/xml/catalog`. `config.h` still defines `XML_SYSCONFDIR` as the build folder,
+     but only `catalog.c`'s two defaults (overridden), `runtest.c`, `xmlcatalog.c` and
+     `xmllint.c` use it, and none of those three is built (READ, grep).
+   - Step 54: `etree.c` 64 warnings, `objectify.c` 0, as drafted; 24 Python modules.
+3. **The same bytes everywhere.** A clean clone of `dbab055`, built from empty `downloads/`
+   Linux pins and an empty `build/` in a `linux/arm64` container (Debian 13, kernel
+   7.0.12-linuxkit): 15 steps in 7 min 31 s, and its `SHA256SUMS` equals macOS's, every line
+   (`diff`; SHA-256 of the file `7383cbb5…`; `build/046/linux/`). Like spec 059's runs, the
+   container first installs Debian's `python3` (3.13.5), which step 37 runs through
+   HarfBuzz's `#!/usr/bin/env python3` (023's unpinned host input, already noted for the lane);
+   without it the first run stopped at step 37, after step 36 had passed. Two macOS checkouts
+   agree too: the worktree's set from main equalled the main tree's, byte for byte. The x86_64
+   rebuild was not run here (Rosetta takes hours): the release dry run's.
+4. **The patch is what its sheet says:** `cmp` equal; `test_carried_patches_follow_the_rules`
+   passes (CHANGELOG names it, the draft's six header lines and `Files: xmlIO.c` match, README
+   says "upstream patches carried: 6").
+5. **The numbers** (below).
+6. **The judge** (below): green but for growth; not accepted (the lane's).
+7. **The release dry run:** not run here; the lane's.
+
+### The judge
+
+The full `uv run pytest`, serially, once, on `dbab055` with this set (`build/046/full-judge.txt`;
+the upstream kit copied by hash from the main tree's `build/upstream/wheels/`):
+
+```
+wasi_python v1: 401/417 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1191/1198, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 21 · grew 75 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_lxml.py and 12 more
+RED: 75 metric(s) grew
+1592 passed, 9 skipped, 14 xfailed in 853.63s (0:14:13)
+```
+
+The 14 gaps are the known ones (the README's 10, question 89's 2, matplotlib M2's 2). The two
+blocked checks need prior-art clones and the three-system release, which this worktree has not.
+`ruff check` and `ruff format --check` are clean on `src`, `tests` and `recipes/guest`. The
+callback scan (051) is green over the larger binary: 3,552 method-array entries, 2,313 single
+definitions, 1,317 getset entries, 441 member entries (3,252, 1,989, 1,138 and 429 before), no
+mismatch. The constructor list is unchanged (9 reviewed, none new: `init`,
+`__wasilibc_initialize_environ_eagerly`, `_GLOBAL__I_000100`, `_mi_process_init`,
+`register_builtin_extensions`, `_GLOBAL__sub_I_kiwisolver.cpp`, `__cxx_global_var_init`,
+`__cxx_global_var_init.5`, `_GLOBAL__sub_I_unique.cpp`); target features the line's 10; imports
+43, as before. The existing goldens reproduce under the oracle with lxml in it
+(`regen.py` rewrote all ten; `git diff` shows only the new `lxml_xml.expected`).
+
+**What grew, and why** (`build/046/growth-full.txt`, 80 lines including metrics the ratchet
+prints by name, every one a cause below; accept with `--accept-growth`):
+
+- `python.wasm` 36,916,497 → 40,374,619 (+3,458,122, +9.37%) and the snapshot 70,901,724 →
+  74,364,601 (+3,462,877, +4.88%): lxml's two modules, libxml2, libxslt, libexslt, wasi-libc's
+  iconv tables and the guard. Inside Decision 11's 3.0 to 4.0 MB.
+- The zip 21,948,256 → 22,098,558 (+150,302): 26 members (24 lxml modules, the stand-in,
+  `METADATA`; 1,715 → 1,740 `.pyc`, 676 → 677 data files).
+- Plain-reactor starts, about +0.4% (`-c pass` +663,289 in the judge's own check): the 26
+  members' per-member cost, about 25,500 each (`test_a_plain_start_grows_at_most_30k_fuel_per_member`
+  passes). Snapshot starts about +0.065% (+55,000): the larger zip directory.
+- Checks that walk the zip's directory or its resources (`test_the_fast_reader_…`,
+  `test_resources_read_as_zipfile_reads_them`, up to +0.95%) and `importlib.metadata`'s
+  distribution walk (`test_packages_carry_their_metadata[snapshot]` +1.41%): more members, one
+  more distribution.
+- Every guest check's start, and the upstream groups (`numpy-others` +0.134% at most): the same
+  start cost.
+
+### The numbers (Decision 11; seeded guest, each run twice, identical unless noted)
+
+| | main `ff5c568` | this set |
+|---|---|---|
+| `python.wasm` | 36,916,497 `16550143…` | 40,374,619 `2e7defc1…` |
+| `python-snapshot.wasm` | 70,901,724 `4eb5418a…` | 74,364,601 `65542437…` |
+| `python-stdlib.zip` | 21,948,256 `16ee747c…` | 22,098,558 `b5633ecc…` |
+| wheel (question 64) | 52,098,231 | 54,340,275 (+2,242,044, +4.3%) |
+| plain `-c pass` | 166,511,583 | 167,180,268 (+668,685, +0.40%) |
+| snapshot `-c pass` | 83,372,077 | 83,425,451 (+53,374, +0.064%) |
+| plain `import lxml.etree` / `import lxml.html` | — | 473,908,875 / 559,005,236 |
+| snapshot `import lxml.etree` / `import lxml.html` | — | 124,505,503 / 155,609,392 |
+
+The wheels are built here from each set with the release's own command (`uv build --wheel
+--build-constraints …`); the README is the wheel's description, so its new section is part of
+the wheel's growth. `import lxml.etree` costs 306.7 M over a plain start (the draft's scratch
+binary: 302.6 M) and 41.1 M over a snapshot start; lxml is not pre-imported (Decision 13). The
+snapshot was built and judged with 059's flag, the review's second condition.
+
+The set's `SHA256SUMS`, its artifact and `MANIFEST` lines (the 29 licence lines are in
+`build/046/linux/SHA256SUMS`, equal on both hosts):
+
+```
+315f4a9264f79b3ea49804a0589a1397f43760f204c679e290faf1da7f41c19d  MANIFEST
+6554243779c7427c864a9ac9e60fe7a07e9281a5db08ccf4f11b0f28c6433195  python-snapshot.wasm
+b5633ecc06ef7b804d74313674118d9746dc553d3a7d75158da5db2e4928a5f8  python-stdlib.zip
+2e7defc109653e82f1d2c4d51a9fd141b6a05c2417b5079684ebd98a04a8f48c  python.wasm
+```
+
+### Stand-ins and what was wrong on the way
+
+- The first form of the descriptor case compared the next `os.open` number before and after
+  and failed in the guest only (6 then 7). It was not a leak: `os.fstat(6)` raised `EBADF`, and
+  counting the open descriptors gave `[3, 4, 5]` before and after fifty parses, a DTD load,
+  XInclude and a missing file (natively `[]` and `[]`). wasmtime reuses freed numbers in its own
+  order. The check counts descriptors now (`build/046/probe/`).
+- The first `document()` in the checks named `/ro/doc.xml`, which a stylesheet parsed from a
+  string resolves against `string://__STRING__XSLT__`; it names `file:///ro/doc.xml` now, as the
+  drafting probe did.
+- `iconv_refusals.c` first lacked `<stddef.h>` for `NULL`; step 60's guard compile stopped on it.
+- The guard's `sed` first named `$HERE/recipes/reactor_main\.c`, which
+  `test_every_repository_path_a_recipe_names_exists` read as the path `recipes/reactor_main`;
+  it matches `[^ ]*/reactor_main\.c` now.
+
+### For the lane
+
+- Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release
+  workflow. Accept with `--accept-judge` (the judge files above), `--accept-growth` (the causes
+  above) and `--accept`. The release workflow's zero-patch count is 18 on this base; if another
+  tree lands first, it rises with it.
+- The main tree needs the three new pins in `downloads/` (`scripts/00_download.sh` fetches them).
+- Spec 047 (regex) shares the oracle's `pyproject.toml` and `uv.lock`, step 60 and
+  `gen_inittab.py`; whichever lands second rebases.
