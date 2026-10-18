@@ -8,6 +8,23 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The x86_64 rebuild without emulation (2026-10-18)
+
+The owner, 2026-10-18: "I don't see the value in the hour long build under emulation", then, on
+`research/2026-10-18-byte-identical-wasm-builds-prior-art.md` (the flag `-ffp-contract=off`
+makes the pinned x86_64 and aarch64 clangs emit the same numpy object; no project studied
+emulates a compiler or normalizes compiler output): "I agree, please make these changes."
+
+- `-ffp-contract=off` goes on **every** compile in the recipe (one rule, not numpy only), as a
+  recipe item under constitution §4.1's first kind.
+- The x86_64 rebuild runs natively. The emulated compiler (spec 040's `clang-emulated` and its
+  pins) stays in the tree, switched off, for one release as the same-day fallback, then is
+  deleted.
+- "The same bytes" keeps one meaning: `SHA256SUMS` equal, byte for byte. No per-function
+  exception list.
+- Specification 059 carries it, build-class, after spec 023 and before spec 057. It changes
+  specs 012 and 040's decisions; its evidence is a dry run with emulation off.
+
 ### Work on while the owner is away; the agent may publish alphas (2026-10-18)
 
 The owner, before stepping away on 2026-10-18: "please continue working and do not pause to wait
