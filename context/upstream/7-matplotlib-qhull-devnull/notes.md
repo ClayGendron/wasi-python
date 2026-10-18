@@ -30,10 +30,15 @@
   - Send qhull's messages to `stderr` when `/dev/null` cannot be opened: the guest would
     print qhull's warnings, unlike native matplotlib.
   - The memo's fallback form: it writes a host file where a writable `dev` folder exists.
-  - A general fallback on every platform (a discard stream wherever `fopen` fails): only
-    glibc, musl and wasi-libc have `fopencookie`; macOS has `funopen` and Windows neither, so
-    it would need three branches for a case only WASI meets.
-- **Policy.** matplotlib's contributing guide (`doc/devel/contribute.rst`, section "Use of
-  Generative AI", READ in the 3.11.2 sdist) lists as unacceptable external AI tooling that
-  creates issues or pull requests, and AI output the contributor does not fully understand. So
-  `pr.md` is a facts sheet (question 80), and the owner writes and sends any pull request.
+  - A general fallback on every platform (a discard stream wherever `fopen` fails): not
+    every platform matplotlib supports has `fopencookie` (macOS has `funopen`, Windows
+    neither), so it would need a branch per C library for a case only WASI meets.
+- **Policy.** matplotlib's contributing guide (`doc/devel/contribute.rst`, "Use of Generative
+  AI") and its pull request template are quoted in full in `pr.md` (READ in the 3.11.2 sdist
+  and on `main`, `493abb1b63`). They rule out an agent opening the pull request and ask for the
+  description in the contributor's own words, so `pr.md` is a facts sheet (question 80), and
+  the owner decides whether to engage at all.
+- **Revised 2026-10-18** against spec 043's pre-build review
+  (`context/reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`, finding 2): the
+  policy quoted whole, `main`'s "breadth" item and the template added, and the platform claim
+  about `fopencookie` narrowed to what was checked.

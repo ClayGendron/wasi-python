@@ -9,6 +9,11 @@
   recipe and the artifact set (constitution §5.6). It is build-class: it touches `scripts/`,
   `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). Its second milestone is
   spec 038 (Decision 1).
+  **Amended 2026-10-18 by spec 043's pre-build review** (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`, finding 1): the shared
+  qhull's conditions are written into Decision 7 (a fourth `pkgconf` folder, the configure
+  line), Decision 8 (the `PyInit__qhull` rename; "One qhull"), Design and acceptance
+  criterion 8. They apply when 043 (matplotlib's second milestone) has landed before this is
+  built; the rename applies in either order. Nothing else in this text changed.
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (pins; steps 00, 10, 38 (new), 57 (new), 60, 70; `scripts/build.sh`,
   `scripts/wasi-cc`, `scripts/gen_inittab.py`, `scripts/make_stdlib_zip.py`,
@@ -369,13 +374,16 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `PKG_CONFIG_LIBDIR` to `build/openblas-wasi/lib/pkgconfig`, step 40's numpy `pkgconfig`
      folder (`dependency('numpy')`) and pybind11's (023). `PKG_CONFIG_LIBDIR` replaces
      `pkgconf`'s default search path, so a host's own `.pc` file (an `openblas.pc` from a Linux
-     package) can never be found if one of ours is missing. scipy asks
+     package) can never be found if one of ours is missing. **When 043 has landed first**
+     (Decision 8, "One qhull"; amended 2026-10-18), both variables gain a fourth folder, step
+     37's `pkgconfig` folder holding `qhull_r.pc`, and still none of the host's. scipy asks
      `dependency('scipy-openblas', method: 'pkg-config', required: false)` first and finds
      nothing; then `dependency(['openblas', 'OpenBLAS'])` finds ours (READ:
      `scipy/meson.build:287-297`). No BLAS finder from numpy's vendored meson is needed.
    - **The configure line:** the line's meson 1.12.1, `meson setup --cross-file … --buildtype=release
      -Db_ndebug=if-release -D_without-fortran=true -Duse-pythran=false -Dblas=openblas
-     -Dlapack=openblas -Duse-system-libraries=none`, then `ninja`. The release build type and
+     -Dlapack=openblas -Duse-system-libraries=none` (`-Duse-system-libraries=qhull` when 043
+     has landed first; Decision 8, amended 2026-10-18), then `ninja`. The release build type and
      asserts off are meson-python's defaults, as scipy's wheels are built. No ILP64 (wasm32's
      `int` is LP64's).
    - **Without pythran** (decision 31): five modules fall back to Cython or Python
@@ -419,7 +427,13 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      runtime libraries are already there after 023.
    - **Init names.** `scripts/gen_inittab.py` gains a table of renamed init functions:
      `scipy._cyutility` → `PyInit_scipy__cyutility` and
-     `scipy.optimize.cython_optimize._zeros` → `PyInit_scipy_optimize_cython_optimize__zeros`.
+     `scipy.optimize.cython_optimize._zeros` → `PyInit_scipy_optimize_cython_optimize__zeros`,
+     and (amended 2026-10-18) `scipy.spatial._qhull` → `PyInit_scipy_spatial__qhull`, with the
+     same entry in `recipes/scipy_rename.h` (a global rename is right: scipy has one `_qhull`).
+     matplotlib's second milestone (043) links `matplotlib._qhull`, whose init function is also
+     `PyInit__qhull` (`_qhull_wrapper.cpp:299`; scipy's is Cython's from
+     `scipy/spatial/meson.build:13`; READ by 043's review). scipy's is renamed in either order,
+     because only scipy has the rename machinery; matplotlib keeps upstream's name.
      Its clash check runs on the final names. scipy's `_cyutility` is its own module,
      `scipy._cyutility`, distinct from pandas'. No other scipy name clashes with numpy's or
      pandas' (EXECUTED: the memo's two module lists compared while drafting; one common name,
@@ -448,11 +462,30 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      security-scanner finding; READ). 023 builds qhull in step 37 but links none of it. So this
      binary has one qhull, scipy's. Whichever of this specification and matplotlib's second
      milestone lands second makes the two share one qhull; a second copy would be a duplicate
-     symbol. If M2 lands first (matplotlib then links step 37's qhull), step 57 uses
-     `-Duse-system-libraries=qhull` against step 37's build instead, and this specification
-     carries scipy's format-string fix as a qhull patch
-     (`recipes/patches/qhull-8.0.2/0001-format-strings.patch`, `Status: merged`, upstream
-     qhull's commit `1b67ec90`).
+     symbol. scipy's vendored `libqhull_r` is qhull 8.0.2's but for one hunk of `poly2_r.c`
+     (EXECUTED by 043's drafting and its review, `diff -r`). **If 043 has landed first**
+     (amended 2026-10-18, 043's review, finding 1), the shared qhull is step 37's, and this
+     specification does all of:
+     a. step 37 writes `qhull_r.pc` from a new recipe file, `recipes/qhull_r.pc.in`
+        (`Version: 8.0.2`, `Libs: -L${libdir} -lqhull_r`, `Cflags: -I${includedir}` with
+        `libqhull_r/` under it), because scipy asks `dependency('qhull_r', version : '8.0.2')`
+        (`meson.build:272-281`, READ), which only a `.pc` answers once `cmake` is disabled;
+     b. step 57 gains step 37's `pkgconfig` folder as a fourth `pkgconf` folder and configures
+        with `-Duse-system-libraries=qhull` (Decision 7);
+     c. the `PyInit__qhull` rename (Init names, above; it applies in either order);
+     d. it carries scipy's fix as one qhull patch, defined once, with 043's name and header:
+        `recipes/patches/qhull-8.0.2/0001-format-strings.patch`, the `poly2_r.c` hunk of
+        upstream qhull's pull request 143 (merged as `1b67ec90`, unreleased) made against the
+        qhull tarball with no offset, and its draft
+        `context/upstream/patches/qhull-8.0.2/0001-format-strings.md` with `Status: merged
+        https://github.com/qhull/qhull/pull/143` and `Files: src/libqhull_r/poly2_r.c`;
+     e. once the `.pc` exists, matplotlib's own configure may find qhull through `pkgconf`
+        instead of `find_library` (INFERRED by 043's review), so the builder checks that
+        `_qhull`'s `.deps` still names step 37's archive once, and that 043's `plot_contour`
+        job and its triangulation checks still pass on the patched qhull;
+     f. acceptance criterion 8: one copy of qhull's functions in `python.wasm`.
+     If this lands before 043, scipy keeps its vendored qhull here, and 043 does a, b, d, e
+     and f (its Decision 6).
 
 9. **What is in, what is out, and how an absence shows.**
    - **In:** every public submodule but one: `cluster`, `constants`, `datasets` (its loaders
@@ -724,6 +757,7 @@ temporary changes to OpenBLAS.
 | `scripts/wasi-cc` | the per-file include rule and its log (Decision 6) |
 | `scripts/f2py_direct_calls.py`, `scripts/install_from_plan.py` | new (Decisions 6, 7) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | scipy's modules, the rename table, the new archives and `-lwasi-emulated-mman` (Decision 8) |
+| **When 043 has landed first** (amended 2026-10-18): `recipes/qhull_r.pc.in`, `scripts/steps/37_plot_libs.sh`, `recipes/patches/qhull-8.0.2/0001-format-strings.patch`, `context/upstream/patches/qhull-8.0.2/0001-format-strings.md` | one qhull, conditions a to f (Decision 8) |
 | `recipes/scipy_odr_stand_in.py`, `recipes/reactor_bootstrap.py` | the `scipy.odr` stand-in; the banner (Decision 9) |
 | `scripts/steps/70_zip.sh`, `scripts/make_stdlib_zip.py` | the scipy tree, its metadata, the stand-in, `scipy/__config__.py` made host-neutral (Decision 10) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | steps 38 and 57 in `ALL`; licences; `PACKAGES` (Decision 13) |
@@ -781,6 +815,10 @@ In: Decisions 1 to 16. Out:
 6. `uv run pytest` is green with `--accept-judge` and `--accept-growth`, each reason stated.
 7. A release dry run passes every job. The build and rebuild jobs' step times (their limit is
    120 minutes on 3- and 4-core runners) are recorded as benchmark facts in the landing notes.
+8. **When 043 has landed first** (amended 2026-10-18): `llvm-nm` on the unstripped link finds
+   each of qhull's functions (`qh_new_qhull` among them) defined once in `python.wasm`;
+   condition e's checks pass; and the `QhullError` check and the spatial goldens pass on the
+   shared qhull.
 
 ## The owner's choices
 

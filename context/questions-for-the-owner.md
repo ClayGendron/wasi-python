@@ -219,10 +219,12 @@ document.
   host folder, at the cost of reference-counted buffers. Keep one per open? The agent
   recommends yes, until a real program needs the other.
 
-### 73. reportlab's bundled fonts, and its zip loader (spec 042)
+### 73. reportlab's fonts, its barcode code's licence, and its zip loader (spec 042)
 
-- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/042-seaborn-and-reportlab.md`,
-  Decision 4. Spec 042 decides as written below, so nothing waits.
+- **Asked:** 2026-10-17 (overnight); part (c) added 2026-10-18 from spec 042's pre-build review
+  (`reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`, finding 1). **Source:**
+  `specifications/042-seaborn-and-reportlab.md`, Decisions 4 and 4a. Spec 042 decides as
+  written below, so nothing waits.
 - **The facts.** reportlab 5.0.1's wheel ships 32 files under `reportlab/fonts/`. Sixteen are
   Type 1 programs whose notices say "Adobe Systems Incorporated. All Rights Reserved" (eight
   also under Monotype's copyright, naming Arial and Times New Roman), with no grant to
@@ -232,13 +234,45 @@ document.
   `zipimporter._files`, which CPython removed in 3.13, so none of these fonts can be read from
   the zip anyway (EXECUTED in the guest and natively). The standard PDF fonts need no file, and
   DejaVu Sans from matplotlib's data covers Unicode text (EXECUTED, equal to native).
-- **What spec 042 does:** leaves the whole folder out of the zip, with a judge check that it
-  stays out, and carries no patch.
+- **The barcode code (READ).** Eight modules of `reportlab/graphics/barcode/` (`__init__`,
+  `code128`, `code39`, `code93`, `common`, `fourstate`, `usps`, `test`) are "Copyright (c)
+  1996-2000 Tyler C. Sarna" under the **four-clause BSD licence**. It is the three-clause BSD
+  plus one more obligation, the advertising clause, which says, word for word: "All advertising
+  materials mentioning features or use of this software must display the following
+  acknowledgement: This product includes software developed by Tyler C. Sarna." In plain terms:
+  any README, release note, web page or other material that mentions barcodes (a feature of
+  this code) must carry that sentence. §4.12 does not list it; decision 43's
+  "reportlab (BSD)" came from reportlab's own licence file, which does not mention it. Every
+  barcode and QR module imports Sarna's `__init__`, so the folder ships or stays out whole.
+  The same folder holds the QR encoder, "Copyright (c) 2014 Open End AB" and "(c) 2009
+  Kazuhiko Arase", MIT. Outside it, `pdfbase/_glyphlist.py` is Adobe's Glyph List,
+  BSD-3-Clause. These notices are comments, which compilation drops, so spec 042 ships them in
+  `LICENSES/reportlab.txt`.
+- **Lesser facts, for the whole picture (READ; none names terms the wheel could supply):**
+  `graphics/svgpath.py` is "derived from that used by svglib" (svglib is LGPL-3.0; the file
+  carries reportlab's licence only); `lib/normalDate.py` is derived from Jeff Bauer's code "used
+  with his kind permission"; `graphics/barcode/ecc200datamatrix.py` has a method "basically
+  verbatim from huBarcode which is BSD licensed", with no huBarcode notice in the wheel (it is
+  in the barcode folder); `platypus/paragraph.py` has a URI regex "derived from Django
+  validator". In seaborn (spec 042, Decision 7), the vendored appdirs and husl are MIT and
+  numpydoc's `docscrape` is BSD-2-Clause; their notices ship in `LICENSES/seaborn.txt`.
+- **What spec 042 does:** leaves `reportlab/fonts/` out of the zip for good, with a judge check
+  that it stays out, and carries no patch. It also leaves `reportlab/graphics/barcode/` out
+  (16 members) until you answer (c), ships all three third-party notices now, and draws no
+  barcode or QR code in its PDF golden.
 - **The questions:** (a) keep reportlab's fonts out for good? The agent recommends yes; shipping
   any but Vera would need you to approve their terms, and Vera would also need a carried patch
   to be readable. (b) report the `_files` bug to reportlab (its users' list)? The agent
   recommends yes, as a facts sheet in your own words (question 80's form); it would draft one
-  under `context/upstream/` on your word. Nothing is sent meanwhile.
+  under `context/upstream/` on your word. Nothing is sent meanwhile. (c) **approve the
+  four-clause BSD (Tyler C. Sarna's barcode modules), with its advertising clause,** and record
+  it in §4.12? If yes, a small later change ships the barcode folder, adds a QR code and a Code
+  128 barcode to the PDF golden, and puts "This product includes software developed by Tyler C.
+  Sarna." in the README's barcode line and the CHANGELOG, and in any later material that
+  mentions barcodes. If no, barcodes and QR codes stay out and the README says so. The agent
+  leans yes: barcodes and QR codes are common in generated reports, and the obligation is one
+  sentence wherever barcodes are advertised; but it is a lasting duty on the project's
+  materials, so it is yours to accept.
 
 ### 80. Upstream drafts where a project refuses AI-written contributions
 
@@ -267,8 +301,17 @@ document.
   `license = "BSD-3-Clause"`). §4.12 names kiwisolver, pybind11 and cppy under BSD-3-Clause for
   matplotlib (question 35), but not contourpy; the 2026-10-16 memo's table listed it, and no
   approval named it. §4.12 says nothing is linked in under a licence the owner has not approved.
-- **The question:** approve contourpy (BSD-3-Clause), shipped with its notice, and record it in
-  §4.12? The agent recommends yes: it is the same licence as numpy's and kiwisolver's.
+- **One older notice comes with it** (found by 043's pre-build review, finding 8). contourpy's
+  `mpl2005` algorithm "came from gcntr.c, part of the GIST package"
+  (`src/mpl2005_original.cpp:7`), and contourpy ships only its own `LICENSE`. GIST's notice is
+  the Regents of the University of California's (1996), a BSD-style permission that asks for
+  "this entire notice" in every copy. matplotlib already ships it as `LICENSE/LICENSE_YORICK`
+  (for its gist/yorick colormaps), and spec 023 ships matplotlib's whole `LICENSE/` folder, so
+  it is in the release; 043 keeps it there by name.
+- **The question:** approve contourpy (BSD-3-Clause), shipped with its notice and with
+  `LICENSE_YORICK` covering its GIST-derived code, and record it in §4.12? The agent recommends
+  yes: it is the same licence as numpy's and kiwisolver's, and the Yorick notice is already
+  shipped for matplotlib.
 - **Meanwhile:** spec 043 is drafted and can be reviewed; it is not built until this is answered.
   qhull's licence, which 043 also ships now that qhull is linked, is already approved.
 

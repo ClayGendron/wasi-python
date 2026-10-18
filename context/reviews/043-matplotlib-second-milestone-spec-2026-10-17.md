@@ -311,6 +311,51 @@ reachable from Python on a path the code names; the hostile-guest grants already
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author, 2026-10-18. Every finding is fixed in the text; none is answered by argument.
+
+1. **Fixed, in 037 and 043.** Spec 037 is amended (its status line: "Amended 2026-10-18 by spec
+   043's pre-build review"). Decision 7: a fourth `pkgconf` folder, step 37's, and
+   `-Duse-system-libraries=qhull`, when 043 has landed first. Decision 8: the
+   `scipy.spatial._qhull` → `PyInit_scipy_spatial__qhull` rename in `scipy_rename.h` and the
+   inittab table, in either order; "One qhull" now lists your conditions a to f (the
+   `qhull_r.pc` from `recipes/qhull_r.pc.in` at step 37; the fourth folder; the rename; one
+   qhull patch with 043's name and `Status: merged https://github.com/qhull/qhull/pull/143`
+   header; the `.deps` and `plot_contour` checks once the `.pc` exists; one copy of qhull).
+   Design gains a conditional row; acceptance gains criterion 8. Nothing else in 037 changed.
+   043's Decision 6 now cites 037's amended Decision 8 instead of restating it: branch A leaves
+   a, b, d, e and f to 037's builder; branch B does them; the rename is 037's in both. 043's
+   Kind, Design row and criterion 6 follow.
+2. **Fixed, in the facts sheet.** `pr.md` quotes the whole "Use of Generative AI" section from
+   `main` (`493abb1b63`), the "breadth" item included, says how 3.11.2's differs, quotes the
+   template's "PR summary" ("in your own words (no AI please)") and "AI Disclosure" sections,
+   notes `main` has no `AGENTS.md`, and says the owner decides whether to engage at all. The
+   platform claim now reads "not every platform matplotlib supports has `fopencookie` (macOS
+   has `funopen`, Windows neither)", in `pr.md` and `notes.md`; the wasi-sdk facts cite your
+   `stdio.h`/`libc.a` check. `notes.md` records the revision.
+3. **Fixed.** Decision 10: `python.wasm` and the snapshot +0.8 to +1.0 MB, code and data, with
+   your map numbers and `DATA` sizes, and the asserts-off note; the zip +18 members (17 files
+   with `py.typed`, plus `METADATA`; Decision 4 says so too); plain `-c pass` about +1.4 M; the
+   job's fuel marked as from an asserts-on build, with your warm and cold figures.
+4. **Fixed.** Decision 4 names the three code paths: a second `_host_items` parse for
+   `build_config()`'s `dict(...)` keywords with numpy's absent/read-back rule and a three-member
+   `--replace` error text; `host_fact_errors`' bare-`linux` condition widened to contourpy's
+   member; `tests/unit/test_artifact_rules.py:351`. Design and the judge-change list carry them;
+   criterion 1 adds a removed-key run.
+5. **Fixed.** Decision 9: `thread_count=4, chunk_count=16` against `serial` with the same
+   `chunk_count=16`, comparing point arrays; criterion 1 shows the check fails at another count.
+6. **Fixed.** Decision 8: the pattern is `/[A-Z]{1,6}\+`, the number of tags replaced is
+   printed, and why normalizing hides nothing is stated; Decision 9 says the raw pin moves with
+   step 30's zlib and needs a judge change then. The seeds claim now cites your runs.
+7. **Fixed.** Decision 9's no-host-file check lists every path under each writable grant,
+   before and after, the font cache's grant included.
+8. **Fixed.** Decision 11 names `gcntr.c`/GIST and `LICENSE_YORICK` and makes the judge's
+   licence list hold it by name; question 81 names it so the owner approves knowingly.
+
+Checked: `uv run pytest -q tests/checks/test_rules.py -k specification` passes (3). The whole
+rules file has one failure not from this change: `boomslang`, a prior-art clone another agent
+added, has no licence row in `context/prior_art/README.md`.
+
+
 ## Verdict
 
 Not yet: revise, then confirm. The design is sound and reproduces. The patch exists in the
