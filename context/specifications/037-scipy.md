@@ -1,24 +1,29 @@
 # 037 — scipy, the first milestone
 
-- **Status:** drafted 2026-10-17. It changes the build recipe and the artifact set, so it is
-  reviewed once more before it is built (constitution §5.6). It is build-class: it touches
-  `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). Its second
-  milestone is spec 038 (Decision 1).
+- **Status:** drafted 2026-10-17; revised the same day against its pre-build review
+  (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1 to 4 fixed in the text and the checks,
+  5 to 13 fixed or answered (the review's Disposition), and spec 040's asks written in, each
+  conditional on 040 landing first. Awaiting the reviewer's confirmation. It changes the build
+  recipe and the artifact set (constitution §5.6). It is build-class: it touches `scripts/`,
+  `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). Its second milestone is
+  spec 038 (Decision 1).
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (pins; steps 00, 10, 38 (new), 57 (new), 60, 70; `scripts/build.sh`,
   `scripts/wasi-cc`, `scripts/gen_inittab.py`, `scripts/make_stdlib_zip.py`,
-  `scripts/assemble_artifacts.py`, three new scripts), recipe files (a cross file, rename headers,
-  a C shim file, a stand-in module), two carried patches to OpenBLAS, the reactor's `-V` banner,
-  judge additions and changes (`tests/`), the release workflow's tree count, `README.md`,
-  `CHANGELOG.md`, `LICENSES/`, upstream drafts under `context/upstream/`.
-- **Depends on:** 020 (carried patches), 012 (the same bytes from any host), 021, and three
+  `scripts/assemble_artifacts.py`, six new scripts listed in Design), recipe files (a cross file,
+  rename headers, a per-file include map, a C shim file, a stand-in module), two carried patches
+  to OpenBLAS, the reactor's `-V` banner, judge additions and changes (`tests/`, including the
+  oracle's pins), the release workflow's tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`,
+  upstream drafts under `context/upstream/`.
+- **Depends on:** 020 (carried patches), 012 (the same bytes from any host), 021, and
   specifications not yet built, each of which lands first (Decision 16): 023 (matplotlib M1: the
   pinned `pkgconf` and pybind11 3.1.0, `-lsetjmp`, `-l`/`-L` lines in `.deps`, `-pthread`
   dropped by `scripts/wasi-cc`, inittab names from install paths, the constructor check, the
-  `target_features` check), 033 (the `ctypes` stand-in package, `make_stdlib_zip.py --metadata`)
-  and 035 (the zip's directory read once; it changes this specification's numbers, not its
-  design). Where one of them lands in another shape than its text, this specification uses what
-  landed and says so in its landing notes.
+  `target_features` check, the recording-platform rule for a golden), 033 (the `ctypes` stand-in
+  package, `make_stdlib_zip.py --metadata`), 035 (the zip's directory read once; it changes this
+  specification's numbers, not its design) and, if it is confirmed and lands first, 040 (x86_64
+  in the same-bytes gate; Decisions 4 and 12). Where one of them lands in another shape than its
+  text, this specification uses what landed and says so in its landing notes.
 - **Research it stands on:** `../research/2026-10-17-what-scipy-needs.md` and its folder (the
   version, no Fortran in scipy 1.18.1, OpenBLAS 0.3.34 for wasm with five outside fixes, the
   signature clashes, the static-link work, the threads and exceptions findings, the sizes);
@@ -28,7 +33,11 @@
   except `ilaver_`); `../research/2026-10-17-what-else-the-default-profile-carries/outputs/tiers.txt`
   (scipy's Python part: 610 members, 5,573,340 bytes deflated); the owner's decisions 25 and 28 to
   32 (`../decisions.md`); the scipy 1.18.1 sdist, read while drafting in a scratch folder (SHA-256
-  `52c4b742…2747307`, equal to PyPI's, EXECUTED), for its `meson.build` files and subprojects.
+  `52c4b742…2747307`, equal to PyPI's, EXECUTED), for its `meson.build` files and subprojects;
+  the pre-build review's runs (EXECUTED there: Decision 4's make line built as written, the
+  link-whole gate at 0, the archive identical without a host Fortran compiler and at another job
+  count, the patch regenerated four ways and audited line by line, `target_features`, the import
+  list).
 
 ## The problem
 
@@ -47,22 +56,33 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
 
 ## Decisions
 
-1. **Two milestones, and why the cut is here.** scipy's submodules import each other when
-   imported: `scipy.linalg` imports `scipy.sparse.linalg` and `scipy.special`
-   (`linalg/_matfuncs_inv_ssq.py`, READ); `scipy.optimize` imports HiGHS's module;
-   `scipy.stats` imports nearly everything. A milestone that left out a submodule would ship a
-   scipy whose own imports fail. So this milestone builds, links and judges **all of scipy except
-   `scipy.odr`**. The cut is between "built and working" and "working at the sandbox's edges":
-   - **037 (this one):** OpenBLAS, scipy, the link, the zip, the goldens.
-   - **038 (`038-scipy-second-milestone.md`):** the three things that fail only because the
-     sandbox has no threads, nothing writable and no libffi: `mmread`/`mmwrite`, `qmc.Sobol`
-     with nothing writable, and the `ctypes` data pointers four scipy functions pass. They are
-     known gaps here, each naming 038 as its closer (Decision 9).
+1. **Two milestones, why the cut is here, and the build in four stages.** scipy's submodules
+   import each other when imported: `scipy.linalg` imports `scipy.sparse.linalg` and
+   `scipy.special` (`linalg/_matfuncs_inv_ssq.py`, READ); `scipy.optimize` imports HiGHS's
+   module; `scipy.stats` imports nearly everything. A milestone that left out a submodule would
+   ship a scipy whose own imports fail. So this milestone builds, links and judges **all of scipy
+   except `scipy.odr`**. The cut is between "built and working" and "working at the sandbox's
+   edges":
+   - **037 (this one):** OpenBLAS, scipy, the link, the zip, the goldens, and the checks of
+     everything scipy does natively, including three that fail today and are recorded as known
+     gaps (Decision 9).
+   - **038 (`038-scipy-second-milestone.md`):** it closes those three gaps. They fail only
+     because the sandbox has no threads, nothing writable and no libffi: `mmread`/`mmwrite`,
+     `qmc.Sobol` with nothing writable, and the `ctypes` values four scipy functions make.
 
-   037 is about the size of 023 (one new C library step, one new package step, the link and zip
-   changes, goldens). One builder builds it. The builder builds and gates OpenBLAS first
-   (Decision 4's link-whole gate and Decision 6's direct-call gate) before any scipy work
-   depends on it.
+   037 is larger than 023: two new steps, about 85 linked extension modules, six new scripts,
+   three gates, three goldens and about fifteen licence files. One builder builds it, **in four
+   stages, each green before the next** (the review's plan):
+   1. step 38, the patch script and its v1.5 check (Decision 5), and the link-whole gate seen
+      failing (111) and passing (0);
+   2. step 10's f2py numpy, `scripts/f2py-host`, the cross file, and `meson setup` alone. If
+      meson refuses the cross build, the builder stops here and writes a memo: that was the
+      research's "kills" test;
+   3. `ninja`, the shims, the direct-call gate, the per-file include log;
+   4. step 60 (clashes, inittab renames, constructors), step 70, then the checks and goldens.
+
+   AGENTS.md rule 7 applies to each stage: a stage that fails twice stops the specification with
+   a memo. It never lands without a submodule, for the reason above.
 
 2. **The versions and pins.** Each is a URL and SHA-256 in `downloads/SHA256SUMS`, fetched by a
    `get` line in `scripts/00_download.sh`.
@@ -78,8 +98,8 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `OpenBLAS-0.3.34`, the tree rule's name.
    - **numpy 2.5.2, the host wheel, one per build host, for f2py only** (Decision 7). scipy's
      build runs `f2py` on the build host, and f2py imports a real numpy. The names and hashes are
-     PyPI's (READ from its JSON while drafting; checked against bytes on download like every
-     pin): `numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl`
+     PyPI's (READ from its JSON while drafting; the review checked them again; checked against
+     bytes on download like every pin): `numpy-2.5.2-cp315-cp315-macosx_14_0_arm64.whl`
      `e79aba74ffaf5f78a050d777c184cddf8fdffabab38acf5f3ef1fecbc17895d6`;
      `numpy-2.5.2-cp315-cp315-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl`
      `4ec954036759bcee3aa484f8603bd9c14f3e776293b85578b8734c2d72777c69`;
@@ -91,11 +111,15 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
    - **Cython 3.3.0 against scipy's `<3.3.0`.** scipy's `pyproject.toml` caps Cython below 3.3.0,
      but that cap is pip's; its `meson.build` checks only `>=3.2.0` (READ), and this project runs
      meson directly. The line keeps one Cython. The memo cythonized `cython_blas` and
-     `cython_lapack` with 3.3.0 cleanly (EXECUTED), which is two modules, not proof. **Decided
-     fallback:** if 3.3.0 fails on scipy's sources after two attempts (AGENTS.md rule 7), step 57
-     uses a pinned Cython 3.2.x (the newest 3.2 release with cp315 wheels, one per build host)
-     for scipy alone. Two Cythons in one binary are safe: each package has its own
-     `_cyutility`.
+     `cython_lapack` with 3.3.0 cleanly (EXECUTED), which is two modules, not proof. **The
+     fallback is a named pin:** if 3.3.0 fails on scipy's sources after two attempts, step 57
+     uses Cython 3.2.9's pure-Python wheel,
+     `https://files.pythonhosted.org/packages/00/ec/e61deec9bcfbb0e1b36f8b5ba75cb44644419b4bfd0fdd666bffd21d9579/cython-3.2.9-py3-none-any.whl`,
+     SHA-256 `a2b0e87f6b80790c929308ca0831d686f7a180feab684fe8cd4a4380bd96aaca` (READ: PyPI's JSON;
+     3.2.9 is the newest 3.2 release), for scipy alone. One wheel serves every host; it compiles
+     more slowly. It is added to `SHA256SUMS` only if the fallback is taken. If 3.2.9 does not run
+     on Python 3.15 either, the fallback is a memo. Two Cythons in one binary are safe: each
+     package has its own `_cyutility`.
    - **pybind11 3.1.0 against scipy's `<3.1.0`.** The same kind of cap ("pre-emptive upper
      bound", `pyproject.toml`); `meson.build` asks `>=2.13.2`. One binary must hold one pybind11:
      two versions' inline functions under one name would break the one-definition rule in a
@@ -118,83 +142,117 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      Decision 5), and copies the patched tree with `cp -Rp` to `build/openblas-build`. It builds
      in the copy. OpenBLAS's `make` writes into its tree; the copy keeps the judged tree equal to
      its tarball plus the patches, whatever `make` writes.
-   - The make line is the memo's (EXECUTED twice there to the same archive bytes), with `CC`
-     through `scripts/wasi-cc` so OpenBLAS's `-fPIC` is dropped:
-     `make libs netlib` with `TARGET=WASM128_GENERIC ARCH=wasm OSNAME=WASI NOFORTRAN=1
-     C_LAPACK=1 NO_LAPACKE=1 USE_THREAD=0 USE_LOCKING=0 NUM_THREADS=1 NO_SHARED=1 NO_AFFINITY=1
-     DYNAMIC_ARCH=0`, `HOSTCC=cc` (OpenBLAS builds its `getarch` tool for the build host; the
-     build hosts already need `cc` for step 20), the SDK's `llvm-ar` and `llvm-ranlib`, and
-     `CFLAGS="-O2 -ffile-prefix-map=@ROOT@=/wasi-python-build -D_WASI_EMULATED_SIGNAL
-     -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_GETPID -D_WASI_EMULATED_MMAN -DNO_SYSV_IPC
-     -include sched.h -DARCH_WASM -I$HERE/recipes/openblas-include"`.
+   - **The make line.** It starts from the memo's, and differs from it: `CC` goes through
+     `scripts/wasi-cc` (OpenBLAS's `-fPIC` is dropped), `-Wno-return-type` and `NO_CBLAS=0` are
+     gone (the second is the default), and `-ffile-prefix-map`, `F_COMPILER` and `NUM_CORES` are
+     added. The evidence for this exact line is the review's build (EXECUTED there): no error, the
+     memo's seven warning classes and no other (so with `-Wreturn-type` on, no `void` value is
+     used), an archive of 10,866,466 bytes, SHA-256 `761a55ed…0305c945`, no builder path in it,
+     and the same bytes again with no `gfortran` on `PATH` and 3 make jobs instead of 10. The
+     line: `make libs netlib` with `TARGET=WASM128_GENERIC ARCH=wasm OSNAME=WASI NOFORTRAN=1
+     C_LAPACK=1 NO_LAPACKE=1 USE_THREAD=0 USE_LOCKING=0 NUM_THREADS=1 NUM_CORES=1
+     F_COMPILER=GFORTRAN NO_SHARED=1 NO_AFFINITY=1 DYNAMIC_ARCH=0`, `HOSTCC=cc` (OpenBLAS builds
+     its `getarch` tool for the build host; the build hosts already need `cc` for step 20), the
+     SDK's `llvm-ar` and `llvm-ranlib`, and `CFLAGS="-O2 -ffile-prefix-map=$HERE=/wasi-python-build
+     -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_GETPID
+     -D_WASI_EMULATED_MMAN -DNO_SYSV_IPC -include sched.h -DARCH_WASM
+     -I$HERE/recipes/openblas-include"`.
    - **The five outside fixes are recipe items** (memo finding 5): `ARCH=wasm` and `-DARCH_WASM`
      (OpenBLAS knows wasm only through `__EMSCRIPTEN__`), `-D_WASI_EMULATED_MMAN` and
-     `-DNO_SYSV_IPC` (with `-lwasi-emulated-mman` at the final link), `-include sched.h`, and an
-     empty stand-in `recipes/openblas-include/sys/ipc.h` (wasi-libc has none; with `NO_SYSV_IPC`
-     nothing in it is used). None is a patch.
-   - **Two more make variables fix host facts the memo's build picked up** (READ while drafting,
-     in the memo's own generated `Makefile.conf`): `F_COMPILER=GFORTRAN` and `NUM_CORES=1`. The
-     memo's macOS host had Homebrew's `gfortran` on `PATH`, so OpenBLAS's `f_check` chose
-     `GFORTRAN`, which adds `-DF_INTERFACE_GFORT` to every C compile (`Makefile.system:1203`); a
-     host without it would compile different code. `NUM_CORES` was the host's 10. Both are set on
-     the make line, so every host compiles what the memo measured.
+     `-DNO_SYSV_IPC` (with `-lwasi-emulated-mman` at the final link; the neutral sysroot has the
+     library, EXECUTED by the review), `-include sched.h` (its one WASI call, `sched_yield`, is
+     already imported by today's `python.wasm`, EXECUTED by the review), and an empty stand-in
+     `recipes/openblas-include/sys/ipc.h` (wasi-libc has none; with `NO_SYSV_IPC` nothing in it is
+     used). None is a patch. No new import reaches the guest (§4.4).
+   - **Host facts pinned on the make line.** `F_COMPILER=GFORTRAN`: `f_check` picks the first
+     Fortran compiler it finds and falls back to `GFORTRAN` when it finds none (`f_check:63-68`,
+     READ by the review; EXECUTED: no `gfortran`, same archive). The pin guards against a
+     **different** compiler on a host's `PATH`, such as `flang`, which `f_check` would pick and
+     which changes the `-DF_INTERFACE_*` flag on every C compile (`Makefile.system:1203`).
+     `NUM_CORES=1`: getarch writes the host's core count, which reaches compiles only through
+     `NUM_THREADS`; the line pins both. **Once spec 040 has landed** (x86_64 in the same-bytes
+     gate), the builder also fixes on the make line every value `getarch` detects on x86_64 that
+     reaches a compile flag. OpenBLAS builds `getarch` with `-march=native` on x86_64 hosts
+     (`Makefile.system:206-207`, READ), so the builder compares, between an arm64 and an x86_64
+     build, `config.h`, `config_kernel.h` and the compile-relevant lines of `Makefile.conf`, and
+     sets each differing value explicitly. The x86_64 gate is what proves none is left.
+   - **The log.** The step prints `config.h` and the archive's size and SHA-256 into its log.
+     `c_check` sets `CROSS_SUFFIX` to the wrapper's folder, so `NM` and `OBJCOPY` name programs
+     that do not exist; `libs`, `netlib` and `install` never use them (EXECUTED by the review).
    - **SIMD.** `WASM128_GENERIC` compiles OpenBLAS's kernels with `-msimd128` (GEMM, DOT, ROT,
      SUM and TRSM kernels). wasm SIMD is accepted as a host requirement, in the default build
-     (decision 29). Only OpenBLAS is compiled with it; numpy, pandas and scipy are not.
-   - The step then runs `make install` with the same variables and
-     `PREFIX=$B/openblas-wasi`. That installs the archive, the headers scipy includes, and
-     OpenBLAS's own `lib/pkgconfig/openblas.pc`, which scipy finds through the pinned `pkgconf`
-     (Decision 7).
+     (decision 29). It is the only new feature (EXECUTED by the review). Only OpenBLAS is
+     compiled with it; numpy, pandas and scipy are not.
+   - The step then runs `make install` with the same variables and `PREFIX=$B/openblas-wasi`.
+     That installs the archive, `cblas.h`, `f77blas.h`, `openblas_config.h` and OpenBLAS's own
+     `lib/pkgconfig/openblas.pc` (EXECUTED by the review), which scipy finds through the pinned
+     `pkgconf` (Decision 7).
    - **The link-whole gate.** The step links the archive with `--whole-archive` into a throwaway
      module (`wasm-ld --no-entry --allow-undefined`, as the memo's `scripts/link_whole.sh`) and
      dies on any `signature mismatch` warning, naming the first. The pristine 0.3.34 gives 111
-     (EXECUTED by both memos); with the patches it gives 0 (EXECUTED: patch B). So the gate is
-     seen failing first by building without `recipes/patches/OpenBLAS-0.3.34/`.
-   - The step prints the archive's size and SHA-256. Spec 012's same-bytes rebuild compares the
-     final artifacts; the archive's hash in both hosts' logs localises a difference if one
-     appears.
+     (EXECUTED by both memos); with the patches it gives 0 (EXECUTED by the review, on this make
+     line). It is seen failing first by building without `recipes/patches/OpenBLAS-0.3.34/`.
+   - Archive members are added in prerequisite order (`Makefile.tail:80`,
+     `lapack-netlib/SRC/Makefile:634`, READ by the review), so the job count cannot reorder them.
 
-5. **Two carried OpenBLAS patches** (spec 020's mechanism; §4.1).
-   - **`recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void.patch`**: the memo's
-     patch B without `lapack-netlib/INSTALL/ilaver.c`. Every subroutine of C LAPACK returns
-     `void`, as LAPACK's Fortran subroutines do; `xerbla_` gains its hidden length in the 20 f2c
-     files that lacked it (rules R1 to R6, memo finding 2). 1,664 files. It is made by the memo's
-     own script, `../research/2026-10-17-openblas-one-return-convention/scripts/make_void.py`,
-     run on the pinned tarball, minus the one file. Patch B whole is 1,119,817 bytes, SHA-256
-     `dde3be7a…3e92`, 116,496 bytes under `gzip -9` (EXECUTED while drafting, on the memo's
-     scratch copy); 0001 is that less one small file section.
-   - **`0002-ilaver-returns-void.patch`**: `ilaver_` returns `void`. One file, two hunks
-     (`int ilaver_` to `void ilaver_`, `return 0;` to `return;`), the only section of patch B for
-     that file (EXECUTED: read from patch B). scipy wraps `ilaver` as a subroutine in f2py and in
-     `cython_lapack`; upstream `develop` still defines it `int` (memo finding 6).
-   - **Why two.** 0001 is upstream's merged convention, backported by our own script; nothing is
-     sent. 0002 is a real pull request to send. When OpenBLAS releases 0.3.35 with the
+5. **Two carried OpenBLAS patches, made by a script in the recipe** (spec 020's mechanism;
+   §4.1).
+   - **`recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void.patch`**: every
+     subroutine of C LAPACK returns `void`, as LAPACK's Fortran subroutines do; `xerbla_` gains
+     its hidden length in the 20 f2c files that lacked it (rules R1 to R6, memo finding 2). 1,664
+     files, 1,119,076 bytes, SHA-256
+     `c8f96665197d0d5f3dd10b4f6a8abb0fb8da2000844d4225997e470a2577eaac` (EXECUTED by the review).
+   - **`0002-ilaver-returns-void.patch`**: `ilaver_` returns `void`. One file, two hunks, 741
+     bytes, SHA-256 `e7a8189b5d7b92a185a6635300b7106350fd36c14f03fe8f8fe272c53eeabd97` (EXECUTED
+     by the review). scipy wraps `ilaver` as a subroutine in f2py and in `cython_lapack`;
+     upstream `develop` still defines it `int` (memo finding 6).
+   - **The script.** `scripts/make_openblas_void_patch.sh` (a recipe file, hashed in
+     `MANIFEST`) makes both. It unpacks the pinned tarball into a fresh folder, commits it in a
+     git repository run as `apply_patches.sh` runs git (`env -i`, an empty `HOME` and
+     `XDG_CONFIG_HOME`, `GIT_CONFIG_NOSYSTEM=1`, `GIT_CONFIG_GLOBAL=/dev/null`, a ceiling), and
+     runs `scripts/openblas_make_void.py` on it. That is the memo's `make_void.py`, moved into
+     `scripts/` unchanged but for its header comment; the memo's copy stays as evidence. The
+     script then writes 0001 with plain `git diff -- . ':!lapack-netlib/INSTALL/ilaver.c'` and
+     0002 with plain `git diff -- lapack-netlib/INSTALL/ilaver.c`, no other option, and writes
+     each draft's `Files:` line from `git diff --name-only`. A cleared configuration matters:
+     the review got four different hashes for the same change from `diff.algorithm=histogram`,
+     `--full-index`, `diff.noprefix` and the default (EXECUTED).
+   - **The audit.** `scripts/audit_openblas_void.py` (adapted from the review's
+     `audit_void.py`) pairs every changed line of 0001 with one of the convention's rules and
+     fails on any line it cannot pair. The review's run: 2,016 `int` to `void`, 293 `return 0;`
+     to `return;`, 56 hidden lengths added, 2 in `xerbla.c`, 0 unexplained (EXECUTED). So the
+     review checks the script and its rules, not 26,000 lines, and the audit shows the script
+     did only what its rules say.
+   - **A v1.5 check, `test_the_openblas_patches_are_what_their_script_makes`**: where the
+     pinned tarball is in `downloads/`, it runs the script into a folder under `build/harness`
+     and compares both files, byte for byte, with the carried ones, then runs the audit on 0001.
+     Seen failing first with a one-line edit to a copy of 0001.
+   - **Why two patches.** 0001 is upstream's merged convention, backported by our own script;
+     nothing is sent. 0002 is a real pull request to send. When OpenBLAS releases 0.3.35 with the
      convention, 0001 goes and the pin moves; 0002 goes when a release carries it.
    - **Their drafts**, under `context/upstream/patches/OpenBLAS-0.3.34/`, with spec 020's six
      header lines. 0001: `Status: merged https://github.com/OpenMathLib/OpenBLAS/pull/6082`; its
      body names the series (#6008, #6017, #6022, #6030, #6036, #6049, #6061, #6063, #6077, #6079,
      #6080, #6081, #6082), says the patch reaches the same convention by our script and is not
-     upstream's diff, and says there is nothing to send. 0002: `Status: drafted`; its body is
-     the pull request against `develop` (ILAVER is a SUBROUTINE; the C translation still returns
-     `int`; callers that declare it `void` trap on wasm; tested by the memo's link-whole count on
-     `develop`, 1 clash before, 0 after).
-   - **The `Files:` line.** Spec 020's rule makes it name every path the patch touches. For
-     0001 that is 1,664 paths, a line of about 49 KB (EXECUTED: the sum of path lengths and
-     separators in patch B). The rule stands; the line is written by the same script.
-   - **Reviewing 0001** is reviewing the script and its rules, then regenerating: the reviewer
-     runs `make_void.py` on a fresh unpack of the pinned tarball, removes `ilaver.c`'s section,
-     and compares the SHA-256 with the carried file (Acceptance, criterion 4). Nobody reads
-     26,000 lines.
-   - **Carried in git.** 0001 is text, about 1.1 MB, under `recipes/patches/`, as spec 020
-     requires; a script that edited the tree at build time instead would be an unrecorded source
-     change (§7). It is not an artifact, so §4.6 does not exclude it. The owner may say otherwise
-     (question 62); nothing waits.
+     upstream's diff, and says there is nothing to send. 0002: `Status: drafted`. Its case: ILAVER
+     is a SUBROUTINE, and #6008 to #6082 made every other subroutine `void`. Its test: a
+     three-line C caller declaring `void ilaver_(int *, int *, int *)`, linked against a wasm
+     build of `develop`, gives one `signature mismatch` before the change and none after. The
+     builder runs that on `develop` before the draft is offered and records the run in the
+     draft. (`develop` linked whole already has 0 clashes, EXECUTED by the memo, so the
+     link-whole count is not the test.)
+   - **The `Files:` line.** Spec 020's rule makes it name every path. For 0001 that is 1,664
+     paths, a line of about 49 KB, written by the script.
+   - **Carried in git.** 0001 is text, about 1.1 MB (about 116 KB compressed), under
+     `recipes/patches/`, as spec 020 requires; a script that edited the tree at build time
+     instead would be an unrecorded source change (§7). It is not an artifact, so §4.6 does not
+     exclude it (question 62, decided so).
    - **The WASI portability fixes are not carried.** `__wasi__` beside `__EMSCRIPTEN__` in
      `ctest.c`, `<sched.h>` for WASI in `common.h`, and `<sys/ipc.h>` inside the existing
      `NO_SYSV_IPC` guard in `driver/others/memory.c` all work today as recipe items (Decision 4).
      They are drafted as one courtesy pull request for the owner to send, so the recipe can
      shrink to make variables: `context/upstream/<n>-openblas-wasi-portability/pr.md`, `<n>` the
-     next free number at build time (035 takes 4).
+     next free number at build time.
 
 6. **scipy's side of the ABI, as recipe files, not patches.** After the OpenBLAS patches, the
    memo's re-link left exactly six clashes on scipy's side (EXECUTED, finding 5): `?gees_` in
@@ -213,36 +271,49 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      right); `PyInit__cyutility` to `PyInit_scipy__cyutility` (it clashes with pandas'); and the
      C symbols that clash with numpy's copies, as step 60's detector names them (scipy vendors
      numpy's `logfactorial.c`; READ). Each entry is reviewed, as `npy_rename.h`'s are.
-   - **Per-file includes.** Two renames must reach one file only. `?gees_` is renamed only in
+   - **Per-file includes.** Some renames must reach one file only. `?gees_` is renamed only in
      `_flapackmodule.c`: `cython_lapack` calls the same `dgees_` with 15 arguments and must keep
-     calling OpenBLAS. And `scipy.optimize._zeros` (`_zerosmodule.c`) and
+     calling OpenBLAS. The force-included rename does reach f2py's calls (EXECUTED by the review:
+     the pasted `F_FUNC` token is rescanned, both in the `extern` declaration and in the address
+     f2py's table takes). `scipy.optimize._zeros` (`_zerosmodule.c`) and
      `scipy.optimize.cython_optimize._zeros` (Cython) share the init name `PyInit__zeros`; only
      the second is renamed. So `scripts/wasi-cc` gains one general rule: when
      `WASI_CC_FILE_INCLUDES` names a map file, a compile whose source path ends with an entry's
-     suffix gets that entry's `-include <header>`, and the wrapper appends one line to
-     `$WASI_CC_FILE_INCLUDES.log`. Only step 57 sets the variable, so numpy, pandas and
-     matplotlib compile byte for byte as before. The map is `recipes/scipy_file_includes.txt`
-     (two lines); the headers are `recipes/scipy_flapack_rename.h` and
-     `recipes/scipy_cython_optimize_zeros.h`. Step 57 checks the log: each entry matched exactly
-     one compile.
-   - **f2py's numpy API pointer.** `_fblas` and `_flapack` both define `_npy_f2py_ARRAY_API`
-     (f2py's `PY_ARRAY_UNIQUE_SYMBOL`), a duplicate symbol in a static link (memo finding 7).
-     numpy's own hook settles it: `__multiarray_api.h` writes every definition and declaration
-     of the API pointer with `NPY_API_SYMBOL_ATTRIBUTE` (READ, step 40's generated header).
-     `scipy_rename.h` defines it as `__attribute__((weak, visibility("hidden")))`. Both modules'
-     definitions become weak, the linker keeps one, and `fortranobject.c` (compiled once, in
-     scipy's `_fortranobject` static library) refers to that one. Each module's `import_array()`
-     writes the same numpy table into it. Modules that use numpy's API without
-     `PY_ARRAY_UNIQUE_SYMBOL` keep a `static` pointer, where the macro is unused. INFERRED: the
-     static link and the goldens prove it.
+     suffix gets that entry's `-include <header>`, and the wrapper appends one line to the log
+     file `WASI_CC_FILE_INCLUDES_LOG` names. Only step 57 sets either variable, so numpy, pandas,
+     OpenBLAS and matplotlib compile byte for byte as before.
+   - **The map is rendered into `build/`.** The recipe is `recipes/scipy_file_includes.txt`, its
+     header paths written with `@ROOT@` as the cross files are. Step 57 renders it with
+     `sed "s#@ROOT@#$HERE#g"` into `build/scipy-build/file-includes.txt`, points
+     `WASI_CC_FILE_INCLUDES` at that copy and `WASI_CC_FILE_INCLUDES_LOG` at
+     `build/scipy-build/file-includes.log`. Nothing is ever written under `recipes/`, which step
+     90 would refuse (`assemble_artifacts.py:142-158`, READ by the review). The map has three
+     entries: `_flapackmodule.c` → `recipes/scipy_flapack_rename.h`; `_fblasmodule.c` →
+     `recipes/scipy_f2py_weak_api.h`; the `cython_optimize` `_zeros` C file →
+     `recipes/scipy_cython_optimize_zeros.h`. `scipy_flapack_rename.h` includes
+     `scipy_f2py_weak_api.h`. Step 57 checks the log: each entry matched exactly one compile.
+   - **f2py's numpy API pointer, made weak in its two definers only.** `_fblas` and `_flapack`
+     both define `_npy_f2py_ARRAY_API` (f2py's `PY_ARRAY_UNIQUE_SYMBOL`), a duplicate symbol in a
+     static link (memo finding 7). numpy's own hook settles it: `__multiarray_api.h` writes every
+     definition and declaration of the API pointer with `NPY_API_SYMBOL_ATTRIBUTE` (READ, step
+     40's generated header). `scipy_f2py_weak_api.h` defines it as
+     `__attribute__((weak, visibility("hidden")))`, and the map applies it to `_fblasmodule.c`
+     and `_flapackmodule.c` alone. Their two definitions become weak; the linker keeps one.
+     `fortranobject.c` (compiled once, in scipy's `_fortranobject` static library) keeps a
+     strong `extern` reference, so a missing definition still fails the link rather than
+     resolving to 0. Each module's `import_array()` writes the same numpy table into the one
+     pointer. scipy's other `PY_ARRAY_UNIQUE_SYMBOL` names are distinct and untouched (READ by
+     the review). INFERRED: the static link and the goldens prove it.
    - **The direct-call gate** (memo finding 6: f2py calls LAPACK through a function pointer, so
      a clash there links silently and traps at run time). `scripts/f2py_direct_calls.py`, our
      own (adopted from the memo's `scripts/gen_direct_calls.py`, which this project wrote), reads
      each routine's prototype from the generated `_fblasmodule.c` and `_flapackmodule.c` and
      writes one C file with one direct call per routine. Step 57 compiles it with
-     `_flapackmodule.c`'s flags and per-file include, links it with OpenBLAS's archive and the
-     shims, and dies on any `signature mismatch`. With the pristine archive it finds 37 (EXECUTED
-     by the memo); with the patches and shims it must find 0.
+     `_flapackmodule.c`'s flags and per-file include, links it with what `_fblas` and `_flapack`
+     link (their `.deps`, the g77-ABI wrapper library included), OpenBLAS's archive and the
+     shims, and dies on any `signature mismatch` **or undefined symbol**, naming it. With the
+     pristine archive it finds 37 mismatches (EXECUTED by the memo); with the patches and shims
+     it must find 0.
    - **Upstream.** The scipy side is a courtesy pull request for the owner to send, not a carried
      patch: the two `?gees` hidden lengths in `scipy/linalg/flapack_gen.pyf.src` (its
      `callstatement` and `callprotoargument`; every other f2py wrapper in scipy passes none, and
@@ -257,28 +328,38 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      adds two). It builds out of tree in `build/scipy-build`.
    - **f2py on the host.** Step 10 installs the build host's pinned numpy wheel into its own
      folder, `build/tools/f2py-numpy`, never into `build/tools/pylib`: there it would shadow the
-     host-side numpy stand-in that pandas' and scipy's builds import. `scripts/f2py-host` runs the
-     host Python with only that folder on `PYTHONPATH`, as `python -m numpy.f2py`. Step 57 puts
-     a folder holding it as `f2py` first on `PATH`, because scipy's
-     `tools/generate_f2pymod.py` runs `f2py` from `PATH` (READ, line 295). f2py reads the
-     `.pyf` files and writes C; it never runs scipy code. Its version is the wasm numpy's, 2.5.2,
-     so the generated modules match `fortranobject.c`, which comes from step 40's install.
+     host-side numpy stand-in that pandas' and scipy's builds import. `scripts/f2py-host` runs
+     `"$HOSTPY" -s -m numpy.f2py "$@"` with `PYTHONPATH` set to that folder alone (`-I` would
+     ignore `PYTHONPATH`), and keeps `PYTHONHASHSEED=0`, `PYTHONDONTWRITEBYTECODE=1` and
+     `SOURCE_DATE_EPOCH` from `scripts/build.sh`. f2py stamps `SOURCE_DATE_EPOCH`, or else the
+     clock, into a comment of its output (`numpy/f2py/rules.py:161-168`, READ by the review), so
+     the fixed value keeps the generated C the same on every run. Step 57 puts a folder holding
+     the wrapper as `f2py` first on `PATH`, because scipy's `tools/generate_f2pymod.py` runs
+     `f2py` from `PATH` (READ, line 295). f2py reads the `.pyf` files and writes C; it never runs
+     scipy code. Its version is the wasm numpy's, 2.5.2, so the generated modules match
+     `fortranobject.c`, which comes from step 40's install (present there, EXECUTED by the
+     review).
    - **`recipes/wasi-scipy.cross`**, from the numpy and pandas cross files, with:
      - `[binaries]`: the same compilers, archiver and target Python; `pkg-config` the pinned
        `pkgconf` (023), and `cmake` a program that does not exist, as 023 does, so every
        dependency is found by `pkgconf` on every host;
      - `[properties]`: `numpy-include-dir`, step 40's installed `numpy/_core/include` (scipy
        reads it instead of running the target Python, READ: `scipy/meson.build:56-60`);
-     - `c_args`: the pandas set, `-include scipy_rename.h`, and the setjmp flags
+     - `c_args`: the pandas set, `-include @ROOT@/recipes/scipy_rename.h`, and the setjmp flags
        `-fwasm-exceptions -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false` (f2py's
-       callbacks, `_zeros`, QUADPACK, SuperLU and qhull use setjmp; memo finding 7);
+       callbacks, `_zeros`, QUADPACK, SuperLU, qhull and `LowLevelCallable`'s `ccallback.h` use
+       setjmp; memo finding 7 and the review);
      - `cpp_args`: the numpy set (standard C++ exceptions), the same include and setjmp flags,
        `-DDUCC0_NO_LOWLEVEL_THREADING` (ducc0's switch, which scipy sets for MinGW;
        `fft/_duccfft/meson.build:8`), `-DHIGHS_NO_DEFAULT_THREADS` (HiGHS then asks for one
-       thread whatever the host reports; `highs/parallel/HighsParallel.h:21`, READ), and
-       `-DBOOST_MATH_PROMOTE_DOUBLE_POLICY=false` (below).
-   - **`PKG_CONFIG_PATH`** holds exactly three folders: `build/openblas-wasi/lib/pkgconfig`,
-     step 40's numpy `pkgconfig` folder (`dependency('numpy')`) and pybind11's (023). scipy asks
+       thread and starts `numThreads - 1 = 0` workers; `HighsParallel.h:21`,
+       `HighsTaskExecutor.h:121-126`, READ), and `-DBOOST_MATH_PROMOTE_DOUBLE_POLICY=false`
+       (below).
+   - **`pkgconf` sees exactly three folders.** Step 57 sets both `PKG_CONFIG_PATH` and
+     `PKG_CONFIG_LIBDIR` to `build/openblas-wasi/lib/pkgconfig`, step 40's numpy `pkgconfig`
+     folder (`dependency('numpy')`) and pybind11's (023). `PKG_CONFIG_LIBDIR` replaces
+     `pkgconf`'s default search path, so a host's own `.pc` file (an `openblas.pc` from a Linux
+     package) can never be found if one of ours is missing. scipy asks
      `dependency('scipy-openblas', method: 'pkg-config', required: false)` first and finds
      nothing; then `dependency(['openblas', 'OpenBLAS'])` finds ours (READ:
      `scipy/meson.build:287-297`). No BLAS finder from numpy's vendored meson is needed.
@@ -289,13 +370,17 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `int` is LP64's).
    - **Without pythran** (decision 31): five modules fall back to Cython or Python
      (`_group_columns`, `_max_len_seq_inner` and others; memo finding 7).
-   - **Boost.Math without promotion to `long double`.** Boost's default policy computes many
-     double-precision functions in `long double`. On wasm32 that is software binary128; on the
-     oracle's platform (macOS arm64) `long double` is `double`, so the promotion is a no-op there
-     already. `-DBOOST_MATH_PROMOTE_DOUBLE_POLICY=false` gives the guest the oracle's arithmetic
-     and avoids software quad precision. The goldens check the values. The landing notes record
-     the fuel of one Boost-backed call (`stats.beta.ppf`), so a later change of the flag can be
-     measured against it.
+   - **Boost.Math's default policy without promotion to `long double`.** scipy already fixes
+     `promote_double<false>` in its own Boost policies (`SpecialPolicy`, `StatsPolicy`,
+     `BetaPolicyForStats`; `special/boost_special_functions.h:17-31, 680-685`, READ by the
+     review), so most of its Boost calls never promote. A few use Boost's default policy, which
+     does; `betaincc` (`boost::math::ibetac(a, b, x)`, `:194`) is one. On wasm32 a promoted call
+     computes in software binary128; on the oracle's platform (macOS arm64) `long double` is
+     `double`, so the promotion is a no-op there. `-DBOOST_MATH_PROMOTE_DOUBLE_POLICY=false`
+     makes those few default-policy calls compute as the oracle's do. `scipy_numeric.py` prints
+     one `betaincc` value, and the landing notes record the fuel of one `special.betaincc` call
+     with and without the flag (a rebuild of `scipy.special` alone, measured once, a benchmark
+     fact).
    - **The shims and the gates.** The step compiles `recipes/scipy_lapack_shims.c`, runs the
      direct-call gate (Decision 6), and checks the per-file include log.
    - **The Python package, from meson's install plan.** `meson install` is not run: on a macOS
@@ -333,11 +418,21 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `duplicate symbol`. Each one found is fixed by a `scipy_rename.h` entry or a shim, never
      ignored.
    - **Constructors.** 023's check compares the functions `__wasm_call_ctors` calls with a
-     reviewed list. scipy's C++ (HiGHS, Boost, pybind11 modules, sparsetools) adds static
-     initializers. The builder lists each new one and reads its source: one that touches Python
-     would hang `_initialize`, as `ft2font`'s did (023, Decision 3). A grep while drafting found
-     no namespace-scope pybind11 object in scipy's C++ (READ). The reviewed list grows by
-     exactly the names the build shows (a judge change).
+     reviewed list. Two kinds are new:
+     - **OpenBLAS's `gotoblas_init`** (`driver/others/memory.c:3401`, `constructor(101)`, with
+       `gotoblas_quit` as a destructor; READ by the review). At `_initialize` it reads the
+       `OPENBLAS_*` environment variables. It does not touch Python. On the snapshot it ran at
+       build time, so those variables do nothing there; the README says so.
+     - **scipy's C++ static initializers** (HiGHS, Boost, pybind11 modules, sparsetools). The
+       builder lists each and reads its source: one that touches Python would hang
+       `_initialize`, as `ft2font`'s did (023, Decision 3). A grep while drafting found no
+       namespace-scope pybind11 object in scipy's C++ (READ).
+     The reviewed list grows by exactly the names the build shows, `gotoblas_init` among them
+     (a judge change).
+   - **OpenBLAS's buffer.** `BUFFER_SIZE` is 16 MiB on wasm (`common_wasm.h:87`, READ by the
+     review). The first level-3 call maps it through the emulated `mmap`, which is `malloc`,
+     and keeps it. The landing notes record the guest's memory after one `linalg.solve`, against
+     the default memory limit's headroom.
    - **One qhull.** scipy compiles its vendored qhull 8.0.2 (`subprojects/qhull_r`), which
      carries scipy's own format-string fix (`subprojects/qhull_r/patches/poly2rc.patch`, a
      security-scanner finding; READ). 023 builds qhull in step 37 but links none of it. So this
@@ -364,24 +459,38 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
      `_lib/_public_api.py` already drops `scipy.odr` from its public list when the folder is
      missing (READ, line 62). The `-V` banner (`recipes/reactor_bootstrap.py`) gains it: "no
      ctypes, mmap, sockets, ssl, zstd or scipy.odr".
+   - **`workers=`, stated per function** (corrected after the review's finding 5):
+     - **serial, accepted:** `scipy.fft`'s `workers` (and `fftpack`'s through it): ducc0's
+       threading is compiled out, so any value runs on one thread and gives the same result;
+     - **raise:** `differential_evolution` and `brute` with `workers` other than 1 build a
+       `multiprocessing` pool through `MapWrapper` (`_lib/_util.py:584-604`, READ by the review),
+       and `cKDTree.query` with `workers` other than 1 starts `threading.Thread`s
+       (`spatial/_ckdtree.pyx:1647`; `workers=-1` first reads `os.cpu_count()`, `:400`). Neither
+       can work here, as for pandas' process pools. The build records the exact exception each
+       raises; the README names the functions, the values and the exceptions, and a v1.3 check
+       pins them (Decision 15).
    - **Absent by the platform, documented in the README, not gaps:**
      - `LowLevelCallable.from_ctypes` and any ctypes function pointer: no libffi in wasi-sdk
        (033's rule: making a ctypes function raises `OSError`).
-     - `workers=` above 1 where scipy uses processes or threads (`differential_evolution`,
-       `brute`, `scipy.fft` with ducc's threading off: accepted and serial), as for pandas.
      - `scipy.datasets` downloads: no `pooch`, no network (§4.15).
-   - **Known gaps, closed by 038** (`tests/known_gaps.toml`, each naming
-     `specifications/038-scipy-second-milestone.md`):
-     - `scipy.io.mmread` and `mmwrite` raise `RuntimeError`: fast_matrix_market's default
-       parallelism (0) starts a thread pool, and `std::thread` throws on WASI (READ:
+   - **Known gaps, closed by 038.** Each has its own check in 037's
+     `tests/checks/test_v1_3_scipy.py`, which asserts the native behaviour on both binaries with
+     nothing writable, and each is a `[[gap]]` in `tests/known_gaps.toml` naming that check, its
+     exact finding, and `specifications/038-scipy-second-milestone.md` as its closer:
+     - `test_matrix_market_round_trips_in_memory`: `mmwrite` of a sparse and a dense matrix to an
+       `io.BytesIO`, then `mmread`, equal. Today: `RuntimeError`, because fast_matrix_market's
+       default parallelism (0) starts a thread pool, and `std::thread` throws on WASI (READ:
        `read_body.hpp:477`, `task_thread_pool.hpp:137-142`; the memo's probe, EXECUTED).
-     - `stats.qmc.Sobol` with nothing writable raises `OSError`: `_sobol.pyx` loads its
+     - `test_sobol_needs_nothing_writable`: `qmc.Sobol(d=2, scramble=False).random(4)` equals
+       its known values (the first four points of the unscrambled Sobol sequence in two
+       dimensions, written in the check). Today: `OSError`, because `_sobol.pyx` loads its
        direction numbers through `importlib.resources.as_file`, which copies to a temporary file
        (READ, lines 147-150).
-     - `stats.geninvgauss.cdf`, `stats.genhyperbolic.cdf`, `stats.studentized_range` (and so
-       `tukey_hsd`), and `io.arff.loadarff` raise `OSError` from the `ctypes` stand-in: they make
-       a `c_void_p` or `c_ulong` instance (READ: `_continuous_distns.py:4144, 5249, 12402`,
-       `_arffread.py:485`).
+     - `test_ctypes_values_scipy_makes`: `stats.geninvgauss.cdf`, `stats.genhyperbolic.cdf`,
+       `stats.studentized_range.cdf` and `io.arff.loadarff` of a small ARFF text each return
+       (the values are checked by 038's golden; here, that they return a finite number or a
+       record array). Today: `OSError` from the `ctypes` stand-in: they make a `c_void_p` or
+       `c_ulong` instance (READ: `_continuous_distns.py:4144, 5249, 12402`, `_arffread.py:485`).
    - **Threads at import.** 14 scipy modules import `threading` or `concurrent.futures` for
      locks and thread-locals (memo finding 8). They import; nothing starts a thread unless asked.
 
@@ -402,22 +511,30 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
 
 12. **The same bytes from any host (spec 012).** arm64 macOS and arm64 Linux must give the same
     `SHA256SUMS`, with no exception. The new host-side inputs are each fixed: OpenBLAS's
-    `getarch` with every host-detected value set on the make line (Decision 4); f2py's output,
-    which is C made from `.pyf` text; Cython's, from relative paths; scipy's `__config__.py`
-    (Decision 10). x86_64 Linux stays outside the gate, as it is today
-    (`../research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`); its rebuild is run
-    once and the landing notes say whether its differences grew beyond `npy_cpowl`.
+    `getarch` with every host-detected value that reaches a compile set on the make line
+    (Decision 4; the review found the archive and `config.h` identical without a host Fortran
+    compiler and at another job count, EXECUTED); f2py's output, with `SOURCE_DATE_EPOCH` fixed
+    (Decision 7); Cython's, from relative paths; scipy's `__config__.py` (Decision 10).
+    - **Before spec 040 lands,** x86_64 Linux stays outside the gate, as today
+      (`../research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`); its rebuild is run
+      once and the landing notes say whether its differences grew beyond `npy_cpowl`.
+    - **Once 040 has landed,** there is no x86_64 exception: arm64 Linux and x86_64 Linux must
+      both give macOS's `SHA256SUMS`. Decision 4's x86_64 rule applies, and the landing notes
+      record the x86_64 rebuild's wall time with scipy, under 040's emulated compiler, as a
+      benchmark fact. If it nears 040's 360-minute limit, 040's Decision 11 applies before this
+      specification lands.
 
-13. **Licences** (§4.12; all approved by decision 25, Qhull and pybind11 also by question 35).
-    `LICENSES/` gains, each as its project ships it: scipy's `LICENSE.txt` and
-    `LICENSES_bundled.txt`; OpenBLAS's `LICENSE` and `lapack-netlib/LICENSE`; the licence files
-    of each vendored subproject that is compiled in or packed (`boost_math`, `xsf`, `highs`,
-    `duccfft`, `qhull_r`, `unuran`, `array_api_compat`, `array_api_extra`, `cobyqa`, `pyprima`);
-    and of fast_matrix_market, its fast_float and ryu, SuperLU, ARPACK, PROPACK and uarray inside
-    the scipy tree. The builder lists every compiled-in component of `LICENSES_bundled.txt`
-    against a file in `LICENSES/`; ampgo (benchmarks only) and Chebfun (Python source with its
-    notice in place) need none beyond scipy's own files. `scripts/assemble_artifacts.py` copies
-    them and adds scipy to `PACKAGES`.
+13. **Licences** (§4.12; all approved by decision 25, Qhull and pybind11 also by question 35;
+    every `LICENSES_bundled.txt` entry is BSD, MIT, BSL-1.0, the Qhull licence or Apache-2.0
+    WITH LLVM-exception, READ by the review). `LICENSES/` gains, each as its project ships it:
+    scipy's `LICENSE.txt` and `LICENSES_bundled.txt`; OpenBLAS's `LICENSE` and
+    `lapack-netlib/LICENSE`; the licence files of each vendored subproject that is compiled in or
+    packed (`boost_math`, `xsf`, `highs`, `duccfft`, `qhull_r`, `unuran`, `array_api_compat`,
+    `array_api_extra`, `cobyqa`, `pyprima`); and of fast_matrix_market, its fast_float and ryu,
+    SuperLU, ARPACK, PROPACK and uarray inside the scipy tree. The builder lists every
+    compiled-in component of `LICENSES_bundled.txt` against a file in `LICENSES/`; ampgo
+    (benchmarks only) and Chebfun (Python source with its notice in place) need none beyond
+    scipy's own files. `scripts/assemble_artifacts.py` copies them and adds scipy to `PACKAGES`.
 
 14. **What the set costs, so growth can be told from regression.** Today (EXECUTED while
     drafting, `build/out`): `python.wasm` 31,760,992 bytes, the snapshot 65,506,824, the zip
@@ -433,10 +550,10 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
     - the zip: about +605 members and +5.6 MB (EXECUTED by the default-profile memo on the
       native wheel's Python part: 610 members, 5,573,340 bytes; `odr`'s few members leave, one
       stand-in comes).
-    - plain `-c pass`: about +15 M fuel if 035 has landed (about 605 members at about 24,000
-      fuel each, 035's slope), or about +47 M if it has not (77,912 per member, `tiers.txt`);
-      plus the new static constructors and about 85 more inittab entries, which are measured
-      and named, not estimated.
+    - plain `-c pass`: about +16 M fuel if 035 has landed (about 605 members at about 26,700
+      fuel each, the slope 035's review measured), or about +47 M if it has not (77,912 per
+      member, `tiers.txt`); plus `gotoblas_init`, the C++ static constructors and about 85 more
+      inittab entries, which are measured and named, not estimated.
     - snapshot `-c pass`: within 1% (its constructors ran at build time; its directory is
       already read).
     - every existing golden job: no change beyond the plain-start growth above; none imports
@@ -445,79 +562,126 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
     28 MB, is a finding for the build review, not a reason to accept.
 
 15. **The checks**, each seen failing first.
-    - **Golden jobs (v1.3),** native scipy 1.18.1 as the oracle: `tests/jobs/oracle` gains
-      `scipy==1.18.1` in `pyproject.toml` and `uv.lock`; `JOBS` gains three jobs; `regen.py`
-      writes their goldens. Each prints a `versions` line with `scipy=1.18.1`. Each float is
-      printed as numpy's job prints it (`round(x, k) + 0.0`, then `.{k}g`): `k = 9` for direct
-      results and `k = 6` for iterative ones. No iteration counts, no eigenvector or singular
-      vector signs (they depend on the LAPACK build), no timings. Every input is fixed in the
-      file or drawn from a seeded `numpy.random.Generator(PCG64(…))`. If a printed value sits so
-      near a rounding boundary that the guest and the oracle differ in its last digit, the job's
-      input changes, never `k`.
-      - `scipy_numeric.py`: `linalg` (`solve`, `lu_factor` pivots and `U`'s diagonal, `qr`'s
-        `|diag(R)|`, `cholesky`, `det`, `inv` residual, `eigh` and `eigvalsh` values, `svdvals`,
-        `expm`, `solve_triangular`); `sparse` (CSR build, product, `spsolve` through SuperLU,
-        `eigsh` with a given `v0` through ARPACK, `csgraph.shortest_path` and
-        `connected_components`); `fft` (`fft`, `rfft`, `dct`, `fftfreq`); `special` (`gamma`,
-        `erf`, `jv`, `beta`, `hyp2f1`, `ellipk`, `zeta`); `stats` (`norm.cdf` and `ppf`,
+    - **A pinned oracle.** `tests/jobs/oracle` gains scipy 1.18.1, pinned to one LAPACK:
+      - on macOS arm64, **the `macosx_12_0_arm64` wheel**, which bundles scipy-openblas, by a
+        direct-URL dependency with a platform marker
+        (`https://files.pythonhosted.org/packages/8c/c5/ba929d7feb9b2332f96827c12e0e924b61973b59b4dea383b603372c65ce/scipy-1.18.1-cp315-cp315-macosx_12_0_arm64.whl`,
+        SHA-256 `30f464bee641fa8e282577c7dce027308403213c6ca8270bba73285c91024bc5`, READ: PyPI's
+        JSON). Left to itself, uv picks the `macosx_14_0_arm64` wheel on macOS 14 and later, and
+        that wheel links Apple's Accelerate (the review, INFERRED from scipy's wheel builds), so
+        the oracle's LAPACK would depend on the host's OS version;
+      - elsewhere `scipy==1.18.1` (its Linux wheels bundle scipy-openblas).
+      `uv.lock` records both. `oracle_env` sets `OPENBLAS_NUM_THREADS=1` and
+      `VECLIB_MAXIMUM_THREADS=1`, so the oracle's sums are taken in one order. The oracle's numpy
+      wheel is unchanged; with the tolerances below, its BLAS cannot reach a printed digit, and
+      the five existing goldens must still reproduce (`regen.py --check`).
+    - **The recording platform.** The scipy goldens are recorded on darwin-arm64, and the
+      reproduce-under-the-oracle check runs them there only, by 023's rule for its plot job (if
+      023 lands without a mechanism for this, a `RECORDED_ON` table in `tests/harness/jobs.py`
+      maps each scipy job to `darwin-arm64`). The guest's output must equal the golden on every
+      platform: the guest's arithmetic does not depend on its host.
+    - **How values are printed.** Each float is printed with **significant** digits,
+      `format(float(x) + 0.0, f".{k}g")`, never after an absolute `round`, so a p-value of
+      `3e-12` keeps its digits. `k = 9` for direct results; `k = 6` for iterative ones.
+      Residuals and errors are printed as a comparison with a stated bound
+      (`residual < 1e-12: True`), not as numbers. No iteration counts, function-call counts,
+      eigenvector or singular-vector signs, or timings. Every input is fixed in the file or drawn
+      from a seeded `numpy.random.Generator(PCG64(…))`.
+    - **Tolerances bound the iterative results.** Every solver and integrator is given a
+      tolerance at least 1,000 times tighter than its printed precision: `rtol ≤ 1e-9` and
+      `atol ≤ 1e-12` for `solve_ivp` and `odeint`; `gtol`, `xtol` and `ftol ≤ 1e-9` for
+      `minimize`, `root`, `least_squares` and `curve_fit`; `epsabs ≤ 1e-12` and
+      `epsrel ≤ 1e-10` for `quad` and `dblquad`. Then what is printed is bounded by tolerance,
+      not by the path a step-size or line-search decision took. If a value still differs in its
+      last printed digit, the job's input changes, never `k` or a tolerance upward.
+    - **Golden jobs (v1.3),** in `JOBS`, their goldens written by `regen.py`:
+      - `scipy_numeric.py` (`k = 9`): `linalg` (`solve`, `lu_factor` pivots and `U`'s diagonal,
+        `qr`'s `|diag(R)|`, `cholesky`, `det`, an `inv` residual bound, `eigh` and `eigvalsh`
+        values, `svdvals`, `expm`, `solve_triangular`); `sparse` (CSR build, product,
+        `spsolve` through SuperLU, `eigsh` with a given `v0` and `tol=1e-12` through ARPACK,
+        `csgraph.shortest_path` and `connected_components`); `fft` (`fft`, `rfft`, `dct`,
+        `fftfreq`, and `fft` with `workers=4` equal to `workers=1`); `special` (`gamma`, `erf`,
+        `jv`, `beta`, `betaincc`, `hyp2f1`, `ellipk`, `zeta`); `stats` (`norm.cdf` and `ppf`,
         `t.sf`, `beta.ppf`, `binom.pmf`, `describe`, `ttest_ind`, `pearsonr`, `linregress`,
-        `gaussian_kde`); `interpolate` (`CubicSpline`, `make_interp_spline`, `griddata`
-        linear, which runs qhull, `RBFInterpolator`); `signal` (`butter`, `lfilter`,
-        `filtfilt`, `convolve`, `find_peaks`, `welch`); `ndimage` (`gaussian_filter`, `label`);
-        `spatial` (`distance.cdist`, `cKDTree.query`, `ConvexHull.volume`, `Delaunay`'s simplex
-        count); `cluster` (`hierarchy.linkage`).
-      - `scipy_solvers.py` (`k = 6`): `optimize` (`minimize` on Rosenbrock with BFGS,
-        Nelder-Mead, L-BFGS-B and SLSQP with a constraint; `root` with `hybr`;
+        `gaussian_kde`); `interpolate` (`CubicSpline`, `make_interp_spline`, `griddata` linear,
+        which runs qhull, `RBFInterpolator`); `signal` (`butter`, `lfilter`, `filtfilt`,
+        `convolve`, `find_peaks`, `welch`); `ndimage` (`gaussian_filter`, `label`); `spatial`
+        (`distance.cdist`, `cKDTree.query`, `ConvexHull.volume`, `Delaunay`'s simplex count);
+        `cluster` (`hierarchy.linkage`).
+      - `scipy_solvers.py` (`k = 6`, the tolerances above): `optimize` (`minimize` on Rosenbrock
+        with BFGS, Nelder-Mead, L-BFGS-B and SLSQP with a constraint; `root` with `hybr`;
         `least_squares`; `curve_fit`; `brentq`; `linprog` and `milp` through HiGHS;
         `linear_sum_assignment`); `integrate` (`quad`, `dblquad`, `solve_ivp` with RK45 and
         BDF, `odeint`, `simpson`).
       - `scipy_lapack.py` (`k = 9`): every routine the memo found trapping, through
         `get_lapack_funcs` in all four precisions: `gesv`, `getrf`, `getrs`, `laswp`, `lauum`,
-        `potrf`, `trtri`, `trtrs`; `ilaver()`; `gees` with a sort callback (`schur(…,
-        sort="lhp")`, its eigenvalues as a sorted set and `sdim`); and `eig`, `svd`, `lstsq`,
-        `pinv` and `qr_update` (through `cython_lapack`).
+        `potrf`, `trtri`, `trtrs`; `gees` with a sort callback (`schur(…, sort="lhp")`, its
+        eigenvalues as a sorted set and `sdim`); and `eig`, `svd`, `lstsq`, `pinv` and
+        `qr_update` (through `cython_lapack`). **`ilaver()`** is printed only as "three integers,
+        major 3": the guest's LAPACK is 3.12.0 (`ilaver.c:332-334`) and the oracle's may differ,
+        so its numbers would compare two releases, not the call.
       Seen failing first: each fails on the current set (`ModuleNotFoundError: No module named
       'scipy'`); `scipy_lapack.py` also traps on a build with the OpenBLAS patches removed, which
       the builder runs once (Acceptance, criterion 1).
-    - **Errors that must reach Python (v1.3,** `tests/checks/test_v1_3_scipy.py`, each on both
+    - **Behaviour that must reach Python (v1.3,** `tests/checks/test_v1_3_scipy.py`, each on both
       binaries with nothing writable):
       - `linalg.solve` of a singular matrix raises `LinAlgError`;
       - `ConvexHull` of collinear points raises `QhullError` (qhull's `longjmp`, and scipy's
-        message stream, which uses `open_memstream` and needs no temporary file; if meson finds
-        no `open_memstream` the stream falls back to `tempfile`, and this check fails);
+        message stream, which uses wasi-libc's `open_memstream`, present, EXECUTED by the
+        review; if meson finds no `open_memstream` the stream falls back to `tempfile`, and this
+        check fails);
       - `optimize.brentq` and `integrate.quad` with a Python function that raises `ValueError`
         re-raise it (the `setjmp` paths in `_zeros` and QUADPACK);
       - `linprog` of an infeasible problem returns `status == 2` (HiGHS ran with one thread);
+      - `workers`: `fft.fft(x, workers=4)` equals `workers=1`; `differential_evolution(…,
+        workers=2)` and `cKDTree.query(…, workers=2)` each raise the exception the build
+        recorded, inside the call's fuel limit (they must not hang);
       - `import scipy.odr` raises `ImportError` whose message names "Fortran";
-      - `python -V` names `scipy.odr` among the missing.
+      - `python -V` names `scipy.odr` among the missing;
+      - the three gap checks of Decision 9, failing today as their `[[gap]]` entries record.
     - **Rules and artifact checks (judge changes, under `--accept-judge`):**
       - v1.1: `python.wasm`'s `target_features` list gains `simd128` (decision 29); any other
         new feature still fails it.
-      - v1.1: 023's constructor list gains the reviewed scipy names (Decision 8).
+      - v1.1: 023's constructor list gains `gotoblas_init` and the reviewed scipy names
+        (Decision 8).
       - v1.5: `SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS` gain OpenBLAS and scipy; the
         release workflow's tree count rises by two; the patched-tree check covers OpenBLAS's
-        two patches.
+        two patches; `test_the_openblas_patches_are_what_their_script_makes` (Decision 5).
       - rules: `scan.cpp_exception_errors` judges `recipes/wasi-scipy.cross`; spec 020's
         `patch_errors` passes on the two patches and drafts.
-      - `tests/known_gaps.toml`: the three gaps of Decision 9, each with its exact finding.
+      - `tests/known_gaps.toml`: the three gaps of Decision 9, each with its check and exact
+        finding.
     - **Build-time gates, not judge checks:** step 38's link-whole gate (Decision 4); step 57's
       direct-call gate and per-file include log (Decision 6); step 60's clash detector.
-    - **Unit checks** (no artifacts): `scripts/f2py_direct_calls.py` on a small generated module
-      text; `scripts/install_from_plan.py` on a small install plan (tags `tests` and extension
-      modules skipped, destinations kept); `scripts/gen_inittab.py`'s rename table and its clash
-      check on the renamed names; `scripts/wasi-cc`'s per-file include (a matching path gets the
-      header and a log line; another path is compiled exactly as before), each seen failing
-      before its code exists.
+    - **Unit checks** (no artifacts), each seen failing before its code exists:
+      - `scripts/f2py_direct_calls.py` on a small generated module text;
+      - `scripts/install_from_plan.py` on a small install plan (tags `tests` and extension
+        modules skipped, destinations kept);
+      - `scripts/gen_inittab.py`'s rename table, and its clash check on the renamed names;
+      - `scripts/wasi-cc`'s per-file include: a matching path gets the header and a log line;
+        and, **with the variable unset, the argv the wrapper executes is identical to today's**
+        for a set of numpy-, pandas- and OpenBLAS-shaped command lines;
+      - `scripts/audit_openblas_void.py` on small hand-made diffs: a line of each rule is paired;
+        a line of none is named.
 
 16. **Ordering with other build-class work** (§5.7: one build-class specification in flight, one
-    landing at a time). The queue ahead of this one, by the roadmap and by 035's Decision 12:
-    028 (milestone 1), 033, 035, then 023. **037 builds after 023 lands**, because it uses
-    023's pins and link machinery (Depends on). **038 builds right after 037**, then tier A and
-    the rest of milestone 4 as the roadmap orders them; scikit-learn and statsmodels (decision
-    48) come after 038. matplotlib's second milestone is not yet specified; Decision 8's qhull
-    rule covers either order. Files 037 shares with others: step 60 and `gen_inittab.py` (023,
-    035), step 70 and `make_stdlib_zip.py` (023, 033), `scripts/wasi-cc` (023). Each is rebased
-    onto main as it is when 037's builder starts.
+    landing at a time).
+    - The queue ahead of this one, by the roadmap and by 035's Decision 12: 028 (milestone 1),
+      033, 035, 023, and 040 if it is confirmed (its Decision 12 places it before 037).
+      **037 builds after 023 lands**, because it uses 023's pins and link machinery (Depends
+      on). If 040 has not landed when 037 starts, 037 builds under Decision 12's "before 040"
+      rule, and 040's builder then gates scipy's objects (040, Decision 12).
+    - **038 builds right after 037.**
+    - **Tier A (spec 039)** is queued after 038, but nothing in it depends on scipy (039,
+      Decision 14). If 037 or 038 stalls, 039 may build first. Whichever of 037 and 039 builds
+      second rebases onto the other's step 70, `00_download.sh` and `assemble_artifacts.py`, and
+      adds its packages to the metadata set. scikit-learn and statsmodels (decision 48) come
+      after 038.
+    - matplotlib's second milestone is not yet specified; Decision 8's qhull rule covers either
+      order.
+    - Files 037 shares with others: step 60 and `gen_inittab.py` (023, 035), step 70 and
+      `make_stdlib_zip.py` (023, 033, 039), `scripts/wasi-cc` (023), step 10 and
+      `scripts/line.conf` (040). Each is rebased onto main as it is when 037's builder starts.
 
 ## Intent
 
@@ -531,33 +695,35 @@ temporary changes to OpenBLAS.
 |---|---|
 | `downloads/SHA256SUMS`, `scripts/00_download.sh`, `scripts/line.conf` | the scipy sdist, the OpenBLAS tarball, three numpy host wheels (`*_NUMPY_HOST_WHEEL`) (Decision 2) |
 | `scripts/steps/10_tools.sh` | the host numpy wheel into `build/tools/f2py-numpy` (Decision 7) |
-| `scripts/f2py-host` | new: `python -m numpy.f2py` with only that folder on the path |
-| `scripts/steps/38_openblas.sh` | new: unpack, patch, copy, make, install, the link-whole gate (Decision 4) |
+| `scripts/f2py-host` | new: `python -s -m numpy.f2py` with only that folder on the path (Decision 7) |
+| `scripts/steps/38_openblas.sh` | new: unpack, patch, copy, make, install, the log, the link-whole gate (Decision 4) |
 | `recipes/openblas-include/sys/ipc.h` | new: the empty stand-in header |
+| `scripts/make_openblas_void_patch.sh`, `scripts/openblas_make_void.py`, `scripts/audit_openblas_void.py` | new: the patches' maker, the convention's script (moved from the memo's folder), the audit (Decision 5) |
 | `recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void.patch`, `0002-ilaver-returns-void.patch` | new (Decision 5) |
 | `context/upstream/patches/OpenBLAS-0.3.34/0001-…md`, `0002-…md` | their drafts |
 | `context/upstream/<n>-openblas-wasi-portability/pr.md`, `context/upstream/<n>-scipy-c-lapack-signatures/pr.md`, `context/upstream/README.md` | courtesy drafts and their rows (Decisions 5, 6) |
-| `scripts/steps/57_scipy.sh` | new: configure, build, shims, gates, the package (Decision 7) |
+| `scripts/steps/57_scipy.sh` | new: render the map, configure, build, shims, gates, the package (Decision 7) |
 | `recipes/wasi-scipy.cross` | new (Decision 7) |
-| `recipes/scipy_rename.h`, `recipes/scipy_flapack_rename.h`, `recipes/scipy_cython_optimize_zeros.h`, `recipes/scipy_file_includes.txt`, `recipes/scipy_lapack_shims.c` | new (Decision 6) |
+| `recipes/scipy_rename.h`, `recipes/scipy_flapack_rename.h`, `recipes/scipy_f2py_weak_api.h`, `recipes/scipy_cython_optimize_zeros.h`, `recipes/scipy_file_includes.txt`, `recipes/scipy_lapack_shims.c` | new (Decision 6) |
 | `scripts/wasi-cc` | the per-file include rule and its log (Decision 6) |
 | `scripts/f2py_direct_calls.py`, `scripts/install_from_plan.py` | new (Decisions 6, 7) |
 | `scripts/gen_inittab.py`, `scripts/steps/60_link.sh` | scipy's modules, the rename table, the new archives and `-lwasi-emulated-mman` (Decision 8) |
 | `recipes/scipy_odr_stand_in.py`, `recipes/reactor_bootstrap.py` | the `scipy.odr` stand-in; the banner (Decision 9) |
 | `scripts/steps/70_zip.sh`, `scripts/make_stdlib_zip.py` | the scipy tree, its metadata, the stand-in, `scipy/__config__.py` made host-neutral (Decision 10) |
 | `scripts/build.sh`, `scripts/assemble_artifacts.py`, `LICENSES/` | steps 38 and 57 in `ALL`; licences; `PACKAGES` (Decision 13) |
-| `tests/jobs/scipy_numeric.py`, `scipy_solvers.py`, `scipy_lapack.py` and their `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `JOBS` in `tests/harness/jobs.py` | the goldens (Decision 15) |
-| `tests/checks/test_v1_3_scipy.py` | new: the error checks |
-| `tests/checks/test_v1_1_artifact_set.py` (or 023's file), `tests/harness/pins.py`, `tests/harness/needs.py`, `tests/harness/scan.py`, `tests/known_gaps.toml` | the judge changes (Decision 15) |
+| `tests/jobs/scipy_numeric.py`, `scipy_solvers.py`, `scipy_lapack.py` and their `.expected`; `tests/jobs/oracle/pyproject.toml`, `uv.lock`; `JOBS`, `oracle_env` and the recording platform in `tests/harness/jobs.py` | the goldens and the pinned oracle (Decision 15) |
+| `tests/checks/test_v1_3_scipy.py` | new: the behaviour checks and the three gap checks |
+| `tests/checks/test_v1_5_rebuild_from_pins.py` | the patches-from-their-script check |
+| `tests/checks/test_v1_1_artifact_set.py` (or 023's file), `tests/harness/pins.py`, `tests/harness/needs.py`, `tests/harness/scan.py`, `tests/known_gaps.toml` | the other judge changes (Decision 15) |
 | `tests/unit/…` | the unit checks (Decision 15) |
 | `.github/workflows/…` | the tree count, two more |
-| `README.md`, `CHANGELOG.md` | scipy in the profile; the absences and gaps; SIMD as a host requirement; the patches by path |
+| `README.md`, `CHANGELOG.md` | scipy in the profile; the absences, the `workers` facts and the gaps; `OPENBLAS_*` on the snapshot; SIMD as a host requirement; the patches by path |
 
 ## Scope
 
 In: Decisions 1 to 16. Out:
 
-- **038's three gaps** (Decision 9).
+- **038's fixes for the three gaps** (Decision 9). Their checks are here.
 - **pythran** (decision 31). A later specification may pin it and its three dependencies and
   measure what the five modules gain.
 - **Pre-importing scipy in the snapshot** (question 61).
@@ -569,34 +735,43 @@ In: Decisions 1 to 16. Out:
 
 ## Acceptance criteria
 
-1. The checks exist and were seen failing first: the goldens and the error checks on the
+1. The checks exist and were seen failing first: the goldens and the behaviour checks on the
    current set; `scipy_lapack.py` trapping on a build without the OpenBLAS patches; the
-   link-whole gate failing with 111 and the direct-call gate with 37 on that build; the unit
-   checks before their code.
-2. A full build from pins in a clean clone applies both OpenBLAS patches with no offset, builds
-   steps 38 and 57, passes every gate, and makes a set whose binaries run the three goldens and
-   the error checks. `MANIFEST` names every new pin, recipe and patch.
+   link-whole gate failing with 111 and the direct-call gate with 37 on that build; the
+   patches-from-their-script check on an edited copy; the unit checks before their code. The
+   three gap checks fail on the finished set exactly as their `[[gap]]` entries record.
+2. The build went through Decision 1's four stages, each green before the next. A full build
+   from pins in a clean clone applies both OpenBLAS patches with no offset, builds steps 38 and
+   57, passes every gate, and makes a set whose binaries run the three goldens and the behaviour
+   checks. `MANIFEST` names every new pin, recipe, script and patch.
 3. The same-bytes rebuild on arm64 Linux gives the same `SHA256SUMS` as macOS, with no
-   exception (spec 012). If a difference cannot be fixed after two attempts, the build stops and
-   a memo records it (AGENTS.md rule 7); it does not land with an exception. The x86_64 rebuild
-   is run once and reported (Decision 12).
-4. The reviewer regenerates `0001` with `make_void.py` on a fresh unpack of the pinned tarball,
-   less `ilaver.c`'s section, and gets the carried file's SHA-256; `0002` is that section.
+   exception (spec 012). **Once 040 has landed,** the x86_64 Linux rebuild gives them too, with
+   no exception; **before,** it is run once and reported (Decision 12). If a difference cannot be
+   fixed after two attempts, the build stops and a memo records it (AGENTS.md rule 7); it does
+   not land with an exception.
+4. The reviewer runs `scripts/make_openblas_void_patch.sh` on a fresh unpack of the pinned
+   tarball and gets 0001 = `c8f96665197d0d5f3dd10b4f6a8abb0fb8da2000844d4225997e470a2577eaac`
+   and 0002 = `e7a8189b5d7b92a185a6635300b7106350fd36c14f03fe8f8fe272c53eeabd97`, whatever the
+   reviewer's own git configuration; `scripts/audit_openblas_void.py` reports 0 unexplained
+   lines in 0001.
 5. The landing notes record, each measured: the three binaries' and the zip's bytes, the zip's
-   member count, the number of scipy modules linked, the new constructors by name, plain and
-   snapshot `-c pass` fuel, the fuel of `import scipy`, `import scipy.linalg`,
-   `import scipy.stats` and `import scipy.optimize` on both binaries, and the snapshot's bytes and
-   `-c pass` fuel if it pre-imported `scipy.stats` (for question 61), and the Boost flag's fuel
-   fact (Decision 7). Each is inside Decision 14's bounds or is a finding.
+   member count, the number of scipy modules linked, the new constructors by name
+   (`gotoblas_init` among them), plain and snapshot `-c pass` fuel, the fuel of `import scipy`,
+   `import scipy.linalg`, `import scipy.stats` and `import scipy.optimize` on both binaries, the
+   snapshot's bytes and `-c pass` fuel if it pre-imported `scipy.stats` (for question 61), the
+   guest's memory after one `linalg.solve`, the fuel of `special.betaincc` with and without the
+   Boost flag (Decision 7), the exceptions the `workers` cases raise, and, once 040 has landed,
+   the x86_64 rebuild's wall time. Each bound of Decision 14 holds or is a finding.
 6. `uv run pytest` is green with `--accept-judge` and `--accept-growth`, each reason stated.
-7. A release dry run passes every job.
+7. A release dry run passes every job. The build and rebuild jobs' step times (their limit is
+   120 minutes on 3- and 4-core runners) are recorded as benchmark facts in the landing notes.
 
 ## The owner's choices
 
 None open here. Two are recorded in `../questions-for-the-owner.md`, each decided here as written
 so nothing waits: **61**, whether the default snapshot pre-imports scipy (decided: no, until the
 build's numbers are in; Decision 11); **62**, whether a 1.1 MB carried patch may live in git
-(decided: yes; Decision 5).
+(decided: yes; Decision 5). The pre-build review agreed with both.
 
 ## Landing notes
 
