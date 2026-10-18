@@ -1,6 +1,6 @@
 # 059 — The x86_64 rebuild runs natively
 
-- **Status:** built; revised against its build review; awaiting the reviewer's confirmation
+- **Status:** **landed 2026-10-18** (accepted on `fdb06c2` as `9462cf1`, history line 63; the build review, `../reviews/059-the-x86-64-rebuild-runs-natively-2026-10-18.md`, confirmed it; see the Landing notes' last part; criterion 6, the release dry run, follows the landing). Before landing: built; revised against its build review; confirmed
   (Landing notes, "Revised against the build review"; the review:
   `build/reviews-evidence/059-buildreview/059-the-x86-64-rebuild-runs-natively-2026-10-18.md` in
   the main tree, git-ignored, copied to `../reviews/` by the lane). Rebased onto main `cd97dac`
@@ -953,3 +953,25 @@ Rebased onto main `cd97dac` (062 landed: the progress history in volumes) with n
 - `contract_off` adds a newline first if the file lacks a trailing one (wasi-sdk's `clang.cfg`
   ends without one), so the flag is its own line.
 - The gate's error wording carries the `-cc1` values seen, e.g. `"-ffp-contract=on" `.
+
+**Landed 2026-10-18** through the lane, first of the three build-class specifications built at once
+under decision 91 (the owner asked for it first). The lane rebased the branch onto main `354920c`
+(after specs 060 and 061); its diff equals the reviewed diff at `0cd4400` line for line (EXECUTED,
+`build/lane-059-rebased2.diff`). Its pre-build review with its confirmation
+(`../reviews/059-the-x86-64-rebuild-runs-natively-spec-2026-10-18.md`; N1 and N2 checked by the lane)
+and its build review with its confirmation (`../reviews/059-the-x86-64-rebuild-runs-natively-2026-10-18.md`:
+"lands once finding 1 is fixed", then "confirmed") were committed on the detached HEAD as `fdb06c2`.
+**The main tree's full build from pins** gave `SHA256SUMS`
+`25a101ac97212ab2075492a72b6b85df75cb60055429a8f390d8068cbecf9f51`, byte for byte the builder's
+three hosts (EXECUTED, `build/lane-059-build.log`, `cmp`); the set is frozen read-only as
+`build/sets/s-4eb5418a2b1bb553`. The full judge there, serial: `wasi_python v1: 381/397 pass · 14
+gap · 2 blocked · 0 fail (unit suite 1195/1197, 2 skipped)`, `ratchet vs fdb06c26f1: lost 0 · absent
+0 · unrun 0 · gained 0 · grew 0` after acceptance, `1576 passed, 4 skipped, 14 xfailed in 746.58s`
+(EXECUTED, `build/lane-059-accept.log`). Accepted with `--accept-judge`, `--retire
+tests/checks/test_rules.py::test_x86_64_compiles_with_an_aarch64_compiler` and `--accept-growth`
+(+4,526 bytes) as `9462cf1`, history line 63; the rules tier passed (25/25, unpiped); main
+fast-forwarded. (The lane's first accepting command never ran: pytest read the growth reason, which
+began with `-ffp-contract`, as an option; the lane passed it as `--accept-growth=…`.) Criterion 6
+(the release dry run on all three systems, the x86_64 rebuild native) is dispatched on main's commit
+after this note; no tag before it passes (AGENTS.md rule 6b). Spec 057 rebases onto this landing as
+Decision 5 lists.
