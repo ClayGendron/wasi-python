@@ -146,6 +146,27 @@ research.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the implementer, 2026-10-18, in `8ed8b82` on `spec/032-dirent-padding` (rebased onto main
+`1868a54` first).
+
+1. **F1: fixed.** README *Safety* → *Not protected* now opens with the leak: until a wasmtime-py
+   release carries wasmtime 49.0.2 or later, `fd_readdir` on a grant, a root or the stdlib folder
+   (so on every call) copies up to three bytes of uninitialized host memory per entry into the
+   guest (GHSA-96f6-r43r-8c24), a mitigation is being researched, and a mount's listings write
+   zeros. The CHANGELOG's 0.1.0a4 section has the same as a known issue. The research memo was
+   not touched.
+2. **F2: fixed.** `test_a_mount_writes_zero_dirent_padding` also runs sizes 22, 23, 47 and 48,
+   which end inside a header's padding; it passes (zeros there).
+3. **F3: fixed.** The comment on `DIRENT_MASKED` and the facts sheet's "What would close it" say
+   the padding returns to the parity once `uv.lock` moves to a wasmtime-py on wasmtime 49.0.2 or
+   later.
+4. **F4:** for the lane; no change.
+5. **F5: fixed.** The unused `import wasmtime` is gone from `evidence/padding.py`.
+
+Also: "the threat model (§2)" in the landing notes now names the principal engineer's memo. Judge
+(`…/s-8d84b3b190fe9bce`): `212/223 pass · 0 fail`, `lost 0 · gained 0 · grew 0`, `845 passed, 19
+skipped`; ruff clean.
+
 ## Verdict
 
 **Lands, once F1 and F2 are fixed or answered in writing.** The judge change is honest: the mask
