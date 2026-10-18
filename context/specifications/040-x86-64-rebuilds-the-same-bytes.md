@@ -811,3 +811,14 @@ memo's addendum exist as Decisions 9, 10 and 13 say.
   so a host `LD_PRELOAD` cannot change what it sees; Decision 5 runs it "directly". It is still not
   run through the launcher.
 - Step 70 is unchanged (Decision 5's rewrite was not needed).
+
+**Landed 2026-10-18** through the lane: rebased onto main (`ae42c89`); the main tree, detached at
+`c9f57ef`, ran the full build (5m13s) and gave the worktree's `SHA256SUMS` byte for byte (only
+`MANIFEST` moves); the build review (scratchpad, copied by the lane) committed on that HEAD;
+accepted with `--accept-judge` and `--retire
+tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_a_second_host` as
+`fe67910`; the rules tier passed; main fast-forwarded. **Dry run 2**, release run 39118009462 on
+`fe67910`: every job passed. The x86_64 rebuild ran on GitHub's `ubuntu-24.04` (a real x86_64
+runner) under the emulated aarch64 compiler in 64.5 minutes (10:07:29 to 11:12:01 UTC), against
+7m16s for the arm64 rebuild; "the same bytes from every host" passed with both Linux runners and
+macOS. That is under Decision 11's 240-minute trip-wire, so nothing is asked of the owner.
