@@ -1,10 +1,11 @@
 # 056 — The 0.1.0a4 security review's findings
 
-- **Status:** drafted and built 2026-10-18 on `spec/056-the-a4-security-reviews-findings`
-  (Landing notes). It changes neither the guest's imports nor its exports, the artifact set nor
-  the build recipe, so §5.6 asks no review before build. The reviewer who wrote the 0.1.0a4
-  security review confirms the fixes afterwards, and the release waits on that confirmation
-  (§5.6, "the release waits on its findings").
+- **Status:** built 2026-10-18; awaiting confirmation by the a4 security reviewer. Built on
+  `spec/056-the-a4-security-reviews-findings` from main `28800bc` (Landing notes). It changes
+  neither the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6
+  asks no review before build. The reviewer who wrote the 0.1.0a4 security review confirms the
+  fixes, and the release waits on that confirmation (§5.6, "the release waits on its
+  findings").
 - **Owner:** Clay Gendron
 - **Kind:** runner and docs; not build-class; a judge change (new checks). The frame host in
   `src/wasi_python/tools.py` (`tool()`'s `_make` and `_derived`, a new `_bound_keywords`, the
@@ -234,6 +235,145 @@ Out, each with its home:
 7. README: the four *Tools* additions, the *Mounts* paragraph, the *Safety* sentence and the
    *Not protected* entry are present. CHANGELOG: one entry under 0.1.0a4.
 
+
 ## Landing notes
 
-(filled in when built)
+Built 2026-10-18 by the implementer (Claude Opus 5.5) in the worktree
+`../wasi_python-056`, from main `28800bc`. Every claim below was run (EXECUTED) on macOS arm64,
+CPython 3.14.2, wasmtime-py 49.0.0, against the frozen artifact set
+`build/sets/s-f94dec535086b06c` of the main tree (its `SHA256SUMS` is the main tree's
+`build/artifacts/SHA256SUMS`, the set the review ran against), unless it says otherwise.
+
+### What was built
+
+- `feb79aa` (F1): `_bound_keywords` and the private `Tool._fixed`; `_derived` skips a bound
+  keyword; `_make` refuses a given schema that names one; `_ToolHost._answer` refuses, after
+  validation, an argument that names one, with the validator's unknown-argument message.
+  Checks: criteria 1 and 2, and the unit case for a callable object and a `__wrapped__` cycle.
+- `28abf17` (F2): `_Work.__call__(proceed)`, asked after the gate (or at once with no gate) and
+  before the tool; `_Bounded._proceed`, under the lock `_abandon` takes. Checks: criterion 3
+  and the two unit cases of criterion 4.
+- `7e52c94` (docs): README *Tools* (a partial's bound keywords and a parameter's default; what
+  `ToolCall.arguments` holds; a call that ends while its gate decides; "The host's cost per
+  frame"), *Mounts* ("A path is a name, not a host path"), *Safety* (the wasmtime fixes are in
+  the runner) and *Not protected* (frame CPU); one CHANGELOG entry under 0.1.0a4.
+- `897a7b9`: this specification, and question 91 in `../questions-for-the-owner.md`.
+
+Each commit was checked green on its own for the files it carries: the F1 commit's index,
+exported alone, passes `ruff check`, `ruff format --check` and the tool checks and units (224
+passed).
+
+### Seen failing first (criteria 1 to 4)
+
+The new checks and units, run against `28800bc`'s `src/` (exported with `git archive`, put first
+on `PYTHONPATH`), with the new tests (`build/seen-failing-old-code.log`):
+
+```
+FAIL test_a_gate_that_allows_late_runs_no_tool[cancel] — assert ([2], [5], []) == ([2], [], [])
+FAIL test_a_gate_that_allows_late_runs_no_tool[timeout] — assert ([2], [5], []) == ([2], [], [])
+FAIL test_a_partials_bound_keywords_are_fixed — {'type': 'object', 'properties': {'user_id':
+     {'type': 'integer', 'default': 42}, 'api_key': {'type': 'string', 'default': 'sk-live-SECRET'}} …
+FAIL test_bound_keywords_are_fixed_however_the_partial_is_reached — (the same schema, nested partials)
+FAILED tests/unit/test_runner_tools.py::test_a_call_ended_at_its_gate_never_runs_its_tool
+       (assert ([1], 0, 0) == ([], 0, 0): the tool ran)
+FAILED tests/unit/test_runner_tools.py::test_the_tool_starts_only_if_its_call_was_not_answered
+       ('_Bounded' object has no attribute '_proceed')
+6 failed
+```
+
+`test_bound_keywords_are_found_through_any_wrapper` names `_bound_keywords`, new here, so it
+could not run against `28800bc`; its partial-of-a-callable-object case is the same leak as
+criterion 2's.
+
+### The review's probes, re-run (criterion 5)
+
+Copied to a scratch folder (so nothing is written beside the review's evidence) with only the
+artifact path changed, and run with `uv run python -I` on the built tree
+(`build/p08-after-fix.log`, `build/p8-late-gate-after-fix.log`):
+
+```
+schema the guest is sent: {'type': 'object', 'properties': {}, 'required': [], 'additionalProperties': False}
+guest sees signature: () -> list[str]
+as bound: ['orders of user 42 via key sk-liv...']
+host.ToolArgumentError: my_orders(): got an unexpected keyword argument 'user_id'
+guest got ToolTimeout
+after run returned: [('gate allowed', '+0.48s')]
+run1 returned: guest told: timeout [('ok', False), ('timeout', True)]
+   gate allowed transfer after run returned
+run2 (cancelled): cancelled [('ok', False), ('cancelled', True)]
+   gate allowed transfer2 after run returned
+```
+
+Before the fix the same probes printed the bound key as a default, `overridden: ['orders of user
+7 …']`, and `TOOL RAN` after `run` returned (the review's logs). Now the gate still allows late,
+and no tool runs.
+
+### The judge (criterion 6)
+
+The fast tier while building, then the full judge once, in the worktree, without `--accept`,
+`WASI_PYTHON_ARTIFACTS=…/build/sets/s-f94dec535086b06c uv run pytest` (`build/full.log`):
+
+```
+wasi_python v1: 270/312 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1020/1028, 8 skipped)
+  v1.4  embedding           129/129
+ratchet vs 34eb315196: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 4 · grew 0 ·
+  upstream unrun 31 · judge changed: tests/checks/test_v1_4_embedding.py,
+  tests/unit/test_runner_tools.py, tests/unit/test_tools.py
+1290 passed, 50 skipped in 306.86s (0:05:06)
+```
+
+The 42 blocked are the worktree's missing source trees, test kit, oracle, wheel and prior-art
+clones (numpy 17, pandas 16, and one each for the rest), not this change; the fast tier before
+the change was 259/308 with v1.4 125/125 and the same blocks. v1.4 gains exactly the four new
+checks. `ruff check` and `ruff format --check` are green on `src/` and `tests/`. The lane accepts
+with `--accept-judge`, since three judging files changed.
+
+### Disposition of the review's findings
+
+The same text is in `build/reviews-evidence/a4-security/disposition.md` in the main tree, for
+the reviewer to confirm.
+
+- **F1: fixed** (`feb79aa`; Decisions 1 and 2). A keyword a `functools.partial` binds is fixed:
+  not in the schema, the descriptor, the guest's signature or `stubs()`; a frame naming it is
+  `invalid_arguments` with the unknown-argument message; a given schema naming it is refused;
+  an open schema cannot let it through. It is found through nested partials, `__wrapped__`
+  chains, bound methods, callable objects and a bound `partialmethod`; an unbound
+  `partialmethod` is refused. A parameter's own default is still published, with the reason
+  (Decision 2) and a README warning. Checks: criteria 1 and 2, seen failing on `28800bc`.
+- **F2: fixed** (`28abf17`; Decision 3). The tool starts only if `_Bounded._proceed` finds the
+  call not yet answered, under the lock that marks it answered; with or without a gate. The
+  record is unchanged (`abandoned=True`: the gate or the tool ran on). Checks: criterion 3 and
+  two units, seen failing on `28800bc`.
+- **F3: documented for a4; a budget scheduled** (`7e52c94`; Decision 4). README *Tools* ("The
+  host's cost per frame") and *Not protected*. A per-run request-byte budget, with a default
+  and a knob, is a specification after 049 lands (the knob is a public name 049 freezes), before
+  0.1.0 final.
+- **F4: accepted for a follow-up** (Decision 6). Build-class (`.github/workflows/`), so out of
+  this specification: "the release ties what it signs to what it built" (artifact id and digest
+  list from `build`, download by id, `sha256sum -c` in `attest` before signing), with N1 and
+  N3's workflow part. Does not block a4 (the review).
+- **F5: documented** (`7e52c94`; Decision 5). README *Mounts*: "A path is a name, not a host
+  path", with a containment check. The runner does not refuse `\`, `:` or device names: they are
+  ordinary characters in a POSIX path, a refusal would break namespace providers, and it would
+  not make a host-folder provider safe.
+- **N1: follow-up** (Decision 6): exit 1 when `VERIFIED != PINS`, in the same build-class
+  specification as F4. `pinned()` already re-hashes every use.
+- **N2: documented** (`7e52c94`): README *Safety*, the fixes are in the runner, not the artifacts.
+- **N3: split** (Decision 6): the workflow part (`enable-cache: false`, an environment named on
+  `publish`) goes to the F4 follow-up; the repository settings (rulesets on `main` and `v*`, a
+  protected environment) are the owner's: question 91.
+- **N4: documented** (`7e52c94`): README, the gate item.
+- **N5, N6: nothing**: documented with their reasons (README *Abandoned tools*; spec 034,
+  Decisions 8 and 10).
+- **N7: nothing here**: the 0.1.0a2 review's F8 (a3's S4), dispositioned for the wheel's next
+  change.
+
+### Left over
+
+- The follow-up build-class specification (F4, N1, N3's workflow part) and the request-byte
+  budget specification (F3) are named, not drafted.
+- Question 91 waits on the owner. Its number is the next free one on main and on the sibling
+  branches at the time of writing; the lane renumbers it if another branch lands a 91 first.
+- Spec 049 rewrites `tools.py`'s docstrings and renames its constants. This change adds one
+  private field, one function, two private constants and three short blocks, and changes no
+  public name, so the rebase of whichever lands second has local conflicts only.
