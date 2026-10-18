@@ -445,3 +445,71 @@ their checks seen failing first, is enough.
 
 The guest cannot get past a mount; but a provider can still make `run()` raise, listings cost
 five times what the bound counts, and a stopped call's staged files outlive it.
+
+## Confirmation (2026-10-17)
+
+By the reviewer, on `9c60d91` (on `c69cb31`) in the worktree. I read the Disposition and the fix's
+diff (`git show 9c60d91`). Each claim is labelled EXECUTED or READ. The scripts and outputs are in
+the same scratch folder: the old probes rerun on a `git archive 9c60d91 src/wasi_python` copy
+(`fix/src`, checked by `__file__`) → `fix_probes.txt`; `fix_trapped.py` → `fix_trapped.txt`;
+`mutants2.py` → `mutants2.txt`; `startup.py` → `newset.txt`.
+
+**The judge (EXECUTED, `judge2.log`, the frozen set `4befe9de64edc783`, no flags):** `208/219 pass ·
+0 gap · 11 blocked · 0 fail`, `lost 0 · … · gained 19 · grew 0`, `835 passed, 19 skipped`. `git
+status` was clean afterwards.
+
+**Each finding against its fix:**
+
+1. **F1: fixed (EXECUTED).** `hostile.py` rerun: all four answers now give the guest `EIO` (29) with
+   one fault each (`bad answer: FakeErrnoZero`, `bad answer: FakeErrnoHuge`, `Nasty: x`,
+   `WeirdStr`); `run` raises nothing; exit 0. Three more masquerades, an object whose `__class__`
+   claims `Stat`, `bytes` or `tuple`, also give `EIO` with one fault. Mutants C3 (`isinstance` for
+   `Errno` again) and C4 (`type(e).__name__` in `_described`) each fail
+   `test_a_provider_fault_never_escapes[plain, snapshot]`. READ: answers are judged by `type()` and
+   `issubclass(type(…))`, which never consult `__class__`; `_described` is total for an
+   `Exception` (a `BaseException` from `__str__` is the call's stop, as Decision 4 says);
+   `_fd_readdir` answers `EIO` where it asserted.
+2. **F2: fixed (EXECUTED).** One million 8-byte names: counted 38,816,299, held 38,818,230 (1.00;
+   was 4.9). The gathering peak is 2.92 times the kept size with no bound in reach. With a
+   40,000,000-byte bound it stops with `EFBIG` at 50,050,253 bytes above the base, 1.25 times the
+   bound: a transient overshoot from `bytearray` growth and the provider's own strings. That is
+   acceptable, and `test_a_listing_is_counted_as_what_it_holds` holds it to that. Mutant C5 (the
+   count back to a fraction) fails that check. READ: `fd_readdir` serves one slice of the encoded
+   entries, which is the bytes the old loop wrote, and the 330 parity rows still pass.
+3. **F3: fixed (EXECUTED).** `cycle2` and `cycle3` rerun: 0 live `_Call` and 0 MiB staged after
+   each of four runs that `os._exit` with a 64 MiB file open (was 4 and 256 MiB). `fix_trapped.txt`,
+   with the collector off: out of fuel and a deadline, each with and without a mount, leave 0 live
+   `_Call`. Mutant C2 (`table.release()` not called) fails `test_a_finished_call_holds_nothing`.
+   **The general-path change** (`_drive` sets `__traceback__ = None` on a `Trap` or
+   `WasmtimeError` it has named, and on a reported stop it does not raise): READ, it is sound.
+   Those exceptions never leave `_drive`; only their names do (`_trap_name`, `_first_line`, both
+   computed before the line). A `cause` that is raised keeps its traceback, because the clearing
+   line is after the `raise`. `_fuel_used` compares `call.stopped` by identity, which a cleared
+   traceback does not change. No check reads a traceback of these. The judge's ratchet shows no
+   change in any accepted check (lost 0, grew 0).
+4. **F4: documented, and (2) closed (EXECUTED, READ).** The README and Decision 6 name the later
+   `iovec`, the decode order and the ABI error's `trapped` text. An ABI error now keeps the grant's
+   `fuel_used`: `_Files.__call__` records the fuel when an `abi` error passes (served code spends
+   none). Mutant C6 (no fuel recorded) fails `test_an_abi_error_keeps_the_grants_fuel`.
+5. **F5: fixed (EXECUTED).** Mutant C1, my M9 (the two `HOME` lines removed), now fails
+   `test_a_mount_at_tmp_means_no_home`; `home.py` rerun gives no `HOME`.
+6. **F6:** the climb wording is corrected (READ); nothing else was asked.
+
+Every mutant was applied in the worktree and written back; `cmp` against copies taken before and
+`git status` were clean afterwards.
+
+**Spec 033's new set (EXECUTED, `newset.txt`).** With
+`WASI_PYTHON_ARTIFACTS=…/build/sets/s-8d84b3b190fe9bce`, the v1.4 and v1.2 mount, provider, limit,
+errno and HOME checks pass: 22 passed, `test_a_mount_at_the_root` among them. With a mount at `/`,
+`-c pass` makes 9 provider calls on the plain reactor (4 `stat`, 5 `read`) and 0 on the snapshot,
+on both sets. Acceptance 4's bound of 18 still holds with the same margin. The new zip does not
+change start-up's search. This was not a full judge run on the new set; the lane's run on main
+covers that.
+
+**Result: 032 lands.** Every finding is fixed or documented, and each fix's check fails with its
+rule removed. No conditions. For the lane, not conditions: `--accept-judge` (the judge changed),
+the release dry run (the first run of acceptance 2's and 3's rows on Linux and Windows; a row that
+differs there is asserted per system, as Decision 6 says), and the rebase onto main with spec 033.
+
+One line: the provider can no longer make `run()` raise, listings cost what they count, a finished
+call holds nothing, and 032 lands.
