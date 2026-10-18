@@ -1,6 +1,6 @@
 # 054 — Read-only code on the import path
 
-- **Status:** built 2026-10-18; revised against its build review (F1 to F4, F6; "Revised against the build review" and its Disposition); the rebase onto main follows. Confirmed for build
+- **Status:** built 2026-10-18; revised against its build review (F1 to F4, F6; "Revised against the build review" and its Disposition); rebased onto main `3dfdab4` (049 landed) by the author, judged green there ("Rebased onto main"); awaiting the reviewer's confirmation of the revision. Confirmed for build
   2026-10-18. The reviewer's Confirmation passed it
   ("ready to build") with two remarks, written in here: R1 (S8's root is a host folder apart
   from `code`) and R2 (A5's payload parses, so the stand-in really prints `injected`).
@@ -772,6 +772,64 @@ instruction: `s-f94dec535086b06c` is stale).
   and other 035 files this pre-035 tree lacks) and `grew 4` (the binaries' bytes and one
   harness-driver fuel, 035's). Every 054 check passes. The rebase onto main, which carries 035,
   removes the mismatch; the judge lines after the rebase are below.
+
+### Rebased onto main
+
+The coordinator asked the author to rebase once spec 049 had landed (the build review's F5).
+`git rebase main` from `af50169` onto main `3dfdab4` (049 landed, accepted as `6d6dfc5`; 035,
+056 and the 0.1.0a4 release before it). Twelve commits replayed; three conflicted:
+
+- **`context/questions-for-the-owner.md`** (at the pre-build revision): context only. Main had
+  added questions 91, 94 and 92 where 93 went; both kept, 93 last. A blank line lost before
+  `### 93.` is restored in the snapshot commit below.
+- **`src/wasi_python/runner.py`** (at build step 2), four hunks. Both signatures: 049's
+  docstrings kept (Google style, no spec numbers), 054's prose docstring dropped, and an `Args:`
+  entry for `import_path` written after `mounts`, the same text in `run` and `run_async` (049,
+  Decision 10). The two `checked.update(_check_places(…))` calls are gone: 049 moved that call
+  into `_checked`, so `_checked` takes `import_path=` (keyword-only, default `()`) and both
+  `run` and `run_async` pass it. `_check_places`: 049's fifth positional `limits` kept, and
+  `import_path` made keyword-only after `*`, so no positional call can mistake one for the
+  other; `limits.file_calls` replaces the old `DEFAULTS.file_calls`.
+- **`CHANGELOG.md`** (at build step 3): 0.1.0a4 is released, so 054's entry moved to the top of
+  `0.1.0a5 — unreleased`, above 049's; the merged file equals main's plus that one entry
+  (`diff` shows nothing else).
+- README auto-merged; *The import path* and the other passages sit beside 049's new
+  `## API reference`.
+
+Then `uv run python tests/harness/api.py --write`: `tests/public_api.txt` gains exactly
+Decision 10's three lines (`param import_path: Iterable[str] = ()  keyword-only` under `run`
+and under `run_async`, after `mounts`; `option --import-path GUEST  append` under the command);
+the README's generated reference gains `run`'s signature line and `Args:` entry, `run_async`'s
+signature line (its short form shows only `executor`), and the options table's row. `--check`
+then exits 0.
+
+Re-run on the rebased branch, against `s-c4190ca065ada03a`, no `--accept`:
+
+- every stand-in and mutant (`build/054-mut/run.py`, R22's anchor moved to `run_async`'s
+  `_checked` call): each fails exactly as listed in "Revised against the build review" (R22
+  fails the `run_async` case, which now guards the argument 049's structure threads through).
+- the fast tier (`build/054-fast-r3.txt`):
+
+  ```
+  wasi_python v1: 305/354 pass · 0 gap · 10 blocked · 0 fail · 39 deselected   (unit suite 1059/1067, 8 skipped)
+    v1.2  portable, sealed    60/61  blocked 1
+    v1.4  embedding           147/147
+  ratchet vs 323ad21aa5: lost 0 · absent 0 · unrun 0 · unrun locally 8 · gained 11 · grew 0 · upstream unrun 31 · not selected 27 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/public_api.txt and 1 more
+  1364 passed, 18 skipped, 39 deselected
+  ```
+- none of 054's checks is marked slow; the full judge once (`build/054-full-r3.txt`):
+
+  ```
+  wasi_python v1: 312/354 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1059/1067, 8 skipped)
+    v1.3  data stack          46/78  blocked 32
+    v1.4  embedding           147/147
+  ratchet vs 323ad21aa5: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 11 · grew 0 · upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/public_api.txt and 1 more
+  1371 passed, 50 skipped
+  ```
+
+  The 32 blocked v1.3 checks are numpy's and pandas' own suites, whose source trees this
+  worktree lacks; they are unrun locally, not lost.
+- ruff check and ruff format --check: clean.
 
 ## Disposition of the build review
 
