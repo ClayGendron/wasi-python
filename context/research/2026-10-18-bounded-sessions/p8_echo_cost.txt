@@ -1,0 +1,6 @@
+P8 ast, linecache pre-imported in the snapshot: True True
+P8 empty: fuel [82007239, 82016262, 82091097]
+P8 import ast: fuel [82004766, 82124076, 82027783]
+P8 100 plain compiles: fuel [154927428, 155020965, 154917262]
+P8 100 echo compiles: fuel [212609179, 212673241, 212619892]
+P8 per turn: plain compile 729100, echo compile 1306044, import ast once -2473

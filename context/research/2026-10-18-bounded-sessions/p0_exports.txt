@@ -1,0 +1,2 @@
+snapshot [('host_alloc', 'FuncType'), ('memory', 'MemoryType'), ('run', 'FuncType')]
+plain [('_initialize', 'FuncType'), ('host_alloc', 'FuncType'), ('memory', 'MemoryType'), ('run', 'FuncType'), ('wizer.initialize', 'FuncType')]

@@ -1,0 +1,8 @@
+P1 fuel per host_alloc(64), budget re-set before each: [99, 99, 99, 99, 99]
+P1b first call trapped: TrapCode.OUT_OF_FUEL
+P1b next call after the trap returned 57573184 fuel 101 (wasmtime lets a store be called again after a trap)
+P2 call after the deadline passed trapped: TrapCode.INTERRUPT
+P2 next call with a re-armed deadline returned True
+P3 calls on three threads (tag, other thread, ok, fuel): [('A', True, True, 99), ('B', True, True, 99), ('C', True, True, 101)]
+P3 closed from a fourth thread: ok
+P1c run after five host_allocs and two traps: rc 0 stdout b''

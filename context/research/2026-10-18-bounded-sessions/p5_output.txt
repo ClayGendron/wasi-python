@@ -1,0 +1,3 @@
+P5: 20 of 20 big turns had every byte in the swapped stream at the door call
+P5 small turns: [('small 1', []), ('', ['ZeroDivisionError: division by zero']), ('after', [])]
+ended: run returned 0 | bytes after the last turn: 0 0

@@ -1,0 +1,6 @@
+$ wasmtime --version
+wasmtime 49.0.3 (f96eabaa1 2026-10-14)
+$ wasmtime wizer -C cache=n --init-func wizer.initialize -o tiny-snap.wasm p7_tiny.wat
+(then, in wasmtime-py 49.0.0: Module.from_file(tiny-snap.wasm).exports; instantiate; call turn(0, 0))
+exports after wizer: ['memory', 'run', 'turn', 'host_alloc']
+turn(0,0) = 48 (41 + 7: the snapshot's global and memory)
