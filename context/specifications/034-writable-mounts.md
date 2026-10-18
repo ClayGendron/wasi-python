@@ -2,8 +2,9 @@
 
 - **Status:** built 2026-10-18 (Landing notes); its build review, which is also a security
   review (`../reviews/034-writable-mounts-2026-10-18.md`; verdict: not yet, but close), is
-  answered by a revision on main `3a9588f` (the Landing notes' last part), awaiting the
-  reviewer's confirmation and the owner's answer to question 71. Drafted 2026-10-17; reviewed
+  answered by a revision, confirmed with one condition (N1), met on main `77bd08e` after 048
+  and 036 landed (the Landing notes' last two parts); it waits on the owner's answer to question
+  71 before the lane lands it. Drafted 2026-10-17; reviewed
   before build the same day
   (`../reviews/034-writable-mounts-spec-2026-10-17.md`, which is also a security review of the
   design; verdict: not ready as written, but close) and revised against its ten findings (its
@@ -1125,3 +1126,69 @@ pytest`, `build/judge-revised.log`): `wasi_python v1: 238/249 pass · 0 gap · 1
 (unit suite 831/839, 8 skipped)`, v1.2 53/54, v1.4 109/109, `ratchet vs 947036ec8d: lost 0 ·
 absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0`, `1069 passed, 19 skipped`.
 `ruff check` and `ruff format --check` clean.
+
+**Rebased onto spec 048 and spec 036, and the confirmation's N1** (2026-10-18), by the
+implementer, on main `77bd08e`. EXECUTED unless it says otherwise; the frozen set
+`build/sets/s-0cdc7b2bd78db6f5`.
+
+- **The rebase.** Conflicts:
+  - `mounts.py`'s `_path_rename`: 048 made its branch for two wasmtime numbers call
+    `self._rename(...)`; 034's served rename was kept, with that branch calling `self._rename`.
+  - `README.md`'s *Safety* bullet on mounts: both texts were kept, with 048's "two wasmtime
+    fixes" item after it.
+  - Three test files (`test_v1_2_hostile_guest.py`, `test_v1_4_embedding.py`,
+    `test_runner_mounts.py`): two appended blocks, which git had interleaved. Each was rebuilt as
+    main's whole block, then 034's.
+
+  After the resolution, each test file differs from main's only by 034's appended block and the
+  five three-key literals of Decision 11 (EXECUTED, `diff` against `git show main:…`).
+- **F3, as the revision said it would change:**
+  - `RENAME_SLASH_NEEDS_FOLDER = (True, True)`: a trailing `/` on either path needs a folder
+    source, decided by one `stat` after the runner's own answers and before the provider's
+    `rename`. For a slash-named rename that is the guard's order (048's Decision 3): the stat's
+    errno or `ENOTDIR` before anything is renamed.
+  - The branch for two wasmtime numbers calls 048's `self._rename(...)`. It is 034's only rename
+    forward; `_across` forwards none.
+  - `_write_sides` and the nested-grant row of `test_the_write_differences_are_as_decided` build
+    their grant with `files.Guarded`, which is what every call without mounts now runs.
+  - `rename 'a.txt' 'newname/'`, `'a.txt' 'b.txt/'` and `'a.txt' 'a.txt/'` are now 54 on both
+    sides. They are in `WASMTIME_ROWS`, compared on every host, and pinned in `SLASH_ROWS`, as is
+    `'d' 'f/'` (0).
+  - With the constant set back to `(True, False)`, `test_raw_write_calls_answer_as_a_writable_
+    grant_does` fails (EXECUTED, `build/mutants-048.log`).
+- **048's notes, kept.**
+  - Every call has a table since 048, so `_instance` calls `table.walk()` unconditionally. On a
+    guard table the walk does nothing (its `table` and `owed` are empty), and a guard table is
+    never reported (`files = table.record() if mounts else None`, 048's).
+  - 048's new check `test_a_guard_call_leaves_the_other_calls_native` asserted a three-key
+    `calls`; per Decision 11 it gains the five zero keys, the sixth literal so changed.
+  - 048's `forward(..., stat=True)`, `_Forwards.stat`/`.page`, `PRIVATE` in `bind`, `_zeroed`
+    and the padding rule are untouched: 034's listings were already zeroed (`_dots` and `_list`
+    pack zero padding).
+- **N1: the write half's gate is checked.** `test_the_write_half_is_gated` (unit):
+  - Fifty `os.mkdir`s, and fifty writing opens, with `max_file_calls=5`: exactly 5 provider
+    calls each; the run ends `"out of file calls"`, with no exit code and no output after the
+    loop.
+  - A raw guest whose provider sets the call's cancel in a `stat`, then, with no function entry
+    between: a `mkdir`, a `rename` and a create at open each answer `ECANCELED` (11) with no
+    write-half call, and nothing is recorded as refused (N3).
+  - Seen failing on M7 (`_change` without `_gate`), restored byte for byte
+    (`build/mutants-048.log`).
+- **Re-run on this tree.** The fifteen guards (`build/guards-048.log`; `mounts.py`
+  `492bf04ce88b…`, `runner.py` `60e79f774390…`) each fail the checks named above. M1, M2, M5,
+  M5b, M6 and M7 each fail their checks. In the Linux container
+  (`python:3.13-slim@sha256:7c61056e61ac…`):
+  - `test_raw_write_calls_answer_as_a_writable_grant_does` (now against the guarded grant),
+    `test_the_write_differences_are_as_decided` and 032's `test_raw_calls_answer_as_a_grant_does`
+    passed;
+  - so did `test_a_writable_mount_answers_as_a_writable_grant_does` (both binaries), and
+    `test_unlinked_files_are_not_written_back_at_the_ending`, `test_writes_land_at_every_ending`
+    and `test_a_writable_mount_serves_writes` (the snapshot), and
+    `test_links_and_times_in_a_writable_mount`.
+
+  Windows was still not run.
+- **The judge** (`build/judge-048.log`): `wasi_python v1: 258/269 pass · 0 gap · 11 blocked · 0
+  fail (unit suite 874/882, 8 skipped)`, v1.2 56/57, v1.4 125/125, `ratchet vs 361775dd62: lost 0
+  · absent 0 · unrun 0 · unrun locally 9 · gained 22 · grew 0`, `1132 passed, 19 skipped`.
+  `ruff check` and `ruff format --check` are clean. Commits: this composition and N1 in
+  `9822812`, these notes in the commit after it.
