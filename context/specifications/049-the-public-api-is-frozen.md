@@ -1,38 +1,44 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** drafted 2026-10-18. Not yet reviewed. It changes neither the guest's imports nor
-  its exports, the artifact set nor the build recipe, so §5.6 asks no review before build. One
-  is asked for anyway: the promise in Decision 8 binds every later specification that touches
-  the package, so a wrong rule here costs more than a wrong line of code.
+- **Status:** drafted 2026-10-18; reviewed before build the same day
+  (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
+  F1 to F7 are written in) and revised against all thirteen findings (the review's
+  Disposition says where each went); awaiting the reviewer's confirmation. It changes neither
+  the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no
+  review before build; one was asked for because Decision 8 binds every later specification
+  that touches the package. **It lands after spec 034** (Decision 13).
 - **Owner:** Clay Gendron
-- **Kind:** the package's two public modules (`src/wasi_python/__init__.py`:
-  `__all__`, three renamed constants, `defaults()`, `set_defaults()`, `stats` re-exported, the
-  module docstring; `src/wasi_python/tools.py`: `__all__`, eighteen renamed constants, `tool`'s
-  two overloads), the docstrings of every public name where it is defined (`runner.py`,
-  `mounts.py`, `tools.py`), two annotations (`run`'s and `run_async`'s `host`; `Mount.provider`),
-  `src/wasi_python/py.typed` (new, empty), judge additions (`tests/harness/api.py`,
-  `tests/public_api.txt`, `tests/checks/test_v1_4_public_api.py`) and a judge change (the
-  renamed constants where tests and the harness name them; the wheel rule), `README.md`,
-  `CHANGELOG.md`. **Not build-class:** it touches no `scripts/`, `recipes/`,
-  `downloads/SHA256SUMS` or release workflow.
+- **Kind:** the package's two public modules (`src/wasi_python/__init__.py`: `__all__`, three
+  renamed constants, `defaults()`, `set_defaults()`, `stats` re-exported, the module
+  docstring; `src/wasi_python/tools.py`: `__all__`, seventeen renamed constants, `tool`'s two
+  overloads), the docstrings of every public name where it is defined (`runner.py`,
+  `mounts.py`, `tools.py`), seven annotations (Decision 5's changes 1, 2 and 4), one read of the
+  defaults per call (`runner._checked`, Decision 2), `src/wasi_python/py.typed` (new, empty),
+  judge additions (`tests/harness/api.py`, `tests/public_api.txt`,
+  `tests/checks/test_v1_4_public_api.py`) and a judge change (the renamed constants where tests
+  and the harness name them, Decision 4; the wheel rule), `README.md`, `CHANGELOG.md`. **Not
+  build-class:** it touches no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or release
+  workflow.
 - **Depends on:** 001 (the runner, `artifacts()`), 013 and 014 (arguments checked first), 015
   (`run_async`, `Defaults.async_workers`), 017 (`Grant`), 019 and 022 (the command line), 028
   (wasmtime a plain dependency, the lazy import), 031 and 036 (`wasi_python.tools`, `tools=`),
-  032 (`Mount`, `FileRecord`), 048 (the guard linker): all landed. **034 (writable mounts) is in
-  its build review** and adds public names; it and this specification may be built in parallel,
-  and whichever lands second rebases onto the other (Decision 13 says exactly what 034's rebase
-  adds if this lands first).
+  032 (`Mount`, `FileRecord`), 048 (the guard linker): all landed. **034 (writable mounts),
+  which lands first.** 034 adds public names and rewrites the same docstrings and README
+  sections this specification does, so this one starts its source and README work from main
+  after 034 has landed (Decision 13).
 - **Research it stands on:** the roadmap's milestone 6, "the public API frozen and documented"
   (`../roadmap.md`); this specification's survey of main at `77bd08e` (EXECUTED, quoted in "The
-  problem" and Decision 10: `survey.py`, `probe_annotations.py` and `probe_internal_names.py`,
-  run with `uv run python` on Python 3.14.2; the scripts and outputs were kept beside this
-  draft, and the lines that matter are quoted here);
-  the package's source and `README.md` as they stand (READ); the constitution's §4.13 (no
-  dependency without a written reason), §4.15 (a looser default needs the owner) and §5.5 (a
-  security fix is a reason to release). The conventions of PEP 8 ("Public and internal
-  interfaces": `__all__`, and a leading underscore for what is internal), PEP 561 (`py.typed`)
-  and PEP 387 (CPython's own deprecation rule) are used as published; they were not re-read for
-  this draft (INFERRED from their known text).
+  problem" and Decision 10: `survey.py`, `probe_annotations.py`, `probe_internal_names.py` and,
+  for the revision, `probe_readme_constants.py` at `44faa43`, each run with `uv run python` on
+  Python 3.14.2; the lines that matter are quoted here); the pre-build review's own probes
+  (EXECUTED there: the signature render is the same on Python 3.11 to 3.14, raw `__doc__` is not
+  and `inspect.cleandoc` is; an undocumented dataclass gets a generated `__doc__`; `Defaults`
+  accepts `None` for five limits); the package's source and `README.md` as they stand (READ);
+  the constitution's §4.13 (no dependency without a written reason), §4.15 (a looser default
+  needs the owner) and §5.5 (a security fix is a reason to release). The conventions of PEP 8
+  ("Public and internal interfaces": `__all__`, and a leading underscore for what is internal),
+  PEP 561 (`py.typed`) and PEP 387 (CPython's own deprecation rule) are used as published; they
+  were not re-read for this draft (INFERRED from their known text).
 
 ## The problem
 
@@ -54,16 +60,22 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
   `VALUE_NESTING`, `INT_CHARS`, `MESSAGE_CHARS`, `ECHO_CHARS`, `FAULT_CHARS`, `RECORD_OUTCOMES`,
   `MAX_ID`, `KINDS`, `TOO_COMPLEX`, `SAME_VALUE_CHAIN`, `MAX_ABANDONED`,
   `DEADLINE_MARGIN_TICKS`).
-- The README sends users into an internal module three times: `wasi_python.runner.DEFAULTS`
-  twice (one of them as the way to size `run_async`'s pool, by assigning it) and
-  `wasi_python.runner.stats()` once. `run`'s docstring names `BASE_ENV` and `CANCEL_TICKS`,
-  constants of that module.
-- Every public name has a docstring. None has an `Args:` section; dataclass fields are
-  explained by `#` comments, which neither `help()` nor a generated reference can read.
+- The README names the internal binding `DEFAULTS` in six backticked spans: three times as
+  `wasi_python.runner.DEFAULTS` or `dataclasses.replace(DEFAULTS, …)` (one of them the way to
+  size `run_async`'s pool, by assigning it), and three times bare (`DEFAULTS.file_calls`,
+  `DEFAULTS.async_workers`, `DEFAULTS.tool_calls`); and `wasi_python.runner.stats()` once
+  (EXECUTED, `probe_readme_constants.py` at `44faa43`: six spans, lines 534, 690, 697, 818,
+  850 and 1079). `run`'s docstring names `BASE_ENV` and `CANCEL_TICKS`, constants of that
+  module.
+- Every public name has a docstring, but `FileProvider`'s three methods do not. No docstring
+  has an `Args:` section; dataclass fields are explained by `#` comments, which neither
+  `help()` nor a generated reference can read.
 - 106 annotations on public signatures and fields evaluate in a namespace of public and
   standard names; 2 do not: `run`'s and `run_async`'s `host: Host | None`, where `Host` is an
   alias inside `runner.py` (EXECUTED, `probe_annotations.py`: "annotations evaluated: 106
-  failed: 2").
+  failed: 2"). Some that evaluate are narrower than what the code accepts: `Defaults`'
+  `memory_bytes`, `deadline_s`, `output_bytes` and `file_calls` take `None` but say `int` or
+  `float` (the review, F2).
 - There is no `py.typed`, so a type checker treats the package as untyped.
 - `tool()` returns `Any`, so a function decorated with `@tool` loses its type in a checker.
 
@@ -83,11 +95,12 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
    - `wasi_python.tools` stays a module of its own, not re-exported at the top level, so `import
      wasi_python` still never imports the protocol (spec 031).
 
-2. **`wasi_python.__all__` is exactly these 18 names**, sorted:
+2. **`wasi_python.__all__` is exactly these 18 names**, sorted (034 adds two more, Decision
+   13):
 
    | name | what it is | defined in |
    |---|---|---|
-   | `Artifacts` | the artifact set's four paths (result) | `__init__.py` |
+   | `Artifacts` | the artifact set's four paths (made by `artifacts()`, or by the user) | `__init__.py` |
    | `ArtifactsMissing` | exception, a `RuntimeError` | `__init__.py` |
    | `Completed` | how one program ended (result) | `runner.py` |
    | `Defaults` | the limits a call has when it names none | `runner.py` |
@@ -104,7 +117,7 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
    | `run` | run one program | `runner.py` |
    | `run_async` | `run` from async code | `runner.py` |
    | `set_defaults` | replace the `Defaults`, returning the old | `__init__.py` |
-   | `stats` | how this process got its compiled modules; tool threads alive | `runner.py` |
+   | `stats` | counts kept by this process | `runner.py` |
 
    `__version__` is public too, outside `__all__`, as is usual.
 
@@ -112,40 +125,75 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
    `wasi_python.runner.DEFAULTS`.** Today the README tells a user to assign an attribute of an
    internal module. Re-exporting `DEFAULTS` would be worse: `wasi_python.DEFAULTS = x` would
    bind a second name that `run` never reads, and do nothing, silently. A function cannot be
-   shadowed that way. `set_defaults` raises `TypeError` for anything but a `Defaults` (whose own
-   checks have already run), swaps it in, and returns the previous one so a caller can restore
-   it. The binding `run` reads stays `runner.DEFAULTS`, internal; so the judge's existing
-   `monkeypatch.setattr(runner, "DEFAULTS", …)` keeps working unchanged, and code that still
-   assigns it from 0.1.0a4's README keeps working until the internal name changes. The README's
-   idiom becomes `set_defaults(dataclasses.replace(defaults(), async_workers=4))`.
+   shadowed that way. The binding `run` reads stays `runner.DEFAULTS`, internal; so the judge's
+   existing `monkeypatch.setattr(runner, "DEFAULTS", …)` keeps working unchanged, and code that
+   still assigns it from 0.1.0a4's README keeps working until the internal name changes. The
+   README's idiom becomes `set_defaults(dataclasses.replace(defaults(), async_workers=4))`.
+
+   **What `set_defaults` does, under threads** (the review, F7):
+   - It raises `TypeError` for anything but a `Defaults` (whose own checks have already run).
+   - It swaps the new value in and reads the old one **under one lock**, and returns the old
+     one, so two threads that race each get a distinct previous value and neither loses a
+     restore.
+   - **A call reads the defaults once, when it is made.** Today one call reads `DEFAULTS` three
+     times (`_checked`, `_check_tools`, `_check_places`), so a `set_defaults` on another thread
+     could give it a mix. The runner reads the binding through one internal helper,
+     `_current_defaults()`, called once in `_checked`, which passes the value to
+     `_check_tools` and `_check_places`; `run_async` makes that read on the caller's thread,
+     when it is called, as it checks its arguments today, and gives the same value's
+     `async_workers` to `_submit` for the pool's size. A call already made keeps what it
+     read. This is a small runner change and is in the Scope.
+   - **The pool.** A new `async_workers` applies to `run_async` calls made afterwards: the
+     next such call without an `executor` makes a pool of the new size. Calls already running or queued on the old
+     pool still run there, so for a while both pools' workers may run guests (after 8 → 4, up
+     to 12 at once). `set_defaults`'s docstring says so, and the README's bound ("8 workers
+     bound one process at about 8.3 GiB") gains that sentence.
 
    **`stats()` becomes public**, because the README already sends embedders to it to watch
-   abandoned tool threads (spec 036). Its keys `compiled`, `loaded`, `written` and
-   `tool_threads_running` are promised; a minor release may add keys.
+   abandoned tool threads (spec 036). Promised: that it returns a dict of counts with at least
+   the keys `compiled`, `loaded`, `written` and `tool_threads_running`, and what
+   `tool_threads_running` counts. What the first three count belongs to the `.cwasm` cache,
+   which Decision 8 leaves unpromised; their meaning may change with it. A minor release may
+   add keys.
 
-3. **`wasi_python.tools.__all__` is exactly 8 names:** `Tool`, `ToolCall`, `ToolDenied`,
-   `ToolError`, `ToolOutcome`, `ToolRecord`, `stubs`, `tool`. A `Tool`'s public attributes are
-   `name`, `description`, `fn`, `validates_input`, `timeout_s`, `read_only`, `destructive`,
-   `idempotent`, `open_world`, the properties `input_schema` and `output_schema`, the method
-   `descriptor()`, and calling it. Only `tool()` makes one (spec 031), so its field order is not
-   promised. The eighteen constants become private (Decision 4). Most are protocol 1's bounds,
-   documented in the README's "The tool protocol" and fixed by the protocol's number; the rest
-   (`MAX_ABANDONED`, `DEADLINE_MARGIN_TICKS`) are the runner's own policy, documented in
-   "Tools" (spec 036). An embedder reads the numbers there, not from the host's module.
+3. **`wasi_python.tools.__all__` is exactly 9 names:** `PROTOCOL`, `Tool`, `ToolCall`,
+   `ToolDenied`, `ToolError`, `ToolOutcome`, `ToolRecord`, `stubs`, `tool`.
+   - **`PROTOCOL` stays public** (the review, F11): it is the protocol number this host speaks,
+     the guest package exports its own `PROTOCOL` (`recipes/guest/host/__init__.py`), and
+     Decision 8 says the protocol is versioned by that number. An embedder needs a supported
+     way to read it. Its value, 1, is in the snapshot.
+   - A `Tool`'s public attributes are `name`, `description`, `fn`, `validates_input`,
+     `timeout_s`, `read_only`, `destructive`, `idempotent`, `open_world`, the properties
+     `input_schema` and `output_schema`, the method `descriptor()`, and calling it (`__call__`,
+     rendered explicitly; its `*args, **kwargs` need no `Args:` entry). Only `tool()` makes one
+     (spec 031), so its field order is not promised.
+   - The other seventeen constants become private (Decision 4). Most are protocol 1's bounds,
+     documented in the README's "The tool protocol" and fixed by the protocol's number; the
+     rest (`MAX_ABANDONED`, `DEADLINE_MARGIN_TICKS`) are the runner's own policy, documented in
+     "Tools" (spec 036). An embedder reads the numbers there.
 
 4. **Private means a leading underscore, in a public module.** Every module-level name that
    `__init__.py` or `tools.py` binds (by a `def`, a `class`, an assignment, or an import from
    inside the package, such as `from . import runner as _runner`) and that is not in its
    `__all__` starts with `_`. Imports from outside the package (`os`, `dataclass`) and dunders
-   are exempt. So `ARTIFACT_DIR`,
-   `ARTIFACTS_ENV` and `CHECKOUT_ARTIFACT_DIR` become `_ARTIFACT_DIR`, `_ARTIFACTS_ENV` and
-   `_CHECKOUT_ARTIFACT_DIR`, and each of the eighteen constants in `tools.py` gains a `_`
-   (`TOOL_REQUEST_BYTES` becomes `_TOOL_REQUEST_BYTES`, and so on). The renames are mechanical;
-   every reference in `src/`, `tests/` and `tests/harness/` follows them, which is a judge
-   change (about 35 lines in `tests/`, by `grep -w`: `ARTIFACTS_ENV` 7, `KINDS` 6,
-   `TOOL_REQUEST_BYTES` 5, `ARTIFACT_DIR` 4, `TOOL_VALIDATION_STEPS` 4, and fewer for the
-   rest). The guest package's own
-   `PROTOCOL` in `recipes/guest/` is a different module's name and does not change.
+   are exempt.
+   - **The renames.** `ARTIFACT_DIR`, `ARTIFACTS_ENV` and `CHECKOUT_ARTIFACT_DIR` become
+     `_ARTIFACT_DIR`, `_ARTIFACTS_ENV` and `_CHECKOUT_ARTIFACT_DIR`; each of `tools.py`'s
+     seventeen private constants gains a `_` (`TOOL_REQUEST_BYTES` becomes
+     `_TOOL_REQUEST_BYTES`, and so on). Inside `tools.py` and `__init__.py` every use follows.
+   - **The judge change is 27 lines in 5 files** (EXECUTED, a `grep` for module-qualified
+     references at `44faa43`; the review's F10): `tests/test_api.py` 8 (`ARTIFACTS_ENV` 4, and
+     the strings `"ARTIFACT_DIR"` and `"CHECKOUT_ARTIFACT_DIR"` in `monkeypatch.setattr` 4);
+     `tests/harness/paths.py` 2 (lines 5 and 99); `tests/unit/test_runner_tools.py` 3
+     (`T.TOOL_REQUEST_BYTES`, `T.MAX_ABANDONED`, `T.RECORD_OUTCOMES`);
+     `tests/unit/test_guest_tools.py` 3 (`T.KINDS`; `T.PROTOCOL` stays); and
+     `tests/unit/test_tools.py` 11 (`T.TOOL_VALIDATION_STEPS`, `T.TOOL_REQUEST_BYTES`,
+     `T.SAME_VALUE_CHAIN`). No file in `scripts/`, `.github/` or `src/` outside the two public
+     modules names them.
+   - **Rename by qualified reference, never with a word-boundary replace.** The harness has
+     its own `KINDS` (`tests/harness/wasm.py`, a wasm section table) and its own
+     `ARTIFACTS_ENV` (`tests/harness/paths.py:37`, `tests/unit/test_checks_wiring.py`), and the
+     guest package has its own `PROTOCOL`; none of these change.
    - **Nothing private is re-exported.** A name in a public `__all__` is public where it is
      defined too: `from .runner import _run as run` is refused, so a public name is never an
      alias for an internal object whose name says it may change.
@@ -153,32 +201,47 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
      cost. A public name can be removed only through a deprecation (Decision 8). So the
      surface starts small.
 
-5. **The signatures and fields, frozen as they stand, with three changes.** The snapshot
-   (Decision 9) records them all; this list says what each shape promises.
+5. **The signatures and fields, frozen as they stand, with four changes.** The snapshot
+   (Decision 9) records them all; this list says what each shape promises. None of the four
+   changes any behaviour; each makes an annotation say what the code already does, so that it
+   is not frozen narrower than the code (the review, F1 and F2).
    - `run(argv, *, …)` and `run_async(argv, *, …)`: every argument after `argv` is
      keyword-only, so a new one can be added without breaking a call. A default shown as
      `<default>` means "read from `defaults()` when the call is made". `run_async` takes `run`'s
      arguments except `cancel`, plus `executor`.
-   - **Change 1:** `host`'s annotation becomes `Callable[[bytes], bytes] | None`, written out,
-     in both. `Host` stays an internal alias. A public signature names only public and standard
-     names (Decision 12).
+   - **Change 1:** `host`'s annotation becomes `Callable[[bytes], bytes | bytearray |
+     memoryview] | None`, written out, in both, because the door takes any of the three from a
+     host (`runner.py`, `_door`). `Host` stays an internal alias. A public signature names only
+     public and standard names (Decision 12).
    - **Change 2:** `Mount.provider` is annotated `FileProvider` instead of `Any`. Nothing at run
      time changes: `run` checks a provider by its methods, as today. 034's
      `WritableFileProvider` is a sub-protocol, so it fits.
-   - **Change 3:** `tool` gains two `typing.overload` declarations: `tool(fn: Callable[..., Any],
-     /) -> Tool` and `tool(*, name=…, …) -> Callable[[Callable[..., Any]], Tool]`. The
-     implementation is unchanged. A checker then knows `@tool` makes a `Tool`.
-   - **Two kinds of dataclass.** Users make `Grant`, `Mount`, `Stat` and `Defaults` (the last
-     through `dataclasses.replace`). For these the order of the existing fields is promised,
-     since a user may pass them by position. The runner makes the rest (`Artifacts`,
-     `Completed`, `FileFault`, `FileRecord`, `ToolCall`, `ToolOutcome`, `ToolRecord`); a user
-     reads them. For these the field names and types are promised, not construction by
-     position. Every public dataclass is frozen, and stays frozen.
+   - **Change 3:** `tool` gains two `typing.overload` declarations; the implementation is
+     unchanged:
+     - `tool(fn: Callable[..., Any], /, *, name: str | None = None, description: …, …) -> Tool`,
+       for `@tool` and for `tool(f, name=…, …)` (the README's MCP and LangChain adapters, and
+       `tests/unit/test_tools.py`, call it that way);
+     - `tool(fn: None = None, /, *, name: str | None = None, …) -> Callable[[Callable[...,
+       Any]], Tool]`, for `@tool(...)`.
+
+     Both keyword lists are the implementation's, with the same defaults. **`fn=` by keyword is
+     not promised**: the overloads take `fn` positionally only (`/`). The implementation keeps
+     accepting `tool(fn=f)` at run time, unpromised, so no caller breaks today.
+   - **Change 4:** `Defaults.memory_bytes`, `output_bytes` and `file_calls` are annotated
+     `int | None`, and `deadline_s` `float | None`, as `tool_calls` already is: each accepts
+     `None` for "no limit" (the README says so). `async_workers` stays `int`.
+   - **Two kinds of dataclass.** Users make `Artifacts` (for `run(artifacts=…)`; the judge
+     builds one by position), `Grant`, `Mount`, `Stat` and `Defaults` (through
+     `dataclasses.replace`). For these the order of the existing fields is promised, since a
+     user may pass them by position. The runner makes the rest (`Completed`, `FileFault`,
+     `FileRecord`, `ToolCall`, `ToolOutcome`, `ToolRecord`); a user reads them. For these the
+     field names and types are promised, not construction by position. Every public dataclass
+     is frozen, and stays frozen.
    - **`Completed.trapped`** is `None`, or one of four fixed strings, `"out of fuel"`,
      `"deadline"`, `"cancelled"`, `"out of file calls"`, or a trap's plain name or an error's
      first line as wasmtime gives it. The four are promised; wasmtime's words are not.
    - **`ToolOutcome.outcome`** is `"ok"` or one of the protocol's kinds, listed in the README.
-     The kinds belong to protocol 1 and change only with the protocol's number.
+     The kinds belong to protocol 1 and change only with `PROTOCOL`.
    - **`Errno`**'s members and numbers are promised. The set is closed today (spec 032); adding
      a member is an addition.
    - The values of `defaults()` when the package is imported are recorded too: 1 GiB of memory,
@@ -187,15 +250,33 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
      on the machine).
 
 6. **Exceptions are promised by type, never by message.** The public classes are
-   `ArtifactsMissing` (a `RuntimeError`), `ToolError` and `ToolDenied` (a `ToolError`). `run`
-   and `run_async` raise, before any work: `TypeError` or `ValueError` for a bad argument;
-   `ArtifactsMissing` when there is no artifact set; `ImportError` when wasmtime-py cannot load
-   (its own error chained, spec 028). After work starts: `RuntimeError` in a process forked
-   after a guest ran, and for `run_async` after interpreter shutdown; `KeyboardInterrupt` for
-   Ctrl-C (`run`); `asyncio.CancelledError` when the awaiting task is cancelled (`run_async`).
-   Nothing a guest, a provider or a tool does makes either raise (specs 006, 032, 036). A new
-   failure is raised as one of the types the function already documents, or as a new subclass
-   of one, so an existing `except` still catches it. Messages may change in any release.
+   `ArtifactsMissing` (a `RuntimeError`), `ToolError` and `ToolDenied` (a `ToolError`). The list
+   below is what `run` and `run_async` raise today, written down without changing any of it
+   (the review, F4: the first draft's list was short).
+   - **Before any work:** `TypeError` or `ValueError` for a bad argument; `ArtifactsMissing`
+     when there is no usable artifact set; `ImportError` when wasmtime-py cannot load (its own
+     error chained, spec 028).
+   - **While the call is prepared or runs:**
+     - `OSError` (and its subclasses, such as `FileExistsError` and `NotADirectoryError`) for a
+       host filesystem failure while the root, the private folders, the zip copy or the cache
+       is prepared;
+     - `RuntimeError` in a process forked after a guest ran; for `run_async`, after interpreter
+       shutdown; and for a folder or the zip copy that changed between the runner's check and
+       its use (README, *Grants*);
+     - an error from wasmtime-py (today `wasmtime.WasmtimeError`, for a folder removed between
+       the runner's check and wasmtime's own open). The type is **not promised**: it is
+       wasmtime-py's, not this package's;
+     - `KeyboardInterrupt` for Ctrl-C (`run`); `asyncio.CancelledError` when the awaiting task
+       is cancelled (`run_async`);
+     - any `BaseException` that is not an `Exception`, raised by the embedder's own `host`,
+       provider, tool or gate, propagates (README, *Mounts* and *Safety*).
+   - **What never makes them raise:** nothing a guest does, and no `Exception` that a provider,
+     a tool or a gate raises (specs 006, 032, 036); those are recorded in the result.
+   - **A new failure** is raised as one of the promised types above, or as a new subclass of
+     one, so an existing `except` still catches it. Messages may change in any release.
+   - The `Raises:` sections of `run` and `run_async` (Decision 10) name exactly these types.
+     The command's JSON `kind` on exit 1 is the exception's class name, so it names one of
+     them.
 
 7. **The command line is frozen like the Python API.** `wasi-python run [OPTIONS] [--]
    ARG...` with the options `--env`, `--stdin`, `--deadline-s`, `--memory-bytes`,
@@ -214,96 +295,145 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
    - **A minor release** (0.2.0) may add: names, keyword-only arguments whose default keeps
      today's behaviour, dataclass fields placed last with a default (or keyword-only),
      `Errno` members, `stats()` keys, command options and JSON keys. It may remove or change
-     incompatibly only what an earlier final minor release deprecated.
+     incompatibly only what an earlier final minor release deprecated, apart from the two
+     exceptions below.
    - **A deprecation** is announced in three places at once: a `DeprecationWarning` where the
      deprecated thing is used (with `stacklevel` pointing at the caller's line); the docstring's
      first line, "Deprecated since 0.N: use X instead.", which the README's reference then
      shows; and a "Deprecated" line in the CHANGELOG. The thing keeps working for at least one
      final minor release. Its removal is a "Removed" line in the CHANGELOG.
-   - **Defaults' values.** A tighter default (a smaller limit) may come in a minor release, as a
-     "Changed" line. A looser one needs the owner's decision (§4.15). Either is a visible
-     snapshot change.
-   - **Security.** A change that closes a hole may break the surface in any release, without a
-     deprecation, named under "Security" in the CHANGELOG (§5.5 makes a security fix a reason
-     to release). This is the only exception.
+   - **Two exceptions, and only two** (the review, F8):
+     1. **A tighter default** (a smaller limit in `defaults()`) may come in a minor release,
+        without a deprecation, as a "Changed" line in the CHANGELOG. It can break a program
+        that needed the old limit; the program's fix is one argument. A looser default needs
+        the owner's decision (§4.15), in any release.
+     2. **Security.** A change that closes a hole may break the surface in any release, without
+        a deprecation, named under "Security" in the CHANGELOG (§5.5 makes a security fix a
+        reason to release).
+
+     Either is a visible snapshot change, as every change is.
    - **Not promised:** exception messages; `repr`s; help text; internal modules and names;
-     wasmtime's trap names; timings; fuel counts, which follow the guest's code; the `.cwasm`
-     cache's layout; and the guest's contents (package versions are release policy, spec 004).
-     The door's ABI and the tool protocol carry their own contracts: the door is the
-     constitution's (§4.4), and the protocol is versioned by its number.
+     wasmtime's trap names and error types; what `stats()`'s cache counts count; timings; fuel
+     counts, which follow the guest's code; the `.cwasm` cache's layout; and the guest's
+     contents (package versions are release policy, spec 004). The door's ABI and the tool
+     protocol carry their own contracts: the door is the constitution's (§4.4), and the
+     protocol is versioned by `PROTOCOL`.
+   - **Where the promise lives:** in the README's reference (Decision 11) and in this
+     specification, until the owner places it elsewhere (question 88).
    - **At 1.0** the same rules hold with "major" in place of "minor". When 1.0 comes is the
      owner's decision, not this specification's.
 
 9. **A machine-checked snapshot of the surface: `tests/public_api.txt`.** It is a judge file
    (under `tests/`), so any change to the public API changes the judge's hash and shows in
    review as a judge change. It is written by `tests/harness/api.py` (`uv run python
-   tests/harness/api.py --write`; `--check` verifies and exits 1 on a difference), which renders
-   the live surface as plain text, one fact per line, so a change is a small diff:
+   tests/harness/api.py --write`), which renders the live surface as plain text, one fact per
+   line, so a change is a small diff. **`--check` compares both outputs**, the snapshot file
+   and the README block (Decision 11), and exits 1 if either differs. The render holds:
    - per public module, in `__all__` order: each name's kind (`def`, `async def`, `class`,
-     `dataclass`, `protocol`, `enum`, `exception`);
-   - a function: one line per parameter with its kind (positional, keyword-only), its
-     annotation as written, and its default's `repr`; then the return annotation; for `tool`,
-     each overload's parameters too (`typing.get_overloads`);
+     `dataclass`, `protocol`, `enum`, `exception`, `constant`);
+   - a function: one line per parameter with its kind (positional-only, positional,
+     keyword-only), its annotation as written, and its default's `repr`; then the return
+     annotation; for `tool`, each overload's parameters and return too
+     (`typing.get_overloads`);
    - a dataclass: `frozen`, then one line per public field (no leading `_`) with its annotation,
      its default (`required`, a `repr`, or `<factory>`) and `kw_only`;
    - a class: its public bases; each public method and property defined on it, with its
-     parameters; an enum's members and values; an exception's base;
+     parameters, and `Tool`'s `__call__`; an enum's members and values; an exception's base;
+   - a constant (`PROTOCOL`): its value;
    - `defaults()`'s values on import; `stats()`'s keys; the protocol's outcome kinds; the two
      environment variables' names;
    - the command: its entry point from `pyproject.toml`, each option of the parser with its
      action and metavar, and the JSON keys of a result and of an error, read by running the
-     command's `main` with a stand-in `run` (as `tests/unit/test_cli.py` does).
+     command's `main` with a stand-in `run` (as `tests/unit/test_cli.py` does). Actions are
+     rendered through a fixed map (`store`, `append`, `store_true`, `once`), never by class
+     name: argparse's classes are private, and `--root` uses the package's own `_Once`.
 
-   The render is built from `inspect.Parameter`, `dataclasses.fields` and `ast`, never from
-   `str(inspect.Signature)`, whose quoting differs between Python versions, so the file is the
-   same on every Python the package supports (3.11 and up). It runs in a child interpreter, so
-   nothing a test changed in the judge's process (a patched `runner.DEFAULTS`) reaches it. On a
-   difference the check prints the unified diff and the `--write` command.
+   **How the render reads the code, so it is the same everywhere** (the review, F5):
+   - **Signatures and fields** come from `inspect.Parameter`, `dataclasses.fields` and `ast`,
+     never from `str(inspect.Signature)`, whose quoting differs between Python versions.
+     **Annotations** are read as the stored strings, which `from __future__ import
+     annotations` guarantees; the render asserts that import in every module that defines a
+     public name (`__init__.py`, `runner.py`, `mounts.py`, `tools.py`), since without it
+     Python 3.14 would evaluate them and the names `runner.py` imports only for type checking
+     (`Tool`, `ToolCall`, `ToolRecord`) would raise `NameError`.
+   - **Docstrings** are read as `inspect.cleandoc(vars(obj).get("__doc__") or "")` (for a
+     property or method, from the function's own `__doc__`): only the object's own docstring,
+     with the indentation removed the same way on every version. Raw `__doc__` differs between
+     3.12 and 3.13, and `inspect.getdoc` inherits a base class's text.
+   - **An undocumented name counts as undocumented.** A docstring that is empty, inherited, or
+     the one `dataclasses` generates (it starts with `f"{cls.__name__}("`) is none.
+   - The render runs in a child interpreter, so nothing a test changed in the judge's process
+     (a patched `runner.DEFAULTS`) reaches it. `api.py` takes the package's path
+     (`--package PATH`, default `src/wasi_python`), so criteria 1 and 4's stand-ins can point
+     the child at a scratch copy.
+   - Both files are written with `newline="\n"`: the judge runs on Windows too, and
+     `.gitattributes` says LF.
 
-10. **Every public name is documented, and the check says what is missing.** In Google style,
-    the style `tool()` already reads for a tool's description (spec 031):
+   On a difference the check prints the unified diff and the `--write` command. The result is
+   the same on every Python the package supports (3.11 and up) and every system (criterion 11).
+
+10. **Every public name is documented, and the check says what is missing.** In Google style.
+    The harness has its own small parser for `Args:`, `Attributes:` and `Raises:`; it does not
+    reuse or extend `tools._HEADINGS`, which decides how a *tool's* description is cut for the
+    guest, so changing it would change behaviour.
     - every name in both `__all__`s, and every public method and property defined on a public
-      class (`FileProvider.stat`, `list`, `read`; `Tool.descriptor`, `input_schema`,
-      `output_schema`), has a docstring;
-    - every parameter of a public function or method is described in its `Args:` section;
+      class (`FileProvider.stat`, `list`, `read`, none documented today; `Tool.descriptor`,
+      `input_schema`, `output_schema`), has a docstring of its own (Decision 9's reading);
+    - every parameter of a public function or method is described in its `Args:` section,
+      except `self` and `Tool.__call__`'s `*args, **kwargs`;
     - every public field of a public dataclass is described in its class docstring's
       `Attributes:` section; the `#` comments that describe fields today move there;
     - `run`, `run_async`, `artifacts`, `artifact_dir`, `set_defaults` and `tool` have a
-      `Raises:` section, and `run`'s and `run_async`'s name at least `TypeError`, `ValueError`
-      and `ArtifactsMissing`;
+      `Raises:` section; `run`'s and `run_async`'s name exactly Decision 6's types, and
+      `set_defaults`' names `TypeError`;
     - an argument `run` and `run_async` share is described by the same text in both, so the
       two cannot drift;
-    - the first paragraph (the summary) is written for a user: it names no specification;
-    - **no public document names an internal name.** A backticked token in a public docstring
-      or in the README that is a module-level name of an internal module, and not a public
-      name, fails the check; so does any `wasi_python.runner`, `wasi_python.mounts` or
-      `wasi_python.cli` in the README. Today that is 7 docstring hits and 3 README hits
-      (EXECUTED, `probe_internal_names.py`): `run`'s `DEFAULTS` (three times), `BASE_ENV` and
-      `CANCEL_TICKS`; `run_async`'s and `Defaults`' `DEFAULTS`; the README's
-      `wasi_python.runner.DEFAULTS` twice and `wasi_python.runner.stats()` once. `DEFAULTS`
-      becomes `defaults()`, and the two constants become the values they hold. The README is
-      checked for these dotted references only, because ordinary words such as `main` are also
-      internal names.
+    - **no public docstring names a specification**, in any paragraph (the review, F12: 14
+      such references outside the summaries today, EXECUTED there). A public docstring is the
+      docstring of a public name, of a public method or property, or of one of the two public
+      modules. Citations move to `#` comments beside the code, where maintainers read them;
+    - **no public document names an internal name.**
+      - In a public docstring: a backticked token whose root is a module-level name of an
+        internal module, and not a public name. On main that is 7 hits (EXECUTED,
+        `probe_internal_names.py`): `run`'s `DEFAULTS` (three times), `BASE_ENV` and
+        `CANCEL_TICKS`; `run_async`'s and `Defaults`' `DEFAULTS`.
+      - In the README (the review, F3): a backticked span, which may wrap a line, that holds
+        `wasi_python.runner`, `wasi_python.mounts` or `wasi_python.cli`, or an upper-case
+        constant assigned at module level in an internal module (46 names on main, `Errno`'s
+        member names left out, since they are public through `Errno`). Ordinary words such as
+        `main` are not caught, because only upper-case constants are. On main that is 6 spans
+        (EXECUTED, `probe_readme_constants.py` at `44faa43`: lines 534, 690, 697, 818, 850 and
+        1079). The builder re-counts after 034 lands.
+
+      Each `DEFAULTS` becomes `defaults()` (`defaults().file_calls`, and so on), `stats()` is
+      named from the top level, and the two constants in `run`'s docstring become the values
+      they hold.
 
 11. **The README's reference is generated from the same render.** A new `## API reference`
     section, before `## Safety`, opens with a short hand-written paragraph: what is public,
-    that everything else is internal, and Decision 8's promise in four sentences. Below it, a
+    that everything else is internal, and Decision 8's promise in a few sentences. Below it, a
     block between `<!-- api reference: begin (generated by tests/harness/api.py) -->` and
     `<!-- api reference: end -->` holds, for each public name: a fenced signature (or a
     dataclass's fields), its summary, and its `Args:`, `Attributes:` and `Raises:` as lists;
-    then the command's options and exit codes. `--write` rewrites the block; the check compares
-    it with the render. The README's prose elsewhere keeps teaching; it no longer has to carry
-    every argument, but it is not cut by this specification.
+    then the command's options and exit codes.
+    - **`run_async` is shown short** (the review, F12): "`run`'s arguments except `cancel`,
+      plus:" and its `executor` entry only. Its docstring stays complete, for `help()` and an
+      editor's hover; the render alone shortens it.
+    - `--write` rewrites the block; `--check` and criterion 9 compare it with the render. The
+      README's prose elsewhere keeps teaching; apart from Decision 10's six spans and the pool
+      sentence of Decision 2, it is not changed here.
 
 12. **Type hints: `py.typed` ships, and no type checker is added.**
     - `src/wasi_python/py.typed`, empty (PEP 561), is in the wheel; hatchling takes it as a
       package file, and the wheel rule (`tests/harness/artifacts.py`, `wheel_errors`) requires
       it.
     - Every public parameter, return value and dataclass field is annotated, and every
-      annotation evaluates in a namespace holding only the builtins, `typing`'s and
-      `collections.abc`'s names, `os`, `threading`, `concurrent.futures`, `pathlib.Path`, and
-      the public names of both modules. That catches a missing annotation, a misspelt one and an
-      internal name (`Host` today), with no new tool.
+      annotation, each of `tool`'s overloads' included, evaluates in a namespace holding only
+      the builtins, `typing`'s and `collections.abc`'s names, `os`, `threading`,
+      `concurrent.futures`, `pathlib.Path`, and the public names of both modules. That catches a
+      missing annotation, a misspelt one and an internal name (`Host` today), with no new tool.
+      It cannot see an annotation narrower than the code; Decision 5's change 4 fixes the ones
+      the review found, and a review of each later change reads the snapshot's types.
     - **No mypy or pyright in the dev group.** §4.13 asks a written reason for any dependency,
       and the reason is missing: a consumer's type checker reads only the package's public
       signatures, which the check above covers. Checking the internals strictly (6,000 lines,
@@ -312,33 +442,54 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
       missed, that defect becomes a check (AGENTS.md, rule 3), and a checker is added then, with
       its reason.
 
-13. **How later specifications change the API.** A specification that adds, removes or
-    changes anything the snapshot records:
-    - says so in its **Kind** line ("changes the public API") and lists, in a Decision, the
-      snapshot lines it adds, removes or changes;
-    - documents what it adds to Decision 10's rules, regenerates `tests/public_api.txt` and the
-      README block with `--write` in its own branch, and adds a CHANGELOG line under Added,
-      Changed, Deprecated or Removed;
-    - is reviewed with the snapshot's diff in view; the reviewer checks that the diff is
-      exactly the listed lines, and that Decision 8 allows it for the next release;
-    - lands with `--accept-judge`, as any judge change does.
+13. **Order with 034, and how later specifications change the API.**
+    - **034 lands first** (the review, F6). It has passed its build review; asking it to grow
+      by about sixteen documented items, a README block and a snapshot after that review would
+      send it back. This specification's builder may write the render and the checks
+      (Decisions 9 and 11; criteria 1 to 4 and 7 to 9) before 034 lands, since they touch only
+      `tests/`. The renames, the docstring pass, the annotations and the README start from main
+      after 034 has landed, and cover 034's names like any others: its docstrings lose their
+      spec numbers and gain `Attributes:` and `Args:` here.
+    - **The reviewer's checklist for 034's part of the snapshot**, which must appear exactly:
+      `RefusedWrite` (a frozen dataclass: `mount`, `method`, `paths`, `errno`, `at`, `cause`)
+      and `WritableFileProvider` (a protocol, a `FileProvider` with `write`, `mkdir`, `remove`,
+      `rmdir`, `rename`) in `wasi_python.__all__` (20 names); `Mount.writable: bool = False`,
+      keyword-only; `FileRecord.refused: tuple[RefusedWrite, ...] = ()` and
+      `FileRecord.refused_total: int = 0`, last. Any other difference from 034's landed code
+      is a finding.
+    - **The rule for every later specification.** One that adds, removes or changes anything
+      the snapshot records:
+      - says so in its **Kind** line ("changes the public API") and lists, in a Decision, the
+        snapshot lines it adds, removes or changes, and which of Decision 8's rules allows each;
+      - meets Decision 10 for what it adds, regenerates `tests/public_api.txt` and the README
+        block with `--write` in its own branch, and adds a CHANGELOG line under Added, Changed,
+        Deprecated, Removed or Security;
+      - is reviewed with the snapshot's diff in view; the reviewer checks that the diff is
+        exactly the listed lines;
+      - lands with `--accept-judge`, as any judge change does.
 
-    A change the snapshot shows but no specification lists is a finding. **Spec 034**, if this
-    one lands first, rebases and adds exactly: `RefusedWrite` (a frozen dataclass: `mount`,
-    `method`, `paths`, `errno`, `at`, `cause`) and `WritableFileProvider` (a protocol, a
-    `FileProvider` with `write`, `mkdir`, `remove`, `rmdir`, `rename`) to `wasi_python.__all__`;
-    `Mount.writable: bool = False`, keyword-only; `FileRecord.refused: tuple[RefusedWrite, ...]
-    = ()` and `FileRecord.refused_total: int = 0`, last. Each comes with its docstring,
-    `Attributes:` and `Args:` as Decision 10 asks, and a README block regenerated. 034's text
-    already places the new fields last and the new flag keyword-only, so Decision 8's rules for
-    a minor release hold without change. If 034 lands first, this specification's snapshot
-    simply includes them.
+      A change the snapshot shows but no specification lists is a finding.
+    - **Where drafters will see the rule** (the review, F8). A rule written only here binds
+      only those who read this specification. The lane applies one sentence to
+      `context/README.md`, at the end of the `specifications/` bullet, when this specification
+      lands:
+
+      > A specification that changes anything `tests/public_api.txt` records says so in its
+      > Kind line ("changes the public API"), lists the snapshot lines it changes and the rule
+      > of spec 049, Decision 8, that allows each, and regenerates the snapshot and the
+      > README's reference with `tests/harness/api.py --write`.
+
+      `context/README.md` is where the specification stage's rules live and what every drafter
+      reads first (AGENTS.md sends them there); it is not a judge file, so the sentence does not
+      change the judge.
 
 14. **No version bump here.** The snapshot carries no version number. The CHANGELOG's
     unreleased section gains: Added, `defaults()`, `set_defaults()`, `stats()` at the top level,
-    `py.typed`, and the API reference; Changed, the eighteen `wasi_python.tools` constants and
-    three `wasi_python` constants are private, and the README no longer names
-    `wasi_python.runner`; and a line stating Decision 8's promise and that it starts at 0.1.0.
+    `PROTOCOL` in `wasi_python.tools.__all__`, `py.typed`, and the API reference; Changed, the
+    seventeen other `wasi_python.tools` constants and three `wasi_python` constants are
+    private, four `Defaults` fields and `host` are annotated as the values they take, a call
+    reads the defaults once, and the README no longer names `wasi_python.runner` or
+    `DEFAULTS`; and a line stating Decision 8's promise and that it starts at 0.1.0.
 
 ## Intent
 
@@ -349,25 +500,30 @@ review sees it.
 ## Design
 
 ```
-src/wasi_python/__init__.py      __all__ (18); _ARTIFACT_DIR, _ARTIFACTS_ENV,
-                                 _CHECKOUT_ARTIFACT_DIR; defaults(), set_defaults();
-                                 stats re-exported; the module docstring names the public
-                                 surface and says the rest is internal
-src/wasi_python/tools.py         __all__ (8); eighteen constants gain "_"; tool's overloads;
-                                 docstrings with Args/Attributes
+src/wasi_python/__init__.py      __all__ (18, 20 with 034's); _ARTIFACT_DIR, _ARTIFACTS_ENV,
+                                 _CHECKOUT_ARTIFACT_DIR; defaults(), set_defaults() and its
+                                 lock; stats re-exported; the module docstring names the
+                                 public surface and says the rest is internal
+src/wasi_python/tools.py         __all__ (9); seventeen constants gain "_"; tool's overloads;
+                                 docstrings with Args/Attributes, no spec numbers
 src/wasi_python/runner.py        docstrings of Completed, Defaults, Grant, run, run_async,
-                                 stats (Args, Attributes, Raises; no internal names); host's
-                                 annotation written out
+                                 stats (Args, Attributes, Raises; no internal names, no spec
+                                 numbers); host's annotation; Defaults' four annotations;
+                                 _current_defaults(), read once in _checked and passed on
 src/wasi_python/mounts.py        docstrings of Errno, Stat, FileProvider and its methods, Mount,
-                                 FileFault, FileRecord; Mount.provider: FileProvider
+                                 FileFault, FileRecord and 034's names; Mount.provider:
+                                 FileProvider
 src/wasi_python/py.typed         new, empty
-tests/harness/api.py             the render, --write and --check (Decisions 9 and 11)
+tests/harness/api.py             the render, --write, --check and --package (Decisions 9, 11)
 tests/public_api.txt             the snapshot
 tests/checks/test_v1_4_public_api.py   the checks below (goal v1.4; no artifacts needed)
 tests/harness/artifacts.py       wheel_errors requires wasi_python/py.typed
-tests/ (several files), tests/harness/paths.py   the renamed constants
-README.md                        ## API reference; three internal references replaced
+tests/test_api.py, tests/harness/paths.py, tests/unit/test_runner_tools.py,
+tests/unit/test_guest_tools.py, tests/unit/test_tools.py    the 27 renamed lines
+README.md                        ## API reference; six spans naming DEFAULTS or runner
+                                 replaced; the pool sentence
 CHANGELOG.md                     the unreleased section
+context/README.md                one sentence (Decision 13), applied by the lane at landing
 ```
 
 A few lines of the snapshot, to fix its shape (the builder's render decides the rest, and the
@@ -385,74 +541,92 @@ def run -> Completed
   param deadline_s: float | None = <default>  keyword-only
 default deadline_s = 60.0
 stats keys: compiled loaded tool_threads_running written
+module wasi_python.tools
+constant PROTOCOL = 1
 command wasi-python = wasi_python.cli:main
   option --grant GUEST=HOST  append
 ```
 
 The builder works in this order: the render and its checks first, each seen failing against
-main; then the renames; then the docstrings, name by name, until the documentation check's count
-of missing items is 0; then `py.typed`, the annotations and the overloads; then the README block
-and `--write`.
+main (this part may start before 034 lands); then, from main after 034, the renames, the
+one read of the defaults and `set_defaults`; then the docstrings, name by name, until the
+documentation check's counts are 0; then `py.typed`, the annotations and the overloads; then
+the README block and `--write`.
 
 ## Scope
 
-In: the above. Out: renaming the internal modules; a documentation site or Sphinx; the guest
-side's API (`from host import tools`, the stdlib inside the guest), which the tool protocol's
-number and the README govern; a strict type check of the internals; deciding when 1.0 comes;
-changing any behaviour of `run`. The README's prose sections stay as they are apart from the
-three references Decision 10 removes.
+In: the above, including one runner change of behaviour under threads: a call reads the
+defaults once (Decision 2). Out: renaming the internal modules; a documentation site or Sphinx;
+the guest side's API (`from host import tools`, the stdlib inside the guest), which the tool
+protocol's number and the README govern; a strict type check of the internals; deciding when
+1.0 comes; any other change to what `run` does or raises (Decision 6 writes down today's
+exceptions; it changes none). The README's prose sections stay as they are apart from the six
+spans and the pool sentence Decisions 2 and 10 name.
 
 ## Acceptance criteria
 
 Every check is in `tests/checks/test_v1_4_public_api.py` (goal v1.4), needs no artifact set,
 and is seen failing first against main as it stands at build time. Nothing measures time; each
-check counts names, lines or items, and its failure message gives the counts and the first
-items.
+check counts names, lines, reads or items, and its failure message gives the counts and the
+first items.
 
 1. **`test_the_public_api_matches_its_snapshot`**: the render, made in one child interpreter,
    equals `tests/public_api.txt`. Seen failing first: with no snapshot file ("no snapshot:
-   run … --write"). Stand-in: in a scratch copy of the package, `Stat.size`'s default changed to
-   1; the check fails, and its diff is exactly one removed and one added line, both naming
+   run … --write"). Stand-in: `--package` pointed at a scratch copy where `Stat.size`'s default
+   is 1; the check fails, and its diff is exactly one removed and one added line, both naming
    `size`.
 2. **`test_public_modules_export_exactly_their_all`**: each `__all__` is sorted, has no
    duplicate, names no `_` name, and every name in it resolves; `from wasi_python import *`
-   binds exactly the 18 names and `from wasi_python.tools import *` exactly the 8. Seen failing
-   first: `wasi_python.tools` has no `__all__`, and `wasi_python` lacks `defaults`,
-   `set_defaults` and `stats`.
+   binds exactly the 20 names (18 and 034's two) and `from wasi_python.tools import *` exactly
+   the 9. Seen failing first: `wasi_python.tools` has no `__all__`, and `wasi_python` lacks
+   `defaults`, `set_defaults` and `stats`.
 3. **`test_private_names_carry_an_underscore`**: by `ast`, every name `__init__.py` or
-   `tools.py` defines and does not export starts with `_`. Seen failing first: it lists 21
-   names (3 and 18).
+   `tools.py` binds and does not export starts with `_`. Seen failing first: it lists 20 names
+   (3 and 17).
 4. **`test_nothing_private_is_re_exported`**: by `ast`, no import in a public module binds a
    name in its `__all__` from a name that starts with `_`. A guard: it passes on main.
-   Stand-in: `from .runner import _UNSET as UNSET`, with `UNSET` added to `__all__`, in a
-   scratch copy of `__init__.py`, fails it with that one name.
+   Stand-in: `--package` pointed at a scratch copy of `__init__.py` with `from .runner import
+   _UNSET as UNSET` and `UNSET` in `__all__`; it fails with that one name.
 5. **`test_every_public_name_is_documented`**: Decision 10's rules, each a count of what is
-   missing (docstrings, `Args:` entries, `Attributes:` entries, `Raises:` sections, shared
-   arguments whose text differs). Every count is 0. Seen failing first: on main, `run` alone
-   has 19 undocumented arguments, and 57 public fields (from the survey's field lists,
-   `Defaults` and `Tool`'s public fields included) have no `Attributes:` entry.
+   missing (docstrings, own docstrings of public methods, `Args:` entries, `Attributes:`
+   entries, `Raises:` sections and their types, shared arguments whose text differs, spec
+   references in public docstrings). Every count is 0. Seen failing first: on main, 3 methods
+   (`FileProvider.stat`, `list`, `read`) have no docstring; `run` alone has 19 undocumented
+   arguments; 57 public fields have no `Attributes:` entry; 14 spec references. Stand-in for
+   the reading rule: a scratch dataclass with no docstring and an exception subclass with
+   none are each counted as undocumented, not passed by their generated or inherited text.
 6. **`test_public_docs_name_nothing_internal`**: Decision 10's last rule; the count of hits in
-   docstrings and the count in the README are both 0. Seen failing first: 7 and 3, as listed
-   there.
-7. **`test_public_annotations_resolve`**: every public annotation evaluates in Decision 12's
-   namespace; the count evaluated is reported, and the count that fails is 0; `tool` has
-   exactly two overloads. Seen failing first: 2 of 106 fail (`Host`), and `tool` has none.
+   public docstrings and the count of README spans are both 0. Seen failing first: 7 and 6 on
+   main, as listed there (the builder records the counts at build time, after 034).
+7. **`test_public_annotations_resolve`**: every public annotation, each overload's included,
+   evaluates in Decision 12's namespace; the count evaluated is reported, and the count that
+   fails is 0; `tool` has exactly two overloads, the first taking a positional `fn` and
+   returning `Tool`, the second taking `fn: None` and returning a callable. Seen failing
+   first: 2 of 106 fail (`Host`), and `tool` has none.
 8. **`test_the_package_is_typed`**: `src/wasi_python/py.typed` exists and is tracked. Seen
    failing first. The v1.1 check `test_wheel_carries_the_artifact_set` now also fails a wheel
    without `wasi_python/py.typed`; stand-in: a synthetic wheel without it (as
    `tests/unit/test_checks_wiring.py` builds them) fails with that one line.
 9. **`test_the_readme_reference_matches_the_api`**: the README has exactly one block between
    the two markers, and it equals the render. Seen failing first: no block.
-10. **`test_set_defaults_changes_what_run_reads`** (unit, no artifacts): `set_defaults` with a
-    `Defaults` whose `memory_bytes` differs returns the previous one; `run`'s argument check
-    (`runner._checked`, given no limits) then carries the new value; `defaults()` returns it;
-    `set_defaults(None)` and `set_defaults({})` raise `TypeError`; the previous value is
-    restored. Zero artifact lookups, counted as spec 036's criterion 1 counts them. Seen failing
-    first: the names do not exist.
+10. **`test_set_defaults_changes_what_run_reads`** (unit, no artifacts):
+    - `set_defaults` with a `Defaults` whose `memory_bytes` differs returns the previous one;
+      `defaults()` returns the new one; `runner._checked`, given no limits, carries the new
+      value; `set_defaults(None)` and `set_defaults({})` raise `TypeError`; the previous value
+      is restored. Zero artifact lookups, counted as spec 036's criterion 1 counts them.
+    - **One read per call:** with `runner._current_defaults` (Decision 2) replaced by a
+      counting wrapper, a call to `run` that stops after its checks (as spec 036's criterion 1
+      stops it) and one to `run_async` each call it exactly once. Seen failing first: on main
+      there is no single read; the stand-in that keeps the three reads counts 3.
+    - **The lock:** with `set_defaults`' lock replaced by a counting wrapper, each call
+      acquires it exactly once, and reads the old value and writes the new one inside it.
+    - Seen failing first: the names do not exist.
 11. **The render is the same on every supported Python.** The builder runs `uv run --python 3.11
     python tests/harness/api.py --check` and the same with the dev environment's Python (3.14
-    today); both exit 0. The commands and outputs go in the landing notes (§4.10). Not a check:
-    the judge does not fetch interpreters.
+    today); both exit 0, and `--check` covers the snapshot and the README block. The commands
+    and outputs go in the landing notes (§4.10). Not a check: the judge does not fetch
+    interpreters. The release workflow's judge runs on Linux, Windows and macOS, so criteria 1
+    and 9 meet all three systems there.
 12. **The update path works once, end to end.** In a scratch copy, the builder adds a throwaway
     keyword argument to `run`; criterion 1 fails with a diff of one added line; `--write` makes
     it pass and changes the README block by one entry. Recorded in the landing notes, not kept.
@@ -463,10 +637,12 @@ items.
 ## The owner's choices
 
 Nothing waits on the owner for build. One choice is the agent's where the owner's decisions are
-silent, and it is written for the owner in `questions.md` beside this draft (the lane numbers it
-in `../questions-for-the-owner.md`): Decision 8's promise, its terms and that it starts at
-0.1.0. The README states the promise, so the owner's answer is wanted before 0.1.0 is tagged.
-An answer that changes the terms changes Decision 8 and one README paragraph, nothing else.
+silent: Decision 8's promise, its terms, that it starts at 0.1.0, what it covers (the Python
+names, the command and its JSON, `stats()`'s keys), and where it is recorded. It is question 88
+in `../questions-for-the-owner.md`. The README states the promise, so the owner's answer is
+wanted before 0.1.0 is tagged. An answer that changes the terms changes Decision 8 and one
+README paragraph; an answer that records it elsewhere (the constitution's §5, or the roadmap)
+moves the text, not the checks.
 
 ## Landing notes
 

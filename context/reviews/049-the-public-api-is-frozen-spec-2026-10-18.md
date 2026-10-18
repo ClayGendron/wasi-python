@@ -382,6 +382,79 @@ can be checked.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+The author (the drafting agent) revised `context/specifications/049-the-public-api-is-frozen.md`
+in the main tree on 2026-10-18, and question 88 in `context/questions-for-the-owner.md`. Every
+finding is fixed; none is declined. New evidence for the revision (EXECUTED, `uv run python` on
+3.14.2 at `44faa43`; scripts beside the draft in the scratchpad): `probe_readme_constants.py`
+finds 6 README spans naming `DEFAULTS` or `wasi_python.runner` (lines 534, 690, 697, 818, 850,
+1079), with backticked spans allowed to wrap a line; a `grep` for module-qualified references
+finds the 27 rename lines in 5 files that F10 lists.
+
+- **F1, fixed.** Decision 5, change 3: the overloads are `tool(fn: Callable[..., Any], /, *,
+  name=…, …) -> Tool` and `tool(fn: None = None, /, *, name=…, …) -> Callable[[Callable[...,
+  Any]], Tool]`, with the implementation's keywords and defaults. `fn=` by keyword is not
+  promised (the `/` stays, as the reviewer suggested); the implementation keeps accepting it,
+  unpromised. Criterion 7 evaluates each overload's annotations and checks each one's shape.
+- **F2, fixed.** Decision 5, change 4: `Defaults.memory_bytes`, `output_bytes`, `file_calls`
+  are `int | None` and `deadline_s` `float | None`. Change 1: `host` is `Callable[[bytes], bytes
+  | bytearray | memoryview] | None`. Decision 12 now says the evaluation check cannot see a
+  narrow annotation, and that the review of each later change reads the snapshot's types.
+- **F3, fixed.** Decision 10's README rule now catches backticked spans (which may wrap a line)
+  that hold `wasi_python.runner|mounts|cli` or an upper-case constant assigned at module level
+  in an internal module (46 names, `Errno`'s members left out). Seen failing first: 6 on main,
+  not 3 (criterion 6). Each `DEFAULTS` becomes `defaults().…`; the Scope covers the six spans.
+- **F4, fixed.** Decision 6 lists today's exceptions without changing any: `OSError` and its
+  subclasses during preparation; `RuntimeError` for a fork, shutdown, and a folder or zip copy
+  that changed; an error from wasmtime-py, today `WasmtimeError`, named and not promised;
+  `KeyboardInterrupt`, `CancelledError`; any non-`Exception` `BaseException` from the
+  embedder's own host, provider, tool or gate propagates. "Nothing … makes either raise"
+  becomes "nothing a guest does, and no `Exception` a provider, tool or gate raises". The
+  `Raises:` sections must name exactly these types (Decision 10); the CLI's `kind` names one
+  of them (F13's note).
+- **F5, fixed.** Decision 9: docstrings are read as `inspect.cleandoc(vars(obj).get("__doc__")
+  or "")`; an empty, inherited or `dataclasses`-generated docstring counts as undocumented
+  (criterion 5 has a stand-in for each); annotations are read as stored strings and the render
+  asserts `from __future__ import annotations` in the four modules defining public names;
+  `--check` compares the snapshot and the README block, so criterion 11 covers both.
+- **F6, fixed.** Status, Depends on and Decision 13: 034 lands first. 049's builder may write
+  the render and checks (tests only) earlier; the renames, docstrings, annotations and README
+  start from main after 034 and cover 034's names (their spec numbers removed there, not in
+  034). The list of 034's snapshot lines stays as the reviewer's checklist. Criterion 2 counts
+  20 names in `wasi_python`.
+- **F7, fixed.** Decision 2: the runner reads the binding through one helper,
+  `_current_defaults()`, once per call in `_checked`, passed to `_check_tools`,
+  `_check_places` and, for `run_async`, `_submit`; `set_defaults` reads the old value and
+  writes the new one under one lock; its docstring and the README's pool bound say that calls
+  already running or queued on the old pool still run there (up to 12 at once after 8 → 4).
+  The Scope names this runner change. Criterion 10 counts one helper call per `run` and per
+  `run_async`, and one lock acquisition per `set_defaults`.
+- **F8, fixed.** Decision 8 names two exceptions, a tighter default in a minor release and
+  security, and says where the promise lives. Decision 13 gives one sentence the lane adds to
+  the end of `context/README.md`'s `specifications/` bullet at landing (the place every drafter
+  reads; not a judge file). Question 88 now covers the command line and its JSON keys, the
+  exception types, `stats()`'s keys, and where the promise is recorded (README and spec, the
+  constitution's §5, or the roadmap); its blank line under the heading is gone. "The owner's
+  choices" points at question 88, not a `questions.md` beside the draft.
+- **F9, fixed.** Decision 5: `Artifacts` is in the user-made group, whose field order is
+  promised; Decision 2's table says so.
+- **F10, fixed.** Decision 4 lists the 27 lines in 5 files, and tells the builder to rename by
+  module-qualified reference, never by a word-boundary replace, naming the harness's own
+  `KINDS` and `ARTIFACTS_ENV` and the guest's `PROTOCOL`.
+- **F11, fixed.** Decision 3: `PROTOCOL` stays public, so `wasi_python.tools.__all__` has 9
+  names and 17 constants become private (criterion 3 now lists 20 names); the snapshot records
+  its value. `PROTOCOLS` stays private.
+- **F12, fixed.** Decision 11 renders `run_async` as "`run`'s arguments except `cancel`, plus:"
+  with only `executor` (its docstring stays complete). Decision 10 bans spec numbers in every
+  paragraph of a public docstring (the reviewer's preference, as it can be checked); citations
+  move to `#` comments. Criterion 5 counts them (14 on main).
+- **F13, taken in.** Decision 9: CLI actions through a fixed map (`store`, `append`,
+  `store_true`, `once`); `Tool.__call__` rendered explicitly and its `*args, **kwargs` exempt
+  from `Args:` (Decisions 3 and 10); `FileProvider`'s three methods in criterion 5's first
+  count; `stats()` promises its keys and that they are counts, not what the cache counts count
+  (Decisions 2 and 8); `api.py --package PATH` for the stand-ins, files written with
+  `newline="\n"`; the harness's own docstring parser, `tools._HEADINGS` untouched (Decision 10);
+  the JSON `kind` names one of Decision 6's types.
+
 ## Verdict
 
 **Ready to build once F1 to F7 are written in.** The design is sound: a judge-hashed snapshot,

@@ -432,24 +432,41 @@ document.
 
 ### 88. The public API's promise for 0.x (spec 049)
 
+- **Asked:** 2026-10-18; revised the same day with spec 049's pre-build review
+  (`reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`, F8). **Source:**
+  `specifications/049-the-public-api-is-frozen.md`, Decisions 1 to 8. It is decided in the
+  specification as written below, so nothing waits for build. The README will state the
+  promise, so an answer is wanted before 0.1.0 is tagged.
+- **What is covered?** Spec 049 freezes the public surface:
+  - the Python names: 20 in `wasi_python` (18, and 034's `RefusedWrite` and
+    `WritableFileProvider`) and 9 in `wasi_python.tools` (`PROTOCOL` among them), with their
+    signatures, dataclass fields and `defaults()`' values;
+  - the exception types `run` raises (never their messages);
+  - the command line: `wasi-python run`'s options, its exit codes 0, 1, 2 and 130, and the
+    keys of its JSON line;
+  - `stats()`'s four keys (that they exist and are counts, not what the cache counts count);
+  - two environment variables.
 
-- **Asked:** 2026-10-18. **Source:** `specifications/049-the-public-api-is-frozen.md`, Decision
-  8. It is decided in the specification as written below, so nothing waits for build. The
-  README will state the promise, so an answer is wanted before 0.1.0 is tagged.
-- **What is promised, and from when?** Spec 049 freezes the public surface: the 18 names in
-  `wasi_python`, the 8 in `wasi_python.tools`, the `wasi-python run` command and two
-  environment variables. Everything else is internal. The promise it writes, starting at 0.1.0
-  (the first final release; alphas may still change anything):
+  Everything else is internal.
+- **What is promised, and from when?** Starting at 0.1.0 (the first final release; alphas may
+  still change anything):
   - a **patch** release (0.1.1) changes nothing on the public surface;
   - a **minor** release (0.2.0) may add names, keyword-only arguments, fields placed last,
-    command options; it may remove or change only what an earlier final minor release
-    deprecated;
+    command options and JSON keys; it may remove or change only what an earlier final minor
+    release deprecated, apart from two exceptions;
   - a **deprecation** warns at use (`DeprecationWarning`), says so in the docstring's first
     line and in the CHANGELOG, and keeps working for at least one final minor release;
-  - a **security fix** may break the surface in any release, without a deprecation, named
-    under "Security";
-  - a **looser default** still needs the owner's decision (§4.15); a tighter one may come in a
-    minor release.
+  - exception 1: a **tighter default** (a smaller limit) may come in a minor release without
+    a deprecation, as a "Changed" line; a **looser default** still needs the owner's decision
+    (§4.15);
+  - exception 2: a **security fix** may break the surface in any release, without a
+    deprecation, named under "Security".
+- **Where is it recorded?** Spec 049 writes it in the README's API reference and in the
+  specification, and asks the lane to add one sentence to `context/README.md` so that later
+  drafters follow the update rule. The other places: the constitution's §5 (it would then
+  change only by the owner's decision, like the rest of §5), or `roadmap.md` (the owner's
+  living plan). The agent recommends the README and the specification: the promise is about
+  the product's users, and the snapshot check enforces it wherever the text lives.
 - **The other ways:** a stricter promise (one minor release is short; CPython's own rule, PEP
   387, keeps a deprecated thing for at least two releases), or a looser one (no promise at all
   until 1.0, which is what `0.x` means under strict semver). The agent recommends the rule as
