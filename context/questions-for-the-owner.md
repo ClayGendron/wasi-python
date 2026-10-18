@@ -137,6 +137,25 @@ document.
   0.3.35 releases the convention. The alternative is to wait for 0.3.35, which question 32
   already declined.
 
+### 63. x86_64 rebuilds with the aarch64 compiler under emulation (spec 040)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/040-x86-64-rebuilds-the-same-bytes.md`,
+  Decision 2. It is decided there as written below, so nothing waits.
+- wasi-sdk's x86_64 clang orders two stack slots differently in one numpy function. The IR it is
+  given is equal on both hosts; the difference starts in instruction selection (EXECUTED while
+  drafting). It is not caused by anything in our recipe, and no flag that was tried removes it.
+- **The question:** may "x86_64 Linux rebuilds byte-identical" (roadmap, milestone 6) be met by
+  an x86_64 host that compiles with the pinned aarch64 Linux clang, run under Debian's pinned
+  `qemu-aarch64`? Every other tool stays native. Five Debian packages are pinned: qemu, which is
+  GPL-2.0, and four aarch64 runtime libraries. They are build tools only, and nothing of them
+  ships. This holds until upstream fixes the tie, and an LLVM issue is drafted for the owner to
+  send. An emulated compile is slower, so the release gate waits longer for the x86_64 rebuild
+  (360-minute job limit).
+- **Decided: yes.** It fixes the whole class, not one tie. It changes no artifact byte. Without
+  it the only other routes are an untraced flag or building LLVM ourselves. The alternative is
+  to leave x86_64 outside the gate until a wasi-sdk release agrees across hosts, which has no
+  date.
+
 ### 70. A red acceptance commit that reached main
 
 - **Asked:** 2026-10-17 (overnight). **Source:** spec 029's build review
