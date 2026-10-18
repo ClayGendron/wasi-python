@@ -1,6 +1,6 @@
 # 054 — Read-only code on the import path
 
-- **Status:** built 2026-10-18; revised against its build review (F1 to F4, F6; "Revised against the build review" and its Disposition); rebased onto main `3dfdab4` (049 landed) by the author, judged green there ("Rebased onto main"); awaiting the reviewer's confirmation of the revision. Confirmed for build
+- **Status:** **landed 2026-10-18** (accepted on `5f56591` as `c79a3a9`; the build review, `../reviews/054-read-only-code-on-the-import-path-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; revised against its build review (F1 to F4, F6; "Revised against the build review" and its Disposition); rebased onto main `3dfdab4` (049 landed) by the author, judged green there ("Rebased onto main"); awaiting the reviewer's confirmation of the revision. Confirmed for build
   2026-10-18. The reviewer's Confirmation passed it
   ("ready to build") with two remarks, written in here: R1 (S8's root is a host folder apart
   from `code`) and R2 (A5's payload parses, so the stand-in really prints `injected`).
@@ -846,3 +846,16 @@ Re-run on the rebased branch, against `s-c4190ca065ada03a`, no `--accept`:
 5. **F5 (the rebase).** Done by the author after 049 landed: see "Rebased onto main".
 6. **F6 (info).** Done: the odd entry (R13) and V4's message (R19); R14 and R15 left as defence
    in depth.
+
+**Landed 2026-10-18** through the lane. Its pre-build review
+(`../reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md`) and its build review
+(`../reviews/054-read-only-code-on-the-import-path-2026-10-18.md`: "lands once F1 to F4 are
+fixed", then, after the builder's revision and its rebase onto spec 049, "confirmed, it lands")
+were committed on the detached HEAD as `5f56591`. The lane rebased once more onto main `c7b7f26`
+(AGENTS.md rule 6b only); `git range-diff` shows all fourteen commits unchanged (`=`). The full
+judge there, on spec 035's artifact set: `wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0
+fail (unit suite 1065/1067, 2 skipped)`, `ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 ·
+gained 0 · grew 0` after acceptance, `1405 passed, 4 skipped, 12 xfailed in 903.58s` (EXECUTED,
+`build/lane-054-accept.log`). Accepted with `--accept-judge` as `c79a3a9` (history line 54); the
+rules tier passed (24/24); main fast-forwarded. Owner question 93 (read-only mounts on the import
+path) stays open; nothing waits on it.
