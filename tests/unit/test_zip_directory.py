@@ -122,12 +122,22 @@ def test_an_unreadable_archive_goes_to_the_stock_reader(zd, work) -> None:
     assert calls == [missing] and zd.served == {missing: "stock"}
 
 
-def test_install_replaces_zipimports_reader(zd, monkeypatch) -> None:
+def test_install_replaces_the_three_seams(zd, monkeypatch) -> None:
+    """Each seam is put back afterwards: the host's own importlib.metadata must keep working."""
     import zipimport
 
+    finder = zipimport._bootstrap_external.PathFinder
     monkeypatch.setattr(zipimport, "_read_directory", zipimport._read_directory)
+    monkeypatch.setattr(
+        zipimport.zipimporter, "get_resource_reader", zipimport.zipimporter.get_resource_reader
+    )
+    monkeypatch.setattr(finder, "find_distributions", finder.__dict__["find_distributions"])
+    stock = finder.find_distributions
     zd.install()
     assert zipimport._read_directory is zd.read_directory
+    assert zipimport.zipimporter.get_resource_reader is zd.get_resource_reader
+    assert finder.find_distributions is zd.find_distributions
+    assert zd.stock_find_distributions is stock
 
 
 def test_the_judges_zips_have_what_they_claim(work) -> None:
@@ -279,6 +289,11 @@ def test_the_zip_path_opens_as_zipfile_path_does(zr, zd, work) -> None:
         (root / "d").open("rb")
     with pytest.raises(IsADirectoryError):
         (root / "d").open("w")
+    from importlib.resources.abc import Traversable, TraversableResources
+
+    assert isinstance(t, Traversable) and "ZipDirectoryReader" not in vars(zr)
+    assert issubclass(zr.ZipDirectoryReader, TraversableResources)
+    assert zr.ZipDirectoryReader is vars(zr)["ZipDirectoryReader"], "not kept"
     reader = zr.ZipDirectoryReader(FakeLoader(loader.archive, loader.files, "d/"), "pkg.sub")
     assert reader.files()._at == "d/sub/"
     plain = zr.ZipDirectoryReader(FakeLoader(loader.archive, loader.files), "d")
@@ -331,6 +346,47 @@ def test_the_member_reader_hands_odd_members_to_zipfile(zr, zd, work, monkeypatc
         assert (got, _ZipfileStub.calls) == (body, [])
     else:
         assert (got, _ZipfileStub.calls) == (b"from zipfile", [(loader.archive, "d/m.bin")])
+
+
+# Part 3: importlib.metadata's zip search on zipimport's dict.
+
+
+def test_metadata_finds_a_zip_on_the_path_from_zipimports_dict(zr, zd, work, monkeypatch) -> None:
+    import importlib.metadata as md
+    import zipimport
+
+    archive = _write(
+        work, "m.zip", zips.build({"m.py": "", **zips.DISTRIBUTIONS, "pkg/__init__.py": ""})
+    )
+    monkeypatch.setattr(zipimport, "_read_directory", zd.read_directory)
+    monkeypatch.setitem(sys.path_importer_cache, archive, zipimport.zipimporter(archive))
+    monkeypatch.setitem(sys.modules, "_zip_resources", zr)
+    monkeypatch.setattr(md.FastPath, "zip_children", md.FastPath.zip_children)
+    stock = md.FastPath.zip_children
+    calls = []
+    zd.stock_find_distributions = lambda *a, **k: calls.append((a, k)) or iter(["found"])
+    assert list(zd.find_distributions("ctx")) == ["found"] and calls == [(("ctx",), {})]
+    assert md.FastPath.zip_children is zr.zip_children and zr.stock_zip_children is stock
+    zd.find_distributions()
+    assert zr.stock_zip_children is stock, "patched twice"
+
+    class Root:  # a FastPath, as importlib.metadata makes one per sys.path entry
+        def __init__(self, root):
+            self.root = root
+
+    ours, theirs = Root(archive), Root(archive)
+    assert zr.zip_children(ours) == stock(theirs)
+    assert list(zr.zip_children(ours)) == list(stock(theirs))
+    assert type(ours.joinpath("pkg")).__name__ == "ZipDirectoryPath"
+    assert str(ours.joinpath("pkg")) == str(theirs.joinpath("pkg"))
+    other = _write(work, "other.zip", zips.build({"o.py": ""}))  # not on the import path
+    elsewhere = Root(other)
+    assert zr.zip_children(elsewhere) == {"o.py": None}
+    assert type(elsewhere.joinpath("o.py")).__name__ == "Path"  # upstream's zipfile.Path
+    dist = md.PathDistribution(ours.joinpath("judge_meta_b-2.0.dist-info"))
+    assert dist.version == "2.0" and dist.requires == ["judge_meta_a>=1.0"]
+    # RECORD's files that the zip lacks are dropped, as upstream drops them (`skip_missing_files`).
+    assert [str(f) for f in dist.files] == ["judge_meta_b-2.0.dist-info/METADATA"]
 
 
 @pytest.fixture(autouse=True)

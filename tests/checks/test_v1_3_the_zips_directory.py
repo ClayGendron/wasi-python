@@ -40,6 +40,7 @@ print(json.dumps({
     "served": served,
     "reader": zipimport._read_directory is zd.read_directory,
     "resources": zipimport.zipimporter.get_resource_reader is zd.get_resource_reader,
+    "metadata": ext.PathFinder.find_distributions is zd.find_distributions,
     "encodings": isinstance(sys.modules["encodings"].__spec__.loader, zipimport.zipimporter),
     "origin": zd.__spec__.origin,
     "zipimport": zipimport.__file__,
@@ -57,6 +58,7 @@ def test_the_zip_reader_is_ours_from_the_first_import(guest, which) -> None:
         "served": {ZIP: "fast"},
         "reader": True,
         "resources": True,
+        "metadata": True,
         "encodings": True,
         "origin": "frozen",
         "zipimport": f"{ZIP}/zipimport.py",
@@ -341,3 +343,73 @@ def test_the_pandas_tz_job_matches_native(guest, note, which) -> None:
     note(f"the job beyond its imports: {r.fuel - base:,} fuel")
     if which == "snapshot":
         assert r.fuel - base <= 60_000_000, f"the job costs {r.fuel - base:,} beyond its imports"
+
+
+QUERY = "import importlib.metadata\n"
+MISS = QUERY + (
+    "try:\n"
+    "    importlib.metadata.version('nope')\n"
+    "except importlib.metadata.PackageNotFoundError:\n"
+    "    pass\n"
+)
+
+METADATA = f"""
+import importlib.metadata as md, json, zipfile
+zf = zipfile.ZipFile("/usr/local/lib/python315.zip")
+folders = sorted({{n.split("/", 1)[0] for n in zf.namelist()
+                  if n.split("/", 1)[0].endswith(".dist-info")}})
+
+def facts(d):
+    files = d.files
+    return {{
+        "version": d.version,
+        "metadata": sorted(d.metadata.items()),
+        "entry_points": sorted([e.name, e.group, e.value] for e in d.entry_points),
+        "files": None if files is None else [[str(p), p.hash and p.hash.value, p.size]
+                                             for p in files],
+        "requires": d.requires,
+        "origin": repr(d.origin),
+        "METADATA": d.read_text("METADATA"),
+    }}
+
+bad, kinds = [], set()
+refs = [md.PathDistribution(zipfile.Path(zf, folder + "/")) for folder in folders]
+for folder, ref in zip(folders, refs):
+    ours = md.distribution(ref.metadata["Name"])
+    kinds.add(type(ours._path).__name__)
+    if facts(ours) != facts(ref):
+        bad.append(folder)
+found = sorted({{(d.metadata["Name"], d.version) for d in md.distributions()}})
+want = sorted({{(d.metadata["Name"], d.version) for d in refs}})
+group = "{zips.GROUP}"
+points = sorted([e.name, e.value] for e in md.entry_points(group=group))
+ref_points = sorted([e.name, e.value] for d in refs for e in d.entry_points.select(group=group))
+print(json.dumps({{"folders": folders, "bad": bad, "kinds": sorted(kinds),
+                  "distributions": found == want, "entry_points": [points, ref_points]}}))
+"""
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_metadata_answers_from_the_zips_directory(guest, judge_zips, note, which) -> None:
+    """`importlib.metadata` finds the distributions in a zip on the import path from zipimport's
+    dict, with upstream's answers for each, and a miss does not parse the zip (criterion 6)."""
+    stdlib = judge_zips.small if which == "plain" else None
+    got = _json(guest(which, ["-c", METADATA], stdlib=stdlib))
+    judge = ["judge_meta_a-1.0.dist-info", "judge_meta_b-2.0.dist-info"]
+    assert len(got["folders"]) >= 5 and not got["bad"], got
+    assert (set(judge) <= set(got["folders"])) == (which == "plain"), got["folders"]
+    assert got["kinds"] == ["ZipDirectoryPath"] and got["distributions"], got
+    points, ref_points = got["entry_points"]
+    assert points == ref_points and len(points) == (2 if which == "plain" else 0), got
+    if which == "snapshot":
+        a, b = _fuel(guest, which, QUERY), _fuel(guest, which, MISS)
+        note(f"a miss after the import: {b - a:,} fuel")
+        assert b - a <= 20_000_000, f"a metadata miss costs {b - a:,} fuel on the snapshot (20 M)"
+        return
+    pa = _fuel(guest, which, QUERY, stdlib=judge_zips.padded)
+    pb = _fuel(guest, which, MISS, stdlib=judge_zips.padded)
+    a = _fuel(guest, which, QUERY, stdlib=judge_zips.small)
+    b = _fuel(guest, which, MISS, stdlib=judge_zips.small)
+    slope = judge_zips.slope(b - a, pb - pa)
+    note(f"a miss after the import: {b - a:,} (padded {pb - pa:,}, {slope:,.0f} per member)")
+    assert slope <= 6_000, f"a metadata miss grows {slope:,.0f} fuel per member (6,000)"

@@ -1,15 +1,21 @@
-"""Resources from the zip's directory: the frozen module `_zip_resources` (spec 035).
+"""Resources and metadata from the zip's directory: the frozen module `_zip_resources` (spec 035).
 
-`_zip_directory.install()` makes `zipimporter.get_resource_reader` return a `ZipDirectoryReader`.
-It answers names from the dict zipimport already holds for the archive (`loader._get_files()`), so
-it does not parse the zip again, where upstream builds a `zipfile.Path`, which parses the whole
-directory, on every resource read.
+`_zip_directory.install()` makes `zipimporter.get_resource_reader` return a `ZipDirectoryReader`,
+and importlib.metadata's zip search use `zip_children` below. Both answer names from the dict
+zipimport already holds for the archive (`loader._get_files()`), so neither parses the zip again,
+where upstream builds a `zipfile.Path`, which parses the whole directory, on every resource read
+and on the first metadata query.
 
 `ZipDirectoryPath` is `zipfile.Path`'s `Traversable` with zipimport's dict as its name set: the same
 `is_dir`, `exists`, `is_file`, `joinpath`, `name`, `parent`, `str` and `open` (Decision 6). Its
 bytes come from a strict, bounded member reader: a stored or deflated member of at most 1 MiB whose
 local header, size and CRC-32 all agree with the directory. Any other member, any failed test and
 any error is opened by upstream's `zipfile.Path`, with its checks, its streaming and its errors.
+
+`ZipDirectoryPath` satisfies the `Traversable` protocol (a runtime-checkable one) as `zipfile.Path`
+does, without subclassing it, and `ZipDirectoryReader` is made on first use: importing
+`importlib.resources.abc` runs `importlib.resources` and `tempfile`, about 20 M fuel on the
+snapshot, which a metadata query does not otherwise pay. A resource read has imported it already.
 
 It is loaded on first use, through the frozen importer, and compiled at build time by step 60.
 """
@@ -18,11 +24,16 @@ import io
 import os
 import pathlib
 import posixpath
+import sys
+import zipimport
 import zlib
-from importlib.resources.abc import Traversable, TraversableResources
 
 LIMIT = 1 << 20  # the largest member, either size, the fast path reads
 _LOCAL = b"PK\x03\x04"
+
+# importlib.metadata's own zip search, for every root that is not a zip on the import path; set
+# by `use_zip_children` when it puts ours in its place.
+stock_zip_children = None
 
 # The children map of each archive, kept with the dict it was built from: archive -> (dict, map).
 _maps = {}
@@ -79,7 +90,7 @@ def _children(loader, files):
     return children
 
 
-class ZipDirectoryPath(Traversable):
+class ZipDirectoryPath:
     """A name in a zip on the import path, answered from zipimport's dict for the archive."""
 
     def __init__(self, loader, at=""):
@@ -179,20 +190,60 @@ class ZipDirectoryPath(Traversable):
         encoding, args, kwargs = _text_args(*args, **kwargs)
         return io.TextIOWrapper(io.BytesIO(data), encoding, *args, **kwargs)
 
+    def read_bytes(self):
+        with self.open("rb") as strm:
+            return strm.read()
 
-class ZipDirectoryReader(TraversableResources):
-    """`importlib.resources`' reader for a module in a zip: `ZipReader`'s root, our path."""
+    def read_text(self, encoding=None, errors=None):
+        with self.open(encoding=encoding, errors=errors) as strm:
+            return strm.read()
 
-    def __init__(self, loader, module):
-        self.prefix = loader.prefix.replace("\\", "/")
-        if loader.is_package(module):
-            self.prefix += module.rpartition(".")[2] + "/"
-        self.archive = loader.archive
-        self._loader = loader
 
-    def is_resource(self, path):
-        target = self.files().joinpath(path)
-        return target.is_file() and target.exists()
+def _make_reader():
+    from importlib.resources.abc import TraversableResources
 
-    def files(self):
-        return ZipDirectoryPath(self._loader, self.prefix)
+    class ZipDirectoryReader(TraversableResources):
+        """`importlib.resources`' reader for a module in a zip: `ZipReader`'s root, our path."""
+
+        def __init__(self, loader, module):
+            self.prefix = loader.prefix.replace("\\", "/")
+            if loader.is_package(module):
+                self.prefix += module.rpartition(".")[2] + "/"
+            self.archive = loader.archive
+            self._loader = loader
+
+        def is_resource(self, path):
+            target = self.files().joinpath(path)
+            return target.is_file() and target.exists()
+
+        def files(self):
+            return ZipDirectoryPath(self._loader, self.prefix)
+
+    ZipDirectoryReader.__qualname__ = "ZipDirectoryReader"
+    return ZipDirectoryReader
+
+
+def __getattr__(name):
+    """`ZipDirectoryReader`, made and kept on first use."""
+    if name != "ZipDirectoryReader":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    reader = globals()["ZipDirectoryReader"] = _make_reader()
+    return reader
+
+
+def zip_children(self):
+    """`FastPath.zip_children` for a zip on the import path, from zipimport's dict: upstream's own
+    expression over its names, in upstream's order."""
+    loader = sys.path_importer_cache.get(self.root)
+    if isinstance(loader, zipimport.zipimporter) and not loader.prefix:
+        self.joinpath = ZipDirectoryPath(loader).joinpath
+        return dict.fromkeys(name.split("/", 1)[0] for name in loader._get_files())
+    return stock_zip_children(self)
+
+
+def use_zip_children(fast_path):
+    """Put `zip_children` in `FastPath`'s place, keeping its own for every other root."""
+    global stock_zip_children
+    if fast_path.zip_children is not zip_children:
+        stock_zip_children = fast_path.zip_children
+        fast_path.zip_children = zip_children

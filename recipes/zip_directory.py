@@ -7,8 +7,9 @@ own `_read_directory` (the same keys, the same tuples, in the same order) with o
 directory and one `_struct` unpack per member, where zipimport makes about a dozen Python calls
 per member. Anything outside the plain case goes to zipimport's own reader, kept here as
 `stock_read_directory`: Zip64, a cp437 name, any inconsistency, any error. So those zips, and
-every error message, are upstream's. It also gives zipimporter a resource reader on that same dict
-(`_zip_resources`, loaded on first use), so a resource read does not parse the zip again.
+every error message, are upstream's. It also gives zipimporter a resource reader on that same dict,
+and importlib.metadata a search of the zip on it (both in `_zip_resources`, loaded on first use),
+so neither a resource read nor a metadata query parses the zip again.
 
 It imports only `_io`, `_struct` and `zipimport` (and, through it, `_frozen_importlib_external`),
 which the interpreter's core phase can import. Step 60 compiles it with the guest's own Python
@@ -130,10 +131,38 @@ def get_resource_reader(self, fullname):
     return ZipDirectoryReader(self, fullname)
 
 
+# PathFinder's own `find_distributions`, which `find_distributions` below calls.
+stock_find_distributions = None
+_zip_children = None  # `_zip_resources.zip_children`, once FastPath has it
+
+
+def find_distributions(*args, **kwargs):
+    """PathFinder's `find_distributions`, with importlib.metadata's search of a zip on the
+    import path answered from zipimport's dict. It runs only when a program asks for metadata."""
+    global _zip_children
+    import sys
+
+    metadata = sys.modules.get("importlib.metadata")
+    if metadata is None:
+        __import__("importlib.metadata")
+        metadata = sys.modules["importlib.metadata"]
+    if metadata.FastPath.zip_children is not _zip_children:
+        import _zip_resources
+
+        _zip_resources.use_zip_children(metadata.FastPath)
+        _zip_children = _zip_resources.zip_children
+    return stock_find_distributions(*args, **kwargs)
+
+
 def install():
-    """Put the reader in zipimport's place, and the resource reader on zipimporter (where
-    zipimport's separator is `/`, as in the guest)."""
+    """Put the reader in zipimport's place, the resource reader on zipimporter and the
+    metadata search on PathFinder (where zipimport's separator is `/`, as in the guest)."""
+    global stock_find_distributions
     if zipimport.path_sep != "/":
         return
     zipimport._read_directory = read_directory
     zipimport.zipimporter.get_resource_reader = get_resource_reader
+    finder = zipimport._bootstrap_external.PathFinder
+    if stock_find_distributions is None:
+        stock_find_distributions = finder.find_distributions
+    finder.find_distributions = staticmethod(find_distributions)
