@@ -1607,7 +1607,7 @@ def test_a_write_half_fault_never_escapes(snapshot) -> None:
 # entry, and nothing is written to one.
 
 
-def _tree(folder: Path) -> dict[str, str]:
+def _digests(folder: Path) -> dict[str, str]:
     """Every file under `folder` and its SHA-256, and every folder (as "dir")."""
     import hashlib
 
@@ -1630,13 +1630,13 @@ def test_the_import_path_writes_nothing(guest_workdir, snapshot) -> None:
     (code / "pkg").mkdir(parents=True)
     (code / "mylib.py").write_text("VALUE = 'mylib'\n")
     (code / "pkg" / "__init__.py").write_text("NAME = 'pkg'\n")
-    before = _tree(code)
+    before = _digests(code)
     program = "import mylib, pkg; print(mylib.VALUE, pkg.NAME)"
     for prefix in ("", "import sys; sys.dont_write_bytecode = False\n"):
         done = run(["-c", prefix + program], grants=[Grant(code, "/code")],
                    import_path=["/code"], snapshot=snapshot)  # fmt: skip
         assert (done.exit_code, done.stdout, done.stderr) == (0, b"mylib pkg\n", b""), done
-        assert _tree(code) == before, (prefix, _tree(code))
+        assert _digests(code) == before, (prefix, _digests(code))
     w = base / "w"
     w.mkdir()
     (w / "wmod.py").write_text("X = 1\n")
