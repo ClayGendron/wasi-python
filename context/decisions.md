@@ -8,6 +8,23 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Work on while the owner is away; the agent may publish alphas (2026-10-18)
+
+The owner, before stepping away on 2026-10-18: "please continue working and do not pause to wait
+for me. If you run into issues like git worktree, find a resolution for them that is safe. If
+you have questions, please document them in questions for owner. Do not stop working unless
+0.1.0 is fully implemented and ready to publish. You may publish alpha releases but not the
+0.1.0 release."
+
+- This is the owner's explicit instruction under constitution §7 for these actions: pushing
+  `main` and alpha tags (`v0.1.0aN`), dispatching the release workflow's dry runs, and
+  publishing alpha releases to GitHub and PyPI. Every other §7 rule stands: no 0.1.0 tag, no
+  final release, nothing else outward-facing.
+- Each alpha still waits on its pre-release security review (§5.6).
+- Two working changes the owner asked for the same day: builders and reviewers loop on the
+  judge's fast tier and run the full judge once per stage (`AGENTS.md`, rule 3a); and the judge
+  on several cores, researched and specified first (spec 052).
+
 ### 49–89. The overnight questions (answered 2026-10-18)
 
 The owner went through every question written overnight on 2026-10-18, in rounds, with the

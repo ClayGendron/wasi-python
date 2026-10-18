@@ -45,35 +45,43 @@ and B of the default-profile memo (decisions 43 to 48).
    x86_64 Linux rebuilds byte-identical; numpy's and pandas' own test subsets under the
    runtime; the public API frozen and documented.
 
-### Agent runtime features (placement in 0.1.0 to be decided; question 49)
+### Agent runtime features (all in 0.1.0; question 49, answered 2026-10-18)
 
 Decided as features (`decisions.md`): a cancel during a blocked door call reports `cancelled`
-(a defect); a tool protocol over the door (`from host import tools`, an optional gate, call
-counting and a call record); async host functions; read-only code on the import path; a
-filesystem provider (`Mount`, at `/` too, 10,000 calls by default); bounded sessions across
-turns.
+(030, landed); a tool protocol over the door (031, 036, landed); a filesystem provider (032,
+landed) and writable mounts (034, landed); async host functions (spec 053); read-only code on
+the import path (spec 054); bounded sessions across turns (spec 055, build-class: a second guest
+export). The owner, question 49: "cancel nothing for 0.1.0".
 
-### Where 0.1.0 stands (2026-10-18, overnight)
+### Where 0.1.0 stands (2026-10-18, morning)
 
-Landed (each reviewed, accepted by the lane, dry run cited in its landing notes): 027, 028, 029
-(milestone 1 complete); 030, 031, 036 (the tool protocol), 032 with three post-landing fixes
-(read-only mounts), 033 (the zip carries metadata and a `ctypes` stand-in), 048 (the sandbox
-holds on wasmtime 49.0.0: GHSA-m9f7-9w4p-gv38 and GHSA-96f6-r43r-8c24 mitigated in the runner).
+Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 030, 031, 036,
+032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
+(writable mounts); 050 (numpy's and pandas' own tests in the guest: 63,717 passes, 12 admitted
+gaps).
 
-Built and confirmed, waiting on the owner: 034 (writable mounts; question 71).
+In build: 035 (the zip's directory is read once; build-class; answering its build review), 049
+(the public API frozen; Decision 8 revised for question 88), 052 (the judge on several cores;
+research first, the owner's request of 2026-10-18).
 
-In build: 040 (x86_64 rebuilds the same bytes; build-class), 050 (numpy's and pandas' own tests
-in the guest).
+Being specified: 053 (async host functions), 054 (read-only code on the import path), 055
+(bounded sessions; pre-build review required).
 
-Confirmed for build, in the build-class queue (one at a time, §5.7): 051 (what the upstream tests
-found: numpy signature traps, `.pyc` names), 035 (the zip's directory is read once), 023
-(matplotlib M1), 043 (matplotlib M2; waits on question 81), 037 and 038 (scipy), 039 (tier A),
-041 (files read by path from the zip), 042 (seaborn and reportlab; question 73 for the barcode
-folder), 046 and 047 (lxml, regex; question 82), 044 and 045 (scikit-learn, statsmodels;
-question 83). Not build-class, confirmed: 049 (the public API frozen; after 034; question 88).
+Confirmed for build, in the build-class queue (one at a time, §5.7), in this order: 023
+(matplotlib M1; its measurements answer question 34 and feed question 64), then 046 and 047
+(lxml, regex; question 82 lets them take a slot before scipy), 037 and 038 (scipy), 043
+(matplotlib M2; question 81 answered), 039 (tier A), 041 (files read by path from the zip), 042
+(seaborn and reportlab; question 73 adds the barcode folder, written in before its build), 044
+and 045 (scikit-learn, statsmodels; question 83 answered), then 055.
 
-Not yet specified for 0.1.0: the release itself (0.1.0a4 and then 0.1.0 are the owner's to tag,
-§5.5; question 84 for a4); a security review of the whole surface before 0.1.0 (milestone 6).
+Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
+54; a change to 032's provider); a judge-only binary linked with numpy's test modules (question
+89; a later build-class specification).
+
+Releases: 0.1.0a4 is cut by the agent after its pre-release security review (the owner,
+2026-10-18: "You may publish alpha releases but not the 0.1.0 release"); 0.1.0 is the owner's to
+tag. Before 0.1.0: a security review of the whole surface (milestone 6), and the wheel's size
+against PyPI's limit (question 64).
 
 ## After 0.1.0
 
