@@ -975,3 +975,11 @@ began with `-ffp-contract`, as an option; the lane passed it as `--accept-growth
 (the release dry run on all three systems, the x86_64 rebuild native) is dispatched on main's commit
 after this note; no tag before it passes (AGENTS.md rule 6b). Spec 057 rebases onto this landing as
 Decision 5 lists.
+
+**Criterion 6, met 2026-10-18:** the release dry run on main's commit `c6cdd86` (run 39171852747,
+`workflow_dispatch`) passed every job on all three systems: the macOS build and judge, the arm64
+and the x86_64 Linux rebuilds, `the same bytes from every host`, and verify on Ubuntu, Windows
+and macOS; attest and both publish jobs skipped, as a dry run does. **The x86_64 rebuild ran
+natively in 15 min 48 s** (22:21:19 to 22:37:07 UTC), against 65 to 110 minutes emulated; the
+arm64 rebuild took 10 min, and the whole run 33 min (EXECUTED, `gh run view`, benchmark facts).
+The switched-off emulation stays for one release, as Decision 3 says.
