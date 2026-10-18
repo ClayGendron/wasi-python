@@ -971,3 +971,46 @@ tests/harness/artifacts.py and 7 more`; `1210 passed, 19 skipped`. `ruff check` 
 
 At the rebase on 056, the review's checklist applies ("The rebase on 056"). The checklist's last
 item is now a check: F2's `ast` rule fails on a direct `DEFAULTS` read in `runner.py`.
+
+**Rebased onto main (035, 056, a4)**, on 2026-10-18, at the coordinator's request. The builder
+ran `git rebase main` onto `90e46cb`. All 13 commits replayed, now `c708608` to `7dd706b`. Each
+claim is EXECUTED unless it says otherwise.
+
+There were two conflicts:
+- **`src/wasi_python/tools.py`, at step 2** (`f8b7a30`, was `259fc0a`). One hunk, in
+  `_Work.__call__`. 056's `proceed` lines were kept, after the gate and before the tool, and
+  049's `_FAULT_CHARS` was used on the `denied` line.
+  - The seventeen renames were then applied again over the whole file. They found no other use
+    of an old name in 056's code, and `ruff check` reports no undefined name.
+  - 056's new private names (`_WRAPPER_DEPTH`, `_PARTIALMETHOD`, `_bound_keywords`,
+    `Tool._fixed`, `_Bounded._proceed`) already carry `_`, so no rule needed a change.
+  - 056 touched no public docstring, and its "(spec 056)" citations are in private ones.
+  - The code is 056's behaviour exactly. Main's `tools.py`, with the seventeen renames applied,
+    has the same AST as the branch's once docstrings are stripped. Every `def` and `class`
+    matches. The branch adds only `__all__` and `tool`'s two overloads.
+- **`CHANGELOG.md`, at step 5** (`009226d`, was `e700ce8`). 0.1.0a4 is released and its section
+  is closed, so the spec 049 entry moved into `## 0.1.0a5 — unreleased`, in place of its
+  "(what changed)" placeholder. The 0.1.0a4 section is main's, unchanged.
+
+Nothing else conflicted. `README.md` merged cleanly (056's Tools and Mounts prose, 035's text).
+The render needed no regeneration: `tests/harness/api.py --check` exits 0 on the rebased tree.
+056 changed no public name, signature, field or public docstring, so `tests/public_api.txt` and
+the README block are byte for byte what step 5 and F5 wrote. The README check still counts 0
+docstring hits and 0 README spans. The README is now 2,215 lines.
+
+**The judge after the rebase.** It ran against the main tree's current set, spec 035's, frozen by
+the lane at `build/sets/s-c4190ca065ada03a`. That set's `SHA256SUMS` equals
+`build/artifacts/SHA256SUMS`, and the file's own SHA-256 begins `3c0ec02e`.
+- Fast tier (`build/judge-fast-rebased.log`): `294/343 pass · 0 gap · 10 blocked · 0 fail · 39
+  deselected`, `1350 passed, 18 skipped, 39 deselected`.
+- Full judge, once (`build/judge-rebased.log`):
+  - `wasi_python v1: 301/343 pass · 0 gap · 42 blocked · 0 fail (unit suite 1056/1064, 8
+    skipped)`;
+  - v1.4 140/140;
+  - `ratchet vs 4921daffeb: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 11 · grew 0
+    · upstream unrun 31 · judge changed: tests/checks/test_v1_4_public_api.py,
+    tests/harness/api.py, tests/harness/artifacts.py and 7 more`;
+  - `1357 passed, 50 skipped`.
+- The 42 blocked checks are this worktree's own. It has no numpy or pandas source tree for
+  spec 050's upstream checks (33), plus the 9 blocked before.
+- `ruff check` and `ruff format --check` are clean.
