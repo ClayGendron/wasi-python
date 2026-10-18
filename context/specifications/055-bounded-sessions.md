@@ -222,7 +222,8 @@ variables, DataFrames, functions, classes, lambdas.
    - **`Session(*, root=False, grants=(), mounts=(), env=None, host=None, snapshot=True,
      fuel=None, deadline_s=<default>, memory_bytes=<default>, output_bytes=<default>,
      cache_dir=None, artifacts=None, max_file_calls=<default>, tools=None, gate=None,
-     max_tool_calls=<default>, idle_s=<default>, lifetime_s=<default>)`.** Every argument is
+     max_tool_calls=<default>, max_tool_request_bytes=<default>, idle_s=<default>,
+     lifetime_s=<default>)`.** Every argument is
      keyword-only. Each of `run`'s arguments means here what it means for `run`, with the scope
      the table below gives it. `idle_s` and `lifetime_s` default to the two new `Defaults`
      fields (Decision 9). There is no `argv` and no `stdin`: a turn's input is its code, and
@@ -250,6 +251,9 @@ variables, DataFrames, functions, classes, lambdas.
        caller's loop, as 053's `run_async` does. The README says: an async tool that caches a
        loop-bound object needs all of a session's turns on one loop (all through `run`, or all
        from one event loop).
+     - **060's `max_tool_request_bytes=`** is per turn, set once on the session, like
+       `max_tool_calls`: each turn's frame host gets the session's value (060, Decision 7;
+       written in by 060's branch).
      The builder adds each such argument to Decision 17's lines, and the review checks them
      against this rule.
    - **`session.run(code: str, *, fuel=<session's>, deadline_s=<session's>,
@@ -269,7 +273,7 @@ variables, DataFrames, functions, classes, lambdas.
      | `memory_bytes` | per session | `set_limits` is a store setting, and linear memory never shrinks (the research, E2) |
      | `idle_s`, `lifetime_s` | per session | they bound the session |
      | `fuel`, `deadline_s`, `output_bytes` | per turn; the session's value is each turn's default, and a turn may pass its own | each is re-armed before every turn (the addendum, findings 1, 2 and 4) |
-     | `max_file_calls`, `max_tool_calls` | per turn, set once on the session | each turn gets the full allowance; a per-turn override would only widen the surface |
+     | `max_file_calls`, `max_tool_calls`, `max_tool_request_bytes` | per turn, set once on the session | each turn gets the full allowance; a per-turn override would only widen the surface |
      | `cancel` | per turn only | it stops one turn |
 
    - **`code`** must be a `str` that `run`'s text rule accepts (`_text`: no NUL, no lone

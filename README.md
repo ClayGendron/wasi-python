@@ -442,7 +442,7 @@ default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
 `artifacts`, `cancel` (a `threading.Event`: once it is set, the guest
 stops, `trapped` is `"cancelled"`; see *From async code* for how soon), and
-`tools`, `gate` and `max_tool_calls` (see *Tools*). It
+`tools`, `gate`, `max_tool_calls` and `max_tool_request_bytes` (see *Tools*). It
 returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
 `"deadline"`, `"cancelled"`, a trap's kind such as `"stack overflow"`,
 `"unreachable"` or `"memory out of bounds"`, or, for an error with no trap
@@ -1164,20 +1164,29 @@ done.stdout                                    # b'Ada\n'
   return `bool(df["x"].any())`, not `df["x"].any()`.
 - **Limits.** At most `max_tool_calls` frames per call, the guest's discovery
   frame included (default `defaults().tool_calls`, 1,000; `None` means no
-  limit). Past it the guest gets `ToolBudgetExceeded` and runs on. A request
+  limit). At most `max_tool_request_bytes` bytes of requests read per call
+  (default `defaults().tool_request_bytes`, 16 MiB; `None` means no limit),
+  counted from each frame's length before it is read, whatever its answer: a
+  frame that would pass it is refused unread. Past either, the guest gets
+  `ToolBudgetExceeded` and runs on; the message says which. A request
   over 1 MiB is refused from its length, before its bytes are copied out of
   guest memory, so a refused frame costs the host the same whatever its
   size; an answer over 16 MiB is `too_large`. Arguments are checked within a
-  budget of 100,000 steps (see *The tool protocol*).
-- **The host's cost per frame.** A frame the door admits is parsed and
-  checked in Python on the door's thread, holding the GIL. A 1 MiB frame
-  costs the host a few tenths of a second of CPU (0.27 to 0.65 s on an
-  arm64 Mac, measured by the 0.1.0a4 security review), even one that names
-  no tool, while sending it again costs the guest almost no fuel. No limit
-  bounds the bytes of one run's frames yet, so a guest can keep one host
-  thread busy until its deadline (1,000 such frames would take longer than
-  the default 60 s). Where many untrusted guests run at once, lower
-  `max_tool_calls` and the deadline.
+  budget of 100,000 steps (see *The tool protocol*). Bulk data belongs on a
+  writable mount (see *Mounts*), whose provider gets it without a JSON
+  parse, not in tool arguments.
+- **The host's cost per frame.** Two limits bound it, each its own part.
+  Parsing and checking a frame the door admits costs in proportion to its
+  bytes, in Python on the door's thread, holding the GIL: a few tenths of a
+  second of CPU per 1 MiB frame (0.27 to 0.65 s on an arm64 Mac, measured by
+  the 0.1.0a4 security review), even one that names no tool, while sending it
+  again costs the guest almost no fuel. `max_tool_request_bytes` bounds that:
+  at the default 16 MiB, about 5 to 10 s of host CPU for the worst frames.
+  Every frame also has a small fixed cost (about 20 µs read, 3 µs refused),
+  and a `list` frame copies the tool list, encoded once per call, into guest
+  memory; `max_tool_calls` bounds those, since it bounds the frames. With a
+  limit set to `None`, only the deadline bounds what it bounded. Where many
+  untrusted guests run at once, lower both, and the deadline.
 - **Tools run on their own threads.** Each tool call runs its gate, its tool
   and its result's encoding on a new daemon thread, in a copy of the
   caller's `contextvars` context. The call's deadline, its `cancel` and
@@ -1212,7 +1221,8 @@ done.stdout                                    # b'Ada\n'
   counts the tool threads alive in the process, abandoned ones included.
 - **What `run` refuses**, before any work: `host=` with `tools=` (the door
   is one function: pass `host=` for the raw door or `tools=` for the
-  protocol), `gate=` or `max_tool_calls=` without `tools=`, two tools with
+  protocol), `gate=`, `max_tool_calls=` or `max_tool_request_bytes=` without
+  `tools=`, two tools with
   one name, an async generator function as a tool or a gate (a tool answers
   each call once), an `async def` as `host=` (the raw door is synchronous:
   serve it as a tool), and an artifact set from before the tool protocol
@@ -1373,7 +1383,7 @@ in `.kind`):
 | `timeout` | `ToolTimeout` (also `TimeoutError`) | the call ran out of time |
 | `cancelled` | `ToolCancelled` | the run was cancelled during the call |
 | `too_large` | `ToolTooLarge` | a request over 1 MiB, or an answer over 16 MiB |
-| `budget_exceeded` | `ToolBudgetExceeded` | the run's frames are used up (1,000 by default) |
+| `budget_exceeded` | `ToolBudgetExceeded` | the run's frames are used up (1,000 by default), or its request bytes (16 MiB by default) |
 
 A cancelled run is stopped at the guest's next function entry, so do not rely
 on `except ToolCancelled` for clean-up.
@@ -1569,6 +1579,7 @@ class Defaults:
     async_workers: int = <factory>
     file_calls: int | None = 10000
     tool_calls: int | None = 1000
+    tool_request_bytes: int | None = 16777216
 ```
 
 The limits a call has when it names none: `defaults()` returns the ones in force, and `set_defaults()` replaces them.
@@ -1581,6 +1592,7 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `async_workers`: How many guests `run_async`'s own pool runs at once; by default the CPU count, at most 8.
 - `file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls".
 - `tool_calls`: The most tool-protocol frames a call with tools answers; past it the guest gets `ToolBudgetExceeded`.
+- `tool_request_bytes`: The most bytes of tool-protocol requests a call with tools reads, counted from each frame's length before it is read; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded`.
 
 #### `wasi_python.Errno`
 
@@ -1840,6 +1852,7 @@ def run(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
+    max_tool_request_bytes: int | None = <default>,
 ) -> Completed
 ```
 
@@ -1867,6 +1880,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async (an `async def`, or a function returning an awaitable): it is awaited on the event loop that awaits `run_async`, or, under `run`, on a loop of the call's own; it never starts once its call has been answered, and is cancelled when its call ends. Excludes `host`.
 - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
+- `max_tool_request_bytes`: The most bytes of tool-protocol requests a call reads, counted from each frame's length before it is read, whatever its answer; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
 
 **Raises:**
 
@@ -1905,6 +1919,7 @@ async def run_async(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
+    max_tool_request_bytes: int | None = <default>,
 ) -> Completed
 ```
 
@@ -2355,8 +2370,11 @@ root sets it (Python's `random`, `secrets`, `os.urandom` and `tempfile` names
 use real entropy); a stale SQLite lock and hot journal left in a reused root
 by a guest stopped inside a transaction (see *sqlite3 in the guest*); an `argv`
 or `env` larger than the guest's memory, which exits 1 with empty stderr;
-host CPU spent parsing and checking tool frames, up to the call's
-deadline (see *Tools*, "The host's cost per frame"); timing
+host CPU spent on tool frames, within two limits: their parsing by the
+request-byte budget (16 MiB by default), and each frame's fixed cost and each
+`list` answer's copy by `max_tool_calls` (1,000 by default); with a limit set
+to `None`, the deadline bounds what it bounded (see *Tools*, "The host's cost
+per frame"); timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

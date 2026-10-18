@@ -221,6 +221,9 @@ class Defaults:
             calls".
         tool_calls: The most tool-protocol frames a call with tools answers; past it the guest
             gets `ToolBudgetExceeded`.
+        tool_request_bytes: The most bytes of tool-protocol requests a call with tools reads,
+            counted from each frame's length before it is read; a frame that would pass it is
+            refused unread, and the guest gets `ToolBudgetExceeded`.
     """
 
     # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
@@ -230,12 +233,14 @@ class Defaults:
     async_workers: int = field(default_factory=_default_workers)
     file_calls: int | None = 10_000
     tool_calls: int | None = 1000
+    tool_request_bytes: int | None = 16 << 20  # spec 060
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
         _check_workers(self.async_workers)
         _integer_limit("file_calls", self.file_calls)
         _integer_limit("tool_calls", self.tool_calls)
+        _integer_limit("tool_request_bytes", self.tool_request_bytes)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -328,6 +333,7 @@ def run(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
+    max_tool_request_bytes: int | None = _UNSET,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -391,6 +397,11 @@ def run(
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.
+        max_tool_request_bytes: The most bytes of tool-protocol requests a call reads, counted
+            from each frame's length before it is read, whatever its answer; a frame that would
+            pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
+            Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs
+            `tools`.
 
     Returns:
         How the program ended.
@@ -427,6 +438,7 @@ def run(
         tools=tools,
         gate=gate,
         max_tool_calls=max_tool_calls,
+        max_tool_request_bytes=max_tool_request_bytes,
         root=root,
         grants=grants,
         mounts=mounts,
@@ -458,6 +470,7 @@ async def run_async(
     tools: Iterable[Tool | Callable[..., Any]] | None = None,
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
+    max_tool_request_bytes: int | None = _UNSET,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -521,6 +534,11 @@ async def run_async(
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.
+        max_tool_request_bytes: The most bytes of tool-protocol requests a call reads, counted
+            from each frame's length before it is read, whatever its answer; a frame that would
+            pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
+            Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs
+            `tools`.
 
     Returns:
         How the program ended.
@@ -559,6 +577,7 @@ async def run_async(
         tools=tools,
         gate=gate,
         max_tool_calls=max_tool_calls,
+        max_tool_request_bytes=max_tool_request_bytes,
         root=root,
         grants=grants,
         mounts=mounts,
@@ -1008,6 +1027,7 @@ def _checked(
     tools: Any = None,
     gate: Any = None,
     max_tool_calls: Any = _UNSET,
+    max_tool_request_bytes: Any = _UNSET,
     root: Any = False,
     grants: Any = (),
     mounts: Any = (),
@@ -1020,7 +1040,9 @@ def _checked(
     the old and new limits (spec 049, Decision 2). `async_workers` is not a call's limit:
     `_submit` reads it under the pool's lock."""
     limits = _current_defaults()
-    tool_args = _check_tools(host, tools, gate, max_tool_calls, limits)
+    tool_args = _check_tools(
+        host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
+    )
     if memory_bytes is _UNSET:
         memory_bytes = limits.memory_bytes
     if deadline_s is _UNSET:
@@ -1060,12 +1082,19 @@ def _is_async_callable(fn: Any) -> bool:
 
 
 def _check_tools(
-    host: Any, tools: Any, gate: Any, max_tool_calls: Any, limits: Defaults | None = None
+    host: Any,
+    tools: Any,
+    gate: Any,
+    max_tool_calls: Any,
+    limits: Defaults | None = None,
+    *,
+    max_tool_request_bytes: Any = _UNSET,
 ) -> dict[str, Any]:
     """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
-    `Tool`s with unique names, a gate that is not an async generator function, and the frame
-    limit. A plain function goes through `tool()`. `wasi_python.tools` is imported only when
-    tools are given, so `import wasi_python` still does not import it. An async `host=` is
+    `Tool`s with unique names, a gate that is not an async generator function, the frame limit,
+    and spec 060's byte budget (with tools= only: a call without tools keeps its three keys). A
+    plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
+    given, so `import wasi_python` still does not import it. An async `host=` is
     refused (spec 053, Decision 9)."""
     if host is not None and _is_async_callable(host):
         raise TypeError(
@@ -1080,6 +1109,11 @@ def _check_tools(
             raise TypeError(
                 "max_tool_calls= without tools= limits nothing: the raw door has no limit; "
                 "pass tools="
+            )
+        if max_tool_request_bytes is not _UNSET:
+            raise TypeError(
+                "max_tool_request_bytes= without tools= limits nothing: the raw door has no "
+                "limit; pass tools="
             )
         return {"tools": None, "gate": None, "tool_calls": None}
     if host is not None:
@@ -1111,12 +1145,17 @@ def _check_tools(
         raise TypeError(f"gate must be a callable, or None; got {type(gate).__name__}")
     if gate is not None and _is_async_generator(gate):
         raise TypeError("gate is an async generator function; a gate answers each call once")
+    if max_tool_calls is _UNSET or max_tool_request_bytes is _UNSET:
+        limits = limits or _current_defaults()  # one read, whichever is unset
     if max_tool_calls is _UNSET:
-        max_tool_calls = (limits or _current_defaults()).tool_calls
+        max_tool_calls = limits.tool_calls
+    if max_tool_request_bytes is _UNSET:
+        max_tool_request_bytes = limits.tool_request_bytes
     return {
         "tools": tuple(checked),
         "gate": gate,
         "tool_calls": _integer_limit("max_tool_calls", max_tool_calls),
+        "tool_request_bytes": _integer_limit("max_tool_request_bytes", max_tool_request_bytes),
     }
 
 
@@ -3344,7 +3383,12 @@ def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost
     # Under run_async, the caller's loop; otherwise a private loop of the call's own (spec 053).
     tool_loop = _ToolLoop(c.get("tool_loop"), count=_count_tool_threads)
     return _ToolHost(
-        c["tools"], gate=c["gate"], max_calls=c["tool_calls"], invoke=bound, tool_loop=tool_loop
+        c["tools"],
+        gate=c["gate"],
+        max_calls=c["tool_calls"],
+        invoke=bound,
+        tool_loop=tool_loop,
+        max_bytes=c.get("tool_request_bytes"),  # spec 060; a hand-built c without it: no limit
     )
 
 

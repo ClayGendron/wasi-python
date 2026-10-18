@@ -27,6 +27,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   accepting run stays serial; `tests/harness/sameness.py` compares two run records. Five checks
   no longer depend on the order or speed of the run, and the judge's zips folder is safe when
   several processes make it at once. Nothing in the artifact set or the wheel changes.
+- **Security: a per-run budget of tool request bytes** (spec 060; the 0.1.0a4 security review's
+  F3; spec 049, Decision 8, exception 2). `max_tool_request_bytes=` on `run` and `run_async`, and
+  `Defaults.tool_request_bytes`, default 16 MiB, counted from each frame's length before it is
+  read, whatever its answer; a frame that would pass it is refused unread, and the guest gets
+  `ToolBudgetExceeded` and runs on. Parsing a 1 MiB frame costs the host a few tenths of a second
+  of CPU, so until now only the deadline bounded one call's total. The tool list is encoded once
+  per call, not once per `list` frame. `tool()` finds a partial's bound keywords through a
+  `__call__` chain of any depth and through a metaclass's `__call__` (the review's N8), and
+  refuses a `__call__` cycle with `TypeError`, where Python 3.14 raised `RecursionError`.
+- **Changed:** a new, tighter default (spec 060; spec 049, Decision 8, exception 1): a call that
+  sends more than 16 MiB of tool requests passes a larger `max_tool_request_bytes`, or `None`.
 
 - **matplotlib, the first milestone** (spec 023). matplotlib 3.11.2 is built in: `import
   matplotlib; matplotlib.use("agg")`, `plt.plot(...)` and `savefig` to PNG, PDF, PS, EPS or SVG

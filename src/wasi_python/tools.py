@@ -79,6 +79,13 @@ _DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's 
 
 _WRAPPER_DEPTH = 64  # partials, methods and __wrapped__ links walked to find bound keywords
 _PARTIALMETHOD = ("__partialmethod__", "_partialmethod")  # its mark: Python 3.13 on, and before
+_C_SLOTS = (  # a type's __call__ written in C: the walk to bound keywords stops there (spec 060)
+    types.WrapperDescriptorType,
+    types.MethodWrapperType,
+    types.MethodDescriptorType,
+    types.BuiltinFunctionType,
+    types.ClassMethodDescriptorType,
+)
 
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _HEADINGS = ("Args:", "Arguments:", "Returns:", "Raises:")
@@ -459,11 +466,12 @@ def _is_async_generator(fn: Any) -> bool:
 def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
     """The keywords a `functools.partial` binds, wherever `inspect.signature` may meet one on
     its way to the function: the partial, nested partials, a bound method's function, a
-    `__wrapped__` chain, a callable object's `__call__` (spec 056, Decision 1). Each is fixed:
+    `__wrapped__` chain, a callable object's or a class's `__call__`, to any depth (spec 056,
+    Decision 1; spec 060, Decision 8). Each is fixed:
     left out of the derived schema and refused in a frame, so the guest neither reads its value
     nor sets it. A `functools.partialmethod` met other than through an instance is refused."""
     found: set[str] = set()
-    target, called = fn, False
+    target = fn
     for _ in range(_WRAPPER_DEPTH):
         if any(getattr(target, a, None) is not None for a in _PARTIALMETHOD):
             raise TypeError(
@@ -477,14 +485,17 @@ def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
             target = target.__func__
         elif not isinstance(target, type) and getattr(target, "__wrapped__", None) is not None:
             target = target.__wrapped__
-        elif not called and not (
-            inspect.isfunction(target) or inspect.isbuiltin(target) or isinstance(target, type)
-        ):
-            called = True
+        elif not (inspect.isfunction(target) or inspect.isbuiltin(target)):
+            # Any other object, a class included: its type's __call__, as inspect.signature
+            # follows it, to any depth (spec 060, Decision 8: N8, and a metaclass's __call__),
+            # but not into C's slots, which hold no partial and where inspect stops too.
             try:
-                target = type(target).__call__
+                call = type(target).__call__
             except AttributeError:  # not callable: inspect.signature refuses it, as tool() does
                 return frozenset(found)
+            if isinstance(call, _C_SLOTS):
+                return frozenset(found)
+            target = call
         else:
             return frozenset(found)
     raise TypeError(f"{name}: its wrappers nest deeper than {_WRAPPER_DEPTH}; pass a function")
@@ -2000,6 +2011,7 @@ class _ToolHost:
         max_calls: int | None = 1000,
         invoke: Callable[[_Work], _Done | _Interrupted] = _inline,
         tool_loop: _ToolLoop | None = None,
+        max_bytes: int | None = None,
     ) -> None:
         self._tools = tuple(tools)
         for t in self._tools:
@@ -2016,6 +2028,11 @@ class _ToolHost:
         self._outcomes: list[ToolOutcome] = []
         self._pending: tuple[int, int] | None = None  # (seq, length) admitted, not yet read
         self._size = 0
+        # Spec 060: the bytes of the frames admitted, whatever their answer, against max_bytes
+        # (None: no limit; the runner passes the call's own); and the tool list, encoded once.
+        self._max_bytes = max_bytes
+        self._admitted = 0
+        self._tools_json: bytes | None = None
 
     def close(self) -> None:
         """End the call's tool loop without waiting (spec 053, Decision 8). Never raises."""
@@ -2037,8 +2054,9 @@ class _ToolHost:
             self._outcomes.append(outcome)
 
     def admit(self, length: int) -> bytes | None:
-        """Count a frame from its length alone: an answer for one past `max_calls` or over
-        the cap, else None, and the length is kept for `__call__` to check."""
+        """Count a frame from its length alone: an answer for one past `max_calls`, over the
+        cap, or past `max_bytes` (spec 060), else None; then the length counts against
+        `max_bytes` and is kept for `__call__` to check."""
         self._frames += 1
         seq = self._frames
         self._pending = None
@@ -2049,7 +2067,14 @@ class _ToolHost:
         elif length > _TOOL_REQUEST_BYTES:
             kind = "too_large"
             message = f"the frame is {length} bytes; at most {_TOOL_REQUEST_BYTES} (1 MiB)"
+        elif self._max_bytes is not None and self._admitted + length > self._max_bytes:
+            kind = "budget_exceeded"
+            message = (
+                f"this run allows {self._max_bytes} bytes of tool requests; "
+                f"{self._admitted} are used, and this frame is {length}"
+            )
         else:
+            self._admitted += length
             self._pending = (seq, length)
             return None
         answer = _error(None, kind, message)
@@ -2088,6 +2113,25 @@ class _ToolHost:
             )
             return answer
 
+    def _list_answer(self, frame_id: int | None) -> bytes:
+        """`_encode` of the list answer, byte for byte, with the descriptors encoded once, at the
+        first `list` frame, and the id spliced in (spec 060, Decision 12): a guest that lists
+        again and again no longer makes the host encode the list again."""
+        if self._tools_json is None:
+            whole = _encode({"tools": self._descriptors})
+            self._tools_json = whole[len(b'{"tools":') : -1]
+        shown = b"null" if frame_id is None else str(frame_id).encode("ascii")
+        version = str(PROTOCOL).encode("ascii")
+        return (
+            b'{"v":'
+            + version
+            + b',"id":'
+            + shown
+            + b',"ok":true,"tools":'
+            + self._tools_json
+            + b"}"
+        )
+
     def _answer(self, seq: int, frame: bytes) -> bytes:
         size = len(frame)
         op = name = None
@@ -2116,8 +2160,7 @@ class _ToolHost:
         raw_op = request.get("op")
         if raw_op == "list":
             op = "list"
-            body = {"v": PROTOCOL, "id": frame_id, "ok": True, "tools": self._descriptors}
-            answer = _encode(body)
+            answer = self._list_answer(frame_id)
             if len(answer) > _TOOL_RESPONSE_BYTES:
                 return failed("too_large", "the tool list is over the 16 MiB cap", frame_id)
             self._note(ToolOutcome(seq, op, None, "ok", None, size, len(answer)))

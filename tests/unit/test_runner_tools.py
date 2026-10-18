@@ -692,3 +692,67 @@ def test_completed_has_no_tool_record_by_default() -> None:
     assert done.tools is None and done.files is None
     assert runner.Completed.__dataclass_fields__.keys() >= {"tools"}
     assert list(runner.Completed.__dataclass_fields__)[-1] == "tools"
+
+
+def test_the_request_byte_budget_is_a_limit_with_a_default(monkeypatch) -> None:
+    """Spec 060, criterion 2: `max_tool_request_bytes=` and `Defaults.tool_request_bytes`, by
+    `max_tool_calls`' rules, read from the call's one read of the defaults; refused without
+    `tools=` before any work; passed to the call's frame host."""
+    import dataclasses
+
+    import wasi_python
+
+    assert runner.Defaults(1 << 30, 60.0, 16 << 20).tool_request_bytes == 16 << 20
+    assert wasi_python.defaults().tool_request_bytes == 16 << 20
+    none = runner.Defaults(1 << 30, 60.0, 16 << 20, tool_request_bytes=None)
+    assert none.tool_request_bytes is None
+    for bad, error in ((-1, ValueError), (2**63, ValueError), (True, TypeError)):
+        with pytest.raises(error, match="tool_request_bytes"):
+            runner.Defaults(1 << 30, 60.0, 16 << 20, tool_request_bytes=bad)
+
+    unset = runner._UNSET
+
+    def checked(**kw: Any) -> dict:
+        return runner._checked(
+            ["-c", "pass"], None, None, None, unset, unset, unset, None, tools=[lookup], **kw
+        )
+
+    assert checked()["tool_request_bytes"] == 16 << 20
+    assert checked(max_tool_request_bytes=5)["tool_request_bytes"] == 5
+    assert checked(max_tool_request_bytes=None)["tool_request_bytes"] is None
+    for bad, error in ((True, TypeError), (-1, ValueError), ("1", TypeError)):
+        with pytest.raises(error, match="max_tool_request_bytes"):
+            checked(max_tool_request_bytes=bad)
+
+    lookups: list[int] = []
+
+    def found():
+        lookups.append(1)
+        raise AssertionError("the artifacts must not be looked up")
+
+    monkeypatch.setattr(runner, "find_artifacts", found)
+    ex = Recording()
+    match = "max_tool_request_bytes= without tools="
+    with pytest.raises(TypeError, match=match):
+        runner.run(["-c", "pass"], max_tool_request_bytes=5)
+    with pytest.raises(TypeError, match=match):
+        asyncio.run(runner.run_async(["-c", "pass"], executor=ex, max_tool_request_bytes=5))
+    assert (lookups, ex.submitted) == ([], [])
+
+    before = wasi_python.defaults()
+    wasi_python.set_defaults(dataclasses.replace(before, tool_request_bytes=7))
+    try:
+        assert checked()["tool_request_bytes"] == 7
+    finally:
+        wasi_python.set_defaults(before)
+
+    host = runner._tool_host(checked(max_tool_request_bytes=12345), None, None)
+    try:
+        assert host._max_bytes == 12345
+    finally:
+        host.close()
+    by_hand = runner._tool_host({"tools": (lookup,), "gate": None, "tool_calls": 1000}, None, None)
+    try:
+        assert by_hand._max_bytes is None  # a hand-built call without the key: no byte limit
+    finally:
+        by_hand.close()

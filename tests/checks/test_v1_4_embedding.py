@@ -4134,3 +4134,159 @@ def test_fuel_is_exact_across_async_tool_calls(guest, guest_workdir) -> None:
         assert [o.outcome for o in host.record.outcomes] == ["ok"] * 3
         used.append(r.fuel)
     assert used[0] == used[1] == used[2], used
+
+
+# -------------------------------------------------------------------------------------------------
+# Spec 060: a per-run budget of request bytes, and N8 (a call chain of any depth).
+
+BYTES_BUDGET = """
+from host import tools, ToolBudgetExceeded
+seen = []
+for data in (b"x" * 300_000, b"x" * 300_000, b"x" * 300_000, b"ab"):
+    try:
+        seen.append(tools.store(data))
+    except ToolBudgetExceeded:
+        seen.append("budget")
+print(seen)
+"""
+
+
+def test_the_request_byte_budget_holds(guest_workdir, monkeypatch) -> None:
+    """Spec 060, criterion 3: under `max_tool_request_bytes=1_000_000`, the third 300,000-byte
+    call (a 400,071-byte frame: bytes cross as base64) would pass the budget, so it is refused
+    unread and the guest runs on; a small call after it fits. The frames the host reads are
+    counted: 4 under the budget, 5 under the default, which a 1.2 MB call does not meet."""
+    from wasi_python import tools as T
+    from wasi_python.tools import tool
+
+    run = _runner()
+    ran: list[int] = []
+
+    @tool
+    def store(data: bytes) -> int:
+        """Store some bytes."""
+        ran.append(len(data))
+        return len(data)
+
+    read: list[int] = []
+    real = T._ToolHost.__call__
+
+    def reading(self, frame: bytes) -> bytes:
+        read.append(len(frame))
+        return real(self, frame)
+
+    monkeypatch.setattr(T._ToolHost, "__call__", reading)
+    done = run(["-c", BYTES_BUDGET], tools=[store], max_tool_request_bytes=1_000_000)
+    assert done.exit_code == 0, done
+    assert done.stdout == b"[300000, 300000, 'budget', 2]\n", done
+    outcomes = done.tools.outcomes
+    assert [(o.op, o.outcome) for o in outcomes] == [
+        ("list", "ok"),
+        ("call", "ok"),
+        ("call", "ok"),
+        (None, "budget_exceeded"),
+        ("call", "ok"),
+    ], outcomes
+    assert "bytes" in outcomes[3].message
+    assert ran == [300_000, 300_000, 2]
+    assert len(read) == 4 and sum(read) <= 1_000_000, read
+
+    read.clear()
+    ran.clear()
+    done = run(["-c", BYTES_BUDGET], tools=[store])
+    assert done.exit_code == 0, done
+    assert done.stdout == b"[300000, 300000, 300000, 2]\n", done
+    assert len(read) == 5, read
+
+
+def _orders_by_limit() -> tuple[list, object]:
+    calls: list = []
+
+    def orders(user_id: int, api_key: str, limit: int = 10) -> list[str]:
+        """This user's orders."""
+        calls.append((user_id, api_key, limit))
+        return []
+
+    return calls, orders
+
+
+def _call_chain(depth: int, orders) -> object:
+    """N8's construction: each hop an object whose class's `__call__` is the next object, the
+    last class's `__call__` a partial (as a staticmethod, so 3.11 to 3.14 call it alike), and the
+    annotations hand-copied onto every object so the hints read."""
+    import functools
+
+    class Last:
+        __call__ = staticmethod(functools.partial(orders, user_id=42, api_key=SECRET))
+
+    obj: object = Last()
+    obj.__annotations__ = dict(orders.__annotations__)
+    for _ in range(depth - 1):
+        obj = type("Hop", (), {"__call__": obj})()
+        obj.__annotations__ = dict(orders.__annotations__)
+    return obj
+
+
+def test_a_call_chain_of_any_depth_hides_bound_keywords() -> None:
+    """Spec 060, criterion 4 (the a4 security review's N8; 060's pre-build review, F2 and F6): a
+    partial's bound keywords are fixed through a `__call__` chain of any depth and through a
+    metaclass's `__call__`; the walk stops at C slots, so a C callable and an ordinary class
+    are unchanged; a `__call__` cycle is refused with `TypeError`."""
+    import functools
+    import operator
+
+    from wasi_python import tools as T
+    from wasi_python.tools import stubs, tool
+
+    calls, orders = _orders_by_limit()
+    bound = functools.partial(orders, user_id=42, api_key=SECRET)
+    bound.__annotations__ = dict(orders.__annotations__)
+
+    class Meta(type):
+        __call__ = staticmethod(bound)
+
+    class Orders(metaclass=Meta):
+        pass
+
+    for label, fn in (
+        ("depth 2", _call_chain(2, orders)),
+        ("depth 3", _call_chain(3, orders)),
+        ("metaclass", Orders),
+    ):
+        made = tool(fn, name="orders")
+        assert list(made.input_schema["properties"]) == ["limit"], (label, made.input_schema)
+        assert SECRET not in json.dumps(made.descriptor()), label
+        assert SECRET not in stubs([made]) and "user_id" not in stubs([made]), label
+        calls.clear()
+        host = T._ToolHost([made])
+        for args, outcome in (({"user_id": 7}, False), ({"limit": 3}, True)):
+            frame = {"v": 1, "id": 1, "op": "call", "tool": "orders", "args": args}
+            answer = json.loads(host(json.dumps(frame).encode()))
+            assert answer["ok"] is outcome, (label, answer)
+            if not outcome:
+                assert answer["error"]["kind"] == "invalid_arguments", (label, answer)
+                assert "unknown argument 'user_id'" in answer["error"]["message"], label
+                assert calls == [], label
+        assert calls == [(42, SECRET, 3)], (label, calls)
+
+    assert T._bound_keywords("t", operator.itemgetter(0)) == frozenset()
+
+    class Plain:
+        pass
+
+    assert T._bound_keywords("t", Plain) == frozenset()
+
+    class Box:
+        def __call__(self, a: int) -> int:
+            """Give back a."""
+            return a
+
+    assert tool(Box(), name="box").input_schema["properties"] == {"a": {"type": "integer"}}
+
+    class Loop:
+        pass
+
+    loop = Loop()
+    Loop.__call__ = loop  # type: ignore[assignment]
+    with pytest.raises(TypeError, match="nest deeper"):
+        tool(loop, name="loop")

@@ -1188,3 +1188,107 @@ def test_the_record_is_bounded() -> None:
     assert r.outcomes[0].request_bytes == len(call_frame("f", {"a": 1, "k" * 10_000: 1}))
     assert r.outcomes[0].tool == "f" and r.outcomes[0].op == "call"
     assert not any(o.abandoned for o in r.outcomes)
+
+
+# -------------------------------------------------------------------------------------------------
+# 9. A per-run budget of request bytes, and the tool list encoded once (spec 060).
+
+
+def padded(raw: bytes, size: int) -> bytes:
+    """`raw` with leading spaces, `size` bytes long: JSON allows them, so it parses the same."""
+    assert len(raw) <= size
+    return b" " * (size - len(raw)) + raw
+
+
+def test_the_request_byte_budget_counts_admitted_bytes(monkeypatch) -> None:
+    """Spec 060, criterion 1: the bytes `admit` lets through are counted from their length, before
+    a frame is read, whatever its answer; a frame that would pass the budget is refused unread,
+    `budget_exceeded`, and spends nothing. Parses are counted, never timed."""
+    parses: list[int] = []
+    real = T._parse
+
+    def counting(raw: bytes) -> dict:
+        parses.append(len(raw))
+        return real(raw)
+
+    monkeypatch.setattr(T, "_parse", counting)
+    c = Counter()
+    host = T._ToolHost(counting_tools(c), gate=c.gate, max_bytes=1000)
+    assert host.admit(600) is None
+    assert kind(host(b"x" * 600)) == "protocol"  # not JSON: it still spent its bytes
+    assert len(parses) == 1
+    refused = host.admit(401)
+    assert kind(refused) == "budget_exceeded", refused
+    assert "bytes" in answer(refused)["error"]["message"]
+    assert host._pending is None
+    last = host.record.outcomes[-1]
+    assert (last.op, last.tool, last.outcome, last.request_bytes) == (
+        None,
+        None,
+        "budget_exceeded",
+        401,
+    )
+    assert len(parses) == 1
+    assert host.admit(400) is None  # exactly reaches 1000: admitted
+    assert answer(host(padded(call_frame("count", {"n": 1}), 400)))["value"] == 1
+    assert len(parses) == 2
+    assert kind(host.admit(1)) == "budget_exceeded"
+    assert len(parses) == 2
+    assert c.tool_calls == 1
+
+    # The 1 MiB cap comes first, and a frame over it spends nothing.
+    host = T._ToolHost([], max_bytes=T._TOOL_REQUEST_BYTES)
+    assert kind(host.admit(T._TOOL_REQUEST_BYTES + 1)) == "too_large"
+    assert host.admit(T._TOOL_REQUEST_BYTES) is None
+    assert kind(host(padded(frame("list"), T._TOOL_REQUEST_BYTES))) is None
+    assert len(parses) == 3
+
+    # The raw path admits in __call__ and counts the same way.
+    host = T._ToolHost([], max_bytes=100)
+    assert kind(host(padded(frame("list"), 60))) is None
+    assert kind(host(padded(frame("list"), 60))) == "budget_exceeded"
+    assert len(parses) == 4
+
+    # The frame limit comes first; 0 refuses every non-empty frame.
+    host = T._ToolHost([], max_calls=1, max_bytes=0)
+    first, second = host.admit(26), host.admit(26)
+    assert kind(first) == kind(second) == "budget_exceeded"
+    assert "bytes" in answer(first)["error"]["message"]
+    assert "tool frames" in answer(second)["error"]["message"]
+    host = T._ToolHost([], max_bytes=0)
+    assert kind(host(b"")) == "protocol"  # an empty frame is admitted, and spends nothing
+    assert kind(host(frame("list"))) == "budget_exceeded"
+    assert len(parses) == 5
+
+    # None, the private default, is no limit.
+    host = T._ToolHost([], max_calls=None)
+    one = padded(frame("list"), 1000)
+    for _ in range(2000):
+        assert kind(host(one)) is None
+    assert len(parses) == 2005
+
+
+def test_the_tool_list_is_encoded_once(monkeypatch) -> None:
+    """Spec 060, criterion 5 (its pre-build review, F1): the descriptors are encoded at the first
+    `list` frame and the frame's id spliced in, byte for byte what encoding the whole answer
+    gives; a list over the answer cap is `too_large` on every `list` frame."""
+    encodes: list[int] = []
+    real = T._encode
+
+    def counting(body: dict) -> bytes:
+        encodes.append(1)
+        return real(body)
+
+    monkeypatch.setattr(T, "_encode", counting)
+    tools = [*counting_tools(Counter()), tool(square)]
+    host = T._ToolHost(tools, max_calls=None)
+    ids = [1, 2, 3, 4, None]
+    raws = [host(frame("list", id=i)) for i in ids[:4]]
+    raws.append(host(json.dumps({"v": 1, "op": "list"}).encode()))
+    assert len(encodes) == 1, len(encodes)
+    descriptors = [t.descriptor() for t in tools]
+    for raw, i in zip(raws, ids, strict=True):
+        assert raw == real({"v": 1, "id": i, "ok": True, "tools": descriptors}), i
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 100)
+    small = T._ToolHost(tools, max_calls=None)
+    assert [kind(small(frame("list", id=i))) for i in (1, 2)] == ["too_large", "too_large"]

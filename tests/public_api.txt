@@ -21,6 +21,7 @@ dataclass Defaults: frozen
   field async_workers: int = <factory>
   field file_calls: int | None = 10000
   field tool_calls: int | None = 1000
+  field tool_request_bytes: int | None = 16777216
 enum Errno(IntEnum)
   member EACCES = 2
   member EBUSY = 10
@@ -115,6 +116,7 @@ def run -> Completed
   param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
+  param max_tool_request_bytes: int | None = <default>  keyword-only
 async def run_async -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -136,6 +138,7 @@ async def run_async -> Completed
   param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
+  param max_tool_request_bytes: int | None = <default>  keyword-only
 def set_defaults -> Defaults
   param new: Defaults  positional
 def stats -> dict[str, int]
@@ -145,6 +148,7 @@ default output_bytes = 16777216
 default async_workers = <factory>
 default file_calls = 10000
 default tool_calls = 1000
+default tool_request_bytes = 16777216
 stats keys: compiled loaded tool_threads_running written
 environment WASI_PYTHON_ARTIFACTS
 environment WASI_PYTHON_CACHE
