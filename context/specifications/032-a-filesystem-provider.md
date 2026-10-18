@@ -1007,3 +1007,8 @@ counts (a provider call, ticker ticks) and keep their form.
   fail (unit suite 821/829, 8 skipped)`, `lost 0 · gained 0 · grew 0 · judge changed:
   tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_grants.py`, `1041 passed, 19
   skipped`; ruff clean.
+
+**The post-landing parts landed 2026-10-18:** the dirent padding (`ebc9f53`), Linux's parity rows
+(`3a9588f`), and the Windows grant's `..` with the count-based deadline check (`77bd08e`), each
+reviewed and confirmed. Release dry run 39109451358 on `77bd08e`: every job passed, including the
+first complete run of this spec's raw parity and deliberate-differences tests on Windows.
