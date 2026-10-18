@@ -218,4 +218,38 @@ raw parity, any shadow of a grant, any other Windows answer the release run did 
 
 ## Landing notes
 
-(Filled in below when built.)
+**Built 2026-10-18** on `spec/058-windows-renames-a-folder-over-a-file` from main `3dfdab4`, in
+the worktree `wasi_python-058`, against the frozen set
+`build/sets/s-c4190ca065ada03a` (the main tree's). The build is `122cd6f`; these notes are the
+commit after it.
+
+- **Check first.** The unit case was written before the table: `3 failed` (no
+  `write_by_system`), EXECUTED. With the table: `3 passed`. With a stand-in table whose `win32`
+  rename answer is parity's `["errno", 54]`: `1 failed, 2 passed`, `[win32]`, `assert ['errno',
+  54] is None` (EXECUTED, `build/058-standin-unit.log`; the table restored after).
+- **The v1.4 check on macOS**, both binaries: `2 passed` (EXECUTED, `build/058-check.log`): the
+  macOS grant answers 54 and lists exactly the mount's eleven names, as the table says. With a
+  stand-in that selects the `win32` answers on macOS: `2 failed`, `AssertionError: ('rename a
+  folder over a file', 'darwin', ['errno', 54])` (EXECUTED, `build/058-standin-check.log`; the
+  stand-in prints the real `sys.platform` and asks for Windows's `None`; restored after).
+- **Linux and Windows were not run here.** Linux's grant answers are the parity's, which passed
+  in release run 39135024458's "verify (ubuntu-24.04)" (EXECUTED there): both rows compared
+  equal with the mount, whose values the table holds. Windows's are the values that run printed
+  (EXECUTED there); that the check now passes on Windows is INFERRED from the same log: the
+  check reached its last assertion there, and its `differ` held exactly these two rows, which
+  Windows now skips in the parity loop and asserts against the values it printed. The first
+  Windows run of the change is the dry run after landing (acceptance 6).
+- **The judge** (`build/judge-058.log`, the full `uv run pytest`, no `--accept`): `wasi_python
+  v1: 300/343 pass · 0 gap · 42 blocked · 1 fail (unit suite 1059/1067, 8 skipped)`, `ratchet vs
+  323ad21aa5: lost 1 · absent 0 · unrun 0 · unrun locally 28 · gained 0 · grew 0 · upstream unrun
+  31 · judge changed: tests/checks/test_v1_4_embedding.py, tests/harness/files.py,
+  tests/unit/test_runner_grants.py`, `1 failed, 1359 passed, 50 skipped`. The blocked checks
+  are the worktree's missing source trees and clones (`source tree numpy 17 · source tree pandas
+  16 · …`), as in any worktree. **The one failure is not this change's:**
+  `test_a_deadline_during_a_door_call_under_cancel_is_named` (spec 030) ended `deadline` before
+  its door call, at load average about 89 (EXECUTED, `uptime`); it waits on a wall-clock
+  deadline, and this diff touches neither it nor `src/`. Alone, right after, it passed 3 of 3
+  (EXECUTED). The lane's judge on the exact commit decides. `ruff check` and `ruff format
+  --check` on `src/` and `tests/` are clean.
+- **Not done here:** no `--accept`, no push, no rebase. The review gets this specification and
+  `git diff 3dfdab4..` on this branch.
