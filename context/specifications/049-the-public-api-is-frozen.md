@@ -1,6 +1,6 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first. drafted 2026-10-18; reviewed before build the same day
+- **Status:** confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
   (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
   F1 to F7 are written in) and revised against all thirteen findings (the review's
   Disposition says where each went); awaiting the reviewer's confirmation. It changes neither
@@ -295,13 +295,15 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
    - **A minor release** (0.2.0) may add: names, keyword-only arguments whose default keeps
      today's behaviour, dataclass fields placed last with a default (or keyword-only),
      `Errno` members, `stats()` keys, command options and JSON keys. It may remove or change
-     incompatibly only what an earlier final minor release deprecated, apart from the two
-     exceptions below.
+     incompatibly only what was deprecated at least two final minor releases before it, apart
+     from the two exceptions below.
    - **A deprecation** is announced in three places at once: a `DeprecationWarning` where the
      deprecated thing is used (with `stacklevel` pointing at the caller's line); the docstring's
      first line, "Deprecated since 0.N: use X instead.", which the README's reference then
-     shows; and a "Deprecated" line in the CHANGELOG. The thing keeps working for at least one
-     final minor release. Its removal is a "Removed" line in the CHANGELOG.
+     shows; and a "Deprecated" line in the CHANGELOG. The thing keeps working for at least two
+     final minor releases, as CPython's PEP 387 does (the owner, question 88): deprecated in
+     0.N, it still works in 0.N and 0.N+1, and 0.N+2 is the first release that may remove it.
+     Its removal is a "Removed" line in the CHANGELOG.
    - **Two exceptions, and only two** (the review, F8):
      1. **A tighter default** (a smaller limit in `defaults()`) may come in a minor release,
         without a deprecation, as a "Changed" line in the CHANGELOG. It can break a program
@@ -319,7 +321,7 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
      protocol carry their own contracts: the door is the constitution's (§4.4), and the
      protocol is versioned by `PROTOCOL`.
    - **Where the promise lives:** in the README's reference (Decision 11) and in this
-     specification, until the owner places it elsewhere (question 88).
+     specification (the owner, question 88: "the rest as spec 049 writes it").
    - **At 1.0** the same rules hold with "major" in place of "minor". When 1.0 comes is the
      owner's decision, not this specification's.
 
@@ -636,13 +638,10 @@ first items.
 
 ## The owner's choices
 
-Nothing waits on the owner for build. One choice is the agent's where the owner's decisions are
-silent: Decision 8's promise, its terms, that it starts at 0.1.0, what it covers (the Python
-names, the command and its JSON, `stats()`'s keys), and where it is recorded. It is question 88
-in `../questions-for-the-owner.md`. The README states the promise, so the owner's answer is
-wanted before 0.1.0 is tagged. An answer that changes the terms changes Decision 8 and one
-README paragraph; an answer that records it elsewhere (the constitution's §5, or the roadmap)
-moves the text, not the checks.
+Nothing waits on the owner. Decision 8's promise was question 88, answered on 2026-10-18
+(`../decisions.md`): the stricter promise, a deprecated thing survives at least two final minor
+releases, as CPython's PEP 387, and the rest as this specification writes it. Decision 8 says
+so, and the README paragraph the build writes states the same terms.
 
 ## Landing notes
 
