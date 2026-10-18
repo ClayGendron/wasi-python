@@ -714,7 +714,7 @@ reviewed. Each claim is labelled. Scratch outputs are under
   `--tree`, stops on a top-level `.dist-info` or `.egg-info` with Decision 3's line; the
   docstring.
 - `scripts/steps/70_zip.sh`: two `--metadata` lines, three `--file` lines for the package.
-- `recipes/ctypes_stand_in/__init__.py` (51 lines, comments rather than a docstring because every
+- `recipes/ctypes_stand_in/__init__.py` (48 lines, comments rather than a docstring because every
   `import numpy` loads it): the constants, `WinError`, `__all__`, and a PEP 562 `__getattr__` and
   `__dir__`; the first lookup of a type name imports `._types` and stores every built name in the
   package's globals. `_types.py`: the metaclass (`t * n`, `n * t`), `_CData` (refusing
@@ -770,8 +770,10 @@ root, `$OLD` as above). The names diff is exactly `< ctypes.pyc`; `> ctypes/__in
 `> pandas-3.0.6.dist-info/METADATA`, `> python_dateutil-2.9.0.post0.dist-info/METADATA`,
 `> six-1.17.0.dist-info/METADATA`, `> tzdata-2026.5.dist-info/METADATA`; `unzip -Z1 | wc -l` is
 1758. The shared-member comparison prints `1750 shared; 0 differ: []`. The five `cmp`s exit 0.
-`cmp $OLD/python.wasm build/artifacts/python.wasm` exits 0. This was a worktree that built 00 to
-60 from pins, not a clean clone; the lane's clean-clone build is still to do.
+`cmp $OLD/python.wasm build/artifacts/python.wasm` exits 0. Then a full `scripts/build.sh` (all
+11 steps, 5m29s) on the committed change (`e58f4f3`) gave the same `SHA256SUMS` again (`cmp`
+exits 0). This was the worktree, which built every step from pins, not a clean clone; the lane's
+clean-clone build is still to do.
 
 **Criterion 3** (EXECUTED in part). The litter re-run: a `.DS_Store` in
 `build/pandas-install/pandas/`, in numpy's installed package, and beside each `PKG-INFO`
@@ -780,7 +782,16 @@ file (`cmp` exits 0); the litter was removed after. **Not done here: the release
 (`gh workflow run release.yml --ref <branch>`, its `rebuild` and `same-bytes` jobs). That is the
 lane's, on the reviewed commit, and its run number goes here.
 
-**The new artifact set** (EXECUTED). `python.wasm` unchanged (31,760,992 bytes, `4befe9de…`);
+**The new artifact set** (EXECUTED). Its `SHA256SUMS`, apart from the unchanged `LICENSES/` lines:
+
+```
+413f8494cbeb258bc0ea8a7d56e3f4929f5c6890b73bad2349905b99a4e71e0a  MANIFEST
+98b03d8b711d2b1029d7a02c6c85b888e707fa7adff416c4357250c7f09454a2  python-snapshot.wasm
+e9875f229c4decab5b15400a9243e47c92aa5c3eff4b377e0e491c11b0b3e540  python-stdlib.zip
+4befe9de64edc783996ab006e6179b704a73a520b67431135df103db9db9625d  python.wasm
+```
+
+`python.wasm` unchanged (31,760,992 bytes, `4befe9de…`);
 `python-snapshot.wasm` 65,505,782 bytes (`98b03d8b…`), −1,042; `python-stdlib.zip`
 11,161,822 bytes (`e9875f22…`), +21,187; 1,100 pyc and 658 data files. `SHA256SUMS`
 changes in the zip's, the snapshot's and `MANIFEST`'s lines only; `MANIFEST`'s `recipe` lines
