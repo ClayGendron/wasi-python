@@ -5,6 +5,10 @@
   the commit, and every log and run record is under that worktree's `build/research-052/`
   (git-ignored), with the prototype as `prototype-v2.patch` (findings 3 and 4) and
   `prototype-v3.patch` (finding 10), and the scratch scripts named below.
+- **Addendum 2026-10-18** (after spec 052's pre-build review, findings F1 and F3): the two
+  surveys re-run on the branch rebased onto main `c7b7f26` (specs 035, 049 and 056 landed), against
+  that main's set; see "Addendum: the surveys on the rebased commit" at the end. Nothing above it
+  changed.
 - **Owner:** Clay Gendron
 - **Researcher:** the drafting agent (Claude Opus 5.5) of spec 052.
 - **Asked by:** the owner, 2026-10-18: run the judge across CPU cores with pytest-xdist, so the
@@ -319,3 +323,40 @@ change may take them with its own measurement on a quiet machine.
 With a small plugin change, a scheduler that keeps upstream groups whole and four flaky checks
 fixed, the judge runs on six cores in about a third of the time, with every verdict and counted
 metric the same as a serial run.
+
+## Addendum: the surveys on the rebased commit (2026-10-18)
+
+Spec 052's pre-build review found that spec 035, landed after this memo's runs, added a fixed
+path that two processes can race on (its finding F1, EXECUTED there: `zips.judge_zips` from four
+cold processes failed in 2 of 3 trials with `OSError [Errno 66] Directory not empty` or
+`FileNotFoundError`). Both surveys were run again on `spec/052-the-judge-on-several-cores`
+rebased onto main `c7b7f26`, against main's accepted set `build/sets/s-c4190ca065ada03a`
+(`python.wasm` `42344e2c…`, the artifact of every check in `accepted.json`).
+
+**The shared-path survey (READ).** `grep -rn -E "HARNESS_TMP ?/|paths\.BUILD ?/|ORACLE_HOME ?/|rmtree\(|os\.replace\(|\.rename\(|mkdir\(.*exist_ok" tests src`,
+then each hit read. Since `62d2c56`, 24 files under `tests/` and `src/` changed
+(`git diff --stat 62d2c56 HEAD -- tests src`). One new fixed path:
+`build/harness/zips-<sha>` (`tests/harness/zips.py`, `judge_zips`: built in a `mkdtemp`
+folder, then `shutil.rmtree(home)` and `os.replace(work, home)`), reached from a session fixture
+in `tests/checks/test_v1_3_the_zips_directory.py`, so once per worker. Everything else new
+is per call or per process: the runner's home folders under the temporary folder (made and removed
+per call, `runner.py`), its module cache made with `exist_ok=True` and written by
+`mkstemp` and `os.replace`, and the checks' `mkdtemp` folders. The findings of section 9 stand,
+with the zips folder added to them.
+
+**The run-alone census (EXECUTED).** Every goal check outside the upstream file, each alone in a
+fresh process, five at a time (scratch `alone2.sh`, the same as `alone.sh` with the new set; 435
+s; the one-minute load average was 123 when sampled just after): **311** node ids, **305 pass,
+2 blocked** (`wheel`, `three systems`), **4 fail**:
+
+- the three checks of finding 7, failing as before;
+- `test_v1_4_embedding.py::test_a_deadline_during_a_door_call_under_cancel_is_named`, alone:
+  `["deadline None None b''"]` without `"in the door"`. Finding 8's defect, now seen without
+  xdist: a loaded machine alone is enough.
+
+The 20 zips checks passed, though up to five of them could build the zips folder at once from
+cold processes. One clean census does not show the folder safe; the review's direct probe shows
+it is not.
+
+**What the addendum changes.** Spec 052 makes `judge_zips` safe across processes, makes the
+door deadline check count instead of wait, and requires the census as a count in its build.
