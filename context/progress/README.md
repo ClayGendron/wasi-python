@@ -39,6 +39,38 @@ lost, a check that disappears, or fuel or bytes that grow turns the
 run red. A pass that becomes blocked is red too, unless the run says
 `--partial "<why>"` (for example, a machine without artifacts).
 
+### numpy's and pandas' own tests (spec 050)
+
+`tests/checks/test_v1_3_upstream_suites.py` runs upstream's own tests in the guest, one check
+per group. Each group check records a third metric, **`passes`**: how many upstream tests
+passed.
+- **It must not fall.** A lower value than the accepted one goes to its own list, `fewer`,
+  printed `FEWER <node>: passes <old> -> <new>` before any `GREW` line and never cut. The run is
+  red.
+- **Its own flag.** Only `--accept-fewer-passes "<why>"` accepts a fall; the reason goes into the
+  history line's `fewer_reason`. `--accept-growth` never does: an unrelated growth must not carry a
+  lost pass.
+- **A rise** is reported as `more`, not as `gained`. Without the flag, acceptance keeps the
+  higher value.
+- **A substitution** (one test from pass to skip, another the other way) keeps the count. Each
+  group's `passed_digest` in `build/progress/latest.json` shows it; it is reported, not ratcheted.
+
+Known failures are classes, each its own check and an ordinary gap. Their allowances are judge
+files, like `tests/known_gaps.toml`: `tests/upstream/*.toml` (the classes' expressions, the
+traps, the files not selected) and `tests/upstream/expected/<group>/<class>.txt` (each class's
+node ids). An edit to any of them is a judge change, and `git diff` names each test admitted or
+released.
+
+A class or trap that is fixed: its check passes and its gap says "remove the gap". A fixed class
+stays, with an empty list file, as a passing check. A fixed trap's `[[trap]]` entry is removed in
+the same landing, its tests rejoin their group, and its now absent check is retired with
+`--retire` (an accepted gap whose check is absent is reported `absent`, as a pass is).
+
+The checks need the source trees, the frozen artifacts and the test kit
+(`uv run python tests/upstream/fetch.py`). Without them they are blocked, which is local tooling
+and not red. But **`--accept` refuses** while any of them with an accepted pass or gap did not run
+here, unless `--partial "<why>"` is given.
+
 ## Flags
 
 | flag | what it does |
@@ -46,6 +78,7 @@ run red. A pass that becomes blocked is red too, unless the run says
 | `--accept "<reason>"` | record this run; refused unless green with no loss |
 | `--accept-judge "<reason>"` | also accept a change to the judging files |
 | `--accept-growth "<reason>"` | also accept fuel or bytes growth |
+| `--accept-fewer-passes "<reason>"` | also accept a fall in an upstream group's `passes` (spec 050) |
 | `--partial "<reason>"` | allow accepted passes to be blocked here |
 | `--retire <node id>` | with `--accept`: drop a check from the protected set |
 | `-m "not slow"` | the fast tier: skip the golden jobs and the oracle |
@@ -85,6 +118,17 @@ The steps, in order:
    can exit 1 only because other checks did not run; read the check's own line). HEAD is still
    detached and nothing has been pushed, so main has not moved. Then redo step 4.
 6. **Move main.** Run `git switch main && git merge --ff-only <the acceptance commit>`.
+
+**The upstream suites on the lane (spec 050).** The lane fetches the kit once
+(`uv run python tests/upstream/fetch.py`) and keeps the source trees under `build/`. The landing
+notes cite the scoreboard's ratchet line showing no `unrun locally` and no `upstream unrun` count:
+every upstream check ran on the commit accepted. `--accept` itself refuses otherwise, unless
+`--partial`.
+
+**Before a release** (recorded, not yet a rule): the release workflow has neither the kit nor the
+source trees, so these checks are blocked there. Someone should confirm that `history.jsonl`
+holds an accepted run of them on the release's artifact hash, as `three systems` does for
+platforms. Making that a rule is a later, build-class change to the release rules.
 
 A red acceptance commit cannot be repaired by accepting again. A red rule makes the run red,
 and `--accept` refuses a red run. That is why step 5 runs before main moves. What the lane does

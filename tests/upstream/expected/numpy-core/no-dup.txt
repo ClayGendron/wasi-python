@@ -1,0 +1,8 @@
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_bogus
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_complex
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_tofile_roundtrip
+numpy/_core/tests/test_overrides.py::TestArrayLike::test_array_like_fromfile[False]
+numpy/_core/tests/test_overrides.py::TestArrayLike::test_array_like_fromfile[True]
+numpy/_core/tests/test_records.py::TestPathUsage::test_tofile_fromfile
+numpy/_core/tests/test_regression.py::TestRegression::test_fromfile_tofile_seeks

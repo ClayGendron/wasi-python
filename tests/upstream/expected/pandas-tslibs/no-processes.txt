@@ -1,0 +1,1 @@
+pandas/tests/tslibs/test_timezones.py::test_no_timezone_data

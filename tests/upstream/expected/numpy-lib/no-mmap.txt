@@ -1,0 +1,5 @@
+numpy/lib/tests/test_format.py::test_huge_header[r]
+numpy/lib/tests/test_io.py::TestPathUsage::test_save_load_memmap
+numpy/lib/tests/test_io.py::TestSaveLoad::test_mmap
+numpy/lib/tests/test_nanfunctions.py::test_memmap_takes_fast_route
+numpy/lib/tests/test_recfunctions.py::TestRecFunctions::test_structured_to_unstructured

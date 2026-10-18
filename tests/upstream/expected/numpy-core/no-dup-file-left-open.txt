@@ -1,0 +1,3 @@
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_bogus
+numpy/_core/tests/test_longdouble.py::TestFileBased::test_fromfile_complex

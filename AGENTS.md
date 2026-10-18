@@ -75,8 +75,9 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    (or a gap entry naming its closer) first. A new failure mode, once
    seen, becomes a check, so it cannot come back.
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
-   golden output, `tests/known_gaps.toml` or `context/progress/` to
-   turn a run green. Changing the judge is its own change, with a
+   golden output, `tests/known_gaps.toml`, the upstream suites'
+   allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`)
+   or `context/progress/` to turn a run green. Changing the judge is its own change, with a
    reason, and the review sees the judge-hash line.
 5. **No pass is lost quietly.** A run that loses an accepted pass or
    grows fuel or bytes is red. Fix it, or accept growth with a stated

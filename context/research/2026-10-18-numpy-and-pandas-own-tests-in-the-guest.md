@@ -7,6 +7,13 @@
   `evidence/prototype/drive.py` is the driver the runs used, copied after them under that name
   from the scratch folder's `drive4.py`, which `batch2.py` and `hunt.py` name. Nothing else
   changed.
+- **Corrected 2026-10-18** (spec 050's build): "Fuel repeats" holds for one grant. A pandas
+  group's fuel also depends on what else the grant holds: with numpy's tests staged beside
+  pandas', `pandas/tests/tslibs` took 38,949,120,223 instructions and without them
+  38,961,587,990 (320 parts in a million), and `internals` by 89 parts in a million the other way (EXECUTED; pytest lists the
+  grant's root folder, and the allocations shift the collector's timing, INFERRED). The judge
+  therefore stages both packages in every run. Within one grant, runs repeat to under one part in
+  a million.
 - **Owner:** Clay Gendron
 - **Researcher:** the drafting agent (Claude Opus 5.5) of spec 050.
 - **Feeds:** spec 050 (numpy's and pandas' own tests under the runtime), which judges what this

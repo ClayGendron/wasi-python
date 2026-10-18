@@ -152,3 +152,33 @@ def test_a_failed_instantiation_spends_nothing(work) -> None:
     """A module that cannot be instantiated reports no fuel spent, not the unmetered budget."""
     r = guest.run(wat.build(work, "x.wasm", wat.THIRD_IMPORT), [], workdir=work)
     assert r.trapped is not None and r.fuel == 0, r
+
+
+INDIRECT_MISMATCH = """
+(module
+  (memory (export "memory") 1)
+  (type $one (func (param i32) (result i32)))
+  (type $two (func (param i32 i32) (result i32)))
+  (table 1 funcref)
+  (elem (i32.const 0) $f)
+  (func $f (param i32 i32) (result i32) (local.get 0))
+  (func (export "_start")
+    (drop (call_indirect (type $one) (i32.const 1) (i32.const 0)))))
+"""
+
+
+def test_a_trap_keeps_its_first_line_and_its_cause(work) -> None:
+    """spec 050, Decision 14: every such trap's first line is alike; the cause tells them apart."""
+    r = _run(work, "mismatch.wasm", INDIRECT_MISMATCH)
+    assert r.exit_code is None and r.trapped and "indirect call" not in r.trapped
+    assert r.trap_cause == "wasm trap: indirect call type mismatch"
+    assert _run(work, "spin.wasm", wat.SPIN, fuel=10_000).trap_cause is None
+    assert _run(work, "cmd.wasm", wat.COMMAND_EXIT_7).trap_cause is None
+
+
+def test_the_cause_is_the_line_after_caused_by() -> None:
+    text = (
+        "error while executing at wasm backtrace:\n    0: 0x1 - f\n\nCaused by:\n    wasm trap: x\n"
+    )
+    assert guest.trap_cause(text) == "wasm trap: x"
+    assert guest.trap_cause("no cause here") is None

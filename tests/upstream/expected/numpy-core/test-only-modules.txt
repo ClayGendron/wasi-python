@@ -1,0 +1,1 @@
+numpy/_core/tests/test_numerictypes.py::Test_sctype2char::test_third_party_scalar_type

@@ -48,6 +48,7 @@ promises.
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
+| numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 62,569 passing; 25 gaps (18 classes of known failures, 7 tests that trap), each with its closer |
 
 The platform's facts, documented rather than patched (with two carried patches,
 below), are what `python.wasm -V` prints after its version:
@@ -69,7 +70,8 @@ numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a 
 `a.dtype = …` work instead of trapping the guest; the judge scans every build's callback tables
 for that class of mistake. Tracebacks and warnings name a module in the zip by its full zip path,
 `/usr/local/lib/python315.zip/pandas/core/frame.py`, as native zip imports do, so pandas'
-warnings point at the caller's line. `importlib.metadata` gives each package's name, version and entry
+warnings point at the caller's line. There is no `/dev/null`: `os.devnull` names a path that
+does not exist, so opening it raises `FileNotFoundError`. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
 process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
 about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`
@@ -80,6 +82,17 @@ array or function type (the stand-in computes no layouts), and with it `inspect.
 `hasattr(t, "__numpy_dtype__")` on such a type; `help()` and `dir()` work. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
 offsets are part of the snapshot.
+
+### Known defects
+
+numpy's and pandas' own tests found these; each is a gap on the judge's scoreboard until it
+closes (spec 051 fixes them):
+
+- `copy.copy` of a numpy scalar, `__copy__` on one, and assigning `ndarray.dtype` end the call
+  in a trap (`trapped`), not a Python exception.
+- pandas' warnings name a pandas file, not the caller's line.
+- `np.save` of a masked array writes its data without its mask instead of raising
+  `NotImplementedError`.
 
 `run` treats its arguments as CPython's command line does for one program:
 `-c`, `-m`, a script, or `-` and no argument for stdin; `-u`; `-V`. Its return
@@ -1374,7 +1387,7 @@ and the 3.15 line have landed (specs 001, 003, 004 and 005). The direction
 past these is in
 `context/research/2026-10-16-a-principal-engineers-direction.md`.
 
-1. numpy's and pandas' own test subsets under the runtime.
+1. numpy's and pandas' own test subsets under the runtime: judged since spec 050.
 
 Decided already, without further study: both binaries ship, the snapshot
 first; the stdlib zip is bytecode-only and deflated; the int32 default

@@ -30,7 +30,8 @@ AREAS = {
 STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
 FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
 NOT_MACHINE_CHECKED = (
-    "publication · copying from prior art · numpy/pandas test subsets",
+    "publication · copying from prior art · numpy's 25 files that need its C test modules "
+    "(number 89) · pandas beyond eight groups",
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree",
@@ -43,6 +44,11 @@ PROTECTED_NEEDS = frozenset(
 )
 MAX_FAIL_LINES = 10
 MAX_LINES = 25
+# A metric that must not fall (spec 050, Decision 12): a fall is `fewer`, never `growth`.
+COUNTS_UP = frozenset({"passes"})
+# The checks that run numpy's and pandas' own tests: `--accept` refuses while one that has an
+# accepted pass or gap did not run here, unless --partial (spec 050, Decision 13).
+UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
 
 
 class AcceptRefused(Exception):
@@ -59,6 +65,9 @@ class Ratchet:
     absent: list[str] = field(default_factory=list)
     gained: list[str] = field(default_factory=list)
     growth: list[str] = field(default_factory=list)
+    fewer: list[str] = field(default_factory=list)  # a count that must not fall fell (spec 050)
+    more: list[str] = field(default_factory=list)  # such a count rose: reported, not `gained`
+    upstream_unrun: list[str] = field(default_factory=list)  # spec 050, Decision 13
     fuel_not_compared: list[str] = field(default_factory=list)
     judge_changed: list[str] = field(default_factory=list)
     baseline: str = ""
@@ -70,6 +79,8 @@ class Ratchet:
             why.append(f"{len(self.lost)} accepted pass(es) lost")
         if self.absent:
             why.append(f"{len(self.absent)} accepted check(s) absent (retire them with --retire)")
+        if self.fewer:
+            why.append(f"{len(self.fewer)} pass count(s) fell (say --accept-fewer-passes)")
         if self.growth:
             why.append(f"{len(self.growth)} metric(s) grew")
         if self.unrun and not partial:
@@ -110,6 +121,18 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
                 r.absent.append(node)
             else:
                 r.outside.append(node)
+        elif acc["status"] == "gap" and now is None and node not in deselected:
+            # A gap's check that is gone (its class or trap removed once fixed) is absent too,
+            # so --retire can take it; a gap is never "lost" (spec 050, condition C1).
+            if not (repo / _file_of(node)).is_file() or _file_of(node) in collected_files:
+                r.absent.append(node)
+        if (
+            _file_of(node) == UPSTREAM_FILE
+            and acc["status"] in ("pass", "gap")
+            and node not in r.absent
+            and (now is None or now["status"] not in ("pass", "fail", "gap"))
+        ):
+            r.upstream_unrun.append(node)
         if now is None:
             continue
         old = acc.get("metrics", {}).get(meta["platform"], {})
@@ -119,7 +142,12 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
         for name, value in sorted(now.get("metrics", {}).items()):
             if name not in old:
                 continue
-            if name == "fuel":
+            if name in COUNTS_UP:
+                if value < old[name]:
+                    r.fewer.append(f"{node}: {name} {old[name]} -> {value}")
+                elif value > old[name]:
+                    r.more.append(f"{node}: {name} {old[name]} -> {value}")
+            elif name == "fuel":
                 if old.get("wasmtime") != meta["wasmtime"]:
                     r.fuel_not_compared.append(node)
                 elif value > old[name] * (1 + FUEL_TOLERANCE):
@@ -158,6 +186,7 @@ def accept(
     growth_reason: str | None = None,
     partial_reason: str | None = None,
     retire: list[str] = (),
+    fewer_reason: str | None = None,
 ) -> tuple[dict, str]:
     """(new accepted.json content, the history line to append), or AcceptRefused."""
     refusals = []
@@ -172,6 +201,16 @@ def accept(
         refusals.append("accepted passes are blocked; say --partial with a reason")
     if ratchet.growth and not growth_reason:
         refusals.append("metrics grew; say --accept-growth with a reason")
+    if ratchet.fewer and not fewer_reason:  # --accept-growth never carries a lost pass
+        refusals.append(
+            f"pass counts fell ({', '.join(ratchet.fewer[:3])}); "
+            "say --accept-fewer-passes with a reason"
+        )
+    if ratchet.upstream_unrun and not partial_reason:
+        refusals.append(
+            f"{len(ratchet.upstream_unrun)} accepted upstream suite check(s) did not run here "
+            f"({UPSTREAM_FILE}); say --partial with a reason"
+        )
     if accepted and ratchet.judge_changed and not judge_reason:
         refusals.append(
             f"the judge changed ({', '.join(ratchet.judge_changed[:4])}"
@@ -200,6 +239,10 @@ def accept(
             same_engine = old.get("wasmtime") == meta["wasmtime"]
             merged = {"wasmtime": meta["wasmtime"]}
             for name, value in fresh.items():
+                if name in COUNTS_UP:  # only --accept-fewer-passes lowers it (spec 050)
+                    keep = name in old and not fewer_reason
+                    merged[name] = max(old[name], value) if keep else value
+                    continue
                 keep_old = name in old and not growth_reason and (name != "fuel" or same_engine)
                 merged[name] = min(old[name], value) if keep_old else value
             metrics[platform] = merged
@@ -230,6 +273,7 @@ def accept(
         "judge_reason": judge_reason,
         "growth_reason": growth_reason,
         "partial_reason": partial_reason,
+        "fewer_reason": fewer_reason,
         "retired": sorted(retire),
         "judge_changed": ratchet.judge_changed,
         "counts": counts,
@@ -346,6 +390,7 @@ def render(
     tail = []  # the ratchet and the verdict are never cut; the FAIL lines give way
     if ratchet is not None:
         tail.append(_ratchet_line(ratchet, run["meta"].get("partial")))
+        tail += [f"FEWER {f}" for f in ratchet.fewer]  # never cut (spec 050, Decision 12)
         tail += [f"LOST {node}" for node in ratchet.lost[:3]]
         tail += [f"ABSENT {node}" for node in ratchet.absent[:3]]
         tail += [f"GREW {g}" for g in ratchet.growth[:3]]
@@ -374,6 +419,9 @@ def _ratchet_line(r: Ratchet, partial: str | None) -> str:
         *([f"unrun locally {len(r.unrun_local)}"] if r.unrun_local else []),
         f"gained {len(r.gained)}",
         f"grew {len(r.growth)}",
+        *([f"fewer {len(r.fewer)}"] if r.fewer else []),
+        *([f"more {len(r.more)}"] if r.more else []),
+        *([f"upstream unrun {len(r.upstream_unrun)}"] if r.upstream_unrun else []),
     ]
     if r.deselected or r.outside:
         parts.append(f"not selected {len(r.deselected) + len(r.outside)}")

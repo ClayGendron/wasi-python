@@ -9,6 +9,7 @@
   a file a recorded patch creates, is written into Decision 3. This specification changes how the
   judge admits failure and adds a metric that must not fall. §5.6 did not require a pre-build
   review, since it changes no import, export, artifact or build recipe; it asked for one.
+  Built 2026-10-18 on `spec/050-upstream-tests`; awaiting its review (Landing notes).
 - **Owner:** Clay Gendron
 - **Kind:** the judge only.
   - **New:**
@@ -801,3 +802,165 @@ The time the full judge takes is the owner's to weigh (Decision 15), and the pan
 the knob.
 
 ## Landing notes
+
+Built 2026-10-18 by the builder (Claude Opus 5.5) in the worktree `wasi_python-050`, branch
+`spec/050-upstream-tests`, against the frozen set `s-0cdc7b2bd78db6f5`. Not yet reviewed; the
+review goes under `context/reviews/` and is cited here before the lane lands it. Every number
+below is EXECUTED unless marked.
+
+**Setup (Decision 20).** Read-only symbolic links in the worktree to the main tree's
+`downloads/numpy-2.5.2.tar.gz`, `downloads/pandas-3.0.6.tar.gz`, `build/numpy-2.5.2` and
+`build/pandas-3.0.6`; the kit fetched with `uv run python tests/upstream/fetch.py` (seven wheels,
+each `shasum -a 256` equal to its `kit.txt` line); `WASI_PYTHON_ARTIFACTS` set to the frozen set.
+The links are ignored by git and by the judge: `build/` and `downloads/` are in `NOT_SOURCE`
+(READ), and the run record's 97 judge files hold no `build/` or `downloads/` path. Nothing in the
+main tree was written.
+
+**What changed.** As the Design lists, with these builder details:
+- `tests/upstream/pandas.toml` has a `support` list: files staged for import but never collected.
+  It holds `pandas/conftest.py` and three files of `pandas/tests/extension/` (`__init__.py`,
+  `decimal/__init__.py`, `decimal/array.py`), because `groupby/aggregate/test_other.py` and
+  `reshape/concat/test_concat.py` import `pandas.tests.extension.decimal` (READ). Without them
+  one test fails and one file does not collect. They are tarball members, and the rules check
+  says so.
+- The two ini files transcribe upstream's configuration in full (numpy's `filterwarnings` block,
+  pandas' four keys), including the lines the drafting prototype left out (numpy's matplotlib and
+  `_pack_` ignores; pandas' `error::pytest.PytestWarning` and its later ignores). The outcomes
+  equal the drafting runs' exactly (below), so none of those lines changed a result.
+- A trap entry that names a whole file is `--ignore`d in its group, one with `::` is
+  `--deselect`ed. A trap check runs its entry with no marker expression, so a `slow` mark could not
+  hide it.
+- The trapped node is the last `S` or `C` line of the stream. An `S` line's `R` lines do not close
+  it, so a trap in a test's teardown still names that test.
+- `plugin.py` gains a `fact(name, value)` fixture: facts on a check's record in
+  `build/progress/latest.json`, under `facts`, never ratcheted (named `fact`, not `note`, since
+  spec 051's `note(text)` landed first). Each group records `passed_digest`, its outcome
+  counts and `left_out` (the staged folders' files that are not tarball members: none today).
+- The reviewer's builder note is followed: an accepted `gap` whose check is absent is its own
+  branch beside the accepted-pass case in `scoreboard.compare`, so a vanished gap is `absent`,
+  never `lost`.
+- `--accept`'s refusal counts any accepted pass or gap in the upstream file that did not run here,
+  whether blocked, deselected, unrun or outside the run (`upstream unrun` on the ratchet line).
+
+**Seen failing first (criterion 2).** The 11 groups, run one at a time through the harness's own
+`Session` before any class, list, trap entry or gap existed (`build/upstream-first/`):
+- `numpy-core` trapped, as the criterion says: `trap: wasm trap: indirect call type mismatch at
+  numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load`, after 75 passed and 3
+  failed (fuel 41,964,185,383).
+- `numpy-lib` 7 failed, `numpy-others` 12 failed. Every node and outcome equals
+  `numpy-fast-nonpass.txt` (0 differences).
+- pandas: frame 21, groupby 71, reshape 7, io-parser 113, io-formats 21, tslibs 1, internals 0,
+  libs 0 failed: 234. The 234 `<outcome> <node>` lines equal `pandas-chosen-nonpass.txt` exactly.
+- With the seven trap entries written, `numpy-core` ran to its end: 8,568 passed, 12 failed and 3
+  errors. So numpy has 31 failed and 3 errors, as Decision 10 says.
+
+Every class count then equals Decision 10's table (8, 3, 3, 1; 5, 1, 1; 8, 1, 2, 1; 21, 71, 7, 73,
+40, 21, 1), with no failure left over. The lists hold 268 node ids.
+
+**Traps (criterion 4).** Each entry alone, in its own session, ends in `wasm trap: indirect call
+type mismatch`:
+- `castingimpl-casting-unittests` at `test_casting_unittests.py::TestCasting::test_simple_cancast[BoolDType]`;
+- `castingimpl-arraymethod` at its collector, `numpy/_core/tests/test_arraymethod.py` (a `C`
+  line). Frame 0 is `cfunction_call` (EXECUTED: the full trap message, printed by a scratch
+  script), the same caller as `_get_castingimpl`'s other traps, so Decision 9's INFERRED cause now
+  stands EXECUTED;
+- the other five at the node ids of Decision 9's table (`test_assign_dtype_attribute[0]` for the
+  records entry).
+
+Each check fails with exactly one finding and is a gap closed by spec 051.
+
+**The judge's run (criteria 3, 8, 10).** `uv run ruff check` and `uv run ruff format --check`
+clean. `WASI_PYTHON_ARTIFACTS=…/s-0cdc7b2bd78db6f5 uv run pytest`, the full judge, exit 0:
+
+```
+wasi_python v1: 250/284 pass · 25 gap · 9 blocked · 0 fail   (unit suite 924/932, 8 skipped)
+  v1.3  data stack          31/57  gap 25 blocked 1
+  rules constitution rules  23/24  blocked 1
+gaps close with: 051-what-the-upstream-tests-found 15 · README 8 · questions-for-the-owner 2
+next: context/specifications/051-what-the-upstream-tests-found.md (unblocks 0, closes 15)
+ratchet vs 361775dd62: lost 0 · absent 0 · unrun 0 · unrun locally 7 · gained 12 · grew 0 · judge changed: … and 33 more
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups
+1175 passed, 17 skipped, 25 xfailed in 511.40s (0:08:31)
+```
+
+- The 37 checks ran: 11 groups and the rule `pass`, 18 classes and 7 traps `gap`.
+- Ratchet against main's accepted state: lost 0, grew 0, no `FEWER`, gained 12 (11 groups and the
+  rule). No existing check's fuel moved.
+- `unrun locally 7` is this worktree's local tooling: the oracle and the cpython, zlib, bzip2, xz
+  and sqlite trees, which it does not link. None is an upstream check. The lane's run in the main
+  tree must show `unrun locally` absent (criterion 10), and `--accept` refuses otherwise.
+- Every group's `P` line: numpy `derandomize=True database=None max_examples=100`, pandas
+  `derandomize=True database=None max_examples=15`. No `M` line names a product module: pandas'
+  sessions load `pandas.conftest` and `tests` modules only.
+
+**Passes and fuel per group (criteria 3 and 7).** Passes equal Decision 8's table in every group,
+62,569 in all. Fuel, three times with the final stage: the judge's run, then each group twice in
+one scratch session through the same `Session`:
+
+| group | passes | fuel, judge | fuel, session run 1 | fuel, session run 2 | 1 vs 2 | most apart, ppm |
+|---|---|---|---|---|---|---|
+| `numpy-core` | 8,568 | 194,253,054,091 | 194,253,091,032 | 194,253,111,993 | 20,961 | 0.30 |
+| `numpy-lib` | 4,823 | 131,291,228,156 | 131,291,256,682 | 131,291,256,682 | 0 | 0.22 |
+| `numpy-others` | 7,267 | 175,318,947,857 | 175,318,959,281 | 175,318,959,281 | 0 | 0.07 |
+| `pandas-frame` | 10,831 | 344,546,610,939 | 344,546,631,033 | 344,546,631,101 | 68 | 0.06 |
+| `pandas-groupby` | 22,156 | 474,701,025,317 | 474,701,015,287 | 474,701,015,287 | 0 | 0.02 |
+| `pandas-reshape` | 2,657 | 103,013,881,395 | 103,013,883,469 | 103,013,883,469 | 0 | 0.02 |
+| `pandas-io-parser` | 3,401 | 88,662,885,049 | 88,662,916,159 | 88,662,916,210 | 51 | 0.35 |
+| `pandas-io-formats` | 955 | 54,405,022,973 | 54,405,027,359 | 54,405,027,478 | 119 | 0.08 |
+| `pandas-tslibs` | 590 | 38,949,118,319 | 38,949,117,180 | 38,949,098,990 | 18,190 | 0.50 |
+| `pandas-internals` | 258 | 18,265,292,986 | 18,265,293,054 | 18,265,293,292 | 238 | 0.02 |
+| `pandas-libs` | 1,063 | 23,059,933,239 | 23,059,931,845 | 23,059,931,862 | 17 | 0.06 |
+| **all** | **62,569** | **1,646,467,000,321** | | | | |
+
+Every pair is within 0.5 parts in a million, far inside the ratchet's 0.01% (100 ppm). Fuel
+differs from the drafting runs by up to 0.6% (`pandas-libs` 23.06 G against 22.45 G): a different
+driver (the stream goes to a file, `C`, `P` and `M` lines) and a different grant. As Decision 8
+says, the first run on the specified argv sets the baseline.
+
+**A failure mode found, and fixed before it could come back.** The first judge run staged each
+package when its first check asked. Its fuel then disagreed with the scratch runs by up to 320
+ppm (`pandas-tslibs`, 38,949,117,044 against 38,961,587,412) and 110 ppm (`numpy-others`). A
+scratch script isolated the cause: the same group, with numpy's tests staged beside pandas' or
+not, gives 38,949,120,223 or 38,961,587,990 for `tslibs`, and 18,265,293,632 or 18,263,674,142 for
+`internals` (the other way). pytest lists the grant's root folder, and the extra allocations move
+the collector's timing (INFERRED). A run narrowed to pandas' checks would then have shown `GREW`
+on an unchanged product. The fix: a run's stage always holds every package with a source tree,
+whichever check prepares it first. `test_the_stage_holds_every_package_whichever_check_asks_first`
+failed before the fix and passes after it. The memo has a dated correction saying so.
+
+**The budget (Decision 8).** The caps sum to 2.821×10¹², under 3×10¹² (the rules check). The
+recorded fuel of the 11 groups sums to 1.646×10¹². The 7 trap checks are gaps, and a gap records
+no metric; their sessions took 9.1 to 11.9 G each, 73.2 G together, in the first scratch run.
+That gives 1.72×10¹² for the 18, under the 1.8×10¹² budget.
+
+**Unit checks (criteria 1, 4, 5, 6, 8, 9).** `tests/unit/test_upstream.py` (57),
+`test_scoreboard.py` (+8 functions, 10 cases), `test_plugin.py` (+1) and `test_guest.py` (+2) were written first and
+seen failing (an import error for the new module; 10 failures in the ratchet and plugin checks, 3 of them the upstream refusal before its check file existed;
+2 for the trap cause; 1 for the stage). All pass now. They cover:
+- a wheel with one byte changed leaves `upstream kit` unmet; the unzip refuses `../x`, `/x`,
+  `a/../../x` and `a/..\x`;
+- the MANIFEST tie fails naming both tarballs, both hashes, or both patch hashes;
+- a stray file and a `__pycache__` file are not staged and are listed; a patch-created file is;
+- the grant is `("/upstream", stage, False)`; the argv;
+- every finding of criterion 5, on fixed streams;
+- `+`/`-` ids, with a `…[2020-01-01 00:00:00]`-style id that `scan.digest` partly normalises;
+- an emptied class passes, and a returning failure shows as `+<node id>`;
+- a trap entry that passes makes its gap say "remove the gap";
+- the rules for empty and non-empty lists and gaps;
+- `FEWER`, `more`, the flag, `fewer_reason`, the maximum, and the refusal of `--accept-growth`
+  alone;
+- an absent gap retired by `--retire`;
+- the upstream refusal unless `--partial`;
+- `metric("passes")` allowed, and an unknown name still raises.
+
+**Not build-class (criterion 9).** No change under `scripts/`, `recipes/`, `downloads/` or
+`.github/` (`git status`, `git diff --stat`).
+
+**The time (Decision 15; a benchmark fact, arm64 macOS).** The full judge with the upstream file
+left out (`--ignore`) took 221.4 s wall (pytest's 195.6 s). The full judge with it took 536.8 s
+(pytest's 511.4 s). So these checks add about 5¼ minutes, as Decision 15 estimated. The pandas
+groups are the knob.
+
+**For the lane.** Fetch the kit in the main tree first (`uv run python tests/upstream/fetch.py`),
+judge, and cite the ratchet line with no `unrun locally` and no `upstream unrun` count.
+`--accept-judge` names the new checks, the lists, the gaps and the harness changes.

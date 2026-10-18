@@ -61,6 +61,7 @@ class Result:
     trapped: str | None  # None, "out of fuel", or the trap's first line
     fuel: int
     root: Path
+    trap_cause: str | None = None  # the line after "Caused by:" (spec 050, Decision 14)
 
     @property
     def text(self) -> str:
@@ -71,6 +72,17 @@ class Result:
         tail = self.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         how = f"trapped ({self.trapped})" if self.trapped else f"exit {self.exit_code}"
         return f"{how}; stderr: {tail[0][:200]}"
+
+
+def trap_cause(message: str) -> str | None:
+    """The line after a trap message's "Caused by:" line (`wasm trap: indirect call type
+    mismatch`), or None. The first line ("error while executing at wasm backtrace:") is the same
+    for every such trap and cannot tell one cause from another."""
+    lines = [line.strip() for line in message.splitlines()]
+    for i, line in enumerate(lines):
+        if line == "Caused by:":
+            return next((rest for rest in lines[i + 1 :] if rest), None)
+    return None
 
 
 def kind(mod: wt.Module) -> str:
@@ -222,6 +234,7 @@ def run(
 
     exit_code: int | None = None
     trapped: str | None = None
+    cause: str | None = None
     metered = False  # the budget is set only once instantiation has succeeded
     try:
         inst = linker.instantiate(store, mod)
@@ -239,6 +252,7 @@ def run(
         exit_code = e.code
     except wt.Trap as e:
         trapped = "out of fuel" if e.trap_code == wt.TrapCode.OUT_OF_FUEL else e.message
+        cause = None if trapped == "out of fuel" else trap_cause(trapped or "")
         trapped = trapped.strip().splitlines()[0] if trapped else "trap"
     except wt.WasmtimeError as e:
         trapped = str(e).strip().splitlines()[0]
@@ -250,4 +264,5 @@ def run(
         trapped=trapped,
         fuel=spent,
         root=root,
+        trap_cause=cause,
     )

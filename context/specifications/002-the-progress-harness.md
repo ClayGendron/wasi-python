@@ -74,6 +74,8 @@
 
    Amended 2026-10-17 by spec 029 (Decision 7): the need `git history`, met when `git rev-parse --is-shallow-repository` prints `false` (provided by —).
 
+   Amended 2026-10-18 by spec 050 (Decision 13): the need `upstream kit`, met when every wheel of `tests/upstream/kit.txt` is in `build/upstream/wheels/` with its SHA-256 (provided by spec 050; `uv run python tests/upstream/fetch.py` fetches it). It is local tooling, not protected.
+
    When `$WASI_PYTHON_ARTIFACTS` is set, the artifact directory is
    that path and nothing else; there is no silent fallback. A missing
    file there makes `test_artifact_set_is_complete` fail.
@@ -116,6 +118,16 @@
    not compared, and the change shows as a judge change (`uv.lock`).
    **Judge:** a judge hash different from the accepted one is reported
    with the changed files.
+
+   Amended 2026-10-18 by spec 050 (Decisions 9, 12, 13; condition C1):
+   - a metric that must not fall (`passes`) that falls goes to its own list, `fewer`, red, printed
+     `FEWER <node>: passes <old> -> <new>` before any `GREW` line and never cut; one that rises
+     goes to `more`, reported, not to `gained` (which counts checks);
+   - an accepted `gap` whose check is absent from a run that collected its whole file (or whose
+     file is gone) is reported **absent**, as an accepted pass is, so `--retire` can take it; an
+     accepted gap is never "lost";
+   - an accepted pass or gap in `tests/checks/test_v1_3_upstream_suites.py` that did not run here
+     (blocked, deselected, unrun, or outside the run) is counted as `upstream unrun`.
 7. **Acceptance is explicit and narrow.** `uv run pytest --accept
    "<reason>"` writes `accepted.json` and appends to `history.jsonl`,
    only when the run is green and the ratchet is not red. It also
@@ -126,10 +138,22 @@
    quietly. `--retire <node id>` (repeatable, with `--accept`) removes a
    check from the protected set; the reason is recorded. A check that
    did not run keeps its accepted entry.
+
+   Amended 2026-10-18 by spec 050 (Decisions 12, 13): a fall in `passes` is accepted only with
+   its own flag, `--accept-fewer-passes "<why>"`, recorded in the history line's `fewer_reason`;
+   `--accept-growth` never accepts it. Without the flag, acceptance keeps the maximum of the old and
+   new `passes`. `--accept` refuses while any upstream-suite check with an accepted pass or gap did
+   not run here, unless `--partial "<why>"` is given.
 8. **Metrics are counts.** `fuel` (wasm instructions executed) and
    `bytes`. Checks record them through a `metric(name, value)` fixture.
    No check, job or unit test reads a clock; the plugin reads one only
    to timestamp a history line.
+
+   Amended 2026-10-18 by spec 050 (Decision 12): a third metric, `passes`, the number of upstream
+   tests a group check saw pass. It must not fall; acceptance keeps the maximum. A check may also
+   attach reported facts to its record in `build/progress/latest.json` through a `fact(name,
+   value)` fixture, under `facts` (a group's `passed_digest`, its outcome counts, the files left
+   out of its staging); facts are never ratcheted.
 9. **The harness drives the guest itself.** `tests/harness/guest.py` is
    a minimal wasmtime-py driver, kept apart from the runner it judges
    (lesson 2). It compiles each binary once per session. It lays out
@@ -268,6 +292,11 @@
     upstream heads, so a scan has no pinned input, and boilerplate
     makes its findings noise); numpy's and pandas' own test subsets
     (`README.md`, Next, item 5, will add their checks).
+
+    Amended 2026-10-18 by spec 050 (Decision 17): numpy's and pandas' own tests are checked
+    (`tests/checks/test_v1_3_upstream_suites.py`); the line's first part now reads "publication ·
+    copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas
+    beyond eight groups".
 
 ## Intent
 

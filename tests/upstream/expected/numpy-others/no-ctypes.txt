@@ -1,0 +1,8 @@
+numpy/ma/tests/test_core.py::TestMaskedArray::test_copy
+numpy/ma/tests/test_core.py::TestMaskedArrayArithmetic::test_scalar_arithmetic
+numpy/ma/tests/test_core.py::TestMaskedArrayInPlaceArithmetic::test_inplace_addition_scalar
+numpy/random/tests/test_direct.py::TestMT19937::test_ctypes
+numpy/random/tests/test_direct.py::TestPCG64::test_ctypes
+numpy/random/tests/test_direct.py::TestPCG64DXSM::test_ctypes
+numpy/random/tests/test_direct.py::TestPhilox::test_ctypes
+numpy/random/tests/test_direct.py::TestSFC64::test_ctypes

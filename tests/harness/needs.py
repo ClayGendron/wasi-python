@@ -96,6 +96,12 @@ def _git_history() -> bool:
     return (paths.git("rev-parse", "--is-shallow-repository") or "").strip() == "false"
 
 
+def _upstream_kit() -> bool:
+    from harness import upstream
+
+    return upstream.kit_met()
+
+
 def _source_tree(component: str) -> Callable[[], bool]:
     def met() -> bool:
         from harness import pins
@@ -110,6 +116,7 @@ SPEC_003 = "context/specifications/003-the-pinned-build-end-to-end.md"
 REPRO_MEMO = "context/research/2026-10-16-reproducible-builds-on-linux.md"
 SPEC_002 = "context/specifications/002-the-progress-harness.md"
 SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
+SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md"
 
 SOURCE_COMPONENTS = ("cpython", "numpy", "pandas", "zlib", "bzip2", "xz", "sqlite")
 
@@ -130,6 +137,7 @@ VOCABULARY: dict[str, Need] = {
         Need("prior-art clones", _prior_art, "context/prior_art/README.md"),
         Need("git", _git, "-"),
         Need("git history", _git_history, "-"),
+        Need("upstream kit", _upstream_kit, SPEC_050),  # tests/upstream/fetch.py fetches it
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

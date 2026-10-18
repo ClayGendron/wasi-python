@@ -1,0 +1,108 @@
+# pandas' own tests in the guest (spec 050). A judge file: every edit is a judge change.
+# The keys are numpy.toml's. `support` names files staged for import but not collected: tests in
+# two groups import pandas.tests.extension.decimal (groupby/aggregate/test_other.py,
+# reshape/concat/test_concat.py).
+
+package = "pandas"
+marker = "not slow and not network and not db"
+args = ["--no-strict-data-files"]
+path_packages = ["pandas"]
+markers = []
+support = [
+    "pandas/conftest.py",
+    "pandas/tests/extension/__init__.py",
+    "pandas/tests/extension/decimal/__init__.py",
+    "pandas/tests/extension/decimal/array.py",
+]
+
+[groups.pandas-frame]
+paths = ["pandas/tests/frame"]
+fuel = 510_000_000_000
+
+[groups.pandas-groupby]
+paths = ["pandas/tests/groupby"]
+fuel = 700_000_000_000
+
+[groups.pandas-reshape]
+paths = ["pandas/tests/reshape"]
+fuel = 160_000_000_000
+
+[groups.pandas-io-parser]
+paths = ["pandas/tests/io/parser"]
+fuel = 130_000_000_000
+
+[groups.pandas-io-formats]
+paths = ["pandas/tests/io/formats"]
+fuel = 81_000_000_000
+
+[groups.pandas-tslibs]
+paths = ["pandas/tests/tslibs"]
+fuel = 58_000_000_000
+
+[groups.pandas-internals]
+paths = ["pandas/tests/internals"]
+fuel = 28_000_000_000
+
+[groups.pandas-libs]
+paths = ["pandas/tests/libs"]
+fuel = 34_000_000_000
+
+# The classes of known failures (Decision 10): a failed or errored test goes to the first class
+# of its group whose outcome and `match` (a regular expression searched in the one-line reason)
+# fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
+
+[[expected]]
+id = "zip-code-names"
+group = "pandas-frame"
+outcome = "failed"
+match = 'Warning not set with correct stacklevel'
+reason = "the zip's code objects carry relative file names, so pandas' warnings point inside pandas"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "zip-code-names"
+group = "pandas-groupby"
+outcome = "failed"
+match = 'Warning not set with correct stacklevel'
+reason = 'the same'
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "zip-code-names"
+group = "pandas-reshape"
+outcome = "failed"
+match = 'Warning not set with correct stacklevel'
+reason = 'the same'
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "zip-code-names"
+group = "pandas-io-parser"
+outcome = "failed"
+match = 'Warning not set with correct stacklevel'
+reason = 'the same'
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "no-mmap"
+group = "pandas-io-parser"
+outcome = "failed"
+match = 'mmap is unavailable'
+reason = 'no mmap on WASI'
+closes_with = "README.md"
+
+[[expected]]
+id = "zip-code-names"
+group = "pandas-io-formats"
+outcome = "failed"
+match = 'Warning not set with correct stacklevel'
+reason = "the zip's code objects carry relative file names, so pandas' warnings point inside pandas"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "no-processes"
+group = "pandas-tslibs"
+outcome = "failed"
+match = 'wasi does not support processes'
+reason = 'no processes: subprocess is unavailable on WASI'
+closes_with = "README.md"

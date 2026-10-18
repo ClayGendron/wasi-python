@@ -411,3 +411,42 @@ def test_gained_carry_over_and_another_platform_end_to_end(inner, monkeypatch) -
 def test_overridden_judge_inputs_are_announced(inner) -> None:
     result, _ = inner(fail=False)
     result.stdout.fnmatch_lines(["*JUDGE INPUTS OVERRIDDEN: --progress-dir*"])
+
+
+PASSES = """
+import pytest
+
+pytestmark = pytest.mark.goal("v1.3")
+
+def test_group(metric, fact):
+    metric("fuel", 10)
+    metric("passes", {passes})
+    fact("passed_digest", "abc")
+    with pytest.raises(ValueError):
+        metric("speed", 1)
+"""
+
+
+def test_passes_ratchet_end_to_end_with_its_own_flag(inner) -> None:
+    """spec 050, criterion 6: `metric("passes")` is allowed, a fall is FEWER and red, and only
+    --accept-fewer-passes accepts it; the fact reaches latest.json."""
+    result, record = inner("--accept", "base", source=PASSES.format(passes=5))
+    assert result.ret == 0, result.stdout.str()
+    assert record["checks"]["test_inner.py::test_group"]["facts"] == {"passed_digest": "abc"}
+    result, _ = inner("--accept", "try", "--accept-growth", "x", source=PASSES.format(passes=4))
+    assert result.ret == 1
+    result.stdout.fnmatch_lines(
+        ["*FEWER test_inner.py::test_group: passes 5 -> 4*", "*--accept-fewer-passes*"]
+    )
+    result, _ = inner(
+        "--accept",
+        "fell",
+        "--accept-fewer-passes",
+        "upstream moved one",
+        source=PASSES.format(passes=4),
+    )
+    assert result.ret == 0, result.stdout.str()
+    entry = accepted_file(inner.progress)["checks"]["test_inner.py::test_group"]
+    assert next(iter(entry["metrics"].values()))["passes"] == 4
+    last = (inner.progress / "history.jsonl").read_text().splitlines()[-1]
+    assert json.loads(last)["fewer_reason"] == "upstream moved one"

@@ -1,0 +1,3 @@
+numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_both_enable_disable_set[feature-feature]
+numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_both_enable_disable_set[feature-same]
+numpy/_core/tests/test_cpu_features.py::TestEnvPrivation::test_runtime_feature_selection

@@ -1,0 +1,244 @@
+# numpy's own tests in the guest (spec 050). A judge file: every edit is a judge change.
+#
+# marker        upstream's fast selection, numpy.test()'s default (numpy/_pytesttester.py:164)
+# path_packages the packages whose __path__ gains the staged test folders (Decision 4)
+# markers       registered by the driver, as numpy's conftest.py does (Decision 6)
+# [groups.*]    one guest session and one check each; paths under the tree, fuel cap (Decision 8)
+# not_selected  files left out of their group, each with its reason and closer (Decision 8)
+# trap          tests that end the guest in a trap: deselected from their group, each run alone
+#               by its own check, and a gap until fixed (Decision 9)
+# expected      the classes of known failures, each listed by node id under expected/<group>/
+#               and admitted as one gap (Decision 10)
+
+package = "numpy"
+marker = "not slow"
+args = []
+path_packages = [
+    "numpy",
+    "numpy._core",
+    "numpy.lib",
+    "numpy.linalg",
+    "numpy.fft",
+    "numpy.random",
+    "numpy.ma",
+    "numpy.polynomial",
+    "numpy.matrixlib",
+    "numpy.testing",
+]
+markers = [
+    "valgrind_error: Tests that are known to error under valgrind.",
+    "leaks_references: Tests that are known to leak references.",
+    "slow: Tests that are very slow.",
+    "parallel_threads(n): run the given test function in parallel using `n` threads.",
+    "iterations(n): run the given test function `n` times in each thread",
+    "thread_unsafe: mark the test function as single-threaded",
+]
+support = []
+
+[groups.numpy-core]
+paths = ["numpy/_core/tests"]
+fuel = 300_000_000_000
+
+[groups.numpy-lib]
+paths = ["numpy/lib/tests"]
+fuel = 200_000_000_000
+
+[groups.numpy-others]
+paths = [
+    "numpy/fft/tests",
+    "numpy/linalg/tests",
+    "numpy/ma/tests",
+    "numpy/matrixlib/tests",
+    "numpy/polynomial/tests",
+    "numpy/random/tests",
+    "numpy/testing/tests",
+    "numpy/tests",
+]
+fuel = 270_000_000_000
+
+[[not_selected]]
+files = [
+    "numpy/_core/tests/test_api.py",
+    "numpy/_core/tests/test_argparse.py",
+    "numpy/_core/tests/test_array_coercion.py",
+    "numpy/_core/tests/test_arrayobject.py",
+    "numpy/_core/tests/test_arrayprint.py",
+    "numpy/_core/tests/test_conversion_utils.py",
+    "numpy/_core/tests/test_cpu_dispatcher.py",
+    "numpy/_core/tests/test_deprecations.py",
+    "numpy/_core/tests/test_dtype.py",
+    "numpy/_core/tests/test_extint128.py",
+    "numpy/_core/tests/test_getlimits.py",
+    "numpy/_core/tests/test_hashtable.py",
+    "numpy/_core/tests/test_indexing.py",
+    "numpy/_core/tests/test_mem_overlap.py",
+    "numpy/_core/tests/test_multiarray.py",
+    "numpy/_core/tests/test_multithreading.py",
+    "numpy/_core/tests/test_nditer.py",
+    "numpy/_core/tests/test_numeric.py",
+    "numpy/_core/tests/test_scalarbuffer.py",
+    "numpy/_core/tests/test_scalarmath.py",
+    "numpy/_core/tests/test_ufunc.py",
+    "numpy/_core/tests/test_umath.py",
+    "numpy/lib/tests/test_stride_tricks.py",
+]
+reason = "imports numpy's C test modules (_multiarray_tests, _umath_tests, _rational_tests, _operand_flag_tests), which the product does not link (scripts/gen_inittab.py)"
+closes_with = "context/questions-for-the-owner.md"
+
+[[not_selected]]
+files = ["numpy/_core/tests/test_simd.py", "numpy/_core/tests/test_simd_module.py"]
+reason = "imports _simd, which the product does not link"
+closes_with = "context/questions-for-the-owner.md"
+
+[[not_selected]]
+files = ["numpy/_core/tests/test_casting_unittests.py", "numpy/_core/tests/test_arraymethod.py"]
+reason = "they trap the guest (the [[trap]] entries); test_arraymethod at collection"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[not_selected]]
+files = ["numpy/_core/tests/test_memmap.py"]
+reason = "every test needs mmap, which WASI lacks"
+closes_with = "README.md"
+
+[[not_selected]]
+files = ["numpy/tests/test_ctypeslib.py"]
+reason = "it reads _multiarray_umath.__file__, which a builtin module has not"
+closes_with = "README.md"
+
+# The tests that trap the guest (Decision 9): `wasm trap: indirect call type mismatch`, a C
+# function called through a pointer of another signature. Each is deselected from its group (a
+# file is --ignore'd) and run alone by test_upstream_trap[<id>], a gap until spec 051 fixes it.
+
+[[trap]]
+id = "castingimpl-casting-unittests"
+node = "numpy/_core/tests/test_casting_unittests.py"
+reason = "_get_castingimpl(module, args), convert_datatype.c:248, registered METH_VARARGS | METH_KEYWORDS"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "castingimpl-arraymethod"
+node = "numpy/_core/tests/test_arraymethod.py"
+reason = "_get_castingimpl, as above, called at collection (frame 0 cfunction_call)"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "castingimpl-stringdtype"
+node = "numpy/_core/tests/test_stringdtype.py::test_cast_method_names"
+reason = "_get_castingimpl, as above"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "descr-set-records"
+node = "numpy/_core/tests/test_records.py::TestRecord::test_assign_dtype_attribute"
+reason = "array_descr_set(self, arg), getset.c:388, called as a setter with a closure"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "descr-set-stringdtype"
+node = "numpy/_core/tests/test_stringdtype.py::test_view_distinct_instance"
+reason = "array_descr_set, as above"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "gentype-copy"
+node = "numpy/_core/tests/test_regression.py::TestRegression::test_scalar_copy"
+reason = "gentype___copy__(self), scalartypes.c.src:2128, registered METH_NOARGS"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[trap]]
+id = "sfloat-reduce"
+node = "numpy/_core/tests/test_custom_dtypes.py::TestSFloat::test_np_save_load"
+reason = "sfloat___reduce__(self), _scaled_float_dtype.c:192, registered METH_NOARGS"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+# The classes of known failures (Decision 10): a failed or errored test goes to the first class
+# of its group whose outcome and `match` (a regular expression searched in the one-line reason)
+# fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
+
+[[expected]]
+id = "no-dup"
+group = "numpy-core"
+outcome = "failed"
+match = 'OSError: \[Errno 58\] Not supported'
+reason = "no dup: tofile and fromfile on a real file need a duplicated descriptor, which WASI lacks (README: the platform's facts)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-dup-file-left-open"
+group = "numpy-core"
+outcome = "error"
+match = 'PytestUnraisableExceptionWarning: Exception ignored while finalizing file'
+reason = 'no dup: the file a failed fromfile left open is reported when it is finalized, on whichever test runs then'
+closes_with = "README.md"
+
+[[expected]]
+id = "no-processes"
+group = "numpy-core"
+outcome = "failed"
+match = 'wasi does not support processes'
+reason = 'no processes: subprocess is unavailable on WASI'
+closes_with = "README.md"
+
+[[expected]]
+id = "test-only-modules"
+group = "numpy-core"
+outcome = "failed"
+match = "No module named 'numpy\\._core\\._rational_tests'"
+reason = "numpy's C test modules are not linked into the product (question 89)"
+closes_with = "context/questions-for-the-owner.md"
+
+[[expected]]
+id = "no-mmap"
+group = "numpy-lib"
+outcome = "failed"
+match = 'mmap is unavailable'
+reason = 'no mmap on WASI'
+closes_with = "README.md"
+
+[[expected]]
+id = "no-dev-null"
+group = "numpy-lib"
+outcome = "failed"
+match = "No such file or directory: '/dev/null'"
+reason = 'no /dev/null on WASI: os.devnull names a path that does not exist'
+closes_with = "README.md"
+
+[[expected]]
+id = "patch-0001-truncated-message"
+group = "numpy-lib"
+outcome = "failed"
+match = 'Regex pattern did not match'
+reason = 'carried patch 0001: reading a truncated .npy takes the buffer path, whose message differs'
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "numpy-others"
+outcome = "failed"
+match = 'ctypes is unavailable'
+reason = 'no ctypes calls: the stand-in raises OSError'
+closes_with = "README.md"
+
+[[expected]]
+id = "patch-0001-masked-save"
+group = "numpy-others"
+outcome = "failed"
+match = "DID NOT RAISE <class 'NotImplementedError'>"
+reason = 'carried patch 0001: np.save of a masked array writes its data instead of raising'
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
+
+[[expected]]
+id = "test-only-modules"
+group = "numpy-others"
+outcome = "failed"
+match = "not really public but looked public|has no attribute '_multiarray_tests'"
+reason = 'numpy.conftest and _multiarray_tests are not in the product (question 89)'
+closes_with = "context/questions-for-the-owner.md"
+
+[[expected]]
+id = "zip-code-names"
+group = "numpy-others"
+outcome = "failed"
+match = '^AssertionError: ?$'
+reason = "the zip's code objects carry relative file names, so a filter by module file misses (test_suppress_warnings_module)"
+closes_with = "context/specifications/051-what-the-upstream-tests-found.md"

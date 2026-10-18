@@ -45,12 +45,15 @@ class State:
     suite_passed: int = 0
     suite_skipped: int = 0
     lines: list[str] = field(default_factory=list)
+    facts: dict[str, dict] = field(default_factory=dict)  # node id -> the check's `fact` values
 
 
 STATE = pytest.StashKey[State]()
 HEAD_AT_START = pytest.StashKey[str]()
 METRICS = pytest.StashKey[dict]()
 NOTE = pytest.StashKey[str]()
+FACTS = pytest.StashKey[dict]()
+METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: spec 050, Decision 12
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -58,6 +61,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     g.addoption("--accept", metavar="REASON", help="record this run as the accepted state")
     g.addoption("--accept-judge", metavar="REASON", help="also accept a changed judge")
     g.addoption("--accept-growth", metavar="REASON", help="also accept fuel or bytes growth")
+    g.addoption(
+        "--accept-fewer-passes", metavar="REASON", help="also accept a fall in a pass count"
+    )
     g.addoption("--partial", metavar="REASON", help="allow accepted passes to be blocked")
     g.addoption("--retire", metavar="NODEID", action="append", default=[], help="drop a check")
     g.addoption("--progress-dir", metavar="DIR", help="where accepted.json and history.jsonl live")
@@ -205,10 +211,10 @@ def pytest_deselected(items: list[pytest.Item]) -> None:
 
 @pytest.fixture
 def metric(request: pytest.FixtureRequest):
-    """Record a counted metric (`fuel` or `bytes`) for the current check."""
+    """Record a counted metric (`fuel`, `bytes` or `passes`) for the current check."""
 
     def record(name: str, value: int) -> None:
-        if name not in ("fuel", "bytes"):
+        if name not in METRIC_NAMES:
             raise ValueError(f"unknown metric {name}")
         request.node.stash.setdefault(METRICS, {})[name] = int(value)
 
@@ -222,6 +228,18 @@ def note(request: pytest.FixtureRequest):
 
     def record(text: str) -> None:
         request.node.stash[NOTE] = _first_line(text)
+
+    return record
+
+
+@pytest.fixture
+def fact(request: pytest.FixtureRequest):
+    """Attach a named fact to the current check's record in latest.json, under `facts`:
+    reported, never ratcheted (spec 050: a group's `passed_digest`, its outcome counts, the files
+    left out of its staging)."""
+
+    def record(name: str, value) -> None:
+        request.node.stash.setdefault(FACTS, {})[name] = value
 
     return record
 
@@ -244,7 +262,20 @@ def _set(state: State, node: str, area: str, status: str, reason: str = "", **ex
     current = state.records.get(node)
     if current is not None and current["status"] == "fail":
         return  # a failure in any phase stands
-    state.records[node] = {"area": area, "status": status, "reason": reason, **extra}
+    facts = state.facts.get(node)
+    state.records[node] = {
+        "area": area,
+        "status": status,
+        "reason": reason,
+        **extra,
+        **({"facts": facts} if facts else {}),
+    }
+
+
+def _facts(state: State, node: str, facts: dict) -> None:
+    state.facts[node] = dict(facts)
+    if node in state.records:
+        state.records[node]["facts"] = dict(facts)
 
 
 @pytest.hookimpl(wrapper=True)
@@ -252,6 +283,8 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     rep = yield
     state = item.config.stash[STATE]
     area = area_of(item)
+    if area is not None and rep.when == "call" and FACTS in item.stash:
+        _facts(state, item.nodeid, item.stash[FACTS])
     if area is None:
         if rep.when == "call" or (rep.when == "setup" and not rep.passed):
             state.suite_total += 1
@@ -461,6 +494,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
                 growth_reason=_opt(config, "--accept-growth"),
                 partial_reason=partial,
                 retire=_opt(config, "--retire"),
+                fewer_reason=_opt(config, "--accept-fewer-passes"),
             )
         except scoreboard.AcceptRefused as e:
             red.append(f"--accept refused: {e}")

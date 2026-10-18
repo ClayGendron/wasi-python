@@ -1,0 +1,1 @@
+numpy/lib/tests/test_regression.py::TestRegression::test_py3_compat
