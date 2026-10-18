@@ -53,22 +53,28 @@ landed) and writable mounts (034, landed); async host functions (spec 053); read
 the import path (spec 054); bounded sessions across turns (spec 055, build-class: a second guest
 export). The owner, question 49: "cancel nothing for 0.1.0".
 
-### Where 0.1.0 stands (2026-10-18, morning)
+### Where 0.1.0 stands (2026-10-18, afternoon)
 
 Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 030, 031, 036,
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
-(writable mounts); 050 (numpy's and pandas' own tests in the guest: 63,717 passes, 12 admitted
-gaps).
+(writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
+is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file).
 
-In build: 035 (the zip's directory is read once; build-class; answering its build review), 049
-(the public API frozen; Decision 8 revised for question 88), 052 (the judge on several cores;
-research first, the owner's request of 2026-10-18).
+Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
+0.1.0a5 is cut once its dry run passes on all three systems (AGENTS.md rule 6b), with its
+security review's addendum ("a5 may be released").
 
-Being specified: 053 (async host functions), 054 (read-only code on the import path), 055
-(bounded sessions; pre-build review required).
+Built and confirmed, landing after the a5 tag (code is frozen until then): 053 (async host
+functions), 023 (matplotlib M1, build-class; after its rebase). In build: 052 (the judge on
+several cores; answering its build review). Confirmed for build: 055 (bounded sessions;
+build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
+before the release after a5). Being specified: 059 (the x86_64 rebuild runs natively:
+`-ffp-contract=off` on every compile; the owner's decision of 2026-10-18).
 
 Confirmed for build, in the build-class queue (one at a time, §5.7), in this order: 023
-(matplotlib M1; its measurements answer question 34 and feed question 64), then 046 and 047
+(matplotlib M1; its measurements answer question 34 and feed question 64), then 059, then 057,
+then 046 and 047
 (lxml, regex; question 82 lets them take a slot before scipy), 037 and 038 (scipy), 043
 (matplotlib M2; question 81 answered), 039 (tier A), 041 (files read by path from the zip), 042
 (seaborn and reportlab; question 73 adds the barcode folder, written in before its build), 044
@@ -78,10 +84,11 @@ Follow-ups decided by the owner: a provider's `OSError` carries its errno to the
 54; a change to 032's provider); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).
 
-Releases: 0.1.0a4 is cut by the agent after its pre-release security review (the owner,
+Release rule: alphas are cut by the agent after their pre-release security review (the owner,
 2026-10-18: "You may publish alpha releases but not the 0.1.0 release"); 0.1.0 is the owner's to
-tag. Before 0.1.0: a security review of the whole surface (milestone 6), and the wheel's size
-against PyPI's limit (question 64).
+tag. Before 0.1.0: a security review of the whole surface (milestone 6), the a4 review's F3 (a
+per-run request-byte budget) and N8, and the wheel's size against PyPI's limit (question 64:
+49.7 MiB with matplotlib M1).
 
 ## After 0.1.0
 
