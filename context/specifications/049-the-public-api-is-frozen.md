@@ -1,6 +1,6 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
+- **Status:** built 2026-10-18 in the worktree `wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c` (034 landed), commits `6f7a2fe` to `e700ce8` and these notes; awaiting its build review. Before that: confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
   (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
   F1 to F7 are written in) and revised against all thirteen findings (the review's
   Disposition says where each went); awaiting the reviewer's confirmation. It changes neither
@@ -645,4 +645,232 @@ so, and the README paragraph the build writes states the same terms.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer, a fresh agent (Claude Opus 5.5). It worked in the worktree
+`wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c`, after 034 landed.
+The judge ran against the main tree's frozen artifact set `build/sets/s-f94dec535086b06c`. That
+set's `SHA256SUMS` equals `build/artifacts/SHA256SUMS`, the set 051's acceptance judged. The set
+was never rebuilt. Each claim is EXECUTED unless it says otherwise. The worktree's `build/` logs
+named here are not kept; their lines are quoted.
+
+**Commits on the branch, one per build step:**
+- `6f7a2fe` step 1: the render and its checks, seen failing on main;
+- `259fc0a` step 2: the renames, `set_defaults`, and one read of the defaults per call;
+- `85547a4` step 3: the docstrings;
+- `48a9f88` step 4: `py.typed`, the annotations, `tool`'s overloads;
+- `e700ce8` step 5: the README's reference, the snapshot, the CHANGELOG, `context/README.md`;
+- the commit after `e700ce8`: these notes and the status line.
+
+**What changed.**
+- `src/wasi_python/__init__.py`:
+  - `__all__` is the 20 names.
+  - `_ARTIFACT_DIR`, `_ARTIFACTS_ENV` and `_CHECKOUT_ARTIFACT_DIR` are renamed.
+  - `from . import runner as _runner` is added.
+  - `defaults()` returns `_runner._current_defaults()`.
+  - `set_defaults(new)` checks `isinstance(new, Defaults)` (else `TypeError`). Then, under
+    `_defaults_lock`, it reads `_runner.DEFAULTS` and assigns the new value. It returns the old
+    value.
+  - `Defaults` and `stats` are re-exported from `runner`.
+  - The module docstring names the public surface and says the rest is internal.
+- `src/wasi_python/tools.py`:
+  - `__all__` holds 9 names.
+  - Seventeen constants gain `_`, with every use in the module.
+  - `tool` gains two `typing.overload` declarations. The implementation is unchanged.
+  - The docstrings are rewritten.
+- `src/wasi_python/runner.py`:
+  - `_current_defaults()` is new. `_checked` calls it once.
+  - `_checked` now takes `root`, `grants`, `mounts` and `max_file_calls`, and runs
+    `_check_places` last. The order of refusals is unchanged: tools, then limits, then inputs,
+    then places.
+  - The one read goes to `_check_tools` (a new optional `limits`; the unit tests call it with
+    four arguments) and to `_check_places` (a required `limits`).
+  - The read's `async_workers` is kept as `checked["async_workers"]`. `_submit(executor,
+    workers, fn, *args)` sizes the pool from it.
+  - `host` is annotated `Callable[[bytes], bytes | bytearray | memoryview] | None` in `run` and
+    `run_async`.
+  - Four fields of `Defaults` are annotated `… | None`.
+  - The docstrings of `Completed`, `Defaults`, `Grant`, `run`, `run_async` and `stats` are
+    rewritten. Specification citations move to `#` comments.
+- `src/wasi_python/mounts.py`:
+  - `Mount.provider: FileProvider`.
+  - Docstrings for `Errno`, `Stat`, `FileProvider` and its three methods, `WritableFileProvider`
+    and its five methods, `Mount`, `FileFault`, `RefusedWrite` and `FileRecord`.
+- `src/wasi_python/py.typed`: new and empty.
+- The judge:
+  - `tests/harness/api.py` is new: the render, `--write`, `--check`, `--package`, `--snapshot`
+    and `--readme`, and the rules as counts.
+  - `tests/public_api.txt` is new: 240 lines.
+  - `tests/checks/test_v1_4_public_api.py` is new: 10 checks.
+  - `tests/harness/artifacts.py`: `wheel_errors` requires `wasi_python/py.typed`.
+  - `tests/unit/test_artifact_rules.py`: the synthetic wheel gains `py.typed`, and a new
+    stand-in, `test_a_wheel_must_carry_py_typed`, is added.
+  - The 27 renamed lines in 5 files, as Decision 4 lists them. `perl -pi` was used with
+    module-qualified patterns (`T.`, `wasi_python.`). The harness's own `KINDS` and
+    `ARTIFACTS_ENV` and the guest's `PROTOCOL` are untouched. `git diff --stat` shows 27
+    insertions and 27 deletions.
+- `README.md`:
+  - `## API reference` is added before `## Safety`: a hand-written paragraph with Decision 8's
+    promise (two final minor releases), then the generated block.
+  - The six spans are rewritten.
+  - The pool bound gains its sentence.
+- `CHANGELOG.md`: a spec 049 entry under 0.1.0a4 (Added, Changed, the promise).
+- `context/README.md`: Decision 13's sentence, written on this branch at the end of the
+  `specifications/` bullet (condition C2).
+
+**Seen failing first.**
+- Against main `1c0123c`, step 1 (`build/step1-seen-failing.log`): 9 of the 10 checks fail. The
+  guard `test_nothing_private_is_re_exported` passes.
+  - Criterion 1: "no snapshot: run … --write".
+  - Criterion 2: 44 findings: `wasi_python` lacks `Defaults`, `defaults`, `set_defaults` and
+    `stats`, and `wasi_python.tools` has no `__all__`.
+  - Criterion 3: **29** names. The spec's 20 assumed `tools` already had its `__all__` of 9.
+    Without one, all 26 public names of `tools` count, plus `__init__`'s 3.
+  - Criterion 5: method docstrings 8 (`FileProvider`'s 3 and 034's 5), `Args` entries 48,
+    `Attributes` entries 34, `Raises` 4, spec references 12. Only names already in an `__all__`
+    count here, so `Defaults` and `tools` are left out.
+  - Criterion 6: 6 hits in docstrings and 6 README spans.
+  - Criterion 7: 7 of 94 evaluated annotations fail (`Host` twice, and `Tool`, `ToolCall`, `ToolRecord`,
+    which `tools` did not yet export).
+  - Criterion 8: `py.typed` is missing.
+  - Criterion 9: 0 blocks.
+  - Criterion 10: `AttributeError: … no attribute 'defaults'`.
+- After step 2's exports and before the docstrings (`build/step2-checks.log`), the counts are
+  the spec's, grown by 034:
+  - `run` alone: 19 undocumented arguments;
+  - 66 public fields without an `Attributes` entry: the spec's 57, plus 034's 9;
+  - 9 methods without a docstring: 3, plus 034's 5, plus `Tool.__call__`;
+  - 6 `Raises` sections missing;
+  - 17 spec references: 14 on the spec's main, plus 034's;
+  - 7 docstring hits, the spec's 7, with `Defaults` now public;
+  - 6 README spans;
+  - 2 of 149 annotations fail (`Host`).
+- Criterion 10's one read: the stand-in that kept three reads (`_current_defaults()` called in
+  `_checked`, `_check_tools` and `_check_places`) failed with `assert (3, 1) == (1, 1)`
+  (`build/step2-three-reads.log`). Then the one-read change passed.
+
+**Acceptance, with evidence.**
+1. `test_the_public_api_matches_its_snapshot` passes. Its stand-in is a scratch copy with
+   `size: int = 1`. Its diff is exactly `-  field size: int = 0` and `+  field size: int = 1`.
+2. `test_public_modules_export_exactly_their_all` passes. `import *` binds the 20 names and the 9.
+3. `test_private_names_carry_an_underscore` passes: 0 names.
+4. `test_nothing_private_is_re_exported` passes. Its stand-in (`from .runner import _UNSET as
+   UNSET`, exported) gives exactly `["wasi_python.UNSET is _UNSET"]`.
+5. `test_every_public_name_is_documented` passes: every count is 0. The stand-in counts a
+   dataclass whose docstring is generated and a `RuntimeError` subclass with none as
+   `["m.Bare", "m.NoDoc"]`.
+6. `test_public_docs_name_nothing_internal` passes: 0 docstring hits and 0 README hits, the
+   generated block and the new prose included. C1's stand-ins use a synthetic README (`FENCED`):
+   - the scanner finds 6;
+   - one that pairs backticks naively finds 0;
+   - one that blanks only fences at the start of a line finds 3;
+   - an indented fence before a bare `` `DEFAULTS.file_calls` `` still counts that span, at
+     line 7;
+   - a fenced `wasi_python.runner.DEFAULTS = x` is a hit.
+
+   On today's README all three scanners found 6 before this change, so the stand-in must be
+   synthetic: 034's text had changed where the backtick counts fell. After 034 the README held
+   **51** internal constants and **6** spans (lines 558, 850, 857, 978, 1010, 1239). That
+   matches the review's count on 034's branch.
+7. `test_public_annotations_resolve` passes. 171 annotations are evaluated (149 and the two overloads' 22) and 0 fail.
+   - Overload 1 is `("fn", "positional-only", "Callable[..., Any]", "Tool")`.
+   - Overload 2 is `fn: None` and returns `Callable[[Callable[..., Any]], Tool]`.
+   - Both take the implementation's keywords.
+8. `test_the_package_is_typed` passes, and the marker is tracked. `test_a_wheel_must_carry_py_typed`
+   gives exactly `["wasi_python-0-py3-none-any.whl lacks wasi_python/py.typed"]`.
+   `uv build --wheel --offline`, run from the cache into the worktree's `build/` and then deleted,
+   holds `wasi_python/py.typed`. The v1.1 wheel check itself is blocked here ("wheel").
+9. `test_the_readme_reference_matches_the_api` passes: one block, equal to the render. Markers
+   inside a fence give `(0, None)`.
+10. `test_set_defaults_changes_what_run_reads` passes.
+    - `set_defaults` returns the old value.
+    - The lock stand-in sees `[("enter", before), ("exit", new)]`, and one enter and one exit per
+      call.
+    - `_checked` carries the new `memory_bytes`.
+    - `None` and `{}` raise `TypeError`.
+    - The old value is restored.
+    - 0 artifact lookups.
+    - `run(…, tools=[noop])` reads the defaults once and `run_async` once.
+11. The render is the same on every supported Python. Each command exited 0:
+    - `uv run --no-project --offline --python 3.11 python tests/harness/api.py --check` (3.11.14);
+    - the same with `--python 3.12` (3.12.12) and `--python 3.13` (3.13.11);
+    - `uv run python tests/harness/api.py --check` (3.14.2).
+
+    `--no-project` keeps the worktree's 3.14 venv from being replaced by a 3.11 one. The render
+    needs only the standard library and the package's source. `--check` covers both outputs.
+12. The update path was run once, in a scratch copy, with `--package`, `--snapshot` and `--readme`
+    pointed at copies:
+    - `run` gained `throwaway: bool = False`.
+    - `--check` exited 1 with one added snapshot line, `+  param throwaway: bool = False
+      keyword-only`, and one added signature line in the block.
+    - `--write` exited 0, and `--check` then exited 0.
+    - The README changed by the signature line and one `Args` entry (`` - `throwaway`: ``).
+    - The snapshot changed by that one line.
+13. Every existing check passes with the renamed constants. `ruff check` and `ruff format --check`
+    are clean on `src` and `tests`. The judge is below: lost 0, grew 0.
+
+**The judge.** The command was `WASI_PYTHON_ARTIFACTS=<main>/build/sets/s-f94dec535086b06c uv run
+pytest`, run once, at the end (AGENTS.md rule 3a), on `e700ce8`. Its log is
+`build/judge-final.log`:
+- `wasi_python v1: 275/286 pass · 0 gap · 11 blocked · 0 fail (unit suite 934/942, 8 skipped)`;
+- v1.4 135/135;
+- `ratchet vs 01238501f8: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 10 · grew 0 ·
+  judge changed: tests/checks/test_v1_4_public_api.py, tests/harness/api.py,
+  tests/harness/artifacts.py and 7 more`;
+- `1209 passed, 19 skipped`.
+
+Before the build (`build/judge-before.log`, the same set): `265/276 pass · 11 blocked`, `1198
+passed, 19 skipped`. The 11 blocked checks are the worktree's own: no source trees, no oracle, no
+wheel, no prior-art clones, and one machine instead of three systems. The lane accepts with
+`--accept-judge`. The judge change is the new check file, the harness, the snapshot, the wheel
+rule, its unit stand-in, and the 27 renamed lines.
+
+**Where the specification was silent, the builder decided.** The reviewer should judge each one:
+- *A constant cannot have a docstring of its own.* `PROTOCOL` is an int. The rule chosen: a
+  constant must be named in backticks in its module's docstring. The README shows the first
+  paragraph that names it.
+- *Internal names, for both documents.* A plain assignment counts (`X = …`), and so do a `def`
+  and a `class`. Names unpacked together (`EBADF, EIO = 8, 29`) are preview1's own numbers, the
+  words a document uses for them, so they do not count. Dunders do not count, and neither do
+  `Errno`'s members. Counted this way, the README's constants number 51, the review's count.
+  Counting unpacked names gave 81 and flagged `EMFILE` and `O_CREAT`.
+- *The docstring rule also catches a span naming `wasi_python.runner|mounts|cli`.* The README rule
+  already did. None was found.
+- *Criterion 4 also catches `X = _y`*, not only imports.
+- *The README reference leaves out the command's entry point.* `wasi_python.cli:main` names an
+  internal module, so the README rule refuses it. The snapshot keeps it
+  (`command wasi-python = wasi_python.cli:main`).
+- *Criterion 10 passes `tools=`.* `_check_tools` reads a default only when tools are given.
+  Without them, the three-read stand-in counted 2, not the spec's 3.
+- *`Tool.__call__` gets a docstring* and counts among the methods.
+- *The reference's "summary" is the docstring's first paragraph.* A class's methods are listed
+  under **Methods:**, each with its `Args`. `tool` shows the implementation's signature, then
+  each overload.
+- *`run`'s and `run_async`'s `Raises:` sections* name `wasmtime.WasmtimeError` and `BaseException`
+  as entries: `RUN_RAISES` and `RUN_ASYNC_RAISES` in `api.py`. `run_async` has
+  `asyncio.CancelledError` in place of `KeyboardInterrupt`.
+- *Exit-code labels* are read by running the command's `main` with a stand-in `run`: 0 a result,
+  1 run raised, 2 a usage error, 130 interrupted.
+- *The README grew from 1,413 to 2,146 lines* (INFERRED from `wc -l`). The review estimated 300 to
+  400 more; the generated block is about 700.
+
+**For the build review.** Look hardest at:
+- `runner._checked`: the one read, `_check_places` moved inside, and `checked["async_workers"]`
+  passed to `_submit`.
+- `set_defaults` and its lock: the module global `_runner.DEFAULTS` is still what `run` reads, so
+  `monkeypatch.setattr(runner, "DEFAULTS", …)` keeps working.
+- `api.code_spans` and `api.fenced` (C1), and the `FENCED` stand-in.
+- `api.sections`, the Google-style parser, written by the harness itself; `tools._HEADINGS` is
+  untouched.
+- The `Raises:` texts against Decision 6.
+- The 034 checklist in the snapshot. Each item appears exactly:
+  - `RefusedWrite`'s six fields;
+  - `WritableFileProvider`'s five methods;
+  - `Mount.writable … kw_only`;
+  - `FileRecord.refused` and `refused_total`, last;
+  - 20 names.
+- The README paragraph's terms against Decision 8 and question 88.
+- Every new docstring's claims against the code. These are READ by the builder, not
+  machine-checked: the gate's allow/refuse values, `cache_dir=True`, and "within 5 ticks".
+
+**Open items.** None blocks the build:
+- The spec's seen-failing counts were written assuming the final `__all__`s. The real counts on
+  main are recorded above.
