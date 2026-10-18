@@ -38,6 +38,26 @@ document.
 - **The owner, 2026-10-18:** wait; measure the wheel as packages land, then assess the route
   from the real size. Each landing records the wheel's size; the agent brings the number back.
 
+### 91. Build the next build-class specification stacked on the one in review?
+
+- **Asked:** 2026-10-18. **Source:** the owner's question that day, "Is there a way to speed up
+  the verification part of this process", and the agent's answer in that session.
+- **The fact:** about ten build-class specifications stand between main and 0.1.0 (the roadmap's
+  queue: 023, 046, 047, 037, 038, 043, 039, 041, 042, 044, 045, 055). Constitution §5.7 lets only
+  one change to the build recipe be in flight, so each waits for the previous one's build,
+  review, answers, confirmation and landing. A landing's machine time is small: a full build
+  from pins about 5 min 15 s and the full judge about 9 to 10 min on darwin-arm64 (EXECUTED,
+  this session's lane logs); the waits are the review round trips.
+- **The question:** may the next build-class specification be built on a branch made from the
+  current one's reviewed branch, while that one is in review, and landed strictly after it?
+- **What it costs:** if the lower specification changes after its review, the stacked one
+  rebases, rebuilds and re-measures its numbers, and its review covers that delta (as spec 050
+  did after 051). Still one landing at a time; the lane's rules do not change.
+- **The agent's recommendation:** yes, at most two deep (one in review, one building on it),
+  written into §5.7 and AGENTS.md rule 2. It is the one change that shortens the road to 0.1.0
+  noticeably (INFERRED).
+- **Meanwhile:** the queue stays serial, as §5.7 says.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
