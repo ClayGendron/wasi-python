@@ -1,6 +1,11 @@
 # 050 — numpy's and pandas' own tests under the runtime
 
-- **Status:** **Spec 051 lands before this one** (the lane's order, 2026-10-18). This specification rebases onto 051 and re-derives its tables on 051's artifact set: the seven `[[trap]]` entries and their gaps (their callbacks are fixed by 051's patch 0002), the six `zip-code-names` classes and the two `patch-0001-*` classes (fixed by 051), `test_casting_unittests.py` and `test_arraymethod.py` (out of `not_selected`), and each group's `passes`. Where its text says 051 edits these files after it lands, this specification does that work itself; 051's Decision 12 is done here. confirmed for build with conditions, written in. Drafted 2026-10-18; revised the
+- **Status:** **landed 2026-10-18** (accepted on `34eb315` as `d903110`; release dry run not yet
+  run). Its build review (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-2026-10-18.md`)
+  confirmed it after the rebase onto 051; the rebase delta's review
+  (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-rebase-2026-10-18.md`) confirmed it
+  lands; see the Landing notes' last section. What follows is the status as it stood before the
+  landing. **Spec 051 lands before this one** (the lane's order, 2026-10-18). This specification rebases onto 051 and re-derives its tables on 051's artifact set: the seven `[[trap]]` entries and their gaps (their callbacks are fixed by 051's patch 0002), the six `zip-code-names` classes and the two `patch-0001-*` classes (fixed by 051), `test_casting_unittests.py` and `test_arraymethod.py` (out of `not_selected`), and each group's `passes`. Where its text says 051 edits these files after it lands, this specification does that work itself; 051's Decision 12 is done here. confirmed for build with conditions, written in. Drafted 2026-10-18; revised the
   same day against its pre-build review
   (`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-spec-2026-10-18.md`, findings F1
   to F15, each answered in its Disposition and written in below). The review's Confirmation set
@@ -1065,3 +1070,21 @@ The body's tables, criteria and Design now give these counts beside the earlier 
   in 521.05s`. The 32 upstream checks: 20 `pass` (11 groups, 8 emptied classes, the rule), 12
   `gap`. The class lists hold 100 node ids. README's Measured row (63,717; 12 gaps) and the
   CHANGELOG line follow; the README's "Known defects" list is removed (051 closed all three).
+
+**Landed 2026-10-18** through the lane. The rebase delta (`93ccd9c..612fb70`) was reviewed by a
+fresh agent, as the build review's item 7 asked
+(`../reviews/050-numpy-and-pandas-own-tests-under-the-runtime-rebase-2026-10-18.md`; verdict:
+confirmed, it lands; three low findings). Rebased onto main `1c0123c` (spec 034 and 049's
+revision); `git range-diff` shows all five commits unchanged (`=`). The lane answered the delta
+review's findings: F1 (numpy.toml's run of blank lines collapsed) and F3 (a comment in both
+configs: an emptied class's closer is a record, and failures that come back need a gap with a new
+closer) in `d672e16`, comment and whitespace only, made after the review as the review allows;
+F2 (this status line) here. Both reviews, written in scratchpads, were committed on the detached
+HEAD as `34eb315`. The kit was fetched in the main tree (`tests/upstream/fetch.py`: seven wheels,
+each hash checked), and the full judge ran there on `34eb315` against 051's accepted set:
+`wasi_python v1: 294/308 pass · 12 gap · 2 blocked · 0 fail (unit suite 1023/1025, 2 skipped)`,
+v1.3 `46/58 gap 12`, `gaps close with: README 10 · questions-for-the-owner 2`,
+`ratchet vs 34eb315196: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0`, `1317 passed, 4
+skipped, 12 xfailed in 550.30s` (EXECUTED, `build/lane-050-accept.log`). Accepted with
+`--accept-judge` as `d903110` (history line 50); the rules tier passed (24/24); main
+fast-forwarded. The release dry run waits on the owner's push.
