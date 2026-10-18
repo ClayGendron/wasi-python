@@ -8,6 +8,45 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The owner's answers of 2026-10-18, evening (questions 64, 90, 92 to 97, and pull requests)
+
+Asked one by one, with the agent's recommendation in each question.
+
+- **64 (the wheel and PyPI's limit):** "wait on a decision until we cross the 100MB threshold".
+  The wheel is about 54.3 MB with lxml (spec 046). Each landing records its size; the agent
+  brings the question back when a landing would cross 100 MB.
+- **90 (`batch` in the tool protocol):** after 0.1.0, as recommended.
+- **92 (bounded sessions, spec 055):** keep its three choices where they follow precedent,
+  "especially that of Jupyter". `sys.exit()` keeps the session and the last expression is echoed,
+  as in Jupyter, so both stand. Closing did not follow Jupyter, which lets Python exit normally;
+  the owner chose to follow Jupyter: at close and at expiry the session runs Python's shutdown
+  (`atexit`, flushes) inside a small fuel and time budget, and is stopped if the budget runs out.
+  Spec 055's Decision 8 changes before it is built. **The descriptor cap comes before 0.1.0**: a
+  per-sandbox limit on files open at once, set by the embedder like the other limits, default
+  1,024, `EMFILE` past it, for `run` and sessions alike. The owner's principle, kept: "if an
+  embedder provides it access to an OS and file system, it should be able to use that file system
+  until time, fuel, memory, etc of that individual session run out"; the cap guards the host
+  process, not what the guest may use. A specification of its own.
+- **93 (a read-only mount on the import path):** no. "Agents will not be importing code, and
+  wasi python should not design for this use case. The dev building an app with wasi python
+  would define all of the imports and code and libraries upfront." Mounts stay refused there.
+- **94 (rulesets):** yes, the agent sets them. Done 2026-10-18 with the owner's `gh`: ruleset
+  25363090 on the default branch (no deletion, no force push, updates only by the admin role)
+  and 25363091 on `refs/tags/v*` (creation, deletion, moves and updates only by the admin role).
+  The agent's pushes pass as the admin's ("Bypassed rule violations" is printed on each push).
+- **95 (docs commits after a dry run):** allowed, written into AGENTS.md rule 6b.
+- **96 (a Rust core):** "I want to move over to a rust core after 0.1.0, but I do not think that
+  mean we replace wasmtime-py, but this can be decided later. The main thing is a rust code that
+  can be shared by python and js, at least partially, so there is less to maintain." After 0.1.0;
+  the research and the spike are on record.
+- **97 (the release environments):** "nothing for now, later we can state the main is the only
+  branch that can do the release and enforce a human review step."
+- **Pull requests (asked with question 98):** "We should push changes as a branch, create a PR to
+  main that runs the tests, and once completed and approved, merge the changes." Asked who
+  approves (a pull request's author cannot approve it, and the agent works as the owner's
+  account), the owner chose "My account, checks only": pull requests must pass their checks; no
+  approval is required. Spec 064 specifies it, after spec 063, whose shards become the checks.
+
 ### 91, answered: up to three build changes built at once (2026-10-18)
 
 - **Asked:** 2026-10-18 (question 91: build the next build-class specification stacked on the one

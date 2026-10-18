@@ -116,7 +116,10 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    the release workflow on main's exact commit and wait for every job
    to pass on all three systems. Only Windows runs there; a landing
    never runs it, so a check can pass the lane and still fail the
-   release (0.1.0a4's tag run failed on Windows, 2026-10-18).
+   release (0.1.0a4's tag run failed on Windows, 2026-10-18). Commits
+   that touch only `context/`, `CHANGELOG.md` or `README.md` may follow
+   the dry run if the fast tier passes on the commit tagged (the owner,
+   question 95, 2026-10-18); any other file means a new dry run.
 7. **Two strikes, then write it down.** After two failed attempts on
    one hypothesis, stop. Record where you stood and why in the memo
    or specification, and move to work that does not depend on it.
