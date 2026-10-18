@@ -45,13 +45,35 @@ and B of the default-profile memo (decisions 43 to 48).
    x86_64 Linux rebuilds byte-identical; numpy's and pandas' own test subsets under the
    runtime; the public API frozen and documented.
 
-### Agent runtime features (placement in 0.1.0 to be decided)
+### Agent runtime features (placement in 0.1.0 to be decided; question 49)
 
 Decided as features (`decisions.md`): a cancel during a blocked door call reports `cancelled`
 (a defect); a tool protocol over the door (`from host import tools`, an optional gate, call
 counting and a call record); async host functions; read-only code on the import path; a
 filesystem provider (`Mount`, at `/` too, 10,000 calls by default); bounded sessions across
 turns.
+
+### Where 0.1.0 stands (2026-10-18, overnight)
+
+Landed (each reviewed, accepted by the lane, dry run cited in its landing notes): 027, 028, 029
+(milestone 1 complete); 030, 031, 036 (the tool protocol), 032 with three post-landing fixes
+(read-only mounts), 033 (the zip carries metadata and a `ctypes` stand-in), 048 (the sandbox
+holds on wasmtime 49.0.0: GHSA-m9f7-9w4p-gv38 and GHSA-96f6-r43r-8c24 mitigated in the runner).
+
+Built and confirmed, waiting on the owner: 034 (writable mounts; question 71).
+
+In build: 040 (x86_64 rebuilds the same bytes; build-class), 050 (numpy's and pandas' own tests
+in the guest).
+
+Confirmed for build, in the build-class queue (one at a time, §5.7): 051 (what the upstream tests
+found: numpy signature traps, `.pyc` names), 035 (the zip's directory is read once), 023
+(matplotlib M1), 043 (matplotlib M2; waits on question 81), 037 and 038 (scipy), 039 (tier A),
+041 (files read by path from the zip), 042 (seaborn and reportlab; question 73 for the barcode
+folder), 046 and 047 (lxml, regex; question 82), 044 and 045 (scikit-learn, statsmodels;
+question 83). Not build-class, confirmed: 049 (the public API frozen; after 034; question 88).
+
+Not yet specified for 0.1.0: the release itself (0.1.0a4 and then 0.1.0 are the owner's to tag,
+§5.5; question 84 for a4); a security review of the whole surface before 0.1.0 (milestone 6).
 
 ## After 0.1.0
 
