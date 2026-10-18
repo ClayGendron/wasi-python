@@ -77,13 +77,20 @@ def artifacts() -> Artifacts:
     )
 
 
+from .mounts import Errno, FileFault, FileProvider, FileRecord, Mount, Stat  # noqa: E402
 from .runner import Completed, Grant, run, run_async  # noqa: E402  (runner.py imports Artifacts from here)
 
 __all__ = [
     "Artifacts",
     "ArtifactsMissing",
     "Completed",
+    "Errno",
+    "FileFault",
+    "FileProvider",
+    "FileRecord",
     "Grant",
+    "Mount",
+    "Stat",
     "artifact_dir",
     "artifacts",
     "run",

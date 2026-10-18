@@ -451,6 +451,131 @@ What grants do not do:
   files and the other grants by identity, which a bind mount shares and a
   second mount of a network share may not.
 
+### Mounts
+
+A mount serves a guest's files from your own code: a database, an object
+store, a permission layer. The guest opens, reads, lists and stats them with
+ordinary calls (`open`, `os.listdir`, `os.stat`, `pandas.read_csv`); your
+provider answers each one. Mounts are read-only (writable mounts come later).
+
+```python
+from wasi_python import Errno, Mount, Stat, run
+
+class Files:  # paths are absolute within the mount: "/" is the mount itself
+    def __init__(self, tree):  # {"/a.csv": b"...", "/d": None (a folder)}
+        self.tree = tree
+
+    def stat(self, path):
+        if path == "/" or self.tree.get(path, b"") is None:
+            return Stat("dir")
+        return Stat("file", len(self.tree[path])) if path in self.tree else Errno.ENOENT
+
+    def list(self, path):
+        prefix = path.rstrip("/") + "/"
+        return [(p[len(prefix):], "dir" if v is None else "file")
+                for p, v in self.tree.items()
+                if p.startswith(prefix) and "/" not in p[len(prefix):]]
+
+    def read(self, path):  # the whole file
+        if path == "/" or self.tree.get(path, b"") is None:
+            return Errno.EISDIR
+        return self.tree.get(path, Errno.ENOENT)
+
+done = run(["-c", "import pandas; print(pandas.read_csv('/work/a.csv'))"],
+           mounts=[Mount(Files({"/a.csv": b"x,y\n1,2\n"}), "/work")])
+done.files.calls  # {'stat': 0, 'list': 0, 'read': 1}
+```
+
+**The protocol.** A provider has three methods, each given a normalized
+absolute path (`/` is the mount itself) and each answering a value or an
+`Errno`, never raising:
+
+- `stat(path)` → `Stat(kind, size=0, mtime_ns=0)`, where `kind` is `"file"`
+  or `"dir"` (a `Stat` for `/` must be a folder);
+- `list(path)` → an iterable of `(name, kind)` pairs, a name being one path
+  component (not empty, `.` or `..`, no `/` or NUL, at most 255 bytes of
+  UTF-8, no repeats);
+- `read(path)` → the whole file as `bytes`, `bytearray` or `memoryview`;
+  `Errno.EISDIR` when the path itself is a folder, and `Errno.ENOTDIR` when a
+  parent is a file. The runner makes a folder descriptor only from `EISDIR`.
+
+`Errno` holds WASI preview1's own numbers (`EACCES`, `EBUSY`, `ECANCELED`,
+`EDQUOT`, `EEXIST`, `EFBIG`, `EINVAL`, `EIO`, `EISDIR`, `ENAMETOOLONG`,
+`ENOENT`, `ENOSPC`, `ENOSYS`, `ENOTDIR`, `ENOTEMPTY`, `ENOTSUP`, `EPERM`,
+`EROFS`, `ESTALE`, `ETIMEDOUT`, `EXDEV`); the guest sees each as the `OSError`
+of that `errno`. The runner knows nothing about permissions: it calls your
+provider for every access and passes its answer through. An exception, or an
+answer outside the protocol, gives the guest `EIO` and adds a `FileFault` to
+`done.files.faults`; the run goes on. A `BaseException` that is not an
+`Exception` (Ctrl-C, `SystemExit`) stops the call and is raised from `run`, as
+a door host's is.
+
+At most one provider call per open: an open makes one `read` (or one `list`
+with `O_DIRECTORY`, as `os.listdir` and `os.scandir` do), `os.stat` one
+`stat`, and `os.fstat` of an open file none. Nothing is cached between opens;
+your provider may cache.
+
+**Where.** `Mount(provider, guest)` takes any guest path a grant may use, and
+`/`: a mount at `/` makes your provider the guest's whole filesystem, except
+what more specific preopens own (the stdlib zip at `/usr/local/lib`, every
+grant, every other mount); relative paths then reach it. A mount at `/` is
+refused with `root=`. Mounts and grants nest either way, and no two share a
+guest path. The runner adds nothing to your listings (list `/usr` yourself if
+you want it seen) and makes no `HOME` in a mount: a mount at `/tmp` means no
+`HOME`, as a read-only grant there does; pass `HOME` in `env=` if you need one.
+A path a more specific preopen owns, spelled past the guest's C library
+(`/usr/./local/lib` under a mount at `/`), is refused with `EPERM`.
+
+**Limits** (each with a default):
+
+- **provider calls:** `max_file_calls=` (default
+  `DEFAULTS.file_calls`, 10,000). Every provider call counts, whatever it
+  answers. The call that would pass the limit is not made; the run stops and
+  `trapped` is `"out of file calls"`, with `exit_code` and `fuel_used` `None`;
+- **open files:** at most 1,024 open files and folders per call; the next open
+  answers `EMFILE` without calling the provider. They cost no host
+  descriptor;
+- **staged bytes:** the bytes of every open file plus every kept listing are
+  at most `memory_bytes` (4 GiB with `memory_bytes=None`); a `read` that would
+  pass it answers `EFBIG` and is dropped. The bound is on what the runner
+  keeps, not on what your provider made: a provider should refuse a large
+  file before it reads it (judge `stat`'s size first).
+
+**What differs from a grant.** A mount answers as a read-only grant does
+(every write-type call is `EPERM`, before your provider is called), except:
+
+- a whole file is staged at open, so a 1-byte read stages the file;
+- `os.fstat` of an open file shows its kind and size but no times (`stat`
+  shows `mtime_ns`); there are no links (`os.readlink` answers `EINVAL`);
+- an open file's number (`f.fileno()`) is 2**30 or above, so
+  `select.select` refuses it with `ValueError` (its limit is 1,024); use
+  `selectors` (whose default here is a `PollSelector`, which asyncio uses)
+  or `select.poll`;
+- `..` is resolved by text (`missing/../a.txt` opens `a.txt`, where a grant
+  answers `ENOENT`); a climb above the mount, even for a moment, is `EPERM`;
+- a path over 4,096 bytes is `ENAMETOOLONG`, a guest pointer past its memory
+  `EFAULT`, more than 1,024 `iovec`s `EINVAL`: the runner's own answers, the
+  same on every host; letter case is your provider's;
+- `fd_renumber` of an open file answers `ENOTSUP`.
+
+**Time and threads.** A provider runs synchronously on the thread that runs
+the guest; under `run_async` that is a worker thread, never the event loop's.
+Before each provider call the runner checks the call's `cancel` and its
+deadline; if either has passed, the provider is not called. Your provider's
+own time is outside the deadline and cannot be interrupted: bound its calls
+yourself. A deferred Ctrl-C on the main thread waits for a blocked provider,
+as it waits for a blocked door host. One provider may serve concurrent calls,
+from each call's thread, so a shared provider must be thread-safe. An async
+layer can be bridged from the worker thread with
+`asyncio.run_coroutine_threadsafe(coro, loop).result()` until async providers
+are specified; an `async def` method is refused.
+
+`done.files` (a `FileRecord`, `None` for a call without mounts) holds `calls`,
+each method's count (zeros included), and `faults`, the first 1,000
+`FileFault(method, path, error)`, where `error` is the exception's type and
+first line, or `"bad answer: <type>"`. It holds no exception object and no
+times.
+
 ### From any language
 
 `wasi-python run` runs one program and prints its result as one line of JSON, so
@@ -636,6 +761,15 @@ has one.
 - **grants** are read-only unless they say otherwise, checked before any
   work, and checked again after wasmtime opens them (see *Grants*); the stdlib
   zip is a read-only grant on every call;
+- **mounts** (see *Mounts*) are read-only; a provider is your code, called
+  only with normalized paths, after the runner has checked every pointer,
+  length and count the guest passed; offsets, flags, cookies and descriptors
+  stop in the runner. No host path is opened for a mount: each mount is
+  preopened on an empty, read-only folder the runner owns, inside the call's
+  private folder, and a call without mounts runs exactly as before. Nothing a
+  provider raises or answers makes `run` raise (a `BaseException` that is not
+  an `Exception` is raised, as a door host's is); provider calls, open files
+  and staged bytes each have a default limit;
 - **inputs**: `argv` is any iterable of `str`, `env` a mapping of `str` to
   `str`, `stdin` a bytes-like object. One the guest would see differently
   (a NUL, text that is not UTF-8, an `=` or nothing as an env key) raises

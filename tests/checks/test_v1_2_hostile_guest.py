@@ -830,3 +830,230 @@ def test_a_swapped_root_is_never_prepared_by_path(guest_workdir, monkeypatch, ho
         done = run(["-c", "pass"], root=arena / "sub")
         assert (swapped, done.exit_code) == ([False], 0), done
         assert all((outside / n).read_text() == "HOST FILE" for n in ("usr", "tmp"))
+
+
+# Read-only mounts (spec 032): a provider is the embedder's code, and nothing it does may make
+# run() raise or reach wasmtime-py; a guest cannot spend host descriptors through a mount.
+
+
+class _Faulty:
+    """A provider whose one `method` misbehaves as `how` says; the others answer a small tree."""
+
+    def __init__(self, method: str, how):
+        self.method, self.how = method, how
+        self.calls = {"stat": 0, "list": 0, "read": 0}
+
+    def _answer(self, method, path, normal):
+        self.calls[method] += 1
+        return self.how(path) if method == self.method else normal
+
+    def stat(self, path):
+        from wasi_python import Stat
+
+        return self._answer("stat", path, Stat("dir" if path == "/" else "file", 1))
+
+    def list(self, path):
+        return self._answer("list", path, [("x", "file")])
+
+    def read(self, path):
+        return self._answer("read", path, b"x")
+
+
+def _raises(path):
+    raise ValueError("the provider broke\nsecond line")
+
+
+async def _coroutine():
+    return b"x"
+
+
+class _BadIterator:
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        raise RuntimeError("the iterator broke")
+
+
+class _BadBuffer(bytearray):
+    def __buffer__(self, flags):
+        raise BufferError("no buffer today")
+
+
+class _Masked:
+    """An answer whose `__class__` raises: isinstance() runs it (CPython looks `__class__` up
+    when the type itself does not match)."""
+
+    @property
+    def __class__(self):  # noqa: F811
+        raise RuntimeError("no class")
+
+
+def _huge(path):
+    import mmap
+
+    return memoryview(mmap.mmap(-1, 512 << 20))  # untouched pages: nothing is committed
+
+
+FAULTS = {
+    "raises": ("read", _raises, "ValueError: the provider broke"),
+    "None": ("read", lambda p: None, "bad answer: NoneType"),
+    "text": ("read", lambda p: "text", "bad answer: str"),
+    "object": ("stat", lambda p: object(), "bad answer: object"),
+    "int": ("read", lambda p: 44, "bad answer: int"),
+    "coroutine": ("read", lambda p: _coroutine(), "bad answer: coroutine"),
+    "iterator raises": ("list", lambda p: _BadIterator(), "RuntimeError: the iterator broke"),
+    "buffer raises": ("read", lambda p: _BadBuffer(b"x"), "BufferError: no buffer today"),
+    "slash": ("list", lambda p: [("a/b", "file")], "bad answer: list"),
+    "NUL": ("list", lambda p: [("a\0", "file")], "bad answer: list"),
+    "dotdot": ("list", lambda p: [("..", "dir")], "bad answer: list"),
+    "surrogate": ("list", lambda p: [("\udcff", "file")], "bad answer: list"),
+    "256 bytes": ("list", lambda p: [("x" * 256, "file")], "bad answer: list"),
+    "duplicate": ("list", lambda p: [("x", "file"), ("x", "dir")], "bad answer: list"),
+    "link": ("list", lambda p: [("x", "link")], "bad answer: list"),
+    "not a pair": ("list", lambda p: [("x",)], "bad answer: list"),
+    "size True": ("stat", lambda p: __import__("wasi_python").Stat("file", True), "bad answer"),
+    "size negative": ("stat", lambda p: __import__("wasi_python").Stat("file", -1), "bad answer"),
+    "kind": ("stat", lambda p: __import__("wasi_python").Stat("fifo"), "bad answer: Stat"),
+    "root a file": ("stat", lambda p: __import__("wasi_python").Stat("file"), "bad answer: Stat"),
+    "class raises (read)": ("read", lambda p: _Masked(), "RuntimeError: no class"),
+    "class raises (stat)": ("stat", lambda p: _Masked(), "RuntimeError: no class"),
+    "class raises (list)": ("list", lambda p: _Masked(), "RuntimeError: no class"),
+    "item class raises": ("list", lambda p: [_Masked()], "RuntimeError: no class"),
+    "past the bound": ("read", _huge, None),
+}
+FAULT_GUEST = r"""
+import json, os, sys
+out = {}
+for i, (name, method) in enumerate(json.loads(sys.argv[1])):
+    base = f"/c{i}"
+    try:
+        if name == "root a file":
+            os.stat(base)
+        elif method == "stat":
+            os.stat(base + "/x")
+        elif method == "list":
+            os.listdir(base)
+        else:
+            open(base + "/x", "rb").read()
+        out[name] = "answered"
+    except OSError as e:
+        out[name] = e.errno
+print(json.dumps(out))
+"""
+
+
+@BOTH
+def test_a_provider_fault_never_escapes(snapshot) -> None:
+    """Guards a change (spec 032, acceptance 7): a provider that raises, answers outside its
+    protocol (a wrong type, an awaitable, a listing whose iterator or a buffer whose export
+    raises, a name the guest could misread, a bool for a size, a file for /) gives the guest EIO
+    and a fault in the record, and no more; one that answers more than the staging bound gives
+    EFBIG and no fault. The guest exits 0, run() raises nothing, and no coroutine is left to
+    warn that it was never awaited."""
+    import gc
+    import json
+    import warnings
+
+    from wasi_python import Mount
+
+    run = _run()
+    names = list(FAULTS)
+    providers = [_Faulty(FAULTS[n][0], FAULTS[n][1]) for n in names]
+    mounts = [Mount(p, f"/c{i}") for i, p in enumerate(providers)]
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        done = run(
+            ["-c", FAULT_GUEST, json.dumps([[n, FAULTS[n][0]] for n in names])],
+            mounts=mounts,
+            memory_bytes=256 << 20,
+            snapshot=snapshot,
+        )
+        gc.collect()
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    answers = json.loads(done.stdout)
+    assert answers == {n: (22 if n == "past the bound" else 29) for n in names}, answers
+    assert done.files is not None
+    faults = [(f.method, f.path, f.error) for f in done.files.faults]
+    want = [n for n in names if FAULTS[n][2] is not None]
+    assert len(faults) == len(want), faults
+    for (method, path, error), name in zip(faults, want, strict=True):
+        assert method == FAULTS[name][0] and error.startswith(FAULTS[name][2]), (name, error)
+        assert path == ("/x" if method != "list" and name != "root a file" else "/"), path
+        assert "\n" not in error and len(error) <= 200
+    assert not [w for w in caught if "never awaited" in str(w.message)], caught
+
+
+def test_a_providers_base_exception_is_raised_from_run() -> None:
+    """Guards a change (spec 032, Decision 4): a provider's BaseException that is not an
+    Exception is recorded as the call's stop and raised from run, as a door host's is."""
+    from wasi_python import Mount
+
+    def stops(path):
+        raise SystemExit(7)
+
+    run = _run()
+    with pytest.raises(SystemExit):
+        run(["-c", "open('/w/x').read()"], mounts=[Mount(_Faulty("read", stops), "/w")])
+
+
+MOUNT_DESCRIPTORS = r"""
+import os, resource, sys, tempfile
+scratch = sys.argv[1]
+tempfile.tempdir = scratch
+resource.setrlimit(resource.RLIMIT_NOFILE, (256, resource.getrlimit(resource.RLIMIT_NOFILE)[1]))
+import wasi_python
+from wasi_python import Errno, Mount, Stat
+
+seen = []
+
+
+class Files:
+    reads = 0
+
+    def stat(self, path):
+        return Stat("dir" if path == "/" else "file", 1)
+
+    def list(self, path):
+        return [("a.txt", "file")]
+
+    def read(self, path):
+        Files.reads += 1
+        if Files.reads in (1, 1024):  # the call's placeholder, seen from the embedder's side
+            folders = [n for n in os.listdir(scratch) if n.startswith("wasi-python-")]
+            seen.append([sorted(os.listdir(os.path.join(scratch, n, "mount")))
+                         for n in folders if os.path.isdir(os.path.join(scratch, n, "mount"))])
+        return b"x"
+
+
+guest = (
+    "import os\nfs = []\n"
+    "try:\n    for i in range(1025): fs.append(os.open('/work/a.txt', os.O_RDONLY))\n"
+    "    print('opened', len(fs))\n"
+    "except OSError as e:\n    print('refused', e.errno, len(fs), min(fs) >= 2**30)\n"
+)
+done = wasi_python.run(["-c", guest], mounts=[Mount(Files(), "/work")], snapshot=sys.argv[2] == "1")
+left = [n for n in os.listdir(scratch) if not n.startswith("wasi-python-zip-")]
+print(done.exit_code, done.stdout.decode().strip(), Files.reads, seen, left)
+"""
+
+
+@BOTH
+def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
+    """Guards a change (spec 032, acceptance 8): in a child whose soft descriptor limit is 256,
+    a guest that opens 1,025 provider files gets EMFILE on the last: provider numbers cost no
+    host handle, so the runner's own bound, MAX_MOUNT_FILES, holds at any host limit. The run
+    exits 0 after 1,024 reads; the placeholder is empty during the run and gone after it."""
+    _run()
+    if sys.platform == "win32":
+        pytest.skip("Windows has no RLIMIT_NOFILE to lower")
+    scratch = Path(tempfile.mkdtemp(prefix="mount-fds-", dir=guest_workdir))
+    out = subprocess.run(
+        [sys.executable, "-c", MOUNT_DESCRIPTORS, str(scratch), "1" if snapshot else "0"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert out.returncode == 0, out.stderr[-1500:]
+    assert out.stdout.strip() == "0 refused 33 1024 True 1024 [[[]], [[]]] []", out.stdout
+    assert list(scratch.iterdir()) == []

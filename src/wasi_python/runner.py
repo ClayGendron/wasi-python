@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import Artifacts
 from . import artifacts as find_artifacts
+from .mounts import STAGING_CEILING, FileRecord, Mount
 
 if TYPE_CHECKING:
     import concurrent.futures
@@ -205,10 +206,12 @@ class Defaults:
     deadline_s: float  # wall-clock time, by epoch interruption (costs nothing per instruction)
     output_bytes: int  # per stream; bytes past it are dropped and the stream named in `truncated`
     async_workers: int = field(default_factory=_default_workers)  # guests run_async runs at once
+    file_calls: int = 10_000  # provider calls per call with mounts; then "out of file calls"
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
         _check_workers(self.async_workers)
+        _integer_limit("file_calls", self.file_calls)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -233,6 +236,7 @@ class Completed:
     # name ("stack overflow"), or, for a trap without a code, its message's first line
     fuel_used: int | None  # instructions spent, when a fuel cap was given and no deadline hit
     truncated: tuple[str, ...] = ()  # the streams ("stdout", "stderr") whose output was capped
+    files: FileRecord | None = None  # a call with mounts: its provider calls and faults (spec 032)
 
 
 @dataclass(frozen=True)
@@ -252,6 +256,7 @@ def run(
     *,
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Host | None = None,
@@ -263,6 +268,7 @@ def run(
     cache_dir: str | os.PathLike[str] | None | bool = None,
     artifacts: Artifacts | None = None,
     cancel: threading.Event | None = None,
+    max_file_calls: int | None = _UNSET,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -270,18 +276,21 @@ def run(
     the guest has no `/` and nothing writable, only its grants (spec 025); `root=True` makes a
     fresh private directory for the call, removed after it. `grants`, each a `Grant`, are host
     folders the guest sees at their guest paths, read-only unless they say otherwise (spec 017).
-    The stdlib zip is always granted, read-only, at /usr/local/lib. `memory_bytes`, `deadline_s`
-    and `output_bytes` default to `DEFAULTS`; `None` means no limit. The guest's environment
-    starts from `BASE_ENV` (`/tmp` for temporary files, `zoneinfo` on the zip's tzdata) and a
-    `HOME` made fresh for the call where `/tmp` is writable, with
-    `env` laid over it.
+    The stdlib zip is always granted, read-only, at /usr/local/lib. `mounts`, each a `Mount`, are
+    providers whose files the guest sees at their guest paths, read-only, served from the
+    embedder's code (spec 032); at most `max_file_calls` provider calls are made (default
+    `DEFAULTS.file_calls`), and then the call ends "out of file calls". `memory_bytes`,
+    `deadline_s` and `output_bytes` default to `DEFAULTS`; `None` means no limit. The guest's
+    environment starts from `BASE_ENV` (`/tmp` for temporary files, `zoneinfo` on the zip's
+    tzdata) and a `HOME` made fresh for the call where `/tmp` is writable, with `env` laid over
+    it.
     `cache_dir=False` keeps compiled modules in this process only, never on disk.
     `cancel`, a `threading.Event`: once it is set and the guest runs, the guest stops within
     `CANCEL_TICKS` ticks and the call returns `trapped == "cancelled"` (spec 015)."""
     _refuse_forked()
     wt = _wasmtime()
     checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, cancel)
-    checked.update(root=_check_root(root), grants=_check_grants(grants))
+    checked.update(_check_places(root, grants, mounts, max_file_calls))
     return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
 
@@ -290,6 +299,7 @@ async def run_async(
     *,
     root: str | os.PathLike[str] | bool | None = False,
     grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
     env: Mapping[str, str] | None = None,
     stdin: bytes | bytearray | memoryview | None = None,
     host: Host | None = None,
@@ -301,6 +311,7 @@ async def run_async(
     cache_dir: str | os.PathLike[str] | None | bool = None,
     artifacts: Artifacts | None = None,
     executor: concurrent.futures.Executor | None = None,
+    max_file_calls: int | None = _UNSET,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked (spec 015).
 
@@ -308,13 +319,13 @@ async def run_async(
     `executor`, which must run callables on threads of this process, or on the runner's default
     pool of `DEFAULTS.async_workers` threads. If the awaiting task is cancelled, the guest is
     stopped and its worker freed before `CancelledError` is raised; a call still queued never
-    starts."""
+    starts. A mount's provider runs on that worker thread, never the event loop's."""
     import asyncio
     import contextvars
 
     _refuse_forked()
     checked = _checked(argv, env, stdin, fuel, deadline_s, memory_bytes, output_bytes, None)
-    checked.update(root=_check_root(root), grants=_check_grants(grants))
+    checked.update(_check_places(root, grants, mounts, max_file_calls))
     _check_executor(executor)
     wt = _wasmtime()
     _register_exit_hook()
@@ -840,6 +851,61 @@ def _check_grants(grants: Any) -> tuple[Grant, ...]:
         checked.append(
             Grant(_host_path(f"{where}: host", grant.host), guest, writable=grant.writable)
         )
+    return tuple(checked)
+
+
+def _check_places(root: Any, grants: Any, mounts: Any, max_file_calls: Any) -> dict[str, Any]:
+    """root, grants, mounts and the file-call limit, checked together before any work: a mount
+    may share no guest path with a grant, and a mount at / comes with no root (spec 032)."""
+    checked_root = _check_root(root)
+    checked_grants = _check_grants(grants)
+    if max_file_calls is _UNSET:
+        max_file_calls = DEFAULTS.file_calls
+    return {
+        "root": checked_root,
+        "grants": checked_grants,
+        "mounts": _check_mounts(mounts, checked_grants, checked_root),
+        "file_calls": _integer_limit("max_file_calls", max_file_calls),
+    }
+
+
+def _check_mounts(mounts: Any, grants: tuple[Grant, ...], root: Any) -> tuple[Mount, ...]:
+    """The mounts as a tuple of plain `Mount`s, or TypeError for a type and ValueError for a
+    value, each naming the mount's position and guest path (spec 032, Decision 2)."""
+    import inspect
+
+    if isinstance(mounts, (str, bytes, bytearray, Mount)) or not isinstance(mounts, Iterable):
+        raise TypeError(f"mounts must be an iterable of Mount, not {type(mounts).__name__}")
+    checked: list[Mount] = []
+    seen = {grant.guest for grant in grants}
+    for i, mount in enumerate(mounts):
+        if not isinstance(mount, Mount):
+            raise TypeError(f"mounts[{i}] must be a Mount, not {type(mount).__name__}")
+        if not isinstance(mount.guest, str):
+            raise TypeError(
+                f"mounts[{i}]: the guest path must be a str, not {type(mount.guest).__name__}"
+            )
+        text = _text(f"mounts[{i}]: the guest path", mount.guest)
+        guest = "/" if text == "/" else _guest_path(f"mounts[{i}]", text)
+        where = f"mounts[{i}] at {guest}"
+        for method in ("stat", "list", "read"):
+            function = getattr(mount.provider, method, None)
+            if not callable(function):
+                raise TypeError(f"{where}: the provider has no callable {method}()")
+            if inspect.iscoroutinefunction(function):
+                raise TypeError(
+                    f"{where}: the provider's {method}() is a coroutine function; a provider "
+                    "answers synchronously (async providers are a later specification)"
+                )
+        if guest in seen:
+            raise ValueError(f"{where}: a grant or another mount has the same guest path")
+        if guest == "/" and root is not False:
+            raise ValueError(
+                f"{where}: a mount at / is the guest's whole filesystem; it cannot be given "
+                "with root="
+            )
+        seen.add(guest)
+        checked.append(Mount(mount.provider, guest))
     return tuple(checked)
 
 
@@ -1539,7 +1605,7 @@ def _call_deferred(
     c: dict[str, Any],
     host: Host | None,
 ) -> Completed:
-    tmp, tmp_fd = _home_folder(root, preopens)
+    tmp, tmp_fd = _home_folder(root, preopens, tuple(m.guest for m in c.get("mounts", ())))
     home = None
     if tmp is not None:
         # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
@@ -1568,9 +1634,14 @@ def _call_deferred(
         _close(tmp_fd)
 
 
-def _home_folder(root: Path | None, preopens: list[_Preopen]) -> tuple[Path | None, int | None]:
+def _home_folder(
+    root: Path | None, preopens: list[_Preopen], mounted: tuple[str, ...] = ()
+) -> tuple[Path | None, int | None]:
     """Where HOME is made (Decision 3): a writable grant at /tmp, else the root's tmp, else
-    nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no HOME either."""
+    nowhere. A read-only grant at /tmp hides the root's tmp, so then there is no HOME either, and
+    a mount at /tmp counts as one (spec 032): the runner makes nothing in a mount."""
+    if "/tmp" in mounted:
+        return None, None
     at_tmp = [p for p in preopens if p.guest == "/tmp"]
     if at_tmp:
         p = at_tmp[0]
@@ -1650,23 +1721,47 @@ def _instance(
     wasi.argv = [ARGV0, *argv]
     fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
     wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
-    for p in preopens:  # the stdlib folder first; wasi-libc picks by the longest guest prefix
-        wasi.preopen_dir(p.walked.path, p.guest, p.writable)
     check = _check_module(wt, engine, fuel is not None)
     keys = _send_outputs(wasi, out, err)
     scratch = None
+    mounts: tuple[Mount, ...] = c.get("mounts", ())
+    mounted: list[_Preopen] = []  # each mount's preopen, on the call's empty placeholder
+    table = None
     try:
-        scratch = _Private("wasi-python-")  # 0700, this user's own, locked (spec 016)
+        # 0700, this user's own, locked (spec 016); made before the preopens, since it holds the
+        # mounts' placeholder, which lies under the temporary folder no grant may reach (spec 032).
+        scratch = _Private("wasi-python-")
+        if mounts:
+            placeholder = scratch.path / "mount"
+            placeholder.mkdir()
+            for i, mount in enumerate(mounts):
+                walked = _walk("", str(placeholder), judge=False)
+                mounted.append(
+                    _Preopen(f"mounts[{i}] at {mount.guest}", walked, mount.guest, False)
+                )
+        every = [*preopens, *mounted]
+        for p in every:  # the stdlib folder first; wasi-libc picks by the longest guest prefix
+            wasi.preopen_dir(p.walked.path, p.guest, p.writable)
         stdin_path = scratch.path / "stdin"
         stdin_path.write_bytes(stdin or b"")
         wasi.stdin_file = str(stdin_path)
         store.set_wasi(wasi)
         linker = _linker(wt, engine)  # held for the whole call: clearing the cache cannot free it
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at)
+        guest_linker = linker  # a call without mounts: today's linker object, unchanged
+        if mounts:
+            from .mounts import _Files
+
+            guest_linker = _mount_linker(wt, engine)
+            first = 3 + len(preopens)  # the mounts' preopens come after every other
+            staging = STAGING_CEILING if memory_bytes is None else memory_bytes
+            numbers = [(mount, first + i) for i, mount in enumerate(mounts)]
+            others = [p.guest for p in preopens]
+            table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table)
         if cancel is not None:
             _watch(store)
         with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
-            done = _drive(wt, linker, store, module, call, fuel, preopens, check)
+            done = _drive(wt, guest_linker, store, module, call, fuel, every, check, plain=linker)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
     finally:
         # The store holds every descriptor the guest opened; a guest can open them until the
@@ -1676,11 +1771,14 @@ def _instance(
         with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
             for key in keys:
                 _outputs.pop(key, None)
+        for p in mounted:
+            p.walked.close()
         if scratch is not None:
             scratch.remove()
     truncated = tuple(s.name for s in (out, err) if s.dropped)
+    files = None if table is None else table.record()
     return Completed(
-        done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated
+        done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated, files
     )
 
 
@@ -1692,6 +1790,12 @@ def _fuel_used(
     stopped call ended on one (spec 011)."""
     if fuel is None or done.trapped == "deadline":
         return None
+    table = getattr(call, "table", None)
+    held = None if table is None else table.forward_stop
+    if held is not None and call.ended is None and call.stopped is held[0]:
+        # A forward's own trap or error (spec 032): the fuel was set back before it was raised,
+        # so the count read then is the guest's, as when wasmtime's WASI meets it directly.
+        return fuel - held[1]
     if call.stopped is not None or call.ended is not None:
         return None
     return fuel - remaining() if done.metered else 0
@@ -1713,11 +1817,14 @@ def _drive(
     fuel: int | None,
     preopens: list[_Preopen] = (),  # type: ignore[assignment]
     check: Any = None,
+    plain: Any = None,
 ) -> _Driven:
     """Instantiate and run the guest with its call on this thread's stack. What a host function
     caught and recorded comes first: an exit or a trap is the call's result, and any other
     exception (Ctrl-C, a host's cancellation) is raised here, on the thread that made the call
-    (spec 011)."""
+    (spec 011). `plain` is today's linker when `linker` is the mount linker: the identity check
+    reads wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it
+    (spec 032)."""
     exit_code: int | None = None
     trapped: str | None = None
     metered = False
@@ -1729,9 +1836,12 @@ def _drive(
         if call.cancel is not None and call.cancel.is_set():  # cancelled before the guest ran
             call.ended = "cancelled"
             return _Driven(None, "cancelled", False, None)
+        own = linker if plain is None else plain
         if preopens:
-            _check_preopens(wt, linker, store, check, list(preopens))  # spec 017, Decision 5
+            _check_preopens(wt, own, store, check, list(preopens))  # spec 017, Decision 5
         instance = linker.instantiate(store, module)
+        if call.table is not None:  # after the guest, before the fuel cap and _initialize
+            call.table.bind(wt, store, own, instance)
         if fuel is not None:
             store.set_fuel(fuel)
             metered = True
@@ -1780,6 +1890,7 @@ class _Call:
         origin_ns: int,
         cancel: threading.Event | None = None,
         stop_at: int | None = None,
+        table: Any = None,
     ) -> None:
         self.context = _context_address(store)
         self.door = _door(host)
@@ -1787,7 +1898,17 @@ class _Call:
         self.stopped: BaseException | None = None
         self.cancel = cancel
         self.stop_at = stop_at
-        self.ended: str | None = None  # "cancelled" or "deadline", from the epoch callback
+        # "cancelled" or "deadline", from the epoch callback; "out of file calls" (spec 032)
+        self.ended: str | None = None
+        self.table = table  # the call's mount table, for a call with mounts (spec 032)
+        if table is not None:
+            table.call = self
+
+    def files(self, caller: Any, name: str, *args: int) -> int:
+        """One of the 29 shadowed calls, for a call with mounts (spec 032)."""
+        if self.table is None:
+            return EBADF
+        return self.table(caller, name, *args)
 
     def stop(self, caller: Any, cause: BaseException) -> None:
         """Record the cause and stop the guest: an epoch deadline of 0, set through the caller's
@@ -1813,10 +1934,11 @@ def _context_address(storelike: Any) -> int:
     return ctypes.addressof(storelike._context().contents)
 
 
-def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
+def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[..., int]:
     """A host function defined once per engine. It serves the call on top of this thread's
     stack, and only when the caller is that call's store; it never raises into wasmtime-py,
-    whose exceptions travel by a process-wide slot (spec 011)."""
+    whose exceptions travel by a process-wide slot (spec 011). `bound` goes before the guest's
+    arguments: a file shadow's name (spec 032)."""
 
     import wasmtime as wt
 
@@ -1836,7 +1958,7 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
                 raise KeyboardInterrupt
             if call.stopped is not None or call.ended is not None:
                 return stopped  # no host function runs for a stopped or ended call (spec 030)
-            answer = getattr(call, kind)(caller, *args)
+            answer = getattr(call, kind)(caller, *bound, *args)
             if _ctrl_c_watched() and _ctrl_c["pending"]:  # Ctrl-C during a wait
                 _ctrl_c["pending"] = False
                 raise KeyboardInterrupt
@@ -1850,14 +1972,20 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
                     and call.ended is not None
                     and isinstance(cause, wasmtime_errors)
                 ):
-                    # The invariant (spec 030): while the guest runs, `call.ended` is set only by
-                    # the epoch callback, and only on a path that returns an error (`_drive` sets
-                    # it only before any guest code runs). So a Trap or WasmtimeError caught
-                    # here after `ended` is set is that error, met in host_alloc after a door
-                    # call outlived the callback's window. It is not a stop: `_drive` names the
-                    # run from `ended`. ExitTrap is a WasmtimeError, and it cannot occur here,
-                    # because the callback's error aborts host_alloc first. Keep this test this
-                    # narrow: any other exception, or one caught before `ended`, is a stop.
+                    # The invariant (specs 030 and 032): while the guest runs, `call.ended` is
+                    # set only where the runner also stops the guest by its own act in the same
+                    # step: by the epoch callback, on a path that returns an error; or by the
+                    # file-call limit's shadow (spec 032), which sets the epoch deadline to 0
+                    # before it returns (`_drive` sets it only before any guest code runs). So a
+                    # Trap or WasmtimeError caught here after `ended` is set is the runner's own
+                    # stop surfacing: the callback's error, met in host_alloc after a door call
+                    # outlived the callback's window, or at a forward's trampoline entry. The
+                    # limit's shadow raises nothing, and once `ended` is set the guard above
+                    # keeps every later host function, forwards included, from running. It is
+                    # not a stop: `_drive` names the run from `ended`. ExitTrap is a
+                    # WasmtimeError, and it cannot occur here, because the callback's error
+                    # aborts host_alloc first. Keep this test this narrow: any other exception,
+                    # or one caught before `ended`, is a stop.
                     _epoch_now(caller)  # the guest stops at its next function entry
                 elif call is not None:
                     call.stop(caller, cause)
@@ -1878,9 +2006,10 @@ def _epoch_now(caller: Any) -> None:
 
 def _epoch_answer(context: Any, delta: Any) -> int:
     """The epoch callback's decision for the call on top of this thread's stack, in order: a
-    recorded stop holds, a deferred Ctrl-C becomes a stop, then a cancel, then the deadline;
-    otherwise continue for up to CANCEL_TICKS ticks. 0 continues; an error (an int address) stops
-    the guest (spec 015)."""
+    recorded stop holds, a named end holds (spec 032: the first named end, such as "out of file
+    calls", is kept under `cancel=` too), a deferred Ctrl-C becomes a stop, then a cancel, then
+    the deadline; otherwise continue for up to CANCEL_TICKS ticks. 0 continues; an error (an int
+    address) stops the guest (spec 015)."""
     call = None
     try:
         try:
@@ -1894,6 +2023,8 @@ def _epoch_answer(context: Any, delta: Any) -> int:
             _calls.lost = True
             return _stop_error(delta)
         if call.stopped is not None:
+            return _stop_error(delta)
+        if call.ended is not None:
             return _stop_error(delta)
         if _ctrl_c_watched() and _ctrl_c["pending"]:
             _ctrl_c["pending"] = False
@@ -1961,6 +2092,8 @@ def _watch(store: Any) -> None:
 
 
 _linkers: dict[Any, Any] = {}
+_mount_linkers: dict[Any, Any] = {}
+_trampolines: dict[Any, Any] = {}
 
 
 def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
@@ -1969,16 +2102,51 @@ def _linker(wt: Any, engine: wasmtime.Engine) -> Any:
     with _lock:
         linker = _linkers.get(engine)
         if linker is None:
-            linker = wt.Linker(engine)
-            linker.define_wasi()
-            linker.allow_shadowing = True
-            i32 = wt.ValType.i32()
-            ty = wt.FuncType([i32] * 4, [i32])
-            poll = _shared("poll", EINVAL, EINVAL)
-            linker.define_func("wasi_snapshot_preview1", "poll_oneoff", ty, poll, True)
-            linker.define_func("host", "call", ty, _shared("door", NO_HOST, HOST_FAULT), True)
-            _linkers[engine] = linker
+            linker = _linkers[engine] = _runner_linker(wt, engine)
         return linker
+
+
+def _runner_linker(wt: Any, engine: wasmtime.Engine) -> Any:
+    linker = wt.Linker(engine)
+    linker.define_wasi()
+    linker.allow_shadowing = True
+    i32 = wt.ValType.i32()
+    ty = wt.FuncType([i32] * 4, [i32])
+    poll = _shared("poll", EINVAL, EINVAL)
+    linker.define_func("wasi_snapshot_preview1", "poll_oneoff", ty, poll, True)
+    linker.define_func("host", "call", ty, _shared("door", NO_HOST, HOST_FAULT), True)
+    return linker
+
+
+def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
+    """The engine's second linker, used only by calls with mounts (spec 032, Decision 1):
+    today's, plus a shadow over each of the 29 calls in `mounts.SHADOWED`, each in the shared
+    form, answering EBADF to a caller that is not its call's store and EIO once its call has
+    stopped. Defined once per engine, like the first."""
+    from .mounts import SIGNATURES
+
+    with _lock:
+        linker = _mount_linkers.get(engine)
+        if linker is None:
+            linker = _runner_linker(wt, engine)
+            kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
+            for name, params in SIGNATURES.items():
+                ty = wt.FuncType([kinds[p] for p in params], [kinds["i32"]])
+                shadow = _shared("files", EBADF, EIO, name)
+                linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)
+            _mount_linkers[engine] = linker
+        return linker
+
+
+def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
+    """The forwarders, compiled once per engine and instantiated per call (spec 032)."""
+    from .mounts import trampoline_wat
+
+    with _lock:
+        module = _trampolines.get(engine)
+        if module is None:
+            module = _trampolines[engine] = wt.Module(engine, trampoline_wat())
+        return module
 
 
 # The guest's stdout and stderr, by a key that is never reused. wasmtime calls the two functions
@@ -2058,7 +2226,7 @@ def _deferred_ctrl_c() -> Iterator[None]:
         raise KeyboardInterrupt
 
 
-EINVAL, ENOMEM, EBADF, EFAULT = 28, 48, 8, 21  # WASI preview1 errno values
+EINVAL, ENOMEM, EBADF, EFAULT, EIO = 28, 48, 8, 21, 29  # WASI preview1 errno values
 MAX_SUBSCRIPTIONS = 4096  # one poll_oneoff's host work is bounded (spec 010)
 SUBSCRIPTION = (
     "<QB7xIxxxxQQH6x"  # userdata, tag, clock id or fd, timeout, precision, flags: 48 bytes
@@ -2377,6 +2545,8 @@ def _release() -> None:
     _remove_zips()
     _check_modules.clear()
     _linkers.clear()
+    _mount_linkers.clear()
+    _trampolines.clear()
     _modules.clear()
     _engines.clear()
 

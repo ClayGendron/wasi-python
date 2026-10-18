@@ -1450,3 +1450,416 @@ def test_the_command_grants_folders(capsysbinary, tmp_path) -> None:
     code, line = _cli(capsysbinary, "run", "--grant", f"/t={tempfile.gettempdir()}", "--", "-")
     assert (code, line["kind"]) == (1, "ValueError"), line
     assert "holds the temporary folder" in line["error"], line
+
+
+# Read-only mounts (spec 032): a provider's files at a guest path, served from embedder code.
+# The provider is the harness's in-memory tree, which counts its own calls; a guest asks the
+# door for the counts between its steps, so each step's calls are counted exactly.
+
+MOUNT_READS = r"""
+import _host, json, os, select, selectors
+
+def calls():
+    return json.loads(_host.call(b"calls"))
+
+def step(name, fn):
+    before = calls()
+    value = fn()
+    after = calls()
+    print(json.dumps([name, value, {k: after[k] - before[k] for k in after}]))
+
+step("read", lambda: open("/work/a.txt").read())
+step("listdir", lambda: sorted(os.listdir("/work")))
+step("scandir", lambda: sorted((e.name, e.is_dir()) for e in os.scandir("/work/d")))
+step("stat", lambda: (os.stat("/work/a.txt").st_size, os.path.isdir("/work/d")))
+f = open("/work/b.txt", "rb")
+fd = f.fileno()
+step("fileno", lambda: fd >= 2**30)
+step("os.read", lambda: os.read(fd, 10).decode())
+p = select.poll()
+p.register(fd, select.POLLIN)
+step("poll", lambda: p.poll(0) == [(fd, select.POLLIN)])
+sel = selectors.DefaultSelector()
+sel.register(f, selectors.EVENT_READ)
+step("selector", lambda: [k.fd == fd for k, _ in sel.select(0)])
+try:
+    select.select([f], [], [], 0)
+    step("select", lambda: "accepted")
+except ValueError as e:
+    step("select", lambda: "ValueError")
+step("grant", lambda: open("/data/in.csv").read())
+"""
+
+
+def _mount_host(provider):
+    import json as _json
+
+    return lambda frame: _json.dumps(provider.calls).encode()
+
+
+@BINARY
+def test_a_mount_serves_reads(guest_workdir, which) -> None:
+    """Spec 032, acceptance 1: a read makes one `read`, a listing one `list`, a stat one `stat`;
+    the bytes are the provider's; a mount's file has a number from 2**30 that os.read,
+    select.poll and selectors accept and select.select refuses (Decision 6); the record's
+    counts are the provider's own; a grant beside the mount reads as before."""
+    from harness.files import MemoryProvider
+    from wasi_python import Grant, Mount
+
+    run = _runner()
+    data = Path(tempfile.mkdtemp(prefix="mount-", dir=guest_workdir))
+    (data / "in.csv").write_text("a,b\n1,2\n")
+    provider = MemoryProvider()
+    done = run(
+        ["-c", MOUNT_READS],
+        mounts=[Mount(provider, "/work")],
+        grants=[Grant(data, "/data")],
+        host=_mount_host(provider),
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    no = {"stat": 0, "list": 0, "read": 0}
+    steps = [json.loads(line) for line in done.stdout.decode().splitlines()]
+    assert steps == [
+        ["read", "hello, mount\n", no | {"read": 1}],
+        ["listdir", ["a.txt", "b.txt", "d", "e"], no | {"list": 1}],
+        ["scandir", [["x.txt", False]], no | {"list": 1}],
+        ["stat", [13, True], no | {"stat": 2}],  # os.stat and os.path.isdir: one each
+        ["fileno", True, no],
+        ["os.read", "b\n", no],
+        ["poll", True, no],
+        ["selector", [True], no],
+        ["select", "ValueError", no],
+        ["grant", "a,b\n1,2\n", no],
+    ], done.stdout
+    assert done.files is not None
+    assert dict(done.files.calls) == provider.calls == {"stat": 2, "list": 2, "read": 2}
+    assert done.files.faults == ()
+
+
+GRANT_PARITY = r"""
+import _host, errno, json, os, sys
+
+base, out = sys.argv[1], "/out"
+rows = []
+
+def row(name, fn):
+    before = int(_host.call(b"total"))
+    try:
+        value = fn()
+    except OSError as e:
+        value = ["errno", e.errno]
+    rows.append([name, [value, int(_host.call(b"total")) - before]])
+
+def opened(path, mode):
+    with open(path, mode) as f:
+        return "opened"
+
+def seeks():
+    with open(base + "/a.txt", "rb") as f:
+        return [f.seek(100), f.tell(), f.read(4).hex(), os.pread(f.fileno(), 4, 1000).hex(),
+                f.seek(-2, 2), f.read().hex()]
+
+row("missing file", lambda: opened(base + "/missing", "rb"))
+row("folder opened as a file", lambda: opened(base + "/d", "rb"))
+row("file listed as a folder", lambda: os.listdir(base + "/a.txt"))
+row("missing parent", lambda: opened(base + "/missing/x.txt", "rb"))
+row("dotdot that escapes", lambda: opened(base + "/../etc/passwd", "rb"))
+row("dotdot that climbs and returns", lambda: opened(base + "/d/../../work/b.txt", "rb"))
+row("dotdot within", lambda: open(base + "/d/../b.txt").read())
+for mode in ("wb", "ab", "xb", "r+b", "w+b"):
+    row(f"open {mode}", lambda: opened(base + "/a.txt", mode))
+row("create", lambda: opened(base + "/new.txt", "wb"))
+row("mkdir", lambda: os.mkdir(base + "/newdir"))
+row("remove", lambda: os.remove(base + "/a.txt"))
+row("rmdir", lambda: os.rmdir(base + "/e"))
+row("rename within", lambda: os.rename(base + "/a.txt", base + "/c.txt"))
+row("rename to a writable grant", lambda: os.rename(base + "/a.txt", out + "/c.txt"))
+row("rename from a writable grant", lambda: os.rename(out + "/w.txt", base + "/c.txt"))
+row("link", lambda: os.link(base + "/a.txt", base + "/c.txt"))
+row("symlink", lambda: os.symlink("a.txt", base + "/l"))
+row("utime", lambda: os.utime(base + "/a.txt", (1, 1)))
+row("truncate", lambda: os.truncate(base + "/a.txt", 0))
+row("readlink of a file", lambda: os.readlink(base + "/a.txt"))
+row("seek, tell and pread past the end", seeks)
+row("trailing slash on a file", lambda: opened(base + "/a.txt/", "rb"))
+row("trailing slash-dot on a file", lambda: opened(base + "/a.txt/.", "rb"))
+row("a component over 255 bytes", lambda: opened(base + "/" + "x" * 256, "rb"))
+row("stat of a file", lambda: [os.path.isfile(base + "/a.txt"), os.stat(base + "/a.txt").st_size])
+row("stat of a folder", lambda: [os.path.isdir(base + "/d"), os.path.isdir(base + "/a.txt")])
+row("sorted listing", lambda: sorted(os.listdir(base)))
+row("walk", lambda: sorted((p, sorted(d), sorted(f)) for p, d, f in os.walk(base)))
+print(json.dumps(rows))
+"""
+WRITE_ROWS = (
+    "open wb", "open ab", "open xb", "open r+b", "open w+b", "create", "mkdir", "remove", "rmdir",
+    "rename within", "rename to a writable grant", "rename from a writable grant", "link",
+    "symlink", "utime", "truncate",
+)  # fmt: skip
+HOST_ROWS_V14 = {  # the grant's answer is the host's own error: asserted on POSIX hosts only
+    "trailing slash on a file",
+    "trailing slash-dot on a file",
+    "a component over 255 bytes",
+    "readlink of a file",
+}
+
+
+@BINARY
+def test_a_mount_answers_as_a_grant_does(guest_workdir, which) -> None:
+    """Spec 032, acceptance 2: the same tree as an in-memory mount and as a read-only grant on
+    disk gives the same result or errno for every row; every write row makes no provider call.
+    Decision 6's deliberate differences are asserted as decided, not as parity."""
+    from harness.files import MemoryProvider, write_tree
+    from wasi_python import Grant, Mount
+
+    run = _runner()
+    base = Path(tempfile.mkdtemp(prefix="parity-", dir=guest_workdir))
+    tree = write_tree(base / "tree")
+    results = {}
+    for side in ("grant", "mount"):
+        out = base / f"out-{side}"
+        out.mkdir()
+        (out / "w.txt").write_text("w")
+        provider = MemoryProvider()
+        grants = [Grant(out, "/out", writable=True)]
+        if side == "grant":
+            grants.append(Grant(tree, "/work"))
+        mounts = [Mount(provider, "/work")] if side == "mount" else []
+        done = run(
+            ["-c", GRANT_PARITY, "/work"],
+            grants=grants,
+            mounts=mounts,
+            host=lambda frame, p=provider: str(p.total()).encode(),
+            snapshot=which == "snapshot",
+        )
+        assert (done.exit_code, done.stderr) == (0, b""), done
+        rows = dict(json.loads(done.stdout))
+        results[side] = {name: value for name, (value, _) in rows.items()}
+        if side == "mount":  # every write row makes no provider call
+            assert {name: rows[name][1] for name in WRITE_ROWS} == dict.fromkeys(WRITE_ROWS, 0)
+        assert sorted(p.name for p in out.iterdir()) == ["w.txt"]
+    assert sorted(p.name for p in tree.iterdir()) == ["a.txt", "b.txt", "d", "e"]
+    grant, mount = results["grant"], results["mount"]
+    for name in WRITE_ROWS:
+        assert grant[name] == mount[name] == ["errno", 63], (name, grant[name], mount[name])
+    differ = {
+        k: (grant[k], mount[k])
+        for k in grant
+        if grant[k] != mount[k] and (os.name == "posix" or k not in HOST_ROWS_V14)
+    }
+    assert differ == {}, differ
+
+
+ROOT_MOUNT = r"""
+import os, json, numpy, pandas
+rows = {"abs": open("/a.txt").read(), "rel": open("a.txt").read()}
+try:
+    open("/usr/./local/lib/x")
+    rows["nested"] = "opened"
+except OSError as e:
+    rows["nested"] = e.errno
+rows["home"] = os.environ.get("HOME")
+rows["numpy"] = numpy.__name__ in __import__("sys").modules
+print(json.dumps(rows))
+"""
+# `-c pass` with a mount at /: measured 0 provider calls on the snapshot and 9 on the plain
+# reactor (CPython's start-up path search: 4 stats, 5 reads); the bound is twice the larger.
+ROOT_START_BOUND = 18
+
+
+@BINARY
+def test_a_mount_at_the_root(guest_workdir, which) -> None:
+    """Spec 032, acceptance 4: a mount at / is the guest's whole filesystem but for what more
+    specific preopens own: an absolute and a relative path read the provider's file, numpy and
+    pandas import from the zip, a path the zip owns spelled past wasi-libc is EPERM with no
+    call, and there is no HOME. Start-up makes at most a bound of provider calls; root= with a
+    mount at / is refused."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _runner()
+    provider = MemoryProvider()
+    done = run(["-c", ROOT_MOUNT], mounts=[Mount(provider, "/")], snapshot=which == "snapshot")
+    assert (done.exit_code, done.stderr) == (0, b""), done
+    assert json.loads(done.stdout) == {
+        "abs": "hello, mount\n",
+        "rel": "hello, mount\n",
+        "nested": 63,
+        "home": None,
+        "numpy": True,
+    }
+    assert not any(p.startswith("/usr/local/lib") for _, p in provider.paths), provider.paths
+    quiet = MemoryProvider()
+    done = run(["-c", "pass"], mounts=[Mount(quiet, "/")], snapshot=which == "snapshot")
+    assert done.exit_code == 0 and quiet.total() <= ROOT_START_BOUND, quiet.paths
+    for root in (True, guest_workdir):
+        with pytest.raises(ValueError, match="whole filesystem"):
+            run(["-c", "pass"], root=root, mounts=[Mount(quiet, "/")])
+
+
+STAT_LOOP = (
+    "import os\n"
+    "for i in range({n}):\n"
+    "    try:\n"
+    "        os.stat('/work/a.txt')\n"
+    "    except OSError:\n"
+    "        pass\n"
+    "print('after the loop')\n"
+)
+
+
+def test_the_file_call_limit_stops_the_run() -> None:
+    """Spec 032, acceptance 5: at `max_file_calls` the run stops, named "out of file calls",
+    with no exit code and no fuel count, after exactly that many provider calls and before the
+    line after the loop; the same under `cancel=` never set (the epoch callback's path and spec
+    030's guard). The default is 10,000."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+    from wasi_python.runner import DEFAULTS
+
+    run = _runner()
+    for cancel in (None, threading.Event()):
+        provider = MemoryProvider()
+        done = run(
+            ["-c", STAT_LOOP.format(n=10**6)],
+            mounts=[Mount(provider, "/work")],
+            max_file_calls=5,
+            fuel=10**12,
+            cancel=cancel,
+        )
+        ending = (done.exit_code, done.trapped, done.fuel_used, done.stdout)
+        assert ending == (None, "out of file calls", None, b""), (cancel, done)
+        assert provider.calls == {"stat": 5, "list": 0, "read": 0}
+        assert done.files is not None and dict(done.files.calls) == provider.calls
+    assert DEFAULTS.file_calls == 10_000
+    provider = MemoryProvider()
+    done = run(["-c", STAT_LOOP.format(n=10_001)], mounts=[Mount(provider, "/work")])
+    assert (done.trapped, done.stdout, provider.total()) == ("out of file calls", b"", 10_000)
+
+
+MOUNT_CANCEL = r"""
+import sys, threading
+import wasi_python
+from wasi_python import Errno, Mount, Stat, runner
+
+case = sys.argv[1]
+event = threading.Event()
+loop = (
+    "import os\nwhile True:\n    try:\n        os.stat('/work/x')\n"
+    "    except OSError:\n        pass\n"
+)
+
+
+def ticks(n):
+    start = runner._epoch_ticker.count()
+    while runner._epoch_ticker.count() < start + n:
+        threading.Event().wait(0.001)
+
+
+class Provider:
+    calls = 0
+
+    def stat(self, path):
+        Provider.calls += 1
+        if case == "cancel" and Provider.calls == 3:
+            event.set()
+        if case == "deadline" and Provider.calls == 3:
+            ticks(20)  # past the 0.05 s deadline, by count
+        return Stat("file")
+
+    def list(self, path):
+        return Errno.ENOTDIR
+
+    def read(self, path):
+        return b""
+
+
+mounts = [Mount(Provider(), "/work")]
+if case == "cancel":
+    r = wasi_python.run(["-c", loop], mounts=mounts, cancel=event, deadline_s=None)
+elif case == "deadline":
+    r = wasi_python.run(["-c", loop], mounts=mounts, deadline_s=0.05)
+else:  # a cancel while the guest makes a run of forwarded calls (prints)
+
+    def later():
+        ticks(runner.CANCEL_TICKS * 3)
+        event.set()
+
+    threading.Thread(target=later, daemon=True).start()
+    code = "while True:\n    print('x' * 100)\n"
+    r = wasi_python.run(["-c", code], mounts=mounts, cancel=event, deadline_s=None)
+print(r.trapped, r.exit_code, Provider.calls)
+"""
+
+
+@pytest.mark.parametrize(
+    ("case", "want"),
+    [
+        ("cancel", "cancelled None 3"),
+        ("deadline", "deadline None 3"),
+        ("forwards", "cancelled None 0"),
+    ],
+)
+def test_a_mount_keeps_its_deadline_and_cancel(case, want) -> None:
+    """Spec 032, acceptance 6: a provider that sets the call's cancel in its third call ends
+    the run "cancelled" after exactly three calls; one that holds the guest past its deadline
+    (counted in ticks) ends it "deadline" with no call after; a cancel during a run of
+    forwarded calls is named "cancelled", never a raw error."""
+    assert _child(MOUNT_CANCEL, case) == [want]
+
+
+ERRNO_GUEST = r"""
+import errno, json, os, sys
+names = json.loads(sys.argv[1])
+same = {name: getattr(errno, name) for name in names}
+raised = {}
+for name in names:
+    try:
+        os.stat("/work/" + name)
+        raised[name] = None
+    except OSError as e:
+        raised[name] = e.errno
+print(json.dumps([same, raised]))
+"""
+
+
+def test_the_errno_values_are_the_guests() -> None:
+    """Spec 032, acceptance 11: each `Errno` member is the guest's errno of that name, and a
+    provider that answers it makes the guest raise OSError with that errno."""
+    from wasi_python import Errno, Mount
+
+    class Answers:
+        def stat(self, path):
+            return Errno[path.strip("/")]
+
+        def list(self, path):
+            return Errno.ENOTDIR
+
+        def read(self, path):
+            return Errno.ENOENT
+
+    run = _runner()
+    names = [e.name for e in Errno]
+    done = run(["-c", ERRNO_GUEST, json.dumps(names)], mounts=[Mount(Answers(), "/work")])
+    assert done.exit_code == 0, done
+    same, raised = json.loads(done.stdout)
+    assert same == {e.name: e.value for e in Errno}
+    assert raised == {e.name: e.value for e in Errno}
+
+
+@BINARY
+def test_a_mounted_run_out_of_fuel_counts_the_cap(guest_workdir, which) -> None:
+    """Spec 032, acceptance 12 (through run()): with a fuel cap too small to finish, a run with
+    a mount ends "out of fuel" with `fuel_used` equal to the cap, as the same run with a grant
+    does. The exact equality of fuel is the unit check's (N2)."""
+    from harness.files import MemoryProvider, write_tree
+    from wasi_python import Grant, Mount
+
+    run = _runner()
+    tree = write_tree(Path(tempfile.mkdtemp(prefix="fuel-", dir=guest_workdir)))
+    code = "while True:\n    print(open('/work/a.txt').read(), end='', flush=True)\n"
+    cap = 400_000_000  # past start-up on both binaries (-c pass: 82 M and 241 M)
+    for kw in ({"grants": [Grant(tree, "/work")]}, {"mounts": [Mount(MemoryProvider(), "/work")]}):
+        done = run(["-c", code], fuel=cap, snapshot=which == "snapshot", **kw)
+        assert (done.exit_code, done.trapped, done.fuel_used) == (None, "out of fuel", cap), done
+        assert done.stdout.startswith(b"hello, mount\n"), done

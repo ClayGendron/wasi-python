@@ -1,10 +1,10 @@
 # 032 — A filesystem provider (read-only mounts)
 
-- **Status:** confirmed for build with conditions, written in. Reviewed before build
+- **Status:** built 2026-10-17 (Landing notes), awaiting its build review, which is also a
+  security review (acceptance 15). Reviewed before build
   (`../reviews/032-a-filesystem-provider-spec-2026-10-17.md`, which is also a security review of
   the design), revised against its ten findings (its Disposition), and confirmed on 2026-10-17
-  with conditions N1 and N2 and builder notes N3 (its Confirmation), all written in here. No
-  further pre-build review is needed.
+  with conditions N1 and N2 and builder notes N3 (its Confirmation), all written in here.
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`; a new `src/wasi_python/mounts.py`),
   `src/wasi_python/__init__.py`'s exports, judge additions in `tests/`, `README.md`,
@@ -580,4 +580,195 @@ owner's decisions were silent; they are recorded as questions 54 to 56 in
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (a fresh agent, Claude Opus 5.5), in the worktree
+`wasi_python-032` on `spec/032-a-filesystem-provider`, against the frozen artifact set
+`build/sets/4befe9de64edc783` (never rebuilt). Each claim is EXECUTED unless it says otherwise.
+
+**The branch carries spec 030 first.** Decision 9 amends a comment spec 030 writes, and acceptance
+5 (under `cancel=`) and 6 (a cancel during forwards) need 030's entry guard and except branch. So
+the first commit is 030's (`52674ed` cherry-picked unchanged); the lane drops it when it rebases
+onto a main that has landed 030. 032's own `_shared` change is one line beside 030's
+(`getattr(call, kind)(caller, *bound, *args)`, so a file shadow is bound to its call's name) plus
+the amended invariant comment, worded as Decision 9 says; `_epoch_answer` gains the named-end
+rule after its recorded-stop check.
+
+**What changed.**
+- `src/wasi_python/mounts.py` (new): `Mount`, `FileProvider`, `Stat`, `Errno`, `FileRecord`,
+  `FileFault`; `SIGNATURES` (the 29 shadowed calls), `SHADOWED`, `FORWARD_SAFE`; the trampoline's
+  WAT; `_Files`, the per-call mount table: provider numbers from 2**30, path normalization,
+  staging, the provider calls with their fault boundary and limits, the 29 handlers, and the
+  fuel-neutral forward by `_ffi.wasmtime_func_call` on the caller's context.
+- `src/wasi_python/runner.py`: `mounts=` and `max_file_calls=` on `run` and `run_async`, checked
+  by `_check_places`/`_check_mounts` before any work; `Defaults.file_calls = 10_000`;
+  `Completed.files` (last field); `_mount_linker` (today's linker plus the 29 shadows, once per
+  engine) and `_trampoline_module` (once per engine); `_instance` makes the scratch folder and its
+  `mount` placeholder before the preopens, preopens each mount on it after every other preopen,
+  and uses the mount linker only when there are mounts; `_drive` takes `plain=` (today's linker:
+  the identity check and the trampoline's imports) and binds the trampoline after the guest and
+  before the fuel cap; `_home_folder` sees a mount at `/tmp`; `_Call.table` and `_Call.files`;
+  `_fuel_used` keeps the fuel recorded at a forward's own error (below); `_release` frees the new
+  caches.
+- `src/wasi_python/__init__.py`: the six exports.
+- Judge: `tests/harness/files.py` (new: the counting in-memory provider, the disk twin, the
+  table-driven raw module and its driver, a grant side and a mount side); `tests/unit/
+  test_runner_grants.py` (acceptance 3: the raw parity table and the deliberate differences);
+  `tests/unit/test_runner_mounts.py` (new: acceptance 8's raw guards, 9, 10, 12's exact part, 13,
+  and unit guards for Decisions 5, 8 and 10); `tests/checks/test_v1_4_embedding.py` (1, 2, 4, 5,
+  6, 11, 12's `run()` part); `tests/checks/test_v1_2_hostile_guest.py` (7, and 8's descriptor
+  check). `README.md` (*Mounts*, a *Safety* bullet), `CHANGELOG.md` (an *Added* line).
+
+**The build order.** The four steps were built in order in one pass and committed together. Step
+1's claim was run as an experiment: the whole judge with one unused mount added to every `run()`
+call (a `sitecustomize` on `PYTHONPATH` wrapping `_check_places`, so child processes got it too),
+which sends every file call of every guest through the 29 shadows and the trampoline:
+`204/215 pass · 0 fail`, `ratchet … lost 0 · grew 0`; the one unit failure was
+`test_a_call_without_mounts_is_unchanged`, which asserts that a call without mounts has
+`files is None`, as the injection made false. (The logs named here were under the worktree's
+`build/`, which is not kept; their lines are quoted.)
+`grew 0` there is the judge's own fuel metrics unchanged with forwards on every call.
+
+**Seen failing first.** On today's runner (the main tree's `src/` on `PYTHONPATH`): every new
+v1.2 and v1.4 check and both new parity tests fail (20 failed, `ImportError: cannot import name
+'Mount'`), and `test_runner_mounts.py` fails to import (`build/seen-failing-today.log`). The
+guard checks were seen failing with one guard removed at a time from the built `mounts.py`, and
+passing with it (`build/guards.log`; the file was restored byte for byte):
+
+| guard removed | its checks, failing |
+|---|---|
+| the pointer check (`_Memory.fits` true for any pointer) | `test_guest_arguments_never_reach_the_provider`, `test_the_deliberate_differences_are_as_decided` |
+| the climb check | `test_raw_calls_answer_as_a_grant_does`, `test_a_path_is_normalized_before_the_provider_sees_it` |
+| the nested-preopen check | `test_a_path_is_normalized_before_the_provider_sees_it`, `test_a_mount_at_the_root[plain, snapshot]` |
+| the name check | `test_a_provider_fault_never_escapes[plain, snapshot]` |
+| the fault catch around the provider call | `test_a_provider_fault_never_escapes[plain, snapshot]` (`ValueError` out of `run`) |
+| the fault boundary around a `read` answer | `test_a_provider_fault_never_escapes[plain, snapshot]` (`BufferError` out of `run`) |
+| `MAX_MOUNT_FILES` | `test_mount_descriptors_are_bounded[plain, snapshot]` (`opened 1025`), `test_the_staging_bound_and_the_open_limit` |
+| the `fd_renumber` rule | `test_renumber_and_close_keep_the_table_true`, `test_the_deliberate_differences_are_as_decided` |
+| the import list (`fd_advise` left out of `SHADOWED`) | `test_every_descriptor_import_is_shadowed[python.wasm, python-snapshot.wasm]` |
+| fuel neutrality (the fuel not set back) | `test_forwards_cost_no_fuel_and_keep_traps` |
+
+**Acceptance, with evidence.**
+1. `test_a_mount_serves_reads` (both binaries): a read, `os.listdir`, `os.scandir` and `os.stat`
+   make exactly 1 `read`, 1 `list`, 1 `list`, 1 `stat` (counted between steps through the door);
+   `fileno() >= 2**30`; `os.read`, `select.poll` and `selectors.DefaultSelector` work on it;
+   `select.select` raises `ValueError`; `done.files.calls == provider.calls == {stat: 2, list: 2,
+   read: 2}`; the grant at `/data` reads its CSV.
+2. `test_a_mount_answers_as_a_grant_does` (both binaries): 32 rows, grant and mount equal; the 16
+   write rows are `EPERM` on both and make 0 provider calls each. Rows asserted on POSIX only
+   (`HOST_ROWS_V14`): a trailing `/` and `/.` on a file, a component over 255 bytes, `readlink` of
+   a file.
+3. `test_raw_calls_answer_as_a_grant_does`: 330 rows (each of the 29 shadowed calls on a provider
+   file, a folder opened with `O_DIRECTORY`, a folder opened without it and the mount's preopen,
+   plus seeks, reads, `fd_readdir` cookies and short buffers, 50 `path_open` forms, path stats,
+   readlinks, every write-shaped path call, renames and links within and to and from a writable
+   grant, the forward-safe calls on the preopen, and closing), all equal, whole results compared
+   (errno and every byte written; `dev`, `ino`, times, numbers, and a folder's size and link
+   count masked). Asserted on POSIX hosts only, since the grant's answer is the host's own error
+   (`HOST_ROWS`): `fd_advise`, `fd_write`, `fd_pwrite`, `fd_datasync` and `fd_sync` on a file;
+   `path_open` of `a.txt\0`, `a.txt/`, `a.txt/.` and a 256-byte name; `path_filestat_get` of
+   `a.txt/`, `a.txt/.`, `a.txt/x`, `a\0` and a 256-byte name; `path_readlink` of `a.txt`, `d`,
+   `a.txt/`. `test_the_deliberate_differences_are_as_decided` asserts Decision 6's table (`..` by
+   text: grant 44 and 54, mount 0; over 4,096 bytes: 37; a pointer past memory: grant ends the run,
+   mount 21; 1,025 iovecs: grant reads 1 byte, mount 28; `fd_renumber`: grant 0, mount 58;
+   `sock_shutdown` and `fd_prestat_dir_name` on a provider number: grant 57 and 54, mount 8; a
+   provider number `>= 2**30`; case is the provider's). **Not run on Linux or Windows** (only
+   the release dry run's `verify` job runs there).
+4. `test_a_mount_at_the_root` (both binaries): `/a.txt` and `a.txt` read the provider's file;
+   numpy and pandas import; `/usr/./local/lib/x` is 63 with no provider path under
+   `/usr/local/lib`; no `HOME`; `root=True` and a root path raise `ValueError`. `-c pass` with a
+   mount at `/` made 0 provider calls on the snapshot and 9 on the plain reactor (4 `stat`, 5
+   `read`: CPython's start-up search for `pyvenv.cfg`, `._pth`, `pybuilddir.txt`, the zip and
+   `lib-dynload`); the bound is 18 on both, twice the larger.
+5. `test_the_file_call_limit_stops_the_run`: with `max_file_calls=5` and `fuel=10**12`, with and
+   without `cancel=` (never set): `(None, "out of file calls", None, b"")` after exactly 5 `stat`s;
+   `DEFAULTS.file_calls == 10_000`, and 10,001 stats stop at exactly 10,000 provider calls.
+6. `test_a_mount_keeps_its_deadline_and_cancel` (child processes, 120 s fail-safe): a cancel set
+   in the third call: `cancelled None 3`; a provider that holds the guest 20 ticks past a 0.05 s
+   deadline in its third call: `deadline None 3`; a cancel (by ticks) during a loop of prints, all
+   forwarded: `cancelled None 0`.
+7. `test_a_provider_fault_never_escapes` (both binaries): 25 misbehaving providers, one per
+   mount: 24 give the guest 29 and one fault each (method, path and error checked, single-line,
+   at most 200 characters); the one past the staging bound (a 512 MiB untouched `mmap` under
+   `memory_bytes=256 MiB`) gives 22 and no fault; exit 0; no "never awaited" warning. Beyond the
+   spec's list: a plain `int`, a pair of one, a negative size, a `Stat` kind of `"fifo"`, and an
+   answer or listed item whose `__class__` raises (below). `test_a_providers_base_exception_is_
+   raised_from_run`: `SystemExit` from a provider is raised from `run`.
+8. `test_guest_arguments_never_reach_the_provider`: 17 rows (a path, a path's length, results,
+   iovec arrays, each iovec, 1,025 iovecs, readdir's buffer and count, readlink's buffer, fdstat,
+   filestat, seek) answer 21, 28 or 37 with no provider call and nothing moved.
+   `test_mount_descriptors_are_bounded` (both binaries, a child at a soft limit of 256): `0
+   refused 33 1024 True 1024 [[[]], [[]]] []`: EMFILE on the 1,025th open, 1,024 reads, numbers
+   from 2**30, the placeholder empty when looked at during the 1st and 1,024th read, nothing left
+   after.
+9. `test_a_bad_mount_is_refused_before_any_work`: 19 cases, each through `run` and `run_async`,
+   each the named error; the provider's and a door host's counts stay 0.
+10. `test_a_call_without_mounts_is_unchanged`: a call without mounts reached `_drive` with
+    `runner._linker(...)` itself and no shadow ran; three threads (two with their own mounts, one
+    without) ran three calls each with their own results, each provider seeing only `/x`, the
+    mounted calls on the mount linker. The judge's ratchet: `grew 0`.
+11. `test_the_errno_values_are_the_guests`: all 21 members equal the guest's `errno` constants,
+    and each, answered by `stat`, is the guest's `OSError.errno`.
+12. Exact part: a 200-call loop of `fd_fdstat_get` spends 3,405 fuel on both linkers; at 102 caps
+    (1 to 59, and 3,365 to 3,407) the two end the same way with the same fuel; a forwarded
+    `fd_read` with a pointer past memory ends `(None, 'error while executing at wasm backtrace:',
+    11)` on both, the error a `wasmtime.WasmtimeError` holding its pointer. Through `run()` (both
+    binaries): a printing loop capped at 400,000,000 fuel ends `"out of fuel"` with `fuel_used`
+    equal to the cap, with a grant and with a mount.
+13. `test_every_descriptor_import_is_shadowed` (both binaries): 33 descriptor imports (28 `fd_`
+    and `path_`, four `sock_`, `poll_oneoff`), all shadowed or forward-safe;
+    `test_the_mount_linker_shadows_every_call` (all 29 reach the table);
+    `test_renumber_and_close_keep_the_table_true`.
+14. `uv run pytest` (`build/judge-2.log`): `wasi_python v1: 204/215 pass · 0 gap · 11 blocked ·
+    0 fail (unit suite 623/631, 8 skipped)`, `ratchet vs 567d64204b: lost 0 · … · gained 22 ·
+    grew 0`, `827 passed, 19 skipped`. `ruff check` and `ruff format --check` clean on `src` and
+    `tests`. **Not run here:** `--accept-judge` (the lane's) and the release dry run (it needs the
+    workflow; it is the first run of acceptance 2's and 3's rows on Linux and Windows).
+15. The build review's: not written by the implementer.
+
+**Where the specification was silent, the builder decided** (each for the reviewer to judge):
+- *ABI errors end the run, as on a grant.* wasmtime ends the run (an error, not an errno) for a
+  flag or enum value it does not define, an integer out of its type's range and a misaligned
+  pointer (a probe of a read-only grant on plain wasmtime-py; the same answers are the grant
+  side of acceptance 3, run live on every judge). Decision 6
+  makes parity the rule except for its table, so a served call does the same: it raises a
+  `WasmtimeError` to the shared function, which records it as the call's stop. Its message is
+  wiggle's text (`Invalid flag value Fdflags`), so through `run()` `trapped` reads that, where a
+  grant's reads `error while executing at wasm backtrace:`. A pointer past memory stays `EFAULT`
+  (Decision 6's row).
+- *A forward's error keeps today's `fuel_used`.* With the shared function recording the
+  forward's error as the stop, `_fuel_used` would answer `None`; it now answers the fuel read
+  when that exact error was raised (set back first, N3), so acceptance 12's "same fuel used"
+  holds through `_drive`. It applies only when the recorded stop is that error and no end is
+  named.
+- *UTF-8 is decoded when a path is read,* as wasmtime does, so a write-shaped call's bad UTF-8 is
+  `EILSEQ` on both sides; a path both absolute and not UTF-8 is `EILSEQ`, not Decision 5's
+  `EPERM`.
+- *Every iovec is checked against memory* (Decision 7's "each iovec"); wasmtime reads only up to
+  the first non-empty one.
+- *A rename or link across a mount and a wasmtime descriptor* asks wasmtime whether its
+  descriptor is a folder by two forwards that change nothing (`fd_fdstat_set_rights` answers
+  `ENOTSUP` on any open file or folder, `fd_allocate` `EBADF` on all but a file), so a bad other
+  descriptor is `EBADF`, as across two grants; otherwise `EPERM`.
+- *A mount's own preopen*: the calls wasmtime answers alike for every read-only preopen are
+  forwarded to the placeholder (its fdstat with the preopen rights, advise, sync, flags, reads,
+  writes, seek, set_size, set_times); its listing, its stat and every path under it are the
+  provider's; `fd_close` is forwarded and drops it.
+- *Times*: `path_filestat_get` reports `mtime_ns` as the access, modification and change time; a
+  folder's size is 0 and every link count 1.
+- *Found in self-review and fixed before landing:* `isinstance()` on a provider's answer can run
+  the answer's own `__class__` property (CPython looks it up when the type does not match), and
+  so can the listing iterator's `close` lookup; both first sat outside the fault boundary, so a
+  hostile answer could have made `run` raise. All answer handling is now inside it; acceptance 7
+  has rows for an answer and an item whose `__class__` raises, and removing the boundary fails it.
+
+**For the build review (also a security review, acceptance 15).** Look first at
+`mounts.py`'s boundary: `_Memory`, `_iovecs`, `_result`, `_path` and `_resolve` (every guest
+pointer, length, count and path before any provider call); `_ask`, `_stat`, `_read`, `_list` and
+`_listed` (everything a provider returns is judged inside the fault boundary; a `BaseException`
+is let through on purpose, as Decision 4 says); `forward` (`_ffi.wasmtime_func_call` on the
+caller's context, the per-call handles and arrays, the fuel set back in a `finally`, the trap or
+error taken by wasmtime-py's own `_from_ptr`); `_fd_renumber` and `_fd_close` (the table can
+never hold a number wasmtime reuses); `_path_open`'s order of checks (write-shaped opens refused
+before the provider; `EMFILE` before it); the high range and `MAX_MOUNT_FILES`; and in
+`runner.py` the scratch-and-placeholder order in `_instance`, the identity check on today's
+linker, the HOME rule, `_fuel_used`'s new branch, and Decision 9's comment beside 030's branch.
+The Windows answers of acceptance 2's and 3's rows are unknown until the release dry run.

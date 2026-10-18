@@ -35,6 +35,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   loads wasmtime. Where wasmtime is missing or cannot load (its pure wheel on an unsupported
   platform), `run` raises one `ImportError` naming `wasmtime>=49,<50`, with wasmtime's own error
   as its cause. The release now proves the plain install on all three systems.
+- **Added: read-only mounts** (spec 032). `run(..., mounts=[Mount(provider, "/work")])` serves
+  a guest's ordinary file calls from the embedder's own code: a provider answers `stat`, `list`
+  and `read` on normalized paths with a value or an `Errno`, never raising, and is counted and
+  limited (`max_file_calls=`, default `DEFAULTS.file_calls`, 10,000; then `trapped` is `"out of
+  file calls"`). A mount may sit at `/` (not with `root=`). No import is added: the runner
+  shadows the guest's 29 descriptor calls on a second linker used only with mounts, and forwards
+  every call it does not own to wasmtime's own WASI, fuel-neutral. `Completed.files` records the
+  provider calls and faults. Exports `Mount`, `FileProvider`, `Stat`, `Errno`, `FileRecord` and
+  `FileFault`. A call without mounts is unchanged.
 - **The build says where it is** (spec 027; the artifact set is unchanged). `scripts/build.sh`
   runs a preflight first (the host, its tools, and 2.5 GiB free on a first build) and prints
   one line for it. Each step's line now ends with its time, `ok <step>: … [3m02s]`, and a

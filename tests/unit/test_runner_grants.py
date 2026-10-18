@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 import wasmtime as wt
 
+from harness import files
 from wasi_python import Grant, runner
 
 POSIX = os.name == "posix"
@@ -317,3 +318,317 @@ def test_a_walked_folder_cannot_be_moved_on_windows(tmp_path) -> None:
     finally:
         walked.close()
     os.rename(tmp_path / "a", tmp_path / "c")  # released: it moves again
+
+
+# Spec 032, acceptance 3: the raw parity table. The same rows run on a read-only grant (plain
+# wasmtime) and on a mount of the same tree (the runner's mount linker, its call on the stack);
+# preopen 3 is the tree on each side and preopen 4 a writable folder. Every result is compared
+# whole (the errno and every byte written), with dev, ino, times, descriptor numbers and a
+# folder's size and link count left out by the harness. Decision 6's deliberate differences are
+# asserted as that table says, in the test after this one.
+
+# Rows whose grant answer is the host system's own error, not wasmtime's logic: asserted on
+# POSIX hosts only (the landing notes name them); on Windows the mount's answer is still the
+# reference's (wasmtime on Linux).
+HOST_ROWS = {
+    "file fd_advise",
+    "file fd_write",
+    "file fd_pwrite",
+    "file fd_datasync",
+    "file fd_sync",
+    "open 'a.txt\\x00'",
+    "open 'a.txt/'",
+    "open 'a.txt/.'",
+    "open 'x' * 256",
+    "pstat 'a.txt/'",
+    "pstat 'a.txt/.'",
+    "pstat 'a.txt/x'",
+    "pstat 'a\\x00'",
+    "pstat 'x' * 256",
+    "readlink 'a.txt'",
+    "readlink 'd'",
+    "readlink 'a.txt/'",
+}
+
+
+def _parity_script(r: files.Raw) -> dict[str, object]:
+    """Every row on one side. The descriptors a row opens are named, never numbered."""
+    out: dict[str, object] = {}
+
+    def row(label: str, fn, *args) -> None:
+        try:
+            out[label] = fn(*args)
+        except files.Ends as e:
+            out[label] = ("ends", e.message)
+
+    def opened(label: str, *args, **kw) -> int | None:
+        try:
+            errno, fd = r.open(*args, **kw)
+        except files.Ends as e:
+            out[label] = ("ends", e.message)
+            return None
+        out[label] = (errno, fd is not None)
+        if fd is not None and label.startswith("open "):
+            r("fd_close", fd)
+        return fd
+
+    P, W = 3, 4
+    F = opened("the file F", P, "a.txt")
+    D = opened("the folder D", P, "d", files.O_DIRECTORY)
+    E = opened("the folder E (no O_DIRECTORY)", P, "e")
+    assert F is not None and D is not None and E is not None, out
+    for kind, T in (("file", F), ("dir", D), ("plain dir", E), ("preopen", P)):
+        row(f"{kind} fd_advise", r, "fd_advise", T, 0, 0, 0)
+        row(f"{kind} fd_advise 6", r, "fd_advise", T, 0, 0, 6)
+        row(f"{kind} fd_advise -1", r, "fd_advise", T, 0, 0, -1)
+        row(f"{kind} fd_allocate", r, "fd_allocate", T, 0, 10)
+        row(f"{kind} fd_datasync", r, "fd_datasync", T)
+        row(f"{kind} fd_sync", r, "fd_sync", T)
+        row(f"{kind} fd_fdstat_get", r.fdstat, T)
+        for flags in (0, files.APPEND, files.DSYNC, files.NONBLOCK, files.RSYNC, files.SYNC):
+            row(f"{kind} set_flags {flags}", r, "fd_fdstat_set_flags", T, flags)
+        row(f"{kind} set_flags unknown bit", r, "fd_fdstat_set_flags", T, 32)
+        row(f"{kind} set_flags out of range", r, "fd_fdstat_set_flags", T, 1 << 16)
+        row(f"{kind} fdstat after flags", r.fdstat, T)
+        row(f"{kind} set_flags back", r, "fd_fdstat_set_flags", T, 0)
+        row(f"{kind} set_rights", r, "fd_fdstat_set_rights", T, 0, 0)
+        row(f"{kind} set_rights unknown bit", r, "fd_fdstat_set_rights", T, 1 << 30, 0)
+        row(f"{kind} fd_filestat_get", r.filestat, T)
+        row(f"{kind} set_size", r, "fd_filestat_set_size", T, 0)
+        for flags in (0, 1, 2, 3, 12):
+            row(f"{kind} set_times {flags}", r, "fd_filestat_set_times", T, 0, 0, flags)
+        row(f"{kind} set_times unknown bit", r, "fd_filestat_set_times", T, 0, 0, 16)
+        row(f"{kind} fd_write", r.write, T, b"zz")
+        row(f"{kind} fd_pwrite", r.write, T, b"zz", 0)
+        row(f"{kind} fd_tell", r.tell, T)
+        row(f"{kind} fd_seek", r.seek, T, 0, 0)
+        row(f"{kind} fd_read", r.read, T, [3])
+        row(f"{kind} fd_pread", r.pread, T, [3], 1)
+        if kind != "preopen":  # the preopen's listing order is the host's: compared by name
+            row(f"{kind} fd_readdir", r.readdir, T)
+    row("preopen fd_readdir names", r.readdir_names, P)
+    # Seeks and reads on the file, in order: whence 3, an overflow, past the end, past i64.
+    for offset, whence in [
+        (0, 0), (3, 0), (1, 1), (-100, 1), (0, 2), (-1, 2), (5, 3), (-1, 0), (5, 256), (5, -1),
+    ]:  # fmt: skip
+        row(f"seek {offset} {whence}", r.seek, F, offset, whence)
+    row("seek to 0", r.seek, F, 0, 0)
+    row("read 3", r.read, F, [3])
+    row("read two iovecs, the first empty", r.read, F, [0, 3, 3])
+    row("read no iovec", r.read, F, [])
+    row("read one empty iovec", r.read, F, [0])
+    row("read the rest", r.read, F, [100])
+    row("read at the end", r.read, F, [10])
+    row("pread past the end", r.pread, F, [4], 1000)
+    row("pread at 2**63 - 1", r.pread, F, [4], 2**63 - 1)
+    row("pread at 2**64 - 1", r.pread, F, [4], -1)
+    row("seek past then read", lambda: (r.seek(F, 100, 0), r.read(F, [4]), r.tell(F)))
+    row("seek from the end", lambda: (r.seek(F, -2, 2), r.read(F, [4])))
+    row("seek to 2**63 - 1", r.seek, F, 2**63 - 1, 0)
+    row("read at 2**63 - 1", r.read, F, [4])
+    row("seek to 2**63", r.seek, F, 1, 1)
+    row("read at 2**63", r.read, F, [4])
+    row("seek to 2**64 - 1", r.seek, F, 2**63 - 2, 1)
+    row("seek past 2**64 - 1", r.seek, F, 1, 1)
+    row("tell after it", r.tell, F)
+    row("seek back", r.seek, F, 0, 0)
+    # fd_readdir on the one-entry folder: cookies and short buffers, byte for byte.
+    for size, cookie in [(4096, 0), (4096, 1), (4096, 2), (4096, 3), (4096, 10), (10, 0),
+                         (24, 0), (25, 0), (30, 0), (50, 0), (0, 0), (4096, -1)]:  # fmt: skip
+        row(f"readdir {size} {cookie}", r.readdir, D, size, cookie)
+    # path_open from the preopen and from the folder.
+    R, ALL = files.READ_RIGHTS, files.RIGHTS_ALL
+    for label, base, path, oflags, rights, fdflags, dirflags in [
+        ("'a.txt'", P, "a.txt", 0, R, 0, 0),
+        ("''", P, "", 0, R, 0, 0),
+        ("'/a.txt'", P, "/a.txt", 0, R, 0, 0),
+        ("'a.txt\\x00'", P, b"a.txt\0", 0, R, 0, 0),
+        ("'\\xff'", P, b"\xff", 0, R, 0, 0),
+        ("'a.txt/'", P, "a.txt/", 0, R, 0, 0),
+        ("'a.txt/.'", P, "a.txt/.", 0, R, 0, 0),
+        ("'d/../a.txt'", P, "d/../a.txt", 0, R, 0, 0),
+        ("'..'", P, "..", 0, R, 0, 0),
+        ("'d/../../m/a.txt'", P, "d/../../m/a.txt", 0, R, 0, 0),
+        ("'x' * 256", P, "x" * 256, 0, R, 0, 0),
+        ("'x' * 255", P, "x" * 255, 0, R, 0, 0),
+        ("'.'", P, ".", 0, R, 0, 0),
+        ("'./a.txt'", P, "./a.txt", 0, R, 0, 0),
+        ("'d/'", P, "d/", 0, R, 0, 0),
+        ("'d/.'", P, "d/.", 0, R, 0, 0),
+        ("'d//x.txt'", P, "d//x.txt", 0, R, 0, 0),
+        ("'missing'", P, "missing", 0, R, 0, 0),
+        ("O_DIRECTORY on a file", P, "a.txt", files.O_DIRECTORY, R, 0, 0),
+        ("O_DIRECTORY on nothing", P, "missing", files.O_DIRECTORY, R, 0, 0),
+        ("O_DIRECTORY on a folder", P, "d", files.O_DIRECTORY, R, 0, 0),
+        ("for writing", P, "a.txt", 0, ALL, 0, 0),
+        ("a folder for writing", P, "d", 0, ALL, 0, 0),
+        ("truncating", P, "a.txt", files.O_TRUNC, R, 0, 0),
+        ("creating", P, "new", files.O_CREAT, R, 0, 0),
+        ("creating exclusively", P, "a.txt", files.O_CREAT | files.O_EXCL, R, 0, 0),
+        ("exclusive alone", P, "a.txt", files.O_EXCL, R, 0, 0),
+        ("creating under nothing", P, "missing/new", files.O_CREAT, R, 0, 0),
+        ("O_DIRECTORY and O_CREAT", P, "d", files.O_DIRECTORY | files.O_CREAT, R, 0, 0),
+        ("appending (read-only)", P, "a.txt", 0, R, files.APPEND, 0),
+        ("non-blocking", P, "a.txt", 0, R, files.NONBLOCK, 0),
+        ("SYNC", P, "a.txt", 0, R, files.SYNC, 0),
+        ("DSYNC", P, "a.txt", 0, R, files.DSYNC, 0),
+        ("no rights", P, "a.txt", 0, 0, 0, 0),
+        ("the top right", P, "a.txt", 0, 1 << 29, 0, 0),
+        ("following links", P, "a.txt", 0, R, 0, 1),
+        ("unknown oflags", P, "a.txt", 16, R, 0, 0),
+        ("oflags out of range", P, "a.txt", 1 << 16, R, 0, 0),
+        ("unknown rights", P, "a.txt", 0, 1 << 30, 0, 0),
+        ("unknown fdflags", P, "a.txt", 0, R, 32, 0),
+        ("unknown lookup flags", P, "a.txt", 0, R, 0, 2),
+        ("lookup flags out of range", P, "a.txt", 0, R, 0, -1),
+        ("from the folder", D, "x.txt", 0, R, 0, 0),
+        ("from the folder, '..'", D, "..", 0, R, 0, 0),
+        ("from the folder, '../a.txt'", D, "../a.txt", 0, R, 0, 0),
+        ("from the folder, '.'", D, ".", 0, R, 0, 0),
+        ("from the file", F, "a.txt", 0, R, 0, 0),
+        ("from the file, creating", F, "x", files.O_CREAT, R, 0, 0),
+        ("from the file, not UTF-8", F, b"\xff", 0, R, 0, 0),
+        ("from nothing", 99, "a.txt", 0, R, 0, 0),
+    ]:
+        opened(f"open {label}", base, path, oflags, rights, fdflags, dirflags)
+    for label, base, path in [
+        ("'a.txt'", P, "a.txt"), ("'d'", P, "d"), ("'missing'", P, "missing"),
+        ("'a.txt/'", P, "a.txt/"), ("'a.txt/.'", P, "a.txt/."), ("''", P, ""),
+        ("'/a.txt'", P, "/a.txt"), ("'..'", P, ".."), ("'.'", P, "."), ("'d/..'", P, "d/.."),
+        ("'d/../../m'", P, "d/../../m"), ("'\\xff'", P, b"\xff"), ("'a\\x00'", P, b"a\0"),
+        ("'x' * 256", P, "x" * 256), ("'d/x.txt'", P, "d/x.txt"), ("'a.txt/x'", P, "a.txt/x"),
+        ("from the folder", D, "x.txt"), ("from the file", F, "a.txt"),
+    ]:  # fmt: skip
+        row(f"pstat {label}", r.path_filestat, base, path)
+    row("pstat following links", r.path_filestat, P, "a.txt", 1)
+    row("pstat unknown lookup flags", r.path_filestat, P, "a.txt", 2)
+    for label, base, path in [
+        ("'a.txt'", P, "a.txt"), ("'d'", P, "d"), ("'missing'", P, "missing"), ("''", P, ""),
+        ("'/a.txt'", P, "/a.txt"), ("'..'", P, ".."), ("'a.txt/'", P, "a.txt/"),
+        ("from the file", F, "a.txt"),
+    ]:  # fmt: skip
+        row(f"readlink {label}", r.readlink, base, path)
+    # Every write-shaped path call: EPERM on a read-only grant, before any provider call.
+    for name in ("path_create_directory", "path_remove_directory", "path_unlink_file"):
+        for path in ("new", "d", "a.txt", "", "/x", "..", b"\xff", b"a\0", "missing/x", "e"):
+            row(f"{name} {path!r}", r.path_call, name, P, path)
+        row(f"{name} from the file", r.path_call, name, F, "x")
+        row(f"{name} from the folder", r.path_call, name, D, "x.txt")
+    row("rename within", r.rename, P, "a.txt", P, "c.txt")
+    row("rename nothing", r.rename, P, "missing", P, "c.txt")
+    row("rename from the file", r.rename, F, "a.txt", P, "c.txt")
+    row("rename to the file", r.rename, P, "a.txt", F, "c.txt")
+    row("rename to nothing", r.rename, P, "a.txt", 99, "c.txt")
+    row("rename to a writable grant", r.rename, P, "a.txt", W, "c.txt")
+    row("rename from a writable grant", r.rename, W, "w.txt", P, "c.txt")
+    row("rename not UTF-8", r.rename, P, "a.txt", P, "\udcff".encode("utf-8", "surrogatepass"))
+    row("link within", r.link, P, "a.txt", P, "c.txt")
+    row("link following links", r.link, P, "a.txt", P, "c.txt", 1)
+    row("link unknown flags", r.link, P, "a.txt", P, "c.txt", 2)
+    row("link to nothing", r.link, P, "a.txt", 99, "c.txt")
+    row("link to a writable grant", r.link, P, "a.txt", W, "c.txt")
+    row("link from a writable grant", r.link, W, "w.txt", P, "c.txt")
+    row("symlink", r.symlink, "a.txt", P, "l")
+    row("symlink from the file", r.symlink, "a.txt", F, "l")
+    for flags in (0, 1, 3, 4, 12):
+        row(f"path set_times {flags}", r.path_set_times, P, "a.txt", flags)
+    row("path set_times unknown bit", r.path_set_times, P, "a.txt", 16)
+    row("path set_times from the file", r.path_set_times, F, "a.txt", 0)
+    row("path set_times unknown lookup flags", r.path_set_times, P, "a.txt", 0, 2)
+    # The forward-safe calls on a mount's preopen: wasmtime's answers, as for a grant's.
+    row("prestat of the preopen", r.prestat, P)
+    row(
+        "prestat name of the preopen",
+        lambda: (r("fd_prestat_dir_name", P, files.BUFFER, 2), r.get(files.BUFFER, 2)),
+    )
+    row("sock_shutdown on the preopen", r, "sock_shutdown", P, 3)
+    # Closing: the file twice, the folders, then the preopen itself.
+    row("close the file", r, "fd_close", F)
+    row("close the file again", r, "fd_close", F)
+    row("fstat after close", r.filestat, F)
+    row("close the folder", r, "fd_close", D)
+    row("close the plain folder", r, "fd_close", E)
+    row("close the preopen", r, "fd_close", P)
+    row("open from the closed preopen", r.open, P, "a.txt")
+    row("prestat of the closed preopen", r, "fd_prestat_get", P, files.RESULT)
+    return out
+
+
+def _two_sides(tmp_path: Path) -> tuple[files.Raw, files.Mounted]:
+    tree = files.write_tree(tmp_path / "tree")
+    placeholder = tmp_path / "placeholder"
+    placeholder.mkdir()
+    sides = []
+    for name in ("w-grant", "w-mount"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "w.txt").write_bytes(b"w\n")
+        sides.append(tmp_path / name)
+    grant = files.grant_raw([(tree, "/m", False), (sides[0], "/w", True)])
+    mount = files.Mounted(files.MemoryProvider(), placeholder, folders=[(sides[1], "/w", True)])
+    return grant, mount
+
+
+def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
+    """Spec 032, acceptance 3: each of the 29 shadowed calls on a provider file, folder and
+    preopen answers as on a read-only grant's (errno and every byte written), but for Decision
+    6's deliberate differences, asserted in the next test."""
+    grant, mount = _two_sides(tmp_path)
+    want, got = _parity_script(grant), _parity_script(mount.raw)
+    assert list(want) == list(got)
+    differ = {
+        label: (want[label], got[label])
+        for label in want
+        if want[label] != got[label] and (POSIX or label not in HOST_ROWS)
+    }
+    assert differ == {}, differ
+    assert sorted(p.name for p in (tmp_path / "w-mount").iterdir()) == ["w.txt"]
+    assert sorted(p.name for p in (tmp_path / "tree").iterdir()) == ["a.txt", "b.txt", "d", "e"]
+
+
+def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
+    """Spec 032, Decision 6's table: where a mount answers otherwise than a read-only grant,
+    each answer is the one the table decides (and the grant's is asserted where it does not
+    depend on the host)."""
+    grant, mount = _two_sides(tmp_path)
+    g, m = grant, mount.raw
+
+    def both(fn) -> tuple[object, object]:
+        out = []
+        for side in (g, m):
+            try:
+                out.append(fn(side))
+            except files.Ends as e:
+                out.append(("ends", e.message))
+        return out[0], out[1]
+
+    # `..` resolved by text: one provider call on one normalized path.
+    assert both(lambda r: r.open(3, "missing/../a.txt")[0]) == (44, 0)
+    assert both(lambda r: r.open(3, "a.txt/../b.txt")[0]) == (54, 0)
+    # A path over 4,096 bytes: ENAMETOOLONG, unread (a grant's answer is the host's).
+    assert m.open(3, "a/" * 2048 + "b")[0] == 37
+    assert m.path_filestat(3, "x" * 4097)[0] == 37
+    # A guest pointer past memory: EFAULT, where wasmtime ends the run.
+    end = files.MEMORY_END
+    assert both(lambda r: r("path_open", 3, 0, end - 2, 4, 0, files.READ_RIGHTS, 0, 0, 0)) == (
+        ("ends", "Pointer out of bounds"),
+        21,
+    )
+    gf, mf = g.open(3, "a.txt")[1], m.open(3, "a.txt")[1]
+    assert gf is not None and mf is not None
+    assert (gf < 2**30, mf >= 2**30) == (True, True)  # the high range (Decision 1)
+    for side in (g, m):
+        side.iovecs([1] * 1025)
+    # More than 1,024 iovecs: EINVAL (bounded work), where wasmtime reads one byte.
+    assert (g("fd_read", gf, files.IOVECS, 1025, files.RESULT), g.u32(files.RESULT)) == (0, 1)
+    assert m("fd_read", mf, files.IOVECS, 1025, files.RESULT) == 28
+    # fd_renumber never moves a provider number (Decision 1): ENOTSUP, where a grant succeeds.
+    assert (g("fd_renumber", gf, gf), m("fd_renumber", mf, mf)) == (0, 58)
+    # The forward-safe calls on a provider number: EBADF, as wasmtime answers an unknown number.
+    assert (g("sock_shutdown", gf, 3), m("sock_shutdown", mf, 3)) == (57, 8)
+    assert (
+        g("fd_prestat_dir_name", gf, files.BUFFER, 8),
+        m("fd_prestat_dir_name", mf, files.BUFFER, 8),
+    ) == (54, 8)  # noqa: E501
+    assert (g("fd_prestat_get", gf, files.RESULT), m("fd_prestat_get", mf, files.RESULT)) == (8, 8)
+    # Letter case is the provider's: this one's names are exact.
+    assert m.open(3, "A.TXT")[0] == 44
