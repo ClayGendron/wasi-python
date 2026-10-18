@@ -1,12 +1,14 @@
 # 055 — Bounded sessions
 
-- **Status:** revised against its pre-build review; awaiting the reviewer's confirmation.
-  Drafted 2026-10-18; reviewed before build the same day, as §5.6 requires since it changes
-  the guest's exports (`../reviews/055-bounded-sessions-spec-2026-10-18.md`, also a security
-  review of the design; verdict: ready once F1 to F7 are written in), and revised against all
-  fifteen findings (the Disposition, at the end, says where each went). F4 follows the landing
-  lane's ruling: the lifetime is tightened, not left to the owner. It is build-class, so once
-  confirmed it waits for a free build-class slot (§5.7).
+- **Status:** confirmed for build 2026-10-18 (the review's Confirmation, N1–N3 written in);
+  build-class: builds in its turn in the queue (after 023 and the scipy line, per the roadmap),
+  and after 049, 053, 054 and 056 land. Drafted 2026-10-18; reviewed before build the same day,
+  as §5.6 requires since it changes the guest's exports
+  (`../reviews/055-bounded-sessions-spec-2026-10-18.md`, also a security review of the design;
+  verdict: ready once F1 to F7 are written in); revised against all fifteen findings (the
+  Disposition, near the end, says where each went; F4 follows the landing lane's ruling: the
+  lifetime is tightened, not left to the owner); confirmed with three notes, N1 to N3, written
+  in (the Confirmation's notes, near the end).
 - **Owner:** Clay Gendron
 - **Kind:** **build-class.** The guest's recipe (`recipes/reactor_main.c`: a new export, `turn`;
   `recipes/reactor_bootstrap.py`: the turn's Python), so both binaries, `MANIFEST`'s recipe
@@ -100,7 +102,14 @@ variables, DataFrames, functions, classes, lambdas.
      (`init_interpreter`), never through `sys.modules["_reactor"]`, so replacing
      `_reactor.turn` or deleting the module changes nothing; maps a result that is an `int` to
      its low byte (`& 0xFF`, the rule `SystemExit`'s status follows) and anything else, a
-     failed call included (printed with `PyErr_Print`), to 1. So `turn` returns −1 **only** for
+     failed call included, to 1. **A failed call is printed without `PyErr_Print`** (the
+     Confirmation, N1): `PyErr_Print` answers a pending `SystemExit` with `Py_Exit`, which
+     finalizes, runs `atexit` handlers and exits (EXECUTED by the reviewer through today's
+     `run`, `pe_pyerr_print_exits`: a replaced `_reactor._exit_code` raising `SystemExit` gave
+     exit 9 and the handler's output, on both binaries). So the C side takes the exception with
+     `PyErr_GetRaisedException`, shows it with `PyErr_DisplayException` (a `SystemExit`
+     included, never acted on), drops it, and returns 1; the interpreter is never finalized by
+     a turn. So `turn` returns −1 **only** for
      its own refusals, which this runner never triggers, and Decision 7's "lost track" rule
      names only a runner fault. Nothing a guest does makes `session.run` raise.
    - **The C refusals, each returning −1 with no Python run** (the review, F8): `run` was
@@ -125,6 +134,12 @@ variables, DataFrames, functions, classes, lambdas.
      unwinds the guest without running CPython's cleanup, so the interpreter's state is not
      safe to enter. Ending the session is the host's job; the guest also refuses such a call
      (the `in_turn` flag, below).
+   - **The instance's WASI argv** is `[ARGV0, *entries]`, where each entry is an absolute guest
+     path of a read-only folder to put on the import path (the Confirmation, N3); the runner
+     enforces that with 054's rules, and another embedder must too, since a relative or
+     writable entry would let one turn plant code another imports. The guest's setup skips any
+     entry that is not absolute. Ordinary program arguments have no place here: a turn's input
+     is its code.
    - **The plain reactor** needs `_initialize` once before the first `turn`, as before `run`.
      The first `turn` then initializes the interpreter, as `run` does (a random hash secret).
    - The C function sets `pinned = 0` first, as `run` does; it makes the refusals above before
@@ -135,8 +150,8 @@ variables, DataFrames, functions, classes, lambdas.
    `source` is the buffer's bytes, or `None` for the NULL case; `environ` is the WASI
    environment and argv on the first turn and `None` after.
    - **The first turn sets up the session, once.** `os.environ` from WASI; any WASI arguments
-     after `argv[0]` appended to `sys.path`, in order, after the stdlib zip (the session's
-     import path, Decision 5); `sys.argv` set to `[""]` (as the interactive interpreter has it)
+     after `argv[0]` that are absolute paths appended to `sys.path`, in order, after the stdlib
+     zip (the session's import path, Decision 5; any other entry is skipped, Decision 2); `sys.argv` set to `[""]` (as the interactive interpreter has it)
      and `sys.orig_argv` to `[ARGV0]`; `builtins.exit` and `builtins.quit` rebound (below); and
      `_refresh(False)`: `random` and `numpy.random` reseeded from WASI entropy, logging's start
      time, `zoneinfo`'s path. This setup is not a numbered turn, prints nothing and registers
@@ -546,8 +561,11 @@ variables, DataFrames, functions, classes, lambdas.
       its state, which holds the store and the folders but not the `Session` object. The
       finalizer runs wherever the collector fires: on any thread, inside another session's host
       function, or on the reaper while it holds a lock. So it takes no lock and closes nothing:
-      it only marks the state dropped and wakes the reaper, which ends and closes it on its own
-      thread (the review, F9; the `_outputs_lock` comment records this project meeting a
+      it only puts the state on a `queue.SimpleQueue`, whose `put` Python documents as safe
+      from weakref callbacks and which takes no lock a collector could interrupt, unlike
+      `threading.Event.set` or `Condition.notify` (the Confirmation, N2). The reaper waits on
+      that queue (`SimpleQueue.get(timeout=…)`, the timeout being the wait `_reap` returns), so
+      the same put wakes it; it then ends and closes the session on its own thread (the review, F9; the `_outputs_lock` comment records this project meeting a
       finalizer inside a locked block before). The reaper holds sessions weakly. So a dropped
       session is closed soon after it is collected, or by its idle bound if a reference cycle
       delays the collector.
@@ -663,7 +681,8 @@ variables, DataFrames, functions, classes, lambdas.
       recipes are run (criterion 28).
 
     "Any other embedder does the same three things" gains a fourth paragraph: the `turn` export's
-    contract (Decision 2), for an embedder that keeps an instance across turns. The constitution's
+    contract (Decision 2), for an embedder that keeps an instance across turns, including that
+    argv after `argv[0]` holds only absolute, read-only import-path folders. The constitution's
     §2.4 ("calling one export") still describes the minimum to run a program; a session is
     optional and §3 admits it. No constitution change is needed. The CHANGELOG's unreleased
     section gains, under Added: `Session`, `SessionEnded`, the two `Defaults` fields,
@@ -949,8 +968,12 @@ which drives `turn` on one instance without the runner and is itself checked in
     C side's strong reference); turn 3 sets `_reactor._exit_code = lambda e: 300` and raises
     `SystemExit`: `exit_code == 44` (300's low byte); turn 4 sets it to return `"x"` and raises
     `SystemExit`: `exit_code == 1`; turn 5 runs `del __import__("sys").modules["_reactor"]`, and
-    turn 6 `print(2)` returns 0. No call raises, and `ended is None` throughout. Stand-in:
-    today's text (a turn returning −1 or 300, and `session.run` raises `RuntimeError`).
+    turn 6 `print(2)` returns 0. Turn 7 registers an `atexit` handler that prints, and turn 8
+    makes `_reactor._exit_code` itself raise `SystemExit(9)` and then raises `SystemExit`:
+    `exit_code == 1`, `ended is None`, and no output from the handler (the Confirmation, N1).
+    No call raises, and `ended is None` throughout. Stand-ins: today's text (a turn returning −1
+    or 300, and `session.run` raises `RuntimeError`); a failed call printed with `PyErr_Print`
+    (turn 8 exits 9 and the handler prints).
 33. `test_close_on_the_turns_own_thread`: a session with a raw `host=` whose function calls
     `session.close()` and returns `b""`: `close()` returns at once (no deadlock; the check's
     120 s fail-safe), the turn returns `trapped == "cancelled"`, and `ended == "closed"`.
@@ -1025,5 +1048,19 @@ are written in). Every finding is fixed in this revision; none is declined.
   at least five sessions each on macOS and Linux, before the band is fixed; a spread above 10
   is a finding (Decision 16). The review's note on 049's `_MAX_ABANDONED` is taken (Decision
   11).
+
+## The Confirmation's notes
+
+The reviewer confirmed this specification at `c25713c` for build once N1 was written in, with
+two further low notes (the Confirmation, appended to the review). All three are written in.
+
+- **N1 (needed), a failed call must not go through `PyErr_Print`.** Its `SystemExit` handling
+  finalizes and exits, which a guest can reach by making a bootstrap helper raise `SystemExit`
+  (EXECUTED by the reviewer, `pe_pyerr_print_exits`). Decision 2 now fetches and displays the
+  exception itself and returns 1; criterion 32 gains turns 7 and 8 and the stand-in.
+- **N2 (low), a lock-free wake.** The finalizer puts the state on a `queue.SimpleQueue`, safe
+  from weakref callbacks, and the reaper waits on that queue (Decision 13).
+- **N3 (low), what argv after `argv[0]` means.** Absolute, read-only import-path folders only;
+  the guest skips anything else (Decisions 2 and 3, and Decision 20's README paragraph).
 
 ## Landing notes
