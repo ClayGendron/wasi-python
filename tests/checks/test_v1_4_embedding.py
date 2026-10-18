@@ -1763,6 +1763,20 @@ def ticks(n):
         threading.Event().wait(0.001)
 
 
+DEADLINE_S = 60.0  # long enough that no load ends the run before the provider is reached
+
+
+def past_deadline():
+    # By count, never by time: the ticker's count, which the runner checks before each
+    # provider call, and every engine's epoch, which stops the guest, both past this call's
+    # deadline (the seams of spec 017's deadline check and tests/unit/test_runner_async.py).
+    call = runner._stack()[-1]  # this provider runs on the guest's thread, under its call
+    runner._epoch_ticker.count = classmethod(lambda cls: call.stop_at)
+    for engine in list(runner._engines.values()):
+        for _ in range(int(DEADLINE_S / runner.TICK_S) + 2):
+            engine.increment_epoch()
+
+
 class Provider:
     calls = 0
 
@@ -1771,7 +1785,7 @@ class Provider:
         if case == "cancel" and Provider.calls == 3:
             event.set()
         if case == "deadline" and Provider.calls == 3:
-            ticks(20)  # past the 0.05 s deadline, by count
+            past_deadline()
         return Stat("file")
 
     def list(self, path):
@@ -1785,7 +1799,7 @@ mounts = [Mount(Provider(), "/work")]
 if case == "cancel":
     r = wasi_python.run(["-c", loop], mounts=mounts, cancel=event, deadline_s=None)
 elif case == "deadline":
-    r = wasi_python.run(["-c", loop], mounts=mounts, deadline_s=0.05)
+    r = wasi_python.run(["-c", loop], mounts=mounts, deadline_s=DEADLINE_S)
 else:  # a cancel while the guest makes a run of forwarded calls (prints)
 
     def later():
@@ -1809,8 +1823,9 @@ print(r.trapped, r.exit_code, Provider.calls)
 )
 def test_a_mount_keeps_its_deadline_and_cancel(case, want) -> None:
     """Spec 032, acceptance 6: a provider that sets the call's cancel in its third call ends
-    the run "cancelled" after exactly three calls; one that holds the guest past its deadline
-    (counted in ticks) ends it "deadline" with no call after; a cancel during a run of
+    the run "cancelled" after exactly three calls; one that moves the ticker's count and the
+    engine's epoch past the call's deadline in its third call (by count, never by time: so it
+    is reached under any load) ends it "deadline" with no call after; a cancel during a run of
     forwarded calls is named "cancelled", never a raw error."""
     assert _child(MOUNT_CANCEL, case) == [want]
 

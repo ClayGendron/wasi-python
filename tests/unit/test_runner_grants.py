@@ -633,7 +633,7 @@ def test_raw_calls_answer_as_a_grant_does(tmp_path) -> None:
 def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
     """Spec 032, Decision 6's table: where a mount answers otherwise than a read-only grant,
     each answer is the one the table decides (and the grant's is asserted where it does not
-    depend on the host)."""
+    depend on the host, or per system where it does)."""
     grant, mount = _two_sides(tmp_path)
     g, m = grant, mount.raw
 
@@ -647,15 +647,12 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
         return out[0], out[1]
 
     # `..` resolved by text: one provider call on one normalized path. A POSIX grant walks each
-    # part; Windows's grant resolves `..` by text as the mount does (EXECUTED for
-    # `missing/../a.txt` in release dry run 39105048310). Its answer to `a.txt/../b.txt` is not
-    # observed (INFERRED 0, the same normalization), so only the mount's is asserted there.
-    windows = sys.platform == "win32"
-    assert both(lambda r: r.open(3, "missing/../a.txt")[0]) == (0 if windows else 44, 0)
-    if windows:
-        assert m.open(3, "a.txt/../b.txt")[0] == 0
-    else:
-        assert both(lambda r: r.open(3, "a.txt/../b.txt")[0]) == (54, 0)
+    # part; a Windows grant resolves `..` by text as the mount does: cap-std's own Windows open
+    # pops the name before each `..` before any lookup (READ, cap-primitives 4.0.3,
+    # `src/fs/manually/open.rs`, `Context::new`'s `#[cfg(windows)]` block; EXECUTED for
+    # `missing/../a.txt` in release dry run 39105048310).
+    assert both(lambda r: r.open(3, "missing/../a.txt")[0]) == (44 if POSIX else 0, 0)
+    assert both(lambda r: r.open(3, "a.txt/../b.txt")[0]) == (54 if POSIX else 0, 0)
     # A path over 4,096 bytes: ENAMETOOLONG, unread (a grant's answer is the host's).
     assert m.open(3, "a/" * 2048 + "b")[0] == 37
     assert m.path_filestat(3, "x" * 4097)[0] == 37

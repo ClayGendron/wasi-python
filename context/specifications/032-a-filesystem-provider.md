@@ -299,7 +299,7 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | input | a read-only grant (wasmtime) | a read-only mount | why |
    |---|---|---|---|
    | `..` after a missing name or a file (`missing/../b.txt`, `a.txt/../b.txt`) | `ENOENT`, `ENOTDIR`: it walks each part | resolved by text | one provider call per operation, on one normalized path; it also tells the guest less (a grant reveals whether `missing` exists) |
-   | the same, on a Windows grant (after landing) | resolved by text too: `missing/../a.txt` opens `a.txt` (observed); `a.txt/../b.txt` not observed | resolved by text | no difference on Windows: the mount and a Windows grant agree; the row above is POSIX's |
+   | the same, on a Windows grant (after landing) | resolved by text too: cap-std's own Windows open drops each `..` with the name before it before any lookup (READ, cap-primitives 4.0.3 `src/fs/manually/open.rs`); `missing/../a.txt` and `a.txt/../b.txt` open their file (0; the first EXECUTED in release dry run 39105048310) | resolved by text | no difference on Windows: the mount and a Windows grant agree; the row above is POSIX's |
    | a path over 4,096 bytes | depends on the host (`ENOENT` on macOS) | `ENAMETOOLONG`, unread | bounded work, the same on every host |
    | a guest pointer past memory | an error that ends the run | `EFAULT` | the runner's own answer, as `poll_oneoff`'s; no trap path in provider code |
    | more than 1,024 `iovec`s | accepted | `EINVAL` | bounded work |
@@ -969,10 +969,13 @@ opens `a.txt`, where Linux's and macOS's grants walk each part and answer 44. In
   stays asserted everywhere. Decision 6's table gains a Windows row and the README's `..` line
   says a Windows grant resolves by text too.
 - **The rest of the test, reasoned, not run on Windows** (the failure stopped it at its first
-  assertion): the next row, `a.txt/../b.txt`, would meet the same normalization (INFERRED 0 on
-  Windows, as Win32 path handling collapses `..` before the file is looked up; cap-std's
-  Windows code was not read: it is not in `context/prior_art/`), so its grant side is now
-  asserted on POSIX only and the mount's 0 everywhere. Every later grant-side assertion depends
+  assertion): the next row, `a.txt/../b.txt`, meets the same code. cap-std opens one component
+  at a time on Windows, so Win32 never sees the `..`; its own `Context::new`, in a
+  `#[cfg(windows)]` block ("Windows resolves `..` before doing filesystem lookups"), pops the
+  normal name before each `..` before any lookup (READ, cap-primitives 4.0.3,
+  `src/fs/manually/open.rs`, on docs.rs; wasmtime 49 pins 4.0.3 in its `Cargo.lock`). So the
+  Windows grant's 0 is asserted for both rows (revised against the review of the third part,
+  F1 and F2). Every later grant-side assertion depends
   on wasmtime's own logic, not the host's path handling: wiggle's pointer check, the first
   non-empty `iovec`, `fd_renumber`, the `sock_*` and prestat answers (READ, `p1.rs`), and the
   same calls already compared equal on Windows in the parity table. The v1.4 checks, which ran
@@ -982,3 +985,25 @@ opens `a.txt`, where Linux's and macOS's grants walk each part and answer 44. In
   `220/231 pass · 0 gap · 11 blocked · 0 fail (unit suite 821/829, 8 skipped)`, `lost 0 · gained
   0 · grew 0 · judge changed: tests/unit/test_runner_grants.py`, `1041 passed, 19 skipped`; ruff
   clean.
+
+**Revised after landing, fourth part, 2026-10-18 (a judge change): acceptance 6's deadline by
+count.** The review of the third part (its O1) saw `test_a_mount_keeps_its_deadline_and_cancel[
+deadline]` fail 3 of 5 times alone at load average 174: its 0.05 s deadline is wall-clock, and
+under load the guest's start-up outlived it, so the run ended "deadline" with 0 provider calls,
+not 3. Reproduced here (EXECUTED) at load average about 230: 2 of 5 runs gave `deadline None 0`.
+Acceptance 6 asks for a provider that "advances the epoch ticker past the deadline by count";
+the case now does exactly that and nothing by time: the run's deadline is 60 s, and the provider,
+in its third call, sets the ticker's count to the call's `stop_at` and advances every engine's
+epoch past the deadline (6,002 increments), the seams of spec 017's deadline check and
+`tests/unit/test_runner_async.py`. So the provider is always reached, the guest stops at its
+next entry, and no fourth call is made: `deadline None 3`. Passed 10 of 10 runs at load
+averages 206 to 237 (EXECUTED). The cancel case and the forwards case already wait only on
+counts (a provider call, ticker ticks) and keep their form.
+- **Run, with the third part's revision (F1 to F4 of its review: the Windows grant's 0 asserted
+  for `a.txt/../b.txt` too, READ in cap-std; the mechanism named as cap-std's, not Win32's; the
+  docstring; the file's `POSIX`):** `tests/unit/test_runner_grants.py` on macOS and on Linux
+  (container, uid 1000): `18 passed, 2 skipped` each. The full judge on macOS
+  (`…/s-0cdc7b2bd78db6f5`), at load average about 335: `220/231 pass · 0 gap · 11 blocked · 0
+  fail (unit suite 821/829, 8 skipped)`, `lost 0 · gained 0 · grew 0 · judge changed:
+  tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_grants.py`, `1041 passed, 19
+  skipped`; ruff clean.
