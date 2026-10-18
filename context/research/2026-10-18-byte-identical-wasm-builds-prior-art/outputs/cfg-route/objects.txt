@@ -1,0 +1,9 @@
+slot-order.c through the file: aarch64 bca38dcd95e249c3, x86_64 bca38dcd95e249c3
+slot-order.c with -ffp-contract=on after the file: aarch64 9afcef294ca52dad
+slot-order.c with -ffp-model=precise after the file: aarch64 9afcef294ca52dad, x86_64 7daeec0794b49c01
+npy_math_complex.i (324353 bytes, 2193b9bd4d40aadc) through the file: aarch64 2914eb833ad62c93, x86_64 2914eb833ad62c93
+== fold.c at -O2: h() under the default, then through the file
+  default:   ret double 0x3C90000000000000
+  file:      ret double 0.000000e+00
+== pragma.c through the file: fmuladd calls in the IR
+2

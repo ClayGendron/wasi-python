@@ -1,0 +1,7 @@
+compile: ok
+link: ok
+compile-and-link: ok
+-E: ok
+-M: ok
+-fsyntax-only: ok
+predefined macros: equal with and without the flag (419 lines)

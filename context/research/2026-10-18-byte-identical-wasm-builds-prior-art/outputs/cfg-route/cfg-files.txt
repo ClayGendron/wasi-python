@@ -1,0 +1,6 @@
+== clang.cfg
+--sysroot=<CFGDIR>/../share/wasi-sysroot
+-ffp-contract=off
+== clang++.cfg
+--sysroot=<CFGDIR>/../share/wasi-sysroot
+-ffp-contract=off
