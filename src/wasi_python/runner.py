@@ -355,7 +355,8 @@ def run(
             /tmp is writable.
         stdin: The guest's standard input, whole; `None` is empty.
         host: The door's host function: called with each request's bytes, it returns the
-            response's. Excludes `tools`.
+            response's. It must answer synchronously: an async one raises `TypeError`. Excludes
+            `tools`.
         snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
             the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
@@ -377,9 +378,13 @@ def run(
             of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
         tools: Host functions offered to the guest through the tool protocol (`from host
             import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes
-            through `tool()`. Excludes `host`.
+            through `tool()`. A tool may be async (an `async def`, or a function returning an
+            awaitable): it is awaited on the event loop that awaits `run_async`, or, under
+            `run`, on a loop of the call's own; it never starts once its call has been answered,
+            and is cancelled when its call ends. Excludes `host`.
         gate: Called with a `ToolCall` before each tool runs. It allows by returning `None`
-            or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+            or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be
+            async, as a tool may. Needs `tools`.
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.
@@ -479,7 +484,8 @@ async def run_async(
             /tmp is writable.
         stdin: The guest's standard input, whole; `None` is empty.
         host: The door's host function: called with each request's bytes, it returns the
-            response's. Excludes `tools`.
+            response's. It must answer synchronously: an async one raises `TypeError`. Excludes
+            `tools`.
         snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
             the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
@@ -502,9 +508,13 @@ async def run_async(
             of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
         tools: Host functions offered to the guest through the tool protocol (`from host
             import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes
-            through `tool()`. Excludes `host`.
+            through `tool()`. A tool may be async (an `async def`, or a function returning an
+            awaitable): it is awaited on the event loop that awaits `run_async`, or, under
+            `run`, on a loop of the call's own; it never starts once its call has been answered,
+            and is cancelled when its call ends. Excludes `host`.
         gate: Called with a `ToolCall` before each tool runs. It allows by returning `None`
-            or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+            or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be
+            async, as a tool may. Needs `tools`.
         max_tool_calls: The most tool-protocol frames a call answers; the guest gets
             `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None`
             means no limit. Needs `tools`.

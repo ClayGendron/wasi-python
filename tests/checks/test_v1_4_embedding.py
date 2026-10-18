@@ -3862,11 +3862,14 @@ def test_a_timeout_cancels_an_async_tool(guest_workdir) -> None:
 
     @tool
     async def b() -> str:
-        """Answer."""
-        return "B's answer"
+        """Answer, saying how many cancels A has seen. A's cancel was queued on the loop before
+        B was posted, so A has met it by the time B runs: the call's end cancelled A, not the
+        loop's closing at the run's end."""
+        return f"B's answer; A cancelled {len(cancels)}"
 
     done = run(["-c", TIMEOUT_THEN_ANOTHER], tools=[a, b])
-    assert (done.exit_code, done.stdout) == (0, b"a timed out after 0.5 s\nB's answer\n"), done
+    want = b"a timed out after 0.5 s\nB's answer; A cancelled 1\n"
+    assert (done.exit_code, done.stdout) == (0, want), done
     assert [(o.tool, o.outcome, o.abandoned) for o in done.tools.outcomes[1:]] == [
         ("a", "timeout", True),
         ("b", "ok", False),
@@ -4018,7 +4021,18 @@ def test_an_async_tool_that_ignores_its_cancel_is_bounded(guest_workdir) -> None
                 continue
 
     before = runner.stats()["tool_threads_running"]
-    done = run(["-c", SIX_CALLS], tools=[stall])
+    result: dict = {}
+
+    def make_the_call() -> None:
+        result["done"] = run(["-c", SIX_CALLS], tools=[stall])
+
+    call = threading.Thread(target=make_the_call, daemon=True)
+    call.start()
+    call.join(120)  # a fail-safe: `run` must return without waiting for the tasks
+    if call.is_alive():
+        held["loop"].call_soon_threadsafe(held["event"].set)
+        pytest.fail("run waited for the tasks that ignore their cancel")
+    done = result["done"]
     assert done.exit_code == 0, done
     assert (
         done.stdout.decode().splitlines()
