@@ -1,7 +1,8 @@
 # 052 — The judge on several cores
 
-- **Status:** revised against its pre-build review; awaiting the reviewer's confirmation.
-  Drafted 2026-10-18; reviewed the same day
+- **Status:** confirmed for build 2026-10-18 (C1, C2 written in); building. Revised against its
+  pre-build review and confirmed the same day (the review's Confirmation: "ready to build", with
+  conditions C1 and C2, written into Decisions 5 and 9 and criterion 5). Drafted 2026-10-18; reviewed the same day
   (`build/reviews-evidence/052-review/052-the-judge-on-several-cores-spec-2026-10-18.md` in the
   main tree, which the lane copies to `context/reviews/`: "ready once F1 to F7 are written in; F8
   to F14 fixed or answered in writing before the build"). Every finding is written in below and
@@ -70,9 +71,10 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
    true by construction. A worker that sees the tree change no longer exits on its own; the
    controller refuses once (review F11). A worker that dies is Decision 14.
 5. **xdist's plugins are allowed, narrowly.** `foreign_steering` accepts:
-   - a plugin module whose file lies inside the folder of the **installed `pytest-xdist`
-     distribution** (`importlib.metadata.distribution("pytest-xdist")`, where its files are), and
-     an object plugin whose type's module file lies there (by file, never by a name prefix);
+   - a plugin module whose file lies inside the **package folder of the installed `pytest-xdist`
+     distribution**, `importlib.metadata.distribution("pytest-xdist").locate_file("xdist")` (C1:
+     never `locate_file("")`, which is all of `site-packages`), and an object plugin whose type's
+     module file lies there (by file, never by a name prefix);
    - **only when** that distribution's version, `xdist.__version__` and the version `uv.lock`
      pins for `pytest-xdist` are all equal, and the installed `execnet`'s version equals the one
      `uv.lock` pins (execnet carries every record, and as a non-plugin the foreign check would
@@ -159,7 +161,11 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
      deadline overdue by count, as `MOUNT_CANCEL`'s `past_deadline` does in the same file (the
      ticker's count that the runner and the tool bound read set to the call's `stop_at`, and every
      engine's epoch advanced past the deadline), then waits on `release` as now. The assertion
-     (`block timeout True`) is unchanged. *Reason:* with `deadline_s=3` the guest must reach
+     (`block timeout True`) is unchanged. *Builder's note (C2):* inside the tool,
+     `runner._stack()` is empty (the call stack is a `threading.local`, and a tool runs on its own
+     thread), so the tool does not read the call's `stop_at` there; it sets the ticker's count
+     past any deadline (`runner._epoch_ticker.count = classmethod(lambda cls: 2**62)`), which the
+     bound reads at call time. *Reason:* with `deadline_s=3` the guest must reach
      `tools.block()` within three seconds of wall time, or `outcomes[-1]` raises; the same shape as
      the door check (review F3).
 10. **The worker count builders and reviewers use is `-n 6` on the project's machine, fewer when
@@ -336,7 +342,8 @@ Each is counted; none times anything.
    `Controller` at the locked versions give 0 findings; with the distribution's version,
    `xdist.__version__` or execnet's version reported as different from the lock (monkeypatched),
    each xdist plugin is a finding; a module named `xdist…` outside the distribution's folder is a
-   finding; any other plugin is still a finding.
+   finding; any other plugin is still a finding, including a module from `site-packages` outside
+   `xdist/` (C1: `iniconfig` loaded with `-p iniconfig`).
 6. **The refusals.** Self-tests, one per refused row of Decision 7's table (`-n logical`,
    `--dist each`, `--dist loadfile`, `-d`, `--no-loadscope-reorder`, `--maxschedchunk 2`,
    `--tx popen` with `-n 2`, `--px …`, `--rsyncdir …`, `--rsyncignore …`, and `-f` run under a
