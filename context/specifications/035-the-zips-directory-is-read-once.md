@@ -654,4 +654,126 @@ Decisions 6, 8 or 12 before the build.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by an agent (Claude Opus 5.5) in the worktree `wasi_python-035`, branch
+`spec/035-the-zips-directory-is-read-once`, in the review's order, one commit per step:
+`c6900b6` (part 1, checks 1, 2, 3, 8), `749b873` (part 2, checks 4, 5, 7), `0a875e1` (part 3,
+check 6), then the README, CHANGELOG, upstream draft and these notes. Every number below is
+EXECUTED on darwin-arm64 with the judge's driver (fuel exact) unless marked; the scratch scripts and
+logs are in the session scratchpad (`035-build/`), not in git. The judge was run in the worktree
+on its own build, never with `--accept`.
+
+**The baseline.** A full build from pins in the worktree (`scripts/build.sh`, 5 min 18 s) gave
+`python.wasm`, the snapshot and the zip byte for byte main's set `s-f94dec535086b06c` (spec 051's).
+Its first step 90 wrote a different `MANIFEST`, because `scripts/freeze_bootstrap.py` was edited
+while the build ran; with the file put back, step 90 again gave `SHA256SUMS` equal to main's, every
+line. Every "before" figure below is that set's.
+
+**Install point A serves.** Check 1, the gate, passed on wasm on both binaries at the first try:
+`served == {"/usr/local/lib/python315.zip": "fast"}` with no extra call, `encodings` loaded by a
+`zipimporter`, the three seams ours, `_zip_directory.__spec__.origin == "frozen"`,
+`zipimport.__file__` and `_frozen_importlib_external`'s `loader_state.filename` as a one-phase
+start gives them. Install point B was not built.
+
+**What failed first.** On 051's set every new guest check failed with `ModuleNotFoundError:
+_zip_directory`; check 2 measured 77,700 fuel per member; check 4 a first Paris zone of 257.7 M
+(plain) and 206.6 M (snapshot); check 5 `type(files("tzdata")) == Path`, with no other
+difference (the check's own comparison program agrees with itself on the stock reader); check 7
+968.8 M beyond the imports; check 6 `kinds == ["Path"]`. Each unit check failed first because its
+module was missing. Two of the checks' first drafts were wrong and were corrected before any code
+they judge: check 3 expected `ZipImportError` for the truncated zip, where zipimport's own reader
+raises `EOFError` ("EOF read where not expected"); the check now asserts an error, the same from
+both readers. And the unit check of `install()` put back only the reader, so the host's own
+`importlib.metadata` broke for the rest of the pytest session (the judge recorded no wasmtime
+version); it now puts back all three seams.
+
+**One design change, found by check 6 (Decision 6).** The first build of part 3 measured a
+snapshot metadata miss of **31.8 M** against the 20 M bound. 9.5 M was the miss; 22.2 M was
+importing `_zip_resources`, because `from importlib.resources.abc import …` runs
+`importlib.resources` and with it `tempfile`, which a metadata-only call has not imported
+(Decision 6 said "already imported by then", true for a resource read only). So
+`ZipDirectoryPath` does not subclass `Traversable`: it satisfies the runtime-checkable protocol
+the way `zipfile.Path` does, with `read_bytes` and `read_text` written as `Traversable`'s are
+(`isinstance(path, Traversable)` holds; a unit check says so). `ZipDirectoryReader`, which must
+subclass `TraversableResources`, is made on first access through the module's `__getattr__` and
+kept. The miss then measured 11.0 M. No bound or check changed.
+
+**Two readings of the text, recorded.** (1) Check 3 says `served` is "fast" for the zips other
+than Zip64 and cp437; the truncated zip's read is `"stock"`, by Decision 2's routing (an entry
+past the bytes read), and the check asserts that. (2) The fast reader requires the walk of `n`
+entries to end exactly at the directory's size; any other end goes to zipimport's reader. That is
+a little stricter than "another `PK\x01\x02` after `n` entries", always in the safe direction.
+Also: the courtesy issue is `context/upstream/14-importlib-resources-zip-directory/issue.md`,
+since folder `4-` was taken; `_zip_directory` imports `sys` lazily inside the metadata wrapper,
+and `_zip_resources` also imports `pathlib` (already loaded by `importlib.metadata` and
+`importlib.resources`), `sys` and `zipimport`.
+
+**The fuel.** Before is 051's set, after is this build (`python.wasm` `c2e7c88f…`, snapshot
+`2993fb91…`, zip `daf2cdd8…`).
+
+| what | before | after | bound |
+|---|---|---|---|
+| plain start, slope (check 2) | 77,700 per member | **25,058** per member | 30,000 |
+| plain `-c pass` | 242.2 M | **151.0 M** | |
+| plain `import pandas` | 4,991.6 M | **4,897.7 M** | |
+| snapshot `-c pass` | 82.06 M | **81.90 M** | ratchet |
+| snapshot `import pandas` (pre-imported) | 82.08 M | **81.92 M** | |
+| re-read after `invalidate_caches()`, plain slope (check 8) | 77,842 (memo) | **25,862** per member; 175.2 M on small.zip | 30,000 |
+| first zone, snapshot (check 4) | 206.6 M | **8.61 M** | 15 M |
+| first zone, plain, small / padded | 257.7 M / 891.1 M | **8.61 M / 8.63 M**, 4 per member | 20 M; 1,000 |
+| second zone (Tokyo after Paris) | | **1.31 M** snapshot, **1.43 M** plain | 2 M |
+| metadata miss after `import importlib.metadata`, snapshot (check 6) | 221.9 M | **11.0 M** | 20 M |
+| the same, plain, small / padded | | **15.7 M / 40.0 M**, **4,620** per member | 6,000 |
+| pandas time-zone job beyond its imports, snapshot (check 7) | 968.8 M | **33.5 M** (plain 38.1 M) | 60 M |
+| `version("numpy")` after `import importlib.metadata`, snapshot | 360.9 M | **148.1 M** | |
+| `import numpy.testing`, snapshot | 600.6 M | **387.7 M** | |
+| importing `_zip_resources`, snapshot | | **1.31 M** after `importlib.resources`, **1.24 M** after `importlib.metadata` | |
+
+As spec 033 asked: part 3 recovered 212.8 M of `version("numpy")` and 212.9 M of `import
+numpy.testing`, the directory scan. What remains of `version("numpy")`, 148 M, is reading and
+parsing `METADATA` (`email`'s work, out of scope). Spec 023's re-derivation (Decision 12) should use
+**25,058** fuel per member: about 610 × 25,058 ≈ +15.3 M on a plain start (INFERRED, linear).
+
+The marshalled modules: `_zip_directory` 7,907 bytes, `_zip_resources` 16,766 bytes
+(`_reactor` 9,859, unchanged). Wall-clock, one machine, a benchmark fact (`wasi_python.run`,
+median of five): plain `-c pass` 28 ms → 21 ms, plain `import pandas` 623 ms → 619 ms; the
+README's row says 21 ms / 620 ms.
+
+**The judge.** The full `uv run pytest` (slow checks included) on this build: 1,211 passed, 10
+skipped, 0 failed; `271/274 pass · 0 gap · 3 blocked · 0 fail`, the three blocked as on main
+(prior-art clones, three systems, wheel). `test_callbacks_have_the_types_cpython_calls` (spec
+051's scan) is green. Lost 0; gained 20 (the new checks: 1 ×2, 2, 3 ×8, 4 ×2, 5 ×2, 6 ×2, 7 ×2, 8).
+`test_goldens_reproduce_under_the_pinned_oracle` passes with the new `pandas_tz` golden, made by
+`tests/jobs/regen.py` (every other golden rewrote byte for byte the same). Fuel fell on 53 checks
+(every plain check by about 91.5 M; snapshot checks by 0.1 M to 0.5 M).
+
+**Growth, for the accept** (`--accept-growth`):
+
+- `test_binary_is_a_core_wasm_module[plain]`: bytes 31,760,992 → 31,786,310 (+25,318): the two
+  frozen modules (24,673 bytes marshalled) and the frozen-module table.
+- `test_binary_is_a_core_wasm_module[snapshot]`: bytes 65,533,118 → 65,552,587 (+19,469): the same
+  data in the snapshot's image, and (INFERRED) the one more module in its heap.
+- `test_extra_preopens_work_on_the_snapshot[root first, data first]`: fuel 847,440,276 and
+  847,440,410 → +902,859 to +902,876 each over two runs (+0.107%). The probe calls `isinstance(x, io.IOBase)` on all 62,300
+  heap objects. Measured at step 1 (the same growth, then +2.1 M): the heap gained 12 objects, and
+  the extra fuel is in the first `isinstance` per type, which fills `io.IOBase`'s ABC caches,
+  sets keyed by object address, so their cost moves with the heap's layout; the same loop run a
+  second time was 1.1 M cheaper on the new set than on the old. Layout, not work.
+
+  Two snapshot checks that grew past the tolerance at steps 1 and 2 are within it here
+  (`test_unbuffered_output_survives_a_hard_exit[snapshot]`, +2,029 at step 2;
+  `test_ctypes_stand_in…[snapshot]`, +113,779 at step 2). The snapshot `-c pass` fell 0.2%; no
+  plain check grew. Neither is a finding under Decision 10.
+
+**The set.** `MANIFEST` gains `recipe` lines for `recipes/zip_directory.py` and
+`recipes/zip_resources.py`; the lines for `recipes/reactor_main.c`,
+`scripts/freeze_bootstrap.py` and `scripts/steps/60_link.sh` change; nothing else does. The zip is
+byte for byte 051's (`daf2cdd8…`). Steps 60 to 90 run twice from the same tree gave the same
+`SHA256SUMS` (the snapshot rebuilds the same on one host). Not run here, left to the lane: a
+build in a clean clone, the release dry run and its rebuild jobs on the other hosts (criterion 9).
+
+**For the build review.** The two-phase start in `recipes/reactor_main.c` (`sys._stdlib_dir`
+before the import; abort on any failure); the fallback rules in `recipes/zip_directory.py`;
+`_zip_resources`' member reader and `open`'s order of errors; the `__getattr__` that makes
+`ZipDirectoryReader` (the design change above); `iterdir` on odd names (`"//"` lists under the
+root, by `zipfile.Path`'s own `_is_child` rule over zipimport's names); and the layout reading of
+the one fuel growth.

@@ -6,6 +6,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
+- **The zip's directory is read once** (spec 035). A start reads the stdlib zip's directory
+  through the reactor's own reader, `_zip_directory`, a frozen module installed between the
+  interpreter's two start phases: one read and one unpack per member, about 25,000 fuel a member
+  where zipimport's took about 77,700. A plain `-c pass` falls from 242 M to 151 M fuel. Resource
+  reads and `importlib.metadata` no longer parse the zip: they answer from the directory zipimport
+  already holds. A first `ZoneInfo("Europe/Paris")` costs 8.6 M fuel on the snapshot instead of
+  207 M, a metadata miss 11 M instead of 222 M, and `version("numpy")` 148 M instead of 361 M.
+  `importlib.resources.files()` on a package in a zip gives `ZipDirectoryPath`, the runtime's own
+  `Traversable`, not a `zipfile.Path` (the README names the differences); `zipfile` still reads
+  any member that is not plain and small. Zip64 zips, cp437 names and every error go to
+  zipimport's own reader. `python.wasm` grows by about 25 KB. No upstream file changes; a
+  courtesy issue for importlib_resources is drafted
+  (`context/upstream/14-importlib-resources-zip-directory/`).
 - **What numpy's and pandas' own tests found** (spec 051). Three defects, fixed:
   - **numpy callbacks no longer trap the guest** (the second carried patch,
     `recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`). Six C functions were defined

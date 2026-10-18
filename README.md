@@ -44,7 +44,7 @@ promises.
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 81.9M guest instructions on 3.15 |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
-| one call, plain reactor, `-c pass` / `import pandas` | 33 ms / 720 ms |
+| one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms; 151M / 4.90G guest instructions (spec 035's landing notes, 2026-10-18: the zip's directory read once) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
@@ -74,9 +74,18 @@ warnings point at the caller's line. There is no `/dev/null`: `os.devnull` names
 does not exist, so opening it raises `FileNotFoundError`. The stdlib zip carries no package's
 `tests` folders and no `conftest.py`, so `numpy.conftest`, which numpy's own module list names,
 does not import. `importlib.metadata` gives each package's name, version and entry
-points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
-process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
-about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`
+points; `files()` gives `None`, because the zip keeps no `RECORD`. The zip's directory is read
+once per process, by the reactor's own reader, and resource reads and metadata answer from that
+one read (spec 035): a first time zone costs about 9 M fuel on the snapshot, a metadata lookup
+that finds nothing about 11 M, and `version("numpy")` about 0.15 G, most of it parsing
+`METADATA`. `importlib.resources.files()` on a package in a zip on `sys.path` gives the runtime's
+own `Traversable`, `ZipDirectoryPath`, not a `zipfile.Path`: the same bytes, listings, `is_file`,
+`is_dir`, `exists`, `name`, `parent`, `str()` and errors, and `zipfile` itself reads any member
+that is not stored or deflated, is over 1 MiB, or fails a check (so a guest's own zip keeps
+`zipfile`'s CRC checks, LZMA and streaming). It lacks `zipfile.Path`'s `root`, `at`,
+`filename`, `glob`, `rglob`, `match`, `relative_to` and `is_symlink`; names with `//` or a leading
+`/` list zipimport's implied folders, not zipfile's; a duplicated name lists once and an empty
+name not at all; and two `files()` calls give equal paths. `import ctypes`
 works: it sizes wasm32's C types and gives numpy their dtypes, but it loads no library and calls
 nothing; each such use raises `OSError`, as a missing library does, which is why `-V` still says
 "no ctypes". So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
@@ -267,7 +276,10 @@ machine therefore say `build`, not the host that built it. No compiler runs in
 a WASI guest, so nothing reads them.
 
 The recipe files under `recipes/`: two meson cross files, three rename headers
-for symbols that only collide in a static link, the reactor entry, the door
+for symbols that only collide in a static link, the reactor entry, two frozen modules the reactor
+links in (`_zip_directory`, which reads the zip's directory with one read where zipimport makes a
+dozen Python calls per member, and `_zip_resources`, which answers resource reads and metadata
+from that read; each hands anything odd to upstream's own code), the door
 module, a host-side numpy stand-in for pandas' build, a one-function stand-in for `mmap` that pandas
 imports unconditionally, and a stand-in `ctypes` package (`recipes/ctypes_stand_in/`), which numpy
 and pandas import too: it names and sizes wasm32's C types, gives numpy the dtype it gives a real
