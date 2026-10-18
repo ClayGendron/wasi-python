@@ -151,8 +151,9 @@ variables, DataFrames, functions, classes, lambdas.
    environment and argv on the first turn and `None` after.
    - **The first turn sets up the session, once.** `os.environ` from WASI; any WASI arguments
      after `argv[0]` that are absolute paths appended to `sys.path`, in order, after the stdlib
-     zip (the session's import path, Decision 5; any other entry is skipped, Decision 2); `sys.argv` set to `[""]` (as the interactive interpreter has it)
-     and `sys.orig_argv` to `[ARGV0]`; `builtins.exit` and `builtins.quit` rebound (below); and
+     zip (the session's import path, Decision 5; any other entry is skipped, Decision 2);
+     `sys.argv` set to `[""]` (as the interactive interpreter has it) and `sys.orig_argv` to
+     `[ARGV0]`; `builtins.exit` and `builtins.quit` rebound (below); and
      `_refresh(False)`: `random` and `numpy.random` reseeded from WASI entropy, logging's start
      time, `zoneinfo`'s path. This setup is not a numbered turn, prints nothing and registers
      nothing in `linecache`, so `<turn 1>` is the embedder's first code as written. Later turns
@@ -565,8 +566,9 @@ variables, DataFrames, functions, classes, lambdas.
       from weakref callbacks and which takes no lock a collector could interrupt, unlike
       `threading.Event.set` or `Condition.notify` (the Confirmation, N2). The reaper waits on
       that queue (`SimpleQueue.get(timeout=…)`, the timeout being the wait `_reap` returns), so
-      the same put wakes it; it then ends and closes the session on its own thread (the review, F9; the `_outputs_lock` comment records this project meeting a
-      finalizer inside a locked block before). The reaper holds sessions weakly. So a dropped
+      the same put wakes it; it then ends and closes the session on its own thread (the
+      review, F9; the `_outputs_lock` comment records this project meeting a finalizer inside
+      a locked block before). The reaper holds sessions weakly. So a dropped
       session is closed soon after it is collected, or by its idle bound if a reference cycle
       delays the collector.
 
