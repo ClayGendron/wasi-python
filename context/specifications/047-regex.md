@@ -1,6 +1,7 @@
 # 047 — regex, built in
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): Decision 9's rule binds — the name check is green over every scipy builtin in whichever of 047 and 037/038 lands second, never by an exemption; the builder confirms the package-context wrappers on the snapshot binary. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **built 2026-10-18; awaiting its build review** (landing notes below; branch
+  `spec/047-regex`, from main `3e949a1`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): Decision 9's rule binds — the name check is green over every scipy builtin in whichever of 047 and 037/038 lands second, never by an exemption; the builder confirms the package-context wrappers on the snapshot binary. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): the findings that concern it (3, 7,
   9, 10) are written in, and the review's Disposition says where. Finding 3 replaced the
   draft's forced-include header with a general fix in `scripts/gen_inittab.py`. Awaiting the
@@ -327,4 +328,208 @@ the sheet's body changes before the build moves it.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-047`, branch
+`spec/047-regex`, from main `3e949a1` (spec 059 in: every compile carries `-ffp-contract=off`).
+The machine: Apple arm64, macOS 26.5, 10 cores; Docker with the research image `wp040-arm64`
+(Debian 13, uv 0.9.22). Every claim is EXECUTED unless labelled. Evidence is under the main
+tree's git-ignored `build/reviews-evidence/047-build/` (named below by file). Not yet reviewed:
+the build review is next, then the lane. Spec 037 (scipy) has not landed, so Decision 9's
+condition passes to 037's builder: the name check must be green over every scipy builtin when
+037 lands, never by an exemption.
+
+### What changed
+
+- Commits `f4ee3d9` (the build) and `a120cf3` (the build progress checks count fourteen steps).
+- **The pin** (`downloads/SHA256SUMS`, `scripts/00_download.sh`'s sources block):
+  `regex-2026.9.29.tar.gz` `8b5fcc47…`, PyPI's JSON digest, and the downloaded file's SHA-256
+  recomputed equal. The oracle's three wheels in `uv.lock` carry the digests Decision 7 names
+  (`7c030316…`, `42e82e57…`, `a714befa…`), equal to PyPI's JSON.
+- **Step 53** (`scripts/steps/53_regex.sh`), in `build.sh`'s `ALL` after `50_pandas` (fourteen
+  steps): unpack, `patch_tree`, check `PKG-INFO`'s version, compile the two C files with `-O2
+  -DNDEBUG -ffile-prefix-map=…` (0 warnings each), `wasi-cc -shared` into
+  `build/regex-build/regex/_regex.cpython-315-wasm32-wasi.so`, and stage the package under
+  `build/regex-install/regex/`.
+- **The patch** `recipes/patches/regex-2026.9.29/0001-callback-signatures.patch` (SHA-256
+  `4c5dcaa9…`), `cmp`-equal to `context/upstream/9-regex-callback-signatures/fix.patch`; applied
+  "cleanly" (no offset). Its sheet moved unchanged (`git mv`, 100% similarity) to
+  `context/upstream/patches/regex-2026.9.29/0001-callback-signatures.md`; the upstream README's
+  row says it is carried.
+- **`scripts/gen_inittab.py`**: each entry is registered through `ctx_N`, which calls its init
+  function between two `_PyImport_SwapPackageContext` calls, the first naming its dotted name;
+  the file declares the function as `pycore_import.h:77` does. **Step 60** stops with one line if
+  the pinned header's declaration changes (the `grep` matches the 3.15.0 header, EXECUTED), and
+  links `regex._regex`. **Step 70** adds the tree and `PKG-INFO`. **Step 90** adds `package regex
+  2026.9.29` and writes `LICENSES/regex.txt`: the sdist's `LICENSE.txt`, then the line
+  `modified_notice` builds from the patch's own `+++ b/` paths and a table keyed by the patch's
+  path ("This build modifies src/_regex.c with recipes/patches/regex-2026.9.29/0001-callback-
+  signatures.patch (five callbacks gain the parameter CPython passes); the module is otherwise
+  compiled as released."). A patch with no line, or a tree with none, stops the build.
+- **The judge** (`--accept-judge`): `test_v1_3_regex.py` (the golden job on both binaries, slow;
+  the five patched calls; a pickle round trip), `test_dotted_builtins_keep_their_import_names`
+  and `test_regex_is_builtin_at_manifest_version` in v1.1, the unit check
+  `test_the_inittab_registers_each_module_through_its_package_context`, `regex_features` in
+  `JOBS` with its golden, the oracle's `regex==2026.9.29`, regex in `paths.LICENCE_COMPONENTS`
+  and `PACKAGES`, `pins.SOURCE_PATTERNS`, `needs.SOURCE_COMPONENTS`, the synthetic set,
+  `DISTRIBUTIONS` (spec 033's rule for a new distribution), and the build progress checks'
+  step counts (`[7/14]`, `[14/14]`, `done: 14 steps`). The release workflow's zero-patch count is
+  sixteen (main's fifteen plus one).
+- `README.md` (the profile rows, *regex in the guest* with the `timeout=` edge and the licence,
+  the patch count six, fourteen steps), `CHANGELOG.md` (0.1.0a6 — unreleased, the patch by path).
+
+### Each criterion against its evidence
+
+1. **The checks exist and were seen failing first.**
+   - On main's frozen set `s-4eb5418a2b1bb553` (`seen-failing-main-set.txt`): the golden job, the
+     five calls, the pickle and the version check fail on both binaries with
+     `ModuleNotFoundError: No module named 'regex'`. The name check passes there once matplotlib
+     can import (below: 68 dotted builtins; 6,163,121,466 fuel plain, 1,313,272,023 snapshot).
+   - On a build with regex and the patch but **without the wrappers** (main's `gen_inittab.py`
+     put back for steps 53 to 90; `B-build.log`, `B-checks.txt`): the name check fails on both
+     binaries with exactly `[['regex._regex', '_regex']] (of 69 dotted builtins)`; the pickle,
+     the golden job and the five-calls check (its `_pickled_data` line) fail with `when
+     serializing _regex.Pattern object`.
+   - On a build **without the patch** (the patch folder moved aside for step 53, then put back,
+     `cmp`-equal; `A-checks.txt`, `A-five-alone.txt`): each of the five calls alone traps on both
+     binaries (`wasm trap: indirect call type mismatch`), as does `regex.sub` with a `\g<name>`
+     template, while `m.groups()` answers `('x', '2')`; spec 051's scan names the five
+     (`5 callback mismatches: getter _pickled_data: table index 17587 has (i32) -> (i32), called as
+     (i32, i32) -> (i32) …`); and the patched-tree check fails on that tree
+     (`src/_regex.c: modified`).
+   - The unit check failed before `gen_inittab.py` changed (`seen-failing-unit.txt`: no
+     `_PyImport_SwapPackageContext` declaration in the generated file).
+2. **The build.** A committed worktree at `f4ee3d9`, `rm -rf build`, `scripts/build.sh --plain`:
+   fourteen steps in 8 min 05 s (`build-047.log`); the patch applies with no offset, step 53 is
+   ok in 4 s, step 60 links with no clash. `MANIFEST` names `package regex 2026.9.29`, the pin
+   `8b5fcc47… regex-2026.9.29.tar.gz` and `recipe 4c5dcaa9…
+   recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`. Steps 53 to 90 run again give
+   the same `SHA256SUMS`, every line (`rebuild-53-90.log`, `diff` against `SHA256SUMS-first`).
+3. **The same bytes everywhere.** A clean clone of `f4ee3d9`, built from an empty `build/` in a
+   `linux/arm64` container (`linux/host.txt`, `linux/build-output.txt`): fourteen steps in
+   20 min 58 s (the judge ran beside it), and its `SHA256SUMS` equals macOS's, every line (`diff`;
+   the file's SHA-256 `db73583a…` on both). The container first installs Debian's `python3`
+   (3.13.5), which step 37 runs through HarfBuzz's `#!/usr/bin/env python3` (023's unpinned host
+   input, a known follow-up, not fixed here). The x86_64 rebuild was not run here: the release dry
+   run's.
+4. **The patch is what its sheet says:** `cmp` equal (SHA-256 `4c5dcaa9…` both);
+   `test_carried_patches_follow_the_rules` passes (CHANGELOG names it, the sheet's six header
+   lines and `Files: src/_regex.c` match, README says "upstream patches carried: 6");
+   `test_source_tree_matches_its_tarball[regex]` passes on the build's tree.
+5. **The numbers** (below). Each bound of Decision 8 holds: `python.wasm` grew 717,283 bytes
+   (inside 0.6 to 0.85 MB); the snapshot about the same (700,265); the zip four members.
+6. **The judge** (below): green but for growth, each growth with its cause; not accepted (the
+   lane's).
+7. **The release dry run:** not run here; the lane's.
+
+### The snapshot condition (the review's Confirmation)
+
+The wrappers leave the pre-imported numpy and pandas as they are (`snapshot-probe.txt`): on this
+set's snapshot and plain binaries, main's two and natively, the same output, line for line:
+`numpy._core._multiarray_umath`, `numpy.random._pcg64` and `pandas._libs.lib` keep their names,
+`default_rng(0)` gives `[0.6369616873214543, 0.2697867137638703, 0.04097352393619469]`, a
+pickled `default_rng(1)` continues the same stream, a groupby, a 926-byte DataFrame pickle round
+trip, a Timestamp and a dtype pickle's hash are native's. The name check passes on the snapshot,
+and the full judge's numpy, pandas and matplotlib checks pass on both binaries.
+
+Which builtins the wrappers rename: only `regex._regex` (set B, without wrappers, names it
+alone among 69). numpy's, pandas', Pillow's, kiwisolver's and matplotlib's modules already had
+their names; the wrappers change nothing in them that any check or the probe sees.
+
+### The numbers (Decision 8; seeded guest, `tests/harness/guest.py`)
+
+| | main `3e949a1` (set `s-4eb5418a2b1bb553`) | this set |
+|---|---|---|
+| `python.wasm` | 36,916,497 `16550143…` | 37,633,780 `b232655f…` (+717,283, +1.94%) |
+| `python-snapshot.wasm` | 70,901,724 `4eb5418a…` | 71,601,989 `449f4029…` (+700,265) |
+| `python-stdlib.zip` | 21,948,256, 2,391 members | 22,046,871 `276b4dcf…`, 2,395 members (+98,615) |
+| wheel (the release's `uv build --wheel …`, each from its own commit and set) | 52,095,964 | 52,501,836 (+405,872, +0.78%) |
+| plain `-c pass` | 166,511,583 | 166,647,401 (+135,818, +0.082%) |
+| snapshot `-c pass` | 83,372,077 | 83,512,487 (+140,410, +0.17%) |
+| plain `import regex` | — | 395,297,353 (+228.6 M over `-c pass`) |
+| snapshot `import regex` | — | 195,217,333 (+111.7 M over `-c pass`) |
+| the name check, plain / snapshot | 6,163,121,466 / 1,313,272,023 | 6,281,364,302 / 1,427,908,448 |
+
+- The zip's four members (`numbers-047.txt`): `regex/__init__.pyc` 207 bytes compressed,
+  `_main.pyc` 13,506, `_regex_core.pyc` 73,186 (86,899 for the three modules; the draft's scratch
+  zip: 88,301), and `regex-2026.9.29.dist-info/METADATA` 11,236.
+- **Where plain `-c pass`'s growth comes from** (`fuel-cross.txt`, each binary with each zip):
+  the binary +19,328 (one more inittab entry and 70 wrappers; the draft's scratch figure was
+  +29,779 for three builtins and 61 wrappers) and the zip +96,941 (four members, about 24,000
+  each, under the judge's 30,000 per member). The wrappers alone cost 34 fuel on plain `-c pass`
+  and 0 on the snapshot, and 3,365 bytes (sets A and B, `numbers-A-B.txt`). The snapshot's
+  +140,410 cannot be split the same way (a snapshot runs only with its own zip); INFERRED: the
+  same two causes.
+- `import regex` costs 228.6 M on the plain reactor (the draft: 227.5 M).
+- **The name check's budgets.** Plain 6.28 G of 20 G, snapshot 1.43 G of 10 G: both under half.
+  The review's 0.105 G snapshot figure predates matplotlib, whose ten builtins the snapshot does
+  not pre-import; main's set already takes 1.31 G.
+
+`SHA256SUMS`'s artifact, `MANIFEST` and regex licence lines (the 26 other licence lines are
+main's, unchanged; the whole file is `SHA256SUMS-first`, equal on both hosts):
+
+```
+d3777e281eddd30b3128a19c263e5a428cfec613e0f8f37d9bec451f3e673e8e  LICENSES/regex.txt
+e50715e5eb866d1b6d2b05e12ff087c4eab44a4a4671dcbbda2d6ddcc441e505  MANIFEST
+449f4029b758768ebed58ff462ca57486ab518d8997f20c9ab015af53935d437  python-snapshot.wasm
+276b4dcfbfd4a314a63bdc4a87c678ebcd5a02f5830121efe7190a6238f72dda  python-stdlib.zip
+b232655f0396463412dc4e376ecb63d72032d858eab3f371c8602a2b816e727d  python.wasm
+```
+
+### The judge
+
+The fast tier, `uv run pytest -m "not slow" -n 3` (`fast-1.txt`): 1549 passed, 9 skipped, 0
+fail. The full `uv run pytest`, serially, once, at `a120cf3` with this set, the wheel built from
+it and the upstream kit copied from the main tree's `build/upstream/wheels/` (the harness checks
+each wheel's hash; `full-judge.txt`, `latest-full.json`):
+
+```
+wasi_python v1: 392/408 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1191/1198, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 12 · grew 78 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_regex.py and 11 more
+RED: 78 metric(s) grew
+1583 passed, 9 skipped, 14 xfailed in 959.04s (0:15:59)
+```
+
+The two blocked checks are the prior-art clones (the worktree has none) and the three systems
+(the release's); the 14 gaps are main's. Gained 12: this specification's eleven new checks and
+the wheel check (main's acceptance ran without a wheel); `test_same_bytes_passed_on_three_systems`
+is new to the record and blocked. **Each growth, with its cause** (`growth-full.txt`, 81 rows against
+`accepted.json`, 78 past the ratchet's tolerance):
+
+- **Bytes, three:** `python.wasm` +717,283 and the snapshot +700,265 (regex's module and its
+  Unicode tables, Decision 8's bound), the zip +98,615 (four members).
+- **Every guest start, about +0.13 M to +0.15 M fuel** (most rows: v1.2, v1.4, the zip's directory
+  checks, the `-c` checks of v1.1 and v1.3): the four members' per-member cost and the binary's
+  one more builtin, split above.
+- **Programs that start many guests or import much** grow by the same per-start cost many times:
+  the upstream suites (+6.8 M to +78.5 M, 0.013% to 0.235%), the golden jobs and matplotlib's
+  checks (+0.3 M to +2.6 M).
+- **`test_packages_carry_their_metadata`**, +28.4 M plain (+0.53%) and +27.8 M snapshot (+5.65%):
+  the check now reads regex's 40,564-byte `METADATA` too (`DISTRIBUTIONS` gained regex, spec 033's
+  rule), a judge change.
+- **`test_resources_read_as_zipfile_reads_them`**, +9.4 M plain and +17.8 M snapshot (0.15%,
+  0.31%): it walks every member of the zip, four more.
+
+The accepting run needs `--accept`, `--accept-judge` (the judge changed: the checks above, the
+oracle and its lock, the lists) and `--accept-growth` with these causes.
+
+### Stand-ins and departures
+
+- **No stand-in module.** regex builds unmodified but for the one patch.
+- **The name check grants matplotlib's data** (`MPLCONFIGDIR` and the mpl-data grant, as
+  matplotlib's own checks do). The spec's check imports every dotted builtin; since spec 023
+  landed after the draft, ten of them are matplotlib's, and importing `matplotlib._image` without
+  its data raises `NotADirectoryError` (seen on main's set). The grant lets every module import;
+  no module is left out.
+- **The trap reads "indirect call type mismatch"**, not the draft's "bad signature": the judge's
+  driver reports wasmtime's own message. The same five calls trap.
+- **The golden job's pattern** carries `regex.I` and its pickle is 142 bytes (`a1304727…`, native
+  and guest alike), not the draft's 117-byte pattern without flags; the checks also cover the
+  draft's form (`test_a_pickled_pattern_loads_back_equal`).
+- **The snapshot name-check figure** is 1.43 G, not the review's 0.105 G: matplotlib's builtins
+  (above).
+- **The hunks shared with spec 046** (`SHA256SUMS`, `00_download.sh`, the oracle's
+  `pyproject.toml`, `paths.py`, `pins.py`, `needs.py`, `DISTRIBUTIONS`, the synthetic set) sit at
+  other lines than 046's where the order does not matter, so the second to land rebases with few
+  conflicts; step 60's loop and `gen_inittab.py` call, step 70's two lines, `build.sh`'s `ALL`,
+  the progress checks' counts, the README's counts and the release's tree count will conflict
+  by a word each.
