@@ -394,9 +394,8 @@ macOS. Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-
 set from the pins on an arm64 Linux runner and an x86_64 Linux runner, and `same-bytes` requires
 each one's `SHA256SUMS` and wheel to equal the set's, byte for byte; nothing is signed or
 published until it passes. They are two jobs, not a matrix, so each hands on only its own files'
-ids. One input runs in both: the x86_64 job compiles with the arm64 Linux wasi-sdk's clang, so
-for that tarball the two votes are not independent, and its pin is its defence. The x86_64 rebuild
-compiles under emulation (above), so its job may take up to six hours. Then it publishes
+ids. Each job compiles with its own host's pinned clang (spec 059), so no compiler input is
+shared between the two votes, and each job has two hours. Then it publishes
 a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
 their `SHA256SUMS`, and uploads the wheel to PyPI as `wasi-python` through its trusted publisher (from 0.1.0a3). A manual run of
 the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).

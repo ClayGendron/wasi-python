@@ -282,7 +282,7 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
      rewrite is added.
 
 6. **The release workflow: x86_64 joins the gate.** (**Amended by spec 057:** the matrix is now
-   two jobs, `rebuild-linux-arm64` on 120 minutes and `rebuild-linux-x86-64` on 360, alike but for
+   two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, 120 minutes each (spec 059), alike but for
    the runner; `rebuild_gate_errors` checks them so.)
    - `rebuild`'s matrix becomes `[ubuntu-24.04-arm, ubuntu-24.04]`.
    - `same-bytes` downloads both runners' `SHA256SUMS` and rebuilt wheels. Both of its loops

@@ -1,20 +1,19 @@
 # 057 — The release ties what it signs to what it built
 
 - **Status:** built 2026-10-18; awaiting its build review. Built on
-  `spec/057-the-release-ties-what-it-signs-to-what-it-built`, rebased onto main `1555a6d`
-  (Landing notes). Confirmed for build 2026-10-18 by its pre-build review's Confirmation, with
-  N1 written in. The review (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
+  `spec/057-the-release-ties-what-it-signs-to-what-it-built`, rebased onto main `1555a6d`, then
+  onto main `c6cdd86` after spec 059 landed (Landing notes, "Rebased onto 059"). Confirmed for
+  build 2026-10-18 by its pre-build review's Confirmation, with N1 written in. The review
+  (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
   in the main tree, git-ignored; copied to `../reviews/` by the lane) said "ready once F1 to F5
   are written in". They are written in, and the Disposition below says where. Drafted on this
   branch from main `d70690a`.
   - It must land before 0.1.0a6. The 0.1.0a5 addendum (`../reviews/0.1.0a5-addendum-2026-10-18.md`,
     "F4 and a5") moved F4's one-release allowance to a5, so F4 closes before the next release
     after a5.
-  - Spec 059 (the x86_64 rebuild runs natively) lands first and edits the same workflow. At this
-    one's landing the lane rebases it onto 059. 059's Decision 5 lists what changes then: each
-    rebuild job runs only its own host's compiler, so the sentences here saying the arm64 Linux
-    wasi-sdk runs in both jobs (Decision 4, Scope, the F2 disposition, the README) stop being
-    true, and the x86_64 job's time limit becomes 120 minutes (`REBUILD_JOBS` in `scan.py`).
+  - Spec 059 (the x86_64 rebuild runs natively) has landed, and this branch is rebased onto it.
+    Each rebuild job now runs only its own host's compiler, and both have 120 minutes. Decision
+    4, Scope, the F2 disposition, the README and `REBUILD_JOBS` say so.
 - **Owner:** Clay Gendron
 - **Kind:** build-class: the release workflow; a judge change.
   - It changes `.github/workflows/release.yml` in every job. The `rebuild` matrix becomes two
@@ -206,7 +205,8 @@ Two notes ride along:
      arm64 one (the review, EXECUTED). So one compromised leg could cast both votes of the
      same-bytes gate.
    - **The two jobs.** `rebuild-linux-arm64` runs on `ubuntu-24.04-arm` with
-     `timeout-minutes: 120`. `rebuild-linux-x86-64` runs on `ubuntu-24.04` with 360.
+     `timeout-minutes: 120`. `rebuild-linux-x86-64` runs on `ubuntu-24.04` with 120 too: since
+     spec 059 both rebuild natively (059's Decision 5).
      - Their steps are the same text, except the runner's name where the matrix put
        `${{ matrix.os }}`. That covers the display name and the upload names
        `rebuild-<runner>`, `rebuild-wheel-<runner>` and `rebuild-logs-<runner>`.
@@ -221,11 +221,15 @@ Two notes ride along:
    - **No fallback to downloads by name (the review's F3).** An empty rebuild output now
      fails at the guard, closed and with its cause named. The fix is to repair that job, not
      to go back to names.
-   - **What two jobs cannot separate.** The x86_64 job compiles with the arm64 Linux
-     wasi-sdk's clang under qemu (spec 040). So `wasi-sdk-33.0-arm64-linux.tar.gz` runs in
-     both jobs. For that one input, a malicious tarball falls on both votes together, under
-     any design. Every other host input is one job's alone. The pins (§4.2) are the defence
-     for that tarball, as for every input. The README's *Releasing* says so.
+   - **Each vote rests on its own host's compiler** (since spec 059). Each job compiles with
+     its own host's pinned wasi-sdk clang: the arm64 job with the arm64 Linux SDK, the x86_64
+     job with the x86_64 Linux SDK, natively, with `-ffp-contract=off` making their bytes agree.
+     So no compiler input runs in both jobs. Before 059, the x86_64 job ran the arm64 Linux
+     SDK's clang under qemu (spec 040), and a malicious arm64 tarball would have fallen on
+     both votes together. That shared input is gone, so the two votes are now independent in
+     their compilers as well as in their outputs. Inputs common to every host (the sources, the
+     host-neutral sysroot) are shared by design: the same bytes from the same sources is the
+     claim. Their pins (§4.2) defend them. The README's *Releasing* says so.
 
 5. **N1: the download step fails on a fetched name with no pin.** After its summary line,
    `scripts/00_download.sh` checks every name in `$NAMES` for a `<name>: OK` line in the
@@ -370,7 +374,7 @@ permissions they use.
   permissions: {}            workflow level; each job states its own (Decision 6)
   build                      outputs assets-id, sums-sha256; steps sums, assets (upload), the printed record
   rebuild-linux-arm64        ubuntu-24.04-arm, 120 min; uploads id sums, wheel; outputs sums-id, wheel-id
-  rebuild-linux-x86-64       ubuntu-24.04, 360 min; the same steps, its runner's names
+  rebuild-linux-x86-64       ubuntu-24.04, 120 min; the same steps, its runner's names
   same-bytes                 guard; release-assets by id; check; rebuild guard; 4 downloads by id
   verify                     guard; download by id; check; cache off
   attest                     guard; download by id; check; then attest, then verify (spec 009 order kept)
@@ -437,7 +441,7 @@ step's display `- name:`. Its rules:
 
 **`rebuild_gate_errors`, rewritten for two jobs.** It keeps the intent of specs 012 and 040.
 It holds a table of the two jobs: `rebuild-linux-arm64` on `ubuntu-24.04-arm` for 120
-minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
+minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 120 (spec 059). Its rules:
 
 - Both jobs exist, with their table's `runs-on` and `timeout-minutes`.
 - The two jobs are the same text once their runners' names are replaced by one placeholder,
@@ -499,10 +503,11 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
   (rules 9 and 10).
 - **Bumping any action**, or changing `attest`'s rules (spec 009). Decision 7.
 - **Proving the build job itself honest.** That is what `same-bytes` and the two rebuilds are
-  for (specs 012 and 040). This specification ties every later job to the build's output,
-  and keeps the two votes apart. It does not re-judge the build.
-- **The arm64 Linux wasi-sdk shared by both rebuild jobs.** It is spec 040's design
-  (Decision 4 above). The pins defend it.
+  for (specs 012, 040 and 059). This specification ties every later job to the build's
+  output, and keeps the two votes apart. It does not re-judge the build.
+- **Spec 040's emulated compiler**, which 059 keeps in the tree, switched off, for one
+  release. Turning it back on would again run the arm64 Linux SDK in both jobs. That switch is
+  059's, and its removal is 059's follow-up.
 
 ## Acceptance criteria
 
@@ -587,8 +592,9 @@ text is at `build/reviews-evidence/057-review/disposition.md`.
 - **F2 (medium): written in, option (a), the lane's ruling.** Decision 4: the matrix becomes
   `rebuild-linux-arm64` and `rebuild-linux-x86-64`, each with its own `sums-id` and
   `wheel-id`. The rewritten `rebuild_gate_errors` requires their steps to be the same text but
-  for the runner. Decision 4 and Scope also say that the arm64 Linux wasi-sdk tarball runs on
-  both legs.
+  for the runner. Decision 4 and Scope said that the arm64 Linux wasi-sdk tarball ran on both
+  legs. Since spec 059 it does not: each leg runs only its own host's compiler (Decision 4,
+  rewritten at the rebase onto 059).
 - **F3 (low): written in.** The fallback to downloads by name is gone (Decision 4). An empty
   rebuild output fails at the guard.
 - **F4 (low): written in.** Question 97 (numbered 95 when the review was written) is restated as facts. The agent's `gh` is the owner's
@@ -775,10 +781,68 @@ the pins in the worktree, as the coordinator asked (`rebuild-from-pins.txt`: 13 
 - The first tag run after landing, 0.1.0a6, is criterion 7. It is recorded in that release's
   notes.
 
+### Rebased onto 059 (2026-10-18)
+
+Spec 059 landed as main `c6cdd86`, and this branch was rebased onto it before its build review,
+at the coordinator's request.
+
+**The rebase.** Three files conflicted:
+
+- **`release.yml`.** 059 had edited the matrix job's comment and its x86_64 timeout. The arm64
+  job's comment now carries 059's text, then says that no input runs in both jobs' compilers.
+  The x86_64 job takes 059's `timeout-minutes: 120`. 059 changed no rebuild step, so the two
+  jobs' steps needed nothing more.
+- **`scan.py`.** 059's floating-point section is kept whole. Its `REBUILD_TIMEOUTS` (both 120)
+  is replaced by `REBUILD_JOBS`, which has 120 for both jobs. `REBUILD_TIMEOUTS` had no other
+  reader.
+- **`test_scan.py`.** It is main's file, with the 057 block in place of the matrix fixture. The
+  fixture's x86_64 job has 120 minutes, and its timeout variant now reads "… is not 120".
+
+**The text.** Decision 4's last item, the Scope bullet, the F2 disposition, the Design table,
+the rebuild-gate table, the README, the spec 040 amendment note and the status were rewritten.
+Each now says the same thing: each job runs only its own host's compiler, so no compiler input
+falls on both votes. That is the security gain 059 brings to this gate.
+
+**059's checks** are all green, and none needed a change: `test_every_compile_contracts_nothing`,
+`test_every_host_compiles_natively_with_the_fallback_kept`, and the rebuild gate, which now
+holds the timeouts. Before the rebuild, `test_every_compile_contracts_nothing` failed. The
+worktree's `build/tools` came from the pre-059 build, whose `clang.cfg` had no `-ffp-contract=off`.
+The rebuild made it pass.
+
+**The rebuild from the pins** ran in the worktree, after copying the pins main had added
+(`rebuild-from-pins-059.txt`: 13 steps, exit 0; "45 pins, 0 fetched, 45 verified").
+
+- `python.wasm` (`1655014314805b58`), the snapshot (`4eb5418a2b1bb553`) and the zip
+  (`16ee747c97c5397b`) are byte for byte main's frozen set `s-4eb5418a2b1bb553` (`cmp`).
+- `MANIFEST` differs in one line, the recipe hash of `scripts/00_download.sh`
+  (`manifest-vs-frozen-set-059.diff`).
+- So `SHA256SUMS` is `c353b1d9…` here, against the set's `25a101ac…`.
+
+**The workflow, again.** The probe finds 23 problems in main's workflow and 0 in this one
+(`probe-main-and-built-059.log`). Every mutation is still caught
+(`mutations-real-workflow-059.log`).
+
+**The judge, against this worktree's rebuilt set:**
+
+- Fast tier, `-n 3`: 1584 passed, 10 skipped. v1.5 31/31, v1.4 162/162, rules 40/41 (blocked
+  1: prior-art clones). Ratchet vs `fdb06c26f1`: "lost 0 · absent 0 · unrun 0 · unrun locally
+  1 · gained 19 · grew 0".
+- Full judge, serial, without `--accept`: 1596 passed, 42 skipped, 2 xfailed. Scoreboard
+  379/416, 2 gaps, 35 blocked (upstream kit 31, oracle 1, prior-art clones 1, three systems 1,
+  wheel 1), 0 fail. Ratchet: "lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 19 ·
+  grew 0 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_5_rebuild_from_pins.py,
+  tests/harness/scan.py and 1 more" (`judge-fast-059.txt`, `judge-full-059.txt`).
+
+**Departures.**
+
+- `REBUILD_TIMEOUTS` is gone, and `REBUILD_JOBS` holds the same limits. No 059 check was edited.
+- **A stale line in main's README.** It was left by 059, and the rebase removes it: "The x86_64
+  rebuild compiles under emulation (above), so its job may take up to six hours." It now says
+  each job compiles with its own host's clang and has two hours.
+
 ### For the reviewer
 
-- The `rebuild-linux-x86-64` job keeps spec 040's 360 minutes, as main has it. 059's rebase
-  changes that.
+- The `rebuild-linux-x86-64` job has 120 minutes since the rebase onto 059 (below).
 - The check step's behaviour cases run with `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, so macOS takes
   `/sbin/sha256sum` and Linux takes GNU `sha256sum`. Perl's `shasum` path is covered by the
   memo's cases.
