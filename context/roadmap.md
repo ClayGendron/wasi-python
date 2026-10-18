@@ -63,7 +63,11 @@ is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
-question 95) and its security review's addendum ("a5 may be released"). 0.1.0a6 waits on 057.
+question 95) and its security review's addendum ("a5 may be released"), and published the same day
+(run 39152890225, every job green). Hand-checked: the wheel on PyPI and on the GitHub release is
+`a92b9193…eaad` (38,951,211 bytes), the tarball `a30206ef…589e`; the artifacts inside both are
+the build job's (`python.wasm` `42344e2c…`, snapshot `c4190ca0…`, zip `daf2cdd8…`), which is spec
+035's reviewed set (`SHA256SUMS` `3c0ec02e…`). 0.1.0a6 waits on 057.
 
 Built, in review: 060 (a per-run budget of request bytes, and N8), 061 (a provider's `OSError` carries its errno; question 54). Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
