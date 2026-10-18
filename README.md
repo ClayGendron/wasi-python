@@ -542,10 +542,20 @@ it was built: an entry's `pytz.py` is imported by `import pandas` on the plain
 binary, not on the snapshot. Ship such a name only on purpose.
 
 The runner puts the entries on `sys.path` with a one-line `-c` prelude before
-your argv, which then runs your program exactly as before; a program that
-walks its own stack sees two more frames. Across calls the runner cannot see:
-granting a folder writable in one call and importing from it in another runs
-whatever the first call left there.
+your argv, which then runs your program exactly as before, with two
+differences: a program that walks its own stack sees two more frames, so it
+reaches the recursion limit two frames sooner (996 frames of its own instead
+of 998); and a call with an import path costs more fuel, about 3.5 M on the
+snapshot and about 1 M (0.5 to 2 M) on the plain binary. A call without one is
+unchanged.
+
+What the runner cannot see is yours to keep apart. Across calls: granting a
+folder writable in one call and importing from it in another runs whatever
+the first call left there. Within one call, two routes it judges by folder
+only: a hard link between a file in an entry's grant and a file in a writable
+grant (a write to one is a write to the other), and a writable mount whose
+provider stores into an entry's folder. Either lets one call plant code that a
+later call imports.
 
 ### Mounts
 
@@ -2080,8 +2090,10 @@ has one.
 - no network, no processes, no shared libraries; two imports only, WASI
   preview1 and the one door;
 - only the stdlib zip and the read-only entries the embedder names are on the
-  import path; each is served by a read-only grant, and nothing the same call
-  can write lies under one (across calls, see *The import path*). `site`
+  import path; each is served by a read-only grant, and no folder the same
+  call's root or grants can write lies under one (a hard link, a writable
+  mount whose store is an entry's folder, and other calls are yours to keep
+  apart: see *The import path*). `site`
   does not run, so modules, `.pth` files or a `pyvenv.cfg` planted in a root
   never run
   (`sys.flags.no_site` is 1; `exit`, `quit`, `help` and `license` exist

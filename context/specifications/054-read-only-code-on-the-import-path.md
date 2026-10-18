@@ -1,6 +1,6 @@
 # 054 — Read-only code on the import path
 
-- **Status:** built 2026-10-18; awaiting its build review (Landing notes). Confirmed for build
+- **Status:** built 2026-10-18; revised against its build review (F1 to F4, F6; "Revised against the build review" and its Disposition); the rebase onto main follows. Confirmed for build
   2026-10-18. The reviewer's Confirmation passed it
   ("ready to build") with two remarks, written in here: R1 (S8's root is a host folder apart
   from `code`) and R2 (A5's payload parses, so the stand-in really prints `injected`).
@@ -201,11 +201,18 @@ layouts would break that if an import path were allowed naively (EXECUTED, both 
      script's message and exit 2; no name added to `__main__`.
    - **What differs, documented in the README:** a program that walks its own stack sees two
      more frames (`len(traceback.extract_stack())` is 4, not 2), and has two frames less before
-     the recursion limit. A call with an import path costs more fuel: +3.26 M on the snapshot
-     and +1.33 M on the plain binary for `-c pass` (memo §2, without the clear; a benchmark
-     fact, never a bound).
-   - **A call without an import path is untouched:** its argv is today's, byte for byte, so no
-     existing check's fuel moves (criterion 8).
+     the recursion limit (996 frames of its own instead of 998, both binaries; the build
+     review's `probe_fuel.txt`). A call with an import path costs more fuel, as built (with the
+     clear) and measured on spec 035's set `s-c4190ca065ada03a`, the set 054 lands on: about
+     +3.35 M to +3.58 M on the snapshot and +0.51 M to +1.94 M on the plain binary for `-c
+     pass` (the build review's `probe_fuel_main.txt`, two pairs per binary, and the author's
+     two pairs per binary in the landing notes; fuel varies by up to 0.5 M between runs of one
+     call; benchmark facts, never a bound). The draft's +3.26 M and +1.33 M were measured
+     without the clear, on the set before 035. The README states both differences (the build
+     review's F4).
+   - **A call without an import path is untouched:** its argv is today's, byte for byte. The
+     ratchet cannot see this (its fuel comes from the harness's own driver, not from `run()`;
+     the build review's F2), so criterion 1 pins it: such a call's stack is 2 frames deep.
    - **Why not the guest** (memo §9): `PYTHONPATH` is ignored by the isolated interpreter;
      honouring it, or a variable or argument of our own, needs a bootstrap change, so a rebuild
      of both binaries and the snapshot, a build-class specification and a new guest contract,
@@ -278,11 +285,17 @@ layouts would break that if an import path were allowed naively (EXECUTED, both 
       lacks, with its examples (C accelerators, other platforms' modules, the profile's optional
       dependencies, and on the plain binary also packages the snapshot pre-imported); zips; that
       no `.pyc` is written and a valid one is read; that a missing entry is skipped; the two
-      stack frames; the cross-call rule of Decision 5; a five-line example.
-    - *Safety*, "Enforced, and judged" (the review's F7): "only the stdlib zip is on the import
-      path" becomes "only the stdlib zip and the read-only entries the embedder names are on the
-      import path; each is served by a read-only grant, and nothing the same call can write lies
-      under one (across calls, see *Grants*)".
+      stack frames, the recursion limit two frames sooner and the fuel a call with an import path
+      costs (Decision 7; the build review's F4); what the runner cannot see, across calls
+      (Decision 5) and within one call (an embedder's hard link between an entry's grant and a
+      writable grant, and a writable mount whose provider stores into an entry's folder; the
+      build review's F3, both EXECUTED there); a five-line example.
+    - *Safety*, "Enforced, and judged" (the pre-build review's F7, narrowed by the build review's
+      F3): "only the stdlib zip is on the import path" becomes "only the stdlib zip and the
+      read-only entries the embedder names are on the import path; each is served by a read-only
+      grant, and no folder the same call's root or grants can write lies under one (a hard link,
+      a writable mount whose store is an entry's folder, and other calls are yours to keep apart:
+      see *The import path*)".
     - *Mounts*, "State across runs is yours": the clause "with a writable mount at `/`, a `-c`
       program has `/`, its working directory, first on `sys.path`" is wrong today (memo §1,
       EXECUTED: `sys.path` is the zip alone with `root=True` and with a mount at `/`, and the
@@ -365,6 +378,15 @@ scratch copy, which the named check must catch, failing exactly the cases named.
    - `-m pkg x y` runs `pkg/__main__.py` with `sys.argv == ['/code/pkg/__main__.py', 'x', 'y']`;
    - the script `/code/main.py s1` exits 3 and prints `['/code/main.py', 's1']`;
    - standard input imports `mylib`;
+   - **`run_async`** with `import_path=["/code"]`: `-c` imports `mylib` and prints the same
+     `sys.path` (the build review's F2: no other check ran that path);
+   - **the two frames, only with an import path:** `-c "import traceback;
+     print(len(traceback.extract_stack()))"` prints `2` without `import_path` and `4` with it
+     (the build review's F2: a prelude added to every call is invisible to the ratchet, whose
+     fuel comes from the harness's own driver, not from `run()`);
+   - an entry whose guest path holds a quote, a double quote and a backslash (`/a'b"c\d`, a
+     grant there holding `odd.py`) reaches `sys.path` exactly and `odd` imports (the build
+     review's F6, against naive quoting);
    - for each of these 11 cases the `exit_code`, `stdout` and `stderr` are byte-equal to the
      same call without `import_path`: `-V`; `-u -c "print(1)"`; `-c "import sys; sys.exit(7)"`;
      `-c "raise SystemExit('bye')"`; `-c "1/0"`; `/code/boom.py`; `/code/nope.py`; `-c "import
@@ -375,7 +397,10 @@ scratch copy, which the named check must catch, failing exactly the cases named.
      fails; (b) the prelude passes `sys.argv` whole, so the inner argv0 is `-c`: the missing
      script's case and the `orig_argv` case fail; (c) **the memo's prelude, without the
      `linecache` clear**: exactly the last three byte-equal cases fail, on both binaries (as
-     `revision_linecache.txt` shows).
+     `revision_linecache.txt` shows); and the build review's mutants (d) R22, `run_async`
+     dropping `import_path`: the `run_async` case fails; (e) R17, the prelude on every call:
+     the frame pin fails (`4`, `4`); (f) R13, the prelude quoting entries by hand instead of
+     `repr`: the odd entry's case fails (a `SyntaxError` in the guest).
 2. **`test_the_import_path_comes_after_the_runtime`** (v1.4).
    - **Names the runtime has.** The grant also holds `json/`, `numpy/`, `csv/`, `uuid.py`,
      `host/` and `math.py`, each defining `SHADOW`: each imported module lacks `SHADOW` (6 of 6
@@ -411,9 +436,10 @@ scratch copy, which the named check must catch, failing exactly the cases named.
    `/code` unless a case says otherwise; `mem` is an in-memory provider.
    - `TypeError` (5 cases): `import_path="/code"`, `[b"/code"]`, `[Path("/code")]`, `[None]`,
      `5`.
-   - `ValueError` for spelling (7 cases): `["code"]`, `["/code/"]`, `["/code/../x"]`, `["/"]`,
+   - `ValueError` for spelling (7 cases): `["code"]`, `["/code/"]`, `["/code/../x"]`, `["/"]`
+     (its own message, "/ cannot be on the import path", pinned: the build review's F6),
      `["/usr/local/lib/x"]`, `["/code", "/code"]`, `["/co\0de"]`.
-   - `ValueError` for the serving place (8 cases), each entry strictly under its server, so no
+   - `ValueError` for the serving place (9 cases), each entry strictly under its server, so no
      nesting rule also applies (the review's F4c):
      - S1 the root: `root=True`, `["/x"]`;
      - S2 a writable grant at `/work`, `["/work/lib"]`;
@@ -425,15 +451,21 @@ scratch copy, which the named check must catch, failing exactly the cases named.
        `["/lib/lib"]`;
      - S8 a sibling name (F4a): `root=` an existing host folder apart from `code` (neither holding
        it nor at it, R1: else spec 017's rule refuses S8 first), the read-only grant at `/code`,
-       `["/code2"]`.
-   - `ValueError` for guest nesting (3 cases), each beside the read-only grant at `/code` with
+       `["/code2"]`;
+     - S9 case (the build review's F1, R3): `root=` a host folder apart from `code`, the
+       read-only grant of `code` at `/Code`, `["/code/lib"]`: served by the root, since the
+       guest's match is case-sensitive, as the runner's must be.
+   - `ValueError` for guest nesting (4 cases), each beside the read-only grant at `/code` with
      `["/code"]`: G1 a writable grant at `/code/out`; G2 a read-only mount of `mem` at
-     `/code/out`; G3 a writable grant at `/code/a/b`.
-   - `ValueError` for host nesting (4 cases): H1 a writable grant of `code/out` at `/out` with
+     `/code/out`; G3 a writable grant at `/code/a/b`; G4 (the build review's F1, R9) G1's layout
+     with the entry second, `["/a", "/code"]` (a read-only grant at `/a`), refused naming
+     `import_path[1]`.
+   - `ValueError` for host nesting (5 cases): H1 a writable grant of `code/out` at `/out` with
      `["/code"]`; H2 `root=` the existing folder `code/r` with `["/code"]`; H3 `root=` the
      missing folder `code/new` with `["/code"]`, refused and not made (absent afterwards); H4
      (F5) a folder `proj` with `proj/lib/mylib.py`, granted read-only at `/p`, the entry
-     `["/p/lib"]`, and a writable grant of `proj/out` at `/out`.
+     `["/p/lib"]`, and a writable grant of `proj/out` at `/out`; H5 (the build review's F1, R8)
+     H1's layout with the entry second, `["/a", "/code"]`, refused naming `import_path[1]`.
    - **Allowed** (5 cases, each runs and imports `mylib` from its entry): A1 a writable grant at
      `/work` and a read-only grant at `/work/lib`, `["/work/lib"]`; A2 `root=True`, `["/code"]`;
      A3 a writable grant of a sibling of `code` at `/out`, `["/code"]`; A4 a writable grant at
@@ -443,16 +475,21 @@ scratch copy, which the named check must catch, failing exactly the cases named.
      stand-in below runs it): it runs, `sys.path[-1] == '/code'`, and stdout has
      no `injected`.
    - Stand-ins, each failing exactly these cases and no other:
-     - no serving-place rule: S1 to S8 (8);
+     - no serving-place rule: S1 to S9 (9);
      - mounts accepted as read-only servers (the draft's Decision 9): S3, S6, S7 (3);
      - the serving place matched by text prefix (F4a): S8 (1);
-     - the serving place by the shortest prefix instead of the longest (F4b): A1 and A2 (2);
+     - the serving place matched case-insensitively (the build review's R3): S9 (1);
+     - the serving place by the shortest prefix instead of the longest (F4b): A1 and A2, and H2
+       and H3, refused for the wrong reason (4; see the landing notes);
      - guest nesting by text prefix: A4 (1);
-     - no guest-nesting rule: G1 to G3 (3);
-     - no host-nesting rule: H1 to H4 (4);
+     - no guest-nesting rule: G1 to G4 (4);
+     - guest nesting judged for the first entry only (R9): G4 (1);
+     - no host-nesting rule: H1 to H5 (5);
+     - host nesting judged for the first entry only (R8): H5 (1);
      - host nesting against the entry's own folder instead of the serving grant's (F5): H4 (1);
      - the prelude built from the caller's objects (`repr(list(import_path))` on the argument as
-       given, F6): A5 (1).
+       given, F6): A5 (1);
+     - the runner's own message for `/` changed (R19): V4 (1).
 6. **The command line.** Unit (`tests/unit/test_cli.py`, the fake `run`): `--import-path /a
    --grant /a=x --import-path /b -- -c pass` reaches `run()` with `import_path=["/a", "/b"]` and
    one grant; `--import-path=/a` likewise; `--import-path` with no value exits 2; without the
@@ -463,7 +500,8 @@ scratch copy, which the named check must catch, failing exactly the cases named.
 7. **Spec 006's guarantee is still judged.** `test_planted_code_never_runs` and the
    `sys.path` print in `test_v1_2_hostile_guest.py` pass unchanged (no `import_path` given).
 8. **The judge.** `uv run pytest` is green with `--accept-judge` (new checks); **lost 0, grew
-   0**: no existing check passes `import_path`, so no existing call's argv or fuel changes.
+   0** (the ratchet's fuel is the harness driver's; that a call without `import_path` keeps
+   today's argv is held by criterion 1's frame pin, not by the ratchet: the build review's F2).
    `ruff check` and `ruff format --check` clean. If 049 has landed,
    `test_the_public_api_matches_its_snapshot` passes after `--write`, and the snapshot's diff
    is exactly Decision 10's three lines.
@@ -691,3 +729,62 @@ under `build/` that this worktree does not have ("source tree numpy 17 · source
 - Not run here: Windows and Linux. The v1.4 checks are in the file `verify` runs on all three
   systems, so the release dry run meets them there; the host-nesting rule uses spec 017's
   identities, which that job already exercises.
+
+### Revised against the build review
+
+The build review (`../reviews/054-read-only-code-on-the-import-path-2026-10-18.md`, in the lane's
+evidence folder `build/reviews-evidence/054-buildreview/` until the lane copies it; verdict:
+lands once F1 to F4 are fixed) found no defect in the refusal logic and four gaps in judge
+strength and wording. All four are fixed, plus F6's three optional points; F5 is the rebase
+(below). EXECUTED against spec 035's set `build/sets/s-c4190ca065ada03a` (the coordinator's
+instruction: `s-f94dec535086b06c` is stale).
+
+- **F1.** Criterion 5 gains S9 (`/Code` granted, `/code/lib` named, a root apart: served by the
+  root), G4 and H5 (G1's and H1's layouts with the entry second, refused naming
+  `import_path[1]`). The review's mutants, added to `build/054-mut/run.py`, each fail exactly
+  their case on both binaries: R3 (case-insensitive serving) S9; R8 (host nesting for the first
+  entry only) H5; R9 (guest nesting for the first entry only) G4.
+- **F2.** Criterion 1 gains a `run_async` call with `import_path=["/code"]`, and the frame pin
+  (`2` without an import path, `4` with). R22 (`run_async` dropping the argument) fails the
+  first; R17 (the prelude on every call) fails the second (`4`, `4`). Decision 7 and criterion 8
+  now say the ratchet cannot see a prelude added to every call, and that the pin holds it.
+- **F3.** README *Safety*: "… and no folder the same call's root or grants can write lies under
+  one (a hard link, a writable mount whose store is an entry's folder, and other calls are yours
+  to keep apart: see *The import path*)"; *The import path* names both same-call routes beside the
+  cross-call one. Decision 11 says so.
+- **F4.** README: "reaches the recursion limit two frames sooner (996 frames of its own instead
+  of 998); and a call with an import path costs more fuel, about 3.5 M on the snapshot and about
+  1 M (0.5 to 2 M) on the plain binary. A call without one is unchanged." Decision 7 carries the
+  built range on 035's set: the review's +3.41 M to +3.58 M (snapshot) and +0.90 M to +1.94 M
+  (plain), and the author's two pairs per binary, snapshot 81,870,647 → 85,316,454 (+3.45 M) and
+  81,868,465 → 85,217,404 (+3.35 M), plain 151,431,836 → 151,938,455 (+0.51 M) and 151,451,729 →
+  152,448,320 (+1.00 M). (Plain `-c pass` is 151 M on 035's set, against 242 M before: 035's
+  reader.) The author's recursion probe counts 997 and 995 calls of its own function: the same
+  two-frame difference, from a different base than the review's 998 and 996.
+- **F6 (optional, done).** An entry `/a'b"c\d` in criterion 1 (R13, naive quoting, fails it with
+  a guest `SyntaxError`); V4 pins the runner's message for `/` (R19 fails it). R14 and R15 (each
+  of F6's two layers alone) are defence in depth, as the review says; unchanged.
+- Every earlier stand-in, re-run on 035's set, fails as before, with the counts the new cases
+  add: no serving-place rule S1 to S9 (9); no guest-nesting rule G1 to G4 (4); no host-nesting
+  rule H1 to H5 (5, H3 twice); the others unchanged (`build/054-mut/results.txt`).
+- **The fast tier on this branch against 035's set is red for a reason outside 054:** `lost 1`
+  (`test_manifest_recipes_match_the_tree`: the set's MANIFEST names `recipes/zip_directory.py`
+  and other 035 files this pre-035 tree lacks) and `grew 4` (the binaries' bytes and one
+  harness-driver fuel, 035's). Every 054 check passes. The rebase onto main, which carries 035,
+  removes the mismatch; the judge lines after the rebase are below.
+
+## Disposition of the build review
+
+1. **F1 (low-medium), three unsafe mutants passed.** Fixed: S9, G4, H5 in criterion 5, each seen
+   failing on its mutant (R3, R9, R8) and passing on the built runner.
+2. **F2 (low-medium), two paths unrun.** Fixed: the `run_async` case and the two-frame pin in
+   criterion 1, seen failing on R22 and R17; Decision 7 and criterion 8 corrected.
+3. **F3 (low), the *Safety* sentence over-claimed.** Fixed: the sentence is narrowed to folders
+   of the same call's root and grants, and names the hard link and the writable mount's store as
+   the embedder's, as other calls are; *The import path* says the same.
+4. **F4 (low), two README omissions and stale numbers.** Fixed: the README states the recursion
+   limit two frames sooner (996 instead of 998) and the fuel cost; Decision 7 carries the built
+   range on 035's set.
+5. **F5 (the rebase).** Done by the author after 049 landed: see "Rebased onto main".
+6. **F6 (info).** Done: the odd entry (R13) and V4's message (R19); R14 and R15 left as defence
+   in depth.
