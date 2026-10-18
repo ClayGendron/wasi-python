@@ -100,10 +100,15 @@ document.
 - **Asked:** 2026-10-17 (overnight). **Source:** `research/2026-10-17-the-zips-directory-is-read-once.md`
   ("Questions for the owner"). The agent drafts the specification with the recommended answers;
   nothing waits.
-- **59.** `importlib.resources.files()` on a package in the zip would return our own
-  `Traversable`, not a `zipfile.Path`. The bytes and listings are the same, and a resource read
-  becomes about 28 times cheaper today (and stops growing with the zip). Accept it? The agent
-  recommends yes.
+- **59.** `importlib.resources.files()` on a package in a zip on the import path would return
+  our own `Traversable`, not a `zipfile.Path` (spec 035, Decision 6). For the runtime's zip the
+  bytes and listings are the same, and a resource read becomes about 28 times cheaper today
+  (and stops growing with the zip). For any other zip, such as one a guest puts on `sys.path`,
+  a member is served by our reader only when it is stored or deflate, at most 1 MiB, with its
+  local header and CRC checked; any other member (LZMA, large, corrupt, encrypted) opens through
+  upstream's `zipfile.Path`, with its streaming and checks. A few differences remain and are
+  documented: no `root`, `at` or `glob`; odd names' implied directories; duplicates and the empty
+  name in a listing; two `files()` calls compare equal. Accept it? The agent recommends yes.
 - **60.** Three stdlib functions (zipimport's directory reader, the zip resource reader, and
   `importlib.metadata`'s zip search) are replaced at run time by recipe code, with judge checks
   that their results equal upstream's. Is that a recipe under §4.1 ("a stand-in module"), or must
