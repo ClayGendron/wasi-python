@@ -2,163 +2,163 @@
  "checks": {
   "tests/checks/test_rules.py::test_build_scripts_call_python_only_through_uv_or_a_path": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_carried_patches_follow_the_rules": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_every_build_host_has_its_whole_table": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_every_prior_art_clone_has_its_licence_recorded": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_executed_memos_label_their_claims": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_known_gaps_are_well_formed": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_landed_specifications_cite_an_existing_review": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_main_is_linear": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_no_artifact_or_large_file_is_tracked": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_no_embedder_name_in_code": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_no_module_level_name_is_bound_twice": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_no_test_reads_a_clock": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_progress_history_is_intact": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_releases_attest_and_verify_their_assets": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_ruff_check_is_clean": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_ruff_format_is_clean": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_specifications_have_no_open_question": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_specifications_have_their_header_and_sections": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_the_clean_acceptance_key_is_in_the_judge": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_the_newest_acceptance_sits_on_the_commit_it_judged": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_the_rename_and_readdir_guard_match_the_floor": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_the_version_is_released_by_the_book": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_version_states_the_platform_semantics": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_rules.py::test_x86_64_compiles_with_an_aarch64_compiler": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_artifact_set_is_complete": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_artifacts_carry_no_build_path": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "bytes": 31760992,
@@ -169,7 +169,7 @@
   },
   "tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "bytes": 65533118,
@@ -180,67 +180,67 @@
   },
   "tests/checks/test_v1_1_artifact_set.py::test_cpython_notice_covers_hacl": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_exceptions_are_the_standard_form[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_exceptions_are_the_standard_form[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_imports_are_wasi_and_the_door_only[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_imports_are_wasi_and_the_door_only[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_licence_notices_cover_every_component": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_manifest_is_well_formed": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_manifest_pins_match_the_pin_list": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_no_compiled_module_in_the_set": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_no_cpython_test_module_is_built_in": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82778391,
@@ -251,43 +251,43 @@
   },
   "tests/checks/test_v1_1_artifact_set.py::test_no_start_section[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_no_start_section[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_plain_reactor_exports": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_reactor_holds_no_sdk_builder_path": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_sha256sums_match_the_files": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_snapshot_exports": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242903558,
@@ -298,7 +298,7 @@
   },
   "tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82757499,
@@ -309,7 +309,7 @@
   },
   "tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "bytes": 11203143,
@@ -320,169 +320,217 @@
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_call_that_raises_writes_nothing_back": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_call_without_a_root_shares_nothing": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_large_response_is_a_host_fault[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_large_response_is_a_host_fault[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_link_out_of_the_root_is_refused[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_link_out_of_the_root_is_refused[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_planted_pdbrc_in_home_never_runs": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_planted_zone_file_leaves_zoneinfo_alone": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_provider_fault_never_escapes[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_provider_fault_never_escapes[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_providers_base_exception_is_raised_from_run": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_run_has_a_default_deadline": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_sleeping_guest_ends_at_its_deadline[select]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_sleeping_guest_ends_at_its_deadline[sleep(0) loop]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_sleeping_guest_ends_at_its_deadline[sleep]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_stack_overflow_is_named": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_stopped_host_gets_no_write_back[a Ctrl-C in the door-KeyboardInterrupt]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_stopped_host_gets_no_write_back[a Ctrl-C in the walk-KeyboardInterrupt]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_stopped_host_gets_no_write_back[the exit hook-cancelled]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_swapped_grant_is_refused": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_swapped_root_is_never_prepared_by_path[link]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_swapped_root_is_never_prepared_by_path[rename]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_rename_rule": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_symlink_rename_cannot_escape[grant]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trailing_slash_symlink_rename_cannot_escape[root]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trapped_call_without_a_root_is_removed[busy]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_a_trapped_call_without_a_root_is_removed[sleeping]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_writable_root_mount_keeps_the_runtime_and_other_grants[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_writable_root_mount_keeps_the_runtime_and_other_grants[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_write_half_fault_never_escapes[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_2_hostile_guest.py::test_a_write_half_fault_never_escapes[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 847440410,
@@ -493,7 +541,7 @@
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 847440276,
@@ -504,91 +552,91 @@
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_memory_has_a_default_cap": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_nothing_is_writable_by_default[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_nothing_is_writable_by_default[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_output_has_a_default_cap": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_planted_code_never_runs[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_planted_code_never_runs[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_temporary_files_go_to_tmp": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_the_door_bounds_every_frame[a good frame]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_the_door_bounds_every_frame[host raises]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_the_door_bounds_every_frame[request past memory]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_the_door_bounds_every_frame[response too large]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_hostile_guest.py::test_the_zip_is_read_only_and_shared": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 330598716,
@@ -599,7 +647,7 @@
   },
   "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242274395,
@@ -610,7 +658,7 @@
   },
   "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82151073,
@@ -621,7 +669,7 @@
   },
   "tests/checks/test_v1_2_portable_and_sealed.py::test_guest_sees_only_its_root": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 243190789,
@@ -632,7 +680,7 @@
   },
   "tests/checks/test_v1_2_portable_and_sealed.py::test_nothing_is_a_shared_library": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5000234610,
@@ -643,16 +691,16 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_a_cpp_exception_reaches_python": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
-     "fuel": 5012378740,
+     "fuel": 5012378689,
      "wasmtime": "49.0.0"
     }
    },
@@ -660,10 +708,10 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
-     "fuel": 98162511,
+     "fuel": 98162477,
      "wasmtime": "49.0.0"
     }
    },
@@ -671,13 +719,13 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_callbacks_have_the_types_cpython_calls": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5005591794,
@@ -688,7 +736,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 91513894,
@@ -699,7 +747,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 3993420476,
@@ -710,10 +758,10 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
-     "fuel": 5436620191,
+     "fuel": 5436620140,
      "wasmtime": "49.0.0"
     }
    },
@@ -721,7 +769,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 521477072,
@@ -732,7 +780,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_default_integer_width_is_documented": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 1130175504,
@@ -743,13 +791,13 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_3_data_stack.py::test_gzip_round_trips": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 478101004,
@@ -760,7 +808,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_longdouble_parses": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 1130563936,
@@ -771,7 +819,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 1489114997,
@@ -782,7 +830,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 217044732,
@@ -793,7 +841,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 4991698334,
@@ -804,7 +852,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82441421,
@@ -815,7 +863,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5019192149,
@@ -826,7 +874,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5483708527,
@@ -837,7 +885,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 556760959,
@@ -848,7 +896,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5691937664,
@@ -859,10 +907,10 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_random_matches_native": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
-     "fuel": 5001057966,
+     "fuel": 5001057915,
      "wasmtime": "49.0.0"
     }
    },
@@ -870,7 +918,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_snapshot_preimports_the_stack": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82082564,
@@ -881,7 +929,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 95454623,
@@ -892,7 +940,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_sqlite_job_matches_native": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5224068077,
@@ -903,7 +951,7 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_stdlib_debugging_tools_import": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 535777204,
@@ -914,55 +962,61 @@
   },
   "tests/checks/test_v1_3_data_stack.py::test_zip_code_objects_carry_the_zip_path": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_cancel_during_a_door_call_is_named[0]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_cancel_during_a_door_call_is_named[2]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_cancel_during_a_tool_call_is_named": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_deadline_during_a_door_call_under_cancel_is_named": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_deadline_during_the_grant_check_is_a_deadline": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_deadline_under_cancel_is_named": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_failed_instantiation_reports_no_fuel": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_a_failed_write_back_at_the_ending_is_recorded": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_forged_frame_is_validated_first": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 83930690,
@@ -973,151 +1027,151 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_a_forked_child_is_refused": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_forked_child_leaves_the_parents_zip_folder": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_gate_refuses_before_the_tool_runs": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_guest_calls_a_tool": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_huge_frame_is_answered_unread": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_killed_process_leaves_nothing_after_the_next_call": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_limit_given_as_another_integer_type_works": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_limit_that_would_remove_itself_is_refused[{'fuel': -1}]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_limit_that_would_remove_itself_is_refused[{'memory_bytes': -1}]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_limit_that_would_remove_itself_is_refused[{'memory_bytes': 9223372036854775808}]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_live_calls_folders_are_never_swept": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_answers_as_a_grant_does[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_answers_as_a_grant_does[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_at_the_root[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_at_the_root[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_at_tmp_means_no_home": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_keeps_its_deadline_and_cancel[cancel-cancelled None 3]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_keeps_its_deadline_and_cancel[deadline-deadline None 3]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_keeps_its_deadline_and_cancel[forwards-cancelled None 0]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_serves_reads[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mount_serves_reads[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mounted_run_out_of_fuel_counts_the_cap[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_mounted_run_out_of_fuel_counts_the_cap[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_plain_install_brings_wasmtime": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 243069092,
@@ -1128,7 +1182,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82932017,
@@ -1139,151 +1193,175 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_a_stop_holds_under_cancel": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_tool_blocking_past_the_deadline_is_answered": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_tool_fault_stays_on_the_host": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_tool_timeout_ends_the_call_not_the_run": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_wasmtime_that_cannot_load_is_named[OSError]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_a_wasmtime_that_cannot_load_is_named[RuntimeError]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_a_writable_mount_answers_as_a_writable_grant_does[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_a_writable_mount_answers_as_a_writable_grant_does[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_a_writable_mount_serves_writes[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_a_writable_mount_serves_writes[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_abandoned_calls_are_counted_past_the_listed_outcomes": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_abandoned_tools_are_bounded_per_call": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_an_input_the_guest_would_see_differently_is_refused[= in an env key]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_an_input_the_guest_would_see_differently_is_refused[NUL in an env key]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_an_input_the_guest_would_see_differently_is_refused[NUL in argv]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_an_input_the_guest_would_see_differently_is_refused[lone surrogate]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_an_ordinary_sleep_still_works": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_async_calls_do_not_block_the_loop": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_calls_add_nothing_to_wasmtime_pys_tables": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_cancelling_an_async_call_during_a_tool_call": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_cancelling_an_async_call_stops_its_guest[busy]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_cancelling_an_async_call_stops_its_guest[sleeping]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_concurrent_calls_get_their_own_results": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_ctrl_c_before_a_cancel_in_the_door": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_ctrl_c_during_a_tool_call": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_ctrl_c_stops_the_command_with_130": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_ctrl_c_while_the_guest_runs_ends_the_call[computes]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_ctrl_c_while_the_guest_runs_ends_the_call[waits]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242668574,
@@ -1294,7 +1372,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82531935,
@@ -1305,7 +1383,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 243108641,
@@ -1316,7 +1394,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82938256,
@@ -1327,7 +1405,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242279756,
@@ -1338,7 +1416,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82151695,
@@ -1349,19 +1427,19 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_exit_stops_async_guests": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_fuel_does_not_depend_on_the_module_cache": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_fuel_is_exact_across_tool_calls": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 92261050,
@@ -1372,31 +1450,37 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_grants_reach_the_guest_in_any_order[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_grants_reach_the_guest_in_any_order[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_home_follows_a_writable_tmp_grant[a root]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_home_follows_a_writable_tmp_grant[no root]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_links_and_times_in_a_writable_mount": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242388619,
@@ -1407,7 +1491,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82257762,
@@ -1418,31 +1502,55 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_no_root_and_no_grants_runs": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_no_tools_no_protocol": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_one_calls_stalled_tools_do_not_starve_another": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_open_files_follow_the_guests_renames_and_removals[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_open_files_follow_the_guests_renames_and_removals[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_package_imports_without_wasmtime": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_refused_writes_are_recorded_on_exit_0[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_refused_writes_are_recorded_on_exit_0[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242608654,
@@ -1453,7 +1561,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82440442,
@@ -1464,7 +1572,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 242331453,
@@ -1475,7 +1583,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 82201951,
@@ -1486,127 +1594,127 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_run_with_cancel[busy]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_run_with_cancel[sleeping]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_binds_a_host": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_caches_the_compiled_module": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_caps_memory": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_keeps_the_artifact_zip_out_of_the_guests_reach": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_never_follows_a_link_a_guest_left[its directory]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_never_follows_a_link_a_guest_left[the zip]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_refuses_a_cache_others_can_write": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_replaces_a_directory_left_in_the_zips_place": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_reports_a_host_fault": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_runs_a_program_in_one_call": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_runs_the_plain_reactor": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_serves_concurrent_calls_on_one_root": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_runner_stops_a_runaway_guest_by_fuel": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_command_grants_folders": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_command_runs_a_program_and_prints_its_result": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_errno_values_are_the_guests": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_file_call_limit_stops_the_run": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_guest_gets_exactly_the_checked_inputs": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 5008291129,
@@ -1617,7 +1725,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 95557415,
@@ -1628,31 +1736,31 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_the_installed_command_prints_the_same_line": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_tool_call_limit_holds": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_the_zip_carries_the_host_package": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_tools_run_off_the_guests_thread": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 217529595,
@@ -1663,7 +1771,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 2886077,
@@ -1674,7 +1782,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[plain]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 671575963,
@@ -1685,7 +1793,7 @@
   },
   "tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[snapshot]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {
     "darwin-arm64": {
      "fuel": 83482725,
@@ -1694,116 +1802,140 @@
    },
    "status": "pass"
   },
+  "tests/checks/test_v1_4_embedding.py::test_unlinked_files_are_not_written_back_at_the_ending[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_unlinked_files_are_not_written_back_at_the_ending[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_writes_land_at_every_ending[plain]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
+  "tests/checks/test_v1_4_embedding.py::test_writes_land_at_every_ending[snapshot]": {
+   "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
+   "metrics": {},
+   "status": "pass"
+  },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_cpp_is_compiled_with_exceptions": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_download_script_verifies_and_never_writes_the_pins": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_pin_is_fetched_from_a_literal_url": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_every_repository_path_a_recipe_names_exists": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_no_build_script_fetches_outside_the_download_script": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_pin_list_is_well_formed": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_pure_python_packages_are_pinned": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_two_more_hosts": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_runs_the_zero_patch_check": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[bzip2]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[cpython]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[numpy]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[pandas]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[sqlite]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[xz]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[zlib]": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_stdlib_zip_names_no_build_host": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   },
   "tests/checks/test_v1_5_rebuild_from_pins.py::test_toolchain_is_pinned_for_linux_and_macos": {
    "artifact": "5648e4c5143da71d019fa77cd9550c9b3e4427eff66e6e45335b55abb53490f8",
-   "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+   "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
    "metrics": {},
    "status": "pass"
   }
  },
- "commit": "614520fff699a49c1b8924cd2082dcfabec88410",
+ "commit": "01238501f832eb24b770b6b8d7c53960f15f126e",
  "judge": {
   "files": {
    ".gitattributes": "14d5266d0ac68480d78dda4a304669c2db454ff065572bea377c0aec23d6362a",
@@ -1812,16 +1944,16 @@
    "tests/checks/conftest.py": "79310ba9e161347e8a2a218c31073e73b5a2e024802462ad3767d956a29640af",
    "tests/checks/test_rules.py": "18341bbfc0b69a5b9acb9de6ef71315c462fac57b6f9d867fcee1834f37c458f",
    "tests/checks/test_v1_1_artifact_set.py": "249c418e12768d4c80516aa2ab7cd0fe5cd140d3f81a95290af7d76caa38edb9",
-   "tests/checks/test_v1_2_hostile_guest.py": "2cee2b16329ff2e4604b1051bdc86fadb0b8c0386507657c97e2e9ce54ac90f8",
+   "tests/checks/test_v1_2_hostile_guest.py": "2c7fbf40e4053d2e88ae04a149a028b63e04ec6c5eb6f83b695db808df82e167",
    "tests/checks/test_v1_2_portable_and_sealed.py": "510dea19966abafd2a0393badd6c08b80e95647a0c2cc851706faf7d5e7a5b23",
    "tests/checks/test_v1_3_data_stack.py": "47e39e87d8256460d4c1e1d80a13122d3fcf09fe58bbfc1467da5c50d8a5fd35",
-   "tests/checks/test_v1_4_embedding.py": "e80b09afcab71aac46188d0886eb422c2f8de099ea4917a5d72420dacd838944",
+   "tests/checks/test_v1_4_embedding.py": "3404e134c1b2df2074c7b21db1ef781b7187f227229a2985b9e6c4671bff6df8",
    "tests/checks/test_v1_5_rebuild_from_pins.py": "fd8d3b29c88a8f1e109123b64425c293eddec9fc44daa44856ca1af790a1d51c",
    "tests/conftest.py": "d974424b52b6273dcc7fec3fb4846d8575ae9b6e7e67c8a649a7bb8233571696",
    "tests/harness/__init__.py": "e0917cc4ffc89f3a10a0894fb6d127ec82edb1dd799b40b9c0a1b0a6ec683aa5",
    "tests/harness/artifacts.py": "b205963e8bda6522503c31a39df8bcc968c9ad624905d1c6899c1bc2b76cbed9",
    "tests/harness/callbacks.py": "9a91ccde5164d4af413e6ef659750da5618ebae8226f2c3929812276642559d0",
-   "tests/harness/files.py": "0a50d101a043bed156602d95dbdaa50cef886b08dbdd136a537d658ce2282d92",
+   "tests/harness/files.py": "01425bf756352c0838b7567e638598f1e5aec70ebd71f2223930ce469b76ec7c",
    "tests/harness/guest.py": "e15613608daddddcf5f5ea84b33a1c947ef1f21307f6c35458772facfeba45e5",
    "tests/harness/jobs.py": "cecd8007971fd45dd6b943cd8251ace59271569bfdfa31ccab6f618e11f8b44d",
    "tests/harness/needs.py": "961df67c99d0436cde607c35be2978738ba80b465312ec3039d688d999f60f83",
@@ -1868,10 +2000,10 @@
    "tests/unit/test_runner_async.py": "efd6e94b1e7776b6547d6e4dbc52798b29ad32e061d6cb21112ccb02c8665e90",
    "tests/unit/test_runner_calls.py": "a24bd7e560bd9bba7559ca4a48f6a08e9e58eea3020e7ad506044db9f67526c4",
    "tests/unit/test_runner_cancel.py": "f0c6f08c89b6b5b7e90c8a88e4afbd6f349d4a0904e3c33ad4fa144cc8e60870",
-   "tests/unit/test_runner_grants.py": "dabd459a3269473601126ed90f586117aa1d4af877b46fb392ae5e8cd5c1d6a6",
+   "tests/unit/test_runner_grants.py": "82f86f63989363150d4b780a5da8aa56653ac36e769cd8ed1ccb85f1f1189a99",
    "tests/unit/test_runner_inputs.py": "08ec2910c69c9bbf4f0f17b651da2d2a7ecaf0ca84e4037ea83f1f668f94d34e",
    "tests/unit/test_runner_limits.py": "76034bd207bac8ff173b6d213ce5f89064e4bb45458a36067851464997b3fa8e",
-   "tests/unit/test_runner_mounts.py": "da706f75c782450088a99117c1da39ac543e120d2c52f70295cfe75d43fcc986",
+   "tests/unit/test_runner_mounts.py": "f0b8a4b79fe81436445469419e22101b5606ce240f75b0b055c12dab615fbaf8",
    "tests/unit/test_runner_sweep.py": "99566b8125c5c35847d60ad2b7450410be85d9bf7ea5f126c61a2ce125548a04",
    "tests/unit/test_runner_tools.py": "5b8d6f21949ed1823bc45e17ee6ddfafb6dcd1634e5f4cce11bca503c501c592",
    "tests/unit/test_runner_waits.py": "e305464c54b3b66c446d249d6eca57bb808e539bb86280b4b6eebd22873adc3f",
@@ -1881,7 +2013,7 @@
    "tests/unit/test_wasm.py": "caa13dbe5b6c0dde93c9fafb0261ea86c2c08c6c3935952731f01ff24997a315",
    "uv.lock": "aaaa7bb95872e43842e96c905e3f4b1b8a8f17f54ecf6e8ded813e10e676301d"
   },
-  "hash": "4002975c012a513e3a01a9899e8d152dc20ea50b92d2f155205147c84aa46d50"
+  "hash": "ae11affb45ed0aaab5e50395795951ef7674d859aceb090ef978c5666e0158ae"
  },
  "schema": 1
 }
