@@ -307,7 +307,7 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | `fileno()` of an opened file | the lowest free number | `2**30` or above | no host handle per file (Decision 1) |
    | `select.select` on an opened file | accepted (a low number) | `ValueError` in the guest (`FD_SETSIZE` is 1,024); `select.poll` and `selectors` work | the high range; CPython refuses before the runner sees it |
    | a later `iovec` past memory, after a non-empty one (build review, F4.1) | read: wasmtime checks only up to the first non-empty `iovec` | `EFAULT` | every `iovec` is checked (Decision 7) |
-   | `stat` of a file with a trailing `/` or `/.` (`a.txt/`, `a.txt/.`; after landing) | Linux: the file's stat (cap-std strips the trailing slash in `stat_at`, not in `open`); macOS: `ENOTDIR` | `ENOTDIR` | the path names a folder (POSIX), as an open of it answers on every system and on the mount; one answer for both calls |
+   | `path_filestat_get` without `SYMLINK_FOLLOW` (`os.lstat`) of a file with a trailing `/` or `/.` (`a.txt/`, `a.txt/.`; after landing) | Linux: the file's stat (INFERRED: cap-std's no-follow stat drops the slash; the same stat following links, and an open, are `ENOTDIR`); macOS: `ENOTDIR` | `ENOTDIR` | the path names a folder (POSIX), as Linux's own grant answers when it follows links and as an open answers everywhere; one answer, not two |
    | the three padding bytes after each `fd_readdir` entry's `d_type` (after landing) | whatever wasmtime 49.0.0's buffer held: uninitialized host memory (GHSA-96f6-r43r-8c24, fixed in wasmtime 49.0.2) | zeros | the runner encodes every entry itself; the parity compares the fields, not the padding |
    | an argument the ABI cannot carry: an undefined flag or enum value, an integer out of its type's range, a misaligned pointer (build review, F4.2) | the run ends; `trapped` is `error while executing at wasm backtrace:` | the run ends, with the same `fuel_used`; `trapped` is wiggle's own text, such as `Invalid flag value Oflags` | the runner raises the error itself, as the call's stop |
 
@@ -934,3 +934,23 @@ way (EXECUTED), then decided per row, Linux being Decision 6's reference:
   skipped)`, `ratchet vs 8e42777c9f: lost 0 · … · gained 0 · grew 0 · judge changed:
   tests/unit/test_runner_grants.py`, `845 passed, 19 skipped`; ruff clean. The v1.4 rows of
   acceptance 2 were not rerun on Linux here.
+- **Revised against its review** (`../reviews/032-linux-parity-2026-10-18.md`, rebased onto main
+  `64663de`). F1: the Linux stat difference is only the stat *without* `SYMLINK_FOLLOW`
+  (`os.lstat`): with lookup flags 1, `a.txt/` and `a.txt/.` are 54 on Linux's grant too, so the
+  README now names `os.lstat` and Decision 6's row the no-follow `path_filestat_get` (the cause
+  INFERRED: cap-std's no-follow stat; its source was not read). F2: the parity gains `pstat
+  'a.txt/' following links` and `pstat 'a.txt/.' following links`, compared on every POSIX
+  system (54 on Linux, macOS and the mount). F3: the parity gains zero-length `fd_pread` (`[]`,
+  `[0]`) at 2**63 and 2**64 − 1 and zero-length `fd_read` after a seek to 2**63, compared
+  everywhere (28 on both grants and the mount); removing `at >= 2**63` now fails the parity on
+  Linux and on macOS (EXECUTED); the redundant `count and` is dropped (it changed no answer). F4:
+  the four 64 KiB boundary rows (`fd_pread` of 100,000 at 2**63 − 65,536 and − 65,537, `fd_read`
+  of 100,000 at 2**63 − 100,000 and − 100,001) are in the parity, compared on Linux, beside the
+  deliberate asserts that hold the mount on every system. F5: Windows's grant answers near
+  2**63, and to the trailing-slash stats, are not observed and not compared there; the mount
+  answers as Linux and its answers are asserted on Windows too. F6: so on macOS a mount refuses
+  with `EINVAL` where a grant reads nothing near 2**63, a host difference under Decision 6, not a
+  table row. The file on Linux (container, uid 1000) and on macOS: `18 passed, 2 skipped` each.
+  The full judge (`…/s-0cdc7b2bd78db6f5`): `216/227 pass · 0 gap · 11 blocked · 0 fail (unit
+  suite 813/821, 8 skipped)`, `lost 0 · gained 0 · grew 0 · judge changed:
+  tests/unit/test_runner_grants.py`, `1029 passed, 19 skipped`; ruff clean.

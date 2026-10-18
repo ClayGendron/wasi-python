@@ -830,7 +830,7 @@ class _Files:
         # through wasmtime's stream, which asks for at most MAX_READ_SIZE_ALLOC (64 KiB) at a
         # time (crates/wasi/src/lib.rs:31), so only that much counts there.
         count = size if offset is None else min(size, PREAD_CHUNK)
-        if at >= 2**63 or (count and at + count > 2**63 - 1):
+        if at >= 2**63 or at + count > 2**63 - 1:
             return EINVAL
         data = entry.data[at : at + size]
         memory.write(buf, data)

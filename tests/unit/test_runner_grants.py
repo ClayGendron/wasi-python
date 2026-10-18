@@ -342,6 +342,8 @@ HOST_ROWS = {
     "open 'a.txt/.'",
     "open 'x' * 256",
     "pstat 'a.txt/x'",
+    "pstat 'a.txt/' following links",
+    "pstat 'a.txt/.' following links",
     "pstat 'a\\x00'",
     "pstat 'x' * 256",
     "readlink 'a.txt'",
@@ -350,15 +352,20 @@ HOST_ROWS = {
 }
 # Rows whose grant answer differs between POSIX systems, compared only on the systems named
 # (the landing notes, "Revised after landing", second part). A read whose end passes 2**63 - 1
-# is EINVAL on Linux, the reference, and the mount answers so everywhere; macOS answers 0. A
-# stat of `a.txt/` or `a.txt/.` is ENOTDIR on macOS and on the mount, as an open of either is
-# on every system; Linux's grant answers the file's stat (cap-std strips the trailing slash in
-# stat_at but not in open), a deliberate difference in Decision 6.
+# is EINVAL on Linux, the reference, and the mount answers so everywhere; macOS answers 0 (and
+# fd_pread counts at most 64 KiB of the end). A stat of `a.txt/` or `a.txt/.` without
+# SYMLINK_FOLLOW (`os.lstat`) is ENOTDIR on macOS and on the mount, as an open of either is on
+# every system and as the same stat following links is on Linux too; Linux's grant answers the
+# file's stat to the no-follow stat alone, a deliberate difference in Decision 6.
 SYSTEM_ROWS = {
     "pread at 2**63 - 1": {"linux"},
     "read at 2**63 - 1": {"linux"},
     "pstat 'a.txt/'": {"darwin"},
     "pstat 'a.txt/.'": {"darwin"},
+    "pread 100,000 at 2**63 - 65,536": {"linux"},
+    "pread 100,000 at 2**63 - 65,537": {"linux"},
+    "read 100,000 at 2**63 - 100,000": {"linux"},
+    "read 100,000 at 2**63 - 100,001": {"linux"},
 }
 
 
@@ -443,6 +450,27 @@ def _parity_script(r: files.Raw) -> dict[str, object]:
     row("seek past 2**64 - 1", r.seek, F, 1, 1)
     row("tell after it", r.tell, F)
     row("seek back", r.seek, F, 0, 0)
+    # Nothing to read at an offset of 2**63 or more: still EINVAL, on every system.
+    for at in (2**63, -1):  # -1 is 2**64 - 1 as an i64
+        row(f"pread nothing at {at}", r.pread, F, [], at)
+        row(f"pread an empty buffer at {at}", r.pread, F, [0], at)
+    row("seek to 2**63 for nothing", lambda: (r.seek(F, 2**63 - 1, 0), r.seek(F, 1, 1)))
+    row("read nothing at 2**63", r.read, F, [])
+    row("read an empty buffer at 2**63", r.read, F, [0])
+    # fd_pread counts at most 64 KiB of a read's end (wasmtime's MAX_READ_SIZE_ALLOC); fd_read
+    # counts all of it (Linux only, SYSTEM_ROWS).
+    top = 2**63 - 1
+    row("pread 100,000 at 2**63 - 65,536", r.pread, F, [100_000], top - 65_535)
+    row("pread 100,000 at 2**63 - 65,537", r.pread, F, [100_000], top - 65_536)
+    row(
+        "read 100,000 at 2**63 - 100,000",
+        lambda: (r.seek(F, top - 99_999, 0), r.read(F, [100_000])),
+    )
+    row(
+        "read 100,000 at 2**63 - 100,001",
+        lambda: (r.seek(F, top - 100_000, 0), r.read(F, [100_000])),
+    )
+    row("seek back again", r.seek, F, 0, 0)
     # fd_readdir on the one-entry folder: cookies and short buffers, byte for byte.
     for size, cookie in [(4096, 0), (4096, 1), (4096, 2), (4096, 3), (4096, 10), (10, 0),
                          (24, 0), (25, 0), (30, 0), (50, 0), (0, 0), (4096, -1)]:  # fmt: skip
@@ -512,6 +540,8 @@ def _parity_script(r: files.Raw) -> dict[str, object]:
     ]:  # fmt: skip
         row(f"pstat {label}", r.path_filestat, base, path)
     row("pstat following links", r.path_filestat, P, "a.txt", 1)
+    row("pstat 'a.txt/' following links", r.path_filestat, P, "a.txt/", 1)
+    row("pstat 'a.txt/.' following links", r.path_filestat, P, "a.txt/.", 1)
     row("pstat unknown lookup flags", r.path_filestat, P, "a.txt", 2)
     for label, base, path in [
         ("'a.txt'", P, "a.txt"), ("'d'", P, "d"), ("'missing'", P, "missing"), ("''", P, ""),

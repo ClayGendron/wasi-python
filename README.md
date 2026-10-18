@@ -553,9 +553,10 @@ A path a more specific preopen owns, spelled past the guest's C library
   `select.select` refuses it with `ValueError` (its limit is 1,024); use
   `selectors` (whose default here is a `PollSelector`, which asyncio uses)
   or `select.poll`;
-- `os.stat` of a file with a trailing `/` or `/.` is `ENOTDIR`, as macOS
-  answers and as opening it answers everywhere (on Linux, a grant answers
-  with the file's stat);
+- `os.lstat` (or `os.stat(..., follow_symlinks=False)`) of a file with a
+  trailing `/` or `/.` is `ENOTDIR`, as `os.stat` and opening it answer
+  everywhere (on Linux, a grant's `os.lstat` alone answers with the file's
+  stat);
 - `..` is resolved by text (`missing/../a.txt` opens `a.txt`, where a grant
   answers `ENOENT`); a climb above the folder the call starts from, even for a
   moment, is `EPERM`, as on a grant;
