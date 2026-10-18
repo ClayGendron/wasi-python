@@ -1,3 +1,7 @@
+# diff of -print-after-all: the arm64 macOS SDK (<) against the x86_64 Linux SDK (>). The three
+# RequireAnalysisPass header lines differ between the macOS and the Linux builds of clang, not
+# between CPUs (the arm64 Linux build spells them as x86_64 Linux does); see
+# slot-order-passes-linux-first-differences.diff for the two Linux builds alone.
 1049c1049
 < ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
 ---

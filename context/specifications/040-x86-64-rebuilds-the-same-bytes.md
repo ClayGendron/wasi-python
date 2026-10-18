@@ -9,7 +9,9 @@
     `release.yml` `verify` job as it is. 028 changed only that job, so 040's `rebuild` and
     `same-bytes` edits do not overlap it.
   - **Built 2026-10-18** from main at `64663de` (Landing notes): three hosts wrote one
-    `SHA256SUMS`. Awaiting its build review.
+    `SHA256SUMS`. Its build review (`../reviews/040-x86-64-rebuilds-the-same-bytes-2026-10-18.md`)
+    says land after four text answers; they are written in (Decisions 5, 9 and 11, the upstream
+    draft), and the review's Disposition says where.
 
   It changes the build recipe and the release workflow, so it was reviewed before it is built
   (constitution §5.6). It is build-class: it touches `scripts/`, `downloads/SHA256SUMS` and the
@@ -219,6 +221,14 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
          checks the setup, not the effect. The trace checks the effect.
        - The probe needs no environment of its own. It runs the pinned emulator on the pinned
          clang, which is what every compile does.
+       - **As built** (the build review, finding 4): the probe passes the launcher's three `-U`
+         flags to qemu too, so a host `LD_PRELOAD` cannot change what the guest's loader does
+         during the probe, as it cannot during a compile. It is still not run through the
+         launcher, so it checks the root, not the launcher, and it does not clear `QEMU_`
+         variables. No `QEMU_` variable makes it pass falsely (INFERRED by the review):
+         `QEMU_STRACE` is already on, `-L` overrides `QEMU_LD_PREFIX`, the later `-U` flags undo a
+         `QEMU_SET_ENV` of the loader's variables, and a `QEMU_LOG_FILENAME` hides the trace, so no
+         cache open is seen and the gate fails closed.
      Each tree's other tools (`llvm-ar`, `llvm-ranlib`, `llvm-nm`) are run from `$SDK` as
      today.
    - **The launcher's contract** (`scripts/clang-emulated`, a POSIX `sh` script).
@@ -359,9 +369,11 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
      numpy draft does.
    - The upstream README's table gains the row.
    - **When the emulation leaves.** When the line moves to a new wasi-sdk, that change compiles
-     the reproducer with the new SDK's x86_64 and aarch64 compilers, natively. If the objects
-     are equal, it runs one native x86_64 rebuild in the research container. If that set
-     equals the others, the same change removes the launcher, the five pins, the emulation
+     the reproducer with the new SDK's x86_64 and aarch64 compilers, natively, the x86_64 one on
+     a real x86_64 CPU. If the objects are equal, it runs one native x86_64 rebuild on real
+     x86_64: the release workflow's `ubuntu-24.04` runner, in a dry run with the emulation off,
+     not the research container, which runs under Rosetta (the build review, finding 1). If
+     that set equals the others, the same change removes the launcher, the five pins, the emulation
      names and the x86_64 branch of step 10. `COMPILER_SDK_DIR` stays, each host naming its own
      SDK. The CHANGELOG records it.
 
@@ -390,6 +402,10 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
       run after landing (criterion 5). If its `ubuntu-24.04` rebuild fails, times out, or
       `same-bytes` finds a difference there, then x86_64 leaves the gate on the same day, by
       one change through the lane.
+      - **First, once, a re-run** (the build review, finding 3). A failure before step 10, or
+        one whose log has no recipe line (a fetch from `snapshot.debian.org` or another origin,
+        or a lost or cancelled runner), is re-run once first. The fallback is for a failure that
+        repeats, for a timeout of the build itself, or for any byte difference in `same-bytes`.
       - That change removes `ubuntu-24.04` from `rebuild`'s matrix and `include`, from both of
         `same-bytes`' loops and its two downloads, and from `scan.REBUILD_RUNNERS`. The
         workflow check's x86_64 timeout rule goes with it.
@@ -689,7 +705,14 @@ Into `../research/2026-10-17-the-x86-64-rebuild/` (`decision1-host.sh` on macOS,
 - **The reproducer** (Decision 9), reduced by hand in well under the hour: `slot-order.c`, nine
   lines. arm64 macOS and arm64 Linux `9afcef294ca52dad`; x86_64 Linux `7daeec0794b49c01`; the
   arm64 Linux SDK under the pinned qemu on x86_64 `9afcef294ca52dad`. Its first difference is
-  again `wasm-isel`'s `__multf3` slots.
+  again `wasm-isel`'s `__multf3` slots. Between the two Linux builds (arm64 in a `linux/arm64`
+  container, x86_64 in the `linux/amd64` one) no header line differs at all: the first of 1,296
+  changed lines is `wasm-isel`'s (`slot-order-passes-linux-first-differences.diff`, added for the
+  build review's finding 2).
+- **Every x86_64 object here ran under Rosetta**, never on an x86_64 CPU (the build review,
+  finding 1). The fix does not rest on it: dry run 2 checks the emulated compiler on a real x86_64
+  runner. The LLVM issue waits for the owner to run the reproducer on real x86_64 first
+  (`issue.md`'s preamble), and Decision 9's exit test now runs on real x86_64.
 - **LLVM's AI policy** (https://llvm.org/docs/AIToolPolicy.html, read 2026-10-18): a human reads and
   reviews all generated text, substantially generated content is labelled, and agents may not act in
   LLVM's spaces without approval. It does not require the person to write the text, so `issue.md`
@@ -769,7 +792,8 @@ RED: 1 accepted check(s) absent (retire them with --retire)
 Not run: it needs a pushed ref or the landing, and no push was instructed (§4.14). It runs after
 landing, as spec 012's did. The `ubuntu-24.04` runner's wall time and `nproc` go into these notes
 then (Decision 11); if it passes 240 minutes, the trip-wire applies, and if the x86_64 rebuild
-fails, times out or differs, Decision 11's same-day fallback is taken.
+fails, times out or differs, Decision 11's same-day fallback is taken, after one re-run for a
+failure that is a fetch or a lost runner.
 
 ### Criterion 6
 

@@ -25,19 +25,28 @@ How the issue in `issue.md` was found and checked. Each claim is EXECUTED unless
   does the same SDK under the pinned `qemu-aarch64` in the `linux/amd64` container (step 10's
   layout, inside spec 040's x86_64 build).
 - `evidence/slot-order-objdump-aarch64-vs-x86_64.diff`: only frame offsets differ.
-- `evidence/slot-order-passes-first-differences.diff`: the head of the `-print-after-all` diff
-  (18,374 lines on each host): three template-name spellings, then `wasm-isel`'s `__multf3` slots.
+- `evidence/slot-order-passes-linux-first-differences.diff`: the head of the `-print-after-all`
+  diff of the two Linux builds (18,374 lines each): the first difference is `wasm-isel`'s libcall
+  slots, with no header line between. `evidence/slot-order-passes-first-differences.diff` is macOS
+  against x86_64 Linux: three template-name spellings come first there, which follow the system
+  clang was built on (the build review, finding 2).
 
 ## Not done
 
 - The cause inside the SelectionDAG is not traced; the release binaries have no `-debug-only`
   (INFERRED from the build type, as Decision 1 says). `issue.md` offers a guess, labelled as one.
 - The x86_64 compiles ran under Rosetta, not on an x86_64 machine. The release workflow's
-  `ubuntu-24.04` runner is the first real x86_64 machine to run this build (spec 040, dry run 2).
+  `ubuntu-24.04` runner is the first real x86_64 machine to run this build (spec 040, dry run 2),
+  but it runs the emulated aarch64 clang, never the native x86_64 one. So the native x86_64
+  difference has not been seen on an x86_64 CPU. Before the issue is posted, the owner runs
+  `evidence/compare-two-hosts.sh` with the x86_64 SDK on a real x86_64 machine (`issue.md`'s
+  preamble; the build review, finding 1).
 
 ## When it leaves
 
 When the line moves to a new wasi-sdk, compile `evidence/slot-order.c` and the numpy file with that
-SDK's x86_64 and aarch64 compilers, natively. If the objects are equal, run one native x86_64
-rebuild in the research container; if its set equals the others, the same change removes the
+SDK's x86_64 and aarch64 compilers, natively, the x86_64 one on a real x86_64 CPU (not the
+Rosetta container). If the objects are equal, run one native x86_64 rebuild on real x86_64 (the
+release workflow's `ubuntu-24.04` runner, with the emulation switched off on a dry-run branch); if
+its set equals the others, the same change removes the
 launcher, the five pins, the emulation names and step 10's x86_64 branch (spec 040, Decision 9).

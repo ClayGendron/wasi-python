@@ -1,0 +1,27 @@
+# diff of -print-after-all (18,374 lines each): the arm64 Linux SDK (<, linux/arm64 container) against the x86_64
+# Linux SDK (>, linux/amd64 container under Rosetta). 1,296 changed lines in all; the first is in the dump after
+# "WebAssembly Instruction Selection (wasm-isel)". No header line differs between the two Linux builds.
+6956c6956
+<   CALL_PARAMS &__multf3, %stack.5, %19:i64, %20:i64, %35:i64, %36:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   CALL_PARAMS &__multf3, %stack.6, %19:i64, %20:i64, %35:i64, %36:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+6960,6962c6960,6962
+<   %62:i64 = LOAD_I64_A32 0, 8, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5 + 8, basealign 16)
+<   %63:i64 = LOAD_I64_A32 0, 0, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5, align 16)
+<   CALL_PARAMS &__addtf3, %stack.6, killed %63:i64, killed %62:i64, killed %61:i64, killed %60:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   %62:i64 = LOAD_I64_A32 0, 8, %stack.6, implicit-def dead $arguments :: (load (s64) from %stack.6 + 8, basealign 16)
+>   %63:i64 = LOAD_I64_A32 0, 0, %stack.6, implicit-def dead $arguments :: (load (s64) from %stack.6, align 16)
+>   CALL_PARAMS &__addtf3, %stack.7, killed %63:i64, killed %62:i64, killed %61:i64, killed %60:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+6964c6964
+<   CALL_PARAMS &__multf3, %stack.8, %35:i64, %36:i64, %17:i64, %18:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   CALL_PARAMS &__multf3, %stack.5, %35:i64, %36:i64, %17:i64, %18:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+6968,6969c6968,6969
+<   %64:i64 = LOAD_I64_A32 0, 8, %stack.8, implicit-def dead $arguments :: (load (s64) from %stack.8 + 8, basealign 16)
+<   %65:i64 = LOAD_I64_A32 0, 0, %stack.8, implicit-def dead $arguments :: (load (s64) from %stack.8, align 16)
+---
+>   %64:i64 = LOAD_I64_A32 0, 8, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5 + 8, basealign 16)
+>   %65:i64 = LOAD_I64_A32 0, 0, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5, align 16)
+6978,6980c6978,6980
+<   %70:i64 = LOAD_I64_A32 0, 8, %stack.6, implicit-def dead $arguments :: (load (s64) from %stack.6 + 8, basealign 16)

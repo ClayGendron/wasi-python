@@ -18,6 +18,14 @@ bans agents acting in LLVM's spaces without human approval. So the owner reads t
 reproducer, posts it himself, and keeps the disclosure line at its end. The text below is written to
 be posted as is once he has.
 
+**Before posting: run it on a real x86_64 CPU.** Every x86_64 object here came from the x86_64
+Linux SDK in a `linux/amd64` container on Apple silicon, that is, under Rosetta (spec 040's build
+review, finding 1). That the difference is the x86_64 clang's and not Rosetta's is INFERRED, not
+shown. So, first, the owner runs `evidence/compare-two-hosts.sh slot-order.c` with the x86_64 SDK on
+a real x86_64 Linux machine, and puts that row in the table (replacing the Rosetta row's host
+column). If the hash there is not `7daeec0794b49c01`, the issue is not posted and the memo records
+why. The disclosure line's "ran the reproducer" is true only after that run.
+
 ---
 
 ## Title
@@ -61,7 +69,7 @@ clang --target=wasm32-wasip1 -std=c11 -O3 -fno-strict-aliasing -ftrapping-math -
 |---|---|---|
 | `wasi-sdk-33.0-arm64-macos` | macOS 26.5, Apple arm64 | `9afcef294ca52dad` |
 | `wasi-sdk-33.0-arm64-linux` | Debian 13, aarch64 (linux/arm64 container) | `9afcef294ca52dad` |
-| `wasi-sdk-33.0-x86_64-linux` | Debian 13, x86_64 (linux/amd64 container on Apple silicon) | `7daeec0794b49c01` |
+| `wasi-sdk-33.0-x86_64-linux` | Debian 13, x86_64 (linux/amd64 container on Apple silicon, under Rosetta; the real-x86_64 row goes here) | `7daeec0794b49c01` |
 | `wasi-sdk-33.0-arm64-linux`, under `qemu-aarch64` 10.0.13 (user mode) | Debian 13, x86_64 (the same container) | `9afcef294ca52dad` |
 
 Both compiles see the same relative file name (it is recorded in the object). Repeated compiles on
@@ -78,21 +86,26 @@ each host give the same hash.
 
 ### Where it starts
 
-With `-mllvm -print-after-all`, both hosts print 18,374 lines. Every IR pass prints the same
-function. Apart from three header lines where the two builds spell a template name differently
-(`RequireAnalysisPass<llvm::GlobalsAA, llvm::Module, llvm::AnalysisManager<Module>>` against
-`RequireAnalysisPass<llvm::GlobalsAA, llvm::Module>`), the first difference is in the dump after
-`WebAssembly Instruction Selection (wasm-isel)`:
+With `-mllvm -print-after-all`, the two Linux builds (arm64 and x86_64) each print 18,374 lines.
+Every IR pass prints the same function, and so does every header line. The first difference is in
+the dump after `WebAssembly Instruction Selection (wasm-isel)`:
 
 ```
 aarch64:  CALL_PARAMS &__multf3, %stack.5, %19:i64, %20:i64, %35:i64, %36:i64, ...
 x86_64:   CALL_PARAMS &__multf3, %stack.6, %19:i64, %20:i64, %35:i64, %36:i64, ...
 ...
+aarch64:  CALL_PARAMS &__addtf3, %stack.6, ...
+x86_64:   CALL_PARAMS &__addtf3, %stack.7, ...
+...
 aarch64:  CALL_PARAMS &__multf3, %stack.8, %35:i64, %36:i64, %17:i64, %18:i64, ...
 x86_64:   CALL_PARAMS &__multf3, %stack.5, %35:i64, %36:i64, %17:i64, %18:i64, ...
 ```
 
-The same `__multf3` result slots trade numbers, so the frame layout that follows differs.
+The same libcall result slots are numbered in a different order, so the frame layout that follows
+differs. (The macOS build's dump also differs from both Linux builds in three header lines that
+spell a template name, `RequireAnalysisPass<…, llvm::AnalysisManager<Module>>` against
+`RequireAnalysisPass<…>`. That follows the system clang was built on, not the CPU, and changes no
+object.)
 
 On the original numpy function, the seven `-mllvm -pre-RA-sched` choices (`default`, `source`,
 `list-burr`, `list-hybrid`, `list-ilp`, `linearize`, `fast`) each still give different objects on
