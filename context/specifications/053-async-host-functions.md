@@ -1104,3 +1104,76 @@ unread `cancelled` answer, and the record is unchanged.
 - **`_instance`.** `close()` is first in its `finally`, before `store.close()`.
 - **The rebase onto 049** (criterion 21), and 049's renames inside `_Bounded`.
 - **The two strengthened checks** (criteria 11 and 16) and the replaced c4 stand-in.
+
+### Rebased onto main (049, 054), 2026-10-18
+
+At the coordinator's request, before the build review, the branch was rebased with `git rebase
+main` onto main `94167a8`. That main has 049 (the public API frozen, landed as `6d6dfc5`) and 054
+(`import_path=`, landed as `c79a3a9`). Each claim is EXECUTED.
+
+**Conflicts, and how each was resolved.**
+- **`context/questions-for-the-owner.md`** (at the draft commit): both sides kept. Main's 91,
+  94, 92 and 93 come first, then this branch's 90; the context is otherwise untouched.
+- **`tests/checks/test_v1_4_embedding.py`** (at the checks commit): both blocks appended at the
+  file's end were kept. 054's import-path checks come first, then this spec's async checks.
+- **`src/wasi_python/runner.py`**, two places:
+  - At the code commit: 049's new signature `_check_tools(host, tools, gate, max_tool_calls,
+    limits=None)` is kept, with this spec's `_is_async_callable` placed before it. Its body
+    merged cleanly: 049's `(limits or _current_defaults()).tool_calls`, this spec's async `host=`
+    refusal and async generator gate refusal, and 054's `import_path` threading through
+    `_checked` and `_check_places` all stand.
+  - At the docstring commit: 049's Google-style docstrings of `run` and `run_async` are kept.
+    This spec's sentences are rewritten into their shared `Args:` entries, identical in both,
+    as 049's Decision 10 requires, with no specification number:
+    - `host`: "It must answer synchronously: an async one raises `TypeError`."
+    - `tools`: a tool may be async, awaited on the loop that awaits `run_async` or on the call's
+      own loop, never started once answered, cancelled at its call's end.
+    - `gate`: "It may be async, as a tool may."
+- **`src/wasi_python/tools.py`** (at the code commit): `tool()`'s docstring. 049's version (its
+  `Args:`, `Returns:` and `Raises:`) is kept. This spec's async paragraph is added after the
+  first paragraph. `Raises: TypeError` now reads "the function is an async generator function"
+  where 049 had "the function is async".
+  - 049's renames reached this spec's code with no conflict: `_Work` uses `_FAULT_CHARS` and
+    `_TOOL_RESPONSE_BYTES`, and `_Bounded` uses `_MAX_ABANDONED` and `_DEADLINE_MARGIN_TICKS`.
+    A search found none of the seventeen old names left without their underscore.
+  - 056's `_proceed` and this spec's `_begin` both stand.
+  - Every new module-level name is private: `_ToolLoop`, `_Post`, `_Ops`, `_NotStarted`,
+    `_cancel_post`, `_close_awaitable`, `_is_async_generator`, `_LOOP_THREAD`, `_LOOP_POLL_S`.
+- **`CHANGELOG.md`** (at the docs commit): both kept in `0.1.0a5 — unreleased`. 054's entry and
+  049's come first, then this spec's two.
+- `README.md`'s prose, `tests/unit/test_tools.py` and `tests/unit/test_runner_tools.py` merged
+  cleanly.
+
+**Criterion 21: met.**
+- `uv run python tests/harness/api.py --check`, before `--write`: only the README block
+  differed. The entries were run's `host`, `tools` and `gate`, and tool's `Raises`; `run_async`
+  is shown short.
+- After `--write` (`9497ad9`): `git diff --quiet tests/public_api.txt` succeeded, so the snapshot
+  is unchanged, and `--check` passes.
+
+**Checks after the rebase.**
+- `ruff check` and `ruff format --check` are clean.
+- Fast tier: `315/364 pass · 0 gap · 10 blocked · 0 fail`, `lost 0 · gained 10 · grew 0`.
+- Every stand-in was re-applied on the rebased code (`build/053/mutants-rebased.txt`), and each
+  failed as named, with every file restored byte for byte:
+  - c3/c11: 2 failed;
+  - c4: failed;
+  - c5: `[1] == []`;
+  - the two C-2 stand-ins: 2 acquisitions, and "taken twice";
+  - c6: failed;
+  - c7/C-1: `'timeout' == 'tool_error'`;
+  - c8: 2 failed;
+  - c10: failed;
+  - c16: "run waited …" at 120 s;
+  - c17: failed.
+- The full judge (`WASI_PYTHON_ARTIFACTS=…/s-c4190ca065ada03a uv run pytest`, no flags):
+
+  ```
+  wasi_python v1: 322/364 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1073/1081, 8 skipped)
+    v1.4  embedding           157/157
+  ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 10 · grew 0 · upstream unrun 31 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_async_tools.py, tests/unit/test_runner_tools.py and 1 more
+  ================= 1395 passed, 50 skipped in 262.13s (0:04:22) =================
+  ```
+
+  The 42 blocked are this worktree's, as before. `tests/public_api.txt` is not among the judge's
+  changed files.
