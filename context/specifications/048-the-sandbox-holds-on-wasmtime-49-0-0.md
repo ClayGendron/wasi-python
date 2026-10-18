@@ -1,7 +1,11 @@
 # 048 — The sandbox holds on wasmtime 49.0.0
 
-- **Status:** drafted 2026-10-18. Not built. It stands behind spec 032's
-  dirent-padding fix (branch `spec/032-dirent-padding`, in review); 048 lands after it.
+- **Status:** drafted 2026-10-18; revised the same day against its pre-build design review
+  (`../reviews/048-the-sandbox-holds-on-wasmtime-49-0-0-spec-2026-10-18.md`, eight findings, all
+  answered in its Disposition). Not built. Spec 032's dirent-padding fix is now on main
+  (`ebc9f53`), so the dependency it stood behind is met. It rebases on spec 034 (writable mounts,
+  in build review on branch `spec/034-writable-mounts`) — both edit `_Files._path_rename` — on
+  whichever of 048 and 034 lands first (finding F8).
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: a guard linker and the per-call guard table;
   `src/wasi_python/mounts.py`: the `_Files` shadows for `fd_readdir` and `path_rename`), judge
@@ -12,8 +16,8 @@
   spec 032 did.
 - **Depends on:** 032 (the shadow/trampoline machinery: `_mount_linker`, `_trampoline_module`,
   `_Files`, `forward`, `_Memory`, the `SHADOWED`/`SIGNATURES` set, `FUEL_ALLOWANCE`); 032's
-  dirent-padding fix in review (`../reviews/032-dirent-padding-2026-10-18.md`, which masks the
-  dirent padding in the raw parity check while the pin is on wasmtime 49.0.0); 025 (a writable
+  dirent-padding fix, landed on main (`ebc9f53`), which masks the dirent padding in the raw parity
+  check while the pin is on wasmtime 49.0.0 (`tests/harness/files.py`, `DIRENT_MASKED`); 025 (a writable
   place is `root=True`, a host-path root, or a writable grant; nothing is writable without one);
   017 (grants, read-only unless they say otherwise); 024 (the root walked and judged); 006 (safe
   by default).
@@ -60,71 +64,128 @@ spec 032's machinery, removed when the pin moves.
 
 ## Decisions
 
-1. **The precise wasmtime 49.0.3 rule for `path_rename`, served on every call.** `path_rename` is
-   shadowed. When neither path has a trailing slash, the call is forwarded to wasmtime unchanged.
-   When either the source or the target path ends in `/`, the shadow requires the **source** to be
-   a directory, deciding it **without following the source's final symlink**; if the source is not
-   a directory it answers `ENOTDIR` (54) and does not forward, exactly as wasmtime 49.0.3 does on
-   non-Linux hosts (`fix-49.0.3-rename-only.diff`: `stat_unchecked(.., FollowSymlinks::No).is_dir()`
-   else `is_not_directory()`). A trailing-slash rename of a real directory still succeeds; a
-   trailing-slash rename whose source is a symlink or a regular file is refused with `ENOTDIR`, so
-   the kernel is never asked to follow a trailing-slash symlink out of the preopen. This changes
-   nothing a legitimate program does: trailing slashes on rename paths are rare, and POSIX already
-   requires `ENOTDIR` for a non-directory source named with a trailing slash. The rule is enforced
-   on every call; it only ever changes an answer where a writable place lets a rename happen at all
-   (elsewhere wasmtime already answers `EPERM`/`EROFS`, which the shadow forwards unchanged).
+1. **The precise wasmtime 49.0.3 rule for `path_rename`, and the forward is by plain names**
+   (finding F1). `path_rename` is shadowed. When neither path has a trailing slash, the call is
+   forwarded to wasmtime unchanged. When either the source or the target path ends in `/`, the
+   shadow requires the **source** to be a directory, deciding it **without following the source's
+   final symlink** (Decision 2); if the source is not a directory it answers that reason (Decision
+   3) and does not forward. If the source is a directory, the shadow forwards the rename **with
+   every trailing `/` trimmed from both paths** — the same guest pointers, only the lengths made
+   shorter (never below one byte, as wasmtime's own `strip_dir_suffix` keeps), writing nothing to
+   guest memory. wasmtime 49.0.0 then renames by the plain names, which is exactly wasmtime
+   49.0.3's non-Linux behaviour (`fix-49.0.3-rename-only.diff`: strip both suffixes, check the
+   source `FollowSymlinks::No`, then `rename_unchecked` by the plain basenames). Trimming before
+   the forward is what closes the check/rename race: 49.0.3's comment says "whatever replaces the
+   source in between is still renamed by its plain name", so even if another concurrent call or
+   host process swaps the real directory for a symlink between the shadow's stat and wasmtime's
+   `renameat`, the kernel is never handed a trailing-slash name to follow. This is one code path on
+   every host: on Linux renaming by plain names gives the kernel the same answers its own
+   trailing-slash check would. A trailing-slash rename of a real directory still succeeds; one
+   whose source is a symlink or a regular file, or whose target names a non-directory with a
+   slash, is refused. This changes nothing a legitimate program does: trailing slashes on rename
+   paths are rare, and POSIX already requires `ENOTDIR` for a non-directory named with a trailing
+   slash. The rule runs on every call; it only ever changes an answer where a writable place lets
+   a rename happen at all (elsewhere wasmtime answers `EPERM`/`EROFS`, except that a read-only
+   missing source now reads as its stat's error — see Decision 3 and finding F8).
 
-2. **The source's type is read without a side effect, in borrowed guest memory.** To decide "is the
-   source a directory, not following its final symlink", the shadow forwards `path_filestat_get`
-   with the symlink-follow flag clear (flag bit 0 = 0) on the source directory descriptor and the
-   stripped source path, and reads the returned filetype (`DIRECTORY == 3`). wasmtime resolves the
-   path inside its own sandbox and, with symlink-follow clear, does not follow the final component,
-   so a symlink source reports as a symlink, not as what it points at. The 64-byte filestat needs a
-   scratch region in guest memory: the shadow borrows the source path's own buffer (already read
-   into the runner), saving its bytes, pointing the forwarded call there, reading the filetype, and
-   restoring the saved bytes before returning. The borrow is invisible: the guest is suspended for
-   the whole host call, so it never observes the transient write (the trampoline runs synchronously
-   on the caller's context, spec 032). If the scratch does not fit (`_Memory.fits` is false) or the
-   forwarded stat errors, the shadow refuses with `ENOTDIR` rather than forward — a refusal is
-   always safe. The forwards are fuel-neutral by the existing `FUEL_ALLOWANCE` (read the fuel,
-   raise it by the allowance, set it back in a `finally`), so a guarded rename spends exactly the
-   guest fuel an unguarded one would.
+2. **The source's type is read in a private one-page memory, never in the guest's** (finding F2).
+   To decide "is the source a directory, not following its final symlink", the shadow asks
+   wasmtime for a `path_filestat_get` with the symlink-follow flag clear (flag bit 0 = 0) on the
+   source directory descriptor and the stripped source path. wasmtime resolves the path inside its
+   own sandbox and, with symlink-follow clear, does not follow the final component, so a symlink
+   source reports as a symlink, not as what it points at. The 64-byte filestat is 8-byte aligned
+   and must not touch the guest's memory (borrowing it could trap on a misaligned path pointer and
+   end the guest, and it overlaps the very path wasmtime reads). So the stat goes through a
+   **second, tiny trampoline instantiated once per guarded call** that defines **its own one-page
+   `memory`** (a `(memory 1)` the module exports as `memory`) and imports only `path_filestat_get`.
+   wasmtime's WASI reads and writes through the calling instance's `memory` export (spec 032, memo
+   finding 3), and the WASI context belongs to the store, so descriptor numbers are the same as
+   the guest's. The shadow copies the already-read, stripped source path into this private memory
+   at offset 64, asks for the result at offset 0, calls `path_filestat_get` on the stat trampoline,
+   and reads the filetype at byte 16 (`FILESTAT` is `<QQB7x…>`, filetype at offset 16). No guest
+   byte is read, saved or restored; no alignment or `fits` refusal is needed. The forward is
+   fuel-neutral by the existing `FUEL_ALLOWANCE` (read the fuel, raise it by the allowance, set it
+   back in a `finally`), as is the rename forward, so a guarded rename spends exactly the guest
+   fuel an unguarded one would. The stat trampoline is instantiated before the fuel cap, like the
+   main trampoline 032 binds.
 
-3. **`fd_readdir`'s padding is zeroed on every call.** `fd_readdir` is shadowed on every call. The
-   shadow forwards to wasmtime, then, over the bytes wasmtime wrote, zeroes the three padding bytes
-   after each entry's `d_type` (the `DIRENT` header is `<QQIB3x>`: `d_next`, `d_ino`, `d_namlen`,
-   `d_type`, then three pad bytes at offsets 21–23), walking the buffer by `d_next`/`d_namlen` and
-   masking a header the buffer cut short as far as it reaches. This closes the leak on the grant
-   and stdlib-zip listings the same way spec 032 already closes it on a mount's own listing: both
-   now hand the guest zero padding. The zeroing is host-side work that costs the guest no fuel.
+3. **A stat error is passed through; `ENOTDIR` only for a successful stat on a non-directory**
+   (finding F3). wasmtime 49.0.3 runs `stat_unchecked(..)?`: a failing stat returns its own error
+   (`ENOENT` for a missing source, `ENOTDIR` for a non-directory parent), and only a stat that
+   *succeeds* on a non-directory gives `is_not_directory()`. The shadow does the same: if the
+   forwarded `path_filestat_get` returns a non-zero errno, that errno is the answer and no rename
+   is forwarded (any non-zero errno means no rename, so this is just as safe); if it succeeds and
+   the filetype is not `DIRECTORY` (3), the answer is `ENOTDIR` (54); if it succeeds and the
+   filetype is a directory, the rename is forwarded by plain names (Decision 1). So
+   `os.rename("missing/", "x")` raises `FileNotFoundError`, as both 49.0.0 and 49.0.3 do, not
+   `NotADirectoryError`. One small ordering difference is recorded and accepted: 49.0.3 opens both
+   parents before it stats, so an error on the *target*'s parent surfaces before the source stat's
+   error there; the shadow stats the source first, so when both the target's parent is bad and the
+   source is missing, the errno order can differ. No sandbox consequence follows (no rename is
+   forwarded in either case). On a **read-only** place this also changes a trailing-slash rename of
+   a missing source from `EPERM` to the stat's `ENOENT` (finding F8); the rename still does not
+   happen.
 
-4. **The shadow is carried only while the pin is on wasmtime 49.0.0, and removed when it moves.**
-   The guard is a temporary belt, like a carried patch (constitution §4.1 spirit) and like spec
-   032's `DIRENT_MASKED` mask. When `uv.lock` moves to a wasmtime-py on wasmtime ≥ 49.0.2 (padding)
-   and ≥ 49.0.3 (rename), the corresponding shadow is deleted and the native call is used again. A
-   rules check ties the guard to the pin so it cannot be left behind or removed early (criterion 7).
-   Facts sheet 12 stays the standing upstream ask (question 86).
+4. **`fd_readdir`'s padding is zeroed on every call, and `used` is kept intact** (finding F7).
+   `fd_readdir` is shadowed on every call. The shadow forwards to wasmtime and, **only when the
+   forward returned errno 0**, reads the written byte count `used` from the guest and, over the
+   bytes `[buf, buf + used)` only, zeroes the three padding bytes after each entry's `d_type` (the
+   `DIRENT` header is `<QQIB3x>`: `d_next`, `d_ino`, `d_namlen`, `d_type`, then three pad bytes at
+   offsets 21–23), **walking by `24 + d_namlen`** (`d_next` is a cookie, not a byte offset) and
+   masking a header the buffer cut short as far as it reaches. The 4 bytes wasmtime wrote at the
+   guest's `used` pointer are left untouched (the walk reads `used` but never writes inside its
+   region, so a guest that points `used` into its own buffer keeps upstream's value). This closes
+   the leak on the grant and stdlib-zip listings the same way spec 032 already closes it on a
+   mount's own listing: both now hand the guest zero padding. The zeroing is host-side work that
+   costs the guest no fuel.
 
-5. **Only `path_rename` is fixed; `path_symlink` stays native.** The precise rule of Decision 1 is
+5. **The shadow is carried only while the published floor allows a vulnerable wasmtime, and
+   removed when it no longer does** (finding F4). The guard is a temporary belt, like a carried
+   patch (constitution §4.1 spirit) and like spec 032's `DIRENT_MASKED` mask. A rules check
+   (criterion 7) reads the **floor of the `wasmtime` requirement in `pyproject.toml`** (today
+   `>=49,<50`), not `uv.lock` — an embedder who already has 49.0.0 keeps it after
+   `pip install wasi-python`, because the floor is already met, so the published floor is what
+   decides whether a user can still be on a vulnerable wasmtime. "Fixed" is decided from an
+   **explicit list of patched versions per advisory**, written in the check and citing the
+   advisory JSON (GHSA-96f6-r43r-8c24: `36.0.17, 48.0.4, 49.0.2`; GHSA-m9f7-9w4p-gv38: `36.0.18,
+   48.0.6, 49.0.3`) — not an "at or past" comparison, because wasmtime's releases are not linearly
+   ordered (`v50.0.0-rc.1` predates `v49.0.3`, `releases.txt`) and wasmtime-py's own version is
+   not the version of the wasmtime it bundles (they match for 49.0.0 only, facts sheet 12). While
+   the floor still admits a wasmtime not on the padding list, the `fd_readdir` guard and its checks
+   are present; while it still admits one not on the rename list, the `path_rename` guard and its
+   checks are present; when the floor admits neither, each guard and its checks are deleted and the
+   native call is used again. The spec that moves the pin must record which wasmtime the
+   wasmtime-py wheel bundles (EXECUTED), because the two numbers can differ. Facts sheet 12 stays
+   the standing upstream ask (owner question 86).
+
+6. **Only `path_rename` is fixed; `path_symlink` stays native.** The rule of Decision 1 is
    complete: the escape is the *rename* following a trailing-slash symlink, and a symlink a guest
    or the embedder placed is caught at the rename, so refusing symlink *creation* is not needed for
    safety. We take the rule that changes nothing legitimate. Refusing `os.symlink` wherever a
-   writable place exists is a defence-in-depth alternative the owner may still choose (question 85):
-   it would shadow `path_symlink` to answer `EPERM` on a writable place, a one-method addition to
-   the guard linker. Recorded, not taken.
+   writable place exists is a defence-in-depth alternative the owner may still choose (owner
+   question 85): it would shadow `path_symlink` to answer `EPERM` on a writable place, a
+   one-method addition to the guard linker. Recorded, not taken; nothing built here needs a
+   writable-place predicate, so none is added (finding F8).
 
-6. **How a call is routed.** A call with mounts keeps spec 032's path unchanged: the mount linker
-   (`_mount_linker`, all 29 `SHADOWED` calls) and a `_Files` table with the mounts. A call without
-   mounts is routed through a new **guard linker** that shadows exactly `fd_readdir` and
-   `path_rename` (the two Decision 3 and 1 touch), leaving the other 27 preview1 calls on
-   wasmtime's own fast path; it is given a **guard table**, a `_Files` built with an empty mount
-   list, so every descriptor is "not a provider number" and every shadowed call forwards — through
-   the same trampoline, bound the same way (`_Files.bind` on the guest's memory with wasmtime's own
-   calls from today's linker). The two patched `_Files` methods (Decisions 1 and 3) serve the
-   guard table and the mount table alike: a mount call that forwards a `fd_readdir` or `path_rename`
-   for a real grant descriptor gets the same fix. The default/read-only call pays only the forward
-   on its directory listings (the stdlib-zip scan at start-up, chiefly) and on any rename; its
-   `fd_read`, `fd_write`, `path_open` and the rest stay native.
+7. **How a call is routed, and a guard table is never reported** (finding F6). A call with mounts
+   keeps spec 032's path unchanged: the mount linker (`_mount_linker`, all 29 `SHADOWED` calls) and
+   a `_Files` table with the mounts. A call without mounts is routed through a new **guard linker**
+   that shadows exactly `fd_readdir` and `path_rename` (the two calls Decisions 4 and 1 touch),
+   leaving the other 27 preview1 calls on wasmtime's own fast path; it is given a **guard table**,
+   a `_Files` built with an empty mount list, so every descriptor is "not a provider number" and
+   both shadowed calls forward — through the same trampoline, bound the same way (`_Files.bind` on
+   the guest's memory with wasmtime's own calls from today's linker). The two patched `_Files`
+   methods (Decisions 1 and 4) serve the guard table and the mount table alike: a mount call that
+   forwards a `fd_readdir` or `path_rename` for a real grant descriptor gets the same fix. A guard
+   table is **never reported**: `Completed.files` stays `None` for a call without mounts (README
+   line 586, and the existing unit check), because the guard table carries no provider and
+   `record()` is not called for it — a flag on `_Files`, or keeping the guard table out of the
+   `record()` branch in `_instance`. The guard's two calls go through `_shared`, so, like a mount's
+   shadows, they answer EIO once the call has stopped and raise a pending Ctrl-C at the guard
+   (specs 030 and 015); the native `fd_readdir`/`path_rename` did neither, and this stop behaviour
+   is intended and stated. The default/read-only call pays only the forward on its directory
+   listings (the stdlib-zip scan at start-up, chiefly) and on any rename; its `fd_read`,
+   `fd_write`, `path_open` and the rest stay native.
 
 ## Intent
 
@@ -134,50 +195,67 @@ gives, carried in the runner until the pin can move.
 
 ## Design
 
+This touches `src/` and `tests/` only — no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or
+release workflow — so by AGENTS.md's definition it is **not build-class**; the research memo's
+"build-class" label is superseded, so the landing lane does not follow it (finding F8).
+
 ```
-src/wasi_python/mounts.py            _Files._path_rename: the 49.0.3 rule (Decisions 1, 2) in the
-                                       no-provider-number branch, before the forward; a small
-                                       helper reads the source's filetype through a no-follow
-                                       path_filestat_get in borrowed guest memory.
-                                     _Files._fd_readdir: zero the three padding bytes per entry
-                                       after the forward (Decision 3), in the no-provider branch.
+src/wasi_python/mounts.py            _Files._path_rename: the 49.0.3 rule (Decisions 1–3) in the
+                                       no-provider-number branch — if either path has a trailing
+                                       slash, stat the source no-follow, answer the stat's errno or
+                                       ENOTDIR, else forward with the slashes trimmed (same
+                                       pointers, shorter lengths).
+                                     a helper that reads the source's filetype through a no-follow
+                                       path_filestat_get on a per-call stat trampoline with its own
+                                       one-page memory (Decision 2) — no guest byte touched.
+                                     _Files._fd_readdir: when the forward returns 0, zero the three
+                                       padding bytes per entry within [buf, buf+used), walking by
+                                       24 + d_namlen, leaving `used` intact (Decision 4).
 src/wasi_python/runner.py            _guard_linker(wt, engine): today's linker plus a shadow over
                                        fd_readdir and path_rename only, defined once per engine,
                                        like _mount_linker; cached in a _guard_linkers dict.
+                                     _trampoline for the stat: a second tiny module (one-page
+                                       memory, imports path_filestat_get) compiled once per engine,
+                                       instantiated per guarded call before the fuel cap.
                                      _instance / _drive: when a call has no mounts, build a guard
                                        _Files (empty mounts), set call.table, pick guest_linker =
                                        _guard_linker, and bind the trampoline as for a mount call
-                                       (plain = today's linker). A call with mounts is unchanged.
-                                     a predicate _has_writable_place(checked) for the Safety text
-                                       and, if the owner takes question 85, the symlink shadow.
+                                       (plain = today's linker). The guard table is not reported:
+                                       Completed.files stays None without mounts (Decision 7). A
+                                       call with mounts is unchanged.
 tests/harness/files.py               masked_dirents / DIRENT_MASKED: drop 21–23 from the mask (the
                                        padding is now zero on grants too, so the parity asserts it
                                        rather than masking it); keep d_ino (8–16) masked.
 tests/checks/test_v1_2_*.py          the escape check (criterion 1) and the rule check (criterion 2).
-tests/unit/test_runner_mounts.py     the guard-table unit checks (criteria 3, 4, 5).
-tests/checks/test_rules.py           the pin-tie check (criterion 7).
+tests/unit/test_runner_mounts.py     the guard-table unit checks (criteria 3, 4, 5, 5b).
+tests/checks/test_rules.py           the floor-tie check (criterion 7).
 README.md                            Safety: the carried guard and what it covers.
 SECURITY.md                          the escape is handled by the runner while pinned to 49.0.0.
 CHANGELOG.md                         0.1.0a4: Security.
 ```
 
 A note on the trampoline cost. Every directory listing on a no-mount call now bounces through one
-host round-trip (the forward) instead of running natively; a rename does too. The round-trip is
-fuel-neutral (Decision 2). The cost is bounded — listings and renames are rare next to reads and
-writes, and `path_open`/`fd_read`/`fd_write` stay native — and it is removed when the pin moves
-(Decision 4). This is the price of closing the two holes without a wasmtime a user cannot install.
+host round-trip (the forward) instead of running natively; a rename does too (two forwards: the
+stat, then the rename). The round-trips are fuel-neutral (Decision 2). The cost is bounded —
+listings and renames are rare next to reads and writes, and `path_open`/`fd_read`/`fd_write` stay
+native — and it is removed when the floor moves (Decision 5). This is the price of closing the two
+holes without a wasmtime a user cannot install.
 
 ## Scope
 
 In: the `path_rename` rule and the `fd_readdir` padding, on wasmtime 49.0.0, through the guard
 linker and guard table on calls without mounts, and through the already-shadowed `_Files` methods on
-calls with mounts. Removing the guard when the pin moves (the tie check).
+calls with mounts. Removing each guard when the published floor no longer admits a vulnerable
+wasmtime (the floor-tie check). Rebasing on spec 034 (which also edits `_Files._path_rename`):
+048 and 034 land one at a time, and whichever lands second rebases on the first; after 048, a
+grant's served trailing-slash rename of a non-directory answers `ENOTDIR`, and 034's served rename
+must give that same answer for parity (finding F8).
 
-Out: refusing `path_symlink` (question 85, Decision 5, not taken); any other advisory the research
-memo found not to reach us (component model, GC, exception handling, `wasi-http`, preview0 — our
-guest imports only `wasi_snapshot_preview1` and the one door, EXECUTED); moving the pin itself
-(blocked on an upstream wasmtime-py release, facts sheet 12); the set-times host-panic advisory
-GHSA-j2g9-4prp-pf6h, which the research memo found unreachable through the guest's CPython
+Out: refusing `path_symlink` (owner question 85, Decision 6, not taken); any other advisory the
+research memo found not to reach us (component model, GC, exception handling, `wasi-http`, preview0
+— our guest imports only `wasi_snapshot_preview1` and the one door, EXECUTED); moving the pin
+itself (blocked on an upstream wasmtime-py release, facts sheet 12); the set-times host-panic
+advisory GHSA-j2g9-4prp-pf6h, which the research memo found unreachable through the guest's CPython
 (EXECUTED). Linux and Windows are unaffected by the escape (the advisory), but the guard runs on
 every host so the rule is one code path, and the padding leak is on every host.
 
@@ -193,47 +271,67 @@ caller and no artifacts, as `test_runner_mounts.py` does. Nothing measures wall-
    rename raised `NotADirectoryError` (errno 54) in the guest; the sibling directory and its canary
    are unchanged on the host; nothing named `stolen` exists in the grant. Parametrized over a
    writable grant and over `root=True` (with the sibling planted under the private root's parent).
-   **Seen failing first:** on a kernel that follows a trailing-slash symlink in `renameat` (macOS,
-   FreeBSD — detected by a host probe that creates a dir, a symlink to it, renames `link/` and sees
-   whether the dir moved), today's code moves the sibling in and the guest reads the canary (the
-   research repro). On a kernel that does not follow it (Linux, Windows), today's code already
-   refuses, so the check records that it was seen failing on macOS/FreeBSD and asserts the safe
-   outcome on every host. (This check counts operations and bytes — the canary's presence and
-   contents — never time.)
+   The safe outcome is asserted on **every** host; a host probe (create a dir, a symlink to it,
+   rename `link/`, see whether the dir moved) only *reports* in the message whether this kernel
+   follows trailing-slash symlinks in `renameat` (macOS/FreeBSD do, Linux/Windows do not).
+   **Seen failing first:** on a following kernel, today's code moves the sibling in and the guest
+   reads the canary (the research repro, EXECUTED on arm64 macOS); on a non-following kernel the
+   symlink source case already refused, so the escape bytes are a no-op there. The rule-level
+   failure is covered on every host by criterion 2.
 2. `test_a_trailing_slash_rename_rule` (`tests/checks/test_v1_2_*.py`), host-independent: in a
-   writable grant with a real sub-directory `d`, a regular file `f`, and a symlink `s` to `d`:
-   `rename("d/", "d2")` succeeds (a real directory, trailing slash); `rename("f/", "x")` and
-   `rename("s/", "x")` each raise `NotADirectoryError`; `rename("d", "d3")` (no slash) succeeds.
-   **Seen failing first:** on today's code `rename("s/", "x")` either escapes (macOS) or wrongly
-   succeeds/behaves per the native kernel; the assertion that it is `ENOTDIR` on every host fails
-   until the rule is in place.
+   writable grant with a real sub-directory `d`, a regular file `f`, and a symlink `s` to `d`.
+   Source-slash cases: `rename("d/", "d2")` succeeds; `rename("f/", "x")` and `rename("s/", "x")`
+   each raise `NotADirectoryError`; `rename("missing/", "x")` raises `FileNotFoundError` (the
+   stat's errno, Decision 3). **Target-slash cases, which 49.0.0 does *not* refuse** (it strips the
+   target slash and renames by plain names, so these succeed today on every host, including Linux):
+   `rename("f", "x/")` and `rename("s", "x/")` each raise `NotADirectoryError`; `rename("d", "d4/")`
+   succeeds; `rename("d", "d3")` (no slash) succeeds. After the refused renames, `d` and `s` are
+   both still in place (the in-sandbox symlink is not moved either). **Seen failing first on every
+   host:** the target-slash cases `rename("f","x/")` and `rename("s","x/")` succeed on today's
+   49.0.0 everywhere, so the assertion that they are `ENOTDIR` fails first on Linux too, not only
+   where the source-slash symlink escapes.
 3. `test_a_grant_readdir_writes_zero_dirent_padding` (`tests/unit/test_runner_mounts.py`), the
    forwarded (no-provider) sibling of 032's `test_a_mount_writes_zero_dirent_padding`: a guard
    `_Files` (empty mounts) forwards `fd_readdir` on a real directory descriptor over a buffer
-   pre-filled with `0xFF`; every entry's bytes 21–23 are zero, on full and cut-short buffers
-   (sizes that end inside a header's padding), and nothing past the used length is touched.
-   **Seen failing first:** without the zeroing, the `0xFF` padding (or host bytes) survives.
+   pre-filled with `0xFF`; every entry's bytes 21–23 are zero, walking by `24 + d_namlen` within
+   `[buf, buf+used)`, on full and cut-short buffers (sizes that end inside a header's padding).
+   Includes a case where the guest's `used` pointer lies **inside** the buffer: its 4 bytes keep
+   wasmtime's value (not zeroed), and nothing past `used` is touched. **Seen failing first:**
+   without the zeroing, the `0xFF` padding (or host bytes) survives; if the walk overwrote `used`,
+   its value would be clobbered.
 4. `test_the_rename_rule_forward_is_fuel_neutral` (`tests/unit/test_runner_mounts.py`): a metered
-   guard call whose shadow forwards a `path_filestat_get` and then a `path_rename` reports the
-   guest fuel the unguarded forward would, i.e. the allowance is read and restored around each
-   forward (the mechanism 032 proved for its forwards; here for the rename's two forwards).
-   **Seen failing first:** if the stat forward leaked the allowance, the guest's `fuel_used` would
-   grow by `FUEL_ALLOWANCE` per listing/rename.
+   guard call whose shadow forwards a `path_filestat_get` (on the stat trampoline) and then a
+   `path_rename` reports the guest fuel the unguarded forward would, i.e. the allowance is read and
+   restored around each forward (the mechanism 032 proved for its forwards; here for the rename's
+   two forwards). **Seen failing first:** if a forward leaked the allowance, the guest's
+   `fuel_used` would grow by `FUEL_ALLOWANCE` per listing/rename.
 5. `test_a_guard_call_leaves_the_other_calls_native` (`tests/unit/test_runner_mounts.py`): the
    guard linker shadows exactly `fd_readdir` and `path_rename`; a guard call's `path_open`,
    `fd_read`, `fd_write`, `fd_seek` reach wasmtime directly (the guard `_Files` records no provider
    call for them). A guard, so the fast path is not widened by mistake.
+5b. `test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes`
+   (`tests/unit/test_runner_mounts.py`), the before-and-after guard (finding F6): on a call without
+   mounts, `done.files is None` (the guard table is never reported, Decision 7); and the raw
+   `fd_readdir` and `path_rename` answers — errno, any EFAULT trap and its message's first line —
+   match today's native answers, except the two fixes (zeroed padding; the trailing-slash rule).
+   The existing raw parity table compares a grant with a mount, not today with after, so nothing
+   else guards "a call without mounts behaves as before". **Seen failing first:** on a build where
+   the guard table is reported, `done.files` is not `None`.
 6. The raw parity check (032's `test_raw_calls_answer_as_a_grant_does`) compares a grant and a
    mount with `DIRENT_MASKED` reduced to `d_ino` (bytes 8–16) only: the padding bytes 21–23 are now
-   asserted equal (both zero), not masked. **Seen failing first on 032's masked state** (the
-   padding differed, which is why 032 masked it); it passes once the grant's forwarded readdir is
-   zeroed too. This is why 048 lands after 032's dirent-padding fix.
-7. `test_the_rename_and_readdir_guard_match_the_pin` (`tests/checks/test_rules.py`): while `uv.lock`
-   pins a wasmtime < 49.0.2, the `fd_readdir` guard is present; while it pins a wasmtime < 49.0.3,
-   the `path_rename` guard is present; at or past those versions the respective guard and its
-   checks are gone (Decision 4). The check reads the pinned wasmtime version from `uv.lock` and the
-   presence of the guard in the source. A guard so the belt is removed when, and only when, the pin
-   moves.
+   asserted equal (both zero), not masked. **Seen failing first on main's masked state** (the
+   padding differed on a grant, which is why 032 masked it); it passes once the grant's forwarded
+   readdir is zeroed too.
+7. `test_the_rename_and_readdir_guard_match_the_floor` (`tests/checks/test_rules.py`): the check
+   reads the **floor of the `wasmtime` requirement in `pyproject.toml`** (not `uv.lock`), and two
+   explicit lists of patched versions written in the check and citing the advisory JSON
+   (GHSA-96f6-r43r-8c24: `36.0.17, 48.0.4, 49.0.2`; GHSA-m9f7-9w4p-gv38: `36.0.18, 48.0.6,
+   49.0.3`). While the floor still admits a wasmtime not on the padding list, the `fd_readdir`
+   guard is present in the source; while it admits one not on the rename list, the `path_rename`
+   guard is present; when the floor admits neither, each guard and its checks are gone. A version
+   not on a list keeps its guard (no "at or past" ordering, since wasmtime's releases are not
+   linearly ordered). A guard so the belt is removed when, and only when, the published floor stops
+   admitting a vulnerable wasmtime.
 8. `uv run ruff check`, `uv run ruff format --check`, and `uv run pytest` green, with
    `--accept-judge` for the new and changed checks; ratchet vs the base: lost 0, grew 0 (the guard
    is fuel-neutral, so no fuel golden grows; if a byte count moves, it is stated).
@@ -241,19 +339,23 @@ caller and no artifacts, as `test_runner_mounts.py` does. Nothing measures wall-
 ## The owner's choices
 
 None open here. This specification decides every choice it needs (constitution §5.2): the precise
-49.0.3 rule for `path_rename` (Decision 1), the source-type read in borrowed guest memory
-(Decision 2), `fd_readdir` padding zeroed on every call (Decision 3), the guard carried only while
-the pin is on 49.0.0 and removed when it moves (Decision 4), and `path_symlink` left native with
-the defence-in-depth alternative recorded (Decision 5).
+49.0.3 rule for `path_rename`, forwarded by plain names after the check (Decision 1); the
+source-type read in a private one-page memory, never the guest's (Decision 2); the stat's own
+errno passed through, `ENOTDIR` only for a successful stat on a non-directory (Decision 3);
+`fd_readdir` padding zeroed on every call with `used` kept intact (Decision 4); each guard carried
+only while the published floor admits a vulnerable wasmtime, removed when it no longer does
+(Decision 5); and `path_symlink` left native with the defence-in-depth alternative recorded
+(Decision 6).
 
 Four owner matters are already recorded as owner questions 84 to 87
 (`../questions-for-the-owner.md`), raised by the research memo, and this specification does not
-pre-empt them: whether 0.1.0a4 ships with this guard or documents the escape (84); whether to also
-refuse `path_symlink` (85, Decision 5 records the alternative and how to take it); keeping facts
-sheet 12 as the standing upstream ask and removing the guard when the pin moves (86, Decision 4);
-and the outward-facing handling of the already-published 0.1.0a3 (87), which the agent does not act
-on. The build proceeds on the recommended answers (land the guard; the precise rule only); if the
-owner answers 84 or 85 otherwise, the change is small and named in Decision 5.
+pre-empt them: whether 0.1.0a4 ships with this guard or documents the escape (84) — a **release**
+decision, so building and landing 048 go ahead and only the 0.1.0a4 release waits on it; whether to
+also refuse `path_symlink` (85, Decision 6 records the alternative and how to take it); keeping
+facts sheet 12 as the standing upstream ask and removing each guard when the floor moves (86,
+Decision 5); and the outward-facing handling of the already-published 0.1.0a3 (87), which the agent
+does not act on. The build proceeds on the recommended answers (land the guard; the precise rule
+only); if the owner answers 85 otherwise, the change is small and named in Decision 6.
 
 ## Landing notes
 

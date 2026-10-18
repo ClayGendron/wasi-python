@@ -225,7 +225,69 @@ lies inside the buffer.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-_(blank)_
+The specification was revised against all eight findings (048 Status now cites this review).
+Finding by finding:
+
+- **F1 (forward keeps the race): fixed.** Decision 1 now forwards the rename **by plain names** —
+  every trailing `/` trimmed from both paths before the forward, the same guest pointers with
+  shorter lengths (never below one byte, as `strip_dir_suffix` keeps), writing nothing to guest
+  memory. This is wasmtime 49.0.3's non-Linux behaviour (strip, check source `FollowSymlinks::No`,
+  rename by plain basenames) and closes the check/rename race, quoting the upstream comment
+  ("whatever replaces the source in between is still renamed by its plain name"). One code path on
+  every host. Criterion 2 adds the unit-level assertion via the check cases; the builder note to
+  assert the forwarded lengths have no trailing `/` is carried in Decision 1's text and the Design
+  line for `_Files._path_rename`.
+
+- **F2 (borrowed scratch can end the guest): fixed.** Decision 2 no longer borrows guest memory.
+  The source's type is read through a **second, tiny trampoline instantiated per guarded call that
+  defines its own one-page `memory`** and imports only `path_filestat_get`; the stripped source
+  path is copied to offset 64, the result asked for at offset 0, the filetype read at byte 16. No
+  guest byte is read, saved or restored; the alignment and `fits` refusals are gone. The Design
+  and the trampoline-cost note are updated (two forwards for a rename: stat, then rename).
+
+- **F3 (stat error → wrong errno): fixed.** Decision 3 passes the forwarded stat's own non-zero
+  errno through (so `os.rename("missing/", "x")` raises `FileNotFoundError`, matching 49.0.0 and
+  49.0.3), and answers `ENOTDIR` only for a *successful* stat whose filetype is not `DIRECTORY`.
+  The small errno-order difference (49.0.3 opens both parents before the stat; the shadow stats the
+  source first) is stated and accepted, with no sandbox consequence. The read-only EPERM→ENOENT
+  change for a missing source is named here and in F8.
+
+- **F4 (pin tie reads the wrong pin): fixed.** Decision 5 and criterion 7 now read the **floor of
+  the `wasmtime` requirement in `pyproject.toml`** (not `uv.lock`), and decide "fixed" from
+  **explicit per-advisory lists of patched versions** written in the check and citing the advisory
+  JSON (padding `36.0.17, 48.0.4, 49.0.2`; rename `36.0.18, 48.0.6, 49.0.3`), with no "at or past"
+  ordering. The spec that moves the pin must record which wasmtime the wasmtime-py wheel bundles.
+
+- **F5 (criterion 2 not failing first on Linux; misses target-slash): fixed.** Criterion 2 adds the
+  target-only cases `rename("f","x/")` and `rename("s","x/")` (→ `ENOTDIR`) and `rename("d","d4/")`
+  (→ success), plus the in-sandbox check that `d` and `s` stay in place; its "seen failing first"
+  now holds on every host (the target-slash cases succeed on today's 49.0.0 everywhere, Linux
+  included). Criterion 1's host probe is reduced to *reporting* whether the kernel follows the link;
+  its safe outcome is asserted on every host.
+
+- **F6 (guard table changes `Completed.files` and stop behaviour): fixed.** Decision 7 states the
+  guard table is **never reported** — `Completed.files` stays `None` without mounts (a flag on
+  `_Files` or keeping it out of the `record()` branch) — and that the EIO-after-stop and pending
+  Ctrl-C behaviour now reaching these two calls on plain calls is spec 030/015 and intended. New
+  criterion **5b** asserts `done.files is None` without mounts and that the raw `fd_readdir`/
+  `path_rename` answers match today's native answers but for the two fixes (a before-and-after
+  guard the grant-vs-mount parity table does not give).
+
+- **F7 (padding walk and `used`): fixed.** Decision 4 walks by **`24 + d_namlen`** within
+  **`[buf, buf + used)`**, zeroes only when the forward returned 0, and leaves the 4 bytes at the
+  guest's `used` pointer intact. Criterion 3 adds a case where `used` lies inside the buffer.
+
+- **F8 (small points): fixed.** `_has_writable_place` is dropped (Decision 6, nothing built needs
+  it). Spec 034 ordering is named: 048 and 034 both edit `_Files._path_rename`, land one at a time,
+  and whichever lands second rebases on the first; after 048 a served trailing-slash rename of a
+  non-directory answers `ENOTDIR`, which 034's served rename must match for parity (Status, Scope).
+  "Not build-class" is stated in the Kind line and the Design, superseding the research memo's
+  label. The read-only EPERM→ENOENT change is recorded (Decision 3). Owner question 84 is marked a
+  **release** decision in "The owner's choices": building and landing go ahead; only the 0.1.0a4
+  release waits on it.
+
+Headings stay free of the word "question" (`uv run pytest -q tests/checks/test_rules.py` green).
+Not committed; awaiting the reviewer's confirmation.
 
 ## Verdict
 
