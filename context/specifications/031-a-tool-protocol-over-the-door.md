@@ -8,7 +8,10 @@
   (constitution §5.6): **confirmed for build with conditions, written in** (the review's
   "Confirmation": C1 in Decisions 3 and 5 and criterion 4; C3 in Decision 4 and criterion
   5; C4 in criterion 8; C5 in Decision 5 and criterion 5). **Built 2026-10-18** on
-  `spec/031-a-tool-protocol-over-the-door`; awaiting its build review (see Landing notes).
+  `spec/031-a-tool-protocol-over-the-door`; its build review
+  (`../reviews/031-a-tool-protocol-over-the-door-2026-10-18.md`) said not yet (F1 and F2);
+  **revised against it the same day** (Decisions 3, 4, 8 and 9 and criterion 14 amended; see
+  Landing notes), awaiting the reviewer's confirmation.
 - **Owner:** Clay Gendron
 - **Kind:** build-class (constitution §5.7: it adds files under `recipes/` and changes
   `scripts/steps/70_zip.sh`). A new host module (`src/wasi_python/tools.py`), the guest package
@@ -162,6 +165,16 @@ JSON, schemas and records must be the protocol's own, not whatever CPython does.
      JSON value, and a call with more than 100,000 values is either bulk data, which belongs in
      a granted folder as the request cap already says (a 1 MiB frame can hold about 524,288
      one-digit items, and is then refused here), or a branch explosion. The README says so.
+   - **What a step is** (amended 2026-10-18 by the build review's F1 and F2). A value costs one
+     step for each schema node it is checked against: its own, each `$ref`, `anyOf` or `oneOf`
+     around it, and each `anyOf` branch tried. A node that only delegates (`$ref`, `anyOf`,
+     `oneOf`, with no keyword that describes children) leaves the value's children to the schema
+     it delegates to, so the cost per value does not grow with depth: pydantic's shapes cost
+     about 1.4 to 2.3 steps per value. A key (`enum`, `const`, `uniqueItems`) costs one step for
+     each value below the one it is made for, and a `uniqueItems` key one more for its item; each
+     `enum` and `const` is a set of keys made once by `tool()`, so membership is one lookup. A
+     message names a value by its kind and size, or by 64 characters of a string, never by
+     formatting it whole.
    - **Bytes.** After parsing, an object with exactly the one key `"$bytes"` whose value is a
      string is decoded as strict base64 into `bytes`; any other `$bytes` object is a `protocol`
      answer. A value is accepted as bytes only where its schema says `{"type": "string",
@@ -173,7 +186,8 @@ JSON, schemas and records must be the protocol's own, not whatever CPython does.
    2. it decodes as strict UTF-8 (`json.loads` never sees bytes, so no UTF-16 or UTF-32);
    3. a scan of the text counts nesting outside strings: **the frame's nesting, its envelope
       included, is at most 64** (so 62 levels inside the `args` value); 65 is refused. So no
-      parser, validator or decoder recursion depends on the CPython version;
+      parser, validator or decoder recursion depends on the CPython version (with the bound on
+      same-value chains, at most 8 schema nodes, that `tool()` checks: the build review's F5);
    4. `json.loads` with: `parse_constant` refusing `NaN` and `Infinity`; `parse_float` refusing a
       non-finite result (`1e400`); `parse_int` refusing a literal longer than 64 characters,
       whatever the process's integer-digit limit; `object_pairs_hook` refusing a duplicate key;
@@ -290,7 +304,11 @@ JSON, schemas and records must be the protocol's own, not whatever CPython does.
      binding error is `ToolArgumentError`, with no frame sent. Values are encoded by Decision
      6's rules; anything else is `ToolArgumentError` naming the type and, for an array or a
      frame, suggesting `.tolist()` or `.to_dict("records")`. A failed answer raises the class for
-     its kind; an unknown kind raises `ToolError`.
+     its kind; an unknown kind raises `ToolError`. (Amended 2026-10-18 by the build review.) The
+     guest refuses any dict holding a `"$bytes"` key, not only one whose only key it is (the
+     host would answer a two-key one `protocol`), and, as `ToolArgumentError` with no frame
+     sent, whatever Decision 4's rules would refuse: arguments nested past 62 levels (bytes
+     count a level, as their `$bytes` object) and an integer over 64 characters.
    - **An unknown attribute** raises `AttributeError` listing the offered names.
    - **Without the protocol.** Under no host, `from host import tools` raises `ImportError`:
      "this run has no tools: the embedder passed none". Under a raw `host=`, the discovery frame
@@ -313,6 +331,12 @@ JSON, schemas and records must be the protocol's own, not whatever CPython does.
    - **Cost:** about 77,912 fuel per zip member on a plain-binary start (the default-profile memo,
      finding 5), so about +156,000 per plain start, about +0.06% on `pass`. A snapshot start does
      not pay it. The judge accepts it with `--accept-growth` and that reason.
+   - **Cost, as measured (amended 2026-10-18 by the build review, question 1).** A plain start
+     pays about +0.16 M, as predicted. A snapshot's start and program pay nothing more (an
+     `os._exit(0)` run differs by about −1,000 fuel), but its teardown, `Py_FinalizeEx` after the
+     program, pays about +0.11 M: every new member shifts the frozen heap that teardown frees
+     (INFERRED by the review; spec 033's 7 members cost +0.07 M the same way). The growth reason
+     says so. Spec 035 may change it; this does not wait for it.
    - **Building it.** The builder develops end to end against today's artifacts first, with the
      guest package on a read-only `Grant` and `PYTHONPATH` set to it, and adds the two zip lines
      last, so the lane holds the build only for the final rebuild.
@@ -461,8 +485,9 @@ as a raw `host=`, its record read from the object):
     recipe passes with them.
 
 **The whole:**
-14. `uv run pytest` green with `--accept-judge`; lost 0; the growth in bytes and in plain-start
-    fuel (Decision 9) accepted with `--accept-growth` and that reason, and nothing else grows.
+14. `uv run pytest` green with `--accept-judge`; lost 0; the growth in bytes, in plain-start
+    fuel and in the snapshot's teardown (Decision 9, as amended) accepted with `--accept-growth`
+    and that reason, and nothing else grows beyond heap-layout noise in the heavy jobs.
 15. A release dry run passes every job (the artifact set changed).
 
 ## The owner's choices
@@ -498,7 +523,7 @@ lane's acceptance after it.
 - `README.md`: "The tool protocol" (Decision 12), the recipe that renames a property, and the
   zip's row in "What you get". `CHANGELOG.md`: one entry.
 
-### The artifact set
+### The artifact set (the first build; superseded by the revision below)
 
 The worktree's first build matched main's frozen set before any change (`diff` of
 `build/artifacts/SHA256SUMS` against `build/sets/s-8d84b3b190fe9bce/SHA256SUMS`: no output).
@@ -718,3 +743,162 @@ The review should confirm or reject each of these.
   hide a refusal.
 - The guest package runs with the guest's privileges only. It trusts nothing from the answer
   beyond JSON types (`v`, `id` and `ok` are type-checked; `$bytes` is decoded strictly).
+
+### Revision after the build review (2026-10-18)
+
+The review (`../reviews/031-a-tool-protocol-over-the-door-2026-10-18.md`) said "not yet; fix F1
+and F2 together". The branch was rebased onto main at `3b9c9c1` (spec 032 accepted). The
+conflict in `tests/checks/test_v1_4_embedding.py` was mechanical: both sides had appended to
+the end, and both blocks were kept. `README.md` and `CHANGELOG.md` merged on their own. Spec
+032 changed no build input. Every number below is EXECUTED in the worktree unless labelled.
+
+**F1 and F2, the validator.** The validator was rewritten as one piece (`_Validator`, `_key`,
+`_keysets`, `_shown`, `_where`):
+- A node that only delegates (`$ref`, `anyOf`, `oneOf`, with no keyword about children) no
+  longer walks the value. The schema it delegates to does, so the bytes rule still holds (F2).
+- Each `enum` and `const` is a set of keys, made once by `tool()` (`Tool._keysets`), so a check
+  is one key and one lookup (F1).
+- `_key` charges one step for each value below the one it keys; a `uniqueItems` key costs one
+  more for its item.
+- `_shown` and `_echo` name a non-string value by its kind and size, and never `json.dumps` it.
+- A path is kept as links and rendered only for a message, so a visit no longer copies a
+  string.
+
+The new checks, each seen failing against the reviewed code (`2788f49`'s `tools.py`, loaded in
+place of the new one by a scratch plugin):
+
+| check | against the reviewed code |
+|---|---|
+| `test_valid_arguments_cost_about_one_step_per_value`, 4 cases | 4 failed |
+| `test_an_enum_costs_one_key_per_value` | failed (the reviewer counted 60,093,990 key builds there; now at most 99,990 + 10) |
+| `test_messages_never_format_a_whole_value` | failed |
+| `test_unique_item_keys_are_charged` | passed: it kills the "item key uncounted" mutant (F6) |
+
+The check is a stated bound, not "about one". Measured:
+
+| arguments | JSON values | steps | per value | bound in the check |
+|---|---|---|---|---|
+| order, 5,000 lines | 35,002 | 50,002 | 1.43 | 1.5 |
+| tree 20 deep, 5,000 leaves | 15,064 | 35,085 | 2.33 | 2.5 |
+| tree 60 deep, 1,000 leaves | 3,184 | 7,245 | 2.28 | 2.5 |
+| pydantic's recursive union, 60 deep | 1,062 | 2,189 | 2.06 | 2.5 |
+
+- The tree's figure is 2.3, not 1.5, because its `Optional` parent tries `$ref` before `null`:
+  three steps for a `null`.
+- The cost per value no longer grows with depth. The review measured 41.76 per value at 40 deep
+  before.
+- A 10,000-line order (70,002 values, about 100,000 steps at 1.43) is still "too complex". So
+  the README and Decision 3 now say a call of more than about 50,000 values is bulk data.
+- The reviewer's 600-name `Literal` frame (99,990 names) now answers `ok`, with 99,990 key
+  builds.
+
+**F3.**
+- `_fault` is `_described` (032's pattern and text), made total over `BaseException`.
+- Both handlers that read a `ToolError`'s text now catch `BaseException`, and `_message_of` gives
+  a plain `str`.
+- `test_a_base_exception_never_escapes_the_frame_host`, 8 cases (`SystemExit`, Ctrl-C, a
+  `__str__` raising either, each from a tool and from a gate). Against the reviewed code, two
+  cases failed, and the Ctrl-C one escaped and aborted the pytest session.
+
+**F4.** The guest now refuses, as `ToolArgumentError` and with no frame sent, two things the host
+would refuse as `protocol`:
+- a container, or bytes (which cross as an object), at a depth of 62 or more inside an argument;
+- an integer whose literal would be over 64 characters (`-(10**63) < n < 10**64`, checked before
+  `json.dumps`).
+
+`test_the_guest_refuses_what_the_host_would_refuse_as_protocol` and
+`test_a_loose_bytes_answer_is_a_protocol_error` failed against the old guest. `"QR=="` is left
+out of the loose list: strict mode accepts it on both halves alike.
+
+**F5.**
+- `_Vetting.no_cycle` now also computes each node's longest same-value walk, and `tool()`
+  refuses one over `SAME_VALUE_CHAIN` = 8 schema nodes. The validator's depth is then at most 62
+  times 10 frames, under any CPython limit.
+- `test_a_long_same_value_chain_is_refused` covers 1,500 nodes and 9, and accepts 7. It failed
+  against the reviewed code.
+- The catch-all point is spec 036's: 036's `invoke` should never raise, or its catch-all should
+  keep `op`, `tool` and an unknown `abandoned`. The note is not written into 036's spec, since
+  this branch carries one specification. It is left for 036's builder, in the disposition.
+
+**F6.**
+- I ran the reviewer's 21 mutants, adapted to the new code, plus 10 of my own, one for each new
+  mechanism. All 31 are killed: `mutants.txt` in the worktree's scratch folder.
+- My first run left two survivors: the key charge removed, and arrays walked at every delegating
+  node. The `const` case and the recursive-union case in the checks above were sharpened until
+  both were killed.
+- `test_a_result_nested_too_deep_is_a_fault` covers the result bound.
+
+**F7.**
+- `Tool`'s guard is now a context variable that only `tool()` sets, so `dataclasses.replace`
+  raises `TypeError` (`test_only_tool_makes_a_tool`; it failed against the reviewed code).
+- numpy's `bool_` faults as "(internal error)", by Decision 6 as written; 036's README should
+  say "return `bool(...)`".
+- `max_calls=None` means no frame limit. It is private here, and 036 must not expose it
+  unannounced (§4.15).
+
+**Amended:**
+- Decision 3: what a step is.
+- Decision 4: the chain bound.
+- Decision 8: the guest refuses any `"$bytes"` dict and what the frame rules would refuse.
+- Decision 9 and criterion 14: the snapshot's growth is teardown.
+- The README's budget paragraph, the CHANGELOG's costs, and a comment in `pyproject.toml`
+  (review question 8).
+
+**The artifact set after the revision.** The guest package changed, so steps 70 to 90 were
+rebuilt (`scripts/build.sh --from 70`):
+
+```
+fbb1b1e2ac3f8b37bdf143c6e33e74dbafd62c1442826151b7fe80fb3e4fb531  MANIFEST
+0cdc7b2bd78db6f5b73682b874ad94b4c23c47c6213c7d40ddfe49496299b725  python-snapshot.wasm
+ee1acace2fc1fb2632067eef2abe24c2a9d5f83aa156b565d18ad9cb9c7bb4bc  python-stdlib.zip
+4befe9de64edc783996ab006e6179b704a73a520b67431135df103db9db9625d  python.wasm
+```
+
+- `python.wasm` and every `LICENSES/` line are unchanged.
+- The recipe line is now `bf592ac8…` for `recipes/guest/host/tools.py`.
+- The zip: 1,102 `.pyc`, 11,175,028 bytes (+12,963 on main's frozen set).
+- The snapshot: 65,509,949 bytes (+4,197).
+
+**The cost, re-measured** on main's frozen set `s-8d84b3b190fe9bce` against the revised set,
+under the same five heap perturbations:
+
+| program | binary | mean | min | max |
+|---|---|---|---|---|
+| `-c pass` | snapshot | +110,800 | +87,167 | +122,141 |
+| `-c pass` | plain | +155,809 | +145,020 | +167,345 |
+| `-c "import os; os._exit(0)"` | snapshot | −989 | −1,163 | −838 |
+| `-c "import os; os._exit(0)"` | plain | +151,746 | +145,927 | +160,073 |
+
+So a snapshot's start and program cost nothing more, and its +0.11 M is teardown, as the review
+found. A plain start pays for the two members it reads.
+
+**The judge on the rebased, revised tree** (`uv run pytest`, no flags, its own artifacts):
+
+```
+wasi_python v1: 223/227 pass · 0 gap · 4 blocked · 0 fail   (unit suite 812/819, 7 skipped)
+  v1.1  artifact set        24/25  blocked 1
+  v1.2  portable, sealed    45/46  blocked 1
+  v1.3  data stack          20/21  blocked 1
+  v1.4  embedding           95/95
+  v1.5  rebuild from pins   18/18
+  rules constitution rules  21/22  blocked 1
+blocked by: oracle 1 · prior-art clones 1 · three systems 1 · wheel 1
+ratchet vs 789c841673: lost 0 · absent 0 · unrun 0 · unrun locally 2 · gained 4 · grew 40 · judge changed: pyproject.toml, tests/checks/test_rules.py, tests/checks/test_v1_4_embedding.py and 2 more
+RED: 40 metric(s) grew
+1035 passed, 11 skipped in 370.77s
+```
+
+- It is red only for growth.
+- Against `context/progress/accepted.json`: 2 byte metrics (+12,963 zip, +4,197 snapshot) and
+  41 fuel metrics rose, 38 past the ratchet; 6 fell.
+  - `test_guest_runs_here`: +156,648 on plain, +101,353 on the snapshot.
+  - The heavy jobs: from −447,659 (`numpy_csv`) to +2,190,148 (`pandas_csv`).
+  - Criterion 11's fuel: snapshot 95,544,939; plain 5,005,055,535.
+- `ruff check` and `ruff format --check` are clean on `src tests recipes/guest`.
+
+**The growth reason for the lane:** "spec 031: the zip gains 2 members (+12,963 bytes) and the
+snapshot +4,197 bytes; python.wasm unchanged; a plain start +~0.16 M fuel from reading 2 more zip
+members, as Decision 9 predicted; a snapshot start +~0.11 M, all of it in Py_FinalizeEx after the
+program (an os._exit(0) run differs by -989), not in the start or the program (Decision 9 and
+criterion 14 as amended); heavy jobs move within +-2.2 M, heap-layout noise as in spec 033's
+acceptance".

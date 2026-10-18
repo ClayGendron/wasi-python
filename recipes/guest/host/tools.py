@@ -37,6 +37,10 @@ _CLASS_OF_KIND = {
     "budget_exceeded": _ToolBudgetExceeded,
 }
 _NESTING = 62  # the most a call's arguments may nest: the frame, with its envelope, nests 64
+_INT_LOW, _INT_HIGH = (
+    -(10**63),
+    10**64,
+)  # an integer literal of at most 64 characters, sign included
 _NAME = _re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _next_id = [0]
 
@@ -45,21 +49,35 @@ class _NotProtocol(Exception):
     pass
 
 
-def _encode(value, where, depth=0):
-    """The protocol's JSON form of an argument (spec 031, Decision 6)."""
-    if depth > _NESTING:
+def _deeper(where, depth):
+    # A container at `depth` is level depth + 1 of the arguments, which may nest 62 levels.
+    if depth >= _NESTING:
         raise _ToolArgumentError(f"{where} nests deeper than {_NESTING} levels")
+
+
+def _integer(value, where):
+    number = int(value)
+    if not _INT_LOW < number < _INT_HIGH:
+        raise _ToolArgumentError(f"{where} is an integer longer than 64 characters")
+    return number
+
+
+def _encode(value, where, depth=0):
+    """The protocol's JSON form of an argument (spec 031, Decision 6), within the frame rules'
+    bounds, so a value the host would refuse as `protocol` is refused here, with no frame."""
     if value is None or isinstance(value, (bool, str)):
         return value
     if isinstance(value, int):
-        return int(value)
+        return _integer(value, where)
     if isinstance(value, float):
         if value != value or value in (float("inf"), float("-inf")):
             raise _ToolArgumentError(f"{where} is {value!r}; only finite numbers cross")
         return float(value)
     if isinstance(value, (bytes, bytearray, memoryview)):
+        _deeper(where, depth)  # bytes cross as an object
         return {"$bytes": _binascii.b2a_base64(bytes(value), newline=False).decode("ascii")}
     if isinstance(value, dict):
+        _deeper(where, depth)
         if "$bytes" in value:
             raise _ToolArgumentError(f'{where}: a dict with the key "$bytes" would read as bytes')
         out = {}
@@ -69,11 +87,12 @@ def _encode(value, where, depth=0):
             out[k] = _encode(v, f"{where}[{k!r}]", depth + 1)
         return out
     if isinstance(value, (list, tuple)):
+        _deeper(where, depth)
         return [_encode(v, f"{where}[{i}]", depth + 1) for i, v in enumerate(value)]
     import numbers as _numbers  # only here: numpy registers its scalars with it
 
     if isinstance(value, _numbers.Integral):
-        return int(value)
+        return _integer(value, where)
     if isinstance(value, _numbers.Real):
         return _encode(float(value), where, depth)
     hint = ""

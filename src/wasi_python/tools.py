@@ -25,6 +25,7 @@ an answer is the same on every host. `import wasi_python` does not import this m
 from __future__ import annotations
 
 import binascii
+import contextvars
 import copy
 import functools
 import inspect
@@ -64,6 +65,7 @@ KINDS = (
     "budget_exceeded",
 )
 TOO_COMPLEX = "the arguments are too complex to check"
+SAME_VALUE_CHAIN = 8  # the most schema nodes a $ref, anyOf or oneOf chain passes on one value
 
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _HEADINGS = ("Args:", "Arguments:", "Returns:", "Raises:")
@@ -108,7 +110,7 @@ class ToolDenied(ToolError):
 # Tools
 
 
-_MADE_BY_TOOL = object()
+_MAKING = contextvars.ContextVar("wasi_python_tools_making", default=False)
 
 
 @dataclass(frozen=True, eq=False)
@@ -127,10 +129,11 @@ class Tool:
     destructive: bool = False
     idempotent: bool = False
     open_world: bool = False
-    _made: Any = field(default=None, repr=False)
+    _keysets: dict = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        if self._made is not _MADE_BY_TOOL:
+        # Only tool() makes one: not a direct call, and not dataclasses.replace (review F7).
+        if not _MAKING.get():
             raise TypeError("a Tool is made by tool(), which describes and vets it")
 
     @property
@@ -286,24 +289,28 @@ def _make(
                 f"got {type(input_schema).__name__}"
             )
         schema = _plain(given, f"{name}: input_schema", 0)
-    _vet(name, schema, validates_input)
+    nodes = _vet(name, schema, validates_input)
     output = None
     if "return" in hints_of:
         try:
             output = _schema_of(hints_of["return"], "return")
         except (TypeError, ValueError):
             output = None  # a return hint that does not map: no output schema
-    return Tool(
-        name=name,
-        description=description,
-        fn=fn,
-        _input_schema=schema,
-        _output_schema=output,
-        validates_input=validates_input,
-        timeout_s=timeout,
-        _made=_MADE_BY_TOOL,
-        **hints,
-    )
+    making = _MAKING.set(True)
+    try:
+        return Tool(
+            name=name,
+            description=description,
+            fn=fn,
+            _input_schema=schema,
+            _output_schema=output,
+            validates_input=validates_input,
+            timeout_s=timeout,
+            _keysets=_keysets(nodes),
+            **hints,
+        )
+    finally:
+        _MAKING.reset(making)
 
 
 def _is_async(fn: Any) -> bool:
@@ -506,7 +513,7 @@ def _plain(value: Any, where: str, depth: int) -> Any:
 # Vetting a schema (Decision 3)
 
 
-def _vet(name: str, root: dict, validates_input: bool) -> None:
+def _vet(name: str, root: dict, validates_input: bool) -> list[Any]:
     where = f"{name}: input schema"
     if root.get("type") != "object":
         raise ValueError(f'{where}: its root must be {{"type": "object", ...}}')
@@ -525,7 +532,7 @@ def _vet(name: str, root: dict, validates_input: bool) -> None:
         for r in required:
             if r not in properties:
                 raise ValueError(f"{where}: required names {r!r}, which is not in properties")
-    _Vetting(where, root, validates_input).run()
+    return _Vetting(where, root, validates_input).run()
 
 
 class _Vetting:
@@ -539,7 +546,7 @@ class _Vetting:
     def fail(self, path: str, what: str) -> None:
         raise ValueError(f"{self.where}: {path}: {what}")
 
-    def run(self) -> None:
+    def run(self) -> list[Any]:
         todo: list[tuple[str, Any]] = [("#", self.root)]
         for container in ("$defs", "definitions"):
             defs = self.root.get(container)
@@ -553,6 +560,7 @@ class _Vetting:
             nodes[id(node)] = node
             todo += self.node(path, node)
         self.no_cycle(list(nodes.values()))
+        return list(nodes.values())
 
     def node(self, path: str, s: Any) -> list[tuple[str, Any]]:
         """Vet one node; give the subschemas the validator visits from it."""
@@ -597,8 +605,11 @@ class _Vetting:
 
     def no_cycle(self, nodes: list[Any]) -> None:
         """No walk along anyOf, oneOf and $ref alone, which stay on one value, comes back to
-        where it began: a depth-first search over those edges finds no node on its own path."""
+        where it began: a depth-first search over those edges finds no node on its own path.
+        And none is longer than SAME_VALUE_CHAIN nodes, so the validator's recursion is bounded
+        by the value's depth times that, never by the host Python's limit (review F5)."""
         done: set[int] = set()
+        longest: dict[int, int] = {}  # the most nodes a same-value walk from a node passes
         for start in nodes:
             if id(start) in done:
                 continue
@@ -611,6 +622,13 @@ class _Vetting:
                     stack.pop()
                     on_path.discard(id(node))
                     done.add(id(node))
+                    below = [longest.get(id(c), 0) for c in self.same_value(node)]
+                    longest[id(node)] = 1 + max(below, default=0)
+                    if longest[id(node)] > SAME_VALUE_CHAIN:
+                        raise ValueError(
+                            f"{self.where}: a chain of more than {SAME_VALUE_CHAIN} $ref, anyOf "
+                            "or oneOf steps on one value; shorten it"
+                        )
                 elif id(child) in on_path:
                     raise ValueError(
                         f"{self.where}: a $ref cycle that does not descend into the value "
@@ -742,21 +760,58 @@ class _Invalid(Exception):
     pass
 
 
+_EMPTY: dict = {}
+_DELEGATES = ("$ref", "anyOf", "oneOf")
+_OBJECT_WORDS = frozenset(
+    ("properties", "additionalProperties", "required", "minProperties", "maxProperties")
+)
+_ARRAY_WORDS = frozenset(("items", "prefixItems", "minItems", "maxItems", "uniqueItems"))
+
+
+def _keysets(nodes: Iterable[Any]) -> dict[tuple[int, str], frozenset]:
+    """Each `enum` and `const` as a set of keys, made once when the tool is made, so checking a
+    value against them is one key and one lookup (review F1)."""
+    out: dict[tuple[int, str], frozenset] = {}
+    for s in nodes:
+        if not isinstance(s, dict):
+            continue
+        if isinstance(s.get("enum"), list):
+            out[(id(s), "enum")] = frozenset(_key(e) for e in s["enum"])
+        if "const" in s:
+            out[(id(s), "const")] = frozenset((_key(s["const"]),))
+    return out
+
+
 class _Validator:
     """Checks a decoded value against a vetted schema, with no coercion and type-strict
-    equality, counting every schema node it visits and every item key it makes against a
-    budget. Every JSON value costs at least one visit, and a value is accepted as bytes only
-    where its schema says so. `check` gives None, or what is wrong."""
+    equality, counting its work against a budget (Decision 3, and the build review's F1 and F2).
 
-    def __init__(self, root: Any, budget: int = TOOL_VALIDATION_STEPS) -> None:
+    - One step for each schema node a value is checked against. A node that only delegates
+      (`$ref`, `anyOf`, `oneOf`) leaves the value's children to the schema it delegates to, so a
+      value costs one step for each schema that describes it, never a walk per wrapper.
+    - A key (for `enum`, `const` and `uniqueItems`) costs one step for each value below the one
+      it is made for, and a `uniqueItems` key one more for its item; an `enum` or a `const` is a
+      set of keys made once, so membership is one lookup.
+    - A message names a value by its kind and size, or by 64 characters of a string.
+
+    A value is accepted as bytes only where its schema says so. `check` gives None, or what is
+    wrong."""
+
+    def __init__(
+        self,
+        root: Any,
+        budget: int = TOOL_VALIDATION_STEPS,
+        keysets: dict[tuple[int, str], frozenset] | None = None,
+    ) -> None:
         self.root, self.budget = root, budget
-        self.steps = 0  # schema nodes visited plus item keys made
+        self.keysets = dict(keysets or {})
+        self.steps = 0  # schema nodes visited, plus the values below each key made
         self.keys = 0  # item keys made (uniqueItems)
         self.exhausted = False
 
     def check(self, value: Any) -> str | None:
         try:
-            self.visit(self.root, value, "")
+            self.visit(self.root, value, None)
         except _TooComplex:
             self.exhausted = True
             return TOO_COMPLEX
@@ -769,13 +824,25 @@ class _Validator:
             raise _TooComplex
         self.steps += 1
 
-    def visit(self, s: Any, value: Any, at: str) -> None:
+    def keyset(self, s: dict, word: str) -> frozenset:
+        found = self.keysets.get((id(s), word))
+        if found is None:  # a schema no tool() vetted (the unit checks): made now, and charged
+            allowed = s["enum"] if word == "enum" else [s["const"]]
+            keys = []
+            for e in allowed:
+                self.step()
+                keys.append(_key(e, self.step))
+            found = self.keysets[(id(s), word)] = frozenset(keys)
+        return found
+
+    def visit(self, s: Any, value: Any, at: Any) -> None:
         self.step()
         if s is False:
             raise _Invalid(f"{_where(at)}: no value is allowed here")
         if s is True:
-            s = {}
-        if isinstance(value, bytes) and not any(k in s for k in ("type", "anyOf", "oneOf", "$ref")):
+            s = _EMPTY
+        delegates = any(k in s for k in _DELEGATES)
+        if isinstance(value, bytes) and "type" not in s and not delegates:
             raise _Invalid(
                 f'{_where(at)}: bytes are accepted only where the schema says {{"type": '
                 '"string", "contentEncoding": "base64"}'
@@ -788,16 +855,18 @@ class _Validator:
             if not any(_is_type(n, value, s) for n in names):
                 want = " or ".join(_type_name(n, s) for n in names)
                 raise _Invalid(f"{_where(at)}: expected {want}, got {_kind_of(value)}")
-        if "enum" in s:
-            k = _key(value)
-            if not any(_key(e) == k for e in s["enum"]):
+        if "enum" in s or "const" in s:
+            k = _key(value, self.step)
+            if "enum" in s and k not in self.keyset(s, "enum"):
                 raise _Invalid(f"{_where(at)}: {_shown(value)} is not one of the allowed values")
-        if "const" in s and _key(value) != _key(s["const"]):
-            raise _Invalid(f"{_where(at)}: {_shown(value)} is not the allowed value")
+            if "const" in s and k not in self.keyset(s, "const"):
+                raise _Invalid(f"{_where(at)}: {_shown(value)} is not the allowed value")
         if isinstance(value, dict):
-            self.object(s, value, at)
+            if not delegates or not _OBJECT_WORDS.isdisjoint(s):
+                self.object(s, value, at)
         elif isinstance(value, list):
-            self.array(s, value, at)
+            if not delegates or not _ARRAY_WORDS.isdisjoint(s):
+                self.array(s, value, at)
         elif isinstance(value, str):
             self.length(s, len(value), at, "characters")
         elif isinstance(value, bytes):
@@ -805,15 +874,15 @@ class _Validator:
         elif _number(value):
             self.number(s, value, at)
         if "anyOf" in s:
-            errors = []
+            first = None
             for branch in s["anyOf"]:
                 try:
                     self.visit(branch, value, at)
                     break
                 except _Invalid as e:
-                    errors.append(str(e))
+                    first = first or str(e)
             else:
-                raise _Invalid(f"{_where(at)}: matches none of anyOf ({errors[0]})")
+                raise _Invalid(f"{_where(at)}: matches none of anyOf ({first})")
         if "oneOf" in s:
             matched = 0
             first = ""
@@ -827,8 +896,8 @@ class _Validator:
                 why = f"none ({first})" if matched == 0 else f"{matched}"
                 raise _Invalid(f"{_where(at)}: must match exactly one of oneOf; it matches {why}")
 
-    def object(self, s: dict, value: dict, at: str) -> None:
-        props = s.get("properties", {})
+    def object(self, s: dict, value: dict, at: Any) -> None:
+        props = s.get("properties", _EMPTY)
         for name in s.get("required", ()):
             if name not in value:
                 raise _Invalid(f"{_where(at)}: missing the required argument {_echo(name)}")
@@ -840,13 +909,13 @@ class _Validator:
         extra = s.get("additionalProperties", False if "properties" in s else True)
         for k, v in value.items():
             if k in props:
-                self.visit(props[k], v, f"{at}.{k}" if at else k)
+                self.visit(props[k], v, (at, "." + k))
             elif extra is False:
                 raise _Invalid(f"{_where(at)}: unknown argument {_echo(k)}")
             else:
-                self.visit(extra, v, f"{at}.{_echo(k)}" if at else _echo(k))
+                self.visit(extra, v, (at, "." + _echo(k)))
 
-    def array(self, s: dict, value: list, at: str) -> None:
+    def array(self, s: dict, value: list, at: Any) -> None:
         n = len(value)
         if "minItems" in s and n < s["minItems"]:
             raise _Invalid(f"{_where(at)}: at least {s['minItems']} items, got {n}")
@@ -859,23 +928,23 @@ class _Validator:
                 if k in seen:
                     raise _Invalid(f"{_where(at)}: the items must be unique; item {i} repeats one")
                 seen.add(k)
-        prefix = s.get("prefixItems", [])
+        prefix = s.get("prefixItems", ())
         rest = s.get("items", True)
         for i, item in enumerate(value):
-            self.visit(prefix[i] if i < len(prefix) else rest, item, f"{at}[{i}]")
+            self.visit(prefix[i] if i < len(prefix) else rest, item, (at, f"[{i}]"))
 
     def item_key(self, item: Any) -> Any:
         self.step()
         self.keys += 1
-        return _key(item)
+        return _key(item, self.step)
 
-    def length(self, s: dict, n: int, at: str, unit: str) -> None:
+    def length(self, s: dict, n: int, at: Any, unit: str) -> None:
         if "minLength" in s and n < s["minLength"]:
             raise _Invalid(f"{_where(at)}: at least {s['minLength']} {unit}, got {n}")
         if "maxLength" in s and n > s["maxLength"]:
             raise _Invalid(f"{_where(at)}: at most {s['maxLength']} {unit}, got {n}")
 
-    def number(self, s: dict, x: int | float, at: str) -> None:
+    def number(self, s: dict, x: int | float, at: Any) -> None:
         for key, ok, says in (
             ("minimum", lambda b: x >= b, "at least"),
             ("maximum", lambda b: x <= b, "at most"),
@@ -889,8 +958,14 @@ class _Validator:
             raise _Invalid(f"{_where(at)}: must be a multiple of {m}, got {_shown(x)}")
 
 
-def _where(at: str) -> str:
-    return f"argument {at}" if at else "the arguments"
+def _where(at: Any) -> str:
+    """A path kept as (parent, segment) links, rendered only for a message."""
+    parts = []
+    while at is not None:
+        at, segment = at
+        parts.append(segment)
+    path = "".join(reversed(parts)).lstrip(".")
+    return f"argument {path}" if path else "the arguments"
 
 
 def _is_type(name: str, value: Any, s: dict) -> bool:
@@ -931,9 +1006,10 @@ def _kind_of(value: Any) -> str:
     }.get(type(value), type(value).__name__)
 
 
-def _key(value: Any) -> Any:
+def _key(value: Any, charge: Callable[[], None] | None = None) -> Any:
     """A hashable key, tagged by type at every level: two values have equal keys exactly when
-    they are equal as JSON with no coercion (true is never 1, 1.0 is never 1)."""
+    they are equal as JSON with no coercion (true is never 1, 1.0 is never 1). `charge` is
+    called once for each value below `value`, before its key is made."""
     if value is None:
         return ("n",)
     t = type(value)
@@ -948,9 +1024,19 @@ def _key(value: Any) -> Any:
     if t is bytes:
         return ("y", value)
     if t is list:
-        return ("l", tuple(_key(v) for v in value))
+        keys = []
+        for v in value:
+            if charge is not None:
+                charge()
+            keys.append(_key(v, charge))
+        return ("l", tuple(keys))
     if t is dict:
-        return ("d", tuple(sorted((k, _key(v)) for k, v in value.items())))
+        pairs = []
+        for k, v in value.items():
+            if charge is not None:
+                charge()
+            pairs.append((k, _key(v, charge)))
+        return ("d", tuple(sorted(pairs)))
     return ("?", id(value))
 
 
@@ -963,22 +1049,34 @@ class _Refused(Exception):
 
 
 def _echo(value: Any) -> str:
-    """A piece of guest text for a message: cut to 64 characters first."""
-    if isinstance(value, str):
-        text = value
-    elif isinstance(value, bytes):
-        text = repr(value[:ECHO_CHARS])
-    else:
-        try:
-            text = json.dumps(value, ensure_ascii=False, default=repr)
-        except (TypeError, ValueError):
-            text = type(value).__name__
-    cut = text[:ECHO_CHARS]
-    return f"'{cut}'" + ("..." if len(text) > ECHO_CHARS else "")
+    """A piece of guest text for a message: a string cut to 64 characters first; any other
+    value named by its kind and size (`_shown`), never formatted whole."""
+    if not isinstance(value, str):
+        return _shown(value)
+    cut = value[:ECHO_CHARS]
+    return f"'{cut}'" + ("..." if len(value) > ECHO_CHARS else "")
 
 
 def _shown(value: Any) -> str:
-    return _echo(value) if isinstance(value, str) else _echo(value).strip("'")
+    """A value for a message, at a cost bounded whatever its size (review F1)."""
+    if isinstance(value, str):
+        return _echo(value)
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if type(value) is int:
+        text = str(value) if -(10**ECHO_CHARS) < value < 10**ECHO_CHARS else "a long integer"
+        return text
+    if type(value) is float:
+        return repr(value)
+    if isinstance(value, list):
+        return f"an array of {len(value)} items"
+    if isinstance(value, dict):
+        return f"an object of {len(value)} keys"
+    if isinstance(value, bytes):
+        return f"{len(value)} bytes"
+    return f"a {type(value).__name__}"
 
 
 def _nesting(text: str) -> int:
@@ -1136,18 +1234,34 @@ def _bounded(message: str) -> str:
     return message[:MESSAGE_CHARS]
 
 
-def _fault(e: BaseException) -> str:
+def _described(e: BaseException) -> str:
+    """An exception's type name and the first line of its text, as spec 032's `_described`
+    (so `fault` reads as 032's `FileFault`), but total over `BaseException`: a `__str__` that
+    raises `SystemExit` gives the name alone (review F3)."""
     try:
-        first = (str(e).splitlines() or [""])[0]
-    except Exception:
-        first = ""
-    text = f"{type(e).__name__}: {first}" if first else type(e).__name__
-    return text[:FAULT_CHARS]
+        name = type.__dict__["__name__"].__get__(type(e))  # the type's own name
+        if type(name) is not str:
+            name = "an exception"
+    except BaseException:
+        name = "an exception"
+    try:
+        text = str(e)
+        if type(text) is not str:
+            return name
+        lines = str.splitlines(str.strip(text))
+    except BaseException:
+        return name
+    return f"{name}: {lines[0]}" if lines else name
+
+
+def _fault(e: BaseException) -> str:
+    return _described(e)[:FAULT_CHARS]
 
 
 def _message_of(e: BaseException) -> str:
-    """A ToolError's own text, bounded; raises whatever its __str__ raises."""
-    return _bounded(str(e))
+    """A ToolError's own text, bounded, as a plain str; raises whatever its __str__ raises."""
+    text = str(e)
+    return _bounded(text if type(text) is str else str.__str__(text))
 
 
 class _Done(NamedTuple):
@@ -1185,7 +1299,7 @@ class _Work:
             except ToolError as e:
                 try:
                     return self.failed("denied", _message_of(e))
-                except Exception as inner:
+                except BaseException as inner:
                     return self.failed("denied", refused, _fault(inner))
             except BaseException as e:  # a broken gate fails closed
                 return self.failed("denied", refused, _fault(e))
@@ -1201,7 +1315,7 @@ class _Work:
             how = "denied" if isinstance(e, ToolDenied) else "tool_error"
             try:
                 return self.failed(how, _message_of(e))
-            except Exception as inner:
+            except BaseException as inner:
                 return self.failed(how, internal, _fault(inner))
         except BaseException as e:
             return self.failed("tool_error", internal, _fault(e))
@@ -1384,7 +1498,7 @@ class _ToolHost:
             return failed(
                 "invalid_arguments", f"{t.name}: the arguments must be an object", frame_id
             )
-        error = _Validator(t._input_schema).check(args)
+        error = _Validator(t._input_schema, keysets=t._keysets).check(args)
         if error is not None:
             return failed("invalid_arguments", f"{t.name}: {error}", frame_id)
         work = _Work(self, seq, frame_id, t, args)

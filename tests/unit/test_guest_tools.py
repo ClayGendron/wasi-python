@@ -320,6 +320,53 @@ def test_an_answer_that_does_not_match_is_a_protocol_error(load) -> None:
     assert tools.describe(1) == {"$bytes": "QQ==", "x": 1}
 
 
+def test_the_guest_refuses_what_the_host_would_refuse_as_protocol(load) -> None:
+    """Review F4: arguments the frame rules would refuse (nested past 62 levels inside args, an
+    integer literal over 64 characters) are a ToolArgumentError with no frame sent; at the bound
+    they reach the tool."""
+    host = T._ToolHost([tool(describe)])
+    door = Door(host)
+    package, tools = load(door)
+
+    def nested(levels: int, leaf: Any = 0) -> Any:
+        value: Any = leaf
+        for _ in range(levels):
+            value = [value]
+        return value
+
+    assert tools.describe(nested(62)) == "list"  # 64 levels in the frame: accepted
+    assert tools.describe({"k": nested(61)}) == "dict"
+    assert tools.describe(9 * 10**63) == "int"  # 64 digits
+    assert tools.describe(-(9 * 10**62)) == "int"  # 64 characters with the sign
+    sent = len(door.frames)
+    too_deep = [nested(63), {"k": nested(62)}, nested(62, b"x")]  # bytes cross as an object
+    too_long = [10**64, -(10**63), 10**5000, Scalar(10**70)]
+    for bad in too_deep + too_long:
+        with pytest.raises(package.ToolArgumentError):
+            tools.describe(bad)
+    assert len(door.frames) == sent
+
+
+def test_a_loose_bytes_answer_is_a_protocol_error(load) -> None:
+    """Review F6: the guest decodes $bytes strictly, as the host does."""
+    host = T._ToolHost([tool(describe)])
+    replies: list[bytes] = []
+
+    def answer(frame: bytes) -> bytes:
+        request = json.loads(frame)
+        if request["op"] == "list":
+            return host(frame)
+        return replies.pop(0) % request["id"]
+
+    package, tools = load(Door(answer))
+    for loose in [b'"QQ"', b'"Q Q=="', b'"QQ==QQ=="']:
+        replies.append(b'{"v":1,"id":%d,"ok":true,"value":{"$bytes":' + loose + b"}}")
+        with pytest.raises(package.ToolProtocolError):
+            tools.describe(1)
+    replies.append(b'{"v":1,"id":%d,"ok":true,"value":{"$bytes":"QQ=="}}')
+    assert tools.describe(1) == b"A"
+
+
 def test_a_descriptor_that_cannot_make_a_signature_takes_keywords(load) -> None:
     """From a host that is not this runner: a `from` property gets (**kwargs), never a broken
     import."""

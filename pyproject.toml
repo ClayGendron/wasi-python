@@ -54,7 +54,10 @@ line-length = 100
 target-version = "py311"
 # The guest package (recipes/guest/, spec 031) is linted and formatted like src/; it stays
 # compatible with Python 3.11, since the unit checks load it on the host's Python. The rest of
-# recipes/ is other projects' shapes (stand-ins, shims, patches) and is left alone.
+# recipes/ is other projects' shapes (stand-ins, shims, patches) and is left alone; its files are
+# named one by one, since ruff's `recipes/*.py` would also match inside recipes/guest/. The judge
+# lints `src tests recipes/guest` (tests/checks/test_rules.py), so a new top-level recipe .py is
+# linted only by a bare `ruff check`.
 src = ["src", "tests", "recipes/guest"]
 extend-exclude = [
     "recipes/mmap_stub.py",

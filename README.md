@@ -824,14 +824,22 @@ value are refused even then.
   and `1.0` never equals `1`.
 - **Bytes** are accepted only where the schema says `{"type": "string",
   "contentEncoding": "base64"}`, never where it says nothing.
-- **A budget of 100,000 steps per frame:** each schema node visited and each
-  `uniqueItems` key made is a step, and past it the call is
-  `invalid_arguments`, "the arguments are too complex to check". Validation
-  runs on the door's thread, where no deadline or cancel can stop host code,
-  and a recursive schema whose `anyOf` branches overlap would otherwise
-  double its work at each level. An ordinary call needs about one step per
-  JSON value; a call with more than 100,000 values is bulk data, which
-  belongs in a granted folder.
+- **A budget of 100,000 steps per frame,** past which the call is
+  `invalid_arguments`, "the arguments are too complex to check". A value
+  costs one step for each schema node it is checked against: its own, each
+  `$ref`, `anyOf` or `oneOf` around it, and each `anyOf` branch tried; a
+  node that only delegates never walks the value again. A key for `enum`,
+  `const` or `uniqueItems` costs one step per value below it (and a
+  `uniqueItems` key one more); an `enum` is a set made once, so checking a
+  value against it is one lookup. So ordinary arguments cost one to two and
+  a half steps per JSON value, whatever their depth (pydantic's shapes:
+  about 1.4 for a list of models, about 2.3 for a recursive tree with an
+  optional parent). Validation runs on the door's thread, where no deadline
+  or cancel can stop host code, and a recursive schema whose `anyOf`
+  branches overlap would otherwise double its work at each level. A call
+  with more than about 50,000 values is bulk data, which belongs in a
+  granted folder. A chain of `$ref`, `anyOf` and `oneOf` on one value is at
+  most 8 schema nodes.
 
 **Results** cross as JSON: a dict with `str` keys, a list or tuple, `str`,
 `bool`, `int`, a finite `float`, `None`, bytes as `$bytes`, and numpy's

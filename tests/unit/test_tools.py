@@ -573,6 +573,139 @@ def test_unique_items_take_one_pass() -> None:
     assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
 
 
+def test_unique_item_keys_are_charged() -> None:
+    """Review F6: each uniqueItems key is a counted step, made before the items are visited, so
+    100,001 distinct strings exhaust the budget before the first one fails its type."""
+    v = T._Validator({"type": "array", "uniqueItems": True, "items": {"type": "integer"}})
+    assert v.check([f"s{i}" for i in range(100_001)]) == "the arguments are too complex to check"
+    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+
+
+def values(x: Any) -> int:
+    """The JSON values in x, containers included."""
+    if isinstance(x, dict):
+        return 1 + sum(values(v) for v in x.values())
+    if isinstance(x, list):
+        return 1 + sum(values(v) for v in x)
+    return 1
+
+
+# pydantic's shapes (review F2): an order whose lines are a $ref, and a recursive tree with an
+# Optional parent (anyOf of a $ref and null).
+ORDER = {
+    "type": "object",
+    "properties": {"lines": {"type": "array", "items": {"$ref": "#/$defs/Line"}}},
+    "required": ["lines"],
+    "additionalProperties": False,
+    "$defs": {
+        "Line": {
+            "type": "object",
+            "properties": {
+                "sku": {"type": "string"},
+                "qty": {"type": "integer"},
+                "note": {"anyOf": [{"type": "string"}, {"type": "null"}], "default": None},
+                "tags": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["sku", "qty"],
+        }
+    },
+}
+NODE_TREE = {
+    "type": "object",
+    "properties": {"root": {"$ref": "#/$defs/Node"}},
+    "required": ["root"],
+    "$defs": {
+        "Node": {
+            "type": "object",
+            "properties": {
+                "value": {"type": "integer"},
+                "children": {"type": "array", "items": {"$ref": "#/$defs/Node"}},
+                "parent": {"anyOf": [{"$ref": "#/$defs/Node"}, {"type": "null"}], "default": None},
+            },
+            "required": ["value"],
+        }
+    },
+}
+
+
+def chain(depth: int, leaves: int) -> dict:
+    node: dict = {"value": 0, "children": [{"value": i, "parent": None} for i in range(leaves)]}
+    for _ in range(depth):
+        node = {"value": 1, "children": [node]}
+    return node
+
+
+@pytest.mark.parametrize(
+    "schema_, args, per_value",
+    [
+        (
+            ORDER,
+            {"lines": [{"sku": "A1", "qty": 2, "note": None, "tags": ["x", "y"]}] * 5_000},
+            1.5,
+        ),
+        (NODE_TREE, {"root": chain(20, 5_000)}, 2.5),
+        (NODE_TREE, {"root": chain(60, 1_000)}, 2.5),
+        (TREE, {"tree": deep(60, list(range(1_000)))}, 2.5),
+    ],
+    ids=[
+        "an order of 5,000 lines",
+        "a tree 20 deep, 5,000 leaves",
+        "a tree 60 deep",
+        "pydantic's recursive union, 60 deep",
+    ],
+)
+def test_valid_arguments_cost_about_one_step_per_value(schema_, args, per_value) -> None:
+    """Decision 3's basis, as the README states it (review F2): a value costs one step for each
+    schema node it is checked against: its own, each $ref, anyOf or oneOf around it, and each
+    anyOf branch tried. A node that only delegates never walks the value again, so the cost per
+    value does not grow with depth. pydantic's shapes: an order at most 1.5 steps per value; a
+    tree whose Optional parent tries a $ref before null at most 2.5."""
+    v = T._Validator(schema_)
+    assert v.check(args) is None
+    assert v.steps <= per_value * values(args), (v.steps, values(args))
+
+
+def test_an_enum_costs_one_key_per_value(monkeypatch) -> None:
+    """Review F1: `names: list[Literal[<600 names>]]` with 99,990 names in one frame. Each name's
+    key is built once and looked up in the enum's key set, made once when the tool is made; a
+    container's key is charged one step per value below it."""
+    names = tuple(f"z{i:04d}" for i in range(600))
+
+    def zones(places: list[str]) -> int:
+        return len(places)
+
+    zones.__annotations__["places"] = list[Literal[names]]
+    t = tool(zones)
+    built = {"keys": 0}
+    real = T._key
+
+    def counting(value: Any, *more: Any) -> Any:
+        built["keys"] += 1
+        return real(value, *more)
+
+    monkeypatch.setattr(T, "_key", counting)
+    host = T._ToolHost([t])
+    raw = host(call_frame("zones", {"places": [names[-1]] * 99_990}))
+    assert answer(raw)["value"] == 99_990
+    assert built["keys"] <= 99_990 + 10, built  # one per name: never the enum's 600 per name
+    # A const or an enum compared with a container charges the values below it: 100,000 of
+    # them exhaust the budget before the comparison could fail.
+    v = T._Validator({"const": [1]})
+    assert v.check(list(range(100_000))) == "the arguments are too complex to check"
+    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+
+
+def test_messages_never_format_a_whole_value() -> None:
+    """Review F1: a failing enum, const or bound names the value by its kind and size, never by
+    dumping it, so a message costs what it says."""
+    v = T._Validator({"type": "object", "properties": {"x": {"const": 1}}})
+    big = list(range(50_000))
+    error = v.check({"x": big})
+    assert error is not None and "array of 50000 items" in error and len(error) < 200, error
+    assert T._shown({"k" * 100: 1}) == "an object of 1 keys"
+    assert T._shown("y" * 100) == "'" + "y" * 64 + "'..."
+
+
 # -------------------------------------------------------------------------------------------------
 # 5. Frames follow the protocol's rules.
 
@@ -891,6 +1024,93 @@ def test_only_chosen_text_crosses_and_is_bounded() -> None:
     a, o = ask("huge", "x" * (17 << 20))
     assert a["error"]["kind"] == "too_large" and "16777216" in a["error"]["message"], a
     assert o.outcome == "too_large"
+
+
+class LoudText(ToolError):
+    """A ToolError whose text raises SystemExit."""
+
+    def __str__(self) -> str:
+        raise SystemExit(9)
+
+
+class LoudKey(KeyError):
+    """An exception whose text raises KeyboardInterrupt."""
+
+    def __str__(self) -> str:
+        raise KeyboardInterrupt
+
+
+@pytest.mark.parametrize("where", ["tool", "gate"])
+@pytest.mark.parametrize(
+    "raised",
+    [SystemExit(3), KeyboardInterrupt(), LoudText(), LoudKey()],
+    ids=[
+        "SystemExit",
+        "KeyboardInterrupt",
+        "a __str__ raising SystemExit",
+        "a __str__ raising Ctrl-C",
+    ],
+)
+def test_a_base_exception_never_escapes_the_frame_host(where, raised) -> None:
+    """Decision 6 and review F3: a BaseException from a tool or a gate, or from an exception's
+    own __str__, is a fault, answered and recorded; nothing raises out of the frame host."""
+
+    def boom(*_: Any) -> None:
+        raise raised
+
+    @tool
+    def act(n: int) -> int:
+        if where == "tool":
+            boom()
+        return n
+
+    host = T._ToolHost([act], gate=boom if where == "gate" else None)
+    a = answer(host(call_frame("act", {"n": 1})))
+    assert a["ok"] is False and a["error"]["kind"] in ("denied", "tool_error"), a
+    o = host.record.outcomes[-1]
+    # A ToolError whose text cannot be read faults with what its __str__ raised.
+    named = "SystemExit" if isinstance(raised, LoudText) else type(raised).__name__
+    assert o.fault is not None and o.fault.split(":")[0] == named, o
+    assert a["error"]["message"] in ("act failed (internal error)", "act was refused"), a
+
+
+def test_a_result_nested_too_deep_is_a_fault() -> None:
+    """The builder's bound, checked (review F6): a result nested deeper than 62 levels faults."""
+
+    @tool
+    def nest(levels: int) -> Any:
+        return deep(levels, 0)
+
+    host = T._ToolHost([nest])
+    assert answer(host(call_frame("nest", {"levels": 62})))["ok"] is True
+    a = answer(host(call_frame("nest", {"levels": 64})))
+    assert a["error"] == {"kind": "tool_error", "message": "nest failed (internal error)"}, a
+    assert "nests deeper" in host.record.outcomes[-1].fault
+
+
+def test_a_long_same_value_chain_is_refused() -> None:
+    """Review F5: a $ref chain that stays on one value is at most SAME_VALUE_CHAIN nodes, so the
+    validator's recursion never depends on the host Python's limit."""
+
+    def chained(n: int) -> dict:
+        defs = {f"D{i}": {"$ref": f"#/$defs/D{i + 1}"} for i in range(n)}
+        defs[f"D{n}"] = {"type": "integer"}
+        return schema({"x": {"$ref": "#/$defs/D0"}}, **{"$defs": defs})
+
+    tool(square, input_schema=chained(T.SAME_VALUE_CHAIN - 2))
+    with pytest.raises(ValueError, match="chain of more than 8"):
+        tool(square, input_schema=chained(1_500))
+    with pytest.raises(ValueError, match="chain of more than 8"):
+        tool(square, input_schema=chained(T.SAME_VALUE_CHAIN))
+
+
+def test_only_tool_makes_a_tool() -> None:
+    """Review F7: dataclasses.replace cannot make a Tool that tool() never vetted."""
+    import dataclasses
+
+    t = tool(square)
+    with pytest.raises(TypeError, match="tool()"):
+        dataclasses.replace(t, _input_schema=schema({"x": {"type": "string", "pattern": "a"}}))
 
 
 # -------------------------------------------------------------------------------------------------
