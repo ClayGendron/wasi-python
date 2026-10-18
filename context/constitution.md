@@ -20,6 +20,9 @@
   `research/2026-10-17-parallel-work-without-lowering-the-bar.md`:
   specifications built in parallel in their own worktrees, landed one
   at a time through one landing lane (§4.14, §5.4, §5.7, §7).
+  Amended 2026-10-17 by the owner's decision to keep the roadmap out of
+  this document: §2 is the bar every release meets; what each release
+  contains, and the order of work, live in `roadmap.md`.
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -38,18 +41,20 @@ every version of everything.
 
 ## 2. The goal, stated so it can be checked
 
-Version 1 is reached when all of these are true:
+A release is ready when all of these are true (the judge's goals v1.1
+to v1.5 check them):
 
-1. A statically linked `python.wasm` for `wasm32-wasip1` with CPython,
-   numpy and pandas compiled in as builtin modules is published as a
-   GitHub release and as the `wasi-python` wheel on PyPI, with a
-   manifest and hashes.
+1. A statically linked `python.wasm` for `wasm32-wasip1` with CPython
+   and its profile's packages compiled in as builtin modules is
+   published as a GitHub release and as the `wasi-python` wheel on
+   PyPI, with a manifest and hashes.
 2. It runs under wasmtime on Linux, macOS and Windows from the same
    bytes, with no host directory beyond the grants the embedder gives
    (read-only or writable folders, which may be none), no network, no
    shared library and no host process.
-3. `import numpy` and `import pandas` work; a CSV read, a groupby and
-   a CSV write run inside it; the result matches native Python.
+3. Every compiled-in package imports and works; the judge's jobs for
+   each (for numpy and pandas: a CSV read, a groupby and a CSV write)
+   run inside it, and the results match native Python.
 4. An embedder in any language with a wasmtime binding can run it by
    preopening the folders it grants (possibly none), binding one host
    function and calling one export. A Python embedder does it in one
@@ -58,21 +63,12 @@ Version 1 is reached when all of these are true:
    run; any upstream tree differs from its pinned tarball only by the
    recorded, temporary patches §4.1 allows.
 
-Beyond v1, in order of value: matplotlib, then the stdlib modules WASI
-lacks (sqlite, bz2, lzma), then scipy. Nothing else is in scope until
-those are decided. By the owner's decision (2026-10-17) the cheaper
-sqlite3, bz2 and lzma are built first, while matplotlib waits on typed
-grants; matplotlib's data is a read-only grant (C2).
-
-Also beyond v1, by the owner's decision (2026-10-16): **build-time
-profiles of the core C libraries**, so an embedder carries only the
-compiled libraries it uses (a CPython-only core, and a data profile
-with numpy and pandas, for example). C extensions are linked in at
-build time on `wasm32-wasip1`, so a profile is its own artifact set,
-chosen by name, never assembled on a user's machine. Profiles stay
-few: each one is built, judged and published. v1 ships the one set
-§2 names. The question is held by
-`research/2026-10-16-build-time-profiles-of-the-core-c-libraries.md`.
+What a release contains, which packages its default profile carries,
+and the order of work are the roadmap (`roadmap.md`): the owner's
+living plan, changed by the owner's decision without amending this
+document. One principle holds for every roadmap: a profile is its own
+artifact set, built, judged and published, chosen by name and never
+assembled on a user's machine, and profiles stay few.
 
 ## 3. What this project is not
 

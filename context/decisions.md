@@ -8,6 +8,17 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The roadmap, and 0.1.0's contents
+
+- **Decided 2026-10-17:** "Matplotlib and scipy are v0.1.0 for sure, and we should probably
+  consider what other libraries we should include for our v0.1.0 default profile." And: "Vfs
+  shouldn't be a part of our 0.1.0 considerations, that is the main consumer of this package but
+  not a part of its roadmap, and can we update the constitution to remove roadmap details from
+  it? That will change over time."
+- Done: the constitution's §2 is now the bar every release meets; the order of work and each
+  release's contents live in `roadmap.md`. The candidates for the default profile are being
+  researched.
+
 ### 41–42. The filesystem provider
 
 - **Source:** `research/2026-10-17-a-filesystem-provider-for-the-runner.md`.
