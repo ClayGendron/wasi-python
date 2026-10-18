@@ -186,6 +186,25 @@ document.
   keeps no state between calls, and adding some is a larger change than this one.
 - **Meanwhile:** refused. Spec 054 serves import-path entries from read-only grants only; a
   mount serving an entry is a `ValueError`. Nothing waits on this answer.
+### 90. The tool protocol's `batch`: in 0.1.0, or after?
+
+- **Asked:** 2026-10-18. **Source:** `specifications/053-async-host-functions.md`, Decision 11;
+  `research/2026-10-18-async-host-functions.md`, "Not studied". Nothing in spec 053 waits on it.
+- **The fact:** spec 031's Decision 11 planned "async tools and gates, and the guest's `batch`
+  operation" for decision 15's specification. Spec 053 carries async tools and gates and leaves
+  `batch` out. `batch` would let one guest frame carry several tool calls, answered together,
+  so a guest (which has no threads, and blocks on each door call) gets concurrency: five API
+  calls at once instead of one after another. It helps sync tools on their threads as much as
+  async ones. It changes the guest package and so the zip: build-class, one slot at a time
+  (§5.7), behind 0.1.0's long build-class queue (the roadmap). Protocol 1 already reserves the
+  name, and an unknown operation is a clean `protocol` answer (spec 031, Decision 7), so adding
+  it in a later minor release breaks no guest and no embedder.
+- **The question:** should `batch` be specified for 0.1.0 (after spec 053, as its own
+  build-class specification), or after 0.1.0?
+- **The agent's recommendation:** after 0.1.0. Decision 49 named the features 0.1.0 carries,
+  and `batch` is not among them; it can be added without breaking anyone; and 0.1.0's
+  build-class slot is spoken for by the scipy line and tier B.
+- **Meanwhile:** spec 053 is drafted without `batch`; a guest calls tools one at a time.
 
 ## The owner's direction for the product (2026-10-17)
 
