@@ -208,16 +208,21 @@ All of these grow with the zip. Tier A will nearly quadruple it.
 
 6. **The resource reader (part 2).** `install()` sets `zipimport.zipimporter.get_resource_reader`
    to a small function in `_zip_directory`. It imports `_zip_resources` on first use and returns
-   `ZipDirectoryReader(self, fullname)`. `_zip_resources` imports `importlib.resources.abc`
-   (already imported by then), `io`, `os`, `posixpath`, `zlib` and `zipimport`. It imports
-   `zipfile` only on the fallback below.
-   - **`ZipDirectoryReader`** subclasses `TraversableResources`. Its root prefix is computed as
+   `ZipDirectoryReader(self, fullname)`. As built, `_zip_resources` imports `io`, `os`,
+   `pathlib`, `posixpath`, `sys`, `zipimport` and `zlib`, and imports `importlib.resources.abc`
+   only when `ZipDirectoryReader` is first made, so a metadata query does not pay for
+   `importlib.resources` and `tempfile` (the landing notes, "One design change"; the draft said
+   it imports `importlib.resources.abc` at once). It imports `zipfile` only on the fallback below.
+   - **`ZipDirectoryReader`** subclasses `TraversableResources`, made on first access through the
+     module's `__getattr__` and kept. Its root prefix is computed as
      `importlib.resources.readers.ZipReader` computes it: the loader's prefix, plus the package's
      last name and `/` for a package. `files()` returns that root. `is_resource(path)` answers as
      `ZipReader.is_resource` does. `open_resource` and `resource_path` are the base class's
      (`FileNotFoundError` for a missing name; `resource_path` always raises it, as for
      `ZipReader`).
-   - **`ZipDirectoryPath`** subclasses `Traversable`. It holds the loader and `at`, a name in the
+   - **`ZipDirectoryPath`** satisfies the `Traversable` protocol (a runtime-checkable one) as
+     `zipfile.Path` does, without subclassing it (as built; the draft said it subclasses
+     `Traversable`; the landing notes, "One design change"). It holds the loader and `at`, a name in the
      archive (`""` for the root, `a/b/` for a directory, `a/b/c` for a file). It answers names
      from `loader._get_files()`, zipimport's cached dict, called `files` below. It never touches
      `zipimport._zip_directory_cache` (CPython #121342, READ: direct use broke when 3.13 made
@@ -245,14 +250,16 @@ All of these grow with the zip. Tier A will nearly quadruple it.
        directory of that archive. It is kept with the dict object it came from and rebuilt when
        `_get_files()` returns another. Only `iterdir()` builds it. Listing order is not promised,
        as for `zipfile.Path`; the checks compare sorted names.
-     - `open(mode="r", *args, **kwargs)`: first, a directory raises `IsADirectoryError`. Then
+     - `open(mode="r", *args, pwd=None, **kwargs)`: first, a directory raises `IsADirectoryError`. Then
        `mode[0] == "r"` reads, and a missing name raises `FileNotFoundError`. Any other first
        letter raises `ValueError`, as the read-only `ZipFile` behind `zipfile.Path` does (`"w"`
        through `_writecheck`; `"x"`, `"a"` and `"br"` through `ZipFile.open`'s mode test). With
        `"b"` in the mode the bytes come back as a binary stream, and any extra arguments raise
        `ValueError("encoding args invalid for binary operation")`. Otherwise (`"r"`, `"rt"`,
        `"r+"`) a `TextIOWrapper` with `io.text_encoding`'s default encoding, as
-       `zipfile.Path.open` builds it.
+       `zipfile.Path.open` builds it. A `pwd` other than `None` is `zipfile.Path.open`'s keyword:
+       that read goes to the `zipfile` fallback below with it (added against the build review,
+       its finding 3).
      - `read_bytes` and `read_text` go through `open`, as `Traversable`'s do.
    - **The bytes: a strict, bounded fast path; anything else is upstream's `zipfile`.** This
      reader serves every `zipimporter`, so also a zip a guest puts on `sys.path`. Such a zip is
@@ -273,8 +280,8 @@ All of these grow with the zip. Tier A will nearly quadruple it.
        1 MiB + 1 bytes; the result is exactly `file_size` bytes, the stream is complete, and
        `zlib.crc32` equals the entry's CRC.
 
-     Any other member, any failed test and any exception open through
-     `zipfile.Path(loader.archive, at).open(mode, *args, **kwargs)`: upstream's object, with its
+     Any other member, any failed test, any exception and any `pwd` open through
+     `zipfile.Path(loader.archive, at).open(mode, *args, pwd=pwd, **kwargs)`: upstream's object, with its
      streaming, its checks and its errors, for that one read. It pays the archive's parse only in
      that rare case. Overlap is not tested on the fast path; it cannot amplify a read, because
      each read is bounded at 1 MiB. This is Decision 2's rule again: anything odd is upstream's.
@@ -295,6 +302,13 @@ All of these grow with the zip. Tier A will nearly quadruple it.
        and lists no empty name.
      - **Equality:** two `files()` calls give equal paths here, where `zipfile.Path` gives
        unequal ones (each holds its own `ZipFile`).
+     - **Freshness:** answers reflect zipimport's view of the zip, refreshed by
+       `importlib.invalidate_caches()`, as imports do. A zip on `sys.path` rewritten in place
+       keeps its old listing until then (a new member is `FileNotFoundError`), and Decision 7's
+       metadata its old distributions (a moved `METADATA` raises `MetadataNotFound`, where
+       upstream, re-reading the archive, finds the new one). The bytes are always current: a
+       stale entry fails the member reader's checks and goes to `zipfile`. (Written in against
+       the build review, its finding 2.)
    - Namespace packages inside a zip keep the stock `NamespaceReader` path (it builds its own
      `zipfile.Path`). No package in the zip needs it.
    - This is question 59's recommended answer, as its wording now says: our own `Traversable`
@@ -344,7 +358,8 @@ All of these grow with the zip. Tier A will nearly quadruple it.
    so zipimport cannot use it (memo, finding 4). The memo's courtesy issue is drafted for the
    owner to send, to python/importlib_resources: "`ZipReader.files()` parses the archive on every
    call; zipimport's directory already has it"
-   (`context/upstream/4-importlib-resources-zip-directory/issue.md`). Nothing here waits on it.
+   (`context/upstream/14-importlib-resources-zip-directory/issue.md`; folder `4-` was taken, the
+   landing notes). Nothing here waits on it.
 
 9. **What a guest sees.** `import _zip_directory` and `import _zip_resources` work, as
    `import _reactor` does. `zipimport._read_directory`,
@@ -468,7 +483,7 @@ one parse. The answers stay upstream's, byte for byte, and anything odd goes to 
 | file | change |
 |---|---|
 | `recipes/zip_directory.py` | new: `read_directory`, `stock_read_directory`, `served`, `install()`, the `get_resource_reader` and `find_distributions` wrappers (Decisions 2, 6, 7) |
-| `recipes/zip_resources.py` | new: `ZipDirectoryReader`, `ZipDirectoryPath`, the member reader, the children map, `zip_children`, `stock_zip_children` (Decisions 6, 7) |
+| `recipes/zip_resources.py` | new: `ZipDirectoryReader` (made on first use), `ZipDirectoryPath` (the `Traversable` protocol, not a subclass), the member reader, the children map, `zip_children`, `stock_zip_children` (Decisions 6, 7) |
 | `recipes/reactor_main.c` | the two headers; the `struct _frozen` table and `PyImport_FrozenModules`; `_init_main = 0`, `sys._stdlib_dir`, the magic checks, `_zip_directory.install()`, `_Py_InitializeMain()` (Decision 3); install point B only if Decision 4 applies; the file's header comment |
 | `scripts/freeze_bootstrap.py` | the optional `<NAME> <filename>` arguments; `compile_module()` and `render()` outside the version gate (Decision 5); its docstring |
 | `scripts/steps/60_link.sh` | two more `freeze_bootstrap.py` runs into `$L/` (Decision 5) |
@@ -478,9 +493,9 @@ one parse. The answers stay upstream's, byte for byte, and anything odd goes to 
 | `tests/jobs/pandas_tz.py`, `tests/jobs/pandas_tz.expected`; `JOBS` in `tests/harness/jobs.py` | new golden job (check 7), its golden from the pinned oracle through `regen.py` |
 | `tests/unit/test_zip_directory.py` | new: the recipe modules and the judge's zips on the host |
 | `tests/unit/test_build_scripts.py` | `test_freeze_names_each_module` |
-| `README.md` | the recipe paragraph names the two frozen modules; the platform paragraph says `importlib.resources.files()` on a zip gives the runtime's own `Traversable`: the same bytes and listings, upstream's reader for a member that is not plain and small, and Decision 6's accepted differences (no `root`, `at`, `glob` and the rest; odd names' implied directories; duplicates and the empty name; equality across `files()` calls); the speed table's plain-reactor row re-measured |
+| `README.md` | the recipe paragraph names the two frozen modules; the platform paragraph says `importlib.resources.files()` on a zip gives the runtime's own `Traversable`: the same bytes and listings, upstream's reader for a member that is not plain and small or is opened with a `pwd`, and Decision 6's accepted differences (no `root`, `at`, `glob` and the rest; odd names' implied directories; duplicates and the empty name; equality across `files()` calls; freshness until `invalidate_caches()`); the speed table's plain-reactor row re-measured |
 | `CHANGELOG.md` | the next unreleased section: the zip's directory is read once; resource reads and metadata no longer parse the zip |
-| `context/upstream/4-importlib-resources-zip-directory/issue.md`, `context/upstream/README.md` | the courtesy issue draft and its row (Decision 8) |
+| `context/upstream/14-importlib-resources-zip-directory/issue.md`, `context/upstream/README.md` | the courtesy issue draft and its row (Decision 8) |
 
 Unit checks (no artifacts), each seen failing first because the module or function does not
 exist. They run on the judge's host Python, which may not be 3.15 (it is 3.14.2 on the review's

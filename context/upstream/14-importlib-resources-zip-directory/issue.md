@@ -40,8 +40,12 @@ A possible direction: give `ZipReader` a `Traversable` over the loader's own dir
 (`loader._get_files()`) for names, and keep `zipfile` for reading a member's bytes, so its CRC,
 local-header and decompression checks stay as they are. We did this outside the standard library
 for our runtime and compared every answer with `zipfile.Path`'s (bytes, listings, `is_file`,
-`is_dir`, `exists`, `name`, `str`, errors); the differences we found are only for odd names
-(`a//b`, duplicates, an empty name), where zipimport's implied folders differ from zipfile's.
+`is_dir`, `exists`, `name`, `str`, errors). The differences we found: odd names (`a//b`,
+duplicates, an empty name), where zipimport's implied folders differ from zipfile's; and
+freshness, since names come from zipimport's view of the archive, so a zip rewritten in place
+lists its old names (and `importlib.metadata` finds its old distributions) until
+`invalidate_caches()`, as its imports already do, where `zipfile.Path` re-reads the archive on
+every call. A third, `open(pwd=...)`, we closed by handing any password to `zipfile`.
 
 ## Facts behind it
 

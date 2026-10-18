@@ -81,11 +81,17 @@ that finds nothing about 11 M, and `version("numpy")` about 0.15 G, most of it p
 `METADATA`. `importlib.resources.files()` on a package in a zip on `sys.path` gives the runtime's
 own `Traversable`, `ZipDirectoryPath`, not a `zipfile.Path`: the same bytes, listings, `is_file`,
 `is_dir`, `exists`, `name`, `parent`, `str()` and errors, and `zipfile` itself reads any member
-that is not stored or deflated, is over 1 MiB, or fails a check (so a guest's own zip keeps
-`zipfile`'s CRC checks, LZMA and streaming). It lacks `zipfile.Path`'s `root`, `at`,
-`filename`, `glob`, `rglob`, `match`, `relative_to` and `is_symlink`; names with `//` or a leading
-`/` list zipimport's implied folders, not zipfile's; a duplicated name lists once and an empty
-name not at all; and two `files()` calls give equal paths. `import ctypes`
+that is not stored or deflated, is over 1 MiB, or fails a check, and any member opened with a
+`pwd` (so a guest's own zip keeps `zipfile`'s CRC checks, LZMA, passwords and streaming). It
+lacks `zipfile.Path`'s `root`, `at`, `filename`, `glob`, `rglob`, `match`, `relative_to` and
+`is_symlink`; names with `//` or a leading `/` list zipimport's implied folders, not zipfile's; a
+duplicated name lists once and an empty name not at all; and two `files()` calls give equal
+paths. Resources and metadata also see a zip as zipimport last read it, as its imports do: a zip
+on `sys.path` that a program rewrites in place keeps its old listing and its old distributions
+until `importlib.invalidate_caches()`, so a new member is not found, and a distribution whose
+`METADATA` moved raises `MetadataNotFound` (a `FileNotFoundError`, not a
+`PackageNotFoundError`). The bytes read are always the zip's current ones: a stale entry fails
+the member reader's checks, and `zipfile` reads it. `import ctypes`
 works: it sizes wasm32's C types and gives numpy their dtypes, but it loads no library and calls
 nothing; each such use raises `OSError`, as a missing library does, which is why `-V` still says
 "no ctypes". So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
