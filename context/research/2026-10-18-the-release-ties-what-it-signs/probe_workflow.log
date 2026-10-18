@@ -1,0 +1,31 @@
+== release.today.yml workflow permissions: {'contents': 'read'}
+  build: needs=[] env=None perms=None outputs=[]
+  rebuild: needs=[] env=None perms=None outputs=[]
+  same-bytes: needs=['build', 'rebuild'] env=None perms=None outputs=[]
+  verify: needs=['build'] env=None perms=None outputs=[]
+  attest: needs=['build', 'verify', 'same-bytes'] env=None perms={'id-token': 'write', 'attestations': 'write', 'contents': 'read'} outputs=[]
+  publish: needs=['build', 'verify', 'same-bytes', 'attest'] env=None perms={'contents': 'write'} outputs=[]
+  pypi: needs=['publish'] env=pypi perms={'id-token': 'write'} outputs=[]
+  problems: 13
+   - build: setup-uv cache None
+   - rebuild: setup-uv cache None
+   - same-bytes: download by name release-assets
+   - same-bytes: download by name rebuild-ubuntu-24.04-arm
+   - same-bytes: download by name rebuild-wheel-ubuntu-24.04-arm
+   - same-bytes: download by name rebuild-ubuntu-24.04
+   - same-bytes: download by name rebuild-wheel-ubuntu-24.04
+   - verify: setup-uv cache None
+   - verify: download by name release-assets
+   - attest: download by name release-assets
+   - publish: setup-uv cache None
+   - publish: download by name release-assets
+   - pypi: download by name release-assets
+== release.draft.yml workflow permissions: {}
+  build: needs=[] env=None perms={'contents': 'read'} outputs=['assets-id', 'sums-sha256']
+  rebuild: needs=[] env=None perms={'contents': 'read'} outputs=['sums-linux-arm64', 'sums-linux-x86-64', 'wheel-linux-arm64', 'wheel-linux-x86-64']
+  same-bytes: needs=['build', 'rebuild'] env=None perms={} outputs=[]
+  verify: needs=['build'] env=None perms={'contents': 'read'} outputs=[]
+  attest: needs=['build', 'verify', 'same-bytes'] env=None perms={'id-token': 'write', 'attestations': 'write', 'contents': 'read'} outputs=[]
+  publish: needs=['build', 'verify', 'same-bytes', 'attest'] env=release perms={'contents': 'write'} outputs=[]
+  pypi: needs=['build', 'publish'] env=pypi perms={'id-token': 'write'} outputs=[]
+  problems: 0

@@ -1,0 +1,11 @@
+Using CPython 3.14.2
+Creating virtual environment at: .venv
+   Building wasi-python @ file:///Users/claygendron/Git/Repos/wasi_python-057
+      Built wasi-python @ file:///Users/claygendron/Git/Repos/wasi_python-057
+Installed 8 packages in 19ms
+== release.today.yml
+ attest: []
+ rebuild gate: []
+== release.draft.yml
+ attest: []
+ rebuild gate: ["same-bytes does not name ubuntu-24.04-arm's SHA256SUMS", "same-bytes does not name ubuntu-24.04's SHA256SUMS", "same-bytes does not name ubuntu-24.04-arm's rebuilt wheel", "same-bytes does not name ubuntu-24.04's rebuilt wheel"]

@@ -1,0 +1,16 @@
+good (default): exit 0 | wasi-python-0.1.0a5-wasm32-wasip1.tar.xz: OK
+empty output (default): exit 1 | the build job handed on no SHA-256 of SHA256SUMS
+wrong sums hash (default): exit 1 | SHA256SUMS: FAILED
+extra file (default): exit 1 | release-assets holds other files than the build job's
+swapped wheel (default): exit 1 | wasi-python-0.1.0a5-wasm32-wasip1.tar.xz: OK
+missing tar (default): exit 1 | wasi_python-0.1.0a5-py3-none-any.whl: OK
+subfolder (default): exit 1 | release-assets holds other files than the build job's
+uppercase hash (default): exit 1 | the build job handed on no SHA-256 of SHA256SUMS
+good (noshasum256): exit 0 | wasi-python-0.1.0a5-wasm32-wasip1.tar.xz: OK
+empty output (noshasum256): exit 1 | the build job handed on no SHA-256 of SHA256SUMS
+wrong sums hash (noshasum256): exit 1 | shasum: WARNING: 1 computed checksum did NOT match
+extra file (noshasum256): exit 1 | release-assets holds other files than the build job's
+swapped wheel (noshasum256): exit 1 | shasum: WARNING: 1 computed checksum did NOT match
+missing tar (noshasum256): exit 1 | shasum: WARNING: 1 listed file could not be read
+subfolder (noshasum256): exit 1 | release-assets holds other files than the build job's
+uppercase hash (noshasum256): exit 1 | the build job handed on no SHA-256 of SHA256SUMS

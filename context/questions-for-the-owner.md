@@ -219,6 +219,31 @@ document.
   build-class slot is spoken for by the scipy line and tier B.
 - **Meanwhile:** spec 053 is drafted without `batch`; a guest calls tools one at a time.
 
+### 95. The `release` environment's rules, while the agent publishes alphas
+
+- **Asked:** 2026-10-18. **Source:** `specifications/057-the-release-ties-what-it-signs-to-what-it-built.md`,
+  Decision 6. It comes beside question 94 (spec 056's, about rulesets and a protected
+  environment). Nothing in spec 057 waits on it. The workflow is the same whichever you choose.
+- **The fact:** spec 057 makes the `publish` job name an environment, `release`. `pypi` keeps
+  `pypi`.
+  - Until you add rules, GitHub creates `release` on the first tag run, with no protection.
+    That run behaves as today (READ, GitHub's docs).
+  - A required reviewer would hold every release at `publish` until that reviewer approves.
+    That includes the alphas you let the agent publish while you are away (`decisions.md`,
+    2026-10-18).
+  - If the agent's `gh` is logged in as you, the agent could approve its own runs. Then the
+    reviewer is not a human gate. "Prevent self-review" would stop that, but you are the only
+    reviewer, so it would also stop you from approving a tag you pushed yourself.
+- **The question:** for `release` and `pypi`, do you want:
+  - (a) **a tag rule only** (deployments from `v*` tags only), now, with yourself as required
+    reviewer from 0.1.0 final; or
+  - (b) **yourself as required reviewer now**, so each alpha waits for your approval?
+- **The agent's recommendation:** (a). The tag rule costs nothing and stops a branch's run
+  from using either environment. A reviewer is a real gate only when someone other than the
+  agent holds it, and before 0.1.0 it would stop the alphas you asked to keep flowing.
+- **Meanwhile:** the agent sets nothing on your account. Spec 057 lands with the environment
+  named and unprotected.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

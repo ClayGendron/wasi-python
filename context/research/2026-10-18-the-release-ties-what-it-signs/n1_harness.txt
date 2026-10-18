@@ -1,0 +1,8 @@
+How n1_download_runs.log was made (EXECUTED 2026-10-18, arm64 macOS, worktree at d70690a):
+- a scratch copy of scripts/00_download.sh, scripts/line.sh and scripts/line.conf;
+- downloads/ filled with one small fake file per name a get or research line fetches, and a
+  SHA256SUMS made from those fakes (shasum -a 256 *);
+- a fake `uname` on PATH answering -s/-m from FAKE_S/FAKE_M (Linux x86_64, Linux aarch64,
+  Darwin arm64), and a fake `curl` that exits 99 (nothing was fetched: every file was present);
+- "zlib unpinned": SHA256SUMS with zlib-1.3.1.tar.gz's line removed;
+- "today": the script at d70690a; "fixed": with 00_download.diff applied.
