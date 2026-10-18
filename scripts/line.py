@@ -24,7 +24,14 @@ HOSTS = {
     ("Linux", "arm64"): "LINUX_AARCH64",
     ("Linux", "x86_64"): "LINUX_X86_64",
 }
-HOST_NAMES = ("WASI_SDK_DIR", "WASMTIME_DIR", "HOST_PYTHON_ARCHIVE", "CYTHON_WHEEL", "NINJA_WHEEL")
+HOST_NAMES = (
+    "WASI_SDK_DIR",
+    "WASMTIME_DIR",
+    "HOST_PYTHON_ARCHIVE",
+    "CYTHON_WHEEL",
+    "NINJA_WHEEL",
+    "PKGCONF_WHEEL",
+)
 
 
 def read(path: Path = CONF) -> dict[str, str]:

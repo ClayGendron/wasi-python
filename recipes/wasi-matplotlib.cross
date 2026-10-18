@@ -1,0 +1,41 @@
+# Meson cross file: matplotlib 3.11.2 -> wasm32-wasip1 as static archives (spec 023, step 55).
+# The build step rewrites @ROOT@ (the repository root) and @SDK@ (scripts/line.conf's
+# WASI_SDK_DIR), as for the numpy and pandas cross files.
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+# meson looks every program up here before PATH, so matplotlib's find_program('python3', 'python')
+# runs this one too: step 20's pinned build-Python, which passes PYTHONPATH through (the
+# setuptools_scm stand-in rides on it).
+python = '@ROOT@/scripts/python-wasi-cross'
+# The pinned pkgconf binary (step 10), never a pkg-config on PATH.
+pkg-config = '@ROOT@/build/tools/pylib/pkgconf/.bin/pkgconf'
+# A program that does not exist: meson finds qhull the same way on every host, never through CMake.
+cmake = '@ROOT@/build/no-cmake'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+skip_sanity_check = true
+# Step 37's libraries, step 30's zlib and pybind11's own .pc: pkgconf's default search path replaced.
+pkg_config_libdir = ['@ROOT@/build/plot-libs/lib/pkgconfig', '@ROOT@/build/zlib-wasi/lib/pkgconfig', '@ROOT@/build/plot-tools/pybind11/pybind11/share/pkgconfig']
+
+[built-in options]
+# -ffile-prefix-map: no builder's path in __FILE__ strings (pybind11's headers held 12 in the
+# research binary), so the binary's hash does not depend on the checkout. -I: qhull's headers,
+# which matplotlib's configure checks for (qhull has no .pc; nothing of it is linked).
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-I@ROOT@/build/plot-libs/include', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false']
+# C++ exceptions in their standard form (spec 005, Decision 3).
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-I@ROOT@/build/plot-libs/include', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-fexceptions']
+# The configure step's find_library('qhull_r') links a test program; the one real link is python.wasm's.
+c_link_args = ['-L@ROOT@/build/plot-libs/lib']
+cpp_link_args = ['-L@ROOT@/build/plot-libs/lib']

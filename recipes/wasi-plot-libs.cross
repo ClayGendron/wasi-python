@@ -1,0 +1,37 @@
+# Meson cross file: matplotlib's C libraries (FreeType, HarfBuzz, SheenBidi, libraqm) -> wasm32-wasip1
+# as static archives (spec 023, step 37). The build step rewrites @ROOT@ (the repository root) and
+# @SDK@ (scripts/line.conf's WASI_SDK_DIR), as for the numpy and pandas cross files.
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+# The pinned pkgconf binary (step 10), never a pkg-config on PATH: libraqm finds the other three by it.
+pkg-config = '@ROOT@/build/tools/pylib/pkgconf/.bin/pkgconf'
+# A program that does not exist: meson then never finds a dependency through a host's CMake, so
+# every build host takes the same path.
+cmake = '@ROOT@/build/no-cmake'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+skip_sanity_check = true
+# Only the libraries this build made, and step 30's zlib (FreeType is built against it, so one zlib
+# is linked): pkgconf's own default search path is replaced.
+pkg_config_libdir = ['@ROOT@/build/plot-libs/lib/pkgconfig', '@ROOT@/build/zlib-wasi/lib/pkgconfig']
+
+[built-in options]
+# -ffile-prefix-map: no builder's path in __FILE__ strings, so the binary's hash does not depend on the checkout.
+# C: setjmp/longjmp through the exception-handling proposal (FreeType's validators longjmp).
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false']
+# C++ exceptions in their standard form (spec 005, Decision 3). HarfBuzz: its pragma that turns
+# warnings into errors off; the mman header compiles, and HAVE_MMAP stays undefined, so no mmap is linked.
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-DHB_NO_PRAGMA_GCC_DIAGNOSTIC_ERROR', '-D_WASI_EMULATED_MMAN']
+# No link args: the one real link is python.wasm's own.

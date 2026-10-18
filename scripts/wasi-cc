@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compiler/linker wrapper for the numpy cross build (spike s12).
+# Compiler/linker wrapper for the meson cross builds: numpy, pandas and matplotlib (spike s12, spec 023).
 # Compile steps: run wasi-sdk clang for wasm32-wasip1 with -fPIC dropped (the objects are linked statically into python.wasm).
 # Link steps that meson emits for an extension module (`-shared -o X.so`): instead of a shared object (wasi-libc has no
 # dlopen), write X.so as a static archive of the module's own objects and X.so.deps listing the archives it links with.
@@ -36,6 +36,9 @@ args=""
 for a in "$@"; do
   case "$a" in
     -fPIC|-fpic|-fPIE|-fpie) ;;
+    # meson adds -pthread to HarfBuzz and matplotlib; it would compile +atomics in, a feature every
+    # host must then support (spec 023). wasm32-wasip1 has no threads; numpy and pandas never pass it.
+    -pthread) ;;
     -Wl,--start-group|-Wl,--end-group) ;;  # wasm-ld has no archive groups; it resolves archives in any order
     *) args="$args
 $a";;

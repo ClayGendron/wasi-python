@@ -3,6 +3,8 @@
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
         [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
+        [--drop <folder in zip>]... [--keep <folder in zip>=<file>,<file>...]...
+        [--inner <folder in zip>]...
         [--replace <old>=<new>]... [--code-prefix </guest/path/to/the.zip/>] out.zip
 
 Every .py becomes a .pyc compiled in process (the running interpreter's bytecode magic must be the
@@ -24,6 +26,19 @@ and pandas and numpy find their own frames by that name. The prefix must be abso
 `.zip/`; it is a constant of the line's version, never a host path. Without it, the name is the
 member's alone, as before.
 
+What cannot run, or is not built, stays out (spec 023, Decision 4): `--drop` leaves out every member
+under a folder (`matplotlib/testing`), and `--keep` leaves out every member under a folder but the
+files it names (matplotlib's backends: the ten that a plot and its PNG, PDF, PS, EPS and SVG saves
+import, and two more that need nothing missing). A drop or keep that matches nothing stops the
+build.
+
+`--inner` packs a folder of data files into one member, `<folder>.zip`, an inner archive whose
+files are stored at their paths under the folder, sorted, with the same fixed time and mode; the
+outer member is deflated like every other, so the data is compressed once. zipimport reads the
+whole directory at every plain start, so 204 files of matplotlib's `mpl-data` cost one entry (spec
+023, Decision 6); the runner extracts the inner archive and grants it read-only at the path
+matplotlib computes (Decision 5). An inner folder with no member stops the build.
+
 Package metadata (spec 033): a wheel keeps two files of its .dist-info, METADATA and
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
 <name>-<version>.dist-info/METADATA (--metadata). A tree never brings metadata of its own: walk
@@ -35,6 +50,7 @@ from __future__ import annotations
 import argparse
 import ast
 import importlib.util
+import io
 import os
 import re
 import sys
@@ -221,12 +237,77 @@ def host_neutral(text: str, name: str) -> str:
     return data.decode()
 
 
-def member(name: str) -> zipfile.ZipInfo:
+def member(name: str, compress: int = zipfile.ZIP_DEFLATED) -> zipfile.ZipInfo:
     info = zipfile.ZipInfo(name, date_time=EPOCH)
-    info.compress_type = zipfile.ZIP_DEFLATED
+    info.compress_type = compress
     info.external_attr = 0o100644 << 16
     info.create_system = 3  # unix, so the mode is read the same way everywhere
     return info
+
+
+def inner_archive(files: dict[str, bytes]) -> bytes:
+    """A zip of data files, each stored (the outer member compresses them once), in sorted order
+    with the fixed time and mode, so the same files give the same bytes."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as z:
+        for name in sorted(files):
+            info = member(name, zipfile.ZIP_STORED)
+            z.writestr(info, files[name], compress_type=zipfile.ZIP_STORED)
+    return out.getvalue()
+
+
+def _under(name: str, folder: str) -> str | None:
+    """The rest of a member's name below a folder, or None when it is not under it."""
+    prefix = folder.rstrip("/") + "/"
+    return name[len(prefix) :] if name.startswith(prefix) else None
+
+
+class Selection:
+    """The --drop, --keep and --inner rules, and what each matched, so a rule that matches nothing
+    stops the build instead of passing silently."""
+
+    def __init__(self, drop: list[str], keep: list[str], inner: list[str]) -> None:
+        self.drop = [d.rstrip("/") for d in drop]
+        self.keep: dict[str, set[str]] = {}
+        for spec in keep:
+            folder, sep, names = spec.partition("=")
+            if not sep or not names:
+                raise SystemExit(f"--keep {spec!r}: write <folder>=<file>,<file>...")
+            self.keep[folder.rstrip("/")] = {n.strip() for n in names.split(",") if n.strip()}
+        self.inner = [d.rstrip("/") for d in inner]
+        self.matched: set[str] = set()
+        self.kept: dict[str, set[str]] = {folder: set() for folder in self.keep}
+        self.packed: dict[str, dict[str, bytes]] = {folder: {} for folder in self.inner}
+
+    def take(self, data: bytes, name: str) -> bool:
+        """Whether the member goes on to the zip as it is; False when a rule took it."""
+        for folder in self.drop:
+            if _under(name, folder) is not None:
+                self.matched.add(folder)
+                return False
+        for folder, names in self.keep.items():
+            rest = _under(name, folder)
+            if rest is not None:
+                self.matched.add(folder)
+                if rest not in names:
+                    return False
+                self.kept[folder].add(rest)
+        for folder in self.inner:
+            rest = _under(name, folder)
+            if rest is not None:
+                self.packed[folder][rest] = data
+                return False
+        return True
+
+    def check(self) -> None:
+        missing = [f for f in [*self.drop, *self.keep] if f not in self.matched]
+        missing += [f for f in self.inner if not self.packed[f]]
+        if missing:
+            raise SystemExit(f"--drop, --keep or --inner matched no member: {', '.join(missing)}")
+        for folder, names in self.keep.items():
+            absent = sorted(names - self.kept[folder])
+            if absent:
+                raise SystemExit(f"--keep {folder}: no member {', '.join(absent)}")
 
 
 def main() -> None:
@@ -238,6 +319,9 @@ def main() -> None:
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
     ap.add_argument("--replace", action="append", default=[])
+    ap.add_argument("--drop", action="append", default=[])
+    ap.add_argument("--keep", action="append", default=[])
+    ap.add_argument("--inner", action="append", default=[])
     ap.add_argument("--code-prefix", default="")
     ap.add_argument("out", type=Path)
     a = ap.parse_args()
@@ -256,8 +340,11 @@ def main() -> None:
     rewritten: set[str] = set()
 
     entries: dict[str, bytes] = {}
+    chosen = Selection(a.drop, a.keep, a.inner)
 
     def add(data: bytes, name: str, origin: str) -> None:
+        if not chosen.take(data, name):
+            return
         if name.endswith(".py"):
             kind = next((key for key in REWRITE if key in name), None)
             if kind is not None:
@@ -286,6 +373,13 @@ def main() -> None:
     for spec in a.file:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
+
+    chosen.check()
+    for folder, files in chosen.packed.items():
+        add_inner = folder + ".zip"
+        if add_inner in entries:
+            raise SystemExit(f"{add_inner} comes from two inputs (the second: --inner {folder})")
+        entries[add_inner] = inner_archive(files)
 
     if rewritten != set(REWRITE):
         raise SystemExit(f"no member to make host-neutral for {sorted(set(REWRITE) - rewritten)}")

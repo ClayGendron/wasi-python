@@ -13,6 +13,7 @@ SDK="$T/$WASI_SDK_DIR"
 # sysroot and builtins are the ones the emulated driver links.
 CSDK="$T/$COMPILER_SDK_DIR"
 HOSTPY="$T/python/bin/python3"
+PKGCONF="$T/pylib/pkgconf/.bin/pkgconf"  # the pinned pkgconf wheel's binary (step 10, spec 023)
 CP="$B/Python-$PYTHON_VERSION"
 W="$CP/cross-build/wasm32-wasip1"
 OUT="$B/out"

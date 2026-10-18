@@ -1,0 +1,356 @@
+diff --git a/ci/mypy-stubtest-allowlist.txt b/ci/mypy-stubtest-allowlist.txt
+index 5bb4f0d..3538a66 100644
+--- a/ci/mypy-stubtest-allowlist.txt
++++ b/ci/mypy-stubtest-allowlist.txt
+@@ -29,6 +29,9 @@ matplotlib\.ticker\.LogitLocator\.nonsingular
+ # Stdlib/Enum considered inconsistent (no fault of ours, I don't think)
+ matplotlib\.backend_bases\._Mode\.__new__
+ 
++# pybind11 internals
++matplotlib\..*\.__pybind11_native_enum__
++
+ # 3.6 Pending deprecations
+ matplotlib\.figure\.Figure\.set_constrained_layout
+ matplotlib\.figure\.Figure\.set_constrained_layout_pads
+diff --git a/src/_enums.h b/src/_enums.h
+deleted file mode 100644
+index e607b93..0000000
+--- a/src/_enums.h
++++ /dev/null
+@@ -1,95 +0,0 @@
+-#ifndef MPL_ENUMS_H
+-#define MPL_ENUMS_H
+-
+-#include <pybind11/pybind11.h>
+-
+-// Extension for pybind11: Pythonic enums.
+-// This allows creating classes based on ``enum.*`` types.
+-// This code was copied from mplcairo, with some slight tweaks.
+-// The API is:
+-//
+-// - P11X_DECLARE_ENUM(py_name: str, py_base_cls: str, ...: {str, enum value}):
+-//   py_name: The name to expose in the module.
+-//   py_base_cls: The name of the enum base class to use.
+-//   ...: The enum name/value pairs to expose.
+-//
+-//   Use this macro to declare an enum and its values.
+-//
+-// - py11x::bind_enums(m: pybind11::module):
+-//   m: The module to use to register the enum classes.
+-//
+-//   Place this in PYBIND11_MODULE to register the enums declared by P11X_DECLARE_ENUM.
+-
+-// a1 includes the opening brace and a2 the closing brace.
+-// This definition is compatible with older compiler versions compared to
+-// #define P11X_ENUM_TYPE(...) decltype(std::map{std::pair __VA_ARGS__})::mapped_type
+-#define P11X_ENUM_TYPE(a1, a2, ...) decltype(std::pair a1, a2)::second_type
+-
+-#define P11X_CAT2(a, b) a##b
+-#define P11X_CAT(a, b) P11X_CAT2(a, b)
+-
+-namespace p11x {
+-  namespace {
+-    namespace py = pybind11;
+-
+-    // Holder is (py_base_cls, [(name, value), ...]) before module init;
+-    // converted to the Python class object after init.
+-    auto enums = std::unordered_map<std::string, py::object>{};
+-
+-    auto bind_enums(py::module mod) -> void
+-    {
+-      for (auto& [py_name, spec]: enums) {
+-        auto const& [py_base_cls, pairs] =
+-          spec.cast<std::pair<std::string, py::object>>();
+-        mod.attr(py::cast(py_name)) = spec =
+-          py::module::import("enum").attr(py_base_cls.c_str())(
+-            py_name, pairs, py::arg("module") = mod.attr("__name__"));
+-      }
+-    }
+-  }
+-}
+-
+-// Immediately converting the args to a vector outside of the lambda avoids
+-// name collisions.
+-#define P11X_DECLARE_ENUM(py_name, py_base_cls, ...) \
+-  namespace p11x { \
+-    namespace { \
+-      [[maybe_unused]] auto const P11X_CAT(enum_placeholder_, __COUNTER__) = \
+-        [](auto args) { \
+-          py::gil_scoped_acquire gil; \
+-          using int_t = std::underlying_type_t<decltype(args[0].second)>; \
+-          auto pairs = std::vector<std::pair<std::string, int_t>>{}; \
+-          for (auto& [k, v]: args) { \
+-            pairs.emplace_back(k, int_t(v)); \
+-          } \
+-          p11x::enums[py_name] = pybind11::cast(std::pair{py_base_cls, pairs}); \
+-          return 0; \
+-        } (std::vector{std::pair __VA_ARGS__}); \
+-    } \
+-  } \
+-  namespace pybind11::detail { \
+-    template<> struct type_caster<P11X_ENUM_TYPE(__VA_ARGS__)> { \
+-      using type = P11X_ENUM_TYPE(__VA_ARGS__); \
+-      static_assert(std::is_enum_v<type>, "Not an enum"); \
+-      PYBIND11_TYPE_CASTER(type, _(py_name)); \
+-      bool load(handle src, bool) { \
+-        auto cls = p11x::enums.at(py_name); \
+-        PyObject* tmp = nullptr; \
+-        if (pybind11::isinstance(src, cls) \
+-            && (tmp = PyNumber_Index(src.attr("value").ptr()))) { \
+-          auto ival = PyLong_AsLong(tmp); \
+-          value = decltype(value)(ival); \
+-          Py_DECREF(tmp); \
+-          return !(ival == -1 && PyErr_Occurred()); \
+-        } else { \
+-          return false; \
+-        } \
+-      } \
+-      static handle cast(decltype(value) obj, return_value_policy, handle) { \
+-        auto cls = p11x::enums.at(py_name); \
+-        return cls(std::underlying_type_t<type>(obj)).inc_ref(); \
+-      } \
+-    }; \
+-  }
+-
+-#endif /* MPL_ENUMS_H */
+diff --git a/src/_image_wrapper.cpp b/src/_image_wrapper.cpp
+index b14e4ee..60f95e4 100644
+--- a/src/_image_wrapper.cpp
++++ b/src/_image_wrapper.cpp
+@@ -1,4 +1,5 @@
+ #include <pybind11/pybind11.h>
++#include <pybind11/native_enum.h>
+ #include <pybind11/numpy.h>
+ 
+ #include <algorithm>
+@@ -292,7 +293,7 @@ calculate_rms_and_diff(py::array_t<unsigned char> expected_image,
+ 
+ PYBIND11_MODULE(_image, m, py::mod_gil_not_used())
+ {
+-    py::enum_<interpolation_e>(m, "_InterpolationType")
++    py::native_enum<interpolation_e>(m, "_InterpolationType", "enum.Enum")
+         .value("NEAREST", NEAREST)
+         .value("BILINEAR", BILINEAR)
+         .value("BICUBIC", BICUBIC)
+@@ -310,7 +311,8 @@ PYBIND11_MODULE(_image, m, py::mod_gil_not_used())
+         .value("SINC", SINC)
+         .value("LANCZOS", LANCZOS)
+         .value("BLACKMAN", BLACKMAN)
+-        .export_values();
++        .export_values()
++        .finalize();
+ 
+     m.def("resample", &image_resample,
+         "input_array"_a,
+diff --git a/src/ft2font_wrapper.cpp b/src/ft2font_wrapper.cpp
+index 681b44e..86e4261 100644
+--- a/src/ft2font_wrapper.cpp
++++ b/src/ft2font_wrapper.cpp
+@@ -1,10 +1,10 @@
+ #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+ #include <pybind11/pybind11.h>
++#include <pybind11/native_enum.h>
+ #include <pybind11/numpy.h>
+ #include <pybind11/stl.h>
+ 
+ #include "ft2font.h"
+-#include "_enums.h"
+ 
+ #include <set>
+ #include <sstream>
+@@ -50,13 +50,6 @@ const char *Kerning__doc__ = R"""(
+     .. versionadded:: 3.10
+ )""";
+ 
+-P11X_DECLARE_ENUM(
+-    "Kerning", "Enum",
+-    {"DEFAULT", FT_KERNING_DEFAULT},
+-    {"UNFITTED", FT_KERNING_UNFITTED},
+-    {"UNSCALED", FT_KERNING_UNSCALED},
+-);
+-
+ const char *FaceFlags__doc__ = R"""(
+     Flags returned by `FT2Font.face_flags`.
+ 
+@@ -103,29 +96,6 @@ enum class FaceFlags : FT_Long {
+ #undef DECLARE_FLAG
+ };
+ 
+-P11X_DECLARE_ENUM(
+-    "FaceFlags", "Flag",
+-    {"SCALABLE", FaceFlags::SCALABLE},
+-    {"FIXED_SIZES", FaceFlags::FIXED_SIZES},
+-    {"FIXED_WIDTH", FaceFlags::FIXED_WIDTH},
+-    {"SFNT", FaceFlags::SFNT},
+-    {"HORIZONTAL", FaceFlags::HORIZONTAL},
+-    {"VERTICAL", FaceFlags::VERTICAL},
+-    {"KERNING", FaceFlags::KERNING},
+-    {"FAST_GLYPHS", FaceFlags::FAST_GLYPHS},
+-    {"MULTIPLE_MASTERS", FaceFlags::MULTIPLE_MASTERS},
+-    {"GLYPH_NAMES", FaceFlags::GLYPH_NAMES},
+-    {"EXTERNAL_STREAM", FaceFlags::EXTERNAL_STREAM},
+-    {"HINTER", FaceFlags::HINTER},
+-    {"CID_KEYED", FaceFlags::CID_KEYED},
+-    {"TRICKY", FaceFlags::TRICKY},
+-    {"COLOR", FaceFlags::COLOR},
+-    {"VARIATION", FaceFlags::VARIATION},
+-    {"SVG", FaceFlags::SVG},
+-    {"SBIX", FaceFlags::SBIX},
+-    {"SBIX_OVERLAY", FaceFlags::SBIX_OVERLAY},
+-);
+-
+ const char *LoadFlags__doc__ = R"""(
+     Flags for `FT2Font.load_char`, `FT2Font.load_glyph`, and `FT2Font.set_text`.
+ 
+@@ -174,36 +144,6 @@ enum class LoadFlags : FT_Int32 {
+ #undef DECLARE_FLAG
+ };
+ 
+-P11X_DECLARE_ENUM(
+-    "LoadFlags", "Flag",
+-    {"DEFAULT", LoadFlags::DEFAULT},
+-    {"NO_SCALE", LoadFlags::NO_SCALE},
+-    {"NO_HINTING", LoadFlags::NO_HINTING},
+-    {"RENDER", LoadFlags::RENDER},
+-    {"NO_BITMAP", LoadFlags::NO_BITMAP},
+-    {"VERTICAL_LAYOUT", LoadFlags::VERTICAL_LAYOUT},
+-    {"FORCE_AUTOHINT", LoadFlags::FORCE_AUTOHINT},
+-    {"CROP_BITMAP", LoadFlags::CROP_BITMAP},
+-    {"PEDANTIC", LoadFlags::PEDANTIC},
+-    {"IGNORE_GLOBAL_ADVANCE_WIDTH", LoadFlags::IGNORE_GLOBAL_ADVANCE_WIDTH},
+-    {"NO_RECURSE", LoadFlags::NO_RECURSE},
+-    {"IGNORE_TRANSFORM", LoadFlags::IGNORE_TRANSFORM},
+-    {"MONOCHROME", LoadFlags::MONOCHROME},
+-    {"LINEAR_DESIGN", LoadFlags::LINEAR_DESIGN},
+-    {"NO_AUTOHINT", LoadFlags::NO_AUTOHINT},
+-    {"COLOR", LoadFlags::COLOR},
+-    {"COMPUTE_METRICS", LoadFlags::COMPUTE_METRICS},
+-    {"BITMAP_METRICS_ONLY", LoadFlags::BITMAP_METRICS_ONLY},
+-    {"NO_SVG", LoadFlags::NO_SVG},
+-    // These must be unique, but the others can be OR'd together; I don't know if
+-    // there's any way to really enforce that.
+-    {"TARGET_NORMAL", LoadFlags::TARGET_NORMAL},
+-    {"TARGET_LIGHT", LoadFlags::TARGET_LIGHT},
+-    {"TARGET_MONO", LoadFlags::TARGET_MONO},
+-    {"TARGET_LCD", LoadFlags::TARGET_LCD},
+-    {"TARGET_LCD_V", LoadFlags::TARGET_LCD_V},
+-);
+-
+ const char *RenderMode__doc__ = R"""(
+     Render modes.
+ 
+@@ -213,16 +153,6 @@ const char *RenderMode__doc__ = R"""(
+     .. versionadded:: 3.10
+ )""";
+ 
+-P11X_DECLARE_ENUM(
+-    "RenderMode", "Enum",
+-    {"NORMAL", FT_RENDER_MODE_NORMAL},
+-    {"LIGHT", FT_RENDER_MODE_LIGHT},
+-    {"MONO", FT_RENDER_MODE_MONO},
+-    {"LCD", FT_RENDER_MODE_LCD},
+-    {"LCD_V", FT_RENDER_MODE_LCD_V},
+-    {"SDF", FT_RENDER_MODE_SDF},
+-);
+-
+ const char *StyleFlags__doc__ = R"""(
+     Flags returned by `FT2Font.style_flags`.
+ 
+@@ -240,13 +170,6 @@ enum class StyleFlags : FT_Long {
+ #undef DECLARE_FLAG
+ };
+ 
+-P11X_DECLARE_ENUM(
+-    "StyleFlags", "Flag",
+-    {"NORMAL", StyleFlags::NORMAL},
+-    {"ITALIC", StyleFlags::ITALIC},
+-    {"BOLD", StyleFlags::BOLD},
+-);
+-
+ /**********************************************************************
+  * FT2Image
+  * */
+@@ -1669,12 +1592,77 @@ PYBIND11_MODULE(ft2font, m, py::mod_gil_not_used())
+     FT_Library_Version(_ft2Library, &major, &minor, &patch);
+     snprintf(version_string, sizeof(version_string), "%d.%d.%d", major, minor, patch);
+ 
+-    p11x::bind_enums(m);
+-    p11x::enums["Kerning"].attr("__doc__") = Kerning__doc__;
+-    p11x::enums["LoadFlags"].attr("__doc__") = LoadFlags__doc__;
+-    p11x::enums["RenderMode"].attr("__doc__") = RenderMode__doc__;
+-    p11x::enums["FaceFlags"].attr("__doc__") = FaceFlags__doc__;
+-    p11x::enums["StyleFlags"].attr("__doc__") = StyleFlags__doc__;
++    py::native_enum<FT_Kerning_Mode>(m, "Kerning", "enum.Enum", Kerning__doc__)
++        .value("DEFAULT", FT_KERNING_DEFAULT)
++        .value("UNFITTED", FT_KERNING_UNFITTED)
++        .value("UNSCALED", FT_KERNING_UNSCALED)
++        .finalize();
++
++    py::native_enum<LoadFlags>(m, "LoadFlags", "enum.Flag", LoadFlags__doc__)
++        .value("DEFAULT", LoadFlags::DEFAULT)
++        .value("NO_SCALE", LoadFlags::NO_SCALE)
++        .value("NO_HINTING", LoadFlags::NO_HINTING)
++        .value("RENDER", LoadFlags::RENDER)
++        .value("NO_BITMAP", LoadFlags::NO_BITMAP)
++        .value("VERTICAL_LAYOUT", LoadFlags::VERTICAL_LAYOUT)
++        .value("FORCE_AUTOHINT", LoadFlags::FORCE_AUTOHINT)
++        .value("CROP_BITMAP", LoadFlags::CROP_BITMAP)
++        .value("PEDANTIC", LoadFlags::PEDANTIC)
++        .value("IGNORE_GLOBAL_ADVANCE_WIDTH", LoadFlags::IGNORE_GLOBAL_ADVANCE_WIDTH)
++        .value("NO_RECURSE", LoadFlags::NO_RECURSE)
++        .value("IGNORE_TRANSFORM", LoadFlags::IGNORE_TRANSFORM)
++        .value("MONOCHROME", LoadFlags::MONOCHROME)
++        .value("LINEAR_DESIGN", LoadFlags::LINEAR_DESIGN)
++        .value("NO_AUTOHINT", LoadFlags::NO_AUTOHINT)
++        .value("COLOR", LoadFlags::COLOR)
++        .value("COMPUTE_METRICS", LoadFlags::COMPUTE_METRICS)
++        .value("BITMAP_METRICS_ONLY", LoadFlags::BITMAP_METRICS_ONLY)
++        .value("NO_SVG", LoadFlags::NO_SVG)
++        // These must be unique, but the others can be OR'd together; I don't know if
++        // there's any way to really enforce that.
++        .value("TARGET_NORMAL", LoadFlags::TARGET_NORMAL)
++        .value("TARGET_LIGHT", LoadFlags::TARGET_LIGHT)
++        .value("TARGET_MONO", LoadFlags::TARGET_MONO)
++        .value("TARGET_LCD", LoadFlags::TARGET_LCD)
++        .value("TARGET_LCD_V", LoadFlags::TARGET_LCD_V)
++        .finalize();
++
++    py::native_enum<FaceFlags>(m, "FaceFlags", "enum.Flag", FaceFlags__doc__)
++        .value("SCALABLE", FaceFlags::SCALABLE)
++        .value("FIXED_SIZES", FaceFlags::FIXED_SIZES)
++        .value("FIXED_WIDTH", FaceFlags::FIXED_WIDTH)
++        .value("SFNT", FaceFlags::SFNT)
++        .value("HORIZONTAL", FaceFlags::HORIZONTAL)
++        .value("VERTICAL", FaceFlags::VERTICAL)
++        .value("KERNING", FaceFlags::KERNING)
++        .value("FAST_GLYPHS", FaceFlags::FAST_GLYPHS)
++        .value("MULTIPLE_MASTERS", FaceFlags::MULTIPLE_MASTERS)
++        .value("GLYPH_NAMES", FaceFlags::GLYPH_NAMES)
++        .value("EXTERNAL_STREAM", FaceFlags::EXTERNAL_STREAM)
++        .value("HINTER", FaceFlags::HINTER)
++        .value("CID_KEYED", FaceFlags::CID_KEYED)
++        .value("TRICKY", FaceFlags::TRICKY)
++        .value("COLOR", FaceFlags::COLOR)
++        .value("VARIATION", FaceFlags::VARIATION)
++        .value("SVG", FaceFlags::SVG)
++        .value("SBIX", FaceFlags::SBIX)
++        .value("SBIX_OVERLAY", FaceFlags::SBIX_OVERLAY)
++        .finalize();
++
++    py::native_enum<FT_Render_Mode>(m, "RenderMode", "enum.Enum", RenderMode__doc__)
++        .value("NORMAL", FT_RENDER_MODE_NORMAL)
++        .value("LIGHT", FT_RENDER_MODE_LIGHT)
++        .value("MONO", FT_RENDER_MODE_MONO)
++        .value("LCD", FT_RENDER_MODE_LCD)
++        .value("LCD_V", FT_RENDER_MODE_LCD_V)
++        .value("SDF", FT_RENDER_MODE_SDF)
++        .finalize();
++
++    py::native_enum<StyleFlags>(m, "StyleFlags", "enum.Flag", StyleFlags__doc__)
++        .value("NORMAL", StyleFlags::NORMAL)
++        .value("ITALIC", StyleFlags::ITALIC)
++        .value("BOLD", StyleFlags::BOLD)
++        .finalize();
+ 
+     py::class_<FT2Image>(m, "FT2Image", py::is_final(), py::buffer_protocol(),
+                          PyFT2Image__doc__)

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Step 10: unpack the toolchain and the host Python under build/tools/, replace the toolchain's wasm
 # runtime with the host-neutral one (spec 012), and install the build tools (Cython, meson, ninja,
-# versioneer) from their pinned wheels: offline, with their hashes (spec 003). On x86_64 Linux, put
+# versioneer, pkgconf) from their pinned wheels: offline, with their hashes (spec 003; pkgconf,
+# spec 023). On x86_64 Linux, put
 # the arm64 Linux SDK's clang, under the pinned qemu-aarch64, behind the native SDK's clang, and
 # stop unless it is in place (spec 040, Decision 5).
 set -eu
@@ -13,7 +14,7 @@ PYTHON_TGZ=$(pinned "$HOST_PYTHON_ARCHIVE")
 SYSROOT_TGZ=$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")
 RT_TGZ=$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")
 WHEELS="$CYTHON_WHEEL meson-1.12.1-py3-none-any.whl
-$NINJA_WHEEL versioneer-0.29-py3-none-any.whl"
+$NINJA_WHEEL versioneer-0.29-py3-none-any.whl $PKGCONF_WHEEL"
 
 remove "$T" "$B/wheelhouse"
 mkdir -p "$T" "$B/wheelhouse"
@@ -151,4 +152,7 @@ uv pip install --python "$HOSTPY" --target "$T/pylib" --offline --no-index --fin
 for tool in meson ninja cython; do
   command -v "$tool" > /dev/null || die "$tool is not on PATH from build/tools/pylib/bin"
 done
-echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3)"
+# The pinned pkgconf binary itself, never the wheel's Python entry point, which would run a
+# pkg-config it finds on PATH instead (spec 023). Steps 37 and 55 name it in their cross file.
+[ -x "$PKGCONF" ] || die "the pkgconf wheel did not install $PKGCONF"
+echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3), pkgconf $("$PKGCONF" --version)"

@@ -32,12 +32,35 @@ PACKAGES = {
     "python-dateutil": "2.9.0.post0",
     "tzdata": "2026.5",
     "six": "1.17.0",
+    # matplotlib (spec 023): the package, its compiled dependencies, the C libraries linked in, the
+    # header-only C++ compiled in, and the pure packages in the zip. qhull is built, not linked.
+    "matplotlib": "3.11.2",
+    "pillow": "13.0.0",
+    "kiwisolver": "1.5.1",
+    "freetype": "2.14.3",
+    "harfbuzz": "14.1.0",
+    "sheenbidi": "3.0.0",
+    "libraqm": "0.10.5",
+    "pybind11": "3.1.0",
+    "cppy": "1.3.1",
+    "cycler": "0.12.1",
+    "pyparsing": "3.3.3",
+    "packaging": "26.3",
+    "fonttools": "4.67.0",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
     "tzdata": "tzdata-2026.5-py2.py3-none-any.whl",
     "six": "six-1.17.0-py2.py3-none-any.whl",
+    "pybind11": "pybind11-3.1.0-py3-none-any.whl",
+    "cppy": "cppy-1.3.1-py3-none-any.whl",
+    "cycler": "cycler-0.12.1-py3-none-any.whl",
+    "pyparsing": "pyparsing-3.3.3-py3-none-any.whl",
+    "packaging": "packaging-26.3-py3-none-any.whl",
+    "fonttools": "fonttools-4.67.0-py3-none-any.whl",
 }
+# The Unicode data terms of HarfBuzz's tables, pinned as a file (spec 023, Decision 9).
+UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
 # The licence notices of what the SDK links in, named by the line's wasi-libc and LLVM commits.
 WASI_LIBC = [
     f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-{name}"
@@ -55,6 +78,14 @@ LLVM = [
     for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt")
 ]
 RESEARCH_PINS = {"python-3.14.7-wasi_sdk-24.zip"}
+# matplotlib's notices beside its LICENSE/ folder: Agg's, compiled in, and the fonts' that travel
+# with mpl-data (the AFM files' readme must go with them; spec 023, Decision 9).
+MPL_NOTICES = (
+    "extern/agg24-svn/src/copying",
+    "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU",
+    "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_STIX",
+    "lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
+)
 PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
 
@@ -186,6 +217,25 @@ def main() -> None:
             (f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")
         ],
         "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
+        # spec 023, Decision 9: FreeType's BDF and PCF drivers are built, so their notices ship.
+        "freetype": [
+            (f"FreeType {n}", (b / "freetype-2.14.3" / n).read_bytes())
+            for n in ("LICENSE.TXT", "docs/FTL.TXT", "src/bdf/README", "src/pcf/README")
+        ],
+        "harfbuzz": [
+            (f"HarfBuzz {n}", (b / "harfbuzz-14.1.0" / n).read_bytes())
+            for n in ("COPYING", "src/ms-use/COPYING")
+        ]
+        + [(f"Unicode's data terms ({UNICODE_TERMS})", (d / UNICODE_TERMS).read_bytes())],
+        "sheenbidi": [("SheenBidi LICENSE", (b / "SheenBidi-3.0.0" / "LICENSE").read_bytes())],
+        "libraqm": [("libraqm COPYING", (b / "libraqm-0.10.5" / "COPYING").read_bytes())],
+        "matplotlib": [
+            (f"matplotlib LICENSE/{p.name}", p.read_bytes())
+            for p in licence_files(b / "matplotlib-3.11.2" / "LICENSE")
+        ]
+        + [(f"matplotlib {n}", (b / "matplotlib-3.11.2" / n).read_bytes()) for n in MPL_NOTICES],
+        "pillow": [("Pillow LICENSE", (b / "pillow-13.0.0" / "LICENSE").read_bytes())],
+        "kiwisolver": [("kiwisolver LICENSE", (b / "kiwisolver-1.5.1" / "LICENSE").read_bytes())],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],

@@ -6,8 +6,10 @@ build directory (spec 003, step 60).
 
 Builtin lookup compares the full dotted name (Python/import.c, is_builtin), so
 `numpy._core._multiarray_umath` resolves to a builtin from inside the numpy package. Test-only
-numpy modules (*_tests, _simd) are left out. A module built at the root of a build directory is
-placed by ROOT_MODULES, or the run fails.
+numpy modules (*_tests, _simd) are left out, and so are matplotlib's `_tkagg` (no Tk) and `_qhull`
+(it needs a writable /dev/null; spec 023). A module built at the root of a build directory is
+placed by ROOT_MODULES, or the run fails. The plot packages' directories (build/plot-modules/*)
+hold each archive at its install path (spec 023, step 55), so their names are those paths.
 """
 
 import sys
@@ -18,13 +20,14 @@ import line
 SUFFIX = f".cpython-{line.read()['PYTHON_TAG']}-wasm32-wasi.so"
 # Cython 3.1+ builds its shared utility module at the build root; pandas imports it from here.
 ROOT_MODULES = {("pandas", "_cyutility"): "pandas._libs._cyutility"}
+LEFT_OUT = {"_simd", "_tkagg", "_qhull"}
 
 
 def modules(package: str, build_dir: Path) -> list[tuple[str, str]]:
     found = []
     for so in sorted(build_dir.rglob("*" + SUFFIX)):
         name = so.name[: -len(SUFFIX)]
-        if name.endswith("_tests") or name == "_simd":
+        if name.endswith("_tests") or name in LEFT_OUT:
             continue
         parts = list(so.relative_to(build_dir).parent.parts)
         if parts:

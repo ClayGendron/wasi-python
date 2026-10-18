@@ -17,7 +17,7 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "ERROR: no build host $(uname -s)-$(uname -m): the build hosts are MACOS_ARM64, LINUX_AARCH64 and LINUX_X86_64" >&2
      exit 1;;
 esac
-for name in WASI_SDK_DIR WASMTIME_DIR HOST_PYTHON_ARCHIVE CYTHON_WHEEL NINJA_WHEEL COMPILER_SDK_DIR; do
+for name in WASI_SDK_DIR WASMTIME_DIR HOST_PYTHON_ARCHIVE CYTHON_WHEEL NINJA_WHEEL PKGCONF_WHEEL COMPILER_SDK_DIR; do
   eval "value=\${${HOST_KEY}_$name:-}"
   [ -n "$value" ] || { echo "ERROR: scripts/line.conf has no ${HOST_KEY}_$name" >&2; exit 1; }
   eval "$name=\$value"
