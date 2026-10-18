@@ -599,3 +599,5 @@ wasi_python v1: 232/243 pass · 0 gap · 11 blocked · 0 fail   (unit suite 847/
 ratchet vs 947036ec8d: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 16 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_tools.py
 ================= 1079 passed, 19 skipped in 205.60s (0:03:25) =================
 ```
+
+**Rebased onto main `77f516d` (spec 048), 2026-10-18:** one conflict in `_instance`, resolved by keeping 048's guard linker and guard `_Files` table for every call and passing 036's `admit` to `_Call` (the guard linker carries the same door), and both CHANGELOG entries (048's replaces the old fd_readdir known issue); judge (no flags) `236/247 pass · 0 gap · 11 blocked · 0 fail (unit suite 855/863)`, `lost 0 · grew 0 · gained 16`, 048's checks in `test_rules.py`, `test_v1_2_hostile_guest.py`, `test_runner_mounts.py` and `test_runner_grants.py` passing.
