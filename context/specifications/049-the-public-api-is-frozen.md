@@ -1,9 +1,9 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** built 2026-10-18 in the worktree `wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c` (034 landed), commits `6f7a2fe` to `e700ce8` and these notes; awaiting its build review. Before that: confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
+- **Status:** revised against its build review 2026-10-18 (`049-the-public-api-is-frozen-2026-10-18.md`, verdict "lands once F1 and F2 are fixed; F3 to F6 fixed or answered in writing"; all six fixed, see the landing notes' "Revised against the build review"); awaiting the reviewer's confirmation. Built 2026-10-18 in the worktree `wasi_python-049` on `spec/049-the-public-api-is-frozen`, from main `1c0123c` (034 landed). Before that: confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first (landed 2026-10-18). Decision 8 revised 2026-10-18 for the owner's answer to question 88: a deprecated thing survives at least two final minor releases. drafted 2026-10-18; reviewed before build the same day
   (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
   F1 to F7 are written in) and revised against all thirteen findings (the review's
-  Disposition says where each went); awaiting the reviewer's confirmation. It changes neither
+  Disposition says where each went), and confirmed. It changes neither
   the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 asks no
   review before build; one was asked for because Decision 8 binds every later specification
   that touches the package. **It lands after spec 034** (Decision 13).
@@ -140,11 +140,14 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
      could give it a mix. The runner reads the binding through one internal helper,
      `_current_defaults()`, called once in `_checked`, which passes the value to
      `_check_tools` and `_check_places`; `run_async` makes that read on the caller's thread,
-     when it is called, as it checks its arguments today, and gives the same value's
-     `async_workers` to `_submit` for the pool's size. A call already made keeps what it
-     read. This is a small runner change and is in the Scope.
-   - **The pool.** A new `async_workers` applies to `run_async` calls made afterwards: the
-     next such call without an `executor` makes a pool of the new size. Calls already running or queued on the old
+     when it is called, as it checks its arguments today. A call already made keeps what it
+     read. This is a small runner change and is in the Scope. **One exception** (revised
+     against the build review, F3): the size of `run_async`'s own pool is process state, not a
+     call's limit, so `_submit` reads `async_workers` through `_current_defaults()` under the
+     pool's lock, at submit time, as it read `DEFAULTS` before; the newest `set_defaults`
+     always wins, and a call that read its limits earlier never sizes the pool back.
+   - **The pool.** A new `async_workers` applies to `run_async` calls submitted afterwards:
+     the next such call without an `executor` makes a pool of the new size. Calls already running or queued on the old
      pool still run there, so for a while both pools' workers may run guests (after 8 → 4, up
      to 12 at once). `set_defaults`'s docstring says so, and the README's bound ("8 workers
      bound one process at about 8.3 GiB") gains that sentence.
@@ -337,8 +340,10 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
      keyword-only), its annotation as written, and its default's `repr`; then the return
      annotation; for `tool`, each overload's parameters and return too
      (`typing.get_overloads`);
-   - a dataclass: `frozen`, then one line per public field (no leading `_`) with its annotation,
-     its default (`required`, a `repr`, or `<factory>`) and `kw_only`;
+   - a dataclass: `frozen`, and each other `dataclass()` parameter that differs from its
+     default (`Tool`'s `eq=False`, its identity equality; revised against the build review,
+     F5), then one line per public field (no leading `_`) with its annotation, its default
+     (`required`, a `repr`, or `<factory>`) and `kw_only`;
    - a class: its public bases; each public method and property defined on it, with its
      parameters, and `Tool`'s `__call__`; an enum's members and values; an exception's base;
    - a constant (`PROTOCOL`): its value;
@@ -394,7 +399,16 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
       such references outside the summaries today, EXECUTED there). A public docstring is the
       docstring of a public name, of a public method or property, or of one of the two public
       modules. Citations move to `#` comments beside the code, where maintainers read them;
-    - **no public document names an internal name.**
+    - **a public constant**, which cannot carry a docstring of its own (`PROTOCOL` is an
+      int), **is documented by being named in backticks in its module's docstring**; the
+      README's reference shows the first paragraph that names it (revised against the build
+      review, F4);
+    - **no public document names an internal name.** An internal name is one an internal
+      module binds at module level by a `def`, a `class` or a plain assignment (`X = …`). Not
+      internal (revised against the build review, F4): names unpacked together
+      (`EBADF, EIO = 8, 29`), which are preview1's own numbers and the words a document uses
+      for them; dunders such as `__all__`, which every module has; and `Errno`'s member names,
+      public through `Errno`.
       - In a public docstring: a backticked token whose root is a module-level name of an
         internal module, and not a public name. On main that is 7 hits (EXECUTED,
         `probe_internal_names.py`): `run`'s `DEFAULTS` (three times), `BASE_ENV` and
@@ -472,9 +486,9 @@ What the survey found (EXECUTED, `survey.py` on main `77bd08e`):
 
       A change the snapshot shows but no specification lists is a finding.
     - **Where drafters will see the rule** (the review, F8). A rule written only here binds
-      only those who read this specification. The lane applies one sentence to
-      `context/README.md`, at the end of the `specifications/` bullet, when this specification
-      lands:
+      only those who read this specification. The builder adds one sentence to
+      `context/README.md`, at the end of the `specifications/` bullet, on this specification's
+      branch, so the build review reads it (condition C2):
 
       > A specification that changes anything `tests/public_api.txt` records says so in its
       > Kind line ("changes the public API"), lists the snapshot lines it changes and the rule
@@ -525,7 +539,7 @@ tests/unit/test_guest_tools.py, tests/unit/test_tools.py    the 27 renamed lines
 README.md                        ## API reference; six spans naming DEFAULTS or runner
                                  replaced; the pool sentence
 CHANGELOG.md                     the unreleased section
-context/README.md                one sentence (Decision 13), applied by the lane at landing
+context/README.md                one sentence (Decision 13), written on the branch (C2)
 ```
 
 A few lines of the snapshot, to fix its shape (the builder's render decides the rest, and the

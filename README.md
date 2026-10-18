@@ -889,7 +889,7 @@ async def run_code(code: str):
   At the defaults each running guest may hold 1 GiB of memory, up to
   32 MiB of output and a copy of its `stdin`, so 8 workers bound one
   process at about 8.3 GiB, plus the disk a guest writes and the file
-  descriptors it opens. A new size applies to calls made afterwards; calls
+  descriptors it opens. A new size applies to calls submitted afterwards; calls
   already running or queued on the old pool still run there, so for a while
   both pools' workers may run guests (after 8 to 4, up to 12 at once). Four server worker processes have four pools: four
   times that. A container's CPU quota is not seen; set the size with
