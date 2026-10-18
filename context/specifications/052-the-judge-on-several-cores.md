@@ -1,6 +1,7 @@
 # 052 — The judge on several cores
 
-- **Status:** confirmed for build 2026-10-18 (C1, C2 written in); building. Revised against its
+- **Status:** built 2026-10-18; awaiting its build review. Confirmed for build the same day (C1, C2
+  written in). Revised against its
   pre-build review and confirmed the same day (the review's Confirmation: "ready to build", with
   conditions C1 and C2, written into Decisions 5 and 9 and criterion 5). Drafted 2026-10-18; reviewed the same day
   (`build/reviews-evidence/052-review/052-the-judge-on-several-cores-spec-2026-10-18.md` in the
@@ -26,7 +27,7 @@
 ## Intent
 
 Builders and reviewers run `uv run pytest -n 6`: the judge on six cores, with exactly the answer
-`uv run pytest` gives. The same status, need, facts and (for passes, gaps and blocked checks)
+`uv run pytest` gives. The same status, need, facts and (for gaps and blocked checks)
 reason for every check; the same `bytes` and `passes`; fuel within the ratchet's tolerance
 (serial runs already differ by up to 1.3 parts in a million); the same unit tally, deselected
 list and collected files. The full run drops from about ten minutes to about three on the
@@ -214,6 +215,13 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
     when there are any. *Reason:* the self-tests, the builder's evidence and the lane's per-landing
     record use one definition of "the same answer", and fuel's is the ratchet's own tolerance (the
     memo, finding 6: serial runs differ by up to 1.25e-6, parallel runs by no more) (review F12).
+
+    **Changed in the build** (2026-10-18, the builder; for the build review): `reason` is compared
+    for `gap` and `blocked` only, not for `pass`. The first serial and `-n 3` full judges differed
+    in exactly one field, the note of
+    `test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[plain]`, which
+    prints fuel counts (`Paris 8,688,508` serially, `8,688,525` under `-n 3`: 17 instructions, the
+    serial residual). The plugin already says a note "is never compared, so it is no metric".
 13. **The zips folder is safe across processes.** `zips.judge_zips` builds in its own `mkdtemp`
     folder, as now, then publishes it with **one `os.rename(work, home)`** and never removes a
     `home`:
@@ -419,4 +427,122 @@ Every finding of `052-the-judge-on-several-cores-spec-2026-10-18.md` (main tree,
 
 ## Landing notes
 
-(Empty until it lands.)
+**Built 2026-10-18** by the builder (Claude Opus 5.5) in the worktree `wasi_python-052`, branch
+`spec/052-the-judge-on-several-cores`, rebased onto main `94167a8` (spec 054 landed; the one
+conflict, `CHANGELOG.md`'s 0.1.0a5 section, kept both entries). Not yet reviewed: the build review
+goes under `context/reviews/` and is cited here before the lane lands it. Every number below is
+EXECUTED on darwin-arm64 against the frozen set `build/sets/s-c4190ca065ada03a` (main's accepted
+set, `python.wasm` `42344e2c…`), with `uv run` only; logs and records are under the worktree's
+`build/build-052/`. Nothing in the main tree was written.
+
+**Setup.** As the memo's: read-only links to the main tree's `downloads/*`, source trees,
+`build/brett-3.14.7` and prior-art clones; the oracle's cache and interpreter copied; the kit
+fetched with `uv run python tests/upstream/fetch.py`.
+
+**Commits** (oldest first): `3fea3d0` the memo; `310ded6` the draft; `c174026` the revision and
+the memo's addendum; `3b80e90` C1 and C2; `8ebd7ad` build 1/6 (the pin, the zips folder);
+`69e0dd0` build 2/6 (the plugin, `sameness.py`, `tests/unit/test_several_cores.py`); `3544ed7`
+build 3/6 (the five checks, criterion 4); `9b197fd` build 4/6 (AGENTS.md, the progress README,
+CHANGELOG, README); `0b4156b` build 5/6 (no pass note compared); and this commit (6/6, these
+notes).
+
+**The judge, serial and on three cores, on `0b4156b`** (the judged files of the built commit,
+judge hash `4b6455f0ab52` in both records; `-n 3` rather than `-n 6`, since other agents' judges
+were running, Decision 10):
+
+```
+uv run pytest            wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1097/1099, 2 skipped)
+                         ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · judge changed: pyproject.toml, tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py and 7 more
+                         1437 passed, 4 skipped, 12 xfailed in 620.31s; exit 0; wall 658 s, CPU 755 s, peak RSS 2.4 GiB
+uv run pytest -n 3       wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1097/1099, 2 skipped)
+                         ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · judge changed: (the same)
+                         1437 passed, 4 skipped, 12 xfailed in 231.26s; exit 0; wall 232 s, CPU 855 s, peak RSS 6.1 GiB
+sameness.py serial.json n3.json        (nothing printed) exit 0
+```
+
+Between the two records: 354 checks, 0 status differences; 86 fuel values, 18 differing, the
+largest by 5.6e-7 (under the tolerance 1e-4 by a factor of about 180); 2 pass notes differing
+(fuel counts printed in notes, see "For the build review"); `meta.workers` 0 and 3,
+`meta.scheduler` `null` and `JudgeScheduling`. Both records say `dirty: true`: this specification
+was edited while they ran (it is not a judged file; the judge hashes are equal). The load average
+was 24 to 86 around the runs (`sysctl -n vm.loadavg`). An earlier pair on `9b197fd` gave the same
+lines (serial 645 s, `-n 3` 242 s) and is where the note difference was found.
+
+**Each criterion.**
+
+1. **Passes.** `test_a_parallel_run_judges_as_a_serial_run[whole]`, `[node ids]`, `[-k]`. Against
+   today's plugin (stand-in a) 26 of the file's 29 tests failed (`build/build-052/standin-a.log`);
+   criterion 1's first failure: the parallel record empty, `test_goals.py::test_blocked: only in
+   the first record`. Stand-ins (b) first record kept, (c) records rebuilt from outcomes, (d)
+   `deselected` not merged and (d') `narrowed_files` not merged (the node-id shape), (e) the tally
+   counted twice: each fails at `assert sameness.differences(serial, record) == []` for `-n 2`;
+   (f) the scheduler not in effect: criterion 7's end-to-end test fails, `assert 38323 == 38326`
+   (two pids) (`build/build-052/standins.py`, `standins.txt`; the plugin restored and compared
+   byte for byte after).
+2. **Passes.** `test_one_acceptance_by_the_controller`: one history line serially and under
+   `-n 3`, equal but for `at` and `accepted`; `accepted.json`'s checks equal; the failing variant
+   refused, the count still 1.
+3. **Passes.** `test_a_worker_writes_nothing_and_hands_its_collection_over` (0 files),
+   `test_a_worker_skips_the_lanes_guards` (no HEAD stashed; the same config without `workerinput`
+   refused in this linked worktree).
+4. **Passes.** `test_accept_in_a_worktree_is_refused_before_collection[-n 2]` and
+   `test_the_guards_hold_under_several_cores_in_a_main_tree` (a dirty clone refused before
+   collection; HEAD moved by a worker's commit refused once, `--accept refused` printed 1 time;
+   `history.jsonl` unchanged in both).
+5. **Passes.** xdist's three plugins and the `Controller` at the locked versions: 0 findings; each
+   of `pytest-xdist`, `xdist.__version__`, `execnet` reported as `0.0.0`: 3 findings; `iniconfig`
+   (site-packages outside `xdist/`, C1), a module named `xdist_impostor` outside the package and a
+   stranger: 3 findings.
+6. **Passes.** The 11 refused rows each exit 1 with one line naming the option and `spec 052`, and
+   write 0 files; the 5 allowed rows judge as serial (`sameness` empty; `meta.workers` 2). Against
+   today's plugin `-f` ran until its 120 s fail-safe. Builder's detail: under `-p harness.plugin`
+   xdist's own `tryfirst` `pytest_cmdline_main` ran before the harness's and had already turned
+   `-n 2` into `--tx popen popen`, so a plain `tryfirst` hook refused every `-n` run as `--tx`;
+   the options are therefore read in a hook wrapper (`specname="pytest_cmdline_main"`), which runs
+   before every implementation, and refused in the `tryfirst` implementation, which runs before
+   looponfail's loop and before any session.
+7. **Passes.** `test_the_upstream_scopes_are_exact` (the map equals one built by hand: 11 groups,
+   31 node ids), `test_the_collected_upstream_ids_fall_in_their_groups`,
+   `test_xdist_deals_with_the_judges_scheduler` (one pid for the group's and the class's check;
+   `meta.scheduler` `JudgeScheduling`).
+8. **Holds.** Every goal check outside the upstream file alone in a fresh process, four at a time
+   (`build/build-052/alone.sh`, 357 s, load average 100 after): **322** node ids, **320 pass, 2
+   blocked** (`wheel`, `three systems`, as in the full run), **0 fail**. Before the build: 311, 305
+   pass, 2 blocked, 4 fail.
+9. **Holds** (READ, the memo's `grep` on the built commit). Fixed paths under `build/` and why no
+   two processes race: `build/harness/zips-<sha>-v2` (one atomic rename, never removed;
+   criterion 10); `build/cwasm-cache` (the runner's `mkstemp` and `os.replace`; directory made with
+   `exist_ok`); `build/progress/latest.json` (the controller only); `build/harness/oracle-check`,
+   `build/oracle/python/<archive>`, `build/oracle/venv` and `cache` (the one oracle check only, so
+   one process; Scope, Out); `build/upstream/wheels` (read only during a run). Everything else is
+   `mkdtemp` (`guest-*`, `unit-*`, `upstream/run-*`, the checks' scratch folders) or the runner's
+   per-process and per-call folders in the temporary folder. Spec 054's additions use
+   `mkdtemp` under `guest_workdir`.
+10. **Passes.** `test_the_judges_zips_folder_is_safe_across_processes` (6 processes × 3 trials, 400
+    members): passed on 4 runs; against the old `judge_zips` it failed in trial 0 with
+    `FileNotFoundError: …/zips-0995790b9b139101/padded.zip` (`build/build-052/c10-before.log`).
+11. **Holds, with one change.** One serial and one `-n 3` judge (above) instead of three `-n 6`:
+    the coordinator's instruction, other agents' judges running (Decision 10). `sameness` exit 0;
+    equal counts. Wall-clock 658 s and 232 s (2.8 times), CPU 755 s and 855 s.
+12. **Holds.** `ruff check` and `ruff format --check` on `src tests recipes/guest` clean (the
+    rules checks run them); both full judges exit 0, red by nothing; `judge changed` is for the
+    lane's `--accept-judge`.
+
+**For the build review.**
+
+- **Decision 12 changed in the build:** `sameness` compares the reason of `gap` and `blocked`
+  checks, not of passes. Two pass notes print fuel counts and differed between serial and parallel
+  runs by the serial residual (17 instructions in 8.7 million); see Decision 12's added note.
+- **Criterion 11** was run as one serial and one `-n 3` judge (twice, on `9b197fd` and on
+  `0b4156b`), not three `-n 6` judges.
+- **The raw options** are read by a hook wrapper declared with `specname`; criterion 6's detail
+  above says why a `tryfirst` hook alone was not enough.
+- **The tool-deadline check without its count seam** does not fail: it waits for the real 60 s
+  deadline and then passes. The seam removes the dependence on start-up speed; the door check
+  without its seam does fail (`assert ['in the door…the door\n'"] == […]`).
+- **`meta.scheduler`** is read from xdist's `dsession.sched` at the end of the run, so it names
+  the scheduler xdist actually used.
+- **The unit suite** gains 29 tests in `tests/unit/test_several_cores.py` (about 15 s serially, most
+  of them subprocess runs), 1 in `test_zip_directory.py` and 2 in `test_landing_lane.py`.
+- **Lane, for this landing:** step 3 serial with `--accept-judge`; step 3a compares the
+  reviewer's `-n 6` (or `-n 3`) record with the lane's serial one.
