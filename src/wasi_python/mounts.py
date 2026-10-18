@@ -46,8 +46,11 @@ if TYPE_CHECKING:
 
 class Errno(enum.IntEnum):
     """An answer a provider gives instead of a value: WASI preview1's numbers, which the guest
-    sees unchanged (READ, wasi-libc's wasip1.h). The set is closed: no success, nothing that
-    makes the guest's C library retry, and nothing that describes the guest's own arguments."""
+    sees unchanged, each as the `OSError` of that errno. The set is closed: no success, nothing
+    that makes the guest's C library retry, and nothing that describes the guest's own
+    arguments."""
+
+    # The numbers: READ, wasi-libc's wasip1.h (spec 032).
 
     EACCES = 2
     EBUSY = 10

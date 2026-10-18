@@ -592,7 +592,7 @@ A path a more specific preopen owns, spelled past the guest's C library
 **Limits** (each with a default):
 
 - **provider calls:** `max_file_calls=` (default
-  `DEFAULTS.file_calls`, 10,000). Every provider call counts, whatever it
+  `defaults().file_calls`, 10,000). Every provider call counts, whatever it
   answers. The call that would pass the limit is not made; the run stops and
   `trapped` is `"out of file calls"`, with `exit_code` and `fuel_used` `None`;
 - **open files:** at most 1,024 open files and folders per call; the next open
@@ -884,15 +884,16 @@ async def run_code(code: str):
   client disconnects, so without a timeout that guest runs to its
   `deadline_s`.
 - **How many run at once.** With no `executor`, calls share one pool per
-  process of `DEFAULTS.async_workers` threads: the CPU count (with CPU
+  process of `defaults().async_workers` threads: the CPU count (with CPU
   affinity, from Python 3.13), at most 8. Further calls wait for a worker.
   At the defaults each running guest may hold 1 GiB of memory, up to
   32 MiB of output and a copy of its `stdin`, so 8 workers bound one
   process at about 8.3 GiB, plus the disk a guest writes and the file
-  descriptors it opens. Four server worker processes have four pools: four
+  descriptors it opens. A new size applies to calls made afterwards; calls
+  already running or queued on the old pool still run there, so for a while
+  both pools' workers may run guests (after 8 to 4, up to 12 at once). Four server worker processes have four pools: four
   times that. A container's CPU quota is not seen; set the size with
-  `wasi_python.runner.DEFAULTS = dataclasses.replace(DEFAULTS,
-  async_workers=n)`. The bound covers only `run_async` on its own pool, not
+  `set_defaults(dataclasses.replace(defaults(), async_workers=n))`. The bound covers only `run_async` on its own pool, not
   `run` called from your threads, an `executor` you pass, or a
   framework's thread pool for synchronous endpoints.
 - **A synchronous endpoint** that calls `run` also keeps the loop free (the
@@ -1026,7 +1027,7 @@ done.stdout                                    # b'Ada\n'
   JSON: numpy's integers and floats are, but numpy's `bool_` is not, so
   return `bool(df["x"].any())`, not `df["x"].any()`.
 - **Limits.** At most `max_tool_calls` frames per call, the guest's discovery
-  frame included (default `DEFAULTS.tool_calls`, 1,000; `None` means no
+  frame included (default `defaults().tool_calls`, 1,000; `None` means no
   limit). Past it the guest gets `ToolBudgetExceeded` and runs on. A request
   over 1 MiB is refused from its length, before its bytes are copied out of
   guest memory, so a refused frame costs the host the same whatever its
@@ -1070,7 +1071,7 @@ done.stdout                                    # b'Ada\n'
   abandoned, and the one running when the run ended), and there is no
   process-wide ceiling, which would let one run's stalled tools starve
   another's. A tool that can hang must bound itself (a timeout on its own
-  network call). `wasi_python.runner.stats()["tool_threads_running"]`
+  network call). `wasi_python.stats()["tool_threads_running"]`
   counts the tool threads alive in the process, abandoned ones included.
 - **What `run` refuses**, before any work: `host=` with `tools=` (the door
   is one function: pass `host=` for the raw door or `tools=` for the
@@ -1271,6 +1272,738 @@ def search_mail(**args):
 `stubs(tools)` renders each tool as the `def` line and docstring the guest's
 function carries, under `from host import tools`, for a prompt.
 
+## API reference
+
+The public API is the names below: what `wasi_python` and
+`wasi_python.tools` export (each module's `__all__`), the `wasi-python`
+command, and the environment variables `WASI_PYTHON_ARTIFACTS` and
+`WASI_PYTHON_CACHE`. Everything else is internal and may change in any
+release: every other name, and the modules `runner`, `mounts` and `cli`.
+`tests/public_api.txt` records this surface, and the judge fails on any
+change to it that no specification lists.
+
+The promise starts at 0.1.0, the first final release; alphas may still
+change anything. Versions are `0.MINOR.PATCH`. A patch release changes no
+public name, signature, field, default or command option. A minor release
+may add names, keyword-only arguments, dataclass fields placed last with a
+default, `Errno` members, `stats()` keys, command options and JSON keys. It
+removes or changes something only after a deprecation: a
+`DeprecationWarning`, a docstring that begins "Deprecated since 0.N: use X
+instead." and a CHANGELOG line, all at once. A thing deprecated in 0.N still
+works in 0.N and 0.N+1; 0.N+2 is the first release that may remove it. Two
+exceptions need no deprecation: a tighter default limit, in a minor release,
+and a security fix, in any release; each is named in the CHANGELOG.
+Exceptions are promised by type, never by message. Not promised: messages,
+`repr`s, help text, wasmtime's trap names and error types, timings, fuel
+counts, the `.cwasm` cache, and the guest's package versions. The tool
+protocol is versioned by `PROTOCOL`. At 1.0 the same rules hold with
+"major" in place of "minor".
+
+<!-- api reference: begin (generated by tests/harness/api.py) -->
+
+### `wasi_python`
+
+#### `wasi_python.Artifacts`
+
+```python
+@dataclass(frozen=True)
+class Artifacts:
+    snapshot: Path
+    plain: Path
+    stdlib_zip: Path
+    manifest: Path
+```
+
+The artifact set's four files, made by `artifacts()`, or by you for `run(artifacts=…)`.
+
+**Attributes:**
+
+- `snapshot`: The snapshot binary, python-snapshot.wasm: the reactor with the stack pre-imported.
+- `plain`: The plain reactor, python.wasm, without the snapshot.
+- `stdlib_zip`: The stdlib zip, python-stdlib.zip, which every guest sees read-only at /usr/local/lib.
+- `manifest`: The MANIFEST: every pinned source and recipe hash the build used.
+
+#### `wasi_python.ArtifactsMissing`
+
+```python
+class ArtifactsMissing(RuntimeError):
+    ...
+```
+
+Raised when there is no usable artifact set; the message says how to get one.
+
+#### `wasi_python.Completed`
+
+```python
+@dataclass(frozen=True)
+class Completed:
+    exit_code: int | None
+    stdout: bytes
+    stderr: bytes
+    trapped: str | None
+    fuel_used: int | None
+    truncated: tuple[str, ...] = ()
+    files: FileRecord | None = None
+    tools: ToolRecord | None = None
+```
+
+How one program ended: what `run` returns.
+
+**Attributes:**
+
+- `exit_code`: The program's exit status: its return value, or the code it passed to exit. `None` when it trapped.
+- `stdout`: What the guest wrote to standard output, up to the output limit.
+- `stderr`: What the guest wrote to standard error, up to the output limit.
+- `trapped`: `None` when the program ended by itself. Otherwise one of four fixed strings, "out of fuel", "deadline", "cancelled" or "out of file calls", or wasmtime's words: a trap's plain name ("stack overflow"), or an error's first line. The four strings are promised; wasmtime's words are not.
+- `fuel_used`: The guest's instructions spent, when a `fuel` cap was given and no deadline hit; else `None`.
+- `truncated`: The streams ("stdout", "stderr") whose output passed the limit.
+- `files`: For a call with mounts, its provider calls, faults and refused writes; else `None`.
+- `tools`: For a call with tools, every frame counted and the first 1,000 listed; else `None`.
+
+#### `wasi_python.Defaults`
+
+```python
+@dataclass(frozen=True)
+class Defaults:
+    memory_bytes: int | None
+    deadline_s: float | None
+    output_bytes: int | None
+    async_workers: int = <factory>
+    file_calls: int | None = 10000
+    tool_calls: int | None = 1000
+```
+
+The limits a call has when it names none: `defaults()` returns the ones in force, and `set_defaults()` replaces them.
+
+**Attributes:**
+
+- `memory_bytes`: The most linear memory a guest may hold, in bytes.
+- `deadline_s`: The wall-clock seconds a call may run, enforced by epoch interruption, which costs nothing per instruction.
+- `output_bytes`: The most bytes kept per stream; bytes past it are dropped and the stream is named in `truncated`.
+- `async_workers`: How many guests `run_async`'s own pool runs at once; by default the CPU count, at most 8.
+- `file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls".
+- `tool_calls`: The most tool-protocol frames a call with tools answers; past it the guest gets `ToolBudgetExceeded`.
+
+#### `wasi_python.Errno`
+
+```python
+class Errno(IntEnum):
+    EACCES = 2
+    EBUSY = 10
+    ECANCELED = 11
+    EDQUOT = 19
+    EEXIST = 20
+    EFBIG = 22
+    EINVAL = 28
+    EIO = 29
+    EISDIR = 31
+    ENAMETOOLONG = 37
+    ENOENT = 44
+    ENOSPC = 51
+    ENOSYS = 52
+    ENOTDIR = 54
+    ENOTEMPTY = 55
+    ENOTSUP = 58
+    EPERM = 63
+    EROFS = 69
+    ESTALE = 72
+    ETIMEDOUT = 73
+    EXDEV = 75
+```
+
+An answer a provider gives instead of a value: WASI preview1's numbers, which the guest sees unchanged, each as the `OSError` of that errno. The set is closed: no success, nothing that makes the guest's C library retry, and nothing that describes the guest's own arguments.
+
+#### `wasi_python.FileFault`
+
+```python
+@dataclass(frozen=True)
+class FileFault:
+    method: str
+    path: str
+    error: str
+```
+
+One provider call that raised, or answered outside its protocol.
+
+**Attributes:**
+
+- `method`: The provider's method, such as "read".
+- `path`: The path it was given; a rename's source.
+- `error`: The exception's type and first line, or "bad answer: <type>".
+
+#### `wasi_python.FileProvider`
+
+```python
+class FileProvider:
+    def stat(self, path: str) -> Stat | Errno
+    def list(self, path: str) -> Iterable[tuple[str, str]] | Errno
+    def read(self, path: str) -> bytes | bytearray | memoryview | Errno
+```
+
+What a mount's provider answers, for type checkers: a read-only mount's three methods.
+
+**Methods:**
+
+- `FileProvider.stat`: What the path is: a `Stat`, whose kind for / must be "dir", or an `Errno`.
+  - `path`: An absolute path within the mount.
+- `FileProvider.list`: A folder's entries, as (name, kind) pairs, or an `Errno`.
+  - `path`: An absolute path within the mount.
+- `FileProvider.read`: A file's whole content, or an `Errno`: EISDIR when the path itself is a folder, and ENOTDIR when a parent is a file.
+  - `path`: An absolute path within the mount.
+
+#### `wasi_python.FileRecord`
+
+```python
+@dataclass(frozen=True)
+class FileRecord:
+    calls: Mapping[str, int]
+    faults: tuple[FileFault, ...] = ()
+    refused: tuple[RefusedWrite, ...] = ()
+    refused_total: int = 0
+```
+
+A call's provider calls, counted. No times, and no exception objects, so a result holds no frame of the call.
+
+**Attributes:**
+
+- `calls`: Each method's count, all eight methods, zeros included.
+- `faults`: The first 1,000 faults.
+- `refused`: The first 1,000 refused writes.
+- `refused_total`: How many writes were refused in all, so a cut list says so.
+
+#### `wasi_python.Grant`
+
+```python
+@dataclass(frozen=True)
+class Grant:
+    host: str | os.PathLike[str]
+    guest: str
+    writable: bool = False  # keyword-only
+```
+
+A host folder the guest sees at a guest path, read-only unless `writable=True`.
+
+**Attributes:**
+
+- `host`: The host folder, a str or os.PathLike[str].
+- `guest`: Where the guest sees it: an absolute guest path, not / and not the runtime's own /usr/local/lib.
+- `writable`: Whether the guest may write there. Keyword-only.
+
+#### `wasi_python.Mount`
+
+```python
+@dataclass(frozen=True)
+class Mount:
+    provider: FileProvider
+    guest: str
+    writable: bool = False  # keyword-only
+```
+
+A provider whose files the guest sees at a guest path, read-only unless `writable=True`.
+
+**Attributes:**
+
+- `provider`: The provider: a `FileProvider`, or a `WritableFileProvider` for a writable mount.
+- `guest`: Where the guest sees it: an absolute guest path, or / for the guest's whole filesystem (not with `root=`).
+- `writable`: Whether the guest may write there; it needs the provider's write half. Keyword-only.
+
+#### `wasi_python.RefusedWrite`
+
+```python
+@dataclass(frozen=True)
+class RefusedWrite:
+    mount: str
+    method: str
+    paths: tuple[str, ...]
+    errno: Errno
+    at: str
+    cause: str
+```
+
+One write-half call the provider did not accept, or a write-back the runner owed and did not make.
+
+**Attributes:**
+
+- `mount`: The mount's guest path.
+- `method`: The provider's method, such as "write".
+- `paths`: The provider path, or (src, dst) for a rename.
+- `errno`: The provider's answer, or EIO for a fault or the limit.
+- `at`: When: "open", "call", "close", "sync" or "exit".
+- `cause`: Why: "refused", "fault" or "limit".
+
+#### `wasi_python.Stat`
+
+```python
+@dataclass(frozen=True)
+class Stat:
+    kind: str
+    size: int = 0
+    mtime_ns: int = 0
+```
+
+What a provider's `stat` answers for a path.
+
+**Attributes:**
+
+- `kind`: "file" or "dir".
+- `size`: The size in bytes, 0 to 2**63 - 1. A bool is refused.
+- `mtime_ns`: The modification time in nanoseconds, 0 to 2**64 - 1. A bool is refused.
+
+#### `wasi_python.WritableFileProvider`
+
+```python
+class WritableFileProvider(FileProvider):
+    def write(
+        self,
+        path: str,
+        data: bytes,
+    ) -> None | Errno
+    def mkdir(self, path: str) -> None | Errno
+    def remove(self, path: str) -> None | Errno
+    def rmdir(self, path: str) -> None | Errno
+    def rename(
+        self,
+        src: str,
+        dst: str,
+    ) -> None | Errno
+```
+
+What a writable mount's provider answers, for type checkers: the read half and the write half.
+
+**Methods:**
+
+- `WritableFileProvider.write`: Replace a file's whole content, creating the file if it is missing.
+  - `path`: An absolute path within the mount.
+  - `data`: The file's new content, a copy the provider may keep.
+- `WritableFileProvider.mkdir`: Make a folder.
+  - `path`: An absolute path within the mount.
+- `WritableFileProvider.remove`: Remove a file; EISDIR for a folder.
+  - `path`: An absolute path within the mount.
+- `WritableFileProvider.rmdir`: Remove a folder; ENOTEMPTY for one that holds anything.
+  - `path`: An absolute path within the mount.
+- `WritableFileProvider.rename`: Move a file or folder within the mount, by POSIX's rule for replacing `dst`.
+  - `src`: The absolute path, within the mount, of what moves.
+  - `dst`: The absolute path, within the mount, it moves to.
+
+#### `wasi_python.artifact_dir`
+
+```python
+def artifact_dir() -> Path
+```
+
+The folder holding the artifact set.
+
+**Raises:**
+
+- `ArtifactsMissing`: None of the three is there.
+
+#### `wasi_python.artifacts`
+
+```python
+def artifacts() -> Artifacts
+```
+
+The artifact set's paths, in the folder `artifact_dir()` names.
+
+**Raises:**
+
+- `ArtifactsMissing`: There is no artifact set, or its folder has no MANIFEST; the message says how to get one.
+
+#### `wasi_python.defaults`
+
+```python
+def defaults() -> Defaults
+```
+
+The `Defaults` a call reads now: the limits it has for each one it does not name.
+
+#### `wasi_python.run`
+
+```python
+def run(
+    argv: Iterable[str],
+    *,
+    root: str | os.PathLike[str] | bool | None = False,
+    grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
+    env: Mapping[str, str] | None = None,
+    stdin: bytes | bytearray | memoryview | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+    snapshot: bool = True,
+    fuel: int | None = None,
+    deadline_s: float | None = <default>,
+    memory_bytes: int | None = <default>,
+    output_bytes: int | None = <default>,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    cancel: threading.Event | None = None,
+    max_file_calls: int | None = <default>,
+    tools: Iterable[Tool | Callable[..., Any]] | None = None,
+    gate: Callable[[ToolCall], Any] | None = None,
+    max_tool_calls: int | None = <default>,
+) -> Completed
+```
+
+Run one program in a fresh instance of the runtime and return how it ended.
+
+**Args:**
+
+- `argv`: The guest's arguments after the program's name, as for `python`: `["-c", code]`, `["script.py"]` or `["-m", "module"]`.
+- `root`: The host folder the guest sees as /, writable, made if missing. `False` or `None` (the default) gives no / and nothing writable; `True` gives a fresh private folder, removed after the call.
+- `grants`: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
+- `mounts`: Providers whose files the guest sees at their guest paths, each a `Mount`, served from your code, read-only unless it says `writable=True`.
+- `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
+- `stdin`: The guest's standard input, whole; `None` is empty.
+- `host`: The door's host function: called with each request's bytes, it returns the response's. Excludes `tools`.
+- `snapshot`: `True` runs the snapshot binary, with the stack pre-imported; `False` the plain reactor.
+- `fuel`: A cap on the guest's executed instructions; past it the call ends "out of fuel". `None` (the default) sets no cap.
+- `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
+- `memory_bytes`: The most linear memory the guest may hold, in bytes. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
+- `output_bytes`: The most bytes kept per stream; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
+- `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
+- `artifacts`: The artifact set to run; `None` finds it with `artifacts()`.
+- `cancel`: A `threading.Event`. Once it is set and the guest runs, the guest stops within 5 ticks of 10 ms while it computes, and the call ends "cancelled".
+- `max_file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
+- `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. Excludes `host`.
+- `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. Needs `tools`.
+- `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
+
+**Raises:**
+
+- `TypeError`: An argument has the wrong type; raised before any work.
+- `ValueError`: An argument is out of range; raised before any work.
+- `ArtifactsMissing`: There is no usable artifact set.
+- `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
+- `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
+- `RuntimeError`: This process was forked after it ran a guest; or a folder or the zip's copy changed between the runner's check and its use.
+- `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
+- `KeyboardInterrupt`: Ctrl-C.
+- `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
+
+#### `wasi_python.run_async`
+
+```python
+async def run_async(
+    argv: Iterable[str],
+    *,
+    root: str | os.PathLike[str] | bool | None = False,
+    grants: Iterable[Grant] = (),
+    mounts: Iterable[Mount] = (),
+    env: Mapping[str, str] | None = None,
+    stdin: bytes | bytearray | memoryview | None = None,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+    snapshot: bool = True,
+    fuel: int | None = None,
+    deadline_s: float | None = <default>,
+    memory_bytes: int | None = <default>,
+    output_bytes: int | None = <default>,
+    cache_dir: str | os.PathLike[str] | None | bool = None,
+    artifacts: Artifacts | None = None,
+    executor: concurrent.futures.Executor | None = None,
+    max_file_calls: int | None = <default>,
+    tools: Iterable[Tool | Callable[..., Any]] | None = None,
+    gate: Callable[[ToolCall], Any] | None = None,
+    max_tool_calls: int | None = <default>,
+) -> Completed
+```
+
+`run` from async code, on a worker thread, so the event loop is never blocked.
+
+`run`'s arguments except `cancel`, plus:
+
+- `executor`: Where the call runs: a `concurrent.futures.Executor` that runs callables on threads of this process (a process or interpreter pool is refused). `None` (the default) uses the runner's own pool of `defaults().async_workers` threads.
+
+**Raises:**
+
+- `TypeError`: An argument has the wrong type; raised before any work.
+- `ValueError`: An argument is out of range; raised before any work.
+- `ArtifactsMissing`: There is no usable artifact set.
+- `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
+- `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
+- `RuntimeError`: This process was forked after it ran a guest; the interpreter is shutting down; or a folder or the zip's copy changed between the runner's check and its use.
+- `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
+- `asyncio.CancelledError`: The awaiting task was cancelled; the guest was stopped and its worker freed first.
+- `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
+
+#### `wasi_python.set_defaults`
+
+```python
+def set_defaults(new: Defaults) -> Defaults
+```
+
+Replace the `Defaults` that calls read, and return the previous ones.
+
+**Args:**
+
+- `new`: The limits calls read from now on, already checked by `Defaults`.
+
+**Raises:**
+
+- `TypeError`: `new` is not a `Defaults`.
+
+#### `wasi_python.stats`
+
+```python
+def stats() -> dict[str, int]
+```
+
+Counts kept by this process, a diagnostic.
+
+### `wasi_python.tools`
+
+#### `wasi_python.tools.PROTOCOL`
+
+```python
+PROTOCOL = 1
+```
+
+`PROTOCOL` is the number of the protocol this host speaks. The rules for its frames, the schema subset and the bounds are the protocol's own, not the host Python's, so an answer is the same on every host; they change only with `PROTOCOL` (README.md, "The tool protocol").
+
+#### `wasi_python.tools.Tool`
+
+```python
+@dataclass(frozen=True)
+class Tool:
+    name: str
+    description: str
+    fn: Callable[..., Any]
+    validates_input: bool = False
+    timeout_s: float | None = None
+    read_only: bool = False
+    destructive: bool = False
+    idempotent: bool = False
+    open_world: bool = False
+    @property
+    def input_schema(self) -> dict
+    @property
+    def output_schema(self) -> dict | None
+    def descriptor(self) -> dict
+    def __call__(
+        self,
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any
+```
+
+A host function offered to the guest, made only by `tool()`. Immutable; compared and hashed by identity. Calling it calls the function.
+
+**Attributes:**
+
+- `name`: The name the guest calls it by.
+- `description`: What the guest is told it does.
+- `fn`: The function it calls.
+- `validates_input`: Whether schema keywords outside the protocol's subset are let through, unchecked, for a tool that checks its own input.
+- `timeout_s`: The longest one call may run, in seconds; `None` for no bound beyond the run's own.
+- `read_only`: A label shown to the guest as MCP's readOnlyHint; it grants nothing.
+- `destructive`: A label shown as MCP's destructiveHint; it grants nothing.
+- `idempotent`: A label shown as MCP's idempotentHint; it grants nothing.
+- `open_world`: A label shown as MCP's openWorldHint; it grants nothing.
+
+**Methods:**
+
+- `Tool.input_schema`: A copy of the vetted input schema.
+- `Tool.output_schema`: A copy of the output schema, or None. It is shown, never validated.
+- `Tool.descriptor`: The tool in MCP's field names: name, description, inputSchema, and outputSchema and annotations when there are any. A fresh copy each time.
+- `Tool.__call__`: Call the function with these arguments, on this thread, unchecked.
+
+#### `wasi_python.tools.ToolCall`
+
+```python
+@dataclass(frozen=True)
+class ToolCall:
+    seq: int
+    tool: Tool
+    arguments: dict[str, Any]
+    request_bytes: int
+```
+
+What a gate sees of one tool call.
+
+**Attributes:**
+
+- `seq`: The frame's number in this call, from 1.
+- `tool`: The tool the guest called.
+- `arguments`: A deep copy of the validated and decoded arguments; the tool gets its own.
+- `request_bytes`: The frame's length in bytes.
+
+#### `wasi_python.tools.ToolDenied`
+
+```python
+class ToolDenied(ToolError):
+    ...
+```
+
+Raised by a gate or a capability to refuse a call; its message crosses (`denied`).
+
+#### `wasi_python.tools.ToolError`
+
+```python
+class ToolError(Exception):
+    ...
+```
+
+Raised by a tool to fail with a message the guest reads (`tool_error`), or by a gate to refuse with one (`denied`). Any other exception crosses only as "(internal error)".
+
+#### `wasi_python.tools.ToolOutcome`
+
+```python
+@dataclass(frozen=True)
+class ToolOutcome:
+    seq: int
+    op: str | None
+    tool: str | None
+    outcome: str
+    message: str | None
+    request_bytes: int
+    response_bytes: int
+    fault: str | None = None
+    abandoned: bool = False
+```
+
+One frame, as the record lists it. Nothing in it measures time.
+
+**Attributes:**
+
+- `seq`: The frame's number in this call, from 1.
+- `op`: "list", "call", or `None` when the frame was not read.
+- `tool`: The tool's name, or the name the guest gave, cut to 64 characters.
+- `outcome`: "ok", or one of the protocol's kinds of failure (README.md, "The tool protocol").
+- `message`: What the guest was told on a failure.
+- `request_bytes`: The frame's length in bytes.
+- `response_bytes`: The answer's length in bytes.
+- `fault`: An exception not meant for the guest: its type and first line.
+- `abandoned`: Whether the tool still ran when the guest was answered.
+
+#### `wasi_python.tools.ToolRecord`
+
+```python
+@dataclass(frozen=True)
+class ToolRecord:
+    frames: int
+    outcomes: tuple[ToolOutcome, ...]
+    unlisted: int
+    abandoned: int = 0
+```
+
+Every frame of one call counted, the first 1,000 listed.
+
+**Attributes:**
+
+- `frames`: Every frame the guest sent.
+- `outcomes`: The first 1,000 frames, each a `ToolOutcome`.
+- `unlisted`: How many frames are counted but not listed.
+- `abandoned`: Every call answered while its tool ran on, listed or not, so a guest cannot hide a tool still running with your authority behind 1,000 cheap frames.
+
+#### `wasi_python.tools.stubs`
+
+```python
+def stubs(tools: Iterable[Tool | Callable[..., Any]]) -> str
+```
+
+Python stubs for a prompt: each tool as a `def` with the signature and docstring the guest's function carries, under a first line `from host import tools`.
+
+**Args:**
+
+- `tools`: The tools, each a `Tool` or a plain function, which goes through `tool()`.
+
+**Raises:**
+
+- `TypeError`: A plain function `tool()` refuses.
+- `ValueError`: A plain function `tool()` refuses.
+
+#### `wasi_python.tools.tool`
+
+```python
+def tool(
+    fn: Callable[..., Any] | None = None,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    input_schema: Any = None,
+    validates_input: bool = False,
+    timeout_s: float | None = None,
+    read_only: bool = False,
+    destructive: bool = False,
+    idempotent: bool = False,
+    open_world: bool = False,
+) -> Any
+@overload
+def tool(
+    fn: Callable[..., Any],
+    /,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    input_schema: Any = None,
+    validates_input: bool = False,
+    timeout_s: float | None = None,
+    read_only: bool = False,
+    destructive: bool = False,
+    idempotent: bool = False,
+    open_world: bool = False,
+) -> Tool
+@overload
+def tool(
+    fn: None = None,
+    /,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    input_schema: Any = None,
+    validates_input: bool = False,
+    timeout_s: float | None = None,
+    read_only: bool = False,
+    destructive: bool = False,
+    idempotent: bool = False,
+    open_world: bool = False,
+) -> Callable[[Callable[..., Any]], Tool]
+```
+
+Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn, ...)`.
+
+**Args:**
+
+- `fn`: The function. Without it, `tool(...)` returns a decorator.
+- `name`: The name the guest calls it by; by default the function's own.
+- `description`: What the guest is told it does; by default the docstring up to its first section heading.
+- `input_schema`: The input schema instead of the derived one: a dict whose root is an object, or anything with `model_json_schema()`.
+- `validates_input`: Let schema keywords outside the protocol's subset through, unchecked, for a tool that checks its own input.
+- `timeout_s`: The longest one call may run, in seconds; `None` for no bound beyond the run's own.
+- `read_only`: Shown to the guest as MCP's readOnlyHint.
+- `destructive`: Shown to the guest as MCP's destructiveHint.
+- `idempotent`: Shown to the guest as MCP's idempotentHint.
+- `open_world`: Shown to the guest as MCP's openWorldHint.
+
+**Raises:**
+
+- `TypeError`: An argument has the wrong type, the function is async, or a type hint has no schema.
+- `ValueError`: A name or a schema the protocol does not allow.
+
+### The command
+
+`wasi-python run [OPTIONS] [--] ARG...` (also `python -m wasi_python`):
+
+| option | value | action |
+|---|---|---|
+| `--env` | `KEY[=VALUE]` | append |
+| `--stdin` | `PATH` | store |
+| `--deadline-s` | `SECONDS` | store |
+| `--memory-bytes` | `BYTES` | store |
+| `--output-bytes` | `BYTES` | store |
+| `--fuel` | `N` | store |
+| `--no-snapshot` |  | store_true |
+| `--grant` | `GUEST=HOST` | append |
+| `--grant-writable` | `GUEST=HOST` | append |
+| `--root` | `HOST` | once |
+| `--private-root` |  | store_true |
+| `--no-root` |  | store_true |
+
+Exit codes: 0, a result; 1, run raised; 2, a usage error; 130, interrupted.
+
+One line of JSON: on a result, `exit_code`, `fuel_used`, `stderr`, `stderr_base64`, `stdout`, `stdout_base64`, `trapped`, `truncated` (a stream that is not UTF-8 comes as its `_base64` key); on exit 1, `error`, `kind`.
+
+<!-- api reference: end -->
+
 ## Safety
 
 Made for running code nobody reviewed, such as a model's. The policy:
@@ -1299,7 +2032,7 @@ has one.
   an unopened descriptor is reported ready; a bad pointer answers `EFAULT`);
   more than 4,096 subscriptions answer `ENOMEM` (`select.poll()` on more than
   2,047 descriptors with its default mask);
-- **defaults** (`wasi_python.runner.DEFAULTS`): 1 GiB of memory, a 60 s
+- **defaults** (`wasi_python.defaults()`): 1 GiB of memory, a 60 s
   deadline, 16 MiB of output per stream (the rest dropped and named in
   `truncated`); pass `None` for no limit. A limit of the wrong type or out
   of range (a negative cap, `True`, a deadline of 0) raises `TypeError` or

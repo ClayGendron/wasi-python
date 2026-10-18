@@ -6,7 +6,28 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a5 — unreleased
 
-- (what changed)
+- **The public API is frozen and documented** (spec 049).
+  - **Added:** `defaults()` and `set_defaults()`, which replace assigning
+    `wasi_python.runner.DEFAULTS` (that still works, unpromised, until the internal name
+    changes); `Defaults` and `stats()` at the top level; `PROTOCOL` in
+    `wasi_python.tools.__all__`; `py.typed`, so a type checker reads the package's hints; `tool`'s
+    two overloads, so a function decorated with `@tool` keeps a type; and the README's "API
+    reference", generated from the same render as `tests/public_api.txt`, the judge's snapshot of
+    the surface.
+  - **Changed:** the seventeen other `wasi_python.tools` constants (`TOOL_REQUEST_BYTES` and the
+    rest) and `wasi_python`'s `ARTIFACT_DIR`, `ARTIFACTS_ENV` and `CHECKOUT_ARTIFACT_DIR` are
+    private, each with a leading `_`; the numbers stay in the README. `Defaults`' `memory_bytes`,
+    `deadline_s`, `output_bytes` and `file_calls` are annotated `… | None`, `host` as returning
+    `bytes | bytearray | memoryview`, and `Mount.provider` as a `FileProvider`, as the code
+    already accepts. A call reads the defaults once, when it is made, so a `set_defaults` on
+    another thread never gives it a mix. The README no longer names `wasi_python.runner` or
+    `DEFAULTS`.
+  - **The promise**, from 0.1.0, the first final release: a patch release changes nothing
+    public; a minor release may add; a deprecated thing keeps working for at least two final
+    minor releases (deprecated in 0.N, removable in 0.N+2); a tighter default, in a minor release,
+    and a security fix, in any release, need no deprecation. The README's "API reference" says
+    what is promised and what is not.
+
 
 ## 0.1.0a4 — 2026-10-18
 

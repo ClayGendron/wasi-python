@@ -917,6 +917,8 @@ def _reference_item(modname: str, item: dict[str, Any], mod_doc: str) -> list[st
         lines += _entries(
             "Attributes", secs.get("Attributes", {}), [f["name"] for f in item["fields"]]
         )
+    if item.get("members"):
+        lines += ["**Methods:**", ""]
     for m in item.get("members", []):
         msecs = sections(m["doc"]).get("Args", {})
         lines.append(f"- `{name}.{m['name']}`: {summary(m['doc'])}")
@@ -939,8 +941,8 @@ def reference_text(facts: dict[str, Any]) -> str:
             lines += _reference_item(modname, item, inv[modname]["doc"])
     cmd = facts["command"]
     lines += ["### The command", ""]
-    for name, target in cmd["scripts"].items():
-        lines += [f"`{name}` (`{target}`; also `python -m wasi_python`):", ""]
+    for name in cmd["scripts"]:  # its entry point names an internal module: the snapshot's
+        lines += [f"`{name} run [OPTIONS] [--] ARG...` (also `python -m wasi_python`):", ""]
     lines += ["| option | value | action |", "|---|---|---|"]
     for option, metavar, action in cmd["options"]:
         lines.append(f"| `{option}` | {f'`{metavar}`' if metavar else ''} | {action} |")
@@ -1102,10 +1104,10 @@ def main(argv: list[str] | None = None) -> int:
         if count != 1:
             print(f"{ns.readme}: needs exactly one pair of markers ({BEGIN} … {END})")
             return 1
-        before, rest = readme.split(BEGIN + "\n", 1)
-        _, after = rest.split("\n" + END, 1)
-        body = "\n" + block.strip("\n") + "\n\n"
-        _write_text(ns.readme, before + BEGIN + "\n" + body + END + after)
+        before, rest = readme.split(BEGIN, 1)
+        _, after = rest.split(END, 1)
+        body = "\n\n" + block.strip("\n") + "\n\n"
+        _write_text(ns.readme, before + BEGIN + body + END + after)
         return 0
     status = 0
     old = ns.snapshot.read_text(encoding="utf-8") if ns.snapshot.is_file() else ""

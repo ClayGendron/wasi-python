@@ -16,11 +16,12 @@ A tool is a host function with a name, a description and an input schema (JSON S
         return REGIONS[code]
 
 The guest calls it as `from host import tools; tools.lookup_region("EMEA")`, and
-`run(tools=[lookup_region])` offers it. Between the two run JSON frames through the door, in
-the protocol whose number is `PROTOCOL` (README.md, "The tool protocol"). The rules for those
-frames, the schema subset and the bounds are the protocol's own, not the host Python's, so an
-answer is the same on every host; they change only with `PROTOCOL`. `import wasi_python` does
-not import this module.
+`run(tools=[lookup_region])` offers it. Between the two run JSON frames through the door.
+`import wasi_python` does not import this module.
+
+`PROTOCOL` is the number of the protocol this host speaks. The rules for its frames, the schema
+subset and the bounds are the protocol's own, not the host Python's, so an answer is the same
+on every host; they change only with `PROTOCOL` (README.md, "The tool protocol").
 """
 
 # The tool protocol's host half (spec 031): the tools, and the frame host that answers the

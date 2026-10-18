@@ -1,0 +1,240 @@
+module wasi_python
+dataclass Artifacts: frozen
+  field snapshot: Path = required
+  field plain: Path = required
+  field stdlib_zip: Path = required
+  field manifest: Path = required
+exception ArtifactsMissing(RuntimeError)
+dataclass Completed: frozen
+  field exit_code: int | None = required
+  field stdout: bytes = required
+  field stderr: bytes = required
+  field trapped: str | None = required
+  field fuel_used: int | None = required
+  field truncated: tuple[str, ...] = ()
+  field files: FileRecord | None = None
+  field tools: ToolRecord | None = None
+dataclass Defaults: frozen
+  field memory_bytes: int | None = required
+  field deadline_s: float | None = required
+  field output_bytes: int | None = required
+  field async_workers: int = <factory>
+  field file_calls: int | None = 10000
+  field tool_calls: int | None = 1000
+enum Errno(IntEnum)
+  member EACCES = 2
+  member EBUSY = 10
+  member ECANCELED = 11
+  member EDQUOT = 19
+  member EEXIST = 20
+  member EFBIG = 22
+  member EINVAL = 28
+  member EIO = 29
+  member EISDIR = 31
+  member ENAMETOOLONG = 37
+  member ENOENT = 44
+  member ENOSPC = 51
+  member ENOSYS = 52
+  member ENOTDIR = 54
+  member ENOTEMPTY = 55
+  member ENOTSUP = 58
+  member EPERM = 63
+  member EROFS = 69
+  member ESTALE = 72
+  member ETIMEDOUT = 73
+  member EXDEV = 75
+dataclass FileFault: frozen
+  field method: str = required
+  field path: str = required
+  field error: str = required
+protocol FileProvider
+  def stat -> Stat | Errno
+    param path: str  positional
+  def list -> Iterable[tuple[str, str]] | Errno
+    param path: str  positional
+  def read -> bytes | bytearray | memoryview | Errno
+    param path: str  positional
+dataclass FileRecord: frozen
+  field calls: Mapping[str, int] = required
+  field faults: tuple[FileFault, ...] = ()
+  field refused: tuple[RefusedWrite, ...] = ()
+  field refused_total: int = 0
+dataclass Grant: frozen
+  field host: str | os.PathLike[str] = required
+  field guest: str = required
+  field writable: bool = False  kw_only
+dataclass Mount: frozen
+  field provider: FileProvider = required
+  field guest: str = required
+  field writable: bool = False  kw_only
+dataclass RefusedWrite: frozen
+  field mount: str = required
+  field method: str = required
+  field paths: tuple[str, ...] = required
+  field errno: Errno = required
+  field at: str = required
+  field cause: str = required
+dataclass Stat: frozen
+  field kind: str = required
+  field size: int = 0
+  field mtime_ns: int = 0
+protocol WritableFileProvider(FileProvider)
+  def write -> None | Errno
+    param path: str  positional
+    param data: bytes  positional
+  def mkdir -> None | Errno
+    param path: str  positional
+  def remove -> None | Errno
+    param path: str  positional
+  def rmdir -> None | Errno
+    param path: str  positional
+  def rename -> None | Errno
+    param src: str  positional
+    param dst: str  positional
+def artifact_dir -> Path
+def artifacts -> Artifacts
+def defaults -> Defaults
+def run -> Completed
+  param argv: Iterable[str]  positional
+  param root: str | os.PathLike[str] | bool | None = False  keyword-only
+  param grants: Iterable[Grant] = ()  keyword-only
+  param mounts: Iterable[Mount] = ()  keyword-only
+  param env: Mapping[str, str] | None = None  keyword-only
+  param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+  param host: Callable[[bytes], bytes | bytearray | memoryview] | None = None  keyword-only
+  param snapshot: bool = True  keyword-only
+  param fuel: int | None = None  keyword-only
+  param deadline_s: float | None = <default>  keyword-only
+  param memory_bytes: int | None = <default>  keyword-only
+  param output_bytes: int | None = <default>  keyword-only
+  param cache_dir: str | os.PathLike[str] | None | bool = None  keyword-only
+  param artifacts: Artifacts | None = None  keyword-only
+  param cancel: threading.Event | None = None  keyword-only
+  param max_file_calls: int | None = <default>  keyword-only
+  param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
+  param gate: Callable[[ToolCall], Any] | None = None  keyword-only
+  param max_tool_calls: int | None = <default>  keyword-only
+async def run_async -> Completed
+  param argv: Iterable[str]  positional
+  param root: str | os.PathLike[str] | bool | None = False  keyword-only
+  param grants: Iterable[Grant] = ()  keyword-only
+  param mounts: Iterable[Mount] = ()  keyword-only
+  param env: Mapping[str, str] | None = None  keyword-only
+  param stdin: bytes | bytearray | memoryview | None = None  keyword-only
+  param host: Callable[[bytes], bytes | bytearray | memoryview] | None = None  keyword-only
+  param snapshot: bool = True  keyword-only
+  param fuel: int | None = None  keyword-only
+  param deadline_s: float | None = <default>  keyword-only
+  param memory_bytes: int | None = <default>  keyword-only
+  param output_bytes: int | None = <default>  keyword-only
+  param cache_dir: str | os.PathLike[str] | None | bool = None  keyword-only
+  param artifacts: Artifacts | None = None  keyword-only
+  param executor: concurrent.futures.Executor | None = None  keyword-only
+  param max_file_calls: int | None = <default>  keyword-only
+  param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
+  param gate: Callable[[ToolCall], Any] | None = None  keyword-only
+  param max_tool_calls: int | None = <default>  keyword-only
+def set_defaults -> Defaults
+  param new: Defaults  positional
+def stats -> dict[str, int]
+default memory_bytes = 1073741824
+default deadline_s = 60.0
+default output_bytes = 16777216
+default async_workers = <factory>
+default file_calls = 10000
+default tool_calls = 1000
+stats keys: compiled loaded tool_threads_running written
+environment WASI_PYTHON_ARTIFACTS
+environment WASI_PYTHON_CACHE
+module wasi_python.tools
+constant PROTOCOL = 1
+dataclass Tool: frozen
+  field name: str = required
+  field description: str = required
+  field fn: Callable[..., Any] = required
+  field validates_input: bool = False
+  field timeout_s: float | None = None
+  field read_only: bool = False
+  field destructive: bool = False
+  field idempotent: bool = False
+  field open_world: bool = False
+  property input_schema -> dict
+  property output_schema -> dict | None
+  def descriptor -> dict
+  def __call__ -> Any
+    param *args: Any  var-positional
+    param **kwargs: Any  var-keyword
+dataclass ToolCall: frozen
+  field seq: int = required
+  field tool: Tool = required
+  field arguments: dict[str, Any] = required
+  field request_bytes: int = required
+exception ToolDenied(ToolError)
+exception ToolError(Exception)
+dataclass ToolOutcome: frozen
+  field seq: int = required
+  field op: str | None = required
+  field tool: str | None = required
+  field outcome: str = required
+  field message: str | None = required
+  field request_bytes: int = required
+  field response_bytes: int = required
+  field fault: str | None = None
+  field abandoned: bool = False
+dataclass ToolRecord: frozen
+  field frames: int = required
+  field outcomes: tuple[ToolOutcome, ...] = required
+  field unlisted: int = required
+  field abandoned: int = 0
+def stubs -> str
+  param tools: Iterable[Tool | Callable[..., Any]]  positional
+def tool -> Any
+  param fn: Callable[..., Any] | None = None  positional
+  param name: str | None = None  keyword-only
+  param description: str | None = None  keyword-only
+  param input_schema: Any = None  keyword-only
+  param validates_input: bool = False  keyword-only
+  param timeout_s: float | None = None  keyword-only
+  param read_only: bool = False  keyword-only
+  param destructive: bool = False  keyword-only
+  param idempotent: bool = False  keyword-only
+  param open_world: bool = False  keyword-only
+  overload -> Tool
+    param fn: Callable[..., Any]  positional-only
+    param name: str | None = None  keyword-only
+    param description: str | None = None  keyword-only
+    param input_schema: Any = None  keyword-only
+    param validates_input: bool = False  keyword-only
+    param timeout_s: float | None = None  keyword-only
+    param read_only: bool = False  keyword-only
+    param destructive: bool = False  keyword-only
+    param idempotent: bool = False  keyword-only
+    param open_world: bool = False  keyword-only
+  overload -> Callable[[Callable[..., Any]], Tool]
+    param fn: None = None  positional-only
+    param name: str | None = None  keyword-only
+    param description: str | None = None  keyword-only
+    param input_schema: Any = None  keyword-only
+    param validates_input: bool = False  keyword-only
+    param timeout_s: float | None = None  keyword-only
+    param read_only: bool = False  keyword-only
+    param destructive: bool = False  keyword-only
+    param idempotent: bool = False  keyword-only
+    param open_world: bool = False  keyword-only
+outcome kinds: protocol unknown_tool invalid_arguments denied tool_error timeout cancelled too_large budget_exceeded
+command wasi-python = wasi_python.cli:main
+  option --env KEY[=VALUE]  append
+  option --stdin PATH  store
+  option --deadline-s SECONDS  store
+  option --memory-bytes BYTES  store
+  option --output-bytes BYTES  store
+  option --fuel N  store
+  option --no-snapshot  store_true
+  option --grant GUEST=HOST  append
+  option --grant-writable GUEST=HOST  append
+  option --root HOST  once
+  option --private-root  store_true
+  option --no-root  store_true
+  exit codes: 0 a result, 1 run raised, 2 a usage error, 130 interrupted
+  json result: exit_code fuel_used stderr stderr_base64 stdout stdout_base64 trapped truncated
+  json error: error kind

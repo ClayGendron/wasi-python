@@ -76,6 +76,11 @@ question the agent can answer by research.
   and out, counted acceptance criteria, and landing notes filled in
   when it lands. A landed spec is a historical record; its durable
   residue flows backward into `research/` and this README.
+  A specification that changes anything `tests/public_api.txt` records
+  says so in its Kind line ("changes the public API"), lists the
+  snapshot lines it changes and the rule of spec 049, Decision 8, that
+  allows each, and regenerates the snapshot and the README's reference
+  with `tests/harness/api.py --write`.
 
 - **`reviews/`** holds one record per review, named
   `NNN-<spec slug>-YYYY-MM-DD.md` after the specification it reviews.
