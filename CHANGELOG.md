@@ -103,6 +103,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
     rule's table index as a method definition (FreeType's BDF property table). Two known gaps,
     closed by the research memo's M2.
 
+- **Security: the release signs and publishes only what its build job made** (spec 057; the
+  0.1.0a4 security review's F4, N1 and N3's workflow side; it closes the one-release allowance the
+  0.1.0a5 addendum gave F4, before this release). The build job hands on its upload's artifact id
+  and the SHA-256 of its `SHA256SUMS`. Every job that checks, signs or publishes refuses an empty
+  id, downloads by that id with `digest-mismatch: error`, and checks `SHA256SUMS`, every file, and
+  that nothing else is there, before it acts; until now each fetched whatever artifact was named
+  `release-assets`. The two Linux rebuilds are two jobs instead of a matrix, so one cannot hand on
+  the other's ids. The download step fails, naming the file, when a fetched file has no pin.
+  `publish` names the `release` environment, `setup-uv`'s cache is off in every job, and every job
+  states its own least permissions under a workflow-level `permissions: {}`. The judge checks all
+  of it, runs the workflow's own check and guard steps, and runs the download step on fake pins.
+  Nothing in the artifact set or the wheel changes.
+
 ## 0.1.0a5 — 2026-10-18
 
 **The first release since 0.1.0a3.** 0.1.0a4 was tagged but never published (see its section):

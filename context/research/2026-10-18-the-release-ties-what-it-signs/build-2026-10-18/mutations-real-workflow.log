@@ -1,0 +1,8 @@
+real workflow: binding [] gate [] attest [] pins []
+M1 rebuild guard binds X86_64_WHEEL_ID, loop drops it: caught=True | rule 10: same-bytes has no guard step that tests the id it downloads
+M2 continue-on-error on the rebuild guard: caught=True | rule 15: same-bytes has a guard, check or download step with if: or continue-on-error:
+M5 x86_64 sums-id into the arm64 folder: caught=True | same-bytes does not download rebuild-linux-arm64's SHA256SUMS by id into rebuilds/ubuntu-24.04-arm
+M6 continue-on-error on publish's check: caught=True | rule 9: the check steps are not the same step; rule 15: publish has a guard, check or download step with if: or continue-on-error:
+F1 the guard removed from attest: caught=True | rule 10: attest has no guard step that tests the id it downloads
+F4 release-assets by name (pypi): caught=True | rule 4: pypi downloads an artifact other than by one id alone; rule 10: pypi has no guard step that tests the id it downloads; rule 7: pypi does not download the build's release-assets by id
+the old matrix rebuild (main's workflow): caught=True | rule 1: build does not hand on its release-assets upload's artifact-id as assets-id; rule 2: build does not hand on the SHA-256 of release-assets/SHA256SUMS, made before the upload, as sums-sha256; rule 3: build does not print the artifact id, its digest and SHA256SUMS after the upload

@@ -5,6 +5,9 @@
 # the same bytes (specs 012, 040 and 059), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
 # manual run (workflow_dispatch) is a dry run: build, rebuild and verify, never sign or publish.
 # Third-party actions are pinned by commit, their release named beside each.
+# Every job that reads the build's files downloads them by the id the build job handed on, after a
+# step that refuses an empty id, and checks them against the SHA-256 of SHA256SUMS the build job
+# handed on before it uses them (spec 057). Values reach scripts through env:, never as expressions.
 name: release
 
 on:
@@ -12,8 +15,7 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: release-${{ github.ref }}
@@ -34,6 +36,11 @@ jobs:
     # The published set is built and judged on arm64 macOS; the rebuild job checks it from Linux.
     runs-on: macos-15
     timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      assets-id: ${{ steps.assets.outputs.artifact-id }}
+      sums-sha256: ${{ steps.sums.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,6 +49,7 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - name: The version, and the tag it is released under, agree
         run: |
           if [ "$GITHUB_REF_TYPE" = tag ]; then
@@ -70,11 +78,24 @@ jobs:
         run: uv run pytest -p no:cacheprovider
       - name: Release assets
         run: uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: The SHA-256 of SHA256SUMS, handed to every job that reads the assets
+        id: sums
+        run: echo "sha256=$(shasum -a 256 release-assets/SHA256SUMS | cut -c1-64)" >> "$GITHUB_OUTPUT"
+      - id: assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets
           path: release-assets/
           if-no-files-found: error
+      - name: What this run checks, signs and publishes
+        env:
+          ASSETS_ID: ${{ steps.assets.outputs.artifact-id }}
+          ASSETS_DIGEST: ${{ steps.assets.outputs.artifact-digest }}
+          SUMS_SHA256: ${{ steps.sums.outputs.sha256 }}
+        run: |
+          echo "release-assets: artifact $ASSETS_ID, digest $ASSETS_DIGEST"
+          echo "SHA256SUMS: sha256 $SUMS_SHA256"
+          cat release-assets/SHA256SUMS
       - name: Keep the build logs when something fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -83,27 +104,26 @@ jobs:
           path: build/logs/
           if-no-files-found: ignore
 
-  rebuild:
-    name: rebuild from the pins (${{ matrix.os }})
+  rebuild-linux-arm64:
+    name: rebuild from the pins (ubuntu-24.04-arm)
     # Two more hosts rebuild the whole set from an empty downloads/ and build/, beside the build,
     # and upload their SHA256SUMS; same-bytes compares each with the set's (spec 012, Decision 7).
+    # One job per host, not a matrix: a job's outputs are its own, while a matrix's legs share one
+    # namespace, so one leg could hand on the other's ids and cast both votes (spec 057, Decision 4).
     # Each runner compiles with its own pinned wasi-sdk clang, and every compile carries
     # -ffp-contract=off, set in the toolchain's own configuration files by step 10: that makes
     # wasi-sdk's x86_64 and aarch64 builds of clang emit the same bytes (spec 059;
-    # context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). Spec 040's emulated
-    # compiler stays in the tree, switched off, for one release. Each runner's time limit comes from
-    # the matrix, so a hung job frees the gate after two hours (spec 059, Decision 5).
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04-arm, ubuntu-24.04]
-        include:
-          - os: ubuntu-24.04-arm
-            timeout: 120
-          - os: ubuntu-24.04
-            timeout: 120
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.timeout }}
+    # context/research/2026-10-18-byte-identical-wasm-builds-prior-art.md). So no input runs in
+    # both jobs' compilers: each vote rests on its own host's toolchain. Spec 040's emulated
+    # compiler stays in the tree, switched off, for one release. Each job's time limit is 120
+    # minutes, so a hung job frees the gate after two hours (spec 059, Decision 5).
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      sums-id: ${{ steps.sums.outputs.artifact-id }}
+      wheel-id: ${{ steps.wheel.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -111,6 +131,7 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
       - name: The runner's own tools (unpinned host inputs, recorded here)
         # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
         # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
@@ -131,27 +152,93 @@ jobs:
         run: scripts/00_download.sh
       - name: Build from the pins
         run: scripts/build.sh
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - id: sums
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rebuild-${{ matrix.os }}
+          name: rebuild-ubuntu-24.04-arm
           path: build/artifacts/SHA256SUMS
           if-no-files-found: error
       - name: The wheel, as the build job makes it (spec 016, Decision 1)
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - id: wheel
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rebuild-wheel-${{ matrix.os }}
+          name: rebuild-wheel-ubuntu-24.04-arm
           path: dist/wasi_python-*.whl
           if-no-files-found: error
       - name: Keep the build logs when something fails
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: rebuild-logs-${{ matrix.os }}
+          name: rebuild-logs-ubuntu-24.04-arm
           path: build/logs/
           if-no-files-found: ignore
+
+
+  rebuild-linux-x86-64:
+    name: rebuild from the pins (ubuntu-24.04)
+    # The same steps as rebuild-linux-arm64; only the runner and the names differ.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      sums-id: ${{ steps.sums.outputs.artifact-id }}
+      wheel-id: ${{ steps.wheel.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The runner's own tools (unpinned host inputs, recorded here)
+        # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
+        # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
+        # compiler's closure (spec 040, Decisions 5 and 6).
+        run: |
+          uname -srm
+          nproc
+          echo "binfmt_misc: $(ls /proc/sys/fs/binfmt_misc/ 2> /dev/null | tr '\n' ' ')"
+          cc --version | head -n 1
+          make --version | head -n 1
+          curl --version | head -n 1
+          tar --version | head -n 1
+          xz --version | head -n 1
+          shasum --version
+          git --version
+          uv --version
+      - name: Download the pinned inputs
+        run: scripts/00_download.sh
+      - name: Build from the pins
+        run: scripts/build.sh
+      - id: sums
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-ubuntu-24.04
+          path: build/artifacts/SHA256SUMS
+          if-no-files-found: error
+      - name: The wheel, as the build job makes it (spec 016, Decision 1)
+        run: |
+          cp -R build/artifacts src/wasi_python/artifacts
+          uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
+      - id: wheel
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-wheel-ubuntu-24.04
+          path: dist/wasi_python-*.whl
+          if-no-files-found: error
+      - name: Keep the build logs when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rebuild-logs-ubuntu-24.04
+          path: build/logs/
+          if-no-files-found: ignore
+
 
   same-bytes:
     name: the same bytes from every host
@@ -160,30 +247,79 @@ jobs:
     # own pinned clang (specs 012, 040 and 059). The .tar.xz asset is made from the set deterministically but is
     # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
     # that both hosts did not rebuild.
-    needs: [build, rebuild]
+    needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions: {}
     steps:
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-assets
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
           path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: The rebuild jobs handed on artifact ids
+        env:
+          ARM64_SUMS_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
+          ARM64_WHEEL_ID: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
+          X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
+          X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
+        run: |
+          for id in "$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"; do
+            case "$id" in
+              "" | *[!0-9]*) echo "a rebuild job handed on no artifact id"; exit 1 ;;
+            esac
+          done
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rebuild-ubuntu-24.04-arm
+          artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
           path: rebuilds/ubuntu-24.04-arm
+          digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rebuild-wheel-ubuntu-24.04-arm
+          artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
           path: rebuilt-wheels/ubuntu-24.04-arm
+          digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rebuild-ubuntu-24.04
+          artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
           path: rebuilds/ubuntu-24.04
+          digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: rebuild-wheel-ubuntu-24.04
+          artifact-ids: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
           path: rebuilt-wheels/ubuntu-24.04
+          digest-mismatch: error
       - name: Every rebuild's SHA256SUMS is the set's, byte for byte
         run: |
           mkdir set
@@ -235,6 +371,8 @@ jobs:
         os: [ubuntu-24.04, windows-2025, macos-15]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    permissions:
+      contents: read
     defaults:
       run:
         shell: bash
@@ -245,10 +383,43 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-assets
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
           path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
       - name: Unpack the artifact set
         run: |
           uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
@@ -323,10 +494,42 @@ jobs:
       attestations: write
       contents: read
     steps:
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-assets
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
           path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: release-assets/*
@@ -346,6 +549,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, attest]
     runs-on: ubuntu-24.04
+    environment: release
     permissions:
       contents: write
     steps:
@@ -355,10 +559,43 @@ jobs:
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-assets
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
           path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -375,16 +612,48 @@ jobs:
     # Off until the owner registers this workflow as a trusted publisher on PyPI and sets the
     # repository variable PYPI_PUBLISH to true.
     if: github.event_name == 'push' && github.ref_type == 'tag' && vars.PYPI_PUBLISH == 'true'
-    needs: publish
+    needs: [build, publish]
     runs-on: ubuntu-24.04
     environment: pypi
     permissions:
       id-token: write
     steps:
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-assets
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
           path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
       - name: Only the wheel goes to PyPI
         run: mkdir dist && mv release-assets/*.whl dist/
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2

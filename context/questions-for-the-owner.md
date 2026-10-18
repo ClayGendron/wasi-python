@@ -219,7 +219,7 @@ document.
   build-class slot is spoken for by the scipy line and tier B.
 - **Meanwhile:** spec 053 is drafted without `batch`; a guest calls tools one at a time.
 
-### 95. The `release` and `pypi` environments' rules, while the agent publishes alphas
+### 97. The `release` and `pypi` environments' rules, while the agent publishes alphas
 
 - **Asked:** 2026-10-18; restated as facts after spec 057's pre-build review (its F4).
   **Source:** `specifications/057-the-release-ties-what-it-signs-to-what-it-built.md`,

@@ -281,7 +281,9 @@ compilers. No source tree we build differs, so no recipe file and no carried pat
      ahead of the SDK's own name, in the style of spec 012's Decision 5. If it reaches neither member, no
      rewrite is added.
 
-6. **The release workflow: x86_64 joins the gate.**
+6. **The release workflow: x86_64 joins the gate.** (**Amended by spec 057:** the matrix is now
+   two jobs, `rebuild-linux-arm64` on 120 minutes and `rebuild-linux-x86-64` on 360, alike but for
+   the runner; `rebuild_gate_errors` checks them so.)
    - `rebuild`'s matrix becomes `[ubuntu-24.04-arm, ubuntu-24.04]`.
    - `same-bytes` downloads both runners' `SHA256SUMS` and rebuilt wheels. Both of its loops
      (the set's `SHA256SUMS`, and spec 016's wheel) run over both runners.

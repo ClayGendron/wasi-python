@@ -390,9 +390,12 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
 checks that the source trees are their tarballs plus the recorded patches, runs the whole judge, and checks the same bytes on Linux, Windows and
-macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an arm64 Linux runner
-and an x86_64 Linux runner, and `same-bytes` requires each one's `SHA256SUMS` and wheel to equal
-the set's, byte for byte; nothing is signed or published until it passes. The x86_64 rebuild
+macOS. Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, rebuild the
+set from the pins on an arm64 Linux runner and an x86_64 Linux runner, and `same-bytes` requires
+each one's `SHA256SUMS` and wheel to equal the set's, byte for byte; nothing is signed or
+published until it passes. They are two jobs, not a matrix, so each hands on only its own files'
+ids. One input runs in both: the x86_64 job compiles with the arm64 Linux wasi-sdk's clang, so
+for that tarball the two votes are not independent, and its pin is its defence. The x86_64 rebuild
 compiles under emulation (above), so its job may take up to six hours. Then it publishes
 a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
 their `SHA256SUMS`, and uploads the wheel to PyPI as `wasi-python` through its trusted publisher (from 0.1.0a3). A manual run of
@@ -402,6 +405,23 @@ Before publishing, an `attest` job signs build provenance for every asset and ve
 strictly (`context/specifications/009-release-security.md`). If it fails, nothing is published:
 re-run the failed jobs of the same workflow run (its artifacts are kept 90 days); never push the
 tag again. Dry runs never sign, since a signature is permanent in Sigstore's public log.
+
+Every job that checks, signs or publishes uses exactly the bytes the build job made
+(`context/specifications/057-the-release-ties-what-it-signs-to-what-it-built.md`). The build job
+hands on its upload's artifact id and the SHA-256 of its `SHA256SUMS`, and prints both, with
+`SHA256SUMS`, in its log. Each later job refuses an empty id (an empty one would download every
+artifact of the run), downloads by that id, checks `SHA256SUMS` against the hash, every file
+against `SHA256SUMS`, and that nothing else is there, and only then acts. `publish` runs in the
+`release` environment and `pypi` in `pypi`; their rules are the owner's settings. `setup-uv`'s
+cache is off in every job, and each job holds only the permissions it uses. If a re-run of the
+failed jobs ever stops at a guard ("handed on no artifact id"), re-run all jobs: the build makes
+the same bytes again. After publishing, whoever cut the release compares the GitHub release's
+assets (`gh release download`, then `shasum -a 256 -c`) and PyPI's wheel digest with the
+`SHA256SUMS` in the build job's log, and records it in the release's notes.
+
+Every action is pinned by a full commit. A pin can name a commit that exists only in a fork, so
+when an action is bumped, check that the commit is the named release's tag
+(`gh api repos/<owner>/<repo>/git/ref/tags/<version>`).
 
 ## Verifying a download
 

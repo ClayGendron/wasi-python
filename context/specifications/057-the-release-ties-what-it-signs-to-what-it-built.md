@@ -1,15 +1,20 @@
 # 057 — The release ties what it signs to what it built
 
-- **Status:** confirmed for build 2026-10-18 (the review's Confirmation, N1 written in);
-  build-class: builds after spec 023 lands. Drafted 2026-10-18, then revised against its
-  pre-build review. The review (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
+- **Status:** built 2026-10-18; awaiting its build review. Built on
+  `spec/057-the-release-ties-what-it-signs-to-what-it-built`, rebased onto main `1555a6d`
+  (Landing notes). Confirmed for build 2026-10-18 by its pre-build review's Confirmation, with
+  N1 written in. The review (`build/reviews-evidence/057-review/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`
   in the main tree, git-ignored; copied to `../reviews/` by the lane) said "ready once F1 to F5
-  are written in". They are written in, and the Disposition below says where. Drafted on
-  `spec/057-the-release-ties-what-it-signs-to-what-it-built` from main `d70690a`.
-  - It must land before the next release after 0.1.0a4 (0.1.0a5, any other alpha, or 0.1.0
-    final). The a4 security review's Confirmation set that bound.
-  - It builds after spec 023 (matplotlib M1, in the build-class slot now) lands, and rebases
-    onto main then.
+  are written in". They are written in, and the Disposition below says where. Drafted on this
+  branch from main `d70690a`.
+  - It must land before 0.1.0a6. The 0.1.0a5 addendum (`../reviews/0.1.0a5-addendum-2026-10-18.md`,
+    "F4 and a5") moved F4's one-release allowance to a5, so F4 closes before the next release
+    after a5.
+  - Spec 059 (the x86_64 rebuild runs natively) lands first and edits the same workflow. At this
+    one's landing the lane rebases it onto 059. 059's Decision 5 lists what changes then: each
+    rebuild job runs only its own host's compiler, so the sentences here saying the arm64 Linux
+    wasi-sdk runs in both jobs (Decision 4, Scope, the F2 disposition, the README) stop being
+    true, and the x86_64 job's time limit becomes 120 minutes (`REBUILD_JOBS` in `scan.py`).
 - **Owner:** Clay Gendron
 - **Kind:** build-class: the release workflow; a judge change.
   - It changes `.github/workflows/release.yml` in every job. The `rebuild` matrix becomes two
@@ -51,7 +56,7 @@ Two notes ride along:
   a missing early failure, not a way in.
 - **N3, its workflow part.** `publish` has no environment. The `setup-uv` cache is left to its
   default. The repository's own settings (rulesets, an environment's reviewers) are the
-  owner's: questions 94 and 95.
+  owner's: questions 94 and 97.
 
 ## Decisions
 
@@ -254,7 +259,7 @@ Two notes ride along:
      - Dry runs never reach `publish`, so they never create it.
      - The owner can create `release` by hand before that tag, with one click. That removes
        the one unknown left before the tag (Decision 10).
-     - Once the owner adds rules (questions 94 and 95), `publish` waits for them before it
+     - Once the owner adds rules (questions 94 and 97), `publish` waits for them before it
        gets a runner. The workflow is the same either way.
    - **`enable-cache: false` on every `setup-uv` step** (five: `build`, both rebuild jobs,
      `verify`, `publish`).
@@ -485,7 +490,7 @@ minutes, and `rebuild-linux-x86-64` on `ubuntu-24.04` for 360. Its rules:
 **Out, each with its reason:**
 
 - **The repository's settings** (rulesets on `main` and `v*`, the environments' reviewers and
-  tag rules). They are the owner's account settings: questions 94 and 95. The judge cannot
+  tag rules). They are the owner's account settings: questions 94 and 97. The judge cannot
   see them (N3). §7 keeps the agent from changing them.
 - **A read-back after `gh release create` or PyPI's upload.** The bytes leave the last check
   for the services' own storage. Decision 9 records the comparison per release instead.
@@ -586,7 +591,7 @@ text is at `build/reviews-evidence/057-review/disposition.md`.
   both legs.
 - **F3 (low): written in.** The fallback to downloads by name is gone (Decision 4). An empty
   rebuild output fails at the guard.
-- **F4 (low): written in.** Question 95 is restated as facts. The agent's `gh` is the owner's
+- **F4 (low): written in.** Question 97 (numbered 95 when the review was written) is restated as facts. The agent's `gh` is the owner's
   account, with the `repo` and `workflow` scopes, so the agent can approve deployments and
   edit environment rules as the owner. With "Prevent self-review" and the owner as sole
   reviewer, no run could be approved. `pypi` exists today with no protection and no branch
@@ -631,3 +636,151 @@ items are written in:
 The count of new checks stays 19. Only the unit variants grow.
 
 ## Landing notes
+
+Built 2026-10-18 by the author. It was rebased onto main `1555a6d` first. That main has 023,
+052, 053, 060 and 062 landed, and 0.1.0a5 released. The owner question is renumbered 97: main
+uses 95 and 96. The CHANGELOG entry is under "0.1.0a6 — unreleased". Evidence is in
+`../research/2026-10-18-the-release-ties-what-it-signs/build-2026-10-18/`, and the full logs
+are under the worktree's `build/`.
+
+### What changed
+
+- `.github/workflows/release.yml`. It is the reviewed sketch (`release.yml.diff`), applied by
+  the same script to main's workflow, plus two comment edits: a header paragraph, and the
+  rebuild comment that says why there are two jobs.
+  - Workflow-level `permissions: {}`, and every job states its own.
+  - `build` hands on `assets-id` and `sums-sha256`, and prints the record.
+  - `rebuild-linux-arm64` and `rebuild-linux-x86-64` replace the matrix.
+  - Every reader of `release-assets` runs the guard, then the download by id, then the check.
+    `same-bytes` adds the rebuild guard and four downloads by id.
+  - `publish` names `environment: release`, and `pypi` needs `[build, publish]`.
+  - `enable-cache: false` is on all five `setup-uv` steps.
+- `scripts/00_download.sh`: the name check under `set -f` (Decision 5), and one header line.
+- `tests/harness/scan.py`:
+  - new helpers `workflow_steps`, `step_fields`, `workflow_step_script` (raises
+    `LookupError`), `_job_map` and `_permission_set`;
+  - new scans `release_binding_errors` (rules 1 to 15, each error starting `rule N:`),
+    `action_pin_errors` and `unpinned_fetch_errors`;
+  - `rebuild_gate_errors` rewritten for two jobs, with `REBUILD_JOBS` and `_rebuild_shape`.
+- `tests/checks/test_rules.py`: `test_the_release_signs_and_publishes_what_build_made`,
+  `test_every_action_is_pinned_by_commit`, `test_the_release_check_refuses_other_bytes[9]` and
+  `test_the_id_guard_refuses_a_missing_id[4]`.
+- `tests/checks/test_v1_5_rebuild_from_pins.py`: `test_every_fetched_file_is_pinned` and
+  `test_download_step_fails_on_a_fetched_file_with_no_pin[3]`.
+- `tests/unit/test_scan.py`:
+  - one workflow (`RELEASE_WORKFLOW`) that all four release scans pass;
+  - 29 binding variants and 24 rebuild-gate variants, replacing the matrix fixture and its 31
+    variants;
+  - tests for the display name, the workflow-level permissions, a step script's absence, action
+    pins and fetched pins.
+- `README.md` (*Releasing*), `CHANGELOG.md` (0.1.0a6), and amendment notes in specs 009
+  (Decision 1), 012 (Decision 7) and 040 (Decision 6).
+
+### Criterion 1: seen failing first (EXECUTED, on main's workflow and script, with the new checks in place)
+
+`build-2026-10-18/seen-failing-checks.txt` and `seen-failing-binding-rules.txt`:
+
+- `test_the_release_signs_and_publishes_what_build_made` failed with 42 findings: rule 1 (1),
+  2 (1), 3 (1), 4 (9), 5 (9), 7 (3), 10 (9), 12 (1), 13 (4), 14 (4).
+- All nine `test_the_release_check_refuses_other_bytes` cases and all four
+  `test_the_id_guard_refuses_a_missing_id` cases failed. Each raised `LookupError: attest has
+  no step named …`.
+- All three `test_download_step_fails_on_a_fetched_file_with_no_pin` cases failed. With zlib's
+  pin removed, the script exited 0.
+- The rewritten `test_release_workflow_rebuilds_on_two_more_hosts` failed: "no
+  rebuild-linux-arm64 job; no rebuild-linux-x86-64 job".
+- `test_every_action_is_pinned_by_commit` and `test_every_fetched_file_is_pinned` passed. They
+  are guards on what already held. Each is seen failing on its unit variants (a tag, a short
+  commit, `docker://`; an unpinned `research` line).
+- **A departure from criterion 1's list.** Rule 8 is not among the 42. The scan reports rule 8
+  only for a job that downloads `release-assets` by id, and on main no job does. So rule 7
+  names those jobs first. Rule 8 is seen failing on its unit variant (pypi's check step
+  renamed).
+
+### Criterion 2: 19 new checks pass
+
+All 19 pass: 9 check-step cases, 4 guard cases, the binding check, the pin check, 3 download
+cases and the fetched-is-pinned check. So do the rewritten
+`test_release_workflow_rebuilds_on_two_more_hosts` and the unchanged
+`test_releases_attest_and_verify_their_assets`.
+
+The download cases run the real script, on fake pins. The real download step, with the fix,
+also passed this build: `downloads: 45 pins, 0 fetched, 45 verified`
+(`rebuild-from-pins.txt`).
+
+### Criterion 3: the unit tests
+
+All unit tests pass, 141 in `test_scan.py`.
+
+- Each of the 29 binding variants yields exactly its rules.
+- Each of the 24 rebuild-gate variants yields its own first breach.
+- The Confirmation's mutations are among them:
+  - M1 (a rebuild id bound, not tested) gives rule 10;
+  - M2 (`continue-on-error` on the rebuild guard) gives rule 15;
+  - M6 (`continue-on-error` on publish's check) gives rules 9 and 15;
+  - M5 (the x86_64 job's `sums-id` into the arm64 folder) is named by the rebuild gate.
+- Rule 4's variants cover each of the seven refused inputs, `gh run download` and
+  `actions/github-script`. A step whose display name is `release-assets` still passes.
+
+### The mutations on the real workflow (EXECUTED)
+
+`build-2026-10-18/mutate_real.py` and `mutations-real-workflow.log`. The built workflow passes
+all four release scans. Each mutation is caught:
+
+- M1 by rule 10;
+- M2 by rule 15;
+- M5 by the rebuild gate;
+- M6 by rules 9 and 15;
+- the guard removed from `attest` by rule 10;
+- `pypi` fetching by name by rules 4, 10 and 7;
+- main's own workflow by rules 1, 2, 3 and more.
+
+### Criterion 4: the workflow parses (EXECUTED)
+
+PyYAML 6.0.3 in a throwaway environment. The memo's `probe_workflow.py` reports 23 problems on
+main's workflow, and 0 on the built one (`probe-main-and-built.log`).
+
+### Criterion 5: the judge (EXECUTED)
+
+**Did the artifact set change?** `scripts/00_download.sh` changed, so the set was rebuilt from
+the pins in the worktree, as the coordinator asked (`rebuild-from-pins.txt`: 13 steps, exit 0).
+
+- The three artifacts are byte for byte the frozen set's (`s-8eb9e35734deeb21`):
+  `python.wasm` `e02248913914e8b4`, snapshot `8eb9e35734deeb21`, zip `16ee747c97c5397b`.
+- `MANIFEST` differs in one line, the recipe hash of `scripts/00_download.sh`
+  (`manifest-vs-frozen-set.diff`). So `SHA256SUMS` differs too: it is `81376c9d…` here.
+- So the guest and the wheel's binaries are unchanged. The set's `MANIFEST` records the new
+  recipe, as it must. The judge ran against this worktree's own `build/artifacts`.
+
+**The judge's lines:**
+
+- Fast tier, `uv run pytest -m "not slow" -n 3`: 1567 passed, 10 skipped. v1.5 30/30, rules
+  40/41 (blocked 1: prior-art clones). Ratchet: "lost 0 · absent 0 · unrun 0 · unrun locally
+  1 · gained 19 · grew 0" (`judge-fast.txt`).
+- Full judge, `uv run pytest`, serially, without `--accept`: 1579 passed, 42 skipped,
+  2 xfailed. Scoreboard 374/411, 2 gaps, 35 blocked (upstream kit 31, oracle 1, prior-art
+  clones 1, three systems 1, wheel 1), 0 fail. Ratchet: "lost 0 · absent 0 · unrun 0 · unrun
+  locally 21 · gained 19 · grew 0 · judge changed: tests/checks/test_rules.py,
+  tests/checks/test_v1_5_rebuild_from_pins.py, tests/harness/scan.py and 1 more"
+  (`judge-full.txt`).
+- `ruff check` is clean, and the judge's own ruff checks pass.
+- **A flake seen once.** In a first fast run, started while the judge files were being edited,
+  two `tests/unit/test_plugin.py` cases failed. They passed alone (30 passed) and in both later
+  runs.
+
+### Criteria 6 and 7: after landing
+
+- No workflow was dispatched (the coordinator's instruction). The lane's dry run after landing
+  is criterion 6.
+- The first tag run after landing, 0.1.0a6, is criterion 7. It is recorded in that release's
+  notes.
+
+### For the reviewer
+
+- The `rebuild-linux-x86-64` job keeps spec 040's 360 minutes, as main has it. 059's rebase
+  changes that.
+- The check step's behaviour cases run with `PATH=/usr/bin:/bin:/usr/sbin:/sbin`, so macOS takes
+  `/sbin/sha256sum` and Linux takes GNU `sha256sum`. Perl's `shasum` path is covered by the
+  memo's cases.
+- `release_binding_errors` reads steps as text, with the new step reader. It compares whole
+  step blocks with comments stripped (rules 9 and 10).

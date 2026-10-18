@@ -249,6 +249,123 @@ def test_releases_attest_and_verify_their_assets() -> None:
     assert not errors, scan.report(errors)
 
 
+RELEASE_WORKFLOW = paths.REPO / ".github" / "workflows" / "release.yml"
+
+
+def test_the_release_signs_and_publishes_what_build_made() -> None:
+    """Every job that checks, signs or publishes downloads the build's files by an id it has
+    guarded, checks them against the SHA-256 of SHA256SUMS the build job handed on, and acts on
+    nothing else; the publish jobs name their environments, setup-uv runs with no cache, and each
+    job holds only the permissions it uses (spec 057; the a4 security review's F4 and N3)."""
+    errors = scan.release_binding_errors(RELEASE_WORKFLOW.read_text())
+    assert not errors, scan.report(errors)
+
+
+def test_every_action_is_pinned_by_commit() -> None:
+    """Every `uses:` in every workflow is local or pinned by a full commit (spec 057)."""
+    errors = [
+        f"{w.name}: {e}"
+        for w in sorted((paths.REPO / ".github" / "workflows").glob("*.y*ml"))
+        for e in scan.action_pin_errors(w.read_text())
+    ]
+    assert not errors, scan.report(errors)
+
+
+def _fake_assets(folder: Path) -> str:
+    """A release-assets folder as the build job writes it: a wheel, the set's .tar.xz, and their
+    SHA256SUMS (`release/version.py`, `write_assets`). Returns the SHA-256 of SHA256SUMS."""
+    import hashlib
+
+    assets = folder / "release-assets"
+    assets.mkdir()
+    (assets / "wasi_python-0.1.0a6-py3-none-any.whl").write_bytes(b"wheel bytes")
+    (assets / "wasi-python-0.1.0a6-wasm32-wasip1.tar.xz").write_bytes(b"tar bytes")
+    sums = "".join(
+        f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
+        for p in sorted(assets.iterdir())
+    )
+    (assets / "SHA256SUMS").write_text(sums)
+    return hashlib.sha256(sums.encode()).hexdigest()
+
+
+def _resum(assets: Path) -> None:
+    import hashlib
+
+    names = sorted(p.name for p in assets.iterdir() if p.name != "SHA256SUMS")
+    (assets / "SHA256SUMS").write_text(
+        "".join(f"{hashlib.sha256((assets / n).read_bytes()).hexdigest()}  {n}\n" for n in names)
+    )
+
+
+CHECK_CASES = {
+    "the build's own files": (lambda a, h: h, 0),
+    "SUMS_SHA256 empty": (lambda a, h: "", 1),
+    "SUMS_SHA256 another hash": (lambda a, h: "0" * 64, 1),
+    "the wheel's bytes changed": (
+        lambda a, h: (a / "wasi_python-0.1.0a6-py3-none-any.whl").write_bytes(b"evil") and h,
+        1,
+    ),
+    "the wheel swapped, SHA256SUMS rewritten to match": (
+        lambda a, h: (
+            (a / "wasi_python-0.1.0a6-py3-none-any.whl").write_bytes(b"evil") and (_resum(a) or h)
+        ),
+        1,
+    ),
+    "the .tar.xz removed": (
+        lambda a, h: (a / "wasi-python-0.1.0a6-wasm32-wasip1.tar.xz").unlink() or h,
+        1,
+    ),
+    "an extra file": (lambda a, h: (a / "evil.whl").write_bytes(b"x") and h, 1),
+    "a hidden file": (lambda a, h: (a / ".hidden").write_bytes(b"x") and h, 1),
+    "a sub-folder": (lambda a, h: (a / "more").mkdir() or h, 1),
+}
+
+
+@pytest.mark.parametrize("case", CHECK_CASES)
+def test_the_release_check_refuses_other_bytes(case, tmp_path) -> None:
+    """The workflow's own check step, run in bash: the build's own files pass, and every other
+    set of bytes fails closed (spec 057, Decision 3). Its absence fails every case."""
+    script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "attest", scan.CHECK_STEP)
+    change, want = CHECK_CASES[case]
+    good = _fake_assets(tmp_path)
+    sums = change(tmp_path / "release-assets", good)
+    (tmp_path / "check.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "check.sh")],
+        cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "SUMS_SHA256": sums},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, (r.stdout + r.stderr)[-300:])
+
+
+GUARD_CASES = {
+    "empty": ("", 1),
+    "12x": ("12x", 1),
+    "1,2": ("1,2", 1),
+    "a decimal": ("123456789", 0),
+}
+
+
+@pytest.mark.parametrize("case", GUARD_CASES)
+def test_the_id_guard_refuses_a_missing_id(case, tmp_path) -> None:
+    """The workflow's own id guard, run in bash: an empty artifact-ids would download every
+    artifact of the run, so only a non-empty decimal passes (spec 057, Decision 2)."""
+    script = scan.workflow_step_script(
+        RELEASE_WORKFLOW.read_text(), "attest", "The build job handed on an artifact id"
+    )
+    value, want = GUARD_CASES[case]
+    (tmp_path / "guard.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "guard.sh")],
+        env={"PATH": "/usr/bin:/bin", "ASSETS_ID": value},
+        capture_output=True,
+        text=True,
+    )
+    assert (r.returncode != 0) == bool(want), (r.returncode, r.stdout + r.stderr)
+
+
 def test_every_build_host_has_its_whole_table() -> None:
     """Each build host names its five inputs in scripts/line.conf; each is pinned and fetched in
     that host's own branch of the download script; and the four files know the same hosts

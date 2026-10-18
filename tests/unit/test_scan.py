@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -490,58 +491,135 @@ def test_host_table_names_each_breach() -> None:
     ]
 
 
-REBUILD_WORKFLOW = """name: release
-permissions:
-  contents: read
-jobs:
-  build:
-    runs-on: macos-15
-  rebuild:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04-arm, ubuntu-24.04]
-        include:
-          - os: ubuntu-24.04-arm
-            timeout: 120
-          - os: ubuntu-24.04
-            timeout: 120
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.timeout }}
+# Spec 057: one workflow that every release scan reads. Every reader of the build's files guards
+# the id, downloads by it, and checks the files; the rebuilds are two jobs alike.
+PIN = "0123456789abcdef0123456789abcdef01234567"
+GUARD = """      - name: The build job handed on an artifact id
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+"""
+DOWNLOAD = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
+        with:
+          artifact-ids: ${{{{ needs.build.outputs.assets-id }}}}
+          path: release-assets
+          digest-mismatch: error
+"""
+CHECK = """      - name: These are the bytes the build job made
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          printf '%s  SHA256SUMS\\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && sha256sum -c ../SHA256SUMS.sha256 && sha256sum -c SHA256SUMS )
+          have=$(cd release-assets && find . -mindepth 1 | sort)
+"""
+READ_ASSETS = GUARD + DOWNLOAD + CHECK
+
+
+def _rebuild_job(job: str, runner: str, minutes: int) -> str:
+    return f"""  {job}:
+    name: rebuild from the pins ({runner})
+    runs-on: {runner}
+    timeout-minutes: {minutes}
+    permissions:
+      contents: read
+    outputs:
+      sums-id: ${{{{ steps.sums.outputs.artifact-id }}}}
+      wheel-id: ${{{{ steps.wheel.outputs.artifact-id }}}}
     steps:
       - name: The runner's own tools
         run: |
           uname -srm
           nproc
           ls /proc/sys/fs/binfmt_misc/
+      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
+        with:
+          enable-cache: false
       - name: Build from the pins
         run: scripts/build.sh
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - id: sums
+        uses: actions/upload-artifact@{PIN} # v7.0.2
         with:
-          name: rebuild-${{ matrix.os }}
+          name: rebuild-{runner}
           path: build/artifacts/SHA256SUMS
-        if: failure()
-  same-bytes:
-    needs: [build, rebuild]
-    runs-on: ubuntu-24.04
+      - id: wheel
+        uses: actions/upload-artifact@{PIN} # v7.0.2
+        with:
+          name: rebuild-wheel-{runner}
+          path: dist/wasi_python-*.whl
+"""
+
+
+def _rebuild_download(job: str, output: str, folder: str, runner: str) -> str:
+    return f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
+        with:
+          artifact-ids: ${{{{ needs.{job}.outputs.{output} }}}}
+          path: {folder}/{runner}
+          digest-mismatch: error
+"""
+
+
+RELEASE_WORKFLOW = (
+    f"""name: release
+permissions: {{}}
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: read
+    outputs:
+      assets-id: ${{{{ steps.assets.outputs.artifact-id }}}}
+      sums-sha256: ${{{{ steps.sums.outputs.sha256 }}}}
     steps:
-      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
         with:
-          name: rebuild-ubuntu-24.04-arm
-          path: rebuilds/ubuntu-24.04-arm
-      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+          enable-cache: false
+      - name: The SHA-256 of SHA256SUMS
+        id: sums
+        run: echo "sha256=$(shasum -a 256 release-assets/SHA256SUMS | cut -c1-64)" >> "$OUT"
+      - id: assets
+        uses: actions/upload-artifact@{PIN} # v7.0.2
         with:
-          name: rebuild-wheel-ubuntu-24.04-arm
-          path: rebuilt-wheels/ubuntu-24.04-arm
-      - uses: actions/download-artifact@0000000000000000000000000000000000000000
-        with:
-          name: rebuild-ubuntu-24.04
-          path: rebuilds/ubuntu-24.04
-      - uses: actions/download-artifact@0000000000000000000000000000000000000000
-        with:
-          name: rebuild-wheel-ubuntu-24.04
-          path: rebuilt-wheels/ubuntu-24.04
-      - name: Every rebuild's SHA256SUMS is the set's
+          name: release-assets
+          path: release-assets/
+      - name: What this run checks, signs and publishes
+        env:
+          ASSETS_ID: ${{{{ steps.assets.outputs.artifact-id }}}}
+          ASSETS_DIGEST: ${{{{ steps.assets.outputs.artifact-digest }}}}
+        run: |
+          echo "release-assets: artifact $ASSETS_ID, digest $ASSETS_DIGEST"
+          cat release-assets/SHA256SUMS
+"""
+    + _rebuild_job("rebuild-linux-arm64", "ubuntu-24.04-arm", 120)
+    + _rebuild_job("rebuild-linux-x86-64", "ubuntu-24.04", 120)
+    + """  same-bytes:
+    needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+"""
+    + READ_ASSETS
+    + """      - name: The rebuild jobs handed on artifact ids
+        env:
+          ARM64_SUMS_ID: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}
+          ARM64_WHEEL_ID: ${{ needs.rebuild-linux-arm64.outputs.wheel-id }}
+          X86_64_SUMS_ID: ${{ needs.rebuild-linux-x86-64.outputs.sums-id }}
+          X86_64_WHEEL_ID: ${{ needs.rebuild-linux-x86-64.outputs.wheel-id }}
+        run: |
+          for id in "$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"; do
+            case "$id" in
+              "" | *[!0-9]*) echo "a rebuild job handed on no artifact id"; exit 1 ;;
+            esac
+          done
+"""
+    + _rebuild_download("rebuild-linux-arm64", "sums-id", "rebuilds", "ubuntu-24.04-arm")
+    + _rebuild_download("rebuild-linux-arm64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04-arm")
+    + _rebuild_download("rebuild-linux-x86-64", "sums-id", "rebuilds", "ubuntu-24.04")
+    + _rebuild_download("rebuild-linux-x86-64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04")
+    + """      - name: Every rebuild's SHA256SUMS is the set's
         run: |
           sums=set/SHA256SUMS
           for runner in ubuntu-24.04-arm ubuntu-24.04; do
@@ -554,135 +632,319 @@ jobs:
           done
   verify:
     needs: build
-  attest:
+    permissions:
+      contents: read
+    steps:
+"""
+    + READ_ASSETS
+    + """  attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes]
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+"""
+    + READ_ASSETS
+    + f"""      - uses: actions/attest@{PIN} # v4.2.2
+        with:
+          subject-path: release-assets/*
+      - name: verify
+        run: |
+          gh attestation verify "$a" --repo "$R" \\
+            --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, attest]
+    environment: release
+    permissions:
+      contents: write
+    steps:
 """
-X86_ROW = "          - os: ubuntu-24.04\n            timeout: 120\n"
-ARM_ROW = "          - os: ubuntu-24.04-arm\n            timeout: 120\n"
+    + READ_ASSETS
+    + """      - name: Create the release
+        run: gh release create "$GITHUB_REF_NAME" release-assets/*
+  pypi:
+    needs: [build, publish]
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+"""
+    + READ_ASSETS
+)
 
-BAD_REBUILDS = [
-    (("  rebuild:\n", "  rebuilt:\n"), "no rebuild job"),
-    (("  same-bytes:\n", "  same-bits:\n"), "no same-bytes job"),
-    (("os: [ubuntu-24.04-arm, ubuntu-24.04]", "os: [ubuntu-24.04]"), "rebuild's matrix lacks"),
-    (
-        ("os: [ubuntu-24.04-arm, ubuntu-24.04]", "os: [ubuntu-24.04-arm]"),
-        "rebuild's matrix lacks ubuntu-24.04",
-    ),
-    (("    runs-on: ${{ matrix.os }}\n", "    runs-on: ubuntu-24.04\n"), "rebuild does not run on"),
-    (
-        ("    timeout-minutes: ${{ matrix.timeout }}\n", "    timeout-minutes: 360\n"),
-        "rebuild's timeout-minutes does not come from its matrix",
-    ),
-    (
-        (ARM_ROW, ARM_ROW.replace("120", "360")),
-        "rebuild's matrix does not give ubuntu-24.04-arm 120 minutes",
-    ),
-    (
-        (X86_ROW, X86_ROW.replace("120", "360")),
-        "rebuild's matrix does not give ubuntu-24.04 120 minutes",
-    ),
-    ((X86_ROW, ""), "rebuild's matrix does not give ubuntu-24.04 120 minutes"),
-    (("          nproc\n", ""), "rebuild's tools step does not print nproc"),
-    (
-        ("          ls /proc/sys/fs/binfmt_misc/\n", ""),
-        "rebuild's tools step does not print binfmt_misc",
-    ),
-    (("        run: scripts/build.sh\n", "        run: echo\n"), "rebuild does not run scripts"),
-    (("name: rebuild-${{ matrix.os }}", "name: rebuild"), "rebuild does not upload"),
+
+def _in_job(text: str, job: str, old: str, new: str) -> str:
+    """The workflow with the first `old` inside `job` replaced by `new`."""
+    start = text.index(f"\n  {job}:\n")
+    end = text.find("\n  ", start + 1)
+    while end != -1 and text[end + 3] == " ":
+        end = text.find("\n  ", end + 1)
+    end = len(text) if end == -1 else end
+    section = text[start:end]
+    assert old in section, (job, old)
+    return text[:start] + section.replace(old, new, 1) + text[end:]
+
+
+def test_the_release_workflow_passes_every_release_scan() -> None:
+    assert scan.release_binding_errors(RELEASE_WORKFLOW) == []
+    assert scan.rebuild_gate_errors(RELEASE_WORKFLOW) == []
+    assert scan.release_attestation_errors(RELEASE_WORKFLOW) == []
+    assert scan.action_pin_errors(RELEASE_WORKFLOW) == []
+
+
+REBUILD_GUARD_LOOP = '"$ARM64_SUMS_ID" "$ARM64_WHEEL_ID" "$X86_64_SUMS_ID" "$X86_64_WHEEL_ID"'
+ARM_SUMS = "artifact-ids: ${{ needs.rebuild-linux-arm64.outputs.sums-id }}"
+
+# (job, old, new) -> the rules named, one variant per rule and per mutation of the reviews.
+BAD_BINDINGS = [
+    (("build", "assets-id: ${{ steps.assets.", "assets-id: ${{ steps.other."), {1}),
+    (("build", "shasum -a 256 release-assets/SHA256SUMS", "shasum -a 256 dist/x"), {2}),
+    (("build", "          cat release-assets/SHA256SUMS", "          true"), {3}),
+    *[
+        (
+            (
+                "verify",
+                "          path: release-assets\n",
+                f"          path: release-assets\n          {key}: x\n",
+            ),
+            {4},
+        )
+        for key in scan.NOT_BY_ID
+    ],
+    (("publish", "release create", "run download x; gh release create"), {4}),
     (
         (
-            "    runs-on: ${{ matrix.os }}\n",
-            "    runs-on: ${{ matrix.os }}\n    if: github.ref_type == 'tag'\n",
+            "publish",
+            "      - name: Create the release\n",
+            "      - uses: actions/github-script@" + PIN + "\n      - name: Create the release\n",
         ),
-        "rebuild has a job-level if:",
+        {4},
     ),
+    (("verify", "          digest-mismatch: error\n", ""), {5}),
+    (("pypi", "    needs: [build, publish]\n", "    needs: [publish]\n"), {6}),
+    (("verify", "          path: release-assets\n", "          path: assets\n"), {7}),
+    (("pypi", "These are the bytes the build job made", "Some step"), {8}),
     (
         (
-            "    needs: [build, rebuild]\n",
-            "    needs: [build, rebuild]\n    permissions:\n      id-token: write\n",
+            "verify",
+            "      - name: These are the bytes the build job made\n",
+            "      - name: These are the bytes the build job made\n        shell: bash\n",
         ),
-        "same-bytes's permissions are more than",
+        {9},
     ),
+    (("verify", GUARD, ""), {10}),
+    # The Confirmation's M1: a rebuild id bound, but no longer tested.
+    (
+        ("same-bytes", REBUILD_GUARD_LOOP, REBUILD_GUARD_LOOP.replace(' "$X86_64_WHEEL_ID"', "")),
+        {10},
+    ),
+    (("verify", 'case "$ASSETS_ID" in', 'case "$OTHER" in'), {10}),
+    (("build", 'echo "release-assets: artifact', 'echo "${{ github.ref }}: artifact'), {11}),
+    (("publish", "    environment: release\n", ""), {12}),
+    (("pypi", "    environment: pypi\n", "    environment: release\n"), {12}),
+    (("build", "enable-cache: false", "enable-cache: true"), {13}),
+    (("verify", "      contents: read\n", "      contents: write\n"), {14}),
+    (("same-bytes", "    permissions: {}\n", ""), {14}),
+    # The Confirmation's M2: the rebuild guard, which has no twin, told to carry on.
     (
         (
-            "    needs: [build, rebuild]\n",
-            "    needs: [build, rebuild]\n    continue-on-error: true\n",
+            "same-bytes",
+            "      - name: The rebuild jobs handed on artifact ids\n",
+            "      - name: The rebuild jobs handed on artifact ids\n"
+            "        continue-on-error: true\n",
         ),
-        "same-bytes has a job-level continue-on-error:",
+        {15},
     ),
+    # The Confirmation's M6: publish's check step told to carry on.
     (
-        ("    needs: [build, rebuild]\n", "    needs: [build]\n"),
-        "same-bytes does not need build and",
-    ),
-    (('            cmp "$sums"', '            diff "$sums"'), "same-bytes does not compare"),
-    (
-        ('cmp "$sums" "rebuilds/$runner/SHA256SUMS"', 'cmp "$sums" "$sums"'),
-        "same-bytes does not compare",
-    ),
-    (
-        ("path: rebuilds/ubuntu-24.04-arm", "path: elsewhere"),
-        "same-bytes does not name ubuntu-24.04-arm's SHA256SUMS",
-    ),
-    (
-        ("path: rebuilds/ubuntu-24.04\n", "path: elsewhere\n"),
-        "same-bytes does not name ubuntu-24.04's SHA256SUMS",
-    ),
-    (
-        ("path: rebuilt-wheels/ubuntu-24.04-arm", "path: elsewhere"),
-        "same-bytes does not name ubuntu-24.04-arm's rebuilt wheel",
-    ),
-    (
-        ("name: rebuild-wheel-ubuntu-24.04\n", "name: rebuild-wheel\n"),
-        "same-bytes does not name ubuntu-24.04's rebuilt wheel",
-    ),
-    (
-        ("for runner in ubuntu-24.04-arm ubuntu-24.04;", "for runner in ubuntu-24.04;"),
-        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04-arm",
-    ),
-    (
-        ("for runner in ubuntu-24.04-arm ubuntu-24.04;", "for runner in ubuntu-24.04-arm;"),
-        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04",
-    ),
-    (
-        ("for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04;"),
-        "same-bytes' wheel loop does not run over ubuntu-24.04-arm",
-    ),
-    (
-        ("for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04-arm;"),
-        "same-bytes' wheel loop does not run over ubuntu-24.04",
-    ),
-    (('/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
-    (
-        ("    needs: [build, verify, same-bytes]\n", "    needs: [build, verify]\n"),
-        "attest does not need",
+        (
+            "publish",
+            "      - name: These are the bytes the build job made\n",
+            "      - name: These are the bytes the build job made\n"
+            "        continue-on-error: true\n",
+        ),
+        {9, 15},
     ),
     (
         (
-            "    needs: [build, verify, same-bytes, attest]\n",
-            "    needs: [build, verify, attest]\n",
+            "attest",
+            DOWNLOAD.splitlines()[0] + "\n",
+            DOWNLOAD.splitlines()[0] + "\n        if: always()\n",
         ),
-        "publish does not need",
-    ),
-    (
-        ("    needs: [build, rebuild]\n", "    needs: [build]  # rebuild\n"),
-        "same-bytes does not need",
+        {15},
     ),
 ]
 
 
-def test_rebuild_gate_scan_passes_a_good_workflow() -> None:
-    assert scan.rebuild_gate_errors(REBUILD_WORKFLOW) == []
+def _rules(errors: list[str]) -> set[int]:
+    return {int(re.match(r"rule (\d+):", e)[1]) for e in errors}
+
+
+@pytest.mark.parametrize(
+    ("change", "rules"), BAD_BINDINGS, ids=[f"{c[0]}:{c[1][:40]}" for c, _ in BAD_BINDINGS]
+)
+def test_release_binding_scan_names_each_breach(change, rules) -> None:
+    errors = scan.release_binding_errors(_in_job(RELEASE_WORKFLOW, *change))
+    assert _rules(errors) == rules, errors
+
+
+def test_release_binding_scan_reads_with_not_the_display_name() -> None:
+    renamed = _in_job(
+        RELEASE_WORKFLOW,
+        "verify",
+        "      - uses: actions/download-artifact@",
+        "      - name: release-assets\n        uses: actions/download-artifact@",
+    )
+    assert scan.release_binding_errors(renamed) == []
+
+
+def test_the_workflow_level_permissions_must_be_empty() -> None:
+    changed = RELEASE_WORKFLOW.replace(
+        "permissions: {}\njobs:", "permissions:\n  contents: read\njobs:", 1
+    )
+    assert _rules(scan.release_binding_errors(changed)) == {14}
+
+
+def test_a_step_script_is_read_exactly_and_its_absence_raises() -> None:
+    script = scan.workflow_step_script(RELEASE_WORKFLOW, "attest", scan.CHECK_STEP)
+    assert script.startswith("printf '%s  SHA256SUMS\\n'") and "find . -mindepth 1" in script
+    with pytest.raises(LookupError):
+        scan.workflow_step_script(RELEASE_WORKFLOW, "attest", "No such step")
+
+
+def test_actions_must_be_pinned_by_a_full_commit() -> None:
+    assert scan.action_pin_errors("      - uses: ./local\n") == []
+    for ref in ("actions/checkout@v4", "actions/checkout@3d3c42e", "docker://alpine"):
+        assert scan.action_pin_errors(f"      - uses: {ref} # x\n") == [
+            f"{ref}: not pinned by a full commit"
+        ]
+
+
+def test_every_fetched_name_must_be_pinned(work) -> None:
+    script = work / "00_download.sh"
+    script.write_text("get https://e.org/a/x.tar.gz x.tar.gz\nresearch https://e.org/b/y.zip\n")
+    assert scan.unpinned_fetch_errors(script, ["x.tar.gz", "y.zip"]) == []
+    assert scan.unpinned_fetch_errors(script, ["x.tar.gz"]) == [
+        "y.zip: fetched, but not pinned in downloads/SHA256SUMS"
+    ]
+
+
+# (job, old, new) -> the first breach the rebuild gate names.
+BAD_REBUILDS = [
+    (
+        ("rebuild-linux-arm64", "rebuild-linux-arm64:", "rebuild-arm64:"),
+        "no rebuild-linux-arm64 job",
+    ),
+    (("same-bytes", "same-bytes:", "same-bits:"), "no same-bytes job"),
+    (
+        ("rebuild-linux-x86-64", "    runs-on: ubuntu-24.04\n", "    runs-on: ubuntu-24.04-arm\n"),
+        "rebuild-linux-x86-64 does not run on ubuntu-24.04",
+    ),
+    (
+        ("rebuild-linux-arm64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
+        "rebuild-linux-arm64's timeout-minutes is not 120",
+    ),
+    (
+        ("rebuild-linux-x86-64", "    timeout-minutes: 120\n", "    timeout-minutes: 360\n"),
+        "rebuild-linux-x86-64's timeout-minutes is not 120",
+    ),
+    (
+        ("rebuild-linux-arm64", "          nproc\n", ""),
+        "rebuild-linux-arm64's tools step does not print nproc",
+    ),
+    (
+        ("rebuild-linux-x86-64", "          ls /proc/sys/fs/binfmt_misc/\n", ""),
+        "rebuild-linux-x86-64's tools step does not print binfmt_misc",
+    ),
+    (
+        ("rebuild-linux-arm64", "run: scripts/build.sh", "run: echo"),
+        "rebuild-linux-arm64 does not run scripts/build.sh",
+    ),
+    (
+        ("rebuild-linux-x86-64", "name: rebuild-ubuntu-24.04\n", "name: rebuild\n"),
+        "rebuild-linux-x86-64 does not upload build/artifacts/SHA256SUMS",
+    ),
+    (
+        ("rebuild-linux-arm64", "      - id: wheel\n", "      - id: wheels\n"),
+        "rebuild-linux-arm64 does not upload dist/wasi_python-*.whl",
+    ),
+    (
+        ("rebuild-linux-x86-64", "wheel-id: ${{ steps.wheel.", "wheel-id: ${{ steps.sums."),
+        "rebuild-linux-x86-64's outputs are not",
+    ),
+    (
+        (
+            "rebuild-linux-x86-64",
+            "          uname -srm\n",
+            "          uname -srm\n          df -h\n",
+        ),
+        "the rebuild jobs differ",
+    ),
+    (
+        (
+            "rebuild-linux-arm64",
+            "    permissions:\n",
+            "    if: github.ref_type == 'tag'\n    permissions:\n",
+        ),
+        "rebuild-linux-arm64 has a job-level if:",
+    ),
+    (
+        (
+            "same-bytes",
+            "    permissions: {}\n",
+            "    permissions: {}\n    continue-on-error: true\n",
+        ),
+        "same-bytes has a job-level continue-on-error:",
+    ),
+    (
+        ("same-bytes", "    permissions: {}\n", "    permissions:\n      id-token: write\n"),
+        "same-bytes's permissions are more than",
+    ),
+    (
+        ("same-bytes", "rebuild-linux-arm64, rebuild-linux-x86-64]", "rebuild-linux-arm64]"),
+        "same-bytes does not need build and both",
+    ),
+    (
+        ("same-bytes", '            cmp "$sums"', '            diff "$sums"'),
+        "same-bytes does not compare",
+    ),
+    # The Confirmation's M5: the x86_64 job's id downloaded into the arm64 job's folder.
+    (
+        ("same-bytes", ARM_SUMS, ARM_SUMS.replace("arm64", "x86-64")),
+        "same-bytes does not download rebuild-linux-arm64's SHA256SUMS by id into "
+        "rebuilds/ubuntu-24.04-arm",
+    ),
+    (
+        ("same-bytes", "path: rebuilt-wheels/ubuntu-24.04\n", "path: elsewhere\n"),
+        "same-bytes does not download rebuild-linux-x86-64's rebuilt wheel",
+    ),
+    (
+        (
+            "same-bytes",
+            "for runner in ubuntu-24.04-arm ubuntu-24.04;",
+            "for runner in ubuntu-24.04;",
+        ),
+        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04-arm",
+    ),
+    (
+        ("same-bytes", "for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04-arm;"),
+        "same-bytes' wheel loop does not run over ubuntu-24.04",
+    ),
+    (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
+    (
+        ("attest", "    needs: [build, verify, same-bytes]\n", "    needs: [build, verify]\n"),
+        "attest does not need same-bytes",
+    ),
+    (("publish", "same-bytes, attest]", "attest]"), "publish does not need same-bytes"),
+]
 
 
 @pytest.mark.parametrize(("change", "error"), BAD_REBUILDS, ids=[e for _, e in BAD_REBUILDS])
 def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
-    old, new = change
-    assert REBUILD_WORKFLOW.count(old) == 1, old
-    errors = scan.rebuild_gate_errors(REBUILD_WORKFLOW.replace(old, new))
+    errors = scan.rebuild_gate_errors(_in_job(RELEASE_WORKFLOW, *change))
     assert errors and errors[0].startswith(error), errors
 
 

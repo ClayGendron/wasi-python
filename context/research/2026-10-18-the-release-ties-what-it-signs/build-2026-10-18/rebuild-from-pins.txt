@@ -1,0 +1,18 @@
+ok 00_download: downloads: 45 pins, 0 fetched, 45 verified; 1 other file in downloads/ verified too [4s]
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0, pkgconf 3.0.7 [19s]
+ok 20_cpython: cpython: 29583432 bytes, e7d8eb86952f2862 [4m26s]
+ok 30_zlib: zlib: 102842 bytes [2s]
+ok 35_stdlib_libs: stdlib libs: bz2 80798, lzma 213672, sqlite3 2048884 bytes [1m02s]
+ok 37_plot_libs: plot libs: freetype 852888, harfbuzz 2450406, sheenbidi 120806, raqm 19988, qhull 578098 bytes [46s]
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy [38s]
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas [1m11s]
+ok 55_matplotlib: plot packages: 12 extension archives under build/plot-modules; Python packages under build/plot-install [46s]
+ok 60_link: reactor: 36911971 bytes, e02248913914e8b4 [19s]
+ok 70_zip: python-stdlib.zip: 1715 pyc, 676 data files, 21948256 bytes [10s]
+ok 80_snapshot: snapshot: 70897198 bytes, 8eb9e35734deeb21 [6s]
+ok 90_artifacts: artifacts: 30 files in build/artifacts [0s]
+done: 13 steps in 9m49s; the artifact set is in build/artifacts/
+  python.wasm 36911971 bytes  e02248913914e8b4
+  python-snapshot.wasm 70897198 bytes  8eb9e35734deeb21
+  python-stdlib.zip 21948256 bytes  16ee747c97c5397b
+exit 0

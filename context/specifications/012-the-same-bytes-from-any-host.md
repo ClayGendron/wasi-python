@@ -139,7 +139,9 @@ The four leaks, all EXECUTED in the memo:
    before Decision 5, which no run measured. Fuel may move too, because the heap layout changes.
    The landing accepts the new hashes and, where they grow, the sizes and fuel with
    `--accept-growth` and a reason. The landing notes record all of them.
-7. **Two more hosts check it, in CI, beside the build.** The release workflow gains a `rebuild`
+7. **Two more hosts check it, in CI, beside the build.** (**Amended by spec 057:** the matrix is
+   now two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, each handing on its uploads' ids,
+   and `same-bytes` downloads each by id.) The release workflow gains a `rebuild`
    job, a matrix of `ubuntu-24.04-arm` and `ubuntu-24.04` (x86_64). Both runners are
    GitHub-hosted and free for public repositories. *As built, the matrix is `ubuntu-24.04-arm`
    only: Decision 8's fallback was taken (landing notes).*

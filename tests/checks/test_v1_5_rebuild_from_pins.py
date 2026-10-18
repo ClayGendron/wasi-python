@@ -4,6 +4,9 @@ exactly the recorded patches (constitution §4.1, spec 020)."""
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -33,6 +36,71 @@ def test_every_pin_is_fetched_from_a_literal_url() -> None:
 def test_download_script_verifies_and_never_writes_the_pins() -> None:
     errors = scan.download_script_errors(DOWNLOAD_SCRIPT)
     assert not errors, scan.report(errors)
+
+
+def test_every_fetched_file_is_pinned() -> None:
+    """Every file a get or research line fetches has its line in SHA256SUMS (spec 057)."""
+    errors = scan.unpinned_fetch_errors(DOWNLOAD_SCRIPT, paths.read_pin_list())
+    assert not errors, scan.report(errors)
+
+
+FAKE_UNAME = """#!/bin/sh
+case "$1" in -s) echo "$FAKE_S";; -m) echo "$FAKE_M";; *) echo "$FAKE_S";; esac
+"""
+FAKE_CURL = """#!/bin/sh
+echo "curl must not run: $*" >&2
+exit 99
+"""
+HOSTS = {
+    "MACOS_ARM64": ("Darwin", "arm64"),
+    "LINUX_AARCH64": ("Linux", "aarch64"),
+    "LINUX_X86_64": ("Linux", "x86_64"),
+}
+
+
+def _run_download(repo: Path, bin_dir: Path, host: str) -> subprocess.CompletedProcess:
+    s, m = HOSTS[host]
+    return subprocess.run(
+        ["sh", str(repo / "scripts" / "00_download.sh")],
+        env={"PATH": f"{bin_dir}:/usr/bin:/bin", "FAKE_S": s, "FAKE_M": m},
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize("host", HOSTS)
+def test_download_step_fails_on_a_fetched_file_with_no_pin(host, tmp_path) -> None:
+    """The download step, run on a copy with a fake file per fetched name, a fake uname for each
+    build host and a curl that fails if called: with every pin it passes, N of N verified; with
+    one pin's line gone it fails and names the file (spec 057, Decision 5; the a4 review's N1)."""
+    repo, bin_dir = tmp_path / "repo", tmp_path / "bin"
+    (repo / "scripts").mkdir(parents=True)
+    (repo / "downloads").mkdir()
+    bin_dir.mkdir()
+    for name in ("00_download.sh", "line.sh", "line.conf"):
+        shutil.copy(SCRIPTS / name, repo / "scripts" / name)
+    for name, text in (("uname", FAKE_UNAME), ("curl", FAKE_CURL)):
+        (bin_dir / name).write_text(text)
+        (bin_dir / name).chmod(0o755)
+    text = (repo / "scripts" / "00_download.sh").read_text()
+    names = {name or url.rsplit("/", 1)[-1] for url, name in scan.GET.findall(text)}
+    sums = []
+    for name in sorted(names):
+        (repo / "downloads" / name).write_bytes(f"fake {name}\n".encode())
+        sums.append(f"{paths.sha256_file(repo / 'downloads' / name)}  {name}\n")
+    (repo / "downloads" / "SHA256SUMS").write_text("".join(sums))
+    whole = _run_download(repo, bin_dir, host)
+    summary = whole.stdout.strip().splitlines()[-1] if whole.stdout.strip() else ""
+    m = re.match(r"downloads: (\d+) pins, 0 fetched, (\d+) verified", summary)
+    assert whole.returncode == 0 and m and m[1] == m[2], (whole.returncode, whole.stderr[-300:])
+    (repo / "downloads" / "SHA256SUMS").write_text(
+        "".join(line for line in sums if not line.endswith("  zlib-1.3.1.tar.gz\n"))
+    )
+    short = _run_download(repo, bin_dir, host)
+    assert short.returncode == 1, (short.returncode, short.stdout[-300:])
+    assert "zlib-1.3.1.tar.gz" in short.stderr and "curl must not run" not in short.stderr, (
+        short.stderr
+    )
 
 
 def test_no_build_script_fetches_outside_the_download_script() -> None:

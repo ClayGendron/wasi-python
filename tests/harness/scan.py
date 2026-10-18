@@ -997,95 +997,205 @@ def fp_recipe_errors(step_10: str | None, files: dict[str, str]) -> list[str]:
     return errors
 
 
-# ---------------------------------------------------------------------------------------------
-# The release workflow's second-host rebuild (spec 012, Decision 7)
+# The release workflow's steps, read as text (the judge has no YAML library; spec 009, Decision 6)
 
-# arm64 Linux, and x86_64 Linux, which compiles with the arm64 Linux SDK's clang under the pinned
-# qemu (spec 040). Each runner's job time limit, in minutes: an emulated rebuild is slower, and a
-# hung arm64 job still frees the gate after two hours (spec 040, Decision 6).
-REBUILD_RUNNERS = ("ubuntu-24.04-arm", "ubuntu-24.04")
-REBUILD_TIMEOUTS = {"ubuntu-24.04-arm": 120, "ubuntu-24.04": 120}  # spec 059: both native
+
+def workflow_steps(lines: list[str]) -> list[list[str]]:
+    """A job's steps, each as its lines: a step starts at a `      - ` line under `    steps:` and
+    runs to the next one; a line indented four spaces ends the steps (another key of the job)."""
+    steps: list[list[str]] = []
+    inside = False
+    for line in lines:
+        if re.fullmatch(r"    steps:\s*", line):
+            inside = True
+            continue
+        if not inside:
+            continue
+        if line.startswith("      - "):
+            steps.append([line])
+        elif steps and (line.startswith("       ") or not line.strip()):
+            steps[-1].append(line)
+        elif line.strip():
+            inside = False
+    return steps
+
+
+def step_fields(step: list[str]) -> dict:
+    """A step's keys: a plain value as its text, `with:` and `env:` as dicts of their keys, and a
+    `|` or `>` block (a `run:` script) as its lines dedented."""
+    lines = ["        " + step[0][len("      - ") :], *step[1:]]
+    fields: dict = {}
+    i = 0
+    while i < len(lines):
+        m = re.fullmatch(r"        ([A-Za-z0-9_-]+):\s*(.*?)\s*", lines[i])
+        i += 1
+        if not m:
+            continue
+        key, value = m[1], m[2]
+        block = []
+        while i < len(lines) and (lines[i].startswith("          ") or not lines[i].strip()):
+            block.append(lines[i])
+            i += 1
+        if key in ("with", "env") and not value:
+            fields[key] = dict(
+                re.fullmatch(r"          ([A-Za-z0-9_-]+):\s*(.*?)\s*", b).groups()
+                for b in block
+                if re.fullmatch(r"          ([A-Za-z0-9_-]+):\s*(.*?)\s*", b)
+            )
+        elif value in ("|", "|-", ">", ">-"):
+            fields[key] = "\n".join(b[10:] for b in block).rstrip("\n") + "\n"
+        else:
+            fields[key] = value
+    return fields
+
+
+def workflow_step_script(text: str, job: str, name: str) -> str:
+    """The `run:` script of the step named `name` in `job`, exactly as the workflow holds it.
+    Raises LookupError when there is no such step, so a check that runs it cannot pass on a
+    workflow without it (an empty script would exit 0; spec 057's review, F5.4)."""
+    for step in workflow_steps(workflow_jobs(text).get(job, [])):
+        fields = step_fields(step)
+        if fields.get("name") == name and isinstance(fields.get("run"), str):
+            return fields["run"]
+    raise LookupError(f"{job} has no step named {name!r} with a run: script")
+
+
+def _job_map(lines: list[str], key: str) -> dict[str, str]:
+    """A job-level mapping (`outputs:`), its keys indented six spaces."""
+    out: dict[str, str] = {}
+    inside = False
+    for line in lines:
+        if re.fullmatch(rf"    {key}:\s*", line):
+            inside = True
+            continue
+        if inside:
+            m = re.fullmatch(r"      ([A-Za-z0-9_-]+):\s*(.*?)\s*", line)
+            if m:
+                out[m[1]] = m[2]
+            elif line.strip():
+                break
+    return out
+
+
+def _permission_set(lines: list[str]) -> set[str] | None:
+    """A job's permissions: `{}` as the empty set, a block as its lines, None when absent."""
+    value = _job_field(lines, "permissions")
+    if value is None:
+        return None
+    return set() if value == "{}" else _job_permissions(lines)
+
+
+# ---------------------------------------------------------------------------------------------
+# The release workflow's rebuilds (spec 012, Decision 7; specs 040 and 059; spec 057, Decision 4)
+
+# One job per host, so each job's outputs are its own (a matrix shares one output namespace;
+# spec 057's pre-build review, F2): arm64 Linux and x86_64 Linux, each compiling with its own
+# pinned clang (spec 059). Each job's time limit, in minutes: both rebuild natively, and a hung
+# job frees the gate after two hours (spec 059, Decision 5).
+REBUILD_JOBS = {
+    "rebuild-linux-arm64": ("ubuntu-24.04-arm", 120),
+    "rebuild-linux-x86-64": ("ubuntu-24.04", 120),
+}
+REBUILD_RUNNERS = tuple(runner for runner, _ in REBUILD_JOBS.values())
 
 
 def _needs(lines: list[str]) -> set[str]:
     return set(re.findall(r"[a-z0-9_-]+", _job_field(lines, "needs") or ""))
 
 
+def _rebuild_shape(lines: list[str]) -> str:
+    """A rebuild job with its runner named by one placeholder and its name, runner and time limit
+    set aside: the two jobs must be this text alike (the longer runner name goes first)."""
+    kept = [line for line in lines if not re.match(r"    (name|runs-on|timeout-minutes):", line)]
+    body = "\n".join(kept)
+    for runner in sorted(REBUILD_RUNNERS, key=len, reverse=True):
+        body = body.replace(runner, "@RUNNER@")
+    return body
+
+
 def rebuild_gate_errors(text: str) -> list[str]:
-    """Every rule of spec 012, Decision 7, as one line per breach, on the workflow without its
-    comments: a rebuild on each gated runner beside the build, a same-bytes job that compares every
-    rebuild's SHA256SUMS with the set's byte for byte, and nothing signed or published before it."""
+    """Every rule of spec 012, Decision 7, as spec 040 and spec 057 (Decision 4) left it, one line
+    per breach, on the workflow without its comments: a rebuild job on each gated runner beside the
+    build, the two alike, each handing on its uploads' ids; a same-bytes job that downloads each by
+    id into that runner's folders and compares every rebuild's SHA256SUMS with the set's byte for
+    byte; and nothing signed or published before it."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
-    rebuild, same = jobs.get("rebuild"), jobs.get("same-bytes")
-    errors = [
-        f"no {name} job" for name, job in (("rebuild", rebuild), ("same-bytes", same)) if not job
-    ]
+    same = jobs.get("same-bytes")
+    errors = [f"no {job} job" for job in (*REBUILD_JOBS, "same-bytes") if not jobs.get(job)]
     if errors:
         return errors
-    body = "\n".join(rebuild)
-    same_body = "\n".join(line for line in same if not line.startswith("    runs-on:"))
-    m = re.search(r"^\s+os:\s*\[([^\]]*)\]", body, re.M)
-    runners = [r.strip() for r in m[1].split(",")] if m else []
-    errors += [f"rebuild's matrix lacks {r}" for r in REBUILD_RUNNERS if r not in runners]
-    if _job_field(rebuild, "timeout-minutes") != "${{ matrix.timeout }}":
-        errors.append("rebuild's timeout-minutes does not come from its matrix")
-    given = dict(re.findall(r"^\s+- os:\s*(\S+)\s*\n\s+timeout:\s*(\d+)\s*$", body, re.M))
-    errors += [
-        f"rebuild's matrix does not give {r} {minutes} minutes"
-        for r, minutes in REBUILD_TIMEOUTS.items()
-        if given.get(r) != str(minutes)
-    ]
-    # The core count beside every time figure, and any binfmt_misc entry that would run an aarch64
-    # ELF through the runner's own qemu and hide a gap in the launcher's closure (spec 040).
-    for fact, pattern in (
-        ("nproc", r"^\s+nproc\s*$"),
-        ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
-    ):
-        if not re.search(pattern, body, re.M):
-            errors.append(f"rebuild's tools step does not print {fact}")
-    if _job_field(rebuild, "runs-on") != "${{ matrix.os }}":
-        errors.append("rebuild does not run on its matrix's runner")
-    if not re.search(r"^\s+(- )?run:\s*scripts/build\.sh\s*$", body, re.M):
-        errors.append("rebuild does not run scripts/build.sh")
-    if not re.search(r"^\s+path:\s*build/artifacts/SHA256SUMS\s*$", body, re.M) or not re.search(
-        r"^\s+name:\s*\S*\$\{\{\s*matrix\.os\s*\}\}\S*\s*$", body, re.M
-    ):
-        errors.append("rebuild does not upload build/artifacts/SHA256SUMS under a name per runner")
-    for name, lines in (("rebuild", rebuild), ("same-bytes", same)):
-        joined = "\n".join(lines)
+    for job, (runner, minutes) in REBUILD_JOBS.items():
+        lines = jobs[job]
+        body = "\n".join(lines)
+        if _job_field(lines, "runs-on") != runner:
+            errors.append(f"{job} does not run on {runner}")
+        if _job_field(lines, "timeout-minutes") != str(minutes):
+            errors.append(f"{job}'s timeout-minutes is not {minutes}")
+        # The core count beside every time figure, and any binfmt_misc entry that would run an
+        # aarch64 ELF through the runner's own qemu and hide a gap in the launcher's closure.
+        for fact, pattern in (
+            ("nproc", r"^\s+nproc\s*$"),
+            ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
+        ):
+            if not re.search(pattern, body, re.M):
+                errors.append(f"{job}'s tools step does not print {fact}")
+        if not re.search(r"^\s+(- )?run:\s*scripts/build\.sh\s*$", body, re.M):
+            errors.append(f"{job} does not run scripts/build.sh")
+        uploads = {
+            f.get("id"): f
+            for f in map(step_fields, workflow_steps(lines))
+            if f.get("uses", "").startswith("actions/upload-artifact@")
+        }
+        for step_id, name, path in (
+            ("sums", f"rebuild-{runner}", "build/artifacts/SHA256SUMS"),
+            ("wheel", f"rebuild-wheel-{runner}", "dist/wasi_python-*.whl"),
+        ):
+            w = uploads.get(step_id, {}).get("with", {})
+            if (w.get("name"), w.get("path")) != (name, path):
+                errors.append(f"{job} does not upload {path} as {name} (id: {step_id})")
+        outputs = _job_map(lines, "outputs")
+        if outputs != {
+            "sums-id": "${{ steps.sums.outputs.artifact-id }}",
+            "wheel-id": "${{ steps.wheel.outputs.artifact-id }}",
+        }:
+            errors.append(f"{job}'s outputs are not sums-id and wheel-id from its two uploads")
+    for name in (*REBUILD_JOBS, "same-bytes"):
+        lines = jobs[name]
         if _job_field(lines, "if") is not None:
             errors.append(f"{name} has a job-level if: (a dry run must run it)")
-        if _job_permissions(lines) - {"contents: read"}:
+        if (_permission_set(lines) or set()) - {"contents: read"}:
             errors.append(f"{name}'s permissions are more than contents: read")
-        if re.search(r"^    continue-on-error:", joined, re.M):
+        if re.search(r"^    continue-on-error:", "\n".join(lines), re.M):
             errors.append(f"{name} has a job-level continue-on-error:")
-    if not {"build", "rebuild"} <= _needs(same):
-        errors.append("same-bytes does not need build and rebuild")
+    shapes = {_rebuild_shape(jobs[job]) for job in REBUILD_JOBS}
+    if len(shapes) != 1:
+        errors.append("the rebuild jobs differ beyond their runner, its time limit and names")
+    if not {"build", *REBUILD_JOBS} <= _needs(same):
+        errors.append("same-bytes does not need build and both rebuild jobs")
+    same_body = "\n".join(line for line in same if not line.startswith("    runs-on:"))
     # One operand a rebuild's download, the other not: comparing the set's file with itself, or
-    # one rebuild with another, proves nothing (the build review, mutation M18).
+    # one rebuild with another, proves nothing (spec 012's build review, mutation M18).
     pairs = re.findall(r"\bcmp\s+(\S+)\s+(\S+)", same_body)
     if not any(("rebuilds/" in a) != ("rebuilds/" in b) for a, b in pairs):
         errors.append("same-bytes does not compare a rebuild's SHA256SUMS with the set's (cmp)")
-    errors += [
-        f"same-bytes does not name {r}'s SHA256SUMS"
-        for r in REBUILD_RUNNERS
-        if not re.search(
-            rf"^\s+name:\s*rebuild-{re.escape(r)}\s*\n\s+path:\s*rebuilds/{re.escape(r)}\s*$",
-            same_body,
-            re.M,
-        )
-        or not re.search(rf"(?<![\w.-]){re.escape(r)}(?![\w.-])", same_body.split("run:", 1)[-1])
-    ]
-    errors += [
-        f"same-bytes does not name {r}'s rebuilt wheel"
-        for r in REBUILD_RUNNERS
-        if not re.search(
-            rf"^\s+name:\s*rebuild-wheel-{re.escape(r)}\s*\n\s+path:\s*rebuilt-wheels/{re.escape(r)}\s*$",
-            same_body,
-            re.M,
-        )
-    ]
+    # Each job's id into its own runner's folder, pairing artifact-ids with the path: of the same
+    # with: block; one job's id in the other's folder fails (spec 057's Confirmation, M5).
+    fetched = {
+        (w.get("artifact-ids"), w.get("path"))
+        for f in map(step_fields, workflow_steps(same))
+        if f.get("uses", "").startswith("actions/download-artifact@")
+        for w in [f.get("with", {})]
+    }
+    for job, (runner, _) in REBUILD_JOBS.items():
+        for output, folder, what in (
+            ("sums-id", "rebuilds", "SHA256SUMS"),
+            ("wheel-id", "rebuilt-wheels", "rebuilt wheel"),
+        ):
+            if (f"${{{{ needs.{job}.outputs.{output} }}}}", f"{folder}/{runner}") not in fetched:
+                errors.append(
+                    f"same-bytes does not download {job}'s {what} by id into {folder}/{runner}"
+                )
     # Both of same-bytes' loops, the set's SHA256SUMS and spec 016's wheel, run over every runner.
     for what, marker in (("SHA256SUMS", "rebuilds/$"), ("wheel", "rebuilt-wheels/$")):
         looped = {
@@ -1106,6 +1216,245 @@ def rebuild_gate_errors(text: str) -> list[str]:
         if "same-bytes" not in _needs(jobs.get(name, [])):
             errors.append(f"{name} does not need same-bytes")
     return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# What is checked, signed and published is what the build job made (spec 057)
+
+ASSETS_ID = "${{ needs.build.outputs.assets-id }}"
+SUMS_SHA256 = "${{ needs.build.outputs.sums-sha256 }}"
+CHECK_STEP = "These are the bytes the build job made"
+GUARD_TEST = '"" | *[!0-9]*)'
+NEEDS_OUTPUT = re.compile(r"^\$\{\{ needs\.([\w-]+)\.outputs\.([\w-]+) \}\}$")
+NOT_BY_ID = (
+    "name",
+    "pattern",
+    "github-token",
+    "run-id",
+    "repository",
+    "merge-multiple",
+    "skip-decompress",
+)
+OTHER_FETCH = re.compile(r"gh\s+run\s+download|actions/github-script|/actions/artifacts")
+ENVIRONMENTS = {"publish": "release", "pypi": "pypi"}
+JOB_PERMISSIONS = {
+    "build": {"contents: read"},
+    **{job: {"contents: read"} for job in REBUILD_JOBS},
+    "same-bytes": set(),
+    "verify": {"contents: read"},
+    "attest": ATTEST_PERMISSIONS,
+    "publish": {"contents: write"},
+    "pypi": {"id-token: write"},
+}
+
+
+def _guard_tests(run: str, var: str) -> bool:
+    """The guard's script tests `var` itself: `case "$var"` with the refusing branch, or a `for`
+    loop that lists `"$var"` and tests its loop variable so (spec 057's Confirmation, M1)."""
+    branch = re.escape(GUARD_TEST) + r"[^\n]*\bexit 1\b"
+    if re.search(rf'case "\${re.escape(var)}" in\s*\n\s*{branch}', run):
+        return True
+    for m in re.finditer(r"for (\w+) in ([^;\n]*); do\n(.*?)\n\s*done", run, re.S):
+        if f'"${var}"' in m[2].split() and re.search(rf'case "\${m[1]}" in\s*\n\s*{branch}', m[3]):
+            return True
+    return False
+
+
+def release_binding_errors(text: str) -> list[str]:
+    """Every rule of spec 057's Design, one line per breach, each starting with its rule's number,
+    on the workflow without its comments: every reader of the build's files downloads them by an
+    id it has guarded, checks them against the SHA-256 of SHA256SUMS the build job handed on, and
+    acts on nothing else; the publish jobs name their environments, run setup-uv with no cache,
+    and hold only the permissions they use."""
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    steps = {
+        name: [(s, step_fields(s)) for s in workflow_steps(lines)] for name, lines in jobs.items()
+    }
+    errors: list[str] = []
+    # Rules 1 to 3: the build job's two outputs and its printed record.
+    build = steps.get("build", [])
+    outputs = _job_map(jobs.get("build", []), "outputs")
+    upload = next(
+        (
+            (i, f)
+            for i, (_, f) in enumerate(build)
+            if f.get("uses", "").startswith("actions/upload-artifact@")
+            and f.get("with", {}).get("name") == "release-assets"
+        ),
+        (None, {}),
+    )
+    up_i, up = upload
+    up_id = up.get("id")
+    if not up_id or outputs.get("assets-id") != f"${{{{ steps.{up_id}.outputs.artifact-id }}}}":
+        errors.append(
+            "rule 1: build does not hand on its release-assets upload's artifact-id as assets-id"
+        )
+    m = re.fullmatch(
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("sums-sha256", "")
+    )
+    sums_i = next((i for i, (_, f) in enumerate(build) if m and f.get("id") == m[1]), None)
+    if (
+        sums_i is None
+        or up_i is None
+        or sums_i > up_i
+        or not re.search(
+            r"(shasum -a 256|sha256sum) release-assets/SHA256SUMS", str(build[sums_i][1].get("run"))
+        )
+    ):
+        errors.append(
+            "rule 2: build does not hand on the SHA-256 of release-assets/SHA256SUMS, made before "
+            "the upload, as sums-sha256"
+        )
+    printed = up_id and any(
+        {
+            f"${{{{ steps.{up_id}.outputs.artifact-id }}}}",
+            f"${{{{ steps.{up_id}.outputs.artifact-digest }}}}",
+        }
+        <= set(f.get("env", {}).values())
+        and "cat release-assets/SHA256SUMS" in str(f.get("run", ""))
+        for _, f in build[(up_i or 0) + 1 :]
+    )
+    if not printed:
+        errors.append(
+            "rule 3: build does not print the artifact id, its digest and SHA256SUMS after the "
+            "upload"
+        )
+    # Rules 4, 5 and 10: every download by one guarded id, refusing a digest mismatch.
+    if OTHER_FETCH.search(text):
+        errors.append(
+            "rule 4: the workflow fetches an artifact another way (gh run download, "
+            "github-script, the artifacts API)"
+        )
+    guard_blocks: dict[str, list[str]] = {}
+    for name, job_steps in steps.items():
+        for i, (_, f) in enumerate(job_steps):
+            if not f.get("uses", "").startswith("actions/download-artifact@"):
+                continue
+            w = f.get("with", {})
+            ids = w.get("artifact-ids", "")
+            if not NEEDS_OUTPUT.match(ids) or any(key in w for key in NOT_BY_ID):
+                errors.append(f"rule 4: {name} downloads an artifact other than by one id alone")
+            if w.get("digest-mismatch") != "error":
+                errors.append(f"rule 5: {name} downloads without digest-mismatch: error")
+            guard = next(
+                (
+                    (g_raw, g)
+                    for g_raw, g in reversed(job_steps[:i])
+                    for var, value in g.get("env", {}).items()
+                    if ids and value == ids and _guard_tests(str(g.get("run", "")), var)
+                ),
+                None,
+            )
+            if guard is None:
+                errors.append(f"rule 10: {name} has no guard step that tests the id it downloads")
+            elif ids == ASSETS_ID:
+                guard_blocks[name] = guard[0]
+    # Rule 6: every output a job reads is one the job it needs defines.
+    for name, lines in jobs.items():
+        for job, output in re.findall(r"needs\.([\w-]+)\.outputs\.([\w-]+)", "\n".join(lines)):
+            if job not in _needs(lines) or output not in _job_map(jobs.get(job, []), "outputs"):
+                errors.append(f"rule 6: {name} reads needs.{job}.outputs.{output}, which it cannot")
+    # Rules 7 to 9: every job that holds the build's files checks them first, with one step.
+    holders = [
+        name
+        for name, lines in jobs.items()
+        if ASSETS_ID in "\n".join(lines)
+        or {"contents: write", "id-token: write"} & (_permission_set(lines) or set())
+    ]
+    check_blocks = {}
+    for name in holders:
+        job_steps = steps[name]
+        at = next(
+            (
+                i
+                for i, (_, f) in enumerate(job_steps)
+                if f.get("uses", "").startswith("actions/download-artifact@")
+                and f.get("with", {}).get("artifact-ids") == ASSETS_ID
+                and f.get("with", {}).get("path") == "release-assets"
+            ),
+            None,
+        )
+        if at is None:
+            errors.append(f"rule 7: {name} does not download the build's release-assets by id")
+            continue
+        nxt = job_steps[at + 1] if at + 1 < len(job_steps) else ([], {})
+        run = str(nxt[1].get("run", ""))
+        if not (
+            nxt[1].get("name") == CHECK_STEP
+            and nxt[1].get("env", {}).get("SUMS_SHA256") == SUMS_SHA256
+            and all(s in run for s in ("SHA256SUMS.sha256", "-c SHA256SUMS", "find . -mindepth 1"))
+        ):
+            errors.append(
+                f"rule 8: {name}'s step after the download is not the check against the "
+                "build's SHA256SUMS"
+            )
+            continue
+        check_blocks[name] = nxt[0]
+    if len({"\n".join(b) for b in check_blocks.values()}) > 1:
+        errors.append("rule 9: the check steps are not the same step")
+    if len({"\n".join(b) for b in guard_blocks.values()}) > 1:
+        errors.append(
+            "rule 10: the guards before the release-assets downloads are not the same step"
+        )
+    # Rule 11: values reach scripts through env:, never as expressions.
+    for name, job_steps in steps.items():
+        if any("${{" in str(f.get("run", "")) for _, f in job_steps):
+            errors.append(f"rule 11: {name} has ${{{{ in a run: script")
+    # Rules 12 to 14: environments, no cache, least privilege.
+    for name, environment in ENVIRONMENTS.items():
+        if _job_field(jobs.get(name, []), "environment") != environment:
+            errors.append(f"rule 12: {name} does not name environment: {environment}")
+    for name, job_steps in steps.items():
+        for _, f in job_steps:
+            if (
+                f.get("uses", "").startswith("astral-sh/setup-uv@")
+                and f.get("with", {}).get("enable-cache") != "false"
+            ):
+                errors.append(f"rule 13: {name} runs setup-uv with its cache on")
+    top = re.search(r"^permissions:\s*(.*)$", text.split("\njobs:", 1)[0], re.M)
+    if not top or top[1].strip() != "{}":
+        errors.append("rule 14: the workflow-level permissions are not {}")
+    for name, lines in jobs.items():
+        if _permission_set(lines) != JOB_PERMISSIONS.get(name):
+            errors.append(f"rule 14: {name}'s permissions are not its row in spec 057's table")
+    # Rule 15: nothing may let a guard, a check or a download fail quietly or be skipped.
+    for name, job_steps in steps.items():
+        for _, f in job_steps:
+            role = (
+                f.get("uses", "").startswith("actions/download-artifact@")
+                or f.get("name") == CHECK_STEP
+                or GUARD_TEST in str(f.get("run", ""))
+            )
+            if role and ({"if", "continue-on-error"} & set(f)):
+                errors.append(
+                    f"rule 15: {name} has a guard, check or download step with if: or "
+                    "continue-on-error:"
+                )
+    return errors
+
+
+def action_pin_errors(text: str) -> list[str]:
+    """Every `uses:` is a local action or `owner/repo[/path]@<40 hex>` (spec 057, Decision 7)."""
+    errors = []
+    for m in re.finditer(r"^\s*(?:- )?uses:\s*(\S+)", without_comments(text), re.M):
+        ref = m[1]
+        if not (ref.startswith("./") or re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", ref)):
+            errors.append(f"{ref}: not pinned by a full commit")
+    return errors
+
+
+def unpinned_fetch_errors(download_script: Path, pinned: Iterable[str]) -> list[str]:
+    """Every file a `get` or `research` line fetches is pinned in SHA256SUMS (spec 057; the a4
+    security review's N1): the name given, or else the URL's last part."""
+    pinned = set(pinned)
+    text = "\n".join(line for _, line in _code_lines(download_script))
+    names = [name or url.rstrip("/").rsplit("/", 1)[-1] for url, name in GET.findall(text)]
+    return [
+        f"{name}: fetched, but not pinned in downloads/SHA256SUMS"
+        for name in names
+        if name not in pinned
+    ]
 
 
 # ---------------------------------------------------------------------------------------------

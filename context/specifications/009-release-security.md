@@ -17,7 +17,9 @@
 
 ## Decisions
 
-1. **A separate `attest` job.** Between `verify` and `publish`, a new job, `attest`, runs only
+1. **A separate `attest` job.** (**Amended by spec 057:** `attest`, like every job that reads
+   the build's files, now guards the build job's artifact id, downloads by it, and checks the
+   files against the SHA-256 of `SHA256SUMS` the build job handed on, before it signs.) Between `verify` and `publish`, a new job, `attest`, runs only
    for a pushed tag (the same `if:` as `publish`), with `needs: [build, verify]` (so it never
    signs a set that then fails on another system: a signature is permanent, Decision 5), on
    `ubuntu-24.04`, with job-level permissions

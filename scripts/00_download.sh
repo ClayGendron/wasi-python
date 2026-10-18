@@ -10,7 +10,8 @@
 #
 # One line per pin, `fetched <name>` or `present <name>`, then shasum's `<name>: OK` lines, then
 # `downloads: <n> pins, <f> fetched, <v> verified`, which build.sh shows as the step's line (spec
-# 027). curl is needed only for a pin that is not present yet, and checked there.
+# 027). curl is needed only for a pin that is not present yet, and checked there. A fetched name
+# with no pin fails the step, named (spec 057).
 set -eu
 HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
 D="$HERE/downloads"
@@ -172,3 +173,16 @@ case "$OTHER" in
   *) summary="$summary; $OTHER other files in downloads/ verified too";;
 esac
 echo "$summary"
+# Every pin this run fetched or found must have verified: a name with no line in SHA256SUMS is
+# skipped by --ignore-missing, so it is named here and fails the step (spec 057; the a4 review, N1).
+# set -f: the names are split on spaces, never expanded as patterns.
+UNPINNED=""
+set -f
+for name in $NAMES; do
+  grep -Fqx "$name: OK" "$checked" || UNPINNED="$UNPINNED $name"
+done
+set +f
+if [ -n "$UNPINNED" ]; then
+  echo "ERROR: no pin in downloads/SHA256SUMS for:$UNPINNED" >&2
+  exit 1
+fi

@@ -1,0 +1,20 @@
+PASSED tests/checks/test_rules.py::test_every_action_is_pinned_by_commit
+PASSED tests/checks/test_v1_5_rebuild_from_pins.py::test_every_fetched_file_is_pinned
+FAILED tests/checks/test_rules.py::test_the_release_signs_and_publishes_what_build_made
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[the build's own files]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[SUMS_SHA256 empty]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[SUMS_SHA256 another hash]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[the wheel's bytes changed]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[the wheel swapped, SHA256SUMS rewritten to match]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[the .tar.xz removed]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[an extra file]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[a hidden file]
+FAILED tests/checks/test_rules.py::test_the_release_check_refuses_other_bytes[a sub-folder]
+FAILED tests/checks/test_rules.py::test_the_id_guard_refuses_a_missing_id[empty]
+FAILED tests/checks/test_rules.py::test_the_id_guard_refuses_a_missing_id[12x]
+FAILED tests/checks/test_rules.py::test_the_id_guard_refuses_a_missing_id[1,2]
+FAILED tests/checks/test_rules.py::test_the_id_guard_refuses_a_missing_id[a decimal]
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_download_step_fails_on_a_fetched_file_with_no_pin[MACOS_ARM64]
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_download_step_fails_on_a_fetched_file_with_no_pin[LINUX_AARCH64]
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_download_step_fails_on_a_fetched_file_with_no_pin[LINUX_X86_64]
+FAILED tests/checks/test_v1_5_rebuild_from_pins.py::test_release_workflow_rebuilds_on_two_more_hosts

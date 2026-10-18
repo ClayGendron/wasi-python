@@ -1,0 +1,25 @@
+== release.main.yml problems: 23
+   - build: setup-uv cache None
+   - rebuild: setup-uv cache None
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - verify: setup-uv cache None
+   - verify: download not by id alone ['name']
+   - verify: digest-mismatch not error
+   - attest: download not by id alone ['name']
+   - attest: digest-mismatch not error
+   - publish: setup-uv cache None
+   - publish: download not by id alone ['name']
+   - publish: digest-mismatch not error
+   - pypi: download not by id alone ['name']
+   - pypi: digest-mismatch not error
+   - no rebuild-linux-arm64 and rebuild-linux-x86-64 jobs
+== release.built.yml problems: 0
