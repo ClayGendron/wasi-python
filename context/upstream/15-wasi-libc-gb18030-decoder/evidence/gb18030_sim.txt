@@ -1,0 +1,17 @@
+# 2026-10-18, darwin-arm64: uv run -q --no-project --python 3.13.11 python -I gb18030_sim.py gb18030.h gb18030utf.h
+# gb18030.h: wasi-libc 161b3195 libc-top-half/musl/src/locale/gb18030.h, SHA-256 5483eb15124a1eda15b61599ad0337703901ec405e470ace9432b551a0e6b78d
+# gb18030utf.h: musl 67219f0 src/locale/gb18030utf.h, SHA-256 94b51d272a81a1164a035918253004ab71cc21e29f11100dcf9bd3dc22757c28
+2-byte table: 23940 entries, 0 zero, 23940 distinct
+unmapped ranges in the fix: 206
+repertoire 56926 characters, 35054 of them four-byte in CPython's codec
+before (wasi-libc 161b3195): 1617 decoded to another character
+  shifts seen: ['0x800', '0x801', '0x802', '0x803', '0x804', '0x805', '0x809', '0x80a', '0x80c', '0x80d', '0x810', '0x812', '0x815', '0x817', '0x829', '0x833', '0x837', '0x845', '0x849', '0x8a7', '0x8ad']
+  range of wrong ones: U+F900..U+FFFD
+  U+F900  84 30 81 31 -> U+F100
+  U+F901  84 30 81 32 -> U+F101
+  U+F902  84 30 81 33 -> U+F102
+  U+FFFD  84 31 a4 37 -> U+F750
+after (musl 67219f0): 0 decoded to another character
+U+10000  90 30 81 30 -> before U+3404C, after U+10000
+U+1F600  94 39 fc 36 -> before U+4364C, after U+1F600
+U+10FFFF  e3 32 9a 35 -> before U+13404B, after U+10FFFF

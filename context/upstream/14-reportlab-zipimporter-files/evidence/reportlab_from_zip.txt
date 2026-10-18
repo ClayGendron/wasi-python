@@ -1,0 +1,30 @@
+# 2026-10-18, darwin-arm64: for v in 3.12.12 3.13.11 3.14.2; do uv run -q --no-project --python $v --with pillow==13.0.0 python -I reportlab_from_zip.py reportlab-5.0.1-py3-none-any.whl; done
+# the wheel: SHA-256 1c36e6bb0e71780c72331eba60da7f602e8d4389a8723825af71342e49d791e8 (equal to spec 042 pin)
+## 3.12.12
+python 3.12.12
+reportlab 5.0.1 from reportlab-5.0.1-py3-none-any.whl/reportlab/lib/utils.py
+utils.__loader__: zipimporter
+isCompactDistro(): True
+__rl_loader__ is None: False
+rl_isfile(<wheel>/reportlab/fonts/Vera.ttf): True
+open_for_read: read 65932 bytes
+TTFont("Vera", <wheel>/reportlab/fonts/Vera.ttf): loaded
+## 3.13.11
+python 3.13.11
+reportlab 5.0.1 from reportlab-5.0.1-py3-none-any.whl/reportlab/lib/utils.py
+utils.__loader__: zipimporter
+isCompactDistro(): True
+__rl_loader__ is None: True
+rl_isfile(<wheel>/reportlab/fonts/Vera.ttf): False
+open_for_read raised: OSError
+TTFont("Vera", <wheel>/reportlab/fonts/Vera.ttf) raised: TTFError
+## 3.14.2
+python 3.14.2
+reportlab 5.0.1 from reportlab-5.0.1-py3-none-any.whl/reportlab/lib/utils.py
+utils.__loader__: zipimporter
+isCompactDistro(): True
+__rl_loader__ is None: True
+rl_isfile(<wheel>/reportlab/fonts/Vera.ttf): False
+open_for_read raised: OSError
+TTFont("Vera", <wheel>/reportlab/fonts/Vera.ttf) raised: TTFError
+pillow 13.0.0 (uv --with pillow==13.0.0); 3.15.0a3 not run: pillow 13.0.0's _imaging fails to load on it (SystemError: unknown slot ID 85)
