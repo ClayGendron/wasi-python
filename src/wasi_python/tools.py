@@ -29,6 +29,7 @@ on every host; they change only with `PROTOCOL` (README.md, "The tool protocol")
 
 from __future__ import annotations
 
+import asyncio
 import binascii
 import contextvars
 import copy
@@ -312,6 +313,12 @@ def tool(
     given. Every schema is vetted against the protocol's subset. The four hints are your
     labels, shown to the guest as MCP's annotations; they grant nothing.
 
+    The function may be an `async def`, or return an awaitable: the runner awaits it on the
+    call's tool loop (the event loop that awaits `run_async`, or under `run` a loop of the
+    call's own), never starts it once its call has been answered, and cancels it when its call
+    ends. An async generator function is refused: a tool answers each call once. Calling the
+    `Tool` on the host returns what the function returns, a coroutine for an `async def`.
+
     Args:
         fn: The function. Without it, `tool(...)` returns a decorator.
         name: The name the guest calls it by; by default the function's own.
@@ -332,8 +339,8 @@ def tool(
         The `Tool`, or, without `fn`, a decorator that makes one.
 
     Raises:
-        TypeError: An argument has the wrong type, the function is async, or a type hint has
-            no schema.
+        TypeError: An argument has the wrong type, the function is an async generator
+            function, or a type hint has no schema.
         ValueError: A name or a schema the protocol does not allow.
     """
     # timeout_s: spec 036
@@ -379,8 +386,8 @@ def _make(
             f"tool(): the name {name!r} must be a letter, then up to 63 letters, digits or "
             "underscores, and not a Python keyword"
         )
-    if _is_async(fn):
-        raise TypeError(f"{name}: async tools come with a later specification (decision 15)")
+    if _is_async_generator(fn):
+        raise TypeError(f"{name}: an async generator streams; protocol 1 answers each call once")
     timeout = _timeout(name, timeout_s)
     fixed = _bound_keywords(name, fn)
     doc = _doc(fn)
@@ -445,6 +452,18 @@ def _is_async(fn: Any) -> bool:
     if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
         call = type(fn).__call__
         return inspect.iscoroutinefunction(call) or inspect.isasyncgenfunction(call)
+    return False
+
+
+def _is_async_generator(fn: Any) -> bool:
+    """Whether calling `fn` makes an async generator, read as `_is_async` reads a callable:
+    through `partial`s, and at an object's `__call__` (spec 053, Decision 1)."""
+    while isinstance(fn, functools.partial):
+        fn = fn.func
+    if inspect.isasyncgenfunction(fn):
+        return True
+    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
+        return callable(fn) and inspect.isasyncgenfunction(type(fn).__call__)
     return False
 
 
@@ -1464,23 +1483,33 @@ class _Work:
     def __init__(self, host: _ToolHost, seq: int, frame_id: Any, tool: Tool, args: dict) -> None:
         self.tool, self.seq, self.frame_id = tool, seq, frame_id
         self._gate, self._args, self._size = host._gate, args, host._size
+        self._loop = host._loop
 
-    def __call__(self, proceed: Callable[[], bool] | None = None) -> _Done:
+    def __call__(self, proceed: Callable[[], bool] | None = None, ops: _Ops | None = None) -> _Done:
         """`proceed`, from the bound, is asked once the gate has allowed and before the tool
-        starts: False when the call was already answered, so the tool never runs (spec 056)."""
+        starts: False when the call was already answered, so the tool never runs (spec 056).
+        `ops`, from the bound too, lets an awaitable the gate or the tool returns start only at
+        its wrapper's first step, under the bound's lock (spec 053, Decision 4)."""
         t = self.tool
         args = self._args
+        skipped = f"{t.name} was not run: its call had ended"
         if self._gate is not None:
             call = ToolCall(self.seq, t, copy.deepcopy(args), self._size)
             refused = f"{t.name} was refused"
             try:
                 verdict = self._gate(call)
+                if inspect.isawaitable(verdict):
+                    verdict = self._loop.run(verdict, ops)
+            except _NotStarted:
+                return self.failed("cancelled", skipped)
             except ToolError as e:
                 try:
                     return self.failed("denied", _message_of(e))
                 except BaseException as inner:
                     return self.failed("denied", refused, _fault(inner))
             except BaseException as e:  # a broken gate fails closed
+                if self._cancelling(e, ops):
+                    return self.failed("cancelled", f"{t.name} was cancelled")
                 return self.failed("denied", refused, _fault(e))
             if verdict is False:
                 return self.failed("denied", refused)
@@ -1488,10 +1517,14 @@ class _Work:
                 why = f"TypeError: the gate returned {type(verdict).__name__}, not None or a bool"
                 return self.failed("denied", refused, why[:_FAULT_CHARS])
         if proceed is not None and not proceed():
-            return self.failed("cancelled", f"{t.name} was not run: its call had ended")
+            return self.failed("cancelled", skipped)
         internal = f"{t.name} failed (internal error)"
         try:
             value = t.fn(**args)
+            if inspect.isawaitable(value):
+                value = self._loop.run(value, ops)
+        except _NotStarted:
+            return self.failed("cancelled", skipped)
         except ToolError as e:
             how = "denied" if isinstance(e, ToolDenied) else "tool_error"
             try:
@@ -1499,6 +1532,8 @@ class _Work:
             except BaseException as inner:
                 return self.failed(how, internal, _fault(inner))
         except BaseException as e:
+            if self._cancelling(e, ops):
+                return self.failed("cancelled", f"{t.name} was cancelled")
             return self.failed("tool_error", internal, _fault(e))
         try:
             body = _to_json(value, 0)
@@ -1513,6 +1548,17 @@ class _Work:
             )
         return _Done(encoded, "ok", None, None)
 
+    @staticmethod
+    def _cancelling(e: BaseException, ops: _Ops | None) -> bool:
+        """A `CancelledError` the runner did not ask for, met while the run is being cancelled:
+        answered `cancelled`, as the bound would answer a slice later (spec 053, Decision 6)."""
+        if not isinstance(e, asyncio.CancelledError) or ops is None:
+            return False
+        try:
+            return ops.ending() == "cancelled"
+        except BaseException:
+            return False
+
     def failed(self, kind: str, message: str, fault: str | None = None) -> _Done:
         return _Done(_error(self.frame_id, kind, message), kind, message, fault)
 
@@ -1526,11 +1572,249 @@ def _inline(work: _Work) -> _Done | _Interrupted:
     return work()
 
 
+# -------------------------------------------------------------------------------------------------
+# The tool loop (spec 053): where an awaitable a gate or a tool returns is awaited.
+
+_LOOP_THREAD = "wasi-python-tool--loop"  # no tool name starts with "-": no tool thread has it
+_LOOP_POLL_S = 0.01  # the work thread's wait, in slices: the runner's tick
+
+
+class _NotStarted(Exception):
+    """The call was answered before its awaitable started: it never runs (spec 053, D5)."""
+
+
+class _Post:
+    """One awaitable posted to the tool loop: whether its wrapper started it, under the bound's
+    lock, and how it ended. `ended` is set by the wrapper's `finally`, the task's real end."""
+
+    __slots__ = ("awaitable", "ended", "error", "loop", "skipped", "started", "task", "value")
+
+    def __init__(self, awaitable: Any) -> None:
+        self.awaitable = awaitable
+        self.ended = threading.Event()
+        self.started = False  # set by the wrapper's first step, under the bound's lock
+        self.skipped = False  # the first step found the call answered
+        self.task: Any = None
+        self.loop: Any = None
+        self.value: Any = None
+        self.error: BaseException | None = None
+
+
+def _close_awaitable(awaitable: Any) -> None:
+    """Close an awaitable that will never run, so no "never awaited" warning is printed."""
+    try:
+        close = getattr(awaitable, "close", None)
+        if callable(close):
+            close()
+    except BaseException:
+        pass
+
+
+def _cancel_post(post: _Post) -> None:
+    """Ask a started task to cancel, on its loop's own thread. A closed loop is skipped, and
+    nothing raises, logs or warns (spec 053, Decision 4). The posted future is never cancelled:
+    on a closed loop that logs a traceback."""
+    try:
+        loop, task = post.loop, post.task
+        if loop is None or task is None or loop.is_closed():
+            return
+        loop.call_soon_threadsafe(task.cancel)
+    except BaseException:
+        pass
+
+
+class _ToolLoop:
+    """The loop a call's awaitables run on (spec 053, Decisions 2, 3 and 8): `loop`, the event
+    loop that awaits `run_async`, which the runner never runs, stops or closes; or, with none,
+    a private loop of the call's own, started at its first awaitable on a daemon thread that
+    owns the loop's whole life. `count` is told +1 and -1 as that thread starts and ends."""
+
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop | None = None,
+        *,
+        count: Callable[[int], Any] = lambda delta: None,
+        start: Callable[[threading.Thread], Any] = threading.Thread.start,
+    ) -> None:
+        self._given = loop
+        self._loop = loop
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+        self._tasks: set = set()  # the runner's own tasks still running
+        self._count, self._start = count, start
+
+    def _get(self) -> asyncio.AbstractEventLoop:
+        if self._given is not None:
+            return self._given
+        with self._lock:
+            if self._loop is not None:
+                thread = self._thread
+                if self._loop.is_closed() or thread is None or not thread.is_alive():
+                    raise RuntimeError("the call's tool loop has stopped")
+                return self._loop
+            loop = asyncio.new_event_loop()
+            thread = threading.Thread(
+                target=self._serve, args=(loop,), name=_LOOP_THREAD, daemon=True
+            )
+            self._count(1)
+            try:
+                self._start(thread)
+            except BaseException:  # the operating system's thread limit: a fault of the call
+                self._count(-1)
+                loop.close()
+                raise
+            self._loop, self._thread = loop, thread
+            return loop
+
+    def _serve(self, loop: asyncio.AbstractEventLoop) -> None:
+        """The private loop's thread: run the loop until it stops, however it stops, then cancel
+        what is left, run it down, shut the async generators down and close the loop."""
+        try:
+            try:
+                loop.run_forever()
+            except BaseException:  # a task the tool spawned raised KeyboardInterrupt, say
+                pass
+            finally:
+                try:
+                    try:
+                        tasks = asyncio.all_tasks(loop)
+                        for task in tasks:
+                            task.cancel()
+                        if tasks:
+                            gathered = asyncio.gather(*tasks, return_exceptions=True)
+                            loop.run_until_complete(gathered)
+                        loop.run_until_complete(loop.shutdown_asyncgens())
+                    finally:
+                        loop.close()
+                except BaseException:
+                    pass
+        finally:
+            self._count(-1)
+
+    def run(self, awaitable: Any, ops: _Ops | None = None) -> Any:
+        """Await `awaitable` on the loop, from the work thread, and give its result or raise
+        what it raised. Raises `_NotStarted` when the call was answered before it started."""
+        post = _Post(awaitable)
+        try:
+            if ops is not None and not ops.post(post):
+                raise _NotStarted
+            loop = self._get()
+            post.loop = loop
+            wrapper = self._wrapper(post, ops)
+            try:
+                future = asyncio.run_coroutine_threadsafe(wrapper, loop)
+            except BaseException:
+                wrapper.close()
+                raise
+        except BaseException:
+            _close_awaitable(awaitable)
+            raise
+        thread = self._thread if self._given is None else None
+        while not post.ended.wait(_LOOP_POLL_S):
+            started = post.started if ops is None else ops.started(post)
+            if post.ended.is_set():
+                break
+            if future.done() and not started:
+                # Cancelled before its first step: its body, its `finally` included, never ran
+                # (the Confirmation's C-1).
+                _close_awaitable(awaitable)
+                raise asyncio.CancelledError("cancelled before it started")
+            if loop.is_closed() or (thread is not None and not thread.is_alive()):
+                if not started:
+                    _close_awaitable(awaitable)
+                raise RuntimeError("the call's tool loop has stopped")
+        if post.skipped:
+            raise _NotStarted
+        if post.error is not None:
+            raise post.error
+        return post.value
+
+    async def _wrapper(self, post: _Post, ops: _Ops | None) -> None:
+        try:
+            try:
+                task = asyncio.current_task()
+                if ops is None:
+                    post.started, post.task = True, task
+                    go = True
+                else:
+                    go = ops.start(task)  # one acquisition of the bound's lock
+            except GeneratorExit:
+                raise
+            except BaseException as e:  # a fault of the runner's own: kept in the call
+                post.error = e
+                return
+            if not go:
+                post.skipped = True
+                return
+            with self._lock:
+                self._tasks.add(task)
+            try:
+                post.value = await post.awaitable
+            except GeneratorExit:
+                raise
+            except BaseException as e:  # KeyboardInterrupt and SystemExit stay in the call
+                post.error = e
+            finally:
+                with self._lock:
+                    self._tasks.discard(task)
+        finally:
+            if not post.started:
+                _close_awaitable(post.awaitable)
+            post.ended.set()
+
+    def close(self) -> None:
+        """At the call's end, never waiting: a private loop is asked to stop, and its thread
+        runs it down and closes it; on the caller's loop only the runner's own tasks are asked
+        to cancel. A closed loop is skipped; nothing raises, logs or warns."""
+        try:
+            loop = self._loop
+            if loop is None or loop.is_closed():
+                return
+            if self._given is None:
+                thread = self._thread
+                if thread is not None and thread.is_alive():
+                    loop.call_soon_threadsafe(loop.stop)
+                return
+            with self._lock:
+                tasks = list(self._tasks)
+            for task in tasks:
+                loop.call_soon_threadsafe(task.cancel)
+        except BaseException:
+            pass
+
+
+class _Ops:
+    """What the work of one bounded call may ask its bound about its awaitables (spec 053)."""
+
+    __slots__ = ("_bound", "_slot")
+
+    def __init__(self, bound: _Bounded, slot: _Slot) -> None:
+        self._bound, self._slot = bound, slot
+
+    def post(self, post: _Post) -> bool:
+        """Before posting: False if the call was answered (nothing is posted)."""
+        with self._bound._lock:
+            if self._slot.abandoned:
+                return False
+            self._slot.post = post
+            return True
+
+    def start(self, task: Any) -> bool:
+        return self._bound._begin(self._slot, task)
+
+    def started(self, post: _Post) -> bool:
+        with self._bound._lock:
+            return post.started
+
+    def ending(self) -> str | None:
+        return self._bound._ended()
+
+
 class _Slot:
     """One tool call's result: filled by its own thread, read by its own call only, so a late
     result of an abandoned call is dropped, never delivered to a later one (spec 036, D4)."""
 
-    __slots__ = ("abandoned", "done", "fault", "filled", "finished", "started")
+    __slots__ = ("abandoned", "done", "fault", "filled", "finished", "post", "started")
 
     def __init__(self) -> None:
         self.filled = threading.Event()
@@ -1539,6 +1823,7 @@ class _Slot:
         self.started = False  # its thread was started
         self.finished = False  # set under the bound's lock, as its thread ends
         self.abandoned = False  # set under the bound's lock, when the call was answered without it
+        self.post: _Post | None = None  # the awaitable the work posted last (spec 053)
 
 
 class _Bounded:
@@ -1621,7 +1906,8 @@ class _Bounded:
         def target() -> None:
             try:
                 try:
-                    slot.done = context.run(work, functools.partial(self._proceed, slot))
+                    proceed = functools.partial(self._proceed, slot)
+                    slot.done = context.run(work, proceed, _Ops(self, slot))
                 except BaseException as e:  # _Work catches its own; this is a last resort
                     slot.fault = _fault(e)
                 slot.filled.set()
@@ -1655,12 +1941,28 @@ class _Bounded:
     def _abandon(self, slot: _Slot) -> bool:
         """Mark the call answered without its work; False if the work had already finished or
         filled its slot (its thread may not have reached its `finally` yet: the build review's
-        F3), so its answer stands and nothing is counted."""
+        F3), so its answer stands and nothing is counted. An awaitable it had started is asked
+        to cancel (spec 053, Decision 4); one not yet started sees the answer at its first step."""
         with self._lock:
             if slot.finished or slot.filled.is_set():
                 return False
             slot.abandoned = True
             self._abandoned += 1
+            post = slot.post
+            started = post is not None and post.started
+        if started:
+            _cancel_post(post)
+        return True
+
+    def _begin(self, slot: _Slot, task: Any) -> bool:
+        """The wrapper's first step (spec 053, the Confirmation's C-2): in one acquisition of
+        the lock, check that the call is unanswered (056's predicate), mark its awaitable
+        started and record its task. Never built on `_proceed`, which takes the lock itself."""
+        with self._lock:
+            post = slot.post
+            if slot.abandoned or post is None:
+                return False
+            post.started, post.task = True, task
             return True
 
     def _wait(self, work: _Work, slot: _Slot) -> _Done | _Interrupted:
@@ -1707,6 +2009,7 @@ class _ToolHost:
         gate: Callable[[ToolCall], Any] | None = None,
         max_calls: int | None = 1000,
         invoke: Callable[[_Work], _Done | _Interrupted] = _inline,
+        tool_loop: _ToolLoop | None = None,
     ) -> None:
         self._tools = tuple(tools)
         for t in self._tools:
@@ -1717,11 +2020,16 @@ class _ToolHost:
             raise ValueError("two tools share a name")
         self._descriptors = [t.descriptor() for t in self._tools]
         self._gate, self._max_calls, self._invoke = gate, max_calls, invoke
+        self._loop = tool_loop if tool_loop is not None else _ToolLoop()
         self._frames = 0
         self._abandoned = 0  # calls answered while their tool ran on, listed or not
         self._outcomes: list[ToolOutcome] = []
         self._pending: tuple[int, int] | None = None  # (seq, length) admitted, not yet read
         self._size = 0
+
+    def close(self) -> None:
+        """End the call's tool loop without waiting (spec 053, Decision 8). Never raises."""
+        self._loop.close()
 
     @property
     def record(self) -> ToolRecord:

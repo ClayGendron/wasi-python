@@ -553,6 +553,7 @@ async def run_async(
         import_path=import_path,
     )
     _check_executor(executor)
+    checked["tool_loop"] = asyncio.get_running_loop()  # async tools await here (spec 053)
     wt = _wasmtime()
     _register_exit_hook()
     event = threading.Event()
@@ -1025,13 +1026,38 @@ def _checked(
     return checked
 
 
+def _is_async_callable(fn: Any) -> bool:
+    """Whether calling `fn` makes a coroutine or an async generator, read through `partial`s and
+    at an object's `__call__`, as `tool()` reads a tool (spec 053, Decision 9). It does not
+    import `wasi_python.tools`."""
+    import functools
+    import inspect
+
+    while isinstance(fn, functools.partial):
+        fn = fn.func
+    tests = (inspect.iscoroutinefunction, inspect.isasyncgenfunction)
+    if any(test(fn) for test in tests):
+        return True
+    if not (inspect.isfunction(fn) or inspect.ismethod(fn)):
+        if not callable(fn):
+            return False
+        call = type(fn).__call__
+        return any(test(call) for test in tests)
+    return False
+
+
 def _check_tools(
     host: Any, tools: Any, gate: Any, max_tool_calls: Any, limits: Defaults | None = None
 ) -> dict[str, Any]:
     """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
-    `Tool`s with unique names, a gate that is not a coroutine function, and the frame limit. A
-    plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
-    given, so `import wasi_python` still does not import it."""
+    `Tool`s with unique names, a gate that is not an async generator function, and the frame
+    limit. A plain function goes through `tool()`. `wasi_python.tools` is imported only when
+    tools are given, so `import wasi_python` still does not import it. An async `host=` is
+    refused (spec 053, Decision 9)."""
+    if host is not None and _is_async_callable(host):
+        raise TypeError(
+            "host= must answer synchronously; serve an async host function as a tool (tools=)"
+        )
     if tools is None:
         if gate is not None:
             raise TypeError(
@@ -1045,7 +1071,7 @@ def _check_tools(
         return {"tools": None, "gate": None, "tool_calls": None}
     if host is not None:
         raise TypeError("pass host= for the raw door or tools= for the tool protocol, not both")
-    from .tools import Tool, _is_async, tool
+    from .tools import Tool, _is_async_generator, tool
 
     if (
         isinstance(tools, (str, bytes, bytearray, Mapping, Tool))
@@ -1070,11 +1096,8 @@ def _check_tools(
         checked.append(item)
     if gate is not None and not callable(gate):
         raise TypeError(f"gate must be a callable, or None; got {type(gate).__name__}")
-    if gate is not None and _is_async(gate):
-        raise TypeError(
-            "gate is a coroutine function; a gate answers synchronously (async gates come "
-            "with a later specification, decision 15)"
-        )
+    if gate is not None and _is_async_generator(gate):
+        raise TypeError("gate is an async generator function; a gate answers each call once")
     if max_tool_calls is _UNSET:
         max_tool_calls = (limits or _current_defaults()).tool_calls
     return {
@@ -2224,6 +2247,8 @@ def _instance(
         # table since spec 048; a guard table's walk does nothing (no mount, nothing owed).
         table.walk()
     finally:
+        if tool_host is not None:  # the call's tool loop, ended without waiting (spec 053)
+            tool_host.close()
         # The store holds every descriptor the guest opened; a guest can open them until the
         # host refuses. Close it first, so the clean-up below has descriptors to work with, and
         # make that clean-up unable to raise (the 0.1.0a2 security review, F1).
@@ -3109,7 +3134,7 @@ def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost
     and Ctrl-C (spec 036, Decisions 2 to 5); None otherwise."""
     if c.get("tools") is None:
         return None
-    from .tools import _Bounded, _ToolHost
+    from .tools import _Bounded, _ToolHost, _ToolLoop
 
     bound = _Bounded(
         tick_s=TICK_S,
@@ -3119,7 +3144,11 @@ def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost
         ctrl_c=_ctrl_c_now,
         count=_count_tool_threads,
     )
-    return _ToolHost(c["tools"], gate=c["gate"], max_calls=c["tool_calls"], invoke=bound)
+    # Under run_async, the caller's loop; otherwise a private loop of the call's own (spec 053).
+    tool_loop = _ToolLoop(c.get("tool_loop"), count=_count_tool_threads)
+    return _ToolHost(
+        c["tools"], gate=c["gate"], max_calls=c["tool_calls"], invoke=bound, tool_loop=tool_loop
+    )
 
 
 @atexit.register
