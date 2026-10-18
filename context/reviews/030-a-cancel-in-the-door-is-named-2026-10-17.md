@@ -291,3 +291,64 @@ process on Windows, so the release's Windows verify job would fail (finding 1). 
 
 One line: the fix is right and its checks hold, but one new check kills itself on Windows; raise
 the signal the way the file already does.
+
+## Confirmation (2026-10-17)
+
+- **Reviewer:** the same fresh agent that wrote the review above (Claude Opus 5.5), not the
+  author. I read the Disposition, the revision commit `eaca6e6` (`git show eaca6e6`), and the
+  specification's Design list. I edited nothing but this section.
+- **Reviewed:** `spec/030-a-cancel-in-the-door-is-named` at `eaca6e6`, on the rebased build commit
+  `563bd1f`. READ: the runner is byte-identical to the one reviewed (`git diff 52674ed eaca6e6 --
+  src` is empty; my `mutants/base` copy still `diff`s equal to `eaca6e6`'s runner). The revision
+  touches only the check file, the unit file, the CHANGELOG and the specification.
+- **Ran (EXECUTED, same machine and frozen set, read only; under the same scratch folder).**
+  - `uv sync`, then `WASI_PYTHON_ARTIFACTS=… uv run pytest` in the worktree, no flags
+    (`judge2.log`): exit 0, `771 passed, 19 skipped`; `186/197 pass · 0 fail (unit suite
+    585/593)`; v1.4 `74/74`; `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9
+    · gained 4 · grew 0`; judge changed: the check file and the two unit files. Ruff: `All checks
+    passed!`, `56 files already formatted`.
+  - The revised `CANCEL_RUN`, extracted byte for byte (`cancel_run_v2.py`), run directly.
+  - `mutants_unit2.txt`: the revised `tests/unit/test_runner_cancel.py` against the five mutants.
+  - `repeat2.txt`: the `-k "door_call or ctrl_c_before or cancel"` selection, three more times.
+  - The worktree is clean after all of it. I never passed `--accept` or anything that writes
+    `context/progress/`.
+
+### Each finding
+
+1. **Closed.** READ: the `door-ctrl-c` branch installs `signal.default_int_handler` before the call
+   and raises with `signal.raise_signal(signal.SIGINT)`; `os` is gone from the imports and
+   appears nowhere else in the child. EXECUTED: `KeyboardInterrupt` 3 of 3 normally. With SIGINT
+   inherited as ignored (`ign.py`; a probe child confirms it sees `SIG_IGN`, value `1`), also
+   `KeyboardInterrupt` 3 of 3, where the reviewed text gave `returned cancelled`. INFERRED, not
+   run: on Windows it now raises the signal the same way as the existing `CTRL_C` check, which that
+   verify job runs green.
+2. **Closed.** EXECUTED: the deadline case prints `in the door` then `deadline None None b''`, 3 of
+   3, and the check asserts both lines. On the pre-fix runner it prints `in the door` then the raw
+   wasmtime error, so it still fails first, and now it is proven to have met the door.
+3. **Closed.** EXECUTED (`mutants_unit2.txt`): M5 now fails
+   `test_a_ctrl_c_pending_at_an_ended_call_is_recorded` (`1 failed, 6 passed`). M1, M2 and M3 are
+   still killed. M4 is now killed by two cases. The built runner passes all 7. READ: the case
+   restores `_ctrl_c` through `monkeypatch.setitem`.
+4. **Closed.** READ: the CHANGELOG now names "a host's own cancellation (an exception such as
+   `asyncio.CancelledError`)".
+5. **No change**, as the review said.
+- **Flag 1.** READ: the Design list now names `tests/unit/test_runner_async.py` with its reason.
+- **Stability.** EXECUTED: the selection gave `10 passed` in all three runs.
+
+### For the lane (not conditions)
+
+- Main has moved past the branch's base. It now carries spec 028's landing (`7caf894` …
+  `d98249b`), which touches `src/wasi_python/runner.py`, `__init__.py`,
+  `tests/checks/test_v1_4_embedding.py` and `uv.lock`. EXECUTED: `git merge-tree --write-tree main
+  eaca6e6` reports no conflict. The lane rebases, compares with this reviewed diff, and judges the
+  rebased commit in the main tree, as §5.7 says. My judge runs were on the branch as it stands, not
+  on that rebased commit.
+- The acceptance needs `--accept-judge`: the judge changed in three files.
+
+### Lands?
+
+**Yes: 030 passes for landing.** All five findings are closed with EXECUTED evidence, except the
+Windows behaviour, which is now the same as a check that already passes there. The runner is the
+one reviewed. The judge is green: lost 0, grew 0.
+
+One line: 030 lands; the Ctrl-C check now raises the signal portably, and every mutant is killed.
