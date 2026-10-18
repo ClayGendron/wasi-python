@@ -701,3 +701,14 @@ The reviewer's Confirmation confirmed F1 to F6 and set two conditions, now met:
 - That no cost is visible: the ratchet's "grew 0" is the suite-wide evidence for fuel
   neutrality; a wall-clock cost (one host round trip per listing and rename) was not measured,
   by rule.
+
+**Landed 2026-10-18** through the lane: rebased onto main (`3a9588f`), its build review (written
+in the scratchpad, copied by the lane) committed on the detached HEAD (`4844bdf`), the full judge
+accepted with `--accept-judge` (rules 23/23; lost 0, grew 0) as `77f516d`, the rules tier passed
+on it, main fast-forwarded. Release dry run 39106371839 on `77f516d`: build and judge (macOS),
+the arm64 Linux rebuild from the pins, "the same bytes from every host", and verify on Linux and
+macOS passed; verify on Windows failed on one row of spec 032's
+`test_the_deliberate_differences_are_as_decided` (the Windows grant resolves `missing/../a.txt`
+by text and answers 0), the same failure as dry run 39105048310 before this spec, fixed by spec
+032's third post-landing revision (branch `spec/032-windows-row`, in review). No check of this
+spec failed on any system.
