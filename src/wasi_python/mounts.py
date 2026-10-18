@@ -179,6 +179,9 @@ FORWARD_SAFE = (
 # Each guard goes when the published floor admits only patched versions (tests/checks/
 # test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
 GUARDED = ("fd_readdir", "path_rename")
+# What the guard asks wasmtime on its own page, never in the guest's memory: the rename's source
+# type, and a listing again when the guest's `used` pointer lies over its own listing.
+PRIVATE = ("path_filestat_get", "fd_readdir")
 STAT_PATH = 64  # the source path's offset in the stat trampoline's page; the filestat is at 0
 
 PROVIDER_BASE = 2**30  # provider numbers start here; wasmtime's own never reach it
@@ -238,21 +241,22 @@ def trampoline_wat() -> str:
 
 
 def stat_trampoline_wat() -> str:
-    """The source-type check's own trampoline (spec 048, Decision 2): it imports wasmtime's
-    path_filestat_get and defines and exports its own one-page memory, which wasmtime's WASI
-    reads and writes through, so the check never touches a byte of the guest's."""
-    params = SIGNATURES["path_filestat_get"]
-    sig = f"(param {' '.join(params)}) (result i32)"
-    gets = " ".join(f"(local.get {i})" for i in range(len(params)))
-    return "\n".join(
-        [
-            "(module",
-            f'  (import "wasi_snapshot_preview1" "path_filestat_get" (func $stat {sig}))',
-            '  (memory (export "memory") 1 1)',
-            f'  (func (export "path_filestat_get") {sig} (call $stat {gets}))',
-            ")",
-        ]
-    )
+    """The guard's own trampoline (spec 048, Decision 2): it imports wasmtime's calls in
+    `PRIVATE` and defines and exports its own memory, one page that the host grows when a
+    listing needs it, which wasmtime's WASI reads and writes through, so what the guard asks
+    never touches a byte of the guest's."""
+    lines = ["(module"]
+    for name in PRIVATE:
+        sig = f"(param {' '.join(SIGNATURES[name])}) (result i32)"
+        lines.append(f'  (import "wasi_snapshot_preview1" "{name}" (func ${name} {sig}))')
+    lines.append('  (memory (export "memory") 1)')
+    for name in PRIVATE:
+        params = SIGNATURES[name]
+        sig = f"(param {' '.join(params)}) (result i32)"
+        gets = " ".join(f"(local.get {i})" for i in range(len(params)))
+        lines.append(f'  (func (export "{name}") {sig} (call ${name} {gets}))')
+    lines.append(")")
+    return "\n".join(lines)
 
 
 def _ends(message: str) -> BaseException:
@@ -330,10 +334,10 @@ class _Open:
 class _Forwards:
     """The trampoline's function handles and argument arrays, for one call's store only: a
     handle of one store used with another store's context aborts the process. `stat` and
-    `page` are the stat trampoline's path_filestat_get and its own memory (spec 048)."""
+    `page` are the guard's own trampoline's calls (`PRIVATE`) and its memory (spec 048)."""
 
     funcs: dict[str, Any]
-    stat: Any = None
+    stat: dict[str, Any] = field(default_factory=dict)
     page: Any = None
     slots: dict[str, tuple[Any, Any, Any]] = field(default_factory=dict)
 
@@ -437,11 +441,11 @@ class _Files:
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
         stat_module = self._runner._stat_trampoline_module(wt, self.engine)
-        stat_import = plain.get(store, "wasi_snapshot_preview1", "path_filestat_get")
-        stat = wt.Instance(store, stat_module, [stat_import]).exports(store)
+        stat_imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in PRIVATE]
+        stat = wt.Instance(store, stat_module, stat_imports).exports(store)
         self.forwards = _Forwards(
             {name: exports[name]._func for name in SIGNATURES},
-            stat["path_filestat_get"]._func,
+            {name: stat[name]._func for name in PRIVATE},
             stat["memory"],
         )
 
@@ -449,12 +453,12 @@ class _Files:
         """wasmtime's own answer, on the caller's context, never through `Func.__call__` (whose
         exception slot is process-wide). Fuel-neutral on a metered call: read, raised by the
         allowance, and set back in a `finally` before any trap or error is raised. `stat`
-        forwards path_filestat_get through the stat trampoline, on its own page (spec 048)."""
+        forwards one of `PRIVATE` through the guard's own trampoline, on its page (spec 048)."""
         from wasmtime import Trap, WasmtimeError, _ffi
 
         if self.forwards is None:
             return EBADF  # no trampoline yet: nothing of wasmtime's can be reached
-        key = "stat" if stat else name  # the stat trampoline's own argument slot (N2)
+        key = "stat:" + name if stat else name  # the guard trampoline's own slots (N2)
         slot = self.forwards.slots.get(key)
         if slot is None:
             types = SIGNATURES[name]
@@ -462,7 +466,7 @@ class _Files:
             for i, kind in enumerate(types):
                 kinds = _ffi.WASMTIME_I32 if kind == "i32" else _ffi.WASMTIME_I64
                 params[i].kind = kinds.value
-            func = self.forwards.stat if stat else self.forwards.funcs[name]
+            func = self.forwards.stat[name] if stat else self.forwards.funcs[name]
             slot = (func, params, (_ffi.wasmtime_val_t * 1)())
             self.forwards.slots[key] = slot
         func, params, results = slot
@@ -954,7 +958,9 @@ class _Files:
         if entry is None:
             errno = self.forward(caller, "fd_readdir", (fd, buf, length, cookie, used))
             if errno == 0:
-                _zero_padding(_Memory(caller), buf & MASK32, used & MASK32)
+                errno = self._zeroed(
+                    caller, fd, buf & MASK32, length & MASK32, cookie, used & MASK32
+                )
             return errno
         memory = _Memory(caller)
         buf, length, cookie = buf & MASK32, length & MASK32, cookie & MASK64
@@ -983,6 +989,51 @@ class _Files:
         out = data[offsets[cookie] : offsets[cookie] + length] if cookie < len(offsets) else b""
         memory.write(buf, bytes(out))
         memory.write(used & MASK32, struct.pack("<I", len(out)))
+        return 0
+
+    def _zeroed(self, caller: Any, fd: int, buf: int, length: int, cookie: int, used: int) -> int:
+        """After a forwarded fd_readdir that answered 0: every entry's three padding bytes
+        zero, as wasmtime 49.0.2 writes them (spec 048, Decision 4; GHSA-96f6-r43r-8c24). The
+        walk reads each d_namlen from the guest's buffer, which only wasmtime has written,
+        unless the guest's `used` pointer lies over the listing: wasmtime writes the count there
+        last, over whatever field it lands on (a d_namlen the walk would follow included; the
+        build review, F1). Then the folder is listed again on the guard's own page, its padding
+        zeroed there, and written out as wasmtime writes a listing, the entries and then the
+        count at `used`; bytes the first listing wrote past the second are zeroed. If the folder
+        cannot be listed again, the first listing is zeroed whole, the count is 0, and the
+        answer is EIO. Answers the errno the guest gets."""
+        memory = _Memory(caller)
+        if not memory.fits(used, 4):
+            return 0
+        count = struct.unpack("<I", memory.read(used, 4))[0]
+        if not memory.fits(buf, count) or not count:
+            return 0
+        if used + 4 <= buf or used >= buf + count:
+            data = bytearray(memory.read(buf, count))
+            if _zero_pads(data):
+                memory.write(buf, bytes(data))
+            return 0
+        forwards = self.forwards
+        assert forwards is not None and forwards.page is not None  # it just forwarded
+        page, at = forwards.page, (length + 3) & ~3  # the listing at 0, its count after it
+        errno = 0
+        short = at + 4 - page.data_len(caller)
+        if short > 0:
+            try:
+                page.grow(caller, (short + 65535) // 65536)
+            except Exception:
+                errno = EIO  # a page that cannot grow (the memory limit): not served, below
+        if not errno:
+            errno = self.forward(caller, "fd_readdir", (fd, 0, length, cookie, at), stat=True)
+        again = 0 if errno else struct.unpack("<I", page.read(caller, at, at + 4))[0]
+        if errno or not memory.fits(buf, again):  # not listed again: none of the first is left
+            memory.write(buf, bytes(count))
+            memory.write(used, bytes(4))
+            return EIO
+        data = bytearray(page.read(caller, 0, again))
+        _zero_pads(data)
+        memory.write(buf, bytes(data) + bytes(max(0, count - again)))
+        memory.write(used, struct.pack("<I", again))
         return 0
 
     def _fd_renumber(self, caller: Any, fd: int, to: int) -> int:
@@ -1287,29 +1338,20 @@ def _plain(path: bytes) -> bytes:
     return path.rstrip(b"/") or path[:1]
 
 
-def _zero_padding(memory: _Memory, buf: int, used: int) -> None:
-    """Zero the three padding bytes after each entry's d_type in what a forwarded fd_readdir
-    wrote, `[buf, buf + used)` only, walking by 24 + d_namlen (d_next is a cookie, not an
-    offset), as wasmtime 49.0.2 writes them (spec 048, Decision 4; GHSA-96f6-r43r-8c24). The 4
-    bytes at the guest's `used` pointer keep wasmtime's count, even inside the buffer."""
-    if not memory.fits(used, 4):
-        return
-    count = struct.unpack("<I", memory.read(used, 4))[0]
-    if not memory.fits(buf, count):
-        return
-    data = bytearray(memory.read(buf, count))
-    keep = range(used - buf, used - buf + 4)
-    changed, pos = False, 0
+def _zero_pads(data: bytearray) -> bool:
+    """Zero the three padding bytes after each entry's d_type in a listing as wasmtime wrote
+    it, walking by 24 + d_namlen (d_next is a cookie, not an offset), a header the listing cut
+    short as far as it reaches. True when a byte changed."""
+    changed, pos, count = False, 0, len(data)
     while pos < count:
         for at in (pos + 21, pos + 22, pos + 23):
-            if at < count and at not in keep and data[at]:
+            if at < count and data[at]:
                 data[at] = 0
                 changed = True
         if pos + 24 > count:
             break
         pos += 24 + struct.unpack_from("<I", data, pos + 16)[0]
-    if changed:
-        memory.write(buf, bytes(data))
+    return changed
 
 
 def _described(e: BaseException) -> str:

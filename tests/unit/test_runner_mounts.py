@@ -5,6 +5,7 @@ timed."""
 
 from __future__ import annotations
 
+import os
 import struct
 import threading
 from pathlib import Path
@@ -711,23 +712,36 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
     """Criterion 3: the forwarded (no-provider) sibling of `test_a_mount_writes_zero_dirent_
     padding`. A guard table forwards fd_readdir on a real folder over a buffer filled with 0xFF;
     every entry's padding is zero within [buf, buf + used), on full and cut-short buffers, and
-    nothing past `used` is touched. A `used` pointer inside the buffer keeps wasmtime's count.
-    wasmtime 49.0.0 leaves host bytes in the padding only as its heap happens to hold them
-    (GHSA-96f6-r43r-8c24), so each forward here is followed by such bytes, 0xA5, written into
-    every entry's padding outside `used`: what the guard must zero, every time."""
+    nothing past `used` is touched. wasmtime 49.0.0 leaves host bytes in the padding only as its
+    heap happens to hold them (GHSA-96f6-r43r-8c24), so each forwarded listing, the guest's and
+    any the guard makes on its own page, then gets such bytes, 0xA5, in every entry's padding,
+    where wasmtime's layout puts it, before its count is written: what the guard must zero,
+    every time. A `used` pointer inside the buffer gets wasmtime's count, and the padding is
+    zeroed even where that count lands on a d_namlen the walk would follow (the build review,
+    F1: `buf + 16`) or on padding (F4: `buf + 72`)."""
     real_forward = mounts_module._Files.forward
+    layout: dict[str, list[int]] = {}  # the entries' offsets, when `used` hides one
 
     def soiled(self, caller, name, args, stat=False):
         errno = real_forward(self, caller, name, args, stat)
         if name == "fd_readdir" and errno == 0:
-            memory = mounts_module._Memory(caller)
+            if stat:  # the guard's own listing, on its page
+                page = self.forwards.page
+                read = lambda at, n: bytes(page.read(caller, at, at + n))  # noqa: E731
+                write = lambda at, data: page.write(caller, data, at)  # noqa: E731
+            else:
+                memory = mounts_module._Memory(caller)
+                read, write = memory.read, memory.write
             buf, used = args[1] & 0xFFFFFFFF, args[4] & 0xFFFFFFFF
-            data = bytearray(memory.read(buf, struct.unpack("<I", memory.read(used, 4))[0]))
-            for pos, _ in _pads(bytes(data)):
+            data = bytearray(read(buf, struct.unpack("<I", read(used, 4))[0]))
+            starts = [pos for pos, _ in _pads(bytes(data))]
+            if not stat and buf <= used < buf + len(data):
+                starts = layout["d"]
+            for pos in starts:
                 for at in range(pos + 21, min(pos + 24, len(data))):
-                    if not used <= buf + at < used + 4:
+                    if not used <= buf + at < used + 4:  # the count is written after the entries
                         data[at] = 0xA5
-            memory.write(buf, bytes(data))
+            write(buf, bytes(data))
         return errno
 
     monkeypatch.setattr(mounts_module._Files, "forward", soiled)
@@ -743,17 +757,67 @@ def test_a_grant_readdir_writes_zero_dirent_padding(tmp_path, monkeypatch) -> No
             pads = _pads(r.get(files.DIRBUF, used))
             assert pads and all(pad == bytes(len(pad)) for _, pad in pads), (fd, size, pads)
             assert r.get(files.DIRBUF + used, 1) == b"\xff"  # nothing past what it used
-    # `used` inside the buffer, over the first entry's d_type and padding (offsets 20 to 24).
+    # `used` inside the buffer. The folder `d` lists `.`, `..` and `x.txt` at 0, 25 and 51.
     r.put(files.DIRBUF, b"\xff" * 4096)
     assert r("fd_readdir", d, files.DIRBUF, 4096, 0, files.RESULT) == 0
     count = r.u32(files.RESULT)  # wasmtime's count for this listing
-    inside = files.DIRBUF + 20
-    r.put(files.DIRBUF, b"\xff" * 4096)
-    assert r("fd_readdir", d, files.DIRBUF, 4096, 0, inside) == 0
-    assert r.u32(inside) == count  # upstream's value is kept, not zeroed
-    pads = _pads(r.get(files.DIRBUF, count), skip=range(20, 24))
-    assert len(pads) >= 3 and all(pad == bytes(len(pad)) for _, pad in pads), pads
-    assert r.get(files.DIRBUF + count, 1) == b"\xff"
+    layout["d"] = [pos for pos, _ in _pads(r.get(files.DIRBUF, count))]
+    assert (count, layout["d"]) == (80, [0, 25, 51])
+    for offset in (72, 16):  # the third entry's padding; the first entry's d_namlen
+        inside = files.DIRBUF + offset
+        r.put(files.DIRBUF, b"\xff" * 4096)
+        assert r("fd_readdir", d, files.DIRBUF, 4096, 0, inside) == 0
+        assert r.u32(inside) == count, offset  # wasmtime's count, written last, is kept
+        data = r.get(files.DIRBUF, count)
+        kept = range(offset, offset + 4)
+        left = {
+            pos: bytes(data[i] for i in range(pos + 21, pos + 24) if i not in kept)
+            for pos in layout["d"]
+        }
+        assert all(pad == bytes(len(pad)) for pad in left.values()), (offset, left)
+        assert r.get(files.DIRBUF + count, 1) == b"\xff", offset  # nothing past it
+
+
+def test_the_rename_is_forwarded_by_its_plain_names(tmp_path, monkeypatch) -> None:
+    """Decision 1 (the build review, F2): once a slash-named source passes as a folder, the
+    rename is forwarded with every trailing slash trimmed from both paths, so whatever replaces
+    the source between the guard's stat and wasmtime's rename is renamed by its plain name and
+    never followed. Here the folder `d` is swapped for a link out, `d -> ../outside`, right after
+    the stat answers "folder", as a concurrent call or another host process could: the link
+    itself is renamed, and the folder outside every grant stays where it is, on every host."""
+    grant, outside = tmp_path / "grant", tmp_path / "outside"
+    (grant / "d").mkdir(parents=True)
+    (outside / "canary.txt").parent.mkdir()
+    (outside / "canary.txt").write_text("CANARY")
+    try:
+        os.symlink("target", tmp_path / "probe")
+    except OSError as e:
+        pytest.skip(f"this host cannot make a symbolic link ({e.errno})")
+    real_type, real_forward = mounts_module._Files._source_type, mounts_module._Files.forward
+    forwarded = []
+
+    def swapped(self, caller, fd, source):
+        errno = real_type(self, caller, fd, source)
+        if errno == 0:
+            os.rmdir(grant / "d")
+            os.symlink("../outside", grant / "d")
+        return errno
+
+    def recorded(self, caller, name, args, stat=False):
+        if name == "path_rename":
+            memory = mounts_module._Memory(caller)
+            forwarded.append((memory.read(args[1], args[2]), memory.read(args[4], args[5])))
+        return real_forward(self, caller, name, args, stat)
+
+    monkeypatch.setattr(mounts_module._Files, "_source_type", swapped)
+    monkeypatch.setattr(mounts_module._Files, "forward", recorded)
+    r = files.Guarded([(grant, "/w", True)]).raw
+    assert r.rename(3, "d/", 3, "stolen//") == 0
+    assert forwarded == [(b"d", b"stolen")]
+    assert sorted(p.name for p in grant.iterdir()) == ["stolen"]
+    assert os.readlink(grant / "stolen") == "../outside"
+    assert sorted(p.name for p in outside.iterdir()) == ["canary.txt"]
+    assert (outside / "canary.txt").read_text() == "CANARY"
 
 
 RENAME_LOOP = f"""(module
@@ -925,13 +989,19 @@ def test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes(tmp_path) -> N
     assert len(pads) == 3 and all(pad == bytes(3) for _, pad in pads), pads
     # The rule: a slash on either path needs a source that is a folder; the stat's own errno
     # otherwise (a missing source reads ENOENT even on a read-only grant, Decision 3).
+    # The rows marked "order" are Decision 3's recorded errno order: once a slash is seen the
+    # guard reads both paths and stats the source before wasmtime sees the call, so its answer
+    # comes first where today's native and wasmtime 49.0.3 answer EBADF (a bad descriptor) or
+    # EPERM (a read-only or mixed pair) first. Nothing is renamed either way.
     rule = {
         "a file, slash": (W, "w.txt/", W, "x", ENOTDIR),
         "to a slash": (W, "w.txt", W, "x/", ENOTDIR),
         "nothing, slash": (W, "missing/", W, "x", ENOENT),
-        "read-only file, slash": (P, "a.txt/", P, "x", ENOTDIR),
-        "read-only nothing, slash": (P, "missing/", P, "x", ENOENT),
+        "read-only file, slash": (P, "a.txt/", P, "x", ENOTDIR),  # order: 49.0.3 EPERM
+        "read-only nothing, slash": (P, "missing/", P, "x", ENOENT),  # order: 49.0.3 EPERM
         "read-only folder, to a slash": (P, "d", P, "x/", EPERM),
+        "to a bad descriptor, slash": (W, "w.txt", 99, "x/", ENOTDIR),  # order: 49.0.3 EBADF
+        "a file, slash, to read-only": (W, "w.txt/", P, "x", ENOTDIR),  # order: 49.0.3 EPERM
         "to an over-long slash": (W, "sub", W, "x/" * 2050, ENAMETOOLONG),  # unread, unforwarded
     }
     answers = {k: guarded.rename(a, old, b, new) for k, (a, old, b, new, _) in rule.items()}

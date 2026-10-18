@@ -5,7 +5,8 @@
   answered in its Disposition); confirmed for build with conditions, written in (the review's
   Confirmation: C1 in Decision 5 and criterion 7, C2 in Decision 2 and criterion 2; builder notes
   N1 and N2 stay in the review). **Built 2026-10-18** on `spec/048-the-sandbox-holds`
-  (Landing notes below); awaiting its build review. Spec 032's dirent-padding fix is now on main
+  (Landing notes below); its build review (`../reviews/048-the-sandbox-holds-2026-10-18.md`)
+  said close, and F1 to F6 are fixed or recorded. Spec 032's dirent-padding fix is now on main
   (`ebc9f53`), so the dependency it stood behind is met. It rebases on spec 034 (writable mounts,
   in build review on branch `spec/034-writable-mounts`) — both edit `_Files._path_rename` — on
   whichever of 048 and 034 lands first (finding F8).
@@ -87,9 +88,11 @@ spec 032's machinery, removed when the pin moves.
    whose source is a symlink or a regular file, or whose target names a non-directory with a
    slash, is refused. This changes nothing a legitimate program does: trailing slashes on rename
    paths are rare, and POSIX already requires `ENOTDIR` for a non-directory named with a trailing
-   slash. The rule runs on every call; it only ever changes an answer where a writable place lets
-   a rename happen at all (elsewhere wasmtime answers `EPERM`/`EROFS`, except that a read-only
-   missing source now reads as its stat's error — see Decision 3 and finding F8).
+   slash. The rule runs on every call. Where a rename could happen, it changes only the answers
+   above. Elsewhere it changes nothing that happens, but it can change which errno comes first:
+   on a read-only or mixed pair, or a bad descriptor, the guard's answer (the stat's errno,
+   `ENOTDIR`, `ENAMETOOLONG`) comes before wasmtime's `EPERM` or `EBADF` (Decision 3, recorded
+   after the build review's F3).
 
 2. **The source's type is read in a private one-page memory, never in the guest's** (finding F2).
    To decide "is the source a directory, not following its final symlink", the shadow asks
@@ -139,6 +142,19 @@ spec 032's machinery, removed when the pin moves.
    a missing source from `EPERM` to the stat's `ENOENT` (finding F8); the rename still does not
    happen.
 
+   **The errno order, in full** (recorded after the build review's F3). wasmtime 49.0.3's
+   `path_rename` checks both descriptors before it reads either path, and its `rename_at` refuses
+   a read-only or mixed-permission pair with `EPERM` before it touches a path; only then does
+   `via_parent/rename.rs` stat the source. Once a slash is seen, the guard reads, bounds and
+   decodes both paths and stats the source before wasmtime sees the call. So for a slash-named
+   rename the guard's answer comes first where 49.0.3 (and today's 49.0.0) answer otherwise:
+   a bad descriptor (49.0.3 `EBADF`), a read-only or mixed pair (49.0.3 `EPERM`), or a path past
+   4,096 bytes (`ENAMETOOLONG` where 49.0.3 answers `EBADF` or `EPERM` first) answers the stat's
+   errno, `ENOTDIR` or `ENAMETOOLONG`. This is accepted, not matched: no row renames anything,
+   and matching it would cost more forwards on every slash-named rename. The judge pins it in
+   5b's rule table, in the rows marked "order" (`read-only file, slash`, `read-only nothing,
+   slash`, `to a bad descriptor, slash`, `a file, slash, to read-only`).
+
 4. **`fd_readdir`'s padding is zeroed on every call, and `used` is kept intact** (finding F7).
    `fd_readdir` is shadowed on every call. The shadow forwards to wasmtime and, **only when the
    forward returned errno 0**, reads the written byte count `used` from the guest and, over the
@@ -147,7 +163,16 @@ spec 032's machinery, removed when the pin moves.
    offsets 21–23), **walking by `24 + d_namlen`** (`d_next` is a cookie, not a byte offset) and
    masking a header the buffer cut short as far as it reaches. The 4 bytes wasmtime wrote at the
    guest's `used` pointer are left untouched (the walk reads `used` but never writes inside its
-   region, so a guest that points `used` into its own buffer keeps upstream's value). This closes
+   region, so a guest that points `used` into its own buffer keeps upstream's value). **When
+   `used` lies over the listing** (the build review's F1), wasmtime's count, written last, may
+   have replaced a `d_namlen` the walk would follow, so the walk cannot trust the guest's bytes.
+   The guard then lists the folder again on its own page (the trampoline of Decision 2 also
+   imports `fd_readdir`; its page grows to the guest's buffer length when needed), with the same
+   descriptor, cookie and length, zeroes that copy's padding, and writes it out as wasmtime 49.0.2
+   writes a listing: the entries, then the count at `used`; bytes the first listing wrote past the
+   second are zeroed. If the folder cannot be listed again (the page cannot grow, or the second
+   listing fails or does not fit), the first listing and the count are zeroed and the answer is
+   `EIO`. This closes
    the leak on the grant and stdlib-zip listings the same way spec 032 already closes it on a
    mount's own listing: both now hand the guest zero padding. The zeroing is host-side work that
    costs the guest no fuel.
@@ -224,9 +249,11 @@ src/wasi_python/mounts.py            _Files._path_rename: the 49.0.3 rule (Decis
                                      a helper that reads the source's filetype through a no-follow
                                        path_filestat_get on a per-call stat trampoline with its own
                                        one-page memory (Decision 2) — no guest byte touched.
-                                     _Files._fd_readdir: when the forward returns 0, zero the three
-                                       padding bytes per entry within [buf, buf+used), walking by
-                                       24 + d_namlen, leaving `used` intact (Decision 4).
+                                     _Files._fd_readdir / _zeroed: when the forward returns 0, zero
+                                       the three padding bytes per entry within [buf, buf+used),
+                                       walking by 24 + d_namlen, leaving `used` intact; when `used`
+                                       lies over the listing, list again on the guard's page and
+                                       write that zeroed copy out (Decision 4).
 src/wasi_python/runner.py            _guard_linker(wt, engine): today's linker plus a shadow over
                                        fd_readdir and path_rename only, defined once per engine,
                                        like _mount_linker; cached in a _guard_linkers dict.
@@ -384,19 +411,23 @@ Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_pyth
 `main` at `a45148c`, on darwin-arm64 (Darwin 25.5.0) with wasmtime-py 49.0.0 (`uv run python -c
 "import importlib.metadata as m; print(m.version('wasmtime'))"` → `49.0.0`), against main's frozen
 artifact set `build/sets/s-0cdc7b2bd78db6f5` (no artifact was built). Every result below was
-EXECUTED there unless labelled otherwise. Not yet reviewed: the build review (`../reviews/`) is
-next, then the lane's acceptance (with `--accept-judge`: five judge files changed).
+EXECUTED there unless labelled otherwise. Its build review
+(`../reviews/048-the-sandbox-holds-2026-10-18.md`) said "close": F1 to F6 are fixed or recorded
+below ("After the build review"), on the branch rebased onto main's `b5b7869`. Then the lane's
+acceptance (with `--accept-judge`: five judge files changed).
 
 ### What changed
 
 - `src/wasi_python/mounts.py`: `GUARDED` (`fd_readdir`, `path_rename`) beside a comment naming
-  both advisories; `stat_trampoline_wat()` (imports `path_filestat_get`, defines and exports its
-  own `(memory 1 1)`); `_Forwards.stat` and `.page`; `bind` also instantiates the stat
-  trampoline; `forward(..., stat=True)` uses the stat trampoline with its own argument slot (N2;
-  `release()` drops it with the rest); `_fd_readdir`'s forwarded branch calls `_zero_padding`
-  when the forward returned 0; `_path_rename`'s forwarded branch calls `_rename` (the rule) and
-  `_source_type` (the stat on the private page); `_plain` (trim trailing `/`, never below one
-  byte).
+  both advisories; `PRIVATE` (`path_filestat_get`, `fd_readdir`) and `stat_trampoline_wat()`
+  (imports the two, defines and exports its own `(memory 1)`, which the host grows when a
+  listing needs it); `_Forwards.stat` (the two functions) and `.page`; `bind` also instantiates
+  that trampoline; `forward(..., stat=True)` uses it with its own argument slots (N2;
+  `release()` drops them with the rest); `_fd_readdir`'s forwarded branch calls `_zeroed` when
+  the forward returned 0 (the walk on the guest's bytes, `_zero_pads`, or a second listing on
+  the page when `used` lies over the listing); `_path_rename`'s forwarded branch calls `_rename`
+  (the rule) and `_source_type` (the stat on the private page); `_plain` (trim trailing `/`,
+  never below one byte).
 - `src/wasi_python/runner.py`: `_guard_linker` (today's linker plus `_shared("files", EBADF, EIO,
   name)` over the two `GUARDED` calls, cached per engine in `_guard_linkers`);
   `_stat_trampoline_module` (cached in `_stat_trampolines`); `_instance` builds a `_Files` with no
@@ -449,8 +480,9 @@ next, then the lane's acceptance (with `--accept-judge`: five judge files change
   `os.rename("/work/f", "/work/x/")` and `os.rename("/work/s", "/work/x/")` answer `ENOTDIR` in the
   guest, which only the guard's slash test can produce. So criterion 2's target-slash cases run
   through CPython; no raw driver was needed.
-- **N2:** the stat trampoline's handles live in the call's `_Forwards` (`stat`, `page`), with
-  their own slot key `"stat"`, and `release()` drops them (it sets `forwards` to `None`).
+- **N2:** the guard trampoline's handles live in the call's `_Forwards` (`stat`, `page`), with
+  their own slot keys (`"stat:path_filestat_get"`, `"stat:fd_readdir"`), and `release()` drops
+  them (it sets `forwards` to `None`).
 
 ### Seen failing first
 
@@ -480,10 +512,13 @@ On today's code (before any source change), `build/seen-failing-1.log`:
 With the guard plumbing built but its two fixes switched off by a scratch pytest plugin
 (`_zero_padding` a no-op, `_Files._rename` a plain forward; not in the repository),
 `build/seen-failing-2.log`: criterion 3 failed (`[(0, b'\xa5\xa5\xa5'), (25, …), …]`), 5b failed
-(guarded padding `[(0, b'\x8b\x1a/'), (25, b'p/\x1f'), (51, b'\x00\x00\x00')]`), criterion 6
-failed (7 readdir rows differ, on padding), and criterion 2 failed as on today's code. With a
-second plugin that drops each forward's fuel restore, criterion 4 failed: `('returned 54',
-2005) == ('returned 54', -236235)`.
+(guarded padding `[(0, b'\x8b\x1a/'), (25, b'p/\x1f'), (51, b'\x00\x00\x00')]`) and criterion 6
+failed (7 readdir rows differ, on padding). Criterion 2 is not in that log (the build review,
+F6); run alone under the same plugin it failed as on today's code (`build/seen-failing-3.log`:
+`in place` `[False, True, True, True]`, `s -> x/` `EISDIR`, `d2 -> d` and `d -> d3` `ENOENT`:
+`s/` had moved `d`), and the table above is `build/seen-failing-rule-each.txt`. With a second
+plugin that drops each forward's fuel restore, criterion 4 failed: `('returned 54', 2005) ==
+('returned 54', -236235)`.
 
 ### Each criterion (with the guard)
 
@@ -496,8 +531,10 @@ second plugin that drops each forward's fuel restore, criterion 4 failed: `('ret
    to `d`) and `f` in place and no `x`; `d/ -> d2`, `d2 -> d`, `d -> d4/`, `d4/ -> d`, `d -> d3`
    all succeed; the grant ends as `d3` (with `in.txt`), `f`, `s`.
 3. `test_a_grant_readdir_writes_zero_dirent_padding` passes on the preopen and a folder, buffers
-   of 4,096, 22, 23, 25, 47, 48, 50 and 80 bytes; with `used` at `buf + 20` its count is
-   wasmtime's and bytes 21 to 24 there are kept; nothing past `used` is touched.
+   of 4,096, 22, 23, 25, 47, 48, 50 and 80 bytes; with `used` at `buf + 72` (the third entry's
+   padding) and at `buf + 16` (the first entry's `d_namlen`) the count is wasmtime's 80, every
+   entry's padding outside `used` is zero at wasmtime's offsets 0, 25 and 51, and nothing past
+   the listing is touched.
 4. `test_the_rename_rule_forward_is_fuel_neutral` passes: 40 rounds of `d/ -> e`, `e/ -> d`,
    `f/ -> e` and a listing end `returned 54` with 2,005 fuel on both linkers, and every cap in
    1 to 39 (step 3) and need − 30 to need + 2 ends the same way with the same fuel.
@@ -506,8 +543,9 @@ second plugin that drops each forward's fuel restore, criterion 4 failed: `('ret
 5b. `test_a_call_without_mounts_is_unchanged_but_for_the_two_fixes` passes: 32 rows (16
    `fd_readdir`, 16 `path_rename`; errnos, the traps for an unaligned or out-of-memory `used` and
    for paths past memory, and the bytes but `d_ino` and padding) equal today's native answers;
-   the guarded padding is zero; the rule's 7 rows answer as Decision 3 says (a read-only
-   `missing/` is `ENOENT`, not `EPERM`); `run(["-c", …])` gives `files is None`.
+   the guarded padding is zero; the rule's 9 rows answer as Decision 3 says, four of them marked
+   "order" (the recorded errno order: the guard's answer before 49.0.3's `EBADF`/`EPERM`);
+   `run(["-c", …])` gives `files is None`.
 6. `test_raw_calls_answer_as_a_grant_does` passes with `DIRENT_MASKED = range(8, 16)`: the
    padding is compared and equal (both zero).
 7. `test_the_rename_and_readdir_guard_match_the_floor` passes: the fixed table (`>=49,<50` both
@@ -519,11 +557,12 @@ second plugin that drops each forward's fuel restore, criterion 4 failed: `('ret
 ### The scoreboard
 
 The full judge, `WASI_PYTHON_ARTIFACTS=…/build/sets/s-0cdc7b2bd78db6f5 uv run pytest` on the
-finished tree (not accepted; `context/progress/` untouched), `uv run ruff check` and `uv run ruff
+finished tree after the build review's fixes, rebased onto `b5b7869` (not accepted;
+`context/progress/` untouched; `build/judge-review-fix-full.log`), `uv run ruff check` and `uv run ruff
 format --check` on `src tests recipes/guest`: both clean.
 
 ```
-wasi_python v1: 220/231 pass · 0 gap · 11 blocked · 0 fail   (unit suite 817/825, 8 skipped)
+wasi_python v1: 220/231 pass · 0 gap · 11 blocked · 0 fail   (unit suite 818/826, 8 skipped)
   v1.1  artifact set        24/25  blocked 1
   v1.2  portable, sealed    48/49  blocked 1
   v1.3  data stack          20/21  blocked 1
@@ -535,14 +574,14 @@ next: context/research/2026-10-16-reproducible-builds-on-linux.md (unblocks 7, c
 ratchet vs c42410a127: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_rules.py, tests/checks/test_v1_2_hostile_guest.py, tests/harness/files.py and 2 more
 not machine-checked: publication · copying from prior art · numpy/pandas test subsets
   licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree
-================= 1037 passed, 19 skipped in 207.50s (0:03:27) =================
+================= 1038 passed, 19 skipped in 194.00s (0:03:14) =================
 ```
 
 - **lost 0, grew 0**: no accepted pass is lost and no fuel or byte metric grew, across every
   check that runs a guest, so the guard is fuel-neutral suite-wide (criterion 8). No artifact
   changed.
 - **gained 4**: the new checks in `tests/checks/` (criterion 1's two cases, criterion 2,
-  criterion 7). The unit checks count in the unit suite (817/825; the 8 skips are Windows-only
+  criterion 7). The unit checks count in the unit suite (818/826 with the F2 check; the 8 skips are Windows-only
   or need what this host lacks, as before).
 - **11 blocked**: the fast baseline before the change (`uv run pytest -m "not slow"`) showed 10;
   the 11th is `oracle 1` in v1.3, a slow data-stack check the fast run deselects. Nothing this
@@ -550,6 +589,37 @@ not machine-checked: publication · copying from prior art · numpy/pandas test 
 - **judge changed**: `tests/checks/test_rules.py`, `tests/checks/test_v1_2_hostile_guest.py`,
   `tests/harness/files.py`, `tests/unit/test_runner_grants.py`, `tests/unit/test_runner_mounts.py`:
   the lane accepts with `--accept-judge`.
+
+### After the build review
+
+The build review (`../reviews/048-the-sandbox-holds-2026-10-18.md`) found F1 to F6. The branch
+was rebased onto main's `b5b7869` first (main had gained one review file). Each finding:
+
+- **F1, the walk trusted a `d_namlen` the guest's `used` can overwrite: fixed.** `_zeroed` walks
+  the guest's bytes only when `used`'s 4 bytes lie outside `[buf, buf + count)`; then only
+  wasmtime has written them. Otherwise it lists the folder again on the guard's own page and
+  writes that zeroed copy out, entries then count (Decision 4, amended). Criterion 3 gains
+  `used` at `buf + 16`. Against the reviewed walk (a scratch plugin restoring it) it failed:
+  `(16, {0: b'\x00\x00\x00', 25: b'\xa5\xa5\xa5', 51: b'\xa5\xa5\xa5'})`
+  (`build/review-f1-f4-seen-failing.txt`).
+- **F2, the plain-name forward had no check: fixed.**
+  `test_the_rename_is_forwarded_by_its_plain_names` (unit) swaps the folder `d` for `d ->
+  ../outside` right after the guard's stat answers "folder", then renames `d/` to `stolen//`. It
+  asserts errno 0, the forwarded paths `(b"d", b"stolen")`, the grant holding only `stolen`,
+  which is the link, and `outside` with its canary untouched. All paths are in `tmp_path`. Under
+  M1 (a scratch plugin: `_plain` returns the path) it failed: `[(b'd/', b'stolen//')] == [(b'd',
+  b'stolen')]` (`build/review-f2-seen-failing.txt`).
+- **F3, the errno order: recorded.** Decision 1's sentence is corrected, and Decision 3 gains
+  "The errno order, in full". 5b's rule table marks the four rows that pin it "order": the
+  reviewer's `read-only file, slash` row, `read-only nothing, slash`, and two new rows, `to a
+  bad descriptor, slash` (`ENOTDIR`, 49.0.3 `EBADF`) and `a file, slash, to read-only`
+  (`ENOTDIR`, 49.0.3 `EPERM`).
+- **F4, the `used`-inside case could not fail: fixed.** The case is at `buf + 72`, where the
+  count's low byte sits in the third entry's padding. Under M4 (the reviewed walk with `keep =
+  range(0)`) it failed: `assert 0 == 80` (`build/review-f1-f4-seen-failing.txt`). The loop runs
+  72 before 16, so each case shows its own catch.
+- **F5, the 034 notes: extended** (next section).
+- **F6, the citation: fixed** (Seen failing first, above).
 
 ### How spec 034 must compose with this
 
@@ -566,11 +636,35 @@ not machine-checked: publication · copying from prior art · numpy/pandas test 
   `test_raw_calls_answer_as_a_grant_does`.
 - Any forward 034 adds for `fd_readdir` goes through `_fd_readdir`'s forwarded branch, so it is
   zeroed; a listing 034 serves must write zero padding, which the parity now asserts.
-- 034's own `_Files` changes must keep `forward(..., stat=True)`, `_Forwards.stat`/`.page` and
-  the stat trampoline in `bind`.
+- 034's own `_Files` changes must keep `forward(..., stat=True)`, `_Forwards.stat`/`.page`, the
+  guard trampoline (`PRIVATE`) in `bind`, and `_zeroed` for any forwarded listing.
+- **034's write parity compares against an unguarded grant** (the build review, F5; READ on
+  `spec/034-writable-mounts`). `test_raw_write_calls_answer_as_a_writable_grant_does` builds its
+  grant side in `_write_sides` with `files.grant_raw`, which is wasmtime 49.0.0 with no guard.
+  Its rows `("a.txt", "newname/")`, `("a.txt", "b.txt/")`, `("a.txt", "a.txt/")` and `("d",
+  "f/")` succeed there, because 49.0.0 strips a target's slash, and 034's served rename matches
+  that: it drops the target's must-be-a-folder flag (`(dst, _) = …`; only `src_folder` is
+  tested). After 048 a guarded grant answers `ENOTDIR` to each. So whichever lands second must:
+  serve `_write_sides`' grant through a writable `files.Guarded`; make the served rename require
+  a folder source when *either* path ends in `/`; and re-derive those rows in `LINUX_ROWS` /
+  `WASMTIME_ROWS`, since the guard makes them the same on every host. Otherwise 034's parity
+  holds a writable mount to the vulnerable reference.
+- **Every call now has a table.** 034 adds `if table is not None: table.walk()` in `_instance`.
+  After 048 that runs on every call; for a guard table it does nothing, because its table and
+  `owed` are empty (INFERRED, from `walk`). A guard table must still never be reported
+  (`files = table.record() if mounts else None` stays).
+- **Errno order.** 034's served rename must also answer a slash-named rename's errno in the
+  guard's order (Decision 3), or the parity's slash rows will differ by order alone.
+- **Textual conflicts to expect:** `tests/harness/files.py` (`Mounted.entered` moved into
+  `_OnStack`; 034 changes `Mounted`), `_instance`'s table set-up in `runner.py`, `_path_rename`
+  and `_fd_readdir` in `mounts.py`, and the README's mounts bullet in *Safety*, which both
+  edit.
 
 ### What the reviewer should look at
 
+- After the build review: `_zeroed`'s second listing (when `used` lies over the listing), its
+  `EIO` fallback (the page cannot grow, or the folder cannot be listed again or does not fit),
+  and that its page grows only on that path; the new F2 check; the "order" rows.
 - `_rename`'s order: the slash test reads only the last byte and only when both paths fit;
   once a slash is seen nothing is forwarded with it (every failure returns an errno).
 - The two choices above that the spec left open (the 4,096 bound on both paths; decoding
