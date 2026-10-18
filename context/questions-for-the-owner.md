@@ -17,6 +17,21 @@ document.
 - **The owner, 2026-10-17:** decide after matplotlib's first milestone (spec 023) is built,
   from the real set's measurements. The agent brings the numbers back then.
 
+### 49. Which agent-runtime features are in 0.1.0?
+
+- **Asked:** 2026-10-17 (overnight; the owner asked the agent to keep working to 0.1.0 and write
+  questions down). **Source:** `roadmap.md`, "Agent runtime features (placement in 0.1.0 to be
+  decided)".
+- Decided as features, not yet placed: the cancel fix (spec 030, a defect), the tool protocol
+  (spec 031), async host functions, read-only code on the import path, the filesystem provider
+  (spec 032), bounded sessions.
+- **The agent's recommendation:** in 0.1.0: the cancel fix, the tool protocol and the
+  filesystem provider (the first two are what an agent's code calls most; the provider lets
+  vfs run on this runner). After 0.1.0: async host functions (unless the tool spec needs
+  them), read-only code on the import path, bounded sessions.
+- **Meanwhile:** the agent specifies and builds 030, 031 and 032 as 0.1.0 work, and leaves the
+  rest unspecified. Answering otherwise moves them out; nothing built is lost.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
