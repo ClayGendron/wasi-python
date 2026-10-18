@@ -889,8 +889,9 @@ def test_cancelling_an_async_call_stops_its_guest(work) -> None:
 
 
 CANCEL_RUN = r"""
-import asyncio, sys, threading
+import asyncio, math, os, signal, sys, threading
 import wasi_python
+from wasi_python import runner
 
 case = sys.argv[1]
 event = threading.Event()
@@ -905,9 +906,62 @@ def raises(frame):
     raise asyncio.CancelledError
 
 
+def ticks(n):
+    # Hold the host in the door until the runner's ticker has advanced n epochs: a count, never a
+    # time. Past CANCEL_TICKS + 2 (the engine can run one round ahead of the count, and one to
+    # spare) the store's epoch deadline is overdue, whatever its phase (spec 030).
+    start = runner._epoch_ticker.count()
+    while runner._epoch_ticker.count() < start + n:
+        threading.Event().wait(0.001)
+
+
+def show(r):
+    print(r.trapped, r.exit_code, r.fuel_used, r.stdout)
+
+
 busy, sleeps = "while True: pass", "import time; time.sleep(10**6)"
 door = "import _host\n_host.call(b'x')\n"
-if case in ("busy", "sleeping"):
+after = door + "print('after the door')\n"
+if case.startswith("door-cancel-"):
+    started = threading.Event()
+
+    def blocks(frame):
+        started.set()
+        event.wait()  # the check sets it once the host has started
+        ticks(runner.CANCEL_TICKS + 2)
+        return b"ok"[: int(case.rsplit("-", 1)[1])]
+
+    def check():
+        started.wait()
+        event.set()
+
+    threading.Thread(target=check, daemon=True).start()
+    show(wasi_python.run(["-c", after], host=blocks, cancel=event, deadline_s=None, fuel=10**15))
+elif case == "door-deadline":
+    deadline_s = 0.05
+
+    def blocks(frame):
+        ticks(math.ceil(deadline_s / runner.TICK_S) + 2)  # from the host's own start
+        return b"ok"
+
+    r = wasi_python.run(
+        ["-c", after], host=blocks, cancel=event, deadline_s=deadline_s, fuel=10**15
+    )
+    show(r)
+elif case == "door-ctrl-c":
+
+    def blocks(frame):
+        os.kill(os.getpid(), signal.SIGINT)
+        event.set()
+        ticks(runner.CANCEL_TICKS + 2)
+        return b"ok"
+
+    try:
+        r = wasi_python.run(["-c", after], host=blocks, cancel=event, deadline_s=None)
+        print("returned", r.trapped)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+elif case in ("busy", "sleeping"):
     work = busy if case == "busy" else sleeps
     r = wasi_python.run(["-c", door + work], host=sets, cancel=event, deadline_s=None, fuel=10**15)
     print(r.trapped, r.fuel_used)
@@ -943,6 +997,30 @@ def test_a_deadline_under_cancel_is_named() -> None:
     not as wasmtime's interrupt trap; the runner still names it "deadline" (spec 015's review,
     finding 3)."""
     assert _child(CANCEL_RUN, "deadline") == ["deadline None"]
+
+
+@pytest.mark.parametrize("size", [2, 0])
+def test_a_cancel_during_a_door_call_is_named(size) -> None:
+    """Guards a change: a cancel set while the host blocks in a door call, held there past
+    CANCEL_TICKS by count, names the run "cancelled", with no exit code, no fuel count and
+    nothing the guest would print after the door; for a 2-byte answer and an empty one (spec
+    030). Before it, the overdue epoch check fired in host_alloc and the run was named by
+    wasmtime's raw error."""
+    assert _child(CANCEL_RUN, f"door-cancel-{size}") == ["cancelled None None b''"]
+
+
+def test_a_deadline_during_a_door_call_under_cancel_is_named() -> None:
+    """Guards a change: under `cancel=` (never set), a deadline that passes while the host blocks
+    in a door call, counted in ticks, names the run "deadline", with no exit code and no fuel
+    count (spec 030)."""
+    assert _child(CANCEL_RUN, "door-deadline") == ["deadline None None b''"]
+
+
+def test_ctrl_c_before_a_cancel_in_the_door() -> None:
+    """Guards a change: on the main thread, Ctrl-C and a cancel both pending while the host blocks
+    in a door call past CANCEL_TICKS by count: Ctrl-C comes first, and the call raises
+    KeyboardInterrupt (spec 015's order; spec 030)."""
+    assert _child(CANCEL_RUN, "door-ctrl-c") == ["KeyboardInterrupt"]
 
 
 AT_EXIT = r"""

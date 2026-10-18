@@ -194,8 +194,12 @@ def test_a_host_function_returning_under_a_set_event_stops_the_guest(monkeypatch
     monkeypatch.setattr(runner, "_epoch_now", lambda c: now.append(c))
     monkeypatch.setattr(runner, "_ctrl_c_watched", lambda: False)
     event = threading.Event()
-    call = SimpleNamespace(
-        context=ctypes.addressof(holder), stopped=None, cancel=event, poll=lambda c, *a: 0
+    call = SimpleNamespace(  # `ended` as every `_Call` has it; the entry guard reads it (spec 030)
+        context=ctypes.addressof(holder),
+        stopped=None,
+        ended=None,
+        cancel=event,
+        poll=lambda c, *a: 0,
     )
     function = runner._shared("poll", -1, -2)
     stack = runner._stack()

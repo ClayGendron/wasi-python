@@ -2,7 +2,9 @@
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/030-a-cancel-in-the-door-is-named-spec-2026-10-17.md`), whose confirmation passed
-  it for build with no conditions (its three notes for the builder are in the review).
+  it for build with no conditions (its three notes for the builder are in the review). Built
+  2026-10-17 in its worktree (branch `spec/030-a-cancel-in-the-door-is-named`); awaiting its
+  build review.
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: the shared host function's except branch
   and its entry guard), judge checks in `tests/checks/test_v1_4_embedding.py`, `CHANGELOG.md`.
@@ -106,4 +108,94 @@ returns once it has advanced a number of ticks, never after a sleep or a timeout
 
 ## Landing notes
 
-Not built.
+Built 2026-10-17 by the implementer (Claude Opus 5.5), on darwin-arm64, host CPython 3.14.2 from
+`uv run`, wasmtime-py 49.0.0, git 2.51.0, in the worktree `../wasi_python-030` on
+`spec/030-a-cancel-in-the-door-is-named`, against main's frozen artifact set
+(`WASI_PYTHON_ARTIFACTS=<main>/build/sets/4befe9de64edc783`, read only; `scripts/build.sh` not
+run). Not yet reviewed. Each claim is labelled. Logs are under the worktree's `build/030-*.log`;
+today's runner was run from a `git archive HEAD src/wasi_python` copy under
+`/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/7b89cd25-8736-42c1-aab5-0a17add8b573/scratchpad/030-build/before/`,
+put first on `PYTHONPATH`.
+
+**What was built** (READ: the diff).
+- `src/wasi_python/runner.py`, `_shared`: the entry guard returns `stopped` when `call.stopped`
+  or `call.ended` is set (Decision 2), still after the Ctrl-C check, with a comment saying so
+  (the review's third builder note). The except branch, when `call.ended` is set and the cause is
+  a `wasmtime.Trap` or `wasmtime.WasmtimeError`, calls `_epoch_now(caller)` and records nothing;
+  every other cause goes to `call.stop` as before (Decision 1). The tuple of the two types is
+  built once, when `_shared` makes the function, by the same lazy `import wasmtime` `_door`
+  uses. The invariant comment (Decision 3) sits at the branch. It says "while the guest runs":
+  `_drive` also sets `ended` when the cancel is set before the guest runs, but then no guest code
+  and no host function runs, so the invariant holds where the branch can see it.
+- `tests/checks/test_v1_4_embedding.py`: the `CANCEL_RUN` child gains `ticks(n)`, which polls
+  `runner._epoch_ticker.count()` until it has advanced `n` (a 1 ms poll whose outcome depends on
+  the count only), and the cases `door-cancel-2`, `door-cancel-0`, `door-deadline` and
+  `door-ctrl-c`; the guest prints a line after the door. Three checks:
+  `test_a_cancel_during_a_door_call_is_named[2|0]` (criterion 1; the run is made on the child's
+  main thread, and a second thread sets the cancel once the host has set "started"),
+  `test_a_deadline_during_a_door_call_under_cancel_is_named` (criterion 2, a 2-byte answer, as the
+  criterion is worded), `test_ctrl_c_before_a_cancel_in_the_door` (criterion 3).
+- `tests/unit/test_runner_cancel.py` (criterion 4): `_shared("door", 11, 22)` with
+  `_context_address`, `_epoch_now` and `_ctrl_c_watched` monkeypatched (the review's first
+  builder note) and a fake call pushed on `_stack()`. The fake's door sets `ended` while it runs,
+  as the callback does inside `host_alloc`, then raises; "the deadline is set to 0" is a call to
+  the patched `_epoch_now`. Six cases: `WasmtimeError` and `Trap` after `ended` (not recorded,
+  deadline set), `KeyboardInterrupt` after `ended` (recorded), `WasmtimeError` with `ended` unset
+  (recorded), an ended call is not served, and a live call is (the control).
+- `CHANGELOG.md`, 0.1.0a4: a "Fixed" entry.
+- `tests/unit/test_runner_async.py`, outside the Design's list: the fake call in
+  `test_a_host_function_returning_under_a_set_event_stops_the_guest` gains `ended=None`. EXECUTED
+  (the first full judge with the fix, `build/030-judge-first.log`): that check failed,
+  `assert -2 == 0` at its first call, because the fake had no `ended`, the new entry guard's
+  read raised `AttributeError`, and `_shared` returned `stopped`. Every real `_Call` has `ended`
+  since spec 015, and every other fake of a call in the unit suite already carries it
+  (`test_runner_calls.py`, the rest of `test_runner_async.py`). The check's assertions are
+  unchanged; the fake now has the shape the runner reads. It is a judge change with this reason,
+  not a weakening; the runner was not bent to the fake (no `getattr`).
+
+**Seen failing first** (EXECUTED).
+- Criteria 1 and 2, with the checks written and today's runner: `uv run pytest
+  tests/checks/test_v1_4_embedding.py -k "door_call or ctrl_c_before or cancel"`, three runs
+  (`build/030-checks-before.log`): `3 failed, 7 passed` each time; the three failures are
+  `test_a_cancel_during_a_door_call_is_named[2]`, `[0]` and
+  `test_a_deadline_during_a_door_call_under_cancel_is_named`, each `assert ["error while...one
+  None b''"] == [...]`. The child run directly, 3 times per case (`build/030-cases.log`): today's
+  runner prints `error while executing at wasm backtrace: None None b''` for `door-cancel-2`,
+  `door-cancel-0` and `door-deadline` (9 of 9), and `KeyboardInterrupt` for `door-ctrl-c` (3 of
+  3, the guard passes today, as criterion 3 says).
+- Criterion 4, today's runner (`build/030-unit.log`): `3 failed, 3 passed`;
+  `test_the_callbacks_own_error_is_not_a_stop[error0]` and `[error1]` fail with
+  `assert WasmtimeError('x') is None` / `assert Trap('y') is None` (the cause is recorded), and
+  `test_an_ended_call_is_not_served` with `assert 0 == 22` (the host function answered). The
+  KeyboardInterrupt, ended-unset and control cases pass.
+- One false start, recorded: the unit test first set `ended` before the call. Against the fix,
+  the new entry guard refused that call before its door ran, so three cases failed for the
+  wrong reason (`build/030-unit-before.log` holds the first, pre-fix run). The fake was changed
+  to set `ended` inside its door, which is where the callback sets it; the before-and-after runs
+  above are of that version.
+
+**Passing with the fix** (EXECUTED).
+- The same `-k` selection, five runs (`build/030-checks-after.log`): `10 passed` each time (the
+  four new cases, the Ctrl-C guard among them; criterion 5's `test_run_with_cancel[busy|sleeping]`,
+  `test_a_stop_holds_under_cancel` and `test_a_deadline_under_cancel_is_named`; and the two async
+  cancel checks).
+- The child directly (`build/030-cases.log`): `cancelled None None b''` for `door-cancel-2` and
+  `door-cancel-0`, `deadline None None b''` for `door-deadline`, `KeyboardInterrupt` for
+  `door-ctrl-c`, 3 of 3 each. The line after the door is never printed.
+- The unit test: `6 passed`.
+- `uv run ruff check src tests`: all checks passed; `uv run ruff format --check src tests`: 56
+  files already formatted.
+- The full judge (`build/030-judge.log`): `WASI_PYTHON_ARTIFACTS=… uv run pytest`, exit 0,
+  `770 passed, 19 skipped`; `wasi_python v1: 186/197 pass · 0 gap · 11 blocked · 0 fail (unit
+  suite 584/592, 8 skipped)`; v1.4 `74/74`; `ratchet vs 567d64204b: lost 0 · absent 0 · unrun 0
+  · unrun locally 9 · gained 4 · grew 0 · judge changed: tests/checks/test_v1_4_embedding.py,
+  tests/unit/test_runner_async.py, tests/unit/test_runner_cancel.py`. The four gained are
+  (READ: main's `context/progress/accepted.json` holds 70 v1.4 checks, none of these) the four
+  new v1.4 cases:
+  `test_a_cancel_during_a_door_call_is_named[2]` and `[0]`, the deadline check, and the Ctrl-C
+  guard (which passed before the fix too, but is new to the judge). Not accepted: only the lane
+  accepts.
+
+Criterion 6 (`--accept-judge`) is the lane's: the judge changed
+(`tests/checks/test_v1_4_embedding.py`, `tests/unit/test_runner_cancel.py`), and only the lane
+accepts.

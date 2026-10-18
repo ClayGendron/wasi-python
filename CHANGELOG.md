@@ -33,6 +33,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `build/logs/timings.tsv`.
 - **The download step** prints `fetched <name>` or `present <name>` per pin and ends with
   `downloads: <n> pins, <f> fetched, <v> verified`; it needs `curl` only for a pin it must fetch.
+- **Fixed: a cancel during a door call is named `"cancelled"`** (spec 030). A call made with
+  `cancel=` whose event was set while the `host` blocked in a door call for more than a few
+  ticks ended with `trapped="error while executing at wasm backtrace:"`; so did a deadline that
+  passed there under `cancel=`. They now end `"cancelled"` and `"deadline"`, with `exit_code`
+  and `fuel_used` `None`, as they do while the guest computes. The door's answer is still not
+  delivered then, and a host's own exception or a Ctrl-C still comes first.
 
 ## 0.1.0a3 — 2026-10-17
 

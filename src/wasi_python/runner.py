@@ -1818,6 +1818,10 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
     stack, and only when the caller is that call's store; it never raises into wasmtime-py,
     whose exceptions travel by a process-wide slot (spec 011)."""
 
+    import wasmtime as wt
+
+    wasmtime_errors = (wt.Trap, wt.WasmtimeError)
+
     def function(caller: Any, *args: int) -> int:
         call = None
         try:
@@ -1825,11 +1829,13 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
             call = stack[-1] if stack else None
             if call is None or _context_address(caller) != call.context:
                 return refused
+            # Ctrl-C comes before the guard below: a pending Ctrl-C is recorded even for a call
+            # the epoch callback has ended (spec 015's order).
             if call.stopped is None and _ctrl_c_watched() and _ctrl_c["pending"]:
                 _ctrl_c["pending"] = False
                 raise KeyboardInterrupt
-            if call.stopped is not None:
-                return stopped
+            if call.stopped is not None or call.ended is not None:
+                return stopped  # no host function runs for a stopped or ended call (spec 030)
             answer = getattr(call, kind)(caller, *args)
             if _ctrl_c_watched() and _ctrl_c["pending"]:  # Ctrl-C during a wait
                 _ctrl_c["pending"] = False
@@ -1839,7 +1845,21 @@ def _shared(kind: str, refused: int, stopped: int) -> Callable[..., int]:
             return answer
         except BaseException as cause:
             try:
-                if call is not None:
+                if (
+                    call is not None
+                    and call.ended is not None
+                    and isinstance(cause, wasmtime_errors)
+                ):
+                    # The invariant (spec 030): while the guest runs, `call.ended` is set only by
+                    # the epoch callback, and only on a path that returns an error (`_drive` sets
+                    # it only before any guest code runs). So a Trap or WasmtimeError caught
+                    # here after `ended` is set is that error, met in host_alloc after a door
+                    # call outlived the callback's window. It is not a stop: `_drive` names the
+                    # run from `ended`. ExitTrap is a WasmtimeError, and it cannot occur here,
+                    # because the callback's error aborts host_alloc first. Keep this test this
+                    # narrow: any other exception, or one caught before `ended`, is a stop.
+                    _epoch_now(caller)  # the guest stops at its next function entry
+                elif call is not None:
                     call.stop(caller, cause)
             except BaseException:
                 pass
