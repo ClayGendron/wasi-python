@@ -429,10 +429,11 @@ def judge(worktree: Path, *args: str) -> subprocess.CompletedProcess:
 ONE_CHECK = "tests/checks/test_rules.py::test_known_gaps_are_well_formed"
 
 
-def test_accept_in_a_worktree_is_refused_before_collection(clone_worktree) -> None:
+@pytest.mark.parametrize("cores", [[], ["-n", "2"]], ids=["serial", "-n 2"])
+def test_accept_in_a_worktree_is_refused_before_collection(clone_worktree, cores) -> None:
     history = clone_worktree / HISTORY
     before = history.read_bytes()
-    r = judge(clone_worktree, ONE_CHECK, "--accept", "x")
+    r = judge(clone_worktree, ONE_CHECK, *cores, "--accept", "x")
     assert r.returncode == 1, r.stdout[-2000:] + r.stderr[-2000:]
     assert WORKTREE_LINE in r.stderr, r.stderr
     assert "collected" not in r.stdout, r.stdout[-2000:]
@@ -449,6 +450,47 @@ def test_accept_elsewhere_and_partial_proceed_in_a_worktree(clone_worktree, tmp_
     r = judge(clone_worktree, ONE_CHECK, "--partial", "no artifacts here")
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     assert (clone_worktree / HISTORY).read_bytes() == before
+
+
+MEANWHILE = """
+import os
+import subprocess
+
+import pytest
+
+pytestmark = pytest.mark.goal("rules")
+
+def test_meanwhile():
+    subprocess.run(["git", "-C", os.getcwd(), "commit", "-q", "--allow-empty", "-m", "m"])
+"""
+
+
+def test_the_guards_hold_under_several_cores_in_a_main_tree(clone_worktree) -> None:
+    """Spec 052, criterion 4: under -n 2 the controller refuses once, and nothing is written: on a
+    dirty tree before collection, and when HEAD moves during the run (a worker commits)."""
+    main = clone_worktree.parent / "repo"  # the clone itself: a main tree
+    history = main / HISTORY
+    before = history.read_bytes()
+    start = subprocess.run(
+        [GIT, "-C", str(main), "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    probe = main / "tests" / "unit" / "test_probe_052.py"
+    try:
+        probe.write_text(MEANWHILE)  # untracked under tests/: a dirty tree
+        r = judge(main, ONE_CHECK, "-n", "2", "--accept", "x")
+        assert r.returncode == 1, r.stdout[-2000:] + r.stderr[-2000:]
+        assert "dirty" in r.stderr and "collected" not in r.stdout, r.stderr[-2000:]
+        assert history.read_bytes() == before
+        subprocess.run([GIT, "-C", str(main), "add", str(probe)], check=True)
+        subprocess.run([GIT, "-C", str(main), "commit", "-q", "-m", "probe"], check=True)
+        r = judge(main, str(probe.relative_to(main)), "-n", "2", "--accept", "x", "--partial", "c")
+        assert r.returncode == 1, r.stdout[-2000:] + r.stderr[-2000:]
+        assert r.stdout.count("--accept refused") == 1, r.stdout[-2000:]
+        assert "HEAD moved" in r.stdout, r.stdout[-2000:]
+        assert history.read_bytes() == before
+    finally:
+        subprocess.run([GIT, "-C", str(main), "reset", "-q", "--hard", start], check=True)
+        probe.unlink(missing_ok=True)
 
 
 def test_the_plugin_self_tests_pass_in_a_worktree(clone_worktree) -> None:

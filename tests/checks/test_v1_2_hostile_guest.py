@@ -174,8 +174,11 @@ def test_temporary_files_go_to_tmp(guest_workdir) -> None:
 
 def test_a_call_without_a_root_shares_nothing(guest_workdir, monkeypatch) -> None:
     """Guards a change: a private root (`root=True` since spec 025) is fresh, and removed after the
-    call."""
+    call. The runner's stdlib folder is made once per process, in the temporary folder: one call
+    first makes it there, as any earlier check would, so the scratch folder judges the root alone
+    (spec 052, Decision 9: the check passes run alone)."""
     run = _run()
+    run(["-c", "pass"])  # before the redirect: the runtime's once-per-process folder
     scratch = Path(tempfile.mkdtemp(prefix="rootless-", dir=guest_workdir))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     write = "open('/left-behind', 'w').write('x'); print(sorted(__import__('os').listdir('/')))"
@@ -328,14 +331,16 @@ def test_extra_preopens_work_on_the_snapshot(guest, guest_workdir, order) -> Non
 @pytest.mark.parametrize("how", ["busy", "sleeping"])
 def test_a_trapped_call_without_a_root_is_removed(guest_workdir, monkeypatch, how) -> None:
     """Guards a change: a call that ends in a trap still releases its store and removes its root,
-    whether the guest was running or waiting (spec 010)."""
+    whether the guest was running or waiting (spec 010). The warm-up call comes before the
+    redirect, so the runner's once-per-process stdlib folder is not made in the scratch folder
+    (spec 052, Decision 9: the check passes run alone)."""
     run = _run()
+    run(["-c", "pass"])  # the engine, module and stdlib folder, once per process; count after
     scratch = Path(tempfile.mkdtemp(prefix="trapped-", dir=guest_workdir))
     monkeypatch.setattr(tempfile, "tempdir", str(scratch))
     loop = "    pass\n" if how == "busy" else "    __import__('time').sleep(10**6)\n"
     code = "open('/x', 'w').write('x')\nwhile True:\n" + loop
     fds = Path("/dev/fd")
-    run(["-c", "pass"])  # the engine and module are loaded once per process; count after that
     before = len(list(fds.iterdir())) if fds.is_dir() else None
     done = _returns(lambda: run(["-c", code], root=True, deadline_s=0.2))
     assert done.trapped == "deadline", done

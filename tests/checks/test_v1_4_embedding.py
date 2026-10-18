@@ -896,7 +896,7 @@ def test_cancelling_an_async_call_stops_its_guest(work) -> None:
 
 
 CANCEL_RUN = r"""
-import asyncio, math, signal, sys, threading
+import asyncio, signal, sys, threading
 import wasi_python
 from wasi_python import runner
 
@@ -945,11 +945,15 @@ if case.startswith("door-cancel-"):
     threading.Thread(target=check, daemon=True).start()
     show(wasi_python.run(["-c", after], host=blocks, cancel=event, deadline_s=None, fuel=10**15))
 elif case == "door-deadline":
-    deadline_s = 0.05
+    deadline_s = 60.0  # long enough that no load ends the run before the door (spec 052)
 
     def blocks(frame):
         print("in the door", flush=True)  # the guest reached the door before its deadline
-        ticks(math.ceil(deadline_s / runner.TICK_S) + 2)  # from the host's own start
+        # By count, never by time (spec 032's fourth revision): this call's deadline is moved to
+        # the ticker's count now, then the host holds the door until the cancel check, every
+        # CANCEL_TICKS, has run past it.
+        runner._stack()[-1].stop_at = runner._epoch_ticker.count()
+        ticks(runner.CANCEL_TICKS + 2)
         return b"ok"
 
     r = wasi_python.run(
@@ -1022,7 +1026,8 @@ def test_a_deadline_during_a_door_call_under_cancel_is_named() -> None:
     """Guards a change: under `cancel=` (never set), a deadline that passes while the host blocks
     in a door call, counted in ticks, names the run "deadline", with no exit code and no fuel
     count (spec 030). The host's first line proves the guest reached the door before its
-    deadline (spec 030's build review, finding 2)."""
+    deadline (spec 030's build review, finding 2). The deadline passes by count in the door, so no
+    start-up speed decides the outcome (spec 052, Decision 9)."""
     assert _child(CANCEL_RUN, "door-deadline") == ["in the door", "deadline None None b''"]
 
 
@@ -2238,6 +2243,7 @@ def test_a_tool_timeout_ends_the_call_not_the_run(guest_workdir, release) -> Non
 PAST_THE_DEADLINE = r"""
 import threading
 import wasi_python
+from wasi_python import runner
 from wasi_python.tools import tool
 
 release = threading.Event()
@@ -2246,12 +2252,16 @@ release = threading.Event()
 @tool
 def block() -> int:
     "Wait for the check, which releases it only after run returns."
+    # By count, never by time (spec 052, Decision 9): the ticker's count, which the tool bound
+    # reads, is set past any deadline. Not this call's stop_at: the call stack is per thread,
+    # and a tool runs on its own (the review's C2).
+    runner._epoch_ticker.count = classmethod(lambda cls: 2**62)
     release.wait()
     return 1
 
 
 done = wasi_python.run(["-c", "from host import tools\ntools.block()\n"], tools=[block],
-                       deadline_s=3)
+                       deadline_s=60.0)
 release.set()
 last = done.tools.outcomes[-1]
 print(last.tool, last.outcome, last.abandoned)
@@ -2261,8 +2271,9 @@ print(last.tool, last.outcome, last.abandoned)
 def test_a_tool_blocking_past_the_deadline_is_answered() -> None:
     """Criterion 10: a tool with no timeout_s blocks past the run's deadline; the call is
     answered `timeout` two ticks before it, so `run` returns. Whether the guest then traps or
-    exits is not asserted: it may finish within the last two ticks. In a child process, with a
-    120 s fail-safe."""
+    exits is not asserted: it may finish within the last two ticks. The deadline is 60 s and is
+    made overdue by count from inside the tool, so the guest's start-up speed decides nothing
+    (spec 052, Decision 9). In a child process, with a 120 s fail-safe."""
     assert _child(PAST_THE_DEADLINE) == ["block timeout True"]
 
 
