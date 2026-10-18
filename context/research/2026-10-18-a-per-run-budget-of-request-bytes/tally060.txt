@@ -1,0 +1,14 @@
+command: WASI_PYTHON_ARTIFACTS=<main>/build/sets/s-c4190ca065ada03a TALLY060_OUT=<dir> PYTHONPATH=<dir holding tally060.py and a sitecustomize.py that imports it> uv run pytest tests/unit/test_runner_tools.py tests/unit/test_async_tools.py tests/unit/test_tools.py tests/checks/test_v1_4_embedding.py -n 3 -q -p no:cacheprovider
+result: 369 passed, 1 failed (test_importing_the_package_does_not_load_the_tools: the tally hook itself imports wasi_python.tools in a child; expected)
+
+frame hosts that saw a frame: 159
+admitted  max  16,103,569  top five [800000, 800001, 899980, 1048576, 16103569]  median 77
+all       max 1,073,741,824  top five [899980, 1048580, 2097194, 16103569, 1073741824]  median 77
+frames    max       1,501  top five [900, 900, 1005, 1005, 1501]  median 1
+max_frame max   1,048,576  top five [800000, 800001, 899980, 1000069, 1048576]  median 60
+the five largest by admitted bytes:
+  {'all': 16103569, 'admitted': 16103569, 'frames': 1501, 'max_frame': 1000069}
+  {'all': 2097194, 'admitted': 1048576, 'frames': 4, 'max_frame': 1048576}
+  {'all': 899980, 'admitted': 899980, 'frames': 1, 'max_frame': 899980}
+  {'all': 800001, 'admitted': 800001, 'frames': 1, 'max_frame': 800001}
+  {'all': 800000, 'admitted': 800000, 'frames': 1, 'max_frame': 800000}

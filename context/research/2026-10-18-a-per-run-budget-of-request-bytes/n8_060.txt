@@ -1,0 +1,12 @@
+3.14.2
+  main depth 1: refused: my_orders: parameter 'limit' has no type hint
+  main depth 2: properties ['api_key', 'limit', 'user_id']  secret in descriptor: True
+  main depth 3: properties ['api_key', 'limit', 'user_id']  secret in descriptor: True
+  prototype depth 1: refused: my_orders: parameter 'limit' has no type hint
+  prototype depth 2: properties ['limit']  secret in descriptor: False
+  prototype depth 3: properties ['limit']  secret in descriptor: False
+  prototype, a function: properties ['api_key', 'limit', 'user_id']
+  prototype, a callable object: properties ['a']
+  prototype, a bound method: properties ['a']
+  prototype, a partial: properties ['limit']
+  prototype walk, operator.itemgetter(0): no loop, ends

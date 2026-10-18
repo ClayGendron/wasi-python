@@ -1,0 +1,20 @@
+3.14.2 darwin
+A. host CPU per admitted frame (thread CPU, median of 5)
+  empty objects, Any        1048574 B    313.75 ms   0.314 s/MiB  invalid_arguments
+  empty lists, Any          1048574 B    254.98 ms   0.255 s/MiB  invalid_arguments
+  ints, list[int]           1048575 B    266.25 ms   0.266 s/MiB  invalid_arguments
+  ints, unknown tool        1048575 B    109.37 ms   0.109 s/MiB  unknown_tool
+  escaped string, str       1048575 B     30.24 ms   0.030 s/MiB  ok
+  a typical call (63 B)          61 B      0.02 ms   0.335 s/MiB  ok
+B. a frame refused from its length (admit alone, 100,000 frames)
+  budget_exceeded (calls): 2.85 us per frame
+C0. guest fuel to build a frame and to re-send one (fuel on, defaults, no budget)
+   0 frames: fuel_used 151303790
+   1 frames: fuel_used 151297619
+  21 frames: fuel_used 151348256
+  per re-sent frame: 2532 fuel
+C. a guest sends 40 worst-shape 1 MiB frames through run()
+  no byte budget (today)   fuel=off frames read= 40 frame-host CPU  12.50 s  run wall  12.78 s  process CPU  12.62 s  fuel_used None  {'invalid_arguments': 40}  exit 0 None
+  no byte budget (today)   fuel=on  frames read= 40 frame-host CPU  12.58 s  run wall  12.94 s  process CPU  12.68 s  fuel_used 151362245  {'invalid_arguments': 40}  exit 0 None
+  prototype 16 MiB         fuel=off frames read= 16 frame-host CPU   4.94 s  run wall   4.99 s  process CPU   4.99 s  fuel_used None  {'invalid_arguments': 16, 'budget_exceeded': 24}  exit 0 None
+  prototype 16 MiB         fuel=on  frames read= 16 frame-host CPU   4.90 s  run wall   4.95 s  process CPU   4.95 s  fuel_used 151453776  {'invalid_arguments': 16, 'budget_exceeded': 24}  exit 0 None

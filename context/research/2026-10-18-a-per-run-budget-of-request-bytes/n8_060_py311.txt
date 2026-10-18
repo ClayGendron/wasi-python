@@ -1,0 +1,12 @@
+3.11.14
+  main depth 1: refused: my_orders: its type hints cannot be read (TypeError: functools.partial(<function orders at 0x100681e40>, user_id=42, api_key='sk-live-N8') is not a module, class, method, or function.)
+  main depth 2: properties ['api_key', 'limit', 'user_id']  secret in descriptor: True
+  main depth 3: properties ['api_key', 'limit', 'user_id']  secret in descriptor: True
+  prototype depth 1: refused: my_orders: its type hints cannot be read (TypeError: functools.partial(<function orders at 0x100681e40>, user_id=42, api_key='sk-live-N8') is not a module, class, method, or function.)
+  prototype depth 2: properties ['limit']  secret in descriptor: False
+  prototype depth 3: properties ['limit']  secret in descriptor: False
+  prototype, a function: properties ['api_key', 'limit', 'user_id']
+  prototype, a callable object: properties ['a']
+  prototype, a bound method: properties ['a']
+  prototype, a partial: properties ['limit']
+  prototype walk, operator.itemgetter(0): no loop, ends
