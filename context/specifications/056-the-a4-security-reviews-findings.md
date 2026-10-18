@@ -1,6 +1,9 @@
 # 056 — The 0.1.0a4 security review's findings
 
-- **Status:** built 2026-10-18; awaiting confirmation by the a4 security reviewer. Built on
+- **Status:** **landed 2026-10-18** (accepted on `4921daf` as `1779ab7`; the a4 security
+  reviewer's Confirmation, `../reviews/0.1.0a4-security-review-2026-10-18.md`: "a4 may be
+  released"; see the Landing notes' last part). Before landing: built 2026-10-18; awaiting
+  confirmation by the a4 security reviewer. Built on
   `spec/056-the-a4-security-reviews-findings` from main `28800bc` (Landing notes). It changes
   neither the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6
   asks no review before build. The reviewer who wrote the 0.1.0a4 security review confirms the
@@ -377,3 +380,20 @@ the reviewer to confirm.
 - Spec 049 rewrites `tools.py`'s docstrings and renames its constants. This change adds one
   private field, one function, two private constants and three short blocks, and changes no
   public name, so the rebase of whichever lands second has local conflicts only.
+
+**Landed 2026-10-18** through the lane. The 0.1.0a4 security reviewer, who did not write this
+change, confirmed it as its build review (`../reviews/0.1.0a4-security-review-2026-10-18.md`,
+"Disposition" and "Confirmation": F1 held against 23 bypass attempts with one non-blocking note,
+N8, a `__call__` chain two deep with hand-copied annotations; F2 held across 18 raced runs, 553
+calls, against 124 late tool runs on `28800bc`; deferring F3 and F4 past a4 is acceptable for an
+alpha; F4 closes before the next release after a4, specification 057). Rebased onto main
+`d70690a` (spec 035 landed): two conflicts, both kept on both sides (`questions-for-the-owner.md`,
+where this specification's question is renumbered **94** because main's 91 is the stacking
+question, in `8c3e7f0`; and the CHANGELOG's a4 section, which keeps 035's entry and this one).
+`git range-diff` shows both code commits unchanged (`=`). The review was committed on the
+detached HEAD as `4921daf`. The full judge there, on 035's artifact set: `wasi_python v1:
+318/332 pass · 12 gap · 2 blocked · 0 fail (unit suite 1061/1063, 2 skipped)`, `ratchet vs
+4921daffeb: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after acceptance, `1379 passed, 4
+skipped, 12 xfailed in 684.59s` (EXECUTED, `build/lane-056-accept.log`). Accepted with
+`--accept-judge` as `1779ab7` (history line 52); the rules tier passed (24/24); main
+fast-forwarded.
