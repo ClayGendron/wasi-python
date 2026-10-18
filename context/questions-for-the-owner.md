@@ -23,31 +23,40 @@ document.
   questions down). **Source:** `roadmap.md`, "Agent runtime features (placement in 0.1.0 to be
   decided)".
 - Decided as features, not yet placed: the cancel fix (spec 030, a defect), the tool protocol
-  (spec 031), async host functions, read-only code on the import path, the filesystem provider
+  (specs 031 and 036), async host functions, read-only code on the import path, the filesystem provider
   (spec 032), bounded sessions.
 - **The agent's recommendation:** in 0.1.0: the cancel fix, the tool protocol and the
   filesystem provider (the first two are what an agent's code calls most; the provider lets
   vfs run on this runner). After 0.1.0: async host functions (unless the tool spec needs
   them), read-only code on the import path, bounded sessions.
-- **Meanwhile:** the agent specifies and builds 030, 031 and 032 as 0.1.0 work, and leaves the
+- **Meanwhile:** the agent specifies and builds 030, 031, 036 (031's runner part) and 032 as 0.1.0 work, and leaves the
   rest unspecified. Answering otherwise moves them out; nothing built is lost.
 
-### 50 to 53. The tool protocol's defaults (spec 031)
+### 50 to 53. The tool protocol's defaults (specs 031 and 036)
 
-- **Asked:** 2026-10-17 (overnight). **Source:** spec 031, Decisions 6, 8 and 9. Each is
-  decided in the spec as written below, so nothing waits; the owner may change any of them before
-  or after it is built.
+- **Asked:** 2026-10-17 (overnight); revised the same day with the specifications, after 031's
+  pre-build review split the runner part into 036. **Source:** spec 031, Decisions 3 and 5
+  (50 to 52), and spec 036, Decisions 4 and 5 (53). Each is decided in the specifications as
+  written below, so nothing waits; the owner may change any of them before or after they are
+  built.
 - **50. A schema keyword the runner does not check** (the tool memo's question 3): refused
   unless the tool says `validates_input=True`, reading decision 39's "validated first" strictly.
-  The alternative checks the subset and skips the rest silently.
+  After the review the checked subset is wider (`uniqueItems`, `prefixItems`, `multipleOf`,
+  `minProperties`, `maxProperties`), so ordinary pydantic models and LangChain tools pass;
+  `pattern` stays refused, since an embedder's regular expression on 1 MiB of guest text is a
+  ReDoS risk. The alternative checks the subset and skips the rest silently.
 - **51. The discovery frame counts toward `max_tool_calls`,** so `max_tool_calls=4` allows three
   tool calls. The alternative counts only `call` frames.
 - **52. At the limit the guest gets `ToolBudgetExceeded` and runs on,** so its code can handle
-  it. Decision 42 stops the run at the filesystem provider's limit instead; the two could be made
-  the same.
-- **53. No per-call default timeout beyond the run's deadline.** The memo proposed 30 s per
-  call. With `deadline_s=None` a hung tool holds the run until `cancel`, which is the embedder's
-  explicit choice of no limit.
+  it. Spec 036 answers frames past the limit from their length alone, before any copy, so a guest
+  that loops on them costs the host constant work per frame and spends only its own fuel and
+  time. Decision 42 stops the run at the filesystem provider's limit instead; the two could be
+  made the same.
+- **53. No per-call default timeout beyond the run's deadline; at most 4 abandoned tools per
+  call.** The memo proposed 30 s per call. With `deadline_s=None` a hung tool holds the run until
+  `cancel`, which is the embedder's explicit choice of no limit. A tool that timed out keeps its
+  thread until it ends; a call may hold 4 such threads, after which its tool calls are answered
+  `timeout` at once.
 
 ### 54 to 56. The filesystem provider's choices (spec 032)
 
@@ -58,7 +67,9 @@ document.
   following vfs's "a denial is a result" (decision 37). Keep it, or also accept a raised
   `OSError` as its errno?
 - **55. The staging bound.** Bytes a provider stages are bounded by the call's `memory_bytes`,
-  with no knob of their own. Keep it, or add `max_staged_bytes`?
+  or 4 GiB (wasm32's own ceiling) when it is `None`, with no knob of their own (revised after
+  the pre-build review, finding 7). The bound is on what the runner keeps; a provider should
+  refuse a large file before reading it. Keep it, or add `max_staged_bytes`?
 - **56. Names.** `max_file_calls`, `Defaults.file_calls` and `trapped == "out of file calls"`
   (after `"out of fuel"`), beside the tool protocol's `max_tool_calls`.
 

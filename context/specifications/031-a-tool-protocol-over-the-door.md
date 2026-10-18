@@ -1,36 +1,44 @@
 # 031 — A tool protocol over the door
 
-- **Status:** drafted 2026-10-17. It changes the artifact set (the stdlib zip gains the guest's
-  `host` package), so it needs its pre-build review before it is built (constitution §5.6).
+- **Status:** drafted 2026-10-17; revised the same day against its pre-build review
+  (`../reviews/031-a-tool-protocol-over-the-door-spec-2026-10-17.md`), whose split it adopts:
+  this specification is the protocol, its host module and the guest package in the zip; **spec
+  036** puts it in the runner (`run(tools=…)`, the door's cap before the copy, the bounds,
+  `Completed.tools`). It changes the artifact set, so the revision was re-reviewed before build
+  (constitution §5.6): **confirmed for build with conditions, written in** (the review's
+  "Confirmation": C1 in Decisions 3 and 5 and criterion 4; C3 in Decision 4 and criterion
+  5; C4 in criterion 8; C5 in Decision 5 and criterion 5).
 - **Owner:** Clay Gendron
 - **Kind:** build-class (constitution §5.7: it adds files under `recipes/` and changes
-  `scripts/steps/70_zip.sh`). A new host module (`src/wasi_python/tools.py`); the runner
-  (`src/wasi_python/runner.py`: `run`, `run_async`, `_checked`, `_instance`, `Completed`,
-  `Defaults`, the fork hook); the guest package (`recipes/guest/host/`); `pyproject.toml`'s ruff
-  paths; judge additions in `tests/`; `README.md`, `CHANGELOG.md`. It builds when no other
-  build-class specification is in flight.
-- **Depends on:** 001 and 003 (the door, `host=`, the zip step), 006 (safe by default), 011 (a
-  call's recorded stop), 013 and 014 (arguments checked before any work), 015 (`cancel=`,
-  `run_async`, the epoch callback, the fork hook), and **030** (a cancel during a door call is
-  named `"cancelled"`), which lands first.
+  `scripts/steps/70_zip.sh`). A new host module (`src/wasi_python/tools.py`), the guest package
+  (`recipes/guest/host/`), `pyproject.toml`'s ruff paths, judge additions in `tests/`,
+  `README.md` (the frame format), `CHANGELOG.md`. It does not change `runner.py`.
+- **Depends on:** 001 and 003 (the door, `host=`, step 70), 012 (the zip's bytes from any host),
+  018 (no litter in the zip). Spec 036 depends on this one.
+- **Lane order:** it shares step 70 with 033 (the zip carries what packages need) and 035 (the
+  zip's directory is read once), and the build recipe with 023 (matplotlib); none of them is in
+  flight with it (§5.7). It does not wait on 035: its two members cost about 0.06% of a plain
+  start (Decision 9), and decision 44 orders 035 before tier A, which this is not. If 035 lands
+  first, the cost is smaller and the growth reason says so.
 - **Research it stands on:**
-  - `../research/2026-10-17-a-tool-protocol-over-the-door.md` (the design study; its prototype,
-    `tool_host.py`, `guest_tools.py` and `prototype_run.py`, ran every scenario through today's
-    door with no runner change: EXECUTED, `prototype_run.txt`);
+  - `../research/2026-10-17-a-tool-protocol-over-the-door.md` (the design study; its prototype
+    ran every scenario through today's door: EXECUTED, `prototype_run.txt`);
+  - the pre-build review's probes (EXECUTED, `door_copy_probe`, `json_edges`,
+    `schema_keywords`, `enum_equality`, `worker_affinity`, `pool_model`; paths in the review);
+  - `../research/2026-10-17-what-else-the-default-profile-carries.md`, finding 5 (about 77,912
+    instructions per zip member on a plain start; EXECUTED there);
   - the owner's decisions (`../decisions.md`): **12 and 14** (a gated tool protocol of our own,
-    familiar from LangChain and Monty), **15** (async host functions, in a later specification),
-    **17** (governance left to embedders), **37** (an optional `gate=`; tools are capabilities;
-    the runner validates, routes, counts with `max_tool_calls` and records each call's outcome),
-    **38 to 40** (`from host import tools`; schemas validated first; `subprocess.run`'s error
-    rule; `ToolError` in the guest; no adapters shipped);
-  - constitution §4.4 as amended 2026-10-17 (the raw door stays opaque; one optional tool
-    protocol rides on it, used only when the embedder passes tools, gated per call), §4.5, §4.15.
+    familiar from LangChain and Monty), **15** (async host functions, later), **17**
+    (governance left to embedders), **37** (an optional `gate=`; tools are capabilities; the
+    runner validates, routes, counts and records), **38 to 40** (`from host import tools`;
+    validated first; `subprocess.run`'s error rule; `ToolError` in the guest; no adapters);
+  - constitution §4.4 as amended 2026-10-17, §4.5, §4.15.
 
 ## Terms
 
 - **The door:** the one custom import, `host::call`, reached in the guest through the builtin
   module `_host` (`recipes/hostmodule.c`). The runner binds it to `host=`, a function from request
-  bytes to response bytes (`runner.py`, `_door`).
+  bytes to response bytes.
 - **A frame:** the bytes of one door call, one way.
 - **A tool:** a host function the embedder offers the guest, with a name, a description and an
   input schema (JSON Schema, the standard way to describe the shape of JSON).
@@ -41,476 +49,426 @@
 - **A capability:** a tool whose authority the embedder bound when it made the tool (a closure
   or a bound method). The guest can use the authority only through the tool.
 - **A fault:** an exception from a tool or gate that was not meant for the guest. The guest
-  learns only that the call failed; the embedder gets the exception.
+  learns only that the call failed; the record names the exception's type and first line.
+- **The frame host:** `_ToolHost`, the object that answers protocol frames for one call.
 
 ## The problem
 
 The owner wants guest code to call the host's tools, APIs and MCP servers "through a gated
-protocol that we design", with "a clean and familiar api" (decisions 12 and 14). Today the
-door carries opaque bytes. Every embedder that wants tools must invent framing, schemas,
-validation, error mapping, limits and a guest module, and must get each one right against a
-hostile guest. The design study shows the whole protocol fits on today's door with no new
-import, and that the familiar shape is a decorator on the host and ordinary functions in the
-guest. It also found the one runner defect that a blocked tool exposes; spec 030 fixes it.
+protocol that we design", with "a clean and familiar api" (decisions 12 and 14). Today the door
+carries opaque bytes. Every embedder that wants tools must invent framing, schemas, validation,
+error mapping, limits and a guest module, and get each right against a hostile guest. The design
+study shows the protocol fits on today's door with no new import. The familiar shape is a
+decorator on the host and ordinary functions in the guest. The review showed that the rules for
+JSON, schemas and records must be the protocol's own, not whatever CPython does.
 
 ## Decisions
 
-1. **One protocol, two halves, over the unchanged door.**
-   - The host half is a new module, `wasi_python.tools`. The guest half is a pure-Python
-     package, `host`, shipped in the stdlib zip. Between them run JSON frames, protocol 1
-     (Decision 11), through `_host.call`.
-   - The binary, its imports and its exports do not change. There is no third import (§4.4).
-   - The protocol is used only when the embedder passes `tools=`. Without it, nothing of this
-     specification runs on the host, and the door behaves exactly as today.
-   - `import wasi_python` does not import `wasi_python.tools`; the runner imports it only when
-     `tools=` is given, so the package's import cost is unchanged (spec 015's F6).
+1. **One protocol, two halves, over the unchanged door; the runner part is 036.**
+   - The host half is `wasi_python.tools`. The guest half is a pure-Python package, `host`, in
+     the stdlib zip. Between them run JSON frames, protocol 1 (Decision 7), through
+     `_host.call`. The binary, its imports and its exports do not change (§4.4).
+   - This specification builds the frame host and its rules. Spec 036 binds it to the door
+     (`run(tools=…)`), refuses frames by length before any copy, runs tools on their own threads
+     under the call's bounds, and returns the record. Until 036 lands, the frame host is private
+     and reached only by the checks, as a raw `host=` callable.
+   - `import wasi_python` does not import `wasi_python.tools` (spec 015's F6).
 
 2. **The host API: a decorator, as LangChain's `@tool`.**
-   - `wasi_python.tools.tool(fn=None, *, name=None, description=None, input_schema=None,
-     validates_input=False, timeout_s=None, read_only=False, destructive=False,
-     idempotent=False, open_world=False) -> Tool`. It works bare (`@tool`) and with arguments
-     (`@tool(read_only=True)`).
-   - **The name** is `name` or the function's `__name__`. It must match
-     `[A-Za-z][A-Za-z0-9_]{0,63}` and must not be a Python keyword, so it is a guest identifier.
-     A name that starts with `_` is refused by the same rule.
+   - `tool(fn=None, *, name=None, description=None, input_schema=None, validates_input=False,
+     timeout_s=None, read_only=False, destructive=False, idempotent=False, open_world=False) ->
+     Tool`, bare (`@tool`) or with arguments.
+   - **The name** is `name` or `fn.__name__`; an object with no `__name__` (a
+     `functools.partial`) needs `name=`. It must match `[A-Za-z][A-Za-z0-9_]{0,63}` and not be a
+     Python keyword.
    - **The description** is `description`, or the docstring up to its first section heading
      (`Args:`, `Arguments:`, `Returns:`, `Raises:`), stripped.
-   - **The input schema** comes from the signature and type hints. The root is `{"type":
-     "object", "properties": …, "required": […], "additionalProperties": false}`. A Google-style
-     `Args:` section gives each property its `description`. A parameter with a default is not
-     required, and its default is the property's `default`.
-   - **The hints it maps:** `str`, `int`, `float`, `bool`, `None`, `bytes`, `list[T]`,
-     `dict[str, T]`, `Literal[…]` of JSON scalars, unions (`A | B`, `Optional[A]`) and `Any`.
-     `bytes` maps to `{"type": "string", "contentEncoding": "base64"}` (Decision 6).
-   - **It refuses**, with `TypeError` or `ValueError` naming the parameter, before anything
-     runs: a parameter with no hint, a hint outside the list, `*args`, `**kwargs`, a
-     positional-only parameter, a default with no JSON form, a bad name, an `async def`
-     (Decision 15), and a given schema that uses a keyword outside the checked subset unless
-     `validates_input=True` (Decision 6).
-   - **`input_schema=`** replaces the derived schema. It is a dict whose root is `type:
-     "object"`, or any object with a `model_json_schema()` method (a pydantic model class), so
-     pydantic is never imported or required. The function is then called with the validated
-     arguments as keywords, whatever its signature.
-   - **The output schema** is derived from the return hint when the hint maps; otherwise it is
-     absent. It is shown to the guest and in stubs, and never validated.
-   - **The hints** `read_only`, `destructive`, `idempotent` and `open_world` are the embedder's
-     labels, emitted as MCP's `readOnlyHint`, `destructiveHint`, `idempotentHint` and
-     `openWorldHint` when true. A gate may read them. They grant nothing.
-   - **`timeout_s`**, a positive number or `None`, bounds one call of this tool (Decision 9).
-   - **`Tool`** is a frozen dataclass: `name`, `description`, `input_schema`, `output_schema`,
-     `fn`, `timeout_s`, `validates_input` and the four hints. `Tool.descriptor()` returns the
-     MCP-shaped dict. A `Tool` is callable on the host (`lookup_region(code="EMEA")` calls the
-     function), so an embedder can test its tools without a guest.
-   - **Tools are capabilities.** The decorator works on any function, closures and bound
-     methods included. The README's first example makes tools per request inside a function
-     that closes over the caller's authority. The runner adds no identity, user or policy to a
-     call (decision 17, §4.5).
+   - **The derived schema.** The root is `{"type": "object", "properties": …, "required": […],
+     "additionalProperties": false}`. A Google-style `Args:` section gives each property its
+     `description`. A parameter with a default is not required, and its default is the property's
+     `default` (description only; Decision 8 says the guest never sends it).
+   - **Hints mapped:** `str`, `int`, `float`, `bool`, `None`, `bytes`, `list[T]`, `tuple[T,
+     ...]` (an array), `dict[str, T]` (`additionalProperties: <T>`), `Literal[…]` of JSON
+     scalars, unions (`A | B`, `Optional[A]`) and `Any` (`{}`). `bytes` maps to `{"type":
+     "string", "contentEncoding": "base64"}`.
+   - **Refused** with `TypeError` or `ValueError` naming the parameter: no hint; a hint outside
+     the list; `*args`, `**kwargs`, a positional-only parameter; a default with no JSON form; a
+     default of `None` on a hint that does not admit `None` (write `int | None = None`); a bad
+     name; an `async def` (Decision 11); a `timeout_s` that is not a finite number above 0 (as
+     `_deadline_limit` rules) or `None`.
+   - **`input_schema=`** replaces the derived schema: a dict whose root is `type: "object"`, or
+     any object with `model_json_schema()` (a pydantic model class; pydantic is never imported).
+     The function is then called with the validated arguments as keywords. It is vetted as
+     Decision 3 says.
+   - **For every input schema,** derived or given, `tool()` refuses a root property name that is
+     not a Python identifier or is a keyword (`from`, `class`, `max-results`), naming it: the
+     guest builds a signature from these names. A README recipe renames such properties. A
+     `required` name missing from `properties` is refused too.
+   - **The output schema** comes from the return hint when it maps, else it is absent. It is
+     shown, never validated.
+   - **The hints** `read_only`, `destructive`, `idempotent`, `open_world` are the embedder's
+     labels, emitted as MCP's `readOnlyHint` and so on when true. They grant nothing.
+   - **`Tool` is immutable.** `tool()` vets a deep copy of the schema and keeps it private;
+     `Tool.input_schema` and `Tool.descriptor()` return fresh copies, so a schema cannot be
+     changed after it was vetted. `Tool` compares and hashes by identity (`eq=False`). It is
+     callable on the host (`lookup_region(code="EMEA")` calls the function).
+   - **Tools are capabilities.** `tool()` works on closures and bound methods. The runner adds no
+     identity, user or policy to a call (decision 17, §4.5).
 
-3. **The runner takes `tools=`, `gate=` and `max_tool_calls=`.**
-   - `run(..., tools=None, gate=None, max_tool_calls=<default>)`, and `run_async` the same.
-   - `tools` is an iterable of `Tool`s or plain functions. A plain function goes through `tool()`
-     with no arguments. An empty iterable is allowed: the guest's `host.tools` then imports with
-     nothing in it.
-   - **Checked before anything runs**, in `_checked`, so `run_async` raises in the coroutine
-     before queueing (specs 013 to 015): each item is a `Tool` or a function `tool()` accepts;
-     names are unique; `gate` is `None` or a callable that is not a coroutine function;
-     `max_tool_calls` is checked like `fuel` (an integer from 0 to 2**63 - 1, never `bool`, or
-     `None` for no limit).
-   - **`host=` and `tools=` exclude each other.** Passing both raises `TypeError` before
-     anything runs: "pass host= for the raw door or tools= for the tool protocol, not both".
-     Why: the door is one function. Under `tools=` the runner is that function, and it must see
-     every frame to keep the count, the record and the rule that the guest supplies nothing the
-     host trusts. Sharing the door would mean telling frames apart by their bytes, which would
-     end the raw door's opacity (§4.4) and let a guest steer a frame to whichever side checks
-     less. An embedder that wants both serves its own frames through `host=`, as today.
-   - **`gate=` without `tools=`** raises `TypeError`: a gate the runner silently ignored would
-     look like a gated raw door. An explicit `max_tool_calls` without `tools=` is checked and has
-     no effect.
-   - The command line (`wasi-python run`) gains nothing: tools are Python callables.
+3. **The schema subset: what `tool()` accepts and what the validator checks.**
+   - **Checked:** `type` (one or a list); `enum`, `const`; `properties`, `required`,
+     `additionalProperties` (a boolean or a schema; absent, it closes an object schema that lists
+     `properties`, stricter than JSON Schema's default, and leaves one without `properties`
+     open); `minProperties`, `maxProperties`; `items` (one schema), `prefixItems` (with `items`
+     for the rest), `minItems`, `maxItems`, `uniqueItems`; `anyOf`, `oneOf`; local `$ref` into
+     `$defs` or `definitions`; `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`,
+     `multipleOf` (a positive integer only; an `int` passes when it divides exactly, a `float`
+     when `value % m == 0`); `minLength`, `maxLength` (in code points);
+     `contentEncoding: "base64"` on a string.
+   - **Ignored** (annotations): `title`, `description`, `default`, `examples`, `format`,
+     `deprecated`, `readOnly`, `writeOnly`, `contentMediaType`, `discriminator` (OpenAPI's;
+     `oneOf` is still checked), `$schema`, `$id`, `$comment`.
+   - **Refused by `tool()`** unless `validates_input=True`: every other keyword. `pattern` is
+     among them on purpose: an embedder's regular expression run on up to 1 MiB of guest text is
+     a ReDoS risk (catastrophic backtracking) on the door's thread. The array form of `items`
+     (draft 4's tuples), a `$ref` that is not local, and a `$ref` cycle that does not pass
+     through a keyword that descends into the value (`properties`, `additionalProperties`,
+     `items`, `prefixItems`) are refused even then.
+   - With `validates_input=True` the validator checks the keywords it knows and skips the rest
+     (owner question 50).
+   - **Types, no coercion.** The validator sees the parsed JSON types: `bool`, `int`, `float`,
+     `str`, `None`, `list`, `dict`. `integer` is an `int`, never a `bool` and never a `float`:
+     `5.0` is refused, unlike JSON Schema, so an `int`-hinted tool never gets a float. `number` is
+     an `int` or a `float`, never a `bool`.
+   - **Equality** (`enum`, `const`, `uniqueItems`) is type-strict and recursive: two values are
+     equal only when their parsed types and values are equal, so `true` never equals `1`, `1.0`
+     never equals `1`, and `[true]` never equals `[1]`.
+   - **`uniqueItems` in one pass.** Each item is turned into a canonical key, tagged by type at
+     every level and hashable (a dict's key sorts its pairs), and the keys go in a set. The keys
+     are equal exactly when the strict equality above says so. So an array costs one pass, never
+     the pairwise comparisons of a naive check (137,438,691,328 for the 524,288 items a 1 MiB
+     frame can carry; the review's C1).
+   - **A validation budget per frame (the review's C1).** Validation runs on the door's thread,
+     where neither the deadline, `cancel` nor Ctrl-C can stop host code. A recursive schema
+     whose `anyOf` branches overlap (pydantic emits one for `Union[list[Node], list[Union[int,
+     Node]]]`; EXECUTED, `recursive_union.txt`) makes a validator that tries every branch double
+     its work at each level: 10,485,754 schema visits at depth 20, about 2^62 at the frame's
+     62 levels (`validator_cost.txt`). So the validator counts every schema node it visits, and
+     every item key it makes, against a fixed budget of **100,000 per frame**
+     (`TOOL_VALIDATION_STEPS`). Past it, the call is answered `invalid_arguments`: "the
+     arguments are too complex to check". The budget is a count, not a time, so the outcome is
+     the same on every host. Why 100,000: an ordinary call's arguments need about one visit per
+     JSON value, and a call with more than 100,000 values is either bulk data, which belongs in
+     a granted folder as the request cap already says (a 1 MiB frame can hold about 524,288
+     one-digit items, and is then refused here), or a branch explosion. The README says so.
+   - **Bytes.** After parsing, an object with exactly the one key `"$bytes"` whose value is a
+     string is decoded as strict base64 into `bytes`; any other `$bytes` object is a `protocol`
+     answer. A value is accepted as bytes only where its schema says `{"type": "string",
+     "contentEncoding": "base64"}`.
 
-4. **Validated first, then gated, then run.** The runner's per-call host (`_ToolHost`, one per
-   call, built in `_instance` beside the `_Call`) checks every frame in this order, with its own
-   counters, and answers at the first failure:
-   1. the frame count, against `max_tool_calls` (`budget_exceeded`);
-   2. the frame's size, against the request cap (`too_large`);
-   3. that it is JSON and an object (`protocol`);
-   4. the version (`protocol`, naming the versions served);
-   5. the operation (`protocol`);
-   6. the tool's name, against the offered set (`unknown_tool`);
-   7. the arguments, against the tool's input schema (`invalid_arguments`);
-   8. the gate (`denied`);
-   9. the tool, bounded (Decision 9) (`tool_error`, `denied`, `timeout`, `cancelled`);
-   10. the result: it has a JSON form, and the answer fits the response cap (`tool_error`,
-       `too_large`).
+4. **The frame rules are the protocol's own, not the host Python's.** In this order, before any
+   schema is consulted:
+   1. the frame is at most `TOOL_REQUEST_BYTES` (1 MiB) long;
+   2. it decodes as strict UTF-8 (`json.loads` never sees bytes, so no UTF-16 or UTF-32);
+   3. a scan of the text counts nesting outside strings: **the frame's nesting, its envelope
+      included, is at most 64** (so 62 levels inside the `args` value); 65 is refused. So no
+      parser, validator or decoder recursion depends on the CPython version;
+   4. `json.loads` with: `parse_constant` refusing `NaN` and `Infinity`; `parse_float` refusing a
+      non-finite result (`1e400`); `parse_int` refusing a literal longer than 64 characters,
+      whatever the process's integer-digit limit; `object_pairs_hook` refusing a duplicate key;
+   5. no string, in a key or a value, holds a lone surrogate (`"\ud800"`); a valid surrogate
+      pair is accepted;
+   6. the top level is an object.
 
-   No tool and no gate runs for a frame refused at steps 1 to 7.
+   Any failure is a `protocol` answer. Answers are encoded with `ensure_ascii=True`,
+   `allow_nan=False` and compact separators, so encoding an answer never raises.
 
-5. **The gate is optional and absent by default (decision 37).**
-   - Without a gate, every validated call of an offered tool runs. The embedder's gating is then
-     its choice of which capabilities to pass. This is how this specification reads §4.4's
-     "gated by the embedder on every call": the gate is the embedder's, it can see every call,
-     and choosing tools is itself a gate.
-   - `gate(call)` receives a `ToolCall`: `seq` (the host's frame number in this call, from 1),
-     `tool` (the `Tool`), `arguments` (validated and decoded, the values the tool will get) and
-     `request_bytes`. All of it is what the host decided; nothing is taken from the guest's frame
-     unchecked. The frame's `id` is not shown.
-   - It allows by returning `None` or `True`. It refuses by raising `ToolDenied(message)` (or
-     `ToolError`); the message reaches the guest. A return of `False` refuses with the message
-     "<name> was refused". Any other return, and any other exception, refuses with the same
-     message and is recorded as a fault: a gate that breaks fails closed.
-   - The gate and the tool run together on a tool worker under one bound (Decision 9), so a gate
-     that asks a person must answer within the call's time or refuse.
-   - A gate may not change the arguments. Pausing a run for approval is out of scope (bounded
-     sessions, decision 19).
+5. **The frame host answers a frame in a fixed order.** `_ToolHost(tools, *, gate=None,
+   max_calls=1000, invoke=<inline>)` keeps one call's counters and record. It has two entry
+   points:
+   - **`admit(length) -> bytes | None`**, called with the frame's length before its bytes are
+     read: it counts the frame and answers `budget_exceeded` past `max_calls`, or `too_large`
+     over `TOOL_REQUEST_BYTES`; otherwise `None`. Spec 036's door calls it before any copy, so a
+     refused frame costs the host constant work.
+   - **The handshake (the review's C5).** When `admit` returns `None`, the frame host keeps the
+     admitted length as pending. `__call__` consumes it and checks that it equals `len(frame)`;
+     with none pending (a raw `host=`, as in this specification's checks), it calls `admit`
+     itself. A pending length that differs from the frame's is a runner bug, answered
+     `protocol` and recorded. So every frame is counted exactly once, on the door's path and on
+     the raw one.
+   - **`__call__(frame) -> bytes`** then answers at the first failure of: Decision 4's rules (`protocol`); the version
+     (`protocol`, naming the versions served); the operation (`protocol`); the tool's name
+     against the offered set (`unknown_tool`); the arguments against its schema,
+     within the validation budget (`invalid_arguments`, Decision 3); then hands the work to
+     `invoke`.
+   - **Every frame counts** toward `max_calls`, the guest's discovery frame included: a frame is
+     a host round trip, as Monty's `max_suspensions` counts them (owner question 51). Past the
+     limit the guest gets `ToolBudgetExceeded` and runs on (question 52); since 036 answers it
+     from the length alone, a guest looping on it spends only its own fuel and time.
+   - **The work** is one callable that runs the gate, then the tool, then encodes the result
+     (Decision 6's rules), so a result slow to encode counts against the call's time in 036.
+     `invoke(work)` returns the answer, or one of `timeout` and `cancelled` with whether the work
+     was left running. The default `invoke` runs the work inline; 036 supplies the bounded one.
+   - **The gate** gets a `ToolCall`: `seq: int` (the frame's number in this call, from 1),
+     `tool: Tool`, `arguments` (a deep copy of the validated, decoded values) and
+     `request_bytes: int` (the frame's length). The tool gets its own copy, so a gate cannot
+     change what the tool receives. The gate allows by returning `None` or `True`; it refuses by
+     raising `ToolDenied(message)` or `ToolError(message)`, whose message crosses; a return of
+     `False` refuses with "<name> was refused". Any other return or exception refuses with that
+     message and is a fault: a broken gate fails closed. With no gate, every validated call runs:
+     the embedder's gating is then its choice of capabilities (decision 37; how this reads §4.4's
+     "gated by the embedder on every call").
+   - No gate or tool runs for a frame refused before `invoke`.
 
-6. **The schema subset, checked strictly.**
-   - **Checked keywords:** `type` (one or a list), `enum`, `const`, `properties`, `required`,
-     `additionalProperties` (absent, it closes an object schema that lists `properties`, so an
-     unknown argument is refused rather than passed to the function; this is stricter than JSON
-     Schema's default, and the derived schemas say `false` anyway; an object schema with no
-     `properties` stays open), `items` (one schema), `anyOf`, `oneOf`, local `$ref` into `$defs` or
-     `definitions`, `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `minLength`,
-     `maxLength`, `minItems`, `maxItems`, and `contentEncoding: "base64"` on a string.
-   - **Ignored keywords** (annotations in JSON Schema): `title`, `description`, `default`,
-     `examples`, `format`, `deprecated`, `readOnly`, `writeOnly`, `$schema`, `$id`, `$comment`.
-   - **Any other keyword** makes `tool()` refuse the schema, unless `validates_input=True`
-     states that the tool checks its own input. Then the runner checks the keywords it knows and
-     skips the rest. So no schema is half-checked without the embedder saying so (the memo's
-     question 3; see the owner's note at the end).
-   - **No coercion.** `"7"` is not an integer; `true` is not an integer; an integer is a
-     `number`. An unknown key is refused unless `additionalProperties` opens the object.
-   - **Bytes.** A JSON object with exactly the one key `"$bytes"`, whose value is a string, is
-     always bytes; it is decoded (strict base64) before validation. A value is bytes only where
-     the schema says `{"type": "string", "contentEncoding": "base64"}`. A dict whose only key is
-     `"$bytes"` cannot cross as a dict, either way.
-   - **Parsing.** The host parses a frame with `json.loads` and a `parse_constant` that refuses
-     `NaN` and `Infinity`; `RecursionError` and `ValueError` (deep nesting, an integer over
-     CPython's 4,300 digits) are a `protocol` answer, never an exception from `run`.
+6. **Errors follow `subprocess.run` (decision 39), and only chosen text crosses.**
+   - Nothing a frame, a gate or a tool does raises out of the frame host. A tool's or gate's
+     `BaseException` is a fault too.
+   - `ToolError(Exception)` and `ToolDenied(ToolError)` on the host. A tool raising `ToolDenied`
+     is a capability refusing (`denied`); raising `ToolError`, it failed with a message
+     (`tool_error`). Any other exception crosses as "<name> failed (internal error)".
+   - **Bounded text.** Every message is at most 4,096 characters; each guest value it echoes (a
+     tool name, a key, a wrong value) is cut to 64 characters first.
+   - **The result's JSON form** mirrors the guest's encoding (Decision 8): `dict` with `str` keys
+     only (not stringified), `list` and `tuple` as arrays, `str`, `bool`, `int`, finite `float`,
+     `None`, `bytes`-like as `$bytes`, any `numbers.Integral` as `int` and `numbers.Real` as
+     `float` (numpy's scalars), and no dict whose only key is `"$bytes"`. Anything else is a
+     fault. An answer over `TOOL_RESPONSE_BYTES` (16 MiB, the default output cap per stream) is
+     `too_large`, naming the cap.
 
-7. **Errors follow `subprocess.run` (decision 39).**
-   - `run()` never raises for what the guest, a frame, a tool or a gate does. Every one of those
-     becomes an answer to the guest and a line in the record. A tool's or gate's
-     `BaseException` (`SystemExit`, `KeyboardInterrupt` raised by the tool itself) is a fault
-     too.
-   - `run()` raises only for programming mistakes, before anything runs (Decision 3), and for
-     what it raises today (a Ctrl-C on the calling thread, spec 011; `CancelledError` from a
-     raw `host=`, spec 015).
-   - **Which text crosses.** Only text a tool or gate chose to show: the message of `ToolError`
-     or `ToolDenied`, truncated to 4,096 characters. Any other exception crosses as "<name>
-     failed (internal error)" and is kept in the record as a fault. This is LangChain's line,
-     and the reverse of what the memo saw in Monty and Cloudflare's code mode, where a host
-     `KeyError('/Users/me/.ssh/id_rsa')` reached the sandbox (finding 2).
-   - **On the host,** `ToolError(Exception)` and `ToolDenied(ToolError)`. A tool raising
-     `ToolDenied` is a capability refusing (`denied`); a tool raising `ToolError` failed with a
-     message (`tool_error`).
+7. **The frame format: protocol 1.** One compact JSON object per door call, each way.
+   ```text
+   request  {"v": 1, "id": 7, "op": "list"}
+            {"v": 1, "id": 8, "op": "call", "tool": "lookup_region", "args": {"code": "EMEA"}}
+   answer   {"v": 1, "id": 7, "ok": true, "tools": [descriptor, ...]}
+            {"v": 1, "id": 8, "ok": true, "value": <JSON>}
+            {"v": 1, "id": 8, "ok": false, "error": {"kind": "denied", "message": "..."}}
+   descriptor {"name", "description", "inputSchema", "outputSchema"?, "annotations"?}
+   bytes    {"$bytes": "<base64>"}
+   kinds    protocol, unknown_tool, invalid_arguments, denied, tool_error, timeout,
+            cancelled, too_large, budget_exceeded
+   ```
+   - **The list** is in the order the embedder gave the tools, so the guest's module, stubs and
+     fuel are the same from run to run.
+   - **The id** is echoed when it is an `int` (not a `bool`) from 0 to 2**53 - 1, else `null`.
+     The host never trusts it.
+   - **The version.** `v` is in every frame; an unknown one is a `protocol` answer naming the
+     versions served. A field a peer may ignore may be added within a version; a field a peer
+     must act on bumps `v` (Monty's rule). An operation may be added within a version, since an
+     unknown one is a clean `protocol` answer. `batch` is reserved (Decision 11).
+   - **Why JSON, not MCP's JSON-RPC** (the memo): the guest has `json` with its C accelerator,
+     every tool schema is JSON already, and MCP's sessions and content blocks do not fit a
+     one-call door. The descriptor uses MCP's names, so a tool maps one to one.
 
-8. **Limits, each with a default (§4.15).**
-   - **`max_tool_calls`**, default `DEFAULTS.max_tool_calls = 1000`, a new `Defaults` field with
-     a default, so `Defaults` built from its first arguments still works. Every frame counts,
-     the guest's discovery frame at import included: a frame is a host round trip, as Monty's
-     `max_suspensions` counts them. Frames past the limit are answered `budget_exceeded` before
-     they are parsed; the guest raises `ToolBudgetExceeded` and runs on. Only the first such
-     frame is recorded, so the record holds at most `max_tool_calls + 1` entries. Why 1,000: it
-     is Monty's default and ten times Pydantic AI's per-snippet default, ample for agent code,
-     and it bounds the host's work and the record per call. `None` means no limit, as for the
-     other limits.
-   - **The request cap**, 1 MiB per frame (`TOOL_REQUEST_BYTES`): the host parses untrusted
-     JSON, and the cap bounds that work and its memory. Bulk data goes through a granted folder.
-   - **The response cap**, 16 MiB per answer (`TOOL_RESPONSE_BYTES`), the default output cap per
-     stream. A result over it is answered `too_large`, naming the cap.
-   - **Time** is Decision 9's.
-   - The two caps are module constants, not arguments: an embedder that needs more data moves it
-     through files.
+8. **The guest side: `from host import tools` (decision 38).**
+   - **`host`** (`host/__init__.py`) holds `PROTOCOL = 1` and the exceptions. Importing it sends
+     no frame.
 
-9. **Deadlines, cancel, Ctrl-C and fuel hold across tool calls.**
-   - **Tools run on tool workers.** A process-wide pool of at most `DEFAULTS.tool_workers`
-     **daemon** threads (a new `Defaults` field, default 32, checked from 1 to 1024 like
-     `async_workers`) runs the gate and the tool, inside a copy of the door thread's
-     `contextvars` context. Daemon threads, not `ThreadPoolExecutor`'s workers, because
-     interpreter exit joins those, and a hung tool would then hang exit. Why 32: the door is
-     synchronous, so a guest has at most one call in flight; 32 is four times the default
-     `async_workers`, with room for timed-out tools still running. A full pool makes a call
-     wait, and the wait counts against that call's bound. The fork hook (spec 015) drops the
-     pool in a child.
-   - **The bound.** The door thread waits for the worker in slices of one tick (`TICK_S`). A call
-     ends at the first of: the tool's `timeout_s`; the call's deadline less two ticks (from
-     `stop_at` and the epoch ticker's count, as spec 010's waits read it), so the guest gets
-     `ToolTimeout` before the run ends inside the door; the call's `cancel` event; and a pending
-     Ctrl-C on the main thread (spec 011's flag). If the deadline leaves less than two ticks, the
-     call is answered `timeout` at once and neither gate nor tool runs.
-   - **After a timeout,** the guest gets `ToolTimeout` and runs on. A sync tool's thread cannot
-     be stopped: it runs to its end, unseen, holding its worker, and its result is dropped. The
-     README says so.
-   - **After a cancel,** the host answers `cancelled`; the runner then stops the guest as spec
-     015 does after any door call, and spec 030 names the run `"cancelled"`. Under `run_async`, a
-     cancelled task therefore no longer waits on a blocked tool (spec 015's caveat for a blocked
-     `host=` remains for the raw door).
-   - **After a Ctrl-C,** the host answers `cancelled`, and the runner raises `KeyboardInterrupt`
-     after the door returns, as today.
-   - **Fuel** counts only guest instructions, so a tool's time never changes `fuel_used`. A call
-     whose tools give the same answers spends the same fuel.
+     | class | bases | kinds |
+     |---|---|---|
+     | `ToolError` | `Exception` | `tool_error`; the base of all below; `.kind` names the kind |
+     | `ToolDenied` | `ToolError`, `PermissionError` | `denied` |
+     | `ToolArgumentError` | `ToolError`, `TypeError` | `invalid_arguments`, `unknown_tool` |
+     | `ToolTimeout` | `ToolError`, `TimeoutError` | `timeout` |
+     | `ToolCancelled` | `ToolError` | `cancelled` |
+     | `ToolTooLarge` | `ToolError` | `too_large` (request or result) |
+     | `ToolBudgetExceeded` | `ToolError` | `budget_exceeded` |
+     | `ToolProtocolError` | `ToolError` | `protocol`, a door fault, an answer that does not match |
 
-10. **Each call's outcome is in the result.**
-    - `Completed` gains `tool_calls: tuple[ToolRecord, ...] = ()`, a last field with a default,
-      so `Completed` built positionally still works. It is `()` for a call without `tools=`.
-      The command line's JSON does not change.
-    - `ToolRecord` (frozen): `seq`; `op` (`"list"`, `"call"`, or `None` when the frame could
-      not be read); `tool` (the tool's name, or the guest's name cut to 64 characters, or
-      `None`); `outcome` (`"ok"` or the failure's kind, Decision 11); `message` (what the guest
-      was told on a failure, else `None`); `request_bytes`; `response_bytes`; `fault` (the
-      exception kept from the guest, else `None`).
-    - No record holds a time (§4.9). The record is the door transcript a replayable run needs
-      (`../research/2026-10-17-what-a-replayable-run-needs.md`), apart from the values.
-    - A refused call is recorded on an exit of 0 too, so an embedder can audit what the guest
-      tried.
+     `ToolCancelled` rarely reaches guest code: after a cancel the runner stops the guest at its
+     next function entry (specs 015, 030). The README says not to rely on `except
+     ToolCancelled` for clean-up.
+   - **`host.tools`** sends one `list` frame when imported, then holds one synchronous function
+     per tool and nothing else public; it imports its own modules under private names (`import
+     json as _json`), so a tool named `json` fits. Each function has a `__signature__` built from
+     the input schema (required parameters first), a docstring of the description and an `Args:`
+     section, and a `descriptor` attribute (a copy). A descriptor whose property names cannot
+     make a signature (from a host that is not this runner) gets `(**kwargs)` instead of breaking
+     the import. `help(tools)`, `inspect.signature` and `from host.tools import *` work.
+   - **A call** binds its arguments to the signature without applying defaults, and sends only
+     the arguments its caller gave, by keyword; the tool's own default applies to the rest. A
+     binding error is `ToolArgumentError`, with no frame sent. Values are encoded by Decision
+     6's rules; anything else is `ToolArgumentError` naming the type and, for an array or a
+     frame, suggesting `.tolist()` or `.to_dict("records")`. A failed answer raises the class for
+     its kind; an unknown kind raises `ToolError`.
+   - **An unknown attribute** raises `AttributeError` listing the offered names.
+   - **Without the protocol.** Under no host, `from host import tools` raises `ImportError`:
+     "this run has no tools: the embedder passed none". Under a raw `host=`, the discovery frame
+     reaches that host like any frame, and an answer that is not protocol 1 raises `ImportError`
+     naming why. Any failed answer to discovery (`budget_exceeded` under `max_calls=0`) raises
+     `ImportError` naming its kind.
+   - **Where it lives.** `recipes/guest/host/__init__.py` and `recipes/guest/host/tools.py`, a
+     build input hashed in `MANIFEST`'s recipe lines. It stays compatible with Python 3.11, since
+     the unit checks load it on the host's Python. `pyproject.toml` lints and formats
+     `recipes/guest/` explicitly (today `recipes` is excluded). The alternative, a module the
+     runner writes into an importable grant per call, waits on decision 16 and would make every
+     embedder generate code.
 
-11. **The frame format: protocol 1.** One compact UTF-8 JSON object per door call, each way.
-    ```text
-    request  {"v": 1, "id": 7, "op": "list"}
-             {"v": 1, "id": 8, "op": "call", "tool": "lookup_region", "args": {"code": "EMEA"}}
-    answer   {"v": 1, "id": 7, "ok": true, "tools": [descriptor, ...]}
-             {"v": 1, "id": 8, "ok": true, "value": <JSON>}
-             {"v": 1, "id": 8, "ok": false, "error": {"kind": "denied", "message": "..."}}
-    descriptor {"name", "description", "inputSchema", "outputSchema"?, "annotations"?}
-    bytes    {"$bytes": "<base64>"}
-    kinds    protocol, unknown_tool, invalid_arguments, denied, tool_error, timeout,
-             cancelled, too_large, budget_exceeded
-    ```
-    - **The id.** The guest numbers its frames from 1; the host echoes the id when it can read
-      one (an integer), else `null`. The host never trusts it.
-    - **The version.** `v` is in every frame. An unknown version is a `protocol` answer naming
-      the versions served. A field a peer may ignore may be added within a version; a field a
-      peer must act on bumps `v` (Monty's rule). An operation may be added within a version,
-      since an unknown operation is a clean `protocol` answer. `batch` is reserved for the later
-      specification (Decision 15).
-    - **Why JSON, and not MCP's JSON-RPC** (the memo): the guest has `json` with its C
-      accelerator; every tool schema is JSON already; MCP's results are content blocks for a
-      model and its sessions do not fit a one-call door. The descriptor uses MCP's names, so a
-      tool maps one to one.
-    - The README publishes this format, so an embedder in another language can serve it through
-      its own door function.
+9. **The zip, the snapshot and their cost.**
+   - Step 70 gains two `--file` lines (`=host/__init__.py`, `=host/tools.py`), compiled like the
+     rest. `MANIFEST` gains two recipe lines; the zip, `SHA256SUMS` and the snapshot change (the
+     snapshot runs only beside its exact zip, `80_snapshot.sh`).
+   - The snapshot does not pre-import `host` or `host.tools`: `host.tools` would call the door,
+     whose snapshot stub traps, and `host` alone saves too little.
+   - **Cost:** about 77,912 fuel per zip member on a plain-binary start (the default-profile memo,
+     finding 5), so about +156,000 per plain start, about +0.06% on `pass`. A snapshot start does
+     not pay it. The judge accepts it with `--accept-growth` and that reason.
+   - **Building it.** The builder develops end to end against today's artifacts first, with the
+     guest package on a read-only `Grant` and `PYTHONPATH` set to it, and adds the two zip lines
+     last, so the lane holds the build only for the final rebuild.
 
-12. **The guest side: `from host import tools` (decision 38).**
-    - **`host`** (`host/__init__.py`) holds `PROTOCOL = 1` and the exceptions. Importing it sends
-      no frame.
-      | class | bases | kinds |
-      |---|---|---|
-      | `ToolError` | `Exception` | `tool_error`, and the base of all below; `.kind` names the kind |
-      | `ToolDenied` | `ToolError`, `PermissionError` | `denied` |
-      | `ToolArgumentError` | `ToolError`, `TypeError` | `invalid_arguments`, `unknown_tool` |
-      | `ToolTimeout` | `ToolError`, `TimeoutError` | `timeout` |
-      | `ToolCancelled` | `ToolError` | `cancelled` |
-      | `ToolTooLarge` | `ToolError` | `too_large` (request or result; the memo's `ToolResultTooLarge` renamed for that reason) |
-      | `ToolBudgetExceeded` | `ToolError` | `budget_exceeded` |
-      | `ToolProtocolError` | `ToolError` | `protocol`, a door fault, an answer that does not match |
+10. **Stubs for a prompt.** `stubs(tools) -> str` renders each tool as a `def` line with the
+    signature the guest's function carries, and its docstring, under a first line `from host
+    import tools`.
 
-      The built-in bases make model-written `except PermissionError:` clauses work.
-    - **`host.tools`** (`host/tools.py`) sends one `list` frame when it is imported. It then
-      holds one plain synchronous function per tool, and nothing else public: no reserved names,
-      so any valid tool name fits. Each function has a real `__signature__` built from the
-      input schema (required parameters first), a docstring of the description and an `Args:`
-      section, and a `descriptor` attribute (a copy of the host's descriptor). `help(tools)`,
-      `inspect.signature` and `from host.tools import *` (through `__all__`) work.
-    - **A call** binds its arguments to the signature (a binding error is `ToolArgumentError`,
-      with no frame sent), passes every argument by keyword, and encodes values: `dict` with
-      `str` keys, `list` and `tuple` as arrays, `str`, `bool`, `int` and finite `float`, `None`,
-      `bytes`-like as `$bytes`, and any `numbers.Integral` or `numbers.Real` (numpy's scalars
-      among them) as `int` or `float`. Anything else is `ToolArgumentError`, naming the type and,
-      for an array or a frame, suggesting `.tolist()` or `.to_dict("records")`. It returns the
-      decoded value. A failed answer raises the class for its kind; an unknown kind raises
-      `ToolError`.
-    - **An unknown attribute** of `host.tools` raises `AttributeError` listing the offered names.
-    - **A run without tools.** Under no host, `from host import tools` raises `ImportError`:
-      "this run has no tools: the embedder passed none". Under a raw `host=`, the discovery frame
-      reaches that host like any other frame (its bytes are the embedder's to answer), and an
-      answer that is not protocol 1 makes the import raise `ImportError` naming why. A failed
-      protocol answer to the discovery frame (`budget_exceeded` under `max_tool_calls=0`, for
-      one) also makes the import raise `ImportError`, naming its kind. So guest code can detect
-      tools with `try: from host import tools except ImportError:`.
-    - **Where it lives.** The source is `recipes/guest/host/__init__.py` and
-      `recipes/guest/host/tools.py`, a build input hashed in `MANIFEST` like every recipe. Step 70
-      adds them to the zip with two `--file` lines (`=host/__init__.py`, `=host/tools.py`),
-      compiled like the rest. A pure-Python module in the zip needs no change to the binary and
-      no new grant; the alternative, a module the runner writes into a read-only importable grant
-      per call, waits on decision 16's specification and would make every embedder generate
-      code. `ruff check` and `ruff format --check` cover `recipes/guest/` (`pyproject.toml`).
-    - **The snapshot** does not pre-import `host` or `host.tools`. `host.tools` would call the
-      door, and the snapshot's door stub traps; `host` alone saves too little to matter.
+11. **Async tools are a later specification (decision 15).** `tool()` refuses an `async def`
+    with `TypeError`: "async tools come with a later specification (decision 15)". That
+    specification adds async tools and gates, and the guest's `batch` operation. Refusing now
+    and accepting later breaks no caller.
 
-13. **Stubs for a prompt.** `wasi_python.tools.stubs(tools) -> str` renders each tool as a
-    Python `def` line with the same signature the guest's function carries, and its docstring,
-    with a first line `from host import tools`. A model is shown the same signatures its code
-    will call (Monty's and Pydantic AI's pattern).
-
-14. **No adapters ship (decision 40).** There is no LangChain or MCP adapter in the wheel. The
-    README shows two short recipes built on `tool(fn, name=, description=, input_schema=,
-    validates_input=True)`: a LangChain tool (its `tool_call_schema`, `invoke`, and its
-    `ToolException` text re-raised as `ToolError`), and an MCP server's tool through the
-    embedder's own client session (`structuredContent` as the value, `isError` as `ToolError`).
-    Each recipe is run once by the builder in a throwaway environment (`uv run --isolated
-    --no-project --with langchain-core …`, and `--with mcp` against the SDK's in-memory server),
-    and the output is recorded in the landing notes (§4.10). The README labels them recipes,
-    not API.
-
-15. **Async tools are a later specification (decision 15).** This specification is
-    synchronous end to end. `tool()` refuses an `async def`, and `run` refuses a coroutine
-    gate, with `TypeError`: "async tools come with a later specification (decision 15)". The
-    later specification adds async tools and gates, awaited on the caller's loop under
-    `run_async` and on a private loop thread under `run`, within the same bound (Decision 9),
-    and the guest's `batch` operation (several calls in one frame, run concurrently on the
-    host). Why split: this one already adds a host module, a validator, a guest package in the
-    zip and a build step; async adds a second execution path with its own cancellation, which
-    one builder should not carry with the rest. Refusing now and accepting later breaks no
-    caller.
-
-16. **Docs.** The README gains "Tools": the decorator and the capability pattern (tools made per
-    request, closing over authority); "a tool runs with your process's authority: a
-    `read_file(path)` tool is a filesystem" (the memo's security finding); the gate; the record;
-    the error rule; the limits and their reasons; timed-out tools that run on; the guest's API;
-    the frame format; and the two recipes. The CHANGELOG gains a line.
+12. **Docs.** The README gains "The tool protocol": protocol 1's frames, kinds, JSON rules and
+    schema subset, for an embedder in another language that serves it through its own door
+    function. The Python API's section ("Tools") comes with 036, when `run(tools=…)` exists. The
+    CHANGELOG notes the guest package in the zip.
 
 ## Intent
 
-An embedder hands `run` a few decorated functions. The guest's code writes `from host import
-tools` and calls them like Python. Every call is validated, optionally gated, bounded, counted
-and recorded on the host. Nothing a guest or a tool does makes `run` raise.
+The protocol, its rules and both of its halves exist, are checked, and ship in the artifact set,
+so spec 036 only has to bind them to the runner.
 
 ## Design
 
 ```
-src/wasi_python/tools.py              tool(), Tool, ToolCall, ToolRecord, ToolError, ToolDenied,
-                                      stubs(); the hint mapper; the schema subset's validator;
-                                      _ToolHost (protocol 1, one per call); the tool workers
-src/wasi_python/runner.py             run/run_async(tools=, gate=, max_tool_calls=); _checked;
-                                      _instance builds _ToolHost after stop_at and passes it as
-                                      the _Call's host; Completed.tool_calls;
-                                      Defaults.max_tool_calls and tool_workers; the fork hook
-src/wasi_python/__init__.py           its docstring names wasi_python.tools
+src/wasi_python/tools.py              tool(), Tool, ToolCall, ToolError, ToolDenied, stubs();
+                                      the hint mapper; the schema vetting and validator; the
+                                      frame rules; _ToolHost (admit, __call__, the record)
 recipes/guest/host/__init__.py        PROTOCOL, the exceptions
 recipes/guest/host/tools.py           discovery, one function per tool, encoding
 scripts/steps/70_zip.sh               two --file lines
 pyproject.toml                        ruff covers recipes/guest/
 tests/unit/test_tools.py              the host half, with no guest
-tests/unit/test_guest_tools.py        the guest package run natively against a fake _host
-tests/checks/test_v1_4_embedding.py   end to end, against the built artifact set
+tests/unit/test_guest_tools.py        the guest package on the host's Python, a fake _host
+tests/checks/test_v1_4_embedding.py   the guest package against the built artifact set
 README.md, CHANGELOG.md
 ```
 
+The record's types (`ToolRecord`, `ToolOutcome`) are defined here, because the frame host keeps
+them; 036 decides how the runner returns them.
+
+- **`ToolRecord`** (frozen): `frames: int` (every frame counted, listed or not), `outcomes:
+  tuple[ToolOutcome, ...]` (the first 1,000 frames, whatever `max_calls` is, as spec 032 keeps
+  its first 1,000 faults), `unlisted: int` (`frames - len(outcomes)`).
+- **`ToolOutcome`** (frozen): `seq`; `op` (`"list"`, `"call"`, or `None` when unread); `tool` (the
+  tool's name, or the guest's cut to 64 characters, or `None`); `outcome` (`"ok"` or a kind);
+  `message` (what the guest was told on a failure, else `None`); `request_bytes`;
+  `response_bytes`; `fault` (the exception's type name and first line, at most 200 characters,
+  as 032's `FileFault`, else `None`; no exception object is kept, so a result holds no frame of
+  the call); `abandoned` (`True` when the tool was still running when the guest was answered, so
+  its effect may still land).
+- No time anywhere (§4.9). A refused call is listed on an exit of 0 too.
+
 ## Scope
 
-In: the above.
-
-Out:
-- async tools, async gates and `batch` (Decision 15's later specification);
-- LangChain and MCP adapters in the wheel (decision 40: README recipes only);
-- combining `host=` and `tools=` in one call;
-- streaming, progress, and chunked large results;
-- pausing a run for approval, and replay (bounded sessions, decisions 19 to 21);
-- gates that rewrite arguments;
-- tool sets that change during a call;
-- host objects and classes (Monty's `ClassInstance`); bare global tool names;
-- static type checking of the guest's code before it runs (an embedder can check against
-  `stubs()`);
-- MCP resources, prompts and sampling; raw MCP frames from the guest;
-- tools on the command line.
+In: the above. Out:
+- the runner's arguments, the door's cap before the copy, tools on their own threads, deadlines,
+  cancel and Ctrl-C across tool calls, `Completed`'s record, the README's Python API and the
+  LangChain and MCP recipes (spec 036);
+- async tools, async gates and `batch` (decision 15's later specification);
+- adapters in the wheel (decision 40);
+- streaming, progress, chunked results; pausing for approval; gates that rewrite arguments;
+  tool sets that change during a call; host objects; bare global names; static checking of
+  guest code; MCP resources, prompts and sampling; tools on the command line.
 
 ## Acceptance criteria
 
 Each new check is seen failing first: against today's code where the name is missing, and
-against a stand-in that has the name but lacks the property where the property is the point
-(listed per check). Nothing measures time. A tool that must block waits on a
-`threading.Event` the check sets; a short `timeout_s` or `deadline_s` only chooses which outcome
-happens, and the check asserts the outcome and the record, never a duration.
+against the stand-in named where the property is the point. Nothing measures time.
 
-**Unit, the host half** (`tests/unit/test_tools.py`, no guest):
+**Unit, the host half** (`tests/unit/test_tools.py`):
 1. `test_a_tool_is_described_by_its_hints_and_docstring`: a sample tool's `descriptor()` equals
-   an expected dict (properties, `required`, `additionalProperties: false`, the `Args:`
-   descriptions, a default, a `Literal`, an optional, `bytes`, a hint).
-2. `test_a_tool_that_cannot_be_described_is_refused`: each refusal of Decision 2 raises its
-   error, with the parameter or keyword named; an `async def` names decision 15.
-3. `test_the_validator_does_not_coerce`: a table of values against schemas, each keyword of the
-   subset at least once (`"7"`, `true`, an unknown key, a missing key, a nested item, `anyOf`,
-   `oneOf`, `$ref`, `const`, the bounds, `$bytes`), with the expected pass or `invalid_arguments`.
-4. `test_frames_are_checked_in_order`: `_ToolHost` driven with raw frames (over the request cap,
-   not JSON, `NaN`, nesting 100,000 deep, an integer of 5,000 digits, `v: 0`, an unknown `op`, an
-   unknown tool, wrong arguments, past `max_tool_calls`) answers each with its kind, and the
-   counters of a counting gate and tool stay at 0 for every one. Stand-in: a host that runs the
-   gate before validating.
-5. `test_the_gate_decides_after_validation`: allow by `None` and `True`; refuse by `False`, by
-   `ToolDenied` (its message crosses), and by a stray exception and a stray return (generic
-   message, recorded as faults). The tool's counter counts only allowed calls.
-6. `test_only_chosen_text_crosses`: a `ToolError` message crosses; a `KeyError` naming a host
-   path does not, its answer says "(internal error)", and the record keeps the exception. A
-   result with no JSON form is the same. Stand-in: a host that sends `str(exception)`.
-7. `test_run_refuses_mistakes_before_anything_runs`: `host=` with `tools=`, `gate=` without
-   `tools=`, duplicate names, a non-callable gate, a coroutine gate and a bad `max_tool_calls`
-   each raise from `run` and from `run_async` (before the executor is called), with a fake
-   artifacts finder that counts zero lookups. `Defaults` built from three arguments still works;
-   `max_tool_calls` and `tool_workers` are checked like the other limits.
+   an expected dict (properties, `required`, `additionalProperties: false`, `Args:`
+   descriptions, a default, a `Literal`, an optional, `bytes`, a `tuple`, a `dict[str, int]`, a
+   hint). The tools' order in a `list` answer is the order given.
+2. `test_a_tool_that_cannot_be_described_is_refused`: each refusal of Decision 2 (a `from`
+   property, a `required` name not in `properties`, `x: int = None`, a NaN `timeout_s`, a
+   `partial` without `name=`, an `async def` naming decision 15) and of Decision 3 (`pattern`,
+   array `items`, a remote `$ref`, a `$ref` cycle that does not descend) raises, naming the
+   parameter or keyword; `pattern` passes with `validates_input=True`, the cycle does not.
+3. `test_a_vetted_schema_cannot_change`: changing the dict passed as `input_schema=`, or the one
+   `Tool.input_schema` returned, changes neither what is validated nor the descriptor; a `Tool`
+   goes in a set. Stand-in: a `Tool` holding the caller's dict.
+4. `test_the_validator_does_not_coerce`: a table covering every checked keyword, with `"7"`,
+   `true` and `5.0` for an integer, `true` against `enum: [1]`, `1.0` against `const: 1`,
+   `[true]` against `[1]`, `uniqueItems` on `[1, true]` (passes) and `[1, 1]` (fails), an unknown
+   key, a missing key, `additionalProperties` as a schema, `prefixItems`, `multipleOf`, `$ref`,
+   and `$bytes` against a string schema. Stand-in: equality by `==`. And the budget (C1), with
+   a validator that counts its steps, never a timing:
+   - pydantic's recursive union (`Union[list[Node], list[Union[int, Node]]]`, its schema
+     written into the check, so pydantic is not a dependency) against a value 62 levels deep
+     that fails only at its deepest leaf is answered `invalid_arguments` ("too complex") after
+     at most 100,000 counted steps;
+   - under `uniqueItems`, 50,000 distinct items followed by a repeat of the first are refused
+     after one pass (50,001 keys made, no pairwise comparison), and 100,001 distinct integers
+     (about 600 KB) are answered "too complex" with at most 100,000 counted steps;
+   - seen failing first against a naive validator (every branch tried, pairwise
+     `uniqueItems`) given the same counter, which passes the budget on both.
+5. `test_frames_follow_the_protocols_rules`: the frame host answers each with its kind, and a
+   counting gate and tool stay at 0: over the cap (through `admit` alone, with no bytes), past
+   `max_calls`, not UTF-8, UTF-16, a frame nested 65 levels in total (and one nested 64,
+   which passes), `NaN`, `1e400`, a 65-character
+   integer (also with `sys.set_int_max_str_digits(0)` in force), a duplicate key, a lone
+   surrogate in a value and in an unknown key's name (the answer echoes it and encodes), a malformed `$bytes`, `v: 0`, an unknown `op`, an
+   unknown tool, wrong arguments. Every answer encodes, and none raises. Frames are counted
+   exactly once on both paths: `admit` then `__call__` (the door's), and `__call__` alone (a
+   raw `host=`). Stand-in: a host that relies on `json.loads`'s defaults.
+6. `test_the_gate_decides_after_validation`: allow by `None` and `True`; refuse by `False`, by
+   `ToolDenied` (its message crosses), by a stray exception and a stray return (generic message,
+   faults); a gate that mutates its `arguments` leaves the tool's unchanged; the tool's counter
+   counts only allowed calls. Stand-in: a host that runs the gate before validating.
+7. `test_only_chosen_text_crosses_and_is_bounded`: a `ToolError` message crosses, cut at 4,096;
+   a `KeyError` naming a host path does not, its answer says "(internal error)" and the record's
+   `fault` is `"KeyError: …"`; a result with a non-`str` key, a set, or `inf` is the same;
+   numpy-like `numbers.Integral` results encode as `int`; a 17 MiB result is `too_large`.
+   Stand-in: a host that sends `str(exception)`.
+8. `test_the_record_is_bounded`: with `max_calls=None`, 1,500 frames each naming a
+   10,000-character unknown key, and one naming a 1,000,000-character key (it fits the 1 MiB
+   cap, so it reaches `invalid_arguments`), give `frames == 1501`, 1,000 outcomes,
+   `unlisted == 501`, and no message over 4,096 characters; each echoed key is cut to 64.
 
-**Unit, the guest half** (`tests/unit/test_guest_tools.py`, the recipe files loaded natively
-with a fake `_host` that routes to a `_ToolHost`):
-8. `test_the_guest_package_speaks_the_hosts_protocol`: `PROTOCOL` equals the host's; every kind
-   the host can answer maps to the class of Decision 12; signatures, docstrings, `descriptor` and
-   `__all__` match the tools; positional arguments go by keyword; numpy-like `numbers.Integral`
-   values encode as `int`; bytes round-trip; a dict whose only key is `"$bytes"` is refused;
-   `ImportError` when the fake raises `ConnectionRefusedError`, and when it answers bytes that
-   are not protocol 1; `AttributeError` lists the offered names.
-9. `test_stubs_match_the_guest_signatures`: for a set of tools covering every mapped hint, each
-   `def` line of `stubs()` equals `def <name><inspect.signature(fn)>:` for the guest's function.
+**Unit, the guest half** (`tests/unit/test_guest_tools.py`, the recipe files loaded on the host's
+Python with a fake `_host` that routes to a `_ToolHost`):
+9. `test_the_guest_package_speaks_the_hosts_protocol`: `PROTOCOL` equals the host's; every kind
+   maps to its class; signatures, docstrings, `descriptor` and `__all__` match; a tool named
+   `json` works; positional arguments go by keyword; an omitted optional argument is absent from
+   the frame; numpy-like scalars encode; bytes round-trip; a dict whose only key is `"$bytes"`
+   is refused; a descriptor with a `from` property gets `(**kwargs)`; `ImportError` for no host,
+   for a non-protocol answer and for `budget_exceeded` on discovery; `AttributeError` lists the
+   offered names.
+10. `test_stubs_match_the_guest_signatures`: each `def` line of `stubs()` equals `def
+    <name><inspect.signature(fn)>:` for the guest's function, over tools covering every mapped
+    hint.
 
-**End to end** (`tests/checks/test_v1_4_embedding.py`, the built artifact set, both binaries
-where the check's existing peers run both):
-10. `test_a_guest_calls_a_tool`: `from host import tools` and two calls, one result fed to
-    `pandas.DataFrame`; stdout as expected; `tool_calls` is `list ok`, `call ok`, `call ok`, with
-    byte counts above 0; `exit_code == 0`.
-11. `test_a_forged_frame_is_validated_first`: the guest sends a frame through `_host.call` with a
-    wrong-typed argument, and one with an unknown key; the tool's counter is 0; both records say
-    `invalid_arguments`; the run exits 0.
-12. `test_a_gate_refuses_before_the_tool_runs`: the guest catches `PermissionError` and prints
-    the gate's message; the tool's counter is 0; the record says `denied` with that message.
-13. `test_a_tool_fault_stays_on_the_host`: a tool raises `KeyError` naming a host path; the path
-    is in neither stdout nor stderr; the record's `fault` is that exception; `run` did not raise.
-14. `test_the_tool_call_limit_holds`: `max_tool_calls=3`, the guest makes six calls catching
-    `ToolBudgetExceeded`; three frames are served (discovery and two calls), four are refused,
-    and the record has four entries. Stand-in: a host that does not count the discovery frame.
-15. `test_a_tool_timeout_ends_the_call_not_the_run`: a tool with `timeout_s=0.05` waits on an
-    event; the guest catches `TimeoutError`, then calls another tool, which answers; exit 0; the
-    record says `timeout`, then `ok`. The check sets the event afterwards so the worker ends.
-16. `test_a_tool_blocking_past_the_deadline_is_answered`: a tool that waits on an event, under
-    `deadline_s=0.3`, with no `timeout_s`; `run` returns, and the record's last entry says
-    `timeout`. Stand-in: a host bound only by the tool's `timeout_s` (the check's child process
-    reaches its 120 s fail-safe).
-17. `test_a_cancel_during_a_tool_call_is_named`: in a child process like spec 015's, the tool
-    sets a "started" event, the check sets `cancel`, and the run ends `trapped == "cancelled"`,
-    `exit_code is None`, `fuel_used is None`, with the record's last entry `cancelled`.
-18. `test_cancelling_an_async_call_during_a_tool_call`: `run_async` with a one-worker executor;
-    the task is cancelled once the tool has started; it raises `CancelledError` while the tool
-    still blocks, and then a new call on the same executor completes. Stand-in: a host that
-    waits for the tool without watching `cancel`.
-19. `test_fuel_is_exact_across_tool_calls`: the same program with two tool calls, run twice under
-    a fuel cap, with tools that sleep different amounts each time; `fuel_used` is equal.
-20. `test_a_large_result_is_refused`: a tool returning 17 MiB of bytes; the guest catches
-    `ToolTooLarge` and runs on; the record says `too_large`.
-21. `test_no_tools_no_protocol`: without `tools=`, `from host import tools` raises `ImportError`
-    with the message of Decision 12; every existing `host=` check passes unchanged.
-22. `test_the_zip_carries_the_host_package`: the zip holds `host/__init__.pyc` and
+**Against the built artifact set** (`tests/checks/test_v1_4_embedding.py`, the frame host passed
+as a raw `host=`, its record read from the object):
+11. `test_the_guest_package_round_trips_through_the_door`: `from host import tools`, two calls,
+    one result fed to `pandas.DataFrame`, bytes both ways; stdout as expected; the record lists
+    `list ok`, `call ok`, `call ok`; exit 0. Both binaries.
+12. `test_a_forged_frame_is_validated_first`: the guest sends frames through `_host.call` with a
+    wrong-typed argument and with an unknown key; the tool's counter is 0; both outcomes are
+    `invalid_arguments`.
+13. `test_the_zip_carries_the_host_package`: the zip holds `host/__init__.pyc` and
     `host/tools.pyc`; the existing check that `MANIFEST`'s recipe lines cover every tracked
-    recipe passes with the two new files in it.
+    recipe passes with them.
 
 **The whole:**
-23. The two README recipes ran once, as Decision 14 says, with their outputs in the landing
-    notes.
-24. `uv run pytest` green with `--accept-judge`; lost 0. The zip's growth (two small members) is
-    accepted with `--accept-growth` and that reason; any fuel growth on existing checks is
-    explained in the landing notes or fixed.
-25. A release dry run passes every job (the artifact set changed).
+14. `uv run pytest` green with `--accept-judge`; lost 0; the growth in bytes and in plain-start
+    fuel (Decision 9) accepted with `--accept-growth` and that reason, and nothing else grows.
+15. A release dry run passes every job (the artifact set changed).
 
 ## Questions for the owner
 
-None open here. Four of these decisions (6, 8 and 9) are the agent's choice where the owner's
-decisions were silent; they are recorded as questions 50 to 53 in `../questions-for-the-owner.md`,
-and nothing waits on them.
+None open here. Three of its choices, in Decisions 3 and 5, are the agent's where the owner's
+decisions were silent: questions 50 to 52 in `../questions-for-the-owner.md`. Question 53 is
+spec 036's. Nothing waits on them.
 
 ## Landing notes
 
