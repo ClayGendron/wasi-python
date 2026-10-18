@@ -100,20 +100,24 @@ The plain `uv run pytest` stays serial.
   worker exactly as in a serial run and rides to the controller on its report. Workers write
   nothing and run none of the lane's guards: the controller alone writes `latest.json`, judges the
   ratchet and accepts. An upstream group's check and its classes' checks always run in one
-  worker (the judge's own scheduler; node ids are unchanged). A worker that dies leaves its check
-  `fail`, named "worker crashed".
+  worker (the judge's own scheduler; node ids are unchanged). A worker that dies is not replaced:
+  the check it was running is `fail`, named "worker crashed", and the run ends. Each worker also
+  reports what steered it from outside the judge (a conftest loaded only while collecting), so a
+  parallel run is red exactly when a serial one is.
 - **What the record says.** `meta.workers` is the number of workers started (`0` serially) and
   `meta.scheduler` the scheduler xdist used (`JudgeScheduling`; `null` serially). Neither is
   compared.
 - **One way to run in parallel.** Allowed: `-n <number>`, `-n auto`, `--maxprocesses`,
-  `--max-worker-restart`, `--dist load`, `--loadscope-reorder`, `--testrunuid`. Refused before
-  anything runs, exit 1 with one line: `-n logical`, any other `--dist`, `-d`,
+  `--max-worker-restart 0` (the judge sets it), `--dist load`, `--loadscope-reorder`,
+  `--testrunuid`. Refused before anything runs, exit 1 with one line: `-n logical`, any other
+  `--dist`, any other `--max-worker-restart`, `-d`,
   `--no-loadscope-reorder`, `--maxschedchunk`, `--tx`, `--px`, `--rsyncdir`, `--rsyncignore`,
   `-f`/`--looponfail`. The ini keys `rsyncdirs`, `rsyncignore` and `looponfailroots` would come
   only from `pyproject.toml`, which is judged, and do nothing without the refused options.
 - **Comparing two runs.** `uv run python tests/harness/sameness.py A.json B.json` prints every
-  difference that could change a verdict (the fields above; a pass's, gap's or blocked check's
-  reason; fuel beyond the ratchet's tolerance) and exits 1 when there is one.
+  difference that could change a verdict (the fields above; a gap's or a blocked check's reason,
+  not a pass's note, which may print a fuel count; fuel beyond the ratchet's tolerance; what
+  steered the run from outside the judge, `meta.foreign`) and exits 1 when there is one.
 
 ## The landing lane (spec 029)
 

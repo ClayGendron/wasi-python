@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths, plugin, scan, scoreboard
+from harness import needs, paths, plugin, sameness, scan, scoreboard
 
 GIT = shutil.which("git")
 HISTORY = "context/progress/history.jsonl"
@@ -491,6 +491,43 @@ def test_the_guards_hold_under_several_cores_in_a_main_tree(clone_worktree) -> N
     finally:
         subprocess.run([GIT, "-C", str(main), "reset", "-q", "--hard", start], check=True)
         probe.unlink(missing_ok=True)
+
+
+STEER_CONFTEST = """
+import sys
+import types
+
+steer = types.ModuleType("steer052")  # a module with no file: never a judged one
+exec("class Steer:\\n    pass\\n", steer.__dict__)
+sys.modules["steer052"] = steer
+
+
+def pytest_configure(config):
+    config.pluginmanager.register(steer.Steer(), "steer052")
+"""
+
+
+def test_a_plugin_registered_while_collecting_is_foreign_on_any_cores(clone_worktree) -> None:
+    """The build review's F2: a conftest that pytest loads only while collecting (below an
+    argument, in a folder not named test*) is loaded by the workers alone under -n; each worker
+    hands what steers it to the controller. Serial and -n 2 are both red, and judged the same."""
+    folder = clone_worktree / "tests" / "unit" / "zz052"
+    try:
+        (folder / "inner").mkdir(parents=True)
+        (folder / "inner" / "conftest.py").write_text(STEER_CONFTEST)
+        (folder / "inner" / "test_zz052.py").write_text("def test_unit():\n    pass\n")
+        records = []
+        for tag, cores in (("serial", []), ("n2", ["-n", "2"])):
+            latest = clone_worktree / "build" / f"steer-{tag}.json"
+            r = judge(clone_worktree, "tests/unit/zz052", ONE_CHECK, *cores,
+                      "--progress-latest", str(latest))  # fmt: skip
+            assert r.returncode == 1, (tag, r.stdout[-2000:] + r.stderr[-2000:])
+            assert "steered from outside the judge: plugin steer052" in r.stdout, tag
+            records.append(json.loads(latest.read_text()))
+        assert all(any("steer052" in f for f in rec["meta"]["foreign"]) for rec in records)
+        assert sameness.differences(*records) == []
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
 
 
 def test_the_plugin_self_tests_pass_in_a_worktree(clone_worktree) -> None:

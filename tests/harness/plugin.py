@@ -53,6 +53,7 @@ class State:
     lines: list[str] = field(default_factory=list)
     facts: dict[str, dict] = field(default_factory=dict)  # node id -> the check's `fact` values
     crashed: dict[str, str] = field(default_factory=dict)  # failed reports carrying no record
+    worker_foreign: list[str] = field(default_factory=list)  # what steered a worker (F2)
 
 
 STATE = pytest.StashKey[State]()
@@ -346,6 +347,9 @@ class Controller:
         for name, value in report.user_properties:
             if name == RECORD_PROPERTY:
                 node, record = value
+                if node in state.crashed:  # a crash outranks a later run of the same check
+                    carried = True
+                    continue
                 state.records[node] = record
                 if record.get("facts"):
                     state.facts[node] = record["facts"]
@@ -368,6 +372,7 @@ class Controller:
         state.deselected += [n for n in out["deselected"] if n not in state.deselected]
         state.collected_files.update(out["collected_files"])
         state.narrowed_files.update(out["narrowed_files"])
+        state.worker_foreign += [f for f in out.get("foreign", []) if f not in state.worker_foreign]
 
 
 def _judge(item: pytest.Item, call: pytest.CallInfo, rep: pytest.TestReport):
@@ -461,6 +466,9 @@ def xdist_refusal(option) -> str | None:
         (bool(get("rsyncignore")), "--rsyncignore", "remote hosts are not the judged environment"),
         (get("looponfail", False), "-f/--looponfail",
          "its child would judge and accept again on every change"),
+        (get("maxworkerrestart") not in (None, "0"),
+         f"--max-worker-restart {get('maxworkerrestart')}",
+         "a dead worker's check is never run again: it fails (the build review, F1)"),
     ]  # fmt: skip
     for refused, name, why in rows:
         if refused:
@@ -478,6 +486,10 @@ def pytest_cmdline_main_raw_options(config: pytest.Config):
     a number. A worker carries the options it was given, and is skipped."""
     if not is_worker(config):
         config.stash[RAW_REFUSAL] = xdist_refusal(config.option)
+        if hasattr(config.option, "maxworkerrestart") and config.option.maxworkerrestart is None:
+            # No replacement worker: xdist would deal a dead worker's check again, and could hang
+            # (the build review, F1). Set before xdist's DSession reads it in its configure.
+            config.option.maxworkerrestart = "0"
     return (yield)
 
 
@@ -646,12 +658,21 @@ def foreign_steering(config: pytest.Config) -> list[str]:
             module = type(plugin).__module__
             if module.startswith("_pytest") or module == "builtins":
                 continue
+            if module == "__channelexec__" and is_worker(config) and xdist_dir is not None:
+                # xdist's worker loop: xdist/remote.py, sent to the worker and run by execnet
+                # under this name, so its class has no file (spec 052, the build review, F2).
+                if type(plugin).__qualname__ == "WorkerInteractor":
+                    continue
             defined = _module_file(sys.modules.get(module))  # an object: its type's module file
             if defined is None or not allowed(defined):
                 found.append(f"plugin {name} ({module})")
         elif not (f.is_relative_to(pytest_dir) or allowed(f)):
             found.append(f"plugin {name} from {f}")
     return found
+
+
+def _this_repo(config: pytest.Config) -> bool:
+    return Path(str(config.rootpath)).resolve() == paths.REPO.resolve()
 
 
 def _read(path: Path) -> str | None:
@@ -670,10 +691,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             "deselected": list(state.deselected),
             "collected_files": sorted(state.collected_files),
             "narrowed_files": sorted(state.narrowed_files),
+            # A conftest loaded only during collection, and what it registers, is seen only by
+            # the workers: each judges what steers it (the build review, F2).
+            "foreign": foreign_steering(config) if _this_repo(config) else [],
         }
         return
-    for node, why in state.crashed.items():  # spec 052, Decision 14
-        if node in state.areas and node not in state.records:
+    for node, why in state.crashed.items():  # spec 052, Decision 14: a crash outranks any record
+        if node in state.areas:
             state.records[node] = {
                 "area": state.areas[node],
                 "status": "fail",
@@ -704,8 +728,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     addopts = os.environ.get("PYTEST_ADDOPTS", "").strip()
     if addopts:
         meta["overrides"].append(f"PYTEST_ADDOPTS {addopts}")
-    this_repo = Path(str(config.rootpath)).resolve() == paths.REPO.resolve()
+    this_repo = _this_repo(config)
     foreign = foreign_steering(config) if this_repo else []
+    foreign += [f for f in state.worker_foreign if f not in foreign]
     meta["foreign"] = foreign
     run = {
         "meta": meta,

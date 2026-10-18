@@ -217,6 +217,48 @@ def test_one_acceptance_by_the_controller(suite) -> None:
     assert len(_history(parallel_progress)) == 1
 
 
+CRASH = """
+import os
+from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.goal("rules")
+
+def test_a():
+    pass
+
+def test_crash(request):
+    mark = Path(os.environ["CRASH_MARK"])
+    if os.environ["CRASH_HOW"] == "always" or not mark.exists():
+        mark.touch()
+        os._exit(1)  # the worker dies mid-check
+
+def test_b():
+    pass
+
+def test_c():
+    pass
+"""
+
+
+@pytest.mark.parametrize("how", ["once", "always"])
+def test_a_dead_workers_check_fails_and_the_run_ends(suite, monkeypatch, how) -> None:
+    """Decision 14, as the build review's F1 measured it: no worker is restarted, the run ends
+    (bounded by a 120 s fail-safe, never a sleep), and the check that was running is `fail`,
+    "worker crashed", even if xdist would run it again elsewhere."""
+    (suite.path / "test_goals.py").write_text(CRASH)
+    (suite.path / "gaps.toml").write_text("")
+    monkeypatch.setenv("CRASH_MARK", str(suite.path / "crashed"))
+    monkeypatch.setenv("CRASH_HOW", how)
+    result, record = suite.run(f"crash-{how}", "-n", "2", "test_goals.py", timeout=120)
+    assert record is not None, result.stdout.str()[-3000:]
+    crash = record["checks"]["test_goals.py::test_crash"]
+    assert crash["status"] == "fail" and crash["reason"].startswith("worker crashed"), crash
+    assert result.ret != 0
+    assert record["meta"]["workers"] == 2
+
+
 # ---------------------------------------------------------------------------------------------
 # Criterion 3: workers write nothing and guard nothing
 
@@ -236,6 +278,7 @@ class _FakeConfig:
             "collectonly": False,
         }
         self.option = _Options(dist="no", tx=[], collectonly=False)
+        self.rootpath = tmp  # not this repository: no foreign check on the stand-in
         if worker:
             self.workerinput = {"workerid": "gw0"}
             self.workeroutput = {}
@@ -261,6 +304,7 @@ def test_a_worker_writes_nothing_and_hands_its_collection_over(tmp_path) -> None
         "deselected",
         "collected_files",
         "narrowed_files",
+        "foreign",  # what steered this worker (the build review, F2)
     }
     assert sorted(p.name for p in tmp_path.rglob("*")) == []
 
@@ -352,6 +396,7 @@ REFUSED = {
     "--rsyncdir": ["--rsyncdir", "tests"],
     "--rsyncignore": ["--rsyncignore", "x"],
     "--looponfail": ["-f"],
+    "--max-worker-restart": ["-n", "2", "--max-worker-restart", "1"],
 }
 
 

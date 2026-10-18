@@ -5,11 +5,12 @@ made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of 
 `bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
 reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`; and the run's
-`deselected`, `collected_files` and `suite`. A failure's reason is not compared: it may name a
+`deselected`, `collected_files`, `suite` and `meta.foreign` (what steered the run from outside
+the judge, which makes it red). A failure's reason is not compared: it may name a
 temporary path, and the statuses already decide. A pass's reason, its note, is not compared
 either: the plugin never compares a note, and one may print a fuel count, which carries the
 residual serial runs show (spec 035's zone-load check: 17 instructions in 8.7 million between a
-serial and a parallel run, the build's evidence). `meta` is never compared.
+serial and a parallel run, the build's evidence). The rest of `meta` is never compared.
 
     uv run python tests/harness/sameness.py A.json B.json
 
@@ -70,6 +71,9 @@ def differences(a: dict, b: dict) -> list[str]:
     for field in RUN_FIELDS:
         if a.get(field) != b.get(field):
             found.append(f"{field}: {a.get(field)!r} != {b.get(field)!r}")
+    fa, fb = (r.get("meta", {}).get("foreign") or [] for r in (a, b))
+    if sorted(fa) != sorted(fb):  # the one meta field that decides a verdict (build review, F2)
+        found.append(f"meta.foreign: {fa!r} != {fb!r}")
     return found
 
 
