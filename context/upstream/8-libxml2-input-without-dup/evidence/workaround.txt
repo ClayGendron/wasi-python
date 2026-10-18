@@ -1,0 +1,11 @@
+# guest (scratch 31265405): decode with Python's codec, parse as UTF-8; count of characters that differ from the input
+cp932 7395 6
+euc-jp 13010 2
+gb18030 56926 0
+big5 13706 0
+EXIT 0 FUEL 6452601556
+# native, the same program
+cp932 7395 6
+euc-jp 13010 2
+gb18030 56926 0
+big5 13706 0

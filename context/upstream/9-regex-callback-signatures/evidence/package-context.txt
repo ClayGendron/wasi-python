@@ -1,0 +1,16 @@
+# scratch python.wasm 31265405 (all 61 inittab entries wrapped in the package context; regex without the header)
+## names.py
+61 []
+EXIT 0 FUEL 5203841742
+## r2.py
+117 5dfc121b6135ce13 regex._regex regex._regex
+EXIT 0 FUEL 532551377
+## np.py
+{'x': 1, 'y': 2} 6 904 (1, 2)
+numpy.random._generator 8
+EXIT 0 FUEL 5031703841
+## np.py natively
+{'x': 1, 'y': 2} 6 904 (1, 2)
+numpy.random._generator 8
+## r2.py natively
+117 5dfc121b6135ce13 regex._regex regex._regex

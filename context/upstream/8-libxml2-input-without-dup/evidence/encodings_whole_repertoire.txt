@@ -1,0 +1,47 @@
+# guest: scratch python.wasm 312654058c3f6b72 (libxml2 2.15.4 + fix.patch, catalog default /etc/xml/catalog, -DNDEBUG, wasi-libc iconv with GB18030 refused at iconv_open by a link-time wrap)
+windows-1252 | parse 123/123 bad 0 | write bad 0 sha 11fcdbb6ed71
+iso-8859-2 | parse 96/96 bad 0 | write bad 0 sha 3f742bebbca3
+iso-8859-15 | parse 96/96 bad 0 | write bad 0 sha 680fc7d462a3
+cp1251 | parse 127/127 bad 0 | write bad 0 sha aeddde1ef3fe
+koi8-r | parse 128/128 bad 0 | write bad 0 sha 1d9eaa70ec32
+tis-620 | parse 87/87 bad 0 | write bad 0 sha a0105d61c2ba
+shift_jis | parse 6941/6944 bad 3 e.g. U+00A5,U+203E,U+FF3C | write bad 3 sha 4e792f506586 e.g. U+00A5,U+203E,U+FF3C
+cp932 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 37 (<str | write bad 460 sha 2c4c06cb25f9 e.g. U+00A2,U+00A3,U+00AC,U+2016
+euc-jp | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 38 (<str | write bad 6069 sha aa83972b2b9c e.g. U+00A1,U+00A4,U+00A5,U+00A6
+iso-2022-jp | parse 6880/6881 bad 1 e.g. U+FF3C | write bad 1 sha 963cc0734703 e.g. U+FF3C
+gbk | parse 21791/21791 bad 0 | write RAISES LookupError unknown encoding: 'gbk'
+gb18030 | parse RAISES XMLSyntaxError Unsupported encoding: gb18030, line 1, column 39 (<string>,  | write RAISES LookupError unknown encoding: 'gb18030'
+gb2312 | parse 7443/7445 bad 2 e.g. U+2015,U+30FB | write RAISES LookupError unknown encoding: 'gb2312'
+big5 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 36 (<str | write RAISES LookupError unknown encoding: 'big5'
+euc-kr | parse 8226/17048 bad 8822 e.g. U+AC02,U+AC03,U+AC05,U+AC06 | write RAISES LookupError unknown encoding: 'euc-kr'
+cp949 | parse 17048/17048 bad 0 | write RAISES LookupError unknown encoding: 'cp949'
+cp950 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 37 (<str | write RAISES LookupError unknown encoding: 'cp950'
+utf-16 | parse 56926/56926 bad 0 | write bad 0 sha 716351c8ebbd
+# guest without the GB18030 refusal (the review's run, scratch binary 958fa1f6...)
+gb18030 | parse 55309/56926 bad 1617 e.g. U+F900,U+F901,U+F902,U+F903 | write RAISES LookupError unknown encoding: 'gb18030'
+# native: lxml 6.1.3 wheel (libxml2 2.14.6, GNU libiconv 1.18)
+windows-1252 | parse 123/123 bad 0 | write bad 0 sha 11fcdbb6ed71
+iso-8859-2 | parse 96/96 bad 0 | write bad 0 sha 3f742bebbca3
+iso-8859-15 | parse 96/96 bad 0 | write bad 0 sha 680fc7d462a3
+cp1251 | parse 127/127 bad 0 | write bad 0 sha aeddde1ef3fe
+koi8-r | parse 128/128 bad 0 | write bad 0 sha 1d9eaa70ec32
+tis-620 | parse 87/87 bad 0 | write bad 0 sha a0105d61c2ba
+shift_jis | parse 6944/6944 bad 0 | write bad 2 sha ccf67a36af0a e.g. U+00A5,U+203E
+cp932 | parse 7389/7395 bad 6 e.g. U+2225,U+FF0D,U+FF5E,U+FFE0 | write bad 6 sha 8f60873b4781 e.g. U+00A2,U+00A3,U+00AC,U+2016
+euc-jp | parse 13008/13010 bad 2 e.g. U+00A5,U+203E | write bad 2 sha 98b43b3d2511 e.g. U+00A5,U+203E
+iso-2022-jp | parse 6881/6881 bad 0 | write bad 0 sha 333b138a767d
+gbk | parse 21791/21791 bad 0 | write bad 0 sha 1e701dd33f07
+gb18030 | parse 56925/56926 bad 1 e.g. U+1E3F | write bad 19 sha c9b8eb9dd891 e.g. U+1E3F,U+9FB4,U+9FB5,U+9FB6
+gb2312 | parse 7445/7445 bad 0 | write bad 0 sha a015f5b1ee1a
+big5 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 36 (<str | write bad 0 sha b8b7ba2b7d0b
+euc-kr | parse 8226/17048 bad 8822 e.g. U+AC02,U+AC03,U+AC05,U+AC06 | write RAISES UnicodeDecodeError 'euc_kr' codec can't decode byte 0xa4 in position 
+cp949 | parse 17048/17048 bad 0 | write bad 0 sha 66b1abc348e9
+cp950 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 37 (<str | write bad 1 sha 1c85cdff5d75 e.g. U+00A5
+utf-16 | parse 56926/56926 bad 0 | write bad 0 sha 716351c8ebbd
+# the silent mapping differences, character by character (guest)
+shift_jis U+00A5 5c -> U+005C
+shift_jis U+203E 7e -> U+007E
+shift_jis U+FF3C 815f -> U+005C
+iso-2022-jp U+FF3C 1b244221401b2842 -> U+005C
+gb2312 U+2015 a1aa -> U+2014
+gb2312 U+30FB a1a4 -> U+00B7

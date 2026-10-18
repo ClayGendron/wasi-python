@@ -14,10 +14,14 @@
 - **Checked** (EXECUTED): with `fix.patch`, `evidence/regex_probe.py` equals native byte for
   byte (`evidence/native.txt`, `evidence/guest.txt`), and `evidence/regex_five.py` prints
   native's five results. The patched file compiles with `-Wall` and no warning.
-- **The module name** (not part of the patch): before spec 047's header, `pickle.dumps` of a
-  compiled pattern raised `PicklingError: Can't pickle <built-in function compile>: No module
-  named '_regex'` in the guest, because the builtin kept the name `"_regex"`. A forced-include
-  header that names the module `regex._regex` when it is created fixed it; the pickled bytes
-  then equal native's (117 bytes, the same SHA-256, EXECUTED).
+- **The module name** (not part of the patch): without a fix, `pickle.dumps` of a compiled
+  pattern raised `PicklingError: Can't pickle <built-in function compile>: No module named
+  '_regex'` in the guest, because the builtin kept the name `"_regex"`. The draft fixed it with
+  a forced-include header; after the spec review (finding 3) spec 047 instead has
+  `scripts/gen_inittab.py` set CPython's package context around every builtin's init function,
+  as `_PyImport_RunModInitFunction` does for a shared library. EXECUTED on a scratch binary
+  whose inittab wraps all 61 builtins (no header): every dotted builtin's `__name__` equals its
+  import name, the pickled bytes equal native's (117 bytes, the same SHA-256), and numpy and
+  pandas give native's results.
 - **Tests upstream.** regex's CI has no WebAssembly job. The change alters no behaviour, so its
   existing tests cover it on every platform.

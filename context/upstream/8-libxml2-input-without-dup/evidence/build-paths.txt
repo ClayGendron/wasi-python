@@ -1,0 +1,19 @@
+# strings in each scratch python.wasm matching the scratch folder or the user's home (EXECUTED 2026-10-18)
+drafting binary (prefix 958fa1f6): 15
+<repo>/build/Python-3.15.0/Include/refcount.h
+<repo>/build/Python-3.15.0/Include/cpython/bytearrayobject.h
+<repo>/build/Python-3.15.0/Include/cpython/listobject.h
+<repo>/build/Python-3.15.0/Include/cpython/setobject.h
+<repo>/build/Python-3.15.0/Include/cpython/dictobject.h
+<repo>/build/Python-3.15.0/Include/cpython/floatobject.h
+<repo>/build/Python-3.15.0/Include/cpython/bytesobject.h
+<repo>/build/Python-3.15.0/Include/cpython/tupleobject.h
+<repo>/build/Python-3.15.0/Include/cpython/unicodeobject.h
+<repo>/build/Python-3.15.0/Include/cpython/methodobject.h
+<repo>/build/Python-3.15.0/Include/object.h
+<repo>/build/Python-3.15.0/Include/cpython/longintrepr.h
+file://<scratch>/b/xml2-inst/etc/xml/catalog
+<scratch>/b/lxml-6.1.3/src/lxml/objectify.c
+<scratch>/b/lxml-6.1.3/src/lxml/etree.c
+revised binary (prefix 31265405: XML_XML_DEFAULT_CATALOG and XML_SGML_DEFAULT_CATALOG set, -ffile-prefix-map for both folders, -DNDEBUG): 0
+today's build/artifacts/python.wasm: 0

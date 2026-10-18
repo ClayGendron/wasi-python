@@ -1,6 +1,10 @@
 # 047 — regex, built in
 
-- **Status:** drafted 2026-10-18. Not yet reviewed. It changes the build recipe and the artifact
+- **Status:** drafted 2026-10-18; revised the same day against its pre-build review
+  (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): the findings that concern it (3, 7,
+  9, 10) are written in, and the review's Disposition says where. Finding 3 replaced the
+  draft's forced-include header with a general fix in `scripts/gen_inittab.py`. Awaiting the
+  review's confirmation. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
   touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It
   carries one upstream patch (§4.1, to regex), so the review reads the patch and its facts sheet
@@ -8,8 +12,9 @@
 - **Owner:** Clay Gendron
 - **Kind:** the build recipe (one pin in `downloads/SHA256SUMS` and `scripts/00_download.sh`; a
   new step `scripts/steps/53_regex.sh`; `scripts/build.sh`, `scripts/steps/60_link.sh`,
-  `scripts/steps/70_zip.sh`, `scripts/assemble_artifacts.py`), one recipe file (a forced-include
-  header that names the module), one carried patch to regex with its upstream facts sheet,
+  `scripts/steps/70_zip.sh`, `scripts/assemble_artifacts.py`), `scripts/gen_inittab.py` (every
+  builtin's init function called inside CPython's package context), one carried patch to
+  regex with its upstream facts sheet,
   judge additions and changes (`tests/`: one golden job, the oracle's pin, a general v1.1 check
   on builtin module names, guest checks, the judge's package, licence and source-tree lists),
   the release workflow's tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
@@ -36,6 +41,14 @@
     with the patch, byte-for-byte equal output; each of the five trapping calls alone, without
     and with the patch; pickling a compiled pattern, without and with the module-name header;
     every dotted builtin's `__name__` on the scratch binary; plain-reactor fuel.
+  **The revision's runs** (EXECUTED 2026-10-18, after the pre-build review
+  `../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`, whose own runs are cited as "EXECUTED
+  by the review"): a scratch inittab, generated from today's `build/link/inittab.c` plus lxml's
+  and regex's entries, that calls each of the 61 init functions inside
+  `_PyImport_SwapPackageContext`, compiled with `-DPy_BUILD_CORE_BUILTIN` and linked in place of
+  `Modules/inittab.o`, with regex built without the header
+  (`../upstream/9-regex-callback-signatures/evidence/package-context.txt`); `-DNDEBUG` and
+  `-ffile-prefix-map` builds; fuel through the judge's seeded guest (`tests/harness/guest.py`).
 
 ## The problem
 
@@ -61,9 +74,9 @@ name `_regex`, so pickling a compiled pattern looks for a top-level `_regex` and
 2. **Step 53: regex** (`scripts/steps/53_regex.sh`, new, after step 50, needing steps 10 and 20).
    - It unpacks `regex-2026.9.29` from `pinned …` into `build/`, runs `patch_tree` (one patch,
      Decision 3), and compiles `src/_regex.c` and `src/_regex_unicode.c` through
-     `scripts/wasi-cc` with `-O2 -ffile-prefix-map=$HERE=/wasi-python-build`, CPython's
-     `Include` and the cross-build folder's `pyconfig.h`, and, for `_regex.c` only,
-     `-include $HERE/recipes/regex_module_name.h` (Decision 4). regex's `setup.py` adds one
+     `scripts/wasi-cc` with `-O2 -DNDEBUG -ffile-prefix-map=$HERE=/wasi-python-build` (no
+     build path in the binary: spec 046's Decision 3 and its v1.1 check; EXECUTED, `strings`
+     finds none), CPython's `Include` and the cross-build folder's `pyconfig.h`. regex's `setup.py` adds one
      macro, `Py_GIL_DISABLED`, and only on a free-threaded build (READ); the line's CPython is
      not one, so no macro is added.
    - It then calls `scripts/wasi-cc -shared -o build/regex-build/regex/_regex.cpython-315-wasm32-wasi.so`
@@ -97,24 +110,54 @@ name `_regex`, so pickling a compiled pattern looks for a top-level `_regex` and
    - The facts sheet follows question 80's recommendation; regex's repository names no rule on
      AI-written changes, and the owner decides whether and how to send it.
 
-4. **The module's name: a recipe header, `recipes/regex_module_name.h`.** CPython gives a
-   module loaded from a shared library the full dotted name through its package context, but
-   gives a builtin none (`Python/importdl.c`, `_Py_ext_module_loader_info_init_for_builtin`,
-   `.newcontext=NULL`, READ in the line's CPython 3.15.0). regex's module is single-phase and
-   created as `"_regex"` (`PyModule_Create(&regex_module)`, `m_name = "_regex"`), so as a
-   builtin its `__name__`, and every function's `__module__`, stay `_regex`, and pickling a
-   compiled pattern fails with `PicklingError: … No module named '_regex'` (EXECUTED). The
-   header includes `Python.h`, then redefines `PyModule_Create(def)` to set `def->m_name` to
-   `"regex._regex"` before calling `PyModule_Create2`, which is what the package context does
-   for the native extension. It is forced into `_regex.c` alone. EXECUTED: with it,
-   `regex._regex.__name__` and `regex._regex.compile.__module__` are `regex._regex`, and
-   `pickle.dumps(regex.compile(r"(?P<a>\w)+", regex.I), protocol=5)` gives the same 117 bytes as
-   native (equal SHA-256).
-   - **No other builtin has this problem today:** on the scratch binary, every one of the 61
-     dotted builtins (numpy's, pandas', lxml's, regex's) imports under a `__name__` equal to its
-     import name, once the header is in; without it, `regex._regex` is the one exception
-     (EXECUTED). numpy, pandas and lxml use multi-phase initialisation, which takes the name
-     from the import. A general v1.1 check holds this for every later package (Decision 7).
+4. **The module's name: every builtin is initialised inside the package context, by
+   `scripts/gen_inittab.py`** (the review's finding 3; the draft's forced-include header is
+   dropped). CPython gives a module loaded from a shared library its full dotted name through
+   the package context, and gives a builtin none: `_PyImport_RunModInitFunction` swaps the
+   context in around the init call (`Python/importdl.c:435-437`), and
+   `_Py_ext_module_loader_info_init_for_builtin` sets `.newcontext=NULL` (`importdl.c:173`;
+   READ in the line's CPython 3.15.0). A single-phase module then keeps its short `m_name`
+   (`PyModule_Create2` resolves the name through `_PyImport_ResolveNameWithPackageContext`,
+   `import.c:911-921`, `moduleobject.c:363`). regex's module is single-phase, created as
+   `"_regex"`, so as a builtin its `__name__` and every function's `__module__` stay `_regex`,
+   and pickling a compiled pattern fails with `PicklingError: … No module named '_regex'`
+   (EXECUTED).
+   - **The fix, general and in our own generated code.** `gen_inittab.py` writes, for each
+     entry, a static wrapper
+     `static PyObject *ctx_N(void) { const char *old = _PyImport_SwapPackageContext("regex._regex");
+     PyObject *m = PyInit__regex(); _PyImport_SwapPackageContext(old); return m; }` and
+     registers the wrapper, not the init function, with `PyImport_AppendInittab`. That is what a
+     native import does. The generated file declares the one internal function itself (`extern
+     const char *_PyImport_SwapPackageContext(const char *);`, the declaration of
+     `Include/internal/pycore_import.h:77`); step 60 stops with one line if the pinned header no
+     longer declares it so. `inittab.c` is already compiled with `PY_BUILTIN_MODULE_CFLAGS`
+     (`-DPy_BUILD_CORE_BUILTIN`, READ in the cross-build `Makefile`). It is a change to a script
+     of ours, not a patch.
+   - **What it does to each kind of module.** Multi-phase modules (numpy's, pandas', lxml's,
+     every Cython and pybind11 module, Pillow's and kiwisolver's) return a definition, not a
+     module; the context is never read and is restored before their exec runs, so nothing
+     changes. Single-phase modules whose `m_name` equals the last part of their import name
+     take the dotted name, exactly as natively: regex's `_regex`, and, once spec 037 lands,
+     scipy's f2py modules (numpy 2.5.2's f2py template calls `PyModule_Create(&moduledef)` with
+     the module's own name, `numpy/f2py/rules.py:257`, READ by the review: `_fblas`, `_flapack`
+     and the rest) and scipy's hand-written single-phase modules (`integrate/__quadpack.h`,
+     `_lib/_uarray/_uarray_dispatch.cxx`; `odr/__odrpack.c` is not built, spec 037 Decision 9).
+     A single-phase module whose `m_name` differs from its import name's last part keeps its
+     short name (CPython's own rule), and the check below names it. The context is cleared by
+     the first `PyModule_Create` that uses it, so a submodule an init function creates keeps its
+     own name, as natively. The generated names come from the same table as the inittab, spec
+     037's rename table for `PyInit_scipy__cyutility` included.
+   - **EXECUTED** on a scratch binary whose inittab wraps all 61 builtins (numpy's 13, pandas'
+     45, lxml's 2, regex's 1) and whose regex has no header: every dotted builtin imports with
+     `__name__` equal to its import name; `regex._regex.__name__` and
+     `regex._regex.compile.__module__` are `regex._regex`; `pickle.dumps(regex.compile(r"(?P<a>\w)+",
+     regex.I), protocol=5)` gives the same 117 bytes as native (equal SHA-256); a pandas
+     groupby, a numpy sum, a pickled DataFrame's length, `read_csv` and a seeded
+     `default_rng` give native's results
+     (`../upstream/9-regex-callback-signatures/evidence/package-context.txt`). The snapshot was
+     not rebuilt with it; the build runs the check on both binaries.
+   - Without the fix, today's 58 dotted builtins already keep their names (EXECUTED by the
+     review); regex would be the first exception, and scipy's single-phase modules the next.
 
 5. **Step 60 and step 70.** Step 60's package loop and its `gen_inittab.py` call gain
    `regex:"$B/regex-build"` and `regex=$B/regex-build`. Step 70 gains `--tree
@@ -148,9 +191,21 @@ name `_regex`, so pickling a compiled pattern looks for a top-level `_regex` and
      without the patch it traps (Decision 3).
    - **v1.1, `test_dotted_builtins_keep_their_import_names`** (both binaries): for every name in
      `sys.builtin_module_names` that contains a dot, the imported module's `__name__` equals it.
-     It passes on today's set (numpy's and pandas' builtins) and fails on a build without
-     Decision 4's header with exactly `[('regex._regex', '_regex')]` (EXECUTED on the scratch
-     binaries). It is general: a later single-phase package is caught the same way.
+     It passes on today's set (numpy's and pandas' builtins) and fails on a build with regex
+     and without Decision 4's wrappers with exactly `[('regex._regex', '_regex')]` (EXECUTED on
+     the scratch binaries). It is general: a later single-phase package is caught the same way.
+     **Its cost** (the review's finding 10): importing every dotted builtin took 5,016,014,720
+     fuel on today's plain reactor and 104,839,431 on the snapshot (EXECUTED by the review),
+     about 5.2 G on the scratch plain binary with lxml and regex (EXECUTED). scipy adds about
+     85 builtins whose imports pull most of scipy. So the check runs once per judge run on each
+     binary (it is one program, not one per module), with a fuel budget of 20 G on the plain
+     binary and 10 G on the snapshot; the build records the real figures, and a figure above
+     half its budget is a finding for the build review. If scipy pushes the plain run past its
+     budget, the plain case is split into one run per top-level package, never narrowed to
+     fewer modules.
+   - **A unit check** on `gen_inittab.py` (no artifacts, seen failing before the change): the
+     generated file registers a wrapper for every entry, each wrapper names its entry's dotted
+     name, and no entry registers its init function directly.
    - **v1.1, `test_regex_is_builtin_at_manifest_version`** (both binaries): `regex._regex` is in
      `sys.builtin_module_names` and `regex.__version__` equals `MANIFEST`'s regex line.
    - **v1.3, `tests/checks/test_v1_3_regex.py`** (both binaries, nothing writable): the five
@@ -165,17 +220,21 @@ name `_regex`, so pickling a compiled pattern looks for a top-level `_regex` and
 
 8. **What the set costs, so growth can be told from regression** (EXECUTED on the scratch
    build; the build measures each again and records it).
-   - `python.wasm`: +715,730 bytes (31,760,992 to 32,476,722 with regex alone), +2.25%
-     (Pyodide's `.so` is 0.66 MB, INFERRED comparable). A growth outside 0.6 to 0.85 MB is a
-     finding for the build review.
+   - `python.wasm`: +713,905 bytes (31,760,992 to 32,474,897 with regex alone, `-DNDEBUG`),
+     +2.25% (Pyodide's `.so` is 0.66 MB, INFERRED comparable). A growth outside 0.6 to 0.85 MB
+     is a finding for the build review.
    - The snapshot: about the same bytes (not pre-imported).
    - The zip: +4 members (three modules and `METADATA`), about 90 KB deflated (88,301 bytes of
      compressed data for the three modules in the scratch zip).
-   - Plain `-c pass`: one more inittab entry and four members, measured by the build (spec
-     046's scratch build measured +447,981 fuel for both specifications' three builtins
-     together).
-   - `import regex` on the plain reactor: 480,810,420 fuel against 256,076,439 for `-c pass`
-     with the same scratch zip (about +225 M). The build records it on both binaries.
+   - **Fuel, through the judge's seeded guest** (`tests/harness/guest.py`, exact from run to
+     run; the review's finding 7 showed an unseeded `-c pass` spreads by about 500,000):
+     plain `-c pass` with today's zip is 242,002,526 on today's binary and 242,032,305 on the
+     revised scratch binary (+29,779 for both specifications' three builtins and the 61
+     wrappers together, EXECUTED twice, identical). The four new members add their
+     per-member cost on top, measured by the judge's ratchet at build time.
+   - `import regex` on the plain reactor through the same guest: 483,392,295 fuel against
+     255,861,559 for `-c pass` with the same scratch zip (+227.5 M). The build records it on
+     both binaries.
 
 9. **Ordering and shared files.** Build-class, so it overlaps no other build-class change
    (§5.7). It needs nothing from scipy; decision 48 places it after scipy, and question 82 asks
@@ -185,12 +244,28 @@ name `_regex`, so pickling a compiled pattern looks for a top-level `_regex` and
    It shares those files with 023, 033, 037 and 039 as well; each is rebased onto main as it is
    when the builder starts. Once spec 040 has landed, the x86_64 rebuild must give the same
    bytes too.
+   - **The condition with scipy (037 and 038), on whichever lands second** (the review's
+     finding 3). If 047 lands first, 037's builder meets `test_dotted_builtins_keep_their_import_names`
+     with scipy's modules in it: the wrappers name scipy's single-phase modules as natively, so
+     the check must be green with all of scipy's builtins, and any module it still names (an
+     `m_name` that is not the last part of its import name) is fixed in 037 by a rename-table
+     entry or a recipe, never by an exemption in the check. If 037 lands first, 047's builder
+     must make the check green over scipy's builtins too, and records each scipy module the
+     wrappers renamed. Either way 038 lands only with the check green. Spec 037's text is not
+     amended here; its builder reads this condition, and the landing notes of whichever lands
+     second record it.
 
 10. **Licence** (§4.12; approved by decision 43: Apache-2.0 AND CNRI-Python). `LICENSES/regex.txt`
     is the sdist's `LICENSE.txt` (the Apache License 2.0, headed by regex's statement that it
-    derives from CPython's `re` module under CNRI's Python 1.6 licence). The CNRI licence's text
-    is already in `LICENSES/cpython.txt` (CPython's `LICENSE`), which the README's licence line
-    names. `MANIFEST` gains `regex 2026.9.29`, its pin, the header recipe and the patch by hash.
+    derives from CPython's `re` module under CNRI's Python 1.6 licence), and then one line, as
+    Apache-2.0 §4(b) asks of a modified file (the review's finding 9): "This build modifies
+    src/_regex.c with recipes/patches/regex-2026.9.29/0001-callback-signatures.patch (five
+    callbacks gain the parameter CPython passes); the module is otherwise compiled as
+    released." The release ships `_regex.c` only as object code, so the duty is arguable; the
+    line costs nothing. `assemble_artifacts.py` writes it from the patch's path, so the line
+    and the patch cannot drift. The CNRI licence's text is already in `LICENSES/cpython.txt`
+    (CPython's `LICENSE`, EXECUTED: it holds "CNRI LICENSE AGREEMENT"), which the README's
+    licence line names. `MANIFEST` gains `regex 2026.9.29`, its pin and the patch by hash.
 
 ## Intent
 
@@ -206,7 +281,7 @@ WebAssembly defect carried as a recorded, temporary patch.
 | `scripts/steps/53_regex.sh` | new: the archive into `build/regex-build/`, the package into `build/regex-install/` (Decision 2) |
 | `recipes/patches/regex-2026.9.29/0001-callback-signatures.patch` | new (Decision 3) |
 | `context/upstream/patches/regex-2026.9.29/0001-callback-signatures.md`, `context/upstream/README.md` | the facts sheet, moved from `../upstream/9-regex-callback-signatures/pr.md`; its row |
-| `recipes/regex_module_name.h` | new: the module's dotted name (Decision 4) |
+| `scripts/gen_inittab.py` | each entry registered through a wrapper that sets the package context (Decision 4) |
 | `scripts/build.sh`, `scripts/steps/60_link.sh`, `scripts/steps/70_zip.sh` | the step in `ALL`; regex in the link and the inittab; the tree and its metadata in the zip (Decision 5) |
 | `scripts/assemble_artifacts.py`, `LICENSES/regex.txt` | the package and its notice (Decision 10) |
 | `tests/jobs/regex_features.py`, `regex_features.expected`, `tests/jobs/oracle/pyproject.toml`, `uv.lock`, `tests/harness/jobs.py` | the golden job and the oracle's regex (Decision 7) |
@@ -225,11 +300,12 @@ regex in the snapshot; regex's own test suite under the runtime (hardening).
 
 1. **The checks exist and were seen failing first:** the golden job, the two v1.1 checks and the
    v1.3 checks on the set the builder starts from (no regex; the module-name check passes there
-   and is seen failing on a build without the header); the five calls trapping on a build
+   and is seen failing on a build with regex and without the wrappers); the unit check on
+   `gen_inittab.py` before its change; the five calls trapping on a build
    without the patch; the patched-tree check on a tree without the patch.
 2. **The build.** From an empty `build/` in a clean clone, `scripts/build.sh` applies the patch
    with no offset, builds step 53, links `regex._regex` with no clash, and makes a set whose
-   binaries pass the checks and match the golden. `MANIFEST` names the pin, the header and the
+   binaries pass the checks and match the golden. `MANIFEST` names the pin and the
    patch. Steps 53 to 90 run twice give the same `SHA256SUMS`.
 3. **The same bytes everywhere** (spec 012): the arm64 Linux rebuild gives macOS's `SHA256SUMS`;
    once spec 040 has landed, so does x86_64 Linux.

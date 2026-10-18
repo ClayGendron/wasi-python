@@ -349,6 +349,77 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
+By the author, 2026-10-18. Every finding is fixed in the text; nothing is answered by
+disagreement. The revision's own runs (EXECUTED in the drafting scratch folder, `ctx/` and
+`art5/`) are on a scratch binary, SHA-256 `31265405…`, built with every change below; the
+lxml and regex probes on it are unchanged from the drafting runs.
+
+1. **Fixed** (046 Decision 3; Decision 10; Acceptance 1). libxml2's `CFLAGS` gain
+   `-DXML_XML_DEFAULT_CATALOG='"file:///etc/xml/catalog"'` and
+   `-DXML_SGML_DEFAULT_CATALOG='"file:///etc/sgml/catalog"'`. The revision also found twelve
+   CPython header paths from `assert`'s `__FILE__` in the drafting binary, so lxml's and regex's
+   compiles gain `-DNDEBUG` (with `-ffile-prefix-map` as before). EXECUTED: the drafting binary
+   holds 15 build paths, the revised one 0, today's 0
+   (`../upstream/8-libxml2-input-without-dup/evidence/build-paths.txt`). New v1.1 check
+   `test_binaries_hold_no_build_path` (both binaries; `str(paths.REPO)` and the home folder),
+   seen failing on the drafting binary. The README says a catalog is read only from a grant at
+   `/etc/xml`.
+2. **Fixed** (046 Decision 9, rewritten; Decision 10's golden and encodings case; README row).
+   The table is now the whole-repertoire run, by row, with each partial encoding and what
+   fails, and the three "read as another character" rows explained character by character
+   (`evidence/enc_which.py`: 0x5C/0x7E conventions, GB2312 `A1 AA`/`A1 A4`). The golden's set is
+   the first row, plus GBK and cp949 for parsing. The v1.3 case asserts each row's
+   whole-repertoire outcome (31 G fuel, so once, on the snapshot, `slow`, 40 G budget). The
+   README workaround (decode with Python, parse as UTF-8) gives native's results over cp932,
+   EUC-JP, GB18030 and Big5 (EXECUTED, `evidence/workaround.txt`). **GB18030 now fails
+   loudly:** `recipes/iconv_refusals.c` wraps `iconv_open` (`-Wl,--wrap=iconv_open` on the
+   reactor's link, beside its four existing wraps) and refuses GB18030; EXECUTED: the document
+   raises `XMLSyntaxError: Unsupported encoding: gb18030` and every other row is unchanged
+   (`evidence/encodings_whole_repertoire.txt`). A wasi-libc report is question 82(d).
+3. **Fixed, the preferred way** (047 Decision 4, rewritten; Decisions 2, 7, 9; Kind; Design).
+   `gen_inittab.py` registers each builtin through a wrapper that calls its init function inside
+   `_PyImport_SwapPackageContext`, as `_PyImport_RunModInitFunction` does; the header is gone.
+   EXECUTED on a scratch binary wrapping all 61 builtins, regex without the header: every dotted
+   builtin keeps its import name, the regex pickle equals native's (117 bytes, same SHA-256),
+   numpy and pandas give native's results (`../upstream/9-regex-callback-signatures/evidence/package-context.txt`).
+   Decision 4 says what it does to multi-phase modules (nothing), to numpy's f2py template and
+   scipy's hand-written single-phase modules (the dotted name, as natively, when `m_name` is the
+   last part), and what the check names otherwise. Decision 9 writes the condition on whichever
+   of 047 and 037/038 lands second: the check green over all of scipy's builtins, fixed in 037
+   by a rename entry or recipe, never an exemption; 038 lands only with it green. A unit check
+   covers the generator.
+4. **Fixed** (046 Decision 4; facts sheet `notes.md` and `pr.md`). Both forms are named; the
+   patch is chosen because the counting header would change two libc calls' meaning inside
+   upstream's file invisibly and add bookkeeping upstream never carries, while the patch is as
+   small, visible, upstreamable and deletable (043's review's reasoning). `pr.md` now says the
+   `owned` flag covers only the uncompressed path, and that with zlib the compression branch
+   would hand standard output to `gzdopen` and its failure path closes it.
+5. **Fixed** (046 Decision 7; Decision 10's safety case; README row). Decision 7 says that an
+   untrusted stylesheet, or a document it loads, can read any granted file, external entities
+   included (libxslt's `XSLT_PARSE_OPTIONS`), and write any writable grant; `DENY_ALL` or
+   `read_file=False` closes it; `read_xml(stylesheet=…)` uses no access control. The v1.3 case
+   holds the entity read without access control and its refusal with `DENY_ALL` and with
+   `read_file=False`.
+6. **Fixed** (046 Decision 15). `libxml2.txt` gains `list.c`'s notice; `assemble_artifacts.py`
+   stops the build if a named file or its notice is missing.
+7. **Fixed** (046 Decision 11, 047 Decision 8, Acceptance 5 of both). Every fuel number is now
+   from the judge's seeded guest (`tests/harness/guest.py`), EXECUTED twice, identical:
+   `-c pass` 242,002,526 today and 242,032,305 on the revised binary (+29,779 for both
+   specifications); `import lxml.etree` 558,497,299, `import lxml.html` 643,313,348,
+   `import regex` 483,392,295 against 255,861,559 for `-c pass` with the scratch zip. The
+   per-member cost of the new zip members is left to the ratchet at build time.
+8. **Fixed** (046 Decision 3). `PKG_CONFIG=false` makes libxml2's configure stop ("pkg-config
+   not found", EXECUTED), so both configures get an empty `PKG_CONFIG_LIBDIR` and
+   `PKG_CONFIG_PATH` instead; EXECUTED: configure passes and `config.h` is unchanged but for
+   `XML_SYSCONFDIR`. Once 023 lands, its pinned `pkgconf` replaces the host's.
+9. **Fixed** (047 Decision 10). `LICENSES/regex.txt` ends with a line naming the carried patch,
+   written by `assemble_artifacts.py` from the patch's path.
+10. **Fixed** (047 Decision 7). The check's cost is stated (5.0 G plain and 0.105 G snapshot
+    today, by the review; about 5.2 G plain with lxml and regex, EXECUTED); it runs once per
+    judge run on each binary with budgets of 20 G plain and 10 G snapshot, a figure above half
+    the budget is a finding, and past the budget the plain case is split by top-level package,
+    never narrowed.
+
 
 ## Verdict
 

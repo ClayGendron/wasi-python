@@ -7,11 +7,18 @@
   (`context/prior_art/boomslang/cpython/lxml-wasi/libxml2-wasi-no-dup.patch`, Apache-2.0,
   studied, not copied). This change was written from libxml2's own source: it reuses libxml2's
   `xmlFdFree` instead of adding a function, and covers standard output as well.
-- **A recipe was weighed first** (§4.1 prefers one). A forced-include header could declare
-  `dup` and a recipe C file define it, but WASI preview 1 cannot copy a descriptor, so any
-  stand-in `dup` would either fail (and every file read by name with it) or return the same
-  number, which the opener closes at once. Redefining `close` for the one file to count
-  references would be a hidden source change. The patch is the smaller, honest change.
+- **A recipe was weighed first** (§4.1 prefers one), and one is possible. WASI preview 1 cannot
+  copy a descriptor, so a stand-in `dup` alone would either fail (and every file read by name
+  with it) or return the same number, which the opener closes at once. But a forced-include
+  header for `xmlIO.c` alone that maps both `dup` and `close` to a small reference-counting pair
+  compiles the pristine file without a warning and would give the same ownership at all three
+  sites (the spec review's `shim/` sketch, compiled, not run). **Why the patch anyway:** that
+  header changes what two libc calls mean inside upstream's file without one line of the file
+  showing it, so a reader of `xmlIO.c` and a reviewer of the patch list both miss it, and it
+  adds descriptor bookkeeping of our own that upstream will never carry or test. The patch is
+  the same size, is visible in `recipes/patches/`, says what it does in libxml2's own terms
+  (reusing `xmlFdFree`), can go upstream as it is, and is deleted when upstream takes it. This
+  is the reasoning spec 043's review accepted for its forced headers.
 - **Seen failing first:** `make libxml2.la` on the pristine 2.15.4 tree stops on two `dup`
   calls (`evidence/unpatched-build.txt`). With `fix.patch` applied the build gives no warning
   (the first draft left `copy` unused on WASI, one warning; the change now assigns it).

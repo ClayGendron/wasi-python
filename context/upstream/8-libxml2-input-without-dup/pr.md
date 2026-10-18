@@ -77,10 +77,14 @@ natively in `native.txt`):
 - writing to a path, and to `-` (standard output), give the native bytes, and standard output
   stays usable after the write.
 
-**What it does not cover.** With `--with-zlib`, the decompression branch of `xmlInputFromFd`
-still calls `dup` (it hands the copy to `gzdopen`, which closes it), so a WASI build with zlib
-still does not compile. Our build has no zlib (lxml falls back to Python's `gzip` for compressed
-output). The 2.15 news lists zlib file I/O as a removal candidate; a merge request may say so.
+**What it does not cover.** The change is for builds without zlib, which is ours (lxml falls
+back to Python's `gzip` for compressed output). With `--with-zlib` on WASI two things remain:
+the decompression branch of `xmlInputFromFd` still calls `dup` (it hands the copy to `gzdopen`,
+which closes it), so the build still does not compile; and in `xmlOutputDefaultOpen`, the
+compression branch would hand `STDOUT_FILENO` to `gzdopen` for `"-"`, whose `gzclose` closes
+it, and that branch's failure path calls `close(fd)` whatever the `owned` flag says. The flag
+covers only the uncompressed path. The 2.15 news lists zlib file I/O as a removal candidate; a
+merge request may say so, or extend the flag to the compression branch.
 
 **A form upstream may prefer.** The default opener could hand its descriptor to the buffer on
 every platform, dropping one `dup` and one `close` per opened file; only `xmlInputFromFd`

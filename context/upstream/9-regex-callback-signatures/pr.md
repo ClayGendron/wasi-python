@@ -70,5 +70,6 @@ calls give native's results (`evidence/regex_five.py`).
 **One more thing we found, which is ours, not regex's.** In this project regex's module is
 linked into the interpreter as a builtin. CPython gives a builtin no package context, so a
 single-phase module created as `"_regex"` keeps that name, and pickle then looks for a
-top-level `_regex`. We fix that in our build with a header, not in regex's source; it needs
-nothing from upstream.
+top-level `_regex`. We fix that in our own build, for every builtin at once: the generated
+inittab sets the package context around each init function, as CPython does when it loads a
+shared library. It needs nothing from upstream.

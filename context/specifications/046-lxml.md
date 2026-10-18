@@ -1,6 +1,9 @@
 # 046 — lxml, with libxml2 and libxslt built in
 
-- **Status:** drafted 2026-10-18. Not yet reviewed. It changes the build recipe and the artifact
+- **Status:** drafted 2026-10-18; revised the same day against its pre-build review
+  (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): all ten findings that concern it
+  (1, 2, 4 to 8) are written in, and the review's Disposition says where. Awaiting the review's
+  confirmation. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
   touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It
   carries one upstream patch (§4.1, to libxml2), so the review reads the patch and its facts
@@ -9,7 +12,8 @@
 - **Kind:** the build recipe (three pins in `downloads/SHA256SUMS` and `scripts/00_download.sh`;
   two new steps, `scripts/steps/36_xml_libs.sh` and `scripts/steps/54_lxml.sh`;
   `scripts/build.sh`, `scripts/steps/60_link.sh`, `scripts/steps/70_zip.sh`,
-  `scripts/assemble_artifacts.py`), one recipe file (the `lxml.isoschematron` stand-in), one
+  `scripts/assemble_artifacts.py`), two recipe files (the `lxml.isoschematron` stand-in and the
+  `iconv_open` guard that refuses GB18030), one
   carried patch to libxml2 with its upstream facts sheet, the reactor's `-V` sentence, judge
   additions and changes (`tests/`: one golden job, the oracle's pin, guest checks, the judge's
   package, licence and source-tree lists), the release workflow's tree count, `README.md`,
@@ -48,6 +52,15 @@
     reading and writing a `.docx` in the guest; the constructor list read from both binaries'
     name sections; plain-reactor fuel for `-c pass` and for imports, with the added modules
     compiled to bytecode by the line's host Python.
+  **The revision's runs** (EXECUTED 2026-10-18, same scratch folder, after the pre-build review
+  `../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`, whose own runs are cited as "EXECUTED
+  by the review"): libxml2 rebuilt with the two catalog defines and an empty pkg-config search
+  path; lxml and regex recompiled with `-DNDEBUG` and `-ffile-prefix-map`; a scratch binary
+  (SHA-256 `31265405…`) linked with spec 047's package-context inittab for all 61 builtins and
+  the GB18030 guard with `-Wl,--wrap=iconv_open`; on it, `strings` for build paths, the
+  review's whole-repertoire encodings program, the README workaround, the lxml and regex probes
+  again (unchanged), and `-c pass` and import fuel through the judge's seeded guest
+  (`tests/harness/guest.py`).
 
 ## The problem
 
@@ -119,8 +132,11 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      `patch_tree` on each (libxml2 has one patch, Decision 4; libxslt none), and builds in
      `build/libxml2-build` and `build/libxslt-build`, installing into `build/xml-libs/`.
    - **libxml2's configure line:** `CC="$SDK/bin/clang --target=wasm32-wasip1"`, the SDK's
-     `llvm-ar` and `llvm-ranlib`, `CFLAGS="-O2 -DLIBXML_STATIC
-     -ffile-prefix-map=$HERE=/wasi-python-build"`, `--host=wasm32-unknown-wasip1
+     `llvm-ar` and `llvm-ranlib`, `CFLAGS="-O2 -DNDEBUG -DLIBXML_STATIC
+     -DXML_XML_DEFAULT_CATALOG='\"file:///etc/xml/catalog\"'
+     -DXML_SGML_DEFAULT_CATALOG='\"file:///etc/sgml/catalog\"'
+     -ffile-prefix-map=$HERE=/wasi-python-build"`, `PKG_CONFIG_LIBDIR=$B/no-pkg-config` (an empty
+     folder) and `PKG_CONFIG_PATH=` (empty), `--host=wasm32-unknown-wasip1
      --prefix=$B/xml-libs --disable-shared --enable-static --without-python --without-threads
      --without-modules --without-zlib --with-schematron`. Then `make libxml2.la` and `make
      install-libLTLIBRARIES install-data` (the library and its headers; no `xmllint`, no
@@ -149,8 +165,33 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
        inittab's own entry). This matters for 023's constructor check and for the snapshot.
      - HTTP: libxml2 2.15 removed its HTTP client (its news); nothing in the guest can open a
        socket anyway.
-   - **libxslt's configure line:** the same `CC`, tools and `CFLAGS` (with `-DLIBXSLT_STATIC
-     -DLIBEXSLT_STATIC` in place of `-DLIBXML_STATIC`), `LIBXML_CFLAGS=-I$B/xml-libs/include/libxml2`
+     - **The default catalog path** (the review's finding 1). `catalog.c:57-58` builds
+       `XML_XML_DEFAULT_CATALOG` from `XML_SYSCONFDIR`, which configure sets from
+       `$prefix/etc`, so with `--prefix=$B/xml-libs` the build folder's path was compiled into
+       the binary (EXECUTED: the drafting binary held
+       `file://<scratch>/b/xml2-inst/etc/xml/catalog`, so no two checkouts could give the same
+       bytes, and a catalog lookup in the guest would have tried the builder's path). Both
+       defaults are set to native Linux's values, which `catalog.c` honours under `#ifndef`.
+       EXECUTED: with the two defines, `libxml2.a` and the relinked scratch binary hold no
+       scratch or home path, and `file:///etc/xml/catalog` instead. In the guest a catalog is
+       read only if the embedder grants a folder at `/etc/xml` (or sets `XML_CATALOG_FILES` in
+       the guest's environment); the README says so. A judge check holds the rule for every
+       package (Decision 10).
+     - `-DNDEBUG`, as CPython's own modules and pandas' release build are compiled: without
+       it, `assert` keeps `__FILE__` strings (EXECUTED: the drafting binary also held twelve
+       CPython header paths from asserts in lxml's and regex's compiles).
+     - **pkg-config** (the review's finding 8): configure looks for one and requires it to
+       exist (EXECUTED: `PKG_CONFIG=false` makes libxml2's configure stop with "pkg-config not
+       found"), and the drafting runs found the build host's (`/opt/homebrew/bin/pkg-config`).
+       Nothing is queried through it with zlib, ICU and libgcrypt off and libxslt given
+       `LIBXML_CFLAGS` and `LIBXML_LIBS`, but an empty `PKG_CONFIG_LIBDIR` and `PKG_CONFIG_PATH`
+       make sure no host `.pc` file can ever answer (EXECUTED: configure passes, and
+       `config.h` is unchanged but for `XML_SYSCONFDIR`). Once spec 023 has landed, its pinned
+       `pkgconf` is passed as `PKG_CONFIG` instead of the host's; the empty search path stays.
+   - **libxslt's configure line:** the same `CC`, tools, pkg-config variables and `CFLAGS` (with
+     `-DLIBXSLT_STATIC -DLIBEXSLT_STATIC` in place of `-DLIBXML_STATIC` and the two catalog
+     defines; libxslt compiles no host path, EXECUTED: `strings` finds none in `libxslt.a` or
+     `libexslt.a`), `LIBXML_CFLAGS=-I$B/xml-libs/include/libxml2`
      and `LIBXML_LIBS="-L$B/xml-libs/lib -lxml2"` on the configure command line,
      `--host=wasm32-unknown-wasip1 --prefix=$B/xml-libs --disable-shared --enable-static
      --without-python --without-crypto`. Then `make -C libxslt`, `make -C libexslt` and their
@@ -163,7 +204,8 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      `libxml2.a` 1,554,346 bytes, `libxslt.a` 281,986, `libexslt.a` 83,844.
    - **Host facts.** Both configures run the build host's `sh`, `sed`, `grep` and `awk`, as xz's
      does in step 35 (spec 007's A2); the same-bytes gate is what shows they leave the archives
-     alone (Decision 11). Both tarballs are `.tar.xz`; every build host already unpacks
+     alone (Acceptance, criterion 3), and the v1.1 build-path check (Decision 10) shows no host
+     folder reached the binary. Both tarballs are `.tar.xz`; every build host already unpacks
      CPython's `.tar.xz` in step 20.
 
 4. **One carried patch to libxml2: files without `dup()` on WASI** (§4.1, spec 020's
@@ -176,10 +218,20 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
    `../upstream/8-libxml2-input-without-dup/` (`pr.md`, `fix.patch`, `notes.md`, `evidence/`) and
    moves at build time to `../upstream/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.md`,
    with `fix.patch` copied byte for byte into `recipes/patches/`.
-   - **Why a patch and not a recipe** (§4.1 prefers a recipe): a stand-in `dup` cannot be
-     honest, because WASI preview 1 cannot copy a descriptor. Returning an error breaks every
-     file read by name; returning the same number lets the opener close it at once. The facts
-     sheet's notes say this at length.
+   - **Why a patch and not a recipe** (§4.1 prefers a recipe; the review's finding 4). Both
+     forms exist. A stand-in `dup` alone cannot work, because WASI preview 1 cannot copy a
+     descriptor: returning an error breaks every file read by name, and returning the same
+     number lets the opener close it at once. But a forced-include header for `xmlIO.c` alone
+     that maps both `dup` and `close` to a twenty-line reference-counting pair compiles the
+     pristine file with no warning and would give the same ownership (the review's sketch,
+     compiled, not run). The patch is chosen because that header would change what two libc
+     calls mean inside upstream's file without one line of the file showing it, and would add
+     descriptor bookkeeping of ours that upstream never carries or tests; the patch is as
+     small, visible in `recipes/patches/`, written in libxml2's own terms (`xmlFdFree`),
+     sendable as it is, and deleted when upstream takes it. This is the reasoning spec 043's
+     review accepted for forced headers. The facts sheet's notes say the same, and its
+     `pr.md` states that the change covers builds without zlib only (the compression branches
+     of both functions still `dup` or `close` standard output).
    - **Seen failing first** (EXECUTED): without the patch, `make libxml2.la` stops on `dup` at
      `xmlIO.c:1230` and `:1264`. With it: no warning, and in the guest a parse by path (fifty in
      a row), `iterparse` of a path, XInclude, a DTD by path, XSLT `document()`, a missing file's
@@ -199,8 +251,9 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      pin a second Cython for three hosts to rebuild what the sdist already holds. Two Cython
      versions' code in one binary is safe: each module keeps its own utility code (spec 037,
      Decision 2).
-   - **The compile:** through `scripts/wasi-cc` (which drops `-fPIC`), `-O2`
-     `-ffile-prefix-map=$HERE=/wasi-python-build`, lxml's own macros for a static build
+   - **The compile:** through `scripts/wasi-cc` (which drops `-fPIC`), `-O2 -DNDEBUG`
+     `-ffile-prefix-map=$HERE=/wasi-python-build` (both needed for no build path in the binary,
+     Decision 3), lxml's own macros for a static build
      (`setupinfo.define_macros()` with `OPTION_BUILD_LIBXML2XSLT`: `-DLIBXML_STATIC
      -DLIBXSLT_STATIC -DLIBEXSLT_STATIC -DCYTHON_CLINE_IN_TRACEBACK=0`), the line's WASI
      emulation defines (`-D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS
@@ -230,6 +283,12 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      (the drafting link gave no `signature mismatch` and no `duplicate symbol`). `python.wasm`'s
      imports stay WASI preview 1 and the door (EXECUTED on the scratch binary: the same 43
      imports as today's).
+   - **The GB18030 guard** (Decision 9): step 60 compiles `recipes/iconv_refusals.c` with the
+     reactor's own compile flags and adds it, with `-Wl,--wrap=iconv_open`, to the reactor's
+     link beside the four `--wrap` flags it already passes. Only the reactor link (and so the
+     snapshot made from it) carries it; the interpreter `make` links for CPython's own build is
+     not shipped. libxml2 is the only caller of `iconv_open` in the binary (EXECUTED: the
+     link map names `iconv.c.obj` only since libxml2 came in).
    - Step 70 gains `--tree "$B/lxml-install"`, `--metadata "$B/lxml-6.1.3/PKG-INFO"` (spec 033)
      and `--file "$HERE/recipes/lxml_isoschematron_stand_in.py=lxml/isoschematron.py"`.
    - `scripts/build.sh`'s `ALL` gains `36_xml_libs` after `35_stdlib_libs` and `54_lxml` after
@@ -245,13 +304,25 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
    on `http://127.0.0.1:9/` with `no_network=False` gives an empty element, and one on a path
    outside every grant gives an empty element too; a billion-laughs document raises "Maximum
    entity amplification factor exceeded".
-   **XSLT reads and writes files by default:** lxml's `XSLT()` without an `access_control`
-   allows `document()` and `exsl:document` (READ: `xslt.pxi`). In the guest that reaches only
-   granted folders, and writes only writable ones. The README says so and names
-   `etree.XSLTAccessControl.DENY_ALL` for untrusted stylesheets; libxml2's own README advises
-   against untrusted input, which the sandbox contains but does not make correct. EXECUTED: an
-   `exsl:document` aimed at a read-only grant raises `XSLTApplyError` and leaves no file. A check
-   (Decision 10) holds it.
+   **XSLT reads and writes files by default, and what it reads resolves entities** (the
+   review's finding 5). lxml's `XSLT()` without an `access_control` allows `document()`,
+   `xsl:include`, `xsl:import` and `exsl:document` (READ: `xslt.pxi`). And libxslt loads every
+   document it reads with its own parse options (`XSLT_PARSE_OPTIONS`: `NOENT | DTDLOAD | …`,
+   READ in libxslt 1.1.45), so lxml's `resolve_entities='internal'` does not reach them: a
+   stylesheet that calls `document('…/ent.xml')`, where `ent.xml` declares `<!ENTITY e SYSTEM
+   "secret.txt">`, returns the secret file's text (EXECUTED by the review, guest and native
+   alike). So **an untrusted stylesheet, or an untrusted document a stylesheet loads, can read
+   any file in a grant, external entities included, and write into any writable grant.**
+   `etree.XSLTAccessControl.DENY_ALL` (or `read_file=False` and `write_file=False`) closes both:
+   the same `document()` raises "read rights … denied" (EXECUTED by the review), and an
+   `exsl:document` raises "write rights … denied" (EXECUTED while drafting). pandas'
+   `read_xml(…, stylesheet=…)` applies a stylesheet with no access control (READ), so the same
+   holds there. In the guest all of this reaches only granted folders, and writes only
+   writable ones (EXECUTED: an `exsl:document` aimed at a read-only grant raises
+   `XSLTApplyError` and leaves no file). The README says this in those words and names
+   `DENY_ALL` for untrusted stylesheets and for untrusted documents given to a trusted one;
+   libxml2's own README advises against untrusted input, which the sandbox contains but does not
+   make correct. A check (Decision 10) holds each case.
 
 8. **`lxml.isoschematron` is left out, with a stand-in.** It reads its XSL and RELAX NG
    resources by file path at import (`isoschematron/__init__.py:41-68`, READ), which fails from
@@ -266,20 +337,53 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
    owner's approval of those terms and a carried patch to read the resources from the zip
    (question 82).
 
-9. **Character encodings are wasi-libc's.** EXECUTED in the guest, beside native
-   (`../upstream/8-libxml2-input-without-dup/evidence/encodings.txt`): parsing a document that
-   declares windows-1252, cp1251, ISO-8859-2 and -15, KOI8-R, Shift_JIS, cp932, EUC-JP,
-   ISO-2022-JP, GBK, GB18030, GB2312, Big5, EUC-KR, cp949, cp950, TIS-620 or UTF-16 works as
-   natively; and so does writing in each of these except the Chinese and Korean ones. **What
-   differs:** writing in GBK, GB18030, GB2312, Big5, EUC-KR, cp949 or cp950 raises
-   `LookupError: unknown encoding` (wasi-libc's iconv decodes them but does not encode them);
-   windows-874 and HZ neither parse nor write; UTF-32 output is not the bytes Python's
-   `utf-32` codec reads back; and cp437, which native lxml rejects, works. A program that needs
-   one of those outputs can serialize to a `str` (`encoding="unicode"`) and encode with
-   Python's codecs, which are complete. The README lists this; a check holds it (Decision 10).
-   Without iconv libxml2 would know only UTF-8, UTF-16, ASCII and ISO-8859-x, so a windows-1252
-   or Shift_JIS page could not be read at all; iconv's tables cost part of the growth in
-   Decision 11 (INFERRED from the link map: `iconv.c.obj` is new in it).
+9. **Character encodings are wasi-libc's, and they are partial** (rewritten from the review's
+   finding 2: the draft tested two characters per encoding). Measured over each codec's whole
+   Basic Multilingual Plane repertoire, one element per character, guest against native lxml
+   6.1.3 (libxml2 2.14.6 with GNU libiconv): EXECUTED by the review, and again on the revised
+   scratch binary with the GB18030 guard
+   (`../upstream/8-libxml2-input-without-dup/evidence/encodings_whole_repertoire.txt`).
+
+   | encoding | parse in the guest | write in the guest | native |
+   |---|---|---|---|
+   | windows-1252, ISO-8859-2, ISO-8859-15, cp1251, KOI8-R, TIS-620, UTF-16 | every character | every character, the same bytes | the same |
+   | Shift_JIS | 3 of 6,944 read as another character | the same 3 | parse all; write 2 differ |
+   | ISO-2022-JP | 1 of 6,881 | the same 1 | all |
+   | GB2312 | 2 of 7,445 | `LookupError` | all |
+   | GBK, cp949 | every character | `LookupError` | all |
+   | EUC-KR | as native (8,226 of the 17,048 Python encodes) | `LookupError` | the same parse |
+   | cp932 | **the document fails** ("Invalid bytes": NEC row 13 and IBM extensions, lead bytes `0x87`, `0xED`) | 460 differ | 6 differ |
+   | EUC-JP | **the document fails** (every JIS X 0212 character, lead byte `0x8F`) | 6,069 differ | 2 differ |
+   | Big5, cp950 | the document fails | `LookupError` | parse fails too; write works |
+   | GB18030 | **refused**: "Unsupported encoding: gb18030" (the guard below) | `LookupError` | 1 differs; write 19 |
+
+   The "read as another character" rows are mapping conventions, not corruption (EXECUTED,
+   `enc_which.py`): Shift_JIS `5C` and `7E` read as `\` and `~` (U+00A5 and U+203E natively),
+   `81 5F` and ISO-2022-JP's fullwidth reverse solidus read as `\`, and GB2312 `A1 AA` and
+   `A1 A4` as U+2014 and U+00B7 (U+2015 and U+30FB natively). The README lists each.
+   - **GB18030 fails loudly, by a recipe.** Unguarded, wasi-libc's GB18030 decoder reads 1,617
+     of 56,926 characters as other characters with no error (the four-byte forms of U+F900 to
+     U+FFFD come back shifted, U+F900 as U+F100; neither Python's mapping nor GNU libiconv's;
+     INFERRED a defect in musl's decoder as wasi-libc 33 ships it). Silently wrong text is worse
+     than an error, so `recipes/iconv_refusals.c` defines `__wrap_iconv_open`, which returns
+     `(iconv_t)-1` with `errno = EINVAL` when either name is GB18030 (compared ignoring case and
+     punctuation) and otherwise calls `__real_iconv_open`; step 60 links it with
+     `-Wl,--wrap=iconv_open` (Decision 6). libxml2 then raises its own unsupported-encoding
+     error, as for any encoding it lacks. EXECUTED: on the revised scratch binary the GB18030
+     document raises `XMLSyntaxError: Unsupported encoding: gb18030`, and every other row of the
+     table is unchanged. It is a link flag and a small file, visible on step 60's link line, and
+     changes no upstream source; it is removed when a wasi-sdk release fixes the decoder (the
+     encodings check below turns red the day the table changes). A report to wasi-libc (musl's
+     GB18030 tables as it ships them) is worth drafting in question 80's form once the owner
+     wants it; this specification does not need it.
+   - **The workaround** the README gives for every partial row: let Python's complete codecs do
+     the conversion. To read, `etree.fromstring(data.decode("cp932").encode("utf-8"),
+     etree.XMLParser(encoding="utf-8"))` (or `etree.fromstring(text)` from a `str` without an
+     encoding declaration); to write, serialize with `encoding="unicode"` and encode the `str`
+     with Python. Both give native's characters.
+   - Without iconv libxml2 would know only UTF-8, UTF-16, ASCII and ISO-8859-x, so a
+     windows-1252 or Shift_JIS page could not be read at all; iconv's tables are part of the
+     growth in Decision 11 (INFERRED from the link map: `iconv.c.obj` is new in it).
 
 10. **The checks**, each seen failing first.
     - **The oracle.** `tests/jobs/oracle/pyproject.toml` gains `lxml==6.1.3`, and `uv.lock`
@@ -300,7 +404,9 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
       document with a `<meta charset>` head serialized with `lxml.html.tostring`); `iterparse`;
       a parse by path, XInclude and a DTD validation of the files in the data folder; XML
       Schema and RELAX NG validity; a document written by path and a gzip-compressed one read
-      back with `gzip`; encodings in Decision 9's agreeing set, both ways; then pandas:
+      back with `gzip`; encodings in Decision 9's first row (windows-1252, ISO-8859-2 and -15,
+      cp1251, KOI8-R, TIS-620, UTF-16), each over its whole repertoire both ways (the SHA-256 of
+      the written bytes printed), and GBK and cp949 for parsing only; then pandas:
       `read_html` with no `flavor`, `read_xml` with an XPath and with a stylesheet, and
       `to_xml(parser="lxml")` written into the output folder.
       **What it must not print**, because libxml2 2.14 and 2.15 differ there (EXECUTED: the
@@ -321,15 +427,28 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
         `document()` give the expected values; a missing file raises `OSError`;
       - writing by path into a read-only grant raises `OSError`, and into a writable grant
         writes the bytes; `ElementTree.write("-")` reaches the program's standard output;
-      - safety (Decision 7): the default parser refuses an external entity on a granted file;
+      - safety (Decision 7): an XSLT with no access control whose `document()` loads a granted
+        file declaring an external entity on another granted file returns that file's text,
+        and the same stylesheet with `XSLTAccessControl.DENY_ALL` and with `read_file=False`
+        raises "read rights … denied" (the review's finding 5); the default parser refuses an
+        external entity on a granted file;
         `resolve_entities=True` on a path outside every grant gives an empty element (the guest
         has no such path); `no_network=False` with an `http:` entity gives an empty element;
         billion laughs raises; a stylesheet's `exsl:document` aimed at a read-only grant raises
         `XSLTApplyError` ("unable to save") and writes nothing, and with
         `XSLTAccessControl.DENY_ALL` raises "write rights … denied" (all four EXECUTED in the
         scratch guest);
-      - encodings (Decision 9): the agreeing set round-trips, and the seven Chinese and Korean
-        encodings parse but raise `LookupError` on output (the documented difference);
+      - encodings (Decision 9), each over its whole repertoire so a wasi-sdk update that
+        changes musl's tables turns it red: the table's outcome row by row, as counts of
+        characters read differently with the first few code points, the exact exception for
+        each document that fails, `LookupError` for each write the table marks, and GB18030
+        refused with "Unsupported encoding"; and the README's workaround reads cp932, EUC-JP,
+        GB18030 and Big5 documents over their whole repertoires with native's results
+        (EXECUTED: the same counts as native, which are Python's own round-trip gaps,
+        `../upstream/8-libxml2-input-without-dup/evidence/workaround.txt`). The
+        whole-repertoire run costs about 31 G fuel (EXECUTED: 31,484,655,439 on the plain
+        reactor), so the case runs once, on the snapshot, marked `slow`, with a 40 G fuel
+        budget;
       - `XMLParser(decompress=True)` on a gzip file raises `XMLSyntaxError` (no zlib in
         libxml2; documented);
       - `import lxml.isoschematron` raises `ImportError` naming "licences"; `etree.Schematron`
@@ -337,6 +456,11 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
       - `pd.read_html` with no `flavor` returns the table (lxml is pandas' first flavor).
       Seen failing first: each fails on the current set (no lxml); the file-by-path cases are
       the patch's behaviour, seen as a build failure without it (Decision 4).
+    - **v1.1, `test_binaries_hold_no_build_path`** (the review's finding 1; general, for every
+      later package): neither `python.wasm` nor the snapshot contains the bytes of
+      `str(paths.REPO)` or of the build user's home folder. It is the binary-side twin of `host_fact_errors`. Green on today's set (EXECUTED: no
+      match in `build/artifacts/python.wasm`); red on the drafting binary (fifteen matches: the
+      catalog, two lxml sources, twelve CPython headers), green on the revised one (EXECUTED).
     - **Judge changes** (under `--accept-judge`): `tests/harness/paths.py`'s
       `LICENCE_COMPONENTS` gains `libxml2`, `libxslt` and `lxml`, and `PACKAGES` the same three;
       `pins.SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS` gain the three trees, and the patched-
@@ -350,20 +474,28 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
 
 11. **What the set costs, so growth can be told from regression** (EXECUTED on the scratch
     build unless marked; the build measures each again and records it).
-    - `python.wasm`: +3,633,511 bytes for lxml, libxml2, libxslt and wasi-libc's iconv
-      (31,760,992 today; 32,476,722 with regex alone; 36,110,233 with both), +11.4%. Pyodide's
-      Emscripten `.so` files total 4.71 MB, times the memo's 0.92 ratio about 4.3 MB (INFERRED).
-      A growth outside 3.2 to 4.2 MB is a finding for the build review, not a reason to accept.
+    - `python.wasm`: +3,461,740 bytes for lxml, libxml2, libxslt, wasi-libc's iconv, the
+      GB18030 guard and spec 047's package-context inittab (31,760,992 today; 32,474,897 with
+      regex alone; 35,936,637 with both), +10.9%, on the revised scratch binary (`-DNDEBUG`, the
+      catalog defines; SHA-256 `31265405…`). The drafting binary, without `-DNDEBUG`, was
+      36,110,233. Pyodide's Emscripten `.so` files total 4.71 MB, times the memo's 0.92 ratio
+      about 4.3 MB (INFERRED). A growth outside 3.0 to 4.0 MB is a finding for the build review,
+      not a reason to accept.
     - The snapshot: about the same bytes (lxml is not pre-imported; Decision 12).
     - The zip: +26 members (24 lxml modules, the stand-in, `METADATA`), about 150 KB deflated
       (146,120 bytes of compressed data for the 23 modules the scratch zip held).
-    - Plain `-c pass`: +447,981 fuel (+0.19%) for lxml and regex's three new builtins together
-      (241,937,030 to 242,385,011 on today's zip); plus about 26 members at the per-member cost
-      (about 26,700 fuel each after spec 035, 77,912 before), **measured, not estimated,** by
-      the build.
-    - `import lxml.etree` on the plain reactor: 558,881,952 fuel against 256,076,439 for
-      `-c pass` with the same scratch zip (about +303 M); `import lxml.html`: 643,551,902. The
-      build records both on both binaries.
+    - **Fuel, measured by the judge's own seeded guest** (`tests/harness/guest.py`, which answers
+      the clock and randomness itself, so a run repeats exactly; the review's finding 7 showed
+      `wasi_python.run`'s unseeded `-c pass` spreads by about 500,000 between runs of the same
+      bytes, more than the draft's single-run delta). EXECUTED twice each, identical:
+      plain `-c pass` with today's zip is 242,002,526 on today's binary and 242,032,305 on the
+      revised scratch binary (+29,779, +0.012%: the three new builtins and the wrapped inittab of
+      spec 047, both specifications together). The zip's 26 new members add their per-member
+      cost on top (about 26,700 fuel each after spec 035, 77,912 before), **measured by the
+      judge's ratchet at build time, not estimated here.**
+    - `import lxml.etree` on the plain reactor, through the same seeded guest with the scratch
+      zip: 558,497,299 fuel against 255,861,559 for `-c pass` (+302.6 M); `import lxml.html`:
+      643,313,348. The build records both on both binaries.
     - Snapshot `-c pass`: within 1%; every existing golden: no change beyond the plain-start
       growth.
 
@@ -410,8 +542,13 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
 15. **Licences** (§4.12; approved by decision 43: libxml2 and libxslt MIT, lxml BSD-3-Clause).
     `LICENSES/` gains, each read from its pinned tarball by `scripts/assemble_artifacts.py`:
     - `libxml2.txt`: its `Copyright` file, then the notices at the head of `dict.c` (an
-      ISC-style grant to Daniel Veillard's copyright) and `timsort.h` (MIT), which `Copyright`
-      names as exceptions;
+      ISC-style grant, "Copyright (C) 2003-2012 Daniel Veillard"), `list.c` (the same grant,
+      "Copyright (C) 2000 Gary Pennington and Daniel Veillard"; the review's finding 6), which
+      `Copyright` names as its exceptions, and `timsort.h` (MIT, Christopher Swenson, Vojtech
+      Fried, Google). A scan of every file header in both trees found no other separate notice
+      (EXECUTED by the review). `assemble_artifacts.py` reads each named file's head from the
+      pinned tarball and stops the build if a named file is missing or its notice is not
+      where it was;
     - `libxslt.txt`: its `Copyright` file (libxslt and libexslt);
     - `lxml.txt`: `LICENSE.txt`, `LICENSES.txt`, `doc/licenses/BSD.txt` and
       `doc/licenses/elementtree.txt`. `LICENSES.txt` describes lxml's wheels, which bundle GNU
@@ -421,7 +558,7 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
       fork of CPython's `difflib` (PSF), both inside the CPython family already shipped;
       question 82 records this reading for the owner.
     `MANIFEST` gains package lines `libxml2 2.15.4`, `libxslt 1.1.45` and `lxml 6.1.3`, the three
-    pins, the stand-in recipe and the patch by hash.
+    pins, the stand-in recipe, the `iconv_open` guard and the patch by hash.
 
 ## Intent
 
@@ -439,13 +576,14 @@ lxml's answers, with libxml2's one WASI gap carried as a recorded, temporary pat
 | `context/upstream/patches/libxml2-2.15.4/0001-xmlio-without-dup-on-wasi.md`, `context/upstream/README.md` | the facts sheet, moved from `../upstream/8-libxml2-input-without-dup/pr.md`; its row |
 | `scripts/steps/54_lxml.sh` | new: `etree` and `objectify` archives into `build/lxml-build/`, the package into `build/lxml-install/` (Decision 5) |
 | `recipes/lxml_isoschematron_stand_in.py` | new (Decision 8) |
-| `scripts/build.sh`, `scripts/steps/60_link.sh`, `scripts/steps/70_zip.sh` | the two steps in `ALL`; lxml in the link and the inittab; the tree, metadata and stand-in in the zip (Decision 6) |
+| `recipes/iconv_refusals.c` | new: `__wrap_iconv_open`, refusing GB18030 (Decision 9); compiled and linked by step 60 with `-Wl,--wrap=iconv_open` (Decision 6) |
+| `scripts/build.sh`, `scripts/steps/60_link.sh`, `scripts/steps/70_zip.sh` | the two steps in `ALL`; lxml in the link and the inittab; the guard and its `--wrap` in the reactor link; the tree, metadata and stand-in in the zip (Decision 6) |
 | `scripts/assemble_artifacts.py`, `LICENSES/` | three packages, three notices (Decision 15) |
 | `tests/jobs/lxml_xml.py`, `lxml_xml.expected`, `tests/jobs/oracle/pyproject.toml`, `uv.lock`, `tests/harness/jobs.py` | the golden job and the oracle's lxml (Decision 10) |
-| `tests/checks/test_v1_3_lxml.py`, `tests/checks/test_v1_1_artifact_set.py` | the behaviour checks; the builtin-at-manifest-versions check |
+| `tests/checks/test_v1_3_lxml.py`, `tests/checks/test_v1_1_artifact_set.py` | the behaviour checks (the whole-repertoire encodings case among them); the builtin-at-manifest-versions check; `test_binaries_hold_no_build_path` |
 | `tests/harness/paths.py`, `pins.py`, `needs.py`, `tests/unit/test_artifact_rules.py` | the three components in each list and the synthetic set |
 | `.github/workflows/release.yml` | the zero-patch tree count, three more |
-| `README.md` | lxml in the profile; Decision 7's XSLT note and `DENY_ALL`; Decision 9's encodings; no zlib in libxml2 (`decompress=True`); `lxml.isoschematron` left out; wasi-libc's iconv, not GNU libiconv |
+| `README.md` | lxml in the profile; Decision 7's XSLT note in its words (an untrusted stylesheet or a document it loads reads any granted file, entities included, and writes any writable grant; `DENY_ALL`; `read_xml(stylesheet=…)`); Decision 9's table, its mapping notes, GB18030 refused, and the workaround; catalogs read only from a grant at `/etc/xml`; no zlib in libxml2 (`decompress=True`); `lxml.isoschematron` left out; wasi-libc's iconv, not GNU libiconv |
 | `CHANGELOG.md` | lxml, libxml2 and libxslt; the libxml2 patch by path; `pd.read_html`'s default flavor works |
 
 ## Scope
@@ -465,7 +603,9 @@ In: Decisions 1 to 15. Out:
 1. **The checks exist and were seen failing first:** the golden job, the v1.1 check and every
    v1.3 case on the set the builder starts from (no lxml); the patched-tree check on a tree
    without the patch; step 36 failing to compile `xmlIO.c` with the patch removed, as Decision
-   4 records.
+   4 records; `test_binaries_hold_no_build_path` failing on a build without the two catalog
+   defines; the GB18030 case failing (wrong characters, no error) on a build without the
+   guard.
 2. **The build.** From an empty `build/` in a clean clone, `scripts/build.sh` applies libxml2's
    patch with no offset, builds steps 36 and 54, links `lxml.etree` and `lxml.objectify` as
    builtins with no clash, and makes a set whose binaries pass the checks and match the golden.
@@ -479,8 +619,9 @@ In: Decisions 1 to 15. Out:
    on it and its draft.
 5. **The numbers recorded** in the landing notes: the three binaries' and the zip's bytes, the
    zip's members, the three archives' sizes, the constructor list, plain and snapshot `-c pass`
-   fuel, `import lxml.etree` and `import lxml.html` fuel on both binaries; each bound of Decision
-   11 holds or is a finding.
+   fuel and `import lxml.etree` and `import lxml.html` fuel on both binaries, each from the
+   judge's seeded guest (no single unseeded run); each bound of Decision 11 holds or is a
+   finding.
 6. **The judge.** `uv run pytest` is green with `--accept "<reason>"`, `--accept-judge "<the
    judge files>"` and `--accept-growth "<the causes>"`.
 7. **The release.** A release dry run passes every job.
