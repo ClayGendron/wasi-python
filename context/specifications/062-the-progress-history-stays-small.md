@@ -1,6 +1,6 @@
 # 062 — The progress history stays small
 
-- **Status:** built 2026-10-18; awaiting its build review. Built on
+- **Status:** **landed 2026-10-18** (accepted on `8eddc99` as `2ed4531`; the build review, `../reviews/062-the-progress-history-stays-small-2026-10-18.md`, passed it: "lands"; see the Landing notes' last part). Before landing: built 2026-10-18. Built on
   `spec/062-the-progress-history-stays-small` (the Landing notes). Before that it was revised
   against its pre-build review, with F1 to F3 written in and F4 to F6 as build conditions, now
   built and evidenced in the Landing notes, and the lane confirmed it for build. The review is
@@ -614,3 +614,25 @@ unnarrowed acceptance will remove none of them. That line is larger than 2 KB mo
 One line: new history lines store only what changed in the passed set, and the history continues
 in files named by their first line, each under half the limit, chained as one, with lines 1 to 59
 untouched.
+
+**Landed 2026-10-18** through the lane. Main had not moved since the branch's base `f6b3f75`, so
+no rebase. Its pre-build review (`../reviews/062-the-progress-history-stays-small-spec-2026-10-18.md`:
+"ready to build once F1 to F3 are written in", the write-in checked by the lane) and its build
+review (`../reviews/062-the-progress-history-stays-small-2026-10-18.md`: "lands", one Low finding)
+were committed on the detached HEAD as `8eddc99`. The full judge there, serial, on spec 023's
+artifact set: `wasi_python v1: 374/390 pass · 14 gap · 2 blocked · 0 fail (unit suite 1180/1182, 2
+skipped)`, `blocked by: three systems 1 · wheel 1`, `ratchet vs 8eddc996a8: lost 0 · absent 0 ·
+unrun 0 · gained 0 · grew 0` after acceptance, `1554 passed, 4 skipped, 14 xfailed in 613.95s`
+(EXECUTED, `build/lane-062-accept.log`). It printed `accepted: …/history-00060.jsonl line 60`: line 60
+starts the second volume (1,457 bytes), and `git diff f6b3f75 -- context/progress/history.jsonl` is
+empty. Committed with `history.ACCEPT_COMMANDS` as `2ed4531` (accepted.json and the new volume
+only); the rules tier passed (25/25, run on its own and its exit status read, not piped); main
+fast-forwarded. The build review's F1 (no test at exactly `BUDGET` bytes) and F2 (a volume holding a
+CR) are a small follow-up judge change.
+
+Why this specification was urgent: spec 060's first acceptance, as history line 60 of the single
+file, took `history.jsonl` to 1,071,294 bytes, past the rules check's `1 << 20`. The lane's command
+piped the rules check through `tail`, which hid its failure, and moved the local `main` past it; the
+lane put `main` back on `origin/main` before anything was pushed, and held that acceptance
+(`24b16f8`). Spec 060 is accepted again after this landing. The lane runs the rules check unpiped
+from now on.
