@@ -299,6 +299,7 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | input | a read-only grant (wasmtime) | a read-only mount | why |
    |---|---|---|---|
    | `..` after a missing name or a file (`missing/../b.txt`, `a.txt/../b.txt`) | `ENOENT`, `ENOTDIR`: it walks each part | resolved by text | one provider call per operation, on one normalized path; it also tells the guest less (a grant reveals whether `missing` exists) |
+   | the same, on a Windows grant (after landing) | resolved by text too: `missing/../a.txt` opens `a.txt` (observed); `a.txt/../b.txt` not observed | resolved by text | no difference on Windows: the mount and a Windows grant agree; the row above is POSIX's |
    | a path over 4,096 bytes | depends on the host (`ENOENT` on macOS) | `ENAMETOOLONG`, unread | bounded work, the same on every host |
    | a guest pointer past memory | an error that ends the run | `EFAULT` | the runner's own answer, as `poll_oneoff`'s; no trap path in provider code |
    | more than 1,024 `iovec`s | accepted | `EINVAL` | bounded work |
@@ -954,3 +955,30 @@ way (EXECUTED), then decided per row, Linux being Decision 6's reference:
   The full judge (`…/s-0cdc7b2bd78db6f5`): `216/227 pass · 0 gap · 11 blocked · 0 fail (unit
   suite 813/821, 8 skipped)`, `lost 0 · gained 0 · grew 0 · judge changed:
   tests/unit/test_runner_grants.py`, `1029 passed, 19 skipped`; ruff clean.
+
+**Revised after landing, third part, 2026-10-18 (a judge change): Windows's `..`.** Release dry
+run 39105048310 failed only in "verify (windows-2025)", at
+`tests/unit/test_runner_grants.py:648`: `assert both(lambda r: r.open(3, "missing/../a.txt")[0])
+== (44, 0)` got `(0, 0)` (EXECUTED, `gh run view 39105048310 --log-failed`). The mount's 0 is
+as decided (Decision 6 resolves `..` by text); the Windows grant resolves it by text too and
+opens `a.txt`, where Linux's and macOS's grants walk each part and answer 44. In the same run
+`test_raw_calls_answer_as_a_grant_does` passed on Windows: its first run there, with
+`HOST_ROWS` and the per-system rows left out.
+
+- **The change:** the row's grant side is system-specific (Windows 0, POSIX 44); the mount's 0
+  stays asserted everywhere. Decision 6's table gains a Windows row and the README's `..` line
+  says a Windows grant resolves by text too.
+- **The rest of the test, reasoned, not run on Windows** (the failure stopped it at its first
+  assertion): the next row, `a.txt/../b.txt`, would meet the same normalization (INFERRED 0 on
+  Windows, as Win32 path handling collapses `..` before the file is looked up; cap-std's
+  Windows code was not read: it is not in `context/prior_art/`), so its grant side is now
+  asserted on POSIX only and the mount's 0 everywhere. Every later grant-side assertion depends
+  on wasmtime's own logic, not the host's path handling: wiggle's pointer check, the first
+  non-empty `iovec`, `fd_renumber`, the `sock_*` and prestat answers (READ, `p1.rs`), and the
+  same calls already compared equal on Windows in the parity table. The v1.4 checks, which ran
+  on Windows in the same job, passed.
+- **Run:** `tests/unit/test_runner_grants.py` on macOS and on Linux (the container method, uid
+  1000): `18 passed, 2 skipped` each. The full judge on macOS (`…/s-0cdc7b2bd78db6f5`):
+  `220/231 pass · 0 gap · 11 blocked · 0 fail (unit suite 821/829, 8 skipped)`, `lost 0 · gained
+  0 · grew 0 · judge changed: tests/unit/test_runner_grants.py`, `1041 passed, 19 skipped`; ruff
+  clean.

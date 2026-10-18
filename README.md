@@ -560,7 +560,8 @@ A path a more specific preopen owns, spelled past the guest's C library
   everywhere (on Linux, a grant's `os.lstat` alone answers with the file's
   stat);
 - `..` is resolved by text (`missing/../a.txt` opens `a.txt`, where a grant
-  answers `ENOENT`); a climb above the folder the call starts from, even for a
+  answers `ENOENT` on Linux and macOS; a Windows grant resolves it by text
+  too); a climb above the folder the call starts from, even for a
   moment, is `EPERM`, as on a grant;
 - a path over 4,096 bytes is `ENAMETOOLONG`, a guest pointer past its memory
   `EFAULT` (a later `iovec` past it too, where a grant reads the first

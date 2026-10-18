@@ -646,9 +646,16 @@ def test_the_deliberate_differences_are_as_decided(tmp_path) -> None:
                 out.append(("ends", e.message))
         return out[0], out[1]
 
-    # `..` resolved by text: one provider call on one normalized path.
-    assert both(lambda r: r.open(3, "missing/../a.txt")[0]) == (44, 0)
-    assert both(lambda r: r.open(3, "a.txt/../b.txt")[0]) == (54, 0)
+    # `..` resolved by text: one provider call on one normalized path. A POSIX grant walks each
+    # part; Windows's grant resolves `..` by text as the mount does (EXECUTED for
+    # `missing/../a.txt` in release dry run 39105048310). Its answer to `a.txt/../b.txt` is not
+    # observed (INFERRED 0, the same normalization), so only the mount's is asserted there.
+    windows = sys.platform == "win32"
+    assert both(lambda r: r.open(3, "missing/../a.txt")[0]) == (0 if windows else 44, 0)
+    if windows:
+        assert m.open(3, "a.txt/../b.txt")[0] == 0
+    else:
+        assert both(lambda r: r.open(3, "a.txt/../b.txt")[0]) == (54, 0)
     # A path over 4,096 bytes: ENAMETOOLONG, unread (a grant's answer is the host's).
     assert m.open(3, "a/" * 2048 + "b")[0] == 37
     assert m.path_filestat(3, "x" * 4097)[0] == 37
