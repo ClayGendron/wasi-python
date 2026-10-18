@@ -2,7 +2,7 @@
 
 The artifact directory is `$WASI_PYTHON_ARTIFACTS` when it is set, and nothing else; otherwise
 build/artifacts/ when it holds a MANIFEST (what scripts/build.sh writes: spec 003, Decision 10);
-otherwise the wheel's `wasi_python.ARTIFACT_DIR` when it holds one; otherwise there is none.
+otherwise the wheel's `wasi_python._ARTIFACT_DIR` when it holds one; otherwise there is none.
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ def artifact_dir() -> Path | None:
         return (BUILD / "artifacts").resolve()
     import wasi_python
 
-    d = wasi_python.ARTIFACT_DIR
+    d = wasi_python._ARTIFACT_DIR
     return d if (d / "MANIFEST").is_file() else None
 
 

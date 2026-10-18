@@ -569,7 +569,7 @@ def test_a_recursive_union_is_checked_within_the_budget() -> None:
     v = T._Validator(TREE)
     error = v.check({"tree": deep(62, "leaf")})  # fails only at its deepest leaf
     assert error == "the arguments are too complex to check", error
-    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS == 100_000
+    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS == 100_000
     # And through a frame: 62 levels inside args is the most a frame may carry.
     t = tool(square, name="walk", input_schema=TREE)
     host = T._ToolHost([t])
@@ -592,7 +592,7 @@ def test_unique_items_take_one_pass() -> None:
     v = T._Validator(s)
     error = v.check(list(range(100_001)))  # about 600 KB as a frame
     assert error == "the arguments are too complex to check", error
-    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
 
 
 def test_unique_item_keys_are_charged() -> None:
@@ -600,7 +600,7 @@ def test_unique_item_keys_are_charged() -> None:
     100,001 distinct strings exhaust the budget before the first one fails its type."""
     v = T._Validator({"type": "array", "uniqueItems": True, "items": {"type": "integer"}})
     assert v.check([f"s{i}" for i in range(100_001)]) == "the arguments are too complex to check"
-    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
 
 
 def values(x: Any) -> int:
@@ -714,7 +714,7 @@ def test_an_enum_costs_one_key_per_value(monkeypatch) -> None:
     # them exhaust the budget before the comparison could fail.
     v = T._Validator({"const": [1]})
     assert v.check(list(range(100_000))) == "the arguments are too complex to check"
-    assert v.exhausted and v.steps <= T.TOOL_VALIDATION_STEPS
+    assert v.exhausted and v.steps <= T._TOOL_VALIDATION_STEPS
 
 
 def many(**kw: Any) -> dict:
@@ -896,11 +896,11 @@ def test_a_lone_surrogate_in_a_key_is_echoed_and_encodes() -> None:
 def test_the_cap_and_the_budget_answer_from_the_length_alone() -> None:
     c = Counter()
     host = T._ToolHost(counting_tools(c), gate=c.gate, max_calls=2)
-    over = host.admit(T.TOOL_REQUEST_BYTES + 1)  # no bytes at all
+    over = host.admit(T._TOOL_REQUEST_BYTES + 1)  # no bytes at all
     assert kind(over) == "too_large" and answer(over)["id"] is None
-    assert host.admit(T.TOOL_REQUEST_BYTES) is None  # at the cap: admitted
+    assert host.admit(T._TOOL_REQUEST_BYTES) is None  # at the cap: admitted
     f = frame("list")
-    assert kind(host(f[:0] + b" " * (T.TOOL_REQUEST_BYTES - len(f)) + f)) is None
+    assert kind(host(f[:0] + b" " * (T._TOOL_REQUEST_BYTES - len(f)) + f)) is None
     past = host.admit(10)
     assert kind(past) == "budget_exceeded"
     assert kind(host(frame("list"))) == "budget_exceeded"  # the raw path counts it too
@@ -1139,7 +1139,7 @@ def test_a_result_nested_too_deep_is_a_fault() -> None:
 
 
 def test_a_long_same_value_chain_is_refused() -> None:
-    """Review F5: a $ref chain that stays on one value is at most SAME_VALUE_CHAIN nodes, so the
+    """Review F5: a $ref chain that stays on one value is at most _SAME_VALUE_CHAIN nodes, so the
     validator's recursion never depends on the host Python's limit."""
 
     def chained(n: int) -> dict:
@@ -1147,11 +1147,11 @@ def test_a_long_same_value_chain_is_refused() -> None:
         defs[f"D{n}"] = {"type": "integer"}
         return schema({"x": {"$ref": "#/$defs/D0"}}, **{"$defs": defs})
 
-    tool(square, input_schema=chained(T.SAME_VALUE_CHAIN - 2))
+    tool(square, input_schema=chained(T._SAME_VALUE_CHAIN - 2))
     with pytest.raises(ValueError, match="chain of more than 8"):
         tool(square, input_schema=chained(1_500))
     with pytest.raises(ValueError, match="chain of more than 8"):
-        tool(square, input_schema=chained(T.SAME_VALUE_CHAIN))
+        tool(square, input_schema=chained(T._SAME_VALUE_CHAIN))
 
 
 def test_only_tool_makes_a_tool() -> None:
@@ -1177,7 +1177,7 @@ def test_the_record_is_bounded() -> None:
         raw = host(call_frame("f", {"a": 1, "k" * 10_000: 1}))
         assert kind(raw) == "invalid_arguments"
     big = call_frame("f", {"a": 1, "k" * 1_000_000: 1})
-    assert len(big) <= T.TOOL_REQUEST_BYTES  # it fits the cap, so it reaches the validator
+    assert len(big) <= T._TOOL_REQUEST_BYTES  # it fits the cap, so it reaches the validator
     a = answer(host(big))
     assert a["error"]["kind"] == "invalid_arguments", a
     assert "k" * 64 in a["error"]["message"] and "k" * 65 not in a["error"]["message"]

@@ -221,6 +221,12 @@ class Defaults:
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
 
 
+def _current_defaults() -> Defaults:
+    """The defaults a call reads, once, when it is made (spec 049, Decision 2). The binding stays
+    this module's `DEFAULTS`, which `wasi_python.set_defaults` replaces under its lock."""
+    return DEFAULTS
+
+
 class _Unset:
     def __repr__(self) -> str:
         return "<default>"
@@ -318,8 +324,11 @@ def run(
         tools=tools,
         gate=gate,
         max_tool_calls=max_tool_calls,
+        root=root,
+        grants=grants,
+        mounts=mounts,
+        max_file_calls=max_file_calls,
     )
-    checked.update(_check_places(root, grants, mounts, max_file_calls))
     return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
 
@@ -370,8 +379,11 @@ async def run_async(
         tools=tools,
         gate=gate,
         max_tool_calls=max_tool_calls,
+        root=root,
+        grants=grants,
+        mounts=mounts,
+        max_file_calls=max_file_calls,
     )
-    checked.update(_check_places(root, grants, mounts, max_file_calls))
     _check_executor(executor)
     wt = _wasmtime()
     _register_exit_hook()
@@ -384,7 +396,7 @@ async def run_async(
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
         args = (_run_checked, wt, checked, host, snapshot, cache_dir, artifacts)
-        future = _submit(executor, work, *args)
+        future = _submit(executor, checked["async_workers"], work, *args)
         try:
             return await asyncio.wrap_future(future)
         except asyncio.CancelledError:
@@ -425,8 +437,11 @@ _live: set[threading.Event] = set()
 _hook = {"registered": False, "exiting": False}
 
 
-def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.futures.Future[Any]:
-    """Submit to the caller's executor, or to the default pool, resized when `DEFAULTS` changed.
+def _submit(
+    executor: Any, workers: int, fn: Callable[..., Any], *args: Any
+) -> concurrent.futures.Future[Any]:
+    """Submit to the caller's executor, or to the default pool of `workers` threads (the call's
+    one read of the defaults), made anew when that size changed.
     The lookup, any resize and the submit share one lock, so a resize on another thread never
     leaves a submit facing a pool that is shut down."""
     import concurrent.futures
@@ -436,7 +451,7 @@ def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.fut
     with _pool_lock:
         if _hook["exiting"]:  # the exit hook has run: never start a pool's call again
             raise RuntimeError("cannot schedule new futures after interpreter shutdown")
-        size = DEFAULTS.async_workers
+        size = workers
         if _pool["pool"] is None or _pool["size"] != size:
             old = _pool["pool"]
             new = concurrent.futures.ThreadPoolExecutor(size, thread_name_prefix="wasi-python")
@@ -811,11 +826,17 @@ def _checked(
     tools: Any = None,
     gate: Any = None,
     max_tool_calls: Any = _UNSET,
+    root: Any = False,
+    grants: Any = (),
+    mounts: Any = (),
+    max_file_calls: Any = _UNSET,
 ) -> dict[str, Any]:
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
-    and 036 for the tools)."""
-    tool_args = _check_tools(host, tools, gate, max_tool_calls)
-    limits = DEFAULTS
+    and 036 for the tools). The defaults are read once, here, and every check that takes one
+    takes it from this read, so a `set_defaults` on another thread never gives a call a mix of
+    the old and new limits (spec 049, Decision 2); `async_workers` is kept for `run_async`."""
+    limits = _current_defaults()
+    tool_args = _check_tools(host, tools, gate, max_tool_calls, limits)
     if memory_bytes is _UNSET:
         memory_bytes = limits.memory_bytes
     if deadline_s is _UNSET:
@@ -828,10 +849,14 @@ def _checked(
     checked.update(_check_inputs(argv, env, stdin))
     checked["cancel"] = cancel
     checked.update(tool_args)
+    checked.update(_check_places(root, grants, mounts, max_file_calls, limits))
+    checked["async_workers"] = limits.async_workers
     return checked
 
 
-def _check_tools(host: Any, tools: Any, gate: Any, max_tool_calls: Any) -> dict[str, Any]:
+def _check_tools(
+    host: Any, tools: Any, gate: Any, max_tool_calls: Any, limits: Defaults | None = None
+) -> dict[str, Any]:
     """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
     `Tool`s with unique names, a gate that is not a coroutine function, and the frame limit. A
     plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
@@ -880,7 +905,7 @@ def _check_tools(host: Any, tools: Any, gate: Any, max_tool_calls: Any) -> dict[
             "with a later specification, decision 15)"
         )
     if max_tool_calls is _UNSET:
-        max_tool_calls = DEFAULTS.tool_calls
+        max_tool_calls = (limits or _current_defaults()).tool_calls
     return {
         "tools": tuple(checked),
         "gate": gate,
@@ -967,13 +992,15 @@ def _check_grants(grants: Any) -> tuple[Grant, ...]:
     return tuple(checked)
 
 
-def _check_places(root: Any, grants: Any, mounts: Any, max_file_calls: Any) -> dict[str, Any]:
+def _check_places(
+    root: Any, grants: Any, mounts: Any, max_file_calls: Any, limits: Defaults
+) -> dict[str, Any]:
     """root, grants, mounts and the file-call limit, checked together before any work: a mount
     may share no guest path with a grant, and a mount at / comes with no root (spec 032)."""
     checked_root = _check_root(root)
     checked_grants = _check_grants(grants)
     if max_file_calls is _UNSET:
-        max_file_calls = DEFAULTS.file_calls
+        max_file_calls = limits.file_calls
     return {
         "root": checked_root,
         "grants": checked_grants,

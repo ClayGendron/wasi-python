@@ -253,7 +253,7 @@ def test_a_frame_host_behind_the_door_counts_a_refused_frame_unread() -> None:
     host = T._ToolHost([lookup], max_calls=1)
     door = runner._door(host, host.admit)
     memory = Memory(1 << 21)
-    big = T.TOOL_REQUEST_BYTES + 1
+    big = T._TOOL_REQUEST_BYTES + 1
     assert door(Caller(memory), 4096, big, 16, 20) == 0
     assert (memory.reads, kind(_answer(memory))) == (0, "too_large")
     assert door(Caller(memory), 4096, 3, 16, 20) == 0  # frame 2, past max_calls=1
@@ -368,7 +368,7 @@ def test_too_little_time_or_too_many_abandoned_answers_at_once(release) -> None:
     host = _host([_blocking(release, started, timeout_s=0.01)])
     answers = [kind(host(call_frame("slow", id=i))) for i in range(6)]
     assert answers == ["timeout"] * 6
-    assert len(started) == T.MAX_ABANDONED == 4
+    assert len(started) == T._MAX_ABANDONED == 4
     outcomes = host.record.outcomes
     assert [o.abandoned for o in outcomes] == [True] * 4 + [False] * 2
     assert outcomes[4].message == "slow timed out: 4 earlier tool calls are still running"
@@ -502,7 +502,7 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(release) -> None:
     bound = T._Bounded(tick_s=0.001)
     host = T._ToolHost([_blocking(release, started, timeout_s=0.01)], max_calls=None, invoke=bound)
     listing = json.dumps({"v": 1, "id": 1, "op": "list"}).encode()
-    for _ in range(T.RECORD_OUTCOMES):
+    for _ in range(T._RECORD_OUTCOMES):
         assert json.loads(host(listing))["ok"]
     assert [kind(host(call_frame("slow"))) for _ in range(5)] == ["timeout"] * 5
     record = host.record

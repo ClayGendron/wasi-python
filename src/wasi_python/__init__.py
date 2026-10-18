@@ -20,16 +20,17 @@ README.md documents the contract any other embedder implements.
 from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 __version__ = "0.1.0a5"
 
-ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
-ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
+_ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
+_ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
 # A source checkout: <repo>/src/wasi_python/ beside <repo>/build/artifacts/ (and pyproject.toml).
 _REPO = Path(__file__).resolve().parents[2]
-CHECKOUT_ARTIFACT_DIR = (
+_CHECKOUT_ARTIFACT_DIR = (
     _REPO / "build" / "artifacts" if (_REPO / "pyproject.toml").is_file() else None
 )
 
@@ -50,15 +51,16 @@ class Artifacts:
 
 def artifact_dir() -> Path:
     """The directory holding the artifact set (spec 001, Decision 3)."""
-    env = os.environ.get(ARTIFACTS_ENV)
+    env = os.environ.get(_ARTIFACTS_ENV)
     if env:  # set and not empty
         return Path(env).resolve()
-    for d in (CHECKOUT_ARTIFACT_DIR, ARTIFACT_DIR):  # the harness's order (spec 003, Decision 10)
+    for d in (_CHECKOUT_ARTIFACT_DIR, _ARTIFACT_DIR):  # the harness's order (spec 003, Decision 10)
         if d is not None and (d / "MANIFEST").is_file():
             return d
     raise ArtifactsMissing(
-        f"no runtime artifacts: ${ARTIFACTS_ENV} is unset, and neither {CHECKOUT_ARTIFACT_DIR} nor "
-        f"{ARTIFACT_DIR} has a MANIFEST. Install the released wheel, or build with "
+        f"no runtime artifacts: ${_ARTIFACTS_ENV} is unset, and neither "
+        f"{_CHECKOUT_ARTIFACT_DIR} nor {_ARTIFACT_DIR} has a MANIFEST. Install the released "
+        "wheel, or build with "
         "scripts/build.sh (see README.md)."
     )
 
@@ -68,7 +70,7 @@ def artifacts() -> Artifacts:
     d = artifact_dir()
     manifest = d / "MANIFEST"
     if not manifest.is_file():
-        raise ArtifactsMissing(f"{d} has no MANIFEST (from ${ARTIFACTS_ENV})")
+        raise ArtifactsMissing(f"{d} has no MANIFEST (from ${_ARTIFACTS_ENV})")
     return Artifacts(
         snapshot=d / "python-snapshot.wasm",
         plain=d / "python.wasm",
@@ -77,6 +79,8 @@ def artifacts() -> Artifacts:
     )
 
 
+# Last: runner.py imports Artifacts from here.
+from . import runner as _runner  # noqa: E402
 from .mounts import (  # noqa: E402
     Errno,
     FileFault,
@@ -87,12 +91,32 @@ from .mounts import (  # noqa: E402
     Stat,
     WritableFileProvider,
 )
-from .runner import Completed, Grant, run, run_async  # noqa: E402  (runner.py imports Artifacts from here)
+from .runner import Completed, Defaults, Grant, run, run_async, stats  # noqa: E402
+
+# set_defaults swaps the binding `run` reads, and reads the old one, under this lock (spec 049).
+_defaults_lock = threading.Lock()
+
+
+def defaults() -> Defaults:
+    """The `Defaults` a call reads now."""
+    return _runner._current_defaults()
+
+
+def set_defaults(new: Defaults) -> Defaults:
+    """Replace the `Defaults`, returning the old."""
+    if not isinstance(new, Defaults):
+        raise TypeError(f"set_defaults takes a Defaults; got {type(new).__name__}")
+    with _defaults_lock:
+        old = _runner.DEFAULTS
+        _runner.DEFAULTS = new
+    return old
+
 
 __all__ = [
     "Artifacts",
     "ArtifactsMissing",
     "Completed",
+    "Defaults",
     "Errno",
     "FileFault",
     "FileProvider",
@@ -104,6 +128,9 @@ __all__ = [
     "WritableFileProvider",
     "artifact_dir",
     "artifacts",
+    "defaults",
     "run",
     "run_async",
+    "set_defaults",
+    "stats",
 ]

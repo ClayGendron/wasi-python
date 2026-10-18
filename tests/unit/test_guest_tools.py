@@ -269,7 +269,7 @@ BASES = {
 
 def test_every_kind_maps_to_its_class(load) -> None:
     host = T._ToolHost([tool(describe)])
-    kinds = iter([*T.KINDS, "a_kind_from_later"])
+    kinds = iter([*T._KINDS, "a_kind_from_later"])
 
     def answer(frame: bytes) -> bytes:
         request = json.loads(frame)
@@ -279,12 +279,12 @@ def test_every_kind_maps_to_its_class(load) -> None:
         return json.dumps({"v": 1, "id": request["id"], "ok": False, "error": error}).encode()
 
     package, tools = load(Door(answer))
-    assert set(CLASS_OF_KIND) == set(T.KINDS)
+    assert set(CLASS_OF_KIND) == set(T._KINDS)
     assert set(package.__all__) == {"PROTOCOL", *BASES}
     for name, bases in BASES.items():
         cls = getattr(package, name)
         assert issubclass(cls, package.ToolError) and all(issubclass(cls, b) for b in bases)
-    for kind in T.KINDS:
+    for kind in T._KINDS:
         with pytest.raises(package.ToolError) as raised:
             tools.describe(1)
         assert type(raised.value).__name__ == CLASS_OF_KIND[kind], kind

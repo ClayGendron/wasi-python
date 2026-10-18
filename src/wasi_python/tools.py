@@ -43,19 +43,19 @@ from dataclasses import dataclass, field
 from typing import Any, NamedTuple
 
 PROTOCOL = 1
-PROTOCOLS = (1,)  # the versions this host serves
-TOOL_REQUEST_BYTES = 1 << 20  # a request frame's cap
-TOOL_RESPONSE_BYTES = 16 << 20  # an answer's cap: the default output cap per stream
-TOOL_VALIDATION_STEPS = 100_000  # schema nodes visited and item keys made, per frame
-TOOL_NESTING = 64  # a frame's nesting, its envelope included
-VALUE_NESTING = TOOL_NESTING - 2  # inside a call's args, or a result's value
-INT_CHARS = 64  # the longest integer literal a frame may hold
-MESSAGE_CHARS = 4096  # the longest message the guest is told
-ECHO_CHARS = 64  # the longest piece of guest text a message repeats
-FAULT_CHARS = 200  # a fault's type and first line, as spec 032's FileFault
-RECORD_OUTCOMES = 1000  # the frames a record lists, whatever max_calls is
-MAX_ID = 2**53 - 1
-KINDS = (
+_PROTOCOLS = (1,)  # the versions this host serves
+_TOOL_REQUEST_BYTES = 1 << 20  # a request frame's cap
+_TOOL_RESPONSE_BYTES = 16 << 20  # an answer's cap: the default output cap per stream
+_TOOL_VALIDATION_STEPS = 100_000  # schema nodes visited and item keys made, per frame
+_TOOL_NESTING = 64  # a frame's nesting, its envelope included
+_VALUE_NESTING = _TOOL_NESTING - 2  # inside a call's args, or a result's value
+_INT_CHARS = 64  # the longest integer literal a frame may hold
+_MESSAGE_CHARS = 4096  # the longest message the guest is told
+_ECHO_CHARS = 64  # the longest piece of guest text a message repeats
+_FAULT_CHARS = 200  # a fault's type and first line, as spec 032's FileFault
+_RECORD_OUTCOMES = 1000  # the frames a record lists, whatever max_calls is
+_MAX_ID = 2**53 - 1
+_KINDS = (
     "protocol",
     "unknown_tool",
     "invalid_arguments",
@@ -66,10 +66,10 @@ KINDS = (
     "too_large",
     "budget_exceeded",
 )
-TOO_COMPLEX = "the arguments are too complex to check"
-SAME_VALUE_CHAIN = 8  # the most schema nodes a $ref, anyOf or oneOf chain passes on one value
-MAX_ABANDONED = 4  # tool threads one call may leave running before its next call is refused
-DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
+_TOO_COMPLEX = "the arguments are too complex to check"
+_SAME_VALUE_CHAIN = 8  # the most schema nodes a $ref, anyOf or oneOf chain passes on one value
+_MAX_ABANDONED = 4  # tool threads one call may leave running before its next call is refused
+_DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 
 _WRAPPER_DEPTH = 64  # partials, methods and __wrapped__ links walked to find bound keywords
 _PARTIALMETHOD = ("__partialmethod__", "_partialmethod")  # its mark: Python 3.13 on, and before
@@ -668,7 +668,7 @@ class _Vetting:
     def no_cycle(self, nodes: list[Any]) -> None:
         """No walk along anyOf, oneOf and $ref alone, which stay on one value, comes back to
         where it began: a depth-first search over those edges finds no node on its own path.
-        And none is longer than SAME_VALUE_CHAIN nodes, so the validator's recursion is bounded
+        And none is longer than _SAME_VALUE_CHAIN nodes, so the validator's recursion is bounded
         by the value's depth times that, never by the host Python's limit (review F5)."""
         done: set[int] = set()
         longest: dict[int, int] = {}  # the most nodes a same-value walk from a node passes
@@ -686,9 +686,9 @@ class _Vetting:
                     done.add(id(node))
                     below = [longest.get(id(c), 0) for c in self.same_value(node)]
                     longest[id(node)] = 1 + max(below, default=0)
-                    if longest[id(node)] > SAME_VALUE_CHAIN:
+                    if longest[id(node)] > _SAME_VALUE_CHAIN:
                         raise ValueError(
-                            f"{self.where}: a chain of more than {SAME_VALUE_CHAIN} $ref, anyOf "
+                            f"{self.where}: a chain of more than {_SAME_VALUE_CHAIN} $ref, anyOf "
                             "or oneOf steps on one value; shorten it"
                         )
                 elif id(child) in on_path:
@@ -867,7 +867,7 @@ class _Validator:
     def __init__(
         self,
         root: Any,
-        budget: int = TOOL_VALIDATION_STEPS,
+        budget: int = _TOOL_VALIDATION_STEPS,
         keysets: _KeySets | None = None,
     ) -> None:
         self.root, self.budget = root, budget
@@ -881,7 +881,7 @@ class _Validator:
             self.visit(self.root, value, None)
         except _TooComplex:
             self.exhausted = True
-            return TOO_COMPLEX
+            return _TOO_COMPLEX
         except _Invalid as e:
             return str(e)
         return None
@@ -1124,8 +1124,8 @@ def _echo(value: Any) -> str:
     value named by its kind and size (`_shown`), never formatted whole."""
     if not isinstance(value, str):
         return _shown(value)
-    cut = value[:ECHO_CHARS]
-    return f"'{cut}'" + ("..." if len(value) > ECHO_CHARS else "")
+    cut = value[:_ECHO_CHARS]
+    return f"'{cut}'" + ("..." if len(value) > _ECHO_CHARS else "")
 
 
 def _shown(value: Any) -> str:
@@ -1137,7 +1137,7 @@ def _shown(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
     if type(value) is int:
-        text = str(value) if -(10**ECHO_CHARS) < value < 10**ECHO_CHARS else "a long integer"
+        text = str(value) if -(10**_ECHO_CHARS) < value < 10**_ECHO_CHARS else "a long integer"
         return text
     if type(value) is float:
         return repr(value)
@@ -1166,7 +1166,7 @@ def _nesting(text: str) -> int:
             depth += 1
             if depth > deepest:
                 deepest = depth
-                if deepest > TOOL_NESTING:
+                if deepest > _TOOL_NESTING:
                     break
         elif token in "]}":
             depth -= 1
@@ -1185,8 +1185,8 @@ def _finite(text: str) -> float:
 
 
 def _bounded_int(text: str) -> int:
-    if len(text) > INT_CHARS:
-        raise _Refused(f"an integer of {len(text)} characters; at most {INT_CHARS}")
+    if len(text) > _INT_CHARS:
+        raise _Refused(f"an integer of {len(text)} characters; at most {_INT_CHARS}")
     return int(text)
 
 
@@ -1208,8 +1208,8 @@ def _parse(frame: bytes) -> dict:
     except UnicodeDecodeError:
         raise _Refused("the frame is not UTF-8") from None
     depth = _nesting(text)
-    if depth > TOOL_NESTING:
-        raise _Refused(f"the frame nests deeper than {TOOL_NESTING} levels")
+    if depth > _TOOL_NESTING:
+        raise _Refused(f"the frame nests deeper than {_TOOL_NESTING} levels")
     try:
         value = json.loads(
             text,
@@ -1259,8 +1259,8 @@ class _NotJSON(Exception):
 
 def _to_json(value: Any, depth: int) -> Any:
     """Decision 6's JSON form, which mirrors the guest's encoding."""
-    if depth > VALUE_NESTING:
-        raise _NotJSON(f"the value nests deeper than {VALUE_NESTING} levels")
+    if depth > _VALUE_NESTING:
+        raise _NotJSON(f"the value nests deeper than {_VALUE_NESTING} levels")
     if value is None or isinstance(value, bool):
         return None if value is None else bool(value)
     if isinstance(value, str):
@@ -1302,7 +1302,7 @@ def _encode(answer: dict) -> bytes:
 
 
 def _bounded(message: str) -> str:
-    return message[:MESSAGE_CHARS]
+    return message[:_MESSAGE_CHARS]
 
 
 def _described(e: BaseException) -> str:
@@ -1326,7 +1326,7 @@ def _described(e: BaseException) -> str:
 
 
 def _fault(e: BaseException) -> str:
-    return _described(e)[:FAULT_CHARS]
+    return _described(e)[:_FAULT_CHARS]
 
 
 def _message_of(e: BaseException) -> str:
@@ -1382,7 +1382,7 @@ class _Work:
                 return self.failed("denied", refused)
             if verdict is not None and verdict is not True:
                 why = f"TypeError: the gate returned {type(verdict).__name__}, not None or a bool"
-                return self.failed("denied", refused, why[:FAULT_CHARS])
+                return self.failed("denied", refused, why[:_FAULT_CHARS])
         if proceed is not None and not proceed():
             return self.failed("cancelled", f"{t.name} was not run: its call had ended")
         internal = f"{t.name} failed (internal error)"
@@ -1401,11 +1401,11 @@ class _Work:
             encoded = _encode({"v": PROTOCOL, "id": self.frame_id, "ok": True, "value": body})
         except BaseException as e:
             return self.failed("tool_error", internal, _fault(e))
-        if len(encoded) > TOOL_RESPONSE_BYTES:
+        if len(encoded) > _TOOL_RESPONSE_BYTES:
             return self.failed(
                 "too_large",
                 f"the result of {t.name} is {len(encoded)} bytes encoded, over the "
-                f"{TOOL_RESPONSE_BYTES}-byte (16 MiB) cap",
+                f"{_TOOL_RESPONSE_BYTES}-byte (16 MiB) cap",
             )
         return _Done(encoded, "ok", None, None)
 
@@ -1444,7 +1444,7 @@ class _Bounded:
     the call's `cancel` (`cancelled`); the call's deadline less two ticks, read from the ticker
     as spec 010's waits read it, or the tool's `timeout_s` (`timeout`). A call left running is
     abandoned: its thread runs to its end unseen, and its result is dropped. One call may hold
-    `MAX_ABANDONED` of them; while it does, its next tool call is answered `timeout` at once.
+    `_MAX_ABANDONED` of them; while it does, its next tool call is answered `timeout` at once.
 
     Everything it needs is injected, so the judge drives it with fakes: `ticks` (the epoch
     ticker's count), `ctrl_c` (whether a Ctrl-C is pending; read, never cleared), `count` (told
@@ -1478,7 +1478,7 @@ class _Bounded:
         if self._cancel is not None and self._cancel.is_set():
             return "cancelled"
         if self._stop_at is not None and self._ticks is not None:
-            if self._ticks() >= self._stop_at - DEADLINE_MARGIN_TICKS:
+            if self._ticks() >= self._stop_at - _DEADLINE_MARGIN_TICKS:
                 return "deadline"
         return None
 
@@ -1494,9 +1494,9 @@ class _Bounded:
                 too_near = f"{name} timed out: the run's deadline is too near to start it"
                 return _Interrupted("timeout", False, too_near)
             with self._lock:
-                full = self._abandoned >= MAX_ABANDONED
+                full = self._abandoned >= _MAX_ABANDONED
             if full:
-                busy = f"{name} timed out: {MAX_ABANDONED} earlier tool calls are still running"
+                busy = f"{name} timed out: {_MAX_ABANDONED} earlier tool calls are still running"
                 return _Interrupted("timeout", False, busy)
             slot = _Slot()
             if not self._started(work, slot):
@@ -1631,7 +1631,7 @@ class _ToolHost:
     def _note(self, outcome: ToolOutcome) -> None:
         if outcome.abandoned:
             self._abandoned += 1
-        if len(self._outcomes) < RECORD_OUTCOMES:
+        if len(self._outcomes) < _RECORD_OUTCOMES:
             self._outcomes.append(outcome)
 
     def admit(self, length: int) -> bytes | None:
@@ -1644,9 +1644,9 @@ class _ToolHost:
         if self._max_calls is not None and seq > self._max_calls:
             kind = "budget_exceeded"
             message = f"this run allows {self._max_calls} tool frames; this was frame {seq}"
-        elif length > TOOL_REQUEST_BYTES:
+        elif length > _TOOL_REQUEST_BYTES:
             kind = "too_large"
-            message = f"the frame is {length} bytes; at most {TOOL_REQUEST_BYTES} (1 MiB)"
+            message = f"the frame is {length} bytes; at most {_TOOL_REQUEST_BYTES} (1 MiB)"
         else:
             self._pending = (seq, length)
             return None
@@ -1700,11 +1700,11 @@ class _ToolHost:
         except _Refused as e:
             return failed("protocol", str(e))
         frame_id = request.get("id")
-        if type(frame_id) is not int or not 0 <= frame_id <= MAX_ID:
+        if type(frame_id) is not int or not 0 <= frame_id <= _MAX_ID:
             frame_id = None
         version = request.get("v")
-        if type(version) is not int or version not in PROTOCOLS:
-            served = ", ".join(str(v) for v in PROTOCOLS)
+        if type(version) is not int or version not in _PROTOCOLS:
+            served = ", ".join(str(v) for v in _PROTOCOLS)
             return failed(
                 "protocol",
                 f"this host serves protocol version {served}; the frame asks for "
@@ -1716,7 +1716,7 @@ class _ToolHost:
             op = "list"
             body = {"v": PROTOCOL, "id": frame_id, "ok": True, "tools": self._descriptors}
             answer = _encode(body)
-            if len(answer) > TOOL_RESPONSE_BYTES:
+            if len(answer) > _TOOL_RESPONSE_BYTES:
                 return failed("too_large", "the tool list is over the 16 MiB cap", frame_id)
             self._note(ToolOutcome(seq, op, None, "ok", None, size, len(answer)))
             return answer
@@ -1731,7 +1731,7 @@ class _ToolHost:
         raw_name = request.get("tool")
         if not isinstance(raw_name, str):
             return failed("protocol", "a call names its tool with a string", frame_id)
-        name = raw_name[:ECHO_CHARS]
+        name = raw_name[:_ECHO_CHARS]
         t = self._by_name.get(raw_name)
         if t is None:
             offered = ", ".join(self._by_name) or "none"
@@ -1928,3 +1928,16 @@ def stubs(tools: Iterable[Tool | Callable[..., Any]]) -> str:
         out += body
         out.append("")
     return "\n".join(out)
+
+
+__all__ = [
+    "PROTOCOL",
+    "Tool",
+    "ToolCall",
+    "ToolDenied",
+    "ToolError",
+    "ToolOutcome",
+    "ToolRecord",
+    "stubs",
+    "tool",
+]

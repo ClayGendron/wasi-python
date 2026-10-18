@@ -341,8 +341,14 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
     assert [s for s, _ in lock.seen] == ["enter", "exit", "enter", "exit"]  # once per call
     assert lookups == []
 
-    # One read per call: run stops at its first step after the checks (the artifact lookup),
-    # run_async at its submit.
+    # One read per call, with tools= so every check that takes a default is reached: run stops
+    # at its first step after the checks (the artifact lookup), run_async at its submit.
+    from wasi_python.tools import tool
+
+    @tool
+    def noop() -> None:
+        """Do nothing."""
+
     reads: list[int] = []
     real = runner._current_defaults
 
@@ -352,8 +358,8 @@ def test_set_defaults_changes_what_run_reads(monkeypatch) -> None:
 
     monkeypatch.setattr(runner, "_current_defaults", counting)
     with pytest.raises(_Stop):
-        runner.run(["-c", "pass"])
+        runner.run(["-c", "pass"], tools=[noop])
     assert (len(reads), len(lookups)) == (1, 1), "run reads the defaults once"
     with pytest.raises(_Stop):
-        asyncio.run(runner.run_async(["-c", "pass"], executor=_Refusing()))
+        asyncio.run(runner.run_async(["-c", "pass"], executor=_Refusing(), tools=[noop]))
     assert len(reads) == 2, "run_async reads the defaults once"
