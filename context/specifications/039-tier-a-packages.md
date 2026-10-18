@@ -2,7 +2,10 @@
 
 - **Status:** drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/039-tier-a-packages-spec-2026-10-17.md`): all ten findings are fixed here, and
-  its Disposition says where; awaiting the reviewer's confirmation. It changes the build recipe
+  its Disposition says where. **Confirmed for build with conditions, written in:** the
+  confirmation's condition C1 (the `df.to_latex()` finding) is in Decision 12, and its two
+  optional points (C2, the oracle need when the pyyaml sdist is missing; C3, this header's
+  wrap) are in Decision 11 and here. It changes the build recipe
   and the artifact set, so it is reviewed once more before it is built (constitution §5.6). It
   is build-class: it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release
   workflow (§5.7).
@@ -11,9 +14,9 @@
   `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`), one recipe line
   (`recipes/ctypes_stand_in/util.py` gains `dllist`), judge additions and changes (seven golden
   jobs, the oracle's pins and its pure pyyaml, six other checks, two unit checks, the judge's
-  package and licence lists, two
-  source-tree patterns, one bound of spec 035 re-based as proposed for 035 (Decision 13), two known gaps), the release workflow's
-  tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
+  package and licence lists, two source-tree patterns, one bound of spec 035 re-based as
+  proposed for 035 (Decision 13), two known gaps), the release workflow's tree count,
+  `README.md`, `CHANGELOG.md`, `LICENSES/`.
 - **Depends on:** three specifications not yet built, each landing first (Decision 14):
   033 (the zip keeps `METADATA` and `entry_points.txt`; `make_stdlib_zip.py --metadata`;
   `tree_members`; the `ctypes` stand-in package), 035 (the zip's directory is read once; the
@@ -467,6 +470,10 @@ in the README what works and what does not.
       `pyyaml-6.0.3.dist-info/METADATA` beside `yaml/`, and marks the unpack with the
       archive's hash as `oracle_python()` does. `oracle_env` puts that folder on `PYTHONPATH`.
       No other oracle dependency requires pyyaml (READ), so nothing pulls a second copy in.
+      Since `oracle_env` uses that folder on every oracle run, a missing or mismatched pyyaml
+      sdist makes `oracle_pure()` raise `RuntimeError`, which `oracle_available()` already turns
+      into the "oracle" need unmet: the golden checks skip with that reason, as for a missing
+      host-Python archive, and never pass without the oracle.
     - **markupsafe stays a locked wheel.** It has cp315 wheels for macOS, Linux and Windows
       (EXECUTED by the review), jinja2 requires it, and the lock hashes them. The oracle runs
       its C `_speedups`; markupsafe's two paths give the same results by the project's
@@ -501,8 +508,9 @@ in the README what works and what does not.
       call, the exception's type and a path-free detail: for `TemplateNotFound` the template's
       name (`e.name`), not its message, which quotes the zip's path (memo finding 4d's stderr);
       for the atlas the message itself, which holds no path. The findings expected today are
-      `df.style.to_html(): TemplateNotFound: html.tpl`, one for `df.to_latex()` naming the
-      template it asks for, and
+      `df.style.to_html(): TemplateNotFound: html.tpl`,
+      `df.to_latex(): TemplateNotFound: html.tpl` (the Styler loads its HTML template first;
+      EXECUTED by the review's confirmation in the guest), and
       `nx.graph_atlas(100): TypeError: filename must be a str or bytes object, or a file`. Each
       gap in `tests/known_gaps.toml` names its check, that exact finding set and, as
       `closes_with`, `context/specifications/039-tier-a-packages.md` (a file under `context/`,

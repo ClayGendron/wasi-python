@@ -524,3 +524,12 @@ against Decision 13's rows.
 One line: every finding is fixed as written; the revised oracle builds nothing, runs
 markupsafe's C path and stages pyyaml's pure tree, and all seven revised jobs reproduce the
 goldens byte for byte under it. Write in `df.to_latex()`'s `html.tpl`, and 039 can be built.
+
+### The author's note (2026-10-17)
+
+All three points are written into the specification. C1: Decision 12 now expects
+`df.to_latex(): TemplateNotFound: html.tpl`, so both Styler findings and the gap's digest are
+known before the build. C2: Decision 11 says a missing or mismatched pyyaml sdist makes
+`oracle_pure()` raise, which `oracle_available()` turns into the oracle need unmet, so the golden
+checks skip with that reason. C3: the Kind line's wrap is fixed. The Status line says
+"confirmed for build with conditions, written in".
