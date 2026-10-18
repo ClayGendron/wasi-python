@@ -277,7 +277,7 @@ outcome, and the check asserts the outcome and the record, never a duration.
 19. The two README recipes ran once with pinned versions, as Decision 9 says.
 20. `uv run pytest` green with `--accept-judge`; lost 0; grew 0 (the artifact set is 031's).
 
-## Questions for the owner
+## The owner's choices
 
 None open here. Two choices, in Decisions 4 and 5, are the agent's where the owner's decisions
 were silent: question 53 in `../questions-for-the-owner.md` (no per-call default timeout beyond

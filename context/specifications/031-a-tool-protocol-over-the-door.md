@@ -464,7 +464,7 @@ as a raw `host=`, its record read from the object):
     fuel (Decision 9) accepted with `--accept-growth` and that reason, and nothing else grows.
 15. A release dry run passes every job (the artifact set changed).
 
-## Questions for the owner
+## The owner's choices
 
 None open here. Three of its choices, in Decisions 3 and 5, are the agent's where the owner's
 decisions were silent: questions 50 to 52 in `../questions-for-the-owner.md`. Question 53 is

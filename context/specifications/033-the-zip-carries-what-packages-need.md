@@ -688,7 +688,7 @@ In: the above. Out:
      counts).
 5. **The release.** A release dry run passes every job (the run of criterion 3).
 
-## Questions for the owner
+## The owner's choices
 
 None open here. Two choices the owner's decisions were silent on are decided above and recorded
 as questions 57 and 58 in `../questions-for-the-owner.md`; nothing waits on them:
