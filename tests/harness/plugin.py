@@ -2,11 +2,17 @@
 
 Loaded by tests/conftest.py. All state lives on `config.stash`, so the plugin's own end-to-end
 self-tests (pytester, in-process) never mix their records with the outer run's.
+
+On several cores (`-n N`, pytest-xdist; spec 052) the workers collect and run, and make each
+record exactly as a serial run does; the record rides to the controller on its report, and each
+worker's collection in its `workeroutput`. Workers write nothing and guard nothing: the controller
+alone runs spec 029's guards, writes the run record and accepts.
 """
 
 from __future__ import annotations
 
 import builtins
+import importlib.metadata
 import json
 import os
 import platform
@@ -46,6 +52,7 @@ class State:
     suite_skipped: int = 0
     lines: list[str] = field(default_factory=list)
     facts: dict[str, dict] = field(default_factory=dict)  # node id -> the check's `fact` values
+    crashed: dict[str, str] = field(default_factory=dict)  # failed reports carrying no record
 
 
 STATE = pytest.StashKey[State]()
@@ -54,6 +61,28 @@ METRICS = pytest.StashKey[dict]()
 NOTE = pytest.StashKey[str]()
 FACTS = pytest.StashKey[dict]()
 METRIC_NAMES = ("fuel", "bytes", "passes")  # passes: spec 050, Decision 12
+WORKERS = pytest.StashKey[int]()
+RECORD_PROPERTY = "wasi_python.record"  # a goal check's record, on a worker's report
+SUITE_PROPERTY = "wasi_python.suite"  # a unit test's tally, on a worker's report
+WORKER_OUTPUT = "wasi_python.collection"  # a worker's collection, in its workeroutput
+COLLECTION_KEYS = ("areas", "deselected", "collected_files", "narrowed_files")
+
+
+def is_worker(config) -> bool:
+    """An xdist worker (spec 052, Decision 3). Never `PYTEST_XDIST_WORKER`: a pytest that a check
+    starts inherits it."""
+    return hasattr(config, "workerinput")
+
+
+def distributing(config) -> bool:
+    """Whether this process is an xdist controller dealing tests to workers (Decision 7)."""
+    option = getattr(config, "option", None)
+    return (
+        not is_worker(config)
+        and getattr(option, "dist", "no") != "no"
+        and bool(getattr(option, "tx", None))
+        and not getattr(option, "collectonly", False)
+    )
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -157,16 +186,20 @@ def head_moved(config: pytest.Config) -> str | None:
 
 def pytest_configure(config: pytest.Config) -> None:
     reason, progress = _opt(config, "--accept"), progress_dir(config)
-    refusal = accept_refusal(reason, progress, paths.REPO)
-    if refusal:
-        pytest.exit(refusal, returncode=1)  # before collection; nothing is written
-    if reason and writes_accepted_state(progress, paths.REPO):  # checked again when written
-        config.stash[HEAD_AT_START] = (paths.git("rev-parse", "HEAD") or "").strip()
+    if not is_worker(config):  # spec 029's guards run once, in the controller (spec 052, D4)
+        refusal = accept_refusal(reason, progress, paths.REPO)
+        if refusal:
+            pytest.exit(refusal, returncode=1)  # before collection; nothing is written
+        if reason and writes_accepted_state(progress, paths.REPO):  # checked again when written
+            config.stash[HEAD_AT_START] = (paths.git("rev-parse", "HEAD") or "").strip()
     config.addinivalue_line("markers", "goal(area): a v1 progress check (spec 002)")
     config.addinivalue_line("markers", "slow: a guest job or the oracle")
     gaps_file = _opt(config, "--known-gaps")
     gaps, errors = load_gaps(Path(gaps_file) if gaps_file else paths.KNOWN_GAPS)
     config.stash[STATE] = State(gaps=gaps, gap_errors=errors)
+    config.stash[WORKERS] = len(config.option.tx) if distributing(config) else 0
+    if distributing(config):
+        config.pluginmanager.register(Controller(config), "wasi_python.controller")
 
 
 def area_of(item: pytest.Item) -> str | None:
@@ -281,6 +314,63 @@ def _facts(state: State, node: str, facts: dict) -> None:
 @pytest.hookimpl(wrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
     rep = yield
+    _judge(item, call, rep)
+    if is_worker(item.config):
+        _carry(item, rep)
+    return rep
+
+
+def _carry(item: pytest.Item, rep: pytest.TestReport) -> None:
+    """On a worker, the node's current record (or a unit test's tally) rides on its report to the
+    controller, which keeps the last one per node (spec 052, Decision 3)."""
+    state = item.config.stash[STATE]
+    if area_of(item) is None:
+        if rep.when == "call" or (rep.when == "setup" and not rep.passed):
+            rep.user_properties.append((SUITE_PROPERTY, [bool(rep.passed), bool(rep.skipped)]))
+    elif item.nodeid in state.records:
+        record = json.loads(json.dumps(state.records[item.nodeid]))  # plain values, a snapshot
+        rep.user_properties.append((RECORD_PROPERTY, [item.nodeid, record]))
+
+
+class Controller:
+    """The xdist controller's half (spec 052, Decisions 3, 4 and 14). Workers collect and run;
+    this takes each goal check's record and each unit tally from the reports, and each worker's
+    collection when it goes down. Registered only while xdist distributes."""
+
+    def __init__(self, config: pytest.Config) -> None:
+        self.config = config
+
+    def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
+        state = self.config.stash[STATE]
+        carried = False
+        for name, value in report.user_properties:
+            if name == RECORD_PROPERTY:
+                node, record = value
+                state.records[node] = record
+                if record.get("facts"):
+                    state.facts[node] = record["facts"]
+                carried = True
+            elif name == SUITE_PROPERTY:
+                passed, skipped = value
+                state.suite_total += 1
+                state.suite_passed += passed
+                state.suite_skipped += skipped
+                carried = True
+        if report.failed and not carried:  # xdist's report for a check whose worker died
+            state.crashed.setdefault(report.nodeid, _first_line(str(report.longrepr)))
+
+    def pytest_testnodedown(self, node, error) -> None:
+        out = getattr(node, "workeroutput", {}).get(WORKER_OUTPUT)
+        if not out:
+            return  # a worker that died sends nothing; the others collected the same checks
+        state = self.config.stash[STATE]
+        state.areas.update(out["areas"])
+        state.deselected += [n for n in out["deselected"] if n not in state.deselected]
+        state.collected_files.update(out["collected_files"])
+        state.narrowed_files.update(out["narrowed_files"])
+
+
+def _judge(item: pytest.Item, call: pytest.CallInfo, rep: pytest.TestReport):
     state = item.config.stash[STATE]
     area = area_of(item)
     if area is not None and rep.when == "call" and FACTS in item.stash:
@@ -345,6 +435,154 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
 
 
 # ---------------------------------------------------------------------------------------------
+# Several cores (spec 052): one way to run in parallel, and the judge's scheduler
+
+REFUSAL = "refused: {} ({}; spec 052, Decision 7)"
+
+
+def xdist_refusal(option) -> str | None:
+    """Why these raw options are refused, or None: every xdist 3.8.0 option is decided (the
+    table of Decision 7). The ini keys `rsyncdirs`, `rsyncignore` and `looponfailroots` can come
+    only from pyproject.toml, which is judged, and do nothing without the refused options."""
+    get = lambda name, default=None: getattr(option, name, default)  # noqa: E731
+    n = get("numprocesses")
+    rows = [
+        (n == "logical", "-n logical", "it needs psutil, which is not pinned"),
+        (get("dist", "no") not in ("no", "load"), f"--dist {get('dist')}", "only -n deals"),
+        (get("distload", False), "-d/--distload", "use -n"),
+        (get("dist", "no") == "load" and not n and not get("distload", False),
+         "--dist load without -n", "nothing to distribute"),
+        (get("loadscopereorder", True) is False, "--no-loadscope-reorder",
+         "the size order starts the longest group first"),
+        (get("maxschedchunk") is not None, "--maxschedchunk", "the judge's scheduler ignores it"),
+        (bool(get("tx")), "--tx", "other interpreters are not the judged environment"),
+        (bool(get("px")), "--px", "other interpreters are not the judged environment"),
+        (bool(get("rsyncdir")), "--rsyncdir", "remote hosts are not the judged environment"),
+        (bool(get("rsyncignore")), "--rsyncignore", "remote hosts are not the judged environment"),
+        (get("looponfail", False), "-f/--looponfail",
+         "its child would judge and accept again on every change"),
+    ]  # fmt: skip
+    for refused, name, why in rows:
+        if refused:
+            return REFUSAL.format(name, why)
+    return None
+
+
+RAW_REFUSAL = pytest.StashKey["str | None"]()
+
+
+@pytest.hookimpl(wrapper=True, specname="pytest_cmdline_main")
+def pytest_cmdline_main_raw_options(config: pytest.Config):
+    """Read the options as given, before any implementation of the hook runs: xdist's own
+    (tryfirst, in whatever order it was registered) turns -n into --tx entries and `auto` into
+    a number. A worker carries the options it was given, and is skipped."""
+    if not is_worker(config):
+        config.stash[RAW_REFUSAL] = xdist_refusal(config.option)
+    return (yield)
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_cmdline_main(config: pytest.Config):
+    """Refuse before anything runs: before looponfail's loop (under -f the controller's
+    pytest_configure never runs) and before any session (Decision 7)."""
+    why = config.stash.get(RAW_REFUSAL, None)
+    if why:
+        print(why, file=sys.stderr)
+        return 1
+    return None
+
+
+UPSTREAM_FILE = "tests/checks/test_v1_3_upstream_suites.py"
+
+
+def upstream_scopes(configs: dict | None = None) -> dict[str, str]:
+    """The exact map of node ids that share a unit of work: an upstream group's check and each of
+    its classes' checks (Decision 6). No prefix is guessed."""
+    from harness import upstream
+
+    configs = upstream.load_all() if configs is None else configs
+    scopes: dict[str, str] = {}
+    for c in configs.values():
+        for g in c.groups:
+            scopes[f"{UPSTREAM_FILE}::test_upstream_suite[{g}]"] = f"upstream {g}"
+        for k in c.expected:
+            scopes[f"{UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"] = (
+                f"upstream {k.group}"
+            )
+    return scopes
+
+
+def scope_of(nodeid: str, scopes: dict[str, str]) -> str:
+    return scopes.get(nodeid, nodeid)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_xdist_make_scheduler(config, log):
+    """The judge's scheduler: xdist's LoadScope dealing with `scope_of`, which keeps node ids as
+    they are (`--dist loadgroup` appends `@group` to them). xdist's own hook is trylast."""
+    from xdist.scheduler import LoadScopeScheduling
+
+    scopes = upstream_scopes()
+
+    class JudgeScheduling(LoadScopeScheduling):
+        def _split_scope(self, nodeid: str) -> str:
+            return scope_of(nodeid, scopes)
+
+    return JudgeScheduling(config, log)
+
+
+def scheduler_name(config: pytest.Config) -> str | None:
+    """The class of the scheduler xdist used, or None for a serial run (Decision 8)."""
+    dsession = config.pluginmanager.getplugin("dsession")
+    sched = getattr(dsession, "sched", None)
+    return type(sched).__name__ if sched is not None else None
+
+
+def locked_versions(lock: Path | None = None) -> dict[str, str | None]:
+    """The versions uv.lock pins for pytest-xdist and execnet."""
+    try:
+        packages = tomllib.loads((lock or paths.REPO / "uv.lock").read_text()).get("package", [])
+    except (OSError, tomllib.TOMLDecodeError):
+        return {"pytest-xdist": None, "execnet": None}
+    pins = {p.get("name"): p.get("version") for p in packages}
+    return {"pytest-xdist": pins.get("pytest-xdist"), "execnet": pins.get("execnet")}
+
+
+def xdist_versions() -> dict[str, str | None]:
+    """The installed versions: the pytest-xdist distribution, `xdist.__version__`, execnet."""
+    found: dict[str, str | None] = {}
+    for key, dist in (("pytest-xdist", "pytest-xdist"), ("execnet", "execnet")):
+        try:
+            found[key] = importlib.metadata.version(dist)
+        except importlib.metadata.PackageNotFoundError:
+            found[key] = None
+    try:
+        import xdist
+
+        found["xdist"] = getattr(xdist, "__version__", None)
+    except ImportError:
+        found["xdist"] = None
+    return found
+
+
+def xdist_folder() -> Path | None:
+    """xdist's package folder, when every installed version is the one uv.lock pins (Decision 5,
+    C1: `locate_file("xdist")`, never `locate_file("")`, which is all of site-packages)."""
+    have, pins = xdist_versions(), locked_versions()
+    if not (
+        pins["pytest-xdist"] is not None
+        and have["pytest-xdist"] == have["xdist"] == pins["pytest-xdist"]
+        and have["execnet"] == pins["execnet"]
+    ):
+        return None
+    try:
+        dist = importlib.metadata.distribution("pytest-xdist")
+    except importlib.metadata.PackageNotFoundError:
+        return None
+    return Path(str(dist.locate_file("xdist"))).resolve()
+
+
+# ---------------------------------------------------------------------------------------------
 # The end of the run: the record, the ratchet, acceptance
 
 
@@ -397,13 +635,21 @@ def foreign_steering(config: pytest.Config) -> list[str]:
         found.append(f"pytest is configured from {inipath or 'no file'}, not pyproject.toml")
     pytest_dir = Path(pytest.__file__).resolve().parents[1] / "_pytest"
     judged = {(paths.REPO / f).resolve() for f in paths.judge_files()}
+    xdist_dir = xdist_folder()  # None unless every version is uv.lock's (spec 052, Decision 5)
+
+    def allowed(f: Path) -> bool:
+        return f in judged or (xdist_dir is not None and f.is_relative_to(xdist_dir))
+
     for name, plugin in config.pluginmanager.list_name_plugin():
         f = _module_file(plugin)
         if f is None:
             module = type(plugin).__module__
-            if not (module.startswith("_pytest") or module == "builtins"):
+            if module.startswith("_pytest") or module == "builtins":
+                continue
+            defined = _module_file(sys.modules.get(module))  # an object: its type's module file
+            if defined is None or not allowed(defined):
                 found.append(f"plugin {name} ({module})")
-        elif not (f.is_relative_to(pytest_dir) or f in judged):
+        elif not (f.is_relative_to(pytest_dir) or allowed(f)):
             found.append(f"plugin {name} from {f}")
     return found
 
@@ -418,6 +664,21 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     state = config.stash.get(STATE, None)
     if state is None or config.getoption("collectonly"):
         return
+    if is_worker(config):  # hand the collection over; write nothing, accept nothing (D4)
+        config.workeroutput[WORKER_OUTPUT] = {
+            "areas": dict(state.areas),
+            "deselected": list(state.deselected),
+            "collected_files": sorted(state.collected_files),
+            "narrowed_files": sorted(state.narrowed_files),
+        }
+        return
+    for node, why in state.crashed.items():  # spec 052, Decision 14
+        if node in state.areas and node not in state.records:
+            state.records[node] = {
+                "area": state.areas[node],
+                "status": "fail",
+                "reason": f"worker crashed: {why}",
+            }
     if not state.areas and (_opt(config, "--accept") or _opt(config, "--retire")):
         state.lines = ["RED: --accept refused: this run collected no goal checks"]
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
@@ -431,6 +692,8 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         rec.setdefault("need", None)
         rec.setdefault("metrics", {})
     meta = run_meta()
+    meta["workers"] = config.stash.get(WORKERS, 0)
+    meta["scheduler"] = scheduler_name(config)
     partial = _opt(config, "--partial")
     meta["partial"] = partial
     meta["overrides"] = [
