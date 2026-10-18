@@ -1,6 +1,6 @@
 # 033 — The zip carries what packages need
 
-- **Status:** drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** landed 2026-10-18 (accepted on `92df832` as `cde2a7c`; dry run 39094856077). Drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/033-the-zip-carries-what-packages-need-spec-2026-10-17.md`): all eight findings are
   fixed here, and its Disposition says where. **Confirmed for build with conditions, written
   in:** the review's Confirmation set two conditions. Condition 1 (the type builder outside
@@ -1013,3 +1013,15 @@ check within criterion 4's caps as amended by review 033's finding 2 (uncaught_e
 stdlib_debugging_tools_import are over the absolute caps by heap-layout noise; their perturbation
 means, +545,014 and +74,248, are within them)"*. Then the clean-clone build and the release dry
 run (criteria 2, 3 and 5), whose run number goes here.
+
+**Landed 2026-10-18** through the lane: rebased onto main (range-diff: all three commits
+unchanged); the main tree, detached at `2fc05f9`, ran the full 11-step build from the pins
+(5m36s) and gave the worktree's `SHA256SUMS` byte for byte (`python.wasm` `4befe9de…` unchanged,
+snapshot `8d84b3b1…`, zip `6e3f773a…`); two reviews' documents were committed on the detached HEAD
+(`92df832`); the judge accepted it with `--accept-judge` and `--accept-growth` (the reason the
+build review's confirmation gave: 7 zip members; the two over-cap checks within criterion 4 as
+amended) as `cde2a7c`, the two progress files alone; the rules tier passed on it; main
+fast-forwarded. The frozen set for builders is `build/sets/s-8d84b3b190fe9bce` (named by the
+snapshot's hash, since `python.wasm` did not change). Release dry run 39094856077 on `cde2a7c`:
+every job passed, the arm64 Linux rebuild from the pins and "the same bytes from every host"
+included (criteria 3 and 5).
