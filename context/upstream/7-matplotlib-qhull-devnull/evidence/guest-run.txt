@@ -1,0 +1,68 @@
+Drafting runs for spec 043, 2026-10-17 (EXECUTED). The guest is a statically linked CPython
+3.15.0 for wasm32-wasip1 with matplotlib 3.11.2 compiled in, run by the judge's reference
+embedder (tests/harness/guest.py) under wasmtime 49.0.3, with MPLCONFIGDIR on a writable grant.
+The binaries are scratch builds of the research memo
+context/research/2026-10-17-matplotlib-on-the-current-line.md; only the _qhull object differs
+between the three. Paths are shortened; outputs are as printed.
+
+1. matplotlib 3.11.2 as released (no change to src/_qhull_wrapper.cpp), the program of item 4
+   (Delaunay first):
+
+   RuntimeError: Could not open devnull
+     File "/matplotlib/tri/_triangulation.py", line 60, in __init__
+
+2. A fallback form (the research memo's): fopen(MPL_DEVNULL) first, and on WASI a discard
+   stream only if that fails. evidence/triangulate.py, with a writable root holding dev/keep:
+
+   dev before ['keep']
+   collinear: Error in qhull Delaunay triangulation calculation: singular
+   good (2, 3)
+   dev after ['keep', 'null']
+   dev/null bytes 0
+   host files named null: ['run-0/root/dev/null']      <- a regular file made in the host folder
+
+   The same program with no dev folder in the root:
+
+   dev before no /dev
+   collinear: Error in qhull Delaunay triangulation calculation: singular
+   good (2, 3)
+   dev after no /dev
+   host files named null: []
+
+3. fix.patch (this folder): on WASI, no path is opened at all. evidence/triangulate.py, with a
+   writable root holding dev/keep:
+
+   dev before ['keep']
+   collinear: Error in qhull Delaunay triangulation calculation: singular
+   good (2, 3)
+   dev after ['keep']
+   host files named null: []
+
+   The object compiled from fix.patch's file imports fopencookie and no longer fopen
+   (llvm-nm: "U fopencookie").
+
+4. fix.patch, a larger program (Delaunay of 30 seeded points, contourpy, contourf, clabel,
+   tricontourf, triplot, savefig to SVG and PDF), against native CPython with the PyPI wheels of
+   matplotlib 3.11.2 and contourpy 1.4.0, MPL_IGNORE_SYSTEM_FONTS=1. Guest and native print the
+   same lines but one:
+
+   versions 3.11.2 1.4.0 2.5.2
+   delaunay (48, 3) 8131bfe18b9fc320
+   collinear Error in qhull Delaunay triangulation calculation: singular input data (exitcode
+   contourpy serial 1 97 ['-12.8943691', '-6.73815861']
+   contourpy mpl2014 1 97 ['-12.8836232', '-6.74233807']
+   contourpy mpl2005 1 97 ['-12.8836232', '-6.74233807']
+   levels ['-0.4', '-0.2', '0', '0.2', '0.4', '0.6', '0.8', '1']
+   svg 58400 1513d0794da9b754
+   pdf 15856 96eb6c55ce5b19ad      (native: a3270ab34fff61eb)
+   rgba (300, 600, 4) c7c9f6d76874a4d2
+
+   The PDFs differ only in their six font-subset tags (for example /GTTGKY+DejaVuSans against
+   /CRSDXP+DejaVuSans): matplotlib derives the tag from hash(), which is 32 bits wide in a
+   wasm32 Python. With each tag replaced by XXXXXX+, both PDFs hash to 87d654b405dfbd42.
+   Delaunay's triangles and neighbors, unsorted, hash equal too (89432076058c35fd,
+   9339a93a6b6b6bff).
+
+5. Base: the change applies to matplotlib's main at 493abb1b63 (2026-10-17) with an offset of
+   3 lines; git apply --check succeeds. It applies to the 3.11.2 sdist
+   (cec59631...9ea4) with no offset.

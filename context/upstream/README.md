@@ -11,6 +11,7 @@ The issue texts and a reading guide are in the owner's "Upstream issue drafts" d
 | `3-numpy-npy-wasi/` | numpy | `np.save` and `np.load` on WASI, where `os.dup` is unsupported | patch and facts; numpy's AI policy requires the owner to write the description |
 | `5-pandas-styler-from-a-zip/` | pandas | the Styler's templates when pandas is imported from a zip archive | patch and a facts sheet for spec 041 (question 80); pandas' policy keeps the issue and pull request in the owner's own words |
 | `6-networkx-atlas-from-a-zip/` | networkx | the graph atlas when networkx is imported from a zip archive | patch, test and a facts sheet for spec 041 (question 80); networkx asks AI tools not to suggest a pull request, so engaging is the owner's choice |
+| `7-matplotlib-qhull-devnull/` | matplotlib | Delaunay triangulation on WASI, where `/dev/null` does not exist and opening it could make a host file | patch and a facts sheet for spec 043 (question 80); matplotlib's guide keeps AI tools from opening pull requests, so the owner writes it |
 
 Each patch is against the base named in its `pr.md`. `notes.md` in each folder records how the
 fix was found and checked. When a fix lands upstream and a pin moves past it, record that here

@@ -237,6 +237,20 @@ document.
 - **Meanwhile:** spec 041's drafts are being rewritten as facts sheets that say so; nothing is
   sent.
 
+### 81. contourpy's licence (spec 043)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/043-matplotlib-second-milestone.md`,
+  Decision 11. Numbered after 80 to stay clear of the numbers left for tonight's drafts.
+- matplotlib's second milestone links contourpy 1.4.0, the C++ package every `contour` and
+  `contourf` goes through. Its licence is BSD-3-Clause (its `LICENSE`, and PyPI's
+  `license = "BSD-3-Clause"`). §4.12 names kiwisolver, pybind11 and cppy under BSD-3-Clause for
+  matplotlib (question 35), but not contourpy; the 2026-10-16 memo's table listed it, and no
+  approval named it. §4.12 says nothing is linked in under a licence the owner has not approved.
+- **The question:** approve contourpy (BSD-3-Clause), shipped with its notice, and record it in
+  §4.12? The agent recommends yes: it is the same licence as numpy's and kiwisolver's.
+- **Meanwhile:** spec 043 is drafted and can be reviewed; it is not built until this is answered.
+  qhull's licence, which 043 also ships now that qhull is linked, is already approved.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
