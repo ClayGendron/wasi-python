@@ -45,7 +45,7 @@ promises.
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 83.4M guest instructions on 3.15 with matplotlib (81.9M before) |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
 | one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); 167M / 4.92G guest instructions with matplotlib's members in the zip (151M / 4.90G before; spec 023) |
-| a line plot saved as PNG, snapshot, matplotlib not pre-imported | 7.10G guest instructions with a fresh font cache (a fresh `HOME`), 5.11G with a kept `MPLCONFIGDIR` (spec 023) |
+| a line plot saved as PNG, snapshot, matplotlib not pre-imported | 7.56G guest instructions with a fresh font cache (a fresh `HOME`), 5.57G with a kept `MPLCONFIGDIR` (spec 023) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |

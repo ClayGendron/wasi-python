@@ -1,6 +1,6 @@
 # 023 — matplotlib, the first milestone
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
+- **Status:** **built 2026-10-18; awaiting its build review** (the landing notes below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed, at its build review's confirmation): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised against its pre-build review
   (`../reviews/023-matplotlib-first-milestone-spec-2026-10-17.md`), whose confirmation passed it
   for build with five definitions (A to E), now written in. Question 35 (licences, §4.12) was answered on
   2026-10-17: the whole list is approved, so it may be built.
@@ -251,4 +251,243 @@ In: M1. Out:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by an agent (Claude Opus 5.5) in the worktree `wasi_python-023`, branch
+`spec/023-matplotlib-first-milestone`, from main `73fb50b`. Every number below is EXECUTED on
+darwin-arm64 unless marked; fuel is the judge's driver's (fixed clock and entropy, exact). The
+scratch scripts and logs are in the session scratchpad, not in git. The judge was run in the
+worktree on its own build, never with `--accept`.
+
+**Commits.** `5d55e5f` (pins, steps 10, 37, 55, 60, 70, `wasi-cc`, the stand-in, cross files,
+assembler), `a994dba` (the judge), `b37cd99` (step 55 renamed), `b85ed85` (the runner),
+`135fb1c` (the three patches, their drafts and facts sheets, CHANGELOG), `514230b` (the upstream
+harness grants matplotlib's data), `9fc679f` (README), and the commit carrying these notes.
+
+### What the build found that the specification did not foresee (decided by §6; for the review)
+
+1. **Two more carried patches, as spec 051's binding status line requires.** The first link of
+   the plot packages failed `test_callbacks_have_the_types_cpython_calls` with 24 findings
+   (EXECUTED): 21 in kiwisolver (17 `METH_NOARGS` methods and 4 `strength` getters defined with
+   one parameter), 2 in Pillow (`__arrow_c_schema__` and `__arrow_c_array__`, `METH_VARARGS`,
+   one parameter), and one false positive (item 2). kiwisolver's trapped the guest: `Solver()
+   .addConstraint(x >= 10)` ended in `indirect call type mismatch` (EXECUTED). Neither is fixed
+   upstream (Pillow `main` `6085656`, kiwisolver `main` `ef031dd`, READ; both patches apply there,
+   EXECUTED `git apply --check`). So `recipes/patches/pillow-13.0.0/0001-arrow-capsule-signatures.patch`
+   (2 lines) and `recipes/patches/kiwisolver-1.5.1/0001-callback-signatures.patch` (21 lines,
+   made by a script that rewrote each definition once and refused any other count), each with its
+   draft under `context/upstream/patches/` and a facts sheet (`18-…`, `19-…`; owner decision 80).
+   After them the scan reports none, and a new golden job, `plot_callbacks`, calls all 23 and
+   prints native's output on both binaries. Carried patches: 2 → 5.
+2. **The scan's one false positive is fixed in the judge, not excluded.** FreeType's BDF driver's
+   property table begins `{"ADD_STYLE_NAME", BDF_ATOM = 1, 1, 0}`, sixteen bytes its code points
+   at, which read as a single `PyMethodDef` `{name, table index 1, METH_VARARGS}`; table index 1 is
+   CPython's parser rule `_tmp_6_rule` (EXECUTED: indices 1 to 22 are all parser rules or
+   `_PyPegen_*`). The scan already reasons that table indices 1 to 20 are parser rules, never a
+   callback (its member rule); `harness/callbacks.py` now applies that to single definitions too
+   (`PARSER_RULES = 20`). On the baseline binary no single definition points at 1 to 20; on this
+   one only that record does (EXECUTED). A unit check fails without the rule and passes with it.
+   `EXCLUDED` stays empty. Coverage: 3,252 array entries, 1,989 singles, 1,138 getsets, 429
+   members.
+3. **Spec 035 changed Decision 6's arithmetic.** Decision 6 used 76,490 fuel per zip member;
+   spec 035 (landed after this specification was drafted) reads the directory at about 25,000
+   a member, and its landing notes re-derived "about 610 × 25,058 ≈ +15.3 M" for this build. So
+   plain start grows about a third of Decision 6's estimate (the table below). Lower growth, from
+   a cause outside this build; reported, not hidden.
+4. **Unicode's data terms are pinned from Unicode's own repository at a commit**, not from
+   unicode.org: `https://www.unicode.org/license.txt` has no versioned copy (EXECUTED: 404 for
+   `Public/17.0.0/license.txt` and its `ucd/` forms) and its copyright year changes, which would
+   break the pin. The pinned file is `unicode-org/unicodetools` at `4fd8eca9`'s `LICENSE`, the
+   Unicode License V3 (the same terms as unicode.org's, its copyright line `2001-2024`; EXECUTED
+   `diff`). HarfBuzz 14.1.0's tables are Unicode 17.0.0's (READ).
+5. **The extension archives' install paths come from meson's install plan.** `meson install
+   --tags python-runtime,data` installs no extension module (they carry the `runtime` tag,
+   EXECUTED: 0 archives). Step 55 reads `meson-info/intro-installed.json` (built file → install
+   path, e.g. `src/_backend_agg…so` → `matplotlib/backends/_backend_agg…so`) and lays each archive,
+   with its `.deps` made absolute, at that path under `build/plot-modules/`; `gen_inittab.py` takes
+   the names from there, as Decision 4 says.
+6. **Step 55 is `55_matplotlib`**, not the Design's `55_plot_packages`: a sixteen-letter name
+   broke `build.sh --list`'s fifteen-column layout (`test_list_cuts_the_real_descriptions_at_a_word`
+   failed, EXECUTED).
+7. **Pillow and kiwisolver are compiled at `-O2 -DNDEBUG`**, as steps 30 and 35 compile C;
+   kiwisolver with cppy's `-std=c++11`. matplotlib and the meson libraries use meson's release
+   `-O3`.
+8. **Judge changes beyond Decision 8's list, each forced by an existing check:** `paths.PACKAGES`
+   and `LICENCE_COMPONENTS` gain the thirteen components (so every new notice is checked against
+   its pinned archive); `test_packages_carry_their_metadata`'s `DISTRIBUTIONS` gains the seven new
+   distributions (the list says a later specification adds to it); the unit fixtures follow; the
+   build-progress unit checks count thirteen steps; `harness/upstream.py` grants matplotlib's data
+   to numpy's and pandas' own tests, as the runner grants it on every call (without it pandas'
+   `importorskip("matplotlib")` met `NotADirectoryError` and `pandas-io-formats` failed to collect,
+   EXECUTED; with it the group passes, 976 → 977 upstream tests). The judge's driver
+   (`harness/guest.py`) grants the data only when a check asks (`mpl_data=True`), so the other
+   checks' preopens are unchanged. The oracle's golden for the plot records its platform in
+   `tests/jobs/plot_line.platform` (the `.expected` file must equal the guest's output, so the
+   platform cannot live in it), and the reproduce check and `regen.py --check` run that job only
+   on the recording platform.
+
+### Acceptance criteria against evidence
+
+1. **The checks exist and were seen failing first.** On the baseline set (main's, rebuilt here
+   byte for byte: `python.wasm` `42344e2c…`): the milestone and the other plot checks failed with
+   no `matplotlib/mpl-data.zip` in the zip, kiwisolver with `ModuleNotFoundError`, the data grant
+   with exit 1 (no data folder at the path), the constructor check with "reviewed, but no longer
+   linked" (EXECUTED). `test_usr_local_lib_holds_only_the_zip` passed on the baseline, as a guard
+   should; it is the amended layout's guard. **On an unpatched build:** with patch 0001 moved
+   aside, steps 55 and 60 ran and step 60 stopped: `ERROR: _GLOBAL__sub_I_ft2font_wrapper.cpp: a
+   static constructor no review has read` (EXECUTED), never reaching Wizer. The check's reviewed
+   list was first written from the research binaries; on this build two names differed
+   (`__cxx_global_var_init.5` for the research's `.6`, no `register_mpl`), and each constructor
+   was read before it was listed: libc++'s iostream `_GLOBAL__I_000100`; Agg's two guarded
+   `sRGB_conv_base<…>::lut` tables filled with `pow()` (`__cxx_global_var_init`, `.5`, in
+   `_image_wrapper.cpp`); kiwisolver's strength constants and `recursive_mutex`
+   (`_GLOBAL__sub_I_kiwisolver.cpp`). None calls Python (EXECUTED, `llvm-objdump -dr`).
+2. **A full build from pins in a clean clone** (`git clone` of the branch at `135fb1c` into the
+   scratchpad, downloads linked, `scripts/build.sh --plain`, 8 min 13 s) applied all five patches,
+   built every new step and gave **the same `SHA256SUMS`, every line, as the worktree's build**
+   (11 min 22 s): `python.wasm` `e0224891…`, snapshot `8eb9e357…`, zip `16ee747c…`, `MANIFEST`
+   `7ecc8851…`. Two checkouts at two paths, same bytes (EXECUTED, `diff`). Both binaries run the
+   milestone (the judge, below). `MANIFEST` names the 18 new pins (62 `pin` lines), the 13
+   `package` lines, and every new recipe, the five patches among them (EXECUTED, `grep`).
+3. **The same-bytes rebuild on arm64 Linux: not run here** (no Linux host). Left to the release
+   dry run's rebuild jobs (criterion 5), which the lane runs. Two risks were closed before it:
+   `-ffile-prefix-map` everywhere (`test_artifacts_carry_no_build_path` passes, and the two
+   checkouts above agree), and meson cannot take a host CMake path (`cmake` points at
+   `build/no-cmake`; pkgconf is the pinned binary with its search path replaced).
+4. **The judge** (below): green but for growth, every growth listed with its reason; Decision 6's
+   comparison in the next table.
+5. **A release dry run: not run here**; the lane's.
+
+### What the set costs (Decision 6), measured
+
+| | before (main's set) | after | growth | Decision 6 expected |
+|---|---|---|---|---|
+| `python.wasm` bytes | 31,786,374 | 36,911,971 | +5,125,597 (+16.1%) | about +19% |
+| snapshot bytes | 65,548,702 | 70,897,198 | +5,348,496 (+8.2%) | – |
+| stdlib zip bytes | 11,203,143 | 21,948,256 | +10,745,113 (+95.9%) | about +11 MB |
+| zip members | 1,760 | 2,391 | +631 | about +610 |
+| plain `-c pass` fuel | 150,988,365 | 166,511,583 | +15,523,218 (+10.3%) | about +47 M (+19%) |
+| snapshot `-c pass` fuel | 81,868,626 | 83,372,077 | +1,503,451 (+1.8%) | about +2% |
+| plain `import numpy` | 1,041,850,698 | 1,057,526,128 | +1.5% | +4.7%, less |
+| plain `import pandas` | 4,898,860,027 | 4,915,384,247 | +0.3% | +1.3%, less |
+| snapshot initial memory | 906 pages (56.6 MiB) | 916 pages (57.3 MiB) | +640 KiB | – |
+
+- **Outside Decision 6 by more than a tenth, both lower:** plain start, +15.5 M against about
+  +47 M: spec 035's reader (item 3 above); +15.5 M over 631 members is 24,601 a member, 035's
+  own slope. `python.wasm`, +16.1% against about +19%: Decision 6 took the memo's +19.7% less
+  qhull, but that figure also held contourpy (388,785 bytes, M2's) and `_qhull`'s wrapper; less
+  contourpy and qhull the memo's growth is +5,556,351 (+17.5%), and this build's is 7.8% under
+  that (INFERRED: `_qhull`'s wrapper, also left out, and other flags). Neither is a regression.
+- The zip: 631 new members (fontTools 344, matplotlib 109, PIL 98, mpl_toolkits 24, packaging
+  23, pyparsing 19, the rest METADATA and small packages); `matplotlib/mpl-data.zip` holds 204
+  files, 9,673,776 bytes stored, deflated to 4,686,989 as the outer member.
+- The data's cost in the runner (wall clock, a benchmark fact, median of five): extracting it
+  takes 89.6 ms (204 files, 9 folders) once per process; the per-call tree comparison 2.4 ms.
+
+### Numbers for the owner (34): pre-importing matplotlib in the snapshot
+
+A scratch snapshot only (nothing of it lands): this build's `python.wasm` relinked with
+`PREIMPORT` adding `os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'; import matplotlib,
+matplotlib.pyplot; del os.environ['MPLCONFIGDIR']`, and Wizer given the data at its nested path
+and a writable `/tmp`. Fuel through the judge's driver; the plot is `tests/jobs/plot_line.py`
+with its PNG save; "fresh cache" is a fresh `MPLCONFIGDIR`, as the runner's fresh `HOME` gives.
+
+| | snapshot, no pre-import (this build) | snapshot, matplotlib pre-imported |
+|---|---|---|
+| the plot, fresh font cache | 7,559,402,576 | 1,019,593,157 (7.4 times less) |
+| the plot, kept font cache | 5,566,539,879 | 1,019,593,157 (5.5 times less) |
+| `-c pass` | 83,372,077 | 106,643,622 (+23,271,545, +27.9%) |
+| `import pandas` | 83,394,416 | 106,664,998 |
+| snapshot bytes | 70,897,198 | 88,387,348 (+17,490,150, +24.7%) |
+| initial memory per instance | 916 pages, 57.3 MiB | 1,184 pages, 74.0 MiB (+16.75 MiB) |
+| snapshot deflated (as in the wheel) | 21,434,463 | 27,881,853 (+6,447,390) |
+
+The plain reactor's plot is 9,104,956,971 (fresh cache) and 7,112,648,546 (kept). Without the
+PNG save the pre-imported plot is 561,298,537 and the unimported one 7,101,319,629 (fresh) and
+5,111,089,768 (kept): the save is about 0.46 G. With pre-import the font list lives in the
+snapshot, so the cache, `HOME` and `root=False` stop mattering to a plot.
+
+### Numbers for the owner (64): the wheel against PyPI's 100 MiB limit
+
+The wheel built as spec 028 builds it (`cp -R build/artifacts src/wasi_python/artifacts; uv
+build --wheel --build-constraints release/build-constraints.txt --require-hashes`):
+**52,070,134 bytes (49.7 MiB)**, against 38,940,283 (37.1 MiB) for main's set built the same
+way. Its large files, deflated: `python-stdlib.zip` 21,574,949 (21,948,256 raw: its members are
+already deflated), `python-snapshot.wasm` 21,434,463 (70,897,198 raw), `python.wasm` 8,805,408
+(36,911,971 raw); the next largest, `runner.py`, 38,562. Headroom to 100 MiB: 52.8 MB. With
+matplotlib pre-imported the snapshot would deflate to 27,881,853, a wheel of about 58.5 MB
+(INFERRED: the sum).
+
+### The judge
+
+The full `uv run pytest` (slow checks and numpy's and pandas' own tests included, the kit fetched
+with `tests/upstream/fetch.py`) on this build, the last run:
+
+```
+1 failed, 1405 passed, 9 skipped, 14 xfailed in 626.47s (0:10:26)
+wasi_python v1: 339/356 pass · 14 gap · 2 blocked · 1 fail   (unit suite 1066/1073, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+gaps close with: README 10 · questions-for-the-owner 2 · 2026-10-17-matplotlib-on-the-current-line 2
+ratchet vs 4921daffeb: lost 1 · absent 0 · unrun 0 · unrun locally 1 · gained 23 · grew 85 · more 1 · judge changed: … and 25 more
+```
+
+- **The one failure is a wall-clock window, not this change.**
+  `test_a_deadline_during_a_door_call_under_cancel_is_named` needs the guest to reach the door
+  within a 50 ms deadline; it failed once, with the machine's load average at 37 on 10 cores
+  (other agents' builds), and passed in this build's two earlier full runs and five times of five
+  on its own (EXECUTED). The deadline is set in `_instance`, after the runner's data work
+  (INFERRED, READ `_run_checked`). The run before it had one other failure, two "question"
+  headings in these notes (`test_specifications_have_no_open_question`), fixed; that check then
+  passed with the rest of `test_rules.py`.
+- **The two gaps** are the M2 ones, failing exactly as `tests/known_gaps.toml` says.
+  `test_callbacks_have_the_types_cpython_calls` is green (spec 051's binding).
+  `test_goldens_reproduce_under_the_pinned_oracle` reproduces every golden, `plot_line` included
+  (darwin-arm64, its recording platform); every older golden rewrote byte for byte the same.
+- **Gained 23 passes and 2 gaps:** the plot job ×2, the dpi check, the kiwisolver check ×2, the
+  patched-callbacks job ×2, the data grant ×2, the `/usr/local/lib` listing ×2, the constructor
+  check, the feature check ×2, the eight new source trees, and `test_wheel_carries_the_artifact_set`
+  (the wheel built for question 64 below carries this set); the gaps are the two M2 checks.
+  `more 1`: `pandas-io-formats` 976 → 977 upstream tests passing. `unrun locally 1`: the
+  prior-art licence check, blocked in a worktree as everywhere but the main tree.
+- **Grew, for the accept (`--accept-growth`), every one with its reason:**
+  - bytes: `python.wasm` +5,125,597 (+16.1%), the snapshot +5,348,496 (+8.2%), the zip
+    +10,745,113 (+95.9%): matplotlib's stack, above.
+  - 38 plain-reactor checks, each +13.6 M to +19.1 M fuel: the 631 new zip members, about 24,600
+    fuel each, read at every plain start (spec 035's reader).
+  - 23 snapshot checks, each +1.3 M to +1.7 M (+1.1% to +1.8%): the snapshot `-c pass` itself
+    grew +1.50 M; INFERRED: finalizing zipimport's larger directory dict at exit (`os._exit`
+    skips it: `test_unbuffered_output_survives_a_hard_exit[snapshot]` fell by 1,593).
+  - `test_packages_carry_their_metadata`: +149.0 M snapshot (+43.5%), +165.7 M plain: it lists
+    every distribution and now parses seven more `METADATA` files, fontTools' 137 KB among them.
+  - `test_metadata_answers_from_the_zips_directory[snapshot]` +4.8 M and
+    `test_ctypes_stand_in_names_what_packages_import[snapshot]` +4.4 M: more distributions in
+    `importlib.metadata`'s scans (INFERRED); `test_npy_files_round_trip[snapshot]` +1.75 M.
+  - `test_a_reread_after_invalidate_caches_is_the_fast_read` +31.3 M: two directory reads of 631
+    more members.
+  - `test_the_fast_reader_builds_zipimports_dict` +55.1 M snapshot, +85.2 M small, +341.4 M
+    padded (+18% to +29%): it builds the dict for the whole zip, 36% more members (the padded zip
+    is this zip padded).
+  - `test_resources_read_as_zipfile_reads_them` +1.32 G plain, +1.30 G snapshot (+27%, +29%): the
+    check compares the reactor's reader with `zipfile.Path` over every tzdata and pandas entry,
+    and `zipfile.Path`'s answers scan the whole member list (INFERRED from the 36% more members;
+    the reactor's own reads are unchanged, `test_a_zone_load_does_not_grow_with_the_zip` passes).
+  - `test_extra_preopens_work_on_the_snapshot` ×2, +2.20 M (+0.26%): the probe visits every heap
+    object, and the heap holds the larger directory.
+  - numpy's and pandas' own groups: `pandas-io-formats` +1.27 G (+2.4%), because
+    `test_matplotlib.py` now imports matplotlib at collection; the others −0.6% to +0.4%.
+
+### For the build review
+
+- The three new patches and their drafts (`recipes/patches/`, `context/upstream/patches/`,
+  `17-…` to `19-…`); 0001 for matplotlib is byte-identical to the pre-build review's re-made file
+  (EXECUTED `diff`).
+- The callback scan's `PARSER_RULES` rule (item 2): a judge change that removes one false finding;
+  is the reasoning (table indices 1 to 20 are parser rules in the linked binary) sound for singles?
+- The runner (`_zip_folder`, `_extract_data`, `_data_intact`, `_remove_entry`): a member name with
+  `\` or `:` is refused too (beyond Decision 5's list, for Windows); a member's type is judged by
+  its mode's type bits only, since Python's `writestr` records `0o600` without them; a file that
+  Windows cannot replace while a guest holds it is kept when its CRC-32 and size are right. The
+  per-call comparison costs about 2.4 ms of host time on every call.
+- `tests/harness/constructors.py` is imported by step 60 (`PYTHONPATH=tests`): the build runs the
+  judge's own check, as Decision 4 asks, so a judge change to that list is also a build input
+  (it is not in `MANIFEST`, being under `tests/`).
+- Decision 6's two lower-than-expected growths (above): the per-member cost is spec 035's.
+- Not run here: the arm64 Linux rebuild (criterion 3) and the release dry run (criterion 5).
