@@ -319,6 +319,28 @@ def test_a_tool_that_cannot_be_described_is_refused(what, make, error, words) ->
     assert words in str(refused.value), str(refused.value)
 
 
+def test_bound_keywords_are_found_through_any_wrapper() -> None:
+    """Spec 056, Decision 1: a callable object whose `__call__` is a partial's target, and a
+    `__wrapped__` cycle (refused, not walked forever)."""
+
+    class Orders:
+        def __call__(self, user_id: int, api_key: str = "default") -> int:
+            return user_id
+
+    assert T._bound_keywords("t", Orders()) == frozenset()
+    assert T._bound_keywords("t", functools.partial(Orders(), api_key="k")) == {"api_key"}
+    made = tool(functools.partial(Orders(), api_key="k"), name="t")
+    assert made.input_schema["properties"] == {"user_id": {"type": "integer"}}
+    assert made._fixed == {"api_key"}
+
+    def loop(x: int) -> int:
+        return x
+
+    loop.__wrapped__ = loop
+    with pytest.raises(TypeError, match="nest deeper"):
+        tool(loop)
+
+
 def test_validates_input_lets_unknown_keywords_through_but_never_a_cycle() -> None:
     s = schema({"x": {"type": "string", "pattern": "^a+$"}})
     t = tool(square, input_schema=s, validates_input=True)

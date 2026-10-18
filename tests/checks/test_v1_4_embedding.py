@@ -2570,6 +2570,127 @@ def test_abandoned_calls_are_counted_past_the_listed_outcomes(guest_workdir, rel
     assert record.abandoned == 4
 
 
+# The 0.1.0a4 security review's findings (spec 056): a keyword bound with functools.partial is
+# fixed, neither shown to the guest nor set by it (F1); a call that ended while its gate still
+# decided never runs its tool (F2). A gate that must block waits on an event the check sets.
+
+SECRET = "sk-live-SECRET"
+
+PARTIAL_PROBE = r"""
+import _host, inspect, json
+from host import tools
+print(inspect.signature(tools.my_orders))
+print(sorted(tools.my_orders.descriptor["inputSchema"]["properties"]))
+print(tools.my_orders())
+try:
+    tools.my_orders(user_id=7)
+except TypeError as e:
+    print(type(e).__name__)
+for args in ({"user_id": 7}, {"api_key": "mine"}):
+    frame = {"v": 1, "id": 1, "op": "call", "tool": "my_orders", "args": args}
+    answer = json.loads(_host.call(json.dumps(frame).encode()))
+    print(answer["ok"], answer["error"]["kind"], answer["error"]["message"])
+"""
+
+
+def _orders_log() -> tuple[list, object]:
+    calls: list = []
+
+    def orders(user_id: int, api_key: str) -> list[str]:
+        """This user's orders."""
+        calls.append((user_id, api_key))
+        return [f"orders of user {user_id}"]
+
+    return calls, orders
+
+
+def test_a_partials_bound_keywords_are_fixed(guest_workdir) -> None:
+    """Spec 056, criterion 1 (the a4 security review's F1, its probe p08): `tool(partial(orders,
+    user_id=42, api_key=…))`. The guest's descriptor, signature and stubs name neither keyword
+    and hold no bound value; the guest's own call with `user_id=7` is refused before a frame;
+    forged frames naming either keyword are answered `invalid_arguments`, as an unknown argument
+    is; the tool runs once, as bound."""
+    import functools
+
+    from wasi_python.tools import stubs, tool
+
+    run = _runner()
+    calls, orders = _orders_log()
+    mine = tool(functools.partial(orders, user_id=42, api_key=SECRET), name="my_orders")
+    assert mine.input_schema["properties"] == {}, mine.input_schema
+    assert SECRET not in json.dumps(mine.descriptor())
+    assert SECRET not in stubs([mine]) and "user_id" not in stubs([mine])
+    done = run(["-c", PARTIAL_PROBE], tools=[mine])
+    assert done.exit_code == 0, done
+    assert done.stdout.decode().splitlines() == [
+        "() -> list[str]",
+        "[]",
+        "['orders of user 42']",
+        "ToolArgumentError",
+        "False invalid_arguments my_orders: the arguments: unknown argument 'user_id'",
+        "False invalid_arguments my_orders: the arguments: unknown argument 'api_key'",
+    ], done
+    assert SECRET.encode() not in done.stdout + done.stderr
+    assert calls == [(42, SECRET)]
+    assert [o.outcome for o in done.tools.outcomes] == ["ok", "ok"] + ["invalid_arguments"] * 2
+
+
+def test_bound_keywords_are_fixed_however_the_partial_is_reached() -> None:
+    """Spec 056, criterion 2: the same holds where `inspect.signature` finds a partial through
+    another object (nested partials, a `__wrapped__` chain, a bound `partialmethod`); a given
+    `input_schema` that names a bound keyword is refused; under an open schema a frame naming
+    one is answered `invalid_arguments` and the tool does not run; an unbound `partialmethod`
+    is refused; a plain function's and a bound method's own defaults are still published."""
+    import functools
+
+    from wasi_python.tools import _ToolHost, tool
+
+    calls, orders = _orders_log()
+
+    def wrapper(**kw):
+        return inner(**kw)
+
+    inner = functools.partial(orders, user_id=42, api_key=SECRET)
+    functools.update_wrapper(wrapper, inner)
+    wrapper.__annotations__ = dict(orders.__annotations__)
+
+    class Shop:
+        def orders(self, user_id: int, api_key: str, limit: int = 10) -> list[str]:
+            """This user's orders."""
+            calls.append((user_id, api_key, limit))
+            return []
+
+        mine = functools.partialmethod(orders, api_key=SECRET)
+
+    nested = functools.partial(functools.partial(orders, user_id=42), api_key=SECRET)
+    method_left = {"user_id": {"type": "integer"}, "limit": {"type": "integer", "default": 10}}
+    for fn, left in [(nested, {}), (wrapper, {}), (Shop().mine, method_left)]:
+        made = tool(fn, name="mine")
+        assert made.input_schema["properties"] == left, (fn, made.input_schema)
+        assert SECRET not in json.dumps(made.descriptor())
+
+    bound = functools.partial(orders, api_key=SECRET)
+    given = {"type": "object", "properties": {"user_id": {"type": "integer"}, "api_key": {}}}
+    with pytest.raises(ValueError, match="api_key"):
+        tool(bound, name="mine", input_schema=given)
+    with pytest.raises(TypeError, match="partialmethod"):
+        tool(Shop.mine, name="mine")
+
+    calls.clear()
+    open_schema = tool(bound, name="mine", input_schema={"type": "object"}, validates_input=True)
+    host = _ToolHost([open_schema])
+    args = {"user_id": 7, "api_key": "x"}
+    frame = {"v": 1, "id": 1, "op": "call", "tool": "mine", "args": args}
+    answer = json.loads(host(json.dumps(frame).encode()))
+    assert (answer["ok"], answer["error"]["kind"]) == (False, "invalid_arguments"), answer
+    assert calls == []
+
+    def plain(user_id: int, limit: int = 10) -> list[str]:
+        return []
+
+    assert tool(plain).input_schema["properties"]["limit"] == {"type": "integer", "default": 10}
+
+
 # Writable mounts (spec 034): a provider's write half, served at open, at close, at fsync and at
 # every ending. The guest asks the door for the provider's counts between its steps, so each
 # step's calls are counted exactly; the provider's own log holds every write-half call whole.

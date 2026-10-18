@@ -71,6 +71,9 @@ SAME_VALUE_CHAIN = 8  # the most schema nodes a $ref, anyOf or oneOf chain passe
 MAX_ABANDONED = 4  # tool threads one call may leave running before its next call is refused
 DEADLINE_MARGIN_TICKS = 2  # a tool call ends this many ticks before the run's deadline
 
+_WRAPPER_DEPTH = 64  # partials, methods and __wrapped__ links walked to find bound keywords
+_PARTIALMETHOD = ("__partialmethod__", "_partialmethod")  # its mark: Python 3.13 on, and before
+
 _NAME = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}")
 _HEADINGS = ("Args:", "Arguments:", "Returns:", "Raises:")
 _HINTS = (
@@ -134,6 +137,7 @@ class Tool:
     idempotent: bool = False
     open_world: bool = False
     _keysets: dict = field(default_factory=dict, repr=False)
+    _fixed: frozenset = field(default=frozenset(), repr=False)  # keywords a partial binds
 
     def __post_init__(self) -> None:
         # Only tool() makes one: not a direct call, and not dataclasses.replace (review F7).
@@ -274,6 +278,7 @@ def _make(
     if _is_async(fn):
         raise TypeError(f"{name}: async tools come with a later specification (decision 15)")
     timeout = _timeout(name, timeout_s)
+    fixed = _bound_keywords(name, fn)
     doc = _doc(fn)
     if description is None:
         description = _summary(doc)
@@ -286,7 +291,7 @@ def _make(
             raise
         hints_of = {}  # the schema is given: the hints only add an output schema
     if input_schema is None:
-        schema = _derived(name, fn, hints_of, _args_section(doc))
+        schema = _derived(name, fn, hints_of, _args_section(doc), fixed)
     else:
         maker = getattr(input_schema, "model_json_schema", None)
         given = maker() if callable(maker) else input_schema
@@ -296,6 +301,13 @@ def _make(
                 f"got {type(input_schema).__name__}"
             )
         schema = _plain(given, f"{name}: input_schema", 0)
+        props = schema.get("properties")
+        named = sorted(fixed & set(props)) if isinstance(props, dict) else []
+        if named:
+            raise ValueError(
+                f"{name}: input_schema names {', '.join(map(repr, named))}, which the partial "
+                "binds; a bound keyword is fixed, so the guest cannot set it: leave it out"
+            )
     nodes = _vet(name, schema, validates_input)
     output = None
     if "return" in hints_of:
@@ -314,6 +326,7 @@ def _make(
             validates_input=validates_input,
             timeout_s=timeout,
             _keysets=_keysets(nodes),
+            _fixed=fixed,
             **hints,
         )
     finally:
@@ -329,6 +342,40 @@ def _is_async(fn: Any) -> bool:
         call = type(fn).__call__
         return inspect.iscoroutinefunction(call) or inspect.isasyncgenfunction(call)
     return False
+
+
+def _bound_keywords(name: str, fn: Any) -> frozenset[str]:
+    """The keywords a `functools.partial` binds, wherever `inspect.signature` may meet one on
+    its way to the function: the partial, nested partials, a bound method's function, a
+    `__wrapped__` chain, a callable object's `__call__` (spec 056, Decision 1). Each is fixed:
+    left out of the derived schema and refused in a frame, so the guest neither reads its value
+    nor sets it. A `functools.partialmethod` met other than through an instance is refused."""
+    found: set[str] = set()
+    target, called = fn, False
+    for _ in range(_WRAPPER_DEPTH):
+        if any(getattr(target, a, None) is not None for a in _PARTIALMETHOD):
+            raise TypeError(
+                f"{name}: a functools.partialmethod is described only through an instance "
+                "(obj.method); or bind its keywords with a closure or a functools.partial"
+            )
+        if isinstance(target, functools.partial):
+            found.update(target.keywords)
+            target = target.func
+        elif isinstance(target, types.MethodType):
+            target = target.__func__
+        elif not isinstance(target, type) and getattr(target, "__wrapped__", None) is not None:
+            target = target.__wrapped__
+        elif not called and not (
+            inspect.isfunction(target) or inspect.isbuiltin(target) or isinstance(target, type)
+        ):
+            called = True
+            try:
+                target = type(target).__call__
+            except AttributeError:  # not callable: inspect.signature refuses it, as tool() does
+                return frozenset(found)
+        else:
+            return frozenset(found)
+    raise TypeError(f"{name}: its wrappers nest deeper than {_WRAPPER_DEPTH}; pass a function")
 
 
 def _timeout(name: str, value: Any) -> float | None:
@@ -405,7 +452,13 @@ def _type_hints(name: str, fn: Any) -> dict[str, Any]:
         raise TypeError(f"{name}: its type hints cannot be read ({type(e).__name__}: {e})") from e
 
 
-def _derived(name: str, fn: Any, hints: dict[str, Any], args_doc: dict[str, str]) -> dict:
+def _derived(
+    name: str,
+    fn: Any,
+    hints: dict[str, Any],
+    args_doc: dict[str, str],
+    fixed: frozenset = frozenset(),
+) -> dict:
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError) as e:
@@ -413,6 +466,8 @@ def _derived(name: str, fn: Any, hints: dict[str, Any], args_doc: dict[str, str]
     properties: dict[str, Any] = {}
     required: list[str] = []
     for p in sig.parameters.values():
+        if p.name in fixed:
+            continue  # bound by a partial: not the guest's to read or set (spec 056)
         where = f"{name}: parameter {p.name!r}"
         if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             raise TypeError(f"{where}: *args and **kwargs cannot be described; name each one")
@@ -1682,6 +1737,10 @@ class _ToolHost:
         error = _Validator(t._input_schema, keysets=t._keysets).check(args)
         if error is not None:
             return failed("invalid_arguments", f"{t.name}: {error}", frame_id)
+        for k in args:
+            if k in t._fixed:  # an open schema let a bound keyword through: as unknown (056)
+                message = f"{t.name}: {_where(None)}: unknown argument {_echo(k)}"
+                return failed("invalid_arguments", message, frame_id)
         work = _Work(self, seq, frame_id, t, args)
         done = self._invoke(work)
         if isinstance(done, _Interrupted):
