@@ -1,14 +1,15 @@
 # 059 — The x86_64 rebuild runs natively
 
-- **Status:** specified; revised against its pre-build review; awaiting the reviewer's
-  confirmation. Drafted 2026-10-18 on `spec/059-the-x86-64-rebuild-runs-natively` from main
+- **Status:** specified; confirmed by its pre-build review (N1 and N2 written in); ready to build
+  after 023 lands. Drafted 2026-10-18 on `spec/059-the-x86-64-rebuild-runs-natively` from main
   `d68a594`, where the owner's decision is recorded (`../decisions.md`, "The x86_64 rebuild
   without emulation (2026-10-18)"). The pre-build review
   (`build/reviews-evidence/059-spec/059-the-x86-64-rebuild-runs-natively-spec-2026-10-18.md` in
   the main tree, git-ignored; copied to `../reviews/` by the lane) said "ready once F1 to F3 are
-  written in". F1 to F10 are written in, and the Disposition below says where. Build-class: it
-  builds after spec 023 lands and before spec 057 (which edits the same workflow and rebases onto
-  this).
+  written in"; its confirmation (`…-confirmation.md` beside it) confirmed F1 to F10 and raised N1
+  and N2, two sentences each, which the lane checks without another round. All are written in, and
+  the Disposition below says where. Build-class: it builds after spec 023 lands and before spec
+  057 (which edits the same workflow and rebases onto this).
 - **Owner:** Clay Gendron
 - **Kind:** build-class: compile flags (one flag, `-ffp-contract=off`, on every compile in the
   recipe), the release workflow's x86_64 job; a judge change (one rule check replaced, one added,
@@ -204,7 +205,20 @@ one release, as the parachute spec 040's Decision 11 already describes.
      `scan.FP_CONTRACT_OVERRIDES`: any `-ffp-contract=` whose value is not `off`, `-ffp-model=`,
      `-ffast-math`, `-Ofast`, `-funsafe-math-optimizations`, `--no-default-config` and `--config`
      (the review's F1; each EXECUTED there as overriding or dropping the file). A hit names the file,
-     the line or the command, and the option. Four parts.
+     the line or the command, and the option. **A member counts only as a whole token on a
+     compiler's command line or in a compile-flag variable** (the confirmation's N1), never as a
+     substring of an arbitrary line: a compiler command line is a `compile_commands.json` entry's
+     `command` (split as a shell would), a line of `build/link/make-n.txt` or
+     `reactor-commands.txt` whose first word ends in `clang` or `clang++`, or a Makefile recipe
+     line that invokes `$(CC)`, `$(CXX)`, `$(CPP)` or a word ending in `clang` or `clang++`; a
+     compile-flag variable is a Makefile assignment whose name is `CC`, `CXX` or `CPP`, or holds
+     `CFLAGS`, `CXXFLAGS`, `CPPFLAGS`, `CCSHARED` or `OPT` (so `CFLAGS_NODIST`, `EXTRA_CFLAGS`,
+     `PY_STDMODULE_CFLAGS`, `CONFIGURE_CFLAGS_NODIST` and every `MODULE_*_CFLAGS` are read). Why:
+     `--config` is wasmtime's option too, and CPython's cross-build Makefile carries it on
+     `HOSTRUNNER=` (line 425) and inside `PYTHON_FOR_BUILD=` (line 429), `wasmtime run … --config
+     <path>/wasmtime.toml`, neither of which compiles anything (EXECUTED by the confirmation). The
+     token rule skips them because of what they are, not by name: no line is exempted, and a
+     compile-flag variable or compiler line that gained `--config` would still be a hit. Four parts.
      - *The recipe, always:* `scripts/steps/10_tools.sh`, read without its comments
        (`scan.code_text`), names both configuration files (`clang.cfg`, `clang++.cfg`), the flag
        `-ffp-contract=off`, and the probe (`-###` with `-cc1` matched), so a comment satisfies
@@ -213,22 +227,30 @@ one release, as the parachute spec 040's Decision 11 already describes.
        file's setting. This part covers every compile the recipe writes by hand: steps 30 and 35's
        `CFLAGS` and direct compiles, 023's step 37 (qhull) and step 55 (Pillow, kiwisolver) source
        lists, and the cross files' `c_args` and `cpp_args`.
-     - *The build's compile records, when present* (the review's F4): the records are derived from
-       the recipe, not globbed. Each `recipes/*.cross` names, in its header comment, the build
-       folder the step gives it (`build/numpy-build`, `build/pandas-build`; 023's
-       `wasi-plot-libs.cross` and `wasi-matplotlib.cross` their folders), and the check requires
-       **every** such folder's `compile_commands.json` once any exists, else it reports the missing
-       one and fails (a record that vanished would otherwise only lower a count). It also reads the
-       Makefiles the autoconf builds generate (`build/zlib-build/Makefile`, `build/xz-build/Makefile`
-       and `build/xz-build/src/liblzma/Makefile`), step 60's `build/link/make-n.txt` and
+     - *The build's compile records, when present* (the review's F4; the confirmation's N2): the
+       expected records are a judge constant, `scan.MESON_BUILDS`, the meson build folders under
+       `build/` by name: today `("numpy-build", "pandas-build")`; 023 extends it with its five
+       (`freetype-build`, `harfbuzz-build`, `sheenbidi-build`, `libraqm-build`, `matplotlib-build`),
+       and every later specification that adds a meson build extends it in the same change. Why a
+       constant and not the steps' text: the steps name their folders through variables and loops
+       (`meson setup "$BUILD" …`; 023's `meson setup "$dir" …` runs four times from one cross file),
+       so a text parse would read `$dir`; and the cross files stay unchanged and a comment satisfies
+       nothing. The constant is code the judge reads and a mutation can break. Two rules keep it
+       honest: **every listed folder's `compile_commands.json` must exist once any exists** (a
+       record that vanished would otherwise only lower a count), and **every `compile_commands.json`
+       under `build/*/` must be listed** (an unlisted meson build is a breach, so the constant cannot
+       fall behind the tree). It also reads the Makefiles the autoconf builds generate
+       (`build/zlib-build/Makefile`, `build/xz-build/Makefile` and
+       `build/xz-build/src/liblzma/Makefile`), step 60's `build/link/make-n.txt` and
        `build/link/reactor-commands.txt`, and **the whole** of CPython's
-       `build/Python-<version>/cross-build/wasm32-wasip1/Makefile` (every line, not five variables:
-       `CFLAGS_NODIST`, `EXTRA_CFLAGS`, `PY_STDMODULE_CFLAGS` and the per-module `MODULE_*_CFLAGS`
-       lines included; the review's F1). No command or line may hold a member of the family. Each
-       record read is named in the check's output with its command or line count, so the review
-       sees what it read. A later make-based build that leaves no record (037's OpenBLAS) saves its
-       `make -n` output under `build/` and joins this list when it lands; this specification says so
-       so that 037's builder knows. With no record present (a checkout without a build) this part is
+       `build/Python-<version>/cross-build/wasm32-wasip1/Makefile` (every compile-flag variable and
+       every compiler recipe line, by the token rule above: `CFLAGS_NODIST`, `EXTRA_CFLAGS`,
+       `PY_STDMODULE_CFLAGS` and the per-module `MODULE_*_CFLAGS` lines included; the review's F1).
+       No compiler command or compile-flag variable may hold a member of the family. Each record
+       read is named in the check's output with its command or line count, so the review sees what
+       it read. A later make-based build that leaves no record (037's OpenBLAS) saves its `make -n`
+       output under `build/` and joins this list when it lands; this specification says so so that
+       037's builder knows. With no record present (a checkout without a build) this part is
        `blocked` by a new need, `compile records` (`tests/harness/needs.py`), named in the
        scoreboard's blocked list. The release workflow's `build` job has every record.
      - *The source trees, when present* (the review's F5): a source pragma overrides the file per
@@ -346,8 +368,9 @@ one release, as the parachute spec 040's Decision 11 already describes.
    file reaches them without a line of this specification knowing their names. The review read
    023's seven `compile_commands.json` and its source trees: no member of the family and no pragma
    (EXECUTED there). What the builder does at the rebase:
-   - adds 023's two cross files' build folders to the derived record list (Decision 4) and re-runs
-     the records, Makefile, source-tree and static parts over 023's tree;
+   - extends `scan.MESON_BUILDS` with 023's five meson build folders (Decision 4) and re-runs the
+     records, Makefile, source-tree and static parts over 023's tree (the confirmation read 023's
+     nine `compile_commands.json`: no member of the family);
    - merges step 10: 023's `pkgconf` install and this specification's configuration write and
      probe touch different lines of the same file;
    - confirms 023's `test_cpp_is_compiled_with_exceptions` extension (its cross files' C++ flags)
@@ -455,9 +478,10 @@ scripts/steps/10_tools.sh        append -ffp-contract=off to clang.cfg and clang
                                  SDK tree under build/tools/; the gate: two -### probes (off once,
                                  no other value), one line in each file
 .github/workflows/release.yml    rebuild: ubuntu-24.04 timeout 120; comments
-tests/harness/scan.py            FP_CONTRACT_OVERRIDES; fp_contract_errors (recipe, derived
-                                 records, Makefiles, source-tree pragmas, the compiler);
-                                 compiler_table_errors rewritten; REBUILD_TIMEOUTS
+tests/harness/scan.py            FP_CONTRACT_OVERRIDES (whole tokens on compiler lines and
+                                 compile-flag variables); MESON_BUILDS; fp_contract_errors
+                                 (recipe, listed records, Makefiles, source-tree pragmas, the
+                                 compiler); compiler_table_errors rewritten; REBUILD_TIMEOUTS
 tests/harness/needs.py           the need `compile records`
 tests/checks/test_v1_5_rebuild_from_pins.py   test_every_compile_contracts_nothing
 tests/checks/test_rules.py       test_every_host_compiles_natively_with_the_fallback_kept
@@ -494,12 +518,20 @@ Out:
    output.
    - `test_every_compile_contracts_nothing` fails on today's tree with `10_tools.sh does not name
      clang.cfg` (and the flag and the probe); with a build tree present, its record, Makefile and
-     source-tree parts pass today (no record or tree holds a member of the family or a pragma), and
-     the landing notes say so, because those parts guard the future, not the present. Then each
-     part is seen failing against a planted input: a `compile_commands.json` copy with
-     `-ffp-model=precise` on one command; a Makefile copy with `-ffast-math`; a source file with
-     `#pragma STDC FP_CONTRACT ON`; a configuration file with the line doubled; one with
-     `-ffp-contract=fast` after `off`. Each names its hit.
+     source-tree parts pass today (no compiler command or compile-flag variable holds a member of
+     the family, and no tree holds a pragma; the confirmation's EXECUTED greps), and the landing
+     notes say so, because those parts guard the future, not the present. **The case the token rule
+     handles is named there:** CPython's cross-build Makefile lines 425 (`HOSTRUNNER=`) and 429
+     (`PYTHON_FOR_BUILD=`) carry wasmtime's `--config`, and the check passes over them because
+     neither is a compiler line or a compile-flag variable, with no line exempted by name; the
+     landing notes quote the two lines and the check's output reading that Makefile. Then each part
+     is seen failing against a planted input: a `compile_commands.json` copy with
+     `-ffp-model=precise` on one command; a Makefile copy with `-ffast-math` in `CFLAGS_NODIST`,
+     and another with `--config` on a `$(CC)` recipe line (a hit) beside the two wasmtime lines (not
+     a hit); a `compile_commands.json` under an unlisted `build/<name>-build/` (a breach); a listed
+     folder's record removed (a breach); a source file with `#pragma STDC FP_CONTRACT ON`; a
+     configuration file with the line doubled; one with `-ffp-contract=fast` after `off`. Each names
+     its hit.
    - `test_every_host_compiles_natively_with_the_fallback_kept` is proven by its unit mutations
      (Decision 4 says why today's `line.conf` passes it); the retired check is seen vanishing in the
      ratchet's `ABSENT` line and retired with `--retire`.
@@ -602,5 +634,21 @@ No entry is added to `../questions-for-the-owner.md`.
   specification may then delete the emulation.
 - **F10 (nit): written in.** Decision 1 and Decision 2: both trees' configuration files are written
   and gated when the switch is thrown; criterion 3b checks it.
+
+The confirmation (2026-10-18) confirmed F1 to F10, F7's third fallback included, and raised two low
+findings:
+
+- **N1 (low): written in.** Decision 4: a member of the family counts only as a whole token on a
+  compiler's command line or in a compile-flag variable, each defined there; CPython's Makefile
+  lines 425 and 429 (wasmtime's `--config` on `HOSTRUNNER=` and `PYTHON_FOR_BUILD=`) are therefore
+  not hits, by what they are and not by name, so criterion 1's "passes today" is true; criterion 1
+  names them as the case the rule handles and plants a `--config` on a `$(CC)` recipe line as the hit
+  beside them.
+- **N2 (low): written in.** Decision 4: the expected records are a judge constant,
+  `scan.MESON_BUILDS` (numpy and pandas today; 023 adds its five; every later meson build extends
+  it), chosen over parsing the steps because the steps name folders through variables and loops and
+  the cross files stay unchanged; every listed record must exist once any does, and every
+  `compile_commands.json` under `build/` must be listed. Decision 7 names 023's five; criterion 1
+  plants both breaches.
 
 ## Landing notes
