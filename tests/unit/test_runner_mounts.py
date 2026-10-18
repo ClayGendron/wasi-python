@@ -556,3 +556,106 @@ def test_the_record_keeps_the_first_thousand_faults(placeholder) -> None:
     )
     with pytest.raises(TypeError):
         record.calls["stat"] = 0  # type: ignore[index]  # read-only
+
+
+def test_a_finished_call_holds_nothing(monkeypatch) -> None:
+    """The build review, F3: when run() returns, no call, mount table or staged file of it is
+    left for the cyclic collector, whatever ended the guest: an exit with a mount file still
+    open, or running out of fuel while holding one. Counted with the collector off."""
+    import gc
+
+    needs.need("runner", "artifact dir")
+    from wasi_python import run
+
+    provider = MemoryProvider({"/big": b"x" * (1 << 20)})
+    hold = "f = open('/m/big', 'rb'); f.read(1)\n"
+    endings = {
+        "an exit": (hold + "import os; os._exit(0)", None, None),
+        "out of fuel": (hold + "while True: pass", 400_000_000, None),
+        "out of file calls": (hold + "import os\nwhile True: os.stat('/m/big')", None, 5),
+    }
+
+    def alive() -> int:
+        kinds = (runner._Call, mounts_module._Files, mounts_module._Open)
+        return sum(type(o) in kinds for o in gc.get_objects())
+
+    for name, (code, fuel, calls) in endings.items():
+        gc.collect()
+        before = alive()
+        gc.disable()
+        try:
+            mounts = [Mount(provider, "/m")]
+            done = run(["-c", code], mounts=mounts, fuel=fuel, max_file_calls=calls)
+            left = alive() - before
+        finally:
+            gc.enable()
+        assert done.exit_code == 0 or done.trapped in ("out of fuel", name), (name, done)
+        assert left == 0, (name, left)
+
+
+def test_an_abi_error_keeps_the_grants_fuel(placeholder, tmp_path) -> None:
+    """The build review, F4.2: a served call that meets an argument its ABI cannot carry ends
+    the run with the fuel a grant reports for the same guest, not None."""
+    guest = f"""(module
+  (import "{P1}" "path_open"
+    (func $o (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 100) "a.txt")
+  (func (export "run") (result i32)
+    (call $o (i32.const 3) (i32.const 0) (i32.const 100) (i32.const 5) (i32.const 16)
+      (i64.const 2) (i64.const 2) (i32.const 0) (i32.const 0))))"""
+    tree = files.write_tree(tmp_path / "tree")
+    ends = []
+    for mounted in (False, True):
+        # the same layout on both sides: the mount's placeholder, or the tree's folder, at 3
+        m = Mounted(MemoryProvider(), placeholder if mounted else tree, fuel=10**6, wat=guest)
+        module = wt.Module(m.engine, guest)
+        if mounted:
+            call, linker = m.call, m.linker
+        else:
+            call, linker = runner._Call(m.store, None, None, 0), m.plain
+        driven = runner._drive(wt, linker, m.store, module, call, 10**6, plain=m.plain)
+        used = runner._fuel_used(10**6, driven, call, m.store.get_fuel)
+        ends.append((driven.exit_code, used))
+    assert ends[0] == ends[1] and ends[0][1] is not None and ends[0][1] > 0, ends
+
+
+def test_a_listing_is_counted_as_what_it_holds() -> None:
+    """The build review, F2: a kept listing holds what the staging bound counts for it (its
+    encoded entries and their offsets, measured by tracemalloc, within a small constant), and
+    gathering one past the bound peaks near the bound, not several times it."""
+    import tracemalloc
+
+    from wasi_python.mounts import _Files
+
+    names = 20_000
+
+    class Generated:
+        def stat(self, path):
+            return Stat("dir")
+
+        def read(self, path):
+            return Errno.EISDIR
+
+        def list(self, path):
+            return ((f"n{i:07}", "file") for i in range(names))
+
+    def gathered(staging: int) -> tuple[int, int, int, int]:
+        table = _Files([(Mount(Generated(), "/m"), 3)], [], None, staging, False)
+        table._ask = lambda caller, mount, method, path: (0, mount.provider.list(path))
+        tracemalloc.start()
+        try:
+            errno, listing, held = table._list(None, table.mounts[0], "/", 1)
+            now, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        del listing
+        return errno, held, now, peak
+
+    errno, held, now, peak = gathered(1 << 30)
+    assert errno == 0 and held > names * 32
+    assert held <= now <= held + 4096, (held, now)  # what is kept is what is counted
+    bound = held // 2
+    errno, _, now, peak = gathered(bound)
+    assert errno == 22  # EFBIG, judged while gathering
+    assert peak <= bound * 1.25 + 65536, (bound, peak)  # the gathering is counted too

@@ -889,6 +889,58 @@ class _Masked:
         raise RuntimeError("no class")
 
 
+class _FakeErrno:
+    """Passes `isinstance(x, Errno)` through its `__class__` without being one; its own `__int__`
+    would make the answer a success with no value (0) or an errno outside the set (2**32 + 8,
+    which an i32 truncates to EBADF)."""
+
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    @property
+    def __class__(self):  # noqa: F811
+        from wasi_python import Errno
+
+        return Errno
+
+    def __int__(self) -> int:
+        return self.value
+
+    __index__ = __int__
+
+    def __eq__(self, other: object) -> bool:
+        return False
+
+    __hash__ = object.__hash__
+
+
+class _NamedByMetaclass(type):
+    @property
+    def __name__(cls):  # noqa: F811
+        raise ValueError("metaclass name")
+
+
+class _Nameless(Exception, metaclass=_NamedByMetaclass):
+    pass
+
+
+class _HostileText(str):
+    def strip(self, *args):
+        raise ValueError("strip")
+
+
+class _TextException(Exception):
+    def __str__(self):
+        return _HostileText("text")
+
+
+def _raising(error):
+    def answer(path):
+        raise error
+
+    return answer
+
+
 def _huge(path):
     import mmap
 
@@ -916,10 +968,14 @@ FAULTS = {
     "size negative": ("stat", lambda p: __import__("wasi_python").Stat("file", -1), "bad answer"),
     "kind": ("stat", lambda p: __import__("wasi_python").Stat("fifo"), "bad answer: Stat"),
     "root a file": ("stat", lambda p: __import__("wasi_python").Stat("file"), "bad answer: Stat"),
-    "class raises (read)": ("read", lambda p: _Masked(), "RuntimeError: no class"),
-    "class raises (stat)": ("stat", lambda p: _Masked(), "RuntimeError: no class"),
-    "class raises (list)": ("list", lambda p: _Masked(), "RuntimeError: no class"),
-    "item class raises": ("list", lambda p: [_Masked()], "RuntimeError: no class"),
+    "class raises (read)": ("read", lambda p: _Masked(), "bad answer: _Masked"),
+    "class raises (stat)": ("stat", lambda p: _Masked(), "bad answer: _Masked"),
+    "class raises (list)": ("list", lambda p: _Masked(), "bad answer: _Masked"),
+    "item class raises": ("list", lambda p: [_Masked()], "bad answer: list"),
+    "a fake Errno of 0": ("list", lambda p: _FakeErrno(0), "bad answer: _FakeErrno"),
+    "a fake Errno past i32": ("stat", lambda p: _FakeErrno(2**32 + 8), "bad answer: _FakeErrno"),
+    "an exception whose type's name raises": ("read", _raising(_Nameless("x")), "_Nameless: x"),
+    "an exception whose text is hostile": ("read", _raising(_TextException()), "_TextException"),
     "past the bound": ("read", _huge, None),
 }
 FAULT_GUEST = r"""

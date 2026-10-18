@@ -1727,6 +1727,7 @@ def _instance(
     mounts: tuple[Mount, ...] = c.get("mounts", ())
     mounted: list[_Preopen] = []  # each mount's preopen, on the call's empty placeholder
     table = None
+    files = None
     try:
         # 0700, this user's own, locked (spec 016); made before the preopens, since it holds the
         # mounts' placeholder, which lies under the temporary folder no grant may reach (spec 032).
@@ -1771,12 +1772,14 @@ def _instance(
         with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
             for key in keys:
                 _outputs.pop(key, None)
+        if table is not None:  # the record kept, the rest dropped now (the build review, F3)
+            files = table.record()
+            table.release()
         for p in mounted:
             p.walked.close()
         if scratch is not None:
             scratch.remove()
     truncated = tuple(s.name for s in (out, err) if s.dropped)
-    files = None if table is None else table.record()
     return Completed(
         done.exit_code, bytes(out.data), bytes(err.data), done.trapped, fuel_used, truncated, files
     )
@@ -1791,10 +1794,10 @@ def _fuel_used(
     if fuel is None or done.trapped == "deadline":
         return None
     table = getattr(call, "table", None)
-    held = None if table is None else table.forward_stop
+    held = None if table is None else table.stop_fuel
     if held is not None and call.ended is None and call.stopped is held[0]:
-        # A forward's own trap or error (spec 032): the fuel was set back before it was raised,
-        # so the count read then is the guest's, as when wasmtime's WASI meets it directly.
+        # A forward's own trap or error, or an ABI error a served call raised (spec 032): the
+        # count read then is the guest's, as when wasmtime's WASI meets it directly.
         return fuel - held[1]
     if call.stopped is not None or call.ended is not None:
         return None
@@ -1853,8 +1856,10 @@ def _drive(
         exit_code = e.code
     except wt.Trap as e:
         trapped = _trap_name(e)
+        e.__traceback__ = None  # its frames hold this call: freed now, not by the collector
     except wt.WasmtimeError as e:
         trapped = _first_line(str(e))
+        e.__traceback__ = None
     finally:
         stack.pop()
         lost, _calls.lost = getattr(_calls, "lost", False), False
@@ -1871,6 +1876,7 @@ def _drive(
             trapped = _first_line(str(cause))
         else:
             raise cause
+        cause.__traceback__ = None  # a reported stop's frames hold this call (spec 032, F3)
     elif call.ended is not None:  # the epoch callback stopped it (spec 015)
         exit_code, trapped = None, call.ended
     return _Driven(exit_code, trapped, metered, instance)

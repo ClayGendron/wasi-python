@@ -266,7 +266,10 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
      (`EFAULT`), as `_door` and `_poll_oneoff` check theirs, with each `i32` taken unsigned;
    - a path over 4,096 bytes is `ENAMETOOLONG`, without being read;
    - an empty path is `ENOENT`; a path that starts with `/` (given to a descriptor) is `EPERM`;
-   - it must be UTF-8 (else `EILSEQ`, 25) without NUL (else `EINVAL`), as wasmtime answers;
+   - it must be UTF-8 (else `EILSEQ`, 25) without NUL (else `EINVAL`), as wasmtime answers.
+     As built (the build review, F4.3): the UTF-8 is judged when the path is read, before the
+     empty and leading-`/` rules, as wasmtime decodes it, so a path both absolute and not UTF-8
+     is `EILSEQ`, and a write-shaped call's bad UTF-8 is `EILSEQ` as on a grant;
    - a component over 255 bytes is `ENAMETOOLONG`; `.` and empty components are dropped;
    - `..` resolves by text, and if it climbs above the folder of the descriptor the call names,
      even for a moment, the answer is `EPERM` (63), what wasmtime answers on a grant (memo
@@ -303,6 +306,8 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    | `sock_*`, `fd_prestat_dir_name` on a provider number | `ENOTSOCK` (57), `ENOTDIR` (54) on a file | `EBADF` (8) | forward-safe calls; the number is not wasmtime's |
    | `fileno()` of an opened file | the lowest free number | `2**30` or above | no host handle per file (Decision 1) |
    | `select.select` on an opened file | accepted (a low number) | `ValueError` in the guest (`FD_SETSIZE` is 1,024); `select.poll` and `selectors` work | the high range; CPython refuses before the runner sees it |
+   | a later `iovec` past memory, after a non-empty one (build review, F4.1) | read: wasmtime checks only up to the first non-empty `iovec` | `EFAULT` | every `iovec` is checked (Decision 7) |
+   | an argument the ABI cannot carry: an undefined flag or enum value, an integer out of its type's range, a misaligned pointer (build review, F4.2) | the run ends; `trapped` is `error while executing at wasm backtrace:` | the run ends, with the same `fuel_used`; `trapped` is wiggle's own text, such as `Invalid flag value Oflags` | the runner raises the error itself, as the call's stop |
 
    The runner adds what a grant cannot say:
    - `path_filestat_get` is one `stat`. `fd_filestat_get` on an open provider file needs no
@@ -346,7 +351,10 @@ This specification builds that mechanism for **read-only** mounts. Writes are sp
    - **Staged bytes:** the bytes of every open provider file plus every kept listing are at most
      the call's `memory_bytes`, or 4 GiB (wasm32's own ceiling, the most the guest itself can
      hold) when it is `None`. A listing is kept as its encoded preview1 entries (24 bytes and
-     the name, each), so the count is what the runner holds. A `read` whose answer would pass
+     the name, each), so the count is what the runner holds. As built (the build review, F2):
+     one buffer of the encoded entries and an array of where each starts, counted as the bytes
+     allocated for both; while it is gathered the set that finds a repeated name is counted
+     too. A `read` whose answer would pass
      the bound is `EFBIG` (22), judged on `memoryview(answer).nbytes` before any copy, and the
      answer is dropped; a listing is judged as it is gathered. The bound is on what the runner
      keeps, not on what the provider made: the README says a provider should refuse a large file
@@ -772,3 +780,61 @@ before the provider; `EMFILE` before it); the high range and `MAX_MOUNT_FILES`; 
 `runner.py` the scratch-and-placeholder order in `_instance`, the identity check on today's
 linker, the HOME rule, `_fuel_used`'s new branch, and Decision 9's comment beside 030's branch.
 The Windows answers of acceptance 2's and 3's rows are unknown until the release dry run.
+
+**Revised 2026-10-17 against the build review** (`../reviews/032-a-filesystem-provider-2026-10-17.md`,
+not yet: F1 to F5), by the implementer, on the lane's rebase `c69cb31` (spec 030 landed in main;
+the cherry-picked copy dropped out). Each new check was seen failing first, on the reviewed code
+(its `mounts.py` and `runner.py` swapped in, then restored and compared) or with its one rule
+removed. EXECUTED unless it says otherwise.
+
+- **F1, answers judged by their real type; a total `_described`.** `type(answer) is Errno`
+  (exact: an enum with members has no subclass), `answer is Errno.EISDIR`, `issubclass(type(…),
+  Stat)` and `(bytes, bytearray, memoryview)` and `Iterable`; `_listed` takes only a plain tuple
+  of plain str; a size or time is judged by `issubclass(type(…), int)`; a coroutine by its type.
+  `_described` reads the type's own name (`type.__dict__["__name__"]`), keeps the text only when
+  `str(e)` is a plain str, and never raises. `_fd_readdir` answers `EIO` for a listing it could
+  not keep, never an assertion. Acceptance 7 gains four rows: a fake `Errno` of 0 and one past
+  i32, an exception whose type's name raises, one whose text is a hostile str subclass. On the
+  reviewed code the first made `run` raise `AssertionError`, the second gave the guest EBADF with
+  no fault, the third and fourth made `run` raise `ValueError` (the reviewer's `hostile.py`, rerun);
+  now each is EIO with one fault (`bad answer: _FakeErrno`, `_Nameless: x`, `_TextException`).
+  The four earlier `__class__` rows now read `bad answer: _Masked` (and `bad answer: list` for
+  the item): no provider code runs to judge them.
+- **F2, a listing is kept as what it is counted at.** One `bytearray` of encoded entries (each
+  header with its `d_next`, then the name) and an `array("I")` of offsets; `fd_readdir` serves
+  one slice of it from the cookie's offset, which is byte for byte what wasmtime writes (the 330
+  parity rows are unchanged and equal). `held` is `sys.getsizeof` of the two; while gathering,
+  the set of encoded names that finds a repeat, and its names, are counted too. One million
+  8-byte names: counted 38,816,299, held 38,818,230 after (1.00; the reviewed code: 4.9),
+  peak 113,374,317 while gathering, all of it judged against the bound as it grows.
+  `test_a_listing_is_counted_as_what_it_holds` (tracemalloc, 20,000 names): kept within 4 KiB of
+  the count, and a listing past a bound of half its size stops with `EFBIG` at a peak within
+  1.25 times the bound; on the reviewed code it failed (counted 640,051, held 3,153,076).
+- **F3, nothing of a finished call waits for the collector.** `_instance` takes the record, then
+  `table.release()` drops the staged files and listings, the trampoline's handles, the fuel
+  record and the link back to the call. That alone left a trapped call alive: wasmtime-py's
+  `Trap` keeps a traceback whose frames hold the call, which was true without mounts too (a
+  call that ran out of fuel left one `_Call` until a collection). `_drive` now drops the
+  traceback of a trap or error it has named, and of a wasmtime error it reports as a stop.
+  `test_a_finished_call_holds_nothing`, with the collector off: after a guest that exits with a
+  mount file open, one that runs out of fuel holding one, and one stopped "out of file calls",
+  no `_Call`, `_Files` or `_Open` is alive; on the reviewed code 4 were.
+- **F4, the three differences documented, and one closed.** Decision 5 says when UTF-8 is
+  judged; Decision 6's table and the README gain a later `iovec` past memory and an ABI error's
+  `trapped` text. An ABI error's `fuel_used` is now the grant's, not `None`: `_Files` records the
+  fuel when it raises one, as a forward's error does (`stop_fuel`, renamed from
+  `forward_stop`). `test_an_abi_error_keeps_the_grants_fuel`: an undefined `oflags` bit ends
+  both with `fuel_used` 11; on the reviewed code the mount's was `None`. Decision 8 says how a
+  listing is counted.
+- **F5.** `test_a_mount_at_tmp_means_no_home` (v1.4): with `root=True` and with a root path, a
+  mount at `/tmp` gives the guest no `HOME`. With `_home_folder`'s two lines removed it fails
+  (`HOME` is `/tmp/.home-…`, made in the root's own tmp behind the mount).
+- **F6.** The README's climb rule now reads "above the folder the call starts from". The other
+  notes need no change. Acceptance 4's bound of 18 was measured on the set `4befe9de64edc783`;
+  spec 033's new zip may move the plain reactor's start-up count, which the lane sees at
+  acceptance.
+
+The judge after the revision (`WASI_PYTHON_ARTIFACTS=…/4befe9de64edc783 uv run pytest`):
+`wasi_python v1: 208/219 pass · 0 gap · 11 blocked · 0 fail (unit suite 627/635, 8 skipped)`,
+`ratchet vs aac0a98618: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 19 · grew 0`,
+`835 passed, 19 skipped`. `ruff check` and `ruff format --check` clean.

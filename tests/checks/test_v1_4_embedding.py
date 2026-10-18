@@ -1863,3 +1863,22 @@ def test_a_mounted_run_out_of_fuel_counts_the_cap(guest_workdir, which) -> None:
         done = run(["-c", code], fuel=cap, snapshot=which == "snapshot", **kw)
         assert (done.exit_code, done.trapped, done.fuel_used) == (None, "out of fuel", cap), done
         assert done.stdout.startswith(b"hello, mount\n"), done
+
+
+def test_a_mount_at_tmp_means_no_home(guest_workdir) -> None:
+    """Spec 032, Decision 2 (the build review, F5): a mount at /tmp counts as a read-only grant
+    there, so a call with a root makes no HOME in the root's own tmp, which the guest could not
+    see behind the mount."""
+    from harness.files import MemoryProvider
+    from wasi_python import Mount
+
+    run = _runner()
+    root = _root(guest_workdir)
+    for given in (True, root):
+        done = run(
+            ["-c", "import os; print(os.environ.get('HOME'))"],
+            root=given,
+            mounts=[Mount(MemoryProvider(), "/tmp")],
+        )
+        assert (done.exit_code, done.stdout) == (0, b"None\n"), (given, done)
+    assert not (root / "tmp").exists() or list((root / "tmp").iterdir()) == []

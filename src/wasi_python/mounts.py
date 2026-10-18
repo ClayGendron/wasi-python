@@ -24,11 +24,12 @@ from __future__ import annotations
 import ctypes
 import enum
 import heapq
-import inspect
 import struct
+import sys
+import types
+from array import array
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
@@ -223,7 +224,9 @@ def _ends(message: str) -> BaseException:
     error that ends the run. Raised to the shared function, which records it as the stop."""
     import wasmtime
 
-    return wasmtime.WasmtimeError(message)
+    error = wasmtime.WasmtimeError(message)
+    error.abi = True  # type: ignore[attr-defined]
+    return error
 
 
 def _unsigned(value: int, top: int, name: str) -> int:
@@ -256,6 +259,9 @@ def _rights(value: int) -> int:
     return _flags(value, RIGHTS, 2**63 - 1, "Rights")
 
 
+_Listing = tuple[bytearray, array]  # a folder's encoded preview1 entries and their offsets
+
+
 @dataclass
 class _Mounted:
     """One mount as a call holds it."""
@@ -278,7 +284,7 @@ class _Open:
     position: int = 0
     append: bool = False
     nonblock: bool = False
-    listing: list[tuple[bytes, int, int]] | None = None  # (name, d_type, d_ino), dots first
+    listing: _Listing | None = None  # the encoded entries and where each starts, dots first
     fresh: bool = False  # the listing has not yet served a pass from cookie 0
     held: int = 0  # staged bytes this descriptor holds
 
@@ -362,11 +368,23 @@ class _Files:
         self.free: list[int] = []
         self.next = PROVIDER_BASE
         self.forwards: _Forwards | None = None
-        self.forward_stop: tuple[BaseException, int] | None = None  # a forward's error, its fuel
+        # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
+        self.stop_fuel: tuple[BaseException, int] | None = None
         self.call: _Call | None = None
 
     def record(self) -> FileRecord:
-        return FileRecord(MappingProxyType(dict(self.calls)), tuple(self.faults))
+        return FileRecord(types.MappingProxyType(dict(self.calls)), tuple(self.faults))
+
+    def release(self) -> None:
+        """Drop what the call held once it has ended (the build review, F3): the staged files
+        and listings, the trampoline's handles and the link back to the call, so nothing waits
+        for the cyclic collector."""
+        self.table.clear()
+        self.mounts.clear()
+        self.forwards = None
+        self.stop_fuel = None
+        self.call = None
+        self.staged = 0
 
     # The trampoline (Decision 1).
 
@@ -420,14 +438,21 @@ class _Files:
                 raised = Trap._from_ptr(trap)  # owns and frees it; an error beside it is freed
             assert raised is not None
             if before is not None:
-                self.forward_stop = (raised, before)
+                self.stop_fuel = (raised, before)
             raise raised
         return results[0].of.i32
 
     # Dispatch.
 
     def __call__(self, caller: Any, name: str, *args: int) -> int:
-        return getattr(self, "_" + name)(caller, *args)
+        try:
+            return getattr(self, "_" + name)(caller, *args)
+        except BaseException as e:
+            if self.metered and getattr(e, "abi", False):
+                # An ABI error ends the run where a grant's does, with the fuel then (served
+                # code spends none), as a forward's error keeps it (the build review, F4.2).
+                self.stop_fuel = (e, _get_fuel(caller._context()))
+            raise
 
     def _entry(self, fd: int) -> _Open | None:
         return self.table.get(fd & MASK32)
@@ -463,7 +488,7 @@ class _Files:
             self.faults.append(FileFault(method, path, error[:200]))
 
     def _bad(self, method: str, path: str, answer: Any) -> int:
-        if inspect.iscoroutine(answer):
+        if type(answer) is types.CoroutineType:
             try:
                 answer.close()  # never awaited, never warned about
             except Exception:
@@ -472,22 +497,23 @@ class _Files:
         return EIO
 
     def _stat(self, caller: Any, mount: _Mounted, path: str) -> tuple[int, str, int, int]:
-        """(0, kind, size, mtime_ns), or (errno, "", 0, 0)."""
+        """(0, kind, size, mtime_ns), or (errno, "", 0, 0). Every answer is judged by its real
+        type, which runs no provider code; what is left to look at runs inside the boundary."""
         errno, answer = self._ask(caller, mount, "stat", path)
         if errno:
             return errno, "", 0, 0
-        try:  # every look at the answer can run provider code (a property, `__class__`)
-            if isinstance(answer, Errno):
+        try:
+            if type(answer) is Errno:  # exact: an enum with members has no subclass
                 return int(answer), "", 0, 0
-            if isinstance(answer, Stat):
+            if issubclass(type(answer), Stat):
                 kind, size, mtime = answer.kind, answer.size, answer.mtime_ns
                 if (
                     _kind(kind)
                     and _number(size, 2**63 - 1)
                     and _number(mtime, MASK64)
-                    and (path != "/" or str.__str__(kind) == "dir")
+                    and (path != "/" or kind == "dir")
                 ):
-                    return 0, str.__str__(kind), int.__index__(size), int.__index__(mtime)
+                    return 0, kind, int.__index__(size), int.__index__(mtime)
             return self._bad("stat", path, answer), "", 0, 0
         except Exception as e:
             self._fault("stat", path, _described(e))
@@ -498,10 +524,10 @@ class _Files:
         errno, answer = self._ask(caller, mount, "read", path)
         if errno:
             return errno, None
-        try:  # every look at the answer can run provider code (a property, `__buffer__`)
-            if isinstance(answer, Errno):
-                return (0, None) if answer == Errno.EISDIR else (int(answer), None)
-            if not isinstance(answer, (bytes, bytearray, memoryview)):
+        try:
+            if type(answer) is Errno:
+                return (0, None) if answer is Errno.EISDIR else (int(answer), None)
+            if not issubclass(type(answer), (bytes, bytearray, memoryview)):
                 return self._bad("read", path, answer), None
             with memoryview(answer) as view:  # judged in bytes before any copy (Decision 8)
                 if self.staged + view.nbytes > self.staging:
@@ -513,37 +539,49 @@ class _Files:
 
     def _list(
         self, caller: Any, mount: _Mounted, path: str, ino: int, released: int = 0
-    ) -> tuple[int, list[tuple[bytes, int, int]] | None, int]:
-        """(0, entries, bytes held), the dots first, or (errno, None, 0). Judged against the
-        staging bound as it is gathered; every name is checked before the guest sees it."""
+    ) -> tuple[int, _Listing | None, int]:
+        """(0, listing, bytes held), the dots first, or (errno, None, 0). A listing is kept as
+        what the guest is served: one buffer of encoded preview1 entries (each its 24-byte
+        header, `d_next` included, then its name) and an array of where each starts. It is
+        judged against the staging bound as it is gathered, counting the bytes allocated for
+        the buffer, the array and the set of names that finds a repeat; once gathered, it holds
+        the buffer and the array. Every name is checked before the guest sees it."""
         errno, answer = self._ask(caller, mount, "list", path)
         if errno:
             return errno, None, 0
         iterator = None
-        try:  # every look at the answer and its items can run provider code
-            if isinstance(answer, Errno):
+        try:
+            if type(answer) is Errno:
                 return int(answer), None, 0
-            if not isinstance(answer, Iterable) or isinstance(
-                answer, (str, bytes, bytearray, memoryview)
+            kind_of = type(answer)
+            if not issubclass(kind_of, Iterable) or issubclass(
+                kind_of, (str, bytes, bytearray, memoryview)
             ):
                 return self._bad("list", path, answer), None, 0
-            entries = [(b".", DIRECTORY, ino), (b"..", DIRECTORY, ino)]
-            held = 2 * 24 + 3
-            seen: set[str] = set()
+            data, offsets = bytearray(), array("I")
+            for index, name in enumerate((b".", b"..")):
+                offsets.append(len(data))
+                data += struct.pack(DIRENT, index + 1, ino, len(name), DIRECTORY) + name
+            seen: set[bytes] = set()
+            names = 0  # the bytes of the name objects the set holds
             prefix = path.rstrip("/") + "/"
             iterator = iter(answer)
             for item in iterator:
-                name = _listed(item)
-                if name is None or name[0] in seen:
+                listed = _listed(item)
+                if listed is None or listed[1] in seen:
                     return self._bad("list", path, answer), None, 0
-                text, encoded, kind = name
-                seen.add(text)
-                held += 24 + len(encoded)
-                if self.staged - released + held > self.staging:
-                    return EFBIG, None, 0
+                text, encoded, kind = listed
+                seen.add(encoded)
+                names += sys.getsizeof(encoded)
                 child = self._runner._siphash13((prefix + text).encode())
-                entries.append((encoded, DIRECTORY if kind == "dir" else REGULAR_FILE, child))
-            return 0, entries, held
+                d_type = DIRECTORY if kind == "dir" else REGULAR_FILE
+                offsets.append(len(data))
+                data += struct.pack(DIRENT, len(offsets), child, len(encoded), d_type) + encoded
+                gathering = sys.getsizeof(data) + sys.getsizeof(offsets)
+                gathering += sys.getsizeof(seen) + names
+                if self.staged - released + gathering > self.staging:
+                    return EFBIG, None, 0
+            return 0, (data, offsets), sys.getsizeof(data) + sys.getsizeof(offsets)
         except Exception as e:
             self._fault("list", path, _described(e))
             return EIO, None, 0
@@ -878,23 +916,14 @@ class _Files:
             entry.listing, entry.held, entry.fresh = listing, held, True
         if cookie == 0:
             entry.fresh = False
-        out, cap = bytearray(), length
-        assert entry.listing is not None
-        for index in range(cookie, len(entry.listing)) if cookie < len(entry.listing) else ():
-            name, d_type, ino = entry.listing[index]
-            header = struct.pack(DIRENT, index + 1, ino, len(name), d_type)
-            take = min(cap, 24)
-            out += header[:take]
-            cap -= take
-            if cap == 0:
-                break
-            part = name[:cap]
-            out += part
-            cap -= len(part)
-            if cap == 0:
-                break
+        if entry.listing is None:
+            return EIO  # never kept: a listing that could not be had is an errno, not a value
+        # wasmtime writes the entries from the cookie on, one after another, each cut where
+        # the buffer ends: the same bytes as one slice of the encoded listing.
+        data, offsets = entry.listing
+        out = data[offsets[cookie] : offsets[cookie] + length] if cookie < len(offsets) else b""
         memory.write(buf, bytes(out))
-        memory.write(used & MASK32, struct.pack("<I", length - cap))
+        memory.write(used & MASK32, struct.pack("<I", len(out)))
         return 0
 
     def _fd_renumber(self, caller: Any, fd: int, to: int) -> int:
@@ -1146,33 +1175,44 @@ class _Files:
 
 
 def _described(e: BaseException) -> str:
-    """An exception's type name and the first line of its text, never raising."""
-    name = type(e).__name__
+    """An exception's type name and the first line of its text; total: it runs no provider
+    code it cannot survive (a metaclass's `__name__`, a `__str__` returning a str subclass) and
+    formats nothing but plain str."""
     try:
-        lines = str(e).strip().splitlines()
+        name = type.__dict__["__name__"].__get__(type(e))  # the type's own name, not a property's
+        if type(name) is not str:
+            name = "an exception"
     except Exception:
-        lines = []
+        name = "an exception"
+    try:
+        text = str(e)
+        if type(text) is not str:
+            return name
+        lines = str.splitlines(str.strip(text))
+    except Exception:
+        return name
     return f"{name}: {lines[0]}" if lines else name
 
 
 def _kind(value: Any) -> bool:
-    return isinstance(value, str) and str.__str__(value) in ("file", "dir")
+    return type(value) is str and value in ("file", "dir")
 
 
 def _number(value: Any, top: int) -> bool:
-    if isinstance(value, bool) or not isinstance(value, int):
+    kind = type(value)
+    if issubclass(kind, bool) or not issubclass(kind, int):
         return False
     return 0 <= int.__index__(value) <= top
 
 
 def _listed(item: Any) -> tuple[str, bytes, str] | None:
-    """A listing entry as (name, its UTF-8, kind), or None when it is outside the protocol."""
-    if not isinstance(item, tuple) or len(item) != 2:
+    """A listing entry as (name, its UTF-8, kind), or None when it is outside the protocol: a
+    plain tuple of two plain str (so no provider code runs to take it apart)."""
+    if type(item) is not tuple or len(item) != 2:
         return None
     name, kind = item
-    if not isinstance(name, str) or not _kind(kind):
+    if type(name) is not str or not _kind(kind):
         return None
-    name = str.__str__(name)
     if name in ("", ".", "..") or "/" in name or "\0" in name:
         return None
     try:
@@ -1181,7 +1221,7 @@ def _listed(item: Any) -> tuple[str, bytes, str] | None:
         return None  # a lone surrogate
     if len(encoded) > MAX_NAME:
         return None
-    return name, encoded, str.__str__(kind)
+    return name, encoded, kind
 
 
 def _close(iterator: Any) -> None:

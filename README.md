@@ -537,9 +537,11 @@ A path a more specific preopen owns, spelled past the guest's C library
   descriptor;
 - **staged bytes:** the bytes of every open file plus every kept listing are
   at most `memory_bytes` (4 GiB with `memory_bytes=None`); a `read` that would
-  pass it answers `EFBIG` and is dropped. The bound is on what the runner
-  keeps, not on what your provider made: a provider should refuse a large
-  file before it reads it (judge `stat`'s size first).
+  pass it answers `EFBIG` and is dropped. A listing counts as the bytes the
+  runner keeps for it (its encoded entries), and is judged while it is
+  gathered. The bound is on what the runner keeps, not on what your provider
+  made: a provider should refuse a large file before it reads it (judge
+  `stat`'s size first).
 
 **What differs from a grant.** A mount answers as a read-only grant does
 (every write-type call is `EPERM`, before your provider is called), except:
@@ -552,10 +554,17 @@ A path a more specific preopen owns, spelled past the guest's C library
   `selectors` (whose default here is a `PollSelector`, which asyncio uses)
   or `select.poll`;
 - `..` is resolved by text (`missing/../a.txt` opens `a.txt`, where a grant
-  answers `ENOENT`); a climb above the mount, even for a moment, is `EPERM`;
+  answers `ENOENT`); a climb above the folder the call starts from, even for a
+  moment, is `EPERM`, as on a grant;
 - a path over 4,096 bytes is `ENAMETOOLONG`, a guest pointer past its memory
-  `EFAULT`, more than 1,024 `iovec`s `EINVAL`: the runner's own answers, the
-  same on every host; letter case is your provider's;
+  `EFAULT` (a later `iovec` past it too, where a grant reads the first
+  non-empty one), more than 1,024 `iovec`s `EINVAL`: the runner's own
+  answers, the same on every host; letter case is your provider's;
+- a path both absolute and not UTF-8 is `EILSEQ` (the text is decoded first,
+  as wasmtime decodes it);
+- an argument the ABI cannot carry (an undefined flag, a misaligned pointer)
+  ends the run as on a grant, with the same `fuel_used`, but `trapped` names
+  it (`Invalid flag value Oflags`);
 - `fd_renumber` of an open file answers `ENOTSUP`.
 
 **Time and threads.** A provider runs synchronously on the thread that runs
