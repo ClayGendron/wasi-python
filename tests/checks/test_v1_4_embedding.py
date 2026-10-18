@@ -415,6 +415,7 @@ def test_a_plain_install_brings_wasmtime() -> None:
 
     from packaging.requirements import Requirement
     from packaging.specifiers import SpecifierSet
+    from packaging.utils import canonicalize_name
 
     project = tomllib.loads((paths.REPO / "pyproject.toml").read_text(encoding="utf-8"))
     deps = project["project"].get("dependencies", [])
@@ -428,21 +429,25 @@ def test_a_plain_install_brings_wasmtime() -> None:
     ), deps
     assert project["project"].get("optional-dependencies") == {"run": []}, project["project"]
     dev = project.get("dependency-groups", {}).get("dev", [])
-    assert not [d for d in dev if isinstance(d, str) and Requirement(d).name == "wasmtime"], dev
+    names = [canonicalize_name(Requirement(d).name) for d in dev if isinstance(d, str)]
+    assert "wasmtime" not in names, dev  # any spelling: `Wasmtime` is the same project
 
 
-def test_a_wasmtime_that_cannot_load_is_named() -> None:
-    """A wasmtime that is installed but cannot load (its pure wheel on an unsupported platform
-    raises `RuntimeError` at import) gives `run` one error type, `ImportError`, naming the bound,
-    with wasmtime's own error as its cause (spec 028, Decision 3 and condition B). The stand-in is
-    a finder at the head of `sys.meta_path` that raises for `wasmtime`, in a child process."""
+@pytest.mark.parametrize("error", ["RuntimeError", "OSError"])
+def test_a_wasmtime_that_cannot_load_is_named(error) -> None:
+    """A wasmtime that is installed but cannot load gives `run` one error type, `ImportError`,
+    naming the bound, with wasmtime's own error as its cause (spec 028, Decision 3 and condition
+    B). Its pure wheel on an unsupported platform raises `RuntimeError` at import; a platform
+    wheel whose native library will not load raises `OSError` (the build review, finding 1). The
+    stand-in is a finder at the head of `sys.meta_path` that raises for `wasmtime`, in a child
+    process."""
     code = (
         "import json, sys\n"
         f"sys.path.insert(0, {str(paths.REPO / 'src')!r})\n"
         "class Refuse:\n"
         "    def find_spec(self, name, path=None, target=None):\n"
         "        if name == 'wasmtime':\n"
-        "            raise RuntimeError('unsupported architecture for wasmtime: test')\n"
+        f"            raise {error}('wasmtime cannot load: test')\n"
         "        return None\n"
         "sys.modules.pop('wasmtime', None)\n"
         "sys.meta_path.insert(0, Refuse())\n"
@@ -458,7 +463,7 @@ def test_a_wasmtime_that_cannot_load_is_named() -> None:
     out = subprocess.run([sys.executable, "-I", "-c", code], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     got = json.loads(out.stdout)
-    assert got[:2] == ["RuntimeError", "unsupported architecture for wasmtime: test"], got
+    assert got[:2] == [error, "wasmtime cannot load: test"], got
     assert "wasmtime>=49,<50" in got[2], got
 
 

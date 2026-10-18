@@ -10,9 +10,10 @@ It does what any embedder does: preopen a directory at `/`, bind the one custom 
 spec 028) is imported only here, when a call is made, so `import wasi_python` and `artifacts()`
 still work where it cannot load.
 
-It is safe by default (spec 006): a call that names no root gets a fresh private one, removed
-afterwards; a call that names no limit still has one for memory, time and output (`DEFAULTS`);
-and nothing a guest frame or a host function does makes `run` raise.
+It is safe by default (spec 006): a call that names no root has no `/` and nothing writable
+(spec 025; `root=True` makes a fresh private one, removed afterwards); a call that names no
+limit still has one for memory, time and output (`DEFAULTS`); and nothing a guest frame or a
+host function does makes `run` raise.
 """
 
 from __future__ import annotations

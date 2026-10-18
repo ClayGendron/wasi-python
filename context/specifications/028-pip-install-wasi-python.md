@@ -4,7 +4,10 @@
   (`../reviews/028-pip-install-wasi-python-spec-2026-10-17.md`), whose confirmation passed it for
   build with three conditions, written in. It is build-class (it changes the release workflow;
   constitution §5.7), so it builds after spec 027 lands (condition C). Built 2026-10-17 on
-  `spec/028-pip-install-wasi-python`; awaiting its build review.
+  `spec/028-pip-install-wasi-python`; build-reviewed
+  (`../reviews/028-pip-install-wasi-python-2026-10-17.md`, verdict: lands once finding 2 is
+  fixed and a dry run passes); revised against it the same day (findings 1 to 3), awaiting
+  the reviewer's confirmation and the release dry run.
 - **Owner:** Clay Gendron
 - **Kind:** packaging (`pyproject.toml`: the dependency, the empty extra, the dev group;
   `uv.lock`), the runner (`src/wasi_python/runner.py`: its module docstring at line 9 and
@@ -164,3 +167,21 @@ check unrun locally is the oracle check, blocked because this worktree has no or
 The lane accepts with `--accept-judge`. `ruff check` and `ruff format --check` clean on `src` and
 `tests`. The release dry run is not run here: it needs a push the builder is not allowed to make
 (INFERRED: its install step is the three lines above, run on three systems).
+
+**Revised against the build review** (`../reviews/028-pip-install-wasi-python-2026-10-17.md`),
+2026-10-17, by the implementer; its three findings are taken.
+- Finding 1: `test_a_wasmtime_that_cannot_load_is_named` is parametrized over `RuntimeError` and
+  `OSError` (a platform wheel whose native library will not load). Seen failing first
+  (EXECUTED): with `OSError` dropped from `_wasmtime`'s `except`, `[OSError]` fails and
+  `[RuntimeError]` passes; restored, both pass (`cmp` against the kept copy).
+- Finding 2: `runner.py`'s module docstring now says a call that names no root has no `/` and
+  nothing writable (spec 025), and that `root=True` makes a fresh private one. No behaviour and
+  no judge input changes.
+- Finding 3: the dev-group compare uses `packaging.utils.canonicalize_name`. Seen failing first
+  (EXECUTED): with `"Wasmtime>=49,<50"` added to the dev group, the check fails; restored, it
+  passes.
+- The judge again (EXECUTED, without `--accept`): 763 passed, 19 skipped, exit 0;
+  `wasi_python v1: 185/196 pass · 0 gap · 11 blocked · 0 fail`; v1.4 73/73; `ratchet vs
+  567d64204b: lost 0 · absent 0 · unrun 0 · unrun locally 9 · gained 3 · grew 0 · judge changed:
+  pyproject.toml, tests/checks/test_v1_4_embedding.py, uv.lock`. `ruff check` and `ruff format
+  --check` clean. Criterion 4's release dry run is still outstanding: it needs the push.
