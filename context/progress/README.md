@@ -101,7 +101,8 @@ The plain `uv run pytest` stays serial.
   nothing and run none of the lane's guards: the controller alone writes `latest.json`, judges the
   ratchet and accepts. An upstream group's check and its classes' checks always run in one
   worker (the judge's own scheduler; node ids are unchanged). A worker that dies is not replaced:
-  the check it was running is `fail`, named "worker crashed", and the run ends. Each worker also
+  the check it was running is `fail`, named "worker crashed", and the run ends; when no worker
+  finishes at all, a red line says the record is incomplete. Each worker also
   reports what steered it from outside the judge (a conftest loaded only while collecting), so a
   parallel run is red exactly when a serial one is.
 - **What the record says.** `meta.workers` is the number of workers started (`0` serially) and

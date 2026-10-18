@@ -2,8 +2,9 @@
 
 - **Status:** built 2026-10-18; revised against its build review the same day
   (`build/reviews-evidence/052-buildreview/052-the-judge-on-several-cores-2026-10-18.md` in the
-  main tree: "lands once F1 and F2 are fixed"; F1 to F6 answered in its Disposition at the end);
-  awaiting the reviewer's confirmation. Confirmed for build the same day (C1, C2
+  main tree: "lands once F1 and F2 are fixed"; F1 to F6 answered in its Disposition at the end),
+  and again against its addendum (`…-2026-10-18-addendum.md`: F1 to F6 closed, F7 and F8 reopened,
+  both Low; fixed in `f770945`); awaiting the reviewer's confirmation. Confirmed for build the same day (C1, C2
   written in). Revised against its
   pre-build review and confirmed the same day (the review's Confirmation: "ready to build", with
   conditions C1 and C2, written into Decisions 5 and 9 and criterion 5). Drafted 2026-10-18; reviewed the same day
@@ -259,7 +260,12 @@ accepting run stays serial** until parallel runs have a track record (Decision 1
     what happened (review F8). *Revised after the build review (F1, EXECUTED there):* with
     per-node-id scopes and xdist's restarts, the dead worker's unfinished scopes, the crashed check
     included, were dealt again; 4 of 9 runs hung, and a finished run recorded the re-run's `pass`
-    while exiting 1. With no restart, 4 of 4 ended at once with the check `fail`.
+    while exiting 1. With no restart, 4 of 4 ended at once with the check `fail`. *Revised after
+    the addendum (F7):* each goal check's area also rides on its setup report, so a check whose
+    worker died is `fail` "worker crashed" even when no worker finishes; a run in which the judge
+    distributed and no worker handed its collection over gets the red line "no worker handed its
+    collection over: the record is incomplete", and a crash in a check whose area is unknown gets
+    "a worker crashed while running …". The scoreboard never says 0 fail after a crash.
 
 ## Design
 
@@ -600,7 +606,8 @@ these notes; no rebase (main is frozen for code until the 0.1.0a5 tag). Logs und
   With the worker's handover removed (stand-in `rev/plugin.no-worker-foreign.py`), the `-n 2` run
   exited 0 and the test failed (`rev/f2-standin.log`). A worker's own loop, xdist's `remote.py`
   run by execnet as `__channelexec__`, has no file; its `WorkerInteractor` is allowed on a worker
-  only, and only when xdist is at the locked version. Criterion 3's worker output now has a fifth
+  only, only when xdist is at the locked version, and (after the addendum, F8) only when the
+  class's `__init__` code comes from a file inside xdist's package folder. Criterion 3's worker output now has a fifth
   key, `foreign`.
 - **F3.** The progress README's `sameness` line names a gap's or blocked check's reason, not a
   pass's note, and `meta.foreign`; its option line names `--max-worker-restart 0`. Decision 12's
@@ -620,3 +627,22 @@ these notes; no rebase (main is frozen for code until the 0.1.0a5 tag). Logs und
 | F4 (Low) the tool-deadline stand-in had no run | **Answered**: the build review's run is cited (62 s pass without the seam; fail at the fail-safe with the bound broken), and Decision 9's reason says the 60 s deadline removes the bet and the seam keeps the check fast. |
 | F5 (Note) `judge_zips` swallows any `OSError` once a home exists | **Kept** as the review reasons: a home that exists is complete; a losing process defers to the winner; no home, the error is raised. |
 | F6 (Note) Decision 12's change is sound | **No change.** |
+| F7 (Low, addendum) when every worker dies, crashed and unrun checks vanish ("0 fail") | **Fixed** in `f770945`: each goal check's area rides on its setup report, so a crashed check is `fail` "worker crashed" whatever happens to its worker; a distributed run in which no worker hands its collection over gets a red line, and so does a crash in a check of unknown area (Decision 14). `test_a_dead_workers_check_fails_and_the_run_ends` gains `-n 1` and every-worker cases, each asserting a crashed `fail`, a scoreboard with at least 1 fail, and the red line; against `000f656` both new cases failed (`build/build-052/rev2/f7-standin.log`). |
+| F8 (Low, addendum) the worker-loop allowance matched by name | **Fixed** in `f770945`: the `__channelexec__` `WorkerInteractor` also needs `type(plugin).__init__.__code__.co_filename` to resolve inside xdist's package folder. `test_a_plugin_registered_while_collecting_is_foreign_on_any_cores[spoof052]`: a collection-time conftest with a class named `WorkerInteractor` in module `__channelexec__` is red serially and under `-n 2`, judged the same; against `000f656` the `-n 2` run exited 0 (`rev2/f8-standin.log`). |
+
+**After the addendum, the judge on `f770945`** (judge hash `85898d12ae42` and `dirty: false` in
+both records; set `s-c4190ca065ada03a`; load average 20 to 34):
+
+```
+uv run pytest            wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1104/1106, 2 skipped)
+                         ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0 · judge changed: pyproject.toml, tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py and 7 more
+                         1444 passed, 4 skipped, 12 xfailed in 490.11s; exit 0; wall 526 s, CPU 696 s
+uv run pytest -n 3       wasi_python v1: 340/354 pass · 12 gap · 2 blocked · 0 fail   (unit suite 1104/1106, 2 skipped)
+                         (the same ratchet line)
+                         1444 passed, 4 skipped, 12 xfailed in 211.85s; exit 0; wall 213 s, CPU 818 s
+sameness.py serial.json n3.json        (nothing printed) exit 0
+```
+
+0 status differences in 354 checks; 20 of 86 fuel values differ, the largest by 3.1e-7;
+`meta.foreign` `[]` in both. The fast tier at `-n 3` before the commit: `313/354 pass · 0 gap · 2
+blocked · 0 fail · 39 deselected (unit suite 1104/1106, 2 skipped)`, exit 0.
