@@ -1,0 +1,4 @@
+numpy base []: DIFFER aarch64 20ef33440bb2e944 x86_64 d36897438056e356
+numpy fpoff [-ffp-contract=off]: SAME 2914eb833ad62c93
+numpy fpfast [-ffp-contract=fast]: SAME 2914eb833ad62c93
+numpy fpoff_O2 [-O2 -ffp-contract=off]: SAME 21063254043c180d

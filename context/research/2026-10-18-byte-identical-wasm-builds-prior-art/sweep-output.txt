@@ -1,0 +1,28 @@
+base [-O3]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+O2 [-O2]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+O1 [-O1]: DIFFER aarch64 f470d5ea8dabd116 x86_64 27e5f78e68353e7c
+Os [-Os]: DIFFER aarch64 3e9bd06233b8aaab x86_64 2eb258a2f8a4918b
+Oz [-Oz]: DIFFER aarch64 00ef12f536b5fe43 x86_64 7bfd750e183db9a9
+misched0 [-O3 -mllvm -enable-misched=0]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+fastisel [-O3 -mllvm -fast-isel]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+nounroll [-O3 -fno-unroll-loops]: DIFFER aarch64 3e9bd06233b8aaab x86_64 2eb258a2f8a4918b
+novec [-O3 -fno-vectorize -fno-slp-vectorize]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+fpoff [-O3 -ffp-contract=off]: SAME bca38dcd95e249c3
+clang (LLVM option parsing): Unknown command line argument '-combiner-alias-analysis=0'.  Try: 'clang (LLVM option parsing) --help'
+clang (LLVM option parsing): Did you mean '--combiner-global-alias-analysis=0'?
+nolegalcheck: mac failed
+dag_sched_source [-O3 -mllvm -pre-RA-sched=source]: DIFFER aarch64 afb1384f1c016d57 x86_64 04e5127548fa77a7
+nocsr [-O3 -fno-omit-frame-pointer]: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+lto [-O3 -flto]: SAME 2aac008938ec82f4
+--- environment-size probe (x86_64 clang, -O3): same binary, different process addresses
+sh: 1: /sdk/wasi-sdk-33.0-x86_64-linux/bin/clang: Argument list too long
+setarch: failed to set personality to x86_64: Operation not permitted
+7daeec0794b49c01  x-base.o
+7daeec0794b49c01  x-envi.o
+--- the same probe on the aarch64 macOS clang
+9afcef294ca52dad  a-base.o
+9afcef294ca52dad  a-envi.o
+9afcef294ca52dad  a-envbig.o
+--- clang versions
+clang version 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
+clang version 22.1.0-wasi-sdk (https://github.com/llvm/llvm-project 4434dabb69916856b824f68a64b029c67175e532)
