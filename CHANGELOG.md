@@ -6,6 +6,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a4 — unreleased
 
+- **What numpy's and pandas' own tests found** (spec 051). Three defects, fixed:
+  - **numpy callbacks no longer trap the guest** (the second carried patch,
+    `recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`). Six C functions were defined
+    with fewer parameters than CPython calls them with; WebAssembly checks the type of every
+    indirect call, so `copy.copy` of any numpy scalar and `a.dtype = …` ended the call in a wasm
+    trap. Each gains the parameter, unused. Its upstream facts sheet is
+    `context/upstream/13-numpy-callback-signatures/`, for the owner to send. The judge now scans
+    `python.wasm`'s referenced method and getset tables, and Cython's and CPython's single method
+    definitions, for any callback whose type is not the one CPython calls it with
+    (`test_callbacks_have_the_types_cpython_calls`); a mismatch is fixed by a patch or an
+    upstream release, never excused.
 - **Security: the sandbox holds on wasmtime 49.0.0** (spec 048). wasmtime-py 49.0.0, the only
   49 release, bundles wasmtime 49.0.0, which carries two advisories that reach a guest; the
   runner now carries both fixes itself, on every call. **GHSA-m9f7-9w4p-gv38** (high, fixed in

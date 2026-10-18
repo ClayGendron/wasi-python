@@ -1,0 +1,9 @@
+## tests/harness/callbacks.py over the base set's plain python.wasm (sha256 4befe9de64edc783)
+scanned 3072 method-array entries, 1989 single definitions, 1125 getset entries, 429 member entries
+6 findings
+getter _supports_unaligned: table index 4598 has (i32) -> (i32), called as (i32, i32) -> (i32) (boundarraymethod__supports_unaligned)
+getter scalar_input: table index 7906 has (i32) -> (i32), called as (i32, i32) -> (i32) (array_converter_get_scalar_input)
+method __copy__: table index 7134 has (i32) -> (i32), called as (i32, i32) -> (i32) (gentype___copy__)
+method __reduce__: table index 10233 has (i32) -> (i32), called as (i32, i32) -> (i32) (sfloat___reduce__)
+method _get_castingimpl: table index 8262 has (i32, i32) -> (i32), called as (i32, i32, i32) -> (i32) (_get_castingimpl)
+setter dtype: table index 6169 has (i32, i32) -> (i32), called as (i32, i32, i32) -> (i32) (array_descr_set)

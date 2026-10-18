@@ -1,0 +1,6 @@
+cc sfloat___reduce__ (('i32', 'i32'), ('i32',))
+cc array_converter_get_scalar_input (('i32', 'i32'), ('i32',))
+cc boundarraymethod__supports_unaligned (('i32', 'i32'), ('i32',))
+cc _get_castingimpl (('i32', 'i32', 'i32'), ('i32',))
+cc array_descr_set (('i32', 'i32', 'i32'), ('i32',))
+cc gentype___copy__ (('i32', 'i32'), ('i32',))

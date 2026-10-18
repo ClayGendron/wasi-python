@@ -1,0 +1,12 @@
+## each call alone, plain guest, spec 051's rebuilt set (python.wasm 5648e4c5143da71d, zip daf2cdd86357e617)
+copy float64: exit 0 trapped=False 1.5
+copy int32: exit 0 trapped=False 3
+copy bool_: exit 0 trapped=False True
+copy str_: exit 0 trapped=False a
+copy datetime64: exit 0 trapped=False 2017-08-25
+copy void: exit 0 trapped=False b'\x61'
+dtype set: exit 0 trapped=False [0. 0. 0. 0.]
+sfloat pickle: exit 0 trapped=False 2.0
+_get_castingimpl: exit 0 trapped=False _BoundArrayMethod
+control (no callback): exit 0 trapped=False 2.5 [0 0 0 0]
+scalar_input: exit 0 trapped=False (True, False)

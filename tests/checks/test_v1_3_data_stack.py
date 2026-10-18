@@ -433,3 +433,52 @@ def test_ctypes_stand_in_names_what_packages_import(guest, which) -> None:
     assert r.exit_code == 0, r.describe()
     bad = json.loads(r.text)
     assert bad == [], "; ".join(bad)
+
+
+# Spec 051, Decision 4: the minimum coverage, set from the frozen set's 3,072 / 1,125 / 1,990
+# with room, so a toolchain change cannot make the scan pass by finding nothing.
+CALLBACK_MINIMUMS = {"arrays": 2_500, "getsets": 1_000, "singles": 1_500}
+
+
+def test_callbacks_have_the_types_cpython_calls(artifacts, note) -> None:
+    """Every C callback in a table something points at (method arrays, code-referenced single
+    method definitions, getset arrays) has the wasm type CPython calls it with; a mismatch traps
+    the guest at its first call (spec 051, Decision 4). Read from the plain binary: the snapshot is
+    the same code and the same table. Its coverage is the pass's reason in latest.json."""
+    needs.need("plain binary")
+    from harness import callbacks, wasm
+
+    report = callbacks.scan(wasm.parse_file(artifacts.binary("plain")))
+    found = callbacks.findings(report)
+    short = [
+        f"{k} {report.coverage[k]} < {floor}"
+        for k, floor in CALLBACK_MINIMUMS.items()
+        if report.coverage[k] < floor
+    ]
+    assert not found and not short, (
+        f"{len(found)} callback mismatches: {'; '.join(found)}"
+        + (f"; coverage below its minimum: {', '.join(short)}" if short else "")
+        + f" (scanned {report.summary()})"
+    )
+    note(f"scanned {report.summary()}")
+
+
+def _job_on(guest, which: str, job: str):
+    files = {f"/jobs/{job}.py": jobs.script(job).read_bytes()}
+    files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
+    files["/out/.keep"] = b""
+    r = guest(which, [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    assert r.exit_code == 0, f"{job}: {r.describe()}"
+    (r.root / "out" / ".keep").unlink()
+    return jobs.render(r.stdout, r.root / "out")
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_callbacks_job_matches_native(guest, which) -> None:
+    """`copy.copy` of numpy scalars, `a.dtype = …`, and the scan's private findings called in the
+    guest give native's output; each trapped the guest before patch 0002 (spec 051, Decision 5)."""
+    why = jobs.compare(
+        jobs.expected_path("callbacks").read_bytes(), _job_on(guest, which, "callbacks")
+    )
+    assert why is None, why

@@ -50,6 +50,7 @@ class State:
 STATE = pytest.StashKey[State]()
 HEAD_AT_START = pytest.StashKey[str]()
 METRICS = pytest.StashKey[dict]()
+NOTE = pytest.StashKey[str]()
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -214,6 +215,17 @@ def metric(request: pytest.FixtureRequest):
     return record
 
 
+@pytest.fixture
+def note(request: pytest.FixtureRequest):
+    """Record one line a passing check says of itself, kept as its reason in latest.json (spec
+    051: the callback scan's coverage). It is never compared, so it is no metric."""
+
+    def record(text: str) -> None:
+        request.node.stash[NOTE] = _first_line(text)
+
+    return record
+
+
 def _first_line(text: str) -> str:
     for line in text.strip().splitlines():
         if line.strip():
@@ -295,7 +307,7 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
         _set(state, node, area, "fail", _first_line(message))
     elif rep.when == "call" and rep.passed:
         metrics = item.stash.get(METRICS, {})
-        _set(state, node, area, "pass", metrics=dict(metrics))
+        _set(state, node, area, "pass", item.stash.get(NOTE, ""), metrics=dict(metrics))
     return rep
 
 

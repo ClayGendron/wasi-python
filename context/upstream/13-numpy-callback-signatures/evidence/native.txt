@@ -1,0 +1,11 @@
+versions python=3.15 numpy=2.5.2 pandas=3.0.6
+copy np.float64(1.5) float64
+copy np.int32(3) int32
+copy np.True_ bool
+copy np.str_('a') str_
+copy np.datetime64('2017-08-25') datetime64
+copy np.void(b'\x61') void
+dtype [0. 0. 0. 0.] ['DeprecationWarning']
+sfloat _ScaledFloatTestDType 2.0
+castingimpl _BoundArrayMethod True
+scalar_input (True, False)

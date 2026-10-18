@@ -1,0 +1,12 @@
+## each call alone, plain guest, base set (python.wasm 4befe9de64edc783, zip ee1acace2fc1fb26; byte-identical to the frozen s-0cdc7b2bd78db6f5)
+copy float64: exit None trapped=True 
+copy int32: exit None trapped=True 
+copy bool_: exit None trapped=True 
+copy str_: exit None trapped=True 
+copy datetime64: exit None trapped=True 
+copy void: exit None trapped=True 
+dtype set: exit None trapped=True 
+sfloat pickle: exit None trapped=True 
+_get_castingimpl: exit None trapped=True 
+control (no callback): exit 0 trapped=False 2.5 [0 0 0 0]
+scalar_input: exit None trapped=True 

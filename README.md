@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 1, each with an upstream pull request drafted for the owner to send (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 2, each with an upstream pull request drafted for the owner to send (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 5 min 41 s (macOS arm64, 10 cores) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 31.8 MB / 65.5 MB / 11.2 MB (3.15 line) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -47,9 +47,9 @@ promises.
 | one call, plain reactor, `-c pass` / `import pandas` | 33 ms / 720 ms |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
-| numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on five golden jobs |
+| numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 
-The platform's facts, documented rather than patched (with one carried patch,
+The platform's facts, documented rather than patched (with two carried patches,
 below), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
@@ -61,7 +61,10 @@ runs isolated. `np.save` and `np.load` of paths and open files work, through a
 carried patch (`recipes/patches/numpy-2.5.2/`) until numpy releases the fix;
 `ndarray.tofile` and `np.fromfile` on real files still fail, since WASI cannot
 duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), and
-memory maps are unavailable. `importlib.metadata` gives each package's name, version and entry
+memory maps are unavailable. A second carried patch gives six of
+numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a numpy scalar and
+`a.dtype = …` work instead of trapping the guest; the judge scans every build's callback tables
+for that class of mistake. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
 process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
 about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`
@@ -162,7 +165,8 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: one today, numpy's `.npy` fix):
+recorded patches (`recipes/patches/`: two today, numpy's `.npy` fix and its callback
+signatures):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
