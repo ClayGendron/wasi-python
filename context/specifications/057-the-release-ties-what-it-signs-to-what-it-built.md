@@ -1,6 +1,6 @@
 # 057 — The release ties what it signs to what it built
 
-- **Status:** built; revised against its build review; awaiting the reviewer's confirmation
+- **Status:** **landed 2026-10-18** (accepted on `2ce08a5` as `8ad4971`, history line 64; the build review, `../reviews/057-the-release-ties-what-it-signs-to-what-it-built-2026-10-18.md`, confirmed it; see the Landing notes' last part; the release dry run on main follows). Before landing: built; revised against its build review; confirmed
   (2026-10-18; Landing notes, "Revised against the build review"). Built on
   `spec/057-the-release-ties-what-it-signs-to-what-it-built`, rebased onto main `1555a6d`, then
   onto main `c6cdd86` after spec 059 landed (Landing notes, "Rebased onto 059"). Confirmed for
@@ -930,3 +930,24 @@ rebuild; no file under `scripts/` or `recipes/` changed):
   memo's cases.
 - `release_binding_errors` reads steps as text, with the new step reader. It compares whole
   step blocks with comments stripped (rules 9 and 10).
+
+**Landed 2026-10-18** through the lane, closing the 0.1.0a4 security review's F4 before 0.1.0a6.
+The lane rebased the branch onto main `3e949a1` (docs only since `c6cdd86`); its diff equals the
+reviewed diff at `97e562a` line for line (EXECUTED, `build/lane-057-rebased.diff`). Its pre-build
+review (`../reviews/057-the-release-ties-what-it-signs-to-what-it-built-spec-2026-10-18.md`) and its
+build review with its confirmation (`../reviews/057-the-release-ties-what-it-signs-to-what-it-built-2026-10-18.md`:
+"lands once F1 is fixed", then "confirmed") were committed on the detached HEAD as `2ce08a5`. **The
+main tree's full build from pins** gave `SHA256SUMS`
+`c353b1d9e59304c9b5283e61695c5f0d4386d9b88502132f8472b38b4520f438`, byte for byte the builder's;
+`python.wasm`, the snapshot and the zip equal spec 059's set, and only `MANIFEST`'s line for
+`scripts/00_download.sh` differs (EXECUTED, `build/lane-057-build.log`). Because the snapshot hash
+is unchanged, the set is frozen read-only as `build/sets/s-4eb5418a2b1bb553-c353b1d9`, not under
+059's name: a builder judging against `s-4eb5418a2b1bb553` after this landing would fail
+`test_manifest_recipes_match_the_tree`. The full judge there, serial: `wasi_python v1: 400/416 pass ·
+14 gap · 2 blocked · 0 fail (unit suite 1229/1231, 2 skipped)`, `ratchet vs 2ce08a592d: lost 0 ·
+absent 0 · unrun 0 · gained 0 · grew 0` after acceptance, `1629 passed, 4 skipped, 14 xfailed in
+1028.63s` (EXECUTED, `build/lane-057-accept.log`). Accepted with `--accept-judge` as `8ad4971`,
+history line 64; the rules tier passed (40/40, unpiped); main fast-forwarded. The build review's
+remaining note (rule 16 compares the `path:` text, so `./release-assets` in `same-bytes` passes; a
+one-line `posixpath.normpath`) is a follow-up. The release dry run on main is dispatched after this
+note; 0.1.0a6 is not tagged before it passes (AGENTS.md rule 6b).
