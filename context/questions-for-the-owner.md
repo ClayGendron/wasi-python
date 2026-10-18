@@ -49,6 +49,19 @@ document.
   call. With `deadline_s=None` a hung tool holds the run until `cancel`, which is the embedder's
   explicit choice of no limit.
 
+### 54 to 56. The filesystem provider's choices (spec 032)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** spec 032, Decisions 3 and 8. Each is decided
+  in the spec as written below, so nothing waits.
+- **54. Answers or exceptions.** The provider memo proposed that a provider raise `OSError`.
+  Spec 032 has it return an `Errno` and treats any exception as a fault (the guest gets `EIO`),
+  following vfs's "a denial is a result" (decision 37). Keep it, or also accept a raised
+  `OSError` as its errno?
+- **55. The staging bound.** Bytes a provider stages are bounded by the call's `memory_bytes`,
+  with no knob of their own. Keep it, or add `max_staged_bytes`?
+- **56. Names.** `max_file_calls`, `Defaults.file_calls` and `trapped == "out of file calls"`
+  (after `"out of fuel"`), beside the tool protocol's `max_tool_calls`.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
