@@ -19,6 +19,29 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   zipimport's own reader. `python.wasm` grows by about 25 KB. No upstream file changes; a
   courtesy issue for importlib_resources is drafted
   (`context/upstream/16-importlib-resources-zip-directory/`).
+- **Security: the 0.1.0a4 security review's findings** (spec 056). Two fixes in
+  `wasi_python.tools`, on the host only; the artifact set is unchanged.
+  - **A keyword bound with `functools.partial` is fixed** (the review's F1, high). `tool()`
+    published each keyword a partial binds as an optional parameter, with the bound value as its
+    `default`: `tool(partial(orders, user_id=42, api_key=KEY), name="my_orders")` sent the key to
+    the guest, and the guest could call `my_orders(user_id=7)`. Now a bound keyword is left out
+    of the schema, the guest's signature and `stubs()`, and a frame that names it is answered
+    `invalid_arguments` as an unknown argument, so the bound value is always the one used. This
+    holds wherever `inspect.signature` meets a partial (nested partials, a `__wrapped__` chain, a
+    bound `partialmethod`). A given `input_schema` that names a bound keyword is refused, and so
+    is a `partialmethod` reached other than through an instance. A bound value need not be JSON
+    any more. A parameter's own default is still published, and the guest may still override
+    it: the README says never to put authority in one.
+  - **A call that ended while its gate decided never runs its tool** (F2, medium). A gate that
+    allowed after its call had timed out or been cancelled, even after `run` returned, still
+    started the tool. The bound now checks, under the lock that marks a call answered, between
+    the gate and the tool.
+  - **Documented** (F3, F5 and notes N2, N4): a large tool frame's host CPU and its per-run
+    total, bounded today only by `max_tool_calls` and the deadline (a per-run byte budget is a
+    later specification); a mount provider receives `\`, `:` and Windows device names as the
+    guest wrote them, so one backed by a host folder must check containment; the wasmtime fixes
+    live in the runner, not in the artifacts; `ToolCall.arguments` holds only what the guest
+    sent.
 - **What numpy's and pandas' own tests found** (spec 051). Three defects, fixed:
   - **numpy callbacks no longer trap the guest** (the second carried patch,
     `recipes/patches/numpy-2.5.2/0002-callback-signatures.patch`). Six C functions were defined

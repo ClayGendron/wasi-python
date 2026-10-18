@@ -547,6 +547,21 @@ absolute path (`/` is the mount itself) and each answering a value or an
   `Errno.EISDIR` when the path itself is a folder, and `Errno.ENOTDIR` when a
   parent is a file. The runner makes a folder descriptor only from `EISDIR`.
 
+**A path is a name, not a host path.** "Normalized" means `.`, `..` and
+repeated `/` are resolved; `/` is the only separator. A component may hold
+any character but `/` and NUL, `\` and `:` included, and may be a Windows
+device name such as `CON` or `NUL`: the provider gets it as the guest wrote
+it, as a Linux grant would. A provider that maps paths onto a host folder
+must not join them blindly. On Windows `/..\..\secret` climbs out of the
+base and `/C:\Windows` replaces it. Refuse `\`, `:` and device names, or
+resolve the joined path and check that it stays inside the base:
+
+```python
+target = (base / path.lstrip("/")).resolve()
+if not target.is_relative_to(base.resolve()):
+    return Errno.EACCES
+```
+
 `Errno` holds WASI preview1's own numbers (`EACCES`, `EBUSY`, `ECANCELED`,
 `EDQUOT`, `EEXIST`, `EFBIG`, `EINVAL`, `EIO`, `EISDIR`, `ENAMETOOLONG`,
 `ENOENT`, `ENOSPC`, `ENOSYS`, `ENOTDIR`, `ENOTEMPTY`, `ENOTSUP`, `EPERM`,
@@ -975,9 +990,23 @@ done.stdout                                    # b'Ada\n'
   done = run(["-c", code], tools=tools_for(request.user))
   ```
 
+  A `functools.partial` binds authority too:
+  `tool(partial(orders_for, user_id=user.id, api_key=KEY), name="my_orders")`.
+  A keyword the partial binds is fixed. It is not in the schema, so the
+  guest never sees its value, and a frame that names it is refused as an
+  unknown argument, so the guest cannot replace it. A positional argument
+  it binds is fixed the same way. A bound value need not be JSON: bind a
+  database connection if you like. A `functools.partialmethod` works
+  through an instance (`obj.method`). A parameter's own default is not
+  fixed: it is published in the schema (the guest's signature and
+  `stubs()` show it) and the guest may pass another value. So never put
+  authority, such as a key or a user id, in a default.
+
 - **The gate.** `gate=` is called before each tool runs, with a
   `ToolCall`: `seq`, `tool`, a copy of the validated `arguments`, and
-  `request_bytes`. It allows by returning `None` or `True`. It refuses by
+  `request_bytes`. `arguments` holds only what the guest sent: no default,
+  and no keyword a partial binds. A gate that judges the values the tool
+  will use fills in the defaults itself. It allows by returning `None` or `True`. It refuses by
   raising `ToolDenied(message)`, whose message the guest reads as a
   `PermissionError`, or by returning `False`. A gate that raises anything
   else refuses too, and the record keeps its fault. With no gate, every
@@ -1003,6 +1032,15 @@ done.stdout                                    # b'Ada\n'
   guest memory, so a refused frame costs the host the same whatever its
   size; an answer over 16 MiB is `too_large`. Arguments are checked within a
   budget of 100,000 steps (see *The tool protocol*).
+- **The host's cost per frame.** A frame the door admits is parsed and
+  checked in Python on the door's thread, holding the GIL. A 1 MiB frame
+  costs the host a few tenths of a second of CPU (0.27 to 0.65 s on an
+  arm64 Mac, measured by the 0.1.0a4 security review), even one that names
+  no tool, while sending it again costs the guest almost no fuel. No limit
+  bounds the bytes of one run's frames yet, so a guest can keep one host
+  thread busy until its deadline (1,000 such frames would take longer than
+  the default 60 s). Where many untrusted guests run at once, lower
+  `max_tool_calls` and the deadline.
 - **Tools run on their own threads.** Each tool call runs its gate, its tool
   and its result's encoding on a new daemon thread, in a copy of the
   caller's `contextvars` context. The call's deadline, its `cancel` and
@@ -1023,6 +1061,9 @@ done.stdout                                    # b'Ada\n'
   call timed out or was cancelled runs on to its end, unseen; its result is
   dropped, and its outcome says `abandoned=True`, because its effect may
   still land. So a call the guest retries after `ToolTimeout` may act twice.
+  A call that timed out or was cancelled while its gate was still deciding
+  never starts its tool, even if the gate then allows: only the gate ran
+  on, and the outcome says `abandoned=True` too.
   One run may hold 4 abandoned tool threads; while it does, its next tool
   call is answered `timeout` at once, without running. The bound is per run,
   not per process: each run can leave up to five threads behind (four
@@ -1298,7 +1339,10 @@ has one.
   move a host folder into its sandbox (GHSA-m9f7-9w4p-gv38). Every
   `fd_readdir` entry's padding is zeroed, where wasmtime 49.0.0 copies up to
   three bytes of host memory (GHSA-96f6-r43r-8c24). Both cost no fuel, and each
-  goes once the published `wasmtime` requirement admits only fixed versions;
+  goes once the published `wasmtime` requirement admits only fixed versions.
+  The fixes are in this package's runner, not in the artifact set: an
+  embedder that drives the artifacts with its own wasmtime before 49.0.3
+  does not get them;
 - **inputs**: `argv` is any iterable of `str`, `env` a mapping of `str` to
   `str`, `stdin` a bytes-like object. One the guest would see differently
   (a NUL, text that is not UTF-8, an `=` or nothing as an env key) raises
@@ -1371,7 +1415,8 @@ root sets it (Python's `random`, `secrets`, `os.urandom` and `tempfile` names
 use real entropy); a stale SQLite lock and hot journal left in a reused root
 by a guest stopped inside a transaction (see *sqlite3 in the guest*); an `argv`
 or `env` larger than the guest's memory, which exits 1 with empty stderr;
-timing
+host CPU spent parsing and checking tool frames, up to the call's
+deadline (see *Tools*, "The host's cost per frame"); timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope
