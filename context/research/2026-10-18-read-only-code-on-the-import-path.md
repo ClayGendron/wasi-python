@@ -250,6 +250,28 @@ Every question the drafting brief named has an executed answer above. Not run: a
 comparison of the prelude's stack (not needed: the reactor is not CPython's `main`), and a
 crash from a shadowed `numpy` (section 5's last bullet, INFERRED).
 
+## Corrected by spec 054's pre-build review (2026-10-18, before landing)
+
+Appended, not rewritten. The review
+(`../reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md`) ran what this memo did
+not, and three things above are incomplete:
+
+- **§2, "A traceback does not show them".** True for the prelude's frames, but its *source*
+  appeared in tracebacks of `exec`/`eval` in a script, `-m` or standard input: the prelude and
+  those strings share one `linecache` key (EXECUTED by the reviewer). Clearing
+  `linecache._interactive_cache` first in the prelude makes them byte-equal again
+  (`revision_linecache.py`, `revision_linecache.txt`: 3 of 3 per binary, against 0 of 3).
+- **§5, "Appended, the runtime wins everywhere".** True for names the runtime *has*. For names
+  it looks for and lacks (C accelerators, other platforms' modules, the profile's optional
+  dependencies), an entry supplies them, and the plain binary also tries them for packages the
+  snapshot imported at build time: an entry's `pytz.py` is imported by `import pandas` 2 times
+  on the plain binary and 0 on the snapshot; an entry's `_hashlib.py` breaks `import hashlib`
+  on both (EXECUTED by the reviewer; `revision_lacking_names.py`, `.txt`).
+- **§7 and §9's mount line.** The measurements stand, but a read-only mount on the import path
+  is unsafe when its provider is also mounted writable: one provider at `/lib` (read-only) and
+  `/work` (writable) let call 1 plant code that call 2 imported (EXECUTED by the reviewer). Spec
+  054 refuses mounts as servers; owner question 93 asks about later.
+
 ## One line
 
 The runner can put read-only folders and zips on the import path today, after the stdlib zip,

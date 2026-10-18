@@ -1,0 +1,4 @@
+snapshot 'import pandas; print(pandas.__version__)' exit 0 hits 0 [] b'3.0.6\n'
+snapshot 'import hashlib' exit 1 hits 1 ["AttributeError: module '_hashlib' has no attribute 'openssl_md_meth_names'"] b''
+plain 'import pandas; print(pandas.__version__)' exit 0 hits 2 ['HIT pytz'] b'3.0.6\n'
+plain 'import hashlib' exit 1 hits 1 ["AttributeError: module '_hashlib' has no attribute 'openssl_md_meth_names'"] b''

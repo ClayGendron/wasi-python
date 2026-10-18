@@ -109,6 +109,39 @@ document.
   agents are trained on, and keeps the export's C small. (b) After 0.1.0, unless an embedder
   runs untrusted sessions in a shared process before then: the gap already exists for `run`,
   the README states it, and a cap is its own design (shadowing `path_open` per store).
+### 93. May a read-only mount serve an import-path entry?
+
+- **Asked:** 2026-10-18. **Source:** `specifications/054-read-only-code-on-the-import-path.md`
+  (Decision 9) and its pre-build review, finding F1
+  (`reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md`).
+- **The facts:**
+  - Decision 16 approved read-only code on the import path "as an explicit read-only typed
+    grant". Spec 032 left mounts out on purpose ("stays a typed grant … A mount … may import; it
+    is not claimed").
+  - A read-only mount can serve imports today, mechanically: with an in-memory provider at `/m`
+    on the import path, `import json` made 0 provider calls and a module and a package in the
+    mount made 14 `stat`, 1 `list` and 4 `read` calls (EXECUTED, the 054 memo §7, both binaries).
+  - **The hazard (F1, EXECUTED by the reviewer, both binaries):** one provider object mounted
+    read-only at `/lib` and writable at `/work`. Call 1 writes `/work/lib/evil.py`. Call 2, with
+    the same layout and `/lib/lib` on the import path, runs `import evil`: "planted code ran".
+    Every rule 054 has for grants allows that layout, because a mount has no host identity.
+  - Within one call the runner can see the plainest form of it: the same provider object given
+    twice, once writable. It cannot see two different objects backed by one store, nor a store
+    written in another call or by another route. For grants, the cross-call case is already
+    documented as the embedder's (054, Decision 5).
+- **The question:** may a read-only mount serve an import-path entry? If yes, is the refusal of
+  a read-only mount whose provider object is also mounted writable in the same call enough, with
+  the README making every other route (other objects, other calls) the embedder's
+  responsibility, as for grants across calls? Or should the runner refuse something across calls
+  too (it keeps no state between calls today)?
+- **The agent's recommendation:** yes, in a small follow-up specification after 054 lands: a
+  read-only mount may serve an entry; a mount whose provider `is` the provider of a writable
+  mount in the same call is refused; the README states the cross-call rule in the same words as
+  for grants. The agent runtime's files often live in a store (decision 13), and copying a
+  library to a folder first is the only route until then. No cross-call refusal: the runner
+  keeps no state between calls, and adding some is a larger change than this one.
+- **Meanwhile:** refused. Spec 054 serves import-path entries from read-only grants only; a
+  mount serving an entry is a `ValueError`. Nothing waits on this answer.
 
 ## The owner's direction for the product (2026-10-17)
 

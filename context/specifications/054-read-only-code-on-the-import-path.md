@@ -1,9 +1,12 @@
 # 054 — Read-only code on the import path
 
-- **Status:** drafted 2026-10-18; awaiting its pre-build review. §5.6 does not require one here
-  (no guest import or export, artifact or recipe changes), but it is held, as for 032 and 034,
-  because this widens a safety claim the README makes and the judge checks ("only the stdlib zip
-  is on the import path").
+- **Status:** revised against its pre-build review; awaiting the reviewer's confirmation.
+  Drafted 2026-10-18; reviewed before build the same day
+  (`../reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md`; verdict: ready once
+  F1 to F7 are written in) and revised against all seven findings (the Disposition below says
+  where each went). §5.6 does not require a review before build here (no guest import or export,
+  artifact or recipe changes); one was held, as for 032 and 034, because this widens a safety
+  claim the README makes and the judge checks ("only the stdlib zip is on the import path").
 - **Owner:** Clay Gendron
 - **Kind:** the runner (`src/wasi_python/runner.py`: `run`, `run_async`, `_check_places`,
   `_walk_grants` and `_judge`, `_instance`), the command line (`src/wasi_python/cli.py`), judge
@@ -12,20 +15,24 @@
   option (Decision 10). **Not build-class:** it touches no `scripts/`, `recipes/`,
   `downloads/SHA256SUMS` or release workflow, and it runs on today's artifact set unchanged.
 - **Depends on:** 017 (typed grants: the walk, identities, `_judge`), 022 (grants on the command
-  line), 025 (nothing writable by default), 032 and 034 (mounts, read-only and writable), all
-  landed. **049** (the public API frozen), confirmed for build and not landed: Decision 10 says
-  what each order of landing asks. It does not depend on 035 (the zip's directory, being built)
-  or 041; Decision 8 says how it meets 035.
+  line), 025 (nothing writable by default), 032 and 034 (mounts, read-only and writable: here
+  refused as servers and checked for nesting), all landed. **049** (the public API frozen),
+  confirmed for build and not landed: Decision 10 says what each order of landing asks. It does
+  not depend on 035 (the zip's directory, being built) or 041; Decision 8 says how it meets 035.
 - **Research it stands on:** `../research/2026-10-18-read-only-code-on-the-import-path.md` and
   its evidence folder (`probe.py`, `outputs.txt`, `equal.py`, `equal.txt`, `root_and_mount.py`,
-  `root_and_mount.txt`; EXECUTED on both binaries of the main tree's artifact set, wasmtime-py
-  49.0.0). The owner's
-  decisions 16 ("yes, as an explicit read-only typed grant the embedder asks for; never writable,
-  never by default") and 49 (0.1.0 carries it) (`../decisions.md`).
+  `root_and_mount.txt`, and, for this revision, `revision_linecache.py` and `.txt`,
+  `revision_lacking_names.py` and `.txt`; EXECUTED on both binaries of the main tree's artifact
+  set, wasmtime-py 49.0.0). The pre-build review's probes (EXECUTED there, against the frozen
+  set `s-f94dec535086b06c`: the shared-provider layout, the traceback leak and its fix, names
+  the runtime lacks, links inside a grant, the prelude's literal). The owner's decisions 16
+  ("yes, as an explicit read-only typed grant the embedder asks for; never writable, never by
+  default") and 49 (0.1.0 carries it) (`../decisions.md`). The lane's ruling on F1 (2026-10-18:
+  grants only; mounts refused as servers; question 93).
   `../research/2026-10-17-the-runtime-for-agent-code.md` (§4.1 item 3, §4.2, §5 item 5).
   `../research/2026-10-17-typed-grants.md` (candidate shape A left room for this). Spec 032's
   Scope ("Read-only code on the import path (decision 16) stays a typed grant. A mount … may
-  import; it is not claimed"), which this specification settles.
+  import; it is not claimed").
 
 ## The problem
 
@@ -37,13 +44,16 @@ Today the only way is for the program to edit `sys.path` itself, which every pro
 to repeat, and which the runner cannot check.
 
 What must not change is spec 006's guarantee: nothing writable is ever on the import path the
-runtime sets up, so code one call plants never runs in a later call by being imported. Two
-layouts would break that if an import path were allowed naively (memo §6, EXECUTED, both
-binaries): a writable grant whose host folder lies inside the importable one, and a writable
-grant whose guest path lies under the entry. In the first, a later call imported a module an
-earlier call wrote. In the second, a call imported a module it had just written through the
-writable grant, which a later call with the same layout would import too (INFERRED from the
-first).
+runtime sets up, so code one call plants never runs in a later call by being imported. Three
+layouts would break that if an import path were allowed naively (EXECUTED, both binaries):
+
+- a writable grant whose host folder lies inside the importable one (memo §6): a later call
+  imported a module an earlier call wrote;
+- a writable grant whose guest path lies under the entry (memo §6): a call imported a module it
+  had just written, which a later call with the same layout would import too (INFERRED from the
+  first);
+- one provider object mounted read-only and writable (the review's F1): a later call imported a
+  module an earlier call wrote through the writable mount.
 
 ## Terms
 
@@ -51,10 +61,12 @@ first).
 - **An entry** is one guest path the embedder puts on it: a folder, or a zip file.
 - **A place** is a grant, a mount, the root or the stdlib folder: something preopened at a guest
   path.
-- **The place that serves a guest path** is the place whose guest path is the longest prefix of
-  it, compared by whole components. wasi-libc resolves every path that way (the runner's own
-  comment in `_instance`: "wasi-libc picks by the longest guest prefix"; memo §6, P9 EXECUTED).
-- **A read-only place** is a read-only grant or a read-only mount.
+- **Under**, for guest paths, means at or below by whole components: `/code/a` is under `/code`;
+  `/code2` is not. It is never a text prefix test.
+- **The place that serves a guest path** is the place whose guest path is the longest whole-
+  component prefix of it. wasi-libc resolves every path that way (the runner's own comment in
+  `_instance`: "wasi-libc picks by the longest guest prefix"; memo §6, P9 EXECUTED).
+- **The serving grant** of an entry is the read-only grant that serves it (Decision 3).
 
 ## Decisions
 
@@ -63,97 +75,134 @@ first).
      parameter sits right after `mounts`. The default, empty, keeps today's import path exactly:
      never by default (decision 16).
    - Each entry is a `str` (not `os.PathLike`, not `bytes`: guest paths are `str` in `Grant` and
-     `Mount` too). The argument is any iterable of `str` except a `str` itself; `_check_places`
-     turns it into a tuple, so `run_async` hands its worker no used iterator (spec 017's rule
-     for `grants`).
+     `Mount` too). The argument is any iterable of `str` except a `str` itself.
    - **Why a list and not a flag on `Grant`.** A flag (`Grant(…, importable=True)`) can name only
-     a grant's own folder. It cannot name a zip inside a grant (memo §4), a subfolder (a `src/`
-     layout), or a mount, without a second flag on `Mount` and two places to check. A list names
-     exactly what goes on `sys.path`, in order, whichever read-only place serves each entry.
-   - **It is decision 16 as the owner gave it.** The code still arrives only through a
-     read-only place the embedder grants, explicitly (the embedder names the entry), never
-     writable (Decisions 3 to 5), never by default (the empty default).
+     a grant's own folder. It cannot name a zip inside a grant (memo §4) or a subfolder (a `src/`
+     layout). A list names exactly what goes on `sys.path`, in order.
+   - **It is decision 16 as the owner gave it.** The code arrives only through a read-only
+     typed grant the embedder gives, explicitly (the embedder names the entry), never writable
+     (Decisions 3 to 5 and 9), never by default (the empty default).
 2. **Each entry's spelling is checked before any work** (`TypeError` for a type, `ValueError`
    for a value, as specs 013 and 014; each message names `import_path[i]` and the entry):
    - spec 017's guest-path rule, `_guest_path`: absolute; no NUL; valid UTF-8; no empty, `.` or
      `..` component; no trailing `/`; not `/`; not `/usr/local/lib` or under it (the stdlib zip
-     is already first, and the stdlib folder is the runtime's own);
+     is already first, and the stdlib folder is the runtime's own). The builder gives `/` a
+     message of its own here (`_guest_path`'s "pass root= instead" fits grants, not entries);
    - no two entries equal. CPython allows duplicates; here a duplicate is always a mistake, and
      grants refuse theirs the same way.
-   - The runner does not check that an entry exists or is importable. It cannot look inside a
-     mount, and for a grant the answer could change before the guest runs. Python skips an entry
-     that is missing or not a folder or a zip, as it skips a bad `PYTHONPATH` entry (memo §4,
-     P10, EXECUTED: `None` in `sys.path_importer_cache`). The README says so.
-3. **Each entry is served by a read-only place.** The place that serves it (Terms) must be a
-   read-only grant or a read-only mount. Otherwise `ValueError`:
-   - served by the root, a writable grant or a writable mount: "is served by <place>, which is
-     writable; only a read-only grant or mount may be on the import path";
-   - served by nothing (no grant, no mount, no root above it): "no grant or mount serves it".
-   - A mount at `/` counts: it serves every path no longer prefix serves. A read-only mount at
-     `/` may serve `/lib`; a writable one may serve nothing on the import path.
+   - **What is kept is the checked plain string** (the review's F6). `_check_places` stores, as a
+     tuple, the values `_guest_path` returns, which `_text` has made plain `str` through
+     `str.__str__` (`runner.py`, `_text`). Nothing later reads the caller's objects: a `str`
+     subclass whose `__repr__` or `__str__` lies cannot write anything into the prelude
+     (Decision 7). So `run_async` also hands its worker no used iterator (spec 017's rule for
+     `grants`).
+   - The runner does not check that an entry exists or is importable: for a grant the answer
+     could change before the guest runs, and Python skips an entry that is missing or not a
+     folder or a zip, as it skips a bad `PYTHONPATH` entry (memo §4, P10, EXECUTED: `None` in
+     `sys.path_importer_cache`). The README says so.
+3. **Each entry is served by a read-only grant.** The place that serves it (Terms) must be a
+   read-only grant. Otherwise `ValueError`:
+   - served by the root or a writable grant: "is served by <place>, which is writable; only a
+     read-only grant may serve the import path";
+   - served by a mount, read-only or writable, a mount at `/` included: "is served by a mount;
+     only a read-only grant may serve the import path" (Decision 9);
+   - served by nothing (no grant, no mount, no root above it): "no grant serves it".
    - Nested places resolve as the guest resolves them: with a writable grant at `/work` and a
      read-only grant at `/work/lib`, the entry `/work/lib` is served by the read-only grant and
      is allowed; the entry `/work/other` is served by the writable grant and is refused.
-4. **No writable place lies under an entry (guest nesting).** A writable grant or writable mount
-   whose guest path is at or under an entry, by whole components, is refused with `ValueError`
-   naming both. Memo §6, P8 (EXECUTED): with `/code2` on the import path and a writable grant at
-   `/code2/out`, a program wrote `/code2/out/evil.py` and `import out.evil` ran it; the next call
-   with that layout would too. The root is never under an entry (`/` is not an entry).
-5. **No writable host folder lies inside an entry's grant (host nesting).** For each read-only
-   grant that serves an entry, the root (when it is a host path) and every writable grant are
-   compared with it by identity, as spec 017's `_judge` compares (the walked chains of
-   `(st_dev, st_ino)`; on Windows the volume serial and file index): a writable folder at or
-   inside the serving grant's folder is refused with `ValueError`.
+   - Sibling names are not nested (the review's F4a): with a writable root and a read-only grant
+     at `/code`, the entry `/code2` is served by the root, as wasi-libc serves it, and is
+     refused. A text-prefix match would wrongly give it to `/code`.
+4. **No writable place lies under an entry (guest nesting).** A writable grant, or any mount,
+   whose guest path is under an entry is refused with `ValueError` naming both. Memo §6, P8
+   (EXECUTED): with `/code2` on the import path and a writable grant at `/code2/out`, a program
+   wrote `/code2/out/evil.py` and `import out.evil` ran it. A mount is refused here whether
+   read-only or writable, for Decision 9's reason: its provider may alias a writable store. The
+   root is never under an entry (`/` is not an entry). A writable place *above* an entry is
+   harmless: the entry's own grant serves everything under it (memo §6, P9).
+5. **No writable host folder lies inside an entry's serving grant (host nesting).** For each
+   serving grant, the root (when it is a host path) and every writable grant are compared with
+   it by identity, as spec 017's `_judge` compares (the walked chains of `(st_dev, st_ino)`; on
+   Windows the volume serial and file index): a writable folder at or inside **the serving
+   grant's whole folder** is refused with `ValueError`.
    - Memo §6, P8 (EXECUTED): call 1 wrote `out/evil.py` through a writable grant of `proj/out`;
      call 2, granting `proj` read-only with `/code2` on the import path, imported and ran it.
-     Inside one call the runner sees this layout; this rule refuses it.
+   - **The whole folder, not the entry's subfolder** (the review's F5). A symbolic link inside a
+     grant resolves into any folder of that grant (EXECUTED by the reviewer: with the entry
+     `/p/lib`, a link `proj/lib/plug -> ../out` imported `plug.evil_in` from `proj/out`). So with
+     the entry `/p/lib`, a writable grant of `proj/out` is refused too, though `out` is not under
+     `lib`. A link that leaves the grant does not resolve (EXECUTED there, absolute and
+     relative), so the grant's folder is the bound.
    - Spec 017 already refuses the other direction: a read-only grant at or inside a writable
-     one. Together, a grant that serves an entry shares no host folder with any writable place of
-     the same call.
+     one. Together, a serving grant shares no host folder with any writable grant or root of the
+     same call.
    - A root still to be made counts as inside whatever its deepest existing ancestor is inside
-     (spec 017, Decision 4), so a missing root under an entry's grant is refused and no folder is
+     (spec 017, Decision 4), so a missing root inside a serving grant is refused and no folder is
      made.
    - **Across calls the runner cannot see.** An embedder that grants a folder writable in one
      call and serves an entry from it in another plants code for itself. The README says so,
      beside spec 017's existing sentence that a read-only grant can change if the same host
      files are writable elsewhere.
-   - Mounts have no host identity; what a read-only provider serves is the embedder's code
-     (decision 17: governance is the embedder's).
 6. **Entries go after the stdlib zip, in the order given.** `sys.path` becomes
-   `['/usr/local/lib/python315.zip', *import_path]`. Reasons (memo §5, P6, EXECUTED):
-   - **The same call answers the same on both binaries.** Before the zip, a grant's `json`,
-     `numpy`, `csv` and `uuid` load on the plain binary but not on the snapshot, which imported
-     them at build time. After it, the runtime's modules win on both.
-   - **The pinned set stays the pinned set** (§3: a release is one pinned set). An entry cannot
-     replace numpy's Python half under its compiled-in C half, nor the tool protocol's `host`
-     package (P6: before the zip, the grant's `host` loaded on both binaries).
-   - Builtin modules win in either order (`BuiltinImporter` is first on `sys.meta_path`).
-   - So a module of an entry whose name the runtime already has is never imported. The README
-     says: name your packages apart from the stdlib and the profile's. This differs from
-     CPython, where `PYTHONPATH` comes before the stdlib, on purpose.
-   - Among entries, the first wins, as in CPython.
+   `['/usr/local/lib/python315.zip', *import_path]`; among entries the first wins, as in CPython.
+   - **For a name the runtime has, the runtime wins, on both binaries alike** (memo §5, P6,
+     EXECUTED). Before the zip, a grant's `json`, `numpy`, `csv` and `uuid` load on the plain
+     binary but not on the snapshot, which imported them at build time, and the grant's `host`
+     replaces the tool protocol's package on both. After the zip, the runtime's modules win
+     everywhere, so an entry cannot replace numpy's Python half under its compiled-in C half.
+     Builtin modules win in either order (`BuiltinImporter` is first on `sys.meta_path`).
+   - **A name the runtime looks for and lacks can come from an entry, and the binaries may
+     differ** (the review's F3, EXECUTED there and in `revision_lacking_names.txt`). The
+     runtime's own modules try optional names and fall back when they are missing: C
+     accelerators (`_decimal`, `_uuid`, `_hashlib`), other platforms' modules (`nt`, `msvcrt`,
+     `_winapi`, `fcntl`, `grp`, `pwd`, `termios`), and the profile's optional dependencies
+     (`pytz`, `pyarrow`, `numexpr`, `bottleneck`). An entry holding such a name supplies it.
+     And the plain binary makes those tries at run time also for packages the snapshot imported
+     at build time, when no entry existed: an entry's `pytz.py` is imported by `import pandas`
+     on the plain binary (2 times today) and not at all on the snapshot; an entry's `_hashlib.py`
+     is imported by `import hashlib` on both, which then fails with `AttributeError`.
+   - **That is the rule, stated and pinned rather than prevented.** These names are the
+     embedder's to avoid or to supply on purpose (a real pure-Python `pytz` makes pandas use
+     it on the plain binary). Preventing it would need an import hook that tells the runtime's
+     own lookups from the program's, which is a guest change and a source of its own surprises.
+     The README states the rule with the examples above; criterion 2 pins today's answers, so a
+     set that changes them is seen.
+   - This differs from CPython, where `PYTHONPATH` comes before the stdlib, on purpose.
 7. **The mechanism is the runner's: a one-line prelude, no guest change.** When `import_path` is
-   not empty, the guest's argv becomes `[ARGV0, "-c", PRELUDE, *argv]`, where `PRELUDE` is the
-   single expression statement of memo §2 with `repr(list(import_path))` in it:
+   not empty, the guest's argv becomes `[ARGV0, "-c", PRELUDE, *argv]`. `_import_prelude` takes
+   only Decision 2's tuple of plain strings and writes, as one line:
 
    ```
-   __import__('sys').path.extend(ENTRIES) or __import__('sys').exit(__import__('_reactor').run(
-       ['/usr/local/bin/python.wasm', *__import__('sys').argv[1:]], dict(__import__('os').environ)))
+   __import__('linecache')._interactive_cache.clear() or __import__('sys').path.extend(ENTRIES)
+   or __import__('sys').exit(__import__('_reactor').run(['/usr/local/bin/python.wasm',
+   *__import__('sys').argv[1:]], dict(__import__('os').environ)))
    ```
 
-   (as one line). The outer `_reactor.run` runs it in `-c` mode; it extends `sys.path` and calls
+   where `ENTRIES` is `repr(list(entries))` of those plain strings (CPython's own `str.__repr__`,
+   which the reviewer ran on newlines, both quotes, backslashes, U+2028, U+0085 and non-BMP
+   characters). The outer `_reactor.run` runs it in `-c` mode; it extends `sys.path` and calls
    `_reactor.run` again with the caller's argv, which handles every mode as it always has; its
    exit code becomes the call's.
-   - **What stays the same** (memo §2, P2, EXECUTED on both binaries): `-c`, `-m`, a script,
-     standard input, `-V`, `-u`; `sys.argv` and `sys.orig_argv`; exit codes, `SystemExit`'s
-     message; tracebacks, which still show only the program's frames and lines; a missing
+   - **The `linecache` clear** (the review's F2). The outer call registers the prelude's source
+     in `linecache` under the key (`<string>`, `<module>`, 1), which every `exec` or `eval` of a
+     string with the default filename shares. Without the clear, a script running `eval('1/0')`
+     shows the prelude's whole line, entries included, in its traceback (EXECUTED by the
+     reviewer; `revision_linecache.txt`: the memo's prelude differs from the call without an
+     import path in 3 of 3 cases per binary, the clearing prelude in 0 of 3). `_interactive_cache`
+     is private, as is the `linecache._register_code` that `_reactor` already calls; the pinned
+     set fixes both, and criterion 1 pins the result.
+   - **What stays the same** (memo §2, P2, `equal.txt`, `revision_linecache.txt`, EXECUTED on
+     both binaries): `-c`, `-m`, a script, standard input, `-V`, `-u`; `sys.argv` and
+     `sys.orig_argv`; exit codes, `SystemExit`'s message; tracebacks, byte-equal in every case
+     criterion 1 lists, `exec` and `eval` inside scripts and standard input included; a missing
      script's message and exit 2; no name added to `__main__`.
    - **What differs, documented in the README:** a program that walks its own stack sees two
      more frames (`len(traceback.extract_stack())` is 4, not 2), and has two frames less before
      the recursion limit. A call with an import path costs more fuel: +3.26 M on the snapshot
-     and +1.33 M on the plain binary for `-c pass` (memo §2; a benchmark fact, never a bound).
+     and +1.33 M on the plain binary for `-c pass` (memo §2, without the clear; a benchmark
+     fact, never a bound).
    - **A call without an import path is untouched:** its argv is today's, byte for byte, so no
-     existing check's fuel moves (criterion 9).
+     existing check's fuel moves (criterion 8).
    - **Why not the guest** (memo §9): `PYTHONPATH` is ignored by the isolated interpreter;
      honouring it, or a variable or argument of our own, needs a bootstrap change, so a rebuild
      of both binaries and the snapshot, a build-class specification and a new guest contract,
@@ -164,12 +213,12 @@ first).
    - **It leans on `_reactor.run(argv, environ)`,** the reactor's own module since spec 003,
      present in every artifact set. Criterion 1 pins it on both binaries, so a set that changed
      it fails the judge before any user meets it.
-   - `-c` with the prelude is never shown to the caller: `Completed` has no argv, and the
-     command line prints only `run()`'s result.
+   - The prelude is never shown to the caller: `Completed` has no argv, and the command line
+     prints only `run()`'s result.
 8. **Bytecode, zips and caches need nothing built** (memo §3, §4, §8, EXECUTED):
    - **No `.pyc` is ever written.** `sys.dont_write_bytecode` is `True` on both binaries
      (`config.write_bytecode = 0`), so the loader does not try. A program that sets it `False`
-     gets a quiet failure on a read-only place: the import succeeds, stderr is empty, the host
+     gets a quiet failure on a read-only grant: the import succeeds, stderr is empty, the host
      folder is unchanged. Criterion 4 checks both.
    - **A valid `.pyc` in an entry is read**, with the guest's cache tag (`cpython-315`) and
      CPython's own validation. It is the embedder's code like the source beside it; an embedder
@@ -182,22 +231,28 @@ first).
    - **`importlib.invalidate_caches()` is not needed** for an entry: a read-only entry changes
      only if the host changes it, and a file the host added mid-call was imported without it
      (P5). It works as today, at today's cost.
-9. **A read-only mount may serve an entry.** Spec 032 left this to decision 16's specification.
-   It is allowed, because a read-only provider serves the embedder's own files exactly as a
-   read-only grant does, and because the agent runtime's files often live in a store, not on
-   disk (decision 13: an embedder converges on the runner through a provider). Refusing it would
-   make such an embedder copy its library to a folder first.
-   - Imports the zip satisfies cost the mount nothing: `pass` and `import json` made 0 provider
-     calls with a mount on the import path (memo §7, P7). A module found in the mount, and every
-     import that misses the zip, makes provider calls (P7: a module and a package, 14 `stat`, 1
-     `list`, 4 `read`). They count toward `max_file_calls` like any other provider call; nothing
-     new is limited.
+9. **Mounts serve no entry** (the review's F1; the lane's ruling of 2026-10-18).
+   - **Why.** A provider can alias a writable store, and the runner can judge that only in
+     part. The reviewer ran it (EXECUTED, both binaries): one provider object mounted read-only
+     at `/lib` and writable at `/work`; call 1 wrote `/work/lib/evil.py`; call 2, with `/lib/lib`
+     on the import path, ran `import evil` and printed "planted code ran". Every grant rule here
+     allowed that layout, because a mount has no host identity.
+   - Constitution §6 decides it: keep the wall whole first (rule 1), and the smallest thing that
+     meets the specification (rule 4). Decision 16 says "a typed grant", and spec 032 reserved
+     mounts on purpose. So a mount serving an entry, read-only or writable, at `/` or elsewhere,
+     is refused (Decision 3), and a mount under an entry is refused (Decision 4).
+   - Whether a read-only mount may serve an entry later, with a refusal when its provider is
+     also mounted writable, is the owner's: question 93 (`../questions-for-the-owner.md`), with
+     the facts and the agent's recommendation. Meanwhile it is refused, and nothing waits. An
+     embedder whose library lives in a store copies it to a folder and grants that, read-only.
+   - What the draft measured stays true and is kept in the memo (§7): through a mount, an import
+     the zip satisfies costs 0 provider calls. It is input for question 93, not a claim here.
 10. **The command line, and the public API.**
     - `wasi-python run --import-path GUEST` (repeatable; `VALUED` gains it). Each value is one
       entry, in the order typed, passed whole as `import_path=[…]`; nothing else is parsed.
       Every refusal is `run()`'s (exit 1, `"kind": "ValueError"` or `"TypeError"`), as spec 022
-      decides for grants. A missing value is argparse's usage error (exit 2). Mounts are not on
-      the command line (spec 032), so there an entry is served by a `--grant`.
+      decides for grants. A missing value is argparse's usage error (exit 2). An entry there is
+      served by a `--grant`.
     - **What changes in spec 049's snapshot** (049, Decision 13's rule), each allowed by 049's
       Decision 8 (a minor release may add keyword-only arguments whose default keeps today's
       behaviour, and command options; before 0.1.0 anything may change anyway):
@@ -215,18 +270,22 @@ first).
       entry like any other; 049's reviewer then sees the three lines in the first snapshot.
 11. **The README and the CHANGELOG.**
     - README *Grants* gains a short part, "The import path": `import_path=` and
-      `--import-path`; what may serve an entry; the order after the stdlib zip and why (name
-      packages apart); zips; that no `.pyc` is written and a valid one is read; that a missing
-      entry is skipped; the two stack frames; the cross-call rule of Decision 5; a five-line
-      example.
-    - *Safety*, "Enforced, and judged": "only the stdlib zip is on the import path" becomes
-      "only the stdlib zip and the read-only entries the embedder names are on the import path;
-      nothing writable ever is".
+      `--import-path`; that only a read-only grant serves an entry and why mounts do not (one
+      sentence on F1); the order after the stdlib zip; Decision 6's rule for names the runtime
+      lacks, with its examples (C accelerators, other platforms' modules, the profile's optional
+      dependencies, and on the plain binary also packages the snapshot pre-imported); zips; that
+      no `.pyc` is written and a valid one is read; that a missing entry is skipped; the two
+      stack frames; the cross-call rule of Decision 5; a five-line example.
+    - *Safety*, "Enforced, and judged" (the review's F7): "only the stdlib zip is on the import
+      path" becomes "only the stdlib zip and the read-only entries the embedder names are on the
+      import path; each is served by a read-only grant, and nothing the same call can write lies
+      under one (across calls, see *Grants*)".
     - *Mounts*, "State across runs is yours": the clause "with a writable mount at `/`, a `-c`
       program has `/`, its working directory, first on `sys.path`" is wrong today (memo §1,
       EXECUTED: `sys.path` is the zip alone with `root=True` and with a mount at `/`, and the
-      mount's `/evil.py` does not import). It becomes: "a later run that imports from it (by
-      adding it to its own `sys.path`; the runner never puts a writable place there)".
+      mount's `/evil.py` does not import; the reviewer re-read the evidence and agrees). It
+      becomes: "a later run that imports from it (by adding it to its own `sys.path`; the runner
+      never puts a mount or a writable place there)".
     - *Any other embedder*: one sentence: the import path holds only the zip; a host that adds
       entries should add read-only ones only, after the zip, and may do it as the runner does
       (a `-c` prelude around `_reactor.run`), since it owns argv.
@@ -237,27 +296,27 @@ first).
 
 ## Intent
 
-An embedder names the read-only folders and zips the guest may import from, and the guest
-imports them after the runtime's own modules, on both binaries alike, while nothing writable ever
-reaches the import path the runtime sets up.
+An embedder names the read-only folders and zips, inside its read-only grants, that the guest
+may import from; the guest imports them after the runtime's own modules; and nothing the same
+call can write lies under the import path the runtime sets up.
 
 ## Design
 
 ```
 src/wasi_python/runner.py   run, run_async: import_path= (after mounts), docstrings;
-                            _check_places: _check_import_path (Decisions 2 to 4: spelling,
-                              the serving place by longest whole-component prefix, guest
-                              nesting), returning the tuple and, per entry, the serving grant's
-                              index or None (a mount);
-                            _walk_grants / _judge: Decision 5 (host nesting), with the serving
-                              grants' walked chains;
+                            _check_places: _check_import_path (Decisions 2 to 4: spelling, the
+                              plain strings kept, the serving place by longest whole-component
+                              prefix, mounts refused, guest nesting), returning the tuple and,
+                              per entry, the serving grant's index;
+                            _walk_grants / _judge: Decision 5 (host nesting), against each
+                              serving grant's walked chain;
                             _instance: wasi.argv = [ARGV0, *_import_prelude(entries), *argv]
-                              when entries, else today's; _import_prelude builds Decision 7's
-                              line from repr(list(entries))
+                              when entries, else today's; _import_prelude(entries: tuple of
+                              plain str) builds Decision 7's line
 src/wasi_python/cli.py      --import-path GUEST (append; VALUED); passed as import_path=
-tests/checks/test_v1_4_embedding.py   criteria 1 to 3, 6, 7 (real calls)
+tests/checks/test_v1_4_embedding.py   criteria 1 to 3, 6 (real calls)
 tests/checks/test_v1_2_hostile_guest.py   criteria 4 and 5
-tests/unit/test_cli.py      criterion 7's parsing cases
+tests/unit/test_cli.py      criterion 6's parsing cases
 README.md, CHANGELOG.md     Decision 11
 (tests/public_api.txt, the README reference: only if 049 has landed; Decision 10)
 ```
@@ -273,14 +332,16 @@ In: the above.
 
 Out:
 - **A writable entry**, in any form (decision 16: never writable).
+- **A mount serving an entry** (Decision 9; question 93).
 - **Entries before the stdlib zip** (Decision 6).
+- **Keeping entries from supplying names the runtime lacks** (Decision 6: stated and pinned,
+  not prevented).
 - **A script's folder on `sys.path`** (CPython's `sys.path[0]`). The reactor runs isolated and
   never adds it today; the README says so. An embedder that wants it names the folder as an
   entry.
 - **Checking an entry's contents** (Decision 2), or that a zip is well formed: Python and spec
   035's readers judge a zip, with upstream's checks for anything odd.
 - **A guest-side mechanism** (a bootstrap change; Decision 7).
-- **Mounts on the command line** (spec 032).
 - **Cross-call layouts** the runner cannot see (Decision 5, documented).
 
 ## Acceptance criteria
@@ -289,31 +350,44 @@ Every check runs on both binaries where it starts a guest (`[snapshot]`, `[plain
 made under the check's own temporary folder. Each is seen failing first: against main's runner,
 where `import_path=` does not exist (`TypeError: run() got an unexpected keyword argument`), and,
 where a criterion names one, against a **stand-in**: the built runner with one change, made in a
-scratch copy, which the named check must catch.
+scratch copy, which the named check must catch, failing exactly the cases named.
 
 1. **`test_the_import_path_reaches_every_mode`** (v1.4). A read-only grant of a folder holding
    `mylib.py`, a package `pkg` with `__main__.py`, `main.py` (imports `mylib`, prints `sys.argv`,
-   exits 3) and `boom.py` (raises `ZeroDivisionError` in a function), at `/code`, with
+   exits 3), `boom.py` (raises `ZeroDivisionError` in a function), `s_eval.py`
+   (`eval('1/0')`) and `s_exec.py` (`exec('x = 1/0')`), at `/code`, with
    `import_path=["/code"]`:
    - `-c` imports `mylib` and prints `sys.path`, which equals
      `['/usr/local/lib/python315.zip', '/code']`;
    - `-m pkg x y` runs `pkg/__main__.py` with `sys.argv == ['/code/pkg/__main__.py', 'x', 'y']`;
    - the script `/code/main.py s1` exits 3 and prints `['/code/main.py', 's1']`;
    - standard input imports `mylib`;
-   - for each of `-V`, `-u -c "print(1)"`, `-c "import sys; sys.exit(7)"`, `-c "raise
-     SystemExit('bye')"`, `-c "1/0"`, `/code/boom.py`, `/code/nope.py`, and `-c "import sys;
-     print(sys.orig_argv, sorted(k for k in dir() if not k.startswith('__')))"`, the
-     `exit_code`, `stdout` and `stderr` are byte-equal to the same call without `import_path`
-     (8 of 8 per binary; the memo's `equal.txt` ran exactly these, 16 of 16).
+   - for each of these 11 cases the `exit_code`, `stdout` and `stderr` are byte-equal to the
+     same call without `import_path`: `-V`; `-u -c "print(1)"`; `-c "import sys; sys.exit(7)"`;
+     `-c "raise SystemExit('bye')"`; `-c "1/0"`; `/code/boom.py`; `/code/nope.py`; `-c "import
+     sys; print(sys.orig_argv, sorted(k for k in dir() if not k.startswith('__')))"`;
+     `/code/s_eval.py`; `/code/s_exec.py`; standard input `eval('1/0')`. (The memo's `equal.txt`
+     ran the first eight, 16 of 16; `revision_linecache.txt` the last three, 6 of 6.)
    - Stand-ins: (a) the prelude passes `sys.argv[2:]` (one argument dropped): every mode case
      fails; (b) the prelude passes `sys.argv` whole, so the inner argv0 is `-c`: the missing
-     script's message and the `orig_argv` case fail.
-2. **`test_the_import_path_comes_after_the_runtime`** (v1.4). The grant also holds `json/`,
-   `numpy/`, `csv/`, `uuid.py`, `host/` and `math.py`, each defining `SHADOW`: each imported
-   module lacks `SHADOW` (6 of 6 are the runtime's), on both binaries. Two grants `/a` and `/b`
-   each hold `same.py` (`WHO = "a"` and `"b"`): `import_path=["/a", "/b"]` imports `a`'s, and
-   `["/b", "/a"]` imports `b`'s. Stand-in: the prelude inserts at 0; the plain case fails with 5
-   of 6 shadowed (`json`, `numpy`, `csv`, `uuid`, `host`) and the snapshot case with 1 (`host`).
+     script's case and the `orig_argv` case fail; (c) **the memo's prelude, without the
+     `linecache` clear**: exactly the last three byte-equal cases fail, on both binaries (as
+     `revision_linecache.txt` shows).
+2. **`test_the_import_path_comes_after_the_runtime`** (v1.4).
+   - **Names the runtime has.** The grant also holds `json/`, `numpy/`, `csv/`, `uuid.py`,
+     `host/` and `math.py`, each defining `SHADOW`: each imported module lacks `SHADOW` (6 of 6
+     are the runtime's), on both binaries.
+   - **Order among entries.** Two grants `/a` and `/b` each hold `same.py` (`WHO = "a"` and
+     `"b"`): `import_path=["/a", "/b"]` imports `a`'s, and `["/b", "/a"]` imports `b`'s.
+   - **Names the runtime lacks, pinned** (Decision 6; `revision_lacking_names.txt`). An entry
+     holding only `pytz.py` (writes `HIT pytz` to stderr, then raises `ImportError`):
+     `import pandas` exits 0 on both binaries, and stderr holds `HIT pytz` 0 times on the
+     snapshot and 2 times on the plain binary. An entry holding only `_hashlib.py` (writes `HIT
+     _hashlib`): `import hashlib` exits 1 on both binaries, stderr holds `HIT _hashlib` once and
+     ends in `AttributeError`. A set that changes any of these numbers fails the check, and the
+     specification that changes the set restates them with its reason.
+   - Stand-in: the prelude inserts at 0; the first part fails with 5 of 6 shadowed on the plain
+     binary (`json`, `numpy`, `csv`, `uuid`, `host`) and 1 on the snapshot (`host`).
 3. **`test_a_zip_on_the_import_path`** (v1.4). `lib.zip` in the grant (a module, a package with
    a data file, a `dist-info` with `METADATA`) and a `dist-info` folder beside it;
    `import_path=["/code", "/code/lib.zip"]`: the module's `__file__` is
@@ -328,59 +402,125 @@ scratch copy, which the named check must catch.
    earlier call through a writable grant, whose source was then rewritten to the same size with
    its times restored, is the one imported from a read-only entry (`X == 1`, and
    `__spec__.cached` names it).
-5. **`test_a_writable_place_never_serves_the_import_path`** (v1.2). Each case raises before any
-   work, and a door host that counts calls stays at 0; the message names `import_path[i]`:
+5. **`test_a_writable_place_never_serves_the_import_path`** (v1.2). Each refused case raises
+   before any work, and a door host that counts calls stays at 0; the message names
+   `import_path[i]`. `code` below is a host folder holding `mylib.py`, granted read-only at
+   `/code` unless a case says otherwise; `mem` is an in-memory provider.
    - `TypeError` (5 cases): `import_path="/code"`, `[b"/code"]`, `[Path("/code")]`, `[None]`,
-     `5`;
+     `5`.
    - `ValueError` for spelling (7 cases): `["code"]`, `["/code/"]`, `["/code/../x"]`, `["/"]`,
-     `["/usr/local/lib/x"]`, `["/code", "/code"]`, `["/co\0de"]`;
-   - `ValueError` for the serving place (5 cases): served by the root (`root=True`, `["/x"]`); by
-     a writable grant; by a writable mount; by nothing; by a writable mount at `/` (`["/lib"]`);
+     `["/usr/local/lib/x"]`, `["/code", "/code"]`, `["/co\0de"]`.
+   - `ValueError` for the serving place (8 cases), each entry strictly under its server, so no
+     nesting rule also applies (the review's F4c):
+     - S1 the root: `root=True`, `["/x"]`;
+     - S2 a writable grant at `/work`, `["/work/lib"]`;
+     - S3 a read-only mount of `mem` at `/m`, `["/m/lib"]`;
+     - S4 a writable mount of `mem` at `/w`, `["/w/lib"]`;
+     - S5 nothing: no root, `["/nowhere/lib"]`;
+     - S6 a read-only mount of `mem` at `/`, `["/lib"]`;
+     - S7 the review's F1 layout: `mem` mounted read-only at `/lib` and writable at `/work`,
+       `["/lib/lib"]`;
+     - S8 a sibling name (F4a): `root=` an existing host folder, the read-only grant at `/code`,
+       `["/code2"]`.
    - `ValueError` for guest nesting (3 cases), each beside the read-only grant at `/code` with
-     `["/code"]`: a writable grant at `/code/out`; a writable mount at `/code/out`; a writable
-     grant at `/code/a/b`;
-   - `ValueError` for host nesting (3 cases): a writable grant of `code/out` at `/out` with the
-     read-only grant of `code` serving `["/code"]`; `root=` a path `code/r` (existing) with the
-     same; `root=` a path `code/new` that does not exist, which is refused and not made (the
-     folder is absent afterwards);
-   - **allowed** (4 cases, each runs and imports `mylib` from its entry): a writable grant at
-     `/work` and a read-only grant at `/work/lib` with `["/work/lib"]`; `root=True` with a
-     read-only grant at `/code` and `["/code"]`; a writable grant whose host folder is a sibling
-     of the entry's grant's; a read-only mount at `/` with `["/lib"]` (an in-memory provider).
-   - Stand-ins, each failing exactly the named cases: no serving-place rule (5 serving cases);
-     first match by shortest prefix instead of longest (the first allowed case is refused, and
-     the writable-grant serving case passes); no guest-nesting rule (3); no host-nesting rule
-     (3).
-6. **`test_a_read_only_mount_on_the_import_path`** (v1.4). An in-memory provider mounted
-   read-only at `/m`, holding `mlib.py` and `mpkg/__init__.py`, `import_path=["/m"]`: `-c pass`
-   and `-c "import json"` each make 0 provider calls (`sum(files.calls.values()) == 0`);
-   `import mlib, mpkg` prints `mlib`'s value, with `files.calls["read"] >= 2` and
-   `files.calls["list"] >= 1`; with `max_file_calls=1`, the same import ends `"out of file
-   calls"`.
-7. **The command line.** Unit (`tests/unit/test_cli.py`, the fake `run`): `--import-path /a
+     `["/code"]`: G1 a writable grant at `/code/out`; G2 a read-only mount of `mem` at
+     `/code/out`; G3 a writable grant at `/code/a/b`.
+   - `ValueError` for host nesting (4 cases): H1 a writable grant of `code/out` at `/out` with
+     `["/code"]`; H2 `root=` the existing folder `code/r` with `["/code"]`; H3 `root=` the
+     missing folder `code/new` with `["/code"]`, refused and not made (absent afterwards); H4
+     (F5) a folder `proj` with `proj/lib/mylib.py`, granted read-only at `/p`, the entry
+     `["/p/lib"]`, and a writable grant of `proj/out` at `/out`.
+   - **Allowed** (5 cases, each runs and imports `mylib` from its entry): A1 a writable grant at
+     `/work` and a read-only grant at `/work/lib`, `["/work/lib"]`; A2 `root=True`, `["/code"]`;
+     A3 a writable grant of a sibling of `code` at `/out`, `["/code"]`; A4 a writable grant at
+     `/code2` beside `/code`, `["/code"]`; A5 (F6) the entry given as an instance of a `str`
+     subclass whose value is `"/code"` and whose `__repr__` and `__str__` return
+     `"'/x']) or print('injected') or (['"`: it runs, `sys.path[-1] == '/code'`, and stdout has
+     no `injected`.
+   - Stand-ins, each failing exactly these cases and no other:
+     - no serving-place rule: S1 to S8 (8);
+     - mounts accepted as read-only servers (the draft's Decision 9): S3, S6, S7 (3);
+     - the serving place matched by text prefix (F4a): S8 (1);
+     - the serving place by the shortest prefix instead of the longest (F4b): A1 and A2 (2);
+     - guest nesting by text prefix: A4 (1);
+     - no guest-nesting rule: G1 to G3 (3);
+     - no host-nesting rule: H1 to H4 (4);
+     - host nesting against the entry's own folder instead of the serving grant's (F5): H4 (1);
+     - the prelude built from the caller's objects (`repr(list(import_path))` on the argument as
+       given, F6): A5 (1).
+6. **The command line.** Unit (`tests/unit/test_cli.py`, the fake `run`): `--import-path /a
    --grant /a=x --import-path /b -- -c pass` reaches `run()` with `import_path=["/a", "/b"]` and
    one grant; `--import-path=/a` likewise; `--import-path` with no value exits 2; without the
    option `run()` receives no `import_path` keyword; the scan table gains `--import-path /a
    x.py`. v1.4, a real call: `wasi-python run --grant /code=<dir> --import-path /code -- -c
    "import mylib; print(mylib.VALUE)"` exits 0 with the value on `stdout` in the JSON;
    `--import-path /code` without the grant exits 1 with `"kind": "ValueError"`.
-8. **Spec 006's guarantee is still judged.** `test_planted_code_never_runs` and the
+7. **Spec 006's guarantee is still judged.** `test_planted_code_never_runs` and the
    `sys.path` print in `test_v1_2_hostile_guest.py` pass unchanged (no `import_path` given).
-9. **The judge.** `uv run pytest` is green with `--accept-judge` (new checks); **lost 0, grew
+8. **The judge.** `uv run pytest` is green with `--accept-judge` (new checks); **lost 0, grew
    0**: no existing check passes `import_path`, so no existing call's argv or fuel changes.
    `ruff check` and `ruff format --check` clean. If 049 has landed,
    `test_the_public_api_matches_its_snapshot` passes after `--write`, and the snapshot's diff
    is exactly Decision 10's three lines.
-10. The README and CHANGELOG say what Decision 11 lists; the landing notes record the stand-ins'
-    results and each check's seen-failing run.
+9. The README and CHANGELOG say what Decision 11 lists; the landing notes record the stand-ins'
+   results and each check's seen-failing run.
 
 ## The owner's choices
 
-None waits on the owner. Decision 16 gave the feature and its two limits (never writable,
-never by default); decision 49 placed it in 0.1.0. The choices here (a list rather than a flag,
-read-only mounts included, after the zip, a runner-only mechanism) are made by §6's rules and
-carry their reasons; none loosens a default (§4.15): with no `import_path` every call is as
-today.
+Question 93 (`../questions-for-the-owner.md`): may a read-only mount serve an import-path entry,
+with a refusal when its provider is also mounted writable? Nothing waits on it: until it is
+answered, a mount serving an entry is refused (Decision 9), and that is what this specification
+builds. Decision 16 gave the feature and its two limits; decision 49 placed it in 0.1.0. The
+other choices here (a list rather than a flag, after the zip, a runner-only mechanism, the rule
+for names the runtime lacks) are made by §6's rules and carry their reasons; none loosens a
+default (§4.15): with no `import_path` every call is as today.
+
+## Disposition of the pre-build review
+
+The review: `../reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md` (written in the
+lane's evidence folder, `build/reviews-evidence/054-review/`, until the lane copies it). Each
+finding, and where it went:
+
+1. **F1 (high), a shared provider plants code past every rule.** Fixed by the lane's ruling:
+   mounts serve no entry (Decision 9, with the reviewer's run as its reason; Decision 3's mount
+   bullet; Decision 4 refuses any mount under an entry). Question 93 asks the owner whether a
+   read-only mount may serve one later, with the facts and a recommendation; meanwhile refused,
+   nothing waits. Criterion 5 gains S3, S4, S6 and S7 and G2, and the stand-in "mounts accepted
+   as read-only servers"; the draft's criterion 6 (a read-only mount on the import path) is
+   removed and its measurements stay in the memo (§7) as input for question 93. The Problem,
+   Terms, Intent, Scope (Out: a mount serving an entry), Design and Decision 11 follow.
+2. **F2 (medium), the prelude's source in tracebacks.** Fixed: the prelude starts with
+   `__import__('linecache')._interactive_cache.clear()` (Decision 7, with its reason).
+   Criterion 1 gains `s_eval.py`, `s_exec.py` and standard input `eval('1/0')` among its
+   byte-equal cases (11 in all), and stand-in (c), the memo's prelude, which fails exactly those
+   three. Re-run for this revision: `revision_linecache.txt` (both binaries: the clearing
+   prelude 3 of 3 equal per binary, the memo's 0 of 3).
+3. **F3 (medium), entries supply names the runtime lacks, differently per binary.** Fixed:
+   Decision 6's claims are corrected (the runtime wins for names it *has*), the rule for names
+   it *lacks* is stated with its examples and its plain-versus-snapshot difference, with the
+   reason it is stated rather than prevented; the README states it (Decision 11); criterion 2
+   pins today's answers (`pytz`: 0 on the snapshot, 2 on the plain binary; `_hashlib`: 1 and
+   `AttributeError` on both), re-run for this revision in `revision_lacking_names.txt`; Scope
+   (Out) names it.
+4. **F4 (medium), criterion 5's cases and predictions.** Fixed: (a) case S8, `/code2` beside
+   `/code` under a writable root, and the stand-in "matched by text prefix" (S8 only), with
+   Terms' "Under" and Decision 3's sibling bullet; (b) the shortest-prefix stand-in now predicts
+   A1 and A2; (c) every serving case puts the entry strictly under its server. The stand-in list
+   now says "exactly these cases and no other" with a count for each, and adds "guest nesting
+   by text prefix" against the new allowed case A4.
+5. **F5 (low-medium), host nesting against the whole folder.** Fixed: Decision 5 says "the
+   serving grant's whole folder" and gives the reason (a link inside a grant reaches any of its
+   folders; one leaving it does not resolve; the reviewer's runs). Criterion 5 gains H4 (the
+   `/p/lib` subfolder entry with a writable `proj/out`) and the stand-in that judges the
+   entry's own folder (H4 only).
+6. **F6 (low), the prelude from checked plain strings.** Fixed: Decision 2 keeps the plain
+   strings `_guest_path` returns, and Decision 7's `_import_prelude` takes only that tuple.
+   Criterion 5 gains A5, a lying `str` subclass, and the stand-in that builds the prelude from
+   the caller's objects.
+7. **F7 (low), the *Safety* sentence over-claims.** Fixed: Decision 11's sentence now reads
+   "… each is served by a read-only grant, and nothing the same call can write lies under one
+   (across calls, see *Grants*)", which also fits F1's outcome. The *Mounts* clause is reworded
+   to say the runner never puts a mount or a writable place on the import path.
 
 ## Landing notes
 
