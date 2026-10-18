@@ -14,3 +14,16 @@ swapped wheel (noshasum256): exit 1 | shasum: WARNING: 1 computed checksum did N
 missing tar (noshasum256): exit 1 | shasum: WARNING: 1 listed file could not be read
 subfolder (noshasum256): exit 1 | release-assets holds other files than the build job's
 uppercase hash (noshasum256): exit 1 | the build job handed on no SHA-256 of SHA256SUMS
+== revision (the pre-build review's F5.4), the check step from the revised sketch
+check copies 5 distinct 1 | guard copies 5 distinct 1
+good (default): exit 0 | wasi-python-0.1.0a5-wasm32-wasip1.tar.xz: OK
+wheel swapped, SHA256SUMS rewritten (default): exit 1 | SHA256SUMS: FAILED
+hidden file (default): exit 1 | release-assets holds other files than the build job's
+good (noshasum256): exit 0 | wasi-python-0.1.0a5-wasm32-wasip1.tar.xz: OK
+wheel swapped, SHA256SUMS rewritten (noshasum256): exit 1 | shasum: WARNING: 1 computed checksum did NOT match
+hidden file (noshasum256): exit 1 | release-assets holds other files than the build job's
+== the id guard (F1), ASSETS_ID as given, bash -e
+guard id='': exit 1
+guard id='12x': exit 1
+guard id='1,2': exit 1
+guard id='123456789': exit 0

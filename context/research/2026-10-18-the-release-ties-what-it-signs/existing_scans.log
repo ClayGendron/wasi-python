@@ -9,3 +9,7 @@ Installed 8 packages in 19ms
 == release.draft.yml
  attest: []
  rebuild gate: ["same-bytes does not name ubuntu-24.04-arm's SHA256SUMS", "same-bytes does not name ubuntu-24.04's SHA256SUMS", "same-bytes does not name ubuntu-24.04-arm's rebuilt wheel", "same-bytes does not name ubuntu-24.04's rebuilt wheel"]
+== the revised sketch (two rebuild jobs)
+== release.draft2.yml
+ attest: []
+ rebuild gate: ['no rebuild job']

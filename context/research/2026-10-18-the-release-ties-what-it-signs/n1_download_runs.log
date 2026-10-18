@@ -8,3 +8,10 @@ fixed, x86_64:Linux, all pinned: exit 0 | downloads: 35 pins, 0 fetched, 35 veri
 fixed, aarch64:Linux, all pinned: exit 0 | downloads: 29 pins, 0 fetched, 29 verified; 16 other files in downloads/ verified too
 fixed, arm64:Darwin, all pinned: exit 0 | downloads: 29 pins, 0 fetched, 29 verified; 16 other files in downloads/ verified too
 fixed, --all: exit 0 | downloads: 36 pins, 0 fetched, 36 verified; 9 other files in downloads/ verified too
+== revision: with set -f around the loop (the pre-build review's F7)
+fixed, x86_64:Linux, zlib unpinned: exit 1 | ERROR: no pin in downloads/SHA256SUMS for: zlib-1.3.1.tar.gz
+fixed, aarch64:Linux, zlib unpinned: exit 1 | ERROR: no pin in downloads/SHA256SUMS for: zlib-1.3.1.tar.gz
+fixed, arm64:Darwin, zlib unpinned: exit 1 | ERROR: no pin in downloads/SHA256SUMS for: zlib-1.3.1.tar.gz
+fixed, x86_64:Linux, all pinned: exit 0 | downloads: 35 pins, 0 fetched, 35 verified; 10 other files in downloads/ verified too
+fixed, aarch64:Linux, all pinned: exit 0 | downloads: 29 pins, 0 fetched, 29 verified; 16 other files in downloads/ verified too
+fixed, arm64:Darwin, all pinned: exit 0 | downloads: 29 pins, 0 fetched, 29 verified; 16 other files in downloads/ verified too

@@ -1,15 +1,18 @@
---- a/scripts/00_download.sh	2026-10-18 10:10:00
-+++ b/scripts/00_download.sh	2026-10-18 10:10:00
-@@ -145,3 +145,13 @@
+--- a/scripts/00_download.sh
++++ b/scripts/00_download.sh
+@@ -145,3 +145,16 @@
    *) summary="$summary; $OTHER other files in downloads/ verified too";;
  esac
  echo "$summary"
 +# Every pin this run fetched or found must have verified: a name with no line in SHA256SUMS is
 +# skipped by --ignore-missing, so it is named here and fails the step (spec 057; the a4 review, N1).
++# set -f: the names are split on spaces, never expanded as patterns.
 +UNPINNED=""
++set -f
 +for name in $NAMES; do
 +  grep -Fqx "$name: OK" "$checked" || UNPINNED="$UNPINNED $name"
 +done
++set +f
 +if [ -n "$UNPINNED" ]; then
 +  echo "ERROR: no pin in downloads/SHA256SUMS for:$UNPINNED" >&2
 +  exit 1

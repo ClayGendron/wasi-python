@@ -1,31 +1,32 @@
-== release.today.yml workflow permissions: {'contents': 'read'}
-  build: needs=[] env=None perms=None outputs=[]
-  rebuild: needs=[] env=None perms=None outputs=[]
-  same-bytes: needs=['build', 'rebuild'] env=None perms=None outputs=[]
-  verify: needs=['build'] env=None perms=None outputs=[]
-  attest: needs=['build', 'verify', 'same-bytes'] env=None perms={'id-token': 'write', 'attestations': 'write', 'contents': 'read'} outputs=[]
-  publish: needs=['build', 'verify', 'same-bytes', 'attest'] env=None perms={'contents': 'write'} outputs=[]
-  pypi: needs=['publish'] env=pypi perms={'id-token': 'write'} outputs=[]
-  problems: 13
+== release.today.yml problems: 23
    - build: setup-uv cache None
    - rebuild: setup-uv cache None
-   - same-bytes: download by name release-assets
-   - same-bytes: download by name rebuild-ubuntu-24.04-arm
-   - same-bytes: download by name rebuild-wheel-ubuntu-24.04-arm
-   - same-bytes: download by name rebuild-ubuntu-24.04
-   - same-bytes: download by name rebuild-wheel-ubuntu-24.04
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
+   - same-bytes: download not by id alone ['name']
+   - same-bytes: digest-mismatch not error
    - verify: setup-uv cache None
-   - verify: download by name release-assets
-   - attest: download by name release-assets
+   - verify: download not by id alone ['name']
+   - verify: digest-mismatch not error
+   - attest: download not by id alone ['name']
+   - attest: digest-mismatch not error
    - publish: setup-uv cache None
-   - publish: download by name release-assets
-   - pypi: download by name release-assets
-== release.draft.yml workflow permissions: {}
-  build: needs=[] env=None perms={'contents': 'read'} outputs=['assets-id', 'sums-sha256']
-  rebuild: needs=[] env=None perms={'contents': 'read'} outputs=['sums-linux-arm64', 'sums-linux-x86-64', 'wheel-linux-arm64', 'wheel-linux-x86-64']
-  same-bytes: needs=['build', 'rebuild'] env=None perms={} outputs=[]
-  verify: needs=['build'] env=None perms={'contents': 'read'} outputs=[]
-  attest: needs=['build', 'verify', 'same-bytes'] env=None perms={'id-token': 'write', 'attestations': 'write', 'contents': 'read'} outputs=[]
-  publish: needs=['build', 'verify', 'same-bytes', 'attest'] env=release perms={'contents': 'write'} outputs=[]
-  pypi: needs=['build', 'publish'] env=pypi perms={'id-token': 'write'} outputs=[]
-  problems: 0
+   - publish: download not by id alone ['name']
+   - publish: digest-mismatch not error
+   - pypi: download not by id alone ['name']
+   - pypi: digest-mismatch not error
+   - no rebuild-linux-arm64 and rebuild-linux-x86-64 jobs
+== release.draft2.yml problems: 0
+== mutations of the revised sketch
+== m-noguard.yml problems: 1
+   - attest: no guard before ${{ needs.build.outputs.assets-id }}
+== m-rebuild-differs.yml problems: 1
+   - the rebuild jobs differ beyond runner, time limit and names
+== m-expr-in-run.yml problems: 1
+   - build: ${{ in a run: script
