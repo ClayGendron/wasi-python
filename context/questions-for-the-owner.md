@@ -137,6 +137,20 @@ document.
   0.3.35 releases the convention. The alternative is to wait for 0.3.35, which question 32
   already declined.
 
+### 70. A red acceptance commit that reached main
+
+- **Asked:** 2026-10-17 (overnight). **Source:** spec 029's build review
+  (`reviews/029-the-landing-lane-is-guarded-2026-10-17.md`, finding 1). Numbered 70 to leave
+  63 to 69 for the specifications being drafted tonight.
+- Once rule 1 (an acceptance sits on the commit it judged, and carries nothing else) is in the
+  judge, a bad acceptance commit on `main` makes every later run red, and `--accept` refuses a
+  red run, so no forward repair exists. The lane now accepts on a detached HEAD, runs the rules on
+  the two-file commit, and only then fast-forwards `main`, so this should not happen.
+- **The question:** if it happens anyway, may the lane `git reset --soft` one unpushed acceptance
+  commit, as a named exception to §4.14? The reviewer and the agent recommend yes, unpushed only.
+  The alternative is a judge escape that accepts a failing state, which neither recommends.
+- **Meanwhile:** the README says to stop and write it down here.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
