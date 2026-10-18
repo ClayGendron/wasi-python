@@ -149,8 +149,8 @@ for name, (root, _, member) in want.items():
     print(f"{name}: {used[0]} {sha}")
 EOF_RUNTIME
 "$SDK/bin/llvm-strip" --strip-debug "$OUT/python.wasm"
-# The judge's own check (tests/harness/constructors.py), run on the binary just linked.
-PYTHONPATH="$HERE/tests:$PYTHONPATH" "$HOSTPY" -m harness.constructors "$OUT/python.wasm" \
-  > "$L/constructors.log" 2>&1 || { cat "$L/constructors.log"; die "python.wasm has a static constructor or feature no review has read (build/link/constructors.log)"; }
-cat "$L/constructors.log"
+# The judge's own check (tests/harness/constructors.py), run on the binary just linked; a binary
+# that fails it is removed.
+. "$HERE/scripts/steps/constructors.sh"
+check_constructors "$OUT/python.wasm" "$L/constructors.log"
 echo "reactor: $(wc -c < "$OUT/python.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$OUT/python.wasm" | cut -c1-16)"

@@ -423,3 +423,28 @@ def test_freeze_names_each_module() -> None:
     assert next(c for c in loaded.co_consts if hasattr(c, "co_filename")).co_filename == (
         "<frozen _x>"
     )
+
+
+CONSTRUCTORS_SH = paths.REPO / "scripts" / "steps" / "constructors.sh"
+
+
+@pytest.mark.parametrize("passes", [True, False])
+def test_a_binary_that_fails_the_constructor_check_is_removed(tmp_path, passes) -> None:
+    """Step 60's last gate (spec 023's build review, F6): a python.wasm whose static constructors
+    or features no review has read is removed before the step stops, so a later step run by name
+    cannot snapshot it; one that passes stays. The check itself is a stand-in here."""
+    if SH is None:
+        pytest.skip("no sh")
+    binary, log = tmp_path / "python.wasm", tmp_path / "constructors.log"
+    binary.write_bytes(b"\0asm")
+    fake = tmp_path / "python3"
+    fake.write_text(f"#!/bin/sh\necho checked\nexit {0 if passes else 1}\n")
+    fake.chmod(0o755)
+    script = f'HERE="{paths.REPO}"; HOSTPY="{fake}"; . "{CONSTRUCTORS_SH}"; '
+    script += f'check_constructors "{binary}" "{log}"; echo after'
+    r = subprocess.run([SH, "-c", script], capture_output=True, text=True)
+    if passes:
+        assert (r.returncode, r.stdout, binary.exists()) == (0, "checked\nafter\n", True), r
+    else:
+        assert r.returncode == 1 and r.stdout == "checked\n" and not binary.exists(), r
+        assert "it is removed" in r.stderr, r.stderr
