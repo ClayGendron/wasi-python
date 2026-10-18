@@ -1,6 +1,10 @@
 # 062 — The progress history stays small
 
-- **Status:** drafted 2026-10-18; awaiting its pre-build review. Drafted on
+- **Status:** drafted; revised against its pre-build review (F1 to F3 written in, F4 to F6 as
+  build conditions); confirmed for build by the lane. The review:
+  `build/reviews-evidence/062-spec/062-the-progress-history-stays-small-spec-2026-10-18.md` in
+  the main tree, which the lane copies to `context/reviews/` ("ready to build once F1 to F3 are
+  written in"); every finding is answered in the Disposition at the end. Drafted 2026-10-18 on
   `spec/062-the-progress-history-stays-small` from main `f6b3f75`. Urgent: every landing is
   blocked until it lands (Intent).
 - **Date:** 2026-10-18
@@ -51,7 +55,14 @@ The size rule is not touched. It keeps every tracked file small, this one includ
    `context/progress/`. Volume 1 is `history.jsonl` and starts at line 1. Every later volume is
    `history-<n>.jsonl`, where `<n>` is the number of its first line, zero-padded to five digits
    (`history-00060.jsonl`; a number past 99,999 simply has more digits). A volume holds
-   consecutive lines. *Reason:* `history.jsonl` cannot change (lines 1 to 59 must stay verifiable,
+   consecutive lines. A valid name is exactly what `volume_name(n)` makes for its first line's
+   `n`: `history-000060.jsonl` and `history-00001.jsonl` are not second names for a line (the
+   review, F4). Volumes are ordered by that number, never by name (sorted by name,
+   `history-100000.jsonl` would come before `history-99999.jsonl`). Old-format lines (Decision 6)
+   live only in `history.jsonl`, and its bytes are pinned: `history.SEALED = {"history.jsonl":
+   "0a99162aefbb4d997b80b2012e73a39364aba108defe56781611cb1623ed1120"}`, its SHA-256 at
+   `f6b3f75` (EXECUTED, `shasum -a 256`), which the intact check compares (the review, F3).
+   *Reason:* `history.jsonl` cannot change (lines 1 to 59 must stay verifiable,
    and editing them is not allowed), and it has 11,052 bytes left (the memo, finding 1), so any fix
    starts a new file. Naming a volume by its first line lets a person find "history line 75"
    from a directory listing (the volume with the largest first line not above 75), and gives the
@@ -65,7 +76,10 @@ The size rule is not touched. It keeps every tracked file small, this one includ
    *Reason:* the tamper-evidence is one chain from line 1 to the newest line. Deleting, reordering
    or editing a volume breaks it like editing a line does.
 4. **A volume rolls only when the next line would not fit.** `history.BUDGET = 1 << 19` (524,288
-   bytes, half the rule's limit). An acceptance appends its line to the newest volume when that
+   bytes, half the rule's limit). Every size here is in bytes: `target` and `errors` measure a
+   volume with `read_bytes()`, a line by its UTF-8 encoding, and the plugin writes with
+   `newline="\n"`, so a win32 acceptance writes the same bytes as any other (the review, F5).
+   An acceptance appends its line to the newest volume when that
    volume's size in bytes plus the line's UTF-8 length plus one (its newline) is at most `BUDGET`;
    otherwise it starts a new volume named after the line. An empty folder starts at
    `history.jsonl`. The intact check holds the rule both ways: every line written under this spec
@@ -98,7 +112,12 @@ The size rule is not touched. It keeps every tracked file small, this one includ
    acceptances; in the memo's model, 500 acceptances with checks growing to 1,390 make 2 volumes,
    against 83 with full lists (finding 5). The digest pins the replayed set at every line, so the
    change form keeps the same tamper-evidence as the full list: a wrong or edited change no longer
-   replays to its digest. Volumes alone would work but make a new file every 6 to 15 acceptances;
+   replays to its digest. **The digest catches inconsistency, not forgery** (the review, F7): a
+   person who rewrites the last line's `passed_added` and its `passed_digest` together is not
+   caught by it, exactly as an edit of the last line's `passed` is not caught today. What catches
+   a deliberate edit is the chain (for every line but the last), the committed-prefix check
+   (before a commit) and rule 1 (after one). No reader may lean on `passed_digest` as a seal.
+   Volumes alone would work but make a new file every 6 to 15 acceptances;
    smaller lines alone cannot work, since volume 1 is full.
 7. **Readers replay; one module owns the format.** A new module `tests/harness/history.py` (it
    imports only `paths`) holds the volume rules, the replay, the check and the reader of `three
@@ -106,24 +125,44 @@ The size rule is not touched. It keeps every tracked file small, this one includ
    - `BUDGET`; `volume_name(n)`; `volumes(folder) -> list[Path]` in line order; `lines(folder) ->
      list[str]` (every line of every volume, in order); `target(folder, line) -> Path`
      (Decision 4);
-   - `passed_sets(lines)`, which yields each line's replayed set and raises `ValueError` naming the
-     line when a line does not replay (not JSON, an `added` id already in the set, a `removed` id
-     not in it, a list not sorted, or a digest that does not match);
-   - `errors(found, accepted_text, committed) -> list[str]` (Decision 9);
+   - `passed_sets(lines, verify=True)`, which yields each line's replayed set and raises
+     `ValueError` naming the line when a line does not apply: not JSON, a `schema` other than the
+     integer `2` on a line that has one, an `added` id already in the set, a `removed` id not in
+     it, a list not sorted, or (only with `verify=True`) a digest that does not match;
+   - `last_passed(lines) -> set[str]`: the newest line's replayed set, for `accept`. It replays
+     with `verify=False` and then checks the newest line's digest alone (one digest). A
+     module-level cache of one entry, keyed by the SHA-256 of the newest line, which `accept`
+     fills with the set of the line it makes, lets the next call skip the replay; on a miss it
+     replays. The key is a line whose `prev` chains to every line before it, so a hit is the set
+     a full replay would give on an intact history;
+   - `errors(found, accepted_text, committed, sealed=None) -> list[str]` (Decision 10): the one
+     caller that verifies every digest;
    - `systems_that_passed(folder, artifact) -> set[str]`: the systems of every line whose
      `artifact` is the hash and whose replayed set holds the probe
-     `tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]`.
+     `tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]`. It replays
+     with `verify=False`. **On a history that does not replay it returns the empty set**: `three
+     systems` is then not met, and the intact check is what reports the broken history (the
+     lane's ruling on the review's F4);
+   - `OPS`, a counter of the digests computed, the bytes hashed for them and the JSON bytes
+     parsed, which the unit tests read (criterion 12).
 
    `scoreboard.history_errors` and `scoreboard.systems_that_passed` move there; their callers
    (`needs._three_systems`, the two checks, the unit tests) follow. *Reason:* the format is read in
    four places (the intact check, three systems, rule 1, `accept`); one module keeps them from
-   drifting. Replay is one pass over every line: thousands of lines, a few set operations each.
+   drifting. A digest sorts, serialises and hashes the whole passed set, so it costs as much as
+   the set is large, not as the change is (the review, F2, counted on its prototype: one verified
+   replay of 500 acceptances growing to 1,500 checks hashes 36,924,332 bytes; `accept` verifying
+   every line at each of criterion 2's 500 acceptances would hash 7,540,480,222 bytes and parse
+   1,045,123,016 bytes of JSON). So a judge run verifies every digest once, in the intact check;
+   `accept` verifies one; `three systems` none. Without digests a replay is a set operation per
+   id changed: 40,599 for the same 500 acceptances.
 8. **`accept` builds a format-2 line; the plugin writes it where `target` says.**
    `scoreboard.accept` takes `history_lines: list[str]` (from `history.lines`) instead of
-   `history_text`. `n` is their count plus one; `prev` hashes the last of them; the changes and the
-   digest come from replaying them. A history that does not replay refuses the acceptance
-   (`AcceptRefused`, naming the line). The plugin appends the line to `history.target(pdir, line)`
-   and prints `accepted: <that path> line <n>`. *Reason:* the line is still made in one place and
+   `history_text`. `n` is their count plus one; `prev` hashes the last of them; the changes come
+   from `history.last_passed` and the digest from the run's passes. A history that does not
+   replay refuses the acceptance (`AcceptRefused`, naming the line). The plugin appends the line
+   to `history.target(pdir, line)`, opened with `newline="\n"` (Decision 4), and prints
+   `accepted: <that path> line <n>`. *Reason:* the line is still made in one place and
    written once, by the controller (spec 052, Decision 3); only where it goes is new.
 9. **An oversize line is refused, not written.** When a line's UTF-8 length plus one exceeds
    `BUDGET`, `accept` raises `AcceptRefused("the history line would be <k> bytes, over the volume
@@ -131,14 +170,25 @@ The size rule is not touched. It keeps every tracked file small, this one includ
    never be written, even once. This happens only when more than about 6,000 checks change in one
    acceptance (the memo, finding 5: 15 times today's number of checks); a red line is the right
    answer then, and a later spec can split such a line.
-10. **The intact check covers every volume.** `history.errors(found, accepted_text, committed)`.
-    `found` maps the name of every file in the progress folder whose name starts with `history`
-    to its text; `committed` maps the name of every volume in HEAD's tree to its committed text, or
-    is `None` without git. It reports, each as its own line:
-    - a file starting with `history` that is not a volume name (`history-60.jsonl`,
+10. **The intact check covers every volume.** `history.errors(found, accepted_text, committed,
+    sealed=None)`. `found` maps the name of every file in the progress folder whose name starts
+    with `history` to its bytes; `committed` maps the name of every volume in HEAD's tree to its
+    committed bytes, or is `None` without git; `sealed` maps a volume's name to the SHA-256 its
+    bytes must have (the intact check passes `history.SEALED`; unit tests pass their own or none).
+    It reports, each as its own line:
+    - a file starting with `history` whose name is not exactly `volume_name(n)` for some `n`
+      (`history-60.jsonl`, `history-000060.jsonl`, `history-00001.jsonl`,
       `history-00060.jsonl.orig`): "unrecognised history file";
     - an empty volume, a missing `history.jsonl` while later volumes exist, and a volume whose name
-      is not its first line's `n`;
+      is not `volume_name` of its first line's `n`;
+    - a blank line anywhere, and a volume that does not end with a newline (today's reader skips
+      blank lines; from now on one is an error, since it shifts the byte offsets Decision 4
+      measures; main's 59 lines hold none, EXECUTED);
+    - a line with a `schema` key whose value is not the integer `2` (`3`, `"2"`);
+    - an old-format line in any volume but `history.jsonl` (the review, F3: line 59 moved into a
+      `history-00059.jsonl` ahead of volume 2 passed every other rule);
+    - a volume named in `sealed` whose SHA-256 differs (so lines 1 to 59 are pinned byte for byte
+      even against a committed rewrite);
     - everything today's check reports (a line not JSON, `prev` not hashing the line before, `n`
       not its place, the last line's `accepted` not the hash of `accepted.json`, `accepted.json`
       without a history or a history without it), across volumes;
@@ -148,12 +198,14 @@ The size rule is not touched. It keeps every tracked file small, this one includ
     - a committed volume missing from the folder, and a committed volume whose text is not a prefix
       of the file's.
 
-    `test_progress_history_is_intact` keeps its name and calls it with the real folder and, from
-    `git ls-tree --name-only HEAD -- context/progress/` and `git show`, every committed volume.
+    `test_progress_history_is_intact` keeps its name and calls it with the real folder, every
+    committed volume (from `git ls-tree --name-only HEAD -- context/progress/` and `git show`) and
+    `history.SEALED`. It verifies every digest (Decision 7).
     *Reason:* today's check reads `history.jsonl` alone; an edit in a later volume would pass it.
 11. **Rule 1 reads the newest volume.** `scan.acceptance_errors` finds the newest acceptance with
     `git rev-list -1 HEAD -- ':(glob)context/progress/history*.jsonl'`, takes the volumes in that
-    commit's tree (`git ls-tree`), and reads the newest line from the newest volume. An acceptance
+    commit's tree (`git ls-tree`), and reads the newest line from the newest volume, newest by
+    number (Decision 1). An acceptance
     commit carries `accepted.json` and its newest volume, and nothing else; any other change,
     another volume included, is reported ("an acceptance commit carries only accepted.json and its
     newest history volume"). The `dirty: false` rule is unchanged. *Reason:* today's rule follows
@@ -170,7 +222,10 @@ The size rule is not touched. It keeps every tracked file small, this one includ
     `git commit -- <path>` refuses a path git does not know yet, and a new volume is untracked when
     it is written (the memo, finding 7). After `git add`, the same pathspec commits exactly the
     acceptance and still leaves out a change to `README.md` in the same folder and anything else
-    staged (EXECUTED in a scratch repository, finding 7).
+    staged (EXECUTED in a scratch repository, finding 7). The glob also takes a stray
+    `history-70.jsonl` into the commit (the review, F8); that does no harm, since the intact check
+    is red on it ("unrecognised history file") and `--accept` refuses a red run first. The README
+    says so in one line beside step 4.
 13. **Nothing is migrated.** Lines 1 to 59 are not edited, moved or re-encoded. Spec 060's held
     line 60 (`24b16f8`) is not carried over: it was written by the old writer into
     `history.jsonl`. The lane re-makes that acceptance after 062 lands (How the lane lands it).
@@ -180,7 +235,8 @@ The size rule is not touched. It keeps every tracked file small, this one includ
 
 **`tests/harness/history.py`** (new; a judging file under `tests/`). Decisions 1, 4, 6, 7, 9 (the
 size test is shared with `accept`), 10 and 12. Constants: `BUDGET = 1 << 19`, `FIRST =
-"history.jsonl"`, `PROBE` (the guest probe's node id, moved from `scoreboard`), `ACCEPT_PATHSPEC`.
+"history.jsonl"`, `SEALED`, `PROBE` (the guest probe's node id, moved from `scoreboard`),
+`ACCEPT_PATHSPEC`; the counter `OPS`.
 
 **`tests/harness/scoreboard.py`.** `accept` takes `history_lines`, writes format 2 and refuses an
 oversize line (Decisions 8 and 9). `last_history_line`, `history_errors` and
@@ -202,7 +258,11 @@ accepted.json and the history volumes live".
 **Documents, in the build:**
 - `context/progress/README.md`: "Three kinds of file" in place of "Two files": `accepted.json`,
   the history volumes and their names, format 2 and its replay, the budget; how to find line N;
-  step 4 with Decision 12's two commands; step 5 unchanged.
+  step 4 with Decision 12's two commands and the line on a stray volume name (F8); step 5
+  unchanged. "Before a release" says "the history" for `history.jsonl`. A person can no longer
+  read line N's passed set off the line, so the README gives the one-liner: `uv run python -c
+  "import sys; sys.path.insert(0, 'tests'); from harness import history, paths; print(sorted(list(
+  history.passed_sets(history.lines(paths.PROGRESS)))[N - 1]))"` (the review, F10).
 - `context/README.md`: the folder line names "an append-only history in volumes".
 - Spec 002 (the need table's `three systems` row and the history decision) and spec 029 (rule 1's
   "accepted.json and history.jsonl"): one line each, "Amended 2026-10-18 by spec 062: …", in the
@@ -219,8 +279,11 @@ accepted.json and the history volumes live".
   line 1 is cheap, and every volume is in the repository.
 - **`accepted.json` reaching the limit.** It is 128,029 bytes for 388 checks and 125 judging
   files at `f6b3f75` (EXECUTED), about 300 bytes a check, so it reaches `1 << 20` near 3,500
-  checks (INFERRED). The size rule will say so first. That is a later spec's question; this spec
-  does not change `accepted.json`.
+  checks (INFERRED). The review counts 288 bytes a check (111,711 bytes of checks for 388) and,
+  at the pace of lines 1 to 59 (14 to 374 passing checks in two days), puts 3,500 checks weeks
+  away, not years (F9, INFERRED). The size rule will say so first. That is a later spec's
+  question, and its research memo should be opened now; this spec does not change
+  `accepted.json`.
 - Re-making spec 060's acceptance (the lane's work, below).
 
 ## Acceptance criteria
@@ -245,7 +308,9 @@ module, never committed.
    the plugin uses), while the checks grow from 392 to at least 1,500; the system rotates
    `darwin`, `linux`, `win32`, each with checks that pass only on it; the artifact hash changes
    every 30 acceptances; every 50th acceptance is a partial run that passes only 20 checks (a large
-   `passed_removed`, then a large `passed_added`); and on some runs the probe fails. It asserts:
+   `passed_removed`, then a large `passed_added`); on some runs the probe fails; and at least one
+   artifact's expected systems are a strict subset of the three: one system's every run on it
+   fails the probe, after the probe passed on an earlier line (the review, F6). It asserts:
    - volume 1's bytes are unchanged;
    - every file in the folder is at most `1 << 20` bytes, and every format-2 line ends at an offset
      of at most `BUDGET` in its volume;
@@ -253,28 +318,49 @@ module, never committed.
      line without a gap;
    - `history.errors(…)` is empty, with `committed` set to the folder as it stood halfway through
      (every committed volume a prefix);
+   - at every line, the replayed set (`history.passed_sets`) equals that simulated run's passes;
    - for every artifact hash, `history.systems_that_passed` equals the systems computed directly
-     from the simulated runs.
+     from the simulated runs, and for the strict-subset artifact that answer lacks the failing
+     system.
+
+   It records in the landing notes `history.OPS` for the whole test: digests computed, bytes
+   hashed for them and JSON bytes parsed (a count decides whether it fits the fast tier, never a
+   time).
 
    *Stand-ins:* (a) today's writer (one file, full lists: `history.jsonl` passes `1 << 20` at the
    first ten new lines); (b) a roll decided after writing (a volume ends past `BUDGET`); (c) volumes
    numbered by count (`history-00002.jsonl`) instead of first line; (d) a replay that ignores
-   `passed_removed` (credits a system whose run failed the probe).
+   `passed_removed` (credits the strict-subset artifact's failing system; the per-line set
+   assertion fails too).
 3. **Main's 59 lines stay valid as they are.** `test_progress_history_is_intact` passes on the
    real folder at the built commit (lines 1 to 59, old format, `history.jsonl` alone, with
    `accepted.json`), and `history.passed_sets` replays them to the same sets as their `passed`
-   lists. `git diff f6b3f75 -- context/progress/` is empty on the built branch. *Stand-in:* an
-   `errors` that requires format-2 keys on every line fails on the real file.
+   lists. On the built branch, `git diff f6b3f75 -- context/progress/history.jsonl
+   context/progress/accepted.json` prints nothing, and no file matching
+   `context/progress/history-*.jsonl` exists (the review, F1: the README in the same folder is
+   edited by this build, so the folder's diff is not empty). *Stand-ins:* an `errors` that
+   requires format-2 keys on every line fails on the real file; so does one whose `SEALED` hash
+   is off by one hex digit.
 4. **Tampering is caught in every volume.** `tests/unit/test_history.py`, from a valid synthetic
    history of three volumes, one case per change, each giving its named error and no error on the
    untouched history: (a) one byte changed in a middle line of volume 2; (b) volume 2 deleted; (c)
-   volume 3 renamed one number higher; (d) a stray `history-00070.jsonl.orig` and a
-   `history-70.jsonl`; (e) a line appended to volume 1 after volume 2 exists; (f) volume 3 begun
+   volume 3 renamed one number higher; (d) stray files `history-00070.jsonl.orig`,
+   `history-70.jsonl`, and the non-canonical `history-000060.jsonl` and `history-00001.jsonl`
+   (each "unrecognised history file"); (e) a line appended to volume 1 after volume 2 exists; (f) volume 3 begun
    early (its first line would have fitted in volume 2); (g) a format-2 line pushing its volume past
    `BUDGET`; (h) the last line's `passed_added` edited so it no longer replays to its digest (no
    later line chains to it, so only the digest catches it); (i) an old-format line after a format-2
-   line; (j) a format-2 line that also carries `passed`; (k) `accepted.json` edited. *Stand-in:*
-   today's `history_errors` on `history.jsonl` alone reports none of (a) to (d) and (f) to (j).
+   line; (j) a format-2 line that also carries `passed`; (k) `accepted.json` edited; (l) the last
+   old-format line moved out of volume 1 into a volume of its own named after it, ahead of the
+   format-2 volumes, with the chain, `n` and names all still holding (the review's P6: only
+   "an old-format line outside history.jsonl" reports it, and `sealed` reports volume 1's new
+   hash); (m) a blank line in volume 2, and volume 3 without its final newline; (n) a line with
+   `"schema": 3` and one with `"schema": "2"`; (o) volume 1 changed while `sealed` names its old
+   hash. The volumes are found in numeric order: a history whose volumes include
+   `history-99999.jsonl` and `history-100000.jsonl` replays in that order. *Stand-ins:* today's
+   `history_errors` on `history.jsonl` alone reports none of (a) to (d), (f) to (j) and (l) to
+   (n); an `errors` without the old-format rule misses (l) when `sealed` is not given; a
+   `volumes` sorted by name fails the numeric-order case.
 5. **Committed volumes only grow.** `tests/unit/test_history.py`: with `committed` holding volumes
    1 and 2, a folder where volume 2 lost its last line, a folder without volume 2, and a folder
    where volume 1 changed are each reported; a folder that adds volume 3 and lines to volume 2 is
@@ -304,7 +390,10 @@ module, never committed.
    …, but its history line 60 judged …"; (c) an acceptance commit that also changes
    `history.jsonl`: "also changes context/progress/history.jsonl"; (d) line 60 saying
    `dirty: true` under a judge holding `tests/unit/test_landing_lane.py`: reported. *Stand-in:*
-   today's `acceptance_errors` (it follows `history.jsonl`, keeps judging line 59's commit, and reports neither (b) nor (d)).
+   (e) the newest commit touching a volume deletes one (the newest volume removed, `accepted.json`
+   put back): reported, as a change to a volume that is not its newest and as a line that judged
+   an older commit. *Stand-in:* today's `acceptance_errors` (it follows `history.jsonl`, keeps
+   judging line 59's commit, and reports neither (b), (d) nor (e)).
 10. **The lane's commit command does what the README says.** `tests/unit/test_landing_lane.py`:
     in a scratch repository with a committed `history.jsonl`, a new volume, a changed
     `accepted.json`, a changed `context/progress/README.md` and another staged file, the two
@@ -313,7 +402,21 @@ module, never committed.
     `context/progress/README.md` contains both commands verbatim. *Stand-in:* today's step 4
     (`git commit -- …accepted.json …history.jsonl`) exits non-zero on the untracked volume, or,
     once added, leaves it out.
-11. **Green.** `ruff check`, `ruff format --check`, `uv run pytest -m "not slow" -n 3` and the full
+11. **Each caller verifies only what it must (the review, F2).** `tests/unit/test_history.py`, on
+    criterion 2's history (or one of at least 200 format-2 lines), reads `history.OPS` around each
+    caller: `history.errors` computes exactly one digest per format-2 line; `scoreboard.accept`
+    computes at most 2 (the newest line's check and the new line's own), with a cold cache and
+    with a warm one, and with a warm cache parses no JSON of earlier lines; `systems_that_passed`
+    computes 0. The landing notes record the counts. *Stand-ins:* (a) an `accept` that verifies
+    every line's digest (its count equals the format-2 line count); (b) a `systems_that_passed`
+    that replays with `verify=True`; (c) `errors` with `verify=False` (0 digests: criterion 4(h)
+    fails too).
+12. **`three systems` on a broken history is not met; the intact check says why.**
+    `tests/unit/test_history.py`: on criterion 6's folder with one line made not to apply (an
+    `added` id already in the set), `systems_that_passed` returns the empty set without raising,
+    and `history.errors` names that line. *Stand-in:* a `systems_that_passed` that lets the
+    `ValueError` out.
+13. **Green.** `ruff check`, `ruff format --check`, `uv run pytest -m "not slow" -n 3` and the full
     judge pass on the built commit; the run is red only by `judge changed`, which the lane accepts
     with `--accept-judge`. The fast-tier and unit counts are recorded in the landing notes.
 
@@ -340,9 +443,47 @@ The next acceptance is 062's own. It writes line 60 with the new code.
 A landing note cites a line as before, by its global number, and may add the volume the
 `accepted:` line printed: "history line 61 (`context/progress/history-00060.jsonl`)".
 
+## Disposition of the pre-build review
+
+The review (`062-the-progress-history-stays-small-spec-2026-10-18.md`, by a fresh agent, at
+`3b81107`): "ready to build once F1 to F3 are written in". The lane checks this write-in itself;
+there is no second spec review.
+
+- **F1 (Medium), criterion 3's diff could never be empty.** Written in: criterion 3 now diffs
+  `history.jsonl` and `accepted.json` only, and requires that no `history-*.jsonl` exists on the
+  built branch.
+- **F2 (Medium), replay verified every digest, and `accept` made criterion 2 quadratic.** Written
+  in: `passed_sets(lines, verify=True)`; only `errors` verifies every digest; `accept` goes through
+  `history.last_passed`, which checks the newest line's digest alone and keeps a one-entry cache
+  keyed by the newest line's hash; `systems_that_passed` verifies none (Decision 7, whose reason
+  is corrected with the review's counts). New criterion 11 counts the digests per caller, and its
+  stand-in "accept verifies every line" fails it. Criterion 2 records `history.OPS`.
+- **F3 (Low-Medium), an old-format line could live in a later volume.** Written in: Decision 1
+  (old-format lines only in `history.jsonl`; `SEALED` pins its SHA-256,
+  `0a99162a…1120`, as confirmed by `shasum -a 256` on `f6b3f75`), Decision 10 (both reported),
+  criterion 4(l) and 4(o).
+- **F4 (Low), names, order, schema, blank lines, a broken history.** Build conditions, written into
+  Decisions 1, 7 and 10 and criteria 4(d), 4(m), 4(n), the numeric-order case and criterion 12.
+  The lane's ruling: `systems_that_passed` on a history that does not replay returns the empty
+  set, and the intact check is what reports it.
+- **F5 (Low), bytes, not characters.** Build condition, written into Decisions 4 and 8: the plugin
+  writes with `newline="\n"`; `target` and `errors` measure with `read_bytes()`.
+- **F6 (Low), sharper criteria.** Build condition, written in: criterion 2 compares the replayed set
+  with that run's passes at every line and includes an artifact that passed on fewer than three
+  systems; criterion 9(e) is a commit that deletes a volume.
+- **F7 (Info), the digest is a consistency check.** Written into Decision 6.
+- **F8 (Info), the glob takes a stray `history-70.jsonl`.** No design change; one line in the
+  README's step 4 (Decision 12).
+- **F9 (Info), the two side notes.** Agreed: the four spec-023 checks are 023's follow-up, and the
+  builder judges with the artifact set; `accepted.json` is scoped out, with the review's numbers
+  (Scope).
+- **F10 (Info), documents.** Written into Design: "Before a release" says "the history", and the
+  README gives the one-liner for line N's passed set. `tests/unit/test_several_cores.py` needs no
+  edit.
+
 ## Landing notes
 
-None yet: the spec awaits its pre-build review.
+None yet: confirmed for build by the lane.
 
 One line: new history lines store only what changed in the passed set, and the history continues
 in files named by their first line, each under half the limit, chained as one, with lines 1 to 59
