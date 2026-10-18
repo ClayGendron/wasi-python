@@ -73,6 +73,22 @@ document.
   stand-in that names the C types), but no foreign call can be made. Decided: keep the banner,
   and the README says what the stand-in does.
 
+### 59 and 60. The zip's directory is read once
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `research/2026-10-17-the-zips-directory-is-read-once.md`
+  ("Questions for the owner"). The agent drafts the specification with the recommended answers;
+  nothing waits.
+- **59.** `importlib.resources.files()` on a package in the zip would return our own
+  `Traversable`, not a `zipfile.Path`. The bytes and listings are the same, and a resource read
+  becomes about 28 times cheaper today (and stops growing with the zip). Accept it? The agent
+  recommends yes.
+- **60.** Three stdlib functions (zipimport's directory reader, the zip resource reader, and
+  `importlib.metadata`'s zip search) are replaced at run time by recipe code, with judge checks
+  that their results equal upstream's. Is that a recipe under §4.1 ("a stand-in module"), or must
+  it be a carried patch? The agent recommends a recipe: no upstream file changes, the zip's bytes
+  do not change, and a carried patch would stay carried for good (upstream builds `_struct`
+  outside the bootstrap).
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more

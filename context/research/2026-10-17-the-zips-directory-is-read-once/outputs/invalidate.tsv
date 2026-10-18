@@ -1,0 +1,10 @@
+binary	zip	case	fuel_used	exit	stdout
+snapshot	zip-1x	import importlib	81999962	0	
+snapshot	zip-1x	import json.tool	117553373	0	
+snapshot	zip-1x	invalidate_caches + import json.tool	288372249	0	1
+plain	zip-1x	import importlib	243113089	0	
+plain	zip-1x	import json.tool	628771342	0	
+plain	zip-1x	invalidate_caches + import json.tool	891611964	0	1
+plain	zip-4x	import importlib	651694552	0	
+plain	zip-4x	import json.tool	1037048721	0	
+plain	zip-4x	invalidate_caches + import json.tool	1708715880	0	1

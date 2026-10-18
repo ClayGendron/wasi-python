@@ -1,0 +1,60 @@
+binary	zip	members	case	fuel_used	exit	stdout
+snapshot	zip-1x	1751	base	137125354	0	
+snapshot	zip-1x	1751	zipimport x1	272133390	0	
+snapshot	zip-1x	1751	rewrite struct	179417795	0	True 1917
+snapshot	zip-1x	1751	marshal dumps	144406503	0	224342
+snapshot	zip-1x	1751	marshal dumps + loads	165602674	0	True 224342
+snapshot	zip-1x	1751	tz base	144217586	0	
+snapshot	zip-1x	1751	stock: Paris	349632857	0	2:00:00 598
+snapshot	zip-1x	1751	stock: Paris + 4 more	1079090170	0	2:00:00 598
+snapshot	zip-1x	1751	cached root: Paris	369155580	0	2:00:00 598
+snapshot	zip-1x	1751	cached root: Paris + 4 more	371160376	0	2:00:00 598
+snapshot	zip-1x	1751	index: Paris	151530025	0	2:00:00 598
+snapshot	zip-1x	1751	index: Paris + 4 more	153347330	0	2:00:00 598
+snapshot	zip-1x	1751	index: Paris + every zone	326185356	0	2:00:00 598
+snapshot	zip-1x	1751	index: equal to stock	7882197400	0	True True True 65 104917 False
+snapshot	zip-1x	1751	metadata import	173069362	0	
+snapshot	zip-1x	1751	metadata miss x2	393783247	0	
+plain	zip-1x	1751	base	621227828	0	
+plain	zip-1x	1751	zipimport x1	756005400	0	
+plain	zip-1x	1751	zipimport, unpack helpers as C calls	732242122	0	
+plain	zip-1x	1751	zipimport, _path_join as a C call	751260024	0	
+plain	zip-1x	1751	zipimport, both as C calls	727507322	0	
+plain	zip-1x	1751	rewrite struct, no implied dirs	649220861	0	
+plain	zip-1x	1751	rewrite struct	663986862	0	True 1917
+plain	zip-1x	1751	rewrite from_bytes	713035488	0	True 1917
+plain	zip-1x	1751	marshal dumps	628361326	0	224342
+plain	zip-1x	1751	marshal dumps + loads	649496773	0	True 224342
+plain	zip-1x	1751	tz base	656157540	0	
+plain	zip-1x	1751	stock: Paris	911176306	0	2:00:00 598
+plain	zip-1x	1751	stock: Paris + 4 more	1639999258	0	2:00:00 598
+plain	zip-1x	1751	cached root: Paris	925079809	0	2:00:00 598
+plain	zip-1x	1751	cached root: Paris + 4 more	927156944	0	2:00:00 598
+plain	zip-1x	1751	cached root: Paris + every zone	1095142729	0	2:00:00 598
+plain	zip-1x	1751	index: Paris	669939387	0	2:00:00 598
+plain	zip-1x	1751	index: Paris + 4 more	672284899	0	2:00:00 598
+plain	zip-1x	1751	index: Paris + every zone	843990846	0	2:00:00 598
+plain	zip-1x	1751	index: equal to stock	8445218374	0	True True True 65 104917 False
+plain	zip-1x	1751	metadata miss x2	941589040	0	
+plain	zip-1x	1751	metadata import	670042711	0	
+plain	zip-4x	7004	base	1037729955	0	
+plain	zip-4x	7004	zipimport x1	1578030172	0	
+plain	zip-4x	7004	zipimport, unpack helpers as C calls	1480696847	0	
+plain	zip-4x	7004	zipimport, _path_join as a C call	1555792580	0	
+plain	zip-4x	7004	zipimport, both as C calls	1459859281	0	
+plain	zip-4x	7004	rewrite struct, no implied dirs	1146382644	0	
+plain	zip-4x	7004	rewrite struct	1207238847	0	True 7671
+plain	zip-4x	7004	rewrite from_bytes	1408020339	0	True 7671
+plain	zip-4x	7004	marshal dumps	1062710345	0	952406
+plain	zip-4x	7004	marshal dumps + loads	1147923854	0	True 952406
+plain	zip-4x	7004	tz base	1080604008	0	
+plain	zip-4x	7004	stock: Paris	1965604803	0	2:00:00 598
+plain	zip-4x	7004	stock: Paris + 4 more	5305206559	0	2:00:00 598
+plain	zip-4x	7004	cached root: Paris	2019587907	0	2:00:00 598
+plain	zip-4x	7004	cached root: Paris + 4 more	2020560878	0	2:00:00 598
+plain	zip-4x	7004	index: Paris	1091875362	0	2:00:00 598
+plain	zip-4x	7004	index: Paris + 4 more	1094435565	0	2:00:00 598
+plain	zip-4x	7004	index: Paris + every zone	1265607194	0	2:00:00 598
+plain	zip-4x	7004	index: equal to stock	36472356023	0	True True True 65 104917 False
+plain	zip-4x	7004	metadata miss x2	2048263291	0	
+plain	zip-4x	7004	metadata import	1086317501	0	

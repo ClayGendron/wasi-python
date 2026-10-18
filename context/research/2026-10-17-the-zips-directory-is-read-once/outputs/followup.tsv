@@ -1,0 +1,20 @@
+binary	zip	members	case	fuel_used	exit	stdout
+snapshot	zip-1x	1751	base	167665307	0	
+snapshot	zip-1x	1751	metadata miss, stock	385198475	0	miss
+snapshot	zip-1x	1751	metadata miss, index	177326738	0	miss
+snapshot	zip-1x	1751	pandas base	167745702	0	
+snapshot	zip-1x	1751	pandas tz, stock	1129870014	0	2:00:00 ['+0900', '+0900']
+snapshot	zip-1x	1751	pandas tz, index	196348541	0	2:00:00 ['+0900', '+0900']
+plain	zip-1x-meta	1752	base	664621699	0	
+plain	zip-1x-meta	1752	metadata version, stock	1119679821	0	0.9.0
+plain	zip-1x-meta	1752	metadata version, index	862090394	0	0.9.0
+plain	zip-1x-meta	1752	metadata miss, stock	937790982	0	miss
+plain	zip-1x-meta	1752	metadata miss, index	674297865	0	miss
+plain	zip-4x-meta	7005	base	1080825847	0	
+plain	zip-4x-meta	7005	metadata version, stock	2233490212	0	0.9.0
+plain	zip-4x-meta	7005	metadata version, index	1293902363	0	0.9.0
+plain	zip-4x-meta	7005	metadata miss, stock	2049798305	0	miss
+plain	zip-4x-meta	7005	metadata miss, index	1113990820	0	miss
+plain	zip-1x	1751	pandas base	5082026456	0	
+plain	zip-1x	1751	pandas tz, stock	6042123902	0	2:00:00 ['+0900', '+0900']
+plain	zip-1x	1751	pandas tz, index	5109253604	0	2:00:00 ['+0900', '+0900']

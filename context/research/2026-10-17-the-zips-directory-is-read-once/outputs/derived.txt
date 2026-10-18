@@ -1,0 +1,67 @@
+== start.tsv (plain unless named)
+zip-1x: pass 241.7 M
+zip-2x: pass 377.4 M
+zip-3x: pass 513.7 M
+zip-4x: pass 649.7 M
+plain pass slope: 77,662 fuel/member
+one more zipimport read: 134.9 M (1x), 540.3 M (4x); slope 77,184/member
+plain pass minus one read at 1x (the part that does not grow): 106.9 M
+three more reads at 4x: 540.8 M each
+snapshot pass 82.0 M; snapshot one more read 134.5 M
+stored vs deflated, 4x pass: 645.6 vs 649.7 M
+zipfile.ZipFile x1 (minus import zipfile): 108.0 M (1x), 427.1 M (4x); slope 60,746/member
+zipfile.Path + name set x1 (minus import zipfile): 193.0 M (1x), 844.9 M (4x); slope 124,090/member
+resources read x1 (minus import importlib.resources): 271.1 M (1x), 900.0 M (4x); slope 119,729/member
+ZoneInfo Europe/Paris (minus import zoneinfo): 581.8 M (1x), 1219.1 M (4x); slope 121,317/member
+each later resource read: 181.5 M (1x), 834.9 M (4x); slope 124,392/member
+second zone: 183.0 M (1x), 845.6 M (4x); slope 126,141/member
+snapshot resources read x1: 204.1 M
+snapshot ZoneInfo Europe/Paris: 225.4 M
+snapshot each later read: 182.3 M
+snapshot second zone: 183.7 M
+
+== candidates.tsv (cost = case minus base on the same binary and zip)
+zipimport x1: 134.8 M (1x), 540.3 M (4x); slope 77,198/member
+zipimport, unpack helpers as C calls: 111.0 M (1x), 443.0 M (4x); slope 63,193/member
+zipimport, _path_join as a C call: 130.0 M (1x), 518.1 M (4x); slope 73,868/member
+zipimport, both as C calls: 106.3 M (1x), 422.1 M (4x); slope 60,128/member
+rewrite struct, no implied dirs: 28.0 M (1x), 108.7 M (4x); slope 15,355/member
+rewrite struct: 42.8 M (1x), 169.5 M (4x); slope 24,129/member
+rewrite from_bytes: 91.8 M (1x), 370.3 M (4x); slope 53,014/member
+marshal.loads of zipimport's dict: 21.1 M (1x), 85.2 M (4x); slope 12,198/member
+stock: first zone 255.0 M (1x), 885.0 M (4x), slope 119,928/member; each later zone 182.21 M (1x), 834.90 M (4x)
+cached root: first zone 268.9 M (1x), 939.0 M (4x), slope 127,558/member; each later zone 0.52 M (1x), 0.24 M (4x)
+index: first zone 13.8 M (1x), 11.3 M (4x), slope -478/member; each later zone 0.59 M (1x), 0.64 M (4x)
+index: each of the 598 zone loads after Paris on zip-1x: 0.291 M
+index: each of the 598 zone loads after Paris on zip-4x: 0.291 M
+cached root: each of the 598 zone loads after Paris on zip-1x: 0.284 M
+snapshot stock: Paris: 205.4 M
+snapshot stock: Paris + 4 more: 934.9 M
+snapshot cached root: Paris: 224.9 M
+snapshot cached root: Paris + 4 more: 226.9 M
+snapshot index: Paris: 7.3 M
+snapshot index: Paris + 4 more: 9.1 M
+snapshot index: Paris + every zone: 182.0 M
+equality rows: snapshot zip-1x: True True True 65 104917 False; plain zip-1x: True True True 65 104917 False; plain zip-4x: True True True 65 104917 False
+rewrite equality: snapshot zip-1x rewrite struct: True 1917; plain zip-1x rewrite struct: True 1917; plain zip-1x rewrite from_bytes: True 1917; plain zip-4x rewrite struct: True 7671; plain zip-4x rewrite from_bytes: True 7671
+
+== followup.tsv
+metadata version, stock: 455.1 M (1x), 1152.7 M (4x); slope 132,801/member
+metadata version, index: 197.5 M (1x), 213.1 M (4x); slope 2,971/member
+metadata miss, stock: 273.2 M (1x), 969.0 M (4x); slope 132,458/member
+metadata miss, index: 9.7 M (1x), 33.2 M (4x); slope 4,472/member
+snapshot metadata miss, stock: 217.5 M
+snapshot metadata miss, index: 9.7 M
+snapshot pandas tz, stock: 962.1 M
+snapshot pandas tz, index: 28.6 M
+plain pandas tz, stock: 960.1 M
+plain pandas tz, index: 27.2 M
+
+== invalidate.tsv
+snapshot zip-1x: invalidate_caches then an import costs 170.8 M more
+plain zip-1x: invalidate_caches then an import costs 262.8 M more
+plain zip-4x: invalidate_caches then an import costs 671.7 M more
+
+== projections at 6,630 members (0.1.0's zip, INFERRED, linear)
+plain pass today's reader: 619 M; struct rewrite: 268 M; C reader at marshal.loads' cost: 186 M
+stock resource read, first: about 822 M; each later: about 822 M

@@ -1,0 +1,68 @@
+binary	zip	members	case	fuel_used	exit	stdout
+snapshot	zip-1x	1751	pass	81958066	0	
+snapshot	zip-1x	1751	zipimport._read_directory x1	216505580	0	
+snapshot	zip-1x	1751	cache after start	82742275	0	{'/usr/local/lib/python315.zip': 1917} 0 131072
+snapshot	zip-1x	1751	import importlib.resources	101881040	0	
+snapshot	zip-1x	1751	resources read x1	306008956	0	
+snapshot	zip-1x	1751	resources read x5	1035017865	0	
+snapshot	zip-1x	1751	import zoneinfo	81897329	0	
+snapshot	zip-1x	1751	ZoneInfo Europe/Paris	307344168	0	
+snapshot	zip-1x	1751	ZoneInfo Paris+Tokyo	490997022	0	
+plain	zip-1x	1751	pass	241738470	0	
+plain	zip-1x	1751	zipimport._read_directory x1	376589425	0	
+plain	zip-1x	1751	zipimport._read_directory x3	643937829	0	
+plain	zip-1x	1751	cache after start	244538546	0	{'/usr/local/lib/python315.zip': 1917} 0 131072
+plain	zip-1x	1751	import zipfile	452354729	0	
+plain	zip-1x	1751	zipfile.ZipFile x1	560345058	0	
+plain	zip-1x	1751	zipfile.Path + name set x1	645377155	0	
+plain	zip-1x	1751	import importlib.resources	585356127	0	
+plain	zip-1x	1751	resources.files x1	769944428	0	
+plain	zip-1x	1751	resources read x1	856457018	0	
+plain	zip-1x	1751	resources read x5	1582451025	0	
+plain	zip-1x	1751	import zoneinfo	289958922	0	
+plain	zip-1x	1751	ZoneInfo Europe/Paris	871759837	0	
+plain	zip-1x	1751	ZoneInfo Paris+Tokyo	1054745594	0	
+plain	zip-2x	3502	pass	377407960	0	
+plain	zip-2x	3502	zipimport._read_directory x1	646917903	0	
+plain	zip-2x	3502	zipimport._read_directory x3	1183451233	0	
+plain	zip-2x	3502	cache after start	379869455	0	{'/usr/local/lib/python315.zip': 3835} 0 131072
+plain	zip-2x	3502	import zipfile	588197322	0	
+plain	zip-2x	3502	zipfile.ZipFile x1	796990246	0	
+plain	zip-2x	3502	zipfile.Path + name set x1	991741049	0	
+plain	zip-2x	3502	import importlib.resources	721416164	0	
+plain	zip-2x	3502	resources.files x1	1002765462	0	
+plain	zip-2x	3502	resources read x1	1199695736	0	
+plain	zip-2x	3502	resources read x5	2793963012	0	
+plain	zip-2x	3502	import zoneinfo	425763943	0	
+plain	zip-2x	3502	ZoneInfo Europe/Paris	1215577161	0	
+plain	zip-2x	3502	ZoneInfo Paris+Tokyo	1614330295	0	
+plain	zip-3x	5253	pass	513673688	0	
+plain	zip-3x	5253	zipimport._read_directory x1	919260749	0	
+plain	zip-3x	5253	zipimport._read_directory x3	1726694094	0	
+plain	zip-3x	5253	cache after start	516093632	0	{'/usr/local/lib/python315.zip': 5753} 0 131072
+plain	zip-3x	5253	import zipfile	724280564	0	
+plain	zip-3x	5253	zipfile.ZipFile x1	1049121320	0	
+plain	zip-3x	5253	zipfile.Path + name set x1	1356390208	0	
+plain	zip-3x	5253	import importlib.resources	857571668	0	
+plain	zip-3x	5253	resources.files x1	1242144659	0	
+plain	zip-3x	5253	resources read x1	1551509698	0	
+plain	zip-3x	5253	resources read x5	4016722549	0	
+plain	zip-3x	5253	import zoneinfo	561741497	0	
+plain	zip-3x	5253	ZoneInfo Europe/Paris	1566023707	0	
+plain	zip-3x	5253	ZoneInfo Paris+Tokyo	2181439274	0	
+plain	zip-4x	7004	pass	649698286	0	
+plain	zip-4x	7004	zipimport._read_directory x1	1189998529	0	
+plain	zip-4x	7004	zipimport._read_directory x3	2272094842	0	
+plain	zip-4x	7004	cache after start	652715735	0	{'/usr/local/lib/python315.zip': 7671} 0 131072
+plain	zip-4x	7004	import zipfile	860122134	0	
+plain	zip-4x	7004	zipfile.ZipFile x1	1287212613	0	
+plain	zip-4x	7004	zipfile.Path + name set x1	1704989048	0	
+plain	zip-4x	7004	import importlib.resources	1001841064	0	
+plain	zip-4x	7004	resources.files x1	1483201057	0	
+plain	zip-4x	7004	resources read x1	1901879067	0	
+plain	zip-4x	7004	resources read x5	5241590861	0	
+plain	zip-4x	7004	import zoneinfo	697580394	0	
+plain	zip-4x	7004	ZoneInfo Europe/Paris	1916660154	0	
+plain	zip-4x	7004	ZoneInfo Paris+Tokyo	2762263383	0	
+plain	zip-4x-stored	7004	pass	645633579	0	
+plain	zip-4x-stored	7004	resources read x1	1768146968	0	
