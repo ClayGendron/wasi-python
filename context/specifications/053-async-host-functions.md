@@ -1,6 +1,6 @@
 # 053 — Async host functions
 
-- **Status:** **built 2026-10-18; awaiting its build review** (Landing notes). Drafted
+- **Status:** **built 2026-10-18; build-reviewed the same day ("lands once F1 is fixed"); F1 fixed and N1 to N3 answered (Landing notes, "Revised against the build review"); awaiting the reviewer's confirmation.** Drafted
   2026-10-18; reviewed before build the same day
   (`../reviews/053-async-host-functions-spec-2026-10-18.md`, written in the lane's evidence
   folder, `build/reviews-evidence/053-review/`, and copied in by the lane; verdict: "ready once
@@ -1177,3 +1177,60 @@ main` onto main `94167a8`. That main has 049 (the public API frozen, landed as `
 
   The 42 blocked are this worktree's, as before. `tests/public_api.txt` is not among the judge's
   changed files.
+### Revised against the build review (2026-10-18)
+
+The build review (`../reviews/053-async-host-functions-2026-10-18.md`, written in the scratchpad
+and copied in by the lane) said "lands once F1 is fixed". Its disposition, each claim EXECUTED:
+
+1. **F1 (low): a stale `started` read could report a tool that ran as "cancelled before it
+   started". Fixed in `4b521c8`.**
+   - `_ToolLoop.run`'s wait now decides the C-1 branch as `future.done() and not
+     post.ended.is_set()`, the line the reviewer tried. The wrapper sets `ended` in its
+     `finally` before its task completes, so with the future read first and `ended` second,
+     neither fact can go stale. No `started` read stays in that branch.
+   - The loop-closed branch re-checks `ended` (and reads `started` only after it) before it
+     reports the loop stopped, so it cannot mislabel a finished tool either.
+   - The new check is `test_a_tool_that_ran_is_never_reported_as_not_started`. It forces the
+     review's interleaving:
+     - the caller's loop is busy when the post arrives, so the wait passes its first slice;
+     - the posted future's first `done()` releases the loop, and returns only once the wrapper
+       has run the tool to its end and the future has completed;
+     - the wait as built at `58be89e` read `started` before that, and answered `tool_error`
+       ("`AssertionError: assert ('tool_error'…ernal error)') == ('ok', 'done')`", the file
+       restored afterwards, `restored True`). The fix answers `ok`, with `effects == [100]`, no
+       fault and `abandoned=False`.
+   - The injection is on the future's `done()`, not on `ended.is_set()` as the reviewer's P1 did.
+     The fixed wait reads `ended.is_set()` only after the future is done, so P1's injection never
+     fires on the fix. Run as it is, P1 holds the loop until its own `hold` is set, which never
+     happens; that is a property of the probe, not of the code.
+   - The C-1 stand-in (c7, now written against the new line) and the F3 stand-in (c8) were
+     re-run on the fix and still fail as named: `'timeout' == 'tool_error'` at the 30 s
+     fail-safe, and 2 failed.
+2. **N1 (note): three defensive branches had no pinning check.** In part:
+   - R4b is pinned by a row in `test_close_ends_the_calls_loop`: `_cancel_post` on a loop that
+     reports open but refuses the call ("Event loop is closed") raises nothing and adds 0 log
+     records and 0 warnings.
+   - R2 (cancelling the posted future) stays covered as the review found: the runner keeps no
+     reference to the future in `_cancel_post`, so the mutant needs a code change the review can
+     see.
+   - R3 (the thread-death end) stays unpinned. `_serve`'s `finally` always closes the loop before
+     its thread ends, so the closed-loop end covers it, and forcing a dead thread with an open
+     loop would need a fake thread swapped into the wait's local. It remains belt and braces, as
+     the review says.
+3. **N2: fixed.** `tools._is_async` is deleted. It had no caller, and `_is_async_generator`'s
+   docstring no longer names it.
+4. **N3: fixed.** README, *Async tools*, **Faults stay in the call**: "Tasks the tool spawns are
+   yours: under `run_async` their exceptions reach your loop as asyncio delivers them, so a
+   `KeyboardInterrupt` from one reaches your `asyncio.run`." `api.py --check` still passes (the
+   generated block is unchanged).
+
+**Checks after the fix:**
+- `tests/unit/test_async_tools.py`: 11 passed, 8 runs in a row.
+- `test_tools.py`, `test_runner_tools.py` and `test_guest_tools.py`: 221 passed.
+- `ruff check` and `ruff format --check` are clean.
+- Fast tier (`WASI_PYTHON_ARTIFACTS=…/s-c4190ca065ada03a uv run pytest -m "not slow"`):
+  `315/364 pass · 0 gap · 10 blocked · 0 fail · 39 deselected (unit suite 1074/1082, 8
+  skipped)`, `v1.4 embedding 157/157`, `ratchet vs 5f56591135: lost 0 · absent 0 · unrun 0 ·
+  unrun locally 8 · gained 10 · grew 0`, `1389 passed, 18 skipped, 39 deselected`.
+- The full judge was not re-run for this one-file fix. The lane judges the exact commit it
+  accepts.
