@@ -1,0 +1,98 @@
+{
+ "mode": "as built",
+ "returns": {
+  "guest": {
+   "EACCES": 2,
+   "EBUSY": 10,
+   "ECANCELED": 11,
+   "EDQUOT": 19,
+   "EEXIST": 20,
+   "EFBIG": 22,
+   "EINVAL": 28,
+   "EIO": 29,
+   "EISDIR": 31,
+   "ENAMETOOLONG": 37,
+   "ENOENT": 44,
+   "ENOSPC": 51,
+   "ENOSYS": 52,
+   "ENOTDIR": 54,
+   "ENOTEMPTY": 55,
+   "ENOTSUP": 58,
+   "EPERM": 63,
+   "EROFS": 69,
+   "ESTALE": 72,
+   "ETIMEDOUT": 73,
+   "EXDEV": 75,
+   "listdir": 54
+  },
+  "faults": 0,
+  "fault_kinds": [],
+  "calls": {
+   "stat": 21,
+   "list": 1
+  }
+ },
+ "raises": {
+  "guest": {
+   "EACCES": 29,
+   "EBUSY": 29,
+   "ECANCELED": 29,
+   "EDQUOT": 29,
+   "EEXIST": 29,
+   "EFBIG": 29,
+   "EINVAL": 29,
+   "EIO": 29,
+   "EISDIR": 29,
+   "ENAMETOOLONG": 29,
+   "ENOENT": 29,
+   "ENOSPC": 29,
+   "ENOSYS": 29,
+   "ENOTDIR": 29,
+   "ENOTEMPTY": 29,
+   "ENOTSUP": 29,
+   "EPERM": 29,
+   "EROFS": 29,
+   "ESTALE": 29,
+   "ETIMEDOUT": 29,
+   "EXDEV": 29,
+   "listdir": 29
+  },
+  "faults": 22,
+  "fault_kinds": [
+   "FileExistsError",
+   "FileNotFoundError",
+   "IsADirectoryError",
+   "NotADirectoryError",
+   "OSError",
+   "PermissionError",
+   "TimeoutError"
+  ],
+  "calls": {
+   "stat": 21,
+   "list": 1
+  }
+ },
+ "stat_same_for_all_21": false,
+ "differs": [
+  "EACCES",
+  "EBUSY",
+  "ECANCELED",
+  "EDQUOT",
+  "EEXIST",
+  "EFBIG",
+  "EINVAL",
+  "EISDIR",
+  "ENAMETOOLONG",
+  "ENOENT",
+  "ENOSPC",
+  "ENOSYS",
+  "ENOTDIR",
+  "ENOTEMPTY",
+  "ENOTSUP",
+  "EPERM",
+  "EROFS",
+  "ESTALE",
+  "ETIMEDOUT",
+  "EXDEV"
+ ]
+}

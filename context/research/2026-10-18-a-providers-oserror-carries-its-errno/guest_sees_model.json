@@ -1,0 +1,157 @@
+{
+ "mode": "model",
+ "exit_code": 0,
+ "guest": {
+  "FileNotFoundError(ENOENT)": [
+   44,
+   "FileNotFoundError",
+   "No such file or directory"
+  ],
+  "PermissionError(EACCES)": [
+   2,
+   "PermissionError",
+   "Permission denied"
+  ],
+  "OSError(EDQUOT)": [
+   19,
+   "OSError",
+   "Quota exceeded"
+  ],
+  "OSError(ENAMETOOLONG)": [
+   37,
+   "OSError",
+   "Filename too long"
+  ],
+  "IsADirectoryError(EISDIR) at read": [
+   31,
+   "IsADirectoryError",
+   "Is a directory"
+  ],
+  "FileNotFoundError('msg') errno None": [
+   44,
+   "FileNotFoundError",
+   "No such file or directory"
+  ],
+  "PermissionError('msg') errno None": [
+   2,
+   "PermissionError",
+   "Permission denied"
+  ],
+  "OSError('msg') errno None": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "InterruptedError(EINTR)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "BlockingIOError(EAGAIN)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(EBADF)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(ELOOP) not in Errno": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(99999) unknown": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError errno True": [
+   2,
+   "PermissionError",
+   "Permission denied"
+  ],
+  "Hostile errno property": [
+   44,
+   "FileNotFoundError",
+   "No such file or directory"
+  ],
+  "stat FileNotFoundError": [
+   44,
+   "FileNotFoundError",
+   "No such file or directory"
+  ],
+  "list NotADirectoryError": [
+   54,
+   "NotADirectoryError",
+   "Not a directory"
+  ],
+  "write PermissionError(EROFS) at close": [
+   69,
+   "OSError",
+   "Read-only file system"
+  ],
+  "mkdir FileExistsError": [
+   20,
+   "FileExistsError",
+   "File exists"
+  ],
+  "ValueError": [
+   29,
+   "OSError",
+   "I/O error"
+  ]
+ },
+ "faults": [
+  [
+   "read",
+   "OSError: only a message"
+  ],
+  [
+   "read",
+   "InterruptedError: [Errno 4] retry me"
+  ],
+  [
+   "read",
+   "BlockingIOError: [Errno 35] retry me"
+  ],
+  [
+   "read",
+   "OSError: [Errno 9] bad fd"
+  ],
+  [
+   "read",
+   "OSError: [Errno 62] loop"
+  ],
+  [
+   "read",
+   "OSError: [Errno 99999] unknown"
+  ],
+  [
+   "read",
+   "ValueError: not an OSError"
+  ]
+ ],
+ "refused": [
+  [
+   "write",
+   69,
+   "close",
+   "refused"
+  ],
+  [
+   "mkdir",
+   20,
+   "call",
+   "refused"
+  ]
+ ],
+ "calls": {
+  "stat": 1,
+  "list": 1,
+  "read": 16,
+  "write": 2,
+  "mkdir": 1
+ }
+}

@@ -1,0 +1,2 @@
+{"mode": "as built", "guest": {"/r": ["opened", true], "/o": ["OSError", 29]}, "returned_calls": {"read": 1, "list": 0}, "raised_calls": {"read": 1, "list": 0}, "faults": ["IsADirectoryError: a folder"]}
+{"mode": "model", "guest": {"/r": ["opened", true], "/o": ["opened", true]}, "returned_calls": {"read": 1, "list": 0}, "raised_calls": {"read": 1, "list": 0}, "faults": []}

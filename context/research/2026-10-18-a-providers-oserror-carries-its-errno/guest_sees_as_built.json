@@ -1,0 +1,209 @@
+{
+ "mode": "as built",
+ "exit_code": 0,
+ "guest": {
+  "FileNotFoundError(ENOENT)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "PermissionError(EACCES)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(EDQUOT)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(ENAMETOOLONG)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "IsADirectoryError(EISDIR) at read": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "FileNotFoundError('msg') errno None": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "PermissionError('msg') errno None": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError('msg') errno None": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "InterruptedError(EINTR)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "BlockingIOError(EAGAIN)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(EBADF)": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(ELOOP) not in Errno": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError(99999) unknown": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "OSError errno True": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "Hostile errno property": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "stat FileNotFoundError": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "list NotADirectoryError": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "write PermissionError(EROFS) at close": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "mkdir FileExistsError": [
+   29,
+   "OSError",
+   "I/O error"
+  ],
+  "ValueError": [
+   29,
+   "OSError",
+   "I/O error"
+  ]
+ },
+ "faults": [
+  [
+   "read",
+   "FileNotFoundError: [Errno 2] secret /host/path"
+  ],
+  [
+   "read",
+   "PermissionError: [Errno 13] denied by policy"
+  ],
+  [
+   "read",
+   "OSError: [Errno 69] quota"
+  ],
+  [
+   "read",
+   "OSError: [Errno 63] long"
+  ],
+  [
+   "read",
+   "IsADirectoryError: [Errno 21] a folder"
+  ],
+  [
+   "read",
+   "FileNotFoundError: only a message"
+  ],
+  [
+   "read",
+   "PermissionError: only a message"
+  ],
+  [
+   "read",
+   "OSError: only a message"
+  ],
+  [
+   "read",
+   "InterruptedError: [Errno 4] retry me"
+  ],
+  [
+   "read",
+   "BlockingIOError: [Errno 35] retry me"
+  ],
+  [
+   "read",
+   "OSError: [Errno 9] bad fd"
+  ],
+  [
+   "read",
+   "OSError: [Errno 62] loop"
+  ],
+  [
+   "read",
+   "OSError: [Errno 99999] unknown"
+  ],
+  [
+   "read",
+   "PermissionError: [Errno True] a bool"
+  ],
+  [
+   "read",
+   "Hostile: [Errno 2] property"
+  ],
+  [
+   "stat",
+   "FileNotFoundError: [Errno 2] x"
+  ],
+  [
+   "list",
+   "NotADirectoryError: [Errno 20] x"
+  ],
+  [
+   "write",
+   "OSError: [Errno 30] read-only store"
+  ],
+  [
+   "mkdir",
+   "FileExistsError: [Errno 17] x"
+  ],
+  [
+   "read",
+   "ValueError: not an OSError"
+  ]
+ ],
+ "refused": [
+  [
+   "write",
+   29,
+   "close",
+   "fault"
+  ],
+  [
+   "mkdir",
+   29,
+   "call",
+   "fault"
+  ]
+ ],
+ "calls": {
+  "stat": 1,
+  "list": 1,
+  "read": 16,
+  "write": 2,
+  "mkdir": 1
+ }
+}

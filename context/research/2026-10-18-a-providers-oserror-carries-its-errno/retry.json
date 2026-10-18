@@ -1,0 +1,14 @@
+{
+ "EINTR": {
+  "exit_code": null,
+  "trapped": "out of file calls",
+  "stdout": "",
+  "provider_reads": 50
+ },
+ "EAGAIN": {
+  "exit_code": 0,
+  "trapped": null,
+  "stdout": "OSError 6 BlockingIOError",
+  "provider_reads": 1
+ }
+}

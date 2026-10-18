@@ -1,0 +1,62 @@
+{
+ "Liar(EINTR) whose property says ENOENT": [
+  null,
+  []
+ ],
+ "plain OSError, errno True": [
+  null,
+  []
+ ],
+ "plain OSError, errno an int subclass equal to ENOENT": [
+  null,
+  []
+ ],
+ "plain OSError, errno 2**70": [
+  null,
+  []
+ ],
+ "plain OSError, errno -1": [
+  null,
+  []
+ ],
+ "plain OSError, errno '2'": [
+  null,
+  []
+ ],
+ "plain OSError, errno ENOENT": [
+  "ENOENT",
+  []
+ ],
+ "Odd (a metaclass that says yes), errno None": [
+  null,
+  []
+ ],
+ "MaskedClass whose __class__ says FileNotFoundError": [
+  null,
+  []
+ ],
+ "EOPNOTSUPP": [
+  "ENOTSUP",
+  []
+ ],
+ "ConnectionRefusedError()": [
+  null,
+  []
+ ],
+ "TimeoutError() (a socket timeout)": [
+  "ETIMEDOUT",
+  []
+ ],
+ "PermissionError(EPERM)": [
+  "EPERM",
+  []
+ ],
+ "FileNotFoundError(EACCES)": [
+  "EACCES",
+  []
+ ],
+ "a mapped exception is not kept": [
+  "ENOENT",
+  true
+ ]
+}
