@@ -75,12 +75,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   - **Character encodings are wasi-libc's iconv**, not GNU libiconv: windows-1252, ISO-8859-2
     and -15, cp1251, KOI8-R, TIS-620 and UTF-16 round-trip every character; Shift_JIS,
     ISO-2022-JP and GB2312 read a few characters as other characters; cp932, EUC-JP, Big5 and
-    cp950 documents fail to parse; most CJK writes raise `LookupError`. **GB18030 is refused**
-    ("Unsupported encoding"), because wasi-libc decodes 1,617 of its characters wrongly without
-    an error: `recipes/iconv_refusals.c`, linked into the reactor with
-    `-Wl,--wrap=iconv_open`, until a wasi-sdk carries musl's fix
-    (`context/upstream/15-wasi-libc-gb18030-decoder/`). The README gives the workaround: decode
-    with Python's codec, parse the UTF-8.
+    cp950 documents fail to parse (in HTML and `recover=True` their text ends at the first
+    unreadable character, with no exception); most CJK writes raise `LookupError`. **GB18030
+    fails at its first non-ASCII byte, on purpose**, because wasi-libc decodes 1,617 of its
+    characters wrongly without an error: `recipes/iconv_refusals.c`, linked into the reactor
+    with `-Wl,--wrap=iconv_open`, `iconv` and `iconv_close`, until a wasi-sdk carries musl's fix
+    (`context/upstream/15-wasi-libc-gb18030-decoder/`). Strict XML raises, `recover=True` keeps
+    no root, the HTML parser keeps only the ASCII text before it, `read_html` raises; no
+    character is read wrongly in any mode. The README gives the working route: decode with
+    Python's codec and give lxml the text.
   - **XSLT reads and writes files by default.** A stylesheet without an `access_control`, or a
     document it loads with `document()`, can read any file in a grant (external entities
     included) and write into any writable grant; use `etree.XSLTAccessControl.DENY_ALL` for

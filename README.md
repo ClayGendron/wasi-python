@@ -39,8 +39,8 @@ promises.
 | fact | value |
 |---|---|
 | upstream patches | upstream patches carried: 6, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
-| build from pinned sources, downloads present | 8 min 13 s (macOS arm64, 10 cores, with matplotlib's two steps; spec 023's landing notes, 2026-10-18) |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 36.9 MB / 70.9 MB / 21.9 MB (3.15 line, with matplotlib; spec 023's landing notes) |
+| build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 40.4 MB / 74.4 MB / 22.1 MB (3.15 line, with matplotlib and lxml; spec 046's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
 | one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 83.4M guest instructions on 3.15 with matplotlib (81.9M before) |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
@@ -238,7 +238,7 @@ capped.
 
 **Character encodings are wasi-libc's**, not GNU libiconv's (which native wheels bundle; it is
 LGPL). Measured over each encoding's whole repertoire in the Basic Multilingual Plane, one
-element per character:
+element per character, with `etree`'s XML parser:
 
 | encoding | parse | write |
 |---|---|---|
@@ -251,18 +251,48 @@ element per character:
 | cp932 | the document fails ("Invalid bytes": NEC row 13 and IBM extensions) | 460 characters differ |
 | EUC-JP | the document fails (JIS X 0212 characters) | 6,069 characters differ |
 | Big5, cp950 | the document fails, as natively | `LookupError` |
-| GB18030 | **refused**: "Unsupported encoding: gb18030" | `LookupError` |
+| GB18030 | the document fails at its first non-ASCII byte ("Invalid bytes"), on purpose | `LookupError` |
 
 The characters read as others are mapping conventions, not damage: Shift_JIS `5C` and `7E` read
 as `\` and `~` (native: `¥` and `‾`), Shift_JIS `81 5F` and ISO-2022-JP's fullwidth reverse
 solidus as `\`, GB2312 `A1 AA` and `A1 A4` as `—` (U+2014) and `·` (U+00B7) (native: U+2015 and
-U+30FB). GB18030 is refused on purpose: wasi-libc decodes 1,617 of its characters as other
-characters without an error, so its `iconv_open` is wrapped to refuse it
-(`recipes/iconv_refusals.c`) until a wasi-sdk carries musl's fix. **The workaround** for every
-partial row is Python's own codecs, which are complete. To read, decode the bytes and parse the
-UTF-8: `etree.fromstring(data.decode("cp932").encode("utf-8"), etree.XMLParser(encoding="utf-8"))`,
-or parse a `str` with no encoding declaration. To write, serialize with `encoding="unicode"` and
-encode the `str` with Python.
+U+30FB).
+
+**In HTML and in recover mode, a document that fails does not raise: its text ends there.**
+libxml2's HTML parser (`lxml.html`, `etree.HTML`, pandas' `read_html`) and
+`XMLParser(recover=True)` recover from invalid bytes instead of raising: they keep the text up to
+the first character the conversion cannot read, drop the rest, and write
+`ERR_INVALID_ENCODING` in the parser's `error_log`. A cp932 page holding `表計算①②ⅰ` reads as
+`表計算` in `lxml.html` and in `read_html`, with no exception (native: all of it). So with the
+"document fails" rows, check `parser.error_log`, or decode with Python first (below).
+
+**GB18030 fails on purpose.** wasi-libc decodes 1,617 of its characters as other characters
+without an error. So its decoder is wrapped (`recipes/iconv_refusals.c`, until a wasi-sdk carries
+musl's fix): a GB18030 decode passes ASCII through and fails at the first byte above it. In no
+mode is a character read wrongly:
+
+- strict XML (`etree.fromstring`, `etree.parse`) raises `XMLSyntaxError` ("Invalid bytes in
+  character encoding");
+- `XMLParser(recover=True)` gives no root (`fromstring` returns `None`) and logs
+  `ERR_INVALID_ENCODING`;
+- the HTML parser keeps only the ASCII text before the first Chinese character, as above (a
+  page whose `<title>` is ASCII keeps its title; the body's text after the first non-ASCII byte
+  is gone);
+- `pd.read_html` finds no table with lxml, then tries `bs4`, which is not in the build, and
+  raises `ImportError` (a table entirely before the first non-ASCII byte would still be read);
+- naming GB18030 to lxml (`XMLParser(encoding="gb18030")`, `read_html(…, encoding="gb18030")`,
+  `tostring(…, encoding="gb18030")`) raises `LookupError`.
+
+Refusing the encoding outright would have been worse: the HTML parser and recover mode then fall
+back to windows-1252 and read every Chinese character wrongly, silently.
+
+**The working route** for GB18030 and every partial row is Python's own codecs, which are
+complete (CPython's `gb18030` codec among them): decode the bytes in Python and give lxml the
+text. To read XML, `etree.fromstring(data.decode("gb18030").encode("utf-8"),
+etree.XMLParser(encoding="utf-8"))`, or parse a `str` with no encoding declaration; to read
+HTML, `lxml.html.document_fromstring(data.decode("gb18030"))`, or
+`pd.read_html(io.StringIO(data.decode("gb18030")))`. To write, serialize with
+`encoding="unicode"` and encode the `str` with Python.
 
 Left out, or different, on purpose:
 

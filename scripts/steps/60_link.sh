@@ -104,7 +104,7 @@ link=$(grep -- '-o python.wasm Programs/python.o' "$L/make-n.txt" | tail -n 1)
 [ -n "$compile" ] && [ -n "$link" ] || die "make -n python.wasm printed no compile or link command"
 compile=$(printf '%s' "$compile" | sed "s#[^ ]*Programs/python\.c#$HERE/recipes/reactor_main.c#; s#-o Programs/python\.o#-I$L -o Modules/reactor_main.o#")
 guard=$(printf '%s' "$compile" | sed "s#[^ ]*/reactor_main\.c#$HERE/recipes/iconv_refusals.c#; s#-o Modules/reactor_main\.o#-o Modules/iconv_refusals.o#")
-WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open"
+WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close"
 link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o Modules/iconv_refusals.o#")
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \

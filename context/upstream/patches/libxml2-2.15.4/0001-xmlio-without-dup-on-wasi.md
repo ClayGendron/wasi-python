@@ -86,6 +86,16 @@ it, and that branch's failure path calls `close(fd)` whatever the `owned` flag s
 covers only the uncompressed path. The 2.15 news lists zlib file I/O as a removal candidate; a
 merge request may say so, or extend the flag to the compression branch.
 
+**One behaviour that changes on WASI for public callers.** With `dup`, `xmlInputFromFd` reads
+from a copy, so a caller may close its own descriptor as soon as the reader or parser is made.
+Without it, the buffer reads the caller's descriptor itself, so a caller that creates a reader
+with `xmlReaderForFd` or parses with `xmlCtxtReadFd` (both reach `xmlInputFromFd`:
+`parserInternals.c:2026`, `xmlreader.c:5099`) and closes its `fd` before reading is done would
+now fail to read. Their documentation already says the descriptor is not closed for the caller,
+and keeping it open until the read is done is the natural use, but a merge request should say
+so. lxml calls neither (READ: no `*Fd` entry point in its sources), so this project's guest is
+unaffected (the build review of spec 046, finding 4).
+
 **A form upstream may prefer.** The default opener could hand its descriptor to the buffer on
 every platform, dropping one `dup` and one `close` per opened file; only `xmlInputFromFd`
 (caller-owned descriptors) and `"-"` would keep `dup` where it exists. That is a wider change

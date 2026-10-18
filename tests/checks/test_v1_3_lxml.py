@@ -229,8 +229,9 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
 # Spec 046, Decision 9: each encoding over its whole BMP repertoire (every character Python's codec
 # encodes, one element each), parsed from a document in that encoding and written back to it. The
 # lines are the guest's, as evidence/encodings_whole_repertoire.txt in
-# context/upstream/8-libxml2-input-without-dup/ records them; a wasi-sdk whose iconv tables change
-# turns this red, and the README's table changes with it.
+# context/upstream/8-libxml2-input-without-dup/ records them, but GB18030's, which the revised
+# guard (the build review's finding 1) fails as invalid bytes instead of refusing; a wasi-sdk whose
+# iconv tables change turns this red, and the README's table changes with it.
 ENCODINGS = """
 import hashlib
 from lxml import etree
@@ -287,7 +288,7 @@ euc-jp | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1
 | write bad 6069 sha aa83972b2b9c e.g. U+00A1,U+00A4,U+00A5,U+00A6
 iso-2022-jp | parse 6880/6881 bad 1 e.g. U+FF3C | write bad 1 sha 963cc0734703 e.g. U+FF3C
 gbk | parse 21791/21791 bad 0 | write RAISES LookupError unknown encoding: 'gbk'
-gb18030 | parse RAISES XMLSyntaxError Unsupported encoding: gb18030, line 1, column 39 (<string>,  \
+gb18030 | parse RAISES XMLSyntaxError Invalid bytes in character encoding, line 1, column 39 (<str \
 | write RAISES LookupError unknown encoding: 'gb18030'
 gb2312 | parse 7443/7445 bad 2 e.g. U+2015,U+30FB | write RAISES LookupError unknown encoding: \
 'gb2312'
@@ -308,8 +309,8 @@ def test_encodings_are_wasi_libcs_as_documented(guest) -> None:
     each encoding's whole repertoire. Seven encodings round-trip every character; Shift_JIS,
     ISO-2022-JP and GB2312 read a few characters as other characters (mapping conventions); cp932,
     EUC-JP, Big5 and cp950 documents fail; the CJK writes but Shift_JIS's and ISO-2022-JP's raise
-    `LookupError`; and GB18030, which wasi-libc decodes wrongly without an error, is refused
-    (`recipes/iconv_refusals.c`). About 31 G fuel, so on the snapshot only."""
+    `LookupError`; and GB18030, which wasi-libc decodes wrongly without an error, fails at its
+    first non-ASCII byte (`recipes/iconv_refusals.c`). About 31 G fuel, so on the snapshot only."""
     r = guest("snapshot", ["-c", ENCODINGS], fuel=40 * 10**9)
     assert r.exit_code == 0, r.describe()
     assert r.text == ENCODINGS_WANT, r.text
@@ -342,6 +343,76 @@ def test_the_readmes_encoding_workaround_reads_what_iconv_cannot(guest) -> None:
     r = guest("snapshot", ["-c", WORKAROUND], fuel=20 * 10**9)
     assert r.exit_code == 0, r.describe()
     assert r.text == "cp932 7395 6\neuc-jp 13010 2\ngb18030 56926 0\nbig5 13706 0\n", r.text
+
+
+GB18030 = """
+import io, json
+import lxml.html
+import pandas as pd
+from lxml import etree
+
+TEXT = "中文网页：数据表格" + chr(0xF900) + chr(0xF901)
+out = {}
+
+def case(label, run):
+    try:
+        out[label] = ["ok", run()]
+    except Exception as e:
+        out[label] = [type(e).__name__, str(e)[:80]]
+
+xml = ('<?xml version="1.0" encoding="GB18030"?><r>%s</r>' % TEXT).encode("gb18030")
+page = ('<html><head><meta charset="gb18030"><title>t</title></head><body><p>%s</p>'
+        '<p>after</p></body></html>' % TEXT).encode("gb18030")
+table = ('<html><head><meta charset="gb18030"></head><body><table><tr><th>名</th></tr>'
+         '<tr><td>中文</td></tr></table></body></html>').encode("gb18030")
+case("xml", lambda: etree.fromstring(xml).text)
+def recover():
+    p = etree.XMLParser(recover=True)
+    r = etree.fromstring(xml, p)
+    return [None if r is None else r.text, [e.type_name for e in p.error_log]]
+case("xml recover", recover)
+def html():
+    p = lxml.html.HTMLParser()
+    d = lxml.html.document_fromstring(page, parser=p)
+    return [[e.text for e in d.iter("p")], [e.type_name for e in p.error_log]]
+case("lxml.html", html)
+case("read_html", lambda: pd.read_html(io.BytesIO(table))[0].to_dict("list"))
+case("encoding=", lambda: etree.fromstring(xml, etree.XMLParser(encoding="gb18030")).text)
+case("write", lambda: etree.tostring(etree.fromstring("<r>中</r>"), encoding="gb18030"))
+case("python's codec, xml", lambda: etree.fromstring(xml.decode("gb18030").split("?>", 1)[1]).text)
+case("python's codec, html", lambda: lxml.html.document_fromstring(page.decode("gb18030"))
+     .findtext(".//p"))
+case("python's codec, read_html", lambda: pd.read_html(io.StringIO(table.decode("gb18030")))[0]
+     .to_dict("list"))
+print(json.dumps(out, ensure_ascii=False))
+"""
+TEXT = "中文网页：数据表格" + chr(0xF900) + chr(0xF901)
+
+
+@BINARY
+def test_gb18030_is_never_silently_wrong(guest, which) -> None:
+    """wasi-libc decodes 1,617 GB18030 characters wrongly without an error, so the guard
+    (`recipes/iconv_refusals.c`) lets a GB18030 decode pass ASCII and fail at the first byte
+    above it (spec 046, Decision 9, revised against the build review's finding 1). In no mode is
+    a character decoded wrongly: strict XML raises "Invalid bytes"; `recover=True` keeps no
+    root; lxml's HTML parser ends the text there (an `ERR_INVALID_ENCODING` in its error log),
+    where refusing the encoding made it read the page as windows-1252; `read_html` finds no table
+    with lxml and raises (bs4 is not in the build); asking for GB18030 by name, to read or to
+    write, raises `LookupError`. Python's own codec, then lxml, reads every character."""
+    r = guest(which, ["-c", GB18030])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    invalid = "Invalid bytes in character encoding"
+    assert got["xml"][0] == "XMLSyntaxError" and invalid in got["xml"][1], got["xml"]
+    assert got["xml recover"] == ["ok", [None, ["ERR_INVALID_ENCODING"]]], got["xml recover"]
+    assert got["lxml.html"] == ["ok", [[None], ["ERR_INVALID_ENCODING"]]], got["lxml.html"]
+    assert got["read_html"][0] == "ImportError", got["read_html"]
+    assert got["encoding="][0] == "LookupError", got["encoding="]
+    assert got["write"][0] == "LookupError", got["write"]
+    assert got["python's codec, xml"] == ["ok", TEXT], got["python's codec, xml"]
+    assert got["python's codec, html"] == ["ok", TEXT], got["python's codec, html"]
+    want = ["ok", {"名": ["中文"]}]
+    assert got["python's codec, read_html"] == want, got["python's codec, read_html"]
 
 
 DECOMPRESS = """

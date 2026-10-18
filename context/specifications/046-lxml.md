@@ -1,11 +1,13 @@
 # 046 — lxml, with libxml2 and libxslt built in
 
-- **Status:** **built 2026-10-18; awaiting its build review** (landing notes below; branch
-  `spec/046-lxml`, rebased onto main `ff5c568`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
+  confirmation** (landing notes below, with "Revised against the build review" and a
+  Disposition; branch `spec/046-lxml`, rebased onto main `ff5c568`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): all ten findings that concern it
-  (1, 2, 4 to 8) are written in, and the review's Disposition says where. Awaiting the review's
-  confirmation. It changes the build recipe and the artifact
-  set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
+  (1, 2, 4 to 8) are written in, and the review's Disposition says where; the review confirmed
+  them. It changes the build recipe and the artifact set, so it was reviewed once more before it
+  was built (constitution §5.6), and its build was reviewed
+  (`build/reviews-evidence/046-buildreview/046-lxml-2026-10-18.md`, the lane's copy). It is build-class: it
   touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It
   carries one upstream patch (§4.1, to libxml2), so the review reads the patch and its facts
   sheet (spec 020, Decision 8).
@@ -285,8 +287,9 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      imports stay WASI preview 1 and the door (EXECUTED on the scratch binary: the same 43
      imports as today's).
    - **The GB18030 guard** (Decision 9): step 60 compiles `recipes/iconv_refusals.c` with the
-     reactor's own compile flags and adds it, with `-Wl,--wrap=iconv_open`, to the reactor's
-     link beside the four `--wrap` flags it already passes. Only the reactor link (and so the
+     reactor's own compile flags and adds it, with `-Wl,--wrap=iconv_open` (and, since the
+     build review, `-Wl,--wrap=iconv` and `-Wl,--wrap=iconv_close`), to the reactor's link
+     beside the four `--wrap` flags it already passes. Only the reactor link (and so the
      snapshot made from it) carries it; the interpreter `make` links for CPython's own build is
      not shipped. libxml2 is the only caller of `iconv_open` in the binary (EXECUTED: the
      link map names `iconv.c.obj` only since libxml2 came in).
@@ -356,13 +359,39 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
    | cp932 | **the document fails** ("Invalid bytes": NEC row 13 and IBM extensions, lead bytes `0x87`, `0xED`) | 460 differ | 6 differ |
    | EUC-JP | **the document fails** (every JIS X 0212 character, lead byte `0x8F`) | 6,069 differ | 2 differ |
    | Big5, cp950 | the document fails | `LookupError` | parse fails too; write works |
-   | GB18030 | **refused**: "Unsupported encoding: gb18030" (the guard below) | `LookupError` | 1 differs; write 19 |
+   | GB18030 | **fails at its first non-ASCII byte** ("Invalid bytes", the guard below) | `LookupError` | 1 differs; write 19 |
 
    The "read as another character" rows are mapping conventions, not corruption (EXECUTED,
    `enc_which.py`): Shift_JIS `5C` and `7E` read as `\` and `~` (U+00A5 and U+203E natively),
    `81 5F` and ISO-2022-JP's fullwidth reverse solidus read as `\`, and GB2312 `A1 AA` and
    `A1 A4` as U+2014 and U+00B7 (U+2015 and U+30FB natively). The README lists each.
-   - **GB18030 fails loudly, by a recipe.** Unguarded, wasi-libc's GB18030 decoder reads 1,617
+   - **GB18030 fails loudly, by a recipe** (revised against the build review's finding 1; the
+     first form, below, refused the encoding at `iconv_open`, and the review showed that
+     libxml2's HTML parser and recover mode then fall back to windows-1252 and read every
+     non-ASCII character of a GB18030 page wrongly, silently: `pd.read_html` gave
+     `{'Ãû': ['ÖÐÎÄ']}` for `{'名': ['中文']}`). **The revised guard** opens a GB18030 decode
+     and gives it a handle of its own: ASCII passes through (GB18030's own single-byte range, so
+     that is the right decoding, and the HTML parser opens a declared encoding only if it passes
+     ASCII through) and the first byte above it fails with `EILSEQ`, as an invalid byte would;
+     encoding *to* GB18030 is still refused at the open, so lxml's own lookups (`encoding=` on a
+     parser or a serializer) raise `LookupError`. Step 60 wraps `iconv_open`, `iconv` and
+     `iconv_close`. EXECUTED on the rebuilt set, a GB18030 document of `中文网页：数据表格`,
+     U+F900 and U+F901, in every mode the review named, and no character is read wrongly in
+     any: strict XML raises `XMLSyntaxError` "Invalid bytes in character encoding";
+     `recover=True` gives no root and logs `ERR_INVALID_ENCODING`; `lxml.html` keeps only the
+     ASCII text before the first Chinese character (the `<title>`; the body's text after it is
+     gone) and logs `ERR_INVALID_ENCODING`; `pd.read_html` finds no table with lxml and raises
+     `ImportError` for bs4, which the build lacks (a table wholly before the first non-ASCII
+     byte is still read); naming the encoding raises `LookupError`. Python's own codec, then
+     lxml, reads every character in each route. A check holds each mode
+     (`test_gb18030_is_never_silently_wrong`, both binaries). **Not chosen:** (a) keeping the
+     refusal and documenting the fallback, which leaves every non-ASCII character of a GB18030
+     HTML page wrong; (b) no guard, which leaves 1,617 rare characters silently wrong and costs
+     about 101.5 G fuel to decode the whole repertoire; (c) routing GB18030 to wasi-libc's GBK
+     decoder, which needs no new tables but would read the two-byte forms by GBK's mapping,
+     which differs from GB18030's in places (as GB2312's `A1 AA` and `A1 A4` do above), so some
+     characters would be silently wrong again; it stays a later option, with a whole-repertoire
+     measurement first. **The first form**, kept for the record: Unguarded, wasi-libc's GB18030 decoder reads 1,617
      of 56,926 characters as other characters with no error (the four-byte forms of U+F900 to
      U+FFFD come back shifted, U+F900 as U+F100; neither Python's mapping nor GNU libiconv's;
      INFERRED a defect in musl's decoder as wasi-libc 33 ships it). Silently wrong text is worse
