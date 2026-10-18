@@ -4,7 +4,8 @@
   (`../reviews/027-the-build-says-where-it-is-spec-2026-10-17.md`), whose confirmation passed it
   for build with five conditions (A to E), now written in. Built 2026-10-17; build-reviewed
   (`../reviews/027-the-build-says-where-it-is-2026-10-17.md`, verdict: lands once findings 1 and 3
-  are fixed); revised against it the same day, awaiting the reviewer's confirmation.
+  are fixed); revised against it the same day and confirmed by the reviewer. Landed 2026-10-17
+  (accepted on `1c8a4bb`; dry run 39084581927).
 - **Owner:** Clay Gendron
 - **Kind:** the build driver (`scripts/build.sh`, a new `scripts/steps/progress.sh`,
   `scripts/00_download.sh`'s per-pin lines), unit checks in `tests/unit/`, `README.md` (its
@@ -335,3 +336,10 @@ After the revision (EXECUTED, main tree, `final-runs.txt`, `judge2.txt`):
 - The one failure is still `test_manifest_recipes_match_the_tree`. It passes once step 90
   re-runs on the committed scripts.
 - `build/progress/latest.json` was restored byte for byte (`7530f697…`).
+
+**Landed 2026-10-17.** The build reviewer's confirmation (in the review) found the four
+surviving mutants caught (27 of 30) and the 83 checks green in 32 runs with SIGINT ignored. The
+lane re-ran step 90 on `1c8a4bb`, judged that commit (741 passed, 4 skipped; v1 188/190, both
+blocked as before; lost 0, grew 0, judge changed: `tests/unit/test_build_progress.py`), and
+accepted it with `--accept-judge` (`dc188a6`). Release dry run 39084581927 on `dc188a6`: every
+job passed, the arm64 Linux rebuild from the pins and "the same bytes from every host" included.
