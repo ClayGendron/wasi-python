@@ -1,18 +1,19 @@
 # 060 — A per-run budget of request bytes
 
-- **Status:** confirmed for build 2026-10-18 (the confirmation names no conditions:
+- **Status:** built 2026-10-18; awaiting its build review. Built on
+  `spec/060-a-per-run-budget-of-request-bytes` from main `5e66995` (`f77d97d`; the Landing
+  notes). Before that: confirmed for build 2026-10-18 (the confirmation names no conditions:
   `build/reviews-evidence/060-spec/060-a-per-run-budget-of-request-bytes-spec-2026-10-18-confirmation.md`
-  in the main tree, "Confirmed. All six findings are answered correctly"). Drafted 2026-10-18 on
-  `spec/060-a-per-run-budget-of-request-bytes` from main `5e66995` (`4111588`); reviewed before
-  build the same day
+  in the main tree, "Confirmed. All six findings are answered correctly"). Drafted 2026-10-18
+  (`4111588`); reviewed before build the same day
   (`build/reviews-evidence/060-spec/060-a-per-run-budget-of-request-bytes-spec-2026-10-18.md`
   in the main tree, for the lane to copy to `../reviews/` with its confirmation; verdict: "ready
   to build once F1 to F4 are written in", F5 and F6 a sentence each); revised against all six
   findings with the lane's rulings (`d1021ad`; the section "Disposition of the pre-build
-  review", near the end, says where each went); confirmed. It changes neither the guest's
-  imports nor its exports, the artifact set nor the build recipe, so §5.6 does not require a
-  review before build; one was asked because it adds a limit and a public knob, and answers a
-  security review's finding.
+  review", near the end, says where each went); confirmed (`b8cb370`). It changes neither the
+  guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 does not
+  require a review before build; one was asked because it adds a limit and a public knob, and
+  answers a security review's finding.
 - **Owner:** Clay Gendron
 - **Kind:** runner and docs; **parallel-safe**: `src/` and `tests/` only, with `README.md`,
   `CHANGELOG.md` and this specification. No build-class file: it touches no `scripts/`,
@@ -564,4 +565,141 @@ given, and where it went:
 
 ## Landing notes
 
-Not built yet.
+Built 2026-10-18 by the implementer (Claude Opus 5.5) in the worktree `../wasi_python-060`, from
+main `5e66995`. Every claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2 (and 3.11.14
+where named), wasmtime-py 49.0.0, against the frozen artifact set
+`build/sets/s-c4190ca065ada03a` of the main tree, whose `SHA256SUMS` is the main tree's
+`build/artifacts/SHA256SUMS`. Logs are in the worktree's git-ignored `build/060/`.
+
+### What was built
+
+- `f77d97d`: the code, the checks and the documents, in one commit so that it is green alone
+  (the snapshot and the README's reference must change with the code).
+  - `src/wasi_python/tools.py`: `_ToolHost(max_bytes=None)` and `_admitted`; `admit` refuses,
+    unread, a frame whose length would pass the budget, after the frame limit and the 1 MiB cap,
+    with `budget_exceeded` and a message naming bytes; `_list_answer` encodes the descriptors at
+    the first `list` frame and splices the id in; `_bound_keywords` follows `type(obj).__call__`
+    on every hop, a class included, and stops at the C slot types in the new private
+    `_C_SLOTS`.
+  - `src/wasi_python/runner.py`: `Defaults.tool_request_bytes = 16 << 20` (checked in
+    `__post_init__`, documented under `Attributes:`); `max_tool_request_bytes=` on `run` and
+    `run_async` (last, documented under `Args:`); `_checked` passes it to `_check_tools`, which
+    takes it keyword-only after `limits`, refuses it without `tools=`, reads an unset one from
+    the same `limits` (one read per call), and returns it only with `tools=`; `_tool_host`
+    passes `max_bytes=c.get("tool_request_bytes")`.
+  - The five checks of criteria 1 to 5; `tests/public_api.txt`'s four lines and the README's
+    reference, by `uv run python tests/harness/api.py --write`; the README (*Running it*'s
+    list of arguments, *Tools*' **Limits**, **The host's cost per frame** and **What `run`
+    refuses**, the kinds table, *Not protected*); the CHANGELOG's 0.1.0a6 Security and Changed
+    lines; and Decision 7's bullet, table cell and signature in
+    `055-bounded-sessions.md`, since 055 has not landed.
+
+### Seen failing first (criteria 1 to 5)
+
+The five checks against `5e66995`'s `src/`, before any code changed
+(`build/060/seen-failing-main.log`):
+
+```
+FAILED test_the_request_byte_budget_counts_admitted_bytes — TypeError: _ToolHost.__init__() got
+       an unexpected keyword argument 'max_bytes'
+FAILED test_the_tool_list_is_encoded_once — assert 5 == 1
+FAILED test_the_request_byte_budget_is_a_limit_with_a_default — AttributeError: 'Defaults'
+       object has no attribute 'tool_request_bytes'
+FAILED test_the_request_byte_budget_holds — TypeError: run() got an unexpected keyword argument
+       'max_tool_request_bytes'
+FAILED test_a_call_chain_of_any_depth_hides_bound_keywords — ('depth 2', … 'user_id': {'type':
+       'integer', 'default': 42}, 'api_key': {… 'default': 'sk-live-SECRET'} …)
+5 failed
+```
+
+Criterion 4's later cases, which depth 2's failure hides, were run on `5e66995` on their own
+(`build/060/main_cases.log`): the metaclass case published `['api_key', 'limit', 'user_id']`
+with the secret in the descriptor on 3.14.2 and 3.11.14; the `__call__` cycle raised
+`RecursionError` on 3.14.2 and a `TypeError` with another message ("its type hints cannot be
+read") on 3.11.14, as the review's F6 said.
+
+### The stand-ins
+
+Each mutant was applied to the built code by `build/060/standins.py`, its checks run, and the
+file restored from memory (`build/060/standins.log`, `build/060/standins-c3.log`); `git diff`
+of `src/` was empty afterwards.
+
+| stand-in | its checks | failing line |
+|---|---|---|
+| (a) refused frames' lengths counted | criterion 1 | the 400-byte frame refused: "1001 are used" |
+| (b) `>=` for `>` | criterion 1 | the frame that reaches 1000 refused: "600 are used" |
+| (c) the check in `__call__` (counting at `admit`) | criteria 1 and 3 | 1: `admit(401)` returns `None`; 3: the guest prints `'budget', 'budget'` |
+| (c') the check made after the read, counted only when it fits | criteria 1 and 3 | 1: `admit(401)` returns `None`; 3: `assert len(read) == 4`, read `[26, 400071, 400071, 400071, 75]` |
+| (d) the budget before the 1 MiB cap | criterion 1 | `'budget_exceeded' == 'too_large'` |
+| (l) no bytes for a frame answered `protocol` | criterion 1 | `admit(401)` returns `None` |
+| (e) the field's default `None` | criterion 2 | `None == (16 << 20)` |
+| (f)/(h) `_tool_host` passes no `max_bytes` | criteria 2 and 3 | 2: `None == 12345`; 3: the guest prints `[300000, 300000, 300000, 2]` |
+| (g) a second read of the defaults | `test_set_defaults_changes_what_run_reads` | "run reads the defaults once" |
+| (i) the walk follows `__call__` once (main's) | criterion 4 | depth 2 publishes `user_id` and `api_key` |
+| (j) no stop at C slot types | criterion 4 | `itemgetter`: "its wrappers nest deeper than 64" |
+| (k) the walk stops at a class | criterion 4 | the metaclass case publishes `user_id` and `api_key` |
+| (m) the list encoded per frame | criterion 5 | `assert 5 == 1` (encodes) |
+| (n) the first answer's id kept | criterion 5 | the answer for id 2 differs |
+
+### Criteria 6 to 9
+
+- **Criterion 6, the judge.** The fast tier while building, `uv run pytest -m "not slow" -n 3`,
+  last run on `f77d97d`'s tree (`build/060/fast.log`):
+
+  ```
+  wasi_python v1: 317/366 pass · 0 gap · 10 blocked · 0 fail · 39 deselected   (unit suite 1119/1127, 8 skipped)
+    v1.4  embedding           159/159
+  ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 8 · gained 2 · grew 0 · …
+  1436 passed, 18 skipped in 136.39s
+  ```
+
+  Against the pre-build review's fast tier on main (315/364, v1.4 157/157, unit suite
+  1116/1124), v1.4 gains exactly the two new checks and the unit suite the three units. The full
+  judge, once, serially, without `--accept` (`build/060/full.log`):
+
+  ```
+  wasi_python v1: 324/366 pass · 0 gap · 42 blocked · 0 fail   (unit suite 1119/1127, 8 skipped)
+    v1.4  embedding           159/159
+  ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 28 · gained 2 · grew 0 ·
+    upstream unrun 31 · judge changed: tests/checks/test_v1_4_embedding.py, tests/public_api.txt,
+    tests/unit/test_runner_tools.py and 1 more
+  1443 passed, 50 skipped in 279.55s (0:04:39)
+  ```
+
+  The 42 blocked are the worktree's missing source trees (numpy 17, pandas 16, and one each for
+  bzip2, cpython, sqlite, xz and zlib), the oracle, the prior-art clones, the wheel and "three
+  systems": not this change. The 2 gained are criteria 3 and 4.
+
+  `uv run python tests/harness/api.py --check` exits 0, and the snapshot's diff is exactly
+  Decision 9's four lines. `ruff check` and `ruff format --check` are green on `src/` and
+  `tests/`. No existing judge file's check was edited: the existing four-argument calls of
+  `_check_tools`, its exact no-tools result and the hand-built `c` dicts pass as they stand.
+  The lane accepts with `--accept-judge`: `tests/public_api.txt` and three test files changed.
+- **Criterion 7, benchmark facts** (`build/060/bench_built.py`, `build/060/bench_built.log`; not
+  checks). The research's flood of 40 worst-shape 1 MiB frames, with the real default in force:
+  16 frames read, 5.09 s of frame-host CPU, 16 `invalid_arguments` and 24 `budget_exceeded`
+  (12.50 s and 40 read before). A `list` frame through a real frame host: 0.009 ms with 5
+  tools, 0.027 ms with 100 and 0.584 ms with 1,000 (the review's P4 had 0.05, 1.10 and 21.95
+  ms).
+- **Criterion 8.** The README and the CHANGELOG carry Decision 11's text; 055's specification
+  carries Decision 7's bullet, its table cell and the keyword in `Session`'s signature.
+- **Criterion 9** does not apply: 055 has not landed.
+
+### Departures from the specification
+
+- **One more stand-in, (c').** Stand-in (c) as first written counted a frame at `admit` and
+  checked in `__call__`, so under criterion 3 the guest's output changed too, and the read count
+  was not the line that failed. The pre-build review's F3 (b) is about a mutant whose outcomes
+  are the same; (c') is that mutant (checked after the read, counted only when it fits), and
+  criterion 3 fails it on the count of frames read, as F3 (b) asked.
+- **Criterion 7's flood** ran from a script of its own on the built tree, not from
+  `bench060.py`'s part C, whose prototype wrapper would stack a second budget on the real one.
+- **The splice uses `PROTOCOL`** for the version, not a literal `1`; the bytes are the same.
+
+### Left over
+
+- The build review. The lane copies the pre-build review and its confirmation into
+  `../reviews/`.
+- 055's builder now reads the keyword in its own specification (Decision 7).
+- The guest's `ToolBudgetExceeded` docstring waits for the next change to the guest package
+  (Scope).
