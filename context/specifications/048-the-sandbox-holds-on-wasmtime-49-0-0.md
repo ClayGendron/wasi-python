@@ -2,7 +2,9 @@
 
 - **Status:** drafted 2026-10-18; revised the same day against its pre-build design review
   (`../reviews/048-the-sandbox-holds-on-wasmtime-49-0-0-spec-2026-10-18.md`, eight findings, all
-  answered in its Disposition). Not built. Spec 032's dirent-padding fix is now on main
+  answered in its Disposition); confirmed for build with conditions, written in (the review's
+  Confirmation: C1 in Decision 5 and criterion 7, C2 in Decision 2 and criterion 2; builder notes
+  N1 and N2 stay in the review). Not built. Spec 032's dirent-padding fix is now on main
   (`ebc9f53`), so the dependency it stood behind is met. It rebases on spec 034 (writable mounts,
   in build review on branch `spec/034-writable-mounts`) — both edit `_Files._path_rename` — on
   whichever of 048 and 034 lands first (finding F8).
@@ -109,6 +111,16 @@ spec 032's machinery, removed when the pin moves.
    fuel an unguarded one would. The stat trampoline is instantiated before the fuel cap, like the
    main trampoline 032 binds.
 
+   **Once a trailing slash is seen, the rename is never forwarded with it** (condition C2). The
+   slash test reads each path's last byte from guest memory; if a path does not fit in guest
+   memory, the call is forwarded unchanged (wasmtime cannot read it either, so no rename happens
+   and the errno stays as today's). After a slash is seen, any failure to stage the source answers
+   an errno and **does not forward**: a source longer than the private page allows (65,536 − 64
+   bytes), or longer than `MAX_PATH` if the builder reuses `_Files._path`, answers `ENAMETOOLONG`
+   (37). This matters because wasmtime 49.0.0 has no whole-path length limit (it opens the parent
+   one component at a time and calls `renameat` on the final name), so a long `./././…/up/`
+   forwarded unchanged would skip the rule entirely.
+
 3. **A stat error is passed through; `ENOTDIR` only for a successful stat on a non-directory**
    (finding F3). wasmtime 49.0.3 runs `stat_unchecked(..)?`: a failing stat returns its own error
    (`ENOENT` for a missing source, `ENOTDIR` for a non-directory parent), and only a stat that
@@ -150,11 +162,14 @@ spec 032's machinery, removed when the pin moves.
    advisory JSON (GHSA-96f6-r43r-8c24: `36.0.17, 48.0.4, 49.0.2`; GHSA-m9f7-9w4p-gv38: `36.0.18,
    48.0.6, 49.0.3`) — not an "at or past" comparison, because wasmtime's releases are not linearly
    ordered (`v50.0.0-rc.1` predates `v49.0.3`, `releases.txt`) and wasmtime-py's own version is
-   not the version of the wasmtime it bundles (they match for 49.0.0 only, facts sheet 12). While
-   the floor still admits a wasmtime not on the padding list, the `fd_readdir` guard and its checks
-   are present; while it still admits one not on the rename list, the `path_rename` guard and its
-   checks are present; when the floor admits neither, each guard and its checks are deleted and the
-   native call is used again. The spec that moves the pin must record which wasmtime the
+   not the version of the wasmtime it bundles (they match for 49.0.0 only, facts sheet 12). The
+   removal predicate (condition C1): a guard may go only when, **for every major.minor line the
+   `wasmtime` requirement admits**, that guard's advisory lists a patched version in that line at
+   or below the lowest version the requirement admits in that line; if any admitted line has no
+   listed version, the guard stays. So `>=49,<50` keeps both guards (49.0.0 is below 49.0.2 and
+   49.0.3); `>=49.0.3,<50` lets both go (49.0.2 and 49.0.3 are at or below 49.0.3); `>=49.0.3,<51`
+   keeps both, because the 50.x line has no listed patched version. When a guard may go, it and
+   its checks are deleted and the native call is used again. The spec that moves the pin must record which wasmtime the
    wasmtime-py wheel bundles (EXECUTED), because the two numbers can differ. Facts sheet 12 stays
    the standing upstream ask (owner question 86).
 
@@ -286,7 +301,11 @@ caller and no artifacts, as `test_runner_mounts.py` does. Nothing measures wall-
    target slash and renames by plain names, so these succeed today on every host, including Linux):
    `rename("f", "x/")` and `rename("s", "x/")` each raise `NotADirectoryError`; `rename("d", "d4/")`
    succeeds; `rename("d", "d3")` (no slash) succeeds. After the refused renames, `d` and `s` are
-   both still in place (the in-sandbox symlink is not moved either). **Seen failing first on every
+   both still in place (the in-sandbox symlink is not moved either). An over-long case (condition
+   C2): a trailing-slash rename whose source path is longer than the stat page allows (or than
+   `MAX_PATH`, whichever the build uses), built from repeated `./` components and ending in the
+   symlink `s/`, raises `OSError` with errno `ENAMETOOLONG`, and `s` and `d` are still in place.
+   **Seen failing first on every
    host:** the target-slash cases `rename("f","x/")` and `rename("s","x/")` succeed on today's
    49.0.0 everywhere, so the assertion that they are `ENOTDIR` fails first on Linux too, not only
    where the source-slash symlink escapes.
@@ -326,12 +345,13 @@ caller and no artifacts, as `test_runner_mounts.py` does. Nothing measures wall-
    reads the **floor of the `wasmtime` requirement in `pyproject.toml`** (not `uv.lock`), and two
    explicit lists of patched versions written in the check and citing the advisory JSON
    (GHSA-96f6-r43r-8c24: `36.0.17, 48.0.4, 49.0.2`; GHSA-m9f7-9w4p-gv38: `36.0.18, 48.0.6,
-   49.0.3`). While the floor still admits a wasmtime not on the padding list, the `fd_readdir`
-   guard is present in the source; while it admits one not on the rename list, the `path_rename`
-   guard is present; when the floor admits neither, each guard and its checks are gone. A version
-   not on a list keeps its guard (no "at or past" ordering, since wasmtime's releases are not
-   linearly ordered). A guard so the belt is removed when, and only when, the published floor stops
-   admitting a vulnerable wasmtime.
+   49.0.3`), and applies Decision 5's predicate (condition C1): a guard may go only when every
+   major.minor line the requirement admits has a listed patched version at or below the lowest
+   version admitted in that line. A table of fixed inputs is checked first: `>=49,<50` → both
+   guards required; `>=49.0.3,<50` → both may go; `>=49.0.3,<51` → both required (50.x unlisted).
+   Then the real requirement is judged: each guard is present in the source while required, and
+   absent with its checks once it may go. A guard so the belt is removed when, and only when, the
+   published requirement stops admitting a vulnerable wasmtime.
 8. `uv run ruff check`, `uv run ruff format --check`, and `uv run pytest` green, with
    `--accept-judge` for the new and changed checks; ratchet vs the base: lost 0, grew 0 (the guard
    is fuel-neutral, so no fuel golden grows; if a byte count moves, it is stated).

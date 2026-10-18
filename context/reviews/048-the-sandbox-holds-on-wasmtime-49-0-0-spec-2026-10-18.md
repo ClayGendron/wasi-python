@@ -369,3 +369,15 @@ round is needed before build. The build review checks C1 and C2 and notes N1 and
 One line: the revision fixes all eight findings; write in a floor rule that can actually retire
 the guard (C1) and never forward a slash-bearing rename when the source cannot be staged (C2),
 then build.
+
+### Author's note (2026-10-18)
+
+Both conditions are written into the specification. C1: Decision 5 now states the per-line
+predicate (a guard goes only when every major.minor line the requirement admits has a listed
+patched version at or below its lowest admitted version), and criterion 7 checks `>=49,<50`,
+`>=49.0.3,<50` and `>=49.0.3,<51` as fixed inputs before judging the real requirement. C2:
+Decision 2 says a path that does not fit in guest memory is forwarded unchanged, and once a
+trailing slash is seen any failure to stage the source (past the private page, or `MAX_PATH` if
+`_Files._path` is reused) answers `ENAMETOOLONG` without forwarding; criterion 2 gains the
+over-long `./…/s/` case. The Status line says "confirmed for build with conditions, written in".
+N1 and N2 stay here for the builder.
