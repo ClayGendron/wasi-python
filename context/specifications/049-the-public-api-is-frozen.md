@@ -1,6 +1,6 @@
 # 049 — The public API is frozen and documented
 
-- **Status:** drafted 2026-10-18; reviewed before build the same day
+- **Status:** confirmed for build 2026-10-18 with two conditions (the review's Confirmation), written here: **C1**, the README check blanks code fences first, indented fences included, searches inside them for the same internal names, and pairs backticks only outside them, with a stand-in in criterion 6 that pairs naively (0 of 6) and one that blanks only line-start fences (3 of 6); **C2**, the Decision 13 sentence for `context/README.md` is written by the builder on its branch, not by the lane at landing (§5.7). 034 lands first. drafted 2026-10-18; reviewed before build the same day
   (`../reviews/049-the-public-api-is-frozen-spec-2026-10-18.md`; verdict: ready to build once
   F1 to F7 are written in) and revised against all thirteen findings (the review's
   Disposition says where each went); awaiting the reviewer's confirmation. It changes neither

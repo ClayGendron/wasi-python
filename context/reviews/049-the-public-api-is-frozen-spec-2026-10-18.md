@@ -467,3 +467,127 @@ F7 makes `set_defaults` say what it does under threads. F8 to F13 are wording an
 One line: the frozen surface is the right one, but fix `tool`'s overload, the `None`-taking
 annotations, the exception list and the README's bare `DEFAULTS` before freezing, read
 docstrings with `cleandoc`, and land 034 first.
+
+## Confirmation (2026-10-18)
+
+The same reviewer checked each disposition against its finding. The revised spec, question 88
+and the Disposition were read at `d695696` on main. Nothing in the repository was edited.
+
+**What I ran (EXECUTED, `uv run` only, scripts in this review's scratch folder):**
+
+- `probe_readme_consts.py`. It applies the revised README rule of Decision 10 to `README.md`. The
+  rule looks for backticked spans that hold `wasi_python.runner|mounts|cli`, or that hold an
+  upper-case constant assigned at module level in `runner.py`, `mounts.py`, `cli.py` or
+  `__main__.py`, minus `Errno`'s members.
+  - On main it finds `constants: 46` and `spans: 6`, at lines 534, 690, 697, 818, 850 and 1079.
+    There are no false positives.
+  - On 034's branch (`9822812`) it finds `constants: 51` and `spans: 6`, at lines 535, 827, 834,
+    955, 987 and 1216. So 034 adds no new span, and the count the builder records after 034
+    stays 6.
+- A first, naive version of the same probe paired backticks across the whole file. It found **0
+  spans**. A second version blanked only fences at the start of a line and found **3**. Only after
+  blanking indented fences as well (`README.md:784–794`, a ```` ```python ```` block inside a list)
+  did it find 6. The drafter's own `probe_readme_constants.py` does not blank fences. It reaches 6
+  only because the two indented fences hold six backticks, which keeps the pairing even. See
+  condition 1.
+- The type and docstring probes from the first review were rerun where they still apply:
+  - `Defaults` accepts `None` for all five limits. This is unchanged, so change 4 is right.
+  - `vars(cls)["__doc__"]` is `None` for an undocumented class or exception, so nothing is
+    inherited.
+  - A dataclass's generated docstring starts with `f"{cls.__name__}("`.
+  - `cleandoc` gives the same text on 3.11 to 3.14.
+
+  So Decision 9's reading rule does what it says. The annotations and overloads cannot be probed
+  until they are built. Criterion 7 now checks their shape and evaluates both overloads.
+- The rename lines were checked against `grep`. The spec says 27 lines in 5 files: 8 in
+  `tests/test_api.py`, 2 in `tests/harness/paths.py`, 3 in `tests/unit/test_runner_tools.py`,
+  3 in `tests/unit/test_guest_tools.py` (`T.KINDS`; `T.PROTOCOL` stays) and 11 in
+  `tests/unit/test_tools.py`. That matches what I found.
+
+**Each finding against its disposition:**
+
+- **F1, confirmed.**
+  - The first overload is now `tool(fn, /, *, name=…, …) -> Tool`, which accepts the README's
+    `tool(call, name=…)` and the tests' call form.
+  - The second overload is `fn: None = None, /`, and it covers `@tool(...)`.
+  - Leaving `fn=` unpromised is stated, so a call written that way is not frozen.
+- **F2, confirmed.** Change 4 annotates the four limits as `… | None`. Change 1 annotates `host`
+  to return `bytes | bytearray | memoryview`. `async_workers` stays `int`, which is right, because
+  `_check_workers(None)` raises. Decision 12 now says the evaluation check cannot see an
+  annotation that is too narrow.
+- **F3, confirmed with condition 1.** The rule now catches all six spans, and catches nothing
+  else, but only if fenced blocks are handled. The Scope covers the six spans.
+- **F4, confirmed.**
+  - Decision 6 now lists what `run` raises today: `OSError`, `RuntimeError` (fork, shutdown, a
+    changed folder or zip copy), wasmtime-py's error (named but not promised), and any
+    non-`Exception` from the embedder's own code.
+  - The "never raises" sentence is narrowed correctly.
+  - One `RuntimeError` site is not named: "lost track of a call" (`runner.py:2007`). Its type is
+    already promised, so this needs no change.
+  - The gate fits the narrowed sentence, as `README.md:798–802` and `1026–1029` show: it refuses
+    and records.
+- **F5, confirmed.** The way docstrings and annotations are read is pinned. The
+  `from __future__ import annotations` line is asserted. `--check` covers both the snapshot and
+  the README block, so criterion 11 covers both too. Criterion 5 has stand-ins for a generated
+  docstring and an inherited one.
+- **F6, confirmed.** 034 lands first. The render and the checks may start earlier, because they
+  touch only `tests/`. The list of 034's lines is kept as a checklist. Criterion 2 counts 20
+  names.
+- **F7, confirmed.**
+  - `_current_defaults()` is read once, in `_checked`, and passed down. `run_async` reads it on
+    the caller's thread and gives `async_workers` to `_submit`.
+  - The swap is done under one lock.
+  - The behaviour of the two pools is documented, including "up to 12 at once".
+  - Criterion 10 counts both the reads and the lock.
+  - `monkeypatch.setattr(runner, "DEFAULTS", …)` still works, because the helper reads the module
+    global.
+- **F8, confirmed with condition 2.**
+  - Decision 8 names its two exceptions.
+  - Question 88 now covers the command line, the JSON keys, the exception types, `stats()` and
+    where the promise is recorded.
+  - The stale sentence is fixed.
+- **F9 to F13, confirmed.**
+  - `Artifacts` is made by the user, so its field order is promised.
+  - The 27 lines are listed, with the rule to rename by qualified reference.
+  - `PROTOCOL` is public, with 9 names in `wasi_python.tools.__all__` and 17 constants made
+    private.
+  - `run_async` is shortened in the README reference.
+  - Spec numbers are banned in every paragraph of a public docstring, with 14 counted on main.
+  - Every builder note from F13 is written in: the action map, `Tool.__call__`, the three
+    `FileProvider` methods, what `stats()` promises, `--package`, `newline="\n"`, the harness's
+    own parser, and the JSON `kind`.
+
+### Conditions (write into the specification before the build starts)
+
+1. **Fenced code in the README check (Decision 10, criteria 6 and 9).** The span scanner must
+   handle fenced blocks first, including indented ones. It should search their content for the
+   same internal names, because a code example that names `wasi_python.runner` misleads as much
+   as prose does. It then pairs inline backticks only outside the fences. Without this, one
+   README block with an odd number of backticks silently hides every later hit. Evidence above:
+   0 spans, then 3, then 6.
+   - Add a stand-in to criterion 6: a scratch README with an indented fence before a bare
+     `` `DEFAULTS.file_calls` `` still counts that span.
+   - The same parser finds the generated block's markers. Make it ignore marker text that
+     appears inside a fence.
+2. **The `context/README.md` sentence goes in the branch, not in the lane (Decision 13, Design).**
+   §5.7 has the lane compare the branch with what was reviewed. An edit the lane makes at landing
+   is a change nobody reviewed. The builder adds the sentence in the branch, and the build review
+   reads it like any other line. This changes no check, because the file is not a judge file.
+
+### Builder notes (no change to the specification needed)
+
+- Line numbers move after 034. On `9822812` the six spans are at 535, 827, 834, 955, 987 and
+  1216. Criterion 6 records the counts at build time, as the spec says.
+- The README pool sentence (Decision 2) and the `## API reference` section are new prose. Run
+  the README check over them too.
+
+### Verdict on the revision
+
+**Confirmed for build, with the two conditions above written in.** Every finding is fixed as its
+disposition says. The two conditions are small. Condition 1 closes a hole in a check that the
+revision itself introduced. Condition 2 keeps the landing to exactly what was reviewed. The order
+is unchanged: 034 lands first, and 049's render and checks may begin before it.
+
+One line: all thirteen fixes hold, so 049 is confirmed for build once the README scanner handles
+fenced blocks, indented ones included, and the `context/README.md` sentence rides in the branch,
+not in the lane.
