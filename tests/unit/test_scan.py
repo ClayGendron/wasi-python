@@ -924,6 +924,15 @@ def test_fp_override_names_the_family_as_whole_tokens() -> None:
         assert scan.fp_override(tok) is None, tok
     assert scan.fp_hits("clang -O3 '-ffp-model=precise' -c x.c") == ["-ffp-model=precise"]
     assert scan.fp_hits("wasmtime run --dir a::/ --config x.toml") == ["--config"]
+    # The build review's finding 1: a flag inside a quoted multi-flag string, or in NAME=-flag.
+    eh = (
+        'CXX_EH="-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false'
+        ' -fexceptions -ffp-model=precise"'
+    )
+    assert scan.fp_hits(eh) == ["-ffp-model=precise"]
+    assert scan.fp_hits("CFLAGS=-ffast-math") == ["-ffast-math"]
+    assert scan.fp_hits('SQLITE_OPTS="-DSQLITE_THREADSAFE=0 -DSQLITE_MAX_MMAP_SIZE=0"') == []
+    assert scan.fp_hits("clean $CC -O2 -D_FILE_OFFSET_BITS=64 -c a.c") == []
 
 
 MAKEFILE = """CC=\t\t/t/wasi-sdk/bin/clang
@@ -955,6 +964,15 @@ def test_fp_makefile_scan_reads_compiler_lines_and_flag_variables_only() -> None
         "/t/bin/clang --target=wasm32-wasip1 -O3 -c a.c\nwasmtime run --config x\n"
     )
     assert hits == [] and read == 1
+    # The build review's finding 3: automake's COMPILE variable runs the compiler by its value.
+    automake = (
+        "COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(AM_CFLAGS) $(CFLAGS)\n"
+        "all:\n\t$(AM_V_CC)$(COMPILE) -c -o a.o a.c\n"
+    )
+    hits, read = scan.fp_makefile_hits(automake)
+    assert hits == [] and read == 1, (hits, read)  # COMPILE by its value; the recipe line is not
+    hits, _ = scan.fp_makefile_hits(automake.replace("$(DEFS)", "$(DEFS) -Ofast"))
+    assert hits == ["COMPILE: -Ofast"], hits
 
 
 def test_fp_record_scan_requires_every_listed_record_and_lists_every_record(work) -> None:
@@ -1019,6 +1037,16 @@ def test_fp_pragmas_are_found_in_source_trees(work) -> None:
         "lib-1.0/b.c: a pragma turns contraction on",
         "lib-1.0/c.cpp: a pragma turns contraction on",
     ], hits
+    # The build review's finding 2: the project's own C under recipes/, force-included headers too.
+    recipes = work / "recipes"
+    write(recipes, "npy_rename.h", "#define npy_x wp_npy_x\n#pragma clang fp contract(fast)\n")
+    write(recipes, "reactor_main.c", "#pragma STDC FP_CONTRACT ON\nint main(void) { return 0; }\n")
+    write(recipes, "patches/numpy-2.5.2/0001.patch", "+#pragma STDC FP_CONTRACT ON\n")  # not C
+    hits = scan.fp_pragma_hits([recipes])
+    assert hits == [
+        "recipes/npy_rename.h: a pragma turns contraction on",
+        "recipes/reactor_main.c: a pragma turns contraction on",
+    ], hits
 
 
 def test_fp_cc1_line_must_carry_off_once_and_nothing_else() -> None:
@@ -1068,3 +1096,16 @@ def test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere() -> None
         STEP_10_FP, {"scripts/steps/30_zlib.sh": 'CFLAGS="-O2 -ffp-contract=off"\n'}
     )
     assert errors == ["scripts/steps/30_zlib.sh:1: sets -ffp-contract outside step 10"], errors
+    # The build review's finding 1, its own example: step 55's quoted C++ flags, and NAME=-flag.
+    planted = {
+        "scripts/steps/55_matplotlib.sh": (
+            'CXX_EH="-fwasm-exceptions -mllvm -wasm-use-legacy-eh=false'
+            ' -fexceptions -ffp-model=precise"\n'
+        ),
+        "scripts/steps/35_stdlib_libs.sh": "CFLAGS=-ffast-math\n",
+    }
+    errors = scan.fp_recipe_errors(STEP_10_FP, planted)
+    assert errors == [
+        "scripts/steps/35_stdlib_libs.sh:1: -ffast-math",
+        "scripts/steps/55_matplotlib.sh:1: -ffp-model=precise",
+    ], errors

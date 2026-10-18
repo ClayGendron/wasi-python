@@ -34,7 +34,10 @@ NOT_MACHINE_CHECKED = (
     "(number 89) · pandas beyond eight groups",
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
-    "bundled sub-licences · files a build adds inside a source tree",
+    "bundled sub-licences · files a build adds inside a source tree · "
+    # Spec 059: the gate sees the driver; the record scan sees meson, autoconf, CPython and step
+    # 60; a compile that leaves no record, or a pragma the grep misses, is caught by same-bytes.
+    "source pragmas and compiler options outside the scanned records (same-bytes is the backstop)",
 )
 # An accepted pass blocked by one of these is red: a product (artifact, runner, wheel) went missing,
 # is how a regression could hide. Other needs (clones, the oracle, source trees, git) are local
@@ -368,7 +371,8 @@ def render(
         examples += [f"GREW {g}" for g in ratchet.growth[:3]]
     if red:
         end.append("RED: " + "; ".join(red))
-    end += [f"not machine-checked: {NOT_MACHINE_CHECKED[0]}", f"  {NOT_MACHINE_CHECKED[1]}"]
+    end += [f"not machine-checked: {NOT_MACHINE_CHECKED[0]}"]
+    end += [f"  {line}" for line in NOT_MACHINE_CHECKED[1:]]
     fixed = len(head) + len(end)
     examples = examples[: max(0, MAX_LINES - len(lines) - fixed)]
     tail = head + examples + end

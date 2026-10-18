@@ -801,10 +801,23 @@ def _tokens(text: str) -> list[str]:
         return text.split()
 
 
+_ASSIGNED = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=(.*)$")
+
+
 def fp_hits(text: str) -> list[str]:
-    """The banned options among the whole tokens of one command line or variable value (a token
-    is read without the brackets, commas and quotes a meson list or a Makefile puts around it)."""
-    return [t for t in (fp_override(tok.strip("[](),;'\"")) for tok in _tokens(text)) if t]
+    """The banned options among the whole tokens of one command line or variable value. A token is
+    read without the brackets, commas and quotes a meson list or a Makefile puts around it; a
+    quoted multi-flag string (`CXX_EH="-fwasm-exceptions … -ffp-model=precise"`) is split again on
+    whitespace, and a leading `NAME=` is dropped (`CFLAGS=-ffast-math`), so a flag inside a shell
+    variable's value is a hit too (the build review's finding 1)."""
+    hits = []
+    for tok in _tokens(text):
+        for piece in tok.strip("[](),;'\"").split():
+            if not piece.startswith("-") and (m := _ASSIGNED.match(piece)):
+                piece = m[1]
+            if hit := fp_override(piece.strip("'\"")):
+                hits.append(hit)
+    return hits
 
 
 def _logical_lines(text: str) -> list[str]:
@@ -831,12 +844,14 @@ def is_compiler_line(line: str) -> bool:
 
 def fp_makefile_hits(text: str) -> tuple[list[str], int]:
     """(hits, lines read) over a Makefile: compile-flag variables (CC, CXX, CPP, and any name
-    holding CFLAGS, CXXFLAGS, CPPFLAGS, CCSHARED or OPT) and recipe lines that run a compiler."""
+    holding CFLAGS, CXXFLAGS, CPPFLAGS, CCSHARED or OPT, or whose value runs a compiler, as
+    automake's COMPILE does) and recipe lines that run a compiler."""
     hits: list[str] = []
     read = 0
     for line in _logical_lines(text):
         if m := _MAKE_ASSIGNMENT.match(line):
-            if _FLAG_VARIABLE.search(m[1]):
+            # By name, or by value: automake's `COMPILE = $(CC) $(DEFS) …` runs the compiler.
+            if _FLAG_VARIABLE.search(m[1]) or is_compiler_line(m[2]):
                 read += 1
                 hits += [f"{m[1]}: {h}" for h in fp_hits(m[2])]
         elif line.startswith("\t") and is_compiler_line(line):

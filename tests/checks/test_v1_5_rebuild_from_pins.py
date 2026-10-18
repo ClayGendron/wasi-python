@@ -127,8 +127,10 @@ def test_every_compile_contracts_nothing() -> None:
     errors, read = scan.fp_record_errors(paths.REPO)
     trees = [pair[1] for c in needs.SOURCE_COMPONENTS if (pair := pins.source_pair(c))]
     trees += [paths.BUILD / name for name in scan.MESON_BUILDS if (paths.BUILD / name).is_dir()]
-    errors += scan.fp_pragma_hits(trees)
-    read.append(f"source trees and meson folders grepped for pragmas: {len(trees)}")
+    # The project's own C under recipes/ too: the rename headers are force-included into every
+    # numpy and pandas compile, and reactor_main.c is compiled in step 60 (the build review, F2).
+    errors += scan.fp_pragma_hits([*trees, paths.REPO / "recipes"])
+    read.append(f"source trees, meson folders and recipes/ grepped for pragmas: {len(trees) + 1}")
     for clang in sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang")):
         errors += scan.fp_compiler_errors(clang.parent)
         read.append(f"{clang.parent.parent.name}: clang and clang++ probed with -###")

@@ -1,6 +1,10 @@
 # 059 — The x86_64 rebuild runs natively
 
-- **Status:** built 2026-10-18; awaiting its build review (Landing notes). Confirmed for build
+- **Status:** built; revised against its build review; awaiting the reviewer's confirmation
+  (Landing notes, "Revised against the build review"; the review:
+  `build/reviews-evidence/059-buildreview/059-the-x86-64-rebuild-runs-natively-2026-10-18.md` in
+  the main tree, git-ignored, copied to `../reviews/` by the lane). Rebased onto main `cd97dac`
+  (062 landed). Confirmed for build
   2026-10-18 (N1 and N2 written in and checked by the lane:
   `build/reviews-evidence/059-spec/059-the-x86-64-rebuild-runs-natively-spec-2026-10-18-confirmation.md`
   in the main tree); built on this branch, rebased onto main `dfa820c` (023 landed). Drafted 2026-10-18 on `spec/059-the-x86-64-rebuild-runs-natively` from main
@@ -715,13 +719,14 @@ here. Not yet reviewed: the build review is next, then the lane's acceptance.
   `HOSTRUNNER= …/wasmtime run --argv0 … --dir … --config …/Platforms/WASI/wasmtime.toml` and
   `PYTHON_FOR_BUILD=_PYTHON_HOSTRUNNER='…/wasmtime run … --config …' …` carry `--config`; neither
   is a compile-flag variable or a compiler line, so the check reads past them; the check's output
-  for that Makefile: `Python-3.15.0/cross-build/wasm32-wasip1/Makefile: 91 compile-flag variables
-  and compiler lines`. Every record read, with its count, is in the check's output (`uv run pytest
+  for that Makefile: `Python-3.15.0/cross-build/wasm32-wasip1/Makefile: 96 compile-flag variables
+  and compiler lines` (91 before the build review's F3 added variables whose value runs a
+  compiler). Every record read, with its count, is in the check's output (`uv run pytest
   -s -k contracts_nothing`): the seven `compile_commands.json` (numpy 198, pandas 99, freetype 41,
   harfbuzz 56, sheenbidi 1, libraqm 2, matplotlib 20 commands), the three autoconf Makefiles (zlib
-  49, xz 9 and liblzma 91 compile-flag variables and compiler lines), the CPython Makefile (91),
-  `link/make-n.txt` (2) and `link/reactor-commands.txt` (2 compiler lines), 22 source trees and
-  meson folders grepped for pragmas, and `wasi-sdk-33.0-arm64-macos: clang and clang++ probed with
+  50, xz 10 and liblzma 95 compile-flag variables and compiler lines, after F3), the CPython
+  Makefile (96), `link/make-n.txt` (2) and `link/reactor-commands.txt` (2 compiler lines), 22
+  source trees and meson folders plus `recipes/` grepped for pragmas (23), and `wasi-sdk-33.0-arm64-macos: clang and clang++ probed with
   -###`.
 - **The unit mutations** (`uv run pytest tests/unit/test_scan.py -k "compiler or rebuild or
   fp_"`): 65 passed. Each compiler-table breach is named by the real `scan.compiler_table_errors`
@@ -809,10 +814,12 @@ default and `0.0` through the file; `pragma.c` through the file holds 2 `llvm.fm
   `8eb9e35734deeb21…`) and `MANIFEST`. Step 10's log prints the two new gate lines and none of
   the emulation's. The macOS `meson-generated_npy_math_complex.c.o` is `2914eb833ad62c93`.
 - The reactor grew by 4,526 bytes (36,911,971 to 36,916,497): the code section +6,360, the `name`
-  section −1,850, `type` +9, `function` +7 (the wasm sections compared with a 30-line parser,
-  `059/`). The snapshot grew by the same 4,526. That is the flag's effect across every file
-  (plain `fmul`/`fadd` pairs where `fmuladd` was one node), not the fall the memo's one object
-  suggested; accepted as growth with these numbers (Decision 6).
+  section −1,850, `type` +9, `function` +7 (EXECUTED: the wasm sections compared with a 30-line
+  parser, `059/`; the build review measured the same). The snapshot grew by the same 4,526. The
+  cause is the flag's effect on the optimizer's decisions across every file, not the fall the
+  memo's one object suggested (INFERRED; which decisions is not traced: on wasm32 `fmuladd` was
+  already two instructions, so the extra bytes are not the intrinsic's own lowering); accepted as
+  growth with these measured numbers (Decision 6).
 - **3b, the fallback is runnable.** In the `linux/amd64` research container, a clone at `c778a5b`
   with `LINUX_X86_64_COMPILER_SDK_DIR=wasi-sdk-33.0-arm64-linux` (the switch thrown; the workflow
   and judge lines of the change set are not needed for one step): `scripts/00_download.sh` verified
@@ -887,11 +894,60 @@ The upstream draft, the README, the CHANGELOG, `cfg-route.sh` with its outputs, 
 amendment lines in specs 040 (Decisions 2, 4, 11) and 012 (Decision 8) exist as Decisions 8, 10
 and 11 say.
 
+### Revised against the build review (2026-10-18)
+
+The build review (`build/reviews-evidence/059-buildreview/…-2026-10-18.md`) said "lands once
+finding 1 is fixed; fix finding 2 in the same change; 3 to 5 are nits". All five are written in.
+Judge files only; the artifact set does not change (its `SHA256SUMS` stays `25a101ac97212ab2…`).
+Rebased onto main `cd97dac` (062 landed: the progress history in volumes) with no conflict.
+
+- **F1 (medium), fixed.** `scan.fp_hits` splits each shell token again on whitespace and drops a
+  leading `NAME=` from a token that is not itself an option, so a banned flag inside a quoted
+  multi-flag string (`CXX_EH="-fwasm-exceptions … -ffp-model=precise"`) or in `CFLAGS=-ffast-math`
+  is a hit; `-DSQLITE_THREADSAFE=0` and `$CC -O2 -D_FILE_OFFSET_BITS=64` stay clean. EXECUTED: the
+  reviewer's example planted in a copy of step 55's line, and `SQLITE_OPTS="… -ffp-model=precise"`
+  and `CFLAGS=-ffast-math` in a copy of step 35, give
+  `scripts/steps/55_matplotlib.sh:1: -ffp-model=precise`, `scripts/steps/35_stdlib_libs.sh:1:
+  -ffp-model=precise`, `scripts/steps/35_stdlib_libs.sh:2: -ffast-math`; before the fix the
+  reviewer saw `[]`. Two unit cases (`test_fp_override_names_the_family_as_whole_tokens`, the
+  planted step-55 and step-35 lines in
+  `test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere`). The real recipe stays
+  clean under the new rule (the v1.5 check passes).
+- **F2 (low), fixed.** `test_every_compile_contracts_nothing` greps `recipes/` for the two pragmas
+  beside the source trees and the meson folders (the rename headers are force-included into every
+  numpy and pandas compile; `reactor_main.c` is compiled in step 60). A `.patch` is not a source
+  suffix, so a pragma in a carried patch's text is not a hit there (its effect shows in the patched
+  tree, which is grepped). Unit case: `npy_rename.h` with `fp contract(fast)` and `reactor_main.c`
+  with `FP_CONTRACT ON` under a `recipes/` folder are both named. EXECUTED on the real
+  `recipes/`: no hit.
+- **F3 (nit), fixed.** `fp_makefile_hits` also reads an assignment whose value runs a compiler
+  (`is_compiler_line(value)`: automake's `COMPILE = $(CC) $(DEFS) …`). Unit case: `-Ofast` in
+  `COMPILE` is named `COMPILE: -Ofast`. The counts the check prints rose accordingly (zlib 49 to
+  50, xz 9 to 10, liblzma 91 to 95, CPython 91 to 96).
+- **F4 (nit), fixed with one departure.** The scoreboard's not-machine-checked text gains "source
+  pragmas and compiler options outside the scanned records (same-bytes is the backstop)". It is
+  joined to the existing second line rather than printed as a third, because the scoreboard's
+  tail has a two-line shape that `tests/unit/test_scoreboard.py` asserts by position; the words are
+  the spec's.
+- **F5 (nit), fixed.** Criterion 3's growth paragraph keeps the measured numbers (CODE +6,360,
+  `name` −1,850, `type` +9, `function` +7; the review measured the same) and labels the cause
+  INFERRED: the flag's effect on the optimizer's decisions, not the intrinsic's own lowering.
+- **The judge after the revision**, against the same set (`SHA256SUMS` `25a101ac97212ab2…`), on the
+  rebased tree (ratchet base `8eddc996a8`): `uv run pytest -m "not slow" -n 3`: 1527 passed, 9
+  skipped in 2m44s; `uv run pytest` (full, serial): 1558 passed, 10 skipped, 14 xfailed in 14m12s;
+  `wasi_python v1: 374/391 pass · 14 gap · 3 blocked · 0 fail`; `ratchet vs 8eddc996a8: lost 0 ·
+  absent 1 · unrun 0 · unrun locally 2 · gained 3 · grew 2`; the same three RED lines as the first
+  run (the retired check; `bytes 36911971 -> 36916497` and `70897198 -> 70901724`), nothing else;
+  the not-machine-checked tail now ends "… files a build adds inside a source tree · source pragmas
+  and compiler options outside the scanned records (same-bytes is the backstop)". `ruff check` and
+  `ruff format --check` clean (90 files). The flags for the lane are unchanged.
+
 ### For the reviewer
 
 - `scan.is_compiler_line` and `_FLAG_VARIABLE`: the token rule's two definitions (N1). A Makefile
   recipe line counts only when a whole token is `$(CC)`, `$(CXX)`, `$(CPP)` or ends in `clang` or
-  `clang++`; a variable counts by its name. The CPython Makefile's 91 lines read are those.
+  `clang++`; a variable counts by its name, or by a value that runs a compiler (automake's
+  `COMPILE`, the build review's F3). The CPython Makefile's 96 lines read are those.
 - `fp_recipe_errors` skips lines whose stripped text starts with `#` (a comment sets nothing);
   without that, `line.conf`'s own comment naming the flag was a hit.
 - `contract_off` adds a newline first if the file lacks a trailing one (wasi-sdk's `clang.cfg`
