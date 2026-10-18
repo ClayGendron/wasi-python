@@ -219,6 +219,27 @@ document.
   host folder, at the cost of reference-counted buffers. Keep one per open? The agent
   recommends yes, until a real program needs the other.
 
+### 73. reportlab's bundled fonts, and its zip loader (spec 042)
+
+- **Asked:** 2026-10-17 (overnight). **Source:** `specifications/042-seaborn-and-reportlab.md`,
+  Decision 4. Spec 042 decides as written below, so nothing waits.
+- **The facts.** reportlab 5.0.1's wheel ships 32 files under `reportlab/fonts/`. Sixteen are
+  Type 1 programs whose notices say "Adobe Systems Incorporated. All Rights Reserved" (eight
+  also under Monotype's copyright, naming Arial and Times New Roman), with no grant to
+  redistribute; Dark Garden is GPL-2.0-or-later with a font exception; `callig15` has its
+  author's own free-use terms; `hb-test.ttf` has no notice. Only the four Bitstream Vera files
+  have approved terms. Separately, reportlab finds files inside a zip through
+  `zipimporter._files`, which CPython removed in 3.13, so none of these fonts can be read from
+  the zip anyway (EXECUTED in the guest and natively). The standard PDF fonts need no file, and
+  DejaVu Sans from matplotlib's data covers Unicode text (EXECUTED, equal to native).
+- **What spec 042 does:** leaves the whole folder out of the zip, with a judge check that it
+  stays out, and carries no patch.
+- **The questions:** (a) keep reportlab's fonts out for good? The agent recommends yes; shipping
+  any but Vera would need you to approve their terms, and Vera would also need a carried patch
+  to be readable. (b) report the `_files` bug to reportlab (its users' list)? The agent
+  recommends yes, as a facts sheet in your own words (question 80's form); it would draft one
+  under `context/upstream/` on your word. Nothing is sent meanwhile.
+
 ### 80. Upstream drafts where a project refuses AI-written contributions
 
 - **Asked:** 2026-10-17 (overnight). **Source:** spec 041's pre-build review
