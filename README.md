@@ -650,7 +650,7 @@ done.files.calls  # {'stat': 0, 'list': 0, 'read': 1, 'write': 0, 'mkdir': 0, ..
 
 **The protocol.** A provider has three methods, each given a normalized
 absolute path (`/` is the mount itself) and each answering a value or an
-`Errno`, never raising:
+`Errno`, or raising an `OSError` (below):
 
 - `stat(path)` → `Stat(kind, size=0, mtime_ns=0)`, where `kind` is `"file"`
   or `"dir"` (a `Stat` for `/` must be a folder);
@@ -681,11 +681,31 @@ if not target.is_relative_to(base.resolve()):
 `ENOENT`, `ENOSPC`, `ENOSYS`, `ENOTDIR`, `ENOTEMPTY`, `ENOTSUP`, `EPERM`,
 `EROFS`, `ESTALE`, `ETIMEDOUT`, `EXDEV`); the guest sees each as the `OSError`
 of that `errno`. The runner knows nothing about permissions: it calls your
-provider for every access and passes its answer through. An exception, or an
-answer outside the protocol, gives the guest `EIO` and adds a `FileFault` to
-`done.files.faults`; the run goes on. A `BaseException` that is not an
+provider for every access and passes its answer through. Any other exception,
+or an answer outside the protocol, gives the guest `EIO` and adds a `FileFault`
+to `done.files.faults`; the run goes on. A `BaseException` that is not an
 `Exception` (Ctrl-C, `SystemExit`) stops the call and is raised from `run`, as
 a door host's is.
+
+**Raising an OSError.** A method may raise an `OSError` instead of returning
+an `Errno`, and the guest gets the same answer. Its errno is matched by name,
+never by number, which differs between hosts: `errno.ENOENT` on macOS, Linux
+or Windows is `Errno.ENOENT` (44), not WASI's 2. With no errno at all, as in
+`raise FileNotFoundError(path)`, the class answers: `FileNotFoundError`,
+`FileExistsError`, `IsADirectoryError`, `NotADirectoryError`,
+`PermissionError` and `TimeoutError` are `ENOENT`, `EEXIST`, `EISDIR`,
+`ENOTDIR`, `EACCES` and `ETIMEDOUT`. An errno outside the set above is `EIO`
+and a fault, whatever the class: `EINTR` would make the guest's `open` retry
+until a limit stops the run, and `EAGAIN` would tell it to try a whole-file
+read again. This holds where your method's own code runs: the call, and
+iterating the listing `list` returns (a generator's body). An `OSError` from an
+answer object (a `Stat` property, a buffer) is a fault. The guest never sees
+the exception's message, only its own C library's text for the errno. A
+mapped raise leaves no fault in the record: it is an answer, so a bug in your
+provider that raises `FileNotFoundError` reads as the guest's missing file.
+Log your raises in the provider if you want to see them. A provider over a
+host folder on Windows still answers `EISDIR` for a folder itself: Windows
+raises `PermissionError` for `open()` of a folder, which becomes `EACCES`.
 
 At most one provider call per open: an open makes one `read` (or one `list`
 with `O_DIRECTORY`, as `os.listdir` and `os.scandir` do), `os.stat` one
@@ -849,7 +869,7 @@ that did not succeed and every write-back the runner owed but did not make,
 whatever the exit code. `paths` is the provider path, or `(src, dst)` for a
 rename; `at` is `"open"`, `"call"` (a `mkdir`, `remove`, `rmdir` or
 `rename`), `"close"`, `"sync"` or `"exit"`; `cause` is `"refused"` (your
-`Errno`), `"fault"` (an exception or a bad answer, also in `faults`, recorded
+`Errno`, returned or raised), `"fault"` (an exception or a bad answer, also in `faults`, recorded
 as `EIO`) or `"limit"` (the file-call limit came first; no call was made).
 `refused_total` counts every one, kept or not: `len(refused) <
 refused_total` says the list was cut. A refused `stat`, `list` or `read` is
@@ -1633,7 +1653,7 @@ class FileFault:
     error: str
 ```
 
-One provider call that raised, or answered outside its protocol.
+One provider call that raised an exception that is not an answer, or answered outside its protocol.
 
 **Attributes:**
 

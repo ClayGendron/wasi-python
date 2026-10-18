@@ -1895,6 +1895,339 @@ def test_the_errno_values_are_the_guests() -> None:
     assert raised == {e.name: e.value for e in Errno}
 
 
+RAISED_GUEST = r"""
+import json, os, sys
+out = {}
+for base in ("/r", "/o"):
+    for name in json.loads(sys.argv[1]):
+        try:
+            os.stat(f"{base}/{name}")
+            out[f"{base}/{name}"] = None
+        except OSError as e:
+            out[f"{base}/{name}"] = e.errno
+print(json.dumps(out))
+"""
+
+
+def test_a_raised_oserror_is_the_answer_of_its_errno() -> None:
+    """Spec 061, criterion 1: a provider that raises `OSError` with the host's own errno number
+    for each of the 21 names gives the guest exactly what a provider returning `Errno[name]`
+    gives (matched by name, never by number, which differs by host), with no fault, and the
+    exception's message reaches neither the guest nor the result."""
+    import errno
+
+    from wasi_python import Errno, Mount, Stat
+
+    secret = "a-provider-secret-061"
+
+    class Returns:
+        def stat(self, path):
+            return Stat("dir") if path == "/" else Errno[path.strip("/")]
+
+        def list(self, path):
+            return []
+
+        def read(self, path):
+            return Errno.ENOENT
+
+    class Raises(Returns):
+        def stat(self, path):
+            if path == "/":
+                return Stat("dir")
+            name = path.strip("/")
+            raise OSError(getattr(errno, name), f"{name}: {secret}")
+
+    run = _runner()
+    names = [e.name for e in Errno]
+    done = run(
+        ["-c", RAISED_GUEST, json.dumps(names)],
+        mounts=[Mount(Returns(), "/r"), Mount(Raises(), "/o")],
+    )
+    assert done.exit_code == 0, done
+    answers = json.loads(done.stdout)
+    for base in ("/r", "/o"):
+        got = {name: answers[f"{base}/{name}"] for name in names}
+        assert got == {e.name: e.value for e in Errno}, (base, got)
+    assert done.files is not None
+    assert done.files.faults == (), done.files.faults
+    assert done.files.calls["stat"] == 2 * len(names), done.files.calls
+    assert secret.encode() not in done.stdout + done.stderr
+    assert secret not in repr(done)
+
+
+class _CountStr(FileNotFoundError):
+    """A mapped raise whose `__str__` counts: the runner must never format it."""
+
+    calls: list[int] = []
+
+    def __str__(self) -> str:
+        _CountStr.calls.append(1)
+        return "counted"
+
+
+class _UserNotFound(FileNotFoundError):
+    pass
+
+
+def _kind_raises(path):
+    """A `Stat` whose `kind` raises: an answer object's own code (spec 061, R1: the property has
+    a setter, since `Stat`'s frozen `__init__` sets `kind` with `object.__setattr__`)."""
+    import errno
+
+    from wasi_python import Stat
+
+    class KindRaises(Stat):
+        @property
+        def kind(self):
+            raise FileNotFoundError(errno.ENOENT, "from an answer object")
+
+        @kind.setter
+        def kind(self, value):
+            pass  # stores nothing the runner reads
+
+    return KindRaises("file", 1)
+
+
+def _class_cases():
+    """(name, method, how, action, expected): `how` raises (or returns) for the method; the guest
+    does `action` on base/x and reports its errno, or for "open" whether it got a folder."""
+    import errno
+
+    from wasi_python import Errno
+
+    def raising(make):
+        def how(path):
+            raise make()
+
+        return how
+
+    return [
+        ("FileNotFoundError('x')", "stat", raising(lambda: FileNotFoundError("x")), "stat", 44),
+        ("FileExistsError('x')", "stat", raising(lambda: FileExistsError("x")), "stat", 20),
+        ("NotADirectoryError('x')", "stat", raising(lambda: NotADirectoryError("x")), "stat", 54),
+        ("PermissionError('x')", "stat", raising(lambda: PermissionError("x")), "stat", 2),
+        (
+            "TimeoutError('timed out')",
+            "stat",
+            raising(lambda: TimeoutError("timed out")),
+            "stat",
+            73,
+        ),
+        ("a FileNotFoundError subclass", "stat", raising(lambda: _UserNotFound("x")), "stat", 44),
+        (
+            "PermissionError(EPERM)",
+            "stat",
+            raising(lambda: PermissionError(errno.EPERM, "x")),
+            "stat",
+            63,
+        ),
+        (
+            "FileNotFoundError(EACCES)",
+            "stat",
+            raising(lambda: FileNotFoundError(errno.EACCES, "x")),
+            "stat",
+            2,
+        ),
+        (
+            "OSError(EOPNOTSUPP)",
+            "stat",
+            raising(lambda: OSError(errno.EOPNOTSUPP, "x")),
+            "stat",
+            58,
+        ),
+        (
+            "IsADirectoryError('x') at read",
+            "read",
+            raising(lambda: IsADirectoryError("x")),
+            "open",
+            "dir",
+        ),
+        ("EISDIR returned at read", "read", lambda path: Errno.EISDIR, "open", "dir"),
+        ("a counting __str__", "stat", raising(lambda: _CountStr(errno.ENOENT, "x")), "stat", 44),
+        (
+            "FileNotFoundError(EINTR)",
+            "stat",
+            raising(lambda: FileNotFoundError(errno.EINTR, "x")),
+            "stat",
+            29,
+        ),
+        ("TimeoutError(99999)", "stat", raising(lambda: TimeoutError(99999, "x")), "stat", 29),
+        ("a Stat whose kind raises", "stat", _kind_raises, "stat", 29),
+        ("InterruptedError('x')", "stat", raising(lambda: InterruptedError("x")), "stat", 29),
+        ("BlockingIOError('x')", "stat", raising(lambda: BlockingIOError("x")), "stat", 29),
+        (
+            "ConnectionRefusedError('x')",
+            "stat",
+            raising(lambda: ConnectionRefusedError("x")),
+            "stat",
+            29,
+        ),
+        ("OSError('x')", "stat", raising(lambda: OSError("x")), "stat", 29),
+    ]
+
+
+class _Answers:
+    """A provider whose one `method` answers as `how` says; the others answer a small tree."""
+
+    def __init__(self, method, how):
+        self.method, self.how = method, how
+        self.calls = {"stat": 0, "list": 0, "read": 0}
+
+    def _answer(self, method, path, normal):
+        self.calls[method] += 1
+        return self.how(path) if method == self.method and path != "/" else normal
+
+    def stat(self, path):
+        from wasi_python import Stat
+
+        return self._answer("stat", path, Stat("dir" if path == "/" else "file", 1))
+
+    def list(self, path):
+        return self._answer("list", path, [("x", "file")])
+
+    def read(self, path):
+        from wasi_python import Errno
+
+        return self._answer("read", path, Errno.EISDIR if path == "/" else b"x")
+
+
+CLASS_GUEST = r"""
+import json, os, stat, sys
+out = {}
+for i, (name, action) in enumerate(json.loads(sys.argv[1])):
+    path = f"/c{i}/x"
+    try:
+        if action == "open":
+            fd = os.open(path, os.O_RDONLY)
+            out[name] = "dir" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file"
+            os.close(fd)
+        else:
+            os.stat(path)
+            out[name] = "answered"
+    except OSError as e:
+        out[name] = e.errno
+print(json.dumps(out))
+"""
+
+
+def test_an_oserrors_class_answers_when_its_errno_cannot() -> None:
+    """Spec 061, criterion 2: with no errno at all, six classes answer (a `PermissionError` is
+    EACCES); a present errno always wins, and one outside the closed set is EIO and a fault
+    whatever the class; a raised `IsADirectoryError` at `read` is the EISDIR answer (a folder
+    descriptor); an `OSError` from an answer object's own code stays a fault; and a mapped raise
+    is never formatted."""
+    from wasi_python import Mount
+
+    run = _runner()
+    cases = _class_cases()
+    providers = [_Answers(method, how) for _, method, how, _, _ in cases]
+    _CountStr.calls.clear()
+    done = run(
+        ["-c", CLASS_GUEST, json.dumps([[name, action] for name, _, _, action, _ in cases])],
+        mounts=[Mount(p, f"/c{i}") for i, p in enumerate(providers)],
+    )
+    assert (done.exit_code, done.trapped, done.stderr) == (0, None, b""), done
+    answers = json.loads(done.stdout)
+    assert answers == {name: want for name, _, _, _, want in cases}, answers
+    assert _CountStr.calls == [], "the runner formatted a mapped raise"
+    assert done.files is not None
+    faulty = [name for name, _, _, _, want in cases if want == 29]
+    assert len(done.files.faults) == len(faulty) == 7, done.files.faults
+    for i in (9, 10):  # the folder rows: one read each, no list
+        assert providers[i].calls == {"stat": 0, "list": 0, "read": 1}, providers[i].calls
+
+
+WRITE_RAISED_GUEST = r"""
+import json, os
+out = {}
+for base in ("/o", "/r"):
+    def attempt(key, fn):
+        try:
+            fn()
+            out[base + key] = None
+        except OSError as e:
+            out[base + key] = e.errno
+    def closed():
+        f = open(base + "/closed", "wb")
+        f.write(b"data")
+        f.close()
+    attempt("/create", lambda: open(base + "/created", "wb").close())
+    attempt("/close", closed)
+    attempt("/mkdir", lambda: os.mkdir(base + "/made"))
+    attempt("/rename", lambda: os.rename(base + "/a.txt", base + "/moved.txt"))
+    attempt("/remove", lambda: os.remove(base + "/b.txt"))
+    fd = os.open(base + "/left", os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    os.write(fd, b"x")  # left open for the ending's walk
+print(json.dumps(out))
+"""
+
+
+def test_a_write_halfs_raised_oserror_is_a_refusal() -> None:
+    """Spec 061, criterion 3: a writable mount's provider that raises `OSError` (the host's
+    numbers) at a create, a close, a `mkdir`, a `rename`, a `remove` and the ending's walk gives
+    the guest and the record exactly what a provider returning the same members gives: each a
+    `RefusedWrite` with cause "refused", and no fault."""
+    import errno
+
+    from harness.files import MemoryProvider
+    from wasi_python import Errno, Mount
+
+    def content_only(make):
+        def how(path, data):
+            if data:
+                raise make()
+
+        return how
+
+    def content_only_returns(member):
+        return lambda path, data: member if data else None
+
+    raised, returned = MemoryProvider(), MemoryProvider()
+    raised.answers.update(
+        {
+            ("write", "/created"): PermissionError(errno.EACCES, "no create"),
+            ("write", "/closed"): content_only(lambda: OSError(errno.ENOSPC, "full")),
+            ("mkdir", "/made"): FileExistsError(errno.EEXIST, "there"),
+            ("rename", "/a.txt"): OSError(errno.EXDEV, "elsewhere"),
+            ("remove", "/b.txt"): IsADirectoryError("a folder"),
+            ("write", "/left"): content_only(lambda: OSError(errno.EDQUOT, "quota")),
+        }
+    )
+    returned.answers.update(
+        {
+            ("write", "/created"): Errno.EACCES,
+            ("write", "/closed"): content_only_returns(Errno.ENOSPC),
+            ("mkdir", "/made"): Errno.EEXIST,
+            ("rename", "/a.txt"): Errno.EXDEV,
+            ("remove", "/b.txt"): Errno.EISDIR,
+            ("write", "/left"): content_only_returns(Errno.EDQUOT),
+        }
+    )
+    run = _runner()
+    done = run(
+        ["-c", WRITE_RAISED_GUEST],
+        mounts=[Mount(raised, "/o", writable=True), Mount(returned, "/r", writable=True)],
+    )
+    assert done.exit_code == 0, done
+    answers = json.loads(done.stdout)
+    want = {"/create": 2, "/close": 51, "/mkdir": 20, "/rename": 75, "/remove": 31}
+    for base in ("/o", "/r"):
+        assert {k: answers[base + k] for k in want} == want, answers
+    assert done.files is not None
+    assert done.files.faults == (), done.files.faults
+    refused = {
+        base: [
+            (r.method, r.paths, r.errno, r.at, r.cause)
+            for r in done.files.refused
+            if r.mount == base
+        ]
+        for base in ("/o", "/r")
+    }
+    assert refused["/o"] == refused["/r"], refused
+    assert {r[4] for r in refused["/o"]} == {"refused"}, refused
+    assert refused["/o"][-1] == ("write", ("/left",), Errno.EDQUOT, "exit", "refused"), refused
+
+
 @BINARY
 def test_a_mounted_run_out_of_fuel_counts_the_cap(guest_workdir, which) -> None:
     """Spec 032, acceptance 12 (through run()): with a fuel cap too small to finish, a run with

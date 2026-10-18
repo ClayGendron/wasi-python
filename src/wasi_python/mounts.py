@@ -6,11 +6,12 @@
     done = run(argv, mounts=[Mount(store, "/work", writable=True)])
 
 A provider answers three methods on normalized, absolute paths (`/` is the mount itself): `stat`,
-`list` and `read`, each returning a value or an `Errno`, never raising. A writable mount's
-provider also answers the write half (`write`, `mkdir`, `remove`, `rmdir`, `rename`), each `None`
-or an `Errno`; a file's bytes are staged in the runner and handed over whole at open (a create or
-truncation), at close, at sync and at the call's ending. The runner owns every descriptor, offset,
-flag, cookie and pointer; the provider sees only normalized paths.
+`list` and `read`, each returning a value or an `Errno`, or raising an `OSError` whose errno (by
+name) or, with no errno, whose class names one (spec 061). A writable mount's provider also
+answers the write half (`write`, `mkdir`, `remove`, `rmdir`, `rename`), each `None` or an
+`Errno`, raised the same way; a file's bytes are staged in the runner and handed over whole at
+open (a create or truncation), at close, at sync and at the call's ending. The runner owns every
+descriptor, offset, flag, cookie and pointer; the provider sees only normalized paths.
 
 How it works: on a call with mounts, the guest's 29 preview1 calls that act on a descriptor and
 are not forward-safe are shadowed (`SHADOWED`). Each finds its call on the thread's stack (spec
@@ -31,6 +32,7 @@ from __future__ import annotations
 
 import ctypes
 import enum
+import errno as _host_errno
 import heapq
 import struct
 import sys
@@ -94,9 +96,13 @@ class FileProvider(Protocol):
     """What a mount's provider answers, for type checkers: a read-only mount's three methods.
 
     Paths are absolute within the mount (/ is the mount itself) and normalized by the runner.
-    A provider answers each call with a value or an `Errno`; it does not raise. An exception,
-    or an answer outside the protocol, gives the guest EIO and adds a `FileFault` to the
-    result; one that is not an `Exception` stops the call and is raised from `run`.
+    A provider answers each call with a value or an `Errno`, or raises an `OSError`: its errno,
+    matched by name on this host, or with no errno its class (`FileNotFoundError`,
+    `FileExistsError`, `IsADirectoryError`, `NotADirectoryError`, `PermissionError`,
+    `TimeoutError`), is then the answer, as the `Errno` of that name would be. Any other
+    exception, an errno outside `Errno`, or an answer outside the protocol gives the guest EIO
+    and adds a `FileFault` to the result; one that is not an `Exception` stops the call and is
+    raised from `run`.
     """
 
     def stat(self, path: str) -> Stat | Errno:
@@ -130,7 +136,8 @@ class WritableFileProvider(FileProvider, Protocol):
     write half.
 
     Each method of the write half answers `None` for success or an `Errno`: POSIX's contract,
-    in preview1's numbering. A file's bytes are staged by the runner and handed over whole at
+    in preview1's numbering. An `OSError` it raises is a refusal when it names a member, as for
+    the read half. A file's bytes are staged by the runner and handed over whole at
     open (a create or a truncation), at close, at sync and at the call's ending.
     """
 
@@ -200,7 +207,8 @@ class Mount:
 
 @dataclass(frozen=True)
 class FileFault:
-    """One provider call that raised, or answered outside its protocol.
+    """One provider call that raised an exception that is not an answer, or answered outside its
+    protocol.
 
     Attributes:
         method: The provider's method, such as "read".
@@ -253,6 +261,62 @@ class FileRecord:
     faults: tuple[FileFault, ...] = ()
     refused: tuple[RefusedWrite, ...] = ()
     refused_total: int = 0
+
+
+# A provider's OSError (spec 061): the answer of its errno, matched by name, never by number,
+# which differs by host (ENOENT is 2 on every host and 2 is preview1's EACCES). One code path for
+# every host: the table is the host's own errno module, read by the guest's names.
+
+# A host name the guest's C library spells as a member (wasi-libc: EOPNOTSUPP is ENOTSUP).
+_ERRNO_ALIASES = {"EOPNOTSUPP": "ENOTSUP"}
+
+
+def _errno_table(names: Mapping[str, object]) -> dict[int, Errno]:
+    """Each host errno number, from an `errno`-like namespace, to the member of the same name.
+    A name the host lacks is skipped; only plain ints count; the first member keeps a number."""
+    table: dict[int, Errno] = {}
+    pairs = [(member.name, member) for member in Errno]
+    pairs += [(alias, Errno[name]) for alias, name in _ERRNO_ALIASES.items()]
+    for name, member in pairs:
+        number = names.get(name)
+        if type(number) is int:
+            table.setdefault(number, member)
+    return table
+
+
+_HOST_ERRNO = _errno_table(vars(_host_errno))
+# With no errno at all: the class, PEP 3151's name for exactly one member, first match in order.
+_RAISED = (
+    (FileNotFoundError, Errno.ENOENT),
+    (FileExistsError, Errno.EEXIST),
+    (IsADirectoryError, Errno.EISDIR),
+    (NotADirectoryError, Errno.ENOTDIR),
+    (PermissionError, Errno.EACCES),
+    (TimeoutError, Errno.ETIMEDOUT),
+)
+_ERRNO_SLOT = OSError.__dict__["errno"]  # the slot itself, past any subclass's property
+
+
+def _raised(e: BaseException) -> Errno | None:
+    """The member a provider's exception stands for, or None (a fault). Total, and it runs no
+    provider code: the type by `type()`, the errno through `OSError`'s own slot, an exact int,
+    a lookup in a dict of ints; the class only when the slot is None, by `issubclass` against
+    built-in classes. A present errno that names no member is a fault, whatever the class."""
+    try:
+        kind = type(e)
+        if not issubclass(kind, OSError):
+            return None
+        number = _ERRNO_SLOT.__get__(e, kind)
+        if number is None:
+            for base, member in _RAISED:
+                if issubclass(kind, base):
+                    return member
+            return None
+        if type(number) is int:
+            return _HOST_ERRNO.get(number)
+        return None
+    except Exception:
+        return None
 
 
 # The 29 preview1 calls that act on a descriptor and are not forward-safe, with their raw
@@ -745,13 +809,16 @@ class _Files:
 
     def _invoke(self, mount: _Mounted, method: str, args: tuple[Any, ...]) -> tuple[int, Any]:
         """The provider call itself, counted, inside the fault boundary: (0, answer), or EIO with
-        the fault recorded. A BaseException that is not an Exception is let through: it is the
-        call's stop (spec 032, Decision 4)."""
+        the fault recorded. An OSError that names a member is that answer, as if returned (spec
+        061); nothing of it is kept. A BaseException that is not an Exception is let through: it
+        is the call's stop (spec 032, Decision 4)."""
         self.total += 1
         self.calls[method] += 1
         try:
             return 0, getattr(mount.provider, method)(*args)
         except Exception as e:
+            if (member := _raised(e)) is not None:
+                return 0, member
             self._fault(method, args[0], _described(e))
             return EIO, None
 
@@ -884,8 +951,19 @@ class _Files:
             seen: set[bytes] = set()
             names = 0  # the bytes of the name objects the set holds
             prefix = path.rstrip("/") + "/"
-            iterator = iter(answer)
-            for item in iterator:
+            # iter() and each next() run the listing's own code, a generator method's body
+            # included: an OSError there is the answer of its errno too (spec 061, Decision 5).
+            try:
+                iterator = iter(answer)
+            except Exception as e:
+                return self._listing_raised(path, e), None, 0
+            while True:
+                try:
+                    item = next(iterator)
+                except StopIteration:
+                    break
+                except Exception as e:
+                    return self._listing_raised(path, e), None, 0
                 listed = _listed(item)
                 if listed is None or listed[1] in seen:
                     return self._bad("list", path, answer), None, 0
@@ -906,6 +984,14 @@ class _Files:
             return EIO, None, 0
         finally:
             _close(iterator)
+
+    def _listing_raised(self, path: str, e: Exception) -> int:
+        """The errno for an exception the listing raised: its member's (spec 061), or EIO with
+        the fault recorded."""
+        if (member := _raised(e)) is not None:
+            return int(member)
+        self._fault("list", path, _described(e))
+        return EIO
 
     # Numbers and staging (Decisions 1 and 8).
 

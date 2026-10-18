@@ -340,8 +340,9 @@ def run(
     The guest sees no host folder but the read-only stdlib, and what `root`, `grants` and
     `mounts` give it. Every argument is checked before any work. A call that names no limit has
     the ones `defaults()` returns, read once, when the call is made. Nothing a guest does, and
-    no `Exception` a provider, a tool or a gate raises, makes `run` raise: those are recorded in
-    the result. A new failure is raised as one of the types below, or a subclass of one;
+    no `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
+    may be its answer (the README's *Mounts*), and the rest are recorded in the result. A new
+    failure is raised as one of the types below, or a subclass of one;
     messages may change.
 
     Args:

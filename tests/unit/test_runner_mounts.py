@@ -1550,3 +1550,161 @@ def test_the_write_half_is_gated(placeholder) -> None:
     assert struct.unpack("<4I", m.raw.get(600, 16)) == (0, 11, 11, 11)
     assert provider.total() == 1 and _written(provider) == dict.fromkeys(WRITE_HALF, 0)
     assert m.table.record().refused_total == 0  # an unmade call is not a refusal (N3)
+
+
+# Spec 061: a provider's OSError carries its errno.
+
+
+def test_a_generator_listing_that_raises_answers_its_errno(placeholder) -> None:
+    """Criterion 5: a `list` written as a generator runs its body while the runner iterates it,
+    so an `OSError` raised there is the answer of its errno too, before or after a `yield`; the
+    listing is dropped whole, nothing is held, and any other exception stays a fault."""
+    import errno
+
+    def generator(make, after_one):
+        def how(path):
+            def listing():
+                if after_one:
+                    yield ("a", "file")
+                raise make()
+
+            return listing()
+
+        return how
+
+    cases = [
+        (generator(lambda: FileNotFoundError(errno.ENOENT, "gone"), False), 44),
+        (generator(lambda: FileNotFoundError(errno.ENOENT, "gone"), True), 44),
+        (generator(lambda: PermissionError("no"), True), 2),
+        (generator(lambda: ValueError("broke"), True), 29),
+    ]
+    for how, want in cases:
+        provider = MemoryProvider()
+        provider.answers[("list", "/d")] = how
+        m = Mounted(provider, placeholder)
+        staged = m.table.staged
+        assert m.raw.open(3, "d", files.O_DIRECTORY) == (want, None)
+        assert (m.table.staged, m.table.opened) == (staged, 0)
+        assert provider.calls["list"] == 1
+        record = m.table.record()
+        assert len(record.faults) == (1 if want == 29 else 0), record.faults
+
+
+def test_a_mapped_oserror_leaves_nothing_of_itself(placeholder) -> None:
+    """Criterion 6: the runner holds no reference to a mapped exception (nor so to the
+    provider's frame), and the record keeps neither its message nor its class's name."""
+    import errno
+    import gc
+    import weakref
+
+    class Local:
+        pass
+
+    class _SecretNotFound(FileNotFoundError):
+        pass
+
+    refs: list[weakref.ref] = []
+
+    class Holding(MemoryProvider):
+        def stat(self, path):
+            self._count("stat", path)
+            local = Local()
+            refs.append(weakref.ref(local))
+            e = _SecretNotFound(errno.ENOENT, "the-secret-message-061")
+            refs.append(weakref.ref(e))
+            raise e
+
+    m = Mounted(Holding(), placeholder)
+    assert m.raw.path_filestat(3, "a.txt")[0] == 44
+    gc.collect()
+    assert [r() for r in refs] == [None, None]
+    record = repr(m.table.record())
+    assert "the-secret-message-061" not in record and "_SecretNotFound" not in record, record
+
+
+# The memo's table (2026-10-18-a-providers-oserror-carries-its-errno): macOS and Linux EXECUTED,
+# Windows READ (CPython's errnomodule.c: the WSA values) and INFERRED (MSVC's small numbers).
+_ERRNO_NAMES = (
+    "EPERM ENOENT EIO EACCES EBUSY EEXIST EXDEV ENOTDIR EISDIR EINVAL EFBIG ENOSPC EROFS "
+    "ENAMETOOLONG ENOTEMPTY ENOSYS EDQUOT ESTALE ETIMEDOUT ECANCELED ENOTSUP EOPNOTSUPP"
+).split()
+_HOSTS = {
+    "macOS": (1, 2, 5, 13, 16, 17, 18, 20, 21, 22, 27, 28, 30, 63, 66, 78, 69, 70, 60, 89, 45, 102),
+    "Linux": (
+        1,
+        2,
+        5,
+        13,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        27,
+        28,
+        30,
+        36,
+        39,
+        38,
+        122,
+        116,
+        110,
+        125,
+        95,
+        95,
+    ),
+    "Windows": (
+        *(1, 2, 5, 13, 16, 17, 18, 20, 21, 22, 27, 28, 30, 38, 41, 40),
+        *(10069, 10070, 10060, 105, 129, 10045),
+    ),
+}
+
+
+def test_the_host_errno_table_is_by_name() -> None:
+    """Criterion 7: the table from a host's errno names to the members is built by name, reaches
+    every member on macOS's, Linux's and Windows's numbers (EOPNOTSUPP as ENOTSUP), holds no
+    refused number, takes only plain ints, and skips a name the host lacks, so that importing
+    `wasi_python` never fails for one."""
+    import errno
+    import subprocess
+    import sys
+
+    table = mounts_module._errno_table(vars(errno))
+    assert set(table.values()) == set(Errno)
+    keys = {getattr(errno, e.name) for e in Errno}
+    if errno.EOPNOTSUPP != errno.ENOTSUP:
+        keys.add(errno.EOPNOTSUPP)
+    assert set(table) == keys
+    assert all(table[getattr(errno, e.name)] is e for e in Errno)
+    for refused in ("EINTR", "EAGAIN", "EBADF", "EFAULT"):
+        assert getattr(errno, refused) not in table, refused
+    assert mounts_module._HOST_ERRNO == table
+
+    for host, numbers in _HOSTS.items():
+        names = dict(zip(_ERRNO_NAMES, numbers, strict=True))
+        hosted = mounts_module._errno_table(names)
+        assert set(hosted.values()) == set(Errno), host
+        assert hosted[names["EOPNOTSUPP"]] is Errno.ENOTSUP, host
+        assert len(hosted) == (21 if host == "Linux" else 22), (host, len(hosted))
+
+    class Sneaky(int):
+        pass
+
+    for bad in (True, Sneaky(errno.ENOENT)):
+        assert Errno.ENOENT not in mounts_module._errno_table({**vars(errno), "ENOENT": bad})
+    without = {k: v for k, v in vars(errno).items() if k != "ESTALE"}
+    lacking = mounts_module._errno_table(without)
+    assert Errno.ESTALE not in lacking.values() and len(lacking) == len(table) - 1
+
+    code = (
+        "import errno\n"
+        "del errno.ESTALE\n"
+        "import wasi_python\n"
+        "from wasi_python import mounts\n"
+        "print(mounts.Errno.ESTALE in mounts._HOST_ERRNO.values())\n"
+    )
+    child = subprocess.run(
+        [sys.executable, "-I", "-c", code], capture_output=True, text=True, check=False
+    )
+    assert (child.returncode, child.stdout.strip()) == (0, "False"), child.stderr[-500:]

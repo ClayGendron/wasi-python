@@ -1104,6 +1104,132 @@ def test_a_providers_base_exception_is_raised_from_run() -> None:
         run(["-c", "open('/w/x').read()"], mounts=[Mount(_Faulty("read", stops), "/w")])
 
 
+_RAN: list[str] = []
+
+
+class _LyingErrno(OSError):
+    """Its slot holds what the constructor got; its `errno` property claims ENOENT."""
+
+    @property
+    def errno(self):  # type: ignore[override]
+        import errno as codes
+
+        _RAN.append("errno property")
+        return codes.ENOENT
+
+
+class _MaskedOSError(OSError):
+    @property
+    def __class__(self):  # type: ignore[override]
+        _RAN.append("__class__ (OSError)")
+        return FileNotFoundError
+
+
+class _MaskedException(Exception):
+    @property
+    def __class__(self):  # type: ignore[override]
+        _RAN.append("__class__ (not an OSError)")
+        return FileNotFoundError
+
+
+class _EqualInt(int):
+    """Claims to be ENOENT to any comparison or hash."""
+
+    def __eq__(self, other):
+        return True
+
+    def __hash__(self):
+        import errno
+
+        return hash(errno.ENOENT)
+
+
+def _plain(value):
+    e = OSError("x")
+    e.errno = value
+    return e
+
+
+def _unmapped_cases():
+    """(name, a function making the exception, the guest's errno, whether a fault is kept)."""
+    import errno
+
+    return [
+        ("InterruptedError(EINTR)", lambda: InterruptedError(errno.EINTR, "x"), 29, True),
+        ("BlockingIOError(EAGAIN)", lambda: BlockingIOError(errno.EAGAIN, "x"), 29, True),
+        ("OSError(EWOULDBLOCK)", lambda: OSError(errno.EWOULDBLOCK, "x"), 29, True),
+        ("OSError(EBADF)", lambda: OSError(errno.EBADF, "x"), 29, True),
+        ("OSError(EFAULT)", lambda: OSError(errno.EFAULT, "x"), 29, True),
+        ("OSError(ELOOP)", lambda: OSError(errno.ELOOP, "x"), 29, True),
+        ("OSError(0)", lambda: OSError(0, "x"), 29, True),
+        ("OSError(99999)", lambda: OSError(99999, "x"), 29, True),
+        ("errno 2**70", lambda: _plain(2**70), 29, True),
+        ("errno True", lambda: _plain(True), 29, True),
+        (
+            "errno an int subclass equal to ENOENT",
+            lambda: _plain(_EqualInt(errno.ENOENT)),
+            29,
+            True,
+        ),
+        ("an errno property over a slot of EINTR", lambda: _LyingErrno(errno.EINTR, "x"), 29, True),
+        ("an OSError whose __class__ lies", lambda: _MaskedOSError("x"), 29, True),
+        ("an Exception whose __class__ lies", lambda: _MaskedException("x"), 29, True),
+        ("errno set to ENOENT after construction", lambda: _plain(errno.ENOENT), 44, False),
+        ("ValueError", lambda: ValueError("x"), 29, True),
+    ]
+
+
+UNMAPPED_GUEST = r"""
+import json, sys
+out = {}
+for i, name in enumerate(json.loads(sys.argv[1])):
+    try:
+        with open(f"/c{i}/x", "rb") as f:
+            f.read()
+        out[name] = "answered"
+    except OSError as e:
+        out[name] = e.errno
+print(json.dumps(out))
+"""
+
+
+def test_an_oserror_that_names_no_member_stays_a_fault() -> None:
+    """Guards a change (spec 061, criterion 4): an `OSError` whose errno names no member of the
+    closed set (EINTR, EAGAIN, EBADF, EFAULT, an unknown number, a bool, an int subclass, a slot
+    a property lies about) and any other exception stay EIO and a fault, one provider call each;
+    an errno set after construction is read from the slot; the boundary never runs the `errno`
+    property or a `__class__` property. Bounded by `max_file_calls`, never by a clock."""
+    import json
+
+    from wasi_python import Mount
+
+    run = _run()
+    cases = _unmapped_cases()
+
+    def raising(make):
+        def how(path):
+            raise make()
+
+        return how
+
+    providers = [_Faulty("read", raising(make)) for _, make, _, _ in cases]
+    _RAN.clear()
+    done = run(
+        ["-c", UNMAPPED_GUEST, json.dumps([name for name, _, _, _ in cases])],
+        mounts=[Mount(p, f"/c{i}") for i, p in enumerate(providers)],
+        max_file_calls=20,
+    )
+    assert (done.exit_code, done.trapped) == (0, None), done
+    answers = json.loads(done.stdout)
+    assert answers == {name: want for name, _, want, _ in cases}, answers
+    assert [p.calls["read"] for p in providers] == [1] * len(cases)
+    assert done.files is not None
+    faults = done.files.faults
+    assert len(faults) == sum(kept for *_, kept in cases), faults
+    assert all(f.method == "read" and "\n" not in f.error and len(f.error) <= 200 for f in faults)
+    assert _RAN == [], _RAN
+
+
 MOUNT_DESCRIPTORS = r"""
 import os, resource, sys, tempfile
 scratch = sys.argv[1]

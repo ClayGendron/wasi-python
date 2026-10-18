@@ -20,6 +20,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 - **Changed:** `host=` given an `async def` (or an async generator, a `partial` of one, an
   object with an async `__call__`) is refused with `TypeError` before any work. The raw door is
   synchronous; it used to answer every frame with a host fault and never await the coroutine.
+- **A provider may raise `OSError`** (spec 061). Its errno, matched by name (never by number,
+  which differs by host), is the guest's answer, as the `Errno` of that name would be. With no
+  errno at all, `FileNotFoundError`, `FileExistsError`, `IsADirectoryError`,
+  `NotADirectoryError`, `PermissionError` and `TimeoutError` answer `ENOENT`, `EEXIST`,
+  `EISDIR`, `ENOTDIR`, `EACCES` and `ETIMEDOUT`. An errno outside the closed set (`EINTR`,
+  `EAGAIN` and the rest), whatever the class, and any other exception stay a fault, `EIO`. A
+  mapped raise leaves no fault in the record. The guest never sees the exception's message, and
+  the record keeps nothing of it.
 - **The judge runs on several cores** (spec 052). `uv run pytest -n 6` gives the serial
   answer in about a third of the time: pytest-xdist 3.8.0 is pinned in the development group,
   each check's record is made on its worker and carried to the controller, which alone writes the
