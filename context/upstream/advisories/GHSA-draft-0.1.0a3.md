@@ -1,13 +1,13 @@
 # Draft: GitHub security advisory for wasi-python, covering 0.1.0a1 to 0.1.0a3
 
-- **For:** the owner, who publishes it after 0.1.0a4 is on PyPI and 0.1.0a3 is yanked (decision
+- **For:** the owner, who publishes it after 0.1.0a5 is on PyPI and 0.1.0a3 is yanked (decision
   87). The agent drafted it. Nothing has been filed, published or yanked.
 - **Where it is filed:** github.com/claygendron/wasi_python → Security → Advisories → New draft
   security advisory (the repository `SECURITY.md` points to).
 - **Shape:** one advisory for both upstream issues, at the higher severity. GitHub's form takes
   one severity per advisory and several CWEs. Two advisories, one per GHSA, would also be
   correct. The owner chooses.
-- **Before publishing, check:** 0.1.0a4 is on PyPI, and its wheel's `wasi_python/mounts.py`
+- **Before publishing, check:** 0.1.0a5 is on PyPI, and its wheel's `wasi_python/mounts.py`
   carries `GUARDED` (spec 048); 0.1.0a3 is yanked (the Patches section says so). Edit
   "Patched versions" if the version differs.
 
@@ -25,7 +25,7 @@ from" section after it is for the owner, not for posting.
 - **Ecosystem:** pip
 - **Package name:** `wasi-python`
 - **Affected versions:** `<= 0.1.0a3`
-- **Patched versions:** `0.1.0a4`
+- **Patched versions:** `0.1.0a5`
 - **Severity:** High. CVSS v4.0 vector, the same as wasmtime's own advisory for the escape:
   `CVSS:4.0/AV:N/AC:L/AT:P/PR:L/UI:P/VC:H/VI:H/VA:L/SC:H/SI:H/SA:L` (wasmtime's record scores
   it 8.8; GitHub's calculator recomputes it from the vector).
@@ -49,7 +49,7 @@ preview 1 bugs that wasmtime has since fixed. Both reach a wasi-python guest:
 - **GHSA-96f6-r43r-8c24 (low), host memory disclosure.** Each directory listing copies up to
   three bytes of uninitialized host memory per entry into the guest.
 
-wasi-python 0.1.0a4 fixes both in the runner, on every call, and with any wasmtime 49 release.
+wasi-python 0.1.0a5 fixes both in the runner, on every call, and with any wasmtime 49 release.
 No wasmtime-py release carries a fixed wasmtime yet.
 
 ### Details
@@ -84,7 +84,7 @@ bytes of host-process memory per entry reach the guest's buffer. This happens on
 the stdlib folder the runner always provides, a root, and every grant, read-only or not. It
 affects every call on every platform. wasmtime fixed this in 49.0.2.
 
-**The fix in 0.1.0a4.** The runner now serves `path_rename` and `fd_readdir` itself and forwards
+**The fix in 0.1.0a5.** The runner now serves `path_rename` and `fd_readdir` itself and forwards
 each to wasmtime, on every call. A rename with a
 trailing `/` on either path now needs a source that is a folder, judged without following the
 source's own link. Otherwise it fails with `ENOTDIR`, or with the source's own error, such as
@@ -107,7 +107,7 @@ published `wasmtime` requirement admits only fixed versions.
 
 ### Patches
 
-Upgrade to wasi-python **0.1.0a4** (`pip install --upgrade --pre wasi-python`). The fix is in the
+Upgrade to wasi-python **0.1.0a5** (`pip install --upgrade --pre wasi-python`). The fix is in the
 runner and works with the wasmtime 49.0.0 that pip installs. 0.1.0a3 has been yanked on PyPI.
 0.1.0a1 and 0.1.0a2 were published only as GitHub release assets, and they are affected too.
 
@@ -131,7 +131,7 @@ If you cannot upgrade:
 - wasmtime advisory GHSA-96f6-r43r-8c24:
   https://github.com/bytecodealliance/wasmtime/security/advisories/GHSA-96f6-r43r-8c24 (fixed in
   wasmtime 49.0.2, 48.0.4 and 36.0.17)
-- wasi-python 0.1.0a4 release notes: `CHANGELOG.md`, "Security: the sandbox holds on wasmtime
+- wasi-python 0.1.0a5 release notes (the entries under 0.1.0a4, which was tagged but never published): `CHANGELOG.md`, "Security: the sandbox holds on wasmtime
   49.0.0"
 - wasi-python `SECURITY.md`, "Upstream advisories the runner handles"
 
@@ -149,7 +149,7 @@ If you cannot upgrade:
 | a1 and a2: every call has a writable `/` | `v0.1.0a1:src/wasi_python/runner.py:104` and `v0.1.0a2:…:440` call `wasi.preopen_dir(str(guest_root), "/")`, and wasmtime-py 49.0.0's `preopen_dir` defaults to `fs_mutable=True` (`context/prior_art/wasmtime-py/wasmtime/_wasi.py:172`); a2's default root is `tempfile.mkdtemp` (`runner.py:269`) | READ; **that a1 and a2 are exploitable is INFERRED, not run** |
 | a3: only `root=True`, a host root or a writable grant | `v0.1.0a3:src/wasi_python/runner.py:1647` (`preopen_dir(..., p.writable)`); a3 CHANGELOG "nothing is writable by default"; a3 `cli.py` options | READ; a3 itself was not run (INFERRED from the same code path as the sets above) |
 | the disclosure: up to 3 bytes per entry, every listing, fixed in 49.0.2 | facts sheet 12 (fact 3, `evidence/padding.txt`: 995 of 1,000 calls); spec 048, The problem | EXECUTED (there) |
-| the fix in 0.1.0a4, the rule, zeroing, removal condition | `CHANGELOG.md` 0.1.0a4; spec 048 Decisions 1 to 5 and Landing notes; build review `context/reviews/048-the-sandbox-holds-2026-10-18.md` | READ |
+| the fix in 0.1.0a5, the rule, zeroing, removal condition | `CHANGELOG.md` 0.1.0a4 section (shipped in 0.1.0a5); spec 048 Decisions 1 to 5 and Landing notes; build review `context/reviews/048-the-sandbox-holds-2026-10-18.md` | READ |
 | neither issue gives code execution, network, or limit bypass | memo §2 (the guest imports only preview 1 and `host::call`); the advisories' own scope | INFERRED |
 | CVSS vector, score 8.8, CWE-61; CWE-908 and 2.1 for the low one | the two advisory JSON files under the memo's `advisories/` | READ |
 | only 0.1.0a3 is on PyPI; a1 and a2 are GitHub releases | PyPI JSON for `wasi-python`; `gh release list` | EXECUTED 2026-10-18 |

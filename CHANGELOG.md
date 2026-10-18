@@ -6,6 +6,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a5 — unreleased
 
+**The first release since 0.1.0a3.** 0.1.0a4 was tagged but never published (see its section):
+everything listed under 0.1.0a4 ships in this release too, including the security fixes of specs
+048 and 056.
+
 - **Read-only code on the import path** (spec 054). Added: `run(import_path=[…])` and
   `run_async(import_path=[…])`, and `wasi-python run --import-path GUEST`. Each entry, a folder
   or a zip file inside a read-only grant, goes on `sys.path` after the stdlib zip. The runner
@@ -48,6 +52,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 
 ## 0.1.0a4 — 2026-10-18
+
+**Not published.** The tag `v0.1.0a4` exists, but its release run (#46) failed on Windows: spec
+034's writable-mount parity check did not hold for a Windows grant (fixed by spec 058 in
+0.1.0a5). The run was cancelled; there is no GitHub release and no PyPI upload of 0.1.0a4.
+Everything below ships in 0.1.0a5.
 
 - **The zip's directory is read once** (spec 035). A start reads the stdlib zip's directory
   through the reactor's own reader, `_zip_directory`, a frozen module installed between the
