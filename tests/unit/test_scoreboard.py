@@ -342,13 +342,36 @@ def test_fewer_passes_are_red_in_their_own_list_and_print_first() -> None:
     assert lines[fewer] == f"FEWER {G}: passes 1063 -> 1062" and fewer < grew
 
 
-def test_every_fewer_line_survives_the_line_cap() -> None:
-    fewer = [f"t.py::g{i}: passes 9 -> 8" for i in range(6)]
+@pytest.mark.parametrize("n_fewer", [0, 2, 6, 11])
+def test_every_fewer_line_the_red_line_and_the_tail_survive_the_line_cap(n_fewer) -> None:
+    """The build review's F3: eleven FEWER lines and three each of LOST, ABSENT and GREW must not
+    push the RED line or the "not machine-checked" lines off the scoreboard."""
+    fewer = [f"t.py::g{i}: passes 9 -> 8" for i in range(n_fewer)]
     checks = {f"t.py::f{i}": check("fail", area="rules") for i in range(40)}
-    ratchet = scoreboard.Ratchet(fewer=fewer, growth=["x: fuel 1 -> 2"] * 5)
-    lines = scoreboard.render(run(checks), ratchet, {}, ["red"])
+    ratchet = scoreboard.Ratchet(
+        fewer=fewer,
+        lost=["l1", "l2", "l3"],
+        absent=["a1", "a2", "a3"],
+        growth=["x: fuel 1 -> 2"] * 5,
+    )
+    lines = scoreboard.render(run(checks), ratchet, {}, ["the reason it is red"])
     assert len(lines) <= scoreboard.MAX_LINES
-    assert sum(line.startswith("FEWER ") for line in lines) == 6
+    assert sum(line.startswith("FEWER ") for line in lines) == n_fewer
+    assert any(line.startswith("RED: the reason") for line in lines)
+    assert lines[-2].startswith("not machine-checked") and lines[-1].startswith("  licence")
+    assert lines[0].startswith("wasi_python v1:") and any(x.startswith("ratchet vs") for x in lines)
+
+
+def test_a_passes_metric_no_longer_recorded_is_fewer_not_growth() -> None:
+    """The build review's F4: dropping `passes` must not ride on --accept-growth."""
+    rec = run({G: check("pass", area="v1.3", metrics={"fuel": 10})})
+    base = accepted({G: acc_passes(1063)})
+    r = scoreboard.compare(rec, base)
+    assert r.fewer == [f"{G}: passes 1063 -> none"] and r.growth == []
+    with pytest.raises(scoreboard.AcceptRefused, match="say --accept-fewer-passes"):
+        _accept(rec, base, growth_reason="unrelated growth")
+    new, _ = _accept(rec, base, fewer_reason="the group no longer counts passes")
+    assert "passes" not in new["checks"][G]["metrics"][PLAT]
 
 
 def test_more_passes_are_reported_in_more_not_gained() -> None:
@@ -400,16 +423,44 @@ def test_an_accepted_gap_now_failing_or_outside_is_not_lost_or_absent() -> None:
     assert r.lost == [] and r.absent == [] and r.outside == []
 
 
-@pytest.mark.parametrize("now", ["blocked", "deselected", None])
-def test_accept_refuses_while_an_accepted_upstream_check_did_not_run(now) -> None:
-    gap = f"{UP}::test_upstream_class[pandas-tslibs-no-processes]"
-    checks = {A: check("pass")}
-    if now is not None:
-        checks[G] = check(now, area="v1.3", need="upstream kit" if now == "blocked" else None)
+@pytest.mark.parametrize("status", ["pass", "gap"])
+@pytest.mark.parametrize("now", ["blocked", "deselected"])
+def test_accept_refuses_while_an_accepted_upstream_check_is_blocked_or_deselected(
+    now, status
+) -> None:
+    """The case Decision 13 was written for (the pre-build review's F9): every upstream check is
+    in the run, blocked because the kit is gone, or deselected. Nothing else in the run would
+    refuse (the build review's F2: an accepted pass and an accepted gap, each alone)."""
+    checks = {
+        A: check("pass"),
+        G: check(now, area="v1.3", need="upstream kit" if now == "blocked" else None),
+    }
     rec = run(checks)
-    base = accepted({A: acc(), G: acc_passes(1063), gap: acc("gap")})
-    with pytest.raises(scoreboard.AcceptRefused, match="upstream"):
+    rec["collected_files"] = [FILE, UP]
+    base_entry = acc_passes(1063) if status == "pass" else acc("gap")
+    base = accepted({A: acc(), G: base_entry})
+    r = scoreboard.compare(rec, base)
+    assert r.upstream_unrun == [G] and r.absent == [] and r.lost == []
+    with pytest.raises(scoreboard.AcceptRefused, match="upstream suite check"):
         _accept(rec, base)
-    new, line = _accept(rec, base, partial_reason="no source trees here")
+    new, line = _accept(rec, base, partial_reason="no kit here")
     assert new["checks"][G] == base["checks"][G]
-    assert scoreboard.compare(rec, base).upstream_unrun
+    assert json.loads(line)["partial_reason"] == "no kit here"
+
+
+def test_accept_refuses_while_an_accepted_upstream_gap_is_outside_the_run() -> None:
+    gap = f"{UP}::test_upstream_class[pandas-tslibs-no-processes]"
+    rec = run({A: check("pass")})  # the upstream file was not collected
+    base = accepted({A: acc(), gap: acc("gap")})
+    r = scoreboard.compare(rec, base)
+    assert r.upstream_unrun == [gap] and r.absent == []
+    with pytest.raises(scoreboard.AcceptRefused, match="upstream suite check"):
+        _accept(rec, base)
+    _accept(rec, base, partial_reason="fast tier")
+
+
+def test_a_passing_upstream_check_is_not_unrun() -> None:
+    rec = run(
+        {A: check("pass"), G: check("pass", area="v1.3", metrics={"fuel": 10, "passes": 1063})}
+    )
+    assert scoreboard.compare(rec, accepted({A: acc(), G: acc_passes(1063)})).upstream_unrun == []

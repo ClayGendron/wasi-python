@@ -1,0 +1,1 @@
+numpy/tests/test_public_api.py::test_api_importable

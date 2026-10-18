@@ -138,7 +138,10 @@ def compare(run: dict, accepted: dict | None, repo: Path = paths.REPO) -> Ratche
         old = acc.get("metrics", {}).get(meta["platform"], {})
         if now["status"] == "pass":
             for name in sorted(set(old) - {"wasmtime"} - set(now.get("metrics", {}))):
-                r.growth.append(f"{node}: {name} is no longer recorded")
+                if name in COUNTS_UP:  # only --accept-fewer-passes may drop it (spec 050, F4)
+                    r.fewer.append(f"{node}: {name} {old[name]} -> none")
+                else:
+                    r.growth.append(f"{node}: {name} is no longer recorded")
         for name, value in sorted(now.get("metrics", {}).items()):
             if name not in old:
                 continue
@@ -387,23 +390,29 @@ def render(
     if work:
         doc, _ = sorted(work.items(), key=_desc)[0]
         lines.append(f"next: {doc} (unblocks {unblocks[doc]}, closes {closers.get(doc, 0)})")
-    tail = []  # the ratchet and the verdict are never cut; the FAIL lines give way
+    # The ratchet line, every FEWER line (spec 050, Decision 12), the verdict and the "not
+    # machine-checked" lines are never cut. LOST, ABSENT and GREW lines give way first, then the
+    # FAIL lines, then the lines above the tail (the build review's F3).
+    head, examples, end = [], [], []
     if ratchet is not None:
-        tail.append(_ratchet_line(ratchet, run["meta"].get("partial")))
-        tail += [f"FEWER {f}" for f in ratchet.fewer]  # never cut (spec 050, Decision 12)
-        tail += [f"LOST {node}" for node in ratchet.lost[:3]]
-        tail += [f"ABSENT {node}" for node in ratchet.absent[:3]]
-        tail += [f"GREW {g}" for g in ratchet.growth[:3]]
+        head.append(_ratchet_line(ratchet, run["meta"].get("partial")))
+        head += [f"FEWER {f}" for f in ratchet.fewer]
+        examples += [f"LOST {node}" for node in ratchet.lost[:3]]
+        examples += [f"ABSENT {node}" for node in ratchet.absent[:3]]
+        examples += [f"GREW {g}" for g in ratchet.growth[:3]]
     if red:
-        tail.append("RED: " + "; ".join(red))
-    tail += [f"not machine-checked: {NOT_MACHINE_CHECKED[0]}", f"  {NOT_MACHINE_CHECKED[1]}"]
+        end.append("RED: " + "; ".join(red))
+    end += [f"not machine-checked: {NOT_MACHINE_CHECKED[0]}", f"  {NOT_MACHINE_CHECKED[1]}"]
+    fixed = len(head) + len(end)
+    examples = examples[: max(0, MAX_LINES - len(lines) - fixed)]
+    tail = head + examples + end
     fails = [(n, c) for n, c in sorted(checks.items()) if c["status"] == "fail"]
     room = max(0, MAX_LINES - len(lines) - len(tail) - 1)
     shown = min(len(fails), MAX_FAIL_LINES, room)
     lines += [f"FAIL {node} — {c['reason'][:160]}" for node, c in fails[:shown]]
     if len(fails) > shown:
         lines.append(f"+{len(fails) - shown} more failures in build/progress/latest.json")
-    return (lines + tail)[:MAX_LINES]
+    return lines[: max(1, MAX_LINES - len(tail))] + tail
 
 
 def _desc(item: tuple[str, int]) -> tuple[int, str]:

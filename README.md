@@ -48,7 +48,7 @@ promises.
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
-| numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 62,569 passing; 25 gaps (18 classes of known failures, 7 tests that trap), each with its closer |
+| numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 62,569 passing; 26 gaps (19 classes of known failures, 7 tests that trap), each with its closer |
 
 The platform's facts, documented rather than patched (with two carried patches,
 below), are what `python.wasm -V` prints after its version:
@@ -71,7 +71,9 @@ numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a 
 for that class of mistake. Tracebacks and warnings name a module in the zip by its full zip path,
 `/usr/local/lib/python315.zip/pandas/core/frame.py`, as native zip imports do, so pandas'
 warnings point at the caller's line. There is no `/dev/null`: `os.devnull` names a path that
-does not exist, so opening it raises `FileNotFoundError`. `importlib.metadata` gives each package's name, version and entry
+does not exist, so opening it raises `FileNotFoundError`. The stdlib zip carries no package's
+`tests` folders and no `conftest.py`, so `numpy.conftest`, which numpy's own module list names,
+does not import. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The first metadata lookup in a
 process costs about 0.36 G fuel on the snapshot, and `import numpy.testing` (which looks numpy up)
 about 0.14 G more than it did, until the zip's directory is read once (spec 035). `import ctypes`

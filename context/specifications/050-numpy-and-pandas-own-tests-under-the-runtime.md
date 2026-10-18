@@ -964,3 +964,37 @@ groups are the knob.
 **For the lane.** Fetch the kit in the main tree first (`uv run python tests/upstream/fetch.py`),
 judge, and cite the ratchet line with no `unrun locally` and no `upstream unrun` count.
 `--accept-judge` names the new checks, the lists, the gaps and the harness changes.
+
+**After the build review** (to be filed as `context/reviews/050-numpy-and-pandas-own-tests-under-the-runtime-2026-10-18.md`;
+findings F1 to F6, each fixed; its Disposition gives the detail). Each fix's unit case was written
+first; the F3, F4 and F6 cases failed before their fix, and the F1 and F2 cases guard code that was
+already right (they kill the review's surviving mutants U5, U6, S9 and S13).
+- **F1.** `test_a_manifest_mismatch_fails_the_checks_through_prepare_not_blocks` goes through
+  `Session.prepare` and requires an `AssertionError` (not a skip) naming both tarballs.
+- **F2.** The refusal's cases are split: an accepted pass or gap that is `blocked` or `deselected`
+  alone, and an accepted gap outside the run alone.
+- **F3.** `render` never cuts the ratchet line, the `FEWER` lines, `RED` or the "not
+  machine-checked" lines; `LOST`, `ABSENT` and `GREW` give way first, then `FAIL` lines, then the
+  lines above. Checked with 0, 2, 6 and 11 `FEWER` lines and three each of the others.
+- **F4.** A `passes` no longer recorded is `FEWER … passes <old> -> none`, so only
+  `--accept-fewer-passes` can drop it.
+- **F5.** `test_api_importable` gets its own class, `numpy-others-no-conftest`, closed by the
+  README, which now states that the zip carries no `tests` folders and no `conftest.py`.
+  `test-only-modules` keeps `test_NPY_NO_EXPORT` (question 89). So there are **19 classes and 26
+  gaps**: spec 051 closes 15, the README 9, question 89 2. Decision 10's table counted
+  18; the split is the review's.
+- **F6.** A trap check that did not trap also needs an `E` line and an `S` or `C` line under its
+  entry's node id; otherwise "the entry ran nothing".
+
+The full judge after the fixes, exit 0:
+
+```
+  v1.3  data stack          31/58  gap 26 blocked 1
+gaps close with: 051-what-the-upstream-tests-found 15 · README 9 · questions-for-the-owner 2
+ratchet vs 361775dd62: lost 0 · absent 0 · unrun 0 · unrun locally 7 · gained 12 · grew 0 · judge changed: … and 34 more
+1188 passed, 17 skipped, 26 xfailed in 443.67s (0:07:23)
+```
+
+The 38 checks: 12 `pass`, 26 `gap`. Passes 62,569. The groups' fuel sums to
+1,646,467,107,285, 0.07 ppm from the run before the fixes (the fixes run nothing differently in
+the guest).

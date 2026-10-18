@@ -411,7 +411,8 @@ def test_a_stream_that_ends_after_a_c_line_names_that_collector() -> None:
     s = upstream.parse_stream(text)
     assert s.open_node == "numpy/_core/tests/test_arraymethod.py"
     run = upstream.GuestRun(None, "error while executing", "wasm trap: indirect call", 1, "", "")
-    assert upstream.trap_findings(s, run) == [
+    entry = "numpy/_core/tests/test_arraymethod.py"
+    assert upstream.trap_findings(s, run, entry) == [
         "trap: wasm trap: indirect call at numpy/_core/tests/test_arraymethod.py"
     ]
 
@@ -429,11 +430,14 @@ def test_a_stream_that_ends_inside_a_test_names_that_test() -> None:
 def test_an_entry_that_no_longer_traps_has_no_finding_and_another_cause_differs() -> None:
     s = upstream.parse_stream(_stream("S n::t", "R failed n::t -- ValueError: x"))
     clean = upstream.GuestRun(0, None, None, 1, "", "")
-    assert upstream.trap_findings(s, clean) == []  # the check passes; its gap says remove it
+    assert upstream.trap_findings(s, clean, "n::t") == []  # passes; its gap says remove it
     open_s = upstream.parse_stream(_stream("S n::t", end=None))
     one = upstream.GuestRun(None, "e", "wasm trap: indirect call type mismatch", 1, "", "")
     other = upstream.GuestRun(None, "e", "wasm trap: out of bounds memory access", 1, "", "")
-    a, b = upstream.trap_findings(open_s, one), upstream.trap_findings(open_s, other)
+    a, b = (
+        upstream.trap_findings(open_s, one, "n::t"),
+        upstream.trap_findings(open_s, other, "n::t"),
+    )
     assert a != b and scan.digest(a) != scan.digest(b)
 
 
@@ -456,7 +460,7 @@ pytestmark = pytest.mark.goal("v1.3")
 @pytest.mark.parametrize("trap", ["t"])
 def test_upstream_trap(trap):
     s = upstream.parse_stream("S n::t\\nR passed n::t -- \\nE 0\\n")
-    findings = upstream.trap_findings(s, upstream.GuestRun(0, None, None, 1, "", ""))
+    findings = upstream.trap_findings(s, upstream.GuestRun(0, None, None, 1, "", ""), "n::t")
     assert not findings, scan.report(findings, "trap t")
 """
     )
@@ -633,3 +637,95 @@ def test_the_stage_holds_every_package_whichever_check_asks_first(work, monkeypa
             s.close()
         assert "tests/numpy/tests/test_a.py" in staged and "tests/pandas/tests/test_a.py" in staged
         assert "judge/g.json" in staged and "kit/k.py" in staged
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "C \nC numpy/tests\nP derandomize=True database=None max_examples=100\nE 5\n",
+        "C \nE 4\n",
+        "C \nC numpy/tests/test_b.py\nS numpy/tests/test_b.py::t\n"
+        "R passed numpy/tests/test_b.py::t -- \nE 0\n",
+        "C \nC numpy/tests/test_a.py\n",
+    ],
+    ids=["no-tests-collected", "usage-error", "another-test", "no-E-line"],
+)
+def test_a_trap_check_whose_session_runs_nothing_of_its_entry_fails(text) -> None:
+    """The build review's F6: an entry renamed away, or a session that never got to it, is a
+    finding, not a pass."""
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    findings = upstream.trap_findings(
+        upstream.parse_stream(text), clean, "numpy/tests/test_a.py::t"
+    )
+    assert findings and ("ran nothing" in findings[0] or "no E line" in findings[0]), findings
+
+
+def test_a_trap_check_whose_entry_ran_and_finished_has_no_finding() -> None:
+    clean = upstream.GuestRun(0, None, None, 1, "", "")
+    by_test = "C \nS numpy/tests/test_a.py::t[0]\nR failed numpy/tests/test_a.py::t[0] -- x\nE 1\n"
+    by_file = "C \nC numpy/tests/test_a.py\nE 0\n"
+    assert (
+        upstream.trap_findings(upstream.parse_stream(by_test), clean, "numpy/tests/test_a.py::t")
+        == []
+    )
+    assert (
+        upstream.trap_findings(upstream.parse_stream(by_file), clean, "numpy/tests/test_a.py") == []
+    )
+
+
+def _scaffold(work, monkeypatch, *, pandas_sha: str | None = None):
+    """Two scratch packages with tarballs, trees, a kit and an artifact MANIFEST, wired into the
+    harness the way a judge run finds them."""
+    from harness import pins
+
+    trees = {}
+    for pkg in ("numpy", "pandas"):
+        files = {f"{pkg}/tests/__init__.py": b"", f"{pkg}/tests/test_a.py": b""}
+        tb = _tarball(work / f"{pkg}-9.tar.gz", f"{pkg}-9", files)
+        tree = work / "build" / f"{pkg}-9"
+        for rel, data in files.items():
+            (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+            (tree / rel).write_bytes(data)
+        trees[pkg] = (tb, tree)
+    art = work / "art"
+    art.mkdir()
+    shas = {pkg: paths.sha256_file(tb) for pkg, (tb, _) in trees.items()}
+    if pandas_sha is not None:
+        shas["pandas"] = pandas_sha
+    pins_lines = "".join(f"pin {shas[pkg]} {tb.name}\n" for pkg, (tb, _) in trees.items())
+    (art / "MANIFEST").write_text("python 3.15.0\npackage numpy 9\npackage pandas 9\n" + pins_lines)
+    wheels = work / "wheels"
+    wheels.mkdir()
+    w = _wheel(wheels / "k-1-py3-none-any.whl", {"k.py": b""})
+    kit = work / "kit.txt"
+    kit.write_text(f"{paths.sha256_file(w)}  https://files.pythonhosted.org/p/{w.name}\n")
+    monkeypatch.setattr(upstream, "KIT", kit)
+    monkeypatch.setattr(upstream, "WHEELS", wheels)
+    monkeypatch.setattr(upstream.paths, "HARNESS_TMP", work / "harness")
+    monkeypatch.setattr(pins, "source_pair", lambda pkg, *a, **k: trees.get(pkg))
+    monkeypatch.setattr(upstream.paths, "artifact_dir", lambda: art)
+    monkeypatch.setattr(upstream, "repo_patches", lambda top, repo=None: {})
+    return {p: _cfg(p) for p in ("numpy", "pandas")}
+
+
+def test_a_manifest_mismatch_fails_the_checks_through_prepare_not_blocks(work, monkeypatch) -> None:
+    """The build review's F1: the tie's errors reach the checks as a failure (an AssertionError),
+    never dropped and never a skip, which the plugin would file as blocked."""
+    configs = _scaffold(work, monkeypatch, pandas_sha="0" * 64)
+    s = upstream.Session(work, configs)
+    try:
+        for _ in range(2):  # and again from the cache
+            try:
+                s.prepare("pandas")
+            except BaseException as e:  # a pytest.skip is a BaseException
+                assert type(e) is AssertionError, f"{type(e).__name__}: {e}"
+                message = str(e)
+            else:
+                raise AssertionError("prepare accepted tests that are not the artifact's")
+            assert message.startswith(
+                "the tests are not the artifact's: tests from pandas-9.tar.gz"
+            )
+            assert "000000000000" in message and "artifact built from pandas-9.tar.gz" in message
+        assert s.prepare("numpy") == []  # the other package is the artifact's and stages
+    finally:
+        s.close()

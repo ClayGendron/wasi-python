@@ -380,6 +380,7 @@ class Stream:
     modules: list[tuple[str, str]] = field(default_factory=list)
     exit_code: int | None = None
     open_node: str | None = None  # the last S or C line: what ran when the stream ended
+    started: list[str] = field(default_factory=list)  # every S and C node, in order
 
 
 def parse_stream(text: str) -> Stream:
@@ -389,8 +390,10 @@ def parse_stream(text: str) -> Stream:
         kind, _, rest = line.partition(" ")
         if kind == "C":
             s.open_node = rest
+            s.started.append(rest)
         elif kind == "S":
             s.open_node = current = rest
+            s.started.append(rest)
         elif kind == "R":
             outcome, _, tail = rest.partition(" ")
             if current is not None and (
@@ -452,9 +455,18 @@ def _ended(stream: Stream, run: GuestRun) -> list[str]:
     return []
 
 
-def trap_findings(stream: Stream, run: GuestRun) -> list[str]:
-    """A trap check's findings: the trap (or fuel) that ended the entry's session, if any."""
-    return _ended(stream, run) if run.trapped else []
+def trap_findings(stream: Stream, run: GuestRun, entry: str) -> list[str]:
+    """A trap check's findings: the trap (or fuel) that ended the entry's session; or, when it
+    did not trap, a session that did not finish or never started anything under the entry's
+    node id (a renamed test, nothing collected, a usage error), which guards nothing (the build
+    review's F6). The entry is a node id, a node-id prefix or a file, as `--deselect` reads it."""
+    if run.trapped:
+        return _ended(stream, run)
+    if stream.exit_code is None:
+        return _ended(stream, run)
+    if not any(node.startswith(entry) for node in stream.started):
+        return [f"the entry ran nothing: {entry} (pytest exit code {stream.exit_code})"]
+    return []
 
 
 def _profile_ok(profile: str) -> bool:
@@ -718,4 +730,5 @@ class Session:
     def trap(self, package: str, trap_id: str) -> TrapRun:
         self.prepare(package)
         stream, run = self._run(package, trap_id, TRAP_FUEL)
-        return TrapRun(trap_findings(stream, run), run.fuel)
+        node = next(t.node for t in self.configs[package].traps if t.id == trap_id)
+        return TrapRun(trap_findings(stream, run, node), run.fuel)

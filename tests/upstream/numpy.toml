@@ -228,11 +228,19 @@ reason = 'carried patch 0001: np.save of a masked array writes its data instead 
 closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
 [[expected]]
+id = "no-conftest"
+group = "numpy-others"
+outcome = "failed"
+match = "looked public and can not be imported: \\['numpy\\.conftest'\\]$"
+reason = "the product's zip carries no tests and no conftest.py, so numpy.conftest, listed in numpy's module list, does not import (README; the build review's F5)"
+closes_with = "README.md"
+
+[[expected]]
 id = "test-only-modules"
 group = "numpy-others"
 outcome = "failed"
-match = "not really public but looked public|has no attribute '_multiarray_tests'"
-reason = 'numpy.conftest and _multiarray_tests are not in the product (question 89)'
+match = "has no attribute '_multiarray_tests'"
+reason = '_multiarray_tests, a numpy C test module, is not in the product (question 89)'
 closes_with = "context/questions-for-the-owner.md"
 
 [[expected]]

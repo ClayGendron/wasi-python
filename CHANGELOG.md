@@ -153,7 +153,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 ### Judge
 
 - **numpy's and pandas' own tests run in the guest** (spec 050): upstream's fast selection, 11
-  groups, 62,569 passing in the snapshot binary, with each known failure a gap by node id (18
+  groups, 62,569 passing in the snapshot binary, with each known failure a gap by node id (19
   classes) and 7 tests that trap the guest (spec 051 fixes them); a new metric, `passes`, may
   fall only with `--accept-fewer-passes`. The artifact set does not change.
 

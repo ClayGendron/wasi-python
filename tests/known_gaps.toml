@@ -64,9 +64,15 @@ reason = "carried patch 0001: np.save of a masked array writes its data instead 
 closes_with = "context/specifications/051-what-the-upstream-tests-found.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-no-conftest]"
+match = "1 finding(s), digest de31d83c1d93"
+reason = "the product's zip carries no tests and no conftest.py, so numpy.conftest, listed in numpy's module list, does not import (README; the build review's F5)"
+closes_with = "README.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[numpy-others-test-only-modules]"
-match = "2 finding(s), digest 2be7e4437226"
-reason = "numpy.conftest and _multiarray_tests are not in the product (question 89)"
+match = "1 finding(s), digest 676791284b94"
+reason = "_multiarray_tests, a numpy C test module, is not in the product (question 89)"
 closes_with = "context/questions-for-the-owner.md"
 
 [[gap]]
