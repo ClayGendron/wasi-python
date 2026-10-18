@@ -216,16 +216,29 @@ extension module's shared link into a static archive, so no `meson.build`
 changes. The line's versions (CPython, wasi-sdk, the host Python) are named
 once, in `scripts/line.conf`.
 
-**The same bytes from any build host.** The build runs on arm64 macOS and
-arm64 Linux, and both give the same artifact set, byte for byte: the same
-`SHA256SUMS` over the three artifacts, `MANIFEST` and the licences
-(`context/specifications/012-the-same-bytes-from-any-host.md`). x86_64 Linux
-is a pinned build host too, but its rebuilds are not yet byte-identical: its
-wasi-sdk compiler lays out one numpy function's stack differently, so its
-`python.wasm` differs by 21 bytes and its snapshot with it; its zip, `MANIFEST`
-and licences are the same
-(`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`). Each host's
-own inputs (wasi-sdk, wasmtime, the host Python, the Cython and ninja wheels)
+**The same bytes from any build host.** The build runs on arm64 macOS, arm64
+Linux and x86_64 Linux, and all three give the same artifact set, byte for
+byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the
+licences (`context/specifications/012-the-same-bytes-from-any-host.md`,
+`context/specifications/040-x86-64-rebuilds-the-same-bytes.md`). Every host
+compiles with an arm64 build of the pinned clang. The two arm64 hosts run their
+own wasi-sdk's. The x86_64 host runs the arm64 Linux wasi-sdk's clang under a
+pinned `qemu-aarch64`, through the launcher `scripts/clang-emulated`; every
+other tool there (the linker, the archiver, wasmtime, the host Python, Cython,
+meson, ninja) stays native. That is because wasi-sdk's x86_64 clang, given the
+same input and flags, orders two stack slots of one numpy function differently
+in instruction selection, so its `python.wasm` differed by 21 bytes
+(`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`). The
+issue is drafted for LLVM (`context/upstream/4-llvm-wasm-isel-slot-order/`),
+and the emulation goes when an SDK's two compilers agree. The x86_64 host's
+compiler inputs are five Debian packages, pinned by `snapshot.debian.org` URL
+and hash, unpacked under `build/tools/` and never installed: `qemu-user`
+(GPL-2.0), and the aarch64 `libc6` (LGPL-2.1), `libstdc++6` and `libgcc-s1`
+(GPL-3.0 with the GCC runtime exception) and `libtinfo6` (X11) that the clang
+loads. They are build tools, like the runner's `cc`: nothing of them is linked
+into or shipped with an artifact. Each host's
+own inputs (wasi-sdk, wasmtime, the host Python, the Cython and ninja wheels,
+and the SDK whose clang compiles there)
 are named once per host in `scripts/line.conf` and fetched by that host's
 branch of `scripts/00_download.sh`; every host's pins are in
 `downloads/SHA256SUMS`. So `MANIFEST`'s `pin` lines name every supported build
@@ -283,9 +296,10 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
 checks that the source trees are their tarballs plus the recorded patches, runs the whole judge, and checks the same bytes on Linux, Windows and
-macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an arm64 Linux runner,
-and `same-bytes` requires its `SHA256SUMS` to equal the set's, byte for byte; nothing is signed
-or published until it passes. x86_64 Linux is not in this gate yet (above). Then it publishes
+macOS. Beside the build, a `rebuild` job rebuilds the set from the pins on an arm64 Linux runner
+and an x86_64 Linux runner, and `same-bytes` requires each one's `SHA256SUMS` and wheel to equal
+the set's, byte for byte; nothing is signed or published until it passes. The x86_64 rebuild
+compiles under emulation (above), so its job may take up to six hours. Then it publishes
 a GitHub pre-release with the wheel, the artifact set as `.tar.xz`, and
 their `SHA256SUMS`, and uploads the wheel to PyPI as `wasi-python` through its trusted publisher (from 0.1.0a3). A manual run of
 the workflow is a dry run that never publishes (`context/specifications/004-alpha-releases.md`).
@@ -1211,11 +1225,7 @@ and the 3.15 line have landed (specs 001, 003, 004 and 005). The direction
 past these is in
 `context/research/2026-10-16-a-principal-engineers-direction.md`.
 
-1. x86_64 Linux rebuilds byte-identical
-   (`context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md`):
-   its wasi-sdk compiler lays out one numpy function's stack differently;
-   the cause is found, the fix is not.
-2. numpy's and pandas' own test subsets under the runtime.
+1. numpy's and pandas' own test subsets under the runtime.
 
 Decided already, without further study: both binaries ship, the snapshot
 first; the stdlib zip is bytecode-only and deflated; the int32 default

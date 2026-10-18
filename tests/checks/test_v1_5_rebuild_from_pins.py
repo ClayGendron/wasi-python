@@ -99,9 +99,11 @@ def test_stdlib_zip_names_no_build_host(artifacts) -> None:
     assert not errors, scan.report(errors)
 
 
-def test_release_workflow_rebuilds_on_a_second_host() -> None:
-    """An arm64 Linux runner rebuilds the set beside the build, and nothing is signed or
-    published until its SHA256SUMS equals the set's (spec 012, Decisions 7 and 8)."""
+def test_release_workflow_rebuilds_on_two_more_hosts() -> None:
+    """An arm64 Linux runner and an x86_64 Linux runner rebuild the set beside the build, each
+    within its own time limit and printing its core count and binfmt_misc entries, and nothing is
+    signed or published until each one's SHA256SUMS and wheel equal the set's (spec 012,
+    Decision 7; spec 040, Decision 6)."""
     workflow = paths.REPO / ".github" / "workflows" / "release.yml"
     errors = scan.rebuild_gate_errors(workflow.read_text())
     assert not errors, scan.report(errors)

@@ -1,0 +1,21 @@
+# The hand reduction (spec 040, Decision 9): each step a smaller file, the objects of the arm64
+# macOS SDK (aarch64) and the x86_64 Linux SDK (x86_64) compared with compare-two-hosts.sh. r1 to
+# r2 are numpy's npy_cpowl cut down (numpy's text), r3 to r15 and r17 other cuts, none kept; r16 is
+# slot-order.c.
+r1.c: DIFFER aarch64 02034883ccd3b900 x86_64 d12ad7f03f6bd4a4
+r2.c: DIFFER aarch64 51ae456641429fe0 x86_64 5496f27668c5c7a6
+r3.c: same 93c08de8f3d49a23
+r4.c: DIFFER aarch64 c42009cb86edcede x86_64 dadd7b0b0533d476
+r5.c: same 3b40b2420f744beb
+r6.c: same 06ae9650ab1e7db6
+r7.c: same 20f40726c24be685
+r8.c: same 5b62e9fdd1dd70a0
+r9.c: DIFFER aarch64 08ba696eeb2c2bef x86_64 21f4011006accf53
+r10.c: same 595d9160f41ceb2e
+r11.c: same 1c6bfd67de1a4205
+r12.c: same 112d5c92aa8eb015
+r13.c: same 64d0fbe0e64097d4
+r14.c: DIFFER aarch64 385376033322dbfc x86_64 036c49f70ba8bf04
+r15.c: same 242464598bba9607
+r16.c: DIFFER aarch64 9afcef294ca52dad x86_64 7daeec0794b49c01
+r17.c: same b260e2a6c3094474

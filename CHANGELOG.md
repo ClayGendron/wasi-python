@@ -32,6 +32,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   without the guest package is refused (`ArtifactsMissing`). The README's "Tools" gives the
   API, its limits and their reasons, and LangChain and MCP recipes. The artifact set does not
   change.
+- **x86_64 Linux rebuilds the same bytes** (spec 040). The release workflow's `same-bytes` gate
+  now rebuilds the set on an x86_64 Linux runner too, beside the arm64 one, and requires the same
+  `SHA256SUMS` and wheel from each; nothing is signed or published otherwise. wasi-sdk's x86_64
+  clang orders two stack slots of numpy's `npy_cpowl` differently in instruction selection, so the
+  x86_64 host now compiles with the pinned arm64 Linux wasi-sdk's clang under a pinned
+  `qemu-aarch64` (Debian's, from `snapshot.debian.org`, with four aarch64 runtime packages), through
+  the new launcher `scripts/clang-emulated`; every other tool stays native. Step 10 lays it out
+  under `build/tools/` and stops unless five probes hold. Nothing changes on the arm64 hosts: the
+  three artifacts and the licences keep their bytes, and `MANIFEST` gains the five pins and the
+  launcher. The LLVM issue is drafted for the owner (`context/upstream/4-llvm-wasm-isel-slot-order/`);
+  the emulation goes when an SDK's two compilers agree.
 - **A tool protocol over the door** (spec 031). Guest code can call the host's tools with
   `from host import tools`; the stdlib zip carries the guest's half, the pure-Python package
   `host` (`host/__init__.py`, `host/tools.py`), and the wheel the host's, `wasi_python.tools`

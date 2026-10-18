@@ -1,0 +1,25 @@
+1049c1049
+< ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::GlobalsAA, llvm::Module> on [module] ***
+1118c1118
+< ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module, llvm::AnalysisManager<Module>> on [module] ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ProfileSummaryAnalysis, llvm::Module> on [module] ***
+2632c2632
+< ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function, llvm::AnalysisManager<Function>> on f ***
+---
+> ; *** IR Dump After RequireAnalysisPass<llvm::ShouldNotRunFunctionPassesAnalysis, llvm::Function> on f ***
+6956c6956
+<   CALL_PARAMS &__multf3, %stack.5, %19:i64, %20:i64, %35:i64, %36:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   CALL_PARAMS &__multf3, %stack.6, %19:i64, %20:i64, %35:i64, %36:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+6960,6962c6960,6962
+<   %62:i64 = LOAD_I64_A32 0, 8, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5 + 8, basealign 16)
+<   %63:i64 = LOAD_I64_A32 0, 0, %stack.5, implicit-def dead $arguments :: (load (s64) from %stack.5, align 16)
+<   CALL_PARAMS &__addtf3, %stack.6, killed %63:i64, killed %62:i64, killed %61:i64, killed %60:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+---
+>   %62:i64 = LOAD_I64_A32 0, 8, %stack.6, implicit-def dead $arguments :: (load (s64) from %stack.6 + 8, basealign 16)
+>   %63:i64 = LOAD_I64_A32 0, 0, %stack.6, implicit-def dead $arguments :: (load (s64) from %stack.6, align 16)
+>   CALL_PARAMS &__addtf3, %stack.7, killed %63:i64, killed %62:i64, killed %61:i64, killed %60:i64, implicit-def dead $arguments, implicit $sp32, implicit $sp64
+(2,038 diff lines in all; every later machine pass carries the same slot swap)

@@ -1,8 +1,8 @@
 # The release workflow (context/specifications/004-alpha-releases.md).
 #
 # A pushed tag v<version> builds the artifact set from its pins, judges it, checks the same bytes on
-# Linux, Windows and macOS, rebuilds it from the pins on arm64 Linux and requires the same bytes
-# (spec 012), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
+# Linux, Windows and macOS, rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires
+# the same bytes (specs 012 and 040), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
 # manual run (workflow_dispatch) is a dry run: build, rebuild and verify, never sign or publish.
 # Third-party actions are pinned by commit, their release named beside each.
 name: release
@@ -85,17 +85,24 @@ jobs:
 
   rebuild:
     name: rebuild from the pins (${{ matrix.os }})
-    # A second host rebuilds the whole set from an empty downloads/ and build/, beside the build,
-    # and uploads its SHA256SUMS; same-bytes compares it with the set's (spec 012, Decision 7).
-    # x86_64 Linux is a pinned build host but not in this gate: its wasi-sdk clang lays out one
-    # numpy function's stack differently, so its reactor differs by 21 bytes (spec 012's landing
-    # notes; context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md).
+    # Two more hosts rebuild the whole set from an empty downloads/ and build/, beside the build,
+    # and upload their SHA256SUMS; same-bytes compares each with the set's (spec 012, Decision 7).
+    # The x86_64 runner compiles with the pinned arm64 Linux wasi-sdk's clang under the pinned
+    # qemu-aarch64, because wasi-sdk's x86_64 clang orders two stack slots of one numpy function
+    # differently (spec 040; context/research/2026-10-17-x86-64-rebuilds-differ-in-one-function.md).
+    # Each runner keeps its own time limit: an emulated rebuild is slower, and a hung arm64 job still
+    # frees the gate after two hours. 360 minutes is a hosted job's limit (spec 040, Decision 11).
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04-arm]
+        os: [ubuntu-24.04-arm, ubuntu-24.04]
+        include:
+          - os: ubuntu-24.04-arm
+            timeout: 120
+          - os: ubuntu-24.04
+            timeout: 360
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: ${{ matrix.timeout }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,8 +111,13 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
       - name: The runner's own tools (unpinned host inputs, recorded here)
+        # nproc: the core count beside every time figure. binfmt_misc: a runner that could run an
+        # aarch64 program through its own, unpinned qemu would hide a gap in the emulated
+        # compiler's closure (spec 040, Decisions 5 and 6).
         run: |
           uname -srm
+          nproc
+          echo "binfmt_misc: $(ls /proc/sys/fs/binfmt_misc/ 2> /dev/null | tr '\n' ' ')"
           cc --version | head -n 1
           make --version | head -n 1
           curl --version | head -n 1
@@ -143,9 +155,10 @@ jobs:
   same-bytes:
     name: the same bytes from every host
     # Each rebuild's SHA256SUMS lists the whole set (the three artifacts, MANIFEST and the licences)
-    # and must equal the set's, byte for byte. The .tar.xz asset is made from the set
-    # deterministically but is outside this claim. attest and publish need this job, so a tag never
-    # signs or publishes bytes that a second host did not rebuild.
+    # and must equal the set's, byte for byte, from arm64 Linux and from x86_64 Linux, whose clang
+    # runs emulated (spec 040). The .tar.xz asset is made from the set deterministically but is
+    # outside this claim. attest and publish need this job, so a tag never signs or publishes bytes
+    # that both hosts did not rebuild.
     needs: [build, rebuild]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -162,17 +175,25 @@ jobs:
         with:
           name: rebuild-wheel-ubuntu-24.04-arm
           path: rebuilt-wheels/ubuntu-24.04-arm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rebuild-ubuntu-24.04
+          path: rebuilds/ubuntu-24.04
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: rebuild-wheel-ubuntu-24.04
+          path: rebuilt-wheels/ubuntu-24.04
       - name: Every rebuild's SHA256SUMS is the set's, byte for byte
         run: |
           mkdir set
           tar -xJf release-assets/*.tar.xz -C set
           sums=$(echo set/wasi-python-*/SHA256SUMS)
-          for runner in ubuntu-24.04-arm; do
+          for runner in ubuntu-24.04-arm ubuntu-24.04; do
             cmp "$sums" "rebuilds/$runner/SHA256SUMS"
             echo "$runner: the same SHA256SUMS"
           done
           cat "$sums"
-      - name: The wheel carries the set and is the wheel the second host rebuilt (spec 016)
+      - name: The wheel carries the set and is the wheel each host rebuilt (spec 016)
         # Three rules name what differs; the last comparison covers everything else in the wheel
         # (runner.py, METADATA), so a wheel built from any other source or set fails.
         run: |
@@ -187,7 +208,7 @@ jobs:
             echo "the wheel's artifacts are not exactly the set's"
             exit 1
           fi
-          for runner in ubuntu-24.04-arm; do
+          for runner in ubuntu-24.04-arm ubuntu-24.04; do
             rebuilt="rebuilt-wheels/$runner/$(basename "$wheel")"
             if ! cmp -s "$wheel" "$rebuilt"; then
               echo "$runner rebuilt a different wheel; entries only in one (name, mode, size, CRC, date):"
@@ -290,8 +311,8 @@ jobs:
   attest:
     name: attest the release assets
     # Build provenance for every asset, signed through Sigstore's public-good instance and then
-    # verified strictly, before anything is published (spec 009), and only once a second host
-    # rebuilt the same bytes (same-bytes, spec 012). Only a pushed tag gets here: a signature is
+    # verified strictly, before anything is published (spec 009), and only once arm64 Linux and
+    # x86_64 Linux rebuilt the same bytes (same-bytes, specs 012 and 040). Only a pushed tag gets here: a signature is
     # permanent in the public transparency log, so dry runs never sign.
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes]

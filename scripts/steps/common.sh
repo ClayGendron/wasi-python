@@ -8,6 +8,10 @@ B="$HERE/build"
 . "$HERE/scripts/steps/remove.sh"
 T="$B/tools"
 SDK="$T/$WASI_SDK_DIR"
+# The SDK whose clang compiles (spec 040, Decision 4): $SDK itself on the arm64 hosts; on x86_64
+# Linux the arm64 Linux SDK, whose clang step 10 puts behind $SDK/bin/clang under the emulator. Its
+# sysroot and builtins are the ones the emulated driver links.
+CSDK="$T/$COMPILER_SDK_DIR"
 HOSTPY="$T/python/bin/python3"
 CP="$B/Python-$PYTHON_VERSION"
 W="$CP/cross-build/wasm32-wasip1"

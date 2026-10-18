@@ -91,9 +91,10 @@ clashes "$L/reactor-link.log"
 # The link used the host-neutral wasm runtime that step 10 put in place (spec 012, Decision 2), not
 # the host tarball's: each runtime archive the link map names, its path resolved (the map writes
 # bin/../share/...), lies in the replaced sysroot or builtins directory and equals its member of the
-# pinned neutral tarball. Read only: the tarballs are opened, never unpacked, here.
-set -- "$SDK"/lib/clang/*/lib/wasm32-unknown-wasip1
-"$HOSTPY" - "$L/python.map" "$SDK/share/wasi-sysroot" "$1" \
+# pinned neutral tarball. Read only: the tarballs are opened, never unpacked, here. The directories
+# are the compiling SDK's, whose driver links (spec 040): $SDK's own on the arm64 hosts.
+set -- "$CSDK"/lib/clang/*/lib/wasm32-unknown-wasip1
+"$HOSTPY" - "$L/python.map" "$CSDK/share/wasi-sysroot" "$1" \
   "$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")" "$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")" \
   > "$L/runtime-check.log" 2>&1 <<'EOF_RUNTIME' || { cat "$L/runtime-check.log"; die "the link did not use the neutral wasm runtime"; }
 import hashlib, os, re, sys, tarfile

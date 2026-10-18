@@ -1,0 +1,18 @@
+preflight: LINUX_X86_64; 11 tools; 1707.7 GiB free
+ok 00_download: downloads: 29 pins, 29 fetched, 29 verified [46s]
+ok 10_tools: tools: python 3.15.0, meson 1.12.1, ninja 1.13.2.git.kitware.jobserver-pipe-1, cython 3.3.0 [22s]
+ok 20_cpython: cpython: 29578539 bytes, e7c2be49cde17c50 [12m48s]
+ok 30_zlib: zlib: 102842 bytes [12s]
+ok 35_stdlib_libs: stdlib libs: bz2 80798, lzma 213672, sqlite3 2048884 bytes [2m48s]
+ok 40_numpy: numpy: 19 extension archives, installed at numpy-install/usr/local/lib/python3.15/site-packages/numpy [3m14s]
+ok 50_pandas: pandas: 45 extension archives, package at pandas-install/pandas [1m56s]
+ok 60_link: reactor: 31760992 bytes, b71c2a18e0343e4c [58s]
+ok 70_zip: python-stdlib.zip: 1102 pyc, 658 data files, 11175028 bytes [9s]
+ok 80_snapshot: snapshot: 65509949 bytes, 3dbbb5b2034cb60f [9s]
+ok 90_artifacts: artifacts: 17 files in build/artifacts [1s]
+done: 11 steps in 23m26s; the artifact set is in build/artifacts/
+  python.wasm 31760992 bytes  b71c2a18e0343e4c
+  python-snapshot.wasm 65509949 bytes  3dbbb5b2034cb60f
+  python-stdlib.zip 11175028 bytes  ee1acace2fc1fb26
+next: uv run pytest -m "not slow"
+exit: 0, wall: 1406s

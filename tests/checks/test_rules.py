@@ -344,3 +344,20 @@ def test_the_rename_and_readdir_guard_match_the_floor() -> None:
             if advisory in source or left:
                 errors.append(f"{where} only patched ones; remove the guard and {left}")
     assert not errors, scan.report(errors)
+
+
+def test_x86_64_compiles_with_an_aarch64_compiler() -> None:
+    """Every build host compiles with an arm64 build of the pinned clang: its own SDK's, or, on
+    x86_64 Linux, the arm64 Linux SDK's under the pinned qemu, with its five packages pinned and
+    fetched in that host's branch, step 10 laying out and probing the emulated compiler, and the
+    launcher clearing the emulator's and the loader's environment and keeping each name's driver
+    mode (spec 040, Decisions 4, 5 and 7)."""
+    scripts = paths.REPO / "scripts"
+    errors = scan.compiler_table_errors(
+        (scripts / "line.conf").read_text(),
+        (scripts / "00_download.sh").read_text(),
+        paths.read_pin_list(),
+        scan.code_text(scripts / "steps" / "10_tools.sh") or "",
+        scan.code_text(scripts / "clang-emulated"),
+    )
+    assert not errors, scan.report(errors)

@@ -500,9 +500,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04-arm]
+        os: [ubuntu-24.04-arm, ubuntu-24.04]
+        include:
+          - os: ubuntu-24.04-arm
+            timeout: 120
+          - os: ubuntu-24.04
+            timeout: 360
     runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout }}
     steps:
+      - name: The runner's own tools
+        run: |
+          uname -srm
+          nproc
+          ls /proc/sys/fs/binfmt_misc/
       - name: Build from the pins
         run: scripts/build.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -518,11 +529,28 @@ jobs:
         with:
           name: rebuild-ubuntu-24.04-arm
           path: rebuilds/ubuntu-24.04-arm
+      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+        with:
+          name: rebuild-wheel-ubuntu-24.04-arm
+          path: rebuilt-wheels/ubuntu-24.04-arm
+      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+        with:
+          name: rebuild-ubuntu-24.04
+          path: rebuilds/ubuntu-24.04
+      - uses: actions/download-artifact@0000000000000000000000000000000000000000
+        with:
+          name: rebuild-wheel-ubuntu-24.04
+          path: rebuilt-wheels/ubuntu-24.04
       - name: Every rebuild's SHA256SUMS is the set's
         run: |
           sums=set/SHA256SUMS
-          for runner in ubuntu-24.04-arm; do
+          for runner in ubuntu-24.04-arm ubuntu-24.04; do
             cmp "$sums" "rebuilds/$runner/SHA256SUMS"
+          done
+      - name: The wheel is the wheel each host rebuilt
+        run: |
+          for r in ubuntu-24.04-arm ubuntu-24.04; do
+            cmp -s "$wheel" "rebuilt-wheels/$r/$(basename "$wheel")"
           done
   verify:
     needs: build
@@ -533,12 +561,35 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [build, verify, same-bytes, attest]
 """
+X86_ROW = "          - os: ubuntu-24.04\n            timeout: 360\n"
 
 BAD_REBUILDS = [
     (("  rebuild:\n", "  rebuilt:\n"), "no rebuild job"),
     (("  same-bytes:\n", "  same-bits:\n"), "no same-bytes job"),
-    (("os: [ubuntu-24.04-arm]", "os: [ubuntu-24.04]"), "rebuild's matrix lacks"),
+    (("os: [ubuntu-24.04-arm, ubuntu-24.04]", "os: [ubuntu-24.04]"), "rebuild's matrix lacks"),
+    (
+        ("os: [ubuntu-24.04-arm, ubuntu-24.04]", "os: [ubuntu-24.04-arm]"),
+        "rebuild's matrix lacks ubuntu-24.04",
+    ),
     (("    runs-on: ${{ matrix.os }}\n", "    runs-on: ubuntu-24.04\n"), "rebuild does not run on"),
+    (
+        ("    timeout-minutes: ${{ matrix.timeout }}\n", "    timeout-minutes: 360\n"),
+        "rebuild's timeout-minutes does not come from its matrix",
+    ),
+    (
+        ("            timeout: 120\n", "            timeout: 360\n"),
+        "rebuild's matrix does not give ubuntu-24.04-arm 120 minutes",
+    ),
+    (
+        ("            timeout: 360\n", "            timeout: 120\n"),
+        "rebuild's matrix does not give ubuntu-24.04 360 minutes",
+    ),
+    ((X86_ROW, ""), "rebuild's matrix does not give ubuntu-24.04 360 minutes"),
+    (("          nproc\n", ""), "rebuild's tools step does not print nproc"),
+    (
+        ("          ls /proc/sys/fs/binfmt_misc/\n", ""),
+        "rebuild's tools step does not print binfmt_misc",
+    ),
     (("        run: scripts/build.sh\n", "        run: echo\n"), "rebuild does not run scripts"),
     (("name: rebuild-${{ matrix.os }}", "name: rebuild"), "rebuild does not upload"),
     (
@@ -566,15 +617,42 @@ BAD_REBUILDS = [
         ("    needs: [build, rebuild]\n", "    needs: [build]\n"),
         "same-bytes does not need build and",
     ),
-    (("            cmp ", "            diff "), "same-bytes does not compare"),
+    (('            cmp "$sums"', '            diff "$sums"'), "same-bytes does not compare"),
     (
         ('cmp "$sums" "rebuilds/$runner/SHA256SUMS"', 'cmp "$sums" "$sums"'),
         "same-bytes does not compare",
     ),
-    (("path: rebuilds/ubuntu-24.04-arm", "path: elsewhere"), "same-bytes does not name"),
     (
-        ("for runner in ubuntu-24.04-arm; do", "for runner in ubuntu-24.04; do"),
-        "same-bytes does not name ubuntu-24.04-arm'",
+        ("path: rebuilds/ubuntu-24.04-arm", "path: elsewhere"),
+        "same-bytes does not name ubuntu-24.04-arm's SHA256SUMS",
+    ),
+    (
+        ("path: rebuilds/ubuntu-24.04\n", "path: elsewhere\n"),
+        "same-bytes does not name ubuntu-24.04's SHA256SUMS",
+    ),
+    (
+        ("path: rebuilt-wheels/ubuntu-24.04-arm", "path: elsewhere"),
+        "same-bytes does not name ubuntu-24.04-arm's rebuilt wheel",
+    ),
+    (
+        ("name: rebuild-wheel-ubuntu-24.04\n", "name: rebuild-wheel\n"),
+        "same-bytes does not name ubuntu-24.04's rebuilt wheel",
+    ),
+    (
+        ("for runner in ubuntu-24.04-arm ubuntu-24.04;", "for runner in ubuntu-24.04;"),
+        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04-arm",
+    ),
+    (
+        ("for runner in ubuntu-24.04-arm ubuntu-24.04;", "for runner in ubuntu-24.04-arm;"),
+        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04",
+    ),
+    (
+        ("for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04;"),
+        "same-bytes' wheel loop does not run over ubuntu-24.04-arm",
+    ),
+    (
+        ("for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04-arm;"),
+        "same-bytes' wheel loop does not run over ubuntu-24.04",
     ),
     (('/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
     (
@@ -605,6 +683,167 @@ def test_rebuild_gate_scan_names_each_breach(change, error) -> None:
     assert REBUILD_WORKFLOW.count(old) == 1, old
     errors = scan.rebuild_gate_errors(REBUILD_WORKFLOW.replace(old, new))
     assert errors and errors[0].startswith(error), errors
+
+
+# Spec 040: two arm64 hosts compile with their own SDKs, and X with B's under the emulator.
+COMPILER_CONF = """PYTHON_VERSION=3.15.0
+A_WASI_SDK_DIR=sdk-a-arm64
+A_COMPILER_SDK_DIR=sdk-a-arm64
+B_WASI_SDK_DIR=sdk-b-arm64
+B_COMPILER_SDK_DIR=sdk-b-arm64
+X_WASI_SDK_DIR=sdk-x
+X_COMPILER_SDK_DIR=sdk-b-arm64
+X_EMULATOR_DEB=qemu.deb
+X_AARCH64_LIBC_DEB=libc.deb
+X_AARCH64_LIBSTDCXX_DEB=libstdcxx.deb
+X_AARCH64_LIBGCC_DEB=libgcc.deb
+X_AARCH64_LIBTINFO_DEB=libtinfo.deb
+"""
+COMPILER_DOWNLOAD = """case "$HOST_KEY" in
+  A)
+    get https://x/sdk-a-arm64.tar.gz sdk-a-arm64.tar.gz
+    ;;
+  B)
+    get https://x/sdk-b-arm64.tar.gz sdk-b-arm64.tar.gz
+    ;;
+  X)
+    get https://x/sdk-x.tar.gz sdk-x.tar.gz
+    get https://x/sdk-b-arm64.tar.gz sdk-b-arm64.tar.gz
+    get https://x/qemu.deb qemu.deb
+    get https://x/libc.deb libc.deb
+    get https://x/libstdcxx.deb libstdcxx.deb
+    get https://x/libgcc.deb libgcc.deb
+    get https://x/libtinfo.deb libtinfo.deb
+    ;;
+esac
+"""
+COMPILER_PINS = [
+    "sdk-a-arm64.tar.gz",
+    "sdk-b-arm64.tar.gz",
+    "sdk-x.tar.gz",
+    *(f"{n}.deb" for n in ("qemu", "libc", "libstdcxx", "libgcc", "libtinfo")),
+]
+COMPILER_STEP_10 = """cp "$HERE/scripts/clang-emulated" "$CSDK/bin/clang-emulated"
+: > "$T/aarch64-root/etc/ld.so.cache"
+"$SDK/bin/clang" -v 2>&1 | grep -F "InstalledDir: $CSDK/bin"
+"$SDK/bin/clang-cpp" "$probe"
+"$T/emulator/qemu-aarch64" -strace -L "$T/aarch64-root" "$real" --version
+"""
+COMPILER_LAUNCHER = """for v in $(env | sed -n 's/^\\(QEMU_[A-Za-z0-9_]*\\)=.*/\\1/p'); do
+  unset "$v"
+done
+case "$(basename "$0")" in
+  clang) mode="";;
+  clang++) mode="--driver-mode=g++";;
+  clang-cpp) mode="--driver-mode=cpp";;
+esac
+exec "$emu" -L "$root" -U LD_PRELOAD -U LD_LIBRARY_PATH -U LD_AUDIT -0 "$A/clang-emulated" "$@"
+"""
+COMPILER_TEXTS = {
+    "conf": COMPILER_CONF,
+    "download": COMPILER_DOWNLOAD,
+    "step": COMPILER_STEP_10,
+    "launcher": COMPILER_LAUNCHER,
+}
+
+
+def _compiler_table(**changed) -> list[str]:
+    texts = {**COMPILER_TEXTS, "pins": COMPILER_PINS, **changed}
+    return scan.compiler_table_errors(
+        texts["conf"], texts["download"], texts["pins"], texts["step"], texts["launcher"]
+    )
+
+
+BAD_COMPILERS = [
+    ("conf", ("A_COMPILER_SDK_DIR=sdk-a-arm64\n", ""), "line.conf: no A_COMPILER_SDK_DIR"),
+    ("conf", ("PYTHON", "COMPILER_SDK_DIR=sdk-a-arm64\nPYTHON"), "line.conf: COMPILER_SDK_DIR is"),
+    (
+        "conf",
+        ("A_COMPILER_SDK_DIR=sdk-a-arm64", "A_COMPILER_SDK_DIR=sdk-x"),
+        "A_COMPILER_SDK_DIR: sdk-x is not an arm64 SDK",
+    ),
+    (
+        "conf",
+        ("A_COMPILER_SDK_DIR=sdk-a-arm64\n", "A_COMPILER_SDK_DIR=sdk-a-arm64\nA_EMULATOR_DEB=q\n"),
+        "A compiles with its own SDK but has EMULATOR_DEB",
+    ),
+    ("conf", ("X_AARCH64_LIBTINFO_DEB=libtinfo.deb\n", ""), "line.conf: no X_AARCH64_LIBTINFO_DEB"),
+    (
+        "conf",
+        ("X_COMPILER_SDK_DIR=sdk-b-arm64", "X_COMPILER_SDK_DIR=sdk-z-arm64"),
+        "X_COMPILER_SDK_DIR: sdk-z-arm64 is no host's own WASI_SDK_DIR",
+    ),
+    ("pins", ("qemu.deb", "other.deb"), "X_EMULATOR_DEB: qemu.deb is not pinned"),
+    (
+        "download",
+        ("    get https://x/libgcc.deb libgcc.deb\n", ""),
+        "X_AARCH64_LIBGCC_DEB: libgcc.deb is not fetched in the X branch",
+    ),
+    (
+        "download",
+        (
+            "sdk-b-arm64.tar.gz\n    get https://x/qemu",
+            "sdk-b-arm64.tar.gz.old\n    get https://x/qemu",
+        ),
+        "X_COMPILER_SDK_DIR: sdk-b-arm64.tar.gz is not fetched in the X branch",
+    ),
+    ("step", ("/clang-emulated", "/launcher"), "10_tools.sh does not name clang-emulated"),
+    ("step", ("aarch64-root", "guest-root"), "10_tools.sh does not name aarch64-root"),
+    ("step", ("etc/ld.so.cache", "etc/cache"), "10_tools.sh does not name ld.so.cache"),
+    ("step", ("InstalledDir", "Dir"), "10_tools.sh does not name InstalledDir"),
+    ("step", ("bin/clang-cpp", "bin/cpp"), "10_tools.sh does not name clang-cpp"),
+    ("step", (" -strace ", " "), "10_tools.sh does not trace the guest's loader"),
+    ("launcher", ("-U LD_PRELOAD ", ""), "scripts/clang-emulated does not pass -U LD_PRELOAD"),
+    (
+        "launcher",
+        ("-U LD_LIBRARY_PATH ", ""),
+        "scripts/clang-emulated does not pass -U LD_LIBRARY_PATH",
+    ),
+    ("launcher", ("-U LD_AUDIT ", ""), "scripts/clang-emulated does not pass -U LD_AUDIT"),
+    ("launcher", ('unset "$v"', ":"), "scripts/clang-emulated does not unset the QEMU_"),
+    (
+        "launcher",
+        ('  clang-cpp) mode="--driver-mode=cpp";;\n', ""),
+        "scripts/clang-emulated does not map clang-cpp to --driver-mode=cpp",
+    ),
+    (
+        "launcher",
+        ("--driver-mode=g++", "--driver-mode=cpp"),
+        "scripts/clang-emulated does not map clang++ to --driver-mode=g++",
+    ),
+    (
+        "launcher",
+        ('  clang) mode="";;', '  clang) mode="--driver-mode=gcc";;'),
+        "scripts/clang-emulated does not map clang to no mode",
+    ),
+]
+
+
+def test_compiler_table_passes_a_whole_table() -> None:
+    assert _compiler_table() == []
+
+
+@pytest.mark.parametrize(
+    ("where", "change", "error"), BAD_COMPILERS, ids=[e for *_, e in BAD_COMPILERS]
+)
+def test_compiler_table_names_each_breach(where, change, error) -> None:
+    old, new = change
+    if where == "pins":
+        errors = _compiler_table(pins=[new if p == old else p for p in COMPILER_PINS])
+    else:
+        assert old in COMPILER_TEXTS[where], old  # every occurrence is changed
+        errors = _compiler_table(**{where: COMPILER_TEXTS[where].replace(old, new)})
+    assert errors and errors[0].startswith(error), errors
+
+
+def test_compiler_table_needs_the_launcher_and_reads_code_not_comments(work) -> None:
+    assert _compiler_table(launcher=None) == ["scripts/clang-emulated is missing"]
+    commented = "".join(f"# {line}\n" for line in COMPILER_STEP_10.splitlines())
+    step = write(work, "10_tools.sh", "set -eu\n" + commented)
+    assert scan.code_text(step) == "set -eu"
+    assert scan.code_text(work / "missing") is None
+    errors = _compiler_table(step=scan.code_text(step))
+    assert errors[0] == "10_tools.sh does not name clang-emulated", errors
 
 
 def test_a_name_bound_twice_at_module_level_is_found(work) -> None:

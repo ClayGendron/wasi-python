@@ -584,11 +584,108 @@ def host_table_errors(
 
 
 # ---------------------------------------------------------------------------------------------
+# The compiler each host runs (spec 040, Decisions 4 and 5): an arm64 build of the pinned clang on
+# every host, natively on the arm64 hosts and under the pinned emulator on x86_64 Linux.
+
+COMPILER_NAME = "COMPILER_SDK_DIR"
+EMULATION_NAMES = (
+    "EMULATOR_DEB",
+    "AARCH64_LIBC_DEB",
+    "AARCH64_LIBSTDCXX_DEB",
+    "AARCH64_LIBGCC_DEB",
+    "AARCH64_LIBTINFO_DEB",
+)
+CONF_COMPILER_LINE = re.compile(
+    rf"^([A-Z][A-Z0-9_]*?)_({'|'.join((COMPILER_NAME, *EMULATION_NAMES))})=(\S+)$", re.M
+)
+# What step 10's code must name: the launcher, the guest's root and its empty loader cache, and
+# the gate's probes (the InstalledDir, the cpp mode, the loader-cache trace).
+STEP_10_WORDS = ("clang-emulated", "aarch64-root", "ld.so.cache", "InstalledDir", "clang-cpp")
+STEP_10_STRACE = re.compile(r"qemu-aarch64\S*\s+-strace\b")
+LAUNCHER_FLAGS = ("-U LD_PRELOAD", "-U LD_LIBRARY_PATH", "-U LD_AUDIT")
+# The name the launcher was called by -> the driver mode it must add (None: no mode).
+LAUNCHER_MODES = {"clang": None, "clang++": "--driver-mode=g++", "clang-cpp": "--driver-mode=cpp"}
+
+
+def code_text(p: Path) -> str | None:
+    """A shell script's text with its full-line comments dropped, or None if it is missing."""
+    return "\n".join(line for _, line in _code_lines(p)) if p.is_file() else None
+
+
+def _maps(launcher: str, name: str, mode: str | None) -> bool:
+    """The launcher has a `case` arm for the name, adding exactly its mode (or none)."""
+    arm = re.search(rf"^\s*{re.escape(name)}\)(.*)$", launcher, re.M)
+    if arm is None:
+        return False
+    return mode in arm[1] if mode else "--driver-mode" not in arm[1]
+
+
+def compiler_table_errors(
+    conf: str, download: str, pinned: Iterable[str], step_10: str, launcher: str | None
+) -> list[str]:
+    """Every rule of spec 040, Decision 7's rule check, one line per breach. `step_10` and
+    `launcher` are scripts/steps/10_tools.sh and scripts/clang-emulated without their comment
+    lines (None: the launcher is missing), so a comment satisfies nothing."""
+    pinned = set(pinned)
+    own = {k: v for k, name, v in CONF_HOST_LINE.findall(conf) if name == "WASI_SDK_DIR"}
+    table: dict[str, dict[str, str]] = {}
+    for key, name, value in CONF_COMPILER_LINE.findall(conf):
+        table.setdefault(key, {})[name] = value
+    branches = host_case_branches(download)
+    errors = [
+        f"line.conf: {name} is set for every host, not per host key"
+        for name in (COMPILER_NAME, *EMULATION_NAMES)
+        if re.search(rf"^{name}=", conf, re.M)
+    ]
+    for key in sorted(own):
+        names = table.get(key, {})
+        compiler = names.get(COMPILER_NAME)
+        if compiler is None:
+            errors.append(f"line.conf: no {key}_{COMPILER_NAME}")
+            continue
+        if "arm64" not in compiler:
+            errors.append(f"{key}_{COMPILER_NAME}: {compiler} is not an arm64 SDK")
+        files = {COMPILER_NAME: f"{compiler}.tar.gz"}
+        emulation = [n for n in EMULATION_NAMES if n in names]
+        if compiler == own[key]:
+            if emulation:
+                errors.append(f"{key} compiles with its own SDK but has {', '.join(emulation)}")
+        else:
+            if compiler not in own.values():
+                errors.append(f"{key}_{COMPILER_NAME}: {compiler} is no host's own WASI_SDK_DIR")
+            errors += [f"line.conf: no {key}_{n}" for n in EMULATION_NAMES if n not in names]
+            files.update({n: names[n] for n in emulation})
+        for name, file in files.items():
+            if file not in pinned:
+                errors.append(f"{key}_{name}: {file} is not pinned")
+            if file not in branches.get(key, []):
+                errors.append(f"{key}_{name}: {file} is not fetched in the {key} branch")
+    errors += [f"10_tools.sh does not name {w}" for w in STEP_10_WORDS if w not in step_10]
+    if not STEP_10_STRACE.search(step_10):
+        errors.append("10_tools.sh does not trace the guest's loader (qemu-aarch64 -strace)")
+    if launcher is None:
+        return [*errors, "scripts/clang-emulated is missing"]
+    errors += [
+        f"scripts/clang-emulated does not pass {f}" for f in LAUNCHER_FLAGS if f not in launcher
+    ]
+    if not (re.search(r"\bQEMU_", launcher) and re.search(r"\bunset\b", launcher)):
+        errors.append("scripts/clang-emulated does not unset the QEMU_ variables")
+    errors += [
+        f"scripts/clang-emulated does not map {name} to {mode or 'no mode'}"
+        for name, mode in LAUNCHER_MODES.items()
+        if not _maps(launcher, name, mode)
+    ]
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
 # The release workflow's second-host rebuild (spec 012, Decision 7)
 
-# arm64 Linux only: x86_64 Linux is pinned but its rebuild is not yet byte-identical, so it is
-# left out of the gate (spec 012, Decision 8's fallback, taken in its landing notes).
-REBUILD_RUNNERS = ("ubuntu-24.04-arm",)
+# arm64 Linux, and x86_64 Linux, which compiles with the arm64 Linux SDK's clang under the pinned
+# qemu (spec 040). Each runner's job time limit, in minutes: an emulated rebuild is slower, and a
+# hung arm64 job still frees the gate after two hours (spec 040, Decision 6).
+REBUILD_RUNNERS = ("ubuntu-24.04-arm", "ubuntu-24.04")
+REBUILD_TIMEOUTS = {"ubuntu-24.04-arm": 120, "ubuntu-24.04": 360}
 
 
 def _needs(lines: list[str]) -> set[str]:
@@ -612,6 +709,22 @@ def rebuild_gate_errors(text: str) -> list[str]:
     m = re.search(r"^\s+os:\s*\[([^\]]*)\]", body, re.M)
     runners = [r.strip() for r in m[1].split(",")] if m else []
     errors += [f"rebuild's matrix lacks {r}" for r in REBUILD_RUNNERS if r not in runners]
+    if _job_field(rebuild, "timeout-minutes") != "${{ matrix.timeout }}":
+        errors.append("rebuild's timeout-minutes does not come from its matrix")
+    given = dict(re.findall(r"^\s+- os:\s*(\S+)\s*\n\s+timeout:\s*(\d+)\s*$", body, re.M))
+    errors += [
+        f"rebuild's matrix does not give {r} {minutes} minutes"
+        for r, minutes in REBUILD_TIMEOUTS.items()
+        if given.get(r) != str(minutes)
+    ]
+    # The core count beside every time figure, and any binfmt_misc entry that would run an aarch64
+    # ELF through the runner's own qemu and hide a gap in the launcher's closure (spec 040).
+    for fact, pattern in (
+        ("nproc", r"^\s+nproc\s*$"),
+        ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
+    ):
+        if not re.search(pattern, body, re.M):
+            errors.append(f"rebuild's tools step does not print {fact}")
     if _job_field(rebuild, "runs-on") != "${{ matrix.os }}":
         errors.append("rebuild does not run on its matrix's runner")
     if not re.search(r"^\s+(- )?run:\s*scripts/build\.sh\s*$", body, re.M):
@@ -645,6 +758,29 @@ def rebuild_gate_errors(text: str) -> list[str]:
         )
         or not re.search(rf"(?<![\w.-]){re.escape(r)}(?![\w.-])", same_body.split("run:", 1)[-1])
     ]
+    errors += [
+        f"same-bytes does not name {r}'s rebuilt wheel"
+        for r in REBUILD_RUNNERS
+        if not re.search(
+            rf"^\s+name:\s*rebuild-wheel-{re.escape(r)}\s*\n\s+path:\s*rebuilt-wheels/{re.escape(r)}\s*$",
+            same_body,
+            re.M,
+        )
+    ]
+    # Both of same-bytes' loops, the set's SHA256SUMS and spec 016's wheel, run over every runner.
+    for what, marker in (("SHA256SUMS", "rebuilds/$"), ("wheel", "rebuilt-wheels/$")):
+        looped = {
+            runner
+            for step in re.split(r"^      - ", same_body, flags=re.M)
+            if marker in step
+            for m in re.finditer(r"\bfor\s+\w+\s+in\s+([^;\n]*);\s*do\b", step)
+            for runner in m[1].split()
+        }
+        errors += [
+            f"same-bytes' {what} loop does not run over {r}"
+            for r in REBUILD_RUNNERS
+            if r not in looped
+        ]
     if re.search(r"\|\||set \+e", same_body):
         errors.append("a step of same-bytes swallows a failure (|| or set +e)")
     for name in ("attest", "publish"):
