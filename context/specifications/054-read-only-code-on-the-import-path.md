@@ -1,6 +1,8 @@
 # 054 — Read-only code on the import path
 
-- **Status:** revised against its pre-build review; awaiting the reviewer's confirmation.
+- **Status:** confirmed for build 2026-10-18; building. The reviewer's Confirmation passed it
+  ("ready to build") with two remarks, written in here: R1 (S8's root is a host folder apart
+  from `code`) and R2 (A5's payload parses, so the stand-in really prints `injected`).
   Drafted 2026-10-18; reviewed before build the same day
   (`../reviews/054-read-only-code-on-the-import-path-spec-2026-10-18.md`; verdict: ready once
   F1 to F7 are written in) and revised against all seven findings (the Disposition below says
@@ -420,7 +422,8 @@ scratch copy, which the named check must catch, failing exactly the cases named.
      - S6 a read-only mount of `mem` at `/`, `["/lib"]`;
      - S7 the review's F1 layout: `mem` mounted read-only at `/lib` and writable at `/work`,
        `["/lib/lib"]`;
-     - S8 a sibling name (F4a): `root=` an existing host folder, the read-only grant at `/code`,
+     - S8 a sibling name (F4a): `root=` an existing host folder apart from `code` (neither holding
+       it nor at it, R1: else spec 017's rule refuses S8 first), the read-only grant at `/code`,
        `["/code2"]`.
    - `ValueError` for guest nesting (3 cases), each beside the read-only grant at `/code` with
      `["/code"]`: G1 a writable grant at `/code/out`; G2 a read-only mount of `mem` at
@@ -435,7 +438,8 @@ scratch copy, which the named check must catch, failing exactly the cases named.
      A3 a writable grant of a sibling of `code` at `/out`, `["/code"]`; A4 a writable grant at
      `/code2` beside `/code`, `["/code"]`; A5 (F6) the entry given as an instance of a `str`
      subclass whose value is `"/code"` and whose `__repr__` and `__str__` return
-     `"'/x']) or print('injected') or (['"`: it runs, `sys.path[-1] == '/code'`, and stdout has
+     `"'/code'] + [print('injected') or '/code'"` (R2: a payload that parses, so the
+     stand-in below runs it): it runs, `sys.path[-1] == '/code'`, and stdout has
      no `injected`.
    - Stand-ins, each failing exactly these cases and no other:
      - no serving-place rule: S1 to S8 (8);
