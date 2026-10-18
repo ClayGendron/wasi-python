@@ -491,6 +491,8 @@ What grants do not do:
   in a listing of its parent;
 - a read-only grant can still change if the same host files are writable
   elsewhere, by another call or another program;
+- a writable grant answers as the host's file system does: on Windows see
+  *On Windows* under *Writable mounts*;
 - a SQLite database in a read-only grant opens only through a URI that takes
   no lock (`file:/data/db.sqlite?immutable=1`);
 - a folder reachable by two routes (a bind mount, a share mounted twice) is
@@ -835,10 +837,9 @@ does on every host:
 
 - `os.rename` of a folder onto a file replaces the file on a Windows grant; a
   mount never does, and answers `ENOTDIR`, as a Linux or macOS grant does;
-- a Windows grant cannot remove or rename a file the guest holds open
-  (`PermissionError`), so `tempfile.TemporaryFile` and an `os.replace` inside
-  a `NamedTemporaryFile`'s `with` fail there and leave their `tmp…` file; a
-  mount allows both.
+- a Windows grant cannot remove or rename a file the guest holds open, so
+  `tempfile.TemporaryFile` and an `os.replace` inside a `NamedTemporaryFile`'s
+  `with` fail there and leave their `tmp…` file; a mount allows both.
 
 **Cost.** Every write-half call, every create at open and every write-back
 counts toward `max_file_calls`. Each close or `fsync` of a changed file hands

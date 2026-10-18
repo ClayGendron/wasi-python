@@ -337,7 +337,10 @@ def write_tree(root: Path, tree: Mapping[str, bytes | None] = TREE) -> Path:
 
 # Spec 058: rows of spec 034's v1.4 write parity (`WRITE_PARITY`) whose grant answer is the host
 # system's, asserted exactly per system (keyed by `sys.platform`), and the mount's answer, the same
-# on every host. A Windows grant renames a folder over a file (release run 39135024458, EXECUTED;
+# on every host. Windows's values were seen on GitHub's `windows-2025-vs2026` runner image and
+# depend on it: there a folder renamed onto an empty folder succeeded too (`g`, no `d`), which
+# another image or file system may refuse. A Windows grant renames a folder over a file (release
+# run 39135024458, EXECUTED;
 # wasmtime renames by `std::fs::rename`, READ), where POSIX and the mount answer ENOTDIR (54); so
 # `e` is gone, `a.txt` is a folder and `shutil.copyfile` of it makes no `copy.txt`. A Windows grant
 # also opens every file without `FILE_SHARE_DELETE` (wasmtime 49's `maybe_dir`, READ), so a

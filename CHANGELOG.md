@@ -20,10 +20,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   on Windows, where a writable grant lets `os.rename` replace a file with a folder; a mount
   answers `ENOTDIR` (54) there as on every host, and as a Linux or macOS grant does. The judge
   now asserts that row's grant answer, and the listing that follows from it, exactly per system,
-  and the mount's answer everywhere; Linux's and macOS's assertions are unchanged. The README
-  names it, and a second Windows difference the same run showed: a Windows grant cannot remove or
-  rename a file the guest holds open, so `tempfile.TemporaryFile` fails there. Nothing in the
-  runtime or the artifact set changes.
+  and the mount's answer everywhere; Linux's and macOS's assertions are kept, and each gains an
+  exact value. The README names it, and a second Windows difference the same run showed: a
+  Windows grant cannot remove or rename a file the guest holds open, so `tempfile.TemporaryFile`
+  fails there. Nothing in the runtime or the artifact set changes.
 - **The public API is frozen and documented** (spec 049).
   - **Added:** `defaults()` and `set_defaults()`, which replace assigning
     `wasi_python.runner.DEFAULTS` (that still works, unpromised, until the internal name

@@ -1,8 +1,11 @@
 # 058 — A Windows grant renames a folder over a file
 
-- **Status:** built 2026-10-18; awaiting its build review; Windows evidence by the dry run
-  after landing. Drafted and built the same day on `spec/058-windows-renames-a-folder-over-a-file`
-  from main `3dfdab4` (Landing notes). It changes neither the guest's imports nor its exports, the
+- **Status:** built 2026-10-18; its build review
+  (`../reviews/058-windows-renames-a-folder-over-a-file-2026-10-18.md`, copied by the lane;
+  verdict: lands once F1 is fixed) is answered by a revision (the last part of the Landing
+  notes); awaiting the reviewer's confirmation; Windows evidence by the dry run after landing.
+  Drafted and built the same day on `spec/058-windows-renames-a-folder-over-a-file` from main
+  `3dfdab4` (Landing notes). It changes neither the guest's imports nor its exports, the
   artifact set nor the build recipe, so §5.6 asks no review before build. A different agent
   reviews the build.
 - **Owner:** Clay Gendron
@@ -25,10 +28,15 @@
     `filesystem/primitives/windows/fs/rename_unchecked.rs` and `remove_file_unchecked.rs`,
     `filesystem/primitives/via_parent/rename.rs`, `crates/test-programs/artifacts/src/lib.rs:13-24`
     and `crates/test-programs/src/bin/p1_path_rename.rs:66-78`. The runner uses wasmtime-py
-    49.0.0; `context/research/2026-10-18-wasmtime-49-advisories/fix-49.0.3-files.txt` shows the
-    49.0.2 to 49.0.3 diff touches none of these files, and the 49.0.0 to 49.0.2 fixes are listed
-    there by title only, so that these files are the same in 49.0.0 is INFERRED, and the
-    behaviour they predict is what the release run shows (EXECUTED).
+    49.0.0. Of these files, the 49.0.2 to 49.0.3 diff changes one, `via_parent/rename.rs` (`+31
+    -13`, `context/research/2026-10-18-wasmtime-49-advisories/fix-49.0.3-files.txt`; the change
+    is `fix-49.0.3-rename-only.diff`, READ): before 49.0.3 its trailing-slash handling was
+    `#[cfg(unix)]` only, so on Windows it never checked kinds at all; 49.0.3 adds a check, on
+    every system but Linux, only when a path ends in `/`. A rename with no trailing slash, this
+    row's, is unchecked in both, so the change does not touch this row (READ, revised against the
+    build review's F1). The other files are not in that diff; the 49.0.0 to 49.0.2 fixes are
+    listed there by title only, so that the other files are the same in 49.0.0 is INFERRED, and
+    the behaviour they predict is what the release run shows (EXECUTED).
   - Rust's `std::fs::rename` on Windows, `library/std/src/sys/fs/windows.rs:1311-1371` in the
     1.95.0 toolchain's source (READ; the toolchain that built wasmtime-py 49.0.0's library is not
     known, so this corroborates and does not prove).
@@ -56,8 +64,9 @@ the dry run was the lane's.
 
 **Why the rename succeeds.** A grant's `path_rename` without a trailing slash goes to wasmtime
 unchanged (spec 048, Decision 1). wasmtime renames on Windows by `std::fs::rename` of the two
-full paths, with no check of the kinds (`rename_unchecked.rs`; `via_parent/rename.rs` checks
-only when a path ends in `/`). Rust's `rename` on Windows calls `MoveFileExW` with
+full paths, with no check of the kinds (`rename_unchecked.rs`; `via_parent/rename.rs` never
+checks on Windows in 49.0.0, the version that ran, and from 49.0.3 checks only when a path ends
+in `/`). Rust's `rename` on Windows calls `MoveFileExW` with
 `MOVEFILE_REPLACE_EXISTING`, then, on `ERROR_ACCESS_DENIED`, `FileRenameInfoEx` with
 `FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS`. Windows lets that
 replace a file with a folder. wasmtime's own tests expect it: on Windows they set
@@ -136,7 +145,12 @@ differ on Windows even if the rename did not.
    each `tmp…` name replaced by a `TEMPORARY` slot. `answer_matches` treats a slot as one name
    matching `tmp[a-z0-9_]{8}` whole, and everything else as `==`: same length, same names, same
    places. A sorted `tmp…` name always falls between `save.txt` and `x.txt`, so the places are
-   fixed. A slot is only ever in the Windows value; on Linux and macOS the listing is compared
+   fixed. The value was seen on one runner image, GitHub's `windows-2025-vs2026` (the release
+   run's job), and depends on it: there a folder renamed onto an empty folder succeeded (`g`, no
+   `d`), although wasmtime's own Windows test settings say `NO_RENAME_DIR_TO_EMPTY_DIR`; that
+   success most likely comes from Rust's `FileRenameInfoEx` fallback, which depends on the
+   Windows build and file system (INFERRED). Another image, file system or Windows version may
+   keep `d`; the check then fails and names the row, and the table changes, with a reason. A slot is only ever in the Windows value; on Linux and macOS the listing is compared
    with `==`, unmasked, so a leftover temporary file there still fails.
 
 4. **The `tmp…` names need nothing from the runner, and nothing more from the check.** They are
@@ -154,9 +168,14 @@ differ on Windows even if the rename did not.
    after *What differs from a writable grant*, a short *On Windows* list:
    - `os.rename` of a folder onto a file replaces the file on a Windows grant; a mount never
      does, and answers `ENOTDIR`, as a Linux or macOS grant does;
-   - a Windows grant cannot remove or rename a file the guest holds open (`PermissionError`), so
+   - a Windows grant cannot remove or rename a file the guest holds open, so
      `tempfile.TemporaryFile` and an `os.replace` inside a `NamedTemporaryFile`'s `with` fail
-     there and leave their `tmp…` file; a mount allows both.
+     there and leave their `tmp…` file; a mount allows both. The README says only "fail": the
+     errno (`EACCES`, 2) is READ and INFERRED, not seen, and is not asserted before a dry run
+     shows it (revised against the build review's F3, the lane's choice).
+
+   A line under *Grants*, *What grants do not do*, points a reader who uses only grants to that
+   list (revised against the build review's F5).
 
    The second item is the same run's other finding: §4.11 asks that a platform's semantics be
    stated, and the README's "`tempfile.TemporaryFile` … behave[s] as on a grant" was true of
@@ -209,8 +228,8 @@ raw parity, any shadow of a grant, any other Windows answer the release run did 
    `AssertionError: ('rename a folder over a file', …, ['errno', 54])`).
 3. On Linux and macOS both rows are still compared as parity, value and tree, and now also
    against the table's exact value (the diff; the reviewer reads it).
-4. README: the *On Windows* list and the qualified `tempfile` sentence. CHANGELOG: one entry
-   under `0.1.0a5 — unreleased`.
+4. README: the *On Windows* list, the qualified `tempfile` sentence and the pointer under
+   *Grants*. CHANGELOG: one entry under `0.1.0a5 — unreleased`.
 5. The full judge in the worktree, without `--accept`: no pass lost, nothing grows, the judge
    change named; `ruff check` and `ruff format --check` green.
 6. After landing (the lane's): a release dry run whose "verify (windows-2025)" job passes this
@@ -253,3 +272,40 @@ commit after it.
   --check` on `src/` and `tests/` are clean.
 - **Not done here:** no `--accept`, no push, no rebase. The review gets this specification and
   `git diff 3dfdab4..` on this branch.
+
+**Revised against the build review, 2026-10-18.** The review
+(`../reviews/058-windows-renames-a-folder-over-a-file-2026-10-18.md`, copied by the lane): "lands
+once F1 is fixed"; F2 to F5 answered in writing. Its Disposition (also
+`build/reviews-evidence/058-buildreview/disposition.md` in the main tree):
+
+1. F1 — **Fixed.** The research list now says the 49.0.2 to 49.0.3 diff changes one cited file,
+   `via_parent/rename.rs` (`+31 -13`), and what changed (READ, `fix-49.0.3-rename-only.diff`):
+   before 49.0.3 its trailing-slash handling was `#[cfg(unix)]` only, so on Windows 49.0.0, the
+   version that ran, never checks kinds; 49.0.3 checks, off Linux, only when a path ends in `/`.
+   A slash-free rename, this row's, is unchecked in both. The Problem's sentence now describes
+   49.0.0 and 49.0.3 each.
+2. F2 — **Done.** The `files.py` comment and Decision 3 name the runner image,
+   `windows-2025-vs2026`, and say the Windows listing depends on it (a folder renamed onto an
+   empty folder succeeded there, `g` and no `d`, against wasmtime's own
+   `NO_RENAME_DIR_TO_EMPTY_DIR`); another image may keep `d`, and the table then changes, with a
+   reason.
+3. F3 — **Done, the lane's choice: "fail" only.** The README no longer says `PermissionError`
+   for `TemporaryFile` and `NamedTemporaryFile` on a Windows grant; it says they fail and leave
+   their `tmp…` file. No errno is asserted for those rows before a dry run shows one (Decision 4
+   and 5 say why).
+4. F4 — **Done.** The CHANGELOG says Linux's and macOS's assertions "are kept, and each gains an
+   exact value".
+5. F5 — **Done.** *Grants*, *What grants do not do*, gains: "a writable grant answers as the
+   host's file system does: on Windows see *On Windows* under *Writable mounts*".
+
+- **Run** (no `--accept`): the touched tests, `test_a_writable_mount_answers_as_a_writable_
+  grant_does[plain|snapshot]` and `test_the_write_parity_asserts_each_systems_grant[linux|darwin|
+  win32]`: `5 passed` (EXECUTED, `build/058-rev-touched.log`). The fast tier, `uv run pytest -m
+  "not slow"` (`build/058-rev-fast.log`, load average about 18): `wasi_python v1: 294/343 pass ·
+  0 gap · 10 blocked · 0 fail · 39 deselected (unit suite 1059/1067, 8 skipped)`, `ratchet vs
+  323ad21aa5: lost 0 · absent 0 · unrun 0 · unrun locally 8 · gained 0 · grew 0 · upstream unrun
+  31 · not selected 27 · judge changed: tests/checks/test_v1_4_embedding.py,
+  tests/harness/files.py, tests/unit/test_runner_grants.py`, `1353 passed, 18 skipped, 39
+  deselected`. `ruff check` and `ruff format --check` clean. The review ran the full judge on the
+  build (`0 fail`, `lost 0`) and the touched tests on Linux (`5 passed`); this revision changes
+  only text and a comment.
