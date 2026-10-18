@@ -584,3 +584,45 @@ Step 60's script changed and a recipe was added, so the set was rebuilt from pin
 `python.wasm`, the snapshot and the zip are byte for byte the reviewed ones (`e0224891…`,
 `8eb9e357…`, `16ee747c…`); only `MANIFEST` changes (`01fbade7…`: the new recipe line for
 `scripts/steps/constructors.sh` and step 60's hash). The growth list is unchanged (below).
+
+### Rebased onto main 5e66995
+
+Rebased 2026-10-18 at the lane's request, after 0.1.0a5's tag (main now carries 049, 052, 053,
+054, 056 and 058 beyond the base `73fb50b`). Thirteen commits replayed.
+
+- **Conflicts: one, in `CHANGELOG.md`** (the patches commit). main's `0.1.0a5 — unreleased` is
+  now dated; spec 023's entry was moved, unchanged, into `0.1.0a6 — unreleased`, after 053's and
+  052's entries. Nothing of it is in the dated 0.1.0a5 section.
+- **`src/wasi_python/runner.py` merged with no conflict hunk.** git applied the runner commit's
+  four hunks (the two imports, the zip folder and data functions after `_zip_known`, `_remove_zips`'s
+  unpacking, and `_run_checked`'s preopens) beside 053's async tools and 054's `import_path`
+  without overlap. READ after the merge: `_run_checked` walks the grants with 054's import-path
+  entries, then grants the zip's `lib/` at `/usr/local/lib`, then matplotlib's data, then the
+  root and the grants; 054's import-path entries are guest paths served by those grants, not
+  preopens of their own, so the order zip, data, import path holds. `diff 5e66995` shows the same
+  hunks the review read; **no reviewed hunk changed in substance.**
+- `README.md`, `context/upstream/README.md`, `tests/harness/` (052's changes to `upstream.py`,
+  `plugin.py` and others) merged without conflict. Spec 049's API check, `uv run python
+  tests/harness/api.py --check`, exits 0 with the runner's new internal names. `ruff check` and
+  `ruff format --check` are clean on `src` and `tests`.
+- **The set, rebuilt from pins** (`scripts/build.sh --plain`, 6 min 50 s): `python.wasm`
+  `e0224891…`, the snapshot `8eb9e357…`, the zip `16ee747c…` and `MANIFEST` `01fbade7…`, byte for
+  byte the set after the build review's fixes. `SHA256SUMS` of the set:
+  `04f14aec59199c9c8d53c64666e4f093921c58051b4a30667845b9cfe1c100d6`. The binaries and zip did
+  not change, so question 34's numbers stand as measured. The wheel, built as spec 028 builds it,
+  is now `wasi_python-0.1.0a6-py3-none-any.whl`, **52,091,103 bytes** (49.7 MiB; the README in its
+  description and the version moved it), still about 52.8 MB under PyPI's limit.
+- **The judge.** The fast tier on three workers (`-n 3`): `1478 passed, 9 skipped`, `lost 0`,
+  red only for growth. The full judge, serial, once:
+
+```
+1510 passed, 9 skipped, 14 xfailed in 554.55s (0:09:14)
+wasi_python v1: 374/390 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1136/1143, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+gaps close with: README 10 · questions-for-the-owner 2 · 2026-10-17-matplotlib-on-the-current-line 2
+ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 25 · grew 86 · more 1 · judge changed: pyproject.toml, … and 29 more
+```
+
+- **Growth:** the same list as above, plus one check that is new on main: 053's
+  `test_fuel_is_exact_across_async_tool_calls`, 92,028,958 → 93,529,167 fuel (+1.50 M, +1.6%), a
+  snapshot check of the same class as the other 23 (the snapshot's start grew +1.50 M).
