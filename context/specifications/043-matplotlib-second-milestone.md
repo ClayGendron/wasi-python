@@ -2,7 +2,7 @@
 
 - **Status:** drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
-  amended spec 037 (its status line says so). Awaiting the review's confirmation. It changes the build recipe and the artifact
+  amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
   touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It is
   built only after the owner answers question 81 (contourpy's licence, §4.12), as spec 023 waited

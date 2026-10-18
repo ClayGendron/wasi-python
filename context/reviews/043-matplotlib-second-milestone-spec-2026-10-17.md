@@ -373,3 +373,54 @@ The fopencookie patch, the PDF and SVG goldens and the one-qhull plan all hold u
 and natively, but 037 must be amended with the `.pc`, the fourth `pkgconf` folder, the
 `PyInit__qhull` rename and one qhull patch, and the facts sheet must quote matplotlib's AI
 policy in full, before 043 is built.
+
+## Confirmation (2026-10-18)
+
+By the reviewer (the same fresh agent, not the author), against commit `788732f`. I read
+`git show 788732f` for the specification, `pr.md`, `notes.md` and question 81, and `git log -p
+-1 -- context/specifications/037-scipy.md`. `uv run pytest -q tests/checks/test_rules.py -k
+specification`: 3 passed (EXECUTED).
+
+### Each disposition against its finding
+
+1. **Holds.** 037's diff has six hunks and nothing else: the status note; Decision 7's
+   `pkgconf` bullet (a fourth folder, step 37's, "still none of the host's") and configure line
+   (`-Duse-system-libraries=qhull` when 043 is first); Decision 8's init-name table
+   (`scipy.spatial._qhull` → `PyInit_scipy_spatial__qhull`, in `scipy_rename.h` too, in either
+   order); "One qhull" with conditions a to f worded as I asked (the `.pc` from
+   `recipes/qhull_r.pc.in` with `Version: 8.0.2`, `Libs`, `Cflags`; the fourth folder; the
+   rename; one patch with 043's name, header and `Files:`; the `.deps` and `plot_contour`
+   checks; one copy of qhull); one conditional Design row; acceptance criterion 8. Every other
+   line of 037 is unchanged, including "no clash with matplotlib M1's", which stays true. The
+   status note's "Decision 7" is right: the `pkgconf` and configure bullets sit under
+   Decision 7 (step 57). 043's Decision 6 now cites 037's conditions instead of restating them,
+   so the shared qhull is defined once; branch A and B divide a, b, d, e, f correctly, and the
+   rename is 037's in both orders.
+2. **Holds.** `pr.md` quotes `main`'s whole section, says how 3.11.2's differs, quotes the
+   template's two sections, notes no `AGENTS.md`, and leaves engagement to the owner; the
+   `fopencookie` claim is narrowed in both files. The six header lines are unchanged.
+3. **Holds.** +0.8 to +1.0 MB code and data with the measured parts, +18 members, about +1.4 M
+   fuel (18 × 76,490 = 1,376,820), the job's fuel marked as asserts-on.
+4. **Holds.** The `dict(...)` parse, the widened word-list condition and the unit test are in
+   Decision 4, Design and the judge-change list; criterion 1 adds a removed-key run.
+5. **Holds.** `chunk_count=16` for both, point arrays compared, with a failing variant in
+   criterion 1.
+6. **Holds.** `/[A-Z]{1,6}\+`, the printed count, the zlib note beside the pin, and the seeds
+   claim cited to this review's runs.
+7. **Holds.** Every writable grant listed before and after, the font cache's included.
+8. **Holds.** Decision 11 and question 81 name `gcntr.c` and `LICENSE_YORICK`, and the judge's
+   licence list holds it by name. READ: 023's Decision 9 ships matplotlib's whole `LICENSE/`
+   folder, as the disposition says.
+
+### A note for the landing lane (not a condition on 043)
+
+Commit `788732f` also carries question 73's new part (c) and its retitling, which belong to spec
+042's revision and are not named in the commit message (AGENTS.md rule 9). Its text is 042's
+reviewer's to check; nothing in 043 depends on it.
+
+### Result
+
+**Confirmed for build**, with no new conditions. As the specification says, it is built only
+after the owner answers question 81 (contourpy, with `LICENSE_YORICK` covering its GIST-derived
+code), and if the owner answers question 80 otherwise, the facts sheet is rewritten before the
+build moves it. The author updates 043's status line to say it is confirmed.
