@@ -2,8 +2,9 @@
 
 - **Status:** drafted 2026-10-17; revised against its pre-build review
   (`../reviews/027-the-build-says-where-it-is-spec-2026-10-17.md`), whose confirmation passed it
-  for build with five conditions (A to E), now written in. Built 2026-10-17, awaiting its build
-  review.
+  for build with five conditions (A to E), now written in. Built 2026-10-17; build-reviewed
+  (`../reviews/027-the-build-says-where-it-is-2026-10-17.md`, verdict: lands once findings 1 and 3
+  are fixed); revised against it the same day, awaiting the reviewer's confirmation.
 - **Owner:** Clay Gendron
 - **Kind:** the build driver (`scripts/build.sh`, a new `scripts/steps/progress.sh`,
   `scripts/00_download.sh`'s per-pin lines), unit checks in `tests/unit/`, `README.md` (its
@@ -41,8 +42,9 @@ way to list or resume steps but by retyping their numbers.
      the running step to end, because a shell runs a trap only after its foreground child
      returns; the README says to signal the process group (`kill -TERM -<pgid>`) to stop at once.
      The loop also checks the recorded signal before it starts each step, so a signal that
-     arrives between steps stops the build before the next one, and that step is written to
-     `timings.tsv` as `interrupted` for `--resume` (condition C).
+     arrives between steps stops the build before the next one with `INTERRUPTED before <step>`
+     (no log path: that step never started), and that step is written to `timings.tsv` as
+     `interrupted` for `--resume` (condition C; worded so by the build review).
    - **The ticker** (the background redraw, terminal mode only) runs with `set +e`, draws one
      whole frame per write, checks `kill -0 "$BUILD_PID"` before every frame, and exits on its own
      when the build is gone or a write fails. An EXIT trap in `build.sh` stops it and erases the
@@ -102,11 +104,12 @@ way to list or resume steps but by retyping their numbers.
    the estimate (condition B). Times are shown to a person; no check reads them (§4.9).
    The file is never an input to a step or the artifact set.
 
-7. **Options.** `--list` (each step, the first line of its script's header comment, and its
-   newest `ok` time); `--from STEP` (that step and every later one); `--resume` (the newest run
+7. **Options.** `--list` (each step, the first sentence of its script's header comment without
+   its `Step NN: ` prefix, cut at a word with `...` past 80 columns, and its newest `ok` time); `--from STEP` (that step and every later one); `--resume` (the newest run
    in `timings.tsv`: if its last row is not `ok`, that step and every later one in the full
    list; else `nothing to resume` and exit 2); `--plain`; `--check` (the preflight alone);
-   `--help`. Named steps, `--from` and `--resume` are exclusive; `--plain` combines with any.
+   `--help`. Named steps, `--from` and `--resume` are exclusive; `--plain` combines with any;
+   `--list`, `--check` and `--help` go alone (with steps or with each other they exit 2).
    An unknown option or step exits 2 with the usage. **Nothing is skipped on its own**, and no
    staleness warning is given: the same-bytes gate is the guard (memo §4.7; the review,
    finding 8).
@@ -123,9 +126,10 @@ way to list or resume steps but by retyping their numbers.
 9. **The download step.** `get` prints `fetched <name>` or `present <name>`, and fails with
    `ERROR: no curl on PATH; it fetches <name>` before a fetch it cannot make. `shasum`'s
    `<name>: OK` lines stay. The last line is `downloads: <n> pins, <f> fetched, <v> verified`
-   (`n` counts `get` calls, `v` the `OK` lines, counted from `shasum`'s output saved to a file,
-   never through a pipe, since `sh` has no `pipefail` and a pipe would hide `shasum`'s failure;
-   condition D), which becomes step 00's `ok` summary. The
+   (`n` counts `get` calls, `v` the `OK` lines of this run's pins, counted from `shasum`'s output
+   saved to a file, never through a pipe, since `sh` has no `pipefail` and a pipe would hide
+   `shasum`'s failure; condition D), which becomes step 00's `ok` summary. A verified file that
+   is no pin of this run is named apart: `; 1 other file in downloads/ verified too`. The
    ticker shows the newest `downloads/*.part` and its size. Every literal `get <url> <name>` line
    and the `shasum` line stay, for `scan.url_errors` and `scan.download_script_errors`.
 
@@ -286,3 +290,48 @@ was restored byte for byte after the runs.
 `--accept-judge` run and the main tree's rebuild are the owner's, after review. The new
 `0.1.0a4 — unreleased` section means `release/version.py bump` will refuse ("already has a
 section"). The owner can bump by hand, or remove the heading, bump, and paste the entry back.
+
+**Revised against the build review** (`../reviews/027-the-build-says-where-it-is-2026-10-17.md`;
+its Disposition answers each finding). The scripts changed in three wording points; Decisions
+2, 7 and 9 above now say them:
+- A signal between steps now prints `INTERRUPTED before <step>`, with no log path. That step
+  never started, so this run wrote no log for it. Its `interrupted 0` row stays, for `--resume`
+  (condition C). A signal during a step still names the step and its log.
+- `--list` prints each header's first sentence without its `Step NN: ` prefix. A sentence too
+  long for 80 columns is cut at a word and ends `...`. `--list`, `--check` and `--help` now go
+  alone: with steps or with each other they exit 2 with the usage.
+- The download step's `verified` counts only this run's pins. A file that verifies but is no pin
+  of this run (the research input) is named apart, so the line reads `downloads: 29 pins, 0
+  fetched, 29 verified; 1 other file in downloads/ verified too`.
+
+The checks grew from 75 to 83:
+- Every frame is checked for log text. A held step's log carries `LOGTEXT ESC[31mred`, which no
+  frame may show. At 80 columns every frame must also fully match the status line's grammar.
+- New checks: the ticker stops on its own (`kill -0`) once `build.sh` is SIGKILLed; TERM during
+  the last step; `--list` shows the newest `ok` time; the real headers are cut at a word; a
+  verified file that is no pin is named apart; three more option combinations exit 2.
+- The pty child now starts with SIGINT, SIGTERM, SIGHUP and SIGQUIT at their defaults.
+- The Ctrl-C check holds its step with one `sleep 30`, not a poll loop.
+
+Evidence (EXECUTED, in `lab2/`, a clone of `20dfcb6` holding the committed `dd79241`):
+- The new file against the committed scripts: 8 failed, 75 passed. The 8 are the wording and
+  option checks.
+- Against the fixed scripts, the reviewer's surviving mutants now fail:
+  - log text in the frame (the last line cleaned, or the first line raw): 9 checks fail each;
+  - the ticker without `kill -0`: "the ticker drew 7 frames after the build was gone";
+  - the oldest `ok` row as the estimate: 1 check fails;
+  - no `INTERRUPTED after` line: 1 check fails.
+- The committed Ctrl-C check, run with SIGINT ignored in the parent, failed 2 of 2 (`assert 0 ==
+  130`).
+- The new pair passed 60 of 60 runs plain, 60 of 60 with SIGINT ignored, 60 of 60 under twelve
+  busy loops, and 30 of 30 under load with SIGINT ignored: 420 executions, all passing.
+
+After the revision (EXECUTED, main tree, `final-runs.txt`, `judge2.txt`):
+- `tests/unit/test_build_progress.py` gave 83 passed in each of 10 runs, 5 of them under twelve
+  busy loops.
+- `ruff check` and `ruff format --check` are clean.
+- The full judge: 740 passed, 1 failed, 4 skipped. v1 is 187/190, the unit suite 553/555. The
+  ratchet: lost 1, grew 0, judge changed.
+- The one failure is still `test_manifest_recipes_match_the_tree`. It passes once step 90
+  re-runs on the committed scripts.
+- `build/progress/latest.json` was restored byte for byte (`7530f697…`).

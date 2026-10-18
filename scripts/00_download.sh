@@ -17,9 +17,10 @@ D="$HERE/downloads"
 ALL=0
 [ "${1:-}" = "--all" ] && ALL=1
 
-PINS=0 FETCHED=0
+PINS=0 FETCHED=0 NAMES=" "
 get() { # url name
   PINS=$((PINS + 1))
+  NAMES="$NAMES$2 "
   if [ -s "$D/$2" ]; then
     echo "present $2"
     return 0
@@ -116,4 +117,22 @@ else
   echo "ERROR: a download does not match its pin in downloads/SHA256SUMS" >&2
   exit 1
 fi
-echo "downloads: $PINS pins, $FETCHED fetched, $(grep -c ': OK$' "$checked" || :) verified"
+# Verified counts this run's pins; a file that is no pin of this run (the research input, say) and
+# still verifies is named apart, so no count exceeds the pins.
+VERIFIED=0 OTHER=0
+while IFS= read -r line; do
+  case "$line" in
+    *": OK")
+      case "$NAMES" in
+        *" ${line%: OK} "*) VERIFIED=$((VERIFIED + 1));;
+        *) OTHER=$((OTHER + 1));;
+      esac;;
+  esac
+done < "$checked"
+summary="downloads: $PINS pins, $FETCHED fetched, $VERIFIED verified"
+case "$OTHER" in
+  0) ;;
+  1) summary="$summary; 1 other file in downloads/ verified too";;
+  *) summary="$summary; $OTHER other files in downloads/ verified too";;
+esac
+echo "$summary"

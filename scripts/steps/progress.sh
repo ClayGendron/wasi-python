@@ -235,3 +235,23 @@ progress_summary() { # steps-run seconds steps
     *) progress_say "done: $1 steps in $(progress_fmt "$2"):$(printf ' %s' $3)";;
   esac
 }
+
+# For --list: a step script's header comment -> its first sentence, without the `Step NN: ` the
+# list shows already, cut at a word (and marked `...`) to fit `max` characters.
+progress_what() { # script max
+  awk -v max="$2" '
+    NR == 1 && /^#!/ { next }
+    /^#/ { sub(/^# ?/, ""); text = text (text == "" ? "" : " ") $0; next }
+    { exit }
+    END {
+      sub(/^Step [0-9]+: */, "", text)
+      if (match(text, /\.( |$)/)) text = substr(text, 1, RSTART)
+      if (length(text) > max) {
+        text = substr(text, 1, max - 2)
+        sub(/ [^ ]*$/, "", text)
+        sub(/[,;:(]$/, "", text)
+        text = text "..."
+      }
+      print text
+    }' "$1"
+}

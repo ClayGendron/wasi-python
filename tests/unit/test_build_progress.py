@@ -53,7 +53,14 @@ READS = 5000  # pty reads one run may take; a ticker left drawing exceeds it
 GUARD = 60  # seconds `select` waits for one byte: a hang guard, never a measurement
 CLOCK_START, CLOCK_STEP = 1000, 7
 BRAILLE = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-FRAME = re.compile(r"\r([^\r\n\x1b]+)\x1b\[K")
+FRAME = re.compile(r"\r([^\r\n]*?)\x1b\[K")  # a frame may hold an ESC only if it is wrong
+TIME = r"\d+s|\d+m\d\ds|\d+h\d\dm"
+GRAMMAR = re.compile(  # every part of a status line is the driver's own: names, times, digits
+    rf"[{BRAILLE}|/\\-] \[\d+/\d+\] \d\d_[a-z_]+ (?:{TIME})(?: / ~(?:{TIME}))?"
+    r"(?: [·-] (?:\[\d+/\d+\]|fetching [A-Za-z0-9._+-]+ \d+ [KM]iB))?"
+    rf"(?: [·-] ~(?:{TIME}) left)?"
+)
+LOG_TEXT = "printf 'LOGTEXT \\033[31mred\\033[0m\\n'\n"  # a log line no frame may show
 CSI = re.compile(r"\x1b\[([0-9;?]*)([A-Za-z])")
 LONG = "made " + "abcdefghij" * 14  # a summary past the 120-character cut
 
@@ -194,6 +201,10 @@ printf 'zip' > "$T/build/artifacts/python-stdlib.zip"
 
 
 def _controlling_tty() -> None:
+    # The build gets the signals' default actions even when this process inherited them ignored
+    # (a background job of a non-interactive shell starts with SIGINT ignored).
+    for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT):
+        signal.signal(sig, signal.SIG_DFL)
     os.setsid()
     import fcntl
     import termios
@@ -222,10 +233,11 @@ class Pty:
         )
         os.close(slave)
         self.data = bytearray()
+        self.reads = 0
 
     def run(self, react=None) -> tuple[int, bytes]:
         try:
-            for _ in range(READS):
+            for self.reads in range(1, READS + 1):  # noqa: B007 (react reads the count)
                 ready, _, _ = select.select([self.master], [], [], GUARD)
                 assert ready, "the pty went quiet without reaching its end"
                 try:
@@ -242,8 +254,11 @@ class Pty:
             return self.proc.wait(timeout=GUARD), bytes(self.data)
         finally:
             os.close(self.master)
+            try:
+                os.killpg(self.proc.pid, signal.SIGKILL)  # whatever is left of the group
+            except (ProcessLookupError, PermissionError):
+                pass
             if self.proc.poll() is None:
-                os.killpg(self.proc.pid, signal.SIGKILL)
                 self.proc.wait()
 
     def text(self) -> str:
@@ -252,7 +267,16 @@ class Pty:
 
 def frames(data: bytes | bytearray) -> list[str]:
     """The status lines drawn: each `\\r<text>ESC[K` with text."""
-    return FRAME.findall(bytes(data).decode("utf-8", "replace"))
+    return [f for f in FRAME.findall(bytes(data).decode("utf-8", "replace")) if f]
+
+
+def _only_the_drivers_words(drawn: list[str], whole: bool) -> None:
+    """No log text in any frame; with `whole`, every frame (uncut) fits the status grammar."""
+    leaked = [f for f in drawn if "LOGTEXT" in f or "red" in f or "\x1b" in f]
+    assert not leaked, leaked
+    if whole:
+        bad = [f for f in drawn if not GRAMMAR.fullmatch(f)]
+        assert not bad, bad
 
 
 def screen(data: bytes, cols: int) -> list[str]:
@@ -362,7 +386,7 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
         pytest.skip("needs: a POSIX sh")  # a second shell (bash) is absent here
     sh = SHELLS[shell]
     tree = Tree(work)
-    tree.hold("40_numpy", before='echo "[3/9] Compiling C object x.o"\n')
+    tree.hold("40_numpy", before=LOG_TEXT + 'echo "[3/9] Compiling C object x.o"\n' + LOG_TEXT)
     if fails:
         tree.step("50_pandas", FAILING)
     before = _timings_for_every_step(tree) if timings else None
@@ -384,6 +408,7 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
     assert code == plain.returncode == (1 if fails else 0), plain.stdout
     assert screen(raw, cols) == fold(plain.stdout, cols)
     assert all(len(f) <= cols - 1 for f in drawn), [f for f in drawn if len(f) >= cols]
+    _only_the_drivers_words(drawn, whole=cols == 80)
     spinners = {f[0] for f in drawn}
     if "UTF-8" in lang:
         assert spinners <= set(BRAILLE), spinners
@@ -406,12 +431,12 @@ def test_frames_then_the_final_screen_equals_plain(work, fails, timings, cols, l
 def test_the_download_frame_shows_the_partial_file(work) -> None:
     _needs_pty()
     tree = Tree(work)
-    tree.hold(
-        "00_download", before='mkdir -p "$T/downloads"\nprintf 12345 > "$T/downloads/x.tgz.part"\n'
-    )
+    part = 'mkdir -p "$T/downloads"\nprintf 12345 > "$T/downloads/x.tgz.part"\n'
+    tree.hold("00_download", before=LOG_TEXT + part)
     code, raw = tree.pty(react=go_when(tree, "00_download", 1, also="x.tgz"))
     assert code == 0 and (tree.root / "go" / "00_download").exists()
-    assert any("fetching x.tgz" in f for f in frames(raw)), frames(raw)
+    assert any("fetching x.tgz 0 KiB" in f for f in frames(raw)), frames(raw)
+    _only_the_drivers_words(frames(raw), whole=True)
 
 
 def test_no_colour_when_no_color_is_set(work) -> None:
@@ -445,7 +470,9 @@ def test_ctrl_c_interrupts_the_step_and_leaves_nothing(work, shell) -> None:
     if shell >= len(SHELLS):
         pytest.skip("needs: a POSIX sh")
     tree = Tree(work)
-    tree.hold("40_numpy")
+    # One long command, not a poll loop: a `sleep` that ends on its own as SIGINT arrives makes
+    # bash's step shell carry on (it takes the child to have handled the signal).
+    tree.step("40_numpy", 'echo "40_numpy: holding"\nsleep 30\necho "40_numpy: done"\n')
     sent = []
 
     def react(p: Pty) -> None:
@@ -480,11 +507,62 @@ def test_term_waits_for_the_step_then_stops_before_the_next(work, shell) -> None
     rows = screen(raw, 200)
     assert code == 143, rows[-3:]
     assert rows[-2].startswith("ok 40_numpy: ")
-    assert rows[-1] == "INTERRUPTED 50_pandas (log: build/logs/50_pandas.log)"
+    assert rows[-1] == "INTERRUPTED before 50_pandas"  # it never started: no log to point at
     assert tree.timings()[-1][1:] == ["50_pandas", "interrupted", "0"]
     resumed = tree.plain("--resume")
     oks = [x.split(":")[0][3:] for x in resumed.stdout.splitlines() if x.startswith("ok ")]
     assert resumed.returncode == 0 and oks == list(STEPS[6:]), resumed.stdout
+
+
+def test_term_during_the_last_step_ends_without_a_summary(work) -> None:
+    _needs_pty()
+    tree = Tree(work)
+    tree.hold("90_artifacts", before=ARTIFACTS)
+
+    def react(p: Pty) -> None:
+        go = tree.root / "go" / "90_artifacts"
+        if not go.exists() and any("[11/11] 90_artifacts " in f for f in frames(p.data)):
+            p.proc.send_signal(signal.SIGTERM)
+            go.touch()
+
+    p = Pty([SHELLS[0], str(tree.root / "scripts/build.sh")], tree.env(), tree.root, 200)
+    code, raw = p.run(react)
+    rows = screen(raw, 200)
+    assert code == 143, rows[-3:]
+    assert rows[-2].startswith("ok 90_artifacts: ")
+    assert rows[-1] == "INTERRUPTED after 90_artifacts: every step had finished"
+    assert not any(r.startswith("done:") for r in rows)
+    assert tree.timings()[-1][1:3] == ["90_artifacts", "ok"]
+
+
+# The session leader outlives build.sh: it starts it, records its id, reaps it, then stays two
+# seconds (eight of the ticker's frames) before it exits. Were build.sh the leader, its death would
+# hang up the terminal (SIGHUP to the group; macOS also revokes the tty), which would stop the
+# ticker without kill -0.
+LEADER = 'sh "$0" & echo "$!" > "$1/build.pid"\nwait\nsleep 2\n'
+
+
+def test_the_ticker_ends_itself_when_the_build_is_gone(work) -> None:
+    """SIGKILL to build.sh alone runs no EXIT trap; the ticker must see the build gone (kill -0)
+    and draw at most the one frame it may have begun."""
+    _needs_pty()
+    tree = Tree(work)
+    tree.hold("40_numpy")
+    drawn_before: list[int] = []
+
+    def react(p: Pty) -> None:
+        if not drawn_before and any("[6/11] 40_numpy " in f for f in frames(p.data)):
+            os.kill(int((tree.root / "build.pid").read_text()), signal.SIGKILL)
+            drawn_before.append(len(frames(p.data)))
+            (tree.root / "go" / "40_numpy").touch()
+
+    build = str(tree.root / "scripts/build.sh")
+    p = Pty([SH_OF_STEPS, "-c", LEADER, build, str(tree.root)], tree.env(), tree.root, 80)
+    _, raw = p.run(react)
+    assert drawn_before, "no frame named 40_numpy"
+    after = len(frames(raw)) - drawn_before[0]
+    assert after <= 1, f"the ticker drew {after} frames after the build was gone"
+    assert _gone(p.proc.pid), "a process of the build outlived it"
 
 
 def test_a_renderer_failure_stops_the_ticker_too(work) -> None:
@@ -736,9 +814,49 @@ def test_list_names_each_step_and_its_last_time(work) -> None:
     lines = out.stdout.splitlines()
     assert [x.split()[0] for x in lines] == list(STEPS)
     for i, (step, line) in enumerate(zip(STEPS, lines, strict=True)):
-        assert f"Step {step[:2]}: the fake {step} of the progress checks." in line
-        assert line.endswith(f"[{3 + i}s]")
+        assert line == f"{step:<15} the fake {step} of the progress checks. [{3 + i}s]"
     assert not (tree.root / "build" / "logs" / "40_numpy.log").exists()  # nothing ran
+
+
+def test_list_shows_the_newest_ok_time(work) -> None:
+    _needs_sh()
+    tree = Tree(work)
+    logs = tree.root / "build" / "logs"
+    logs.mkdir(parents=True)
+    rows = [("1-1", "ok", "5"), ("2-2", "ok", "99"), ("3-3", "error", "500")]
+    (logs / "timings.tsv").write_text("".join(f"{r}\t40_numpy\t{st}\t{t}\n" for r, st, t in rows))
+    out = tree.plain("--list")
+    line = next(x for x in out.stdout.splitlines() if x.startswith("40_numpy"))
+    assert line.endswith(" [1m39s]"), line
+
+
+def _first_sentence(script: Path) -> str:
+    lines = script.read_text().splitlines()[1:]
+    header = " ".join(
+        x[2:] if x.startswith("# ") else x[1:]
+        for x in lines[: next(i for i, x in enumerate(lines) if not x.startswith("#"))]
+    )
+    header = re.sub(r"^Step \d+: *", "", header)
+    m = re.search(r"\.( |$)", header)
+    return header[: m.start() + 1] if m else header
+
+
+def test_list_cuts_the_real_descriptions_at_a_word(work) -> None:
+    """The real step scripts' headers: the first sentence, cut at a word to fit 80 columns."""
+    _needs_sh()
+    tree = Tree(work)
+    for step in STEPS:
+        shutil.copy2(SCRIPTS / tree.path(step).relative_to(tree.root / "scripts"), tree.path(step))
+    out = tree.plain("--list")
+    assert out.returncode == 0
+    for step, line in zip(STEPS, out.stdout.splitlines(), strict=True):
+        assert len(line) <= 80 and not re.search(r"Step \d+:", line), line
+        shown = line[16:]
+        whole = _first_sentence(tree.path(step))
+        if shown != whole:
+            assert shown.endswith("..."), line
+            kept = shown[:-3]
+            assert whole.startswith(kept) and whole[len(kept)] in " ,;:(", (line, whole)
 
 
 def test_from_runs_that_step_and_every_later_one(work) -> None:
@@ -768,7 +886,17 @@ def test_resume_with_no_record_has_nothing_to_resume(work) -> None:
 
 @pytest.mark.parametrize(
     "args",
-    [["7"], ["--nope"], ["--from"], ["--from", "99"], ["40", "--from", "60"], ["--resume", "40"]],
+    [
+        ["7"],
+        ["--nope"],
+        ["--from"],
+        ["--from", "99"],
+        ["40", "--from", "60"],
+        ["--resume", "40"],
+        ["--list", "40"],
+        ["--check", "--list"],
+        ["--help", "--from", "60"],
+    ],
 )
 def test_a_wrong_option_or_step_exits_2_with_the_usage(work, args) -> None:
     _needs_sh()
@@ -832,7 +960,7 @@ printf '%s' "$name" > "$out"
 """
 
 
-def _download_tree(root: Path, *, curl: bool) -> Path:
+def _download_tree(root: Path, *, curl: bool, other: bool = False) -> Path:
     root = root.resolve()
     for rel in ("00_download.sh", "line.sh", "line.conf"):
         dst = root / "scripts" / rel
@@ -847,6 +975,9 @@ def _download_tree(root: Path, *, curl: bool) -> Path:
     names = GET.findall(DOWNLOAD.read_text())
     d = root / "downloads"
     d.mkdir()
+    if other:  # a pinned file this run does not get, present (the research input, say)
+        names.append("other-input.zip")
+        (d / "other-input.zip").write_text("other-input.zip")
     (d / "SHA256SUMS").write_text(
         "".join(f"{hashlib.sha256(n.encode()).hexdigest()}  {n}\n" for n in names)
     )
@@ -882,6 +1013,18 @@ def test_the_download_step_says_what_it_fetched_and_verified(work) -> None:
     assert lines[-1] == f"downloads: {n} pins, {n - 2} fetched, {n} verified"
     again = _download(root).stdout.splitlines()
     assert again[-1] == f"downloads: {n} pins, 0 fetched, {n} verified"
+
+
+def test_a_verified_file_that_is_no_pin_is_named_apart(work) -> None:
+    _needs_sh()
+    out = _download(_download_tree(work, curl=True, other=True))
+    lines = out.stdout.splitlines()
+    n = sum(x.startswith(("present ", "fetched ")) for x in lines)
+    assert sum(x.endswith(": OK") for x in lines) == n + 1
+    assert lines[-1] == (
+        f"downloads: {n} pins, {n - 2} fetched, {n} verified; "
+        "1 other file in downloads/ verified too"
+    )
 
 
 def test_the_download_step_refuses_without_curl(work) -> None:

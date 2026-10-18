@@ -81,7 +81,9 @@ P_PLAIN=no P_DO=build P_PICK="" P_NAMED="" P_FROM=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --plain) P_PLAIN=yes;;
-    --list|--check|--help) P_DO=${1#--};;
+    --list|--check|--help)
+      [ "$P_DO" = build ] || bad "--list, --check and --help go alone"
+      P_DO=${1#--};;
     --from)
       [ "$#" -ge 2 ] || bad "--from needs a step"
       pick from
@@ -98,6 +100,10 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
+if [ "$P_DO" != build ] && [ -n "$P_PICK" ]; then
+  bad "--$P_DO takes no steps"
+fi
+
 if [ "$P_DO" = help ]; then
   usage
   exit 0
@@ -109,9 +115,9 @@ progress_setup "$(progress_mode_for "$P_TTY" "${TERM:-}" "${CI+set}" "$P_PLAIN" 
 
 if [ "$P_DO" = list ]; then
   for step in $ALL; do
-    what=$(awk 'NR > 1 && /^#/ { sub(/^# */, ""); print; exit }' "$(script_of "$step")")
     last=$(progress_last "$step" "$P_TIMINGS")
     [ -z "$last" ] || last=" [$(progress_fmt "$last")]"
+    what=$(progress_what "$(script_of "$step")" $((80 - 16 - ${#last})))  # a line fits 80 columns
     printf '%-15s %s%s\n' "$step" "$what" "$last"
   done
   exit 0
@@ -148,7 +154,11 @@ interrupted() { # step [after]: the one INTERRUPTED line, then the signal's exit
 on_exit() {
   progress_stop
   if [ -n "$P_SIG" ] && [ -z "$P_ENDED" ]; then
-    interrupted "${P_STEP:-build} (log: build/logs/${P_STEP:-}.log)"
+    if [ -n "$P_STEP" ]; then
+      interrupted "$P_STEP (log: build/logs/$P_STEP.log)"
+    else
+      interrupted build
+    fi
   fi
 }
 trap on_exit EXIT
@@ -171,7 +181,7 @@ for step in $STEPS; do
   k=$((k + 1))
   if [ -n "$P_SIG" ]; then
     progress_row "$P_TIMINGS" "$P_RUN" "$step" interrupted 0
-    interrupted "$step (log: build/logs/$step.log)"
+    interrupted "before $step"  # it never started, so this run wrote no log for it
   fi
   script=$(script_of "$step")
   case "$step" in
@@ -180,7 +190,6 @@ for step in $STEPS; do
     *) remove "$HERE/build/artifacts" "$HERE/build/artifacts.new";;
   esac
   log="$HERE/build/logs/$step.log"
-  P_STEP=$step
   estimate=$(progress_last "$step" "$P_TIMINGS")
   later="" i=0
   for s in $STEPS; do
@@ -196,6 +205,7 @@ for step in $STEPS; do
     P_TPID=$!
   fi
   rc=0
+  P_STEP=$step  # from here this run has written the step's log
   sh "$script" > "$log" 2>&1 || rc=$?
   end=$(progress_clock)
   progress_stop
