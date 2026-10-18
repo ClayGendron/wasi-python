@@ -1,6 +1,6 @@
 # 052 — The judge on several cores
 
-- **Status:** built 2026-10-18; revised against its build review the same day
+- **Status:** **landed 2026-10-18** (accepted on `588ec65` as `fbf600d`; the build review with its two addenda, `../reviews/052-the-judge-on-several-cores-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; revised against its build review the same day
   (`build/reviews-evidence/052-buildreview/052-the-judge-on-several-cores-2026-10-18.md` in the
   main tree: "lands once F1 and F2 are fixed"; F1 to F6 answered in its Disposition at the end),
   and again against its addendum (`…-2026-10-18-addendum.md`: F1 to F6 closed, F7 and F8 reopened,
@@ -646,3 +646,20 @@ sameness.py serial.json n3.json        (nothing printed) exit 0
 0 status differences in 354 checks; 20 of 86 fuel values differ, the largest by 3.1e-7;
 `meta.foreign` `[]` in both. The fast tier at `-n 3` before the commit: `313/354 pass · 0 gap · 2
 blocked · 0 fail · 39 deselected (unit suite 1104/1106, 2 skipped)`, exit 0.
+
+**Landed 2026-10-18** through the lane, after the 0.1.0a5 tag and spec 053. The lane rebased the
+branch onto main `36adfd1` (053 landed) with no conflict; its diff equals the reviewed diff at
+`b0efb05` line for line (EXECUTED, `build/lane-052-rebased.diff` against
+`build/reviews-evidence/052-buildreview/reviewed-b0efb05.diff`). One lane commit, `0e0888c`,
+moves the CHANGELOG entry from the dated 0.1.0a5 section to 0.1.0a6. Its pre-build review
+(`../reviews/052-the-judge-on-several-cores-spec-2026-10-18.md`) and its build review with both
+addenda, joined in one file (`../reviews/052-the-judge-on-several-cores-2026-10-18.md`: "lands once
+F1 and F2 are fixed", then F7 and F8 reopened, then "confirmed"), were committed on the detached
+HEAD as `588ec65`. The full judge there, serial as Decision 5 keeps the lane, on spec 035's
+artifact set: `wasi_python v1: 350/364 pass · 12 gap · 2 blocked · 0 fail (unit suite 1122/1124,
+2 skipped)`, `ratchet vs 588ec65390: lost 0 · absent 0 · unrun 0 · gained 0 · grew 0` after
+acceptance, `1472 passed, 4 skipped, 12 xfailed in 501.82s` (EXECUTED, `build/lane-052-accept.log`).
+Accepted with `--accept-judge` as `fbf600d` (history line 57); the rules tier passed (24/24); main
+fast-forwarded. The reviewer's residual note (a conftest that borrows xdist's own `__init__` passes
+on a worker; `sameness` and the lane's serial run catch it) is recorded in the review, not a
+condition.

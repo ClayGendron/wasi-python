@@ -59,14 +59,13 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
 question 95) and its security review's addendum ("a5 may be released"). 0.1.0a6 waits on 057.
 
-Built and confirmed, landing next: 052 (the judge on several cores), then 023 (matplotlib M1,
-build-class; after its rebase). Confirmed for build: 055 (bounded sessions;
+Built and confirmed, landing next: 023 (matplotlib M1, build-class; after its rebase). Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
 before the release after a5). Confirmed for build after 023: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
 every compile; the owner's decision of 2026-10-18).
