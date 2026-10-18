@@ -97,6 +97,26 @@ document.
   in the follow-up build-class specification that 056 names.
 - **The agent's recommendation:** yes, before 0.1.0 final. Then the follow-up names the
   environment in the workflow.
+### 95. Documentation commits between a release's dry run and its tag
+
+- **Asked:** 2026-10-18. **Source:** the 0.1.0a5 cut; AGENTS.md rule 6b ("dispatch the release
+  workflow on main's exact commit").
+- **The fact:** the dry run that passed every job (run 39143362471, the emulated x86_64 rebuild
+  and `same-bytes` included) ran on `8f1ba40`. Seven commits followed it before the tag, all
+  under `context/` and `CHANGELOG.md` (EXECUTED: `git diff --name-only 8f1ba40 d8afce3` names no
+  file under `src/`, `tests/`, `scripts/`, `recipes/`, `.github/`, `downloads/`, `pyproject.toml`
+  or `uv.lock`). The judge's rules checks read `context/`, so the agent ran the fast tier on
+  `d8afce3` (exit 0, `rules 25/25`, ratchet lost 0) and tagged `0463d02` ("Release 0.1.0a5",
+  which dates the CHANGELOG) without a second dry run. A second one would have cost about two
+  hours, most of it the emulated rebuild. The a5 security addendum already reads the same way
+  ("a5 may be released from 8f1ba40 (09ceb18 docs only)").
+- **The question:** is that the rule? The agent's reading is: commits that touch only
+  `context/`, `CHANGELOG.md` and `README.md` may follow the dry run if the fast tier passes on
+  the commit to be tagged; any other file means a new dry run.
+- **The agent's recommendation:** yes, and write that sentence into rule 6b. After spec 059 a dry
+  run takes about 22 minutes, so the exception matters less from 0.1.0a6 on.
+- **Meanwhile:** 0.1.0a5 was tagged this way. A different answer changes the next release only.
+
 ### 92. Bounded sessions: three choices where your decisions are silent, and one placement
 
 - **Asked:** 2026-10-18. **Source:** `specifications/055-bounded-sessions.md` (Decisions 3, 4,
