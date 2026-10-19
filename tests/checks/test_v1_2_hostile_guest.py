@@ -3407,3 +3407,43 @@ def test_what_traps_on_wasmtimes_default_engine(guest_workdir) -> None:
     if (lowered.exit_code, lowered.text) != (0, "XSLTApplyError\nXSLTApplyError\n"):
         bad.append(f"set_global_max_depth(250): {lowered.describe()}")
     assert not bad, "\n".join(bad)
+
+
+DUP_PROBE = """
+import errno, os, threading, time
+tid = threading.get_ident()
+calls = {
+    "os.dup(1)": lambda: os.dup(1),
+    "os.dup2(1, 5)": lambda: os.dup2(1, 5),
+    "os.dup2(1, 5, inheritable=False)": lambda: os.dup2(1, 5, inheritable=False),
+    "os.pipe2(0)": lambda: os.pipe2(0),
+    "time.pthread_getcpuclockid(get_ident())": lambda: time.pthread_getcpuclockid(tid),
+}
+for name, call in calls.items():
+    try:
+        call()
+        print(name, "returned")
+    except OSError as e:
+        print(name, errno.errorcode.get(e.errno, e.errno))
+print("os.pipe", "present" if hasattr(os, "pipe") else "absent")
+"""
+
+
+@pytest.mark.parametrize("which", ["snapshot", "plain"])
+def test_dup_is_refused_as_not_supported(guest, which) -> None:
+    """Spec 086, Decision 7 (b): a duplicated descriptor and a CPU clock are refused as not
+    supported, the answer wasi-libc's own dup gives on preview1. Guards a change: wasi-libc 34's
+    fcntl answers F_DUPFD_CLOEXEC, the command os.dup uses, with EINVAL, and
+    recipes/fcntl_dup_refusal.c makes it ENOTSUP again (Decision 5); os.dup2, os.pipe2 and
+    time.pthread_getcpuclockid exist from wasi-sdk 34 on (Decision 6). os.pipe stays absent."""
+    r = guest(which, ["-c", DUP_PROBE])
+    assert r.exit_code == 0, r.describe()
+    want = [
+        "os.dup(1) ENOTSUP",
+        "os.dup2(1, 5) ENOTSUP",
+        "os.dup2(1, 5, inheritable=False) ENOTSUP",
+        "os.pipe2(0) ENOTSUP",
+        "time.pthread_getcpuclockid(get_ident()) ENOTSUP",
+        "os.pipe absent",
+    ]
+    assert r.text.splitlines() == want, r.text

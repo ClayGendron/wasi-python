@@ -427,7 +427,7 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
      bound below applies to the A/B delta, never to `accepted.json`'s figure alone, so a rebase onto
      073 (or anything else that moves a group) cannot push a row over the bound for that
      specification's reasons (the review's F1).
-   - **A layout control first.** Spec 073's delta review MEASURED that numpy-core's fuel moves with
+   - **A layout control first.** Spec 073's build review (its delta-look addendum) MEASURED that numpy-core's fuel moves with
      memory layout: `test_strings.py::test_string_comparisons` converts lists of 32,768 bools, and
      numpy's `_global_pytype_to_type_dict` lookup is keyed by `bool`'s address, so +4.29 G of 073's
      +4.48 G came from `bool` moving 0x780 when the data segment changed size (073's first build
@@ -621,6 +621,10 @@ accept it with its cause.
 9. **The record.** The facts sheet, the evidence memo and folder (naming only 086's files: the
    review's N1), the README, the CHANGELOG, the libxml2 sheet's reason and the roadmap line exist
    as Decisions 4, 5, 6 and 11 say.
+
+## Landing notes
+
+Being built on `spec/086-wasi-sdk-34` (2026-10-19); filled in as the build goes.
 
 ## For the owner
 

@@ -3,6 +3,7 @@ exactly the recorded patches (constitution §4.1, spec 020)."""
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import re
 import shutil
@@ -231,3 +232,91 @@ def test_every_build_python_is_pinned() -> None:
     errors, read = scan.host_python_record_errors(paths.REPO, _line_values(), steps)
     print("\n".join(read))
     assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)
+
+
+# The backend's try_table order (spec 086, Decision 7 (a)): the memo's reproducer
+# (context/research/2026-10-19-the-try-table-order-in-llvm/), copied under the judge's paths and
+# named by its hash, compiled 64 times by each unpacked clang in the set's exception mode. wasi-sdk
+# 33's clang (LLVM 22.1.0) nests its try_table blocks by heap address and gives two objects; LLVM's
+# fd76c9bd (in wasi-sdk 34) gives one.
+TRY_TABLE_FIXTURE = paths.REPO / "tests" / "fixtures" / "try-table-order.ll"
+TRY_TABLE_SHA256 = "63a709ecfd611ccbe7d2beb4d5c5c2b85e450fa2217296d117957b398ee138a3"
+TRY_TABLE_RUNS = 64
+TRY_TABLE_FLAGS = (
+    "--target=wasm32-wasip1",
+    "-O3",
+    "-fwasm-exceptions",
+    "-mllvm",
+    "-wasm-use-legacy-eh=false",
+    "-c",
+    "-Xclang",
+    "-disable-llvm-passes",
+)
+
+
+def test_the_backend_orders_try_tables_alike(tmp_path) -> None:
+    """Spec 086, Decision 7 (a): each pinned clang under build/tools/ compiles the reduced
+    try_table case to one object in 64 runs. It counts distinct objects, never time. A run with no
+    clang found fails: the check must compile something to pass."""
+    digest = hashlib.sha256(TRY_TABLE_FIXTURE.read_bytes()).hexdigest()
+    assert digest == TRY_TABLE_SHA256, f"{TRY_TABLE_FIXTURE.name} is {digest}, not the memo's"
+    needs.need("compile records")
+    clangs = sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang"))
+    assert clangs, "no build/tools/wasi-sdk-*/bin/clang: nothing was compiled"
+    errors = []
+    for clang in clangs:
+        sdk = clang.parent.parent.name
+        seen: dict[str, int] = {}
+        for i in range(TRY_TABLE_RUNS):
+            out = tmp_path / f"{sdk}-{i}.o"
+            done = subprocess.run(
+                [str(clang), *TRY_TABLE_FLAGS, str(TRY_TABLE_FIXTURE), "-o", str(out)],
+                capture_output=True,
+                text=True,
+            )
+            assert done.returncode == 0, f"{sdk}: clang failed: {done.stderr.strip()[-300:]}"
+            h = hashlib.sha256(out.read_bytes()).hexdigest()
+            seen[h] = seen.get(h, 0) + 1
+        print(f"{sdk}: {len(seen)} object(s) in {TRY_TABLE_RUNS} runs")
+        if len(seen) != 1:
+            counts = ", ".join(f"{h[:12]} x{n}" for h, n in sorted(seen.items()))
+            errors.append(f"{sdk}: {len(seen)} objects in {TRY_TABLE_RUNS} runs ({counts})")
+    assert not errors, "\n".join(errors)
+
+
+CPYTHON_CONFIGURE = paths.REPO / "tests" / "cpython_configure.txt"
+PYCONFIG = Path("Python-3.15.0") / "cross-build" / "wasm32-wasip1" / "pyconfig.h"
+DEFINE = re.compile(r"^\s*#\s*define\s+(\S+)(?:\s+(.*?))?\s*$")
+
+
+def _defines(text: str) -> set[str]:
+    """Every #define of a header, indented or not, as `NAME VALUE`."""
+    return {
+        f"{m[1]} {m[2] or ''}".rstrip() for line in text.splitlines() if (m := DEFINE.match(line))
+    }
+
+
+def test_the_guests_configure_results_are_recorded() -> None:
+    """Spec 086, Decision 7 (c): every #define of the guest CPython's pyconfig.h equals
+    tests/cpython_configure.txt, so a toolchain that flips a configure result (wasi-sdk 34 flipped
+    ten HAVE_* lines) fails here and its specification says why. A line holding a word
+    context/embedders.txt reserves is not written in the file (constitution §4.5); the file's
+    digest, over every line, covers it. Without a build, blocked."""
+    text = CPYTHON_CONFIGURE.read_text().splitlines()
+    digests = [line.split()[1] for line in text if line.startswith("digest ")]
+    assert len(digests) == 1, "tests/cpython_configure.txt holds no single digest line"
+    recorded = {line for line in text if line.strip() and not line.startswith(("#", "digest "))}
+    needs.need("compile records")
+    header = paths.BUILD / PYCONFIG
+    assert header.is_file(), f"no build/{PYCONFIG}"
+    built = _defines(header.read_text(errors="replace"))
+    reserved = scan.read_names(paths.EMBEDDERS)
+    visible = {line for line in built if not any(name in line.lower() for name in reserved)}
+    new = sorted(visible - recorded)
+    gone = sorted(recorded - visible)
+    errors = [f"+{line} (built, not recorded)" for line in new]
+    errors += [f"-{line} (recorded, not built)" for line in gone]
+    digest = hashlib.sha256("\n".join(sorted(built)).encode()).hexdigest()
+    if not errors and digest != digests[0]:
+        errors.append(f"a line holding a reserved word moved: digest {digest}, not {digests[0]}")
+    assert not errors, "\n".join(errors)

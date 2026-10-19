@@ -1,8 +1,8 @@
 /*
  * Refuse the iconv conversions whose wasi-libc decoder gives wrong characters without an error
- * (spec 046, Decision 9): GB18030. wasi-sdk 33's wasi-libc decodes 1,617 of GB18030's 56,926 BMP
- * characters as other characters (the four-byte forms of U+F900 to U+FFFD come back shifted);
- * musl fixed its decoder after 1.2.6 and wasi-libc has not taken it yet
+ * (spec 046, Decision 9): GB18030. wasi-sdk 34's wasi-libc, as 33's did, decodes 1,617 of GB18030's
+ * 56,926 BMP characters as other characters (the four-byte forms of U+F900 to U+FFFD come back
+ * shifted); musl fixed its decoder after 1.2.6, and wasi-sdk 34's iconv.c is musl 1.2.6's (spec 086)
  * (context/upstream/15-wasi-libc-gb18030-decoder/). Silently wrong text is worse than an error.
  *
  * Decoding from GB18030 opens, and its handle passes ASCII through (GB18030's own single-byte

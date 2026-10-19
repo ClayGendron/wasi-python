@@ -27,6 +27,6 @@ skip_sanity_check = true
 [built-in options]
 # -ffile-prefix-map: no builder's path in __FILE__ strings, so the binary's hash does not depend on the checkout.
 c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-include', '@ROOT@/recipes/pandas_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
-# C++ exceptions in their standard form (wasi-sdk 33's CppExceptions.md; spec 005, Decision 3).
+# C++ exceptions in their standard form (wasi-sdk's CppExceptions.md, 33 and 34; spec 005, Decision 3).
 cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
 # No link args: every extension module becomes an archive, and the one real link is python.wasm's own (Setup.local carries the libs).

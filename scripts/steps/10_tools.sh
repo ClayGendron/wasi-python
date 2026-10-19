@@ -11,8 +11,8 @@ set -eu
 SDK_TGZ=$(pinned "$WASI_SDK_DIR.tar.gz")
 WASMTIME_TXZ=$(pinned "$WASMTIME_DIR.tar.xz")
 PYTHON_TGZ=$(pinned "$HOST_PYTHON_ARCHIVE")
-SYSROOT_TGZ=$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")
-RT_TGZ=$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")
+SYSROOT_TGZ=$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0.tar.gz")
+RT_TGZ=$(pinned "libclang_rt-$WASI_SDK_VERSION.0.tar.gz")
 WHEELS="$CYTHON_WHEEL meson-1.12.1-py3-none-any.whl
 $NINJA_WHEEL versioneer-0.29-py3-none-any.whl $PKGCONF_WHEEL"
 

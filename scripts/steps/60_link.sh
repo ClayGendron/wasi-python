@@ -3,8 +3,9 @@
 # (spec 047), lxml with libxml2 and libxslt (spec 046), zlib, bz2, lzma, sqlite3 and the host door into CPython as
 # builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o (spec
-# 003), and with recipes/iconv_refusals.c, which refuses GB18030 at iconv_open (spec 046,
-# Decision 9). Last, the static constructors and target features are checked against the judge's
+# 003), and with two link-time refusals: recipes/iconv_refusals.c, which refuses GB18030 at
+# iconv_open (spec 046, Decision 9), and recipes/fcntl_dup_refusal.c, which answers fcntl's two dup
+# commands ENOTSUP as wasi-libc's dup does (spec 086, Decision 5). Last, the static constructors and target features are checked against the judge's
 # reviewed lists (spec 023, Decision 4), so a build with a constructor no review has read stops
 # here, before step 80 would hang on it.
 set -eu
@@ -103,17 +104,27 @@ done
 # Programs/python.c swapped for the reactor's entry points. The link wraps the four WASI calls whose
 # answers a snapshot would otherwise capture (recipes/reactor_main.c, "pinned"), and iconv_open,
 # whose wrapper refuses GB18030, which wasi-libc decodes wrongly without an error
-# (recipes/iconv_refusals.c, compiled by the same command; spec 046, Decision 9). Only the reactor
-# carries it: the interpreter `make all` links above is CPython's own build, never shipped.
+# (recipes/iconv_refusals.c; spec 046, Decision 9), and fcntl, whose wrapper answers F_DUPFD and
+# F_DUPFD_CLOEXEC with ENOTSUP, which wasi-libc 34 answers EINVAL on preview1
+# (recipes/fcntl_dup_refusal.c; spec 086, Decision 5). Each guard is compiled by the reactor's own
+# command into its own object. Only the reactor carries them: the interpreter `make all` links
+# above is CPython's own build, never shipped.
 rm -f python.wasm Programs/python.o
 make -n python.wasm LDFLAGS_NODIST="-fwasm-exceptions" > "$L/make-n.txt"
 compile=$(grep -- '-o Programs/python.o' "$L/make-n.txt" | tail -n 1)
 link=$(grep -- '-o python.wasm Programs/python.o' "$L/make-n.txt" | tail -n 1)
 [ -n "$compile" ] && [ -n "$link" ] || die "make -n python.wasm printed no compile or link command"
 compile=$(printf '%s' "$compile" | sed "s#[^ ]*Programs/python\.c#$HERE/recipes/reactor_main.c#; s#-o Programs/python\.o#-I$L -o Modules/reactor_main.o#")
-guard=$(printf '%s' "$compile" | sed "s#[^ ]*/reactor_main\.c#$HERE/recipes/iconv_refusals.c#; s#-o Modules/reactor_main\.o#-o Modules/iconv_refusals.o#")
-WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close"
-link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o Modules/iconv_refusals.o#")
+GUARDS="iconv_refusals fcntl_dup_refusal"
+guards=""
+guard_objects=""
+for g in $GUARDS; do
+  guards="$guards$(printf '%s' "$compile" | sed "s#[^ ]*/reactor_main\.c#$HERE/recipes/$g.c#; s#-o Modules/reactor_main\.o#-o Modules/$g.o#")
+"
+  guard_objects="$guard_objects Modules/$g.o"
+done
+WRAP="-Wl,--wrap=__wasi_clock_time_get -Wl,--wrap=__wasi_random_get -Wl,--wrap=__wasi_path_filestat_get -Wl,--wrap=__wasi_fd_filestat_get -Wl,--wrap=iconv_open -Wl,--wrap=iconv -Wl,--wrap=iconv_close -Wl,--wrap=fcntl"
+link=$(printf '%s' "$link" | sed "s#-o python\.wasm Programs/python\.o#-mexec-model=reactor $WRAP -Wl,--Map=$L/python.map -o $OUT/python.wasm Modules/reactor_main.o$guard_objects#")
 host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/reactor_bootstrap.py" "$L/reactor_bootstrap.h" \
   > "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "the reactor's bootstrap did not compile"; }
@@ -125,9 +136,12 @@ host_from_source
 "$HOSTPY" "$HERE/scripts/freeze_bootstrap.py" "$HERE/recipes/zip_resources.py" "$L/zip_resources.h" \
   ZIP_RESOURCES "<frozen _zip_resources>" \
   >> "$L/freeze.log" 2>&1 || { cat "$L/freeze.log"; die "recipes/zip_resources.py did not compile"; }
-printf '%s\n%s\n%s\n' "$compile" "$guard" "$link" > "$L/reactor-commands.txt"
+printf '%s\n%s%s\n' "$compile" "$guards" "$link" > "$L/reactor-commands.txt"
 eval "$compile" > "$L/reactor-compile.log" 2>&1 || { tail -n 20 "$L/reactor-compile.log"; die "the reactor's compile failed"; }
-eval "$guard" > "$L/guard-compile.log" 2>&1 || { tail -n 20 "$L/guard-compile.log"; die "recipes/iconv_refusals.c did not compile"; }
+for g in $GUARDS; do
+  guard=$(printf '%s' "$guards" | grep -F -- "-o Modules/$g.o")
+  eval "$guard" > "$L/guard-$g.log" 2>&1 || { tail -n 20 "$L/guard-$g.log"; die "recipes/$g.c did not compile"; }
+done
 eval "$link" > "$L/reactor-link.log" 2>&1 || { tail -n 20 "$L/reactor-link.log"; die "the reactor's link failed"; }
 clashes "$L/reactor-link.log"
 
@@ -138,7 +152,7 @@ clashes "$L/reactor-link.log"
 # are the compiling SDK's, whose driver links (spec 040): $SDK's own on the arm64 hosts.
 set -- "$CSDK"/lib/clang/*/lib/wasm32-unknown-wasip1
 "$HOSTPY" - "$L/python.map" "$CSDK/share/wasi-sysroot" "$1" \
-  "$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0+m.tar.gz")" "$(pinned "libclang_rt-$WASI_SDK_VERSION.0+m.tar.gz")" \
+  "$(pinned "wasi-sysroot-$WASI_SDK_VERSION.0.tar.gz")" "$(pinned "libclang_rt-$WASI_SDK_VERSION.0.tar.gz")" \
   > "$L/runtime-check.log" 2>&1 <<'EOF_RUNTIME' || { cat "$L/runtime-check.log"; die "the link did not use the neutral wasm runtime"; }
 import hashlib, os, re, sys, tarfile
 
