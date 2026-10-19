@@ -54,7 +54,7 @@ def old_volume(folder: Path, sets: list[set], **kw) -> list[str]:
     return lines
 
 
-def record(passes, platform="darwin-arm64", artifact="art") -> dict:
+def record(passes, platform="darwin-arm64", artifact="art", set_sums=None) -> dict:
     """A run record whose passing checks are `passes`; checks that did not pass are left out."""
     meta = {
         "at": "2026-10-18T00:00:00Z",
@@ -64,6 +64,7 @@ def record(passes, platform="darwin-arm64", artifact="art") -> dict:
         "host": "h",
         "wasmtime": "49.0.0",
         "artifact": artifact,
+        "set_sums": set_sums,
         "judge": {"hash": "j", "files": {}},
         "partial": None,
     }
@@ -639,3 +640,15 @@ def test_a_bare_carriage_return_inside_the_newest_line(vols) -> None:
     i = data.rindex(b'{"') + 1  # just after the newest line's last opening brace
     v[2].write_bytes(data[:i] + b"\r" + data[i:])
     assert check_folder(folder) == [f"{v[2].name} holds a carriage return"]
+
+
+def test_lines_without_set_sums_then_one_with_it_are_intact(tmp_path) -> None:
+    """Spec 085, Decision 5: `set_sums` is one more key of a format-2 line; older lines lack it."""
+    old_volume(tmp_path, [{node(1)}])
+    accept_into(tmp_path, {node(1), node(2)})
+    accept_into(tmp_path, {node(2)}, set_sums="s" * 64)
+    lines = history.lines(tmp_path)
+    assert [json.loads(x).get("set_sums") for x in lines] == [None, None, "s" * 64]
+    assert check_folder(tmp_path) == []
+    history.forget()
+    assert history.last_passed(lines) == {node(2)}

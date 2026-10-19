@@ -1,0 +1,45 @@
+== the a7 tag run's records (39255794160), accepted.json at 2737b29
+honest records: 120 red lines; by rule: {'G1': 0, 'G2': 19, 'G3': 99, 'G4': 0, 'G5': 0, 'G6': 0, 'G7': 2}
+  of them, lines of the new rules: none
+- no-network check blocked by 'oracle' everywhere: adds 4
+     G4 linux/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G4 macos/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G4 windows/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G5 tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: accepted pass, ran in no record
+- numpy-core suite blocked by 'three systems' everywhere: adds 2
+     G4 linux/upstream-numpy-a tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]: blocked by 'three systems', which its check does not call
+     G5 tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]: accepted pass, ran in no record
+- descriptor check blocked on macOS and Linux too: adds 2
+     G4 linux/own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', which does not block on linux
+     G4 macos/own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', which does not block on macos
+- linux/own-runner suite {}: adds 1
+     G4 linux/own-runner: suite {} is not its 538 unit tests
+- windows/own-runner suite zeros: adds 1
+     G4 windows/own-runner: suite {'passed': 0, 'skipped': 0, 'total': 0} is not its 538 unit tests
+- windows/own-guest drops one check's fuel: adds 1
+     G5 windows/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] records no fuel (accepted.json has it)
+- macos/own-guest fuel x10 under wasmtime 48.0.0: adds 1
+     G2 macos/own-guest: wasmtime '48.0.0' is not uv.lock's 49.0.0
+
+== spec 065's dry run's records (39265738300), accepted.json at 9d89535
+honest records: 23 red lines; by rule: {'G1': 0, 'G2': 19, 'G3': 2, 'G4': 0, 'G5': 0, 'G6': 0, 'G7': 2}
+  of them, lines of the new rules: none
+- no-network check blocked by 'oracle' everywhere: adds 4
+     G4 linux/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G4 macos/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G4 windows/own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', which its check does not call
+     G5 tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: accepted pass, ran in no record
+- numpy-core suite blocked by 'three systems' everywhere: adds 2
+     G4 linux/upstream-numpy-a tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]: blocked by 'three systems', which its check does not call
+     G5 tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]: accepted pass, ran in no record
+- descriptor check blocked on macOS and Linux too: adds 2
+     G4 linux/own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', which does not block on linux
+     G4 macos/own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', which does not block on macos
+- linux/own-runner suite {}: adds 1
+     G4 linux/own-runner: suite {} is not its 538 unit tests
+- windows/own-runner suite zeros: adds 1
+     G4 windows/own-runner: suite {'passed': 0, 'skipped': 0, 'total': 0} is not its 538 unit tests
+- windows/own-guest drops one check's fuel: adds 1
+     G5 windows/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] records no fuel (accepted.json has it)
+- macos/own-guest fuel x10 under wasmtime 48.0.0: adds 1
+     G2 macos/own-guest: wasmtime '48.0.0' is not uv.lock's 49.0.0

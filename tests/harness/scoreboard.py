@@ -277,6 +277,7 @@ def accept(
         "platform": platform,
         "host": meta["host"],
         "artifact": meta["artifact"],
+        "set_sums": meta.get("set_sums"),  # spec 085: the set, beside python.wasm
         "wasmtime": meta["wasmtime"],
         "reason": reason,
         "judge_reason": judge_reason,

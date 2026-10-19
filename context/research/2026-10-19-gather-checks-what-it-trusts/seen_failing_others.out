@@ -1,0 +1,13 @@
+FAILED tests/unit/test_scan.py::test_rebuild_gate_scan_names_each_breach[rebuild-linux-arm64's tools step does not print python3 --version]
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 6:      set-sums-sha256: ${{ ste]
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 7: gather's step          SET_SUMS_SHA256: ${{0]
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 7: gather's step          SET_SUMS_SHA256: ${{1]
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 6:shasum -a 256 build/artifacts/]
+FAILED tests/unit/test_scan.py::test_the_set_sums_hash_must_come_before_the_upload
+FAILED tests/unit/test_scan.py::test_the_gather_guards_the_set_sums_hash - as...
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 10: judge-macos reads set-sums-sha256          SHARD: ${{ matrix.sh]
+FAILED tests/unit/test_scan.py::test_release_shard_scan_names_each_breach[rule 10: judge-linux sets set-sums-sha256    outputs:\n]
+FAILED tests/unit/test_scoreboard.py::test_the_line_carries_the_sets_sha256sums
+FAILED tests/unit/test_plugin.py::test_run_meta_records_the_sets_own_sha256sums
+FAILED tests/unit/test_history.py::test_lines_without_set_sums_then_one_with_it_are_intact
+12 failed, 320 passed in 21.41s

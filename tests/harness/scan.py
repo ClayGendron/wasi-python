@@ -1145,9 +1145,12 @@ def rebuild_gate_errors(text: str) -> list[str]:
             errors.append(f"{job}'s timeout-minutes is not {minutes}")
         # The core count beside every time figure, and any binfmt_misc entry that would run an
         # aarch64 ELF through the runner's own qemu and hide a gap in the launcher's closure.
+        # The runner's own python3, which step 10's shim keeps out of the build (spec 079), named
+        # in the log (spec 085; the a7 security review's N5).
         for fact, pattern in (
             ("nproc", r"^\s+nproc\s*$"),
             ("binfmt_misc", r"/proc/sys/fs/binfmt_misc"),
+            ("python3 --version", r"^\s+python3 --version\s*$"),
         ):
             if not re.search(pattern, body, re.M):
                 errors.append(f"{job}'s tools step does not print {fact}")
@@ -1667,6 +1670,13 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("record-sha256", "")
     )
     sha_step = next((f for f in build if sha and f.get("id") == sha[1]), {})
+    # Spec 085: the set's own SHA256SUMS, hashed before the upload, as python.wasm is.
+    set_sums = re.fullmatch(
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("set-sums-sha256", "")
+    )
+    set_sums_at = next(
+        (i for i, f in enumerate(build) if set_sums and f.get("id") == set_sums[1]), None
+    )
     other_pytest = [
         r
         for r in runs
@@ -1687,6 +1697,18 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         errors.append(
             "rule 6: build does not run the build shard alone, hand on its record (record-id, "
             "record-sha256) and python.wasm's SHA-256 made before the upload (wasm-sha256)"
+        )
+    if (
+        set_sums_at is None
+        or upload_at is None
+        or set_sums_at > upload_at
+        or not re.search(
+            r"(shasum -a 256|sha256sum) build/artifacts/SHA256SUMS\b", runs[set_sums_at]
+        )
+    ):
+        errors.append(
+            "rule 6: build does not hand on the set's own SHA256SUMS' SHA-256, made before the "
+            "upload (set-sums-sha256; spec 085)"
         )
     # Rule 7: the gather holds no assets, downloads every record id by job, and runs gather.py.
     gather = jobs.get("gather")
@@ -1730,6 +1752,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         env = step.get("env", {})
         want_env = {
             "WASM_SHA256": "${{ needs.build.outputs.wasm-sha256 }}",
+            "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
             "RECORD_BUILD_BUILD": "${{ needs.build.outputs.record-sha256 }}",
         }
         for job, (_, system) in JUDGE_JOBS.items():
@@ -1739,7 +1762,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         if not step or env != want_env:
             errors.append(
                 "rule 7: gather's step does not run tests/harness/gather.py with exactly "
-                "WASM_SHA256 and every record's SHA-256 bound in env:"
+                "WASM_SHA256, SET_SUMS_SHA256 and every record's SHA-256 bound in env:"
             )
     # Rule 8: attest and publish need the gather; only the gather reads a record id.
     for job in ("attest", "publish"):
@@ -1751,13 +1774,15 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     # Rule 9: verify runs no pytest.
     if "pytest" in "\n".join(str(f.get("run", "")) for _, f in steps.get("verify", [])):
         errors.append("rule 9: verify runs pytest")
-    # Rule 10: only build sets wasm-sha256, and only the gather reads it.
+    # Rule 10: only build sets wasm-sha256 and set-sums-sha256 (spec 085), and only the gather
+    # reads them.
     for job, lines in jobs.items():
         body = "\n".join(lines)
-        if job != "gather" and "needs.build.outputs.wasm-sha256" in body:
-            errors.append(f"rule 10: {job} reads wasm-sha256")
-        if job != "build" and re.search(r"^      wasm-sha256:", body, re.M):
-            errors.append(f"rule 10: {job} sets wasm-sha256")
+        for name in ("wasm-sha256", "set-sums-sha256"):
+            if job != "gather" and f"needs.build.outputs.{name}" in body:
+                errors.append(f"rule 10: {job} reads {name}")
+            if job != "build" and re.search(rf"^      {name}:", body, re.M):
+                errors.append(f"rule 10: {job} sets {name}")
     return errors
 
 

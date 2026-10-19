@@ -48,6 +48,8 @@ jobs:
       record-id: ${{ steps.record.outputs.artifact-id }}
       record-sha256: ${{ steps.record-sha.outputs.sha256 }}
       wasm-sha256: ${{ steps.wasm.outputs.sha256 }}
+      # Spec 085: the set's own SHA256SUMS (not the release assets'), for the gather's G2 and G7.
+      set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -97,6 +99,9 @@ jobs:
       - name: The SHA-256 of python.wasm, handed to the gather
         id: wasm
         run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
+      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather (spec 085)
+        id: set-sums
+        run: echo "sha256=$(shasum -a 256 build/artifacts/SHA256SUMS | cut -c1-64)" >> "$GITHUB_OUTPUT"
       - name: Release assets
         run: uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
       - name: The SHA-256 of SHA256SUMS, handed to every job that reads the assets
@@ -171,6 +176,9 @@ jobs:
           shasum --version
           git --version
           uv --version
+          # The runner's own python3, which step 10's shim keeps out of the build (spec 079),
+          # named so the log records what stood on PATH (spec 085; the a7 security review's N5).
+          python3 --version
       - name: Download the pinned inputs
         run: scripts/00_download.sh
       - name: Build from the pins
@@ -234,6 +242,9 @@ jobs:
           shasum --version
           git --version
           uv --version
+          # The runner's own python3, which step 10's shim keeps out of the build (spec 079),
+          # named so the log records what stood on PATH (spec 085; the a7 security review's N5).
+          python3 --version
       - name: Download the pinned inputs
         run: scripts/00_download.sh
       - name: Build from the pins
@@ -775,8 +786,10 @@ jobs:
           enable-cache: false
       - name: Every job handed on its record's id, and the build python.wasm's SHA-256
         # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        # The set's own SHA256SUMS hash too (spec 085).
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
+          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
           BUILD_RECORD_ID: ${{ needs.build.outputs.record-id }}
           MACOS_OWN_EMBEDDING_ID: ${{ needs.judge-macos.outputs.own-embedding-id }}
           MACOS_OWN_GUEST_ID: ${{ needs.judge-macos.outputs.own-guest-id }}
@@ -802,6 +815,13 @@ jobs:
           esac
           if [ "${#WASM_SHA256}" -ne 64 ]; then
             echo "the build job handed on no SHA-256 of python.wasm"
+            exit 1
+          fi
+          case "$SET_SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of the set's SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SET_SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
             exit 1
           fi
           for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
@@ -834,6 +854,7 @@ jobs:
         # judge must also be the accepted one (G7).
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
+          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
           RECORD_BUILD_BUILD: ${{ needs.build.outputs.record-sha256 }}
           RECORD_MACOS_OWN_EMBEDDING: ${{ needs.judge-macos.outputs.own-embedding-sha256 }}
           RECORD_MACOS_OWN_GUEST: ${{ needs.judge-macos.outputs.own-guest-sha256 }}

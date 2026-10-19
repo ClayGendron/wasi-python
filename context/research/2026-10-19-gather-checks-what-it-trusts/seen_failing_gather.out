@@ -1,0 +1,24 @@
+        # G4: nothing failed, the unit tests included (the build review, F6).
+>           failed = suite.get("total", 0) - suite.get("passed", 0) - suite.get("skipped", 0)
+FAILED tests/unit/test_gather.py::test_the_good_set_passes_and_names_three_systems
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a class check blocked by the oracle, which its body does not name]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[an upstream suite blocked by three systems everywhere, its metrics gone]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[the descriptor limit claimed on Linux, where it is met]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[an accepted pass blocked by the oracle in every record that runs it]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a suite of {}] - A...
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a suite of zeros]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a suite one short]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a suite of strings]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a suite with a bool]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a negative skip]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a float count] - A...
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a Linux record drops an upstream suite's fuel]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a Windows record drops a product check's fuel]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a Linux record's fuel is a string]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[ten times the fuel on macOS, under another wasmtime]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[ten times the fuel on macOS, under no wasmtime]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[the newest line on another set]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[the newest line with no set (from before 085)]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a record that judged another set]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[no set-sums-sha256 handed on]
+21 failed, 37 passed, 17 deselected in 1.75s

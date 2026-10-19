@@ -585,3 +585,12 @@ def test_without_shard_the_record_says_none(sharded) -> None:
     assert record["meta"]["shard"] is None
     assert "units" not in record["meta"]
     assert record["deselected"] == []
+
+
+def test_run_meta_records_the_sets_own_sha256sums(tmp_path, monkeypatch) -> None:
+    """Spec 085, Decision 4: the run names the whole artifact set by its SHA256SUMS."""
+    (tmp_path / "python.wasm").write_bytes(b"\0asm")
+    monkeypatch.setenv(paths.ARTIFACTS_ENV, str(tmp_path))
+    assert plugin.run_meta()["set_sums"] is None
+    (tmp_path / "SHA256SUMS").write_text("x  python.wasm\n")
+    assert plugin.run_meta()["set_sums"] == paths.sha256_file(tmp_path / "SHA256SUMS")

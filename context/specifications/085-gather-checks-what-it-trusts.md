@@ -1,6 +1,8 @@
 # 085 — `gather` checks what it trusts
 
-- **Status:** drafted 2026-10-19 on `spec/085-gather-checks-what-it-trusts` from main `a6dfc17`
+- **Status:** **built 2026-10-19** on `spec/085-gather-checks-what-it-trusts` over main `9d89535`
+  (the Landing notes), after the confirmation of its pre-build review (`6523595`, "confirmed for
+  build", with builder notes c1 and c2, both taken). Before that: drafted 2026-10-19 from main `a6dfc17`
   (`31a8713`); **rebased onto main `9d89535`** (spec 065 landed, history line 79) and **revised
   the same day against its pre-build review** (in the lane's scratchpad,
   `085-review/085-gather-checks-what-it-trusts-spec-2026-10-19.md`, with its probes in `work/`;
@@ -34,7 +36,7 @@
 - **Source:** the 0.1.0a7 security review
   (`../reviews/0.1.0a7-security-review-2026-10-19.md`): findings **F5**, **F6**, **F7** and note
   **N5**; the roadmap's 085 paragraph.
-- **Research it stands on** (`../research/2026-10-19-gather-checks-what-it-trusts/`, all
+- **Research it stands on:** `../research/2026-10-19-gather-checks-what-it-trusts/` (all
   EXECUTED on 2026-10-19 in this worktree at `a6dfc17`; `forge_synthetic` and `hidden_wide` again
   at `9d89535` after the rebase):
   - `forge_synthetic.py` and `.out`: sixteen forged records and one control on the unit test's
@@ -145,16 +147,20 @@ one file where it could tie all of them.
      returns nothing. It flags (the pre-build review's F5):
      - any string constant equal to a CI need under `tests/checks/` (conftest files included) and
        in `tests/conftest.py`, outside the body of a `test_` function;
-     - under `tests/harness/`, any such string used as a call argument or a container element (a
-       dict, list, tuple or set member, a keyword value), outside `needs.py` and `gather.py`, the
-       two files that define the vocabulary; a path piece such as `JOB_DIR / "oracle"` in
-       `jobs.py` is not flagged;
+     - under `tests/harness/`, any such string used as a call argument, a container element (a
+       dict, list, tuple or set member), a keyword value, or a module constant set by plain
+       assignment (`X = "three systems"`; the confirmation's c1), outside `needs.py` and
+       `gather.py`, the two files that define the vocabulary, which the scan skips before parsing
+       them (c2); a path piece such as `JOB_DIR / "oracle"` in `jobs.py` is not flagged;
      - any string beginning `"needs: "` anywhere in that scope, test bodies included, outside
        `needs.py`.
      Seven call sites today pass `need()` a non-literal (the review's count: `NEED_OF[which]`
      lookups and f-strings); none names a CI need, and the widened scan would flag one that
-     came to (`hidden_wide.out`: nothing in the repository; each planted spelling flagged). Only a
-     need computed at run time from pieces stays unseen until a dry run, where it is red.
+     came to (`hidden_wide.out`: nothing in the repository; each planted spelling flagged). Two
+     spellings stay unseen until a dry run, where they are red: a need computed at run time from
+     pieces, and a CI need passed from inside a `test_` body to a helper that skips with it
+     (`helper("descriptor limit")`; the confirmation's c1), since a string inside a check's body
+     is not flagged and `needs_called` reads only `need(…)` calls.
    - **Where it fails open** (narrow, and written down here; the review's F8):
      - the rows of a parametrized check share one body, so a row whose own path never calls the
        need may still be reported blocked by it (today only the descriptor check's two rows, both
@@ -590,6 +596,71 @@ F8 written in or answered". Every finding is written in; none changes the design
   asked).
 - **N2 and N3.** No action: N5's line runs before step 10's shim and breaks no scan rule; no
   schema bump is needed (Decision 5).
+
+## Landing notes
+
+### What was built
+
+- `tests/harness/gather.py`: `CI_NEEDS` as a map from need to systems (`build`, `macos`, `linux`,
+  `windows`); `allowed`, `needs_called`, `hidden_ci_needs` (with `VOCABULARY_FILES` skipped before
+  parsing, c2, and module constants flagged in `tests/harness/`, c1) and `locked_version`;
+  `collect()` returns `may_block`; `Inputs` gains `set_sums_sha256`, `wasmtime` and `may_block`.
+  G1 (`set-sums-sha256`), G2 (`set_sums`, `meta.wasmtime`), G4 (blocks against the body and the
+  system; the tally as whole numbers equal to the share), G5 (accepted metric names on every
+  system; metric values numbers; the exemption through `allowed`), G7 (`set_sums`), the merged
+  record's `meta.set_sums`, and the green line `… on <wasm> · set <set_sums>`. `merge` adds only
+  whole-number tallies, so a malformed one is a G4 line, not a crash.
+- `tests/harness/plugin.py`: `run_meta` records `set_sums`. `tests/harness/scoreboard.py`: the
+  line carries it.
+- `tests/harness/scan.py`: rule 6 (the build's `set-sums-sha256`, from
+  `build/artifacts/SHA256SUMS`, before the upload), rule 7 (`SET_SUMS_SHA256` in the gather's
+  `env:`), rule 10 (only build sets `set-sums-sha256`, only the gather reads it), and the
+  rebuild gate's `python3 --version`.
+- `.github/workflows/release.yml`: the build job's `set-sums` step and output; the gather's guard
+  (the same `case` and length test as `WASM_SHA256`) and `env:`; `python3 --version` in both
+  rebuild jobs' tools step.
+- Tests: 20 forgeries and a control in `tests/unit/test_gather.py`, with the derivation's, the
+  scan's and the lock's unit tests; one each in `test_plugin.py`, `test_scoreboard.py` and
+  `test_history.py`; nine in `test_scan.py`.
+- Docs: the README's *Releasing* sentence, the progress README's "Before a release", the
+  CHANGELOG under 0.1.0a8, and spec 063's amendment line under G4.
+
+### Seen failing first (EXECUTED)
+
+- `seen_failing_gather.out`: the new `test_gather.py` against today's gather (the three new
+  `Inputs` fields dropped by `old_inputs.py`, since today's gather has none): all 20 forgeries
+  fail, the good set fails only on its new green line, the 36 old mutations and the control pass.
+- `seen_failing_others.out`: the new scan, plugin, scoreboard and history tests against today's
+  code: 12 fail, the other 320 pass.
+
+### Real records, against the built gather (EXECUTED, `built_on_real.out`)
+
+Criterion 3, and the record-level part of criterion 2 that does not need the branch dry run. On
+the a7 tag run's 19 records and on spec 065's dry run's 19 records, the honest baseline holds no
+line of the new rules (G4's block and tally lines, G5's metric lines, G2's wasmtime line); its
+G2 `set_sums`, G3 and G7 lines are the expected ones of records that predate this branch. Each
+of seven forgeries adds exactly its own rule's lines to that baseline and nothing else, on both
+runs: four for the no-network check blocked by `oracle` (three G4, one G5), two for `numpy-core`
+blocked by `three systems`, two for the descriptor check on macOS and Linux, one each for the two
+forged tallies, the dropped fuel, and ten times the fuel under `wasmtime` `48.0.0` (G2; the
+ratchet stays silent there, which is why G2 binds it).
+
+### For the lane
+
+- **Criterion 2's branch-dry-run part, criteria 4 to 7.** Push the branch and dispatch the
+  release dry run. Expected: every job passes on all three systems except the gather, whose only
+  red line is `G7 the newest acceptance is not on the release's set (SHA256SUMS)` (history line
+  79 has no `set_sums`). Then run `built_on_real.py` on that run's own records, with
+  `set_sums_sha256` set to the build's hash: the baseline red on that one line, each forgery adding
+  only its own. Criterion 4: the run's `blocked` checks are the five `may_block` names, each on
+  its allowed systems. Criterion 5: each record's `meta.set_sums` equals `set-sums-sha256`, the
+  SHA-256 of the tarball's `SHA256SUMS`, and differs from `sums-sha256`. Criterion 7: both
+  rebuild logs show `python3 --version`.
+- **After acceptance** (`--accept-judge`), the first dry run of main must pass every job, the
+  gather included (criterion 6).
+- **Textual merges.** 037 rewrites the same-bytes job and `scan.rebuild_gate_errors` beside the
+  `python3 --version` fact; 039 and 043 change the zero-patch step's tree count, a few lines
+  above the build job's new step. Each is near, none shared.
 
 ## One line
 

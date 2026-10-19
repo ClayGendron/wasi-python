@@ -1,9 +1,10 @@
-"""The gather (spec 063, acceptance 4): a good set of synthetic records passes; each mutation is
-red with its own reason."""
+"""The gather (spec 063, acceptance 4; spec 085): a good set of synthetic records passes; each
+mutation is red with its own reason."""
 
 from __future__ import annotations
 
 import copy
+import importlib.metadata
 import json
 from pathlib import Path
 
@@ -13,14 +14,19 @@ from harness import gather, history, paths, shards
 
 U = shards.UPSTREAM_FILE
 W = "a" * 64  # python.wasm
+S = "5" * 64  # the set's own SHA256SUMS (spec 085)
+WT = "49.0.0"  # the wasmtime uv.lock names
 J = "j" * 64  # the judge hash
 HEAD = "c" * 40
 PROBE = history.PROBE
 BUILD_NODE = "tests/checks/test_v1_5_x.py::test_tree"
 RULE_NODE = "tests/checks/test_rules.py::test_rule"
+# Spec 085: two checks whose bodies name a CI need, blocked honestly where CI lacks it.
+ART = "tests/checks/test_rules.py::test_clones"  # prior-art clones: blocked on every system
+DESC = "tests/checks/test_v1_2_portable_and_sealed.py::test_descriptors"  # Windows only
 SUITE = f"{U}::test_upstream_suite[g1]"
 CLASS = f"{U}::test_upstream_class[g1-k]"
-GOAL = sorted([BUILD_NODE, PROBE, RULE_NODE, SUITE, CLASS])
+GOAL = sorted([BUILD_NODE, PROBE, RULE_NODE, ART, DESC, SUITE, CLASS])
 UNITS = ["tests/unit/test_u.py::test_1", "tests/unit/test_u.py::test_2"]
 GROUPS = {SUITE: "g1", CLASS: "g1"}
 PLAN = {
@@ -34,6 +40,7 @@ PLAN = {
 }
 PLATFORM = {"build": "darwin-arm64", "macos": "darwin-arm64", "linux": "linux-x86_64"}
 PLATFORM["windows"] = "win32-amd64"
+MAY_BLOCK = {ART: frozenset({"prior-art clones"}), DESC: frozenset({"descriptor limit"})}
 
 
 def _record(system: str, shard: str) -> dict:
@@ -41,12 +48,17 @@ def _record(system: str, shard: str) -> dict:
     units = shards.select(UNITS, PLAN, GROUPS)[shard]
     checks = {}
     for node in GOAL:
-        area = "rules" if node == RULE_NODE else "v1.3"
+        area = "rules" if node in (RULE_NODE, ART) else "v1.3"
         if node in goal:
             c = {"area": area, "status": "pass", "reason": "", "need": None, "metrics": {}}
             if node == SUITE:
                 c["metrics"] = {"passes": 5, "fuel": 100}
                 c["facts"] = {"passed_digest": "d1"}
+            if node == PROBE:
+                c["metrics"] = {"fuel": 7}
+            if node == ART or (node == DESC and system == "windows"):
+                need = "prior-art clones" if node == ART else "descriptor limit"
+                c.update(status="blocked", reason=f"needs: {need}", need=need)
         else:
             c = {"area": area, "status": "deselected", "reason": "", "need": None, "metrics": {}}
         checks[node] = c
@@ -56,6 +68,7 @@ def _record(system: str, shard: str) -> dict:
             "platform": PLATFORM[system],
             "commit": HEAD,
             "artifact": W,
+            "set_sums": S,
             "judge": {"hash": J, "files": {}},
             "dirty": False,
             "foreign": [],
@@ -63,7 +76,7 @@ def _record(system: str, shard: str) -> dict:
             "workers": 0,
             "overrides": ["--progress-latest /tmp/r/latest.json"],
             "units": {"count": len(units), "digest": shards.units_digest(units)},
-            "wasmtime": "49.0.0",
+            "wasmtime": WT,
         },
         "checks": checks,
         "deselected": sorted(n for n, c in checks.items() if c["status"] == "deselected"),
@@ -74,7 +87,8 @@ def _record(system: str, shard: str) -> dict:
 
 def _accepted() -> dict:
     checks = {n: {"status": "pass", "artifact": W, "commit": HEAD, "metrics": {}} for n in GOAL}
-    checks[SUITE]["metrics"] = {"darwin-arm64": {"passes": 5, "fuel": 100, "wasmtime": "49.0.0"}}
+    checks[SUITE]["metrics"] = {"darwin-arm64": {"passes": 5, "fuel": 100, "wasmtime": WT}}
+    checks[PROBE]["metrics"] = {"darwin-arm64": {"fuel": 7, "wasmtime": WT}}
     return {"schema": 1, "commit": HEAD, "judge": {"hash": J, "files": {}}, "checks": checks}
 
 
@@ -85,10 +99,13 @@ class Case:
         self.tmp = tmp
         self.records = {k: _record(*k) for k in gather.expected_keys(PLAN)}
         self.accepted = _accepted()
-        self.newest = {"artifact": W, "dirty": False, "partial_reason": None}
+        self.newest = {"artifact": W, "set_sums": S, "dirty": False, "partial_reason": None}
         self.gaps: set[str] = set()
         self.tag = False
         self.wasm = W
+        self.set_sums = S
+        self.wasmtime = WT
+        self.may_block = dict(MAY_BLOCK)
         self.judge = J
         self.after_write = None  # a function of (records_dir, handed)
         self.handed_edit = None
@@ -114,6 +131,9 @@ class Case:
                 records_dir=records_dir,
                 handed=handed,
                 wasm_sha256=self.wasm,
+                set_sums_sha256=self.set_sums,
+                wasmtime=self.wasmtime,
+                may_block=self.may_block,
                 goal_nodes=GOAL,
                 unit_nodes=UNITS,
                 groups=GROUPS,
@@ -136,7 +156,7 @@ def case(tmp_path: Path) -> Case:
 def test_the_good_set_passes_and_names_three_systems(case) -> None:
     v = case.run()
     assert v.red == []
-    assert f"three systems: darwin linux win32 on {W}" in v.lines
+    assert f"three systems: darwin linux win32 on {W} · set {S}" in v.lines
 
 
 def _meta(key, field, value):
@@ -252,6 +272,145 @@ def _unit_failed(c: Case) -> None:
     c.records[("macos", "own-rest")]["suite"]["passed"] -= 1
 
 
+# Spec 085: forged records, each red with its own line (F6, F7 and F5 of the a7 security review).
+UPS = (("linux", "up-l"), ("windows", "up-w"))
+REST = ("macos", "own-rest")
+
+
+def _blocked(keys, node, need, drop_metrics=False):
+    def edit(c: Case) -> None:
+        for k in keys:
+            c.records[k]["checks"][node].update(status="blocked", need=need)
+            if drop_metrics:
+                c.records[k]["checks"][node]["metrics"] = {}
+
+    return edit
+
+
+def _suite(value):
+    def edit(c: Case) -> None:
+        c.records[REST]["suite"] = value
+
+    return edit
+
+
+def _metrics(key, node, value):
+    def edit(c: Case) -> None:
+        c.records[key]["checks"][node]["metrics"] = value
+
+    return edit
+
+
+def _fuel_unchecked(wasmtime):
+    """The pre-build review's F1: a darwin record's own meta.wasmtime turns off its fuel ratchet."""
+
+    def edit(c: Case) -> None:
+        c.records[MAC_A]["checks"][PROBE]["metrics"] = {"fuel": 70}
+        c.records[MAC_A]["meta"]["wasmtime"] = wasmtime
+
+    return edit
+
+
+FORGERIES = [
+    (
+        "a class check blocked by the oracle, which its body does not name",
+        _blocked(UPS, CLASS, "oracle"),
+        f"G4 linux/up-l {CLASS}: blocked by 'oracle', which its check does not call",
+    ),
+    (
+        "an upstream suite blocked by three systems everywhere, its metrics gone",
+        _blocked(UPS, SUITE, "three systems", drop_metrics=True),
+        f"G4 linux/up-l {SUITE}: blocked by 'three systems', which its check does not call",
+    ),
+    (
+        "the descriptor limit claimed on Linux, where it is met",
+        _blocked([("linux", "own-a")], DESC, "descriptor limit"),
+        f"G4 linux/own-a {DESC}: blocked by 'descriptor limit', which does not block on linux",
+    ),
+    (
+        "an accepted pass blocked by the oracle in every record that runs it",
+        _blocked(UPS, CLASS, "oracle"),
+        f"G5 {CLASS}: accepted pass, ran in no record",
+    ),
+    ("a suite of {}", _suite({}), "G4 macos/own-rest: suite {} is not its 2 unit tests"),
+    (
+        "a suite of zeros",
+        _suite({"passed": 0, "skipped": 0, "total": 0}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a suite one short",
+        _suite({"passed": 1, "skipped": 0, "total": 1}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a suite of strings",
+        _suite({"passed": "2", "skipped": 0, "total": "2"}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a suite with a bool",
+        _suite({"passed": True, "skipped": 1, "total": 2}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a negative skip",
+        _suite({"passed": 4, "skipped": -2, "total": 2}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a float count",
+        _suite({"passed": 2.0, "skipped": 0, "total": 2}),
+        "G4 macos/own-rest: suite",
+    ),
+    (
+        "a Linux record drops an upstream suite's fuel",
+        _metrics(LIN, SUITE, {"passes": 5}),
+        f"G5 linux/up-l: {SUITE} records no fuel (accepted.json has it)",
+    ),
+    (
+        "a Windows record drops a product check's fuel",
+        _metrics(("windows", "own-a"), PROBE, {}),
+        f"G5 windows/own-a: {PROBE} records no fuel (accepted.json has it)",
+    ),
+    (
+        "a Linux record's fuel is a string",
+        _metrics(("linux", "own-a"), PROBE, {"fuel": "7"}),
+        f"G5 linux/own-a: {PROBE} metric fuel is not a number",
+    ),
+    (
+        "ten times the fuel on macOS, under another wasmtime",
+        _fuel_unchecked("48.0.0"),
+        "G2 macos/own-a: wasmtime '48.0.0' is not uv.lock's 49.0.0",
+    ),
+    (
+        "ten times the fuel on macOS, under no wasmtime",
+        _fuel_unchecked(None),
+        "G2 macos/own-a: wasmtime None is not uv.lock's 49.0.0",
+    ),
+    (
+        "the newest line on another set",
+        _newest("set_sums", "f" * 64),
+        "G7 the newest acceptance is not on the release's set (SHA256SUMS)",
+    ),
+    (
+        "the newest line with no set (from before 085)",
+        lambda c: c.newest.pop("set_sums"),
+        "G7 the newest acceptance is not on the release's set (SHA256SUMS)",
+    ),
+    (
+        "a record that judged another set",
+        _meta(("linux", "own-a"), "set_sums", "f" * 64),
+        "G2 linux/own-a: set_sums is not the build's SHA256SUMS",
+    ),
+    (
+        "no set-sums-sha256 handed on",
+        _attr("set_sums", ""),
+        "G1 the build job handed on no set-sums-sha256",
+    ),
+]
+
+
 MUTATIONS = [
     ("a failed unit test", _unit_failed, "G4 macos/own-rest: 1 unit test(s) failed"),
     ("an empty shard", _empty, "G3 macos/own-a: selected nothing"),
@@ -305,6 +464,89 @@ def test_each_mutation_is_red(case, what, edit, error) -> None:
     edit(case)
     v = case.run()
     assert any(r.startswith(error) for r in v.red), (what, v.red)
+
+
+@pytest.mark.parametrize(("what", "edit", "error"), FORGERIES, ids=[m[0] for m in FORGERIES])
+def test_each_forgery_is_red(case, what, edit, error) -> None:
+    """Spec 085: each of these left the gather green (or made it raise) before."""
+    edit(case)
+    v = case.run()
+    assert any(r.startswith(error) for r in v.red), (what, v.red)
+
+
+def test_ten_times_the_fuel_under_the_locked_wasmtime_is_red_through_the_ratchet(case) -> None:
+    """The control for the two wasmtime forgeries: the ratchet itself catches it."""
+    _fuel_unchecked(WT)(case)
+    assert any(r.startswith(f"G5 macos/own-a: grew {PROBE}: fuel 7 -> 70") for r in case.run().red)
+
+
+def _src(tmp_path: Path, text: str):
+    """A function `f` defined in a module file, so inspect can read its source."""
+    import importlib.util
+
+    f = tmp_path / f"mod_{abs(hash(text))}.py"
+    f.write_text(text)
+    spec = importlib.util.spec_from_file_location(f.stem, f)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.f
+
+
+@pytest.mark.parametrize(
+    ("body", "found"),
+    [
+        ('def f():\n    needs.need("oracle")\n', {"oracle"}),
+        ('def f():\n    needs.need("oracle", "three systems")\n', {"oracle", "three systems"}),
+        ('def f():\n    if x:\n        for y in z:\n            need("git")\n', {"git"}),
+        ('def f():\n    helper("oracle")\n', set()),
+        ("def f():\n    needs.need(NAME)\n", set()),
+        ('def f():\n    needs.need(f"source tree {c}")\n', set()),
+    ],
+)
+def test_needs_called_reads_only_literal_needs_in_the_body(tmp_path, body, found) -> None:
+    assert gather.needs_called(_src(tmp_path, body)) == found
+
+
+def test_needs_called_on_a_source_it_cannot_read() -> None:
+    assert gather.needs_called(len) == set()
+    assert gather.needs_called(None) == set()
+
+
+def test_no_ci_need_is_hidden_in_the_repository() -> None:
+    """Spec 085, Decision 1: every CI need the gather allows is found in a check's own body."""
+    assert gather.hidden_ci_needs(paths.REPO) == []
+
+
+HIDDEN = {
+    "tests/checks/conftest.py": '@pytest.fixture\ndef f():\n    needs.need("oracle")\n',
+    "tests/checks/sub/conftest.py": 'NEED_OF = {"a": "oracle"}\n',
+    "tests/checks/test_x.py": 'def test_x():\n    pytest.skip("needs: three systems")\n',
+    "tests/harness/h.py": 'X = {"k": "descriptor limit"}\n',
+    "tests/harness/k.py": 'X = "prior-art clones"\n',
+    "tests/conftest.py": 'ALL = ["three systems"]\n',
+}
+NOT_HIDDEN = {
+    "tests/checks/test_y.py": 'def test_y():\n    needs.need("oracle")\n',
+    "tests/harness/jobs.py": 'ORACLE = JOB_DIR / "oracle"\n',
+    "tests/harness/needs.py": 'Need("oracle", met, "x")\nPREFIX = "needs: "\n',
+    "tests/harness/gather.py": 'CI_NEEDS = {"oracle": frozenset()}\n',
+}
+
+
+def test_hidden_ci_needs_flags_each_spelling(tmp_path) -> None:
+    for rel, text in {**HIDDEN, **NOT_HIDDEN}.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text)
+    found = gather.hidden_ci_needs(tmp_path)
+    assert sorted({x.split(":", 1)[0] for x in found}) == sorted(HIDDEN), found
+
+
+def test_locked_version(tmp_path) -> None:
+    lock = tmp_path / "uv.lock"
+    lock.write_text('version = 1\n\n[[package]]\nname = "wasmtime"\nversion = "1.2.3"\n')
+    assert gather.locked_version("wasmtime", lock) == "1.2.3"
+    assert gather.locked_version("absent", lock) == ""
+    assert gather.locked_version("wasmtime") == importlib.metadata.version("wasmtime")
 
 
 def test_a_dry_run_with_a_changed_judge_passes(case) -> None:

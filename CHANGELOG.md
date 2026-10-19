@@ -23,6 +23,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   call is refused (use 3.14.1 or later), and so is every call on a platform whose thread stack
   the runner cannot read (FreeBSD; any but Linux, Android, macOS and Windows). No public name,
   signature or default changes; fuel does not change.
+- **The release's gather checks what it trusts** (spec 085; the 0.1.0a7 security review's F5, F6,
+  F7 and N5). A shard's record may report a check blocked only by a need that check's own code
+  asks for, and only on a system that lacks it (F6). Its unit-test tally must equal its share,
+  as whole numbers, and every passing check must carry each metric the lane accepted for it, as
+  a number; every record must name the wasmtime `uv.lock` names (F7). Each acceptance's history
+  line now records the hash of the artifact set's own `SHA256SUMS`, the build job hands the same
+  hash on, and the gather requires the two to agree, so the lane's acceptance covers the
+  snapshot, the zip, `MANIFEST` and the licences as well as `python.wasm` (F5). The rebuild jobs
+  print the runner's own `python3 --version` (N5). The gather checks consistency, not
+  authenticity: a compromised judge job could still write consistent records, though never
+  change the bytes that are signed or published.
 
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each

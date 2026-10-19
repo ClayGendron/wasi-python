@@ -285,6 +285,10 @@ Today (the memo, section 1):
      the host that unpacked the CLI; the confirmation's D1.) Each record's
      `suite` has no failed unit test: `total` equals `passed` plus `skipped` (the build review's F6). (An upstream group skipped for want of its kit is red here and only here:
      `upstream kit` is not a protected need, so the shard alone would stay green.)
+     *Amended by spec 085:* G1, G2 and G7 also check the set's own `SHA256SUMS` hash
+     (`SET_SUMS_SHA256`), and G2 each record's `meta.wasmtime` against `uv.lock`; G4 allows a
+     block only by a need the check's own body names, on a system that lacks it, and requires each
+     record's unit tally to equal its share; G5 requires every metric name the lane accepted.
    - **G5, the lane's acceptance holds.** `scoreboard.compare` of each record against
      `accepted.json` finds no lost, absent, fewer, grown or blocked-protected check; every accepted
      pass or gap ran (pass or gap) in at least one record, unless it is blocked by one of G4's three

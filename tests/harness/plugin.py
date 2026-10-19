@@ -699,6 +699,7 @@ def run_meta() -> dict:
         wasmtime_version = None
     d = paths.artifact_dir()
     wasm = d / "python.wasm" if d else None
+    sums = d / "SHA256SUMS" if d else None
     files = paths.judge_files()
     return {
         "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -708,6 +709,9 @@ def run_meta() -> dict:
         "host": paths.sha256_bytes(socket.gethostname().encode())[:12],
         "wasmtime": wasmtime_version,
         "artifact": paths.sha256_file(wasm) if wasm and wasm.is_file() else None,
+        # The whole set, by its own SHA256SUMS (spec 085, Decision 4); the set check holds every
+        # file to it.
+        "set_sums": paths.sha256_file(sums) if sums and sums.is_file() else None,
         "judge": {"hash": paths.judge_hash(files), "files": files},
         "notes": [paths.WORKTREE_NOTE.format(w) for w in paths.worktrees_inside()],
     }

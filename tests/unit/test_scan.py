@@ -546,6 +546,7 @@ def _rebuild_job(job: str, runner: str, minutes: int) -> str:
           uname -srm
           nproc
           ls /proc/sys/fs/binfmt_misc/
+          python3 --version
       - uses: astral-sh/setup-uv@{PIN} # v10.3.0
         with:
           enable-cache: false
@@ -1034,6 +1035,11 @@ BAD_REBUILDS = [
         "same-bytes' wheel loop does not run over ubuntu-24.04",
     ),
     (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
+    # Spec 085 (the a7 security review's N5): the runner's own python3 is named in the log.
+    (
+        ("rebuild-linux-arm64", "          python3 --version\n", ""),
+        "rebuild-linux-arm64's tools step does not print python3 --version",
+    ),
     (
         (
             "attest",
@@ -1745,6 +1751,22 @@ def _without_wasm_then_late(text: str) -> str:
     return text.replace(late, WASM_STEP + late, 1)
 
 
+# Spec 085, Decision 4: the set's own SHA256SUMS, hashed before the upload, for the gather.
+SET_SUMS_STEP = (
+    "      - name: The SHA-256 of the set's own SHA256SUMS, handed to the gather (spec 085)\n"
+    "        id: set-sums\n"
+    '        run: echo "sha256=$(shasum -a 256 build/artifacts/SHA256SUMS | cut -c1-64)" >> '
+    '"$GITHUB_OUTPUT"\n'
+)
+
+
+def _without_set_sums_then_late(text: str) -> str:
+    assert SET_SUMS_STEP in text
+    text = text.replace(SET_SUMS_STEP, "", 1)
+    late = "      - name: Keep the build logs when something fails\n"
+    return text.replace(late, SET_SUMS_STEP + late, 1)
+
+
 BAD_SHARDS = [
     ("judge-linux", "upstream-frame, ", "", "rule 2: judge-linux"),
     ("judge-linux", "upstream-frame, ", "upstream-frame, upstream-extra, ", "rule 2: judge-linux"),
@@ -1804,6 +1826,37 @@ BAD_SHARDS = [
         "      - name: The wheel, installed fresh, runs a program in one call\n",
         "rule 9: verify runs pytest",
     ),
+    # Spec 085: the set's own SHA256SUMS, from the build to the gather alone.
+    ("build", "      set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}\n", "", "rule 6:"),
+    ("build", "shasum -a 256 build/artifacts/SHA256SUMS", "shasum -a 256 MANIFEST", "rule 6:"),
+    (
+        "gather",
+        "          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}\n"
+        "          RECORD_BUILD_BUILD:",
+        "          RECORD_BUILD_BUILD:",
+        "rule 7: gather's step",
+    ),
+    (
+        "gather",
+        "          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}\n"
+        "          RECORD_BUILD_BUILD:",
+        "          SET_SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}\n"
+        "          RECORD_BUILD_BUILD:",
+        "rule 7: gather's step",
+    ),
+    (
+        "judge-macos",
+        "          SHARD: ${{ matrix.shard }}\n",
+        "          SHARD: ${{ matrix.shard }}\n"
+        "          S: ${{ needs.build.outputs.set-sums-sha256 }}\n",
+        "rule 10: judge-macos reads set-sums-sha256",
+    ),
+    (
+        "judge-linux",
+        "    outputs:\n",
+        "    outputs:\n      set-sums-sha256: x\n",
+        "rule 10: judge-linux sets set-sums-sha256",
+    ),
 ]
 
 
@@ -1818,6 +1871,22 @@ def test_release_shard_scan_names_each_breach(job, old, new, error) -> None:
 def test_the_python_wasm_hash_must_come_before_the_upload() -> None:
     errors = _shard_errors(_without_wasm_then_late(REAL_WORKFLOW))
     assert any(e.startswith("rule 6:") for e in errors), errors
+
+
+def test_the_set_sums_hash_must_come_before_the_upload() -> None:
+    """Spec 085: hashed after the upload, it could name a file other than the one uploaded."""
+    errors = _shard_errors(_without_set_sums_then_late(REAL_WORKFLOW))
+    assert any(e.startswith("rule 6:") for e in errors), errors
+
+
+def test_the_gather_guards_the_set_sums_hash() -> None:
+    """Spec 085: the gather's guard step tests SET_SUMS_SHA256 as 64 hex, with WASM_SHA256."""
+    guard = scan.workflow_step_script(
+        REAL_WORKFLOW,
+        "gather",
+        "Every job handed on its record's id, and the build python.wasm's SHA-256",
+    )
+    assert '"$SET_SUMS_SHA256"' in guard and '"${#SET_SUMS_SHA256}"' in guard
 
 
 def test_a_gather_holding_the_assets_breaks_rule_16_too() -> None:

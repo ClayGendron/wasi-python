@@ -467,3 +467,14 @@ def test_a_passing_upstream_check_is_not_unrun() -> None:
         {A: check("pass"), G: check("pass", area="v1.3", metrics={"fuel": 10, "passes": 1063})}
     )
     assert scoreboard.compare(rec, accepted({A: acc(), G: acc_passes(1063)})).upstream_unrun == []
+
+
+def test_the_line_carries_the_sets_sha256sums() -> None:
+    """Spec 085, Decision 4: the lane's acceptance names the whole set, beside python.wasm."""
+    r = run({A: check("pass")}, set_sums="s" * 64)
+    _, line = scoreboard.accept(r, None, [], scoreboard.Ratchet(), green=True, reason="r")
+    assert json.loads(line)["set_sums"] == "s" * 64
+    _, line = scoreboard.accept(
+        run({A: check("pass")}), None, [], scoreboard.Ratchet(), green=True, reason="r"
+    )
+    assert json.loads(line)["set_sums"] is None

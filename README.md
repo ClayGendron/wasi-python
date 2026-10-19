@@ -579,7 +579,8 @@ pandas', and CPython's file-system group, on macOS and on Windows
 (`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran
 exactly its share on the release's bytes, nothing failed, the probe passed on all three systems,
-and the lane's newest acceptance is on the same `python.wasm` (on a tag, with the same judge). The
+and the lane's newest acceptance is on the same `python.wasm` and the same set, by the set's own
+`SHA256SUMS` (on a tag, with the same judge). The
 gather writes no history: only the lane accepts
 (`context/specifications/063-the-release-judges-in-parallel-shards.md`). Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, rebuild the
 set from the pins on an arm64 Linux runner and an x86_64 Linux runner, and `same-bytes` requires
