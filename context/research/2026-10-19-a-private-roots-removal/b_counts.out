@@ -1,0 +1,2 @@
+deep 1,000 levels + a file each: gone=True entries=2000 counted=7003 (3.50 per entry) peak descriptors=2 {'open': 2001, 'close': 2001, 'scandir': 3001, 'unlink': 1000, 'rmdir': 1001}
+wide 5,000 files + 300 folders: gone=True entries=5300 counted=6504 (1.23 per entry) peak descriptors=2 {'open': 601, 'close': 601, 'scandir': 602, 'unlink': 5000, 'rmdir': 301}

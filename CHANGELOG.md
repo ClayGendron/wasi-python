@@ -35,6 +35,23 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   authenticity: a compromised judge job could still write consistent records, though never
   change the bytes that are signed or published.
 
+- **Fixed: a guest could make its private root outlive the call** (spec 084; the 0.1.0a7
+  security review's F1). A guest given `root=True` that built a tree one level at a time through
+  `dir_fd`, deeper than the process's free descriptors (247 levels at macOS's default soft limit
+  of 256), left its private root and lock file behind, silently, and the next process's sweep
+  failed the same way, so disk use added up across calls; a deep fresh `HOME` was left in the
+  caller's root the same way. The runner now removes its folders with a walk that holds two
+  descriptors at any depth, creates nothing, never follows a link and changes no mode, so
+  content the host made read-only is left, never deleted, even when the guest moves it in. A
+  folder a removal leaves is named in one `RuntimeWarning` per process; a private folder keeps
+  its lock file and is retried by the next call's sweep (three times per process, then by the
+  next process). A `HOME` in a caller's root, which another call on that root may be writing,
+  gets a budget of about a million system calls. No public name, default or field changes.
+- **Fixed: on CPython 3.11 a guest could make `run` raise `RecursionError`** and keep its
+  private root's lock for the process's life (spec 084). 3.11's `shutil.rmtree` recurses one
+  frame per level, so a private root of more than about 995 levels (1,010 at Linux's common soft
+  limit of 1,024) made the removal raise out of `run`. The new removal does not recurse, and a
+  removal that fails in any way now leaves the folder with its lock free for the sweep.
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result

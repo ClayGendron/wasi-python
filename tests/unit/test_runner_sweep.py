@@ -757,6 +757,7 @@ def test_what_a_removal_leaves_is_retried_by_the_next_calls_sweep(temp, monkeypa
     """Criterion 10: a folder left keeps its lock file, is named once, and re-arms the sweep,
     after its name is dropped; the next sweep removes it."""
     failing_once(monkeypatch)
+    monkeypatch.setitem(runner._sweep_state, "claimed", True)  # this process's first call is past
     private = runner._Private("wasi-python-root-")
     (private.path / "file").write_text("guest data")
     private.remove()

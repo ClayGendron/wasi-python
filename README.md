@@ -2907,6 +2907,16 @@ has one.
   a `HOME` made fresh and empty for each call in the folder the guest sees at
   `/tmp` and removed after it (no `HOME` where there is none); `env=` is laid
   over them;
+- **a call's folders go with it, whatever the guest built in them:** the
+  private root, the stdin folder and the fresh `HOME` are removed by a walk
+  that holds two descriptors at any depth, creates nothing, never follows a
+  link and changes no mode or attribute, so content the host made read-only
+  is left, even when the guest moved it into its folder (spec 084). A folder
+  a removal could not remove (such content, a file another program holds open
+  on Windows, a full descriptor table) is named in one `RuntimeWarning` per
+  process; a private folder keeps its lock file and is retried by the next
+  call's sweep, up to three times per process, then by the next process; a
+  `HOME` left in the caller's own folder is not retried;
 - **the cap needs room in your process's own limit:** a guest's descriptors
   share your process's table. The cap keeps a guest from starving your
   process only when the process's soft descriptor limit is above the cap
@@ -2997,7 +3007,12 @@ lock file and are never removed: delete `wasi-python-*` entries there by hand
 when no wasi_python process runs; two machines that share one temporary
 folder and report the same identity, such as cloned Windows images, are not
 told apart; a temporary folder on a filesystem without file locks, where such
-folders are never removed); disk use in any
+folders are never removed); a folder a removal had to leave (see above: read-only
+content the host made, a file another program holds open), until a removal can;
+a concurrent call on the same root while a `HOME` there is removed: it can hold that
+removal for up to about a million system calls (2**20; about 50 s on an arm64 Mac, a
+benchmark fact), and a `HOME` past that is left in the caller's folder and named
+(a private folder has no such limit: nothing writes it once its call ends); disk use in any
 root, the private one included (a guest
 can write as fast as the disk takes it until its deadline, tens of GiB in
 the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
