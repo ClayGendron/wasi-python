@@ -412,8 +412,8 @@ def run(
         host: The door's host function: called with each request's bytes, it returns the
             response's. It must answer synchronously: an async one raises `TypeError`. Excludes
             `tools`.
-        snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
-            the plain reactor.
+        snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
+            package); `False` the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
             fuel". `None` (the default) sets no cap.
         deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
@@ -555,8 +555,8 @@ async def run_async(
         host: The door's host function: called with each request's bytes, it returns the
             response's. It must answer synchronously: an async one raises `TypeError`. Excludes
             `tools`.
-        snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
-            the plain reactor.
+        snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
+            package); `False` the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
             fuel". `None` (the default) sets no cap.
         deadline_s: Wall-clock seconds; past them the call ends "deadline". Default:
@@ -4659,8 +4659,8 @@ class Session:
             host: The door's host function: called with each request's bytes, it returns the
                 response's. It must answer synchronously: an async one raises `TypeError`.
                 Excludes `tools`.
-            snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
-                the plain reactor.
+            snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported
+                (no package); `False` the plain reactor.
             fuel: Each turn's cap on the guest's executed instructions, unless the turn passes
                 its own; past it the turn ends "out of fuel", which ends the session. A session
                 given a number is metered; `None` (the default) is unmetered, and its turns

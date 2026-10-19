@@ -30,8 +30,8 @@ and B of the default-profile memo (decisions 43 to 48).
 1. **An install that just works** (0.1.0a4): the build says where it is (spec 027);
    `pip install wasi-python` runs programs (spec 028); the landing lane is guarded (spec 029),
    after which specifications are built in parallel.
-2. **Plotting:** matplotlib M1 (spec 023), then M2; whether the snapshot pre-imports it is
-   decided from M1's measurements (question 34).
+2. **Plotting:** matplotlib M1 (spec 023), then M2; the snapshot pre-imports no package,
+   matplotlib included (decision 34, spec 069).
 3. **scipy** in the default build (decision 30), with OpenBLAS's C LAPACK made consistent by a
    carried patch until its next release.
 4. **The rest of the default profile** (`research/2026-10-17-what-else-the-default-profile-carries.md`,
@@ -93,8 +93,9 @@ Added by the owner 2026-10-18, evening (`decisions.md`): CPython's own test suit
 (question 99; its research is running, its specification follows spec 063); a per-sandbox cap on
 open files before 0.1.0, default 1,024 (question 92); spec 055 closes sessions as Jupyter does,
 running Python's shutdown under a small budget (question 92); landing through pull requests that
-must pass their checks (spec 064, after 063). The default snapshot pre-imports no package (question 34;
-spec 069, build-class). CPython's own suite runs in the guest (27,503 passes; research
+must pass their checks (spec 064, after 063). The default snapshot pre-imports no package (decision 34;
+spec 069, build-class); a `full` profile, its own artifact set with the stack pre-imported, is
+built only if an embedder asks (decision 34, constitution §2). CPython's own suite runs in the guest (27,503 passes; research
 `2026-10-18-cpythons-own-tests-under-the-runtime.md`); it gates 0.1.0 through spec 065. It found
 one defect fixed before 0.1.0 by its own specification (071): C-level recursion traps the guest
 instead of raising `RecursionError`. After 0.1.0: a Rust core shared at least partly by
@@ -108,6 +109,14 @@ security review's F1 (an async gate that raises `GeneratorExit` lets the call th
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).
+
+Follow-up from spec 069's pre-build review (2026-10-18, the lane's ruling on its F1): **spec
+073, `run` keeps an unclosed file's buffered bytes** (not drafted). On the snapshot, `run` loses
+the buffered bytes of a file left open when `__main__` defines a function (the frozen heap; found
+by spec 055's addendum, P10b); sessions unfreeze at close (spec 055), `run` does not. A gap until
+then (`tests/known_gaps.toml`, `test_run_keeps_an_unclosed_files_bytes[snapshot]`). If its fix
+unfreezes the heap, it restates spec 069's check (b) (the snapshot's start at least 8 times
+cheaper than the plain start: unfrozen, a bare run is 43.8 M fuel, 3.8 times).
 
 Follow-ups from spec 068's pre-build review (2026-10-18): **spec 072, a bound on path depth**
 (not drafted): a limit on the components of every path a path call resolves, so the descriptors

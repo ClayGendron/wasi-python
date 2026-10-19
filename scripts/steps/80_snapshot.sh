@@ -1,8 +1,9 @@
 #!/bin/sh
 # Step 80: the Wizer snapshot (build/out/python-snapshot.wasm): the reactor with the interpreter
-# initialized and numpy and pandas imported. One preopen, at /, holding the stdlib zip where the
-# guest finds it: wasi-libc's preopen table is snapshotted, and so are zipimport's offsets, so the
-# snapshot runs only beside this exact zip (spec 003, Decisions 1 and 9).
+# initialized and the stdlib's bootstrap imported, no package (PREIMPORT, spec 069). One preopen,
+# at /, holding the stdlib zip where the guest finds it: wasi-libc's preopen table is snapshotted,
+# and so are zipimport's offsets, so the snapshot runs only beside this exact zip (spec 003,
+# Decisions 1 and 9).
 # The snapshot is made by the pinned wasmtime's own `wasmtime wizer`, which reads the
 # exception-handling proposal (spec 005, Decision 5): the door import gets a stub that traps if
 # called (the snapshot never calls it), WASI is on, stdio is not inherited, and no compile cache is

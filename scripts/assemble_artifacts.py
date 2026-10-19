@@ -119,8 +119,19 @@ MODIFIED = {
         "five callbacks gain the parameter CPython passes"
     ),
 }
-PREIMPORT = "encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
+# The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
+PREIMPORT_RECIPE = "recipes/reactor_main.c"
+PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
+
+
+def preimport_list(text: str) -> str:
+    """The modules the snapshot pre-imports, as MANIFEST's x-preimport line names them, read from
+    the recipe's one `#define PREIMPORT "import …"`; none, or more than one, stops the build."""
+    found = PREIMPORT_DEFINE.findall(text)
+    if len(found) != 1:
+        raise SystemExit(f"{PREIMPORT_RECIPE}: {len(found)} '#define PREIMPORT' lines, not one")
+    return found[0]
 
 
 def _remove(path: Path) -> None:
@@ -349,7 +360,7 @@ def main() -> None:
         "x-pins every-supported-build-host",
         f"x-wizer {wizer}",
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
-        f"x-preimport {PREIMPORT}",
+        f"x-preimport {preimport_list((root / PREIMPORT_RECIPE).read_text())}",
         f"x-snapshot-zip {sha256(new / 'python-stdlib.zip')}",
     ]
     (new / "MANIFEST").write_text("\n".join(manifest) + "\n")

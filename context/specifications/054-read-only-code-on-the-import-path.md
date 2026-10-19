@@ -287,6 +287,9 @@ layouts would break that if an import path were allowed naively (EXECUTED, both 
       no `.pyc` is written and a valid one is read; that a missing entry is skipped; the two
       stack frames, the recursion limit two frames sooner and the fuel a call with an import path
       costs (Decision 7; the build review's F4); what the runner cannot see, across calls
+      Amended 2026-10-19 by spec 069: the snapshot pre-imports no package, so "on the plain
+      binary also packages the snapshot pre-imported" is moot (it holds on both binaries); the
+      `HIT pytz` numbers of criterion 2 are restated there (2 on both binaries).
       (Decision 5) and within one call (an embedder's hard link between an entry's grant and a
       writable grant, and a writable mount whose provider stores into an entry's folder; the
       build review's F3, both EXECUTED there); a five-line example.
@@ -414,6 +417,8 @@ scratch copy, which the named check must catch, failing exactly the cases named.
      _hashlib`): `import hashlib` exits 1 on both binaries, stderr holds `HIT _hashlib` once and
      ends in `AttributeError`. A set that changes any of these numbers fails the check, and the
      specification that changes the set restates them with its reason.
+     Restated 2026-10-19 by spec 069 (Decision 5g): `HIT pytz` 2 times on both binaries; with no
+     package pre-imported, pandas' import runs in the call on the snapshot too, after the prelude.
    - Stand-in: the prelude inserts at 0; the first part fails with 5 of 6 shadowed on the plain
      binary (`json`, `numpy`, `csv`, `uuid`, `host`) and 1 on the snapshot (`host`).
 3. **`test_a_zip_on_the_import_path`** (v1.4). `lib.zip` in the grant (a module, a package with

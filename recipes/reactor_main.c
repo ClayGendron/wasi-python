@@ -1,7 +1,8 @@
 /* python.wasm's entry points as a WASI reactor (spec 003, Decision 6).
  *
  *   _initialize       the reactor runtime's constructor pass (registers the builtin modules)
- *   wizer.initialize  run once by Wizer at build time: a live interpreter with the stack imported
+ *   wizer.initialize  run once by Wizer at build time: a live interpreter with the stdlib's
+ *                     bootstrap imported and no package (PREIMPORT; decision 34, spec 069)
  *   run               one program per instance: argv and the environment from WASI, then finalize
  *   turn              one turn of a session: code from host_alloc'd memory, the interpreter kept
  *   shutdown          a session's end: Python's own shutdown (atexit, finalization), once
@@ -46,15 +47,20 @@ static const struct _frozen recipe_modules[] = {
     {NULL, NULL, 0, 0},
 };
 
+/* What the snapshot pre-imports: the stdlib's bootstrap, no package, for every package now and
+ * later (decision 34, spec 069). This #define is the list's one source: MANIFEST's x-preimport
+ * line is read from it (scripts/assemble_artifacts.py) and the judge holds it to
+ * tests/harness/paths.py's PREIMPORT. The #ifndef is for stand-ins built by hand; no build step
+ * overrides it. */
 #ifndef PREIMPORT
-#define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize, numpy, pandas"
+#define PREIMPORT "import encodings, io, os, sys, json, csv, re, _colorize"
 #endif
 
 /* While pinned, the C runtime's reads of the clocks, of entropy and of file metadata answer
  * constants, so everything captured during initialization is the same bytes on every build:
  * mimalloc's and wasi-libc's load-time state (they run as constructors, before any entry point),
- * numpy's SeedSequence and random's seed, the times, inodes and devices of the files that
- * importing stats, and a directory's size and link count, which each build host's file system
+ * the times, inodes and devices of the files that importing stats (and anything a pre-imported
+ * module reads from the clock or entropy at import), and a directory's size and link count, which each build host's file system
  * answers its own way. The reactor's link wraps the four WASI calls (scripts/steps/60_link.sh,
  * --wrap); run() unpins before Python starts, and wizer.initialize unpins once the imports are
  * done, so a program only ever sees real values. */
@@ -264,8 +270,11 @@ wizer_initialize(void)
 {
     init_interpreter(1);
     run_private(PREIMPORT);
-    /* Then what the imports left behind is frozen out of the collector's way. run() reseeds
-     * random and numpy.random from WASI entropy on every call. */
+    /* Then what the imports left behind is frozen out of the collector's way. With no package
+     * pre-imported that is little, but the freeze still pays: unfrozen, a bare run on the
+     * snapshot costs 43.8 M fuel instead of 15.6 M (spec 069, Decision 4; its check (b) is
+     * coupled to it). run() reseeds random and numpy.random from WASI entropy on every call,
+     * for whichever of them a program has imported. */
     run_private("import gc\ngc.collect()\ngc.freeze()\n");
     pinned = 0;
     /* Forget the preopens Wizer gave, so the table is rebuilt from the runtime's, by name and in

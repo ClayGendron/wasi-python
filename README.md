@@ -21,7 +21,7 @@ directories and host functions you hand it.
 | artifact | what it is |
 |---|---|
 | `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
-| `python-snapshot.wasm` | the same binary after a Wizer snapshot with numpy and pandas pre-imported; one `run` per instance, about 20 ms |
+| `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
 | `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
@@ -40,12 +40,13 @@ promises.
 |---|---|
 | upstream patches | upstream patches carried: 7, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 40.4 MB / 74.4 MB / 22.1 MB (3.15 line, with matplotlib and lxml; spec 046's landing notes) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 44.6 MB / 22.2 MB (3.15 line, with matplotlib, lxml and regex, no package pre-imported; spec 069's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| one call, snapshot, `-c pass` | 20 ms, of which about 14 ms is finalizing the interpreter; 83.4M guest instructions on 3.15 with matplotlib (81.9M before) |
-| one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms |
+| one call, snapshot, `-c pass` | 14 ms (a benchmark fact from spec 069's research), most of it finalizing the interpreter; 15.6M guest instructions (83.5M while numpy and pandas were pre-imported, before spec 069) |
+| one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms (before spec 069); 0.97M guest instructions |
+| `import pandas` / `import numpy`, snapshot | 4.60G / 0.78G guest instructions (spec 069's landing notes; 0.81 s for the research's small pandas job, a benchmark fact): the snapshot pre-imports no package (decision 34), so a call pays its own imports |
 | one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); 167M / 4.92G guest instructions with matplotlib's members in the zip (151M / 4.90G before; spec 023) |
-| a line plot saved as PNG, snapshot, matplotlib not pre-imported | 7.56G guest instructions with a fresh font cache (a fresh `HOME`), 5.57G with a kept `MPLCONFIGDIR` (spec 023) |
+| a line plot saved as PNG, snapshot, no package pre-imported | 8.78G guest instructions with a fresh font cache (a fresh `HOME`), 6.79G with a kept `MPLCONFIGDIR` (spec 069's landing notes; 7.56G and 5.57G while numpy and pandas were pre-imported) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
@@ -110,10 +111,13 @@ is stopped by fuel loses what it printed since its last flush; run it with
 
 - its string hash secret is fixed (`sys.flags.hash_randomization == 0`), so
   every snapshot instance hashes strings alike;
-- the modules it pre-imports were imported with an empty environment: `run`
-  re-reads what is known to matter (the `random` and numpy seeds, `logging`'s
-  start time, `zoneinfo`'s `PYTHONTZPATH`), and anything else a module read
-  from the environment at import keeps the build's value;
+- the stdlib modules it pre-imports (`encodings`, `io`, `os`, `sys`, `json`,
+  `csv`, `re`, `_colorize`) were imported with an empty environment; it
+  pre-imports no package (decision 34), so numpy, pandas and every other
+  package import in your call, with your environment. `run` still re-reads
+  what is known to matter for whichever of them a program has imported (the
+  `random` and numpy seeds, `logging`'s start time, `zoneinfo`'s
+  `PYTHONTZPATH`);
 - it is the same bytes on every build, from any supported build host: while
   it initializes, the clocks, entropy and file metadata (a directory's size
   and link count included) answer constants, and no program ever sees them.
@@ -208,7 +212,7 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   MB). An embedder without `run` extracts and preopens it itself (see *Running it*).
 - **The font cache.** matplotlib writes its font list to `MPLCONFIGDIR`, else `$HOME/.matplotlib`.
   `run` makes `HOME` fresh on every call, so each call that imports matplotlib rebuilds the list
-  (about 2 G guest instructions); the snapshot does not pre-import matplotlib. To keep the cache
+  (about 2 G guest instructions); the snapshot pre-imports no package. To keep the cache
   between calls, set `MPLCONFIGDIR` (`env=`) to a writable grant you keep.
 - **A shared, writable `MPLCONFIGDIR` is trusted by later calls**: its JSON names font files, so
   one call can make the next parse a font of its choosing. Share one only between calls you trust
@@ -410,8 +414,8 @@ files; build libxml2
 and libxslt with their own `configure`s and compile lxml's two modules from the C its sdist
 ships; link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
-the reactor with the pinned wasmtime's own `wasmtime wizer`, numpy and pandas
-pre-imported; assemble
+the reactor with the pinned wasmtime's own `wasmtime wizer`, the stdlib's
+bootstrap modules pre-imported and no package; assemble
 `build/artifacts/` with `MANIFEST`, `SHA256SUMS` and the licence notices of
 everything inside. The compiler wrapper `scripts/wasi-cc` turns every
 extension module's shared link into a static archive, so no `meson.build`
@@ -617,6 +621,18 @@ on macOS; Linux maps the memory image itself and never charged for it, and
 Windows, which always copies it, is expected to match)
 (`context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`).
 
+**Calls that use pandas.** The snapshot pre-imports no package (decision 34),
+so each call that imports pandas pays its import: about 4.6 G guest
+instructions, about 0.8 s on an M-series Mac (a benchmark fact); a small numpy
+job costs about 0.8 G in all. Three ways to pay it less often: put several steps
+in one call; use a session (*Sessions*), whose later turns keep what an
+earlier turn imported; or, if an embedder asks, a `full` profile, its own
+artifact set that pre-imports the stack, which the roadmap records and which is
+built only on request (profiles stay few). If you build your own set, you can
+edit the `#define PREIMPORT` in `recipes/reactor_main.c` and rebuild; the
+recipe's hash and MANIFEST's `x-preimport` line then follow it. That is not a
+product promise.
+
 The compiled module is cached as a `.cwasm` in the user cache directory, or
 in `$WASI_PYTHON_CACHE`, only where no other user can write (a `.cwasm` is
 native code); `cache_dir=False` keeps it in memory only. On Windows the
@@ -768,9 +784,9 @@ binaries: name your packages apart. But a module the runtime looks for and
 lacks is taken from an entry: C accelerators (`_decimal`, `_uuid`, `_hashlib`),
 other platforms' modules (`nt`, `msvcrt`, `fcntl`, `pwd`, `termios`), and the
 profile's optional dependencies (`pytz`, `pyarrow`, `numexpr`, `bottleneck`).
-On the plain binary that also happens for packages the snapshot imported when
-it was built: an entry's `pytz.py` is imported by `import pandas` on the plain
-binary, not on the snapshot. Ship such a name only on purpose.
+This holds on both binaries alike: an entry's `pytz.py` is imported by
+`import pandas`, since the snapshot pre-imports no package. Ship such a name
+only on purpose.
 
 The runner puts the entries on `sys.path` with a one-line `-c` prelude before
 your argv, which then runs your program exactly as before, with two
@@ -1791,11 +1807,12 @@ Nothing the shutdown prints is kept. A session that ends by a trap,
 shutdown, because its interpreter was stopped mid-turn. So **write and close
 files within a turn**: the shutdown is a courtesy for a session closed at rest,
 not a guarantee. A file held only in a reference cycle may not be flushed, as
-in CPython. On today's snapshot (numpy and pandas pre-imported) the shutdown
-costs about 306 million instructions (about 80 million of them the
-finalization, the rest undoing the snapshot's frozen heap so that open files
-are flushed as CPython flushes them); on the plain reactor about 29 million,
-or about 304 million after importing pandas. Size a metered session's `fuel`
+in CPython. The shutdown costs about 43 million instructions on the snapshot
+when the session imported nothing beyond the stdlib (part of it undoing the
+snapshot's frozen heap so that open files are flushed as CPython flushes them),
+and about 308 million after importing pandas; on the plain reactor about 29
+million, or about 304 million after importing pandas (spec 069's landing
+notes). Size a metered session's `fuel`
 to cover it.
 A session's shutdown may call your host functions, providers and tools after
 your own cleanup: when you drop a session without closing it, and at process
@@ -1891,7 +1908,7 @@ The artifact set's four files, made by `artifacts()`, or by you for `run(artifac
 
 **Attributes:**
 
-- `snapshot`: The snapshot binary, python-snapshot.wasm: the reactor with the stack pre-imported.
+- `snapshot`: The snapshot binary, python-snapshot.wasm: the reactor with the stdlib's bootstrap imported (no package).
 - `plain`: The plain reactor, python.wasm, without the snapshot.
 - `stdlib_zip`: The stdlib zip, python-stdlib.zip, which every guest sees read-only at /usr/local/lib.
 - `manifest`: The MANIFEST: every pinned source and recipe hash the build used.
@@ -2182,7 +2199,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
   - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
   - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session where /tmp is writable.
   - `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
-  - `snapshot`: `True` runs the snapshot binary, with the stack pre-imported; `False` the plain reactor.
+  - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
   - `fuel`: Each turn's cap on the guest's executed instructions, unless the turn passes its own; past it the turn ends "out of fuel", which ends the session. A session given a number is metered; `None` (the default) is unmetered, and its turns report no fuel.
   - `deadline_s`: Each turn's wall-clock seconds, unless the turn passes its own; past them the turn ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit but the lifetime's.
   - `memory_bytes`: The most linear memory the guest may hold, in bytes, for the whole session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
@@ -2354,7 +2371,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
 - `stdin`: The guest's standard input, whole; `None` is empty.
 - `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
-- `snapshot`: `True` runs the snapshot binary, with the stack pre-imported; `False` the plain reactor.
+- `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
 - `fuel`: A cap on the guest's executed instructions; past it the call ends "out of fuel". `None` (the default) sets no cap.
 - `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
 - `memory_bytes`: The most linear memory the guest may hold, in bytes. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
@@ -2906,8 +2923,9 @@ with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packag
 
 **Out, with the one fact that decides each:** matplotlib's Delaunay triangulation
 (`_qhull` needs a second carried patch, for a writable `/dev/null`) and `contour`
-(contourpy's own build), both its next milestone; pre-importing matplotlib in the snapshot
-(the owner's question 34); scipy (Fortran: f2c as Pyodide does; months);
+(contourpy's own build), both its next milestone; pre-importing any package in the snapshot
+(decision 34: the default snapshot pre-imports none; a `full` profile, its own artifact set,
+only if an embedder asks); scipy (Fortran: f2c as Pyodide does; months);
 threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
 (`compression.zstd`: libzstd needs its own research and licence approval);
 SQLite's `load_extension` (WASI has no `dlopen`); pip inside the guest.

@@ -6,6 +6,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — unreleased
 
+- **Changed: the snapshot pre-imports no package** (decision 34, spec 069). It starts with the
+  interpreter and the stdlib's bootstrap modules (`encodings`, `io`, `os`, `sys`, `json`, `csv`,
+  `re`, `_colorize`), for every package now and later; the judge refuses a snapshot that holds
+  any other top-level module. A bare call costs 15.6M guest instructions instead of 83.5M; a call
+  that imports pandas pays it, 4.60G in all instead of 83.5M (a small numpy job about 0.7G more
+  than before), so a `fuel=` cap set for a pandas job on the snapshot needs that much more. The
+  snapshot is 30.4 MB smaller (44.6 MB) and the wheel about 11 MB smaller. numpy, pandas and the
+  other packages now import with the call's environment. A session's shutdown costs about 43M
+  instructions when nothing beyond the stdlib was imported (about 306M before). `snapshot=True`
+  is unchanged as an argument; no public name, signature or default changes. MANIFEST's
+  `x-preimport` line is now read from the recipe. Known and unchanged: `run` on the snapshot
+  loses an unclosed file's buffered bytes when `__main__` defines a function (a gap until spec
+  073; close your files before a call ends).
 - **Bounded sessions** (spec 055). `Session` keeps one instance of the runtime across turns:
   `session.run(code)` and `await session.run_async(code)` each run one turn in `__main__`, and
   variables, functions, classes and imports carry over. A turn echoes its final expression,

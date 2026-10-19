@@ -11,7 +11,7 @@ The wheel carries the runtime's artifacts, and `artifacts()` says where they are
 embedder that runs them through its own wasmtime binding::
 
     paths = artifacts()
-    paths.snapshot      # python.wasm with the stack pre-imported; starts in a few milliseconds
+    paths.snapshot      # python.wasm started, the stdlib's bootstrap imported (no package)
     paths.plain         # the same reactor without the snapshot, for debugging
     paths.stdlib_zip    # the stdlib plus the packages' pure-Python parts
     paths.manifest      # every pinned source and recipe hash the build used
@@ -51,8 +51,8 @@ class Artifacts:
     """The artifact set's four files, made by `artifacts()`, or by you for `run(artifacts=…)`.
 
     Attributes:
-        snapshot: The snapshot binary, python-snapshot.wasm: the reactor with the stack
-            pre-imported.
+        snapshot: The snapshot binary, python-snapshot.wasm: the reactor with the stdlib's
+            bootstrap imported (no package).
         plain: The plain reactor, python.wasm, without the snapshot.
         stdlib_zip: The stdlib zip, python-stdlib.zip, which every guest sees read-only at
             /usr/local/lib.

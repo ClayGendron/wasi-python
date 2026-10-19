@@ -384,6 +384,10 @@ harness grants matplotlib's data), `9fc679f` (README), and the commit carrying t
 
 ### Numbers for the owner (34): pre-importing matplotlib in the snapshot
 
+Amended 2026-10-19 by spec 069: question 34 is answered (decision 34, `../decisions.md`): the
+default snapshot pre-imports no package, numpy and pandas included. The numbers below are
+history; spec 069's landing notes hold the snapshot's figures since.
+
 A scratch snapshot only (nothing of it lands): this build's `python.wasm` relinked with
 `PREIMPORT` adding `os.environ['MPLCONFIGDIR'] = '/tmp/matplotlib'; import matplotlib,
 matplotlib.pyplot; del os.environ['MPLCONFIGDIR']`, and Wizer given the data at its nested path
