@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -165,14 +166,70 @@ def test_default_integer_width_is_documented(guest) -> None:
     )
 
 
-def test_snapshot_preimports_the_stack(guest, metric) -> None:
-    probe = "import sys; print('numpy' in sys.modules, 'pandas' in sys.modules)"
-    r = guest("snapshot", ["-c", probe])
-    assert r.text.strip() == "True True", f"pre-imported: {r.text.strip()!r}; {r.describe()}"
-    plain = guest("plain", ["-c", "import pandas"], record=False)
-    snap = guest("snapshot", ["-c", "import pandas"])
+# What the snapshot holds at start, read by the program's first statement (spec 069, check a).
+START_PROBE = (
+    "import sys\n"
+    "mods = list(sys.modules)\n"
+    "import json\n"
+    "print(json.dumps({'modules': mods, 'stdlib': sorted(sys.stdlib_module_names)}))\n"
+)
+GUARD_NAMES = ("numpy", "pandas", "host")  # the zip's derivation is not vacuous
+START_FACTOR = 8  # the snapshot's start at least 8 times cheaper than the plain start (check b)
+
+
+def zip_non_stdlib_names(zip_path: Path, stdlib: set[str]) -> set[str]:
+    """The top-level names of the zip's members (a folder's first part, a root module's stem) that
+    are neither the stdlib's nor the reactor's (spec 069, Decision 5a): the zip's packages."""
+    tops = set()
+    with zipfile.ZipFile(zip_path) as z:
+        for name in z.namelist():
+            first, sep, _ = name.partition("/")
+            if sep:
+                if not first.endswith((".dist-info", ".egg-info")):
+                    tops.add(first)
+            elif first.endswith((".pyc", ".py")):
+                tops.add(first.rsplit(".", 1)[0])
+    return {t for t in tops if not paths.is_stdlib_or_reactor(t, stdlib)}
+
+
+def test_the_snapshot_pre_imports_no_package(guest, artifacts) -> None:
+    """Decision 34 (spec 069): the snapshot starts with the stdlib's bootstrap and no package,
+    for every package now and later. The rule needs no list of packages: a module is the stdlib's
+    or the reactor's, or it is refused; the zip's own non-stdlib names make the message name it."""
+    r = guest("snapshot", ["-c", START_PROBE])
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text.strip().splitlines()[-1])
+    stdlib = set(got["stdlib"])
+    tops = {m.split(".", 1)[0] for m in got["modules"]}
+    foreign = sorted(t for t in tops if not paths.is_stdlib_or_reactor(t, stdlib))
+    assert not foreign, _named(foreign, "modules at start that are not the stdlib's")
+    packages = zip_non_stdlib_names(artifacts.path("python-stdlib.zip"), stdlib)
+    missing_guard = [n for n in GUARD_NAMES if n not in packages]
+    assert not missing_guard, f"the zip's non-stdlib names lack {missing_guard}: derivation broken"
+    held = sorted(tops & packages)
+    assert not held, _named(held, "the snapshot pre-imports the zip's non-stdlib names")
+    absent = [n for n in paths.PREIMPORT if n not in tops]
+    assert not absent, f"the pre-import list did not run: {absent} not in sys.modules at start"
+
+
+def test_the_snapshot_starts_cheaper_than_plain(guest) -> None:
+    """The snapshot's reason to exist (spec 069, check b): its start, `-c pass`, is at least
+    START_FACTOR times cheaper than the plain reactor's. A change to the plain start, the freeze
+    or the teardown restates the factor, with its numbers, as a judge change."""
+    plain = guest("plain", ["-c", "pass"], record=False)
+    snap = guest("snapshot", ["-c", "pass"])
     assert plain.exit_code == 0 and snap.exit_code == 0, f"{plain.describe()} / {snap.describe()}"
-    assert snap.fuel * 10 < plain.fuel, f"snapshot fuel {snap.fuel}, plain fuel {plain.fuel}"
+    ratio = plain.fuel / snap.fuel
+    assert snap.fuel * START_FACTOR <= plain.fuel, (
+        f"snapshot start {snap.fuel:,} fuel, plain start {plain.fuel:,}: {ratio:.2f} times, "
+        f"under {START_FACTOR}; either a package is pre-imported (see "
+        "test_the_snapshot_pre_imports_no_package) or the snapshot's reason to exist must be "
+        "restated (spec 069, Decision 5b)"
+    )
+
+
+def _named(names: list[str], what: str) -> str:
+    return f"{what}: {', '.join(names)} (decision 34, spec 069)"
 
 
 CPP_THROW = """

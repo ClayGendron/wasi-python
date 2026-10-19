@@ -499,3 +499,30 @@ def test_every_host_compiles_natively_with_the_fallback_kept() -> None:
         scan.code_text(scripts / "clang-emulated"),
     )
     assert not errors, scan.report(errors)
+
+
+PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "(.*)"\s*$', re.M)
+PREIMPORT_OVERRIDE = re.compile(r"-DPREIMPORT|PREIMPORT=")
+PREIMPORT_COPY = re.compile(r'^\s*PREIMPORT\s*=\s*"', re.M)
+
+
+def test_the_pre_import_list_is_the_stdlib_bootstrap() -> None:
+    """Decision 34 (spec 069, check c): the snapshot pre-imports the stdlib's bootstrap and no
+    package. The recipe's `#define` is the list's one source; no build step overrides it, and the
+    MANIFEST writer keeps no copy of its own."""
+    recipe = (paths.REPO / "recipes" / "reactor_main.c").read_text()
+    found = PREIMPORT_DEFINE.findall(recipe)
+    want = "import " + ", ".join(paths.PREIMPORT)
+    assert found == [want], f"recipes/reactor_main.c defines PREIMPORT as {found}, not [{want!r}]"
+    hits = []
+    for rel in paths.tracked_files("scripts", "recipes", ".github"):
+        p = paths.REPO / rel
+        try:
+            text = p.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        hits += [f"{rel}: overrides PREIMPORT" for _ in PREIMPORT_OVERRIDE.finditer(text)]
+    writer = (paths.REPO / "scripts" / "assemble_artifacts.py").read_text()
+    if PREIMPORT_COPY.search(writer):
+        hits.append("scripts/assemble_artifacts.py: carries its own PREIMPORT list")
+    assert not hits, scan.report(hits)

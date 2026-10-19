@@ -105,6 +105,28 @@ PACKAGES = (
     "lxml",
 )
 
+# What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
+# package, for every package now and later (decision 34, spec 069). Changing it is a judge change.
+PREIMPORT = ("encodings", "io", "os", "sys", "json", "csv", "re", "_colorize")
+# The reactor's own top-level modules: the frozen recipe modules, the door, and the program.
+REACTOR_MODULES = ("__main__", "_reactor", "_zip_directory", "_zip_resources", "_host")
+# CPython's own modules outside sys.stdlib_module_names: two names (its frozen test modules) and
+# one prefix (its generated build data, _sysconfigdata_<abi>_<platform>). Counted as stdlib.
+CPYTHON_UNLISTED_NAMES = ("__hello__", "__phello__")
+CPYTHON_UNLISTED_PREFIXES = ("_sysconfigdata_",)
+
+
+def is_stdlib_or_reactor(name: str, stdlib: frozenset[str] | set[str]) -> bool:
+    """A top-level module name is the stdlib's (in the guest's `sys.stdlib_module_names`, or one
+    CPython ships outside it) or the reactor's own (spec 069, check a)."""
+    return (
+        name in stdlib
+        or name in REACTOR_MODULES
+        or name in CPYTHON_UNLISTED_NAMES
+        or name.startswith(CPYTHON_UNLISTED_PREFIXES)
+    )
+
+
 # The judge: every file that decides a check's outcome or steers pytest (spec 002, Decision 14).
 JUDGE_PATHS = (
     "tests",

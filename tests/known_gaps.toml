@@ -97,3 +97,13 @@ check = "tests/checks/test_v1_3_matplotlib.py::test_contour_runs"
 match = "1 finding(s), digest e3bade7e9e73"
 reason = "contourpy is not built in M1: contour raises ModuleNotFoundError for contourpy"
 closes_with = "context/research/2026-10-17-matplotlib-on-the-current-line.md"
+
+# The snapshot's frozen heap (spec 069, check h): a file left open loses its buffered bytes at the
+# end of a run when __main__ defines a function. Seen by spec 055's addendum (P10b) and spec 069's
+# review (F1); sessions unfreeze at close (spec 055), run does not yet.
+
+[[gap]]
+check = "tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[snapshot]"
+match = "1 finding(s), digest 7da6e52329c1"
+reason = "run on the snapshot loses an unclosed file's buffered bytes when __main__ defines a function (the frozen heap; found by spec 055's addendum, P10b; restated by spec 069's review, F1)"
+closes_with = "context/roadmap.md (spec 073, run keeps an unclosed file's buffered bytes)"

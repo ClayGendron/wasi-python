@@ -499,3 +499,15 @@ def test_the_inittab_registers_each_module_through_its_package_context(
     registered = dict(re.findall(r'PyImport_AppendInittab\("([\w.]+)", (\w+)\);', text))
     assert registered == {dotted: w for w, dotted in wrappers.items()}, text
     assert not [f for f in registered.values() if f.startswith("PyInit_")], text
+
+
+RECIPE_ONE = '#ifndef PREIMPORT\n#define PREIMPORT "import encodings, io, os"\n#endif\n'
+
+
+def test_the_pre_import_list_is_read_from_the_recipe() -> None:
+    """MANIFEST's x-preimport line is read from the recipe's one #define (spec 069, Decision 3):
+    a recipe with none, or with two, stops the build naming the file."""
+    assert assemble_artifacts.preimport_list(RECIPE_ONE) == "encodings, io, os"
+    for text in ("#ifndef PREIMPORT\n#endif\n", RECIPE_ONE + RECIPE_ONE.splitlines()[1] + "\n"):
+        with pytest.raises(SystemExit, match="recipes/reactor_main.c"):
+            assemble_artifacts.preimport_list(text)

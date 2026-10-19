@@ -96,6 +96,16 @@ def test_manifest_recipes_match_the_tree(artifacts) -> None:
     assert not errors, scan.report(errors)
 
 
+def test_manifest_names_the_pre_imports(artifacts) -> None:
+    """MANIFEST's `x-preimport` line says what the snapshot pre-imports: the stdlib's bootstrap
+    and no package (decision 34; spec 069, check e)."""
+    needs.need("manifest")
+    lines = artifacts.path("MANIFEST").read_text().splitlines()
+    found = [ln.removeprefix("x-preimport ") for ln in lines if ln.startswith("x-preimport ")]
+    want = ", ".join(paths.PREIMPORT)
+    assert found == [want], f"MANIFEST's x-preimport lines are {found}, not [{want!r}]"
+
+
 def test_licence_notices_cover_every_component(artifacts) -> None:
     m = artifacts.manifest() if artifacts.path("MANIFEST").is_file() else None
     errors, content, presence = paths.licence_errors(artifacts.dir, m)

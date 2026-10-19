@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths
+from harness import needs, paths, scan
 
 pytestmark = pytest.mark.goal("v1.4")
 BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
@@ -110,6 +110,22 @@ def test_unbuffered_output_survives_a_hard_exit(guest, which) -> None:
     assert (r.exit_code, r.text) == (0, "kept\n"), r.describe()
 
 
+UNCLOSED = "f = open('/out.txt', 'w')\nf.write('x' * 100)\ndef g():\n    pass\n"
+
+
+@BINARY
+def test_run_keeps_an_unclosed_files_bytes(guest, which) -> None:
+    """A file a program leaves open is flushed when the interpreter finalizes, as in native
+    CPython. On the snapshot the bytes are lost when __main__ defines a function (the frozen
+    heap; spec 055's addendum, P10b; spec 069's review, F1): a known gap until spec 073."""
+    r = guest(which, ["-c", UNCLOSED])
+    assert r.exit_code == 0, r.describe()
+    out = r.root / "out.txt"
+    kept = out.stat().st_size if out.exists() else 0
+    findings = [] if kept == 100 else [f"{which}: a file left open kept {kept} of 100 bytes"]
+    assert not findings, scan.report(findings, "unclosed file")
+
+
 @BINARY
 def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
     """The constants the build pins while it snapshots never reach a program: entropy, a file's
@@ -167,9 +183,10 @@ def test_runner_stops_a_runaway_guest_by_fuel(guest_workdir) -> None:
 
 
 def test_runner_runs_the_plain_reactor(guest_workdir) -> None:
-    """snapshot=False runs the plain reactor, which starts with nothing pre-imported."""
+    """snapshot=False runs the plain reactor, which starts with only the interpreter's own
+    modules; the snapshot has pre-imported csv (spec 069: no package, so csv tells them apart)."""
     run = _runner()
-    code = "import sys; print('numpy' in sys.modules, sys.argv)"
+    code = "import sys; print('csv' in sys.modules, sys.argv)"
     plain = run(["-c", code, "a"], root=_root(guest_workdir), snapshot=False)
     snap = run(["-c", code, "a"], root=_root(guest_workdir))
     assert (plain.exit_code, plain.stdout) == (0, b"False ['-c', 'a']\n"), plain
@@ -4010,7 +4027,9 @@ def test_the_import_path_comes_after_the_runtime(guest_workdir, which) -> None:
     done = run(["-c", "import pandas"], grants=[Grant(pytz, "/e")], import_path=["/e"],
                snapshot=snapshot)  # fmt: skip
     assert done.exit_code == 0, done
-    assert done.stderr.decode().count("HIT pytz") == (0 if snapshot else 2), done.stderr
+    # pandas' import looks for its optional pytz twice, in the call, on both binaries: the
+    # snapshot pre-imports no package (spec 069 restates spec 054's pinned numbers).
+    assert done.stderr.decode().count("HIT pytz") == 2, done.stderr
     hashlib = _folder(guest_workdir, {"_hashlib.py": STUB.format(name="_hashlib")})
     done = run(["-c", "import hashlib"], grants=[Grant(hashlib, "/e")], import_path=["/e"],
                snapshot=snapshot)  # fmt: skip
