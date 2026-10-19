@@ -286,3 +286,39 @@ mounts alike, kept by the call's `_Files` table, with `path_open`, `fd_close` an
 `fd_renumber` shadowed in the guard linker; `EMFILE` before wasmtime or the provider is asked;
 default 1,024; `max_open_files=`, `Defaults.open_files` and `--max-open-files`; per session in
 a session; no record field.
+
+## Addendum after the pre-build review (2026-10-18)
+
+The review (written in the coordinator's scratchpad, for the lane to copy to
+`../reviews/068-a-cap-on-open-files-spec-2026-10-18.md`, with its probes) confirmed §2 to §5:
+the count is exact against wasmtime's own table (its `r1_accounting`), the fuel delta is 0 to the
+instruction (`r3`), and the host CPU is 54.5 µs per pair (`r4`). It added two facts this memo had
+missed, and one that came after it.
+
+- **The cap sits on top of the process's own descriptors** (the review's F1, EXECUTED there,
+  `r2_default_vs_soft_limit`). The process holds about eleven before the guest opens anything.
+  Under a soft limit of 256 (macOS's default for a process launchd starts) the guest opened 245
+  and got `EIO`; under 1,024 (Linux's usual) it opened 1,013 and got `EIO`; in both the door
+  host's `open()` failed with `EMFILE`. Under 1,060 and 2,048 the guest opened 1,024, got
+  `EMFILE`, and the door host's `open()` succeeded. This machine's shell had raised its own soft
+  limit to 1,048,576, which is why §1's 122,870 (`kern.maxfilesperproc` less what the process
+  held) appeared; macOS's default is 256 (`launchctl limit maxfiles`). §6's "Concurrent calls"
+  understated it: one call needs the room too.
+- **A process may raise its own soft limit to its hard limit** (EXECUTED here,
+  `pj_raise_soft_limit.py`, `pj_raise_soft_limit.txt`): from 256, macOS accepted the unlimited
+  hard limit, 10,000,000, 1,048,576, 122,880 and 10,240 alike. The kernel then holds a process
+  at `kern.maxfilesperproc`. So the command, which owns its process, can make its default cap
+  effective with one `setrlimit` call.
+- **Path calls hold one descriptor per folder while they resolve** (the review's F2; READ there,
+  cap-primitives 4.0.3's `fs/manually/open.rs`; EXECUTED there, `r8_path_depth`). On macOS, and
+  on Linux without `openat2`, cap-std walks a path one component at a time and keeps each parent
+  folder's descriptor for the length of the call. §2's "a descriptor that never outlives one host
+  call" holds, but "one" does not: a 900-deep path took the process from 4 descriptors to 912
+  during `os.stat` calls with no file held open; under a soft limit of 512 and a cap of 8, the
+  guest held the process at its limit and an embedder thread's `open()` failed 476 times. The cap
+  does not count these; spec 068 states it, and spec 072, a bound on path depth, would close it.
+- **Decision 34** (main `4a94c14`, after this memo's base): the snapshot pre-imports no package.
+  After spec 069 the snapshot imports pandas from the zip as the plain reactor does in §5's
+  table: 919 opens and closes, about 50 ms of host CPU added. And spec 048's unit
+  `test_a_call_without_mounts_is_unchanged` would then see `path_open` and `fd_close` served for
+  `import json` (the review's `r6_unchanged_unit_after_069`); 068 changes it.

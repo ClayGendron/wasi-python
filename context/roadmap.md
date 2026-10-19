@@ -107,6 +107,13 @@ Follow-ups decided by the owner: a provider's `OSError` carries its errno to the
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).
 
+Follow-ups from spec 068's pre-build review (2026-10-18): **spec 072, a bound on path depth**
+(not drafted): a limit on the components of every path a path call resolves, so the descriptors
+wasmtime holds while it walks a deep path on macOS (and Linux without `openat2`) are bounded
+too, which 068's cap does not count (question 100 tells the owner); and **a cheaper forward**
+for the runner's shadows (about 26 µs per shadowed call), which after spec 069 every default
+call that imports from the zip pays, through 068's counted `path_open` and `fd_close`.
+
 Release rule: alphas are cut by the agent after their pre-release security review (the owner,
 2026-10-18: "You may publish alpha releases but not the 0.1.0 release"); 0.1.0 is the owner's to
 tag. Before 0.1.0: a security review of the whole surface (milestone 6), the a4 review's F3 (a
