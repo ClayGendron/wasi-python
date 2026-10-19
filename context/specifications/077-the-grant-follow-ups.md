@@ -8,9 +8,12 @@
   confirmed for build at `cba597e` (the confirmation is appended to the same review); rebased
   onto main `23f1c4f` (specs 069 and 071) as `aaac75e`; **built 2026-10-19** (`42795d4`; the
   Landing notes): the full judge has 0 fail on macOS, its one growth a run-to-run variation of
-  spec 071's checks that main shows too; **the Windows dry run 39210847037 did not reach
-  Windows**: the macOS build job's judge failed on that same variation, so criterion 6 is open
-  and the lane decides how it proceeds. The lane asked for the pre-build review, though §5.6
+  spec 071's checks that main shows too; the first Windows dry run, 39210847037, did not reach
+  Windows (the macOS build job's judge failed on that same variation; the lane ruled to fix it
+  first, as spec 080). **Rebased onto main `8f8de73` (spec 080 landed)**, with this spec's diff
+  unchanged; the fast tier there shows `grew 0`; **the Windows dry run 39225762652 passed every
+  job on all three systems**, with the four named nodes `PASSED` on `verify (windows-2025)`;
+  awaiting its build review. The lane asked for the pre-build review, though §5.6
   does not: the spec changes neither the guest's imports nor its exports, the artifact set nor
   the build recipe. A different agent reviews the build.
 - **Date:** 2026-10-19
@@ -334,7 +337,7 @@ against main's frozen artifact set `build/sets/s-c50ca51fae5eb55b` of the main t
   as CPython does, with a COM0 row; one new unit case pins `_rewritten` to `ntpath.isreserved`
   over 18,275 names".
 
-### On Windows (criterion 6): not reached
+### On Windows (criterion 6)
 
 **Dry run 1: run 39210847037**, dispatched on `spec/077-verify`.
 - Its `headSha` is `70bdf252fc7a78cb4cc792f8587fb37134508c89`, and its only parent is `42795d4`
@@ -356,9 +359,48 @@ against main's frozen artifact set `build/sets/s-c50ca51fae5eb55b` of the main t
 So no `PASSED` line exists yet from `verify (windows-2025)`, and criterion 6 is open. The
 failure is the run-to-run variation above, on main's own checks, not a row of this spec.
 Main's next release dry run will meet it too: main's last one, 39203056348, ran before 071
-landed. Re-running until the fuel happens to fall is not a fix. The route stays as Decision 5
-says, and it runs again once the lane has dealt with the variation. The lane may also make
-another ruling, for example taking the Windows evidence from 063's shards if 063 lands first.
+landed. Re-running until the fuel happens to fall is not a fix. The lane ruled to deal with the
+variation first: spec 080 (deterministic fuel for 071's recursion checks), built by 071's author.
+
+**The rebase onto `8f8de73`** (spec 080 landed, accepted as `fae6615`). There was no conflict.
+The branch's diff against its base is byte for byte the same as before (`git diff 23f1c4f
+fd94262` equals `git diff 8f8de73 63d864e`, EXECUTED). Main brought two files under `tests/`,
+both 080's and neither this spec's: `tests/checks/test_v1_2_hostile_guest.py` and
+`tests/unit/test_runner_async.py`. Nothing under `src/` changed. The tip is now `63d864e` (the
+build is `bd81664`).
+- Fast tier there, `uv run pytest -m "not slow" -n 3` (`build/077/fast-2.log`): `wasi_python
+  v1: 474/550 pass · 1 gap · 24 blocked · 0 fail · 51 deselected (unit suite 1268/1276, 8
+  skipped)`; `ratchet vs 7f150e33b9: lost 0 · absent 0 · unrun 0 · unrun locally 22 · gained 0
+  · grew 0 · upstream unrun 31 · not selected 37 · judge changed:
+  tests/unit/test_runner_grants.py`; `1742 passed, 32 skipped, 1 xfailed`.
+
+**Dry run 2: run 39225762652, every job passed on all three systems.**
+- Its `headSha` is `8472a38e0c67b2f7be236298e50c32d5cb04f743`, whose only parent is `63d864e`,
+  this branch's rebased tip.
+- The temporary commit was made the same way: `git commit-tree`, no local branch, pushed to
+  `refs/heads/spec/077-verify`, not forced. Its diff (`build/077/verify-commit-2.diff`) equals
+  run 1's: `release.yml` only, +1 −1, `-rA`.
+- Verdicts: `rebuild from the pins` (ubuntu-24.04 and ubuntu-24.04-arm), `build and judge (arm64
+  macOS)`, `verify (ubuntu-24.04)`, `verify (macos-15)`, **`verify (windows-2025)`** and `the
+  same bytes from every host`: success. Attest and the two publish jobs were skipped, as on
+  every dry run.
+- The Windows step's scoreboard: `wasi_python v1: 223/227 pass · 1 gap · 3 blocked · 0 fail
+  (unit suite 95/102, 7 skipped)`, `blocked by: oracle 1 · three systems 1 · wheel 1`, the three
+  the next step allows; `318 passed, 10 skipped, 1 xfailed`.
+- The four named nodes' lines from `verify (windows-2025)` (`build/077/dryrun2-windows-verify.log`,
+  `build/077/dryrun2-windows-passed.txt`). None is skipped, blocked, deselected or missing; the
+  oracle case ran on Windows' CPython 3.14.2:
+
+```
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_takes_dot_dot_on_walked_folders
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_records_the_true_chain
+PASSED tests/unit/test_runner_grants.py::test_a_rewritten_name_is_one_ntpath_refuses
+PASSED tests/unit/test_runner_grants.py::test_a_read_only_grant_refuses_raw_writes
+```
+
+- The throwaway branch was then deleted on GitHub (`git push origin --delete spec/077-verify`;
+  `git ls-remote` shows none). Only this file follows the run, so the code that ran on Windows
+  is the code under review (Decision 5, freshness).
 
 ## One line
 
