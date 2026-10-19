@@ -1,10 +1,11 @@
 """Spec 083 probe: one program, N runs, through the driver in <tests dir>, with a variant
 patched in (none, norewrite, norestore). Usage: probe_var.py <tests dir> <N> <work> <variant>"""
+import os
 import atexit, collections, shutil, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from harness import guest  # noqa: E402
-SET = Path("/Users/claygendron/Git/Repos/wasi_python/build/sets/s-c50ca51fae5eb55b-c9dcb5b8")
+SET = Path(os.environ.get("P083_SET") or sys.exit("P083_SET: a private copy of the set (cp -c -Rp)"))
 N, variant = int(sys.argv[2]), sys.argv[4]
 calls = getattr(guest, "_FileCalls", None) or getattr(guest, "_Stats", None)
 if variant == "norewrite":  # forward wasmtime's answers unchanged

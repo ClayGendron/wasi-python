@@ -1,9 +1,10 @@
 """Spec 083 probe: correlate fuel with each filestat answer's fields (prototype driver)."""
+import os
 import atexit, shutil, struct, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from harness import guest  # noqa: E402
-SET = Path("/Users/claygendron/Git/Repos/wasi_python/build/sets/s-c50ca51fae5eb55b-c9dcb5b8")
+SET = Path(os.environ.get("P083_SET") or sys.exit("P083_SET: a private copy of the set (cp -c -Rp)"))
 seen = []
 orig = guest._Stats._rewrite
 def rewrite(self, caller, memory, at):

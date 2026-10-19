@@ -1,9 +1,10 @@
 """Spec 083 probe: does fd_readdir's d_ino equal fd_filestat's ino (main's driver)?"""
+import os
 import atexit, shutil, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from harness import guest  # noqa: E402
-SET = Path("/Users/claygendron/Git/Repos/wasi_python/build/sets/s-c50ca51fae5eb55b-c9dcb5b8")
+SET = Path(os.environ.get("P083_SET") or sys.exit("P083_SET: a private copy of the set (cp -c -Rp)"))
 code = """import os
 os.mkdir('/d'); open('/d/a', 'w').close(); os.mkdir('/d/s')
 for e in os.scandir('/d'):
