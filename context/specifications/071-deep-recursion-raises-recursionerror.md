@@ -1,6 +1,6 @@
 # 071 — Deep recursion raises RecursionError instead of trapping the guest
 
-- **Status:** drafted 2026-10-18 (`0a379ac`, question 102 at `f5c6151`, both rebased onto main
+- **Status:** **landed 2026-10-19** (accepted on `9dad163` as `4f72587`, history line 72; the build review with its delta look, `../reviews/071-deep-recursion-raises-recursionerror-build-2026-10-19.md`, confirmed it; see the Landing notes' last part). Before landing: drafted 2026-10-18 (`0a379ac`, question 102 at `f5c6151`, both rebased onto main
   `6fd89e0`); reviewed before build the same day
   (`scratchpad/071-review/071-deep-recursion-raises-recursionerror-spec-2026-10-18.md`, for the
   lane to copy to `../reviews/`; verdict: "ready once F1 to F5 are answered, with F6 to F11
@@ -953,3 +953,26 @@ accepted; Decision 9 held in 15 orders on glibc and musl, both architectures.
   rebuild; the recipe hunk is the same, and the lane re-measures at landing.
 - **Criterion 10** added four rows to criterion 1 and nothing to Decision 5, as it provides for
   shapes that raise.
+
+**Landed 2026-10-19** through the lane, after spec 069. The branch was already on main `d900dd9`
+(the builder's rebase onto 069), so no lane rebase was needed; the reviewer's delta look showed all
+thirteen reviewed commits patch-identical after that rebase and the product diff unchanged (889 lines).
+The pre-build review with its confirmation and the build review with its delta look
+(`../reviews/071-deep-recursion-raises-recursionerror-spec-2026-10-18.md`,
+`../reviews/071-deep-recursion-raises-recursionerror-build-2026-10-19.md`) were committed on the
+detached HEAD as `9dad163`. **The main tree's full build from pins** (16 steps, 7 min 00 s) gave
+`SHA256SUMS` `14ada22ab85623c558917c69e5f42b2a328a058eed5f811c7f70af6f1cf71769`, byte for byte the
+builder's: `python.wasm` `ab78e893…` (41,099,661 bytes, +219 over 069's), the snapshot `c50ca51f…`
+(44,633,983, +278), the zip unchanged (EXECUTED, `build/lane-071-build.log`). The set is frozen
+read-only as `build/sets/s-c50ca51fae5eb55b`. The full judge there, serial: `wasi_python v1: 533/550
+pass · 15 gap · 2 blocked · 0 fail (unit suite 1273/1275, 2 skipped)`, `1806 passed, 4 skipped, 15
+xfailed in 748.95s`, accepted with `--accept-judge` and `--accept-growth` (the delta look's traced
+reason: the new function's 38-byte message moves every later C string literal by 38 bytes, so
+code that walks such a literal costs a few operators more by its new alignment; at most +0.23% on
+the lxml encoding checks, +0.06% elsewhere) as `4f72587`, history line 72 (EXECUTED,
+`build/lane-071-accept.log`). The rules tier passed (40/40, unpiped); main fast-forwarded. Spec 063,
+landing next, restates its faulthandler check to "the host survives: the call is refused, or the
+trap is returned", retiring its gap; spec 065, after it, drops the four `test_recursive_pickle`
+trap entries and adds the three `test_highly_nested` variants under question 102. Spec 078 (the
+runner's own threads have room for the wasm stack) is reserved.
+
