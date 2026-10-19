@@ -1,8 +1,8 @@
 # 081 — guest fuel does not depend on where the repository is checked out
 
 - **Status:** **built 2026-10-19** on `spec/081-guest-fuel-does-not-depend-on-the-checkout`,
-  rebased onto main `3f69654` (the Landing notes); drafted the same day from main `8f8de73`.
-  Decision 5's merge waits for spec 063's landing. It changes neither the guest's imports nor its exports, the artifact
+  rebased onto main `08de0c8` (spec 063 landed) with Decision 5's merge made (the Landing notes);
+  drafted the same day from main `8f8de73`, first built on `3f69654`. It changes neither the guest's imports nor its exports, the artifact
   set nor the build recipe, so §5.6 asks no review before build. It was sent for one anyway, at
   the lane's request, and revised against it the same day ("ready once F1 to F3 are written
   in": `../reviews/081-guest-fuel-does-not-depend-on-the-checkout-spec-2026-10-19.md`, and the
@@ -353,11 +353,45 @@ In the long clone, each mutant fails both rows:
   them. Its `build/progress/latest.json` is kept in the worktree.
 - The two restated rows fall, so the ratchet prints no line for them.
 
-### Still to do: Decision 5
+### Rebased onto `08de0c8` and merged with 063 (Decision 5)
 
-When spec 063 lands, this branch rebases onto it and merges the lxml check by hand as Decision 5
-says (063's `win32` branch for the outside case, its docstring sentence and `import sys`); then
-the fast tier again, and the lane's delta review if the merge moved anything beyond that.
+Spec 063 landed as `19427b5` (squashed) and `08de0c8`. The rebase conflicted only in
+`test_stylesheets_and_entities_reach_only_grants`, in two hunks; the roadmap and everything else
+merged cleanly. The merge, by hand (`build/merge_with_063.diff`, against the pre-rebase tip
+`e194f46`):
+- 063's `import sys` is kept at the module's top;
+- the docstring keeps both sentences: 063's (on Windows the drive and backslashes are refused by
+  name, so libxml2 reports the load failed, and still nothing is read) and 081's (the unrecorded
+  run, with its guest-path read);
+- the outside case takes 063's platform branch: on `win32`, `XMLSyntaxError` with "failed to
+  load" and "Operation not permitted"; elsewhere `ok <r/>`;
+- 063's "no `SECRET`" line moves out of the `win32` branch and runs on every platform;
+- unchanged from the build: `OUTSIDE` unrecorded and `SAFETY` measured, each exit code
+  asserted; the host-side assertion on the string passed; the two disjoint keys; the control;
+  the twelve other `expect` lines; the `out.xml` assertion.
+The measured program is unchanged, so the two rows' fuel is unchanged: plain 506,200,859 and
+snapshot 215,014,922 in the merged full run.
+
+**The judge after the merge** (`-n 3`, against `build/sets/s-c50ca51fae5eb55b`;
+`build/fast-081-merged.log`, `build/full-081-merged.log`; `build/progress/latest.json` kept):
+- fast tier: `476/554 pass · 1 gap · 25 blocked · 1 fail · 51 deselected (unit suite 1503/1511,
+  8 skipped)`; `1 failed, 1979 passed, 33 skipped, 1 xfailed`; `ratchet vs 9a446e03f6: lost 1 ·
+  absent 0 · unrun 0 · unrun locally 23 · gained 0 · grew 0 · upstream unrun 31 · not selected
+  37 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_3_lxml.py,
+  tests/harness/guest.py and 1 more`;
+- full: `493/554 pass · 3 gap · 57 blocked · 1 fail (unit suite 1503/1511, 8 skipped)`; `1
+  failed, 1996 passed, 65 skipped, 3 xfailed`; `ratchet vs 9a446e03f6: lost 1 · absent 0 · unrun
+  0 · unrun locally 43 · gained 0 · grew 0 · upstream unrun 31 · judge changed: …` (the same four
+  files).
+- **The one failure is not 081's.** `test_manifest_recipes_match_the_tree`: `stale artifact:
+  scripts/refuse-python is not in MANIFEST; stale artifact: scripts/build.sh changed` (digest
+  `0e68988ea311`). Spec 079 changed `scripts/` after `s-c50ca51fae5eb55b` was built, so that
+  set's `MANIFEST` no longer matches main's recipes. Main `08de0c8` itself fails the same check
+  against that set, with the same digest (EXECUTED in a clean clone, `build/main_manifest_check.out`).
+  Against the lane's newer set `s-c50ca51fae5eb55b-c9dcb5b8`, whose two binaries are
+  byte-identical to `s-c50ca51fae5eb55b`'s and whose `MANIFEST` differs only in the recipe lines,
+  the check passes in this worktree. The lane judges against that set, so it should see no
+  failure; the fuel rows cannot differ, since the binaries are the same.
 
 ### For the lane
 
