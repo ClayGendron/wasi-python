@@ -47,6 +47,27 @@ fuel = 28_000_000_000
 paths = ["pandas/tests/libs"]
 fuel = 35_000_000_000
 
+# pandas' Styler tests, which run once jinja2 is in the zip (spec 039). Each of these files makes a
+# Styler as it is imported, and the Styler loads its templates by path from the zip, so the file
+# stops at collection with TemplateNotFound, and with it the whole group: left out until spec 041
+# reads them from the zip.
+[[not_selected]]
+files = [
+    "pandas/tests/io/formats/style/test_exceptions.py",
+    "pandas/tests/io/formats/style/test_format.py",
+    "pandas/tests/io/formats/style/test_highlight.py",
+    "pandas/tests/io/formats/style/test_html.py",
+    "pandas/tests/io/formats/style/test_matplotlib.py",
+    "pandas/tests/io/formats/style/test_non_unique.py",
+    "pandas/tests/io/formats/style/test_style.py",
+    "pandas/tests/io/formats/style/test_to_latex.py",
+    "pandas/tests/io/formats/style/test_to_string.py",
+    "pandas/tests/io/formats/style/test_to_typst.py",
+    "pandas/tests/io/formats/style/test_tooltip.py",
+]
+reason = "pandas' Styler loads its templates (html.tpl) with jinja2's FileSystemLoader by path from the zip: each file raises TemplateNotFound at collection"
+closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
+
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
 # fit. Each class's members are listed in expected/<group>/<id>.txt and admitted as one gap.
@@ -108,3 +129,23 @@ outcome = "failed"
 match = 'wasi does not support processes'
 reason = 'no processes: subprocess is unavailable on WASI'
 closes_with = "README.md"
+
+# pandas' Styler, and `to_latex`, which renders through it (spec 039): the tests that import
+# jinja2 ran as skips before it was in the zip. They fail where the Styler loads its templates by
+# path from the zip, until spec 041 reads them from the zip.
+
+[[expected]]
+id = "styler-templates"
+group = "pandas-frame"
+outcome = "failed"
+match = 'TemplateNotFound'
+reason = "pandas' Styler loads html.tpl with jinja2's FileSystemLoader by path from the zip (inspect.getmembers and the LaTeX repr reach it)"
+closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
+
+[[expected]]
+id = "styler-templates"
+group = "pandas-io-formats"
+outcome = "failed"
+match = 'TemplateNotFound|Regex pattern did not match'
+reason = "the same; jinja2's TemplateNotFound is a LookupError, so test_filepath_or_buffer_arg's pytest.raises(LookupError, match='unknown encoding') for to_latex catches it with another message"
+closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
