@@ -949,6 +949,13 @@ The review is in the lane's scratchpad,
   record stands. If a stray warning ever shows it on Windows, the top's tag is compared as
   `_is_folder` compares the entries'.
 
+After B1: the affected checks pass; the fast tier, `-n 3` (`build/fast-084-b1.log`), `484/629
+pass · 0 fail`, lost 0, grew 0, gained 6. The pytest runs made for B1 had overwritten
+`build/progress/latest.json`, so the full judge was run once more, `-n 3`, on `7740b01`
+(`build/full-084-b1.log`): `501/629 pass · 3 gap · 125 blocked · 0 fail (unit suite 1595/1603, 8
+skipped)`, `2096 passed, 133 skipped, 3 xfailed`, `lost 0 · absent 0 · unrun 0 · gained 6 · grew
+0`. Its record is `build/progress/latest.json`; no pytest ran after it.
+
 ### For the lane
 
 - `--accept-judge "spec 084: a private root and a fresh HOME are removed by a walk that holds
