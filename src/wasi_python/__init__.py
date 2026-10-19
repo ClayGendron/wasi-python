@@ -31,7 +31,7 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
-__version__ = "0.1.0a7"
+__version__ = "0.1.0a8"
 
 _ARTIFACT_DIR = Path(__file__).resolve().parent / "artifacts"
 _ARTIFACTS_ENV = "WASI_PYTHON_ARTIFACTS"
