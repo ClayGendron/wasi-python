@@ -59,7 +59,7 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag); 070 (the judge's small follow-ups); 068 (a cap on files open at once, default 1,024); 047 (regex); 055 (bounded sessions, closed as Jupyter closes them); 076 (the grant checks agree on Windows); 069 (the snapshot pre-imports no package, decision 34); 071 (deep recursion raises RecursionError, and a host guard against late signal handlers); 080 (071's recursion checks count deterministic fuel); 075 (tools.py small fixes: the a6 review's F1 and 060's N1); 079 (the build runs only the pinned host Python: the a6 review's F2); 077 (the grant follow-ups); 063 (the release judges in parallel shards: twelve shards and a gather, about 23 minutes a dry run).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag); 070 (the judge's small follow-ups); 068 (a cap on files open at once, default 1,024); 047 (regex); 055 (bounded sessions, closed as Jupyter closes them); 076 (the grant checks agree on Windows); 069 (the snapshot pre-imports no package, decision 34); 071 (deep recursion raises RecursionError, and a host guard against late signal handlers); 080 (071's recursion checks count deterministic fuel); 075 (tools.py small fixes: the a6 review's F1 and 060's N1); 079 (the build runs only the pinned host Python: the a6 review's F2); 077 (the grant follow-ups); 063 (the release judges in parallel shards: twelve shards and a gather, about 23 minutes a dry run); 081 (guest fuel does not depend on where the repo is checked out).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
@@ -75,11 +75,13 @@ the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed 
 inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
 `16ee747c…`; `SHA256SUMS` `c353b1d9…`).
 
-In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages come first). Built, landing next: 081 (guest fuel
-does not depend on where the repo is checked out; after its merge with 063's lxml check and a delta
-look). Confirmed and built on 063, rebasing onto main: 065 (CPython's own tests in the release).
-Building: 037 (scipy, first milestone), 043 (matplotlib M2) and 039 (tier A), each build-class. Drafted, in pre-build review: 083 (the judge
-fixes the file times and inode numbers a guest sees, so fuel does not wobble; before 0.1.0).
+In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages
+come first). Built, landing next: 065 (CPython's own tests in the release; rebased, its full judge
+green). Building: 037 (scipy, first milestone; its same-bytes exception for ducc0's FFT, question
+104, reviewed and being built), 043 (matplotlib M2) and 039 (tier A), each build-class. Confirmed
+for build: 083 (the judge fixes the file times, inode numbers and link count a guest sees, so fuel
+does not wobble; builds after 065 lands) and 073 (`run` keeps an unclosed file's bytes:
+a fresh `__main__` for every program; build-class, builds when no package is ready).
 
 Confirmed for build, in the build-class queue (up to four built at once while the packages come
 first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
@@ -116,18 +118,32 @@ the guest's 512 KiB, where musl's default of 128 KiB lets a recursing guest kill
 (EXECUTED there; main does the same). It is the small, pool-only neighbour of question 102's
 option (a), a stack the runner owns for every call; if the owner chooses (a), 078 is folded in.
 
-Reserved: 081, guest fuel does not depend on where the repo is checked out: a host path reaches a
-guest's arguments (spec 075's build review, N2).
-
 Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
 inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,
 16 guard refusals in `test_runner_calls.py` and `test_runner_mounts.py` after `test_landing_lane`
 and `test_plugin`, since 071).
 
-Reserved: 083, the judge's driver answers file timestamps from its fixed clock (spec 081's review,
-F1): wasmtime's `filestat` calls hand the guest the host's real modification times, so a program
-that uses them costs steps of 17 instructions on some runs (up to 187 at one path on matplotlib's
-plot row in 081's build; the smallest accepted row allows 121).
+Reserved from the 0.1.0a7 security review (2026-10-19,
+`../reviews/0.1.0a7-security-review-2026-10-19.md`), each before 0.1.0: **084**, a private root
+outlives its call: a guest given `root=True` builds a tree deeper than the process's free
+descriptors, so `shutil.rmtree` fails silently and disk use adds up across calls (F1, medium; a
+removal that holds no descriptor per level, a retry at the next sweep, and a check); **085**,
+`gather` checks what it trusts: the lane's acceptance tied to the set's `SHA256SUMS` hash as well as
+`python.wasm`'s (F5), the allowed check-and-reason pairs pinned so an accepted pass reported
+`blocked` everywhere turns red (F6), each record's counts cross-checked and a missing metric red
+(F7), and the rebuild jobs print `python3 --version` (N5); **087**, the guest follow-ups: a carried
+patch so regex keeps clock ticks in `clock_t` and `timeout=` fires past 2.147 s (F3, with its
+upstream draft), libxslt's `xsltMaxDepth` lowered from a recipe so deep XSLT raises instead of
+trapping (F4, optional), and checks that hold the README's corrected lxml and recursion sentences
+(F2, F4).
+
+Reserved: **086**, the toolchain moves to wasi-sdk 34 (LLVM 23.1.0). The pinned wasi-sdk 33 orders
+`try_table` blocks by heap address in one pass of the WebAssembly backend, so scipy's ducc0 FFT
+compiles to different bytes on every run; LLVM fixed it upstream (`fd76c9bd`, issue #204883) in
+LLVM 23, and wasi-sdk 34 compiled that file to one object in 16 runs (research
+`2026-10-19-the-try-table-order-in-llvm.md`). The move re-verifies every package's bytes on every
+host and removes spec 037's same-bytes exception (question 104). Clang 23 adds `-Wunused-template`
+warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check.
 
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question

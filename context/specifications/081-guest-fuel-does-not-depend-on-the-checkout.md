@@ -1,6 +1,6 @@
 # 081 — guest fuel does not depend on where the repository is checked out
 
-- **Status:** **built 2026-10-19** on `spec/081-guest-fuel-does-not-depend-on-the-checkout`,
+- **Status:** **landed 2026-10-19** (accepted on `dfbf8e0` as `2c0693f`, history line 78; the build review, `../reviews/081-guest-fuel-does-not-depend-on-the-checkout-build-2026-10-19.md`, said it lands after a delta look at the 063 merge, and the delta look said it lands). Before landing: **built 2026-10-19** on `spec/081-guest-fuel-does-not-depend-on-the-checkout`,
   rebased onto main `08de0c8` (spec 063 landed) with Decision 5's merge made (the Landing notes);
   drafted the same day from main `8f8de73`, first built on `3f69654`. It changes neither the guest's imports nor its exports, the artifact
   set nor the build recipe, so §5.6 asks no review before build. It was sent for one anyway, at
@@ -398,3 +398,19 @@ snapshot 215,014,922 in the merged full run.
 - `--accept-judge "spec 081: a measured guest run may not be given a host path (the driver
   refuses it), so fuel does not depend on where the checkout is; the lxml grant check's
   host-path probe runs on its own, unrecorded, and its two rows' fuel is restated (both fall)"`.
+
+**Landed 2026-10-19** through the lane, after spec 063. The lane rebased the branch from main
+`08de0c8` onto main `2968512` (decisions and questions only in between) with no conflict; its diff
+equals the reviewed diff at `9a5fc3d` line for line (EXECUTED, `build/lane-081/delta.txt`, empty).
+No `scripts/`, `recipes/` or release-workflow file changed, so the artifact set is main's
+(`SHA256SUMS` `c9dcb5b8`, the set frozen as `s-c50ca51fae5eb55b-c9dcb5b8`) and no rebuild was
+needed. The reviews were committed as `dfbf8e0`, and the lane's serial `uv run pytest` there
+accepted it with `--accept-judge` at history line 78: 537/554 pass, 0 fail, ratchet lost 0, grew 0;
+the lxml rows took their restated values without growth. Sameness (rule 6a): the builder's full
+`-n 3` record and the lane's serial record (`build/lane-081/serial-latest.json`) differ only where
+the worktree lacks the main tree's source trees, prior-art clones, oracle and wasmtime CLI (blocked
+there), and in the stale set's MANIFEST check the builder named; no check's fuel, bytes or passes
+differ (`build/lane-081/sameness.txt`). The delta look also found the stdlib zip's hard-link count
+reaching the guest's `stat` (past about 1,020 links, about 21 rows' fuel moves); the main tree's
+artifacts hold one link, so this landing was not touched by it, and spec 083's amendment of
+2026-10-19 fixes it for every run.
