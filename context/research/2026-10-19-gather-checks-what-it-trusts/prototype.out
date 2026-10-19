@@ -1,0 +1,31 @@
+derived (check, need) pairs:
+   tests/checks/test_rules.py::test_every_prior_art_clone_has_its_licence_recorded ['prior-art clones'] on ['linux', 'macos', 'windows']
+   tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain] ['descriptor limit'] on ['windows']
+   tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[snapshot] ['descriptor limit'] on ['windows']
+   tests/checks/test_v1_2_portable_and_sealed.py::test_same_bytes_passed_on_three_systems ['three systems'] on ['linux', 'macos', 'windows']
+   tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle ['oracle'] on ['linux', 'macos', 'windows']
+0 red line(s) on run-records:
+== a_windows
+1 red line(s) on a_windows:
+  G5 windows-own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] records no fuel (accepted.json has it)
+== linux
+1 red line(s) on linux:
+  G4 linux-own-runner: suite {} is not its 538 unit tests
+== test_v1_2_portable_and_sealeds_sealed_check_blocke
+3 red line(s) on test_v1_2_portable_and_sealeds_sealed_check_blocke:
+  G4 linux-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', not allowed here
+  G4 macos-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', not allowed here
+  G4 windows-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network: blocked by 'oracle', not allowed here
+== the_descriptor-limit_check_blocked_on_macOS_and_Li
+2 red line(s) on the_descriptor-limit_check_blocked_on_macOS_and_Li:
+  G4 linux-own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', not allowed here
+  G4 macos-own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain]: blocked by 'descriptor limit', not allowed here
+== the_numpy-core_suite_blocked_by_three_systems_in_e
+1 red line(s) on the_numpy-core_suite_blocked_by_three_systems_in_e:
+  G4 linux-upstream-numpy-a tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]: blocked by 'three systems', not allowed here
+== the_tag_runs_records_as_they_are
+0 red line(s) on the_tag_runs_records_as_they_are:
+== windows
+1 red line(s) on windows:
+  G4 windows-own-runner: suite {'passed': 0, 'skipped': 0, 'total': 0} is not its 538 unit tests
+0 red line(s) on run-records-065:

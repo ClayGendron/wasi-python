@@ -1,0 +1,10 @@
+('darwin', 'bytes') same/above/below/n = [3, 0, 0, 3] worst rel above = 0
+('darwin', 'fuel') same/above/below/n = [116, 25, 8, 149] worst rel above = 4.23e-07
+('darwin', 'passes') same/above/below/n = [1, 0, 0, 1] worst rel above = 0
+('linux', 'bytes') same/above/below/n = [3, 0, 0, 3] worst rel above = 0
+('linux', 'fuel') same/above/below/n = [103, 33, 23, 159] worst rel above = 0.00197
+('linux', 'passes') same/above/below/n = [11, 0, 0, 11] worst rel above = 0
+('win32', 'bytes') same/above/below/n = [3, 0, 0, 3] worst rel above = 0
+('win32', 'fuel') same/above/below/n = [112, 23, 14, 149] worst rel above = 0.000451
+('win32', 'passes') same/above/below/n = [1, 0, 0, 1] worst rel above = 0
+{('linux', 'fuel'): 159, ('linux', 'bytes'): 3, ('linux', 'passes'): 11, ('darwin', 'fuel'): 149, ('darwin', 'bytes'): 3, ('darwin', 'passes'): 1, ('win32', 'fuel'): 149, ('win32', 'bytes'): 3, ('win32', 'passes'): 1}

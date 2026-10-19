@@ -1,0 +1,35 @@
+build-build                  platform=darwin-arm64     suite={'passed': 9, 'skipped': 0, 'total': 9} units.count=9 goal-ran=37 statuses={'deselected': 517, 'pass': 37}
+linux-own-embedding          platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=156 statuses={'deselected': 398, 'gap': 1, 'pass': 155}
+linux-own-guest              platform=linux-x86_64     suite={'passed': 98, 'skipped': 2, 'total': 100} units.count=100 goal-ran=285 statuses={'blocked': 2, 'deselected': 269, 'gap': 2, 'pass': 281}
+linux-own-rest               platform=linux-x86_64     suite={'passed': 859, 'skipped': 5, 'total': 864} units.count=864 goal-ran=45 statuses={'blocked': 1, 'deselected': 509, 'pass': 44}
+linux-own-runner             platform=linux-x86_64     suite={'passed': 538, 'skipped': 0, 'total': 538} units.count=538 goal-ran=0 statuses={'deselected': 554}
+linux-upstream-frame         platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=2 statuses={'deselected': 552, 'pass': 2}
+linux-upstream-groupby       platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=2 statuses={'deselected': 552, 'pass': 2}
+linux-upstream-numpy-a       platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=10 statuses={'deselected': 544, 'gap': 7, 'pass': 3}
+linux-upstream-numpy-b       platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=8 statuses={'deselected': 546, 'gap': 3, 'pass': 5}
+linux-upstream-pandas-small  platform=linux-x86_64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=9 statuses={'deselected': 545, 'gap': 2, 'pass': 7}
+macos-own-embedding          platform=darwin-arm64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=156 statuses={'deselected': 398, 'gap': 1, 'pass': 155}
+macos-own-guest              platform=darwin-arm64     suite={'passed': 98, 'skipped': 2, 'total': 100} units.count=100 goal-ran=285 statuses={'blocked': 2, 'deselected': 269, 'gap': 2, 'pass': 281}
+macos-own-rest               platform=darwin-arm64     suite={'passed': 859, 'skipped': 5, 'total': 864} units.count=864 goal-ran=45 statuses={'blocked': 1, 'deselected': 509, 'pass': 44}
+macos-own-runner             platform=darwin-arm64     suite={'passed': 538, 'skipped': 0, 'total': 538} units.count=538 goal-ran=0 statuses={'deselected': 554}
+macos-upstream-macos         platform=darwin-arm64     suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=4 statuses={'deselected': 550, 'gap': 2, 'pass': 2}
+windows-own-embedding        platform=win32-amd64      suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=156 statuses={'deselected': 398, 'gap': 1, 'pass': 155}
+windows-own-guest            platform=win32-amd64      suite={'passed': 98, 'skipped': 2, 'total': 100} units.count=100 goal-ran=285 statuses={'blocked': 4, 'deselected': 269, 'gap': 2, 'pass': 279}
+windows-own-runner           platform=win32-amd64      suite={'passed': 531, 'skipped': 7, 'total': 538} units.count=538 goal-ran=0 statuses={'deselected': 554}
+windows-upstream-windows     platform=win32-amd64      suite={'passed': 0, 'skipped': 0, 'total': 0} units.count=0 goal-ran=3 statuses={'deselected': 551, 'gap': 1, 'pass': 2}
+
+blocked:
+  linux-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_same_bytes_passed_on_three_systems three systems
+  linux-own-guest tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle oracle
+  linux-own-rest tests/checks/test_rules.py::test_every_prior_art_clone_has_its_licence_recorded prior-art clones
+  macos-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_same_bytes_passed_on_three_systems three systems
+  macos-own-guest tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle oracle
+  macos-own-rest tests/checks/test_rules.py::test_every_prior_art_clone_has_its_licence_recorded prior-art clones
+  windows-own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain] descriptor limit
+  windows-own-guest tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[snapshot] descriptor limit
+  windows-own-guest tests/checks/test_v1_2_portable_and_sealed.py::test_same_bytes_passed_on_three_systems three systems
+  windows-own-guest tests/checks/test_v1_3_data_stack.py::test_goldens_reproduce_under_the_pinned_oracle oracle
+
+passing checks missing an accepted darwin-arm64 metric name: 0
+
+passing checks with metric names accepted.json lacks: 0

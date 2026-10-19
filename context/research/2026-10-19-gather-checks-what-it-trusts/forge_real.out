@@ -1,0 +1,8 @@
+GREEN the tag run's records as they are
+GREEN test_v1_2_portable_and_sealed's sealed check blocked by 'oracle' on all three systems
+GREEN the numpy-core suite blocked by 'three systems' in every record
+GREEN the descriptor-limit check blocked on macOS and Linux too
+GREEN linux/own-runner's suite is {} (538 unit tests in its share)
+GREEN windows/own-runner's suite is all zeros (538 unit tests in its share)
+   (the check: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] )
+GREEN a windows/own-guest record drops one check's fuel

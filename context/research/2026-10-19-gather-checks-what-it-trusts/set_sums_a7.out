@@ -1,0 +1,11 @@
+# gh release download v0.1.0a7 -p '*.tar.xz' -p SHA256SUMS (2026-10-19); hashes below
+## the release assets' SHA256SUMS (what the build job hands on as sums-sha256):
+fc59b977f6aac5a84163fe26b4bf2af6416966d0142faea42556096ea5e9291d  wasi-python-0.1.0a7-wasm32-wasip1.tar.xz
+e7727db9ca8412d540eb00de9fd799258579dff854d9847def6341f1eba15b4b  wasi_python-0.1.0a7-py3-none-any.whl
+2c7e95ca27c3a475f11a3cb539328c7cfcc453581f68b67eb55ac79fbdd1f722  SHA256SUMS
+## inside the .tar.xz: the artifact set's own SHA256SUMS and python.wasm:
+c9dcb5b84ae2447ad0105cb78a6d06956326c4f2447fa977f7f58fa54c137739 wasi-python-0.1.0a7/SHA256SUMS
+ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db wasi-python-0.1.0a7/python.wasm
+## the lane's frozen set (main tree):
+c9dcb5b84ae2447ad0105cb78a6d06956326c4f2447fa977f7f58fa54c137739  build/sets/s-c50ca51fae5eb55b-c9dcb5b8/SHA256SUMS
+ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db  build/sets/s-c50ca51fae5eb55b-c9dcb5b8/python.wasm

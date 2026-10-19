@@ -1,0 +1,16 @@
+-- GREEN the good set
+F6 GREEN an accepted-pass class check blocked by 'oracle' in every record that runs it
+F6 GREEN an upstream suite blocked by 'three systems' in every record, its metrics gone
+F6 GREEN a rule blocked by 'descriptor limit' on macOS and Linux, where the need is met
+F7 GREEN a record's suite is {} though its share has 2 unit tests
+F7 GREEN a record's suite is all zeros though its share has 2 unit tests
+F7 GREEN a record's suite counts one unit test fewer than its share (one dropped)
+F7 RAISE a record's suite counts are not whole numbers: TypeError: unsupported operand type(s) for -: 'str' and 'str'
+F7 GREEN a record's suite counts a bool as a whole number
+F7 GREEN a Linux record drops an upstream suite's fuel (accepted on darwin-arm64)
+F7 GREEN a Windows record drops a product check's fuel (accepted on darwin-arm64)
+F7 GREEN a Linux record's product-check fuel is a string (accepted on darwin-arm64)
+F5 GREEN the newest acceptance is on python.wasm but another set's SHA256SUMS
+F5 GREEN the newest acceptance records no set at all (a line from before 085)
+F5 GREEN a record judged another set (meta.set_sums) with the same python.wasm
+13 of 14 forgeries leave gather green
