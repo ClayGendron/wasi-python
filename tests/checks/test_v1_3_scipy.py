@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from harness import jobs, needs, scan
+from harness import jobs, scan
 
 pytestmark = pytest.mark.goal("v1.3")
 
@@ -21,15 +21,11 @@ BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
 FUEL = 60 * 10**9  # a scipy import and one small computation, with room; a hang ends here
 
 
-def _run(which: str, code: str, metric):
-    """One program, as an embedder runs it with nothing writable; its fuel is the check's metric."""
-    needs.need("runner", "artifact dir")
-    import wasi_python
-
-    done = wasi_python.run(["-c", code], snapshot=which == "snapshot", fuel=FUEL, deadline_s=None)
-    if done.fuel_used is not None:
-        metric("fuel", done.fuel_used)
-    return done
+def _run(guest, which: str, code: str):
+    """One program, as an embedder runs it with nothing writable (the root `/` read-only), through
+    the judge's own driver, whose seeded random and stepped clock make its fuel repeat (spec 080;
+    037's build review, F1). The fuel is the check's metric."""
+    return guest(which, ["-c", code], fuel=FUEL, root_writable=False)
 
 
 def _describe(done) -> str:
@@ -91,9 +87,9 @@ print(json.dumps({"singular": got}))
 
 
 @BINARY
-def test_a_singular_solve_raises_linalgerror(which, metric) -> None:
+def test_a_singular_solve_raises_linalgerror(guest, which) -> None:
     """LAPACK's info code reaches Python as `LinAlgError`."""
-    assert _json(_run(which, SINGULAR, metric)) == {"singular": "LinAlgError"}
+    assert _json(_run(guest, which, SINGULAR)) == {"singular": "LinAlgError"}
 
 
 COLLINEAR = """
@@ -110,10 +106,10 @@ print(json.dumps({"collinear": got}))
 
 
 @BINARY
-def test_a_flat_convex_hull_raises_qhullerror(which, metric) -> None:
+def test_a_flat_convex_hull_raises_qhullerror(guest, which) -> None:
     """qhull's `longjmp` and scipy's message stream (wasi-libc's `open_memstream`, no temporary
     file) reach Python as `QhullError` with qhull's own message code, with nothing writable."""
-    assert _json(_run(which, COLLINEAR, metric)) == {"collinear": ["QhullError", True]}
+    assert _json(_run(guest, which, COLLINEAR)) == {"collinear": ["QhullError", True]}
 
 
 CALLBACK_RAISES = """
@@ -134,11 +130,11 @@ print(json.dumps(out))
 
 
 @BINARY
-def test_a_python_callbacks_exception_comes_back_through_c(which, metric) -> None:
+def test_a_python_callbacks_exception_comes_back_through_c(guest, which) -> None:
     """A `ValueError` raised in a Python function that `_zeros` and QUADPACK call back is
     re-raised to the caller (their `setjmp` paths, compiled with wasm's exception handling)."""
     want = {"brentq": "from the callback", "quad": "from the callback"}
-    assert _json(_run(which, CALLBACK_RAISES, metric)) == want
+    assert _json(_run(guest, which, CALLBACK_RAISES)) == want
 
 
 INFEASIBLE = """
@@ -150,9 +146,9 @@ print(json.dumps({"status": r.status}))
 
 
 @BINARY
-def test_highs_reports_an_infeasible_problem(which, metric) -> None:
+def test_highs_reports_an_infeasible_problem(guest, which) -> None:
     """HiGHS, asked for one thread and starting none, reports infeasibility (status 2)."""
-    assert _json(_run(which, INFEASIBLE, metric)) == {"status": 2}
+    assert _json(_run(guest, which, INFEASIBLE)) == {"status": 2}
 
 
 WORKERS = """
@@ -178,7 +174,7 @@ print(json.dumps(out))
 
 
 @BINARY
-def test_workers_run_serially_or_raise_as_documented(which, metric) -> None:
+def test_workers_run_serially_or_raise_as_documented(guest, which) -> None:
     """`scipy.fft`'s `workers` runs serially and gives the same answer (ducc0's threads are
     compiled out); `differential_evolution(workers=2)` builds a process pool and
     `cKDTree.query(workers=2)` starts threads, and each raises at once, as the README says,
@@ -190,7 +186,7 @@ def test_workers_run_serially_or_raise_as_documented(which, metric) -> None:
         "differential_evolution": "AttributeError",
         "cKDTree.query": "RuntimeError",
     }
-    assert _json(_run(which, WORKERS, metric)) == want
+    assert _json(_run(guest, which, WORKERS)) == want
 
 
 ODR = """
@@ -205,10 +201,10 @@ print(json.dumps({"odr": got}))
 
 
 @BINARY
-def test_scipy_odr_is_left_out_by_name(which, metric) -> None:
+def test_scipy_odr_is_left_out_by_name(guest, which) -> None:
     """`scipy.odr` needs ODRPACK, which is Fortran: importing it raises an `ImportError` that
     says so (decision 28)."""
-    got = _json(_run(which, ODR, metric))["odr"]
+    got = _json(_run(guest, which, ODR))["odr"]
     assert "Fortran" in got and "scipy.odr" in got, got
 
 
@@ -251,12 +247,12 @@ print(json.dumps(out))
 
 
 @BINARY
-def test_matrix_market_round_trips_in_memory(which, metric) -> None:
+def test_matrix_market_round_trips_in_memory(guest, which) -> None:
     """`mmwrite` then `mmread` of a sparse and a dense matrix through `io.BytesIO`, with
     nothing writable, give back the same matrix. A gap until spec 038: fast_matrix_market's
     default parallelism starts a thread pool, and starting a thread throws on WASI."""
     want = {"sparse": True, "dense": True}
-    _compare(_run(which, MATRIX_MARKET, metric), want, "Matrix Market in memory")
+    _compare(_run(guest, which, MATRIX_MARKET), want, "Matrix Market in memory")
 
 
 SOBOL = """
@@ -268,7 +264,7 @@ print(json.dumps({"points": pts.tolist()}))
 
 
 @BINARY
-def test_sobol_needs_nothing_writable(which, metric) -> None:
+def test_sobol_needs_nothing_writable(guest, which) -> None:
     """The first four points of the unscrambled two-dimensional Sobol sequence, with nothing
     writable. A gap until spec 038: `_sobol.pyx` loads its direction numbers through
     `importlib.resources.as_file`, which copies the zip member to a temporary file; with no
@@ -276,7 +272,7 @@ def test_sobol_needs_nothing_writable(which, metric) -> None:
     ignored" and leaves the direction numbers zero, so every point is 0 (the build's finding; the
     README warns of it)."""
     want = {"points": [[0.0, 0.0], [0.5, 0.5], [0.75, 0.25], [0.25, 0.75]]}
-    _compare(_run(which, SOBOL, metric), want, "Sobol with nothing writable")
+    _compare(_run(guest, which, SOBOL), want, "Sobol with nothing writable")
 
 
 CTYPES_VALUES = """
@@ -301,7 +297,7 @@ print(json.dumps(out))
 
 
 @BINARY
-def test_ctypes_values_scipy_makes(which, metric) -> None:
+def test_ctypes_values_scipy_makes(guest, which) -> None:
     """Three distributions pass their parameters to C as a `ctypes.c_void_p`, and `loadarff`
     computes `ctypes.c_ulong(-1).value`; each returns a finite number or its records. A gap until
     spec 038: the `ctypes` stand-in raises `OSError` for any instance of a C type."""
@@ -311,4 +307,4 @@ def test_ctypes_values_scipy_makes(which, metric) -> None:
         "studentized_range": True,
         "loadarff": [[1.0, 2.0], [3.0, 4.0]],
     }
-    _compare(_run(which, CTYPES_VALUES, metric), want, "ctypes values")
+    _compare(_run(guest, which, CTYPES_VALUES), want, "ctypes values")

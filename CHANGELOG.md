@@ -242,7 +242,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks).
   OpenBLAS's kernels use wasm SIMD: hosts need `simd128` (every supported wasmtime has it).
   Known gaps until spec 038: `mmread` and `mmwrite` raise (a thread pool); `qmc.Sobol` with nothing
-  writable returns zeros, with an "Exception ignored" message (give a temporary folder);
+  writable gives wrong numbers with exit 0 and an "Exception ignored" message (unscrambled all
+  zeros, scrambled one point repeated; `differential_evolution(init='sobol')` and
+  `shgo(sampling_method='sobol')` with it; give a temporary folder);
   `geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range` and `loadarff` raise `OSError`
   from the `ctypes` stand-in. `fft`'s `workers=` runs serially; `differential_evolution` and
   `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.

@@ -560,6 +560,7 @@ def run(
     measured: bool = True,
     host_roots: Sequence[Path] = (),
     clock_step_ns: int = CLOCK_STEP_NS,
+    root_writable: bool = True,
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
@@ -572,7 +573,8 @@ def run(
     count of its reads (spec 087, Decision 3), and the file times the driver answers take the same
     step (spec 083's ticks). The default keeps every other check's fuel; at the
     default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time (spec 065), and
-    with another step the realtime and monotonic clocks state that step as their resolution."""
+    with another step the realtime and monotonic clocks state that step as their resolution.
+    `root_writable=False` grants the root read-only."""
     if measured and own is None:
         named = host_paths_in((*host_roots_always(), *host_roots), argv, env, files, preopens)
         if named:
@@ -616,9 +618,10 @@ def run(
     extra = [
         (str(host_dir), guest_path, writable) for guest_path, host_dir, writable in preopens or []
     ]
-    ordered = (
-        [*extra, (str(root), "/", True)] if preopens_first else [(str(root), "/", True), *extra]
-    )
+    # The root is writable unless a check runs as an embedder's default call does, with nothing
+    # writable (spec 037's build review, F1: its checks moved here from `wasi_python.run`).
+    top = (str(root), "/", root_writable)
+    ordered = [*extra, top] if preopens_first else [top, *extra]
     if lib is not None:
         ordered.insert(0, (str(lib), "/usr/local/lib", False))
     if mpl_data:

@@ -132,8 +132,9 @@ compile=$(grep -- '-o Programs/python.o' "$L/make-n.txt" | tail -n 1)
 link=$(grep -- '-o python.wasm Programs/python.o' "$L/make-n.txt" | tail -n 1)
 [ -n "$compile" ] && [ -n "$link" ] || die "make -n python.wasm printed no compile or link command"
 compile=$(printf '%s' "$compile" | sed "s#[^ ]*Programs/python\.c#$HERE/recipes/reactor_main.c#; s#-o Programs/python\.o#-I$L -o Modules/reactor_main.o#")
-# freopen refused (spec 037): qhull's `TO` option is its one caller, and wasi-libc's freopen is the
-# one user of fd_renumber, a WASI call the runner does not watch (recipes/freopen_refusal.c).
+# freopen refused (spec 037): qhull's `TI` option is its one caller, and wasi-libc's freopen is the
+# one user of fd_renumber, which the runner shadows (spec 068); refusing it keeps the import list as
+# it is (recipes/freopen_refusal.c).
 GUARDS="iconv_refusals fcntl_dup_refusal freopen_refusal"
 guards=""
 guard_objects=""

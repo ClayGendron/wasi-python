@@ -218,6 +218,15 @@ SCIPY_NOTICES = (
     "scipy/spatial/COPYING_QHULL.txt",
     "scipy/stats/biasedurn/license.txt",
 )
+# The bundled notices scipy's LICENSES_bundled.txt points to inside source headers ("For details,
+# see ..."), for the three compiled or packed here (037's build review, F7): pystreambuf (cctbx,
+# BSD-3-Clause, linked in io._fast_matrix_market), Chebfun and getLebedevSphere (BSD-3-Clause and
+# BSD-2-Clause, packed as bytecode). (path, words the notice must hold.)
+SCIPY_HEAD_NOTICES = (
+    ("scipy/io/_fast_matrix_market/src/pystreambuf.h", ("cctbx Copyright", "Redistribution")),
+    ("scipy/interpolate/_bary_rational.py", ("Chebfun Developers", "Redistribution")),
+    ("scipy/integrate/_lebedev.py", ("getLebedevSphere", "Redistribution")),
+)
 # OpenBLAS's terms: its own licence and Reference-LAPACK's, whose C translation it carries.
 OPENBLAS_NOTICES = ("LICENSE", "lapack-netlib/LICENSE")
 # What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
@@ -388,6 +397,26 @@ def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
             return (comment + "\n").encode()
         start = end + 2
     raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
+def hash_notice(path: Path, words: tuple[str, ...]) -> bytes:
+    """A Python file's leading `#` comment, which must hold every one of `words`."""
+    if not path.is_file():
+        raise SystemExit(f"{path.name} is missing: its licence notice cannot be read")
+    lines = []
+    for line in path.read_text().splitlines():
+        if not line.startswith("#"):
+            break
+        lines.append(line)
+    comment = "\n".join(lines) + "\n"
+    if not all(w in comment for w in words):
+        raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
+    return comment.encode()
+
+
+def scipy_head_notice(tree: Path, rel: str, words: tuple[str, ...]) -> bytes:
+    path = tree / rel
+    return hash_notice(path, words) if rel.endswith(".py") else head_notice(path, words)
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -499,7 +528,11 @@ def main() -> None:
             ("regex LICENSE.txt", (b / "regex-2026.9.29" / "LICENSE.txt").read_bytes()),
             ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
         ],
-        "scipy": [(f"scipy {n}", (b / "scipy-1.18.1" / n).read_bytes()) for n in SCIPY_NOTICES],
+        "scipy": [(f"scipy {n}", (b / "scipy-1.18.1" / n).read_bytes()) for n in SCIPY_NOTICES]
+        + [
+            (f"scipy {n}, its head comment", scipy_head_notice(b / "scipy-1.18.1", n, words))
+            for n, words in SCIPY_HEAD_NOTICES
+        ],
         "openblas": [
             (f"OpenBLAS {n}", (b / "OpenBLAS-0.3.34" / n).read_bytes()) for n in OPENBLAS_NOTICES
         ],

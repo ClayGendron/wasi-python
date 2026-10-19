@@ -1119,10 +1119,13 @@ changed and why; each is small and none changes a decision's purpose. The review
     `context/upstream/patches/scipy-1.18.1/`; scipy `main` has the same lines). Spec 038's two
     patches become `0002-…` and `0003-…` (a dated line there).
 11. **freopen is refused in the reactor** (`recipes/freopen_refusal.c`, `-Wl,--wrap=freopen`, as
-    046's iconv guard is linked): its one caller is qhull's `TO <file>` option, and wasi-libc's
-    freopen is the only user of `fd_renumber`, a WASI call the runner's descriptor shadows (spec
-    068) do not cover; without the refusal `python.wasm` gained that import
-    (`test_every_descriptor_import_is_shadowed`). `TO` now fails as an unopenable file does.
+    046's iconv guard is linked): its one caller is qhull's `TI <file>` option (qhull refuses `TO`
+    before it), and wasi-libc's freopen is the only user of `fd_renumber`; without the refusal
+    `python.wasm` gained that import (`test_every_descriptor_import_is_shadowed`). *Corrected
+    after the build review (F6):* the runner does shadow and count `fd_renumber` since spec 068
+    (`mounts.SIGNATURES`, `mounts.COUNTED`), so this was never a hole; the refusal's reason is
+    that it keeps the import list as it is and costs nothing, qhull's file options being no use
+    in the sandbox. `TI` now fails as an unopenable file does (QH6041).
 12. **Printing in `scipy_lapack.py`.** Single precisions print 5 significant digits, double 9
     (float32 holds about 7, and its last bits follow the order of a sum); a real eigenvalue's
     imaginary part below 1e-4 of its size prints as 0, a stated bound; the Schur input was shifted
@@ -1131,11 +1134,17 @@ changed and why; each is small and none changes a decision's purpose. The review
 13. **What the `workers` cases raise** (Decision 9, recorded by the build): `differential_evolution`
     and `brute` raise `AttributeError` (the pool's queue needs `os.pipe`), `cKDTree.query` raises
     `RuntimeError` ("can't start new thread").
-14. **The Sobol gap is a silent zero, not an `OSError`.** `_sobol.pyx` swallows the temporary-file
-    error in a `noexcept` function ("Exception ignored") and every point is 0. The gap records that,
-    and the README warns of it until spec 038.
-15. **How the checks run.** The behaviour checks run through `wasi_python.run` with no root and
-    no grant, so nothing is writable, as an embedder runs it; the gap checks report each item as
+14. **The Sobol gap is a silent wrong number, not an `OSError`.** `_sobol.pyx` swallows the
+    temporary-file error in a `noexcept` function ("Exception ignored") and the direction numbers
+    stay 0. *Corrected after the build review (F4):* unscrambled, every point is 0; scrambled, the
+    default, one point repeats in every row; `differential_evolution(init='sobol')` starts from
+    that population and `shgo(sampling_method='sobol')` raises a confusing `QhullError`. The gap
+    records it, and the README warns of it until spec 038.
+15. **How the checks run.** The behaviour checks run with nothing writable, as an embedder's
+    default call does. *Changed after the build review (F1):* they ran through `wasi_python.run`,
+    whose fuel moves from run to run on the plain binary (spec 080); they now run through the
+    judge's own driver (seeded random, stepped clock) with its root granted read-only
+    (`guest.run(..., root_writable=False)`, a new keyword), so their fuel repeats; the gap checks report each item as
     a finding with its digest, as `known_gaps.toml` requires. scipy's dotted builtins have their
     own check and budget (the existing check's comment asks for a split per package), with a table
     of the two names native scipy itself gives differently (`uarray._uarray`; a circular import
@@ -1354,7 +1363,17 @@ the wheel is 65,702,001 bytes.
 - **The Boost flag** halves `betaincc`'s cost (binary128 in software without it) and leaves the
   value alone; without it `python.wasm` is 272,602 bytes larger.
 - **The wheel** is 65.7 MB, 34.3 MB under PyPI's 100 MB (question 64 stays open, no landing
-  crosses it).
+  crosses it). *The build review's measures (F5, EXECUTED; disposition: accepted, nothing cut
+  now):* the code section is 61.28 MB against 31.90 MB (scipy's archives 20.0 MB and its static
+  libraries 4.2 MB, HiGHS 3.5 MB of that; OpenBLAS 5.2 MB; sparsetools 3.8 MB, HiGHS 4.9 MB in
+  all, `special` about 3.4 MB); the `name` section 13.03 MB against 2.44 MB, **0.88 MB deflated**,
+  and the judge needs it (the constructor check, the callback scan, `same_bytes.py`); the wheel
+  carries the code twice, the reactor's and the snapshot's, 13.8 MB deflated each, so a package
+  costs the wheel about twice its deflated code plus its zip members, and about three more
+  packages of 044's, 045's and 042's size (+10 to +15 MB each, INFERRED) would cross PyPI's
+  100 MB. `-Os` for scipy might save 3 to 6 MB raw, 1 to 1.5 MB of the wheel (INFERRED), not
+  without per-module evidence (ducc0 at `-Os` crashed). The coordinator raises the wheel size
+  with the owner.
 - **Build time** (a benchmark fact): 18 steps from empty in 17 min 11 s on macOS while a
   container build ran beside it (14 min 53 s at `3aa0d5b`, also beside one; step 38 alone 1 min
   57 s).
@@ -1397,8 +1416,18 @@ RED: 161 metric(s) grew
     (HiGHS's strings and the rest, OpenBLAS's `gotoblas_quit`) and 21,000 for the larger zip;
   - the checks that walk the zip's directory or its resources (`test_the_zips_directory.py`, up
     to +24%) and `importlib.metadata`'s walk: 608 more members, one more distribution;
-  - the rest, 0.004% to 5%: the same start and exit cost on longer runs (the upstream groups,
-    the golden jobs of numpy, pandas, matplotlib, lxml and regex).
+  - the rest, 0.004% to 5%, and two large ones (*corrected after the build review, F3*, which
+    measured the cause): every import that misses the builtin table scans it, and it has 95 more
+    entries (242 against 147), so each miss costs about 59% more (2,000 `_imp.is_builtin` misses
+    and 200 `find_spec` misses: 135.8 M against 85.4 M; `gc.collect()` costs the same on both).
+    pytest's imports make many such misses: that is the upstream groups' growth with the same
+    passes (`numpy-core` +2.40 G, +1.18%; `pandas-reshape` +234.6 M; `pandas-io-parser` +68.4 M;
+    `pandas-io-formats` +55.2 M; `numpy-lib` +49.5 M; `pandas-internals` +37.6 M) and the long
+    golden jobs'. The two groups that gained passes grew by scipy's own import: `pandas-groupby`
+    +8.07 G is its one new pass, `sem`, importing `scipy.stats` (a snapshot `import scipy.stats`
+    costs 8.67 G), and `pandas-frame` +10.6 G its 73 new passes importing scipy. This cost grows
+    with every builtin package (a note for the roadmap; a faster lookup is a later CPython-recipe
+    question).
 - **Accept reasons** for the lane:
   - `--accept-judge "spec 037: scipy's checks, goldens and oracle pin (scipy 1.18.1, macosx_12_0
     wheel on macOS arm64, one BLAS thread), the three gaps closed by spec 038, the reviewed
@@ -1407,12 +1436,49 @@ RED: 161 metric(s) grew
     count in the progress unit checks, the patches-from-their-script check; and Decision 17 (the
     owner's answer to question 104): test_the_same_bytes_exception_is_still_needed,
     tests/unit/test_same_bytes.py and its fixture, the same-bytes gate's compare_sets.py rule and
-    its mutations in place of the cmp rule, and same-bytes' contents: read"`;
-  - `--accept-growth "spec 037: scipy and OpenBLAS are linked (python.wasm +43.1 MB, a finding
-    for the build review under Decision 14) and their package is in the zip (+608 members, +5.7
-    MB): every plain start pays about 16.5 M for the members and the constructors and every
-    exit about 1.2 to 1.5 M for the C++ static destructors; zip-walking checks scale with the
-    members"`.
+    its mutations in place of the cmp rule, and same-bytes' contents: read; the implementation
+    review's I1 to I3 rows; the build review's F1 (the scipy behaviour checks through the judge's
+    driver with a read-only root: guest.run's root_writable) and F4 (the Sobol gaps' reasons)"`;
+  - `--accept-growth "spec 037: scipy and OpenBLAS are linked (python.wasm +43.1 MB: Decision
+    14's bound exceeded; build review F5: measured, accepted, nothing cut) and their package is in
+    the zip (+608 members, +5.7 MB): every plain start pays about 16.5 M for the members and the
+    constructors and every exit about 1.2 to 1.5 M for the C++ static destructors; zip-walking
+    checks scale with the members; every import that misses the builtin table scans 95 more
+    entries (242 against 147, about 59% more per miss: the upstream groups and the long golden
+    jobs); pandas-groupby's one new pass and pandas-frame's 73 import scipy (build review F3)"`.
+
+### The build review (`../reviews/037-scipy-build-2026-10-19.md`, the lane copies it)
+
+"Lands once F1 is fixed and F2 is done, and F3 to F7 are fixed or answered in writing." Each,
+on the branch at `2968512` (the rebase and F2 come after 043 lands):
+
+- **F1, fixed.** The behaviour checks of `test_v1_3_scipy.py` run through the judge's driver with
+  a read-only root (Revised at build, item 15), so their fuel repeats: three runs of the file's
+  fast checks (`build/037/f1/run-{1,2,3}.json`), every fuel row equal or within 2.4e-8 (the
+  driver's documented residual), against the review's 6.6e-4 through `wasi_python.run`. The six
+  gap checks fail as recorded, with their digests.
+- **F2, after 043 lands** (the lane's order is 039, 043, 037): Decision 8's shared qhull
+  (conditions a, b, d, e and f, from 043's Decision 6) and the `fd_renumber` tripwire,
+  reconciled with 043's 29 at the rebase.
+- **F3, fixed:** the growth list and the `--accept-growth` reason name the builtin-table scan and
+  scipy's own import (the judge section).
+- **F4, fixed in the text** (README, CHANGELOG, both `[[gap]]` reasons, item 14). *The
+  builder's recommendation:* bring 038's Sobol patch
+  (`0002-stats-sobol-without-a-temporary-file.patch`, one Cython function, its check already
+  written) forward into 037. F2 already makes 037 rebuild from empty and take a delta review
+  after the rebase, so the patch adds one carried patch and no extra cycle, and main then never
+  carries a default that returns wrong numbers with exit 0, which a dry run or a user of main
+  would meet. If the lane keeps it in 038, the roadmap must say no release tag carries 037
+  without 038's fix. The lane decides.
+- **F5, accepted, nothing cut:** the reviewer's numbers are in the numbers section.
+- **F6, fixed:** `recipes/freopen_refusal.c`, step 60's comment and item 11 give the true reason
+  (spec 068 shadows and counts `fd_renumber`; the refusal keeps the import list and costs
+  nothing), and the README says `TI` reaches `freopen` (QH6041) while qhull refuses `TO` first
+  (QH7092).
+- **F7, fixed:** `LICENSES/scipy.txt` carries the three header notices (pystreambuf's cctbx
+  BSD-3-Clause, Chebfun's BSD-3-Clause, getLebedevSphere's BSD-2-Clause), read from the source
+  by `assemble_artifacts.py` (`SCIPY_HEAD_NOTICES`), each refused if its words move.
+- **F8, at the rebase:** the CHANGELOG entries move under 0.1.0a8.
 
 ### For the lane
 

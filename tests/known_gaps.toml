@@ -422,13 +422,13 @@ closes_with = "context/specifications/038-scipy-second-milestone.md"
 [[gap]]
 check = "tests/checks/test_v1_3_scipy.py::test_sobol_needs_nothing_writable[plain]"
 match = "1 finding(s), digest accb7992f785"
-reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and every point is 0 (README)"
+reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and the direction numbers stay 0: unscrambled every point is 0, scrambled (the default) one point repeats in every row, differential_evolution(init='sobol') starts from that population and shgo(sampling_method='sobol') raises QhullError (README)"
 closes_with = "context/specifications/038-scipy-second-milestone.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_scipy.py::test_sobol_needs_nothing_writable[snapshot]"
 match = "1 finding(s), digest accb7992f785"
-reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and every point is 0 (README)"
+reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and the direction numbers stay 0: unscrambled every point is 0, scrambled (the default) one point repeats in every row, differential_evolution(init='sobol') starts from that population and shgo(sampling_method='sobol') raises QhullError (README)"
 closes_with = "context/specifications/038-scipy-second-milestone.md"
 
 [[gap]]

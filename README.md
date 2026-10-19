@@ -245,14 +245,19 @@ carried scipy patch gives five of uarray's callbacks the signatures CPython call
 - **Not yet, until scipy's next milestone (spec 038)**: `scipy.io.mmread` and `mmwrite` raise
   `RuntimeError` (fast_matrix_market starts a thread pool); `stats.geninvgauss.cdf`,
   `genhyperbolic.cdf`, `studentized_range` (and `tukey_hsd`) and `io.arff.loadarff` raise
-  `OSError` from the `ctypes` stand-in; and **`stats.qmc.Sobol` with nothing writable returns all
-  zeros**, after printing "Exception ignored" to stderr: it copies its direction numbers to a
-  temporary file, and scipy swallows the error. Give the call a writable `/tmp` (`root=True`, or a
-  writable grant at `/tmp`) when you use Sobol, `qmc_quad` or `sobol_indices`.
+  `OSError` from the `ctypes` stand-in; and **`stats.qmc.Sobol` with nothing writable gives
+  wrong numbers and exits 0**, after printing "Exception ignored" to stderr: it copies its
+  direction numbers to a temporary file, scipy swallows the error, and the numbers stay zero.
+  Unscrambled, every point is 0; scrambled (the default), one point repeats in every row.
+  `optimize.differential_evolution(init='sobol')` silently starts from that population, and
+  `optimize.shgo(sampling_method='sobol')` raises a confusing `QhullError` (QH6421). Give the call
+  a writable `/tmp` (`root=True`, or a writable grant at `/tmp`) when you use Sobol, `qmc_quad`,
+  `sobol_indices` or either of those options. Spec 038 fixes it.
 - **Absent with the platform**: `LowLevelCallable.from_ctypes` and any ctypes function pointer
-  (no libffi); `scipy.datasets`' downloads (no network, and no `pooch`). qhull's `TO <file>`
-  option fails as an unopenable file does (QhullError): the reactor refuses `freopen`, its one
-  user.
+  (no libffi); `scipy.datasets`' downloads (no network, and no `pooch`). qhull's `TI <file>`
+  option (input from a file) fails as an unopenable file does (QH6041, a `QhullError`): the
+  reactor refuses `freopen`, its one user. `TO <file>` never gets that far: scipy passes no
+  output file, and qhull refuses `TO` first (QH7092).
 - **`OPENBLAS_*` environment variables** are read by OpenBLAS's constructor when the reactor
   initializes; on the snapshot that ran at build time, so they do nothing there. OpenBLAS runs on
   one thread either way, and maps a 16 MiB buffer at its first level-3 call.
