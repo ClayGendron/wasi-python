@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from harness import guest, paths, wat
@@ -204,3 +206,92 @@ def test_turns_drives_one_instance_across_calls(work) -> None:
         assert t.run().value == 0
     finally:
         t.close()
+
+
+# Spec 081: a measured run's inputs name no host path, so its fuel does not depend on where the
+# checkout is. The driver refuses one before it runs.
+
+
+def test_host_paths_are_found_in_every_input_the_guest_sees(work) -> None:
+    """An argument, an environment variable, a file's guest path and contents, and a grant's
+    guest path that name the root, as written or in forward slashes, are each named."""
+    repo = paths.REPO
+    found = guest.host_paths_in(
+        [repo],
+        ["-c", "print(1)", str(repo / "build" / "x"), (repo / "y").as_posix()],
+        env={"HOME": "/home", "DATA": str(repo)},
+        files={
+            "/plain.txt": "no path here",
+            "/a.py": f"open({str(repo)!r})".encode(),
+            f"/{repo.name}.txt": "",
+            str(repo / "z"): "",
+        },
+        preopens=[("/ro", work, False), (str(work), work, False)],
+    )
+    assert found == [
+        "argv[3]",
+        "argv[4]",
+        "env DATA",
+        "the contents of /a.py",
+        f"file {repo / 'z'}",
+        f"grant {work}",
+    ]
+
+
+def test_a_root_is_found_in_its_file_uri(work) -> None:
+    """A root with a space or a non-ASCII letter is percent-encoded in a `file:` URI."""
+    root = work / "a b é"
+    uri = (root / "secret.txt").as_uri()
+    assert "%20" in uri
+    assert guest.host_paths_in([root], ["-c", f"open_url({uri!r})"]) == ["argv[2]"]
+
+
+def test_a_windows_root_is_found_escaped_and_in_any_case() -> None:
+    """A Windows path written inside code by `repr` or JSON has its backslashes doubled; on
+    Windows a drive or folder in another case is the same path. The root is Windows-shaped on
+    every system (on POSIX it is a relative path, which has no URI)."""
+    import json
+
+    root = Path(r"C:\Users\runner\work")
+    inside = r"C:\Users\runner\work\wasi_python\secret.txt"
+    code = ["-c", f"a = {inside!r}", "-c", json.dumps({"p": inside}), inside]
+    assert guest.host_paths_in([root], code) == ["argv[2]", "argv[4]", "argv[5]"]
+    lower = inside.lower()
+    assert guest.host_paths_in([root], [lower], fold_case=False) == []
+    assert guest.host_paths_in([root], [lower], fold_case=True) == ["argv[1]"]
+
+
+def test_guest_paths_and_other_folders_are_not_host_paths(work) -> None:
+    other = work / "elsewhere"
+    assert guest.host_paths_in([other], ["/ro/x", str(work)], env={"T": "/tmp"}) == []
+    assert guest.host_paths_in([other], [str(other / "f")]) == ["argv[1]"]
+
+
+def test_the_system_temp_folder_is_a_root_unless_it_is_slash_tmp(work, monkeypatch) -> None:
+    """On Linux the temp folder is `/tmp`, a path guests are given as their own; anywhere else
+    (macOS' `/var/folders/…`, Windows' `%TEMP%`) it is a host path."""
+    wasm = wat.build(work, "plain.wasm", wat.PLAIN_REACTOR)
+    monkeypatch.setattr(guest.tempfile, "gettempdir", lambda: "/tmp")
+    assert guest.run(wasm, ["/tmp/x"], workdir=work, env={"TMPDIR": "/tmp"}).exit_code == 101
+    temp = Path("/var/folders/zz/somewhere/T")
+    monkeypatch.setattr(guest.tempfile, "gettempdir", lambda: str(temp))
+    with pytest.raises(ValueError, match=r"host path in argv\[1\]"):
+        guest.run(wasm, [str(temp / "x")], workdir=work)
+
+
+def test_a_measured_run_with_a_host_path_is_refused_before_it_runs(work) -> None:
+    wasm = wat.build(work, "plain.wasm", wat.PLAIN_REACTOR)
+    runs = len(list(work.glob("run-*")))
+    with pytest.raises(ValueError, match=r"host path in argv\[1\]: its fuel would depend"):
+        guest.run(wasm, [str(work / "f")], workdir=work)
+    elsewhere = Path("/somewhere/else")
+    with pytest.raises(ValueError, match=r"host path in grant /somewhere/else"):
+        guest.run(
+            wasm,
+            [],
+            workdir=work,
+            preopens=[(str(elsewhere), work, False)],
+            host_roots=[elsewhere],
+        )
+    assert len(list(work.glob("run-*"))) == runs  # refused before its root was made
+    assert guest.run(wasm, [str(work / "f")], workdir=work, measured=False).exit_code == 101
