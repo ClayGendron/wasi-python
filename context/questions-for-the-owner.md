@@ -133,6 +133,38 @@ document.
 - **Meanwhile:** spec 071 builds without the answer. Its limits are documented and checked; the
   five (six) trap entries name this question as their closer. Nothing else waits on it.
 
+### 103. Should `run` on the snapshot pay 28 M instructions a call to finalize what a program hangs on the frozen heap?
+
+- **Asked:** 2026-10-19. **Source:** `specifications/073-run-keeps-an-unclosed-files-bytes.md`
+  ("The residual" and Decision 6), with its evidence in
+  `research/2026-10-19-run-and-the-frozen-main/`. Nothing waits on it: spec 073 builds as
+  written.
+- **The fact:** the snapshot's initializer freezes the heap (`gc.freeze()`), and the collector
+  never looks at frozen objects again. Spec 073 gives every program a fresh, unfrozen `__main__`,
+  so a file a program leaves open in its own namespace keeps its bytes, for about 0.5 M
+  instructions. But a program can hang its own objects on the frozen heap itself: for example
+  `json.JSONEncoder.default = default`, with `default` defined in the program, or an open file
+  stored on one of 15 pre-imported modules (`json.log = open(...)`). Then the frozen heap reaches
+  them, they are never finalized, and a file they reach loses its buffered bytes on the snapshot
+  (EXECUTED: 0 of 100 bytes; the plain binary keeps 100). A check holds it, as a gap naming this
+  question.
+- **The question:** should `run` undo the freeze before it finalizes, as a session's close does
+  (spec 055)?
+  - **(a) Yes.** The snapshot then finalizes exactly as CPython does. Cost: +28.2 M instructions
+    on every snapshot call (a bare call from 15.6 M to 43.8 M, 2.8 times dearer; +44.5 M after
+    `import pandas`). The snapshot's start becomes only 3.8 times cheaper than the plain start, so
+    spec 069's check (b), which asks 8, is restated, and the reason spec 069 kept the freeze is
+    given up for `run`. A later build-class specification.
+  - **(b) No.** Keep the freeze. The README states the corner and its advice: close files with
+    `with`, and do not hang open files on stdlib modules or classes. The gap's closer becomes the
+    README.
+- **The agent's recommendation:** (b). The corner needs a program to attach its own objects to
+  the snapshot's stdlib modules or classes, and closing the file avoids it entirely; the price of
+  (a) falls on every call, including the many that never open a file. Choose (a) if exactness to
+  CPython's teardown matters more than the snapshot's start.
+- **Meanwhile:** spec 073 builds its option 4 (a fresh `__main__`), documents the corner, and
+  holds it with check D and its gap.
+
 ## The owner's direction for the product (2026-10-17)
 
 "I am thinking of this more as a safe runtime for agent code. The use case is much more
