@@ -1,0 +1,20 @@
+bringing up nodes...
+bringing up nodes...
+
+......................................................                   [100%]
+=================================== progress ===================================
+wasi_python v1: 54/54 pass · 0 gap · 0 blocked · 0 fail   (unit suite 0/0)
+  v1.1  artifact set         0/0   
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           1/1   
+  v1.4  embedding           53/53  
+  v1.5  rebuild from pins    0/0   
+  rules constitution rules   0/0   
+ratchet vs dfbf8e044f: lost 0 · absent 0 · unrun 0 · gained 9 · grew 4 · upstream unrun 32 · not selected 492 · judge changed: tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_4_embedding.py, tests/known_gaps.toml
+GREW tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain: fuel 15631800 -> 43745970
+GREW tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[plain]: fuel 167703525 -> 167777835
+GREW tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[snapshot]: fuel 15830415 -> 43948963
+RED: 4 metric(s) grew
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+54 passed in 107.19s (0:01:47)

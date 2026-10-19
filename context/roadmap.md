@@ -199,7 +199,8 @@ Follow-ups decided by the owner: a provider's `OSError` carries its errno to the
 Follow-up from spec 069's pre-build review (2026-10-18, the lane's ruling on its F1): **spec
 073, `run` keeps an unclosed file's buffered bytes** (drafted 2026-10-19 on
 `spec/073-run-keeps-unclosed-files-bytes`; confirmed for build after its pre-build review;
-amended 2026-10-19 by question 103's answer; build-class). On the snapshot, `run` loses the
+amended 2026-10-19 by question 103's answer; build-class; **built 2026-10-19**, awaiting its build
+review). On the snapshot, `run` loses the
 buffered bytes of a file left open when `__main__` defines a function: `__main__`'s dict is
 frozen, so once its module dies at finalization nothing frees it (the frozen heap; found by spec
 055's addendum, P10b). A script and `-m` lose them on both binaries too, in runpy's temporary

@@ -1,6 +1,8 @@
 # 073 — `run` keeps an unclosed file's buffered bytes
 
-- **Status:** **drafted 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes` from main
+- **Status:** **built 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes`, rebased onto main
+  `2737b29` (the Landing notes): the full judge has 0 fail and no lost pass; its growth is this
+  specification's, listed for the lane; awaiting its build review. Before that: **drafted 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes` from main
   `08de0c8` (`ede53a7`); **revised 2026-10-19 against its pre-build review**
   (`../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md`, written in the lane's scratchpad with its probes, to be copied
   by the lane; verdict "ready once F1 to F4 are written in"; F1 to F8 are written in, and
@@ -672,13 +674,151 @@ command in its docstring.
 
 ## Landing notes
 
-Not built. The builder fills this in: the commits; the checks seen failing first and each
-stand-in's failure; the rebuilt set's hashes; check (b)'s two counts and factor; the bare row's
-rise and the plain row's (criterion 4); the rows that moved, up and down (Decision 8); the user-visible changes of
-Decisions 2 and 3 as check C and E saw them (the `atexit` handler, `-m`'s not-found line and
-traceback frames, the directory's "can't find '__main__' module" line, a script's `__package__`
-and `__loader__`); any upstream outcome that moved (Decision 10); the fast tier and the full
-judge's last lines; and the lines for the lane (`--accept-judge`, `--accept-growth`).
+### What was built
+
+On `spec/073-run-keeps-unclosed-files-bytes`, rebased onto main `2737b29` (081, the README
+corrections, the answered questions and the 0.1.0a7 release): `b4153b5` (the checks first) and
+`e7f0fcf` (the recipe, the judge's restatements, README and CHANGELOG), then these notes. Built
+in the worktree from an empty `build/` with `scripts/build.sh --plain`, the downloads copied from
+the main tree and verified by the build (49 pins, 0 fetched): 16 steps in 16 min 21 s
+(`build/073/build.log`).
+
+- `recipes/reactor_bootstrap.py`: `_MAIN_NAMES`, captured at import; `_fresh_main()`, called inside
+  `run`'s `try`; `_run_file()` for a script file (code from `runpy._get_code_from_file`,
+  `__file__` and a `SourceFileLoader` or `SourcelessFileLoader` set, `exec`, `__file__` removed in
+  a `finally`); `-m` through `runpy._run_module_as_main(target)`; a directory or zip through
+  `sys.path.insert(0, target)` and `runpy._run_module_as_main("__main__", alter_argv=False)`.
+- `recipes/reactor_main.c`: `wizer_initialize` takes `unfreeze_function` (`gc.unfreeze`) before
+  `gc.collect(); gc.freeze()`, and aborts the build if it cannot; `run` calls it after the bootstrap
+  returns and before `Py_FinalizeEx`, with `show_and_drop()` on an error, then clears it; a
+  forward declaration of `show_and_drop`; the comments of Decision 4.
+- Judge: checks A, C, D and E and (h)'s docstring (`tests/checks/test_v1_4_embedding.py`); (h)'s
+  gap entry removed (`tests/known_gaps.toml`); check (b)'s `START_FACTOR` 8 → 3 with its comment
+  and docstring (`tests/checks/test_v1_3_data_stack.py`). No other check, golden, allowance or
+  harness constant changed.
+- `README.md`: the run paragraph (every program in a fresh `__main__`), a fourth snapshot fact
+  (the unfreeze), the `fuel` sentence (A1), the *Measured* rows for the snapshot's `-c pass`
+  (43.7M, 16 ms) and `import pandas` (4.65G). `CHANGELOG.md`: a new `## 0.1.0a8 — unreleased`
+  section with one **Fixed** and one **Changed** bullet.
+
+### The artifact set (EXECUTED)
+
+`build/artifacts/`, rebuilt the same bytes by steps 60, 80 and 90 after the stand-ins
+(`build/073/rebuild-good.log`, every file `cmp`-equal to the first build's copy):
+
+| file | bytes | SHA-256 |
+|---|---|---|
+| `SHA256SUMS` | – | `82365b442e9fe424bb113c7f369acb67f551d22a692b4fda03290cfc91f8005e` |
+| `python.wasm` | 41,101,865 | `10cc1ddd16085012a17da2306fc1b2767c58080fb6c8ec98a9adcd14021e0b4f` |
+| `python-snapshot.wasm` | 44,641,933 | `dc856d441ce47922b4cf900329f8778bf672e3a714d7271ce867338bb144b637` |
+| `python-stdlib.zip` | 22,197,173 | `02026895917b7e22923db1bad99a02ee1d22f7382ff63715271e39fb9032d1fe` |
+
+The zip is byte for byte main's (its hash is main's set's): only the two binaries change.
+
+### Criteria, with their evidence
+
+1. **The checks fail first** (EXECUTED, `build_first_fail.out`, on a fresh `cp -Rp` copy of
+   `build/sets/s-c50ca51fae5eb55b-c9dcb5b8`, whose zip has one link): A fails with 3 findings on
+   the plain binary (`e6d5609d06d8`) and 7 on the snapshot (`98d69ac9128b`); C fails on both
+   (the snapshot's `-c` frozen; the plain binary's script `__package__`/`__loader__`); E fails on
+   both (`-m nope` prints an `ImportError` traceback); D`[plain]` passes and D`[snapshot]` fails
+   with **`frozen heap: 3 finding(s), digest cfb1afda1a48`**, the confirmation's digest; (h)
+   `[snapshot]` is its gap.
+2. **After the build** (EXECUTED, `build_after.out` and the full judge): (h)`[snapshot]`
+   passes and its gap entry is gone; A, C, D and E pass on both binaries.
+3. **What must not move** (EXECUTED): `test_main_starts_as_native`,
+   `test_the_import_path_reaches_every_mode` and all of `tests/checks/test_v1_4_sessions.py`
+   pass (54 passed in the targeted run, and again in the full judge). Check (b) passes with
+   `START_FACTOR` 3 at **3.831** (plain 167,579,289 ÷ snapshot 43,745,970; `build_measure.out`),
+   inside 3.5 to 4.2.
+4. **The cost, counted** (EXECUTED, `build_measure.out`, main's set copy against the built set,
+   through the judge's driver): the snapshot's `-c pass` **15,631,800 → 43,745,970, +28,114,170
+   (+179.85%)**, inside the band of +27.7 M to +28.8 M. The plain binary's `-c pass` 167,481,449
+   → 167,579,289, +97,840, inside 0.1 M (the projection was +29,676; see "Amendments at build").
+   The gap's row: snapshot +28,115,410 and 0 → 100 bytes, plain +131,579. `import pandas`:
+   snapshot +46,282,284 (+1.01%), plain +1,973,982 (+0.04%).
+5. **Stand-ins** (EXECUTED, `build_standins.py` → `build_standins.out`; each a one-change recipe,
+   steps 60, 80 and 90 rebuilt, seven checks run, the recipe restored):
+   - **S1** (`-c` and stdin `exec` in the old `__main__`): C, (h) and A fail, on both binaries.
+   - **S2** (the script branch on `runpy.run_path`): C, E and A (script and directory rows) fail.
+   - **S3** (`-m` on `runpy.run_module`): C, E and A (the `-m` row) fail.
+   - **S4** (no captured names): only C fails (`-c` first), as the review's F2 said;
+     `test_main_starts_as_native` passes.
+   - **S5** (runpy's `__package__` `''` and `__loader__` `None`): C's script row fails.
+   - **S6** (no unfreeze): D`[snapshot]` fails with `cfb1afda1a48`; criterion 4's rise on that
+     stand-in was not measured (its row passes check (b) at 8-plus).
+   - **S7** (no `finally`): C's script row fails (its `atexit` part).
+   - **S8** (`gc.unfreeze` looked up after the program): D`[snapshot]` fails on its tampered row
+     alone, `frozen heap: 1 finding(s), digest be4330beba1d`.
+   - **S9**: no check can see it; `tests/checks/test_v1_4_sessions.py` is green on the built set,
+     `test_the_shutdown_export_raw[snapshot]` among them.
+6. **README and CHANGELOG** as above; `tests/public_api.txt` unchanged (the fast tier's
+   public-API check passes).
+7. **The judge, in the worktree, without `--accept`** (EXECUTED; `build/progress/latest.json`
+   kept, a copy in `build/073/latest-full2.json`):
+   - fast tier (`uv run pytest -m "not slow" -n 3`, `build/073/fast-built.log`):
+     `wasi_python v1: 508/562 pass · 0 gap · 3 blocked · 0 fail · 51 deselected (unit suite
+     1504/1511, 7 skipped)`; `ratchet vs dfbf8e044f: lost 0 · absent 0 · unrun 0 · unrun locally 1
+     · gained 9 · grew 131 · upstream unrun 31 · not selected 37 · judge changed:
+     tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_4_embedding.py,
+     tests/known_gaps.toml`; `2012 passed, 10 skipped`;
+   - **the full judge** (`uv run pytest -n 3`, `build/073/full2.log`), with the upstream kit and
+     the oracle copied from the main tree (hash-checked by the judge's own needs):
+     `wasi_python v1: 545/562 pass · 14 gap · 3 blocked · 0 fail (unit suite 1504/1511, 7
+     skipped)`; `blocked by: prior-art clones 1 · three systems 1 · wheel 1`; `ratchet vs
+     dfbf8e044f: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 9 · grew 151 · judge
+     changed: tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_4_embedding.py,
+     tests/known_gaps.toml`; `RED: 151 metric(s) grew`; `2049 passed, 10 skipped, 14 xfailed in
+     812.16s`. The 9 gained are A, C, D and E on both binaries and (h)`[snapshot]`. An earlier
+     full run without the kit (`build/073/full.log`) gave the same verdicts with 31 upstream groups
+     blocked.
+   - `ruff check` and `ruff format --check` are green on `src/` and `tests/` (the rules tier).
+8. **The lane's** rebuild and serial judgement are the lane's.
+
+### The fuel that moved (EXECUTED, `build_growth.py` → `build_growth.out`)
+
+159 rows moved against `accepted.json`: 150 up, 9 down.
+- **Snapshot rows** rise by the unfreeze: a bare run's +28.1 M (about +178%) is the floor; the
+  median snapshot row rises +28.5 M; rows that imported much rise more, up to +71.9 M
+  (`test_ctypes_stand_in_names_what_packages_import[snapshot]`, +1.43%) and +88.1 M on lxml's
+  encodings check (+0.29%), since the teardown then walks and frees what the program imported as
+  well as the bootstrap's heap.
+- **Plain rows** move by the fresh `__main__` and, for jobs run as scripts, by `__main__` now
+  living until finalization: from −18,528 to +9,880,830
+  (`test_regex_features_job_matches_native[plain]`).
+- **Upstream groups** run `drive.py` as a script on the snapshot: from −599.8 M (pandas-groupby,
+  −0.13%) to +94.9 M (pandas-io-formats, +0.16%). **No upstream outcome moved**: 20 groups pass and
+  12 are gaps with their recorded digests, as accepted (Decision 10).
+
+### Amendments at build, with their reasons
+
+- **`_only_runpy` skips the reactor's own frames** before it tests for runpy's. `_run_file` is a
+  helper frame (`<reactor>`) between `run` and runpy's `_get_code_from_file`, so without this the
+  "can't open file" line would have become a traceback; with it the line is unchanged, which
+  `test_the_import_path_reaches_every_mode` and the script checks confirm.
+- **The plain binary's bare row rose +97,840, not the projected +29,676.** The projection was the
+  review's prototype through a wrapper; the bootstrap also captures `_MAIN_NAMES` at import, which
+  on the plain binary happens in the call. It is inside criterion 4's 0.1 M bound.
+- **Snapshot rows rise by more than 28 M after heavy imports** (up to +88 M; above). Decision 8
+  named +28 M a bare run and +45 M after `import pandas`; the growth reason below says "about 28 M
+  a run, more after large imports".
+- **The released 0.1.0a7 CHANGELOG section is not edited.** The Design asked spec 069's bullet to
+  lose its "Known and unchanged" sentence; 0.1.0a7 was released before this build, so its notes
+  stand as published and the new 0.1.0a8 section says what changed.
+- **S1 fails more than criterion 5 named** (also (h) and A on the plain binary): the old
+  `__main__` is out of `sys.modules`, so its dict dies early on both binaries.
+
+### For the lane
+
+- `--accept-judge "spec 073: checks A (test_run_keeps_unclosed_files_in_every_mode), C
+  (test_every_program_runs_in_an_unfrozen_main), D (test_run_keeps_a_file_the_stdlib_reaches) and
+  E (test_module_and_directory_errors_read_as_native); (h)'s docstring and its gap entry removed;
+  check (b)'s START_FACTOR restated from 8 to 3 by the owner's answer to question 103 (run on the
+  snapshot undoes the freeze before finalizing; measured 3.831)"`.
+- `--accept-growth "spec 073: question 103's answer: run on the snapshot finalizes the unfrozen
+  heap, about +28 M fuel a run (+28,114,170 on -c pass), more after large imports (up to +88 M);
+  every program also runs in a fresh __main__ (plain rows up to +9.9 M, scripts keeping __main__
+  until finalization)"`.
 
 ## Disposition of the pre-build review
 

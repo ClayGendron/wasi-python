@@ -1,0 +1,29 @@
+rows moved: 159 (150 up, 9 down)
+snapshot: 39 rows; rise from +14,640 to +71,913,024
+plain: 39 rows; rise from -18,528 to +9,880,830
+unparametrised: 81 rows
+largest rises:
+  +94,907,855 (+0.16%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-formats]  58,645,731,946 -> 58,740,639,801
+  +88,060,237 (+0.29%) tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented  30,712,123,224 -> 30,800,183,461
+  +71,913,024 (+1.43%) tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[snapshot]  5,016,935,398 -> 5,088,848,422
+  +58,233,294 (+0.27%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-internals]  21,198,972,610 -> 21,257,205,904
+  +50,019,297 (+0.57%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]  8,783,535,992 -> 8,833,555,289
+  +48,844,072 (+0.81%) tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot]  5,998,832,363 -> 6,047,676,435
+  +47,835,539 (+0.18%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-libs]  26,844,244,384 -> 26,892,079,923
+  +47,424,590 (+0.60%) tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi  7,938,882,590 -> 7,986,307,180
+largest rises in percent:
+  +179.85% (+28,114,170) tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain
+  +178.84% (+28,115,839) tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[snapshot]
+  +178.82% (+28,115,804) tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[snapshot]
+  +178.25% (+28,116,323) tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[snapshot]
+  +177.62% (+28,118,548) tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[snapshot]
+falls:
+  -599,813,100 (-0.13%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-groupby]
+  -179,078,174 (-0.05%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-frame]
+  -129,244,315 (-0.14%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-parser]
+  -73,639,912 (-0.04%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+  -7,140,490 (-0.02%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-tslibs]
+  -609,645 (-0.00%) tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-others]
+  -103,157 (-0.00%) tests/checks/test_v1_2_portable_and_sealed.py::test_nothing_is_a_shared_library
+  -18,528 (-0.00%) tests/checks/test_v1_3_matplotlib.py::test_patched_callbacks_run[plain]
+  -1,981 (-0.00%) tests/checks/test_v1_2_hostile_guest.py::test_pickling_a_deep_list_raises
