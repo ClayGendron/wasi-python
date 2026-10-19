@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compiler/linker wrapper for the meson cross builds: numpy, pandas and matplotlib (spike s12, spec 023).
+# Compiler/linker wrapper for the meson cross builds: numpy, pandas, matplotlib and scipy (spike s12, specs 023, 037).
 # Compile steps: run wasi-sdk clang for wasm32-wasip1 with -fPIC dropped (the objects are linked statically into python.wasm).
 # Link steps that meson emits for an extension module (`-shared -o X.so`): instead of a shared object (wasi-libc has no
 # dlopen), write X.so as a static archive of the module's own objects and X.so.deps listing the archives it links with.
@@ -7,6 +7,21 @@
 set -eu
 : "${WASI_SDK_PATH:?}"
 tool=${WASI_CC_TOOL:-clang}
+# A response file (`@file`, which meson writes for a link with many objects: scipy's
+# stats._unuran) is expanded first, its words read as the shell reads them, so the link below is
+# seen as the archive it must become (spec 037). A command with no `@` argument is untouched.
+case " $* " in
+  *" @"*)
+    expanded=""
+    for a in "$@"; do
+      case "$a" in
+        @*) [ -f "${a#@}" ] || { echo "wasi-cc: no response file ${a#@}" >&2; exit 1; }
+            expanded="$expanded $(cat "${a#@}")";;
+        *) expanded="$expanded '$(printf '%s' "$a" | sed "s/'/'\\\\''/g")'";;
+      esac
+    done
+    eval "set -- $expanded";;
+esac
 shared=0; out=""; objs=""; deps=""; prev=""
 for a in "$@"; do
   case "$a" in
@@ -44,6 +59,30 @@ for a in "$@"; do
 $a";;
   esac
 done
+# A per-file force-include (spec 037, Decision 6): when WASI_CC_FILE_INCLUDES names a map file
+# (`<path suffix> <header> [count]` per line, # for a comment), a compile whose source path ends with an
+# entry's suffix gets that entry's -include, and one line goes to the log WASI_CC_FILE_INCLUDES_LOG
+# names. Only step 57 (scipy) sets them; unset, the command is exactly as above.
+if [ -n "${WASI_CC_FILE_INCLUDES:-}" ]; then
+  src=""; prev=""
+  for a in "$@"; do
+    case "$prev" in -o|-MF|-MT|-MQ|-include|-I|-isystem) prev=$a; continue;; esac
+    case "$a" in *.c|*.cc|*.cpp|*.cxx) src=$a;; esac
+    prev=$a
+  done
+  if [ -n "$src" ]; then
+    while read -r suffix header count; do
+      case "$suffix" in ''|'#'*) continue;; esac
+      case "$src" in
+        *"$suffix")
+          args="$args
+-include
+$header"
+          printf '%s\t%s\n' "$suffix" "$src" >> "${WASI_CC_FILE_INCLUDES_LOG:?WASI_CC_FILE_INCLUDES_LOG names the log}";;
+      esac
+    done < "$WASI_CC_FILE_INCLUDES"
+  fi
+fi
 oldifs=$IFS; IFS='
 '; set -- $args; IFS=$oldifs
 exec "$WASI_SDK_PATH/bin/$tool" --target=wasm32-wasip1 "$@"

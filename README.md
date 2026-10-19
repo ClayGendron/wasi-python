@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 11, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 15, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix and two of OpenBLAS's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 42.3 MB / 46.5 MB / 38.8 MB (3.15 line, with matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 043's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -56,7 +56,7 @@ promises.
 The platform's facts, documented rather than patched (with eleven carried patches,
 below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
-> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
+> (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
 So `np.arange(1_000_000).sum()` wraps (use `dtype=np.int64`). A C++
 `throw` inside a package (numpy's FFT, for one) is caught as in native

@@ -86,6 +86,9 @@ PACKAGES = {
     "cloudpickle": "3.1.2",
     "threadpoolctl": "3.7.0",
     "narwhals": "2.27.1",
+    # scipy (spec 037): the package, and OpenBLAS, whose C LAPACK is the LAPACK, linked in.
+    "scipy": "1.18.1",
+    "openblas": "0.3.34",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -178,6 +181,45 @@ LXML_NOTICES = (
     "doc/licenses/BSD.txt",
     "doc/licenses/elementtree.txt",
 )
+# scipy's terms (spec 037, Decision 13): its licence and its list of bundled licences, then the licence
+# of each bundled component that is compiled in or packed, as the sdist ships it (the vendored
+# subprojects and the libraries inside scipy's own tree). Tempita is a build tool and ampgo only a
+# benchmark; Chebfun's Python carries its notice in place, as LICENSES_bundled.txt says.
+SCIPY_NOTICES = (
+    "LICENSE.txt",
+    "LICENSES_bundled.txt",
+    "subprojects/boost_math/math/LICENSE",
+    "subprojects/xsf/LICENSE",
+    "subprojects/xsf/LICENSES_bundled.txt",
+    "subprojects/highs/LICENSE.txt",
+    "subprojects/highs/extern/LICENCE_1_0.txt",
+    "subprojects/highs/extern/filereaderlp/LICENSE",
+    "subprojects/highs/extern/pdqsort/license.txt",
+    "subprojects/duccfft/LICENSE.md",
+    "subprojects/qhull_r/libqhull_r/COPYING.txt",
+    "subprojects/unuran/license.txt",
+    "subprojects/array_api_compat/array_api_compat/LICENSE",
+    "subprojects/array_api_extra/LICENSE",
+    "subprojects/cobyqa/LICENSE",
+    "subprojects/pyprima/pyprima/LICENCE.txt",
+    "scipy/_external/packaging_version/src/LICENSE.BSD",
+    "scipy/_lib/_uarray/LICENSE",
+    "scipy/fft/_duccfft/LICENSE.md",
+    "scipy/integrate/src/LICENSE_DOP",
+    "scipy/io/_fast_matrix_market/LICENSE.txt",
+    "scipy/io/_fast_matrix_market/fast_matrix_market/dependencies/fast_float/LICENSE-MIT",
+    "scipy/io/_fast_matrix_market/fast_matrix_market/dependencies/ryu/LICENSE-Boost",
+    "scipy/ndimage/LICENSE.txt",
+    "scipy/optimize/_direct/COPYING",
+    "scipy/optimize/tnc/LICENSE",
+    "scipy/sparse/linalg/_dsolve/SuperLU/License.txt",
+    "scipy/sparse/linalg/_eigen/arpack/arnaud/LICENSE",
+    "scipy/sparse/linalg/_propack/PROPACK/LICENSE",
+    "scipy/spatial/COPYING_QHULL.txt",
+    "scipy/stats/biasedurn/license.txt",
+)
+# OpenBLAS's terms: its own licence and Reference-LAPACK's, whose C translation it carries.
+OPENBLAS_NOTICES = ("LICENSE", "lapack-netlib/LICENSE")
 # What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
 # a modified file (spec 047, Decision 10): keyed by the patch's path, which the notice names, so a
 # patch added or deleted without its line here stops the build.
@@ -455,6 +497,10 @@ def main() -> None:
         "regex": [
             ("regex LICENSE.txt", (b / "regex-2026.9.29" / "LICENSE.txt").read_bytes()),
             ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
+        ],
+        "scipy": [(f"scipy {n}", (b / "scipy-1.18.1" / n).read_bytes()) for n in SCIPY_NOTICES],
+        "openblas": [
+            (f"OpenBLAS {n}", (b / "OpenBLAS-0.3.34" / n).read_bytes()) for n in OPENBLAS_NOTICES
         ],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         # spec 039, Decision 8: the sdists' notices from their trees

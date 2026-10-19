@@ -1,0 +1,21 @@
+diff --git a/lapack-netlib/INSTALL/ilaver.c b/lapack-netlib/INSTALL/ilaver.c
+index d64c841..60ef9f3 100644
+--- a/lapack-netlib/INSTALL/ilaver.c
++++ b/lapack-netlib/INSTALL/ilaver.c
+@@ -319,7 +319,7 @@ typedef struct Namelist Namelist;
+ /* > \ingroup auxOTHERauxiliary */
+ 
+ /*  ===================================================================== */
+-/* Subroutine */ int ilaver_(integer *vers_major__, integer *vers_minor__, 
++/* Subroutine */ void ilaver_(integer *vers_major__, integer *vers_minor__, 
+ 	integer *vers_patch__)
+ {
+ 
+@@ -335,6 +335,6 @@ typedef struct Namelist Namelist;
+     *vers_patch__ = 0;
+ /*  ===================================================================== */
+ 
+-    return 0;
++    return;
+ } /* ilaver_ */
+ 

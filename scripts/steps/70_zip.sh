@@ -24,7 +24,10 @@
 # each sdist keeps an .egg-info beside the package, which the zip refuses at a tree's top; their
 # METADATA is their PKG-INFO. pyyaml and markupsafe publish no pure wheel; networkx does, but a
 # wheel is never patched, so a pure package that needs a carried patch comes from its sdist (spec
-# 041, Decision 4), and its entry_points.txt rides beside its METADATA (--entry-points).
+# 041, Decision 4), and its entry_points.txt rides beside its METADATA (--entry-points). scipy
+# (spec 037): its package as step 57 installed it from meson's plan, a stand-in at scipy/odr.py
+# (scipy.odr needs Fortran), its METADATA from the sdist, and its __config__.py made host-neutral
+# as numpy's is.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -40,6 +43,7 @@ for pkg in pillow kiwisolver matplotlib contourpy; do
 done
 [ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
 [ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"  # spec 047
+[ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"  # spec 037
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -77,6 +81,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/lxml-install" \
   --tree "$B/regex-install" \
   --tree "$B/pure-install" \
+  --tree "$B/scipy-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -123,6 +128,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/markupsafe-3.0.4/PKG-INFO" \
   --metadata "$B/networkx-3.7/PKG-INFO" \
   --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
+  --metadata "$B/scipy-1.18.1/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
@@ -134,6 +140,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --file "$HERE/recipes/ctypes_stand_in/util.py=ctypes/util.py" \
   --file "$HERE/recipes/mmap_stub.py=mmap.py" \
   --file "$HERE/recipes/lxml_isoschematron_stand_in.py=lxml/isoschematron.py" \
+  --file "$HERE/recipes/scipy_odr_stand_in.py=scipy/odr.py" \
   --file "$HERE/recipes/guest/host/__init__.py=host/__init__.py" \
   --file "$HERE/recipes/guest/host/tools.py=host/tools.py" \
   --replace "cross-build/$TRIPLE/$(basename "$BUILD_PYTHON")=cross-build/build/python" \

@@ -1,0 +1,45 @@
+# Meson cross file: scipy 1.18.1 -> wasm32-wasip1 as static archives (spec 037, step 57).
+# The build step rewrites @ROOT@ (the repository root) and @SDK@ (scripts/line.conf's
+# WASI_SDK_DIR), as for the numpy, pandas and matplotlib cross files, and @NUMPY_INCLUDE@ (step
+# 40's installed numpy/_core/include, whose path holds the line's Python version).
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+python = '@ROOT@/scripts/python-wasi-cross'
+cython = '@ROOT@/build/tools/pylib/bin/cython'
+# The pinned pkgconf binary (step 10), never a pkg-config on PATH; step 57 sets its search path to
+# exactly OpenBLAS's, numpy's and pybind11's folders.
+pkg-config = '@ROOT@/build/tools/pylib/pkgconf/.bin/pkgconf'
+# A program that does not exist: every dependency is found by pkgconf on every host, never CMake.
+cmake = '@ROOT@/build/no-cmake'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+# wasm32 `long double` is IEEE binary128, as numpy's cross file says; scipy cannot run a probe.
+longdouble_format = 'IEEE_QUAD_LE'
+needs_exe_wrapper = true
+skip_sanity_check = true
+# Step 40's installed numpy headers: scipy reads them from here instead of running the target
+# Python (scipy/meson.build:56-60); f2py's fortranobject.c is found beside them.
+numpy-include-dir = '@NUMPY_INCLUDE@'
+
+[built-in options]
+# -ffile-prefix-map: no builder's path in __FILE__ strings. scipy_rename.h: the names that would
+# clash in one static link (Decision 6). The setjmp flags: f2py's callbacks, _zeros, QUADPACK,
+# SuperLU, qhull and ccallback.h use setjmp, which wasi-libc implements with wasm exceptions.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-include', '@ROOT@/recipes/scipy_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false']
+# C++ exceptions in their standard form (spec 005, Decision 3), the same include and setjmp flags,
+# and three switches: ducc0 without its thread pool, HiGHS asking for one thread (it then starts
+# numThreads - 1 = 0 workers), and Boost.Math's default policy without promotion to long double,
+# which on wasm32 is software binary128 (scipy's own policies already set it; Decision 7).
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-include', '@ROOT@/recipes/scipy_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fwasm-exceptions', '-mllvm', '-wasm-enable-sjlj', '-mllvm', '-wasm-use-legacy-eh=false', '-fexceptions', '-DDUCC0_NO_LOWLEVEL_THREADING', '-DHIGHS_NO_DEFAULT_THREADS', '-DBOOST_MATH_PROMOTE_DOUBLE_POLICY=false']
+# No link args: every extension module becomes an archive, and the one real link is python.wasm's.

@@ -6,6 +6,9 @@ The rule: a name exists so that an import succeeds. Declaring a type works (a si
 `Structure` or `Union` subclass with `_fields_`, `POINTER(t)`, `CFUNCTYPE(...)`, `t * n`), and
 `sizeof` answers where the answer is a true fact on wasm32. Anything that would load a library,
 touch memory or make an instance raises OSError with the message `import ctypes` raises today.
+One exception (spec 037, Revised at build): `cast(address, F)`, an int (or None) to a function type
+F, gives an F that holds the integer and cannot be called. scipy's `_lib._ccallback_c` makes three
+at import, of its own test callbacks, so `import scipy` needs it; calling one raises OSError.
 
 The aliases follow CPython's own rule (Lib/ctypes/__init__.py), from `struct.calcsize` in the
 guest, so on wasm32 `c_int is c_long`, `c_size_t is c_ulong` and `c_int32 is c_long`.
@@ -184,6 +187,15 @@ def POINTER(cls):
     return _pointers[cls]
 
 
+class _FunctionPointer(_NoLayout):
+    """A function type. Its only instances come from `cast` of an address: each holds the integer
+    and has no way to be called, since there is no libffi; calling one raises OSError."""
+
+    def __call__(self, *args, **kwargs):
+        raise OSError(_MSG)
+
+
+_CFuncPtr = _FunctionPointer  # the name CPython's ctypes gives the function types' base
 _functions = {}
 
 
@@ -192,7 +204,7 @@ def CFUNCTYPE(restype, *argtypes, **kwargs):
     if key not in _functions:
         _functions[key] = _CType(
             "CFunctionType",
-            (_NoLayout,),
+            (_FunctionPointer,),
             {"_restype_": restype, "_argtypes_": argtypes, "_size_": _POINTER_SIZE},
         )
     return _functions[key]
@@ -241,5 +253,17 @@ class LibraryLoader:
 cdll = LibraryLoader(CDLL)
 pydll = LibraryLoader(PyDLL)
 
-byref = pointer = cast = addressof = memmove = memset = string_at = wstring_at = _refuse
+def cast(*args, **kwargs):
+    """An address (an int, or None for NULL) cast to a function type: an instance holding it,
+    which cannot be called. Any other cast, or call, raises OSError."""
+    obj, typ = args if len(args) == 2 and not kwargs else (None, None)
+    if isinstance(typ, _CType) and issubclass(typ, _FunctionPointer):
+        if obj is None or (isinstance(obj, int) and not isinstance(obj, bool)):
+            made = object.__new__(typ)
+            made._address_ = obj
+            return made
+    raise OSError(_MSG)
+
+
+byref = pointer = addressof = memmove = memset = string_at = wstring_at = _refuse
 create_string_buffer = create_unicode_buffer = resize = get_errno = set_errno = _refuse

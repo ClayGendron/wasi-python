@@ -1,0 +1,13 @@
+#!/bin/sh
+# f2py on the build host (spec 037, Decision 7): numpy 2.5.2's f2py from step 10's
+# build/tools/f2py-numpy, the only folder on its path. scipy's tools/generate_f2pymod.py runs `f2py`
+# from PATH, so step 57 puts this script first on PATH under that name. f2py reads scipy's .pyf
+# files and writes C; it never runs scipy code. -s keeps the user's site folder out and -P the
+# current folder, which meson sets to a scipy source folder where `scipy/signal` would hide the
+# stdlib's `signal` from f2py's own imports (-I would drop PYTHONPATH too). SOURCE_DATE_EPOCH, PYTHONHASHSEED and PYTHONDONTWRITEBYTECODE come from
+# scripts/build.sh and common.sh: f2py stamps the epoch, or else the clock, into a comment of its
+# output, so a fixed one keeps the generated C the same on every run.
+set -eu
+HERE=$(CDPATH= cd "$(dirname "$0")/.." && pwd -P)
+: "${SOURCE_DATE_EPOCH:?f2py-host runs inside the build, which sets SOURCE_DATE_EPOCH}"
+PYTHONPATH="$HERE/build/tools/f2py-numpy" exec "$HERE/build/tools/python/bin/python3" -s -P -m numpy.f2py "$@"

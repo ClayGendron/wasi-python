@@ -2,7 +2,7 @@
 # Step 10: unpack the toolchain and the host Python under build/tools/, replace the toolchain's wasm
 # runtime with the host-neutral one (spec 012), and install the build tools (Cython, meson, ninja,
 # versioneer, pkgconf) from their pinned wheels: offline, with their hashes (spec 003; pkgconf,
-# spec 023). On x86_64 Linux, put
+# spec 023), and the build host's numpy, for f2py alone (spec 037). On x86_64 Linux, put
 # the arm64 Linux SDK's clang, under the pinned qemu-aarch64, behind the native SDK's clang, and
 # stop unless it is in place (spec 040, Decision 5).
 set -eu
@@ -218,4 +218,14 @@ done
 # The pinned pkgconf binary itself, never the wheel's Python entry point, which would run a
 # pkg-config it finds on PATH instead (spec 023). Steps 37 and 55 name it in their cross file.
 [ -x "$PKGCONF" ] || die "the pkgconf wheel did not install $PKGCONF"
-echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3), pkgconf $("$PKGCONF" --version)"
+# f2py's numpy (spec 037, Decision 7): the build host's own pinned numpy wheel, in a folder of its
+# own, never in build/tools/pylib, where it would shadow the host-side numpy stand-in that pandas'
+# and scipy's builds import. scripts/f2py-host runs f2py from it, on scipy's .pyf files only.
+F2PY="$T/f2py-numpy"
+cp "$(pinned "$NUMPY_HOST_WHEEL")" "$B/wheelhouse/"
+sha=$(grep "  $NUMPY_HOST_WHEEL\$" "$D/SHA256SUMS" | cut -c1-64)
+printf 'numpy==2.5.2 --hash=sha256:%s\n' "$sha" > "$B/f2py-requirements.txt"
+uv pip install --python "$HOSTPY" --target "$F2PY" --offline --no-index --find-links "$B/wheelhouse" --require-hashes -r "$B/f2py-requirements.txt"
+f2py_version=$(PYTHONPATH="$F2PY" "$HOSTPY" -s -c 'import numpy; print(numpy.__version__)')
+[ "$f2py_version" = 2.5.2 ] || die "build/tools/f2py-numpy holds numpy $f2py_version, not 2.5.2"
+echo "tools: python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), meson $(meson --version), ninja $(ninja --version), cython $(cython --version 2>&1 | cut -d' ' -f3), pkgconf $("$PKGCONF" --version), f2py numpy $f2py_version"

@@ -31,6 +31,7 @@ HOST_NAMES = (
     "CYTHON_WHEEL",
     "NINJA_WHEEL",
     "PKGCONF_WHEEL",
+    "NUMPY_HOST_WHEEL",  # f2py's numpy, for scipy's build (spec 037, Decision 7)
 )
 
 

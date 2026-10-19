@@ -31,14 +31,17 @@ _BUILT = (
     "create_string_buffer", "create_unicode_buffer", "resize", "get_errno", "set_errno",
 )  # fmt: skip
 __all__ = ["DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL", "WinError", *_BUILT]
+# Private names C code reads (spec 037): scipy's QUADPACK checks every integrand against
+# ctypes._CFuncPtr, the base of the function types, before it calls back into Python.
+_PRIVATE = ("_CFuncPtr",)
 
 
 def __getattr__(name):
-    if name in _BUILT:
+    if name in _BUILT or name in _PRIVATE:
         from . import _types
 
         here = globals()
-        for built in _BUILT:
+        for built in (*_BUILT, *_PRIVATE):
             here[built] = getattr(_types, built)
         return here[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

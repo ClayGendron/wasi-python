@@ -229,6 +229,25 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — 2026-10-19
 
+- **scipy 1.18.1, with OpenBLAS 0.3.34 as its BLAS and LAPACK, built in** (spec 037). All of scipy
+  but `scipy.odr` (it needs Fortran; importing it says so): `linalg`, `sparse` (SuperLU, ARPACK,
+  PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`,
+  `signal`, `fft`, `special`, `stats`, `spatial` (qhull, `cKDTree`), `ndimage`, `cluster`, `io`
+  and the rest, with native scipy's answers on three golden jobs. No Fortran compiler is used:
+  OpenBLAS's own C translation of LAPACK is the LAPACK. Carried patches:
+  `recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void-1-of-2.patch` and
+  `recipes/patches/OpenBLAS-0.3.34/0002-c-lapack-subroutines-return-void-2-of-2.patch` (OpenBLAS
+  `develop`'s convention, every C LAPACK subroutine `void`, made by our own script; merged
+  upstream after 0.3.34), `recipes/patches/OpenBLAS-0.3.34/0003-ilaver-returns-void.patch`, and
+  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks).
+  OpenBLAS's kernels use wasm SIMD: hosts need `simd128` (every supported wasmtime has it).
+  Known gaps until spec 038: `mmread` and `mmwrite` raise (a thread pool); `qmc.Sobol` with nothing
+  writable returns zeros, with an "Exception ignored" message (give a temporary folder);
+  `geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range` and `loadarff` raise `OSError`
+  from the `ctypes` stand-in. `fft`'s `workers=` runs serially; `differential_evolution` and
+  `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.
+  numpy's own LAPACK (`lapack_lite`) now carries a symbol prefix so it cannot meet OpenBLAS's;
+  numpy computes as before.
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the
