@@ -670,6 +670,7 @@ class _Files:
         # still holds. None: no cap (a table built by hand); a call's table gets the call's value.
         self.open_files = open_files
         self.held: set[int] = set()
+        self.session = False  # a session's table lives across turns (spec 055, Decision 11)
 
     def open_now(self) -> int:
         """The files and folders the guest holds open (spec 068): the wasmtime numbers it opened,
@@ -678,7 +679,6 @@ class _Files:
 
     def _at_cap(self) -> bool:
         return self.open_files is not None and self.open_now() >= self.open_files
-        self.session = False  # a session's table lives across turns (spec 055, Decision 11)
 
     def new_turn(self) -> None:
         """A session's turn starts its counters at zero, so each turn's record and limit are its
