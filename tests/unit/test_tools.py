@@ -1348,3 +1348,64 @@ def test_the_tool_list_is_encoded_once(monkeypatch) -> None:
     monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 100)
     small = T._ToolHost(tools, max_calls=None)
     assert [kind(small(frame("list", id=i))) for i in (1, 2)] == ["too_large", "too_large"]
+
+
+def _list_tools() -> list[Tool]:
+    return [*counting_tools(Counter()), tool(square)]
+
+
+def _list_frame(i: int | None) -> bytes:
+    return frame("list", id=i) if i is not None else json.dumps({"v": 1, "op": "list"}).encode()
+
+
+def test_an_oversized_tool_list_is_refused_before_it_is_built(monkeypatch) -> None:
+    """Spec 075, criterion 4 (spec 060's build review, N1): a list over the answer cap is
+    refused from its length, on every `list` frame, and its answer is never built."""
+    builds: list = []
+    real = T._ToolHost._list_answer
+
+    def counting(self: Any, frame_id: Any) -> bytes:
+        builds.append(frame_id)
+        return real(self, frame_id)
+
+    monkeypatch.setattr(T._ToolHost, "_list_answer", counting)
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 100)
+    host = T._ToolHost(_list_tools(), max_calls=None)
+    for i in (1, 2, None):
+        a = answer(host(_list_frame(i)))
+        refused = {"kind": "too_large", "message": "the tool list is over the 16 MiB cap"}
+        assert (a["id"], a["ok"], a["error"]) == (i, False, refused), i
+    outcomes = [(o.op, o.tool, o.outcome) for o in host.record.outcomes]
+    assert outcomes == [("list", None, "too_large")] * 3
+    assert builds == []
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 16 << 20)
+    host = T._ToolHost(_list_tools(), max_calls=None)
+    assert [kind(host(_list_frame(i))) for i in (1, 2)] == [None, None]
+    assert builds == [1, 2]
+
+
+def test_the_tool_list_cap_is_exact_for_each_id(monkeypatch) -> None:
+    """Spec 075, criterion 5: the refusal from the length keeps the cap to the byte, for each
+    frame's own id (`null` is 4 bytes, an id 1 to 16 digits)."""
+    tools = _list_tools()
+    descriptors = [t.descriptor() for t in tools]
+
+    def length(i: int | None) -> int:
+        return len(T._encode({"v": 1, "id": i, "ok": True, "tools": descriptors}))
+
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", length(9))
+    host = T._ToolHost(tools, max_calls=None)
+    nine = host(_list_frame(9))
+    assert (kind(nine), len(nine)) == (None, length(9))
+    assert kind(host(_list_frame(10))) == "too_large"
+    assert kind(host(_list_frame(None))) == "too_large"
+    assert kind(host(_list_frame(0))) is None
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", length(9) - 1)
+    host = T._ToolHost(tools, max_calls=None)
+    assert [kind(host(_list_frame(i))) for i in (9, 0)] == ["too_large", "too_large"]
+    # The length the refusal reads is the length of the answer that would be built (last, so
+    # that on main, which has no `_list_length`, the boundary rows above are seen to pass).
+    monkeypatch.setattr(T, "_TOOL_RESPONSE_BYTES", 16 << 20)
+    host = T._ToolHost(tools, max_calls=None)
+    for i in (None, 0, 9, 10, 2**53 - 1):
+        assert host._list_length(i) == len(host._list_answer(i)) == length(i), i

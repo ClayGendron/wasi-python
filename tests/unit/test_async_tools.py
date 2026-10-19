@@ -854,3 +854,254 @@ def test_a_loop_that_ends_is_closed_and_ends_the_wait() -> None:
         assert sum(host.counted) == 0
         assert answer(host(call_frame("where"))) == ("tool_error", "where failed (internal error)")
         assert "stopped" in _last(host).fault
+
+
+# -------------------------------------------------------------------------------------------------
+# Spec 075 (the 0.1.0a6 security review's F1): a gate allows a call only when it returns `None` or
+# `True`; an awaitable's result counts only if the awaitable returned.
+
+
+class SubExit(GeneratorExit):
+    """A subclass of `GeneratorExit`, as a gate's or a tool's own code might raise."""
+
+
+class OwnBase(BaseException):
+    """An embedder's own `BaseException`."""
+
+
+class _RaisingIterator:
+    def __init__(self, exc: BaseException) -> None:
+        self.exc = exc
+
+    def __iter__(self) -> _RaisingIterator:
+        return self
+
+    def __next__(self) -> Any:
+        raise self.exc
+
+
+class BareAwait:
+    """An awaitable whose `__await__` is a bare iterator that raises at its first step."""
+
+    def __init__(self, exc: BaseException) -> None:
+        self.exc = exc
+
+    def __await__(self) -> _RaisingIterator:
+        return _RaisingIterator(self.exc)
+
+
+def _gate(form: str, what: tuple[str, Any]) -> Any:
+    """A gate of `form` that raises a fresh exception from `what`'s factory, or returns its
+    value (spec 075, criterion 1)."""
+    how, x = what
+
+    def act() -> Any:
+        if how == "raise":
+            raise x()
+        return x
+
+    async def body(call: Any) -> Any:
+        return act()
+
+    if form == "sync":
+        return lambda call: act()
+    if form == "async def":
+        return body
+    if form == "def returning a coroutine":
+        return lambda call: body(call)
+    if form == "async __call__":
+
+        class Gate:
+            async def __call__(self, call: Any) -> Any:
+                return act()
+
+        return Gate()
+    if form == "a Future given the exception":
+
+        async def future_gate(call: Any) -> Any:
+            future = asyncio.get_running_loop().create_future()
+            future.set_exception(x())
+            return await future
+
+        return future_gate
+    assert form == "a bare __await__ iterator"
+    return lambda call: BareAwait(x())
+
+
+GATE_FORMS = ("sync", "async def", "def returning a coroutine", "async __call__")
+EXTRA_FORMS = ("a Future given the exception", "a bare __await__ iterator")
+RAISES = [
+    (GeneratorExit, "GeneratorExit"),
+    (SubExit, "SubExit"),
+    (lambda: GeneratorExit("text"), "GeneratorExit: text"),
+    (KeyboardInterrupt, "KeyboardInterrupt"),
+    (lambda: SystemExit(3), "SystemExit: 3"),
+    (asyncio.CancelledError, "CancelledError"),
+    (OwnBase, "OwnBase"),
+]
+REFUSING = [
+    pytest.param(form, ("raise", exc), fault, id=f"{form}-{fault}")
+    for form in GATE_FORMS
+    for exc, fault in RAISES
+] + [
+    pytest.param(form, ("raise", exc), fault, id=f"{form}-{fault}")
+    for form in EXTRA_FORMS
+    for exc, fault in RAISES[:2]
+]
+ALLOWING = [
+    pytest.param(form, ("return", value), None, id=f"{form}-returns {value}")
+    for form in GATE_FORMS[1:]
+    for value in (None, True)
+]
+
+
+@pytest.mark.parametrize("where", ["private", "caller"])
+@pytest.mark.parametrize(("form", "what", "fault"), REFUSING + ALLOWING)
+def test_a_gate_refuses_unless_it_returns_an_allow(caller, where, form, what, fault) -> None:
+    """Spec 075, criterion 1: every gate form, on `run`'s private loop and on `run_async`'s
+    caller's loop, refuses on any raise (a `BaseException` included, `GeneratorExit` and its
+    subclasses too, however the awaitable delivers it), keeps the fault, and never runs the
+    tool; it allows only on a return of `None` or `True`."""
+    ran: list = []
+
+    @tool(name="effect")
+    def effect() -> int:
+        """An effect the gate guards."""
+        ran.append(1)
+        return 1
+
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        loop = caller.loop if where == "caller" else None
+        host = _host([effect], gate=_gate(form, what), loop=loop)
+        got = answer(host(call_frame("effect")))
+        outcome = _last(host)
+        host.close()
+        _join_tool_threads()
+        gc.collect()
+    if what[0] == "return":
+        assert (got, outcome.fault, ran) == (("ok", 1), None, [1])
+    else:
+        assert got == ("denied", "effect was refused")
+        assert (outcome.outcome, outcome.fault, ran) == ("denied", fault, [])
+    assert caller.thread.is_alive() and not caller.loop.is_closed()
+    assert [w for w in seen if issubclass(w.category, RuntimeWarning)] == []
+
+
+def _boom(form: str, exc: Any) -> T.Tool:
+    async def boom() -> int:
+        """Raise."""
+        raise exc()
+
+    if form == "async def":
+        return tool(boom, name="boom")
+    if form == "def returning a coroutine":
+
+        def adapter() -> int:
+            """Return a coroutine that raises."""
+            return boom()
+
+        return tool(adapter, name="boom")
+
+    class Boom:
+        async def __call__(self) -> int:
+            """Raise."""
+            raise exc()
+
+    return tool(Boom(), name="boom")
+
+
+@pytest.mark.parametrize("where", ["private", "caller"])
+@pytest.mark.parametrize("form", GATE_FORMS[1:])
+@pytest.mark.parametrize(("exc", "fault"), RAISES[:2], ids=["GeneratorExit", "SubExit"])
+def test_an_async_tool_that_raises_generatorexit_is_a_fault(
+    caller, where, form, exc, fault
+) -> None:
+    """Spec 075, criterion 2: an async tool that raises `GeneratorExit` or a subclass is a
+    fault, never `ok` with `None`."""
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        host = _host([_boom(form, exc)], loop=caller.loop if where == "caller" else None)
+        got = answer(host(call_frame("boom")))
+        host.close()
+        _join_tool_threads()
+        gc.collect()
+    assert got == ("tool_error", "boom failed (internal error)")
+    assert (_last(host).outcome, _last(host).fault) == ("tool_error", fault)
+    assert [w for w in seen if issubclass(w.category, RuntimeWarning)] == []
+
+
+class _FirstStep:
+    """An `ops` whose first step raises `GeneratorExit` (the wrapper then ends with neither a
+    return nor an error) or returns `start`'s verdict."""
+
+    def __init__(self, start: Any) -> None:
+        self._start = start
+
+    def post(self, post: Any) -> bool:
+        return True
+
+    def start(self, task: Any) -> bool:
+        if isinstance(self._start, type) and issubclass(self._start, BaseException):
+            raise self._start
+        return self._start
+
+    def started(self, post: Any) -> bool:
+        return post.started
+
+    def ending(self) -> str | None:
+        return None
+
+
+@pytest.mark.parametrize("where", ["private", "caller"])
+def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
+    caller, where, monkeypatch
+) -> None:
+    """Spec 075, criterion 3: `_ToolLoop.run` gives a value only once the awaitable returned
+    (Decision 1); a skipped post still raises `_NotStarted` first."""
+    given = caller.loop if where == "caller" else None
+    runs: list = []
+
+    async def body() -> bool:
+        runs.append(1)
+        return True
+
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter("always")
+        # The wrapper's first step raises GeneratorExit: neither a return nor an error.
+        loop = T._ToolLoop(given)
+        coro = body()
+        with pytest.raises(RuntimeError, match="^the awaitable ended without a result$"):
+            loop.run(coro, _FirstStep(GeneratorExit))
+        assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
+
+        # A skipped post: `_NotStarted`, not the RuntimeError above (Decision 1's order).
+        coro = body()
+        with pytest.raises(T._NotStarted):
+            loop.run(coro, _FirstStep(False))
+        assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
+        loop.close()
+
+        # Through the frame host: the gate's call is refused, with the backstop's fault.
+        ran: list = []
+
+        @tool(name="effect")
+        def effect() -> int:
+            """An effect the gate guards."""
+            ran.append(1)
+            return 1
+
+        def begin(self: Any, slot: Any, task: Any) -> bool:
+            raise GeneratorExit
+
+        monkeypatch.setattr(T._Bounded, "_begin", begin)
+        host = _host([effect], gate=async_gate, loop=given)
+        assert answer(host(call_frame("effect"))) == ("denied", "effect was refused")
+        fault = "RuntimeError: the awaitable ended without a result"
+        assert (_last(host).outcome, _last(host).fault, ran) == ("denied", fault, [])
+        host.close()
+        _join_tool_threads()
+        gc.collect()
+    assert runs == []
+    assert caller.thread.is_alive() and not caller.loop.is_closed()
+    assert [w for w in seen if issubclass(w.category, RuntimeWarning)] == []
