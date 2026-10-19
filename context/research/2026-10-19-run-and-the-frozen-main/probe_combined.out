@@ -1,0 +1,36 @@
+bare             plain     control   exit 0 kept       - fuel     168,364,621
+bare             plain     combined  exit 0 kept       - fuel     168,908,506
+bare             plain     combined - control = +543,885
+bare             snapshot  control   exit 0 kept       - fuel      16,564,773
+bare             snapshot  combined  exit 0 kept       - fuel      45,306,285
+bare             snapshot  combined - control = +28,741,512
+gap              plain     control   exit 0 kept     100 fuel     168,910,047
+gap              plain     combined  exit 0 kept     100 fuel     169,451,608
+gap              plain     combined - control = +541,561
+gap              snapshot  control   exit 0 kept       0 fuel      17,057,309
+gap              snapshot  combined  exit 0 kept     100 fuel      45,836,593
+gap              snapshot  combined - control = +28,779,284
+patched class    plain     control   exit 0 kept     100 fuel     284,841,365
+patched class    plain     combined  exit 0 kept     100 fuel     285,278,377
+patched class    plain     combined - control = +437,012
+patched class    snapshot  control   exit 0 kept       0 fuel      16,547,313
+patched class    snapshot  combined  exit 0 kept     100 fuel      46,141,921
+patched class    snapshot  combined - control = +29,594,608
+module attribute plain     control   exit 0 kept     100 fuel     284,185,115
+module attribute plain     combined  exit 0 kept     100 fuel     284,949,051
+module attribute plain     combined - control = +763,936
+module attribute snapshot  control   exit 0 kept       0 fuel      16,930,358
+module attribute snapshot  combined  exit 0 kept     100 fuel      45,747,665
+module attribute snapshot  combined - control = +28,817,307
+zip              plain     control   exit 0 kept  zip ok fuel     379,841,129
+zip              plain     combined  exit 0 kept  zip ok fuel     380,441,126
+zip              plain     combined - control = +599,997
+zip              snapshot  control   exit 0 kept zip BAD fuel     127,373,492
+zip              snapshot  combined  exit 0 kept  zip ok fuel     156,015,979
+zip              snapshot  combined - control = +28,642,487
+import pandas    plain     control   exit 0 kept       - fuel   4,917,725,856
+import pandas    plain     combined  exit 0 kept       - fuel   4,918,427,916
+import pandas    plain     combined - control = +702,060
+import pandas    snapshot  control   exit 0 kept       - fuel   4,600,953,414
+import pandas    snapshot  combined  exit 0 kept       - fuel   4,646,788,801
+import pandas    snapshot  combined - control = +45,835,387

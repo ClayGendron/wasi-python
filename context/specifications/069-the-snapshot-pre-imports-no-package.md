@@ -148,9 +148,11 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      073 lands, the defect is on the scoreboard as a gap (check h). If 073's fix unfreezes the
      heap, 073 restates check (b)'s factor with its numbers, as a judge change; a fix that keeps
      the heap frozen (for example a `__main__` made per run; INFERRED, not measured) need not.
-     Amended 2026-10-19 by spec 073: 073 takes that second way, a fresh `__main__` per program
-     (its option 4; measured at about +11 K fuel on a bare snapshot run), so the freeze and
-     check (b)'s factor of 8 stay; the corner it leaves is question 103.
+     Amended 2026-10-19 by spec 073: 073 gives every program a fresh `__main__` and, by the
+     owner's answer to question 103 (`../decisions.md`, "Yes, unfreeze before finalizing"), undoes
+     the freeze before `run` finalizes on the snapshot. The freeze stays for the start; check
+     (b)'s factor is restated from 8 to 3 (measured 3.82: a bare snapshot run about 43.9 M
+     against the plain binary's 167.5 M).
    - **For 055's builder** (no change to 055 here): on A, undoing the freeze adds about 28.2 M to
      a bare run (15.6 M to 43.8 M), against about 225 M on today's snapshot (83.4 M to 308.2 M;
      the review's R2). 055's closing cost, which unfreezes, therefore falls with 069 to about

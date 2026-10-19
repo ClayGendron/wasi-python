@@ -4,27 +4,34 @@
   `08de0c8` (`ede53a7`); **revised 2026-10-19 against its pre-build review**
   (`../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md`, written in the lane's scratchpad with its probes, to be copied
   by the lane; verdict "ready once F1 to F4 are written in"; F1 to F8 are written in, and
-  "Disposition of the pre-build review" says where), rebased onto main `2968512`. It is
-  scheduled behind the packages (the owner, 2026-10-19): it builds when a build slot has no
+  "Disposition of the pre-build review" says where), rebased onto main `2968512`.
+  **Amended 2026-10-19 (question 103 answered)**, rebased onto main `3561e55`: the owner chose
+  "Yes, unfreeze before finalizing" (`../decisions.md`, "100 to 103 … answered"), so `run` on the
+  snapshot also undoes the freeze before it finalizes, check D's gap is gone and check (b) is
+  restated (the section "Amendment of 2026-10-19"); the same reviewer confirms the amendment. It
+  is scheduled behind the packages (the owner, 2026-10-19): it builds when a build slot has no
   package ready. It changes the build recipe (`recipes/reactor_bootstrap.py`, compiled into both
   binaries at step 60), so it is reviewed once before it is built (constitution §5.6). It changes
   neither the guest's imports nor its exports. A different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7): it changes `recipes/reactor_bootstrap.py` (the module
-  `_reactor`: `run` gives every program a fresh `__main__`, and runs a script and `-m` in it). It
-  touches no `scripts/`, no `downloads/SHA256SUMS`, no patch, no pin and no workflow. It is also a
-  judge change: four checks added and one docstring edited in
-  `tests/checks/test_v1_4_embedding.py`; one gap entry removed and one added in
-  `tests/known_gaps.toml` (Decision 7). It changes `README.md` (the snapshot's facts) and
+  `_reactor`: `run` gives every program a fresh `__main__`, and runs a script and `-m` in it) and
+  `recipes/reactor_main.c` (`run` on the snapshot undoes the freeze before `Py_FinalizeEx`, through
+  a reference `wizer.initialize` takes; Decision 4). It touches no `scripts/`, no
+  `downloads/SHA256SUMS`, no patch, no pin and no workflow. It is also a judge change: four checks
+  added and one docstring edited in `tests/checks/test_v1_4_embedding.py`; one gap entry removed
+  in `tests/known_gaps.toml`; check (b)'s `START_FACTOR` restated from 8 to 3, with its docstring,
+  in `tests/checks/test_v1_3_data_stack.py` (Decision 7). It changes `README.md` (the snapshot's facts) and
   `CHANGELOG.md` (0.1.0a7), and adds dated amendment lines to specs 003 and 069. It changes no
   public name, signature, field, default or option:
   **`tests/public_api.txt` does not change.** It changes nothing in `src/`. **The lane accepts it
   with `--accept-judge` and `--accept-growth`** (Decision 8).
 - **Depends on:** 003 (the reactor and `_reactor.run`), 054 (the import path's prelude, which
-  calls `_reactor.run` from a `-c` program), 055 (sessions, which keep their own unfreeze at
-  close), 069 (the snapshot pre-imports no package; its check (b) and its gap (h), which this
-  closes); all landed. It meets 081, 083 and 065 in flight (Decision 10).
+  calls `_reactor.run` from a `-c` program), 055 (sessions, whose close already unfreezes, and
+  whose reference to `gc.unfreeze` this shares; Decision 5), 069 (the snapshot pre-imports no
+  package; its check (b), which this restates, and its gap (h), which this closes); all landed.
+  The owner's answer to question 103 (`../decisions.md`). It meets 081, 083 and 065 in flight (Decision 10).
 - **Research it stands on:** spec 055's addendum, section 8, P10b
   (`../research/2026-10-18-bounded-sessions.md`); spec 069's review, R1 and R2, and 069's
   Decision 4; and this specification's measurement (EXECUTED,
@@ -194,9 +201,10 @@ measured shapes (EXECUTED):
   patched class (`probe_keep.out`, `probe_patch.out`), so it is not taken.
 
 Only option 1 closes the residual, at 28.2 M per call. That trade (the snapshot's cheap start
-against a corner the program builds itself) touches the owner's decision 34 and the reason the
-freeze was kept, so it is the owner's. It is question 103; this specification does not wait on it
-(Decision 6).
+against a corner the program builds itself) touched the owner's decision 34 and the reason the
+freeze was kept, so it was put to the owner as question 103. **The owner answered "Yes, unfreeze
+before finalizing"** (2026-10-19), so this specification takes options 4 and 1 together
+(Decision 4; the amendment's measurement below).
 
 ## Decisions
 
@@ -219,9 +227,10 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      program that calls `_reactor.run` again. The outer call makes a fresh `__main__`, the prelude
      binds no name in it, and the inner call makes another for the caller's program. The names
      come from the capture, not from the current `__main__`, so nesting cannot leak names.
-   - *Why:* it is the only measured option that keeps the gap's bytes without restating (b), and
-     it gives the snapshot the plain binary's teardown for everything a program keeps in
-     `__main__`. The old, frozen `__main__` is dropped from `sys.modules`; nothing else holds it, so
+   - *Why, now that the snapshot also unfreezes (Decision 4):* the unfreeze alone fixes `-c` and
+     stdin on the snapshot, but not a script, a directory or `-m`, which lose their bytes on the
+     plain binary too, in runpy's temporary module; the fresh `__main__` is what fixes those, on
+     both binaries, and it keeps a program's namespace out of the frozen heap while it runs. The old, frozen `__main__` is dropped from `sys.modules`; nothing else holds it, so
      reference counting frees it.
 
 2. **A script runs in `__main__` itself, with native CPython's globals** (the review's F1).
@@ -288,28 +297,59 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      today's form (`grep` of `tests/`); check E pins the new line (the review's `cases3.out` saw
      it from the prototype).
 
-4. **The freeze stays, and check (b) is not restated.** `wizer.initialize` keeps
-   `gc.collect(); gc.freeze()`, and `START_FACTOR` stays 8. The builder records (b)'s factor on the
-   built set; it must be at least 10 (today 10.71, and 10.71 with option 4's like-for-like cost:
-   (167,476,282 + 29,676) ÷ (15,631,800 + 10,904)).
+4. **`run` on the snapshot undoes the freeze before it finalizes** (the owner's answer to
+   question 103: "Yes, unfreeze before finalizing").
+   - **The freeze stays for the start.** `wizer.initialize` keeps `gc.collect(); gc.freeze()`: a
+     program still runs with the bootstrap's heap out of the collector's way, and pays its
+     teardown only at the end.
+   - **The reference.** `wizer.initialize` takes a strong reference to `gc.unfreeze` into the
+     existing static `unfreeze_function` (`recipes/reactor_main.c`), once, before the freeze and
+     before any program exists. `gc` is already imported there (the freeze imports it), and it is
+     already in a snapshot program's `sys.modules` at its start (`probe_modules.out`), so
+     nothing a program sees changes. On the plain reactor nothing is frozen and the reference is
+     not taken there.
+   - **The call.** In `run`, after `_reactor.run` returns and `turn_function` is cleared, and
+     before `Py_FinalizeEx`: if `unfreeze_function` is set, call it; an error is shown and dropped
+     with `show_and_drop()`, as `shutdown` does; then `Py_CLEAR(unfreeze_function)`. So `atexit`
+     handlers and the teardown see the whole heap, exactly as a session's close gives them (spec
+     055, Decision 8).
+   - **Why a reference taken at build, not a lookup at the end.** A program can replace
+     `gc.unfreeze` or `sys.modules["gc"]`; a lookup after it would call the program's stand-in, and
+     the snapshot would lose the bytes again. Spec 055 took its reference before any guest code
+     for the same reason (its re-review's N1). Check D's third program holds it (not measurable
+     before the build: on today's binary the bytes are lost either way; stand-in S8 shows it).
+   - **Cost** (EXECUTED; the amendment's table): about +28.2 M fuel on every snapshot `run`, the
+     shutdown's collections now walking and freeing the bootstrap's heap. A bare snapshot run goes
+     from 15.6 M to about 43.9 M.
+   - **Check (b) is restated from 8 to 3.** The snapshot's start becomes 3.82 times cheaper than
+     the plain start (167,505,958 ÷ 43,851,082, projected from the like-for-like measurements). 3
+     leaves 27% of margin, as 069 left about 25%. The margin can only widen as packages land: the
+     plain start grows with the zip's members (spec 039), while the snapshot's start and its
+     unfreeze depend only on the stdlib bootstrap, which `PREIMPORT` fixes. A pre-imported package
+     is refused by check (a) whatever (b) says. The reason in the check's docstring and in
+     `--accept-judge` is question 103's answer.
 
-5. **Sessions are unchanged.** A session's turns run in the `__main__` they find, and its close
-   keeps 055's `gc.unfreeze()` before `Py_FinalizeEx`, which also covers the residual. A fresh
-   `__main__` for sessions would not let the close drop the unfreeze, because of the residual, so
-   it is not in scope.
+5. **Sessions are unchanged, and nothing unfreezes twice.**
+   - `run` and `turn` exclude each other in one instance (`run_called`, `turned`; spec 055,
+     Decision 2), and `run` refuses after a turn before it reaches the unfreeze. So the freeze is
+     undone at most once per instance: by `run`, or by a session's `shutdown`.
+   - On the snapshot, the first `turn` now finds `unfreeze_function` already set, so its
+     `if (unfreeze_function == NULL)` branch is skipped. The object is the same `gc.unfreeze`, and
+     it was taken before any guest code at all, which is earlier than 055's first turn: 055's N1
+     holds, and more strongly. `shutdown` calls it and clears it, as today. On the plain reactor a
+     session takes its reference at the first turn, as today.
+   - A session's turns still run in the `__main__` they find (no fresh one); its close keeps 055's
+     unfreeze. 055's checks (`test_the_shutdown_export_raw`, `test_close_runs_python_shutdown`
+     and the rest of `tests/checks/test_v1_4_sessions.py`) must pass unchanged (criterion 3).
 
-6. **The residual is checked, documented and asked, not fixed here.**
-   - Check D holds the patched-class shape on both binaries. `[plain]` passes. `[snapshot]` fails,
-     and a gap entry allows exactly that failure, naming question 103 as its closer (Decision 7).
-   - The README's snapshot facts gain one: an object a program hangs on a module or class the
-     snapshot pre-imported may never be finalized, so close files with `with` (the review's
-     note: "may", since most such hooks are measured fine, `cases2.out`).
-   - Question 103 asks the owner whether to pay option 1's 28.2 M per snapshot call to close it.
-     The agent's recommendation is no. If the owner says yes, a later specification adds the
-     unfreeze to `run`, restates (b), and removes the gap.
+6. **The residual is closed, not documented.** With the unfreeze, a file a program hangs on a
+   pre-imported class or module keeps its bytes on the snapshot (EXECUTED,
+   `probe_combined.out`: the patched class and `json.log` both keep 100). Check D becomes a passing
+   check on both binaries, with no gap entry. The README's corner paragraph (the earlier draft's
+   fourth snapshot fact) is not written.
 
-7. **The judge changes, named.** All in `tests/checks/test_v1_4_embedding.py` (v1.4) and
-   `tests/known_gaps.toml`:
+7. **The judge changes, named.** In `tests/checks/test_v1_4_embedding.py` (v1.4),
+   `tests/known_gaps.toml` and, for check (b), `tests/checks/test_v1_3_data_stack.py` (v1.3):
    - **(h), edited:** `test_run_keeps_an_unclosed_files_bytes`'s docstring loses "a known gap until
      spec 073" and says the program runs in a fresh `__main__` (Decision 1). Its body is unchanged.
    - **The gap entry for (h)`[snapshot]` is removed**, with its comment block.
@@ -341,14 +381,23 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      Today it fails on the snapshot's `-c` and stdin (frozen), on both binaries' script
      (`__package__` `''`, `__loader__` `None`), and on both binaries' script, directory and `-m`
      (`__builtins__` a `dict`; the handler finds no `C`).
-   - **D, new: `test_run_keeps_a_file_a_patched_stdlib_class_reaches`** (`@BINARY`, through the
-     `guest` fixture, recording fuel). The program: `import json`, open `/out.txt`, write 100
-     bytes, define `default(self, o)`, set `json.JSONEncoder.default = default`. It asserts 100
-     bytes, and reports a shortfall as `"<binary>: a file reached from a patched stdlib class kept
-     <n> of 100 bytes"` through `scan.report(findings, "frozen heap")`. `[plain]` passes today and
-     after. `[snapshot]` fails today and after with `frozen heap: 1 finding(s), digest
-     049b78ef7b5a: snapshot: a file reached from a patched stdlib class kept 0 of 100 bytes`
-     (computed with `scan.report`).
+   - **D, new: `test_run_keeps_a_file_the_stdlib_reaches`** (`@BINARY`, through the `guest`
+     fixture, recording the last run's fuel). Three programs, each opening `/out.txt`, writing 100
+     bytes and not closing it:
+     - **the patched class:** `import json`, define `default(self, o)`, set
+       `json.JSONEncoder.default = default`;
+     - **the module attribute:** `import json`, `json.log = open('/out.txt', 'w')`;
+     - **the tampered unfreeze:** the patched class, after `import gc; gc.unfreeze = lambda: None`
+       (Decision 4's reference).
+
+     A shortfall is a finding, `"<binary>: a file reached from a patched stdlib class kept <n> of
+     100 bytes"`, `"<binary>: a file stored on a stdlib module kept <n> of 100 bytes"` or
+     `"<binary>: a file reached after gc.unfreeze was replaced kept <n> of 100 bytes"`, reported
+     through `scan.report(findings, "frozen heap")`. `[plain]` passes today and after.
+     `[snapshot]` fails today with 3 findings (the first two give `frozen heap: 2 finding(s),
+     digest 963ab1406da3` alone, computed with `scan.report`; the builder records the three's
+     digest when it sees the check fail first), and passes after the build. **It has no gap
+     entry.**
    - **E, new: `test_module_and_directory_errors_read_as_native`** (`@BINARY`, through
      `wasi_python.run`, no fuel; the review's F3). Three rows: `-m nope` (no such module) prints
      exactly `/usr/local/bin/python.wasm: No module named nope` and a newline on stderr and
@@ -358,26 +407,28 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      frames are named, in order, `_run_module_as_main`, `_run_code`, `<module>` and `f`, the first
      two in `"<frozen runpy>"`. It pins names and order, not runpy's line numbers, so a patch
      release of CPython does not fail it. Today every row fails on both binaries.
-   - **The gap entry for D`[snapshot]`, new:**
-     ```toml
-     [[gap]]
-     check = "tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_a_patched_stdlib_class_reaches[snapshot]"
-     match = "1 finding(s), digest 049b78ef7b5a"
-     reason = "on the snapshot, an object a program hangs on a pre-imported module or class is reached from the frozen heap and never finalized, so a file it reaches loses its buffered bytes (spec 073, Decision 6; question 103)"
-     closes_with = "context/questions-for-the-owner.md"
-     ```
-   - No golden output or harness constant changes, and no upstream allowance change is expected
-     (Decision 10 says what the builder does if an upstream outcome moves). `START_FACTOR` stays
-     8.
+   - **Check (b), restated:** `tests/checks/test_v1_3_data_stack.py`, `START_FACTOR = 3` (from
+     8), its comment and the check's docstring saying that spec 073 restated it by the owner's
+     answer to question 103 (the snapshot finalizes as CPython does, at about +28 M a run). Its
+     body and its message are unchanged.
+   - No golden output or other harness constant changes, and no upstream allowance change is
+     expected (Decision 10 says what the builder does if an upstream outcome moves).
 
-8. **The fuel moves, and how the lane accepts it.** Every check that runs a program on either
-   binary pays the fresh `__main__`: about +11 K on a bare snapshot run and +30 K on a bare plain
-   one, up to +1.3 M after `import pandas` on the snapshot (the review's `cases5.out`). Script and
-   `-m` rows fall, by up to −1.0 M (a plain script), since runpy's temporary module is gone. So
-   many rows move past the tolerance of one part in ten thousand, in both directions. The builder lists the rows that moved, their largest
-   rise in instructions and in percent, and the bare row's rise, in the Landing notes. The lane
-   accepts with `--accept-judge` (Decision 7's changes) and `--accept-growth` naming the fresh
-   `__main__`.
+8. **The fuel moves, and how the lane accepts it.**
+   - **Every snapshot `run` grows by about +28.2 M**, the unfreeze's teardown (+28.2 M on a bare
+     run and on the gap's, +45.2 M after `import pandas`; `probe_combined.out`). So every snapshot
+     fuel row grows past the tolerance of one part in ten thousand: about +180% on a bare row,
+     about +1% on a pandas row.
+   - **Every program also pays the fresh `__main__`**: about +11 K on a bare snapshot run and
+     +30 K on a bare plain one, up to +1.3 M after `import pandas` on the snapshot (the review's
+     `cases5.out`). Script and `-m` rows fall by up to −1.0 M (a plain script), since runpy's
+     temporary module is gone. Plain rows move by these amounts only.
+   - The builder lists the rows that moved, their largest rise in instructions and in percent, and
+     the bare snapshot row's rise, in the Landing notes. The lane accepts with `--accept-judge`
+     (Decision 7's changes, check (b)'s restated factor among them, with question 103's answer as
+     its reason) and `--accept-growth` naming the measured +28 M per snapshot `run` from
+     finalizing the unfrozen heap (question 103's answer), and the fresh `__main__`'s few
+     thousand.
 
 9. **Why not a smaller change to the gap alone.** Unfreezing only `__main__`'s dict is not
    possible: `gc.unfreeze()` moves the whole permanent generation. Clearing `__main__`'s dict at
@@ -390,7 +441,7 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
     - **083** (the judge's driver answers file times and inode numbers; confirmed for build, and
       it builds after 065 lands): both add checks to `tests/checks/test_v1_4_embedding.py`, at
       different places, and both edit `tests/known_gaps.toml` (083 narrows 065's stepped-clock
-      gap; 073 removes (h)'s and adds D's), so they meet in two files, each merge textual. The
+      gap; 073 removes (h)'s), so they meet in two files, each merge textual. The
       order in flight is 081, then 065, then 083. Both restate fuel; whichever lands second takes main's progress files
       and accepts again, as AGENTS.md rule 6a says. Check D and (h) write a file through the
       driver, so their fuel depends on the file's time and inode number until 083 lands (083
@@ -411,17 +462,19 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
       as a further judge change, reviewed as a delta before the build is called built; nothing in
       `tests/upstream/*.toml` or `tests/upstream/expected/` is edited to absorb it (AGENTS.md
       rule 4). If 065 lands first, its groups run in 073's full judge like the others.
-    - **069**'s check (b) is not restated (Decision 4).
-    - **Build-class order.** At most three build-class specifications are built at once (§5.7);
-      this one edits only `recipes/reactor_bootstrap.py`, so a rebase meets another recipe change
-      only there.
+    - **069**'s check (b) is restated from 8 to 3 (Decision 4), with question 103's answer as the
+      reason; 069's Decision 4 carries a dated amendment line saying so.
+    - **Build-class order.** Up to four build-class specifications are built at once while the
+      packages come first (§5.7 as amended 2026-10-19), and 073 takes a slot only when no package
+      is ready. It edits `recipes/reactor_bootstrap.py` and `run`/`wizer_initialize` in
+      `recipes/reactor_main.c`, so a rebase meets another recipe change only there.
 
 ## Intent
 
 A program that leaves a file open keeps its bytes, through `run`, on both binaries and in every
-mode, as native CPython keeps them. The snapshot keeps its cheap start: the freeze stays, and
-check (b) holds unchanged. The one corner left (an object a program hangs on the frozen heap) is
-checked, documented and put to the owner.
+mode, as native CPython keeps them. On the snapshot, `run` finalizes exactly as CPython does, a
+file the program hung on the stdlib included, by the owner's choice (question 103); it pays
+about 28 M instructions a call for it, and check (b) is restated to say so.
 
 ## Design
 
@@ -437,23 +490,35 @@ checked, documented and put to the owner.
     from `runpy._get_code_from_file`, `__file__` and the loader set, `exec`, and `__file__`
     removed in a `finally`). The module docstring
     gains one sentence on the fresh `__main__`.
+- `recipes/reactor_main.c`: `wizer_initialize` takes `unfreeze_function` before the freeze;
+  `run` calls and clears it before `Py_FinalizeEx` (Decision 4); the comments above `run`, above
+  `turn`'s first-turn branch and above the freeze say so (the freeze's comment loses "unfrozen, a
+  bare run on the snapshot costs 43.8 M fuel instead of 15.6 M", which becomes what `run` pays);
+  the file's header says `run` finalizes as a session's close does.
 - `tests/checks/test_v1_4_embedding.py`: (h)'s docstring; checks A, C, D and E (Decision 7),
   beside (h).
-- `tests/known_gaps.toml`: (h)'s entry and its comment removed; D's entry added with a comment
-  naming this specification and question 103.
-- `README.md`, the snapshot's facts after "`run` treats its arguments as CPython's command line
-  does": every program runs in a fresh `__main__`, and a script and `-m` run in it as CPython's
-  own entry points run them; a fourth snapshot fact, the residual and its advice ("close files
-  with `with`").
-- `CHANGELOG.md`, 0.1.0a7: one **Fixed** bullet (the snapshot's unclosed files, and a script's
-  and `-m`'s on both binaries) and one **Changed** bullet naming what moves toward native: a
+- `tests/checks/test_v1_3_data_stack.py`: `START_FACTOR = 3`, its comment and check (b)'s
+  docstring.
+- `tests/known_gaps.toml`: (h)'s entry and its comment removed. No entry is added.
+- `README.md`: the snapshot's facts after "`run` treats its arguments as CPython's command line
+  does" say every program runs in a fresh `__main__`, a script and `-m` in it as CPython's own
+  entry points run them, and that `run` on the snapshot finalizes as CPython does (no corner
+  paragraph); the *Measured* table's snapshot `-c pass` row becomes the built set's count (about
+  43.9 M guest instructions, from 15.6 M), its milliseconds re-measured by the builder as a
+  benchmark fact, and "most of it finalizing the interpreter" kept; any other sentence that
+  quotes the bare snapshot start (the builder greps `15.6`) follows.
+- `CHANGELOG.md`, 0.1.0a7: one **Fixed** bullet (the snapshot's unclosed files, a file the
+  program hung on the stdlib, and a script's and `-m`'s on both binaries), which also says a bare
+  snapshot call now costs about 43.9M guest instructions instead of 15.6M (question 103), and one
+  **Changed** bullet naming what moves toward native: a
   script's `__package__` and `__loader__`, `__builtins__` a module, an `atexit` handler that
   finds the program's `__main__`, `-m`'s not-found line and traceback frames, and a directory's
   "can't find '__main__' module" line;
   and spec 069's bullet loses "Known and unchanged: `run` on the snapshot loses …".
 - `context/roadmap.md`: 073's paragraph says drafted, then built, then landed, as it goes.
 - Specs 003 (its `run` paragraph) and 069 (Decision 4): one dated amendment line each, written in
-  with this revision (the review's F6). Spec 055's addendum is a research memo, which is never
+  with this revision (the review's F6) and restated by the amendment (069's names the unfreeze
+  and the factor of 3). Spec 055's addendum is a research memo, which is never
   edited after the fact (`context/README.md`), so it gets no line; this specification cites it.
 
 ## Scope
@@ -461,9 +526,11 @@ checked, documented and put to the owner.
 In: `_reactor.run`'s namespace and its script and `-m` paths; the judge changes of Decision 7;
 the README, CHANGELOG and roadmap lines.
 
+In, by the amendment: the unfreeze before `run` finalizes on the snapshot, and check (b)'s
+restated factor (Decision 4).
+
 Out:
-- the freeze itself, and check (b)'s factor (Decision 4);
-- the residual's fix (Decision 6; question 103);
+- the freeze itself, which stays for the start (Decision 4);
 - sessions (Decision 5);
 - `_report`'s handling of tracebacks, which is unchanged;
 - a file held only in a reference cycle that the program drops while it runs, which CPython also
@@ -480,20 +547,23 @@ to `build/073/*.log`.
 1. **The checks fail first, as Decision 7 says.** On main's set: A fails with 3 findings on the
    plain binary (digest `e6d5609d06d8`) and 7 on the snapshot (digest `98d69ac9128b`;
    `probe_check_a.out` ran its logic); C fails on the snapshot's `-c` and stdin and on both
-   binaries' script, directory and `-m`; E fails on all three rows on both binaries; D`[plain]` passes and D`[snapshot]` fails with digest
-   `049b78ef7b5a`; (h)`[snapshot]` fails with digest `7da6e52329c1`.
+   binaries' script, directory and `-m`; E fails on all three rows on both binaries;
+   D`[plain]` passes and D`[snapshot]` fails with its three findings; (h)`[snapshot]` fails with
+   digest `7da6e52329c1`.
 2. **After the build, the gap closes.** (h)`[snapshot]` passes, its gap entry is gone, and the
-   scoreboard shows one gap fewer from it. A, C and E pass on both binaries. D`[plain]` passes;
-   D`[snapshot]` fails with exactly its gap entry's digest.
+   scoreboard shows one gap fewer from it. A, C, D and E pass on both binaries.
 3. **What must not move.** `test_main_starts_as_native` (both binaries; it pins the six names
    only, and check C pins their values, the review's F2) and
    `test_the_import_path_reaches_every_mode` (both binaries; its stack depths 2 and 4, its `-m`
-   argv, its script's exit code 3) pass unchanged. Check (b) passes with `START_FACTOR` 8, and its
-   factor on the built set is at least 10; the Landing notes record both counts.
-4. **The fresh `__main__`'s cost, counted.** The snapshot's `-c pass` fuel on the built set
-   against main's accepted row for check (b): the rise is at most 0.1 M instructions (measured
-   like for like at +10,904; an eager import of `runpy`, about 20 M, would fail it). The Landing
-   notes give the number and the command.
+   argv, its script's exit code 3) and every check in `tests/checks/test_v1_4_sessions.py` pass
+   unchanged. Check (b) passes with `START_FACTOR` 3, and its factor on the built set is between
+   3.5 and 4.2 (projected 3.82); the Landing notes record both counts.
+4. **The cost, counted.** The snapshot's `-c pass` fuel on the built set against main's accepted
+   row for check (b) (15,631,800 at the measurement): the rise is between +27.7 M and +28.8 M
+   (projected +28,219,282: the unfreeze's +28,208,378 and the fresh `__main__`'s +10,904). Below
+   that, the unfreeze did not run; above it, something else was added (an eager import of
+   `runpy`, about 20 M, would show). The plain binary's `-c pass` rises by at most 0.1 M
+   (projected +29,676). The Landing notes give the numbers and the command.
 5. **Stand-ins.** Each fails what it names:
    - **S1**, the fresh `__main__` made but `-c` and stdin still `exec` in the old one: A (the
      snapshot's `-c` and stdin rows), C and (h)`[snapshot]` fail.
@@ -509,17 +579,22 @@ to `build/073/*.log`.
      C's script row fails.
    - **S7**, the file-script branch without the `finally` that removes `__file__`: C's script
      row fails in its `atexit` part.
-   - **S6**, `gc.unfreeze()` added before `Py_FinalizeEx` in `run` (option 1): D`[snapshot]` passes,
-     which the judge reports as a failure ("passes, but tests/known_gaps.toml still lists it"),
-     and check (b) fails at about 3.8. This is the evidence that option 1's numbers hold on a real
-     build.
+   - **S6**, `run` without the unfreeze (the design before the amendment): D`[snapshot]` fails
+     (the patched class and the module attribute), and criterion 4's count rises only about 11 K.
+   - **S8**, `run` looking `gc.unfreeze` up from `sys.modules["gc"]` after the program instead of
+     the reference `wizer.initialize` took: D's tampered-unfreeze row fails on the snapshot.
+   - **S9**, the reference taken but `Py_CLEAR` left out and `shutdown` reached in a session: no
+     check can see it, since `run` and `turn` exclude each other; the builder shows instead, with
+     `tests/checks/test_v1_4_sessions.py` green, that a session's shutdown still unfreezes once
+     (`test_the_shutdown_export_raw[snapshot]`).
 6. **The README and CHANGELOG lines** of the Design; `tests/public_api.txt` unchanged
    (`tests/harness/api.py` finds no change).
 7. **The judge, in the worktree, without `--accept`,** against the built set: the fast tier
    while building, then the full judge with `-n 3` (the machine is shared) before "built": 0
-   fail, no pass lost, one gap fewer ((h)) and one more (D); every growth is the fresh
-   `__main__`'s or the script and `-m` change's, listed as Decision 8 says; the judge change named
-   (`tests/checks/test_v1_4_embedding.py`, `tests/known_gaps.toml`); `ruff check` and
+   fail, no pass lost, one gap fewer ((h)) and none added; every growth is the unfreeze's, the
+   fresh `__main__`'s or the script and `-m` change's, listed as Decision 8 says; the judge change
+   named (`tests/checks/test_v1_4_embedding.py`, `tests/known_gaps.toml`,
+   `tests/checks/test_v1_3_data_stack.py`); `ruff check` and
    `ruff format --check` green.
 8. **The lane** rebuilds the set from the pins in the main tree, compares it with the builder's
    on the same base, judges serially and accepts, as §5.7 says for a build-class change.
@@ -548,6 +623,8 @@ command in its docstring.
 - `native_atexit.sh` → `native_atexit.out` (added for the revision): native CPython 3.15.0's
   `__main__` globals for a script, a `.pyc`, a directory and `-m`, during the run and in an
   `atexit` handler (Decision 2's table).
+- `probe_combined.py` → `probe_combined.out` (added for the amendment): the combined design, a
+  fresh `__main__` and, on the snapshot, the unfreeze, against today, like for like.
 - `probe_modules.py` → `probe_modules.out`: the residual's module shape, 15 of 70 modules.
 - `probe_patch.py` → `probe_patch.out`: the residual's patched-class shape, and that only
   option 1 closes it.
@@ -561,7 +638,7 @@ command in its docstring.
 
 Not built. The builder fills this in: the commits; the checks seen failing first and each
 stand-in's failure; the rebuilt set's hashes; check (b)'s two counts and factor; the bare row's
-rise (criterion 4); the rows that moved, up and down (Decision 8); the user-visible changes of
+rise and the plain row's (criterion 4); the rows that moved, up and down (Decision 8); the user-visible changes of
 Decisions 2 and 3 as check C and E saw them (the `atexit` handler, `-m`'s not-found line and
 traceback frames, the directory's "can't find '__main__' module" line, a script's `__package__`
 and `__loader__`); any upstream outcome that moved (Decision 10); the fast tier and the full
@@ -594,12 +671,74 @@ written in the lane's scratchpad, to be copied by the lane).
    Decision 7 says "no upstream allowance change is expected".
 6. **F6 (Low) — fixed.** Dated amendment lines in spec 003's `run` paragraph and spec 069's
    Decision 4. Not in spec 055's addendum, a research memo, which is not edited after the fact.
-7. **F7 (Low) — fixed.** D's gap reason ends "(spec 073, Decision 6; question 103)".
+7. **F7 (Low) — fixed, then superseded.** D's gap reason ended "(spec 073, Decision 6;
+   question 103)"; the amendment removes the gap, since question 103's answer closes it.
 8. **F8 (Low) — fixed.** Decision 10: 083 confirmed, building after 065, and meeting 073 in
    `tests/known_gaps.toml` as well as the check file, both merges textual; the order 081, 065,
    083.
 
-The review's notes, taken: the README says "may never be finalized"; the builder may make the
+The review's notes, taken: the README was to say "may never be finalized" (moot since the
+amendment, which writes no corner paragraph); the builder may make the
 fresh `__main__` inside `run`'s `try`. Its note on a relative script target (native makes
 `__file__` absolute) and the script's directory not on `sys.path` are older than this
 specification and stay out of scope.
+
+## Amendment of 2026-10-19 (103 answered: unfreeze before finalizing)
+
+The owner answered question 103: "Yes, unfreeze before finalizing" (`../decisions.md`, "100 to
+103, and the toolchain move's place, answered (2026-10-19)"). What changed in this specification:
+
+- **Kept:** option 4, the fresh `__main__` for every program, and a script and `-m` run in it
+  (Decisions 1 to 3, unchanged); it still fixes a script, a directory and `-m` on both binaries.
+- **Added:** `run` on the snapshot undoes the freeze before `Py_FinalizeEx`, through a reference
+  to `gc.unfreeze` that `wizer.initialize` takes before the freeze, called as a session's
+  `shutdown` calls it (Decision 4). `recipes/reactor_main.c` joins the Kind.
+- **Sessions:** unchanged, and the freeze is undone at most once per instance (Decision 5).
+- **Check D's gap closes:** D is a passing check on both binaries, with the patched class, the
+  module attribute and a tampered `gc.unfreeze` (Decisions 6 and 7). No gap entry is added.
+- **Check (b) is restated** from 8 to 3, with question 103's answer as the reason (Decisions 4
+  and 7); the lane accepts with `--accept-judge` and `--accept-growth`, the growth being the
+  measured +28 M per snapshot `run` from finalizing the unfrozen heap (Decision 8).
+- **The README:** the corner paragraph is not written; the snapshot's start cost is updated
+  (Design).
+- **Question 103** is gone from `../questions-for-the-owner.md` (main removed it); this
+  specification points at `../decisions.md`.
+
+**The fuel, re-measured for the combined design** (EXECUTED, `probe_combined.out`, against
+`build/sets/s-c50ca51fae5eb55b-c9dcb5b8`, one run each through the judge's driver). The probe runs
+the same private wrapper on both sides; the control runs the program in the frozen `__main__`
+with no unfreeze (today), the combined case in a fresh `__main__` and then, on the snapshot,
+`gc.unfreeze()`, before `Py_FinalizeEx`.
+
+| program | binary | control fuel | combined fuel | combined − control | bytes kept: control → combined |
+|---|---|---|---|---|---|
+| bare (`pass`) | snapshot | 16,564,773 | 45,306,285 | +28,741,512 | – |
+| bare (`pass`) | plain | 168,364,621 | 168,908,506 | +543,885 | – |
+| the gap | snapshot | 17,057,309 | 45,836,593 | +28,779,284 | 0 → 100 |
+| the gap | plain | 168,910,047 | 169,451,608 | +541,561 | 100 → 100 |
+| the patched class | snapshot | 16,547,313 | 46,141,921 | +29,594,608 | 0 → 100 |
+| the module attribute (`json.log`) | snapshot | 16,930,358 | 45,747,665 | +28,817,307 | 0 → 100 |
+| a `ZipFile` left open | snapshot | 127,373,492 | 156,015,979 | +28,642,487 | unreadable → readable |
+| `import pandas` | snapshot | 4,600,953,414 | 4,646,788,801 | +45,835,387 | – |
+| `import pandas` | plain | 4,917,725,856 | 4,918,427,916 | +702,060 | – |
+
+The plain binary keeps every file in both columns (`probe_combined.out`). The combined column's
+fresh `__main__` here is the wrapper's, whose compile costs about +0.53 M (`probe_fresh_cost.out`);
+the bootstrap's own costs +10,904 on the snapshot and +29,676 on plain (the review's `cases5.out`).
+So the unfreeze's own share is the combined run less the fresh-only run through the same wrapper
+(`probe_combined.out` against `probe_fresh_cost.out`): **+28,208,378** on a bare snapshot run,
+**+28,201,952** on the gap's, and **+45,192,576** after `import pandas`.
+
+Projected for the built set (today's accepted-style counts plus the bootstrap's fresh `__main__`
+and the unfreeze's share):
+
+| row | today | projected | change |
+|---|---|---|---|
+| bare, snapshot (check (b)'s measured run) | 15,631,800 | 43,851,082 | +28,219,282 (×2.81) |
+| bare, plain | 167,476,282 | 167,505,958 | +29,676 |
+| check (b)'s factor | 10.71 | **3.82** | restated from 8 to 3 |
+| the gap, snapshot | 16,185,307 (0 bytes) | 44,450,177 (100 bytes) | +28,264,870 |
+| `import pandas`, snapshot | 4,600,110,254 | 4,646,591,716 | +46,481,462 (+1.0%) |
+
+These agree with option 1's direct measurement (`probe.out`: `-c pass` with `gc.unfreeze()`
+appended, 43,851,798). The builder measures the real rows on the built set (criteria 3 and 4).
