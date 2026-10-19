@@ -4,6 +4,10 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
+## 0.1.0a7 — unreleased
+
+- (what changed)
+
 ## 0.1.0a6 — 2026-10-19
 
 - **The x86_64 rebuild runs natively** (spec 059). Every compile carries `-ffp-contract=off`,
