@@ -571,12 +571,33 @@ def test_the_removal_never_follows_a_link(tmp_path) -> None:
     assert sorted(os.listdir(canary)) == ["keep"] and (canary / "keep").read_text() == "keep"
 
 
+CHAIN = 8  # throwaway levels above the tree: more than the walk's deepest stack in these cases
+
+
 def tree_with_canary(tmp_path) -> tuple[Path, Path]:
-    """The review's shape: tree/ six levels deep, a file at each, and outside/keep beside it."""
-    (tmp_path / "outside").mkdir()
-    (tmp_path / "outside" / "keep").write_text("keep")
-    deep_tree(tmp_path / "tree", 6)
-    return tmp_path / "tree", tmp_path / "outside"
+    """The review's shape: tree/ six levels deep, a file at each, and outside/keep beside it,
+    both under CHAIN throwaway levels inside tmp_path, each holding a file `chain`. A walk that
+    climbed out (the identity check missing) then fails `chain_intact` and stays inside tmp_path,
+    never reaching the session's other folders (the build review, B1)."""
+    base = tmp_path
+    for i in range(CHAIN):
+        base = base / f"c{i}"
+        base.mkdir()
+        (base / "chain").write_text("chain")
+    (base / "outside").mkdir()
+    (base / "outside" / "keep").write_text("keep")
+    deep_tree(base / "tree", 6)
+    return base / "tree", base / "outside"
+
+
+def chain_intact(tmp_path) -> bool:
+    """Every throwaway level and its `chain` file is still there."""
+    base = tmp_path
+    for i in range(CHAIN):
+        base = base / f"c{i}"
+        if not (base / "chain").is_file():
+            return False
+    return True
 
 
 def hooked_open(monkeypatch, before=None, after=None) -> None:
@@ -616,7 +637,7 @@ def test_a_folder_swapped_for_a_link_mid_walk_is_left(tmp_path, monkeypatch) -> 
     def swap(path, dir_fd):
         if not done and in_level_2(path, dir_fd):
             level_3 = tree / "a" / "a" / "a"
-            os.rename(level_3, tmp_path / "parked")
+            os.rename(level_3, tree.parent / "parked")
             os.symlink(outside, level_3)
             done.append(1)
 
@@ -624,7 +645,7 @@ def test_a_folder_swapped_for_a_link_mid_walk_is_left(tmp_path, monkeypatch) -> 
     assert runner._remove_tree(tree) is False
     monkeypatch.undo()
     assert done and (tree / "a" / "a" / "a").is_symlink()
-    assert sorted(os.listdir(outside)) == ["keep"]
+    assert sorted(os.listdir(outside)) == ["keep"] and chain_intact(tmp_path)
 
 
 @pytest.mark.skipif(WINDOWS, reason="the climb by `..` and its identity check: the POSIX walk")
@@ -651,7 +672,8 @@ def test_the_walk_never_climbs_out_of_a_moved_folder(tmp_path, monkeypatch, atta
     hooked_open(monkeypatch, after=move)
     assert runner._remove_tree(tree) is False
     monkeypatch.undo()
-    assert done and (outside / "keep").read_text() == "keep"
+    assert done and chain_intact(tmp_path)
+    assert (outside / "keep").read_text() == "keep"
 
 
 @pytest.mark.skipif(POSIX and os.geteuid() == 0, reason="modes refuse nothing to root")

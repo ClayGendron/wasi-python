@@ -773,6 +773,8 @@ finding:
   `unlink` on an empty top (Decision 2).
 - **The owner's points stand:** a warning, not a `stats()` key (Decision 7); a retry bound of
   three (Decision 5). The review agrees with both.
+- **The owner accepted both points on 2026-10-19:** a warning, not a `stats()` key, and a retry
+  bound of three.
 
 **The confirmation (2026-10-19, "confirmed once C1 is written in"):**
 
@@ -925,6 +927,27 @@ not: they are in the recursion table).
 - **Windows is not run here.** Criteria 1 to 4, 6, 8 and 9 to 15 have Windows legs; criterion
   17 is the lane's dry run. C2 (whether a Windows guest deletes a read-only file itself) is
   settled there: criterion 3's Windows rows skip with that reason if it does.
+
+### The build review (2026-10-19, "lands once B1 is fixed")
+
+The review is in the lane's scratchpad,
+`084-review/084-a-private-root-never-outlives-its-call-build-2026-10-19.md`, to be copied to
+`../reviews/`.
+- **B1 (medium, test only), fixed.** Criterion 7's tree and canary, and criterion 6's swap case,
+  now sit under eight throwaway levels inside `tmp_path`, each holding a file `chain`, and both
+  checks assert the chain is intact (`chain_intact`). The identity-check stand-in, re-run with a
+  custom `--basetemp` under a guard folder holding a sentinel (`build/084-b1-standin.log`):
+  criterion 7's three rows fail; the mutant's climb emptied at most chain levels 6 to 8 inside
+  each `tmp_path` (levels 1 to 5 intact); the other workers' folders, the swap case's folder and
+  the guard's sentinel are untouched.
+- **N1 (nit), answered.** The warning's `stacklevel` names a runner frame, since one flush serves
+  `run`, `run_async`'s worker, a session's closer thread and the exit hook, which have no common
+  caller depth; each message names its folder, so the default filters show every one, and the
+  README promises no location. Kept.
+- **N2 (nit), answered.** A Windows top with any reparse point is unlinked, not entered: the safe
+  side, and at worst a folder left and named; it changes no `src/` line now, so the reviewed
+  record stands. If a stray warning ever shows it on Windows, the top's tag is compared as
+  `_is_folder` compares the entries'.
 
 ### For the lane
 
