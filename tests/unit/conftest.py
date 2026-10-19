@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from harness import paths
+from harness import litter, paths
 
 
 @pytest.fixture
@@ -17,4 +16,4 @@ def work() -> Path:
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     d = Path(tempfile.mkdtemp(prefix="unit-", dir=paths.HARNESS_TMP))
     yield d
-    shutil.rmtree(d, ignore_errors=True)
+    litter.remove(d)  # a run's stdlib folder in it is sealed (spec 089)

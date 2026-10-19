@@ -3,7 +3,6 @@ driver."""
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -11,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths
+from harness import litter, needs, paths
 
 BINARIES = {"plain": "python.wasm", "snapshot": "python-snapshot.wasm"}
 CACHE_ENV = "WASI_PYTHON_CACHE"
@@ -62,7 +61,7 @@ def guest_workdir():
     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
     d = Path(tempfile.mkdtemp(prefix="guest-", dir=paths.HARNESS_TMP))
     yield d
-    shutil.rmtree(d, ignore_errors=True)
+    litter.remove(d)  # its matplotlib data is sealed (spec 089)
 
 
 @pytest.fixture

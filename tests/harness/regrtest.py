@@ -22,7 +22,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from harness import paths
+from harness import litter, paths
 
 GRANT = "/cpython"
 STREAM = "judge/outcomes.txt"  # in the guest's root
@@ -222,6 +222,7 @@ def stage(tarball: Path, tree: Path | None, dest: Path) -> list[str]:
                 raise ValueError(f"{tarball.name}: member {m.name!r} refused (outside its folder)")
             src = t.extractfile(m)
             assert src is not None
+            litter.refuse(rel, tarball.name)  # the seal's cleanup must never meet it (spec 089)
             target = dest / "lib" / rel[len("Lib/") :]
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(src.read())
@@ -724,7 +725,7 @@ class Session:
 
     def close(self) -> None:
         if self.root is not None:
-            shutil.rmtree(self.root, ignore_errors=True)
+            litter.remove(self.root)  # sealed: unsealed first (spec 089)
 
     def prepare(self, package: str) -> list[str]:
         if package not in self.prepared:
@@ -757,6 +758,7 @@ class Session:
             (judge / f"{g}.json").write_text(json.dumps(group_spec(cfg, g), indent=1))
         for t in cfg.traps:
             (judge / f"{t.id}.json").write_text(json.dumps(trap_spec(cfg, t), indent=1))
+        litter.seal(self.root)  # no host process can add to the stage now (spec 089)
         return left_out
 
     def _run(self, name: str, fuel: int) -> tuple[Stream, GuestRun]:
@@ -780,7 +782,7 @@ class Session:
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, tail[0][:200])
-        shutil.rmtree(r.root.parent, ignore_errors=True)
+        litter.remove(r.root.parent)  # its stdlib folder is sealed (spec 089)
         return parse_stream(text), run
 
     def group(self, package: str, group: str) -> GroupRun:

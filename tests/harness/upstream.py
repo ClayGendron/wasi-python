@@ -22,7 +22,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
-from harness import paths
+from harness import litter, paths
 
 HERE = paths.REPO / "tests" / "upstream"
 KIT = HERE / "kit.txt"
@@ -269,6 +269,7 @@ def safe_unzip(wheel: Path, dest: Path) -> None:
             parts = re.split(r"[\\/]", name)
             if name.startswith(("/", "\\")) or re.match(r"[A-Za-z]:", name) or ".." in parts:
                 raise ValueError(f"{wheel.name}: member {name!r} refused (outside its folder)")
+            litter.refuse(name, wheel.name)  # the seal's cleanup must never meet it (spec 089)
         dest.mkdir(parents=True, exist_ok=True)
         for info in z.infolist():
             target = dest / info.filename
@@ -389,6 +390,7 @@ def stage(cfg: Config, tree: Path, allowed: set[str], dest: Path) -> list[str]:
     for rel in sorted(wanted):
         if rel not in allowed or not (tree / rel).is_file():
             continue
+        litter.refuse(rel, tree.name)  # the seal's cleanup must never meet it (spec 089)
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(tree / rel, target)
@@ -751,7 +753,7 @@ class Session:
 
     def close(self) -> None:
         if self.root is not None:
-            shutil.rmtree(self.root, ignore_errors=True)
+            litter.remove(self.root)  # sealed: unsealed first (spec 089)
 
     def _stage_root(self) -> Path:
         if self.root is None:
@@ -777,6 +779,8 @@ class Session:
             for p, c in self.configs.items():
                 if c.runner == "pytest" and pins.source_pair(p) is not None:
                     self.prepared[p] = self._prepare(p)
+            if self.root is not None:
+                litter.seal(self.root)  # the whole stage, once every package is in (spec 089)
         got = self.prepared.get(package, f"no source tree for {package}")
         if isinstance(got, str):
             raise AssertionError(got)
@@ -829,7 +833,7 @@ class Session:
         text = stream_file.read_text(errors="replace") if stream_file.is_file() else ""
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         run = GuestRun(r.exit_code, r.trapped, r.trap_cause, r.fuel, r.text, tail[0][:200])
-        shutil.rmtree(r.root.parent, ignore_errors=True)  # the run's root: pytest's temp files
+        litter.remove(r.root.parent)  # the run's root and its sealed stdlib folder (spec 089)
         return parse_stream(text), run
 
     def group(self, package: str, group: str) -> GroupRun:

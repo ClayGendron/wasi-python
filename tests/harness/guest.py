@@ -30,7 +30,7 @@ from typing import Any
 
 import wasmtime as wt
 
-from harness import paths
+from harness import litter, paths
 
 DEFAULT_FUEL = 2 * 10**11
 WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
@@ -147,6 +147,7 @@ def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
             inner = io.BytesIO(outer.read(MPL_DATA_MEMBER))
         with zipfile.ZipFile(inner) as z:
             z.extractall(dest)
+        litter.seal(dest)  # read-only for every run that shares it (spec 089)
         _mpl_data[key] = dest
     return _mpl_data[key]
 
@@ -269,6 +270,7 @@ def run(
         (root / "usr/local/lib").mkdir(parents=True)
         lib = base / "lib"
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
+        litter.seal(lib)  # read-only and fresh: sealed like a stage (spec 089, F4)
     for guest_path, content in (files or {}).items():
         dest = root / guest_path.lstrip("/")
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -297,6 +299,7 @@ def run(
         name = stdlib_name(python_version or "", stdlib)
         data = mpl_data_dir(stdlib, workdir)
         ordered.insert(1, (str(data), f"/usr/local/lib/{name}/matplotlib/mpl-data", False))
+    watch = litter.Watch(ordered)  # host litter, before the run and after it (spec 089)
     for host_dir, guest_path, writable in ordered:
         wasi.preopen_dir(host_dir, guest_path, writable)
     wasi.stdout_file = str(io / "stdout")
@@ -389,6 +392,7 @@ def run(
     except wt.WasmtimeError as e:
         trapped = str(e).strip().splitlines()[0]
     spent = fuel - store.get_fuel() if metered else 0
+    watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
     return Result(
         exit_code=exit_code,
         stdout=(io / "stdout").read_bytes(),

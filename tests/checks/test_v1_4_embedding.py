@@ -4778,3 +4778,61 @@ def test_the_open_file_cap_holds(guest_workdir) -> None:
     )
     done = asyncio.run(wasi_python.run_async(["-c", code], grants=grants, max_open_files=2))
     assert (done.exit_code, done.stdout) == (0, b"2 True\n"), done
+
+
+STAGE_FOLDERS = ("/stage", "/stage/lib", "/stage/lib/test", "/stage/judge")
+STAGE_LISTER = f"import os\nfor d in {STAGE_FOLDERS!r}:\n    print(d, sorted(os.listdir(d)))\n"
+
+
+def _a_stage(guest_workdir: Path) -> Path:
+    """A small read-only stage, made and sealed as the judge's stages are (spec 089)."""
+    from harness import litter
+
+    root = Path(tempfile.mkdtemp(prefix="stage-", dir=guest_workdir))
+    for rel in ("lib/test/a.py", "lib/test/b.txt", "lib/c.py", "judge/d.json"):
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_text(rel)
+    litter.seal(root)
+    return root
+
+
+@pytest.mark.parametrize("which", ["plain", "snapshot"])
+def test_a_file_dropped_into_a_stage_changes_nothing(guest, guest_workdir, which) -> None:
+    """Guards a change (spec 089): a desktop process (macOS's folder-size cache) writes `.DS_Store`
+    into folders under the home folder, the judge's stages among them, and a file that lands in a
+    grant changes what the guest lists and its fuel. A drop is refused or named, never measured:
+    - where a folder's mode binds (POSIX, not root), every folder of a stage the judge grants
+      read-only is sealed, so each drop is refused, and the guest's output and fuel are a twin's
+      no writer touched (`os.listdir` reads no inode number or time, so they compare exactly);
+    - where it does not (Windows; root), the drops land and the run fails with `HostLitter`,
+      naming them.
+    The twin is the run measured last, so the fuel row is the same program on every host."""
+    from harness import litter
+
+    binds = sys.platform != "win32" and os.geteuid() != 0
+    clean, dropped = _a_stage(guest_workdir), _a_stage(guest_workdir)
+    try:
+        landed, refused = [], []
+        for d, _dirs, _files in os.walk(dropped):
+            try:
+                (Path(d) / ".DS_Store").write_bytes(b"\x00\x00\x00\x01Bud1" + bytes(6140))
+                landed.append(d)
+            except PermissionError:
+                refused.append(d)  # the seal: what a desktop writer meets too
+        grant = [("/stage", dropped, False)]
+        if binds:
+            run = guest(which, ["-c", STAGE_LISTER], preopens=grant)
+        else:
+            assert landed, "the drops were refused where a folder's mode should not bind"
+            with pytest.raises(litter.HostLitter, match=r"/stage/\.DS_Store \(before the run\)"):
+                guest(which, ["-c", STAGE_LISTER], preopens=grant, record=False)
+        twin = guest(which, ["-c", STAGE_LISTER], preopens=[("/stage", clean, False)])
+        assert twin.exit_code == 0 and b"a.py" in twin.stdout, twin
+        if binds:
+            assert (run.exit_code, run.stdout) == (twin.exit_code, twin.stdout), run.stdout
+            assert run.fuel == twin.fuel, (run.fuel, twin.fuel)
+            assert landed == [] and len(refused) == len(STAGE_FOLDERS), (landed, refused)
+            assert litter.litter_in(dropped) == []
+    finally:
+        litter.remove(clean)
+        litter.remove(dropped)
