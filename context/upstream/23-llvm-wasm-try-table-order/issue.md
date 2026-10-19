@@ -2,10 +2,10 @@
 
 - **Project:** LLVM (https://github.com/llvm/llvm-project), the WebAssembly backend, as wasi-sdk 33
   ships it (clang 22.1.0, LLVM `4434dabb`)
-- **State:** facts for the owner to write an issue from; nothing waits on it: spec 037 compiles the
-  one affected file at `-Os` (`recipes/scipy_file_includes.txt`). LLVM's AI Tool Use Policy keeps
-  agents from posting and asks for a disclosure, so the owner reviews and posts it (as for
-  `4-llvm-wasm-isel-slot-order/`).
+- **State:** facts for the owner to write an issue from. Spec 037's landing waits on a fix or a
+  decision (`context/research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`,
+  question 104). LLVM's AI Tool Use Policy keeps agents from posting and asks for a disclosure, so
+  the owner reviews and posts it (as for `4-llvm-wasm-isel-slot-order/`).
 
 ## What happens
 
@@ -13,7 +13,9 @@ scipy 1.18.1's `scipy/fft/_duccfft/pyduccfft.cxx` (ducc0's FFT, heavy C++ templa
 for `wasm32-wasip1` with standard exception handling (`-fwasm-exceptions -mllvm
 -wasm-use-legacy-eh=false -fexceptions`) at `-O3`, gives a different object file on every run of
 the same command on the same machine (EXECUTED 2026-10-19, macOS arm64: eight compiles, eight
-SHA-256s; the same at `-O2` and `-O1`; at `-Os` eight compiles give one object). The
+SHA-256s; the same at `-O2` and `-O1`; at `-Os` eight compiles give one object, but that object's
+module crashes at import in the guest, so `-Os` is no workaround). The optimized IR is the same on
+every run; compiling that IR alone to an object differs from run to run, so it is the backend. The
 disassemblies differ only in the nesting order of `try_table (catch_all_ref …)` blocks in eight
 functions, `ducc0::detail_fft::cfftpass<T>::make_pass`, `rfftpass<T>::make_pass` and two
 `make_shared` instantiations, each a function with several `make_shared` calls whose cleanups

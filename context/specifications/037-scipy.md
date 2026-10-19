@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** built 2026-10-19, awaiting its build review (Revised at build and the landing notes, below). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** built 2026-10-19 and judged green on macOS, **blocked on criterion 3** (the same bytes from any host): one file, ducc0's, does not compile reproducibly with the pinned clang (Revised at build item 19; question 104). Not for landing until that is settled. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -948,16 +948,17 @@ changed and why; each is small and none changes a decision's purpose. The review
     depended on where and when it was built. With the ceiling git finds no repository and the tag
     is meson's fallback, `unknown`, on every host (EXECUTED: `HConfig.h`). Decision 12's "f2py's
     output, Cython's, `__config__.py`" list of host-side inputs gains this one.
-19. **ducc0's C++ (`scipy/fft/_duccfft/pyduccfft.cxx`) is compiled at `-Os`**, through the
-    per-file map, whose second field may now be a flag (`scripts/wasi-cc` appends it after the
-    compile's own, so the last `-O` wins). At `-O3`, `-O2` and `-O1` the pinned clang (wasi-sdk
-    33, LLVM `4434dabb`) orders the `try_table` blocks of ducc0's `make_pass` functions
-    differently on every run: eight compiles of the file on one host gave eight objects; at
-    `-Os` eight gave one (EXECUTED). It is the only one of scipy's 910 compiles that differed
-    between two compiles (each compiled twice, EXECUTED), and it was the last difference between
-    the macOS and linux/arm64 sets (eight functions). A compiler fault, not a host fact: an issue
-    text is drafted (`context/upstream/23-llvm-wasm-try-table-order/issue.md`). `scipy.fft` may
-    run somewhat slower than at `-O3` (not measured).
+19. **Not resolved: ducc0 does not compile to the same bytes twice.** After items 17 and 18 the
+    macOS and linux/arm64 sets still differed in eight functions of ducc0
+    (`scipy/fft/_duccfft/pyduccfft.cxx`). The pinned clang's WebAssembly backend orders their
+    `try_table` blocks differently on every run, on one host (eight compiles, eight objects; the
+    IR is the same every time; only this one of scipy's 910 compiles; EXECUTED). Two attempts
+    failed: `-Os` for that file was reproducible but its module crashed at import (20 checks of
+    the full judge failed), and no backend switch tried made `-O3` reproducible. By AGENTS.md
+    rule 7 and criterion 3 the build stops here: the recipe is back at `-O3` (correct, judged
+    green, not reproducible), the facts are in
+    `../research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`, the issue facts
+    in `../upstream/23-llvm-wasm-try-table-order/issue.md`, and the owner's choice is question 104.
 20. **python.wasm grew more than Decision 14 expected** (the landing notes give each figure):
     a finding for the build review, as Decision 14 says.
 
@@ -971,9 +972,9 @@ worktree's git-ignored `build/037/`. Not yet reviewed: the build review is next,
 
 ### Commits
 
-- `febbeff` the checks first; `3aa0d5b` the build; `662ec7f` step 38's two makes, `2687418`
-  step 57's git ceiling and the next commit ducc0 at `-Os` (Revised at build, items 17 to 19,
-  each found by a linux/arm64 build that differed from macOS's);
+- `febbeff` the checks first; `3aa0d5b` the build; `662ec7f` step 38's two makes and `2687418`
+  step 57's git ceiling (Revised at build, items 17 and 18, each found by a linux/arm64 build
+  that differed from macOS's); `24fc4ab` ducc0 at `-Os`, undone by the next commit (item 19);
   the commit carrying these notes, the README and the spec's revision.
 
 ### The four stages (Decision 1, criterion 2)
@@ -1032,7 +1033,22 @@ OpenBLAS's prebuild with step 38's variables (`build/037/getarch/`): `config.h` 
 arm64, linux/arm64 and linux/amd64 (emulated); `Makefile.conf` differs only in link-only lines.
 No value needed pinning. The x86_64 rebuild itself is the release dry run's (the lane's).
 
-LINUX_RESULT
+Three linux/arm64 builds from empty, each a clean clone in the `wp040-arm64` container (Debian
+13.7, kernel 7.0.12-linuxkit, 10 cores; Debian's `python3` 3.13.5 installed first for HarfBuzz's
+step 37, as in 046 and 069; `build/037/linux/`):
+
+1. at `3aa0d5b`: step 57 stopped (the direct-call gate's undefined symbols): the OpenBLAS archive
+   had lost 20 members to two parallel `ar -ru` (item 17; fixed in `662ec7f`, macOS's archive
+   unchanged);
+2. at `662ec7f`: `python.wasm` differed in its data, HiGHS's `git describe` stamp (item 18; fixed
+   in `2687418`);
+3. at `24fc4ab` (ducc0 at `-Os`): **`SHA256SUMS` equal to macOS's on every line**
+   (`fc894a37…` for both files), the only such run, but that set's scipy.fft module crashes
+   (item 19), so it is not a set to land.
+
+At `2687418` (the recipe on this branch) the two hosts differ only in ducc0's eight functions,
+and two macOS builds differ from each other the same way. **Criterion 3 is not met.** No x86_64
+rebuild was run (the release dry run's), and none is meaningful until it is.
 
 ### The numbers (Decision 14, criterion 5)
 
@@ -1124,10 +1140,12 @@ RED: 161 metric(s) grew
 
 ### For the lane
 
+- **Not for landing** until question 104 is settled and criterion 3 holds (Revised at build item
+  19). What follows is for when it is.
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
   Accept with `--accept-judge` (the judge files above), `--accept-growth` and `--accept`.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).
-- **When 063 lands first**, its `tests/upstream/packages.toml` gains `scipy` (`later`, closer spec
+- **063 landed on main while this was building** (`08de0c8`): at the rebase its `tests/upstream/packages.toml` gains `scipy` (`later`, closer spec
   066, Revised at build item 16) and `openblas` (`via scipy`), and `test_v1_3_scipy.py` takes its
   place by 063's rule (g); the release workflow's zero-patch count rises by two over whatever
   it is then.

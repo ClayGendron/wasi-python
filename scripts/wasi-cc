@@ -61,8 +61,8 @@ $a";;
 done
 # A per-file force-include (spec 037, Decision 6): when WASI_CC_FILE_INCLUDES names a map file
 # (`<path suffix> <header> [count]` per line, # for a comment), a compile whose source path ends with an
-# entry's suffix gets that entry's -include (or, when the second field starts with `-`, that flag,
-# after the compile's own), and one line goes to the log WASI_CC_FILE_INCLUDES_LOG names. Only step 57 (scipy) sets them; unset, the command is exactly as above.
+# entry's suffix gets that entry's -include, and one line goes to the log WASI_CC_FILE_INCLUDES_LOG
+# names. Only step 57 (scipy) sets them; unset, the command is exactly as above.
 if [ -n "${WASI_CC_FILE_INCLUDES:-}" ]; then
   src=""; prev=""
   for a in "$@"; do
@@ -75,13 +75,9 @@ if [ -n "${WASI_CC_FILE_INCLUDES:-}" ]; then
       case "$suffix" in ''|'#'*) continue;; esac
       case "$src" in
         *"$suffix")
-          case "$header" in
-            -*) args="$args
-$header";;  # a flag, after the compile's own: the last -O wins
-            *) args="$args
+          args="$args
 -include
-$header";;
-          esac
+$header"
           printf '%s\t%s\n' "$suffix" "$src" >> "${WASI_CC_FILE_INCLUDES_LOG:?WASI_CC_FILE_INCLUDES_LOG names the log}";;
       esac
     done < "$WASI_CC_FILE_INCLUDES"
