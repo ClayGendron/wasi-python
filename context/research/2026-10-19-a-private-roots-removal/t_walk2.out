@@ -1,0 +1,7 @@
+shutil.rmtree on 2,000 levels at soft 64: left ['OSError', 'OSError'] 61
+deep 2,000 + files: gone=True entries=4000 ops=17886 peak_fds=2 {'open': 4001, 'close': 4001, 'scandir': 5942, 'unlink': 1941, 'rmdir': 2001, 'open_peak': 2}
+links: gone=True entries=5 ops=17 peak_fds=2 {'open': 3, 'close': 3, 'scandir': 5, 'unlink': 4, 'rmdir': 2, 'open_peak': 2}
+  canary intact: True ['keep']
+read-only: gone=False entries=6 ops=16 peak_fds=2 {'open': 5, 'close': 5, 'scandir': 6, 'open_peak': 2}
+wide: gone=True entries=5300 ops=7105 peak_fds=2 {'open': 601, 'close': 601, 'scandir': 602, 'unlink': 5000, 'rmdir': 301, 'open_peak': 2}
+left in work: ['canary', 'r']

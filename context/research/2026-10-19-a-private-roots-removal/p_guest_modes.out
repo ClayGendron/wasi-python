@@ -1,0 +1,25 @@
+has {'chmod': True, 'fchmod': False, 'lchmod': False, 'umask': False, 'chflags': False, 'mkfifo': False, 'mknod': False}
+mkdir mode 0o500 ok
+mkdir mode 0o000 ok
+open O_CREAT mode 0o400 ok
+chmod dir 0o500 ok
+chmod file 0o000 ok
+fchmod dir AttributeError 
+umask 0o777 then mkdir AttributeError 
+mkfifo AttributeError 
+utime (the only setter left) ok
+guest sees /d500 0o0
+guest sees /d000 0o0
+guest sees /f400 0o0
+guest sees /dc 0o0
+guest sees /dc/x 0o0
+guest sees /dumask FileNotFoundError
+ 
+host umask 0o22
+host d000 0o755
+host d500 0o755
+host dc 0o755
+host tmp 0o755
+host f400 0o644
+host dc/x 0o644
+host rmtree errors: [] left: False

@@ -1,0 +1,32 @@
+{
+ "case": "home",
+ "impl": "proto",
+ "exit": 0,
+ "stdout": "guest unlink: PermissionError 2\nmoved into /tmp/.home-a52ca3bca37c88b6185717e43d6e938e\n",
+ "stderr": "",
+ "removals_routed": 2,
+ "secret_found_at": [
+  "host/tmp/.home-a52ca3bca37c88b6185717e43d6e938e/data/ro/secret"
+ ],
+ "temp_left": [
+  "wasi-python-zip-45ce5d618e004202",
+  "wasi-python-zip-45ce5d618e004202.lock"
+ ]
+}
+{
+ "case": "private",
+ "impl": "proto",
+ "exit": 0,
+ "stdout": "guest unlink: PermissionError 2\nmoved into the private root\n",
+ "stderr": "",
+ "removals_routed": 3,
+ "secret_found_at": [
+  "temp/wasi-python-root-ed8036b785691e5c/data/ro/secret"
+ ],
+ "temp_left": [
+  "wasi-python-root-ed8036b785691e5c",
+  "wasi-python-root-ed8036b785691e5c.lock",
+  "wasi-python-zip-8b247fdf99447ac6",
+  "wasi-python-zip-8b247fdf99447ac6.lock"
+ ]
+}

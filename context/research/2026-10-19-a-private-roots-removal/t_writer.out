@@ -1,0 +1,2 @@
+budget 10000: returned False, unlinks 4998, listings 5000, writer added 4998
+budget 1048576: returned True, unlinks 50001, listings 50004, writer added 50000

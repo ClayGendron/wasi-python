@@ -1,0 +1,260 @@
+{
+ "walk": {
+  "A_subtree_moved_out": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep",
+    "moved"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 7,
+    "close": 7,
+    "scandir": 10,
+    "unlink": 4,
+    "rmdir": 4,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "B_folder_swapped_for_link": {
+   "returned": false,
+   "tree_left": true,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 5,
+    "close": 5,
+    "scandir": 8,
+    "unlink": 3,
+    "rmdir": 0,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   },
+   "parked_left": true
+  },
+  "C_subtree_renamed_up": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 13,
+    "close": 13,
+    "scandir": 16,
+    "unlink": 6,
+    "rmdir": 7,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "A2_subtree_moved_out_after_open": {
+   "returned": false,
+   "tree_left": true,
+   "outside": [
+    "keep",
+    "moved"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 10,
+    "close": 10,
+    "scandir": 9,
+    "unlink": 4,
+    "rmdir": 2,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "C2_subtree_renamed_up_after_open": {
+   "returned": false,
+   "tree_left": true,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 10,
+    "close": 10,
+    "scandir": 9,
+    "unlink": 4,
+    "rmdir": 2,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "D_parent_moved_out": {
+   "returned": false,
+   "tree_left": true,
+   "outside": [
+    "keep",
+    "lvl3"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 11,
+    "close": 11,
+    "scandir": 10,
+    "unlink": 4,
+    "rmdir": 3,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "E_writer_1000": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 5,
+    "close": 5,
+    "scandir": 1007,
+    "unlink": 1002,
+    "rmdir": 3,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   },
+   "writer_files": 1000
+  },
+  "E_writer_20000": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 5,
+    "close": 5,
+    "scandir": 20007,
+    "unlink": 20002,
+    "rmdir": 3,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   },
+   "writer_files": 20000
+  }
+ },
+ "walk_without_identity_check": {
+  "A_subtree_moved_out": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep",
+    "moved"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 7,
+    "close": 7,
+    "scandir": 10,
+    "unlink": 4,
+    "rmdir": 4,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "B_folder_swapped_for_link": {
+   "returned": false,
+   "tree_left": true,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 5,
+    "close": 5,
+    "scandir": 8,
+    "unlink": 3,
+    "rmdir": 0,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   },
+   "parked_left": true
+  },
+  "C_subtree_renamed_up": {
+   "returned": true,
+   "tree_left": false,
+   "outside": [
+    "keep"
+   ],
+   "keep_intact": true,
+   "ops": {
+    "open": 13,
+    "close": 13,
+    "scandir": 16,
+    "unlink": 6,
+    "rmdir": 7,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "A2_subtree_moved_out_after_open": {
+   "returned": true,
+   "tree_left": false,
+   "outside": "GONE",
+   "keep_intact": false,
+   "ops": {
+    "open": 133,
+    "close": 133,
+    "scandir": 148,
+    "unlink": 66,
+    "rmdir": 62,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "C2_subtree_renamed_up_after_open": {
+   "returned": true,
+   "tree_left": false,
+   "outside": "GONE",
+   "keep_intact": false,
+   "ops": {
+    "open": 29,
+    "close": 29,
+    "scandir": 32,
+    "unlink": 7,
+    "rmdir": 10,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  },
+  "D_parent_moved_out": {
+   "returned": true,
+   "tree_left": false,
+   "outside": "GONE",
+   "keep_intact": false,
+   "ops": {
+    "open": 25,
+    "close": 25,
+    "scandir": 27,
+    "unlink": 7,
+    "rmdir": 9,
+    "fchmod": 0,
+    "open_now": 0,
+    "open_peak": 2
+   }
+  }
+ }
+}

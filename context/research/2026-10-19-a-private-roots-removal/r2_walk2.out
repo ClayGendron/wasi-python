@@ -1,0 +1,14 @@
+walk A_subtree_moved_out returned True keep True outside ['keep', 'moved'] unlinks 4
+walk B_folder_swapped_for_link returned False keep True outside ['keep'] unlinks 3
+walk C_subtree_renamed_up returned True keep True outside ['keep'] unlinks 6
+walk A2_subtree_moved_out_after_open returned False keep True outside ['keep', 'moved'] unlinks 4
+walk C2_subtree_renamed_up_after_open returned False keep True outside ['keep'] unlinks 4
+walk D_parent_moved_out returned False keep True outside ['keep', 'lvl3'] unlinks 4
+walk E_writer_1000 returned True keep True outside ['keep'] unlinks 1002
+walk E_writer_20000 returned True keep True outside ['keep'] unlinks 20002
+walk_without_identity_check A_subtree_moved_out returned True keep True outside ['keep', 'moved'] unlinks 4
+walk_without_identity_check B_folder_swapped_for_link returned False keep True outside ['keep'] unlinks 3
+walk_without_identity_check C_subtree_renamed_up returned True keep True outside ['keep'] unlinks 6
+walk_without_identity_check A2_subtree_moved_out_after_open returned True keep False outside GONE unlinks 66
+walk_without_identity_check C2_subtree_renamed_up_after_open returned True keep False outside GONE unlinks 7
+walk_without_identity_check D_parent_moved_out returned True keep False outside GONE unlinks 7
