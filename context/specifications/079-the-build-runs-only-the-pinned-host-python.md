@@ -1,6 +1,6 @@
 # 079 — The build runs only the pinned host Python
 
-- **Status:** drafted 2026-10-19 on `spec/079-the-build-runs-only-the-pinned-host-python` from
+- **Status:** **landed 2026-10-19** (accepted on `de10146` as `7a3c59e`, history line 75; the build review, `../reviews/079-the-build-runs-only-the-pinned-host-python-build-2026-10-19.md`, said it lands once F1 and F2, both fixed and checked by the lane). Before landing: drafted 2026-10-19 on `spec/079-the-build-runs-only-the-pinned-host-python` from
   main `23f1c4f` (`abf1817`). **Revised 2026-10-19 against its pre-build review** (written in the
   scratchpad, `079-review/079-the-build-runs-only-the-pinned-host-python-spec-2026-10-19.md`, with
   its probes beside it, to be copied to `../reviews/` by the lane; verdict: "ready once F1 to
@@ -836,3 +836,21 @@ rebuilt.
 Put a shim for the pinned host Python first on every build step's `PATH`, and a refusing stand-in
 for every other Python name the host has behind it, so FreeType, HarfBuzz, matplotlib and
 CPython's configure stop reaching the host's own interpreters, with the same bytes out.
+
+**Landed 2026-10-19** through the lane, after spec 075. The lane rebased the branch onto main
+`3f69654` with no conflict; its diff equals the reviewed diff at `c5f3633` line for line (EXECUTED,
+`build/lane-079/delta.txt`, empty). The lane read the build review's F1 and F2 fixes in `scan.py`
+(only `$COMMAND` skipped; a command substitution in a step's PATH is unresolved, so a hit). The
+pre-build review with its confirmation and the build review were committed on the detached HEAD as
+`de10146`. **The main tree's full build from pins** (16 steps, 8 min 05 s) gave `SHA256SUMS`
+`c9dcb5b84ae2447ad0105cb78a6d06956326c4f2447fa977f7f58fa54c137739`, byte for byte the builder's and
+the linux/arm64 container's; `python.wasm`, the snapshot and the zip are spec 071's bytes, and
+MANIFEST differs only in its four recipe lines. No unpinned Python was reached
+(`build/logs/unpinned-python.log` absent) (EXECUTED, `build/lane-079-build.log`). The set is frozen
+read-only as `build/sets/s-c50ca51fae5eb55b-c9dcb5b8` (same snapshot as 071's, new MANIFEST). The
+full judge, serial: `wasi_python v1: 534/551 pass · 15 gap · 2 blocked · 0 fail (unit suite
+1376/1378, 2 skipped)`, `1910 passed, 4 skipped, 15 xfailed in 1526.12s`, accepted with
+`--accept-judge` as `7a3c59e`, history line 75; nothing grew (EXECUTED, `build/lane-079-accept.log`).
+The rules tier passed (40/40, unpiped); main fast-forwarded. This closes the 0.1.0a6 security
+review's F2.
+
