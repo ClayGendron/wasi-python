@@ -8,6 +8,26 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The 0.1.0 security review's owner points (2026-10-19)
+
+The whole-surface review (`reviews/0.1.0-whole-surface-security-review-2026-10-19.md`, on main
+`302df18`) found the sandbox holding on every row of the threat model; 0.1.0 waits on S1 and S2.
+The owner answered in the session:
+
+- **S1, S4, S7 (repository settings): "You apply via gh."** Applied by the lane with `gh api` and
+  read back the same day: the `pypi` and `release` environments deploy only from tags matching
+  `v*` (custom policy, type tag); immutable releases on; secret scanning and push protection on;
+  Dependabot alerts requested. Only the workflow's two publish jobs name those environments, and
+  they run on a tag push, so dry runs on branches are unaffected. S1 is closed.
+- **S2:** closed by spec 084 when it lands (built and reviewed).
+- **S5 (the guest's string hash is 32-bit FNV with a public key):** "sneak it in 086 and review it
+  with the rest of the work". Spec 086 adds `--with-hash-algorithm=siphash13` at its rebase onto
+  083, and its delta review covers it; the README states the hash meanwhile.
+- **S3 (an installed wheel can load a neighbouring `build/artifacts/` unverified):** "add to
+  existing spec". Spec 087 (the a7 review's guest follow-ups, being built) takes it: no
+  repository-relative set from an installed wheel, and a set's hashes checked before use.
+- **S6:** closed by spec 085 when it lands.
+
 ### Speeding the work toward 0.1.0, and 078's Linux price (2026-10-19)
 
 The owner asked for a measure of the pace and for proposals to speed it, and chose in the session

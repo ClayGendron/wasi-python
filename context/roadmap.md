@@ -98,8 +98,11 @@ trusts), 084 (a private root never outlives its call), 078 (built and reviewed, 
 (build-class, it carries a patch; lands alone). Reserved: 091, numpy-core's layout-dependent fuel
 as a fact (judge-only, parallel-safe; `test_string_comparisons`' fuel moves with the bool DType
 object's address at every build-class landing, so it leaves the ratchet as a recorded fact while
-the group's passes stay ratcheted). The whole-surface security review for 0.1.0 starts now on
-main, with an addendum per package that lands after it.
+the group's passes stay ratcheted). The whole-surface security review for 0.1.0 ran on main
+`302df18` (`reviews/0.1.0-whole-surface-security-review-2026-10-19.md`): the sandbox holds; 0.1.0
+waits on S1 (closed the same day by the owner's repository settings) and S2 (084 lands). S5's hash
+flag rides in 086, S3 in 087, S6 is 085. Each package that lands after it gets a one-page addendum
+from the review's checklist.
 
 Confirmed for build, in the build-class queue (up to six built at once, the owner, 2026-10-19, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
 2026-10-19: "I want them done soon"): a free slot goes to the next package whose dependencies have
