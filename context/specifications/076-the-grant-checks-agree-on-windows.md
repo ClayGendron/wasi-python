@@ -1,6 +1,6 @@
 # 076 — The grant checks agree on Windows
 
-- **Status:** drafted 2026-10-18 on `spec/076-the-grant-checks-agree-on-windows` from main
+- **Status:** **landed 2026-10-19** (accepted on `7953141` as `b1b68cc`, history line 70; the build review, `../reviews/076-the-grant-checks-agree-on-windows-build-2026-10-19.md`, said it lands; see the Landing notes' last part). Before landing: drafted 2026-10-18 on `spec/076-the-grant-checks-agree-on-windows` from main
   `7307f6f`; **revised 2026-10-19 against its pre-build review** (written in the lane's
   scratchpad, `076-review/076-the-grant-checks-agree-on-windows-spec-2026-10-19.md`, with its
   probes, and copied to `../reviews/` by the lane; verdict: "ready once F1 to F4"; the lane's
@@ -830,3 +830,29 @@ PASSED tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_ne
    job green. The README is UTF-8; the assertion is unchanged, so nothing is loosened. Spec 063
    sets `PYTHONUTF8` in its judge jobs for the same class of failure; this line makes the check
    right without it. A judge change, named for the lane.
+
+**Landed 2026-10-19** through the lane, after spec 055. The lane rebased the branch onto main
+`b413192` (specs 047 and 055 since `6fd89e0`) with no conflict; its diff equals the reviewed diff at
+`b8fe1ac` line for line (EXECUTED, `build/lane-076/delta.txt`, empty). Because the rebase brought
+055's changes to `src/wasi_python/runner.py` and `mounts.py` under the code that ran on Windows,
+Decision 7's freshness rule called for a new Windows run: the lane made the same temporary commit
+(`-rA` and the three node ids, the diff of `1cfeff6`) on the rebased tip with `git commit-tree`,
+pushed it to the throwaway `spec/076-verify` (`4173bc7`, parent `efd0a93`), and ran the release
+workflow there: run 39200215516, success on every job on all three systems, with a PASSED line on
+`verify (windows-2025)` for every node criterion 9 names (both read-only rows, the bad-grant
+check, the rename check, the README's UTF-8 read and the grant units) (EXECUTED,
+`build/dryrun-076-verify.log`). The throwaway branch was deleted on GitHub after the run. The
+pre-build review and the build review (`../reviews/076-the-grant-checks-agree-on-windows-spec-2026-10-19.md`,
+`../reviews/076-the-grant-checks-agree-on-windows-build-2026-10-19.md`) were committed on the
+detached HEAD as `7953141`. No build: 076 changes `src/`, the judge and documents only, so main's set
+`s-9d43bf645dfcaa71` stands. The full judge there, serial: `wasi_python v1: 476/492 pass · 14 gap · 2
+blocked · 0 fail (unit suite 1269/1271, 2 skipped)`, `1745 passed, 4 skipped, 14 xfailed in
+1245.23s`, accepted with `--accept-judge` (the reason above) as `b1b68cc`, history line 70; nothing
+grew (EXECUTED, `build/lane-076-accept.log`). The rules tier passed (40/40, unpiped); main
+fast-forwarded only after the Windows run passed. The build review's two low findings go to spec
+077 (reserved in the roadmap): F1, the new raw read row reads a zero-length iovec at offset 400,
+so point it at the written iovec at 200; F2, `_WIN_DEVICES` and the texts leave out the superscript
+`COM¹ COM² COM³ LPT¹ LPT² LPT³` that Windows also reserves. Main's own release dry run
+39197267126 on `b413192` failed only on the README read this spec fixes; the next one runs on this
+commit.
+
