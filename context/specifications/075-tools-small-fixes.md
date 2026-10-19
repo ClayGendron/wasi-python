@@ -6,8 +6,9 @@
   lane; verdict: "ready once F1 and F2 are written in"); **revised against it 2026-10-19** (F1,
   F2, N1 and N3 written in; the section "Disposition of the pre-build review"), and rebased
   onto main `23f1c4f` (071 and 069 landed; neither touches `tools.py` or the two unit files);
-  awaiting the reviewer's confirmation, then the build. It changes neither the guest's imports nor its exports, the artifact
-  set nor the build recipe, so §5.6 asks no review before build. One is asked for because
+  **confirmed for build 2026-10-19** (the review's Confirmation: "Confirmed for build", with two
+  cosmetic points, c1 and c2, taken at the build). It changes neither the guest's imports nor
+  its exports, the artifact set nor the build recipe, so §5.6 asks no review before build. One is asked for because
   Decisions 1 to 3 change the gate's fail-closed path, the control §4.4 names. A different
   agent reviews the build.
 - **Date:** 2026-10-19
@@ -162,9 +163,10 @@ optional; spec 070's Decision 6 placed it here.
      - **Under `run_async`,** the runner defers nothing: the guest runs on a worker thread, so
        `_deferred_ctrl_c` passes straight through and no Ctrl-C flag is ever pending. Ctrl-C
        belongs to the embedder's loop. Under `asyncio.run` its handler cancels the main task,
-       `run_async` sets the call's `cancel`, the gate meets `CancelledError`, and the call is
-       answered `cancelled` (the table's `CancelledError` row; EXECUTED by the review's q2,
-       `logs/q2_*_asyncio.run-sleepy.log`).
+       `run_async` sets the call's `cancel`, the gate meets `CancelledError` and the tool does
+       not run (EXECUTED by the review's q2, `logs/q2_*_asyncio.run-sleepy.log`); the call is
+       answered `cancelled`, the table's `CancelledError` row (READ: `_cancelling` and the
+       bound; `run_async` raises on its cancel, so q2 saw no record to show the kind).
      - **The edge, EXECUTED** (the review's q2, a real SIGINT, `logs/q2_main_busy.log` and
        `logs/q2_fixed_busy.log`, the same on main and on the fix): an embedder that runs its
        loop on the main thread itself (`loop.run_until_complete`), with Python's default
@@ -377,8 +379,8 @@ the main tree under `build/reviews-evidence/075-build/`.
    S10, the envelope one byte short (id 10 passes).
 
 6. **The documents.** The README's **Faults stay in the call** names `GeneratorExit`, says a
-   gate's fault refuses, and carries the Ctrl-C clause, as Decision 8 says. `CHANGELOG.md` has one **Fixed** entry under
-   `0.1.0a7 — unreleased`. The existing checks of specs 053 and 060
+   gate's fault refuses, and carries the Ctrl-C clause, as Decision 8 says. `CHANGELOG.md` has
+   one **Fixed** entry under `0.1.0a7 — unreleased`. The existing checks of specs 053 and 060
    (`test_faults_in_an_awaitable_stay_in_the_record`, `test_the_tool_list_is_encoded_once` and
    the rest of both files) pass unchanged.
 
