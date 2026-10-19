@@ -1,0 +1,8 @@
+signals on  faulthandler none         : exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 
+signals on  faulthandler before       : exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 
+signals on  faulthandler after        : exit  -4 | first TrapCode.UNREACHABLE ['Fatal Python error: Illegal instruction']
+signals on  faulthandler disable-after: exit  -4 | first TrapCode.UNREACHABLE []
+signals off faulthandler none         : exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 
+signals off faulthandler before       : exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 
+signals off faulthandler after        : exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 
+signals off faulthandler disable-after: exit   0 | first TrapCode.UNREACHABLE | u TrapCode.UNREACHABLE | r TrapCode.STACK_OVERFLOW | m TrapCode.MEMORY_OUT_OF_BOUNDS | exit normally 

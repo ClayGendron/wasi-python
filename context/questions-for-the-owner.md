@@ -57,55 +57,81 @@ document.
 
 ### 102. What closes the deep-recursion traps the C-stack window cannot?
 
-- **Asked:** 2026-10-18. **Source:** `specifications/071-deep-recursion-raises-recursionerror.md`,
-  Decisions 5 to 7; `research/2026-10-18-deep-recursion-on-the-wasm-stack.md`, sections 3 to 6.
-- **The facts** (EXECUTED unless marked, the memo):
+- **Asked:** 2026-10-18; revised after spec 071's pre-build review. **Source:**
+  `specifications/071-deep-recursion-raises-recursionerror.md`, Decisions 1 and 5 to 8;
+  `research/2026-10-18-deep-recursion-on-the-wasm-stack.md`, sections 3 to 6 and its addendum.
+- **The facts** (EXECUTED unless marked; arm64 and x86_64 Linux, the runner's engine):
   - CPython guards C recursion by the stack in linear memory, 16 MiB. wasmtime gives wasm frames
     a separate native stack of 512 KiB by default, and every C level spends it faster: 2 to 3
-    times for recursion through Python code, up to 25 times for C over nested data, and without
-    limit for chains of frees, which move the linear stack not at all.
-  - Spec 071 narrows CPython's guard to 128 KiB from the recipe. Then all 23 Python-through-C
-    shapes measured raise `RecursionError` at the default stack, for every embedder.
-  - Still trapping at 512 KiB: freeing a nested list more than about 2,300 deep (a dict 1,400);
-    `json.loads` past 1,200 levels; `repr` or `==` of nested lists past 1,500 to 1,900; source
-    with more than about 140 nested brackets; an `ExceptionGroup` nested past 830. Four of spec
-    065's five trap entries are among them (`test_doctest`'s `test_issue35753`,
-    `test_exceptions`' `test_recursion_in_except_handler`, `test_syntax`'s
-    `test_error_on_parser_stack_overflow`, `test_traceback` whole).
-  - More native stack closes them. With the window, 1 MiB closes four of the five entries,
-    2 MiB all five, 8 MiB `json.loads`, `==` and freeing 10,000-deep structures. Left even at
-    8 MiB: freeing 100,000-deep structures, a 100,000-term expression, and two shapes that crash
-    native CPython too.
+    times for most recursion through Python code, about 6 times for callbacks out of expat, up
+    to 25 times for C over nested data, and without limit for chains of frees, which move the
+    linear stack not at all.
+  - Spec 071 narrows CPython's guard to 128 KiB from the recipe. Then, at the default stack, 64
+    of the 70 recursion shapes the review measured raise `RecursionError` on both hosts; x86_64's
+    thinnest margin is about a ninth (`heapq` with a recursive `__lt__`). Recursion through a
+    callback out of expat does not: a `pyexpat` handler that parses again traps on both hosts,
+    `xml.sax` and `ElementTree` parser targets on x86_64.
+  - Still trapping at 512 KiB (the lower host's edges): those expat callbacks past about 95
+    levels; freeing a nested list more than about 2,000 deep (a dict 1,300); `json.loads` past
+    1,100 levels; `repr` of nested lists past 1,800 and `==` past 1,350; source with more than
+    about 130 nested brackets; an `ExceptionGroup` nested past 720. Five of spec 065's nine trap
+    entries are among them (`test_doctest`'s `test_issue35753`, `test_exceptions`'
+    `test_recursion_in_except_handler`, both `test_syntax` `test_error_on_parser_stack_overflow`
+    entries, `test_traceback` whole), and a sixth once the judge's driver uses the runner's engine
+    (`test_ordered_dict`'s `test_highly_nested`, freeing a 1,000-deep `OrderedDict`). The window
+    closes the other four (`test_recursive_pickle`).
+  - More native stack closes them. With the window, 1 MiB closes four of the original five
+    entries, 2 MiB all five, 8 MiB `json.loads`, `==` and freeing 10,000-deep structures (arm64;
+    x86_64 needs up to 696 KiB for the expat shapes). Left even at 8 MiB: freeing 100,000-deep
+    structures, a 100,000-term expression, and two shapes that crash native CPython too.
   - wasm runs on the calling thread's own stack. A limit larger than the thread has killed the
     host process with SIGSEGV, no trap. `python.exe` on Windows reserves 2,000,000 bytes per
     thread (READ), so the runner cannot raise its stack on a caller's thread.
 - **Why it is yours:** each option changes something you set. (a) changes the runner's documented
   behaviour (host functions run on the thread that runs the guest, the README's *Time and
-  threads*). (b) carries source patches that §4.1 wants temporary, and they may never be.
+  threads*). (b) carries source patches that §4.1 wants temporary, and they may never be. (d)
+  takes depth from every working program.
 - **The options:**
   - **(a) A stack the runner owns.** The runner runs each guest on a thread of its own with an
-    8 MiB stack, and the README asks other embedders for the same. Closes all four entries and
-    every data limit measured above but those left at 8 MiB. No change to CPython; it is what
-    CPython's own WASI CI does (32 MiB). But `run`'s door, providers and tools then run on the
-    runner's thread, not the caller's: a thread-bound object (a `sqlite3` connection, say) in a
-    host function stops working, and Ctrl-C on the main thread must stop the guest from another
-    thread. Embedders that keep wasmtime's default still meet the limits. A runner change
-    (parallel-safe), plus a window knob above 4 MiB (spec 071, Decision 2).
+    8 MiB stack, and the README asks other embedders for the same. It closes all six entries and
+    every data limit measured above but those left at 8 MiB, the expat callbacks included. No
+    change to CPython; it is what CPython's own WASI CI does (32 MiB). The costs, all from `run`'s
+    host functions (the door, providers, tools) running on the runner's thread instead of the
+    caller's:
+    - a thread-bound object used in a host function (a `sqlite3` connection, say) stops working;
+    - `contextvars` and thread-locals the caller set (a web request's context, a tracing span) are
+      not seen there unless the runner copies the context into the thread;
+    - `signal.signal` is refused off the main thread (already true under `run_async`);
+    - Ctrl-C lands on the caller's thread, so the runner must stop the guest from another thread;
+    - `threading.stack_size` is process-wide, so the runner must set it under a lock or keep its
+      own pool, or it changes the threads other code makes;
+    - under `run_async` with the caller's `executor`, the guest runs on the caller's threads,
+      whose stack the runner does not choose, so (a) means a second hop there too.
+    Embedders that keep wasmtime's default still meet the limits. A runner change (parallel-safe),
+    plus a window knob above 4 MiB (spec 071, Decision 2).
   - **(b) Carry CPython patches for WASI**: a depth count in `_Py_Dealloc` (CPython 3.13's
     trashcan counted), a smaller parser `MAXSTACK`, a count in `Py_EnterRecursiveCall` like 3.13's
-    `Py_C_RECURSION_LIMIT` (INFERRED; not built). Every embedder is covered at wasmtime's default
-    stack, and the runner keeps the caller's thread. But C over data would stop at a fixed count
+    `Py_C_RECURSION_LIMIT` (INFERRED; not built). They would cover embedders that keep wasmtime's
+    default stack, and the runner keeps the caller's thread; whether they reach the expat
+    callbacks depends on the count chosen (INFERRED). But C over data would stop at a fixed count
     (several hundred levels) where native allows thousands, and upstream's WASI answer is a large
     stack, so the patches may stay for good. Build-class, three patches with drafted pull
     requests.
   - **(c) Keep them as documented limits.** Nothing changes; the README lists the depths, spec
-    071's checks hold them, and the four entries stay trap entries in spec 065.
+    071's checks hold them, and the six entries stay trap entries in spec 065.
+  - **(d) A smaller window, 64 KiB.** It closes the expat callbacks at the default stack for any
+    embedder (EXECUTED for `ElementTree` on x86_64: 248 KiB needed at 64 KiB; INFERRED for
+    `pyexpat`), with no thread change and no patch. But every raising depth scales with the
+    window less 16 KiB, so it halves them again: `__repr__` near 92 levels instead of 214,
+    `sorted(key=…)` near 22 instead of 52. It closes none of spec 065's entries and none of the
+    data limits. A one-line recipe change (build-class).
 - **The agent's recommendation:** (a), at 8 MiB. It reaches furthest, diverges from CPython in
-  nothing, and follows upstream's own model; the thread change is real but bounded, and
-  `run_async` already runs host functions on a worker thread. Choose (b) only if embedders that
-  keep wasmtime's default stack must be covered too.
+  nothing, and follows upstream's own model; its thread costs are real and listed above, and the
+  default `run_async` pool already runs host functions on a worker thread. Choose (b) only if
+  embedders that keep wasmtime's default stack must be covered too; (d) only if the expat
+  callbacks matter more than ordinary depth.
 - **Meanwhile:** spec 071 builds without the answer. Its limits are documented and checked; the
-  four trap entries name this question as their closer. Nothing else waits on it.
+  five (six) trap entries name this question as their closer. Nothing else waits on it.
 
 ## The owner's direction for the product (2026-10-17)
 

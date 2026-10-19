@@ -1,0 +1,3 @@
+dll._name       /root/.cache/uv/archive-v0/RCJmZ_vQVPYBC-v6jd1dV/lib/python3.13/site-packages/wasmtime/linux-x86_64/_libwasmtime.so
+dladdr(SIGILL)  /root/.cache/uv/archive-v0/RCJmZ_vQVPYBC-v6jd1dV/lib/python3.13/site-packages/wasmtime/linux-x86_64/_libwasmtime.so
+same file       True

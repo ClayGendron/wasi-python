@@ -1,0 +1,15 @@
+The addendum's evidence (memo, "Addendum, after the pre-build review"). All at 512 KiB, 128 KiB
+window, the research snapshot, the runner's engine (fuel and epoch) unless named. "amd64" files
+ran in the wp040-amd64 Docker image (x86_64, emulated); "arm64" edges ran natively on macOS arm64;
+"darwin" logs are macOS.
+
+edges-arm64 / edges-amd64              last depth that completes, per case (edges_run.py, edges.py) [A1]
+review-margin-table.txt                the pre-build review's smallest stack per shape, both hosts [A1]
+sigprobe-amd64 / sigprobe-darwin       faulthandler orders x signals_based_traps, spectre flags off [A3]
+sigprobe-nospectre-amd64 / -darwin     the same with spectre flags left alone [A3]
+sigdetect-amd64 / sigdetect-arm64      which file holds each fatal signal's handler, per order (Linux) [A3]
+sigpath-amd64                          dladdr's file is wasmtime._ffi.dll's file [A3]
+edges-nosig-*                          the edges with signals_based_traps off [A3]
+stackmin-nosig-amd64                   smallest stack with signals off, x86_64 [A3]
+stackmin-nosig-arm64                   the same on arm64: partial, two rows; the run was stopped
+                                       after it hung (the review's N3); not used by the memo

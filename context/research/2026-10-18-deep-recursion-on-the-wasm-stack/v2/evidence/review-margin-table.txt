@@ -1,0 +1,73 @@
+# Copied from the pre-build review's probes (scratchpad/071-review/probes/margin-table.txt), unchanged below this line.
+Smallest max_wasm_stack (KiB, 8 KiB steps) at which each shape does not trap, 128 KiB window, runner engine (fuel+epoch), research snapshot.
+shape                       arm64  x86_64  outcome at 512 KiB (arm64 | x86_64)
+expat_handler                 544     696  TRAP | TRAP
+sax_handler                   504     640  RecursionError 118 Stack overflow (used 112 kB | TRAP
+lxml_or_etree                 448     576  RecursionError 122 Stack overflow (used 112 kB | TRAP
+heapq_lt                      416     456  RecursionError 244 Stack overflow (used 112 kB | RecursionError 244 Stack overflow (used 112 kB
+lru_rec                       352     400  RecursionError 208 Stack overflow (used 112 kB | RecursionError 208 Stack overflow (used 112 kB
+json_hook                     352     392  RecursionError 187 Stack overflow (used 112 kB | RecursionError 187 Stack overflow (used 112 kB
+groupby_key                   344     376  RecursionError 237 Stack overflow (used 112 kB | RecursionError 237 Stack overflow (used 112 kB
+reduce_rec                    328     360  RecursionError 245 Stack overflow (used 112 kB | RecursionError 245 Stack overflow (used 112 kB
+meta_call                     328     360  RecursionError 197 Stack overflow (used 112 kB | RecursionError 197 Stack overflow (used 112 kB
+call_self                     328     360  RecursionError 197 Stack overflow (used 112 kB | RecursionError 197 Stack overflow (used 112 kB
+print_str                     320     352  RecursionError 186 Stack overflow (used 112 kB | RecursionError 186 Stack overflow (used 112 kB
+map_lambda                    312     344  RecursionError 222 Stack overflow (used 112 kB | RecursionError 222 Stack overflow (used 112 kB
+join_gen                      304     344  RecursionError 263 Stack overflow (used 112 kB | RecursionError 263 Stack overflow (used 112 kB
+bisect_key                    312     344  RecursionError 187 Stack overflow (used 112 kB | RecursionError 187 Stack overflow (used 112 kB
+pandas_map                    304     336  RecursionError 160 Stack overflow (used 112 kB | RecursionError 160 Stack overflow (used 112 kB
+numpy_vectorize               304     336  RecursionError 99 Stack overflow (used 112 kB) | RecursionError 99 Stack overflow (used 112 kB)
+dict_keys                     296     336  RecursionError 208 Stack overflow (used 112 kB | RecursionError 208 Stack overflow (used 112 kB
+dataclass_repr                312     336  RecursionError 202 Stack overflow (used 112 kB | RecursionError 202 Stack overflow (used 112 kB
+add_self                      304     336  RecursionError 236 Stack overflow (used 112 kB | RecursionError 236 Stack overflow (used 112 kB
+pd_series_repr                296     328  RecursionError 51 Stack overflow (used 112 kB) | RecursionError 51 Stack overflow (used 112 kB)
+init_subclass                 312     328   | 
+decimal_ctx                   296     328  RecursionError 228 Stack overflow (used 112 kB | RecursionError 228 Stack overflow (used 112 kB
+pd_df_eq                      288     320  RecursionError 94 Stack overflow (used 112 kB) | RecursionError 94 Stack overflow (used 112 kB)
+min_key                       280     312  RecursionError 187 Stack overflow (used 112 kB | RecursionError 187 Stack overflow (used 112 kB
+eq_self                       280     312  RecursionError 244 Stack overflow (used 112 kB | RecursionError 244 Stack overflow (used 112 kB
+descr_get                     288     312  RecursionError 208 Stack overflow (used 112 kB | RecursionError 208 Stack overflow (used 112 kB
+hash_self                     288     304  RecursionError 221 Stack overflow (used 112 kB | RecursionError 221 Stack overflow (used 112 kB
+hasattr_getattr               272     304  RecursionError 221 Stack overflow (used 112 kB | RecursionError 221 Stack overflow (used 112 kB
+bool_self                     280     304  RecursionError 221 Stack overflow (used 112 kB | RecursionError 221 Stack overflow (used 112 kB
+setattr_self                  272     296  RecursionError 221 Stack overflow (used 112 kB | RecursionError 221 Stack overflow (used 112 kB
+iter_self                     280     296  RecursionError 214 Stack overflow (used 112 kB | RecursionError 214 Stack overflow (used 112 kB
+getattr_self                  264     296  RecursionError 214 Stack overflow (used 112 kB | RecursionError 214 Stack overflow (used 112 kB
+contains_self                 272     296  RecursionError 244 Stack overflow (used 112 kB | RecursionError 244 Stack overflow (used 112 kB
+str_self                      264     288  RecursionError 235 Stack overflow (used 112 kB | RecursionError 235 Stack overflow (used 112 kB
+repr_self                     272     288  RecursionError 214 Stack overflow (used 112 kB | RecursionError 214 Stack overflow (used 112 kB
+minidom_parse                 264     288  RecursionError 233 Stack overflow (used 112 kB | RecursionError 233 Stack overflow (used 112 kB
+instancecheck                 264     288  RecursionError 191 Stack overflow (used 112 kB | RecursionError 191 Stack overflow (used 112 kB
+eval_rec                      256     288  MemoryError 183 Parser stack overflowed - Pyth | MemoryError 183 Parser stack overflowed - Pyth
+csv_reader_gen                256     288  RecursionError 244 Stack overflow (used 112 kB | RecursionError 244 Stack overflow (used 112 kB
+len_self                      256     280  RecursionError 228 Stack overflow (used 112 kB | RecursionError 228 Stack overflow (used 112 kB
+str_translate                 248     272  RecursionError 153 Stack overflow (used 112 kB | RecursionError 153 Stack overflow (used 112 kB
+re_sub_rec                    248     272  RecursionError 148 Stack overflow (used 112 kB | RecursionError 148 Stack overflow (used 112 kB
+missing_self                  256     272  RecursionError 181 Stack overflow (used 112 kB | RecursionError 181 Stack overflow (used 112 kB
+format_self                   248     264  RecursionError 177 Stack overflow (used 112 kB | RecursionError 177 Stack overflow (used 112 kB
+pickle_loads_setstate         240     256  RecursionError 141 Stack overflow (used 112 kB | RecursionError 141 Stack overflow (used 112 kB
+exec_rec                      224     256  MemoryError 157 Parser stack overflowed - Pyth | MemoryError 157 Parser stack overflowed - Pyth
+sqlite_func                   192     216   | 
+pd_groupby_apply              184     200  RecursionError 246 maximum recursion depth exc | RecursionError 246 maximum recursion depth exc
+pd_df_apply                   184     200  RecursionError 199 maximum recursion depth exc | RecursionError 199 maximum recursion depth exc
+np_sort_object                176     200  RecursionError 42 Stack overflow (used 112 kB) | RecursionError 42 Stack overflow (used 112 kB)
+np_array_dunder               184     200  RecursionError 70 Stack overflow (used 113 kB) | RecursionError 70 Stack overflow (used 113 kB)
+with_enter                    176     192  RecursionError 996 maximum recursion depth exc | RecursionError 996 maximum recursion depth exc
+pil_point                     176     192  RecursionError 498 maximum recursion depth exc | RecursionError 498 maximum recursion depth exc
+index_self                    176     192  RecursionError 996 maximum recursion depth exc | RecursionError 996 maximum recursion depth exc
+getitem_self                  176     192  RecursionError 996 maximum recursion depth exc | RecursionError 996 maximum recursion depth exc
+getattribute_self             176     192  RecursionError 996 maximum recursion depth exc | RecursionError 996 maximum recursion depth exc
+etree_iterparse               176     192  RecursionError 996 maximum recursion depth exc | RecursionError 996 maximum recursion depth exc
+copy_dunder                   176     192  RecursionError 498 maximum recursion depth exc | RecursionError 498 maximum recursion depth exc
+any_gen                       176     192  RecursionError 498 maximum recursion depth exc | RecursionError 498 maximum recursion depth exc
+np_vectorize_obj_eq           160     176  RecursionError 57 Stack overflow (used 112 kB) | RecursionError 57 Stack overflow (used 112 kB)
+np_object_add                 160     176  RecursionError 58 Stack overflow (used 112 kB) | RecursionError 58 Stack overflow (used 112 kB)
+np_array_ufunc                168     176  RecursionError 73 Stack overflow (used 112 kB) | RecursionError 73 Stack overflow (used 112 kB)
+numpy_apply_along             152     168  RecursionError 101 Stack overflow (used 112 kB | RecursionError 101 Stack overflow (used 112 kB
+pickle_reduce                 144     144  RecursionError 164 Stack overflow (used 112 kB | RecursionError 164 Stack overflow (used 112 kB
+partial_recursive_pickle      144     144  RecursionError 0 Stack overflow (used 112 kB)  | RecursionError 0 Stack overflow (used 112 kB) 
+numpy_frompyfunc              128     144  RecursionError 53 Stack overflow (used 112 kB) | RecursionError 53 Stack overflow (used 112 kB)
+sorted_cmp                    120     136  RecursionError 52 Stack overflow (used 112 kB) | RecursionError 52 Stack overflow (used 112 kB)
+sorted_key                    112     128  RecursionError 52 Stack overflow (used 113 kB) | RecursionError 52 Stack overflow (used 113 kB)
+lt_sorted                     112     120  RecursionError 53 Stack overflow (used 112 kB) | RecursionError 53 Stack overflow (used 112 kB)
+async_await                   104     104   | 

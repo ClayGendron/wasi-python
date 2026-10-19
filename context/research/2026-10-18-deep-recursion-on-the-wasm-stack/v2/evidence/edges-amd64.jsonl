@@ -1,0 +1,16 @@
+{"case": "free_list", "stack_kib": 512, "max_ok": 2033, "at_max": "ok 2033", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "free_dict", "stack_kib": 512, "max_ok": 1301, "at_max": "ok 1301", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "free_tuple", "stack_kib": 512, "max_ok": 2034, "at_max": "ok 2034", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "repr_list", "stack_kib": 512, "max_ok": 1805, "at_max": "ok 1805", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "json_dumps", "stack_kib": 512, "max_ok": 1354, "at_max": "ok 1354", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "json_loads", "stack_kib": 512, "max_ok": 1121, "at_max": "ok 1121", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "eq_list", "stack_kib": 512, "max_ok": 1357, "at_max": "ok 1357", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "hash_tuple", "stack_kib": 512, "max_ok": 2503, "at_max": "ok 2503", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "map_chain", "stack_kib": 512, "max_ok": 1897, "at_max": "RecursionError Stack overflow (used 119 kB) while calling a Python obj", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "json_default", "stack_kib": 512, "max_ok": 953, "at_max": "ok 953", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "eval_parens", "stack_kib": 512, "max_ok": 132, "at_max": "ok 132", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "eval_unary", "stack_kib": 512, "max_ok": 2926, "at_max": "RecursionError Stack overflow (used 112 kB) during compilation 2926", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "exc_group", "stack_kib": 512, "max_ok": 722, "at_max": "ok 722", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "expat", "stack_kib": 512, "max_ok": 101, "at_max": "ok 101", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "sax", "stack_kib": 512, "max_ok": 95, "at_max": "ok 95", "above": ["trap", ""], "arch": "x86_64", "window": 131072}
+{"case": "etree_target", "stack_kib": 512, "max_ok": 109, "at_max": "ok 109", "above": ["trap", ""], "arch": "x86_64", "window": 131072}

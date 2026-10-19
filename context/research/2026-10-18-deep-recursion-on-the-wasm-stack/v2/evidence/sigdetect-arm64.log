@@ -1,0 +1,5 @@
+faulthandler none              : exit   0 | handlers: wasmtime,wasmtime,SIG_DFL,SIG_DFL | trap returned TrapCode.UNREACHABLE
+faulthandler before            : exit   0 | handlers: wasmtime,wasmtime,python,python | trap returned TrapCode.UNREACHABLE
+faulthandler after             : exit  -4 | handlers: python,python,python,python
+faulthandler disable-after     : exit  -4 | handlers: SIG_DFL,SIG_DFL,SIG_DFL,SIG_DFL
+faulthandler after-then-disable: exit   0 | handlers: wasmtime,wasmtime,SIG_DFL,SIG_DFL | trap returned TrapCode.UNREACHABLE

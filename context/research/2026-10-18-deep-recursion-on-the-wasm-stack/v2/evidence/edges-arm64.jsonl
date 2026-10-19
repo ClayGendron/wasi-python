@@ -1,0 +1,16 @@
+{"case": "free_list", "stack_kib": 512, "max_ok": 2324, "at_max": "ok 2324", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "free_dict", "stack_kib": 512, "max_ok": 1414, "at_max": "ok 1414", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "free_tuple", "stack_kib": 512, "max_ok": 2326, "at_max": "ok 2326", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "repr_list", "stack_kib": 512, "max_ok": 1912, "at_max": "ok 1912", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "json_dumps", "stack_kib": 512, "max_ok": 1478, "at_max": "ok 1478", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "json_loads", "stack_kib": 512, "max_ok": 1204, "at_max": "ok 1204", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "eq_list", "stack_kib": 512, "max_ok": 1551, "at_max": "ok 1551", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "hash_tuple", "stack_kib": 512, "max_ok": 2504, "at_max": "ok 2504", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "map_chain", "stack_kib": 512, "max_ok": 1897, "at_max": "RecursionError Stack overflow (used 119 kB) while calling a Python obj", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "json_default", "stack_kib": 512, "max_ok": 1081, "at_max": "ok 1081", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "eval_parens", "stack_kib": 512, "max_ok": 141, "at_max": "ok 141", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "eval_unary", "stack_kib": 512, "max_ok": 3222, "at_max": "RecursionError Stack overflow (used 112 kB) during compilation 3222", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "exc_group", "stack_kib": 512, "max_ok": 833, "at_max": "ok 833", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "expat", "stack_kib": 512, "max_ok": 130, "at_max": "ok 130", "above": ["trap", ""], "arch": "arm64", "window": 131072}
+{"case": "sax", "stack_kib": 512, "max_ok": 2000, "at_max": "RecursionError Stack overflow (used 112 kB) 2000", "above": ["ok", ""], "arch": "arm64", "window": 131072}
+{"case": "etree_target", "stack_kib": 512, "max_ok": 2000, "at_max": "RecursionError Stack overflow (used 112 kB) while calling a Python obj", "above": ["ok", ""], "arch": "arm64", "window": 131072}

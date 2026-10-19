@@ -1,7 +1,9 @@
 # Deep recursion on the wasm stack: why it traps, and what fixes how much
 
 - **Status:** executed, 2026-10-18 (scratch binaries and runs in a scratch folder; nothing in the
-  repository or the main tree's `build/` was changed by it).
+  repository or the main tree's `build/` was changed by it); addendum the same day, after spec
+  071's pre-build review: both hosts, expat's callbacks, the guest driver's engine, and Linux's
+  faulthandler crash.
 - **Owner:** Clay Gendron
 - **Researcher:** a research agent (Claude Opus 5.5), drafting spec 071.
 - **Feeds:** spec 071, deep recursion raises `RecursionError` instead of trapping the guest; spec
@@ -228,6 +230,121 @@ Cranelift's and may move with any wasmtime; the window's depths are CPython's (l
 do not. A check at the stated stack is what would see a wasmtime whose frames grew by more than
 the quarter of margin.
 
+## Addendum, after the pre-build review (2026-10-18; EXECUTED unless marked)
+
+The pre-build review (`../reviews/` once the lane copies it; written at
+`scratchpad/071-review/071-deep-recursion-raises-recursionerror-spec-2026-10-18.md`) measured 50
+more shapes and both hosts. This addendum adds the edges both hosts share, the guest driver's
+engine, and a host crash on Linux that spec 063's build review found. Scripts and outputs:
+`2026-10-18-deep-recursion-on-the-wasm-stack/v2/`. The x86_64 runs used the repository's
+`wp040-amd64` Docker image under emulation, wasmtime-py 49.0.0 on CPython 3.13, as the review did;
+arm64 ran natively. Every run is the research snapshot with the 128 KiB window, at 512 KiB, on
+the runner's engine (fuel and epoch).
+
+### A1. x86_64 frames are larger, so margins and edges are per host
+
+- **The window still holds for the memo's shapes on x86_64,** with less margin. The review's
+  `review-margin-table.txt` (copied into `v2/evidence/`) gives, per shape and host, the smallest
+  stack at which it stops trapping. Thinnest that still raise: `heapq.heapify` with a recursive
+  `__lt__` (needs 416 KiB on arm64, 456 KiB on x86_64: margin 1.12 there), `lru_cache` (352;
+  400), `json.loads(object_hook=…)` (352; 392). Raising depths are set by linear bytes, so they
+  are the same on both hosts (`__repr__` 214, `heapq` 244).
+- **Callbacks out of expat do not fit.** A `pyexpat` start-element handler that parses again
+  traps on both hosts; `xml.sax` and an `ElementTree` parser target trap on x86_64 and raise
+  on arm64 (118 and 122 levels). Bounded to a depth, the last depth that completes
+  (`v2/evidence/edges-*.jsonl`):
+
+  | shape | arm64 | x86_64 |
+  |---|---|---|
+  | `pyexpat` handler parsing again | 130 | 101 |
+  | `xml.sax` handler parsing again | raises at 118 | 95 |
+  | `ElementTree` `XMLParser(target=…)` parsing again | raises at 122 | 109 |
+
+- **The data limits, both hosts** (the last depth that completes; the next traps):
+
+  | case | arm64 | x86_64 |
+  |---|---|---|
+  | freeing a nested list; tuple | 2,324; 2,326 | 2,033; 2,034 |
+  | freeing a nested dict | 1,414 | 1,301 |
+  | `repr` of a nested list | 1,912 | 1,805 |
+  | `json.dumps` of a nested list | 1,478 | 1,354 |
+  | `json.loads` of nested arrays | 1,204 | 1,121 |
+  | `==` of nested lists | 1,551 | 1,357 |
+  | `hash` of a nested tuple | 2,504 | 2,503 |
+  | a chain of `map` objects | raises at 1,897, then traps | the same |
+  | `json.dumps` with a nesting `default=` | 1,081 | 953 |
+  | `eval` of nested parentheses | 141 | 132 |
+  | `eval` of nested `-` (raises up to here) | 3,222 | 2,926 |
+  | printing a nested `ExceptionGroup` | 833 | 722 |
+
+  So x86_64 is the lower host for all but `hash`, by 0 to 23%.
+
+### A2. The judge's guest driver has more room than the runner
+
+`tests/harness/guest.py` makes its engine with fuel only; the runner adds epoch interruption,
+whose checks make Cranelift's frames larger (READ; the review: CPython's
+`test_ordered_dict` `test_highly_nested`, freeing a 1,000-deep `OrderedDict`, traps on the
+runner's engine and passes on a fuel-only one, EXECUTED there). So the CPython-suite memo's
+numbers and spec 065's entries were measured with more stack than `run` gives. The driver should
+make the runner's engine.
+
+### A3. On Linux, a `faulthandler` change after the first engine turns a guest trap into a host crash
+
+- **What happens** (`v2/evidence/sigprobe-*.log`, a probe with wat guests: `unreachable`, a
+  recursion to call-stack exhaustion, an out-of-bounds load):
+
+  | faulthandler | Linux x86_64 | Linux aarch64 (063's probe) | macOS |
+  |---|---|---|---|
+  | never enabled, or enabled before the first engine | trap returned | trap returned | trap returned |
+  | enabled after the first engine | host dies, SIGILL (exit −4) | the same | trap returned |
+  | enabled before, disabled after | host dies (exit −4) | | trap returned |
+  | enabled after, then disabled | trap returned | trap returned | trap returned |
+
+  The third row is new: disabling is as fatal as enabling. pytest's own faulthandler plugin
+  enables at session start, before any engine, so a plain pytest run is safe; an inline pytester
+  session enables and disables again, and that is how the judge met it (spec 063).
+- **The mechanism (READ).** wasmtime installs its own handlers when the first `Engine` is made
+  (`engine.rs:136`, `init_traps`), for `SIGSEGV` and `SIGILL`, and `SIGFPE` on x86_64
+  (`sys/unix/signals.rs:72–92`), saving what was there before. A trap is a fault inside wasm
+  code; wasmtime's handler sees the faulting address in compiled code and unwinds to the caller
+  as a `Trap`. `faulthandler.enable()` installs its handler on top, saving wasmtime's. On a trap
+  it runs first, prints "Fatal Python error", puts wasmtime's handler back and calls
+  `raise(signum)` (`Modules/faulthandler.c:376–435`). The new signal comes from inside `raise`,
+  not from wasm, so wasmtime's handler passes it to the handler it saved, the default, which it
+  restores and returns to (`delegate_signal_to_previous_handler`); the faulting wasm instruction
+  runs again and the default action kills the process. `faulthandler.disable()` puts back
+  whatever was there before its own `enable`; when that came before the engine, it is the
+  default, and wasmtime's handler is gone.
+- **The order can be read, exactly** (`sigdetect.py`, `sigpath.py`): `sigaction` gives each
+  signal's handler, and `dladdr` names the file that holds it. In every case that survives,
+  `SIGSEGV`, `SIGILL` and (x86_64) `SIGFPE` point into wasmtime-py's `_libwasmtime.so`, the very
+  file `wasmtime._ffi.dll` loaded (`os.path.samefile`); in every case that dies, at least one does
+  not (faulthandler's, in the `python` executable, or `SIG_DFL`). On aarch64 Linux the set is
+  `SIGSEGV` and `SIGILL`, as the source says.
+- **No exact repair from Python.** Putting wasmtime's handler back on top would cut
+  faulthandler out of the chain (wasmtime's saved handler is fixed at the first engine), and a
+  Python-level signal handler cannot run in a fault's context. Calling `faulthandler.disable()`
+  repairs the "enabled after" case but is the fatal step in the "enabled before" case. So the
+  exact answer inside the runner is to read the order before each guest runs and refuse the call
+  when a trap could not reach wasmtime.
+- **The alternative not taken: `signals_based_traps = False`.** With it wasmtime installs no
+  handler and compiled code checks bounds and traps explicitly; every faulthandler order then
+  returns the trap, on both Linux hosts (`sigprobe-nospectre-amd64.log`), with fuel unchanged
+  (83,513,051 for `print('hello')`, the same as with signals). But wasmtime then turns off its
+  Spectre mitigations for heap and table accesses (it requires them off,
+  `config.rs:3024–3035`, READ), which is a loosening of the sandbox the owner decides (§4.15);
+  and the native frames change by host: on arm64 most data limits fall 5 to 22% (`json.loads`
+  rises 8%) and `xml.sax` and `ElementTree` targets go from raising to trapping, while on x86_64
+  all three expat shapes go from trapping to raising (`edges-nosig-*.jsonl`). Its native speed was not measured.
+- **Upstream.** The fix above needs nothing from wasmtime. CPython's faulthandler could chain to a
+  previous `SA_SIGINFO` handler with the original context instead of re-raising, and `disable()`
+  could leave a newer handler alone; either would make the order harmless (INFERRED). Not drafted:
+  this spec does not depend on it.
+- **Windows (INFERRED, not run):** wasmtime uses a vectored exception handler; faulthandler adds
+  its own first and returns "continue search", so a trap still reaches wasmtime, with a
+  "Windows fatal exception" traceback printed on the host's stderr. The release's Windows job is
+  the first place this is seen.
+
 ## What it decides
 
 - The defect is two stacks: CPython guards a 16 MiB linear stack; wasmtime gives wasm 512 KiB of
@@ -236,6 +353,12 @@ the quarter of margin.
 - A 128 KiB window, set from the recipe through CPython's own API, makes every Python-through-C
   shape measured raise at wasmtime's default stack, on both binaries, on any engine, for about
   half the depth it reached before trapping. Ordinary work does not notice.
+- Callbacks out of expat (pyexpat, `xml.sax`, `ElementTree` parser targets) trap at 512 KiB
+  too, on x86_64 even under the window; x86_64 is the lower host for every data limit (the
+  addendum).
+- On Linux, a `faulthandler` change after the first engine turns any guest trap into a host crash;
+  the runner can read the signal handlers' order exactly and refuse a call that would end so (the
+  addendum, A3).
 - Data recursion in C, freeing deep structures, the parser and exception groups need a larger
   native stack (2 MiB closes spec 065's five; 8 MiB the data shapes) or carried patches. A larger
   stack in the runner needs a thread the runner owns.

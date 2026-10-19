@@ -1,0 +1,2 @@
+{"case": "repr_self", "min_stack_kib": 272, "margin_vs_512": 1.88, "at_512": "RecursionError 214 Stack overflow (used 112 kB)", "at_min": "RecursionError 214 Stack overflow (used 112 kB)", "arch": "arm64", "bare": false, "window": 131072}
+{"case": "lru_rec", "min_stack_kib": 360, "margin_vs_512": 1.42, "at_512": "RecursionError 208 Stack overflow (used 112 kB)", "at_min": "RecursionError 208 Stack overflow (used 112 kB)", "arch": "arm64", "bare": false, "window": 131072}
