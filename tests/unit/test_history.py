@@ -553,3 +553,79 @@ def test_a_first_line_whose_n_is_not_a_number_is_reported_not_raised(vols) -> No
     _write_lines(v[2], lines)
     errors = check_folder(folder)
     assert _has(errors, f"{v[2].name}: its first line is history line 'x'"), errors
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 070, item 2 (spec 062's build review, F1 and F2): the roll at exactly BUDGET bytes, and a
+# volume that holds a carriage return.
+
+
+def _next_line(folder: Path) -> tuple[str, str]:
+    """(accepted.json text, the line) the next acceptance makes; nothing is written."""
+    new, line = scoreboard.accept(
+        record({node(0)}),
+        None,
+        history.lines(folder),
+        scoreboard.Ratchet(),
+        green=True,
+        reason="r",
+    )
+    return scoreboard.dumps(new), line
+
+
+def _volume_1_ending(folder: Path, over: int) -> tuple[str, str]:
+    """Volume 1 holds one old-format line, padded so that the next acceptance's line, with its
+    newline, ends `over` bytes past BUDGET (0: exactly at it). Returns `_next_line`."""
+    old_volume(folder, [{node(0)}])
+    size = (folder / history.FIRST).stat().st_size
+    _, line = _next_line(folder)
+    pad = history.BUDGET + over - size - len(line.encode()) - 1
+    assert pad > 0
+    old_volume(folder, [{node(0)}], pad=pad)
+    accepted_text, line = _next_line(folder)
+    assert (folder / history.FIRST).stat().st_size + len(line.encode()) + 1 == history.BUDGET + over
+    return accepted_text, line
+
+
+def _place(folder: Path, where: Path, accepted_text: str, line: str) -> None:
+    with where.open("a", encoding="utf-8", newline="\n") as f:
+        f.write(line + "\n")
+    (folder / "accepted.json").write_text(accepted_text)
+
+
+def test_a_line_that_ends_exactly_at_the_budget_stays_in_the_newest_volume(tmp_path) -> None:
+    accepted_text, line = _volume_1_ending(tmp_path, over=0)
+    where = history.target(tmp_path, line)
+    assert where == tmp_path / history.FIRST
+    _place(tmp_path, where, accepted_text, line)
+    assert where.stat().st_size == history.BUDGET
+    assert check_folder(tmp_path) == []
+
+
+def test_a_line_one_byte_past_the_budget_starts_a_volume(tmp_path) -> None:
+    accepted_text, line = _volume_1_ending(tmp_path, over=1)
+    where = history.target(tmp_path, line)
+    assert where == tmp_path / history.volume_name(2)
+    _place(tmp_path, where, accepted_text, line)
+    assert [v.name for v in history.volumes(tmp_path)] == [history.FIRST, history.volume_name(2)]
+    assert check_folder(tmp_path) == []
+
+
+def test_the_intact_check_holds_the_budget_at_its_exact_byte(tmp_path) -> None:
+    """The same two lines, each placed on the wrong side of the boundary by hand."""
+    fits, over = tmp_path / "fits", tmp_path / "over"
+    accepted_text, line = _volume_1_ending(fits, over=0)
+    _place(fits, fits / history.volume_name(2), accepted_text, line)
+    assert _has(check_folder(fits), f"{history.volume_name(2)} was begun early")
+    accepted_text, line = _volume_1_ending(over, over=1)
+    _place(over, over / history.FIRST, accepted_text, line)
+    errors = check_folder(over)
+    assert _has(errors, f"ends at byte {history.BUDGET + 1} of {history.FIRST}"), errors
+
+
+def test_a_volume_that_holds_a_carriage_return(vols) -> None:
+    """The newest line ending in CR LF: nothing chains to it, so only this rule sees it."""
+    folder, v, _ = vols
+    data = v[2].read_bytes()
+    v[2].write_bytes(data[:-1] + b"\r\n")
+    assert check_folder(folder) == [f"{v[2].name} holds a carriage return"]

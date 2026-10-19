@@ -210,6 +210,8 @@ def _volume_errors(name: str, data: bytes, sealed: dict | None) -> tuple[list[st
         return [*errors, f"{name} is empty"], []
     if not data.endswith(b"\n"):
         errors.append(f"{name} does not end with a newline")
+    if b"\r" in data:  # lines end in LF alone; JSON escapes a CR in a value (spec 070)
+        errors.append(f"{name} holds a carriage return")
     raw = data.split(b"\n")
     if raw[-1] == b"":
         raw.pop()

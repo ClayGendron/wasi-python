@@ -341,6 +341,62 @@ def test_bound_keywords_are_found_through_any_wrapper() -> None:
         tool(loop)
 
 
+class _SlotCall:
+    """Callable objects whose type's `__call__` is each kind of C slot in `_C_SLOTS`."""
+
+    class Method:
+        __call__ = str.upper  # a method descriptor
+
+    class MethodWrapper:
+        __call__ = (1).__add__  # a method-wrapper
+
+    class Builtin:
+        __call__ = len  # a builtin function
+
+    class ClassMethod:
+        __call__ = staticmethod(dict.__dict__["fromkeys"])  # a class-method descriptor
+
+
+C_SLOT_ENDS = {
+    "wrapper_descriptor": _SlotCall,  # a class: its type's __call__ is type.__call__
+    "method-wrapper": _SlotCall.MethodWrapper(),
+    "method_descriptor": _SlotCall.Method(),
+    "builtin_function_or_method": _SlotCall.Builtin(),
+    "classmethod_descriptor": _SlotCall.ClassMethod(),
+}
+
+
+def _wrapped_chain(end: Any, links: int) -> Any:
+    """`links` functions, each `__wrapped__` round the next, the last round `end`."""
+    target = end
+    for _ in range(links):
+
+        def link() -> None:
+            pass
+
+        link.__wrapped__ = target
+        target = link
+    return target
+
+
+@pytest.mark.parametrize("slot", list(C_SLOT_ENDS))
+def test_the_bound_keyword_walk_stops_at_each_c_slot(slot) -> None:
+    """Spec 070, item 3 (spec 060's build review, N3): the walk stops at a C `__call__` itself,
+    in the hop that meets it, as at a function. A function at the end of 63 links is the deepest
+    chain the walk reads (64 hops); one link more is refused. Each slot kind at the same depth is
+    read too, so no kind of `_C_SLOTS` can go without a hop more and the refusal."""
+    assert type(type(C_SLOT_ENDS[slot]).__call__).__name__ == slot
+
+    def plain() -> None:
+        pass
+
+    deepest = T._WRAPPER_DEPTH - 1
+    assert T._bound_keywords("t", _wrapped_chain(plain, deepest)) == frozenset()
+    with pytest.raises(TypeError, match="nest deeper"):
+        T._bound_keywords("t", _wrapped_chain(plain, deepest + 1))
+    assert T._bound_keywords("t", _wrapped_chain(C_SLOT_ENDS[slot], deepest)) == frozenset()
+
+
 def test_validates_input_lets_unknown_keywords_through_but_never_a_cycle() -> None:
     s = schema({"x": {"type": "string", "pattern": "^a+$"}})
     t = tool(square, input_schema=s, validates_input=True)

@@ -853,6 +853,37 @@ def test_release_binding_scan_reads_with_not_the_display_name() -> None:
     assert scan.release_binding_errors(renamed) == []
 
 
+# Spec 070, item 1 (spec 057's Confirmation, its remaining gap): rule 16 reads `path:` as a path,
+# so another spelling of release-assets in same-bytes is the plain spelling's breach.
+OTHER_SPELLINGS = [
+    "./release-assets",
+    "rebuilds/../release-assets",
+    "${{ github.workspace }}/release-assets",
+    "${{github.workspace}}/./release-assets/",
+    "./release-assets/wheel",
+]
+
+
+@pytest.mark.parametrize("spelling", OTHER_SPELLINGS)
+def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
+    old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
+    changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
+    assert _rules(scan.release_binding_errors(changed)) == {16}
+
+
+@pytest.mark.parametrize(
+    "spelling",
+    [
+        "./rebuilt-wheels/ubuntu-24.04-arm",
+        "${{ github.workspace }}/rebuilt-wheels/ubuntu-24.04-arm",
+    ],
+)
+def test_rule_16_lets_another_spelling_of_a_rebuild_folder_through(spelling) -> None:
+    old = "          path: rebuilt-wheels/ubuntu-24.04-arm\n"
+    changed = _in_job(RELEASE_WORKFLOW, "same-bytes", old, f"          path: {spelling}\n")
+    assert scan.release_binding_errors(changed) == []
+
+
 def test_the_workflow_level_permissions_must_be_empty() -> None:
     changed = RELEASE_WORKFLOW.replace(
         "permissions: {}\njobs:", "permissions:\n  contents: read\njobs:", 1

@@ -4534,6 +4534,41 @@ def test_the_request_byte_budget_holds(guest_workdir, monkeypatch) -> None:
     assert len(read) == 5, read
 
 
+DISCOVERY_REFUSED = """
+try:
+    from host import tools
+except ImportError as e:
+    print("ImportError", e)
+else:
+    print("imported", sorted(tools.__all__))
+"""
+
+
+@pytest.mark.parametrize(
+    "limit", [{"max_tool_calls": 0}, {"max_tool_request_bytes": 0}], ids=["calls", "bytes"]
+)
+def test_a_refused_discovery_frame_is_an_import_error(guest_workdir, limit) -> None:
+    """Spec 070, item 3 (spec 060's build review, N2), as the README's **Limits** says: when the
+    guest's discovery frame is itself refused, `from host import tools` raises `ImportError`
+    naming the refusal, not `ToolBudgetExceeded`; the host ran no tool and read no frame past the
+    one it refused."""
+    from wasi_python.tools import tool
+
+    run = _runner()
+
+    @tool
+    def store(data: bytes) -> int:
+        """Store some bytes."""
+        return len(data)
+
+    done = run(["-c", DISCOVERY_REFUSED], tools=[store], **limit)
+    assert done.exit_code == 0, done
+    assert done.stdout.startswith(
+        b"ImportError the host refused the tool list (budget_exceeded): "
+    ), done
+    assert [(o.op, o.outcome) for o in done.tools.outcomes] == [(None, "budget_exceeded")], done
+
+
 def _orders_by_limit() -> tuple[list, object]:
     calls: list = []
 

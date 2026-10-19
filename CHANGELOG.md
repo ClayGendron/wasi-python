@@ -105,6 +105,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   refuses a `__call__` cycle with `TypeError`, where Python 3.14 raised `RecursionError`.
 - **Changed:** a new, tighter default (spec 060; spec 049, Decision 8, exception 1): a call that
   sends more than 16 MiB of tool requests passes a larger `max_tool_request_bytes`, or `None`.
+- **The judge's small follow-ups** (spec 070). The README's **Limits** now says that a refused
+  discovery frame (`max_tool_calls=0`, or a request budget too small for it) makes `from host
+  import tools` raise `ImportError`, and a check holds it. The release scan reads a download's
+  `path:` as a path, so `./release-assets` is `release-assets`; the progress history's volume
+  budget is tested at its exact byte, and a volume holding a carriage return is reported. Nothing
+  in the artifact set, the wheel's code or the guest changes.
 
 - **matplotlib, the first milestone** (spec 023). matplotlib 3.11.2 is built in: `import
   matplotlib; matplotlib.use("agg")`, `plt.plot(...)` and `savefig` to PNG, PDF, PS, EPS or SVG

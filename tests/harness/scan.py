@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import ast
 import json
+import posixpath
 import re
 import shlex
 import subprocess
@@ -1231,6 +1232,8 @@ def rebuild_gate_errors(text: str) -> list[str]:
 # What is checked, signed and published is what the build job made (spec 057)
 
 ASSETS_ID = "${{ needs.build.outputs.assets-id }}"
+# A download's `path:` with a leading workspace expression dropped (spec 070, item 1).
+WORKSPACE_PREFIX = re.compile(r"^\$\{\{\s*github\.workspace\s*\}\}/")
 SUMS_SHA256 = "${{ needs.build.outputs.sums-sha256 }}"
 CHECK_STEP = "These are the bytes the build job made"
 GUARD_TEST = '"" | *[!0-9]*)'
@@ -1444,6 +1447,7 @@ def release_binding_errors(text: str) -> list[str]:
                 )
     # Rule 16: nothing but the build's files lands in release-assets, and a job that holds them
     # downloads nothing else, so no bytes arrive after its check (spec 057's build review, F1).
+    # `path:` is read as a path, so `./release-assets` is release-assets too (spec 070).
     for name, job_steps in steps.items():
         downloads = [
             f.get("with", {})
@@ -1451,7 +1455,7 @@ def release_binding_errors(text: str) -> list[str]:
             if f.get("uses", "").startswith("actions/download-artifact@")
         ]
         for w in downloads:
-            path = w.get("path", "").rstrip("/")
+            path = posixpath.normpath(WORKSPACE_PREFIX.sub("", str(w.get("path", ""))))
             if (path == "release-assets" or path.startswith("release-assets/")) and w.get(
                 "artifact-ids"
             ) != ASSETS_ID:

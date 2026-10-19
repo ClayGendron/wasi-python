@@ -1331,7 +1331,9 @@ done.stdout                                    # b'Ada\n'
   (default `defaults().tool_request_bytes`, 16 MiB; `None` means no limit),
   counted from each frame's length before it is read, whatever its answer: a
   frame that would pass it is refused unread. Past either, the guest gets
-  `ToolBudgetExceeded` and runs on; the message says which. A request
+  `ToolBudgetExceeded` and runs on; the message says which. If the
+  discovery frame itself is refused (`max_tool_calls=0`, or a request budget
+  too small for it), `from host import tools` raises `ImportError`. A request
   over 1 MiB is refused from its length, before its bytes are copied out of
   guest memory, so a refused frame costs the host the same whatever its
   size; an answer over 16 MiB is `too_large`. Arguments are checked within a
