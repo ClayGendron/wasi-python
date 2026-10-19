@@ -1,0 +1,12 @@
+ORDER: FAILED tests/unit/test_runner_async.py::test_a_lost_call_stops_the_guest_and_drive_says_so
+ORDER: FAILED tests/unit/test_runner_async.py::test_a_call_cancelled_before_it_runs_never_starts_its_guest
+ORDER: 2 failed, 81 passed in 1.04s
+ALONE: FAILED tests/unit/test_runner_async.py::test_a_lost_call_stops_the_guest_and_drive_says_so
+ALONE: FAILED tests/unit/test_runner_async.py::test_a_call_cancelled_before_it_runs_never_starts_its_guest
+ALONE: 2 failed, 13 passed in 0.61s
+ALONE, no faulthandler plugin: FAILED tests/unit/test_runner_async.py::test_a_lost_call_stops_the_guest_and_drive_says_so
+ALONE, no faulthandler plugin: FAILED tests/unit/test_runner_async.py::test_a_call_cancelled_before_it_runs_never_starts_its_guest
+ALONE, no faulthandler plugin: 2 failed, 13 passed in 0.60s
+PROBE: no engine yet: SIGSEGV
+PROBE: faulthandler on, still no engine: SIGSEGV
+PROBE: after the first engine: None
