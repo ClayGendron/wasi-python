@@ -20,13 +20,17 @@ import itertools
 import os
 import shutil
 import struct
+import sys
+import tempfile
 import zipfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import wasmtime as wt
+
+from harness import paths
 
 DEFAULT_FUEL = 2 * 10**11
 WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
@@ -154,6 +158,62 @@ def _random_stream() -> Callable[[int], bytes]:
     return take
 
 
+def _forms(root: Path) -> set[str]:
+    """The ways a check can write `root` into a guest's input (spec 081, Decision 2): as written and
+    resolved, each also in forward slashes and, for an absolute path, as a `file:` URI; and any of
+    these holding a backslash with every backslash doubled, as `repr()` and JSON write it."""
+    forms: set[str] = set()
+    for p in (Path(root), Path(root).resolve()):
+        forms |= {str(p), p.as_posix()}
+        if p.is_absolute():
+            forms.add(p.as_uri())
+    return forms | {f.replace("\\", "\\\\") for f in forms if "\\" in f}
+
+
+def host_paths_in(
+    roots: Sequence[Path],
+    argv: Sequence[str],
+    env: Mapping[str, str] | None = None,
+    files: Mapping[str, bytes | str] | None = None,
+    preopens: list[tuple[str, Path, bool]] | None = None,
+    *,
+    fold_case: bool = sys.platform == "win32",
+) -> list[str]:
+    """Each input the guest can see that names a host path under one of `roots`: an argument, an
+    environment variable, a file's guest path or contents, or a grant's guest path (spec 081).
+    The guest's work moves with the length of any host path it is given, so a run whose fuel is
+    recorded must give it guest paths only. On Windows (`fold_case`) case is ignored."""
+    needles = sorted({form for root in roots for form in _forms(root)})
+    if fold_case:
+        needles = [n.casefold() for n in needles]
+    found: list[str] = []
+
+    def look(where: str, value: str | bytes) -> None:
+        text = value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+        if fold_case:
+            text = text.casefold()
+        if any(n in text for n in needles):
+            found.append(where)
+
+    for i, arg in enumerate(argv, 1):
+        look(f"argv[{i}]", arg)
+    for name, value in (env or {}).items():
+        look(f"env {name}", f"{name}={value}")
+    for guest_path, content in (files or {}).items():
+        look(f"file {guest_path}", guest_path)
+        look(f"the contents of {guest_path}", content)
+    for guest_path, _, _ in preopens or []:
+        look(f"grant {guest_path}", guest_path)
+    return found
+
+
+def host_roots_always() -> tuple[Path, ...]:
+    """The roots every measured run is checked against: the checkout, and the system's temp folder
+    unless it is literally `/tmp`, a path guests are given as their own (spec 081, Decision 2)."""
+    temp = tempfile.gettempdir()
+    return (paths.REPO,) if temp == "/tmp" else (paths.REPO, Path(temp))
+
+
 def run(
     wasm: Path,
     argv: list[str],
@@ -169,12 +229,25 @@ def run(
     preopens_first: bool = False,
     mpl_data: bool = False,
     own: tuple[wt.Engine, wt.Module] | None = None,
+    measured: bool = True,
+    host_roots: Sequence[Path] = (),
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
     made at wasmtime's defaults (no fuel, no epochs) and the module compiled on it, as another
     embedder's would be (spec 071, criterion 3); the driver's cached engine is never swapped, and
-    such a run counts no fuel."""
+    such a run counts no fuel. A `measured` run (the default: one whose fuel a check records) is
+    refused before anything runs when its inputs name a host path under the checkout, the
+    system's temp folder or `host_roots` (spec 081): its fuel would depend on where they are."""
+    if measured and own is None:
+        named = host_paths_in((*host_roots_always(), *host_roots), argv, env, files, preopens)
+        if named:
+            raise ValueError(
+                "a measured run gives the guest a host path in "
+                + ", ".join(named)
+                + ": its fuel would depend on where the checkout is; give it guest paths, or"
+                " record no fuel for this run (spec 081)"
+            )
     eng, mod = own if own is not None else (engine(), module(wasm))
     counted = own is None
     how = kind(mod)

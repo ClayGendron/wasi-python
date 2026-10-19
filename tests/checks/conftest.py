@@ -66,13 +66,15 @@ def guest_workdir():
 
 
 @pytest.fixture
-def guest(guest_workdir: Path, metric) -> Callable:
+def guest(guest_workdir: Path, metric, tmp_path_factory: pytest.TempPathFactory) -> Callable:
     """`guest(which, argv, files=…, env=…, host=…, fuel=…, stdlib=…)` runs the artifact once.
 
     It names its needs before it runs anything, so a check that uses it is `blocked`, never
     `fail`, when the artifact is absent. It records the run's fuel as the check's metric (the
     last run wins, so a check runs its measured program last). `stdlib` names another zip to
-    grant in the artifact zip's place (spec 035, Decision 11)."""
+    grant in the artifact zip's place (spec 035, Decision 11). A recorded run whose inputs name a
+    host path (under the checkout, the system's temp folder or pytest's) is refused (spec 081):
+    its fuel would depend on where they are; a run given one passes `record=False`."""
 
     def run(which: str, argv: list[str], *, record: bool = True, stdlib: Path | None = None, **kw):
         needs.need("artifact dir", NEED_OF[which], "stdlib zip", "manifest", "wasmtime-py")
@@ -87,6 +89,8 @@ def guest(guest_workdir: Path, metric) -> Callable:
             workdir=guest_workdir,
             python_version=m.python,
             stdlib=stdlib or d / "python-stdlib.zip",
+            measured=record,
+            host_roots=(tmp_path_factory.getbasetemp(),),
             **kw,
         )
         if record:
