@@ -7,10 +7,11 @@
   F2, N1 and N3 written in; the section "Disposition of the pre-build review"), and rebased
   onto main `23f1c4f` (071 and 069 landed; neither touches `tools.py` or the two unit files);
   **confirmed for build 2026-10-19** (the review's Confirmation: "Confirmed for build", with two
-  cosmetic points, c1 and c2, taken at the build). It changes neither the guest's imports nor
-  its exports, the artifact set nor the build recipe, so §5.6 asks no review before build. One is asked for because
-  Decisions 1 to 3 change the gate's fail-closed path, the control §4.4 names. A different
-  agent reviews the build.
+  cosmetic points, c1 and c2, taken at the build); **built 2026-10-19** (the Landing notes),
+  awaiting its build review. It changes neither the guest's imports nor its exports, the
+  artifact set nor the build recipe, so §5.6 asks no review before build. One is asked for
+  because Decisions 1 to 3 change the gate's fail-closed path, the control §4.4 names. A
+  different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** the runner, host side only; **parallel-safe**, not build-class (§5.7). It edits
@@ -420,4 +421,101 @@ across 13 kinds of awaitable, where main fails open on 6 (24 rows).
 
 ## Landing notes
 
-Not built. This specification waits for its pre-build review's confirmation.
+**Built 2026-10-19** on `spec/075-tools-small-fixes` over main `23f1c4f`, in the worktree
+`wasi_python-075`, against the frozen set `build/sets/s-c50ca51fae5eb55b` (spec 071's, main's
+newest; `WASI_PYTHON_ARTIFACTS` pointed at it). Commits: `ca7dce4` (the Confirmation's c1 and
+c2), `ff687cb` (the checks, alone), `8eeb003` (the code, the README and the CHANGELOG); these
+notes are the commit after it. Evidence is in the main tree under
+`build/reviews-evidence/075-build/`.
+
+### Seen failing first (EXECUTED, `checks-on-main.log`)
+
+The checks were committed before the code and run on main's `tools.py`: **42 failed, 50
+passed**. Criterion 1: the 26 rows the spec names (18 for the three async forms, 8 for the
+`Future` and bare `__await__` forms), each `('ok', 1) == ('denied', 'effect was refused')`,
+the tool run. Criterion 2: all 12, `('ok', None)`. Criterion 3: both loops, "DID NOT RAISE
+RuntimeError". Criterion 4: `[1, 2, None] == []` (three builds). Criterion 5: its boundary
+rows passed, and it failed at its last line, `AttributeError: … no attribute '_list_length'`
+(see the departures). The other 50 rows (the sync gate, the other raises, the allow rows)
+passed on main, as the spec says.
+
+### The stand-ins (EXECUTED, `standins.py`, `standins.out`)
+
+Each applied alone to an rsync copy of the worktree, the five new checks run by name; every
+one exits 1.
+
+| stand-in | failed | which |
+|---|---|---|
+| S1, main's code | 42 | as above |
+| S2, Decision 1 alone | 38 | criterion 1's 26 and criterion 2's 12, on the fault's name |
+| S3, `_Work` refuses every awaited `None`, on main | 46 | the 26 (no fault), the 6 allow-`None` rows, and criteria 2 and 3 (main's) |
+| S4, only an exact `GeneratorExit` kept | 16 | criterion 1's 10 subclass rows and criterion 2's 6 |
+| S5, Decision 2 alone | 2 | criterion 3, both loops |
+| S6, the length from the built answer | 1 | criterion 4 |
+| S7, `>=` for `>` | 1 | criterion 5 |
+| S8, the id's length left out | 1 | criterion 5 |
+| S9, the verdict remembered at the first `list` frame | 1 | criterion 5 |
+| S10, the envelope one byte short | 1 | criterion 5 |
+| S11, `skipped` tested after `returned` | 2 | criterion 3, both loops (the skipped-post row) |
+
+The runs of S1, S3, S5 and S11 take about two minutes: a failing check leaves a private
+loop's thread unstopped, and the file's `_join_tool_threads` fail-safe waits its 60 s. No
+check measures that time; on the built code the five checks run in seconds.
+
+### The judge
+
+- **The fast tier** (`fast-n3.log`; `uv run pytest -m "not slow" -n 3`, on `8eeb003`):
+  `wasi_python v1: 474/550 pass · 1 gap · 24 blocked · 0 fail · 51 deselected (unit suite
+  1359/1367, 8 skipped)`, `ratchet vs 9dad163977: lost 0 · absent 0 · unrun 0 · unrun locally
+  22 · gained 0 · grew 2 · upstream unrun 31 · not selected 37 · judge changed:
+  tests/unit/test_async_tools.py, tests/unit/test_tools.py`; GREW `[heapq-plain]` 177337468 ->
+  177688522 and `[lru-cache-plain]` 217073420 -> 217375203; `1833 passed, 32 skipped, 1
+  xfailed`, exit 1.
+- **The full judge** (`full-n3.log`; `uv run pytest -n 3`, on `8eeb003`, no `--accept`):
+  `wasi_python v1: 491/550 pass · 3 gap · 56 blocked · 0 fail (unit suite 1359/1367, 8
+  skipped)`, `ratchet vs 9dad163977: lost 0 · absent 0 · unrun 0 · unrun locally 42 · gained 0 ·
+  grew 2 · upstream unrun 31 · judge changed: tests/unit/test_async_tools.py,
+  tests/unit/test_tools.py`; GREW `[heapq-plain]` 177337468 -> 177361556 and
+  `[pickle-partial-plain]` 247215911 -> 248087419; `1850 passed, 64 skipped, 3 xfailed`, exit 1.
+  The blocks are the worktree's missing source trees, oracle and clones, as in any worktree.
+- **Lost 0, fail 0. The two "grew" are not this spec's.** They are spec 071's
+  `test_recursion_through_python_raises` rows on the plain binary, a different pair in each
+  run. That check runs the guest through `wasi_python.run` itself, not the judge's driver, so
+  CPython's hash secret comes from the host's real `random_get`, and the fuel moves from run to
+  run (the 2026-10-16 memo, "a host-supplied clock and random make fuel exact": 0.21% for
+  unseeded runs). EXECUTED (`fuel_spread.py`, `fuel_spread.out`, five runs each on the built
+  code): `heapq` 177,095,339 to 177,746,603 (0.37%), `lru-cache` 216,861,732 to 217,453,163
+  (0.27%), some runs below the accepted value; the ratchet's tolerance is 0.01%. Spec 075
+  changes no guest code and those rows call no tool. The rows passed; only their fuel metric
+  moved. Rule 4 forbids editing that check here, so it is reported to the lane as a new
+  failure mode of the judge (a check for it, or a fix to the metric, is its own change).
+- `ruff check` and `ruff format --check` on `src tests recipes/guest`: clean.
+  `uv run python tests/harness/api.py --check`: exit 0. The rules tier for specifications and
+  memos: 4 passed.
+
+### Departures from the specification, each with its reason
+
+- **Criterion 5 does not pass on main.** Its equality row calls `_list_length`, which main
+  lacks. The row is placed last, so on main the boundary rows are seen to pass first and the
+  check fails only there (`AttributeError`). The spec said it "passes on main".
+- **A third private helper, `_ToolHost._list_head(frame_id)`,** the parts before the array,
+  used by both `_list_answer` and `_list_length`, so the bytes and the length come from one
+  source. `_list_answer` now joins the parts with `b"".join`, one copy instead of two; the
+  bytes are the same (spec 060's `test_the_tool_list_is_encoded_once` passes unchanged). The
+  Kind line said "two private methods beside `_list_answer`".
+- **Criterion 1 asserts the fault exactly** (`GeneratorExit`, `SubExit`, `GeneratorExit: text`,
+  `KeyboardInterrupt`, `SystemExit: 3`, `CancelledError`, `OwnBase`), stronger than "begins
+  with". Criterion 2 likewise.
+- **Stand-in counts beyond the spec's:** S2 also fails criterion 2's 12 (38 in all); S3, built
+  on main, also fails criteria 2 and 3 (46); S4 also fails criterion 2's 6 subclass rows (16).
+  Each fails at least what the spec says.
+- **The README clause** reads "a Ctrl-C that lands inside a gate's or a tool's own code ends
+  that call as a fault (a gate's call is refused)", not "refuses that call": a tool's call is
+  `tool_error`, not refused.
+
+### Not done here
+
+No `--accept`, no push, no rebase. The build review gets this specification and `git diff
+23f1c4f..` on this branch. **The lane accepts with `--accept-judge`**, reason: "spec 075: two
+unit files gain its checks (criteria 1 to 5); no check, golden, gap or allowance edited"; and
+it rules on spec 071's fuel noise above, which any judge on the plain binary can show.
