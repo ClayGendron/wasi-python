@@ -15,6 +15,14 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   runs the five groups on Linux in its existing upstream shards, and the file-system group on
   macOS and Windows too. `python` now names its suite in `tests/upstream/packages.toml`. The
   hostile-guest checks that read MANIFEST are blocked, not failed, without an artifact set.
+- **The judge answers a file's times and inode number itself** (spec 083). Its guest driver
+  forwards the guest's file-stat and listing calls to wasmtime and answers the times from its own
+  stepped clock and the inode numbers from a count, so guest fuel no longer moves with the host's
+  file times or inode numbers (it did, in steps of 17 instructions), and a file the guest writes
+  is no longer dated after the guest's clock. Each run gets its own copy of the stdlib zip instead
+  of a hard link to the shared one, so no run sees another's link count. CPython's two
+  `test_utime_current` tests now pass in the judge. The product runner is unchanged: programs run
+  through `wasi_python.run` still see the host's real times and inode numbers.
 
 ## 0.1.0a7 — 2026-10-19
 

@@ -12,11 +12,12 @@
 - **Owner:** Clay Gendron
 - **Kind:** a judge change; **parallel-safe**, not build-class (§5.7). It edits the judge's guest
   driver (`tests/harness/guest.py`), its WAT modules (`tests/harness/wat.py`), its unit tests
-  (`tests/unit/test_guest.py`) and one check file (`tests/checks/test_v1_4_embedding.py`: one new
-  check, one docstring), and it narrows one of spec 065's classes: one list file
+  (`tests/unit/test_guest.py`) and one check file (`tests/checks/test_v1_4_embedding.py`: two new
+  checks, one docstring), and it narrows one of spec 065's classes: one list file
   (`tests/upstream/expected/cpython-fs/stepped-clock.txt`), one `match` and reason
   (`tests/upstream/python.toml`) and one gap (`tests/known_gaps.toml`) (Decision 8). Nothing
-  else: no `src/`, `scripts/`, `recipes/`, `downloads/SHA256SUMS`, workflow, README or CHANGELOG.
+  else: no `src/`, `scripts/`, `recipes/`, `downloads/SHA256SUMS`, workflow or README; one
+  CHANGELOG entry under 0.1.0a8, at the lane's request at build time.
   The product runner keeps the host's real times and inode numbers. It restates the accepted fuel
   of most rows, and some rise past the tolerance (21 in the draft's measurement): **the lane
   accepts it with `--accept-judge` and `--accept-growth`** (Decision 7).
@@ -555,10 +556,14 @@ written in". Each finding, and where it went:
   times and the inode's size, from the review's decomposition; the landing notes give each growth
   row its accepted, times-only and full values, the times-only ones from `revised/times_only.diff`
   on a scratch copy.
-- **F8 (the cut entry and the filestat rewrite): aligned.** The code writes what the text says:
-  a filestat's `ino` and three times only (its padding untouched; Decision 1), and of a cut entry
-  only the `d_ino` and padding bytes present (Decision 3; `revised/prototype_revised.diff`); the
-  cut-entry row checks every other byte is unchanged.
+- **F8 (the cut entry and the filestat rewrite): aligned.** The listing half was fixed in the
+  revised prototype: of a cut entry only the `d_ino` and padding bytes present are zeroed
+  (Decision 3; `revised/prototype_revised.diff`), and the cut-entry row checks every other byte
+  is unchanged. The filestat half was the build's (the confirmation's N1): the build writes only a
+  stat's `ino` (8 bytes at 8) and its three times (24 bytes at 40), so the 7 padding bytes keep
+  the guest's own; `test_a_files_times_and_inode_are_the_drivers` asserts they keep 0xAA, and the
+  review's `stat_padding.py` gives "0 of 7" on main and on the build (corrected at landing; the
+  revision's sentence had said the code already did).
 - **F9 (design points): answered.**
   - The `id(engine)` key: dropped; the module is cached for the driver's own engine only and
     compiled per run for `own=` (Design).
