@@ -179,8 +179,10 @@ keeps its import name. Five of
 regex's callbacks are defined with one parameter where CPython passes two, which WebAssembly
 traps on; a carried patch (`recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`)
 gives them the second, until regex releases the change. One edge: `timeout=` counts the guest's
-clock, so whether a match times out depends on the host's speed; the embedder's fuel and
-deadline are the limits that hold. Its licence is Apache-2.0 and CNRI-Python:
+clock, and regex keeps its clock ticks in a 32-bit type on wasm32, so a `timeout=` above about
+2.1 seconds never fires (`timeout=2.2`, `5` and `1e9` all run on; a hostile pattern under
+`timeout=5` ran 35 s), while shorter ones fire on the guest's clock. The embedder's fuel and
+deadline are the limits that hold; a carried patch is reserved (spec 087). Its licence is Apache-2.0 and CNRI-Python:
 `LICENSES/regex.txt` is regex's `LICENSE.txt`, then a line naming the patched file, and CNRI's
 Python 1.6 licence is in `LICENSES/cpython.txt`.
 
@@ -233,7 +235,12 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   `xml.sax`, an `ElementTree` parser target) that parses again more than about 95 levels deep;
   freeing a nested list more than about 2,000 deep (a dict 1,300); `json.loads` past 1,100
   levels; `repr` of nested lists past 1,800 and `==` past 1,350; source with more than 130
-  nested brackets; an `ExceptionGroup` nested past 720. The trap ends only that call.
+  nested brackets; an `ExceptionGroup` nested past 720; plain Python recursion between about 1,000
+and 3,000 levels once a program raises `sys.setrecursionlimit` to 3,000 or more; XPath with more
+than about 375 nested parentheses or 4,600 chained predicates; XSLT `call-template` nested past
+about 480 levels, or `apply-templates` over a tree deeper than about 670; C14N and RelaxNG
+validation of a tree about 2,000 deep (a parsed document stops at depth 256 unless `huge_tree`
+or `recover=True` is given). The trap ends only that call.
 
 FreeType's licence asks every binary distribution to say this in its documentation, and this
 README is the wheel's description:
@@ -261,7 +268,13 @@ stylesheet loads, can read any file in a grant, external entities included, and 
 writable grant.** Give untrusted stylesheets, and trusted ones that load untrusted documents,
 `etree.XSLT(sheet, access_control=etree.XSLTAccessControl.DENY_ALL)` (or `read_file=False`,
 `write_file=False`): the read or write then raises "read rights … denied" or "write rights …
-denied". pandas' `read_xml(…, stylesheet=…)` applies its stylesheet with no access control. The
+denied". **`DENY_ALL` covers the transform, not the stylesheet's own `xsl:import` and
+`xsl:include`:** those load while `etree.XSLT(sheet, …)` compiles the stylesheet, with no access
+control (native lxml does the same), and an imported stylesheet resolves external entities, so it
+can read files in the grants, and compiling tells it whether a granted file exists. Parse an
+untrusted stylesheet with a parser whose resolver refuses every URL (an `etree.Resolver` whose
+`resolve` raises, added to `parser.resolvers`), and compile it from that parse: both loads then
+raise. pandas' `read_xml(…, stylesheet=…)` applies its stylesheet with no access control. The
 sandbox keeps all of this inside the grants (no network, nothing outside a grant, nothing
 written to a read-only one), but does not make untrusted input safe to transform; libxml2's own
 README advises against untrusted input too. lxml's parser keeps its safe defaults: external
@@ -2894,7 +2907,7 @@ has one.
   `ValueError` before any work, and a wrong type `TypeError`; no message
   quotes a value;
 - each call's store is closed when it ends, trapped or not, so its memory
-  and open files are released at once; a process copies the 11 MB stdlib
+  and open files are released at once; a process copies the 22 MB stdlib
   zip once, into a folder of its own that its exit removes;
 - calls made through `run` share nothing with each other but the stdlib
   zip's folder, which each sees read-only: the host
@@ -2911,7 +2924,7 @@ has one.
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
 **Not protected:** a killed process (mid-call, its private root and stdin
-folder; at any time after its first call, its 11 MB stdlib zip folder; each
+folder; at any time after its first call, its 22 MB stdlib zip folder; each
 with its lock file, stay in the temporary folder until another
 process using wasi_python on the same kernel, with the same temporary
 folder, starts its first call; folders from releases before 0.1.0a3 have no
