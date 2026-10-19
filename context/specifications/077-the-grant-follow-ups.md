@@ -1,6 +1,6 @@
 # 077 — The grant follow-ups
 
-- **Status:** drafted 2026-10-19 on `spec/077-the-grant-follow-ups` from main `d900dd9`
+- **Status:** **landed 2026-10-19** (accepted on `961f4b9` as `4441f7a`, history line 76; the build review, `../reviews/077-the-grant-follow-ups-build-2026-10-19.md`, said it lands once criterion 6's Windows run passed, and it did). Before landing: drafted 2026-10-19 on `spec/077-the-grant-follow-ups` from main `d900dd9`
   (`f7f248c`); **revised 2026-10-19 against its pre-build review** (written in the lane's
   scratchpad, `077-review/077-the-grant-follow-ups-spec-2026-10-19.md`, with its probes, to be
   copied to `../reviews/` by the lane; verdict: "ready once F1 and F2"; the lane's rulings on F1,
@@ -407,3 +407,21 @@ PASSED tests/unit/test_runner_grants.py::test_a_read_only_grant_refuses_raw_writ
 Point the raw read row at a real two-byte buffer and prove it with a zeroed control read, and
 make the Windows walk refuse exactly what `ntpath.isreserved` refuses, before anything is made,
 run once on Windows with `-rA` on a throwaway branch.
+
+**Landed 2026-10-19** through the lane, after spec 079. The lane rebased the branch onto main
+`59b90b6` with no conflict; its diff equals the reviewed diff at `dc35ffd` line for line (EXECUTED,
+`build/lane-077/delta.txt`, empty). Because the rebase brought specs 075's and 079's changes under
+`src/` and `tests/`, the freshness rule called for a new Windows run: the lane made the same
+temporary commit (`-rA`, the diff of `8472a38`) on the rebased tip with `git commit-tree`, pushed it
+to the throwaway `spec/077-verify` (`6b604c8`, parent `9f8b3d0`) and ran the release workflow there:
+run 39232968343, success on every job on all three systems, with PASSED lines on `verify
+(windows-2025)` for `test_the_windows_walk_takes_dot_dot_on_walked_folders`,
+`test_the_windows_walk_records_the_true_chain`, `test_a_rewritten_name_is_one_ntpath_refuses` and
+`test_a_read_only_grant_refuses_raw_writes` (EXECUTED, `build/dryrun-077-verify2.log`). The
+throwaway branch was deleted. The pre-build review with its confirmation and the build review were
+committed on the detached HEAD as `961f4b9`. No build: 077 changes `src/`, one unit file and
+documents. The full judge, serial: `wasi_python v1: 534/551 pass · 15 gap · 2 blocked · 0 fail (unit
+suite 1377/1379, 2 skipped)`, `1911 passed, 4 skipped, 15 xfailed in 1325.64s`, accepted with
+`--accept-judge` as `4441f7a`, history line 76; nothing grew (EXECUTED, `build/lane-077-accept.log`).
+The rules tier passed (40/40, unpiped); main fast-forwarded only after the Windows run passed.
+
