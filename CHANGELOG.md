@@ -248,6 +248,17 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.
   numpy's own LAPACK (`lapack_lite`) now carries a symbol prefix so it cannot meet OpenBLAS's;
   numpy computes as before.
+- **Changed: one exception to "the same bytes from any build host"** (spec 037, Decision 17; the
+  owner's answer to question 104). The pinned clang (wasi-sdk 33) places the `try_table` blocks of
+  nine of ducc0's FFT functions (`scipy.fft`) by heap address, so `python.wasm` and the snapshot
+  differ from build to build in where those blocks open, and only there; every other byte and
+  every other file is the same. `scripts/same_bytes.py` decides it: every instruction keeps its
+  bytes, its branch targets and its exception handler. The release's `same-bytes` job compares
+  each rebuild through `scripts/compare_sets.py`, and `MANIFEST` names the exception
+  (`x-same-bytes-exception`). To check your own build against a release, run
+  `uv run python scripts/compare_sets.py <the release's set> build/artifacts`: a plain
+  `shasum -a 256 -c` of your build fails on those two lines. LLVM fixed the cause (`fd76c9bd`,
+  in wasi-sdk 34); the toolchain move to wasi-sdk 34 removes the exception.
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the

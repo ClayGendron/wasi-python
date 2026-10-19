@@ -144,7 +144,9 @@ snapshot adds four facts of its own:
   what is known to matter for whichever of them a program has imported (the
   `random` and numpy seeds, `logging`'s start time, `zoneinfo`'s
   `PYTHONTZPATH`);
-- it is the same bytes on every build, from any supported build host: while
+- it is the same bytes on every build, from any supported build host, but
+  where nine of ducc0's FFT functions open their `try_table` blocks (the one
+  exception, under "The same bytes from any build host" below): while
   it initializes, the clocks, entropy and file metadata (a directory's size
   and link count included) answer constants, and no program ever sees them;
 - it starts with the bootstrap's heap frozen out of the collector's way, and
@@ -675,7 +677,9 @@ and the lane's newest acceptance is on the same `python.wasm` and the same set, 
 gather writes no history: only the lane accepts
 (`context/specifications/063-the-release-judges-in-parallel-shards.md`). Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, rebuild the
 set from the pins on an arm64 Linux runner and an x86_64 Linux runner, and `same-bytes` requires
-each one's `SHA256SUMS` and wheel to equal the set's, byte for byte; nothing is signed or
+each one's `SHA256SUMS` and wheel to equal the set's, byte for byte but for the one exception
+above, through one `scripts/compare_sets.py` call per runner (the two binaries' lines may differ,
+each rebuilt binary passing `scripts/same_bytes.py` against the set's); nothing is signed or
 published until it passes. They are two jobs, not a matrix, so each hands on only its own files'
 ids. Each job compiles with its own host's pinned clang (spec 059), so no compiler input is
 shared between the two votes, and each job has two hours. Then it publishes
@@ -697,7 +701,8 @@ against `SHA256SUMS`, and that nothing else is there, and only then acts. `publi
 `release` environment and `pypi` in `pypi`; their rules are the owner's settings. `setup-uv`'s
 cache is off in every job, and each job holds only the permissions it uses. If a re-run of the
 failed jobs ever stops at a guard ("handed on no artifact id"), re-run all jobs: the build makes
-the same bytes again. After publishing, whoever cut the release compares the GitHub release's
+the same bytes again but for the exception above, so a re-run's `python.wasm`, snapshot and
+`SHA256SUMS` may be new bytes, each set coherent in itself and signed as built. After publishing, whoever cut the release compares the GitHub release's
 assets (`gh release download`, then `shasum -a 256 -c`) and PyPI's wheel digest with the
 `SHA256SUMS` in the build job's log, and records it in the release's notes.
 

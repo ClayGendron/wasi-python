@@ -1,0 +1,34 @@
+# The one place the build may make other bytes from the same inputs (spec 037, Decision 17; the
+# owner's answer to question 104). The pinned clang (wasi-sdk 33, LLVM 4434dabb) orders the
+# try_table blocks of a few of ducc0's functions by heap address, so every compile of the object
+# below differs there. scripts/same_bytes.py lets python.wasm and the snapshot differ only in where
+# those named functions open their try_table blocks, under eight rules; everything else stays byte
+# for byte. LLVM fixed the cause in fd76c9bd (wasi-sdk 34); the toolchain move to wasi-sdk 34
+# (reserved) deletes this file. test_the_same_bytes_exception_is_still_needed (v1.5) goes red when
+# the toolchain, the scipy pin or the compile command moves, or the clang stops varying.
+#
+# functions: each name exactly as python.wasm's name section has it, each matching exactly one
+# function there; the union of the functions that differed among 32 compiles on darwin-arm64
+# (2026-10-19; their SHA-256s, 32 distinct, in the spec's evidence).
+# compile_command_sha256: scripts/same_bytes.py's compile_command_sha256 of the object's command
+# in build/scipy-build/compile_commands.json (the checkout's path written @ROOT@).
+
+[[exception]]
+object = "scipy/fft/_duccfft/pyduccfft.cxx"
+wasi_sdk_version = "33"
+llvm_commit = "4434dabb"
+source = "scipy-1.18.1.tar.gz"
+source_sha256 = "52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307"
+compile_command_sha256 = "0dee636c6d7367bc0bc2859d589b82f48927789652fb9f9ddfbf132df1df46b0"
+artifacts = ["python.wasm", "python-snapshot.wasm"]
+functions = [
+    "ducc0::detail_fft::cfftpass<double>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<double, ducc0::Cmplx<double>> const> const&, bool)",
+    "ducc0::detail_fft::cfftpass<float>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<float, ducc0::Cmplx<float>> const> const&, bool)",
+    "ducc0::detail_fft::cfftpass<long double>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<long double, ducc0::Cmplx<long double>> const> const&, bool)",
+    "ducc0::detail_fft::rfftpass<double>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<double, ducc0::Cmplx<double>> const> const&, bool)",
+    "ducc0::detail_fft::rfftpass<float>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<float, ducc0::Cmplx<float>> const> const&, bool)",
+    "ducc0::detail_fft::rfftpass<long double>::make_pass(unsigned long, unsigned long, unsigned long, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<long double, ducc0::Cmplx<long double>> const> const&, bool)",
+    "std::__2::shared_ptr<ducc0::detail_fft::(anonymous namespace)::cfftpg<double>> std::__2::make_shared[abi:nqe220100]<ducc0::detail_fft::(anonymous namespace)::cfftpg<double>, unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<double, ducc0::Cmplx<double>> const> const&, 0>(unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<double, ducc0::Cmplx<double>> const> const&)",
+    "std::__2::shared_ptr<ducc0::detail_fft::(anonymous namespace)::cfftpg<float>> std::__2::make_shared[abi:nqe220100]<ducc0::detail_fft::(anonymous namespace)::cfftpg<float>, unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<float, ducc0::Cmplx<float>> const> const&, 0>(unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<float, ducc0::Cmplx<float>> const> const&)",
+    "std::__2::shared_ptr<ducc0::detail_fft::(anonymous namespace)::cfftpg<long double>> std::__2::make_shared[abi:nqe220100]<ducc0::detail_fft::(anonymous namespace)::cfftpg<long double>, unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<long double, ducc0::Cmplx<long double>> const> const&, 0>(unsigned long&, unsigned long&, unsigned long&, std::__2::shared_ptr<ducc0::detail_unity_roots::UnityRoots<long double, ducc0::Cmplx<long double>> const> const&)",
+]

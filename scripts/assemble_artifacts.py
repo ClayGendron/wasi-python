@@ -248,6 +248,7 @@ SYMPY_WHEEL = "sympy-1.14.0-py3-none-any.whl"
 SYMPY_NESTED = "sympy/parsing/latex/LICENSE.txt"
 # The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
+SAME_BYTES_RECIPE = "recipes/same_bytes_exceptions.toml"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
 LICENCE_NAME = re.compile(r"(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.I)
 
@@ -551,6 +552,12 @@ def main() -> None:
         f"x-source-date-epoch {os.environ['SOURCE_DATE_EPOCH']}",
         f"x-preimport {preimport_list((root / PREIMPORT_RECIPE).read_text())}",
         f"x-snapshot-zip {sha256(new / 'python-stdlib.zip')}",
+    ]
+    # Spec 037, Decision 17: where another build's python.wasm and snapshot may differ, from the
+    # recipe, so the line is the same on every host.
+    exceptions = tomllib.loads((root / SAME_BYTES_RECIPE).read_text()).get("exception", [])
+    manifest += [
+        f"x-same-bytes-exception {e['object']} {len(e['functions'])} functions" for e in exceptions
     ]
     (new / "MANIFEST").write_text("\n".join(manifest) + "\n")
 

@@ -607,11 +607,18 @@ jobs:
 """
     + _rebuild_job("rebuild-linux-arm64", "ubuntu-24.04-arm", 120)
     + _rebuild_job("rebuild-linux-x86-64", "ubuntu-24.04", 120)
-    + """  same-bytes:
+    + f"""  same-bytes:
     needs: [build, rebuild-linux-arm64, rebuild-linux-x86-64]
     runs-on: ubuntu-24.04
-    permissions: {}
+    permissions:
+      contents: read
     steps:
+      - uses: actions/checkout@{PIN} # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@{PIN} # v10.3.0
+        with:
+          enable-cache: false
 """
     + READ_ASSETS
     + """      - name: The rebuild jobs handed on artifact ids
@@ -631,16 +638,12 @@ jobs:
     + _rebuild_download("rebuild-linux-arm64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04-arm")
     + _rebuild_download("rebuild-linux-x86-64", "sums-id", "rebuilds", "ubuntu-24.04")
     + _rebuild_download("rebuild-linux-x86-64", "wheel-id", "rebuilt-wheels", "ubuntu-24.04")
-    + """      - name: Every rebuild's SHA256SUMS is the set's
+    + """      - name: Every rebuild is the set and its wheel the wheel
         run: |
-          sums=set/SHA256SUMS
+          set_dir=$(echo set/wasi-python-*)
           for runner in ubuntu-24.04-arm ubuntu-24.04; do
-            cmp "$sums" "rebuilds/$runner/SHA256SUMS"
-          done
-      - name: The wheel is the wheel each host rebuilt
-        run: |
-          for r in ubuntu-24.04-arm ubuntu-24.04; do
-            cmp -s "$wheel" "rebuilt-wheels/$r/$(basename "$wheel")"
+            uv run python scripts/compare_sets.py "$set_dir" "rebuilds/$runner" \\
+              --wheels "$wheel" "rebuilt-wheels/$runner/$(basename "$wheel")"
           done
   verify:
     needs: build
@@ -760,7 +763,7 @@ BAD_BINDINGS = [
     (("pypi", "    environment: pypi\n", "    environment: release\n"), {12}),
     (("build", "enable-cache: false", "enable-cache: true"), {13}),
     (("verify", "      contents: read\n", "      contents: write\n"), {14}),
-    (("same-bytes", "    permissions: {}\n", ""), {14}),
+    (("same-bytes", "    permissions:\n      contents: read\n", ""), {14}),
     # The Confirmation's M2: the rebuild guard, which has no twin, told to carry on.
     (
         (
@@ -995,22 +998,53 @@ BAD_REBUILDS = [
     (
         (
             "same-bytes",
-            "    permissions: {}\n",
-            "    permissions: {}\n    continue-on-error: true\n",
+            "    permissions:\n",
+            "    continue-on-error: true\n    permissions:\n",
         ),
         "same-bytes has a job-level continue-on-error:",
     ),
     (
-        ("same-bytes", "    permissions: {}\n", "    permissions:\n      id-token: write\n"),
+        ("same-bytes", "      contents: read\n", "      contents: read\n      id-token: write\n"),
         "same-bytes's permissions are more than",
     ),
     (
         ("same-bytes", "rebuild-linux-arm64, rebuild-linux-x86-64]", "rebuild-linux-arm64]"),
         "same-bytes does not need build and both",
     ),
+    # Spec 037, Decision 17's review, F4: the one compare_sets.py call per runner, each part of it.
     (
-        ("same-bytes", '            cmp "$sums"', '            diff "$sums"'),
-        "same-bytes does not compare",
+        ("same-bytes", "compare_sets.py", "compare_set.py"),
+        "same-bytes does not compare each rebuild and its wheel",
+    ),
+    # Spec 012's M18: the set's operand replaced by a rebuild's.
+    (
+        ("same-bytes", 'compare_sets.py "$set_dir"', 'compare_sets.py "rebuilds/ubuntu-24.04"'),
+        "same-bytes does not compare each rebuild and its wheel",
+    ),
+    (
+        ("same-bytes", '--wheels "$wheel" "rebuilt', '"$wheel" --wheels "rebuilt'),
+        "same-bytes does not compare each rebuild and its wheel",
+    ),
+    (
+        ("same-bytes", '"rebuilt-wheels/$runner/', '"rebuilt-wheels/ubuntu-24.04/'),
+        "same-bytes does not compare each rebuild and its wheel",
+    ),
+    (
+        (
+            "same-bytes",
+            "      - name: Every rebuild is the set",
+            '      - run: cmp set/SHA256SUMS "rebuilds/ubuntu-24.04/SHA256SUMS"\n'
+            "      - name: Every rebuild is the set",
+        ),
+        "same-bytes still compares a rebuild byte for byte",
+    ),
+    (
+        ("same-bytes", "          persist-credentials: false\n", "          ref: main\n"),
+        "same-bytes does not check out the run's commit without credentials",
+    ),
+    (
+        ("same-bytes", "      - uses: astral-sh/setup-uv@", "      - uses: astral-sh/other@"),
+        "same-bytes does not set up uv",
     ),
     # The Confirmation's M5: the x86_64 job's id downloaded into the arm64 job's folder.
     (
@@ -1028,13 +1062,12 @@ BAD_REBUILDS = [
             "for runner in ubuntu-24.04-arm ubuntu-24.04;",
             "for runner in ubuntu-24.04;",
         ),
-        "same-bytes' SHA256SUMS loop does not run over ubuntu-24.04-arm",
+        "same-bytes' compare_sets.py loop does not run over ubuntu-24.04-arm",
     ),
     (
-        ("same-bytes", "for r in ubuntu-24.04-arm ubuntu-24.04;", "for r in ubuntu-24.04-arm;"),
-        "same-bytes' wheel loop does not run over ubuntu-24.04",
+        ("same-bytes", "set_dir=$(echo set/wasi-python-*)\n", "set_dir=$(echo set/x) || true\n"),
+        "a step of same-bytes swallows",
     ),
-    (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
     # Spec 085 (the a7 security review's N5): the runner's own python3 is named in the log.
     (
         ("rebuild-linux-arm64", "          python3 --version\n", ""),

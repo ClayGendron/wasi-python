@@ -756,14 +756,17 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       artifacts it touches (`python.wasm`, `python-snapshot.wasm`); and the functions, each by its
       exact name in the binaries' `name` section, each of which must match **exactly one**
       function there (F3: 1,243 names occur more than once in that section). The names are the
-      union of the functions that differed among 32 compiles of the file on one host (eight
-      compiles gave nine, the reviewer's eleven the same nine). Nothing else may differ: no other
+      union of the functions that differed among 32 compiles of the file on darwin-arm64: 32
+      distinct objects, the same nine functions as the first eight compiles and the reviewer's
+      eleven (their hashes: the worktree's `build/037/ducc0/32-compiles-sha256.txt`). Nothing else may differ: no other
       function, no other section, no other file of the set.
     - **How "the same bytes" is decided for `python.wasm` and the snapshot.** A script of ours,
       `scripts/same_bytes.py` (standard library only, run with `uv run python`), compares two
       binaries. It passes when they are byte for byte equal, or when all of these hold:
-      1. the toolchain, scipy and compile-command values in the recipe are `scripts/line.conf`'s
-         and the pins' (F4: the gate does not rely on the lane's check for this);
+      1. the recipe's toolchain (`WASI_SDK_VERSION`, `LLVM_COMMIT`) is `scripts/line.conf`'s and
+         its scipy SHA-256 is `downloads/SHA256SUMS`' (F4: the gate does not rely on the lane's
+         check for this; the compile command, which only a build tree holds, is the still-needed
+         check's);
       2. every section but the code section is byte for byte equal (types, imports, functions,
          tables, memory, globals, exports, elements, data, `name`, `producers`,
          `target_features`, every custom section), so function indices and names agree;
@@ -804,7 +807,7 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       one binary varies about 0.1% from run to run, which hides any difference). A sameness or
       ratchet difference between two sets is not the exception's without evidence.
     - **Where it is checked.**
-      - `scripts/compare_sets.py <set> <rebuilt set> [--wheels <release wheel> <rebuilt wheel>]`
+      - `scripts/compare_sets.py SET REBUILT [--wheels RELEASE.whl REBUILT.whl]`
         holds the whole comparison (F4): every line of the rebuild's `SHA256SUMS` equals the
         set's but the two binaries' lines; each rebuilt binary hashes to its own line in the
         rebuild's `SHA256SUMS` (so a stale or mixed-up file proves nothing); each rebuilt binary
@@ -816,8 +819,10 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
         other the set; the rebuilt binaries are taken from the rebuilt wheel the job already
         downloads by id (F4: no new uploads). The job gains a checkout of the run's commit
         (`persist-credentials: false`) and `astral-sh/setup-uv` at the pinned versions, for the
-        scripts and the recipe, and `permissions: contents: read` in place of `{}` (the checkout
-        needs it on a private repository; `scan.JOB_PERMISSIONS["same-bytes"]` changes with it).
+        scripts and the recipe, and `permissions: contents: read` in place of `{}`, as every
+        other job that checks out (the repository is public, where a checkout may pass without
+        it, but the job states what it reads; `scan.JOB_PERMISSIONS["same-bytes"]`, spec 057's
+        table, changes with it).
         `scan.rebuild_gate_errors` requires that call with both runners, no `||` or `set +e`, and
         `attest` and `publish` still needing `same-bytes`; today's `cmp` rule is replaced, not
         kept beside it.
