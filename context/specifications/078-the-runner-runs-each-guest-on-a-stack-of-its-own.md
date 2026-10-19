@@ -10,7 +10,9 @@
   "Disposition of the pre-build review" says where each went. **Confirmed for build** by the same
   reviewer ("Confirmation of 078's revision": confirmed once C1 is written in); C1, C2 and the
   builder note are written in. It builds after spec 065 lands (both touch the nine trap entries),
-  and probably after 083 (both edit `tests/harness/guest.py`'s `run()`). It changes neither the guest's
+  and probably after 083 (both edit `tests/harness/guest.py`'s `run()`). Criterion 19 (the nine
+  entries on linux/amd64 and in the release's Linux and Windows shards) was added after the
+  confirmation, at the lane's request, from spec 065's review. It changes neither the guest's
   imports nor its exports, the artifact set nor the build recipe. A different agent reviews the
   build.
 - **Date:** 2026-10-19
@@ -713,7 +715,7 @@ unit checks go in `tests/unit/test_runner_threads.py`; behavioural ones in
     macOS and Windows in the release workflow. The lane dispatches that workflow on the commit it
     is about to accept and waits for every job to pass on all three systems **before landing
     078**, not only before the next tag (the review's F7): its Windows design is read, not run.
-    The landing notes cite the run.
+    The landing notes cite the run. Criterion 19's nine trap entries are among the jobs it gates.
 
 16. **musl, by the builder** (the release has no musl host). In Alpine on aarch64 and x86_64,
     with the built runner: criterion 5's rows and the research's `list-door` edge complete on
@@ -741,6 +743,21 @@ unit checks go in `tests/unit/test_runner_threads.py`; behavioural ones in
     Asserts: `run` raises `KeyboardInterrupt`, the next call works, the child exits 0 within its
     limit. Seen failing first against the draft's design (the review's `home_model.out`): the
     guest waits for ever and the child is killed at its limit.
+
+19. **The nine trap entries pass at 8 MiB on x86-64 and on Windows, not only on darwin** (spec
+    065's review: two of its traps are seen only on Linux x86-64, so darwin is not the proof).
+    - **On linux/amd64, by the builder:** in a container of `ghcr.io/astral-sh/uv:0.9-trixie-slim`
+      under Rosetta, as 065's builder ran it, with the built runner and the judge's driver at
+      8 MiB: each of the nine entries' tests, by full id through 065's driver, passes (no trap,
+      its module's result as 065 classes it), `c-stack-itertools-tee` and the other x86-64-only
+      trap included. The landing notes carry the log, each test's outcome and fuel.
+    - **In the release workflow:** the same nine run in the release's Linux and Windows shards (065's
+      `cpython-*` groups, with the entries removed from its trap list) and pass. The lane's
+      pre-landing release run (criterion 15) is where Windows is proven; the landing notes cite its
+      run id and the shards' lines for the nine.
+    - Seen failing first: at 512 KiB each traps (EXECUTED: eight on darwin, `cpy078.out`; the
+      ninth on linux/amd64, the review's `cpy_tee.out`), and the builder records the same nine
+      trapping at 512 KiB on linux/amd64 before the change.
 
 ## The judge's changes
 
