@@ -414,6 +414,28 @@ mutant (a) had turned the seal off, so unsealed; `rm -rf` took them.
 All sixteen ran in the full judge and passed: CPython a, b, c, fs, archives; numpy core, lib,
 others; pandas' eight. Their fuel is within the tolerance of `accepted.json` (above).
 
+### After the build review (EXECUTED, `judge-after-build-review.txt`)
+
+Rebased onto main `302df18` (context/ and AGENTS.md only; no conflict). F1 and N1 in `51a5ce8`,
+the text in `2eed9ee`. On `2eed9ee`, clean, the same private set (no file above nlink 1):
+
+- The unit rows with `test_guest.py`, `test_upstream.py`, `test_regrtest.py`: 175 passed, 4
+  skipped. F1's row fails without the `finally` (`['…/run-0/lib']` left sealed).
+- **The fast tier, `-n 3`:** 483/625 pass, 0 fail; lost 0, gained 2, grew 0.
+- **The full judge, `-n 3`, once, 19:34 to 19:42:** `wasi_python v1: 525/625 pass · 77 gap · 23
+  blocked · 0 fail (unit suite 1599/1607, 8 skipped)`; `ratchet vs b91e0eaa4e: lost 0 · absent 0 ·
+  unrun 0 · unrun locally 21 · gained 2 · grew 0 · judge changed`; 2124 passed, 31 skipped, 77
+  xfailed. The record: `build/089/latest-full.json` in the worktree.
+- Against `accepted.json`, none of 164 fuel rows moves past 1e-4; the largest are the CPython
+  groups (`cpython-a` −8.9e-5, `cpython-c` +5.1e-5, `cpython-archives` −3.3e-5, `cpython-fs`
+  +1.7e-5), this base's own noise (F3). `sameness.py` against the previous full run (`6f525a0`):
+  only the unit suite's count differs (1605 against 1607, the two new rows).
+- **The real writer reached a stage, and the seal took it.** The watcher saw macOS write
+  `build/harness/cpython/run-p087q_vy/lib/.DS_Store` at 19:34:50, three seconds into the run,
+  while the CPython stage was being written. `seal` removed it when the stage was sealed (no group
+  failed with `HostLitter`, and every group passed at its usual fuel): the staging-litter cleanup
+  of Decision 2, met by the real writer. No sealed folder is left under `build/harness`.
+
 ### Departures and incidents
 
 - **A stray full-suite run.** In zsh, `"$N[$w]"` subscripts `$N` (lesson 6 of the brief): one

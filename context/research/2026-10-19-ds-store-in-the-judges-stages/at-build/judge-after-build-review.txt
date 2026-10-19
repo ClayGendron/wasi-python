@@ -1,0 +1,19 @@
+== after the build review, on 2eed9ee (rebased onto main 302df18)
+== fast tier -n 3 (fast-3.log)
+wasi_python v1: 483/625 pass · 1 gap · 22 blocked · 0 fail · 119 deselected   (unit suite 1599/1607, 8 skipped)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 20 · gained 2 · grew 0 · upstream unrun 99 · not selected 43 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_4_embedding.py, tests/harness/guest.py and 6 more
+=========== 2082 passed, 30 skipped, 1 xfailed in 192.05s (0:03:12) ============
+== full judge -n 3 (full.log), 19:34:47-19:42:59, set nlink check: links>1:        0
+wasi_python v1: 525/625 pass · 77 gap · 23 blocked · 0 fail   (unit suite 1599/1607, 8 skipped)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 2 · grew 0 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_4_embedding.py, tests/harness/guest.py and 6 more
+=========== 2124 passed, 31 skipped, 77 xfailed in 492.40s (0:08:12) ===========
+== sameness.py previous full run (6f525a0) vs this one
+suite: {'passed': 1597, 'skipped': 8, 'total': 1605} != {'passed': 1599, 'skipped': 8, 'total': 1607}
+== tripwire on build/harness during this run
+19:34:47 birth=18:28:06 size=10244 build/harness/.DS_Store
+19:34:47 birth=18:28:06 size=8196 build/harness/cpython/.DS_Store
+19:34:47 birth=18:28:11 size=8196 build/harness/upstream/.DS_Store
+19:34:50 birth=19:34:50 size=6148 build/harness/cpython/run-p087q_vy/lib/.DS_Store
+19:41:05 birth=19:41:03 size=6148 build/harness/patched-t8jovh2f/numpy-2.5.2/.DS_Store
+== F1's unit row without the finally (EXECUTED before the fix was kept)
+AssertionError: ['/Users/claygendron/Git/Repos/wasi_python-089/build/harness/unit-c_dk_orq/run-0/lib']
