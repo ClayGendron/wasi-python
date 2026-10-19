@@ -1,8 +1,16 @@
 # 055 — Bounded sessions
 
-- **Status:** confirmed for build 2026-10-18 (the review's Confirmation, N1–N3 written in);
+- **Status:** confirmed for build 2026-10-18; revised for the owner's decision (Decision 8,
+  close as Jupyter does); the revision awaits a short re-review. The owner answered question 92
+  on the evening of 2026-10-18 (`../decisions.md`, "The owner's answers of 2026-10-18,
+  evening"): `SystemExit` keeping the session and the echo stand; a session's close and expiry
+  now run Python's shutdown inside a small budget (Decisions 2, 8 and 9, and the section
+  "Revised for the owner's decision of 2026-10-18", near the end); the cap on open files comes
+  before 0.1.0 as spec 068 and applies to sessions (Decisions 5, 11 and 22). Since the revision
+  adds a guest export, §5.6 asks for its delta to be reviewed before build. Earlier history:
+  confirmed for build 2026-10-18 (the review's Confirmation, N1–N3 written in);
   build-class: builds in its turn in the queue (after 023 and the scipy line, per the roadmap),
-  and after 049, 053, 054 and 056 land. Drafted 2026-10-18; reviewed before build the same day,
+  and after 049, 053, 054, 056 and 068 land. Drafted 2026-10-18; reviewed before build the same day,
   as §5.6 requires since it changes the guest's exports
   (`../reviews/055-bounded-sessions-spec-2026-10-18.md`, also a security review of the design;
   verdict: ready once F1 to F7 are written in); revised against all fifteen findings (the
@@ -10,10 +18,11 @@
   lifetime is tightened, not left to the owner); confirmed with three notes, N1 to N3, written
   in (the Confirmation's notes, near the end).
 - **Owner:** Clay Gendron
-- **Kind:** **build-class.** The guest's recipe (`recipes/reactor_main.c`: a new export, `turn`;
-  `recipes/reactor_bootstrap.py`: the turn's Python), so both binaries, `MANIFEST`'s recipe
+- **Kind:** **build-class.** The guest's recipe (`recipes/reactor_main.c`: two new exports,
+  `turn` and `shutdown`; `recipes/reactor_bootstrap.py`: the turn's Python), so both binaries, `MANIFEST`'s recipe
   hashes and the artifact set's exports change. The runner (`src/wasi_python/runner.py`:
-  `Session`, `SessionEnded`, the reaper, two `Defaults` fields, a `stats()` key),
+  `Session`, `SessionEnded`, the reaper and the session's ending, three `Defaults` fields, a
+  `stats()` key),
   `src/wasi_python/__init__.py` (two names), `src/wasi_python/mounts.py` (the mount table's
   per-turn counters), `src/wasi_python/tools.py` (one abandoned-thread count per session). Judge
   additions and judge changes in `tests/` (Decision 19), `README.md`, `CHANGELOG.md`. **It
@@ -32,7 +41,12 @@
   each applies in a session. **056** (the 0.1.0a4 security review's fixes to `tool()` and the
   frame host: partial keywords bounded, no tool run after its call is answered) lands first:
   a session keeps its tools and their late threads across turns, so those fixes matter more
-  here (the review, F12).
+  here (the review, F12). **068** (a cap on open files, before 0.1.0 by the owner's decision on
+  question 92; drafting on `spec/068-a-cap-on-open-files`) is expected to land first; Decision
+  5 says how its cap applies in a session, and if 055 lands first, whichever lands second
+  carries the other's interplay (criterion 40). **069** (the snapshot pre-imports no package,
+  the owner's decision 34) changes the snapshot's frozen heap, so the ending's fuel figures of
+  Decision 8 are re-measured on the set this is built against.
 - **Research it stands on:** `../research/2026-10-17-state-across-agent-turns.md` (option 1:
   a live instance per session through a second export; its prototype E2, the per-turn fuel and
   memory figures, and E1b's resting shadow stack); this specification's addendum,
@@ -40,7 +54,11 @@
   a trapped store stays callable; one store called from three threads and closed from a fourth;
   the memory cap is a `MemoryError`, not a trap; a turn's output is all delivered when it hands
   control back; `host_alloc` answers NULL at the cap; Wizer keeps a `turn` export; echoing a
-  final expression costs about 0.58 M fuel); `../research/2026-10-17-the-runtime-for-agent-code.md`,
+  final expression costs about 0.58 M fuel; and, added for the revision, section 8: Python's
+  shutdown in today's guest costs 28 M to 303 M instructions, runs `atexit`, is bounded by fuel
+  and the deadline, flushes open files on the snapshot only once `gc.freeze()` is undone, and
+  how Jupyter closes and culls a kernel, READ from jupyter_client, ipykernel and
+  jupyter_server); `../research/2026-10-17-the-runtime-for-agent-code.md`,
   item 11; the owner's decisions 18 to 22 and 49 (`../decisions.md`); constitution §3 (amended
   for bounded sessions), §4.4, §4.6, §4.15, §5.2, §5.6 and §6.
 
@@ -69,9 +87,14 @@ variables, DataFrames, functions, classes, lambdas.
   rest.
 - **Ended:** a session that will run no more turns. Its store is closed and its folders are
   removed.
+- **The ending:** what the runner does between a session's end and its store's close. When the
+  session is at rest and its interpreter is sound, the ending runs **Python's shutdown**
+  (`atexit` handlers, then the interpreter's finalization, which flushes open files) through the
+  `shutdown` export, inside the **shutdown budget**: the session's per-turn fuel and
+  `shutdown_s` seconds (Decision 8). Otherwise it runs no guest code.
 - **Idle bound:** the longest a session may stay at rest. **Lifetime:** how long after its
-  opening a session's guest may run: no guest instruction runs past it (Decision 9 gives the
-  exact promise).
+  opening a session's turns may run: no turn's instruction runs past it, and the ending that
+  follows runs for at most `shutdown_s` more (Decision 9 gives the exact promise).
 
 ## Decisions
 
@@ -125,7 +148,7 @@ variables, DataFrames, functions, classes, lambdas.
      with the message `python.wasm: run() may be called once per instance, and not after
      turn()`, as a second `run` does today. A `turn` after a `run` returns −1.
    - **It never finalizes.** `Py_FinalizeEx` is never called by `turn`. The interpreter stays
-     live in linear memory until the host drops the instance.
+     live in linear memory until the host calls `shutdown` (below) or drops the instance.
    - **Before each turn the host re-arms its limits** (fuel, the epoch deadline) as it does
      before `run`; they are store settings, and the addendum (findings 1 and 2) shows they apply
      per call.
@@ -144,6 +167,50 @@ variables, DataFrames, functions, classes, lambdas.
      The first `turn` then initializes the interpreter, as `run` does (a random hash secret).
    - The C function sets `pinned = 0` first, as `run` does; it makes the refusals above before
      anything else; it sets a new flag, `turned`, which `run` checks beside `run_called`.
+   - **The ending's export, `shutdown() -> i32`** (added by the revision, Decision 8). Also in
+     `recipes/reactor_main.c`; it adds no import. It runs Python's normal shutdown once, in an
+     instance that ran turns:
+     - **Its refusals, each returning −1 with no Python run:** no `turn` was ever called in
+       this instance (`turned` unset; this covers an instance that ran `run`, which finalizes
+       itself, and one where nothing ran); `in_turn` is set (a turn is in progress, a
+       re-entrant call from a door callback, or a turn that a trap or `proc_exit` unwound,
+       whose interpreter is not safe to enter); or `shutdown` was already called (a new flag,
+       `shut`, set before any Python runs, so a call from the door during the shutdown, which
+       CPython forbids, "must not be called recursively from within itself … such as `atexit`
+       handlers", and a call after a shutdown that trapped are both refused).
+     - **What it does:** sets `pinned = 0` and `shut = 1`; calls `gc.unfreeze()` through a
+       strong reference taken in `init_interpreter` beside the turn function's, so replacing
+       `gc.unfreeze` changes nothing; then `Py_FinalizeEx()`, which runs the `atexit`
+       handlers (last registered, first run) and tears the interpreter down, flushing
+       `sys.stdout`, `sys.stderr` and the files the teardown closes; then C's
+       `fflush(stdout)` and `fflush(stderr)`, as `run` does. It returns 0, or 1 when
+       `Py_FinalizeEx` returned −1 ("errors during finalization (flushing buffered data)").
+     - **Why the unfreeze.** The snapshot's initialiser ends with `gc.collect(); gc.freeze()`.
+       With `__main__` frozen, a file a program left open beside any function defined in
+       `__main__` loses its buffered bytes at `Py_FinalizeEx` on the snapshot, though the
+       plain reactor flushes it (the addendum, section 8, P10b: 0 bytes against 100, both
+       runs). Undoing the freeze first gives the snapshot exactly the plain reactor's, that is
+       CPython's, behaviour (P12). On the plain reactor nothing is frozen and it costs about
+       0.5 M instructions. On today's snapshot it raises the whole shutdown from about 85 M to
+       about 310 M instructions, because the teardown then reaches the frozen, pre-imported
+       stack; spec 069 (no pre-imported package) shrinks that frozen heap, and the builder
+       re-measures on the set it builds against. The alternative measured, flushing every live
+       file object from a last `atexit` handler, was not taken: it does more than CPython does
+       (it also flushes a file held only in a cycle), and its walk of `gc.get_objects()` cost
+       about 376 M instructions on the plain reactor after importing pandas, a cost the
+       snapshot would share once 069 has landed (P11). An error from the call (a guest cannot reach it through the
+       reference, but the C side does not assume so) is taken with
+       `PyErr_GetRaisedException`, shown with `PyErr_DisplayException` and dropped, never
+       through `PyErr_Print` (the Confirmation, N1), and the shutdown goes on.
+     - **After it, every export refuses:** `turn` returns −1 (it checks `shut`), `run` returns
+       70 (it already refuses after a turn), `shutdown` returns −1.
+     - **Why a new export, not `turn` or `run`.** `turn` promises never to finalize, and N1
+       closed the one path by which guest code could make it do so; a finalizing mode of
+       `turn` would reopen that. `run` runs once per instance and reads argv; giving it a
+       second meaning would blur its contract for every other embedder. A separate, argument-
+       free export the guest cannot reach (a guest has no way to call its own exports) keeps
+       both contracts as they are. It changes the artifact set's exports (Decision 19), which
+       is why §5.6's re-review covers this revision.
 
 3. **What a turn does in the guest.** The Python half is a new function in the frozen
    bootstrap, `_reactor.turn(source, environ)`, compiled into the reactor at step 60 as today.
@@ -187,7 +254,8 @@ variables, DataFrames, functions, classes, lambdas.
      so all of a turn's output reaches the host before the export returns (the addendum,
      finding 4: wasmtime delivers every byte by then; Python's own buffer is the guest's to
      flush). Other files' buffers are the program's: a file a turn leaves open and unflushed
-     keeps its buffered bytes in the guest.
+     keeps its buffered bytes in the guest until a later turn flushes it or the session's
+     ending runs Python's shutdown (Decision 8).
    - Nothing else is reset between turns. `__main__`'s namespace, imported modules, open files,
      the working directory and the random state all persist.
 
@@ -202,11 +270,17 @@ variables, DataFrames, functions, classes, lambdas.
      life is the embedder's to set (its bounds, `close()`), and the turn's exit status still
      tells the embedder what the code asked for. The research's first recommendation leaned
      the other way ("a trap or an exit ends the session"); the owner's decision 21 settles only
-     traps, so this is the agent's choice, recorded for the owner as question 92.
-   - **`os._exit(n)` does end the session.** It calls WASI's `proc_exit`, which wasmtime raises
-     as an exit trap: the guest's stack unwinds without CPython's cleanup, as at any trap.
-     The turn's `exit_code` is `n`, and the session ends with `ended == "exit"` (Decision 8).
-   - So the export needs no finalize path at all, which keeps its C small.
+     traps, so this was the agent's choice, put to the owner as question 92. **The owner kept
+     it** (2026-10-18, evening: "`sys.exit()` keeps the session … as in Jupyter").
+   - **`os._exit(n)` still ends the session at once.** It calls WASI's `proc_exit`, which
+     wasmtime raises as an exit trap: the guest's stack unwinds without CPython's cleanup, as at
+     any trap. The turn's `exit_code` is `n`, and the session ends with `ended == "exit"`
+     (Decision 8). Its ending runs no guest code: no `atexit` handler and no flush, which is
+     what `os._exit` means in Python ("without calling cleanup handlers, flushing stdio
+     buffers, etc.") and what it does in a Jupyter kernel, whose process it ends; the addendum,
+     section 8, P9, shows the same through `run`.
+   - So `turn` needs no finalize path; Python's shutdown has its own export, `shutdown`, which
+     only the session's ending calls (Decisions 2 and 8).
 
 5. **The host API: `Session`.** In `runner.py`, exported from `wasi_python`.
 
@@ -223,10 +297,11 @@ variables, DataFrames, functions, classes, lambdas.
      fuel=None, deadline_s=<default>, memory_bytes=<default>, output_bytes=<default>,
      cache_dir=None, artifacts=None, max_file_calls=<default>, tools=None, gate=None,
      max_tool_calls=<default>, max_tool_request_bytes=<default>, idle_s=<default>,
-     lifetime_s=<default>)`.** Every argument is
+     lifetime_s=<default>, shutdown_s=<default>)`**, plus the cap on open files that 068
+     adds to `run`, under the name 068 gives it (below). Every argument is
      keyword-only. Each of `run`'s arguments means here what it means for `run`, with the scope
-     the table below gives it. `idle_s` and `lifetime_s` default to the two new `Defaults`
-     fields (Decision 9). There is no `argv` and no `stdin`: a turn's input is its code, and
+     the table below gives it. `idle_s` and `lifetime_s` default to two new `Defaults`
+     fields (Decision 9), and `shutdown_s` to a third (Decision 8). There is no `argv` and no `stdin`: a turn's input is its code, and
      WASI fixes argv and stdin per store. The guest's stdin is empty: `sys.stdin.read()`
      returns `""`.
    - **The rule for arguments `run` gains.** A session takes every argument of `run` except
@@ -254,6 +329,18 @@ variables, DataFrames, functions, classes, lambdas.
      - **060's `max_tool_request_bytes=`** is per turn, set once on the session, like
        `max_tool_calls`: each turn's frame host gets the session's value (060, Decision 7;
        written in by 060's branch).
+     - **068's cap on open files** (the owner's decision on question 92: a per-sandbox limit on
+       files open at once, set by the embedder like the other limits, default 1,024, `EMFILE`
+       past it, for `run` and sessions alike) is **per session**, set once at the opening and
+       read from `defaults()` then, like `memory_bytes`. It counts the descriptors open in
+       the session's store at once, whichever turn opened them, because a session's store
+       keeps them across turns (Decision 11): a per-turn count would let each turn open the
+       full allowance again and keep it. It holds through the session's ending too, so an
+       `atexit` handler that opens files meets it (Decision 8). A turn that meets it gets
+       `OSError` with `EMFILE` in the guest, as in `run`; the session goes on, and a file a
+       later turn closes frees its slot. 068 owns the mechanism, the name and the messages;
+       this specification only scopes it (written in here for 068, as 060's was; if 055 lands
+       before 068, 068 carries this bullet and criterion 40).
      The builder adds each such argument to Decision 17's lines, and the review checks them
      against this rule.
    - **`session.run(code: str, *, fuel=<session's>, deadline_s=<session's>,
@@ -261,9 +348,12 @@ variables, DataFrames, functions, classes, lambdas.
      ended.
    - **`await session.run_async(code, *, fuel=…, deadline_s=…, output_bytes=…, executor=None)
      -> Completed`**: the same from async code (Decision 12).
-   - **`session.close() -> None`** ends the session; it may be called any number of times.
+   - **`session.close() -> None`** ends the session, running its ending (Decision 8), and
+     returns once the store is closed; it may be called any number of times.
      **`session.ended -> str | None`** is `None` while the session can run turns, and the reason
-     it ended once it cannot (Decision 8). `with Session(...) as s:` closes it on leaving the
+     it ended once it cannot (Decision 8). **`session.shutdown_outcome -> str | None`** is
+     `None` until the ending has finished, then `"finished"`, `"stopped"` or `"skipped"`
+     (Decision 8). `with Session(...) as s:` closes it on leaving the
      block, however the block ends.
    - **What is per session and what is per turn:**
 
@@ -271,7 +361,8 @@ variables, DataFrames, functions, classes, lambdas.
      |---|---|---|
      | `root`, `grants`, `mounts`, `env`, `host`, `tools`, `gate`, `snapshot`, `artifacts`, `cache_dir` | per session | WASI fixes preopens, env and imports per store; the guest lists tools once (`host.tools` at import) |
      | `memory_bytes` | per session | `set_limits` is a store setting, and linear memory never shrinks (the research, E2) |
-     | `idle_s`, `lifetime_s` | per session | they bound the session |
+     | 068's cap on open files | per session | the store keeps its descriptors across turns (Decision 11) |
+     | `idle_s`, `lifetime_s`, `shutdown_s` | per session | they bound the session and its ending |
      | `fuel`, `deadline_s`, `output_bytes` | per turn; the session's value is each turn's default, and a turn may pass its own | each is re-armed before every turn (the addendum, findings 1, 2 and 4) |
      | `max_file_calls`, `max_tool_calls`, `max_tool_request_bytes` | per turn, set once on the session | each turn gets the full allowance; a per-turn override would only widen the surface |
      | `cancel` | per turn only | it stops one turn |
@@ -289,12 +380,13 @@ variables, DataFrames, functions, classes, lambdas.
      Its turns use the session's values, never the defaults of the moment.
 
 6. **Opening a session runs no guest code.** `Session(...)` does, in order:
-   - checks every argument, exactly as `run` does and with the same messages, plus `idle_s` and
-     `lifetime_s` (Decision 9), before any work: `TypeError` or `ValueError`, with no artifact
-     lookup;
+   - checks every argument, exactly as `run` does and with the same messages, plus `idle_s`,
+     `lifetime_s` (Decision 9) and `shutdown_s` (Decision 8), before any work: `TypeError` or
+     `ValueError`, with no artifact lookup;
    - finds the artifact set, and refuses with `ArtifactsMissing` a set whose chosen binary does
-     not export `turn` (read from the compiled module's exports), naming the export and saying
-     the set predates sessions; `tools=` keeps its `MANIFEST` check (spec 036);
+     not export `turn` or `shutdown` (read from the compiled module's exports), naming each
+     missing export and saying the set predates sessions; `tools=` keeps its `MANIFEST` check
+     (spec 036);
    - walks the root and grants, makes a private root for `root=True`, makes HOME where `/tmp`
      is writable, makes the scratch folder (empty stdin, the mounts' placeholder), all as `run`
      makes them for one call, and keeps them, held open, for the session's life;
@@ -346,45 +438,166 @@ variables, DataFrames, functions, classes, lambdas.
    5. hands the mounts' dirty buffers to their providers (Decision 11), on every ending that
       returns a result, after the fuel is read, as spec 034's Decision 8 does for `run`.
    6. returns a `Completed` (Decision 14). If the turn ended the session (Decision 8), the
-      session is closed before `run` returns or raises.
+      session's ending runs and the store is closed before `run` returns or raises. Only one
+      such ending runs guest code: a turn that finished normally after the lifetime passed
+      (Decision 9) leaves the session at rest with a sound interpreter, so its ending runs
+      Python's shutdown on this thread, and `run` returns up to `shutdown_s` later. Every other
+      turn that ends the session (a trap, an exit, a stop, an error) left the interpreter
+      unwound, and its ending runs no guest code.
 
    A turn's return value of −1, or any value outside −1 to 255, means the runner and the guest
    disagree. Since the C side owns the range (Decision 2), no guest code can produce it: it is a
    runner fault, the session ends with `"error"`, and `run` raises `RuntimeError("wasi_python
    lost track of a session")`, as `_drive` raises for a lost call.
 
-8. **How a session ends, and what `ended` says.** A session ends at the first of these. Each
-   closes the store at once, removes HOME, the scratch folder and a private root, releases the
-   mount table and the walked folders, and lowers `sessions_open` by one.
+8. **How a session ends, what its ending runs, and what `ended` says.** Revised for the
+   owner's decision on question 92 (2026-10-18, evening), which `../decisions.md` records as:
+   "at close and at expiry the session runs Python's shutdown (`atexit`, flushes) inside a
+   small fuel and time budget, and is stopped if the budget runs out", following Jupyter. A session ends at the first of the causes
+   below. `ended` is set to the cause once, under the session's state lock, before anything
+   else (the review, F10), so a racing `run` sees `SessionEnded`, never a closed store. Then the
+   session's **ending** runs, and when it has finished, everything the session held is released
+   and `shutdown_outcome` says how the ending went.
 
-   | cause | `ended` | the turn's result |
-   |---|---|---|
-   | `close()`, or leaving a `with` block | `"closed"` | a turn it interrupted returns `trapped == "cancelled"` (Decision 10) |
-   | the idle bound passed while at rest | `"idle"` | no turn ran; the next call raises `SessionEnded` |
-   | the lifetime passed | `"lifetime"` | at rest: no turn ran, and the next call raises `SessionEnded`; during a turn: the turn's effective deadline was the lifetime's remainder, so it returns `trapped == "deadline"` (or its result, if it finished first) and the session ends as it returns (Decision 9) |
-   | a turn called `os._exit` (`proc_exit`) | `"exit"` | `exit_code` is the code, `trapped` is `None` |
-   | a turn trapped, or the runner stopped it after guest code ran | the turn's `trapped`: `"out of fuel"`, `"deadline"`, `"cancelled"`, `"out of file calls"`, or wasmtime's name for the trap (`"stack overflow"`, …) | `exit_code` is `None`, as in `run` |
-   | `run` raised after the guest started (Ctrl-C; a `BaseException` from the embedder's host, provider, tool or gate; a lost call) | `"error"` | none: `run` raises, as it does today |
+   | cause | `ended` | the turn's result | the ending |
+   |---|---|---|---|
+   | `close()`, or leaving a `with` block, at rest | `"closed"` | no turn ran | Python's shutdown, on the caller's thread |
+   | `close()` during a turn | `"closed"` | the turn returns `trapped == "cancelled"` (Decision 10) | no guest code: the stop unwound the interpreter |
+   | the idle bound passed while at rest | `"idle"` | no turn ran; the next call raises `SessionEnded` | Python's shutdown, on a closer thread |
+   | the lifetime passed while at rest | `"lifetime"` | no turn ran; the next call raises `SessionEnded` | Python's shutdown, on a closer thread |
+   | the lifetime passed during a turn | `"lifetime"` | the turn's effective deadline was the lifetime's remainder (Decision 9): it returns `trapped == "deadline"`, or its result if it finished first | after `"deadline"`, no guest code; after a normal finish, Python's shutdown, on the turn's thread, before `run` returns |
+   | the session was dropped unclosed (the collector), or the process exits with it at rest | `"closed"` | none | Python's shutdown, on a closer thread (Decision 13) |
+   | a turn called `os._exit` (`proc_exit`) | `"exit"` | `exit_code` is the code, `trapped` is `None` | no guest code (Decision 4) |
+   | a turn trapped, or the runner stopped it after guest code ran | the turn's `trapped`: `"out of fuel"`, `"deadline"`, `"cancelled"`, `"out of file calls"`, or wasmtime's name for the trap (`"stack overflow"`, …) | `exit_code` is `None`, as in `run` | no guest code |
+   | `run` raised after the guest started (Ctrl-C; a `BaseException` from the embedder's host, provider, tool or gate; a lost call) | `"error"` | none: `run` raises, as it does today | no guest code |
 
+   - **When the ending runs Python's shutdown.** When all of these hold: the session is at rest;
+     at least one turn was called in it; the last turn returned normally, so the interpreter is
+     sound; `shutdown_s` is above 0; and this is not a process forked after the session was used
+     (Decision 13). The cause matters only through those: a close, an idle bound, a lifetime
+     reached at rest and a dropped session all run it. That is the owner's rule ("at close and
+     at expiry"), and Jupyter's: a culled kernel is shut down by the same `shutdown_kernel`
+     call, without `now`, as a closed one (the addendum, section 8, READ). Otherwise the
+     ending runs no guest code, and `shutdown_outcome` is `"skipped"`. With no turn ever
+     called there is nothing to shut down: no guest code has run since the opening, and the
+     plain reactor's interpreter has not even started.
+   - **The shutdown budget.** The ending runs inside two limits, both armed by the host before
+     the export is called, so nothing the guest does extends them:
+     - **Time: `shutdown_s`**, a new per-session argument whose default is a new field,
+       `Defaults.session_shutdown_s = 5.0` seconds. It is a number of seconds, finite and at
+       least 0: a bool, `None` or a non-number raises `TypeError`; a negative, NaN or infinite
+       value raises `ValueError`, from `Session(...)` and from `Defaults(...)` alike. It is armed
+       as `deadline_s` is, as an epoch deadline rounded up to a whole tick, and the ending's
+       waits and tool calls stop at it as a turn's do at its deadline (specs 010 and 036). **0**
+       is the embedder's way to skip the shutdown: the ending then runs no guest code, as
+       Jupyter's `shutdown_kernel(now=True)` kills without a request. **`None` is refused**
+       because the runner itself starts endings, on a closer thread at expiry and in its exit
+       hook at process exit (Decision 13); an unbounded ending there would hold a thread, the
+       session's memory and the host's exit for as long as the guest liked, which is what the
+       bounds exist to prevent. Why 5 s: it is Jupyter's own figure, jupyter_client's
+       `shutdown_wait_time` default ("Time to wait for a kernel to terminate before killing
+       it"), configurable there as here; the shutdown measured at most about 0.31 G
+       instructions on today's binaries (below). The time that takes is a benchmark fact the
+       builder records in the landing notes, never a check.
+     - **Fuel: the session's per-turn fuel.** In a metered session the ending gets the `fuel`
+       the session was opened with, as a turn that passes none does; an unmetered session has
+       no fuel, and the deadline alone bounds its ending. Why no fixed small share: the
+       shutdown's cost moves thirtyfold with the binary and the heap (the addendum, section 8,
+       P9 and P12: 28 M instructions on the plain reactor with nothing imported, about 303 M
+       after importing pandas there, about 310 M on today's snapshot with the unfreeze of
+       Decision 2), so any fixed figure small enough to call small would stop ordinary
+       shutdowns, and any figure large enough would not be small. Why no new argument: the
+       per-turn fuel is already the embedder's own statement of how much one call into this
+       session may compute, and the ending is one more call. The README states the measured
+       cost, so an embedder can size `fuel` to cover its ending. §4.15 holds: both limits have
+       defaults (5 s; the session's fuel, or none in an unmetered session as for every turn),
+       and the embedder sets both.
+     - **Everything else is one turn's.** The session's `memory_bytes` holds. The ending gets
+       a fresh frame host and fresh mount counters with one turn's `max_tool_calls`,
+       `max_tool_request_bytes` and `max_file_calls`. 068's cap on open files holds, since the
+       store is the session's (Decision 5). The ending's stdout and stderr go to two streams
+       whose cap is 0, so nothing is kept: `close()` returns nothing and the reaper has no
+       caller to give it to. Jupyter is alike here: a kernel's `atexit` handlers run after its
+       IO loops have stopped, so nothing they print reaches the notebook (INFERRED from
+       `kernelbase.py` and `kernelapp.py`, the addendum, section 8).
+   - **How the ending runs, in order.**
+     1. `ended` is set, as above. From here `run` and `run_async` raise `SessionEnded`.
+     2. If the shutdown applies, the runner builds a call for it as for a turn (Decision 7,
+        step 2) with the budget above, and calls `shutdown()`. The session's stop condition
+        "the session is closing" (Decision 10) does not apply to this call, which the session's
+        own close would otherwise stop at once: the ending's stops are its deadline, its fuel
+        and a Ctrl-C on the thread that runs it.
+     3. The outcome is read by `_drive`'s rules. **`"finished"`**: the export returned 0 or 1,
+        or an `atexit` handler called `os._exit` (an exit trap; the guest ended its own
+        shutdown, and the handlers after it do not run, P9). **`"stopped"`**: the fuel or the
+        deadline ran out, any other trap, a Ctrl-C, a `BaseException` from the embedder's own
+        code, or a return value other than 0 or 1 (a runner fault: only the export's refusals
+        give −1, and this runner calls it only when they cannot apply).
+     4. The mounts' dirty buffers are handed to their providers, as at a turn's ending
+        (Decision 11), on either outcome, bounded by the ending's file calls left and the
+        staging bound. A write-back refused here is lost: no later turn offers it again, and no
+        result records it.
+     5. The store is closed, so no export of the instance is ever called again: **no guest code
+        runs after a stopped ending**. HOME, the scratch folder and a private root are removed;
+        the mount table and the walked folders are released; `sessions_open` falls by one;
+        `shutdown_outcome` is set under the state lock; any `close()` waiting for the ending
+        returns.
+     When the shutdown does not apply, steps 2 to 4 are skipped and `shutdown_outcome` is
+     `"skipped"`.
+   - **Where it runs.** On the thread that ends the session: `close()`'s caller, or the turn's
+     own thread for a turn that finished after the lifetime passed. An ending the runner starts
+     itself (the idle bound, the lifetime at rest, a dropped session, and the exit hook's
+     endings, Decision 13) runs on a **closer thread**: a daemon thread started for that one
+     ending, so no session's ending, and no embedder code it calls, delays the reaper or
+     another session. A session has at most one closer, and a closer lives for the ending's
+     budget, plus any embedder call in flight when it runs out, plus the ending's mount
+     write-backs (step 4).
+   - **`close()` while an ending runs** waits for it and returns once the store is closed, as
+     it waits for a running turn (Decision 10); it does not shorten the ending, which is
+     already bounded. Called on the ending's own thread (a raw `host=` function or a provider
+     that the shutdown called), it returns at once.
+   - **What bounds a hostile `atexit` handler.** Its compute is bounded by the fuel (metered)
+     and the deadline; its waits (`time.sleep`, `poll_oneoff`) and tool calls by the deadline;
+     its memory by `memory_bytes`; its output is dropped; its provider and tool calls by one
+     turn's allowances; its open files by 068's cap. A handler that loops, sleeps or both is
+     stopped (the addendum, section 8, P9, through `run`). A handler that registers another
+     handler during the shutdown does not get it run; `sys.exit` in a handler is printed and
+     ignored (P9). A handler blocked inside the embedder's own code (a raw `host=` function or
+     a provider) is waited for, as in any turn, since the runner never kills embedder code; on
+     a closer thread that holds only that thread. Once the ending is stopped the store is
+     closed, so nothing of the guest runs again; a tool thread it started is abandoned under
+     spec 036's rule and counted in the session's abandoned-thread quota (Decision 11).
+   - **Why a turn that traps, exits or is stopped gets no shutdown.** A trap or `proc_exit`
+     unwinds the guest without CPython's cleanup (Decision 2); the interpreter is not safe to
+     enter, `shutdown` refuses it (`in_turn`), and the runner does not ask. This is where a
+     session differs from Jupyter, and why. Jupyter's close first sends SIGINT, which Python
+     turns into `KeyboardInterrupt` at a safe point, so a busy cell unwinds through Python and
+     the kernel still exits normally. The guest has no signals, and a stop by the epoch
+     callback is a trap, not an exception, so `close()` during a turn stops that turn hard and
+     its ending runs nothing. Delivering a stop to the guest as a Python exception is left out
+     (Decision 22). The README therefore keeps its advice: write and close files within a turn;
+     the ending's flush covers a session closed or expired at rest, not one stopped mid-turn.
    - **A `MemoryError` does not end a session**, nor does an exception, a `SystemExit`, a
      truncated output, or a cancel that was set before the turn's guest code began (Decision
      7). The addendum (finding 3) shows the memory cap is met as a Python
      exception, with every later turn running.
    - **After it has ended**, `run` and `run_async` raise `SessionEnded`, whose `reason` is
-     `ended`. `close()` does nothing. `ended` is set once, by the first cause, under the
-     session's state lock, before anything is closed, and never changes again (the review,
-     F10).
+     `ended`. `close()` returns at once if the ending has finished, and otherwise waits for it.
+     `ended` is set once, by the first cause, under the session's state lock, before anything
+     is closed, and never changes again (the review, F10). `shutdown_outcome` is set once, when
+     the ending has finished, and never changes again; it is `None` until then, so an
+     embedder that wants it after a `SessionEnded` from an expiry calls `close()` first.
    - **A trap ends the session in this version** (decision 21). Keeping the last good state
      after a trap needs a memory image taken at rest (the research's option 4): a later
      specification.
-   - **Closing is a stop, not a shutdown.** No guest code runs at close: no `Py_FinalizeEx`, no
-     `atexit` handler, no flush of files the program left open, and no write-back to a mount's
-     provider. The idle reaper and the collector close sessions on threads where running guest
-     or provider code would be wrong, and a stop costs nothing to bound. The README says so:
-     write and close files within a turn. What a turn wrote to WASI is already with the host
-     (grants) or was offered to the provider at that turn's ending (mounts, Decision 11).
-   - The fixed strings `"closed"`, `"idle"`, `"lifetime"`, `"exit"` and `"error"` are promised,
-     with `Completed.trapped`'s four. wasmtime's trap names are not (049, Decision 5).
+   - **The promised strings.** `ended`: `"closed"`, `"idle"`, `"lifetime"`, `"exit"` and
+     `"error"`, with `Completed.trapped`'s four; wasmtime's trap names are not promised (049,
+     Decision 5). `shutdown_outcome`: `"finished"`, `"stopped"` and `"skipped"`.
+   - **Why the outcome is a second attribute, not more values of `ended`.** `ended` must be
+     set before the ending starts, so that a racing `run` is refused (F10), and the outcome is
+     known only after the ending; one string set once cannot carry both. `ended` therefore
+     says why the session ended, whichever way its ending went, and `shutdown_outcome` says
+     whether Python's shutdown finished, was stopped by its budget, or did not run.
 
 9. **The idle bound and the lifetime.**
    - **Defaults:** `Defaults.session_idle_s = 900.0` (15 minutes) and
@@ -407,7 +620,8 @@ variables, DataFrames, functions, classes, lambdas.
      - **by one reaper thread per process**, a daemon started with the first session. It sleeps
        until the earliest moment any open session's bound passes, recomputed when a session
        opens, finishes a turn or ends, and ends each session whose bound has passed and that
-       has no turn running. Without it, an abandoned session would hold its memory (about
+       has no turn running, handing each one's ending to a closer thread (Decision 8), so a
+       slow ending never delays the next session's. Without it, an abandoned session would hold its memory (about
        37 MiB resident after a pandas turn, up to its `memory_bytes`; the research, E5b) until
        someone touched it, which is what the bounds exist to prevent.
    - **The lifetime caps each turn's deadline** (the review, F4; the landing lane's ruling of
@@ -420,16 +634,25 @@ variables, DataFrames, functions, classes, lambdas.
      deadline; a turn its own deadline stops ends the session with `"deadline"`. A turn that
      finishes before the cap returns normally, and if the lifetime has passed by its end, the
      session ends as it returns (`"lifetime"`).
-   - **The exact promise.** No guest instruction runs later than the opening plus the
-     lifetime, to within the deadline's own precision (one tick, `TICK_S`, plus the epoch
-     check's slack, as for any deadline: spec 010). What can still happen after that moment is
-     exactly what `run` allows after its own deadline, and no more: a raw `host=` function or a
-     provider call already in flight is waited for (the runner never kills embedder code; a
-     tool call is answered at the deadline and its thread abandoned, spec 036); and the turn's
-     mount write-backs, made after the guest has stopped, run as at `run`'s ending, bounded by
-     the file calls left and the staging bound, not by the clock (spec 034, Decision 8). The
-     session's store, folders and memory are released as soon as that turn returns. The idle
-     bound needs no cap: a running turn is never idle.
+   - **The exact promise** (revised for the owner's decision on question 92). No **turn's**
+     instruction runs later than the opening plus the lifetime, to within the deadline's own
+     precision (one tick, `TICK_S`, plus the epoch check's slack, as for any deadline: spec
+     010). The session's ending may then run Python's shutdown (Decision 8), which starts at
+     the earliest when the lifetime passes and runs no guest instruction later than its start
+     plus `shutdown_s`, to the same precision. So no guest instruction of the session runs
+     later than the opening plus the lifetime plus `shutdown_s` (5 s by default), and with
+     `shutdown_s=0` the promise is the lifetime itself, exactly as before. That loosening by
+     the budget is the owner's decision (`../decisions.md`: "at close and at expiry … inside a
+     small fuel and time budget"), not this specification's, as §4.15 requires of a loosened limit. What can still
+     happen after the last guest instruction is exactly what `run` allows after its own
+     deadline, and no more: a raw `host=` function or a provider call already in flight is
+     waited for (the runner never kills embedder code; a tool call is answered at the deadline
+     and its thread abandoned, spec 036); and the mount write-backs of the last turn or of the
+     ending, made after the guest has stopped, run as at `run`'s ending, bounded by the file
+     calls left and the staging bound, not by the clock (spec 034, Decision 8). The session's
+     store, folders and memory are released as soon as the ending finishes. The idle bound
+     needs no cap: a running turn is never idle, and an ending after the idle bound is bounded
+     by `shutdown_s`.
    - **Injectable, so the judge never sleeps.** The reaper's waiting takes an injected clock and
      wait, as spec 010's `_Waits` and spec 036's `_Bounded` do, and its one step,
      `_reap(now)`, ends what is due at `now` and returns how long to wait. The checks drive
@@ -446,8 +669,9 @@ variables, DataFrames, functions, classes, lambdas.
       behind a runaway one, invisibly, and the next turn's code usually depends on the last
       one's result anyway. `busy` is cleared in a `finally` on every path, so no host error can
       leave a session the reaper skips forever (the review, F10). The reaper takes the state
-      lock, finds `busy` clear and the bound passed, sets `ended`, and only then closes, so a
-      racing `run` sees `SessionEnded`, never a closed store.
+      lock, finds `busy` clear and the bound passed, sets `ended`, and only then starts the
+      session's ending on a closer thread (Decision 8), so a racing `run` sees `SessionEnded`,
+      never a closed store or a turn that overlaps the shutdown.
     - **Any thread.** Turns may run on whichever thread calls, one after another; the store may
       be closed from another thread (the addendum, finding 2). Each turn pushes its own call on
       its own thread's stack, so the shared host functions (spec 011) serve it.
@@ -457,7 +681,8 @@ variables, DataFrames, functions, classes, lambdas.
       sets `ended = "closed"`, stops the turn as `cancel` would (within `CANCEL_TICKS` ticks of
       compute, or at the end of a wait or a tool call, specs 015, 030 and 036), waits for the
       turn to return, and returns once the session is closed. The turn returns `trapped ==
-      "cancelled"`. An embedder's shutdown path can therefore end a session without knowing
+      "cancelled"`, and the session's ending runs no guest code, since the stop unwound the
+      interpreter (Decision 8: `shutdown_outcome == "skipped"`). An embedder's shutdown path can therefore end a session without knowing
       whether a turn is in flight. Called on the turn's own thread (a raw host function or a
       provider, which run there), `close()` marks the session and returns at once, since
       waiting there would wait on itself; the turn stops and the session closes as the turn
@@ -467,8 +692,9 @@ variables, DataFrames, functions, classes, lambdas.
       session's store always has the epoch callback (Decision 6). That costs one Python call
       per `CANCEL_TICKS` ticks of compute and no fuel; the ticker runs during every turn.
       **`close()` blocks** until the turn returns, which includes a raw `host=` function or a
-      provider call in flight; called from a coroutine, it blocks that event loop. Its
-      docstring says so.
+      provider call in flight, and then until the ending has finished: at rest, that is
+      Python's shutdown, at most `shutdown_s` of guest code plus any embedder call it made;
+      called from a coroutine, it blocks that event loop. Its docstring says so.
     - **No cap on sessions per process.** Each session is opened by an explicit call, holds at
       most its `memory_bytes`, and is reclaimed by its bounds; a count cap would be policy over
       the embedder's own process, which the embedder already controls by opening fewer.
@@ -498,8 +724,9 @@ variables, DataFrames, functions, classes, lambdas.
         bytes quietly while the guest believes the file written. So in a session a refused
         write-back is recorded in that turn's `files.refused` (cause `"limit"`), and the buffer
         stays dirty (an owed buffer stays owed), to be offered again at the next turn's ending.
-        A session that ends at rest never offers it (closing is a stop, Decision 8); the earlier
-        turn's record already named the refusal.
+        The session's ending offers it once more when it runs Python's shutdown (Decision 8,
+        step 4); an ending that runs no guest code does not. Either way the earlier turn's
+        record already named the refusal.
       - The staging bound stays `memory_bytes` for the session.
     - **Tools** are fixed for the session: the guest lists them once, when `host.tools` is first
       imported, and keeps the functions (READ, `recipes/guest/host/tools.py`). Per turn:
@@ -511,20 +738,28 @@ variables, DataFrames, functions, classes, lambdas.
         `_MAX_ABANDONED` (4; 049 makes the name private) at once across the session's turns. A
         per-turn count would let a session strand four threads per turn for an hour. The count
         falls as the threads end, as it does today within a call. An abandoned tool's effect may
-        land during a later turn of the same session, or after `close()`; 056 stops a tool from
+        land during a later turn of the same session, during the ending, or after `close()`;
+        056 stops a tool from
         starting after its call is answered, but one already running runs to its end (the
         review, F12). The README's abandoned-tools text says so.
     - **What a session holds on the host, for its whole life** (the review, F2). A session keeps
-      its store, so it keeps every host file descriptor its guest opened, up to the process's
-      limit, until it ends: up to its idle bound after the last turn, at most its lifetime. One
+      its store, so it keeps every host file descriptor its guest opened, up to 068's cap,
+      until it ends: up to its idle bound after the last turn, at most its lifetime, plus its
+      ending's `shutdown_s`. One
       call's guest can take every descriptor the process has (EXECUTED by the review,
       `pb_fd_exhaust`: 1,014 files under a soft limit of 1,024, 122,870 under macOS's default,
       after which the host's own `open()` failed with `EMFILE`). For `run` that lasts one call
       (the 0.1.0a2 security review's F11; the README's *Not protected*); a session stretches it.
       It also holds up to `memory_bytes` of linear memory and up to `memory_bytes` of mount
-      staging on the host. No descriptor cap exists today, for `run` or a session; a cap per
-      store is a later specification (Decision 22), and whether it comes before 0.1.0 is the
-      owner's (question 92). The README's *Sessions* and *Not protected* say all this, and
+      staging on the host. **The cap on open files is spec 068's**, which the owner placed
+      before 0.1.0 (question 92, answered 2026-10-18: a per-sandbox limit on files open at
+      once, set by the embedder like the other limits, default 1,024, `EMFILE` past it, for
+      `run` and sessions alike; `../decisions.md`). In a session it is per session (Decision 5): a session holds
+      at most the cap's descriptors at once, whichever turn opened them, for its whole life,
+      the ending included. The cap guards the host process, not what the guest may use: the
+      owner's principle is that a guest given a file system may use it "until time, fuel,
+      memory, etc of that individual session run out". The README's *Sessions* and *Not
+      protected* say all this (the cap, its default and its scope, from 068's text), and
       advise a short `idle_s` for untrusted code and a prompt `close()`.
     - **A session is one trust domain** (the review, F3). Every turn runs inside whatever the
       earlier turns left: an earlier turn can hook `builtins`, `compile`, `exec`,
@@ -553,15 +788,21 @@ variables, DataFrames, functions, classes, lambdas.
 13. **Fork, exit and the collector.**
     - **Fork.** In a process forked after a session was used, `run` and `run_async` raise
       `RuntimeError`, as `wasi_python.run` does (spec 015). `close()` in the child marks the
-      session ended and touches neither the store nor any folder: they are the parent's. The
+      session ended and touches neither the store nor any folder: they are the parent's. It
+      runs no guest code (`shutdown_outcome == "skipped"`): the guest is the parent's too. The
       child has no reaper, an empty registry and `sessions_open` of 0
       (`_after_fork_in_child`). The collector's finalizer (below) does nothing in a forked
       child.
     - **Exit.** An exit hook, registered with the first session (so it runs before `_release`
-      frees the engines), stops the reaper and waits for its current step, then closes every
-      session at rest. A session whose turn is still running is closed when that turn
-      returns. Folders left by a killed process are swept by spec 016's sweep, as `run`'s
-      are.
+      frees the engines), stops the reaper and waits for its current step, then ends every
+      session at rest (`ended == "closed"`), each on its own closer thread, so their endings
+      run Python's shutdown at once and side by side, as a Jupyter server shuts its kernels
+      down when it stops, and waits for every ending in progress, closers the reaper started
+      included. The host's exit therefore waits at most the largest `shutdown_s` among them,
+      plus any embedder call in flight. A session whose turn is still running is stopped with
+      `run_async`'s other guests (spec 015) or closed when that turn returns, and its ending
+      runs no guest code. Folders left by a killed process are swept by spec 016's sweep, as
+      `run`'s are.
     - **The collector.** A session no one references is ended through a `weakref.finalize` on
       its state, which holds the store and the folders but not the `Session` object. The
       finalizer runs wherever the collector fires: on any thread, inside another session's host
@@ -570,8 +811,9 @@ variables, DataFrames, functions, classes, lambdas.
       from weakref callbacks and which takes no lock a collector could interrupt, unlike
       `threading.Event.set` or `Condition.notify` (the Confirmation, N2). The reaper waits on
       that queue (`SimpleQueue.get(timeout=…)`, the timeout being the wait `_reap` returns), so
-      the same put wakes it; it then ends and closes the session on its own thread (the
-      review, F9; the `_outputs_lock` comment records this project meeting a finalizer inside
+      the same put wakes it; it then ends the session (`ended == "closed"`) and starts its
+      ending on a closer thread, which runs Python's shutdown as for any session closed at
+      rest (Decision 8; the review, F9; the `_outputs_lock` comment records this project meeting a finalizer inside
       a locked block before). The reaper holds sessions weakly. So a dropped
       session is closed soon after it is collected, or by its idle bound if a reference cycle
       delays the collector.
@@ -617,16 +859,19 @@ variables, DataFrames, functions, classes, lambdas.
     - `wasi_python.__all__` gains **`Session`** and **`SessionEnded`** (names: an addition).
     - **`Session`**, a class with no public base: its constructor's parameters (Decision 5),
       all keyword-only, with their annotations and defaults (`<default>` where the value comes
-      from `defaults()` at the opening); the methods `run`, `run_async` and `close`; the property
-      `ended`; `__enter__` and `__exit__`. 049's render records a class's public methods; it must
+      from `defaults()` at the opening), `shutdown_s` among them; the methods `run`,
+      `run_async` and `close`; the properties `ended` and `shutdown_outcome`; `__enter__` and
+      `__exit__`. 049's render records a class's public methods; it must
       also record `Session.__init__`'s parameters and the two context-manager methods, rendered
       explicitly as it renders `Tool.__call__`. That is a change to `tests/harness/api.py`, a
       judge change made here.
     - **`SessionEnded`**, an exception whose base is `RuntimeError` (049, Decision 6: a new
       failure is a subclass of a promised type), with the attribute `reason: str`.
-    - **`Defaults`** gains `session_idle_s: float | None = 900.0` and `session_lifetime_s: float
-      | None = 3600.0`, last, with defaults (dataclass fields placed last with a default: an
-      addition). The `defaults()` line records the two values.
+    - **`Defaults`** gains `session_idle_s: float | None = 900.0`, `session_lifetime_s: float
+      | None = 3600.0` and `session_shutdown_s: float = 5.0`, last, with defaults (dataclass
+      fields placed last with a default: an addition). The `defaults()` line records the three
+      values. 068's field and `Session`'s argument for the cap on open files are 068's lines,
+      or this specification's if it lands second (Decision 5's rule).
     - **`stats()`** gains the key `sessions_open` (stats keys: an addition).
     - `Completed`, `run` and `run_async` do not change.
 
@@ -639,7 +884,11 @@ variables, DataFrames, functions, classes, lambdas.
     (`run`) or `asyncio.CancelledError` (`run_async`), and a `BaseException` raised by the
     embedder's own host, provider, tool or gate. The constructor's `Raises:` names the types
     049's Decision 6 lists for `run` before any work and while a call is prepared. An argument
-    `Session` shares with `run` is described by the same text in both. The README's generated
+    `Session` shares with `run` is described by the same text in both. `close()`'s `Raises:`
+    names `KeyboardInterrupt` and a `BaseException` raised by the embedder's own host,
+    provider, tool or gate during the ending, each raised only after the session is fully
+    closed (Decision 8: the ending is then `"stopped"`); its docstring says it blocks, and for
+    how long (Decision 10). `shutdown_outcome`'s docstring names its three values. The README's generated
     reference shows them. `tests/public_api.txt` and the README block are regenerated with
     `tests/harness/api.py --write` on this branch, and the review checks the diff is exactly
     these lines.
@@ -650,13 +899,15 @@ variables, DataFrames, functions, classes, lambdas.
     out, and would add a power `run()`'s command does not have.
 
 19. **The artifact set.**
-    - **Both binaries gain the export `turn`, of type `(i32, i32) -> i32`.** Their imports do not
-      change: WASI preview1 and `host::call`, as the judge checks today
+    - **Both binaries gain the exports `turn`, of type `(i32, i32) -> i32`, and `shutdown`,
+      of type `() -> i32`.** Their imports do not change: WASI preview1 and `host::call`, as the judge checks today
       (`test_imports_are_wasi_and_the_door_only`).
     - **Step 80 is unchanged.** Wizer removes only the initialisers and keeps every other export
       (the addendum, finding 6: `run`, `host_alloc` today, and a `turn` export on a test module
-      through the pinned `wasmtime wizer`).
-    - **The bytes grow**: one C function and a larger frozen bootstrap, in both binaries. The
+      through the pinned `wasmtime wizer`); `shutdown` is one more ordinary export. Its strong
+      reference to `gc.unfreeze` is taken in `init_interpreter`, which on the snapshot runs at
+      Wizer time, so it is in the snapshot's heap like the turn function's.
+    - **The bytes grow**: two C functions and a larger frozen bootstrap, in both binaries. The
       judge's byte ratchet sees it, and the lane accepts it with `--accept-growth` and the
       reason. `run`'s fuel on the judge's jobs is not expected to move; any change the scoreboard
       shows is stated in the landing notes with its cause (the snapshot's heap layout after a
@@ -665,17 +916,31 @@ variables, DataFrames, functions, classes, lambdas.
       does. Rebuilds stay byte-identical across hosts (specs 012 and 040): the export adds no
       host-dependent input.
     - **The judge's export lists** (`tests/harness/artifacts.py`: `PLAIN_EXPORTS`,
-      `SNAPSHOT_EXPORTS`) gain `turn`, and the check reads its function type: a judge change.
+      `SNAPSHOT_EXPORTS`) gain `turn` and `shutdown`, and the check reads their function
+      types: a judge change.
 
 20. **The README.** A new section, `### Sessions`, after `### The tool protocol` and before
     the API reference (049) and `## Safety`:
     - what a session is and is not (one guest across turns; not a shell; nothing is kept after
       it ends);
-    - the per-session and per-turn table (Decision 5), the echo, `SystemExit`, and how a session
-      ends (Decision 8's table);
+    - the per-session and per-turn table (Decision 5), the echo, `SystemExit` (both as in
+      Jupyter), and how a session ends (Decision 8's table);
     - the bounds and their defaults, the lifetime's cap on a turn's deadline and its exact
-      promise (Decision 9), and the reaper;
-    - "closing is a stop": write and close files within a turn;
+      promise, the shutdown's `shutdown_s` included (Decision 9), and the reaper;
+    - **closing runs Python's shutdown, as Jupyter does** (Decision 8), in about these words:
+      "When a session is closed, or its idle bound or lifetime passes while it is at rest, it
+      runs Python's normal shutdown, as a Jupyter kernel does when it is shut down or culled:
+      `atexit` handlers run, then the interpreter is finalized, which flushes the files it
+      closes. The shutdown has `shutdown_s` seconds (5 by default; 0 skips it) and, in a
+      metered session, the session's `fuel`; if either runs out the session is simply stopped.
+      `shutdown_outcome` says which: `"finished"`, `"stopped"`, or `"skipped"` when no
+      shutdown ran. Nothing the shutdown prints is kept. A session that ends by a trap,
+      `os._exit`, a stop or `close()` during a turn runs no shutdown, because its interpreter
+      was stopped mid-turn. So write and close files within a turn: the shutdown is a
+      courtesy for a session closed at rest, not a guarantee." With the measured fuel of a
+      shutdown on each binary (Decision 8, re-measured on the built set), so a metered
+      session's `fuel` can cover it, and the note that a file held only in a reference cycle
+      is not flushed, as in CPython;
     - what a session holds on the host for its life, and that it is one trust domain
       (Decision 11), in *Sessions* and in *Not protected*; an abandoned tool may land during a
       later turn; async tools that cache loop-bound objects (Decision 5);
@@ -691,8 +956,14 @@ variables, DataFrames, functions, classes, lambdas.
     argv after `argv[0]` holds only absolute, read-only import-path folders. The constitution's
     §2.4 ("calling one export") still describes the minimum to run a program; a session is
     optional and §3 admits it. No constitution change is needed. The CHANGELOG's unreleased
-    section gains, under Added: `Session`, `SessionEnded`, the two `Defaults` fields,
-    `stats()["sessions_open"]`, and the `turn` export.
+    section gains, under Added: `Session` (with `shutdown_s` and `shutdown_outcome`),
+    `SessionEnded`, the three `Defaults` fields (`session_idle_s`, `session_lifetime_s`,
+    `session_shutdown_s`), `stats()["sessions_open"]`, and the `turn` and `shutdown` exports,
+    with one line: "a session's close and expiry run Python's shutdown (`atexit`, flushes)
+    within `shutdown_s` seconds and the session's fuel, as a Jupyter kernel's do; past that
+    budget the session is stopped." The fourth paragraph of "Any other embedder does the same
+    three things" also gives `shutdown`'s contract (Decision 2): call it once, at rest, after a
+    turn that returned normally, under a deadline, and never call the instance again.
 
 21. **Order of build.** After this review confirms it, the specification waits for a free
     build-class slot. Its builder starts from main after 049 has landed (Decision 17 regenerates
@@ -713,49 +984,64 @@ variables, DataFrames, functions, classes, lambdas.
     - **A session pool, or a session shared between callers**: never; a session belongs to its
       opener (Decision 1).
     - **A cap on sessions per process**: none (Decision 10).
-    - **A cap on open host descriptors per store**, for `run` and sessions alike: a later
-      specification (the mount and guard linkers show how `path_open` can be shadowed); its
-      place before or after 0.1.0 is the owner's (question 92). Until then, Decision 11's
-      README text.
+    - **A cap on open host descriptors per store**, for `run` and sessions alike: spec 068,
+      before 0.1.0, by the owner's answer to question 92; Decision 5 scopes it per session.
+      Not left out any more, but not built here.
+    - **Delivering a stop to the guest as a Python exception** (as Jupyter's SIGINT becomes
+      `KeyboardInterrupt`), so that a turn stopped by `close()` could unwind through Python
+      and still run the shutdown: a later specification, if ever. The guest has no signals,
+      and the epoch stop is a trap (Decision 8).
+    - **Returning the shutdown's output** to the embedder: not in this version; `close()`
+      returns nothing and an expiry has no caller (Decision 8).
 
 ## Intent
 
 An embedder opens a session, sends an agent's code one turn at a time, and gets one result per
 turn, each costing a fraction of a fresh run, with variables, functions and data kept between
 them. Every turn has its own fuel, deadline, output cap, cancel, file-call and tool-call
-allowance; the session has one memory cap, an idle bound and a lifetime, all with defaults, and
-no guest code runs past its lifetime. A trap, an `os._exit`, a bound or `close()` ends the
-session and frees everything it held at once; an exception, a `SystemExit` or a full heap does
-not, and nothing a guest does makes `session.run` raise. `run()` is exactly as it was.
+allowance; the session has one memory cap, one cap on open files (068), an idle bound and a
+lifetime, all with defaults, and no turn runs past its lifetime. A trap, an `os._exit`, a bound
+or `close()` ends the session; an exception, a `SystemExit` or a full heap does not, and
+nothing a guest does makes `session.run` raise. A session closed or expired at rest runs
+Python's shutdown, `atexit` and flushes, as a Jupyter kernel does, inside a small budget of
+time and fuel, and is simply stopped if that runs out; a session stopped mid-turn runs none.
+Either way everything it held is freed when its ending finishes. `run()` is exactly as it was.
 
 ## Design
 
 ```
 recipes/reactor_main.c            export "turn"(ptr, len) -> i32; the `turned` and `in_turn`
                                   flags; run() refuses after a turn; turn() refuses after run(),
-                                  during or after an unfinished turn, and a negative length; a
-                                  strong reference to the bootstrap's turn; the 0..255 clamp;
-                                  copy, then free
+                                  during or after an unfinished turn, after shutdown(), and a
+                                  negative length; a strong reference to the bootstrap's turn;
+                                  the 0..255 clamp; copy, then free. export "shutdown"() -> i32;
+                                  the `shut` flag; its refusals; a strong reference to
+                                  gc.unfreeze; gc.unfreeze() then Py_FinalizeEx()
 recipes/reactor_bootstrap.py      _reactor.turn(source, environ): first-turn setup (env, the
                                   import path from argv, exit/quit rebound, reseed), <turn N>,
                                   linecache, the echo, the interactive interpreter's reporting,
                                   SystemExit's status, the flush
-src/wasi_python/runner.py         Session (open, run, run_async, close, ended, context manager);
-                                  SessionEnded; Defaults.session_idle_s and session_lifetime_s;
-                                  _session_clock; the reaper (_reap, its thread, its injected
-                                  wait); the state lock; per-turn streams behind the output keys;
-                                  the per-turn _Call on the existing _drive rules; stats()'s
-                                  sessions_open; the fork and exit hooks extended
+src/wasi_python/runner.py         Session (open, run, run_async, close, ended,
+                                  shutdown_outcome, context manager); SessionEnded;
+                                  Defaults.session_idle_s, session_lifetime_s and
+                                  session_shutdown_s; _session_clock; the reaper (_reap, its
+                                  thread, its injected wait); the ending (the shutdown's call
+                                  and budget, closer threads, write-backs, release); the state
+                                  lock; per-turn streams behind the output keys; the per-turn
+                                  _Call on the existing _drive rules; stats()'s sessions_open;
+                                  the fork and exit hooks extended
 src/wasi_python/mounts.py         _Files: per-turn counters reset; owed buffers dropped once
                                   written; in a session, a refused write-back stays dirty
 src/wasi_python/tools.py          _Bounded: an abandoned-thread count that a session shares
                                   across its turns; with 053, one tool loop per session
 src/wasi_python/__init__.py       Session, SessionEnded in __all__
-tests/harness/guest.py            turns(): the judge's own driver for `turn` on one instance
+tests/harness/guest.py            turns(): the judge's own driver for `turn` and `shutdown` on
+                                  one instance
 tests/unit/test_guest.py          turns() checked against a stand-in module that exports `turn`
 tests/unit/test_runner_sessions.py    refusals, the bounds and the reaper with fakes, the state lock
 tests/checks/test_v1_4_embedding.py   the export driven raw, and sessions end to end (built set)
-tests/harness/artifacts.py        PLAIN_EXPORTS, SNAPSHOT_EXPORTS gain turn; its type checked
+tests/harness/artifacts.py        PLAIN_EXPORTS, SNAPSHOT_EXPORTS gain turn and shutdown; their
+                                  types checked
 tests/harness/api.py, tests/public_api.txt   Session.__init__ and the context methods rendered;
                                   the snapshot regenerated
 README.md, CHANGELOG.md
@@ -770,9 +1056,13 @@ needs, and its results and fuel stay as they are (criterion 20).
 
 ## Scope
 
-In: the above. Out: Decision 22's list; a command line (Decision 18); any change to `run`,
-`run_async` or `Completed`; any new import or a second custom import (§4.4); any change to step
-80, the zip or the pins.
+In: the above, with the revision's part: the `shutdown` export, the session's ending (Python's
+shutdown at close and at expiry inside `shutdown_s` and the session's fuel, stopped past
+them), `Session.shutdown_outcome`, `Defaults.session_shutdown_s`, and the scoping of 068's cap
+on open files to a session. Out: Decision 22's list; a command line (Decision 18); any change
+to `run`, `run_async` or `Completed`; any new import or a second custom import (§4.4); any
+change to step 80, the zip or the pins; 068's cap itself (its mechanism, names and messages
+are 068's); running a shutdown after a turn that trapped, exited or was stopped (Decision 8).
 
 ## Acceptance criteria
 
@@ -807,7 +1097,10 @@ which drives `turn` on one instance without the runner and is itself checked in
    per kind from specs 013, 014, 017, 032 and 036's lists), plus `idle_s` and `lifetime_s` of
    `True`, `0`, `-1`, `float("nan")`, `float("inf")` and `"10"`, raises from `Session(...)` with
    zero artifact lookups. `Defaults().session_idle_s == 900.0`, `session_lifetime_s == 3600.0`,
-   and `Defaults(session_idle_s=0)` raises `ValueError`.
+   and `Defaults(session_idle_s=0)` raises `ValueError`. `shutdown_s` of `None`, `True` and
+   `"5"` raises `TypeError`, and of `-1`, `float("nan")` and `float("inf")` `ValueError`, from
+   `Session(...)` with zero artifact lookups and from `Defaults(session_shutdown_s=…)`;
+   `shutdown_s=0` is accepted; `Defaults().session_shutdown_s == 5.0`.
 5. `test_a_turn_refuses_mistakes_and_the_session_stays_open` (built set): `run(b"x")`,
    `run("a\0b")`, `run("\ud800")`, `fuel=5` on an unmetered session, `deadline_s=0`,
    `output_bytes=-1`, `cancel="yes"`: each raises `TypeError` or `ValueError`, `ended` stays
@@ -818,13 +1111,16 @@ which drives `turn` on one instance without the runner and is itself checked in
    `tests/checks/test_v1_2_hostile_guest.py` builds one), makes `Session(artifacts=…)` raise
    `ArtifactsMissing` whose message names `turn`, before any folder is made (`runner._held`
    unchanged) and with `sessions_open` unchanged; `run` with the same set runs the stand-in's
-   `run` as today.
+   `run` as today. A second stand-in that exports `turn` but not `shutdown` is refused the same
+   way, its message naming `shutdown` and not `turn`.
 7. `test_the_reaper_ends_what_is_due` (fakes): sessions registered with fake due times;
    `_reap(now)` ends exactly those due at `now` with the right reason (`"idle"` or
    `"lifetime"`), skips one whose `busy` flag is set, and returns the wait until the next due
    one; with none open it returns "no wait". A reaper loop driven by an injected clock and wait,
-   for a fixed number of rounds, ends sessions in due order. Stand-in: a reaper that ends a busy
-   session.
+   for a fixed number of rounds, ends sessions in due order. Each due session's ending is handed
+   to the injected closer starter, one call per session, after its `ended` is set; `_reap`
+   itself runs no ending. Stand-ins: a reaper that ends a busy session; a reaper that runs the
+   ending itself (the starter is never called).
 8. `test_one_turn_at_a_time` (built set): a tool blocks on an event inside a turn on thread 1;
    `session.run("1")` on thread 2 raises `RuntimeError` at once; the same call made from inside
    the tool raises `RuntimeError` there too, which the turn sees as a `tool_error` whose `fault`
@@ -856,7 +1152,7 @@ which drives `turn` on one instance without the runner and is itself checked in
     `ended == "out of fuel"`. (c) `deadline_s=0.5` on one turn of an unmetered session with
     `while True: pass`: `trapped == "deadline"`, `ended == "deadline"`. (d) `cancel` set by a tool
     that runs inside the turn: `trapped == "cancelled"`, `ended == "cancelled"`. In each,
-    `sessions_open` returns to its value before. (e) A `cancel` already set when `session.run`
+    `sessions_open` returns to its value before, and `shutdown_outcome == "skipped"`. (e) A `cancel` already set when `session.run`
     is called: `trapped == "cancelled"`, `fuel_used is None`,
     `ended is None`, and a next turn reads an earlier variable (Decision 7). Stand-in for (a):
     a runner that keeps the session after an exit trap.
@@ -916,13 +1212,16 @@ which drives `turn` on one instance without the runner and is itself checked in
 20. `test_run_is_unchanged`: the judge's existing `run` checks and jobs pass with their accepted
     fuel and outputs (the scoreboard's ratchet: lost 0, fuel grown 0 unless the landing notes
     state it, Decision 19).
-21. `test_close_ends_and_cleans_up`: a `root=True` session; `close()` sets `ended == "closed"`;
+21. `test_close_ends_and_cleans_up`: a `root=True` session that ran one turn; `close()` sets
+    `ended == "closed"` and `shutdown_outcome == "finished"`; a session closed before any turn
+    has `shutdown_outcome == "skipped"`;
     the runner's held private-folder names (`runner._held`) shrink by the session's two (root
     and scratch); `close()` again does nothing; `run` raises `SessionEnded("closed")`; a `with`
     block that raises inside closes the session too. A `close()` from another thread while a tool
     blocks inside a turn returns only after the turn has returned with `trapped == "cancelled"`
-    (the check orders this by events), and `ended == "closed"`. Stand-in: a `close()` that
-    returns before the turn has returned (the check sees the order reversed).
+    (the check orders this by events), `ended == "closed"`, and `shutdown_outcome ==
+    "skipped"`. Stand-in: a `close()` that returns before the turn has returned (the check sees
+    the order reversed).
 22. `test_run_async_on_a_session`: a turn by `run_async` returns its `Completed`; a task
     cancelled while a tool blocks inside its turn raises `CancelledError`, the session's `ended`
     is `"cancelled"`, and a new session on the same executor then runs a turn. A task cancelled
@@ -936,16 +1235,22 @@ which drives `turn` on one instance without the runner and is itself checked in
     turn that reads a file in its private root. (b) A child process opens a `root=True` session,
     runs a turn and exits without `close()`: the child prints the folder names the runner holds
     (`runner._held`) before it exits, and after it exits none of them exists in the temporary
-    folder. (c) A session dropped without `close()`: after `gc.collect()` and one reaper step
-    (`_reap`, driven by the check), `sessions_open` is back to its value before, and the
+    folder; a turn in that session registered an `atexit` handler that writes a file to a
+    writable grant of the parent's temporary folder, and after the child exits the file holds
+    the handler's bytes (the exit hook ran the ending). (c) A session dropped without
+    `close()`, whose turn registered the same handler: after `gc.collect()` and one reaper step
+    (`_reap`, driven by the check) and a join of its closer (through a test hook),
+    `sessions_open` is back to its value before, the handler's file holds its bytes, and the
     finalizer itself took no lock (it is called while the check holds the registry lock, and
-    returns). Stand-in: no finalizer (the count stays up).
+    returns). Stand-ins: no finalizer (the count stays up); an exit hook that closes without
+    an ending (the file is absent).
 25. `test_a_session_on_the_plain_reactor`: `Session(snapshot=False)` runs `print(1)` then
     `print(2)`: `1\n` then `2\n`, both `exit_code == 0`.
 
 **The artifact set and the whole:**
 26. `test_plain_reactor_exports` and `test_snapshot_exports` require `turn`, of type `(i32, i32)
-    -> i32`, in both binaries; `test_imports_are_wasi_and_the_door_only` passes unchanged.
+    -> i32`, and `shutdown`, of type `() -> i32`, in both binaries;
+    `test_imports_are_wasi_and_the_door_only` passes unchanged.
 27. `tests/public_api.txt` and the README's reference block are regenerated; the diff is exactly
     Decision 17's lines; the docstring checks of 049's Decision 10 pass.
 28. The README's sessions recipe and its files-in-a-granted-folder recipe ran once, as written
@@ -976,7 +1281,8 @@ which drives `turn` on one instance without the runner and is itself checked in
     `SystemExit`: `exit_code == 1`; turn 5 runs `del __import__("sys").modules["_reactor"]`, and
     turn 6 `print(2)` returns 0. Turn 7 registers an `atexit` handler that prints, and turn 8
     makes `_reactor._exit_code` itself raise `SystemExit(9)` and then raises `SystemExit`:
-    `exit_code == 1`, `ended is None`, and no output from the handler (the Confirmation, N1).
+    `exit_code == 1`, `ended is None`, and no output from the handler (the Confirmation, N1);
+    the handler runs only at the session's ending, whose output is not kept (Decision 8).
     No call raises, and `ended is None` throughout. Stand-ins: today's text (a turn returning −1
     or 300, and `session.run` raises `RuntimeError`); a failed call printed with `PyErr_Print`
     (turn 8 exits 9 and the handler prints).
@@ -985,16 +1291,91 @@ which drives `turn` on one instance without the runner and is itself checked in
     120 s fail-safe), the turn returns `trapped == "cancelled"`, and `ended == "closed"`.
     Stand-in: a `close()` that always waits (the child hits the fail-safe).
 
+**Added by the revision for the owner's decision of 2026-10-18** (close as Jupyter does; end
+to end on the built set, both binaries, unless named). A file's bytes are read after `close()`
+returns, which waits for the ending (Decision 10). A short `shutdown_s` only chooses the
+outcome; the check asserts the outcome, never a duration, under the existing 120 s fail-safe.
+34. `test_the_shutdown_export_raw` (the judge's driver, `turns()`, in
+    `tests/checks/test_v1_4_embedding.py`): turn 1 registers an `atexit` handler that prints
+    `bye`, opens a file on a writable preopen, writes 100 bytes without flushing, and defines a
+    function in `__main__` (the case of the addendum's P10b); `shutdown()` returns 0, stdout
+    ends `bye\n`, and the file holds 100 bytes. Then `turn` returns −1, `run` returns 70 and
+    `shutdown` returns −1, none running Python. Each refusal returns −1 with stdout and stderr
+    empty: `shutdown` on a fresh instance; on an instance that ran `run`; after a turn that ran
+    out of fuel; from the door during a turn. From the door during the shutdown (a handler
+    calls the door, whose host function calls `shutdown`), the inner call returns −1 and the
+    outer one goes on to return 0. Stand-ins: an export without `shut` (the inner call
+    finalizes again or traps); an export without the unfreeze (on the snapshot the file holds
+    0 bytes).
+35. `test_close_runs_python_shutdown`: a session with a writable grant at `/w`; turn 1 registers
+    a handler that writes `ran` to `/w/atexit.txt`; turn 2 runs `f = open('/w/buffered.txt',
+    'w'); f.write('x' * 100)` and `def g(): pass`. `close()` returns with `ended == "closed"`
+    and `shutdown_outcome == "finished"`; `atexit.txt` holds `ran` and `buffered.txt` 100
+    bytes. With a writable mount in place of the grant, the provider has received the 100
+    bytes when `close()` returns (Decision 8, step 4). With `shutdown_s=0`, neither file is
+    written and `shutdown_outcome == "skipped"`. Stand-ins: closing as a stop (no
+    `atexit.txt`); a shutdown without the unfreeze (on the snapshot, `buffered.txt` holds 0
+    bytes); an ending without the write-back (the provider receives nothing).
+36. `test_expiry_runs_python_shutdown` (the injected clock of criteria 13 and 14): the same
+    handler in turn 1. Past the idle bound, `_reap(now)` ends the session; `close()` then waits
+    for its closer; `ended == "idle"`, `shutdown_outcome == "finished"`, and the file holds
+    `ran`. The same at rest past the lifetime gives `"lifetime"`. A turn whose tool moves the
+    fake clock past the lifetime and then returns normally: `run` returns its result, and by
+    then the file holds `ran`, `ended == "lifetime"`, `shutdown_outcome == "finished"`. A turn
+    the lifetime's cap stops (`trapped == "deadline"`): no file, `shutdown_outcome ==
+    "skipped"`. Stand-in: a reaper whose endings run no shutdown (no file).
+37. `test_a_hostile_atexit_is_stopped`: each session's turn registers one handler, and each
+    `close()` returns, with `ended == "closed"`, `sessions_open` back to its value before and
+    the session's folders gone from `runner._held`. (a) A metered session (`fuel=10**9`) whose
+    handler loops forever (`[0 for _ in iter(int, 1)]`): `shutdown_outcome == "stopped"`. (b)
+    An unmetered session with `shutdown_s=0.5` whose handler runs `while True: pass`:
+    `"stopped"`. (c) The same with a handler that calls `time.sleep(10**6)`: `"stopped"`. (d)
+    A handler that registers another handler and then calls `sys.exit(7)`: `"finished"`. (e) A
+    handler that calls `os._exit(5)`, registered after one that writes a file (so it runs
+    first): `"finished"`, and no file. Stand-in: an ending armed with no deadline (in (b) the
+    child hits the fail-safe).
+38. `test_no_guest_code_after_a_stopped_ending`: a session with a raw `host=` that counts its
+    calls, `shutdown_s=0.5`, and a handler that calls the door in an endless loop. `close()`
+    returns with `shutdown_outcome == "stopped"`; the count read then equals the count read
+    after a second session has run a whole turn; a test hook on the runner's calls into the
+    instance's exports records exactly one `shutdown` and nothing after it. The same with a
+    tool in place of the raw host function. Stand-in: a runner that calls an export of the
+    instance again after a stopped ending (the hook records a second call).
+39. `test_no_shutdown_after_a_trap_or_exit`: turn 1 registers a handler that writes a file;
+    then (a) `os._exit(4)`; (b) in a metered session, `while True: pass` (`"out of fuel"`); (c)
+    `close()` from another thread while a tool blocks inside a turn. In each, no file is
+    written, `shutdown_outcome == "skipped"`, and the export-call hook records no `shutdown`.
+    Stand-in: a runner that calls `shutdown` after a trap (the hook records the call, and the
+    export's −1 makes the outcome `"stopped"`).
+40. `test_the_cap_on_open_files_in_a_session` (068 is expected to land first; if it has not,
+    this criterion and Decision 5's 068 bullet move to 068): with 068's cap set to 8 on the
+    session, turn 1 opens files on a writable grant and keeps them until `OSError` with
+    `EMFILE`, and records how many it opened; turn 2 opens one more and gets `EMFILE`; turn 3
+    closes one and opens one, which succeeds; `ended is None` throughout. A handler that opens
+    files until `EMFILE` lets the ending finish (`"finished"`). Stand-in: a cap counted per
+    turn (turn 2's open succeeds).
+
 ## The owner's choices
 
-None open here. The owner's decisions 18 to 22 and 49 are carried as written. Question 92 in
-`../questions-for-the-owner.md` records, for the owner, three choices that are the agent's
-where those decisions are silent, and one placement; nothing waits on it: `SystemExit` keeps
-the session (Decision 4); closing is a stop with no shutdown (Decision 8); the final expression
-is echoed (Decision 3); and whether a cap on open host descriptors per store comes before or
-after 0.1.0 (Decision 11, Decision 22). The lifetime is no longer among them: following the
-landing lane's ruling on the review's F4, a turn's deadline is capped at the lifetime left, so
-the owner's one hour holds as a bound on guest execution (Decision 9).
+None open here. The owner's decisions 18 to 22 and 49 are carried as written. Question 92
+put to the owner three choices that were the agent's where those decisions were silent, and
+one placement. **The owner answered it on 2026-10-18, evening** (`../decisions.md`, "The
+owner's answers of 2026-10-18, evening", the bullet for 92): keep the choices that follow
+precedent, "especially that of Jupyter".
+
+- `SystemExit` keeps the session (Decision 4): **kept**, as in Jupyter.
+- The final expression is echoed (Decision 3): **kept**, as in Jupyter.
+- Closing was a stop with no shutdown: **changed**. Jupyter lets Python exit normally, so at
+  close and at expiry the session now runs Python's shutdown inside a small fuel and time
+  budget and is stopped if the budget runs out (Decisions 2, 8 and 9; the section "Revised for
+  the owner's decision of 2026-10-18", below).
+- The cap on open host descriptors: **before 0.1.0**, as spec 068, default 1,024, for `run`
+  and sessions alike (Decisions 5, 11 and 22).
+
+The lifetime was already no longer among the choices: following the landing lane's ruling on
+the review's F4, a turn's deadline is capped at the lifetime left, so the owner's one hour
+holds as a bound on every turn (Decision 9); the shutdown the owner chose may follow it by at
+most `shutdown_s`.
 
 ## Disposition of the pre-build review
 
@@ -1009,8 +1390,9 @@ are written in). Every finding is fixed in this revision; none is declined.
 - **F2 (medium), descriptors and host memory held for the session's life.** Documented in
   Decision 11 ("What a session holds on the host") and in Decision 20's README text (*Sessions*
   and *Not protected*), with the advice of a short `idle_s` and a prompt `close()`. A
-  per-store descriptor cap is recorded as a later specification (Decision 22); its place
-  relative to 0.1.0 is put to the owner (question 92).
+  per-store descriptor cap was recorded as a later specification and its place relative to
+  0.1.0 put to the owner (question 92). **Answered** (2026-10-18, evening): before 0.1.0, as
+  spec 068, default 1,024; Decision 5 scopes it per session and criterion 40 checks it.
 - **F3 (medium), one trust domain.** Documented in Decision 11 ("A session is one trust
   domain") and in the README text of Decision 20: a turn is only as trustworthy as the least
   trusted turn before it; never send a more trusted turn after less trusted code.
@@ -1054,6 +1436,11 @@ are written in). Every finding is fixed in this revision; none is declined.
   at least five sessions each on macOS and Linux, before the band is fixed; a spread above 10
   is a finding (Decision 16). The review's note on 049's `_MAX_ABANDONED` is taken (Decision
   11).
+- **Question 92, the owner's.** Answered on the evening of 2026-10-18 (`../decisions.md`):
+  `SystemExit` and the echo stand; closing follows Jupyter and runs Python's shutdown inside a
+  small budget; the cap on open files comes before 0.1.0 as spec 068. Written in by the
+  revision (the section "Revised for the owner's decision of 2026-10-18", below, and "The
+  owner's choices", above); the revision awaits a short re-review.
 
 ## The Confirmation's notes
 
@@ -1068,5 +1455,77 @@ two further low notes (the Confirmation, appended to the review). All three are 
   from weakref callbacks, and the reaper waits on that queue (Decision 13).
 - **N3 (low), what argv after `argv[0]` means.** Absolute, read-only import-path folders only;
   the guest skips anything else (Decisions 2 and 3, and Decision 20's README paragraph).
+
+## Revised for the owner's decision of 2026-10-18 (92)
+
+The owner answered question 92 on the evening of 2026-10-18 (`../decisions.md`, "The owner's
+answers of 2026-10-18, evening", the bullet for 92). Two of the agent's three choices stand,
+because they follow Jupyter: `sys.exit()` keeps the session, and a turn's last expression is
+echoed. The third did not follow Jupyter, and changes: closing was a stop that ran no guest
+code; now, at close and at expiry, the session runs Python's shutdown inside a small fuel and
+time budget, and is stopped if the budget runs out. The placement asked about is answered too:
+the cap on open files comes before 0.1.0, as spec 068, and applies to sessions. This revision
+writes those answers in. It was made before the build, against the text the review confirmed.
+
+**What changed, and why.**
+
+- **A third export, `shutdown() -> i32`** (Decision 2). Closing now runs guest code, so the
+  guest needs an entry for it. It runs `gc.unfreeze()` and then `Py_FinalizeEx()`, once, in an
+  instance whose last turn returned normally, and refuses (−1, no Python) otherwise. It is a
+  new export rather than a mode of `turn` (which promises never to finalize, N1) or of `run`
+  (once per instance, argv-driven). The unfreeze is there because the addendum's new section 8
+  found that on the snapshot, whose initialiser freezes the heap, a file left open beside any
+  function defined in `__main__` loses its buffered bytes at `Py_FinalizeEx`; undoing the
+  freeze gives the snapshot CPython's own exit behaviour, the plain reactor's.
+- **The ending** (Decision 8, rewritten). `ended` still says why the session ended, set once
+  before anything else (F10 unchanged). A new property, `shutdown_outcome`, says how the
+  ending went: `"finished"`, `"stopped"` (its budget ran out, or it trapped) or `"skipped"`
+  (no guest code ran). Python's shutdown runs when the session is at rest with a sound
+  interpreter: at `close()`, past the idle bound, at the lifetime reached at rest or at the end
+  of a turn that finished after it, for a dropped session, and at process exit. It does not run
+  after a turn that trapped, exited or was stopped, `close()` during a turn included, because
+  that interpreter was unwound mid-call; Jupyter interrupts a busy kernel with SIGINT, which
+  Python can unwind, and the guest has no such signal. `os._exit` still ends the session at
+  once, with no shutdown, as in Python and in a Jupyter kernel (Decision 4).
+- **The budget** (Decision 8). Time is a new named limit, `shutdown_s`, default
+  `Defaults.session_shutdown_s = 5.0`, set per session by the embedder, `0` to skip the
+  shutdown, `None` refused because the runner itself starts endings and must bound them. 5 s
+  is jupyter_client's `shutdown_wait_time` default. Fuel is the session's own per-turn fuel in
+  a metered session, with no new argument: the shutdown costs 28 M to about 310 M instructions
+  on today's binaries (section 8), so a small fixed share would stop ordinary shutdowns. The
+  memory cap, one turn's file and tool allowances and 068's cap also hold; the ending's output
+  is dropped.
+- **Where endings run** (Decisions 8, 9, 10 and 13). On the closing thread for `close()`; on a
+  closer thread of its own for every ending the runner starts (the reaper's, the collector's,
+  the exit hook's), so one slow ending never holds another session or the reaper. The exit
+  hook runs at-rest sessions' endings side by side and waits for them.
+- **The lifetime's promise** (Decision 9). No turn runs past the lifetime, as before; the
+  shutdown may follow for at most `shutdown_s`. That loosening is the owner's decision, as
+  §4.15 requires; `shutdown_s=0` restores the old promise exactly.
+- **Mounts at the ending** (Decisions 8 and 11). A shutdown's flushes reach a mount's
+  provider: the ending hands dirty buffers over, as at a turn's end, bounded the same way.
+- **The cap on open files** (Decisions 5, 11 and 22). Scoped per session, set at the opening,
+  holding through the ending, written in here for 068 as 060's argument was; 068 owns the
+  mechanism. Decision 22 no longer lists it as left out.
+- **The judge** (criteria 4, 6, 7, 12, 21, 24, 26 and 32 amended; 34 to 40 added): the raw
+  export and its refusals; `atexit` and flushes on close and on expiry; a hostile handler
+  stopped by fuel and by the deadline; no guest code after a stopped ending; no shutdown after
+  a trap or an exit; the cap in a session.
+- **The rest follows**: the Terms (the ending, the budget), *Kind* and *Depends on* (068 and
+  069), the Intent, the Design, the Scope, the public API (Decision 17: `shutdown_s`,
+  `shutdown_outcome`, the `Defaults` field, `close()`'s `Raises:`), the artifact set (Decision
+  19: both binaries gain `shutdown`), the README and CHANGELOG text (Decision 20), and the
+  owner's choices.
+
+**What did not change.** `turn`'s contract, N1's rule that no turn finalizes, F10's ordering,
+the reaper's step and the collector's lock-free wake, every per-turn limit, and `run()`.
+
+**Review.** §5.6 asks for a pre-build review of a specification that changes the guest's
+exports, and this revision adds one, so its delta awaits a short re-review before the build.
+The re-review is asked to look in particular at: the `shutdown` export's refusals and the
+unfreeze (Decision 2); the ending's order and the outcome's rules (Decision 8); `None`
+refused for `shutdown_s` and fuel taken from the session; closer threads and the exit hook
+(Decisions 8 and 13); the loosened lifetime promise (Decision 9); the mount write-back at the
+ending; and whether criteria 34 to 40 and their stand-ins prove the new behaviour.
 
 ## Landing notes

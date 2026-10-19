@@ -1,0 +1,20 @@
+p1 snapshot 'pass': normal exit min 83377574, os._exit min 2629274, difference 80748300
+p1 snapshot 'import pandas': normal exit min 83342747, os._exit min 2644086, difference 80698661
+p2 snapshot normal exit: exit 0; atexit.txt ran; buffered.txt 0 bytes
+p3 snapshot os._exit: exit 4; atexit.txt absent; buffered.txt 0 bytes
+p4 snapshot hostile atexit, fuel 1e9: exit None, trapped 'out of fuel', stdout b'body done\n'
+p4 snapshot hostile atexit, deadline 0.5 s: exit None, trapped 'deadline', stdout b'body done\n'
+p4 snapshot sleeping atexit, deadline 0.5 s: exit None, trapped 'deadline'
+p5 snapshot sys.exit(7) in atexit: exit 0, stderr tail b'Exception ignored in atexit callback <built-in function exit>:\nSystemExit: 7\n'
+p5 snapshot handler registering a handler: exit 0, stdout b'a\n'
+p6 snapshot os._exit(5) in atexit: exit 5, trapped None, stdout b''
+p1 plain 'pass': normal exit min 166578103, os._exit min 138192010, difference 28386093
+p1 plain 'import pandas': normal exit min 4917006376, os._exit min 4614211379, difference 302794997
+p2 plain normal exit: exit 0; atexit.txt ran; buffered.txt 100 bytes
+p3 plain os._exit: exit 4; atexit.txt absent; buffered.txt 0 bytes
+p4 plain hostile atexit, fuel 1e9: exit None, trapped 'out of fuel', stdout b'body done\n'
+p4 plain hostile atexit, deadline 0.5 s: exit None, trapped 'deadline', stdout b'body done\n'
+p4 plain sleeping atexit, deadline 0.5 s: exit None, trapped 'deadline'
+p5 plain sys.exit(7) in atexit: exit 0, stderr tail b'Exception ignored in atexit callback <built-in function exit>:\nSystemExit: 7\n'
+p5 plain handler registering a handler: exit 0, stdout b'a\n'
+p6 plain os._exit(5) in atexit: exit 5, trapped None, stdout b''

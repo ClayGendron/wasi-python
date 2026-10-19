@@ -1,7 +1,9 @@
 # Bounded sessions: what one instance does across several calls
 
 - **Status:** executed, 2026-10-18. An addendum to `2026-10-17-state-across-agent-turns.md`. It
-  commits the project to nothing.
+  commits the project to nothing. Section 8 was added the same evening for spec 055's revision
+  (the owner's decision on question 92: close as Jupyter does), EXECUTED on main `4a94c14`'s
+  artifact set and READ from Jupyter's sources.
 - **Owner:** Clay Gendron
 - **Researcher:** the drafting agent (Claude Opus 5.5) of spec 055. It wrote none of the runner or
   the recipes. Box: 45 minutes; stopped at about 40. Nothing in the repository was changed by the
@@ -163,6 +165,128 @@ instance is unharmed. The export can turn that into a `MemoryError` inside the g
   lists the tools once, when first imported (`recipes/guest/host/tools.py`), so the tool set must
   stay fixed for a session; the frame host and its record can be per turn.
 
+### 8. Python's shutdown in today's guest, and how Jupyter closes a kernel (EXECUTED, READ; added for the revision)
+
+The owner chose that a session's close and expiry run Python's normal shutdown inside a small
+budget, as Jupyter does. Today's guest already runs that shutdown once, at the end of every
+`run` (`Py_FinalizeEx` in `reactor_main.c`'s `run`, READ). These probes measure it through
+`run`, which has the same C shape a session's ending would have.
+
+- **Set and machine.** Main `4a94c14`'s `build/artifacts/`, checked against its `SHA256SUMS`
+  (all OK): snapshot `4eb5418a2b1bb553…`, plain reactor `1655014314805b58…`, zip
+  `16ee747c97c5397b…`. Same machine and wasmtime-py as above. Scripts and outputs beside this
+  memo (`p9_shutdown`, `p10_flush`, `p10b_flush_main`, `p11_flush_all`, `p12_unfreeze`), run
+  with `uv run python <script> <output>` from the repository; copies are in the main tree's
+  `build/reviews-evidence/055-revision/`.
+
+**What the shutdown costs (EXECUTED, P9).** The same program ended normally and ended by
+`os._exit(0)` (which skips the shutdown), minimum of three runs each:
+
+| binary | program | normal exit | `os._exit` | the shutdown |
+|---|---|---:|---:|---:|
+| snapshot | `pass` | 83,377,574 | 2,629,274 | 80,748,300 |
+| snapshot | `import pandas` | 83,342,747 | 2,644,086 | 80,698,661 |
+| plain | `pass` | 166,578,103 | 138,192,010 | 28,386,093 |
+| plain | `import pandas` | 4,917,006,376 | 4,614,211,379 | 302,794,997 |
+
+So almost all of a fresh snapshot `run`'s 83 M instructions is its shutdown: the teardown of
+the pre-imported stack. A shutdown costs tens to hundreds of millions of instructions, and the
+figure moves thirtyfold with the binary and the heap. A fixed small fuel share would stop
+ordinary shutdowns.
+
+**atexit and `os._exit` (EXECUTED, P9).** On both binaries: a handler registered in the
+program runs at a normal exit; after `os._exit(4)` it does not, and a buffered file is not
+flushed (Python's documented `os._exit`). A handler that loops forever is stopped by fuel
+(`trapped == "out of fuel"` at `fuel=10**9`) and by the deadline (`"deadline"` at 0.5 s), and
+a handler that calls `time.sleep(10**6)` is stopped by the deadline; the program's own output
+is all delivered first. `sys.exit(7)` inside a handler is printed as `Exception ignored in
+atexit callback … SystemExit: 7` and the exit status stays 0. A handler that registers another
+handler during the shutdown: the new one does not run. `os._exit(5)` inside a handler ends the
+instance with exit 5 (an exit trap) and the handlers after it do not run.
+
+**Open files are not reliably flushed on the snapshot (EXECUTED, P10, P10b).** A file opened
+for writing, written and left open, is flushed by the shutdown on the plain reactor in every
+variant tried. On the snapshot it is flushed unless a function is defined in `__main__`: with
+any `def` in the program (two variants, two runs each), the file loses its 100 buffered bytes
+every time, and it keeps them in every variant without one. A file held only in a reference
+cycle (`f.me = f; del f`) loses its bytes on both binaries, which is CPython's own documented
+caveat ("Memory tied up in circular references between objects is not freed", the C API's
+`Py_FinalizeEx`). INFERRED cause of the snapshot's difference: step 80's initialiser ends with
+`gc.collect(); gc.freeze()` (READ, `reactor_main.c`), so `__main__` and its dict sit in the
+permanent generation, and a `def` makes the cycle `__main__.__dict__` ↔ the function's
+`__globals__`, which the shutdown's collection then never breaks before the file would be
+closed. Every model-written turn defines functions, so in a session this would lose buffered
+writes on the default binary.
+
+**Two fixes measured (EXECUTED, P11, P12).** The program of P2 plus a cycle-held file:
+
+| binary | shutdown variant | left-open file (110 bytes written) | cycle-held file (100) | fuel of the whole run |
+|---|---|---:|---:|---:|
+| snapshot | `Py_FinalizeEx` alone | 0 | 0 | 84,542,344 |
+| snapshot | `gc.unfreeze()` as the last handler, then the same | 110 | 0 | 309,563,330 |
+| snapshot | every live `io.IOBase` flushed as the last handler | 110 | 100 | 87,712,962 |
+| plain | `Py_FinalizeEx` alone | 110 | 0 | 167,860,729 |
+| plain | `gc.unfreeze()` as the last handler | 110 | 0 | 168,340,290 |
+| plain | every live `io.IOBase` flushed as the last handler | 110 | 100 | 210,844,794 |
+
+- `gc.unfreeze()` before the teardown gives the snapshot exactly the plain reactor's (CPython's)
+  behaviour, the cycle-held file included, at about 225 M more instructions on today's
+  snapshot, whose frozen heap holds the pre-imported stack; on the plain reactor it costs about
+  0.5 M.
+- Flushing every live file object flushes more than CPython does (the cycle too). Its cost is a
+  walk of `gc.get_objects()`: 2,227,374 instructions on the snapshot after pandas, whose stack
+  is frozen and so not walked, but 376,439,099 on the plain reactor after importing pandas
+  (P11's last lines). The owner's decision 34 (the snapshot pre-imports no package; spec 069)
+  will make the snapshot's heap like the plain reactor's, so this walk would cost hundreds of
+  millions on the default binary too, while the unfreeze's cost falls with the frozen heap.
+  INFERRED; the figures after spec 069 are the builder's to measure.
+
+**How Jupyter closes a kernel (READ, main branches on GitHub, 2026-10-18).**
+- **jupyter_client**, `jupyter_client/manager.py`
+  (https://github.com/jupyter/jupyter_client/blob/main/jupyter_client/manager.py):
+  `KernelManager.shutdown_kernel(now=False)` stops the restarter, sends the kernel an interrupt
+  (SIGINT) if it has one, and then either kills it at once (`if now: await
+  self._async_kill_kernel()`) or sends a `shutdown_request` on the control channel and waits
+  (`_async_finish_shutdown`). The wait is `shutdown_wait_time`, a configurable `Float` whose
+  default is `5.0` seconds: "Time to wait for a kernel to terminate before killing it, in
+  seconds. When a shutdown request is initiated, the kernel will be immediately sent an
+  interrupt (SIGINT), followed by a shutdown_request message, after 1/2 of
+  `shutdown_wait_time` it will be sent a terminate (SIGTERM) request, and finally at the end of
+  `shutdown_wait_time` will be killed (SIGKILL)." A provisioner may override it.
+- **ipykernel**, `ipykernel/kernelbase.py`
+  (https://github.com/ipython/ipykernel/blob/main/ipykernel/kernelbase.py):
+  `shutdown_request` calls `do_shutdown(restart)` (in `ipkernel.py`, `IPythonKernel.do_shutdown`
+  sets `self.shell.exit_now = True` and returns `{"status": "ok", …}`), sends the
+  `shutdown_reply`, awaits `_at_shutdown()` (which terminates the kernel's child processes,
+  SIGTERM then SIGKILL, and re-broadcasts the reply), then schedules `stop` on the control
+  and shell IO loops. `ipykernel/kernelapp.py`'s `IPKernelApp.start()` has nothing after
+  `self.io_loop.start()`, so when the loops stop the process returns from `main` and exits
+  through Python's normal shutdown: `atexit` handlers run, including the ones the kernel
+  itself registered there (`atexit.register(self.cleanup_connection_file)`,
+  `atexit.register(self.close)`) and IPython's (`InteractiveShell.__init__` registers
+  `atexit.register(self.atexit_operations)`, `IPython/core/interactiveshell.py`).
+- **jupyter_server**, `jupyter_server/services/kernels/kernelmanager.py`
+  (https://github.com/jupyter-server/jupyter_server/blob/main/jupyter_server/services/kernels/kernelmanager.py):
+  culling is off by default (`cull_idle_timeout = Integer(0, …)`, "Values of 0 or lower disable
+  culling"); `cull_kernel_if_idle` ends an idle kernel with `shutdown_kernel(kernel_id)`,
+  passing no `now`, so a culled kernel takes the same graceful path: interrupt, shutdown
+  request, Python's normal exit with its `atexit` handlers if it exits within the wait, killed
+  if not.
+- **Python's documentation** (READ): the `atexit` module, "Exit handlers are not called when
+  the program is killed by a signal not handled by Python, when a Python fatal internal error
+  is detected, or when `os._exit()` is called", handlers run last in, first out, and an
+  exception in one is printed (unless `SystemExit`) and the rest still run
+  (https://docs.python.org/3/library/atexit.html); `os._exit` exits "without calling cleanup
+  handlers, flushing stdio buffers, etc." (https://docs.python.org/3/library/os.html#os._exit);
+  `Py_FinalizeEx` returns `-1` "if there were errors during finalization (flushing buffered
+  data)", and "must not be called recursively from within itself … such as `atexit` handlers"
+  (https://docs.python.org/3/c-api/interp-lifecycle.html).
+
+So a Jupyter close and a Jupyter cull are the same thing: a bounded, graceful exit (5 s by
+default, the embedder's to set), then a kill. The guest can do the graceful part with
+`Py_FinalizeEx`, which runs `atexit` and flushes, provided the snapshot's frozen generation is
+undone first; the host does the bound with the fuel and epoch deadline it already arms per call.
+
 ## What it decides
 
 - The design the first memo chose holds on today's engine: per-turn fuel, deadline and output;
@@ -174,9 +298,16 @@ instance is unharmed. The export can turn that into a `MemoryError` inside the g
 - Step 80 is unchanged by a new export. The recipe change is `reactor_main.c` (the export) and
   `reactor_bootstrap.py` (the turn's Python), both recipe files under §4.1.
 - Echoing a final expression costs about 0.6 M fuel for a short turn, under 1% of a fresh run.
+- (Section 8.) A session's ending can be Python's own shutdown, run through a new export that
+  calls `Py_FinalizeEx` after undoing the snapshot's `gc.freeze()`, bounded by the fuel and the
+  epoch deadline the host already arms. Its cost is tens to hundreds of millions of
+  instructions, so its fuel cannot be a small fixed figure; Jupyter's own bound is a time, 5 s
+  by default, set by the embedder.
 
 ## One line
 
 One instance answers many calls: fuel and the deadline re-arm per call, output is complete at
 each return, a full heap is a `MemoryError` not a trap, a NULL `host_alloc` is clean, Wizer keeps
-a `turn` export, and idle and lifetime bounds are host arithmetic on an injectable clock.
+a `turn` export, and idle and lifetime bounds are host arithmetic on an injectable clock. Python's
+shutdown runs in the guest as it does at `run`'s end, bounded by fuel and the deadline, and
+flushes open files on the snapshot only once its frozen generation is undone.

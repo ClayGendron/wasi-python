@@ -1,0 +1,4 @@
+snapshot without unfreeze: exit 0, t.txt 0 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel min 84542344
+snapshot with gc.unfreeze run last: exit 0, t.txt 110 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel min 309563330
+plain without unfreeze: exit 0, t.txt 110 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel min 167860729
+plain with gc.unfreeze run last: exit 0, t.txt 110 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel min 168340290

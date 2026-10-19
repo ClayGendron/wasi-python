@@ -1,0 +1,6 @@
+snapshot without the flusher: exit 0, t.txt 0 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel 84595266
+snapshot with the flusher registered first: exit 0, t.txt 110 bytes (110 written), c.txt 100 bytes (100 written, in a cycle), fuel 87712962
+snapshot flusher cost after importing pandas: 2227374 fuel (min of 3 each)
+plain without the flusher: exit 0, t.txt 110 bytes (110 written), c.txt 0 bytes (100 written, in a cycle), fuel 167680011
+plain with the flusher registered first: exit 0, t.txt 110 bytes (110 written), c.txt 100 bytes (100 written, in a cycle), fuel 210844794
+plain flusher cost after importing pandas: 376439099 fuel (min of 3 each)
