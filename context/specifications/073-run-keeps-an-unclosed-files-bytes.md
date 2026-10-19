@@ -321,11 +321,40 @@ before finalizing"** (2026-10-19), so this specification takes options 4 and 1 t
    - **Cost** (EXECUTED; the amendment's table): about +28.2 M fuel on every snapshot `run`, the
      shutdown's collections now walking and freeing the bootstrap's heap. A bare snapshot run goes
      from 15.6 M to about 43.9 M.
+   - **A metered `run` pays it after the program has ended** (the confirmation's A1, EXECUTED
+     there, `meter.out`). The bootstrap flushes the program's output before `Py_FinalizeEx`, so a
+     `fuel=` cap sized for the program alone can now run out in the teardown: simulated,
+     `print('hello')` capped at 40 M used 29.4 M and exited 0 before; with the unfreeze it ends
+     `exit_code None`, `trapped "out of fuel"`, with `hello` already on stdout (a cap of 70 M
+     passes, using 57.8 M). How such an ending is reported does not change: it is the "out of
+     fuel" every metered call already has, and a session's shutdown is reported the same way
+     ("stopped"). The README and the CHANGELOG say to size the cap for it (Design).
+   - **What else could the +28 M break** (READ, the confirmation and this amendment's grep of
+     `src/` and `tests/`):
+     - `run`'s default fuel is `None`, no cap (`src/wasi_python/runner.py`, `run` and
+       `run_async`), and so is `wasi-python run`'s without `--fuel` (`src/wasi_python/cli.py`).
+       No default changes meaning.
+     - No README example passes a `fuel=` number to `run`.
+     - The capped checks that expect a program to finish on the snapshot have margins of a
+       gigainstruction or more: `test_v1_3_lxml.py`'s two (40 G and 20 G, for about 31 G and
+       less), `test_a_cpp_exception_reaches_python` in `test_v1_3_data_stack.py` (50 G), the
+       dotted-builtins
+       check in `test_v1_1_artifact_set.py` (10 G, for about 6.0 G), 071's recursion checks (10¹¹)
+       and `test_v1_4_embedding.py`'s `fuel=10**9` to `10**15` calls. The caps of 400 M "past
+       start-up" (`test_a_mounted_run_out_of_fuel_counts_the_cap`, the endings check) are on
+       programs that loop forever and must end "out of fuel" anyway; the start-up they pass is
+       unchanged, since the unfreeze comes after the program.
+     - So no check needs a new cap or a new row; the full judge (criterion 7) is what confirms
+       each still passes, and the builder names any that does not as a finding before "built".
    - **Check (b) is restated from 8 to 3.** The snapshot's start becomes 3.82 times cheaper than
      the plain start (167,505,958 ÷ 43,851,082, projected from the like-for-like measurements). 3
-     leaves 27% of margin, as 069 left about 25%. The margin can only widen as packages land: the
-     plain start grows with the zip's members (spec 039), while the snapshot's start and its
-     unfreeze depend only on the stdlib bootstrap, which `PREIMPORT` fixes. A pre-imported package
+     leaves 27% of margin, as 069 left about 25%. The margin is expected to widen as packages
+     land: the plain start grows with the zip's members (spec 039, about 30 K a member). The
+     snapshot's grows too, but far less: its frozen heap holds zipimport's directory of the whole
+     zip, which the unfreeze's teardown now frees, about 0.36 M of the 28.2 M across today's
+     2,658 members, some 135 instructions a member (the confirmation's A2, EXECUTED there,
+     `cases9.out`, "zd"). A faster plain start would narrow the margin; that specification would
+     restate (b) again. A pre-imported package
      is refused by check (a) whatever (b) says. The reason in the check's docstring and in
      `--accept-judge` is question 103's answer.
 
@@ -394,10 +423,9 @@ before finalizing"** (2026-10-19), so this specification takes options 4 and 1 t
      100 bytes"`, `"<binary>: a file stored on a stdlib module kept <n> of 100 bytes"` or
      `"<binary>: a file reached after gc.unfreeze was replaced kept <n> of 100 bytes"`, reported
      through `scan.report(findings, "frozen heap")`. `[plain]` passes today and after.
-     `[snapshot]` fails today with 3 findings (the first two give `frozen heap: 2 finding(s),
-     digest 963ab1406da3` alone, computed with `scan.report`; the builder records the three's
-     digest when it sees the check fail first), and passes after the build. **It has no gap
-     entry.**
+     `[snapshot]` fails today with `frozen heap: 3 finding(s), digest cfb1afda1a48` (the three
+     strings in this order; computed with `scan.report` by the confirmation), and passes after
+     the build. **It has no gap entry.**
    - **E, new: `test_module_and_directory_errors_read_as_native`** (`@BINARY`, through
      `wasi_python.run`, no fuel; the review's F3). Three rows: `-m nope` (no such module) prints
      exactly `/usr/local/bin/python.wasm: No module named nope` and a newline on stderr and
@@ -442,7 +470,8 @@ before finalizing"** (2026-10-19), so this specification takes options 4 and 1 t
       it builds after 065 lands): both add checks to `tests/checks/test_v1_4_embedding.py`, at
       different places, and both edit `tests/known_gaps.toml` (083 narrows 065's stepped-clock
       gap; 073 removes (h)'s), so they meet in two files, each merge textual. The
-      order in flight is 081, then 065, then 083. Both restate fuel; whichever lands second takes main's progress files
+      order in flight is 081, then 065, then 083. Both restate fuel; whichever lands second
+      takes main's progress files
       and accepts again, as AGENTS.md rule 6a says. Check D and (h) write a file through the
       driver, so their fuel depends on the file's time and inode number until 083 lands (083
       measured that spread at 102 instructions at most, within every row's tolerance); after 083,
@@ -506,10 +535,17 @@ about 28 M instructions a call for it, and check (b) is restated to say so.
   paragraph); the *Measured* table's snapshot `-c pass` row becomes the built set's count (about
   43.9 M guest instructions, from 15.6 M), its milliseconds re-measured by the builder as a
   benchmark fact, and "most of it finalizing the interpreter" kept; any other sentence that
-  quotes the bare snapshot start (the builder greps `15.6`) follows.
+  quotes the bare snapshot start (the builder greps `15.6`) follows; and one sentence beside
+  `run`'s `fuel` (the confirmation's A1): `fuel` counts the interpreter's finalization, after the
+  program's last line; on the snapshot that is about 28 million instructions (about 45 million
+  after `import pandas`), and a cap that runs out there ends `"out of fuel"`, with `exit_code`
+  `None`, after the program's own output was written; size a metered call's `fuel` to cover it,
+  as for a session's shutdown.
 - `CHANGELOG.md`, 0.1.0a7: one **Fixed** bullet (the snapshot's unclosed files, a file the
   program hung on the stdlib, and a script's and `-m`'s on both binaries), which also says a bare
-  snapshot call now costs about 43.9M guest instructions instead of 15.6M (question 103), and one
+  snapshot call now costs about 43.9M guest instructions instead of 15.6M (question 103), most of
+  it after the program has ended, so a `fuel=` cap must cover the finalization (about 28M; about
+  45M after `import pandas`) or the call ends "out of fuel" after its output; and one
   **Changed** bullet naming what moves toward native: a
   script's `__package__` and `__loader__`, `__builtins__` a module, an `atexit` handler that
   finds the program's `__main__`, `-m`'s not-found line and traceback frames, and a directory's
@@ -548,8 +584,8 @@ to `build/073/*.log`.
    plain binary (digest `e6d5609d06d8`) and 7 on the snapshot (digest `98d69ac9128b`;
    `probe_check_a.out` ran its logic); C fails on the snapshot's `-c` and stdin and on both
    binaries' script, directory and `-m`; E fails on all three rows on both binaries;
-   D`[plain]` passes and D`[snapshot]` fails with its three findings; (h)`[snapshot]` fails with
-   digest `7da6e52329c1`.
+   D`[plain]` passes and D`[snapshot]` fails with digest `cfb1afda1a48`; (h)`[snapshot]` fails
+   with digest `7da6e52329c1`.
 2. **After the build, the gap closes.** (h)`[snapshot]` passes, its gap entry is gone, and the
    scoreboard shows one gap fewer from it. A, C, D and E pass on both binaries.
 3. **What must not move.** `test_main_starts_as_native` (both binaries; it pins the six names
@@ -699,8 +735,9 @@ The owner answered question 103: "Yes, unfreeze before finalizing" (`../decision
 - **Check (b) is restated** from 8 to 3, with question 103's answer as the reason (Decisions 4
   and 7); the lane accepts with `--accept-judge` and `--accept-growth`, the growth being the
   measured +28 M per snapshot `run` from finalizing the unfrozen heap (Decision 8).
-- **The README:** the corner paragraph is not written; the snapshot's start cost is updated
-  (Design).
+- **The README:** the corner paragraph is not written; the snapshot's start cost is updated, and
+  one sentence tells a metered `run` to size its `fuel` for the finalization (Design; the
+  confirmation's A1).
 - **Question 103** is gone from `../questions-for-the-owner.md` (main removed it); this
   specification points at `../decisions.md`.
 
@@ -742,3 +779,23 @@ and the unfreeze's share):
 
 These agree with option 1's direct measurement (`probe.out`: `-c pass` with `gc.unfreeze()`
 appended, 43,851,798). The builder measures the real rows on the built set (criteria 3 and 4).
+
+### The confirmation of the amendment
+
+The same reviewer confirmed the amendment "once A1 is written in", with A2 in the same pass (its
+section at the end of `../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md`,
+written in the lane's scratchpad with `cases9.py` and `meter.py`, to be copied by the lane). Its
+measurement agrees with this amendment's within 0.4% bare and 1.5% after pandas (+28,330,759
+and +44.52 M), and gives check (b) about 3.81 on a fresh copy of the set.
+
+- **A1 (Low-Medium) — written in.** Decision 4 says a metered `run` now pays the finalization
+  after its program, with the simulated `print('hello')` at 40 M; the README gains a sentence on
+  sizing `run`'s `fuel` and the CHANGELOG bullet says it. `run`'s default fuel is `None`, and no
+  default, README example or check in `src/` or `tests/` has a cap the +28 M would break
+  (Decision 4 lists the caps), so no check row is added. How an out-of-fuel finalization is
+  reported is unchanged; no open point is raised.
+- **A2 (Low) — written in.** Decision 4's margin "is expected to widen", naming the zip
+  directory's share of the unfreeze (about 0.36 M across 2,658 members).
+- **D's digest today** with its three findings, `cfb1afda1a48`, is in Decision 7 and criterion 1.
+- **N1 (no action required) — noted for the builder.** It may use `show_and_drop` instead of
+  `PyErr_Print` on `run`'s error path, as 055 did for `turn`.
