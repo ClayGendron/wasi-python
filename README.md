@@ -433,6 +433,20 @@ extension module's shared link into a static archive, so no `meson.build`
 changes. The line's versions (CPython, wasi-sdk, the host Python) are named
 once, in `scripts/line.conf`.
 
+**One host Python.** Every Python a build step runs is the pinned host Python,
+or one built from pins (step 20's build-Python, the WASI interpreter under
+the pinned wasmtime). Step 10 writes `build/tools/host-python/`, holding
+`python`, `python3` and `python3.15`, each running the pinned interpreter, and
+every step puts it first on `PATH`; so meson's `find_program('python3')`, an
+`#!/usr/bin/env python3` generator and configure's probes all find the pinned
+one. Behind it, `scripts/build.sh` links every `python*`, `pypy*`, `pip*`,
+`pydoc*` and `idle*` name on your `PATH`, and a fixed list besides, to
+`scripts/refuse-python`, which refuses; a step that ran one fails, even if it
+swallowed the refusal (`build/logs/unpinned-python.log` names the call). A
+build host needs no Python of its own. A step script run by hand, outside
+`scripts/build.sh`, still gets the shim, but not the stand-in behind it
+(`context/specifications/079-the-build-runs-only-the-pinned-host-python.md`).
+
 **The same bytes from any build host.** The build runs on arm64 macOS, arm64
 Linux and x86_64 Linux, and all three give the same artifact set, byte for
 byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the

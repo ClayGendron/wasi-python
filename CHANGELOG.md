@@ -63,6 +63,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   it); `run` now refuses such a call with `RuntimeError` before the guest runs, says why, and
   names the remedy. Install faulthandler and crash reporters before the first call, or not at
   all.
+- **The build runs only the pinned host Python** (spec 079; the 0.1.0a6 security review's
+  F2). FreeType's configuration headers, HarfBuzz's generated sources and matplotlib's
+  `matplotlibrc` were written by whatever `python3` the build host had first on `PATH`, and
+  CPython's configure ran it once. Now step 10 puts a shim for the pinned CPython 3.15.0 first
+  on every step's `PATH`. Behind it, `scripts/build.sh` puts a stand-in for every other Python
+  name the host has, which fails the step if it is run. A build host needs no Python of its
+  own. The artifacts are the same bytes; `MANIFEST`'s recipe lines change.
 - **lxml, with libxml2 and libxslt built in** (spec 046). lxml 6.1.3's `lxml.etree` and
   `lxml.objectify` are builtins, over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath,
   XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser,
