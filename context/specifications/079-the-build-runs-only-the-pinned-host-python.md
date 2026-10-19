@@ -8,7 +8,8 @@
   Main's tip was still `23f1c4f`, so the rebase before this revision was empty. **Confirmed for
   build 2026-10-19** on `558a3fe` (the confirmation is appended to the same review file, probes p4
   to p6); its corrections C1 to C3 are written into Decisions 4 and 6 as the build begins, for the
-  build review to check. Building on this branch.
+  build review to check. **Built 2026-10-19** (`3469f49`, `7efdb6e`, `6094a01`; the Landing
+  notes); not yet reviewed.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** build-class: the build driver and two steps. It changes `scripts/build.sh` (a
@@ -624,7 +625,191 @@ Decision 7 and criteria 1 and 2.
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-19 by the builder agent (Claude Opus 5.5) in the worktree `wasi_python-079`, branch
+`spec/079-the-build-runs-only-the-pinned-host-python`, on main `23f1c4f` (main has not moved, so
+no rebase was needed). The machine: Apple arm64, macOS 26.5; Docker 29.7.2 with the research
+image `wp040-arm64`. Every claim below is EXECUTED unless labelled. The evidence is in the
+worktree's `build/079/` (git-ignored): the drafting runs (`e1` to `e10`), this build's runs (`c1`
+to `c3`, `full-build-macos.out`, `judge-*.out`) and the container's (`container/`). **Built; not
+yet reviewed:** the build review is next, then the lane's acceptance.
+
+### What changed
+
+- `3469f49`, part 1, the "seen failing first" state: `scripts/refuse-python` (new); the stand-in
+  and the log rule in `scripts/build.sh`; `test_every_build_python_is_pinned` with
+  `scan.host_python_recipe_errors` and `scan.host_python_record_errors`; four unit tests in
+  `tests/unit/test_scan.py`; four driver cases in `tests/unit/test_build_progress.py`.
+- `7efdb6e`, part 2: step 10's shim, gate and gate line; the shim first on `common.sh`'s `PATH`.
+- `6094a01`: the README's "One host Python" paragraph and the CHANGELOG entry (criterion 7's
+  text, word for word).
+
+### Departures from the text, each small
+
+- **One test fixture changed** beyond what Decision 6 names:
+  `test_the_step_sees_the_same_in_every_mode` compares a step's environment under `build.sh` with
+  the same step run by hand under build.sh's exports. `build.sh` now also exports `PATH` (the
+  stand-in first, the caller's absolute entries after), so the by-hand run's export line gains
+  `PATH="$0/build/no-host-python:$PATH"`. The check still compares the whole environment.
+- **The record part skips a ninja variable** (`command = $COMMAND`, meson's rule indirection):
+  it names no program. Every `COMMAND =` line it stands for is read.
+- **"Reads no variable for its log"** is checked as: `refuse-python` reads no shell variable but
+  its own `name` and `dir`, `$0` and `$*`.
+- **The driver case for the sweep** checks more than F2 asked: a folder whose path holds a space,
+  a name in two folders (the first link wins), a folder and a non-executable file named like a
+  Python (neither swept), and a relative and an empty `PATH` entry (both dropped from the step's
+  `PATH`).
+- **The gate's "missing interpreter" case** stops at its second probe: `command -v` still finds
+  the shim's file, and `/usr/bin/env python3` fails. One line either way, as criterion 1 asks.
+
+### Criterion 1: seen failing first
+
+- **The check, on today's records.** The record part, run read-only against the main tree's
+  records (`build/079/c1-check-on-main-records.out`), gave 11 hits: FreeType's
+  `meson-log.txt:112` (`Program python3`), lines 113, 120, 127, 149 and 161 (each `Running
+  command` of `/Library/Frameworks/Python.framework/Versions/3.10/bin/python3`), `build.ninja`
+  lines 42, 46 and 258, CPython's `cross-build/aarch64-apple-darwin/config.log:88` (`found
+  /Users/claygendron/.local/bin/python3.14`), and no gate line in `10_tools.log`. Its recipe part
+  named every missing piece of Decisions 3 to 5 (18 lines). On this branch's tree before part 2,
+  the check failed on its recipe part (`common.sh does not put $T/host-python first on PATH`, and
+  five lines for step 10). HarfBuzz's and matplotlib's `env python3` shebangs pass the record part
+  on any tree: they resolve through `PATH`, so they are safe exactly when the recipe part holds,
+  and it fails there.
+- **The stand-in alone** (part 1, no shim), each step alone in a worktree a full build had
+  filled (`c1-standin-alone-step-*.out` and `.unpinned.log`):
+  - `scripts/build.sh 10`: ok;
+  - `scripts/build.sh 55`: `FAILED: [code=1] lib/matplotlib/mpl-data/matplotlibrc`; the step's
+    line: `ERROR 55_matplotlib: ERROR: an unpinned python3 was run; a build step runs only
+    build/tools/host-python's Python (spec 079)`; the log names `…/no-host-python/python3
+    …/generate_matplotlibrc.py …`;
+  - `scripts/build.sh 20`: exit 0 from the step, failed by the log rule: `ERROR 20_cpython: ERROR:
+    20_cpython ran an unpinned Python (build/logs/unpinned-python.log)`; the log holds two lines,
+    `…/no-host-python/python3.15 -V`;
+  - `scripts/build.sh 37`: `freetype-2.14.3/meson.build:40:17: ERROR: Command
+    \`…/no-host-python/python3 …/extract_libtool_version.py --soversion …\` failed with status 1`.
+- **The gate**, each in its own clone of `7efdb6e` (step 10 alone):
+  - the shim not written: `ERROR: host python gate: python is …/build/no-host-python/python, not
+    …/build/tools/host-python/python`;
+  - the `python3` file pointing at a missing interpreter: `ERROR: host python gate: /usr/bin/env
+    python3 failed`;
+  - `common.sh`'s `PATH` line without the shim: `ERROR: host python gate: python is
+    …/build/no-host-python/python, not …/build/tools/host-python/python`.
+- **The units.** Each mutation of Decision 6, the confirmation's three (`env -u FOO …`,
+  `env -P …`, `sh -c …`) among them, names its hit; the good commands pass
+  (`test_program_word_reads_env_meson_shells_and_shebangs`,
+  `test_host_python_records_are_read_and_each_breach_named`,
+  `test_host_python_recipe_holds_and_each_part_is_missed`,
+  `test_config_log_skips_only_direct_children_of_build`). The four driver cases fail as they say
+  (`test_a_step_that_runs_an_unpinned_python_fails`,
+  `test_a_swallowed_refusal_still_fails_the_step[plain]` and `[env-i]`,
+  `test_every_python_name_on_the_callers_path_is_shadowed`); the 83 earlier cases pass
+  unchanged but for the fixture above.
+
+### Criterion 2: one host Python, end to end
+
+`scripts/refuse-python` was committed (part 1) before any full build. On macOS, from empty
+`build/` (the drafting evidence moved aside first), `scripts/build.sh --plain` at `7efdb6e`: 16
+steps ok, 9m09s (a benchmark fact). Then:
+- `build/logs/unpinned-python.log`: absent;
+- `10_tools.log:1`: `host python: python3 is build/tools/host-python/python3, Python 3.15.0, prefix
+  build/tools/python; behind it python2 is build/no-host-python/python2`;
+- FreeType's `meson-log.txt:112`: `Program python3 found: YES
+  (/Users/claygendron/Git/Repos/wasi_python-079/build/tools/host-python/python3)`;
+- CPython's native `config.log:85`: `found …/build/tools/host-python/python3.15`;
+- `build/no-host-python/` held 60 names on this machine (`c2-no-host-python-macos.txt`), among
+  them `python3-intel64`, `python3.7m`, `python-build`, the `-config` scripts, `pip3*`,
+  `pipenv`, `pydoc3*` and `idle3*`;
+- `test_every_build_python_is_pinned` passes.
+
+### Criterion 3: the same bytes
+
+`build/079/c3-diffs.txt`, against main's frozen set `build/sets/s-c50ca51fae5eb55b`:
+- `SHA256SUMS` (`c9dcb5b84ae2447a`, main's `14ada22ab85623c5`) differs in one line, `MANIFEST`'s
+  (`881e0558…` to `a568b1da…`);
+- `MANIFEST` differs in exactly four `recipe` lines: `scripts/build.sh` (`7a18f38b…` to
+  `10959929…`), `scripts/steps/10_tools.sh` (`db1a676e…` to `6e093455…`),
+  `scripts/steps/common.sh` (`e85c77e7…` to `236b993e…`), and `scripts/refuse-python`
+  (`120149e1…`, added);
+- `python.wasm` `ab78e8931e76aaf9`, `python-snapshot.wasm` `c50ca51fae5eb55b`,
+  `python-stdlib.zip` `02026895917b7e22` and every licence: unchanged.
+
+### Criterion 4: a host without Python
+
+The `linux/arm64` research container (`wp040-arm64`), a clone of a bare copy of this branch at
+`6094a01`, downloads from a cache of verified pins, `scripts/build.sh --plain` from empty `build/`
+(`build/079/container/`, `run.sh` the script): 16 steps ok, 6m54s. Its `host.txt`:
+
+```
+uname: Linux 7.0.12-linuxkit aarch64
+commit: 6094a012b18084f3713cc93bee8e5cacea3dba14
+command -v python3: (prints nothing)
+find / -type f -name 'python*' -perm -u+x, pruning /proc, /sys, the clone (/work) and the mounts (/src, /cache, /out):
+(end of find)
+uv: uv 0.9.22
+cc: cc (Debian 14.2.0-19) 14.2.0
+nproc: 10
+```
+
+Its `SHA256SUMS` and `MANIFEST` equal macOS's byte for byte (`c9dcb5b84ae2447a`). FreeType found
+`build/tools/host-python/python3`, CPython's configure found `build/tools/host-python/python3.15`,
+the log is absent, and the stand-in held the fixed list's 25 names only: this host has no
+Python.
+
+### Criterion 5: the judge
+
+The worktree was given the upstream kit (main's `build/upstream/wheels/`, copied; `kit.txt`'s
+hashes met) and the oracle (its venv made from `tests/jobs/oracle`'s frozen lock, online once).
+Both runs on `6094a01`'s tree, without `--accept`:
+
+- fast tier, `uv run pytest -m "not slow" -n 3` (`build/079/judge-fast.out`): `496/551 pass · 1
+  gap · 3 blocked · 0 fail · 51 deselected`; `1772 passed, 10 skipped, 1 xfailed`; ratchet `lost
+  0 · absent 0 · unrun 0 · unrun locally 1 · gained 1 · grew 2`;
+- full, `uv run pytest -n 3` (`build/079/judge-full.out`, `build/progress/latest.json` kept):
+  `wasi_python v1: 533/551 pass · 15 gap · 3 blocked · 0 fail (unit suite 1276/1283, 7
+  skipped)`; `v1.5 rebuild from pins 36/36`; `1809 passed, 10 skipped, 15 xfailed`; ratchet
+  `lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 1 · grew 1`.
+
+The one gain is `test_every_build_python_is_pinned`. **The growth is not this change's:** `GREW
+test_v1_2_hostile_guest.py::test_recursion_through_python_raises[heapq-plain]: fuel 177337468 ->
+177555535` (+0.12 %); the fast run also showed `[lru-cache-plain]` (+0.07 %), and the same row moved
+by a different amount in each of the three runs (177585342, 178141788, 177555535). `python.wasm`
+and the snapshot are byte-identical to main's (criterion 3), so the guest's work cannot have
+changed; these are spec 071's plain recursion rows, whose fuel moves with the hash seed until
+spec 080 lands. Reported, not chased. `ruff check` and `ruff format --check` are clean (the rules
+checks pass).
+
+**For the lane:**
+- `--accept "spec 079: every build-time Python is the pinned host Python (a shim first on PATH, a
+  refusing stand-in behind it); the artifacts are main's bytes, MANIFEST's four recipe lines
+  aside"`;
+- `--accept-judge "spec 079: test_every_build_python_is_pinned added (recipe part; meson logs,
+  build.ninja, every config.log, step PATH folders, step 10's gate line), with its unit mutations
+  and four driver cases; test_build_progress's fake tree copies scripts/refuse-python and links
+  ln, and the same-environment case's by-hand run gets the PATH build.sh now exports"`;
+- if the lane's serial run shows the recursion rows' growth, `--accept-growth "spec 071's plain
+  recursion rows: hash-seed noise until spec 080; python.wasm and the snapshot are main's
+  bytes"`.
+
+### Criterion 6: the dry run
+
+Follows the landing (AGENTS.md rule 6b).
+
+### Criterion 7: the words
+
+The README's "One host Python" paragraph and the CHANGELOG entry are in `6094a01`. This
+specification closes **the 0.1.0a6 security review's F2**: FreeType's configuration headers,
+HarfBuzz's generated sources, matplotlib's `matplotlibrc` and CPython's configure probe now run
+the pinned host Python, step 10 prints it, and the build fails if any other Python is run by
+name; the container without Python proves the absolute-path route.
+
+### For the reviewer
+
+- The diff: `git diff 064d913..6094a01` (scripts, tests, README, CHANGELOG); the specification's
+  own text since the confirmation is this landing notes section and the status line.
+- Re-run: `uv run pytest tests/unit/test_scan.py tests/unit/test_build_progress.py -n 3`, the check
+  alone (`uv run pytest tests/checks/test_v1_5_rebuild_from_pins.py -k every_build_python -s`
+  prints what it read), and the full judge. The scan of today's records is
+  `build/079/c1-check-on-main-records.out`, made with a scratch script that calls the two scan
+  functions on the main tree (read only).
 
 ## One line
 
