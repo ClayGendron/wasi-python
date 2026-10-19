@@ -1,0 +1,18 @@
+# Spec 071 rebuilt on main d900dd9 (069 landed) against 069's frozen set s-1a7242a7a8b518f4.
+# growth_probe.py, fuel per probe (fuel=10**11, snapshot): 069's set | 071 | a relink of 071 whose window is the
+# whole stack (C_STACK_WINDOW = &__stack_high - &__stack_low: the same call, CPython's own limits).
+addresses        069     777414459 | 071     +24909 (+0.003%) | whole-stack window     +24909 (+0.003%)
+pass             069      15659473 | 071      +9586 (+0.061%) | whole-stack window      +9586 (+0.061%)
+encode-errors    069     855824680 | 071   +1120001 (+0.131%) | whole-stack window   +1120001 (+0.131%)
+np-bools         069    1206136790 | 071     +25555 (+0.002%) | whole-stack window     +25555 (+0.002%)
+enc-euc-jp       069    1489900949 | 071   +6685693 (+0.449%) | whole-stack window   +5828828 (+0.391%)
+# Per encoding of test_encodings_are_wasi_libcs_as_documented (069 -> 071):
+#   windows-1252 +0.198%, shift_jis +0.351%, cp932 +0.240%, euc-jp +0.449%, gbk +0.244%, gb18030 +0.124%,
+#   big5 +0.283%, euc-kr +0.422%, utf-16 -0.001%: it scales with raised UnicodeEncodeErrors (encode-errors:
+#   65,376 raised, +17 fuel each); utf-16, which raises none, does not move.
+# Static type addresses (bool 0x15c5558, int, str, dict, list, type, object, np.ndarray) and fresh heap objects'
+# ids are identical in 069's set and 071's (heap-probe); the bool DType cause of 047 and the first 071 build does
+# not repeat (np-bools +0.002%).
+# A relink of the same build tree with 069's recipe reproduces 069's set byte for byte (SHA256SUMS lines equal).
+# funcsizes.py: the only function body that differs is PyUnstable_ThreadState_SetStackProtection (absent -> 138 bytes);
+# the code section grows 172 bytes; data and heap layout do not move.

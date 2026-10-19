@@ -9,9 +9,9 @@
   section "Disposition of the pre-build review" says where each went (`8d9f74e`). **Confirmed for
   build** by the same reviewer (the file's section "Confirmation of 071's revision": "confirmed
   for build once C1 and C2 are written in"); C1 to C6 written in (the section "Disposition of the
-  confirmation"), for the lane to check. **Built 2026-10-18**, rebased and rebuilt 2026-10-19
-  on main `b413192` (spec 055 landed; the Landing notes): the set's `SHA256SUMS` `618247d2…`;
-  judge 528/545, 0 fail, lost 0, grew 71 (each named below). It changes the artifact set and the build recipe
+  confirmation"), for the lane to check. **Built 2026-10-18**; rebased and rebuilt 2026-10-19,
+  last on main `d900dd9` (specs 055, 076 and 069 landed; the Landing notes): the set's
+  `SHA256SUMS` `14ada22a…`; judge 532/550, 0 fail, lost 0, grew 25 (each named below). It changes the artifact set and the build recipe
   (`recipes/reactor_main.c`), so §5.6 asks for the review before build.
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (it touches `recipes/`): one call added to `recipes/reactor_main.c`,
@@ -702,6 +702,72 @@ The confirmation (the same file, section "Confirmation of 071's revision"; probe
 - **C6.** The memo's closing sections no longer overclaim.
 
 ## Landing notes
+
+### The final build: on main `d900dd9` (069 landed), 2026-10-19
+
+Rebased onto `d900dd9` without a conflict (069's shorter `PREIMPORT` and its checks sit beside the
+window in `recipes/reactor_main.c`; 076's grant walk left `_drive`'s first lines as they were, the
+handler check first; 069's judge files merged as they were). Rebuilt from empty in the worktree
+(16 steps, 7 min 0 s):
+
+- `SHA256SUMS` `14ada22ab85623c558917c69e5f42b2a328a058eed5f811c7f70af6f1cf71769`;
+- `python.wasm` `ab78e893…`, 41,099,661 bytes (219 more than 069's `5ab6bc5d…`);
+- `python-snapshot.wasm` `c50ca51f…`, 44,633,983 bytes (278 more than 069's `1a7242a7…`);
+- `MANIFEST` `881e0558…`; the stdlib zip `02026895…` is 069's, byte for byte.
+
+The same build tree relinked with 069's recipe (`scripts/build.sh 60 70 80 90`) gives 069's set
+byte for byte, so the recipe's one call is the whole difference (EXECUTED; the worktree's
+`build/artifacts-069recipe/`).
+
+**The judge** (`uv run pytest -n 3`, `build/judge-071d.log`, `build/progress/latest.json` kept):
+`wasi_python v1: 532/550 pass · 15 gap · 3 blocked · 0 fail (unit suite 1268/1275, 7 skipped)`;
+`1800 passed, 10 skipped, 15 xfailed in 321.54s`; `ratchet vs 96cf575b1d: lost 0 · absent 0 ·
+unrun 0 · unrun locally 1 · gained 53 · grew 25 · judge changed: tests/checks/test_v1_2_hostile_guest.py,
+tests/harness/guest.py, tests/harness/needs.py and 2 more`.
+
+**Criterion 1's depths on the new snapshot**, which pre-imports no package
+(`v3/evidence/criterion-1-depths-d900dd9.txt`): every row as before (`__repr__` 214, `heapq` 244,
+`np.vectorize` 99, pandas `Series.map` 160, the lxml rows 67, 82, 86, 77), each above its floor;
+the window does not depend on what the snapshot holds.
+
+**Growth, with its measured reason** (against 069's accepted record; 93 grew at all, 32 shrank;
+`v3/evidence/growth-vs-069.txt`):
+
+- The binaries grew 219 bytes (plain) and 278 (snapshot): `PyUnstable_ThreadState_SetStackProtection`
+  is now linked (a 138-byte body) and called; it is the only function body that differs
+  (`funcsizes.py`), and the code section grows 172 bytes. Data, static type addresses and heap
+  addresses do not move.
+- Fuel: a raised exception costs 17 more fuel (65,376 raised `UnicodeEncodeError`s: +1,120,001,
+  +0.131%), and a snapshot start 9,586 more (+0.061%). So the checks that raise many exceptions
+  grow most: `test_encodings_are_wasi_libcs_as_documented` +70,251,276 (+0.229%; per encoding it
+  scales with the encode errors raised, and utf-16, which raises none, does not move),
+  `test_the_readmes_encoding_workaround_reads_what_iconv_cannot` +0.224%,
+  `test_lxml_xml_job_matches_native` +0.121%; each snapshot start check about +9,000 (+0.06%),
+  each plain one about +16,500 (+0.01%); everything else within +0.008%. numpy-core does not grow
+  (−26 M): 069's set already carries the type layout the first build's bool DType growth came
+  from (`np.array` of bools: +0.002%), so that cause does not repeat.
+- It is the relinked binary, not the window's size: a relink whose window is the whole stack
+  (the same call, CPython's own limits) grows exactly as much (`pass` +9,586, exceptions +17 each).
+  Why one more linked function makes a raised exception 17 operators dearer was not traced
+  (INFERRED: the function indices after it shift by one).
+- Neither the engine change nor the handler check adds fuel.
+
+**For the lane, final:**
+
+- `--accept-judge "spec 071: the judge's driver makes the runner's engine (fuel, epoch
+  interruption, 512 KiB), and the session driver sets the far-off epoch deadline it needs; new
+  checks for deep recursion, the window, the default engine and the CLI, the deep-data limits
+  (metered), the stated engine and Linux's faulthandler orders, a session turn included; a
+  wasmtime cli need"`.
+- `--accept-growth "spec 071's rebuilt python.wasm and snapshot link and call one more CPython
+  function (PyUnstable_ThreadState_SetStackProtection; plain +219 bytes, snapshot +278); a raised
+  exception then costs 17 more fuel and a snapshot start 9,586 more, so the lxml encoding checks,
+  which raise tens of thousands of UnicodeEncodeErrors, grow up to +0.23% and every other metric
+  at most +0.06%; a relink with a whole-stack window grows the same, so it is the link, not the
+  window"`.
+
+The sections below record the earlier builds, on `6cc30bb` and `b413192`, and the reviews of
+them; their sets, judge lines and growth reasons are superseded by this one.
 
 ### What was built
 

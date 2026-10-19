@@ -1,0 +1,30 @@
+repr                   RecursionError  depth  214 floor  190 | Stack overflow (used 112 kB)
+getattr                RecursionError  depth  214 floor  190 | Stack overflow (used 112 kB)
+eq                     RecursionError  depth  244 floor  215 | Stack overflow (used 112 kB)
+hash                   RecursionError  depth  221 floor  195 | Stack overflow (used 112 kB)
+str                    RecursionError  depth  235 floor  210 | Stack overflow (used 112 kB)
+format                 RecursionError  depth  177 floor  155 | Stack overflow (used 112 kB)
+iter                   RecursionError  depth  214 floor  190 | Stack overflow (used 112 kB)
+len                    RecursionError  depth  228 floor  205 | Stack overflow (used 112 kB)
+map                    RecursionError  depth  222 floor  195 | Stack overflow (used 112 kB)
+sorted-key             RecursionError  depth   52 floor   45 | Stack overflow (used 113 kB)
+cmp-to-key             RecursionError  depth   52 floor   45 | Stack overflow (used 112 kB) while calli
+min-key                RecursionError  depth  187 floor  165 | Stack overflow (used 112 kB)
+reduce                 RecursionError  depth  245 floor  220 | Stack overflow (used 112 kB)
+lru-cache              RecursionError  depth  208 floor  185 | Stack overflow (used 112 kB)
+heapq                  RecursionError  depth  244 floor  215 | Stack overflow (used 112 kB) while calli
+repr-list-of-self      RecursionError  depth  202 floor  180 | Stack overflow (used 112 kB)
+pickle-reduce          RecursionError  depth  164 floor  145 | Stack overflow (used 112 kB)
+pickle-partial         RecursionError  depth    0 floor    0 | Stack overflow (used 112 kB) while pickl
+re-sub                 RecursionError  depth  148 floor  130 | Stack overflow (used 112 kB)
+np-vectorize           RecursionError  depth   99 floor   85 | Stack overflow (used 112 kB)
+np-frompyfunc          RecursionError  depth   53 floor   45 | Stack overflow (used 112 kB)
+np-apply-along-axis    RecursionError  depth  101 floor   90 | Stack overflow (used 112 kB)
+pd-map                 RecursionError  depth  160 floor  140 | Stack overflow (used 112 kB)
+eval                   MemoryError     depth  183 floor  160 | Parser stack overflowed - Python source 
+exec                   MemoryError     depth  157 floor  140 | Parser stack overflowed - Python source 
+lxml-target            RecursionError  depth   67 floor   60 | Stack overflow (used 112 kB) while calli
+lxml-xpath-extension   RecursionError  depth   82 floor   70 | Stack overflow (used 112 kB) while calli
+lxml-resolver          RecursionError  depth   86 floor   75 | Stack overflow (used 112 kB) while calli
+xslt-extension         RecursionError  depth   77 floor   65 | Stack overflow (used 112 kB)
+setrecursionlimit      RecursionError  depth  214 floor  190 | Stack overflow (used 112 kB)

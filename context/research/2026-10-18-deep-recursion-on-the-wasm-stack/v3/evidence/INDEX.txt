@@ -5,3 +5,4 @@ faulthandler-orders-main-arm64     criterion 11 seen failing first: main's runne
 faulthandler-orders-branch-arm64   criterion 11 on the branch's runner and the built set, Linux aarch64
 faulthandler-orders-branch-amd64   the same on Linux x86_64 (emulated)
 criterion-4-metered-amd64      criterion 4's six kinds metered (fuel=10**11), Linux x86_64, the branch and built set (b413192)
+growth-vs-069 / criterion-1-depths-d900dd9: the final build's delta and depths
