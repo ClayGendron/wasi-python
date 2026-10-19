@@ -184,7 +184,10 @@ compiles to different bytes on every run; LLVM fixed it upstream (`fd76c9bd`, is
 LLVM 23, and wasi-sdk 34 compiled that file to one object in 16 runs (research
 `2026-10-19-the-try-table-order-in-llvm.md`). The move re-verifies every package's bytes on every
 host and removes spec 037's same-bytes exception (question 104). Question 105, answered (b): it lands before 037, which never lands the exception. Clang 23 adds `-Wunused-template`
-warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check.
+warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check. Drafted
+2026-10-19: `specifications/086-the-toolchain-moves-to-wasi-sdk-34.md` (build-class; a trial of
+the move gave one `SHA256SUMS` from every host tried, and wasi-libc 34 changes `os.dup`'s errno,
+which a link-time refusal keeps at `ENOTSUP`); its pre-build review is next.
 
 Reserved: 074 (what CPython's suite asks of the product; spec 065's follow-up A, build-class;
 before 0.1.0, since it closes classes in the gate the owner set): `sys.executable` empty;
