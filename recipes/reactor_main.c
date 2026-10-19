@@ -145,6 +145,13 @@ static PyObject *turn_function = NULL;
 static PyObject *unfreeze_function = NULL;
 
 extern unsigned char __stack_low;
+extern unsigned char __stack_high;
+
+/* CPython's C-stack guard (spec 071): it measures the C stack in linear memory, but wasmtime runs
+ * every wasm call on a separate native stack of 512 KiB by default, which each C level spends 2 to
+ * 25 times faster. So the guard watches only the top 128 KiB of the 16 MiB linear stack, and raises
+ * RecursionError ("Stack overflow (used 112 kB)") while the native stack still has room. */
+#define C_STACK_WINDOW (128 * 1024)
 
 /* Zero the shadow stack below the current frame: dead bytes from initialization (scratch, stat
  * buffers) would otherwise land in the snapshot. */
@@ -198,6 +205,13 @@ init_interpreter(int fixed_hash_seed)
     PyConfig_Clear(&config);
     if (PyStatus_Exception(status)) {
         Py_ExitStatusException(status);
+    }
+    /* CPython's own call for a stack the OS does not describe (Doc/c-api/threads.rst); the snapshot
+     * keeps the limits it sets, and nothing resets them. */
+    if (PyUnstable_ThreadState_SetStackProtection(PyThreadState_Get(), &__stack_high - C_STACK_WINDOW,
+                                                  C_STACK_WINDOW) < 0) {
+        PyErr_Print();
+        abort();
     }
     if (PyImport_GetMagicNumber() != REACTOR_BOOTSTRAP_MAGIC
         || PyImport_GetMagicNumber() != ZIP_DIRECTORY_MAGIC

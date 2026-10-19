@@ -464,8 +464,11 @@ def run(
         ImportError: wasmtime-py cannot load; its own error is chained as the cause.
         OSError: A host filesystem call failed while the root, the private folders, the zip's
             copy or the cache was prepared (its subclasses, such as FileExistsError, included).
-        RuntimeError: This process was forked after it ran a guest; or a folder or the zip's
-            copy changed between the runner's check and its use.
+        RuntimeError: This process was forked after it ran a guest; a folder or the zip's
+            copy changed between the runner's check and its use; or, on Linux, a handler
+            installed or removed after the first run (faulthandler, `signal.signal`, a native
+            crash reporter) replaced wasmtime's trap handlers, so a guest trap would end the
+            process; raised before the guest runs.
         wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
             wasmtime's own open. The type is wasmtime-py's and is not promised.
         KeyboardInterrupt: Ctrl-C.
@@ -609,7 +612,9 @@ async def run_async(
         OSError: A host filesystem call failed while the root, the private folders, the zip's
             copy or the cache was prepared (its subclasses, such as FileExistsError, included).
         RuntimeError: This process was forked after it ran a guest; the interpreter is shutting
-            down; or a folder or the zip's copy changed between the runner's check and its use.
+            down; a folder or the zip's copy changed between the runner's check and its use; or,
+            on Linux, a handler installed or removed after the first run replaced wasmtime's trap
+            handlers (as `run`).
         wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
             wasmtime's own open. The type is wasmtime-py's and is not promised.
         asyncio.CancelledError: The awaiting task was cancelled; the guest was stopped and its
@@ -2730,6 +2735,9 @@ def _drive(
     (spec 011). `plain` is today's linker when `linker` is the mount linker: the identity check
     reads wasmtime's own answers through it, and the trampoline takes wasmtime's calls from it
     (spec 032)."""
+    not_ready = _trap_handlers_ready()  # spec 071, Decision 9: before every entry into the guest
+    if not_ready is not None:
+        raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     exit_code: int | None = None
     trapped: str | None = None
     metered = False
@@ -3584,6 +3592,12 @@ def _release() -> None:
     _engines.clear()
 
 
+# wasmtime's default wasm stack, stated (spec 071, Decision 3): the guest's C-stack window (128 KiB,
+# recipes/reactor_main.c) is sized for it, and wasm runs on the calling thread's own stack, so a
+# larger limit than the thread has would end the host process instead of trapping.
+_WASM_STACK = 512 * 1024
+
+
 def _engine(metered: bool) -> wasmtime.Engine:
     """Two engines per process: fuel metering changes the compiled code."""
     import wasmtime as wt
@@ -3594,8 +3608,101 @@ def _engine(metered: bool) -> wasmtime.Engine:
             cfg = wt.Config()
             cfg.consume_fuel = metered
             cfg.epoch_interruption = True
+            cfg.max_wasm_stack = _WASM_STACK
             _engines[metered] = wt.Engine(cfg)
         return _engines[metered]
+
+
+# Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
+# (crates/wasmtime/src/runtime/vm/sys/unix/signals.rs, foreach_handler): SIGSEGV and SIGILL, and
+# SIGFPE on x86_64. Its handlers are installed when the first engine is made (spec 071, Decision 9).
+_TRAP_SIGNALS = ("SIGSEGV", "SIGILL")
+_TRAP_SIGNALS_X86_64 = ("SIGFPE",)
+_TRAP_HANDLERS_REPLACED = (
+    "wasmtime's handler for {signal} was replaced after the first run, by a handler installed or "
+    "removed since (faulthandler, signal.signal, or a native crash reporter); a trap in the guest "
+    "would end or hang this process, so the call was refused. If faulthandler.enable() was "
+    "called after the first run, faulthandler.disable() undoes it; otherwise restart the "
+    "process, and install faulthandler or any crash reporter before the first run"
+)
+_handlers: dict[str, Any] = {}  # the C library's sigaction and dladdr, and wasmtime's load base
+
+
+class _DlInfo(ctypes.Structure):
+    _fields_ = [
+        ("dli_fname", ctypes.c_char_p),
+        ("dli_fbase", ctypes.c_void_p),
+        ("dli_sname", ctypes.c_char_p),
+        ("dli_saddr", ctypes.c_void_p),
+    ]
+
+
+def _load_base(address: int | None) -> int | None:
+    """The load base of the shared object that holds `address`, by dladdr; None if none does."""
+    if not address or address in (1,):  # SIG_DFL (0) and SIG_IGN (1) are in no object
+        return None
+    info = _DlInfo()
+    if not _handlers["dladdr"](ctypes.c_void_p(address), ctypes.byref(info)):
+        return None
+    return info.dli_fbase or None
+
+
+def _handler_base(signum: int) -> int | None:
+    """The load base of the object holding `signum`'s installed handler (the first word of
+    `struct sigaction` in glibc and musl alike), or None."""
+    buf = (ctypes.c_char * 1024)()  # larger than any struct sigaction
+    if _handlers["sigaction"](signum, None, buf) != 0:
+        return None
+    return _load_base(ctypes.c_void_p.from_buffer(buf).value)
+
+
+def _wasmtime_base() -> int | None:
+    """The load base of wasmtime-py's own library, read once, from one of its symbols."""
+    if "wasmtime" not in _handlers:
+        from wasmtime import _ffi
+
+        symbol = ctypes.cast(_ffi.dll.wasm_engine_new, ctypes.c_void_p).value
+        _handlers["wasmtime"] = _load_base(symbol)
+    return _handlers["wasmtime"]
+
+
+def _trap_handlers_ready(
+    platform: str | None = None,
+    machine: str | None = None,
+    handler_base: Callable[[int], int | None] | None = None,
+    wasmtime_base: Callable[[], int | None] | None = None,
+) -> str | None:
+    """None when a trap in the guest would reach wasmtime; else the first signal whose handler is
+    not wasmtime's (spec 071, Decision 9). Only on Linux, where wasmtime catches traps with signal
+    handlers that a later faulthandler.enable() or disable(), a signal.signal or a native crash
+    reporter can replace; macOS uses Mach ports and Windows a vectored handler. Exact for
+    faulthandler, conservative for other handlers. Any failure counts as not ready."""
+    import signal as signals
+
+    if not (platform if platform is not None else sys.platform).startswith("linux"):
+        return None
+    names = _TRAP_SIGNALS
+    if (machine if machine is not None else os.uname().machine) == "x86_64":
+        names += _TRAP_SIGNALS_X86_64
+    name = names[0]
+    try:
+        if handler_base is None or wasmtime_base is None:
+            if "sigaction" not in _handlers:
+                libc = ctypes.CDLL(None, use_errno=True)
+                libc.sigaction.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p]
+                libc.sigaction.restype = ctypes.c_int
+                libc.dladdr.argtypes = [ctypes.c_void_p, ctypes.POINTER(_DlInfo)]
+                libc.dladdr.restype = ctypes.c_int
+                _handlers["dladdr"], _handlers["sigaction"] = libc.dladdr, libc.sigaction
+            handler_base = handler_base or _handler_base
+            wasmtime_base = wasmtime_base or _wasmtime_base
+        ours = wasmtime_base()
+        for name in names:
+            if ours is None or handler_base(int(getattr(signals, name))) != ours:
+                return name
+    except Exception:
+        return name
+    return None
 
 
 def _digest(path: Path) -> str:
