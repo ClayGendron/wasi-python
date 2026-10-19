@@ -42,3 +42,7 @@
   (`context/reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`, finding 2): the
   policy quoted whole, `main`'s "breadth" item and the template added, and the platform claim
   about `fopencookie` narrowed to what was checked.
+- **Carried 2026-10-19** by spec 043's build: `fix.patch` is
+  `recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch` byte for byte, and
+  `pr.md` moved unchanged to `../patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.md`
+  (`git mv`), where spec 020's judge reads it.

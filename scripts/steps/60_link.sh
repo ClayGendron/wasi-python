@@ -1,5 +1,6 @@
 #!/bin/sh
-# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023), regex
+# Step 60: link numpy, pandas, the plot packages (Pillow, kiwisolver, matplotlib; spec 023; contourpy
+# and matplotlib's _qhull with step 37's qhull, spec 043), regex
 # (spec 047), lxml with libxml2 and libxslt (spec 046), zlib, bz2, lzma, sqlite3 and the host door into CPython as
 # builtins through the build-directory Modules/Setup.local, then relink the interpreter as a WASI
 # reactor (build/out/python.wasm) with recipes/reactor_main.c in place of Programs/python.o (spec
@@ -17,8 +18,8 @@ L="$B/link"
 for lib in libbz2.a liblzma.a libsqlite3.a; do
   [ -s "$B/stdlib-libs/lib/$lib" ] || die "build/stdlib-libs/lib/$lib is missing: run step 35"
 done
-# Step 55's extension archives, each at its import path (spec 023).
-for pkg in pillow kiwisolver matplotlib; do
+# Step 55's extension archives, each at its import path (spec 023; contourpy, spec 043).
+for pkg in pillow kiwisolver matplotlib contourpy; do
   [ -d "$B/plot-modules/$pkg" ] || die "build/plot-modules/$pkg is missing: run step 55"
 done
 # Step 36's archives and step 54's modules (spec 046).
@@ -36,24 +37,25 @@ grep -q '^extern const char \* _PyImport_SwapPackageContext(const char \*newcont
 remove "$L" "$OUT/python.wasm"
 mkdir -p "$L/archives" "$OUT"
 "$HOSTPY" "$HERE/scripts/gen_inittab.py" "$L/inittab.c" numpy="$B/numpy-build" pandas="$B/pandas-build" \
-  PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" regex="$B/regex-build" \
-  lxml="$B/lxml-build"
+  PIL="$PM/pillow" kiwisolver="$PM/kiwisolver" matplotlib="$PM/matplotlib" \
+  contourpy="$PM/contourpy" regex="$B/regex-build" lxml="$B/lxml-build"
 
 # makesetup takes *.a tokens as libraries: each module's archive is copied under a unique name, and
 # the static libraries its .deps file names are linked once each, with its -L and -l lines (qhull's
 # -lqhull_r, matplotlib's -lm and -ldl). A relative path in a .deps file is its build folder's.
 # Left out, as scripts/gen_inittab.py leaves them out: numpy's test modules, and matplotlib's _tkagg
-# (no Tk) and _qhull (it needs a writable /dev/null; spec 023's M2).
+# (no Tk). matplotlib's _qhull is linked since spec 043, with carried patch 0002, which opens no
+# /dev/null on WASI; its .deps names step 37's libqhull_r once.
 archives=""
 deps=""
 for pair in numpy:"$B/numpy-build" pandas:"$B/pandas-build" pillow:"$PM/pillow" \
-  kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" regex:"$B/regex-build" \
-  lxml:"$B/lxml-build"; do
+  kiwisolver:"$PM/kiwisolver" matplotlib:"$PM/matplotlib" contourpy:"$PM/contourpy" \
+  regex:"$B/regex-build" lxml:"$B/lxml-build"; do
   pkg=${pair%%:*}
   dir=${pair#*:}
   for so in $(find "$dir" -name "*.cpython-$PYTHON_TAG-wasm32-wasi.so" | sort); do
     name=$(basename "$so" .cpython-$PYTHON_TAG-wasm32-wasi.so)
-    case "$name" in *_tests|_simd|_tkagg|_qhull) continue;; esac
+    case "$name" in *_tests|_simd|_tkagg) continue;; esac
     cp "$so" "$L/archives/${pkg}_$name.a"
     archives="$archives $L/archives/${pkg}_$name.a"
     deps="$deps $(sed "s#^\([^/-]\)#$dir/\1#" "$so.deps" | tr '\n' ' ')"

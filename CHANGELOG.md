@@ -212,6 +212,23 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — 2026-10-19
 
+- **matplotlib's second milestone: triangulations, contours, SVG and PDF** (spec 043).
+  `matplotlib.tri.Triangulation(x, y)` (Delaunay, through matplotlib's `_qhull` and qhull 8.0.2),
+  and so `tricontour`, `tricontourf`, `tripcolor` and `triplot` on bare points, now work, and so
+  do `contour`, `contourf` and `clabel`, through contourpy 1.4.0, built in as
+  `contourpy._contourpy` with its package in the zip. A golden job saves a figure with all of them
+  as SVG and PDF: the SVG's bytes are native matplotlib's, and the PDF's are too but for its font
+  subset tags, which matplotlib derives from `hash()`, 32 bits wide in the guest. One more carried
+  patch, `recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch`: on WASI,
+  `_qhull` sends qhull's messages to a stream that writes nowhere instead of opening `/dev/null`,
+  which raised `RuntimeError: Could not open devnull` in every Delaunay triangulation and, in a
+  writable root holding a `dev` folder, would have made a file there; its facts sheet is for the
+  owner to send (matplotlib refuses AI-written pull requests). contourpy runs one thread
+  (`max_threads()` is 1). The binary imports one more WASI preview1 call, `fd_renumber` (qhull's
+  `freopen`), which the runner already shadows and counts. `python.wasm` grows by 1.05 MB and the
+  zip by 18 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
+  licence with matplotlib's `LICENSE_YORICK` (GIST's notice, for contourpy's `mpl2005` code;
+  question 81) and qhull's `COPYING.txt`.
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the

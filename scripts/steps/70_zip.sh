@@ -14,7 +14,9 @@
 # Pillow's, kiwisolver's and matplotlib's Python files from step 55, the four pure wheels, and their
 # METADATA; matplotlib's backends but the ten a plot and its saves can use, its testing and
 # sphinxext folders, and every tests/ folder stay out; its mpl-data goes in as one member, an inner
-# archive the runner extracts and grants at the path matplotlib computes (Decision 5). lxml (spec
+# archive the runner extracts and grants at the path matplotlib computes (Decision 5). contourpy
+# (spec 043): its Python package from step 55, its _build_config.py made host-neutral as numpy's
+# __config__ is, and its METADATA from the pinned sdist. lxml (spec
 # 046): its Python package from step 54 without isoschematron, whose stand-in takes its place
 # (Decision 8), and its METADATA from the pinned sdist. Tier A (spec 039, Decision 4): twenty-seven
 # pure wheels, and the pure package folders of pyyaml's, markupsafe's and networkx's sdists, each
@@ -33,7 +35,7 @@ SYSCONFIG="$W/build/lib.wasi-wasm32-$PYTHON_MM/_sysconfigdata__wasi_wasm32-wasi.
 # by CPython's build (spec 086; spec 078's build review, F2).
 MISSING_INFO="$(dirname "$SYSCONFIG")/_missing_stdlib_info.py"
 [ -f "$MISSING_INFO" ] || die "no _missing_stdlib_info at $MISSING_INFO"
-for pkg in pillow kiwisolver matplotlib; do
+for pkg in pillow kiwisolver matplotlib contourpy; do
   [ -d "$B/plot-install/$pkg" ] || die "build/plot-install/$pkg is missing: run step 55"
 done
 [ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
@@ -71,6 +73,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/plot-install/pillow" \
   --tree "$B/plot-install/kiwisolver" \
   --tree "$B/plot-install/matplotlib" \
+  --tree "$B/plot-install/contourpy" \
   --tree "$B/lxml-install" \
   --tree "$B/regex-install" \
   --tree "$B/pure-install" \
@@ -113,6 +116,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
   --metadata "$B/kiwisolver-1.5.1/PKG-INFO" \
   --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
+  --metadata "$B/contourpy-1.4.0/PKG-INFO" \
   --metadata "$B/lxml-6.1.3/PKG-INFO" \
   --metadata "$B/regex-2026.9.29/PKG-INFO" \
   --metadata "$B/pyyaml-6.0.3/PKG-INFO" \

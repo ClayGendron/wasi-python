@@ -1,8 +1,9 @@
 #!/bin/sh
 # Step 55: the plot packages for wasm32-wasip1 (spec 023): Pillow 13.0.0's _imaging, _imagingmath
 # and _imagingmorph (zlib only) and kiwisolver 1.5.1's _cext, compiled directly from their source
-# lists, and matplotlib 3.11.2 (with its carried patch) through meson and
-# recipes/wasi-matplotlib.cross against step 37's libraries. Each extension module becomes a static
+# lists, matplotlib 3.11.2 (with its two carried patches) through meson and
+# recipes/wasi-matplotlib.cross against step 37's libraries, and contourpy 1.4.0's _contourpy
+# through meson and the same cross file (spec 043). Each extension module becomes a static
 # archive beside a .deps file, as scripts/wasi-cc makes them, laid out at its import path under
 # build/plot-modules/<package>/ for step 60; each package's Python files go under
 # build/plot-install/ for step 70. Needs steps 10 (pkgconf), 20 (the cross Python), 30 (zlib) and
@@ -24,13 +25,15 @@ KIWI_TGZ=$(pinned kiwisolver-1.5.1.tar.gz)
 MPL_TGZ=$(pinned matplotlib-3.11.2.tar.gz)
 PYBIND11_WHL=$(pinned pybind11-3.1.0-py3-none-any.whl)
 CPPY_WHL=$(pinned cppy-1.3.1-py3-none-any.whl)
-remove "$B/pillow-13.0.0" "$B/kiwisolver-1.5.1" "$B/matplotlib-3.11.2" "$B/pillow-build" \
-  "$B/kiwisolver-build" "$B/matplotlib-build" "$B/matplotlib-install" "$MODS" "$INST" "$TOOLS"
+CONTOURPY_TGZ=$(pinned contourpy-1.4.0.tar.gz)
+remove "$B/pillow-13.0.0" "$B/kiwisolver-1.5.1" "$B/matplotlib-3.11.2" "$B/contourpy-1.4.0" \
+  "$B/pillow-build" "$B/kiwisolver-build" "$B/matplotlib-build" "$B/matplotlib-install" \
+  "$B/contourpy-build" "$B/contourpy-install" "$MODS" "$INST" "$TOOLS"
 mkdir -p "$MODS" "$INST" "$TOOLS"
-for archive in "$PIL_TGZ" "$KIWI_TGZ" "$MPL_TGZ"; do
+for archive in "$PIL_TGZ" "$KIWI_TGZ" "$MPL_TGZ" "$CONTOURPY_TGZ"; do
   tar -xzf "$archive" -C "$B"
 done
-for top in pillow-13.0.0 kiwisolver-1.5.1 matplotlib-3.11.2; do
+for top in pillow-13.0.0 kiwisolver-1.5.1 matplotlib-3.11.2 contourpy-1.4.0; do
   [ -d "$B/$top" ] || die "a pinned tarball did not unpack to build/$top"
   patch_tree "$B/$top"
 done
@@ -127,8 +130,9 @@ for top in matplotlib mpl_toolkits pylab.py; do
 done
 # Each extension archive at its import path, read from meson's install plan (the extension modules
 # carry the runtime tag, so the install above leaves them out), with its .deps from the build
-# folder, the paths there made absolute (a -l or -L line stays as it is).
-"$HOSTPY" - "$B/matplotlib-build" "$MODS/matplotlib" "$SUFFIX" << 'EOF_MPL' || die "matplotlib's extension archives could not be placed"
+# folder, the paths there made absolute (a -l or -L line stays as it is). The same script places
+# contourpy's below.
+cat > "$TOOLS/place_extensions.py" << 'EOF_MPL'
 import json, os, shutil, sys
 build, mods, suffix = sys.argv[1:]
 plan = json.load(open(os.path.join(build, "meson-info", "intro-installed.json"), encoding="utf-8"))
@@ -147,5 +151,38 @@ for built, target in sorted(plan.items()):
 if placed == 0:
     sys.exit("meson's install plan names no extension module")
 EOF_MPL
+"$HOSTPY" "$TOOLS/place_extensions.py" "$B/matplotlib-build" "$MODS/matplotlib" "$SUFFIX" \
+  || die "matplotlib's extension archives could not be placed"
+
+# contourpy (spec 043, Decision 4): meson with matplotlib's cross file, at meson-python's defaults
+# for the code (release, asserts off as b_ndebug=if-release gives), werror off (contourpy's
+# meson.build turns it on, and the SDK's headers warn), no numpy at build time (pybind11 binds
+# numpy's C API at import). Its meson.build asks the target Python for meson-python's version only
+# to write it into _build_config.py; the stand-in on PYTHONPATH for this configure alone answers
+# 0+stand.in, for meson-python never ran. meson installs that file with no tag (meson-python
+# installs every tag), so it is copied from meson's install plan's own source, the build folder.
+C="$B/contourpy-1.4.0"
+(
+  cd "$C"
+  export PYTHONPATH="$HERE/recipes/meson-python-stand-in:$T/pylib"
+  meson setup "$B/contourpy-build" --cross-file "$B/wasi-matplotlib.cross" --buildtype=release \
+    -Db_ndebug=if-release -Db_lto=false -Dwerror=false -Dpython.bytecompile=-1
+)
+ninja -C "$B/contourpy-build"
+meson install -C "$B/contourpy-build" --destdir "$B/contourpy-install" --tags python-runtime --quiet
+SITE=$(find "$B/contourpy-install" -type d -name contourpy -path '*site-packages*' | head -n 1)
+[ -n "$SITE" ] && [ -f "$SITE/__init__.py" ] || die "no installed contourpy package under build/contourpy-install"
+CONFIG="$B/contourpy-build/lib/contourpy/util/_build_config.py"
+grep -qF "\"$CONFIG\": {" "$B/contourpy-build/meson-info/intro-install_plan.json" \
+  || die "meson's install plan for contourpy no longer names $CONFIG"
+[ -f "$CONFIG" ] || die "contourpy's build has no lib/contourpy/util/_build_config.py"
+cp "$CONFIG" "$SITE/util/_build_config.py"
+grep -q '^        mesonpy_version="0+stand.in",$' "$SITE/util/_build_config.py" \
+  || die "contourpy's _build_config.py does not name the meson-python stand-in"
+mkdir -p "$INST/contourpy"
+cp -R "$SITE" "$INST/contourpy/contourpy"
+"$HOSTPY" "$TOOLS/place_extensions.py" "$B/contourpy-build" "$MODS/contourpy" "$SUFFIX" \
+  || die "contourpy's extension archive could not be placed"
+[ -s "$MODS/contourpy/contourpy/_contourpy$SUFFIX" ] || die "no _contourpy archive under build/plot-modules/contourpy"
 n=$(find "$MODS" -name "*$SUFFIX" | wc -l | tr -d ' ')
 echo "plot packages: $n extension archives under build/plot-modules; Python packages under build/plot-install"

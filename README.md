@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 10, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 11, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.2 MB / 45.4 MB / 38.7 MB (3.15 line, with matplotlib, lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 086's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -53,7 +53,7 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with ten carried patches,
+The platform's facts, documented rather than patched (with eleven carried patches,
 below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl or zstd; compute about 1.3 to 2.3 times slower than native)
@@ -233,9 +233,19 @@ A line plot's pixels are native matplotlib's at the same pins (FreeType 2.14.3, 
 14.1.0, the judge's golden job). The PNG file's bytes are not native's: native Pillow deflates
 with zlib-ng, the guest's with zlib, so equal pixels make a different file. PNG, PDF, PS, EPS and
 SVG save; Pillow is built with zlib only, so JPEG and the other codecs raise `OSError`; only the
-non-interactive backends are in the zip. A Delaunay `Triangulation(x, y)` raises `ImportError`
-for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNotFoundError` for
-`contourpy`: both are matplotlib's next milestone. Five more facts follow from the sandbox:
+non-interactive backends are in the zip. Delaunay triangulations (`Triangulation(x, y)`, so
+`tricontour`, `tricontourf`, `tripcolor` and `triplot` on bare points) work through matplotlib's
+`_qhull` and qhull 8.0.2, and `contour`, `contourf` and `clabel` through contourpy 1.4.0 (spec
+043). The judge's golden saves one such figure as SVG and PDF, and their bytes are native
+matplotlib's, the PDF up to its font subset tags. For files that are the same on every run, set
+`rcParams["svg.hashsalt"]` and pass `metadata={"Date": None}` (SVG) or
+`metadata={"CreationDate": None}` (PDF), or set `SOURCE_DATE_EPOCH`, as natively. A PDF's font
+subset tags (`/ABCDEF+DejaVuSans`) differ from a 64-bit Python's, because matplotlib derives them
+from `hash()`, which is 32 bits wide here; the rest of the file is the same. qhull's messages go
+to a stream that writes nowhere: matplotlib opens `/dev/null` there natively, which on WASI is at
+best a regular file in a granted folder, so a carried patch opens no path (and qhull's `freopen`
+brings one more WASI import, `fd_renumber`, a preview1 call). Five more facts follow from the
+sandbox:
 
 - **matplotlib's data** (`mpl-data`: fonts, `matplotlibrc`, styles) travels in the stdlib zip as
   one member, `matplotlib/mpl-data.zip`. `run` extracts it once per process into its private
@@ -256,7 +266,8 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   access to a writable cache directory"). Give the call `root=True`, a writable grant at `/tmp`,
   or `MPLCONFIGDIR` in a writable grant.
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
-  drawing and saving never start one.
+  drawing and saving never start one. contourpy's `threaded` algorithm runs one thread:
+  `contourpy.max_threads()` is 1, and any `thread_count` gives `serial`'s lines.
 - **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
   `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
   `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
@@ -421,9 +432,10 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: seven today, numpy's `.npy` fix and its callback
-signatures, matplotlib's enum fix from upstream, Pillow's, kiwisolver's and regex's callback
-signatures, and libxml2's file input without `dup()`):
+recorded patches (`recipes/patches/`: eleven today, numpy's `.npy` fix and its callback
+signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
+Pillow's, kiwisolver's and regex's callback signatures, regex's timeout ticks, libxml2's file
+input without `dup()`, and pandas' Styler templates and networkx's graph atlas read from a zip):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
@@ -3236,13 +3248,13 @@ tzdata, six, the host door, the snapshot. **Since then:** `sqlite3`, `bz2` and
 `lzma` (SQLite 3.54.1, bzip2 1.0.8, liblzma from xz 5.8.4); matplotlib 3.11.2's
 first milestone (spec 023: line plots and PNG, PDF, PS and SVG saves on Agg, with
 FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0, libraqm 0.10.5, Pillow 13.0.0's core
-with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packaging); lxml
-6.1.3 with libxml2 and libxslt (spec 046); regex (spec 047); tier A of the default profile,
-thirty pure-Python packages (spec 039; *What the default profile carries*).
+with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packaging); its second
+milestone (spec 043: Delaunay triangulations through `_qhull` with qhull 8.0.2, contours through
+contourpy 1.4.0, SVG and PDF judged byte for byte); lxml 6.1.3 with libxml2 and libxslt (spec
+046); regex (spec 047); tier A of the default profile, thirty pure-Python packages (spec 039;
+*What the default profile carries*).
 
-**Out, with the one fact that decides each:** matplotlib's Delaunay triangulation
-(`_qhull` needs a second carried patch, for a writable `/dev/null`) and `contour`
-(contourpy's own build), both its next milestone; seaborn and reportlab (spec 042); pytz
+**Out, with the one fact that decides each:** seaborn and reportlab (spec 042); pytz
 (decision 47: `zoneinfo` on the
 zip's tzdata is the route); pre-importing any package in the snapshot
 (decision 34: the default snapshot pre-imports none; a `full` profile, its own artifact set,

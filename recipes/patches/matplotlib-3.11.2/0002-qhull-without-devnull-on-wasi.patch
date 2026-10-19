@@ -1,0 +1,24 @@
+diff --git a/src/_qhull_wrapper.cpp b/src/_qhull_wrapper.cpp
+index 509b48e..f3b84c1 100644
+--- a/src/_qhull_wrapper.cpp
++++ b/src/_qhull_wrapper.cpp
+@@ -176,7 +176,19 @@ delaunay_impl(py::ssize_t npoints, const double* x, const double* y,
+         /* qhull errors are ignored by writing to OS-equivalent of /dev/null.
+          * Rather than have OS-specific code here, instead it is determined by
+          * meson.build and passed in via the macro MPL_DEVNULL. */
++#ifdef __wasi__
++        /* WASI has no device files: a path named like /dev/null is at best a
++         * regular file in a folder the host granted. Discard the messages in
++         * a stream that writes nowhere instead. */
++        cookie_io_functions_t discard = {
++            nullptr,
++            [](void *, const char *, size_t size) -> ssize_t { return (ssize_t)size; },
++            nullptr,
++            nullptr};
++        error_file = fopencookie(nullptr, "w", discard);
++#else
+         error_file = fopen(STRINGIFY(MPL_DEVNULL), "w");
++#endif
+         if (error_file == nullptr) {
+             throw std::runtime_error("Could not open devnull");
+         }

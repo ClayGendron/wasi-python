@@ -14,11 +14,12 @@ at level 9 with the timestamp 1980-01-01 00:00 and mode 0644, in sorted order, s
 give the same bytes. Run it with PYTHONHASHSEED=0: set and frozenset constants are marshalled in
 hash order.
 
-_sysconfigdata and numpy's __config__.py say nothing about the build host, so the zip is the same
-bytes from any host (spec 012, Decision 5). Their host keys are set to fixed values, whatever the
-host wrote (HOST_KEYS, NUMPY_BUILD_KEYS); a key that is absent, or that does not read back as its
-fixed value once rewritten, stops the build. Then each --replace rewrites its text in the two, in
-the order given; an old text found in neither stops the build. Both run before compiling.
+_sysconfigdata, numpy's __config__.py and contourpy's util/_build_config.py say nothing about the
+build host, so the zip is the same bytes from any host (spec 012, Decision 5; contourpy's, spec
+043). Their host keys are set to fixed values, whatever the host wrote (HOST_KEYS,
+NUMPY_BUILD_KEYS, CONTOURPY_BUILD_KEYS); a key that is absent, or that does not read back as its
+fixed value once rewritten, stops the build. Then each --replace rewrites its text in the three, in
+the order given; an old text found in none stops the build. Both run before compiling.
 
 Each module's code is compiled under its member name after --code-prefix (spec 051): the guest
 path of the zip itself and a slash, so `co_filename` is what zipimport gives a source in the same
@@ -80,7 +81,7 @@ SKIP_DIRS = {
 }
 SKIP_SUFFIXES = {".pyi", ".pxd", ".pyx", ".pxi", ".h", ".c", ".cpp", ".so", ".deps", ".a"}
 SKIP_NAMES = {"conftest.py", "meson.build"}  # and litter, by is_litter (specs 018 and 090)
-REWRITE = ("_sysconfigdata", "numpy/__config__.py")
+REWRITE = ("_sysconfigdata", "numpy/__config__.py", "contourpy/util/_build_config.py")
 EPOCH = (1980, 1, 1, 0, 0, 0)
 # build_time_vars keys that record the build host's tools, and the value each is given. The
 # INSTALL* keys keep their own flags after `install -c`.
@@ -89,6 +90,13 @@ INSTALL_KEYS = ("INSTALL", "INSTALL_DATA", "INSTALL_PROGRAM", "INSTALL_SCRIPT", 
 INSTALL = re.compile(r"\S*install -c((?: \S+)*)")
 # numpy's "Machine Information" -> "build" keys; its "endian" stays.
 NUMPY_BUILD_KEYS = {"cpu": "build", "family": "build", "system": "build"}
+# contourpy's build_config() keywords for the build machine (spec 043, Decision 4), by numpy's rule;
+# its build_cpu_endian stays.
+CONTOURPY_BUILD_KEYS = {
+    "build_cpu": "build",
+    "build_cpu_family": "build",
+    "build_cpu_system": "build",
+}
 # Package metadata (spec 033): the folders importlib.metadata reads, and the two files of a
 # wheel's .dist-info the zip keeps (RECORD would list .py files the zip does not hold).
 METADATA_DIRS = (".dist-info", ".egg-info")
@@ -206,9 +214,17 @@ def _str_items(node: ast.expr) -> dict[str, ast.expr]:
     }
 
 
+def _call_keywords(node: ast.expr) -> dict[str, ast.expr]:
+    """A `dict(...)` call's keyword arguments, or nothing when the node is not such a call."""
+    if not (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "dict"):
+        return {}
+    return {k.arg: k.value for k in node.keywords if k.arg is not None}
+
+
 def _host_items(tree: ast.Module, name: str) -> dict[str, ast.expr]:
-    """The dict whose keys record the build host: _sysconfigdata's build_time_vars, or numpy's
-    CONFIG["Machine Information"]["build"]."""
+    """The dict whose keys record the build host: _sysconfigdata's build_time_vars, numpy's
+    CONFIG["Machine Information"]["build"], or the keywords of the `dict(...)` call contourpy's
+    build_config() returns."""
     if "_sysconfigdata" in name:
         for node in tree.body:
             if (
@@ -218,6 +234,15 @@ def _host_items(tree: ast.Module, name: str) -> dict[str, ast.expr]:
             ):
                 return _str_items(node.value)
         raise SystemExit(f"{name}: no build_time_vars dict")
+    if "contourpy/" in name:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == "build_config":
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Return) and inner.value is not None:
+                        items = _call_keywords(inner.value)
+                        if items:
+                            return items
+        raise SystemExit(f"{name}: no dict(...) returned by build_config()")
     for node in ast.walk(tree):
         machine = _str_items(_str_items(node).get("Machine Information"))
         if isinstance(machine.get("build"), ast.Dict):
@@ -228,12 +253,13 @@ def _host_items(tree: ast.Module, name: str) -> dict[str, ast.expr]:
 def _fixed_values(items: dict[str, ast.expr], name: str) -> dict[str, str]:
     """Each host key's fixed value; one line and a stop for a key that is absent."""
     sysconfig = "_sysconfigdata" in name
-    wanted = [*HOST_KEYS, *INSTALL_KEYS] if sysconfig else list(NUMPY_BUILD_KEYS)
+    build_keys = CONTOURPY_BUILD_KEYS if "contourpy/" in name else NUMPY_BUILD_KEYS
+    wanted = [*HOST_KEYS, *INSTALL_KEYS] if sysconfig else list(build_keys)
     missing = [key for key in wanted if key not in items]
     if missing:
         raise SystemExit(f"{name}: no {', '.join(missing)} to make host-neutral")
     if not sysconfig:
-        return dict(NUMPY_BUILD_KEYS)
+        return dict(build_keys)
     keys = dict(HOST_KEYS)
     for key in INSTALL_KEYS:
         old = ast.literal_eval(items[key])
@@ -422,7 +448,10 @@ def main() -> None:
         raise SystemExit(f"no member to make host-neutral for {sorted(set(REWRITE) - rewritten)}")
     for old, _ in replacements:
         if old not in found:
-            raise SystemExit(f"--replace {old!r}: in neither _sysconfigdata nor numpy's __config__")
+            raise SystemExit(
+                f"--replace {old!r}: in none of _sysconfigdata, numpy's __config__ and "
+                "contourpy's util/_build_config"
+            )
 
     a.out.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(a.out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:

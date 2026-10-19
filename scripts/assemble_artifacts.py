@@ -34,7 +34,8 @@ PACKAGES = {
     "six": "1.17.0",
     "regex": "2026.9.29",  # spec 047
     # matplotlib (spec 023): the package, its compiled dependencies, the C libraries linked in, the
-    # header-only C++ compiled in, and the pure packages in the zip. qhull is built, not linked.
+    # header-only C++ compiled in, and the pure packages in the zip. Its second milestone (spec
+    # 043): contourpy, and qhull, linked with matplotlib's _qhull.
     "matplotlib": "3.11.2",
     "pillow": "13.0.0",
     "kiwisolver": "1.5.1",
@@ -48,6 +49,8 @@ PACKAGES = {
     "pyparsing": "3.3.3",
     "packaging": "26.3",
     "fonttools": "4.67.0",
+    "contourpy": "1.4.0",
+    "qhull": "8.0.2",
     # lxml (spec 046): the package and its two C libraries, linked in.
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
@@ -151,6 +154,10 @@ MPL_NOTICES = (
     "lib/matplotlib/mpl-data/fonts/ttf/LICENSE_STIX",
     "lib/matplotlib/mpl-data/fonts/pdfcorefonts/readme.txt",
 )
+# contourpy's mpl2005 code came from GIST's gcntr.c (src/mpl2005_original.cpp), whose notice, the
+# Regents of the University of California's, contourpy does not ship; matplotlib ships it, and it
+# goes beside contourpy's own licence (spec 043, Decision 11; question 81).
+CONTOURPY_GIST_NOTICE = "LICENSE/LICENSE_YORICK"
 # libxml2's own notices beside its Copyright file (spec 046, Decision 15): the two files Copyright
 # names as its exceptions, each under an ISC-style grant of its own, and timsort.h's MIT notice.
 # Each is the comment at the file's head that holds these words; a file missing, or a notice not
@@ -427,6 +434,16 @@ def main() -> None:
         + [(f"matplotlib {n}", (b / "matplotlib-3.11.2" / n).read_bytes()) for n in MPL_NOTICES],
         "pillow": [("Pillow LICENSE", (b / "pillow-13.0.0" / "LICENSE").read_bytes())],
         "kiwisolver": [("kiwisolver LICENSE", (b / "kiwisolver-1.5.1" / "LICENSE").read_bytes())],
+        # spec 043, Decision 11: contourpy's licence and GIST's notice for its mpl2005 code; qhull's
+        # licence now that it is linked
+        "contourpy": [
+            ("contourpy LICENSE", (b / "contourpy-1.4.0" / "LICENSE").read_bytes()),
+            (
+                f"matplotlib {CONTOURPY_GIST_NOTICE} (GIST's notice, for contourpy's mpl2005 code)",
+                (b / "matplotlib-3.11.2" / CONTOURPY_GIST_NOTICE).read_bytes(),
+            ),
+        ],
+        "qhull": [("Qhull COPYING.txt", (b / "qhull-8.0.2" / "COPYING.txt").read_bytes())],
         "libxml2": [("libxml2 Copyright", (b / "libxml2-2.15.4" / "Copyright").read_bytes())]
         + [
             (f"libxml2 {n}, its head comment", head_notice(b / "libxml2-2.15.4" / n, words))
