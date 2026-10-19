@@ -76,9 +76,17 @@ print(te.get_type_hints(TD), te.is_typeddict(TD), te.Literal["x"])
 serial = joblib.Parallel(n_jobs=1)(joblib.delayed(pow)(i, 2) for i in range(5))
 two = joblib.Parallel(n_jobs=2)(joblib.delayed(pow)(i, 3) for i in range(5))
 print(serial, two)
+
+
+def square(v):
+    return v * v
+
+
+# A named function: joblib.Memory names its cache folder after the function, and a lambda's
+# `<lambda>` holds characters a Windows grant refuses in a name.
 memory = joblib.Memory(location=data_dir, verbose=0)
-square = memory.cache(lambda v: v * v)
-print(square(4), square(4), joblib.hash([1, 2, 3]))
+cached = memory.cache(square)
+print(cached(4), cached(4), joblib.hash([1, 2, 3]))
 buf = io.BytesIO()
 joblib.dump({"a": [1, 2]}, buf)
 buf.seek(0)

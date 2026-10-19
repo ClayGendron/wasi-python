@@ -2059,7 +2059,9 @@ writable stays the default (decision 46).
   file) needs `cryptography`, which is not carried, and raises
   `pypdf.errors.DependencyError`.
 - joblib runs serially: `Parallel(n_jobs=2)` gives `n_jobs=1`'s result, with no thread and no
-  process. `joblib.Memory` needs a writable folder for its cache.
+  process. `joblib.Memory` needs a writable folder for its cache, and names a folder after each
+  cached function: on a Windows host a lambda's `<lambda>` is a name the grant refuses, so cache
+  named functions.
 - tqdm warns once on stderr that it cannot start its monitor thread (`TqdmMonitorWarning`); set
   `tqdm.tqdm.monitor_interval = 0` first to silence it. Bars write to stderr, as natively.
 - threadpoolctl finds no native thread pools: `threadpool_info()` is `[]`, and

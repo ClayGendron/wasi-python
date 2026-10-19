@@ -519,60 +519,60 @@ def test_a_reactor_with_the_sdk_tarball_runtime_is_named(work) -> None:
     assert rules.sdk_builder_path_errors(bad) == ["bad.wasm: holds /Users/runner/work/wasi-sdk"]
 
 
-def _tier_a_set(work: Path) -> tuple[Path, Path]:
-    """A set with tqdm's and sympy's notices as step 90 writes them, and its fake pins."""
-    downloads, d = work / "downloads", work / "tier-a-set"
-    downloads.mkdir()
+def _tier_a_set(work: Path) -> Path:
+    """A set with tqdm's and sympy's notices as step 90 writes them, its MANIFEST naming the pins:
+    no downloads/, as in the release's judge shards."""
+    d = work / "tier-a-set"
     (d / "LICENSES").mkdir(parents=True)
-    tqdm = downloads / "tqdm-4.70.1-py3-none-any.whl"
-    with zipfile.ZipFile(tqdm, "w") as z:
+    licence = b"MIT, and MPL-2.0 Exhibit A\n"
+    mpl = b"Mozilla Public License Version 2.0\n==========\n"
+    source = d / "LICENSES" / "tqdm-4.70.1-source.whl"
+    with zipfile.ZipFile(source, "w") as z:
         z.writestr("tqdm/__init__.py", "")
-        z.writestr("tqdm-4.70.1.dist-info/licenses/LICENCE", "MIT, and MPL-2.0 Exhibit A\n")
-    sympy = downloads / "sympy-1.14.0-py3-none-any.whl"
-    with zipfile.ZipFile(sympy, "w") as z:
+        z.writestr("tqdm-4.70.1.dist-info/licenses/LICENCE", licence)
+    with zipfile.ZipFile(d / "python-stdlib.zip", "w") as z:
         z.writestr(rules.SYMPY_NESTED, "Copyright 2016, latex2sympy\n")
-    (downloads / rules.MPL_TEXT).write_text("Mozilla Public License Version 2.0\n")
-    pins = {p.name: paths.sha256_file(p) for p in sorted(downloads.iterdir())}
-    (downloads / "SHA256SUMS").write_text("".join(f"{s}  {n}\n" for n, s in pins.items()))
+    wheel_sha = paths.sha256_file(source)
     (d / "MANIFEST").write_text(
         "python 3.15.0\npackage tqdm 4.70.1\npackage sympy 1.14.0\n"
-        f"pin {pins[tqdm.name]} {tqdm.name}\n"
+        f"pin {wheel_sha} tqdm-4.70.1-py3-none-any.whl\npin {sha(mpl)} {rules.MPL_TEXT}\n"
     )
-    (d / "LICENSES" / "tqdm-4.70.1-source.whl").write_bytes(tqdm.read_bytes())
-    (d / "LICENSES" / "tqdm.txt").write_text(
-        "==== tqdm LICENCE ====\nMIT, and MPL-2.0 Exhibit A\n\n"
-        "==== MPL ====\nMozilla Public License Version 2.0\n\n"
-        f"==== tqdm source ====\nLICENSES/tqdm-4.70.1-source.whl, SHA-256 {pins[tqdm.name]}\n"
+    parts = [
+        ("tqdm-4.70.1-py3-none-any.whl: tqdm-4.70.1.dist-info/licenses/LICENCE", licence),
+        (f"Mozilla Public License 2.0, the full text ({rules.MPL_TEXT})", mpl),
+        ("tqdm source", f"LICENSES/tqdm-4.70.1-source.whl, SHA-256 {wheel_sha}\n".encode()),
+    ]
+    (d / "LICENSES" / "tqdm.txt").write_bytes(
+        b"".join(f"==== {label} ====\n".encode() + data + b"\n" for label, data in parts)
     )
     (d / "LICENSES" / "sympy.txt").write_text("BSD\n\nCopyright 2016, latex2sympy\n")
-    return d, downloads
+    return d
 
 
 def test_tqdm_notice_carries_the_mpl_and_its_source(work) -> None:
-    """Spec 039, criterion 1: the rule passes the set step 90 writes, and names each mutant: the
-    notice without the MPL text, the carried source missing or one byte changed, and sympy's
-    notice without its nested MIT notice."""
-    d, downloads = _tier_a_set(work)
-    assert rules.tier_a_notice_errors(d, downloads) == []
+    """Spec 039, criterion 1: the rule passes the set step 90 writes, with no downloads/, and names
+    each mutant: the MPL text missing or one byte changed, the carried source missing or one byte
+    changed, and sympy's notice without its nested MIT notice."""
+    d = _tier_a_set(work)
+    assert rules.tier_a_notice_errors(d) == []
     notice, carried = d / "LICENSES" / "tqdm.txt", d / "LICENSES" / "tqdm-4.70.1-source.whl"
     good_notice, good_source = notice.read_bytes(), carried.read_bytes()
+    no_mpl = [f"LICENSES/tqdm.txt does not hold the MPL-2.0 text of {rules.MPL_TEXT}"]
 
     notice.write_bytes(good_notice.replace(b"Mozilla Public License Version 2.0\n", b""))
-    assert rules.tier_a_notice_errors(d, downloads) == [
-        f"LICENSES/tqdm.txt does not hold the MPL-2.0 text of {rules.MPL_TEXT}"
-    ]
+    assert rules.tier_a_notice_errors(d) == no_mpl
+    notice.write_bytes(good_notice.replace(b"==========", b"=========-"))
+    assert rules.tier_a_notice_errors(d) == no_mpl
     notice.write_bytes(good_notice)
     carried.unlink()
-    assert rules.tier_a_notice_errors(d, downloads) == [
-        "LICENSES/tqdm-4.70.1-source.whl is missing"
-    ]
+    assert rules.tier_a_notice_errors(d) == ["LICENSES/tqdm-4.70.1-source.whl is missing"]
     carried.write_bytes(good_source[:-1] + bytes([good_source[-1] ^ 1]))
-    assert rules.tier_a_notice_errors(d, downloads) == [
+    assert rules.tier_a_notice_errors(d) == [
         "LICENSES/tqdm-4.70.1-source.whl is not the pinned tqdm-4.70.1-py3-none-any.whl "
         "that MANIFEST names"
     ]
     carried.write_bytes(good_source)
     (d / "LICENSES" / "sympy.txt").write_text("BSD\n")
-    assert rules.tier_a_notice_errors(d, downloads) == [
-        f"LICENSES/sympy.txt does not hold {rules.SYMPY_NESTED} from sympy-1.14.0-py3-none-any.whl"
+    assert rules.tier_a_notice_errors(d) == [
+        f"LICENSES/sympy.txt does not hold {rules.SYMPY_NESTED} as the zip carries it"
     ]

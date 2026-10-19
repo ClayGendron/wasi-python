@@ -3,6 +3,7 @@ good and a bad synthetic set (spec 002, criterion 7). Each returns a list of fin
 
 from __future__ import annotations
 
+import re
 import zipfile
 from pathlib import Path
 
@@ -255,54 +256,67 @@ def build_path_errors(binary: Path, folders: list[str]) -> list[str]:
 
 # tqdm is MPL-2.0 AND MIT and ships as bytecode, MPL-2.0's Executable Form (spec 039, Decision 8):
 # the set carries its source, the pinned wheel unchanged, and its notice holds the full MPL text.
+# The rule reads the artifact set alone (MANIFEST's pin lines, the carried wheel, the zip), so it
+# runs wherever the set is, the release's judge shards included, which have no downloads/.
 MPL_TEXT = "spdx-31ba1a50-MPL-2.0.txt"
 SYMPY_NESTED = "sympy/parsing/latex/LICENSE.txt"
+NOTICE_PART = re.compile(r"^==== (.*) ====\n", re.M)
 
 
-def tier_a_notice_errors(d: Path, downloads: Path | None = None) -> list[str]:
-    """LICENSES/tqdm.txt holds the pinned wheel's LICENCE, the pinned MPL-2.0 text byte for byte
-    and a `tqdm source` part naming the carried source and its SHA-256; the carried source is the
-    pinned wheel's bytes, as MANIFEST's pin line says; LICENSES/sympy.txt holds the MIT notice
-    nested in sympy's package (spec 039, Decision 8)."""
-    downloads = downloads or paths.DOWNLOADS
+def notice_parts(body: bytes) -> list[tuple[str, bytes]]:
+    """A LICENSES file's parts as step 90 writes them (`notice`): each part's header label and
+    its bytes, without the blank line that ends the part."""
+    text = body.decode("utf-8", errors="surrogateescape")
+    heads = list(NOTICE_PART.finditer(text))
+    parts = []
+    for i, h in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        data = text[h.end() : end]
+        parts.append((h[1], data[:-1].encode("utf-8", errors="surrogateescape")))
+    return parts
+
+
+def tier_a_notice_errors(d: Path) -> list[str]:
+    """LICENSES/tqdm.txt holds the carried wheel's LICENCE, a part that is the pinned MPL-2.0 text
+    byte for byte (its SHA-256 is MANIFEST's pin line) and a `tqdm source` part naming the carried
+    source and its SHA-256; the carried source is the pinned wheel MANIFEST names;
+    LICENSES/sympy.txt holds the MIT notice nested in sympy's package, as the zip carries it (spec
+    039, Decision 8)."""
     m = paths.parse_manifest((d / "MANIFEST").read_text())
-    pins = paths.read_pin_list(downloads / "SHA256SUMS")
-    tqdm, sympy = m.packages.get("tqdm"), m.packages.get("sympy")
-    if tqdm is None or sympy is None:
+    tqdm = m.packages.get("tqdm")
+    if tqdm is None or "sympy" not in m.packages:
         return ["MANIFEST names no tqdm or no sympy"]
     wheel, source = f"tqdm-{tqdm}-py3-none-any.whl", f"tqdm-{tqdm}-source.whl"
-    sympy_wheel = f"sympy-{sympy}-py3-none-any.whl"
-    errors = []
-    for name in (wheel, MPL_TEXT, sympy_wheel):
-        f = downloads / name
-        if name not in pins or not f.is_file() or paths.sha256_file(f) != pins[name]:
-            errors.append(f"downloads/{name} is missing or does not match its pin")
+    errors = [f"MANIFEST has no pin line for {n}" for n in (wheel, MPL_TEXT) if n not in m.pins]
+    notice, carried = d / "LICENSES" / "tqdm.txt", d / "LICENSES" / source
+    if not notice.is_file():
+        errors.append("LICENSES/tqdm.txt is missing")
     if errors:
         return errors
-    notice = d / "LICENSES" / "tqdm.txt"
-    carried = d / "LICENSES" / source
-    if not notice.is_file():
-        return ["LICENSES/tqdm.txt is missing"]
     body = notice.read_bytes()
-    with zipfile.ZipFile(downloads / wheel) as z:
-        licence = [z.read(n) for n in z.namelist() if n.endswith(".dist-info/licenses/LICENCE")]
-    if not licence or licence[0] not in body:
-        errors.append(f"LICENSES/tqdm.txt does not hold {wheel}'s LICENCE")
-    if (downloads / MPL_TEXT).read_bytes() not in body:
-        errors.append(f"LICENSES/tqdm.txt does not hold the MPL-2.0 text of {MPL_TEXT}")
-    part = body.partition(b"==== tqdm source ====\n")[2]
-    for want in (f"LICENSES/{source}", pins[wheel]):
-        if want.encode() not in part:
-            errors.append(f"LICENSES/tqdm.txt's tqdm source part does not name {want}")
     if not carried.is_file():
         errors.append(f"LICENSES/{source} is missing")
+    elif paths.sha256_file(carried) != m.pins[wheel]:
+        errors.append(f"LICENSES/{source} is not the pinned {wheel} that MANIFEST names")
     else:
-        sha = paths.sha256_file(carried)
-        if sha != pins[wheel] or m.pins.get(wheel) != pins[wheel]:
-            errors.append(f"LICENSES/{source} is not the pinned {wheel} that MANIFEST names")
-    with zipfile.ZipFile(downloads / sympy_wheel) as z:
-        nested = z.read(SYMPY_NESTED)
+        with zipfile.ZipFile(carried) as z:
+            names = [n for n in z.namelist() if n.endswith(".dist-info/licenses/LICENCE")]
+            licence = z.read(names[0]) if names else None
+        if licence is None or licence not in body:
+            errors.append(f"LICENSES/tqdm.txt does not hold {wheel}'s LICENCE")
+    parts = notice_parts(body)
+    mpl = [data for label, data in parts if f"({MPL_TEXT})" in label]
+    if not mpl or paths.sha256_bytes(mpl[0]) != m.pins[MPL_TEXT]:
+        errors.append(f"LICENSES/tqdm.txt does not hold the MPL-2.0 text of {MPL_TEXT}")
+    named = b"".join(data for label, data in parts if label == "tqdm source")
+    for want in (f"LICENSES/{source}", m.pins[wheel]):
+        if want.encode() not in named:
+            errors.append(f"LICENSES/tqdm.txt's tqdm source part does not name {want}")
+    with zipfile.ZipFile(d / "python-stdlib.zip") as z:
+        nested = z.read(SYMPY_NESTED) if SYMPY_NESTED in z.NameToInfo else None
     sympy_notice = d / "LICENSES" / "sympy.txt"
-    if not sympy_notice.is_file() or nested not in sympy_notice.read_bytes():
-        errors.append(f"LICENSES/sympy.txt does not hold {SYMPY_NESTED} from {sympy_wheel}")
+    if nested is None:
+        errors.append(f"the zip has no {SYMPY_NESTED}")
+    elif not sympy_notice.is_file() or nested not in sympy_notice.read_bytes():
+        errors.append(f"LICENSES/sympy.txt does not hold {SYMPY_NESTED} as the zip carries it")
     return errors

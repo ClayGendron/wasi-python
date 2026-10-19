@@ -936,7 +936,8 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    `test_callbacks_have_the_types_cpython_calls`, passes (pure Python adds nothing it reads).
    The lane accepts with three flags, each with its reason:
    - `--accept-judge "the new checks, jobs and goldens (test_v1_3_default_profile.py, the Excel,
-     tqdm-notice, litter and dllist checks); the thirty in the package, licence, metadata and
+     tqdm-notice, litter and dllist checks; the tqdm-notice rule reads the artifact set alone and
+     the utilities job caches a named function, after dry run 39264473516); the thirty in the package, licence, metadata and
      suite lists and pyyaml's and markupsafe's source trees; jobs.run_in_guest moved and
      oracle_pure; 035's check 6 snapshot bound re-based on the zip's members (Decision 13); 046's
      GB18030 check restated now that read_html falls back to bs4 (amendment 3); pandas' Styler
@@ -978,7 +979,7 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    `import yaml, jinja2, tabulate` 1.07 G; `import networkx, patsy` 6.77 G (patsy imports
    pandas); `import sympy` 4.11 G; `import joblib, narwhals` 1.90 G. Each job on the plain
    reactor: `excel` 6.95 G, `pdf` 2.45 G, `markup` 6.47 G, `text_formats` 6.41 G, `modelling`
-   7.36 G, `symbolic` 10.22 G, `utilities` 6.79 G. Sizes: zip 38,726,339, snapshot 45,363,590,
+   7.36 G, `symbolic` 10.22 G, `utilities` 6.80 G (6.79 G before the dry run's fix, below). Sizes: zip 38,726,339, snapshot 45,363,590,
    plain 41,099,661 (unchanged). The snapshot's growth per member: 2,343 fuel and 362 bytes (the
    review's baseline 2,399 and 366, on the pre-importing snapshot). The top-level split's slope:
    4,697 a member (check 6's plain note; baseline 4,844). **035's check 6 was re-based**: 035 did
@@ -1005,6 +1006,33 @@ judge changes (the two GB18030 cases and check 6's snapshot case). Of the fast t
 081's driver change to what the guest sees of the checkout (`build/evidence/latest-fast-rebase.json`
 against `latest-full.json`). The fewer row (`pandas-frame`) is an upstream group, which the
 fast tier does not run; nothing in the product changed.
+
+**The branch dry run on `0dd1ddd` (run 39264473516) found two failures of this
+specification's checks; both are fixed, with no change to the artifact set** (the lane's
+main-tree rebuild reproduced `ada941bc`):
+- **`test_tqdm_notice_carries_the_mpl_and_its_source` failed in own-guest on all three systems:**
+  its rule read the pinned tqdm wheel, the MPL text and the sympy wheel from `downloads/`, which the
+  release's judge shards do not have. The rule (`artifacts.tier_a_notice_errors`) now reads the
+  set alone, so it keeps running in the release: the carried wheel's SHA-256 against MANIFEST's
+  `pin` line, the wheel's `LICENCE` from that carried wheel, the MPL part of `LICENSES/tqdm.txt`
+  by its SHA-256 against MANIFEST's `pin` line for `spdx-31ba1a50-MPL-2.0.txt`, and sympy's
+  nested notice against `sympy/parsing/latex/LICENSE.txt` in the zip. The rule no longer touches
+  `downloads/`; MANIFEST's pins are tied to `downloads/SHA256SUMS` by
+  `test_manifest_pins_match_the_pin_list`. The self-test now builds its set with no downloads and
+  adds a one-byte change to the MPL part (five mutants). EXECUTED: the check passes on the built
+  set, and the rule gives `[]` on it with `paths.DOWNLOADS` pointed at a missing folder.
+- **`test_utilities_job_matches_native` failed on windows-2025:** `joblib.Memory` names a cache
+  folder after the function, and the job cached a lambda, so the guest made
+  `/data/joblib/__main__--jobs-utilities/<lambda>/…`, a name a Windows grant refuses (specs 058,
+  076, 077). The job now caches a named function, `square`. Measured
+  (`build/evidence/joblib_names.py` → `joblib-names.txt`): before, two folders named with
+  `<lambda>`; after, `…/square/741050c5…`, none with a character Windows refuses. The golden is
+  unchanged byte for byte (regenerated under both seeds, `cmp` equal), and the job's fuel is
+  6,795,907,209 against 6,790,420,114 (+5,487,095, +0.08%, the job's own code). The README's
+  joblib line says to cache named functions on a Windows host.
+
+The fast tier after both fixes (`build/fast-dryrun-fix.txt`): 509/574 pass, 3 gap, 2 blocked,
+0 fail, 60 deselected; ratchet vs `dfbf8e044f`: lost 0, gained 10, grew 131, as before.
 
 **The artifact set** (`build/artifacts/`): `SHA256SUMS` `ada941bc6ad751b2983b8f14cfbd57776dfd96f0ede3223b3b56fff53b5c901e`.
 
