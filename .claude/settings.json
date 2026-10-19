@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git worktree add:*)",
+      "Bash(git worktree list:*)",
+      "Bash(git worktree remove:*)",
+      "Bash(git worktree prune:*)",
+      "Bash(git switch --detach:*)",
+      "Bash(git merge --ff-only:*)",
+      "Bash(git rebase:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh workflow run release.yml:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run python tests/harness/sameness.py:*)",
+      "Bash(uv run python tests/upstream/fetch.py:*)",
+      "Bash(scripts/build.sh:*)",
+      "Bash(scripts/00_download.sh:*)",
+      "Bash(cp -c -Rp:*)"
+    ]
+  }
+}
