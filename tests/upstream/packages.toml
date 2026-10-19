@@ -149,6 +149,16 @@ kind = "later"
 reason = "its own suite is not run yet (its sdist is pinned)"
 closes_with = "spec 066"
 
+[package.scipy]
+kind = "later"
+reason = "its own suite (larger than numpy's) is not run yet; spec 037's Scope leaves it out and its first gaps close in spec 038 (its sdist is pinned)"
+closes_with = "spec 066"
+
+[package.openblas]
+# OpenBLAS's C LAPACK is linked into scipy alone (spec 037).
+kind = "via"
+via = "scipy"
+
 # Tier A (spec 039): thirty pure-Python distributions. Their own suites run with spec 067.
 
 [package.openpyxl]

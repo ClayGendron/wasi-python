@@ -931,8 +931,9 @@ changed and why; each is small and none changes a decision's purpose. The review
     of `_matfuncs_sqrtm_triu` imported first). The licence check takes a source tarball before a
     wheel of the same version (numpy's host wheel is a build tool). The build-progress unit
     checks count the steps instead of fixing sixteen.
-16. **scipy's own test suite is `later`, closer spec 066**, when 063's `packages.toml` reaches this
-    branch: scipy `later` (reason: its suite, larger than numpy's, is roadmap milestone 6 and this
+16. **scipy's own test suite is `later`, closer spec 066** (063 landed; the entries are in this
+    branch's `tests/upstream/packages.toml` since its rebase onto `2968512`, and
+    `test_v1_3_scipy.py` is in the `own-guest` shard on all three systems, by 063's rule (g)): scipy `later` (reason: its suite, larger than numpy's, is roadmap milestone 6 and this
     milestone's Scope leaves it out; its first gaps close in 038), OpenBLAS `via scipy`. scipy
     gets no suite group now: the judge's upstream kit has never run it, and fitting its groups to
     the release shards' budgets is a specification's work, not a builder's.
@@ -1145,8 +1146,8 @@ RED: 161 metric(s) grew
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
   Accept with `--accept-judge` (the judge files above), `--accept-growth` and `--accept`.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).
-- **063 landed on main while this was building** (`08de0c8`): at the rebase its `tests/upstream/packages.toml` gains `scipy` (`later`, closer spec
-  066, Revised at build item 16) and `openblas` (`via scipy`), and `test_v1_3_scipy.py` takes its
-  place by 063's rule (g); the release workflow's zero-patch count rises by two over whatever
-  it is then.
+- **063 landed on main while this was building** (`08de0c8`); since the rebase onto `2968512` its `tests/upstream/packages.toml` has `scipy` (`later`, closer spec
+  066, Revised at build item 16) and `openblas` (`via scipy`), and `test_v1_3_scipy.py` is in the
+  `own-guest` shard (063's rule (g)); the build shard's zero-patch count is 21 (main's 19 and
+  OpenBLAS's and scipy's trees).
 - 043 (matplotlib M2) builds after this: Decision 8's conditions a to f fall to it.
