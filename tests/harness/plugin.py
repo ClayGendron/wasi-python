@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import history, needs, paths, scoreboard
+from harness import history, litter, needs, paths, scoreboard
 
 
 @dataclass
@@ -211,6 +211,12 @@ def pytest_configure(config: pytest.Config) -> None:
         if refusal:
             pytest.exit(refusal, returncode=4)  # before collection (spec 063, Decision 1)
     config.stash[WORKERS] = len(config.option.tx) if distributing(config) else 0
+    if not is_worker(config) and (left := litter.sealed_leftovers(paths.HARNESS_TMP)):
+        sys.stderr.write(  # what a killed judge left sealed, and the recovery (spec 089)
+            f"host litter: {len(left)} sealed folder(s) under {paths.HARNESS_TMP}, left by a"
+            f" killed judge (first: {left[0]}); never read again; `chmod -R u+w build/harness`"
+            " then `rm -rf` clears them\n"
+        )
     if distributing(config):
         config.pluginmanager.register(Controller(config), "wasi_python.controller")
 

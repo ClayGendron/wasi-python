@@ -129,7 +129,11 @@ def stdlib_name(python_version: str, stdlib: Path) -> str:
 def _place(src: Path, dest: Path) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     if src.is_dir():
-        shutil.copytree(src, dest)
+        # A host folder a desktop may write into: its litter is no input, and the seal would
+        # delete it anyway (spec 089, N1).
+        shutil.copytree(
+            src, dest, ignore=lambda _d, names: [n for n in names if litter.is_litter(n)]
+        )
         return
     try:
         os.link(src, dest)
@@ -146,6 +150,8 @@ def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
         with zipfile.ZipFile(stdlib) as outer:
             inner = io.BytesIO(outer.read(MPL_DATA_MEMBER))
         with zipfile.ZipFile(inner) as z:
+            for member in z.namelist():
+                litter.refuse(member, MPL_DATA_MEMBER)  # the seal must never meet it (spec 089)
             z.extractall(dest)
         litter.seal(dest)  # read-only for every run that shares it (spec 089)
         _mpl_data[key] = dest
@@ -392,7 +398,14 @@ def run(
     except wt.WasmtimeError as e:
         trapped = str(e).strip().splitlines()[0]
     spent = fuel - store.get_fuel() if metered else 0
-    watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
+    try:
+        watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
+    finally:
+        if lib is not None:
+            # Never read again: unsealed, so a killed judge leaves at most the live run's sealed
+            # (spec 089, build review F1). Not removed: on this base the zip's link count reaches
+            # fuel, and 083's `_release` removes it.
+            litter.unseal(lib)
     return Result(
         exit_code=exit_code,
         stdout=(io / "stdout").read_bytes(),

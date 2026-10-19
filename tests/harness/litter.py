@@ -175,6 +175,14 @@ def remove(root: Path) -> bool:
     return False
 
 
+def sealed_leftovers(root: Path) -> list[str]:
+    """Folders under `root` without their owner's write bit: what a killed judge left sealed.
+    Only named, never unsealed here (no sweep: spec 089, Decision 3)."""
+    if sys.platform == "win32" or not root.is_dir():
+        return []
+    return [d for d, _dirs, _files in os.walk(root) if not os.lstat(d).st_mode & stat.S_IWUSR]
+
+
 class Watch:
     """One guest run's grants, looked at before and after the run. `grants` are (host folder,
     guest path, writable), as `guest.run` preopens them."""
