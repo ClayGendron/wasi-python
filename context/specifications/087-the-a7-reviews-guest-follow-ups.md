@@ -144,11 +144,14 @@ times nothing (AGENTS.md: tests count operations).
 - **The driver gains one keyword**, `run(…, clock_step_ns: int = CLOCK_STEP_NS)`, read by its
   `clock_time_get`. The default keeps every other check's fuel. The `guest` fixture already
   passes keywords through.
-- **The stated resolution follows the step** (the pre-build review's F9). Today `clock_res_get`
-  answers `CLOCK_RESOLUTION_NS`, 1 µs for the realtime and monotonic clocks, fixed at import.
-  With the keyword, those two clocks answer the run's step, so `time.get_clock_info` tells the
-  truth. At the default nothing changes; `test_regrtest.py`'s comparison of the two constants
-  still holds. The docstring says so.
+- **The stated resolution follows a changed step** (the pre-build review's F9, and its
+  confirmation's C1). `clock_res_get` keeps answering from `CLOCK_RESOLUTION_NS`, read at call
+  time, as today. Only when `clock_step_ns` differs from the default `CLOCK_STEP_NS` do the
+  realtime and monotonic clocks answer the run's step instead, so `time.get_clock_info` tells the
+  truth for that run. At the default nothing changes: spec 065's guard
+  `test_v1_2_portable_and_sealed.py::test_the_guest_clocks_resolution_is_the_judges`, which sets
+  `CLOCK_RESOLUTION_NS` to 7,000 and 11,000 and expects to see them, stays unchanged and green,
+  and `test_regrtest.py`'s comparison of the two constants still holds. The docstring says so.
 - **The guest reads its clock with `time.clock_gettime_ns(time.CLOCK_MONOTONIC)`**, not
   `time.monotonic_ns()` (the pre-build review's F3). The rules check `test_no_test_reads_a_clock`
   flags `time.monotonic(_ns)` in any line under `tests/checks` and `tests/unit`, strings included,
@@ -458,9 +461,10 @@ Each is written before the change it judges. Each was, or will be, seen failing 
 5. **Unit, `tests/unit/test_guest.py`, with WAT probes** (the pre-build review's F3; no
    artifact needed). `CLOCK_STEP_PROBE`, beside `CLOCK_PROBE` in `tests/harness/wat.py`, calls
    `clock_time_get` on the monotonic clock twice and returns the difference in microseconds;
-   `CLOCK_RES_PROBE` calls `clock_res_get` on it and returns the resolution in microseconds. At the
-   default each returns 1; with `clock_step_ns=2_000_000` each returns 2,000. Seen failing first:
-   the keyword does not exist.
+   `CLOCK_RES_PROBE` calls `clock_res_get` on it and returns the resolution in microseconds. The
+   step probe returns 1 at the default and 2,000 with `clock_step_ns=2_000_000`; the resolution
+   probe runs with `clock_step_ns=2_000_000` and returns 2,000 (the default's resolution is spec
+   065's guard's, unchanged). Seen failing first: the keyword does not exist.
 6. **The patch rules and trees** (existing): `test_carried_patches_follow_the_rules` (README's count
    8, CHANGELOG names the patch, the sheet's six header lines and `Files: src/_regex.c`) and
    `test_source_tree_matches_its_tarball[regex]` cover 0002 by construction. Seen failing first:
@@ -507,8 +511,10 @@ In: Decisions 1 to 9. Out:
 ## The judge's changes
 
 - `tests/harness/guest.py`: `run()` gains `clock_step_ns: int = CLOCK_STEP_NS`, read by its
-  `clock_time_get`, and its `clock_res_get` answers that step for the realtime and monotonic
-  clocks. Its docstring says both. No other check's fuel moves (the default is today's step).
+  `clock_time_get`; its `clock_res_get` answers from `CLOCK_RESOLUTION_NS` as today, and answers
+  the step for the realtime and monotonic clocks only when `clock_step_ns` is not the default.
+  Its docstring says both. No other check's fuel moves (the default is today's step), and spec
+  065's `test_the_guest_clocks_resolution_is_the_judges` is unchanged.
 - `tests/harness/wat.py`, `tests/unit/test_guest.py`: check 5's two probes and its unit check.
 - `tests/checks/test_v1_3_regex.py`: check 1.
 - `tests/checks/test_v1_3_lxml.py`: checks 2 and 3, on a grant of their own. `_grants`,
@@ -519,7 +525,7 @@ In: Decisions 1 to 9. Out:
 The accepting reasons, for the lane:
 
 ```
---accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it, two WAT probes), and the README's 512 KiB recursion rows on an engine at wasmtime's defaults"
+--accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), and the README's 512 KiB recursion rows on an engine at wasmtime's defaults"
 --accept-growth "spec 087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +<bytes> and the snapshot +<bytes> (the builder's measured numbers); LICENSES/regex.txt one line; MANIFEST one recipe line"
 ```
 
@@ -575,7 +581,12 @@ decision changed.
   once and loops the rows, as 071's default-engine check does, so `-n 6` compiles it once
   (Decision 6, check 4).
 - **F9, the stated resolution: written in.** `clock_res_get` answers the run's step for the
-  realtime and monotonic clocks, and check 5's second probe holds it (Decision 3).
+  realtime and monotonic clocks when `clock_step_ns` is not the default, and from
+  `CLOCK_RESOLUTION_NS` otherwise, as today; check 5's second probe holds it at 2 ms (Decision 3).
+- **The confirmation's C1: written in.** The first revision read as "always the step", which would
+  have broken spec 065's guard `test_the_guest_clocks_resolution_is_the_judges`. Decision 3 now
+  keeps `CLOCK_RESOLUTION_NS` at the default and names that guard as unchanged; check 5's
+  resolution probe runs with a non-default step.
 - **F10, 32-bit glibc: written in.** The facts sheet and Decision 2 say plainly that `clock_t`'s
   own 32-bit wrap at about 2,147 s remains there; the case for `long long` rests on Win64.
 - **F11, the accepting lines: written in.** `--accept-growth` carries the builder's measured byte
