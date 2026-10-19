@@ -1,0 +1,36 @@
+hello | rc 0 | hello | err-last  | err-lines 0
+py_recursion | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+repr_self | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+getattr_self | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+eq_self | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+len_self | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+map_lambda | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+sorted_key | rc 0 | RecursionError 997 maximum recursion depth exceeded | err-last 997 | err-lines 997
+repr_list_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while getting the repr of an object | err-last  | err-lines 0
+repr_list_1e4 | rc 0 | ok 10000 | err-last  | err-lines 0
+repr_list_1e3 | rc 0 | ok 1000 | err-last  | err-lines 0
+repr_dict_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while getting the repr of an object | err-last  | err-lines 0
+eq_list_1e5 | rc 0 | ok 100000 | err-last  | err-lines 0
+hash_tuple_1e5 | rc -11 |  | err-last  | err-lines 0
+json_dumps_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while encoding a JSON object | err-last  | err-lines 0
+json_loads_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while decoding a JSON array from a uni | err-last  | err-lines 0
+pickle_dumps_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while pickling an object | err-last  | err-lines 0
+pickle_loads_1e5 | rc 0 | ok 100000 | err-last  | err-lines 0
+copy_deepcopy_1e5 | rc 0 | RecursionError 100000 maximum recursion depth exceeded | err-last  | err-lines 0
+eval_parens_1e3 | rc 1 |  | err-last SyntaxError: too many nested parentheses | err-lines 8
+eval_unary_1e5 | rc 0 | MemoryError 100000 Parser stack overflowed - Python source too complex to parse | err-last  | err-lines 0
+eval_binop_1e5 | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) during compilation | err-last  | err-lines 0
+eval_list_1e5 | rc 1 |  | err-last SyntaxError: too many nested parentheses | err-lines 8
+compile_nested_if | rc 1 |  | err-last IndentationError: too many levels of indentation | err-lines 7
+ast_literal_1e5 | rc 1 |  | err-last SyntaxError: too many nested parentheses | err-lines 15
+re_nested_groups | rc 0 | RecursionError 10000 maximum recursion depth exceeded | err-last  | err-lines 0
+re_backtrack | rc 0 | ok 30 | err-last  | err-lines 0
+str_format_nested | rc 0 | RecursionError 100000 Stack overflow (used 8144 kB) while getting the repr of an object | err-last  | err-lines 0
+exc_context_1e5 | rc 0 | ok 100000 | err-last  | err-lines 0
+exc_group_1e4 | rc 0 | ok 10000 | err-last  | err-lines 0
+partial_recursive_repr | rc 0 | ok 0 | err-last  | err-lines 0
+partial_recursive_pickle | rc 0 | RecursionError 0 Stack overflow (used 8144 kB) while calling a Python object | err-last  | err-lines 0
+map_chain_1e5 | rc -11 |  | err-last  | err-lines 0
+numpy_objarr_1e4 | rc 1 |  | err-last ModuleNotFoundError: No module named 'numpy'. Did you mean:  | err-lines 4
+pandas_nested_repr | rc 1 |  | err-last ModuleNotFoundError: No module named 'pandas' | err-lines 4
+setrecursionlimit_1e5 | rc 0 | RecursionError 10414 Stack overflow (used 8144 kB) while calling a Python object | err-last 10414 | err-lines 10414

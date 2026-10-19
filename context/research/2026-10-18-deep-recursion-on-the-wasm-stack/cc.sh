@@ -1,0 +1,1 @@
+set -- repr_self getattr_self eq_self len_self map_lambda sorted_key property_self init_self hash_self str_self format_self iter_self eval_rec exec_rec gen_chain lru_rec reduce_rec min_key dataclass_repr pickle_reduce json_default numpy_vectorize numpy_frompyfunc numpy_apply_along pandas_apply pandas_map re_sub_rec sorted_cmp partial_recursive_pickle; echo "$@"

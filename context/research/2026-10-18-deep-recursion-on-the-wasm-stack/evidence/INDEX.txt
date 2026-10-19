@@ -1,0 +1,19 @@
+Files, by what they show (memo sections in brackets). A name ending -29 is the run with
+--env RESEARCH_C_STACK=131072 (the 128 KiB window); -0 is the same run without it.
+
+snap-default / snap-2097152 / snap-67108864   the set's snapshot, every case, at 512 KiB, 2 MiB, 64 MiB [1, 2]
+native.txt                                     the same cases under native CPython 3.15.0 (build/tools/python) [2]
+diag.jsonl                                     where the json and freeing traps happen [2]
+bis-default, bis-sp-default                    bisected depths at 512 KiB; the stack pointer at the trap [2]
+counted-sp-default                             Python-through-C shapes at 512 KiB: depth, native and linear bytes a level [2]
+counted-bare-0 / -29                           the same on wasmtime's default engine (no fuel, no epoch) [2, 3]
+r0.jsonl                                       the research plain binary, window or not [3]
+counted-L131072 / L163840 / L196608            the window swept: 128, 160, 192 KiB [3]
+rest-0 / rest-29                               the data cases, window or not [3]
+bis-parser-L128                                parser and exception-group depths under the window [3]
+snap-research-0 / -29                          the research snapshot, window or not [3]
+t5-*, cpy-five-a, cpy-five-1m, cpy-traceback-2m  spec 065's five trap entries [4]
+fixed-0 / 1048576 / 2097152 / 8388608          data cases at fixed depths under the window, by stack [5]
+t6-*                                           the hostile-guest check's program under the window [3]
+mainthread.txt                                 a 64 MiB wasm stack on the 8 MiB main thread: rc 139 [6]
+cli.txt, relink.txt                            the wasmtime CLI; how the research binaries were made [3, 7]

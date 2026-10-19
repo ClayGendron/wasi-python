@@ -1,0 +1,4 @@
+# probe.py --main-thread --stack 67108864 --async-stack 67108864 --cwasm snap-fuel.cwasm diag.py list_free
+# (the set snapshot; the main thread, at most 16 MiB; freeing a 100,000-deep list)
+process exit 139 (SIGSEGV): no trap, no output
+# the same on a 128 MiB thread (no --main-thread): list_free | exit 0 | last "freed"

@@ -1,0 +1,45 @@
+--- /Users/claygendron/Git/Repos/wasi_python-071/recipes/reactor_main.c	2026-10-18 20:40:34
++++ relink/research_main.c	2026-10-18 21:05:42
+@@ -319,6 +319,34 @@
+     return env;
+ }
+ 
++/* RESEARCH ONLY (spec 071's research, not a recipe): the C-stack guard's window from the
++ * environment variable RESEARCH_C_STACK (bytes), applied at run(). Absent: CPython's own window. */
++extern unsigned char __stack_high;
++static void
++research_guard(void)
++{
++    size_t count = 0, size = 0;
++    if (__wasi_environ_sizes_get(&count, &size) != 0) {
++        return;
++    }
++    char **items = calloc(count + 1, sizeof(char *));
++    char *buf = malloc(size + 1);
++    if (items && buf && __wasi_environ_get((uint8_t **)items, (uint8_t *)buf) == 0) {
++        for (size_t i = 0; i < count; i++) {
++            if (strncmp(items[i], "RESEARCH_C_STACK=", 17) == 0) {
++                size_t n = strtoul(items[i] + 17, NULL, 10);
++                uintptr_t top = (uintptr_t)&__stack_high;
++                if (PyUnstable_ThreadState_SetStackProtection(PyThreadState_Get(), (void *)(top - n), n) < 0) {
++                    PyErr_Print();
++                    abort();
++                }
++            }
++        }
++    }
++    free(items);
++    free(buf);
++}
++
+ __attribute__((export_name("run")))
+ int
+ run(void)
+@@ -332,6 +360,7 @@
+     if (!initialized) {
+         init_interpreter(0);  /* the plain reactor: a random hash secret, as CPython has */
+     }
++    research_guard();
+     int rc = 1;
+     PyObject *argv = read_argv();
+     PyObject *env = read_environ();

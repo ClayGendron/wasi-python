@@ -1,0 +1,5 @@
+# cpy071.py --stack 2097152 --guard 131072 traceback -- test_traceback   (research snapshot)
+{"label": "traceback", "stack": 2097152, "guard": 131072, "exit": 2, "trapped": null, "cause": null, "fuel": 7493285636, "tail": ["Total duration: 2 ms", "Total tests: run=434 failures=1 skipped=193", "Total test files: run=1/1 failed=1", "Result: FAILURE"]}
+# the same with -v: every ERROR line is CExcReportingTests, which imports _testcapi (absent: --disable-test-modules)
+# cpy071.py --stack 1048576 --guard 131072 tb-deep -- test_traceback -m test_exception_group_deep_recursion_traceback -m test_exception_group_depth_limit
+{"label": "tb-deep", "stack": 1048576, "guard": 131072, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 2569869294}

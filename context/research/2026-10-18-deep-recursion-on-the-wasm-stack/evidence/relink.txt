@@ -1,0 +1,12 @@
+# The reactor's compile and link commands (build/link/reactor-commands.txt), output paths moved to the
+# scratch folder, run in build/Python-3.15.0/cross-build/wasm32-wasip1 at 21:04 (before the lane's 046
+# build removed that tree at 21:20), then llvm-strip --strip-debug as step 60 does.
+# Unchanged recipe, output named repro2.wasm:
+93868fb23aacc71ff8005253b764f51d2ae6c63f809f79c6a411a21c4b722eed  repro2.wasm
+1655014314805b5885fd3d92f1d100ec4b7b1b0836b3fda55487c21db042b790  the set's python.wasm
+# cmp -l: 5 bytes differ, all in the name section's module name ("repro2.wasm" against "python.wasm");
+# every other section, code and data included, is byte-identical.
+# research_main.c (recipe + research_guard, research_main.diff), output research/python.wasm:
+1f623f0ded25ad8abbf9a44eb0c2c9a4dfba8bdd86c82b65936f44e3bc83730b  research/python.wasm
+# Its snapshot: wasmtime wizer with step 80's flags and a root holding the set's zip (research-snapshot.wasm,
+# 70,904,917 bytes). export_sp.py adds one export, "__sp" (global 0, the C stack pointer), for research only.

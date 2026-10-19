@@ -1,0 +1,4 @@
+# wasmtime 49.0.3 CLI, its default stack, the research plain binary (relink/research/python.wasm)
+# wasmtime run -W exceptions=y,unknown-imports-trap=y -C cache=n --dir lib::/usr/local/lib --dir root::/ [--env RESEARCH_C_STACK=131072] --invoke run python.wasm -c "<repr(A()) with A.__repr__ calling repr(self)>"
+no window:       rc 134, "wasm trap: call stack exhausted"
+window 131072:   rc 0,   "RecursionError Stack overflow (used 112 kB)"
