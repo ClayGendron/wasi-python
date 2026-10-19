@@ -1,0 +1,12 @@
+a7 snapshot ids 15482777 0x15c5558 0x15c54a8 0x15cebb4
+a7 snapshot npimport 776779788 
+a7 snapshot boolconv 1300068196 
+a7 --no-snapshot ids 167667392 0x15c5558 0x15c54a8 0x15cebb4
+a7 --no-snapshot npimport 1058557635 
+a7 --no-snapshot boolconv 1582003940 
+s086 snapshot ids 15491726 0x15c6548 0x15c6498 0x15cfba4
+s086 snapshot npimport 774226373 
+s086 snapshot boolconv 1462573598 
+s086 --no-snapshot ids 167427022 0x15c6548 0x15c6498 0x15cfba4
+s086 --no-snapshot npimport 1056236132 
+s086 --no-snapshot boolconv 1744842997 

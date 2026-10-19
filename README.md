@@ -65,7 +65,9 @@ runs isolated. `np.save` and `np.load` of paths and open files work, through a
 carried patch (`recipes/patches/numpy-2.5.2/`) until numpy releases the fix;
 `ndarray.tofile` and `np.fromfile` on real files still fail, since WASI cannot
 duplicate a descriptor (use `tobytes()` and `np.frombuffer`, or `io.BytesIO`), and
-memory maps are unavailable. `np.save` of a masked array to a path raises
+memory maps are unavailable. `os.dup`, `os.dup2` and `os.pipe2` exist and raise `OSError`
+`ENOTSUP`, as `time.pthread_getcpuclockid` does; `os.pipe` is absent; `select.PIPE_BUF` is 4096,
+though no pipe can be made (wasi-libc 34 declares these functions as stubs; spec 086). `np.save` of a masked array to a path raises
 `NotImplementedError`, as natively. A truncated `.npy` file read from a path raises the
 `ValueError` numpy gives for in-memory streams ("EOF: reading array data, …"), not native's
 "Failed to read all data for array"; the type is the same. A second carried patch gives six of
@@ -490,7 +492,14 @@ build host needs no Python of its own. A step script run by hand, outside
 Linux and x86_64 Linux, and all three give the same artifact set, byte for
 byte: the same `SHA256SUMS` over the three artifacts, `MANIFEST` and the
 licences (`context/specifications/012-the-same-bytes-from-any-host.md`,
-`context/specifications/040-x86-64-rebuilds-the-same-bytes.md`). Every host
+`context/specifications/040-x86-64-rebuilds-the-same-bytes.md`), with no exception.
+The toolchain is wasi-sdk 34 (clang 23.1.0, wasi-libc `2e6fb9d8`). wasi-sdk 33's clang nested
+`try_table` blocks in the order of heap addresses in one pass of its WebAssembly backend, so
+some C++ compiled to different bytes on every run; LLVM 23 fixed it (`fd76c9bd`), and the judge
+compiles the reduced case 64 times with each pinned clang and expects one object
+(`context/specifications/086-the-toolchain-moves-to-wasi-sdk-34.md`). CPython 3.15.0's own WASI
+driver names wasi-sdk 33 as the version it supports and only warns on 34; the judge covers the
+difference. Every host
 compiles with its own pinned wasi-sdk clang, and every compile carries
 `-ffp-contract=off`, which step 10 writes into the toolchain's own
 configuration files (`bin/clang.cfg`, `bin/clang++.cfg`), read by every
@@ -539,7 +548,9 @@ machine therefore say `build`, not the host that built it. No compiler runs in
 a WASI guest, so nothing reads them.
 
 The recipe files under `recipes/`: two meson cross files, three rename headers
-for symbols that only collide in a static link, the reactor entry, two frozen modules the reactor
+for symbols that only collide in a static link, the reactor entry, two link-time refusals
+(`iconv_refusals.c`, GB18030; `fcntl_dup_refusal.c`, which answers `fcntl`'s two dup commands
+`ENOTSUP` as wasi-libc's own `dup` does, where wasi-libc 34 answers `EINVAL`), two frozen modules the reactor
 links in (`_zip_directory`, which reads the zip's directory with one read where zipimport makes a
 dozen Python calls per member, and `_zip_resources`, which answers resource reads and metadata
 from that read; each hands anything odd to upstream's own code), the door

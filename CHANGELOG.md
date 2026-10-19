@@ -68,7 +68,19 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   and `tests/harness/sameness.py` reads it as the darwin run it contains. With `--claims`, it
   prints only the differences no specification's claim list explains. Judge only: no product
   change.
-
+- **Changed: the toolchain is wasi-sdk 34** (clang 23.1.0, wasi-libc `2e6fb9d8` with musl 1.2.6,
+  libc++ 23.1.0; spec 086). wasi-sdk 33's clang nested `try_table` blocks by heap address in one
+  pass of its WebAssembly backend, so some C++ (scipy's FFT, coming) compiled to different bytes on
+  every run; LLVM 23 fixed it. Every artifact's bytes change once, and every build host still gives
+  the same `SHA256SUMS`, with no exception. The judge compiles the reduced case 64 times with each
+  pinned clang and expects one object, and records every `#define` of the guest's `pyconfig.h`.
+  Programs now see `os.dup2`, `os.pipe2` and `time.pthread_getcpuclockid`, each raising
+  `OSError` `ENOTSUP`, and `select.PIPE_BUF` (4096): wasi-libc 34 declares them as stubs.
+  `os.dup` keeps `ENOTSUP`: wasi-libc 34's `fcntl` answers its two dup commands `EINVAL` on WASI
+  preview1 while its `dup` answers `ENOTSUP`, so a new link-time refusal,
+  `recipes/fcntl_dup_refusal.c`, gives `dup`'s answer (a facts sheet for wasi-libc,
+  `context/upstream/25-wasi-libc-fcntl-dupfd/`). GB18030 stays refused: musl 1.2.6's decoder still
+  has the bug.
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result

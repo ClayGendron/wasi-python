@@ -1,0 +1,30 @@
+plain posix +dup2
+plain posix +pipe2
+plain select +PIPE_BUF
+plain time +pthread_getcpuclockid
+plain sysconfig HAVE_DUP: 0 -> 1
+plain sysconfig HAVE_DUP2: 0 -> 1
+plain sysconfig HAVE_DUP3: 0 -> 1
+plain sysconfig HAVE_GETC_UNLOCKED: 0 -> 1
+plain sysconfig HAVE_PIPE2: 0 -> 1
+plain sysconfig HAVE_PPOLL: 0 -> 1
+plain sysconfig HAVE_PTHREAD_GETCPUCLOCKID: 0 -> 1
+plain sysconfig HAVE_SEM_GETVALUE: 0 -> 1
+plain sysconfig HAVE_SEM_OPEN: 0 -> 1
+plain sysconfig HAVE_SEM_TIMEDWAIT: 0 -> 1
+plain sysconfig LIBOBJS: 'Python/dup2$U.o' -> ''
+snapshot posix +dup2
+snapshot posix +pipe2
+snapshot select +PIPE_BUF
+snapshot time +pthread_getcpuclockid
+snapshot sysconfig HAVE_DUP: 0 -> 1
+snapshot sysconfig HAVE_DUP2: 0 -> 1
+snapshot sysconfig HAVE_DUP3: 0 -> 1
+snapshot sysconfig HAVE_GETC_UNLOCKED: 0 -> 1
+snapshot sysconfig HAVE_PIPE2: 0 -> 1
+snapshot sysconfig HAVE_PPOLL: 0 -> 1
+snapshot sysconfig HAVE_PTHREAD_GETCPUCLOCKID: 0 -> 1
+snapshot sysconfig HAVE_SEM_GETVALUE: 0 -> 1
+snapshot sysconfig HAVE_SEM_OPEN: 0 -> 1
+snapshot sysconfig HAVE_SEM_TIMEDWAIT: 0 -> 1
+snapshot sysconfig LIBOBJS: 'Python/dup2$U.o' -> ''

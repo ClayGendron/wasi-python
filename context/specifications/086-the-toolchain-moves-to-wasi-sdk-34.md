@@ -1,7 +1,10 @@
 # 086 — The toolchain moves to wasi-sdk 34
 
-- **Status:** drafted 2026-10-19 on `spec/086-wasi-sdk-34` from main `932bc00`, rebased onto main
-  `3866f56` (the owner's answer to question 105). **Revised 2026-10-19 against its pre-build review**
+- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes): every criterion but
+  Decision 9's A/B, which is measured once 083 has landed (the lane's instruction), and the dry
+  run, which follows the landing. **Confirmed for build** at `663bc15` (the review's addendum,
+  "ready to build"). Before that: drafted 2026-10-19 on `spec/086-wasi-sdk-34` from main
+  `932bc00`, rebased onto main `3866f56` (the owner's answer to question 105). **Revised 2026-10-19 against its pre-build review**
   (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-spec-2026-10-19.md`, written in the lane's
   scratchpad with its probes, copied by the lane; verdict "ready once F1 to F5 are written in"):
   F1 to F5 are written in as the lane ruled, F6 to F10 are fixed, and "Disposition of the
@@ -624,7 +627,81 @@ accept it with its cause.
 
 ## Landing notes
 
-Being built on `spec/086-wasi-sdk-34` (2026-10-19); filled in as the build goes.
+**Built 2026-10-19** on `spec/086-wasi-sdk-34`, on main `3866f56`, by a build agent. The recipe is
+at `810c032`; the evidence is `../research/2026-10-19-the-toolchain-move-evidence.md` and its
+folder. **Decision 9's A/B and growth accounting wait for 083**: the lane rebases 086 onto main
+once 083 has landed, and the builder re-measures there (Decision 10, "The base"). Everything else
+is done.
+
+### What was built
+
+- **The pins** (Decision 1): `line.conf`, `00_download.sh` (the five SDK URLs, the ten notices, the
+  comment) and `downloads/SHA256SUMS`, fifteen lines replaced in place. The neutral tarballs lose
+  `+m` in steps 10 and 60 (Decision 2).
+- **The refusal** (Decision 5): `recipes/fcntl_dup_refusal.c`, a `switch` that reads its argument
+  only for `F_SETFD`/`F_SETFL` (an `int`) and `F_GETLK`/`F_SETLK`/`F_SETLKW` (a pointer); step 60's
+  guard compile is a loop over the two refusals, each to its own object, a failure naming its
+  file, and `-Wl,--wrap=fcntl` joins the wraps. It compiles with no warning.
+- **The checks** (Decision 7): (a) `test_the_backend_orders_try_tables_alike` and (c)
+  `test_the_guests_configure_results_are_recorded` in `test_v1_5_rebuild_from_pins.py`, (b)
+  `test_dup_is_refused_as_not_supported` in `test_v1_2_hostile_guest.py`; the fixture
+  `tests/fixtures/try-table-order.ll` and the record `tests/cpython_configure.txt`. All three files
+  sit in shards that already exist, so `tests/release_shards.toml` does not change
+  (`test_release_shards_cover_the_judge` passes).
+- **An amendment at build: the record keeps one line out.** `HAVE_SYS_STATVFS_H` holds the word
+  part `vfs`, which `context/embedders.txt` reserves, so `test_no_embedder_name_in_code` refused the
+  first record (EXECUTED). The record now leaves out any line holding a reserved word part and
+  carries a `digest` line, the SHA-256 of every line sorted and joined by newlines; check (c)
+  compares the visible lines and, when they agree, the digest, naming "a line holding a reserved
+  word moved" if only that differs. Coverage is whole and the rule is unchanged.
+- **Comments and records**: `wasi-numpy.cross`, `wasi-pandas.cross`, `iconv_refusals.c`; the libxml2
+  patch sheet's reason (Decision 4); the wasi-libc facts sheet and its README row; the README
+  (sizes, platform facts, reproducibility, recipe list, CPython's driver line) and the CHANGELOG.
+
+### Criteria, with their evidence (EXECUTED unless marked)
+
+1. **Seen failing first.** (a) on a wasi-sdk 33 build of today's tree: 2 objects in 64 runs
+   (13 and 51); with no clang under `build/tools`: "no build/tools/wasi-sdk-*/bin/clang: nothing
+   was compiled". (b) on the 34 set without the refusal: `os.dup(1) EINVAL`, both binaries. (c)
+   on the 33 tree: the ten `HAVE_*` lines, nothing else. Then each passes on 34
+   (`seen-failing.txt`).
+2. **The pins.** `downloads: 49 pins, 49 fetched, 49 verified` from empty `downloads/` on macOS;
+   the containers verify the Linux pins (6 fetched, 49 verified each). No `33.0`, `161b3195` or
+   `4434dabb` remains in `scripts/`, `recipes/` or `SHA256SUMS`; one sentence of history in the
+   refusal's comment names "wasi-sdk 33's guest".
+3. **The same bytes.** macOS A and B, the linux/arm64 container twice and the linux/amd64
+   container once: one `SHA256SUMS`, `aac927dc…`, all five (memo, section 2). Check (a) passes on the macOS, aarch64 Linux and x86_64 Linux clangs.
+4. **The surface.** The probe's diff is the accepted list plus `sysconfig` `LIBOBJS`
+   (`Python/dup2$U.o` → empty), traced to `HAVE_DUP2` (`AC_REPLACE_FUNCS([dup2])`): a build
+   variable, accepted here, not a README fact. The other libraries' configure headers and probes
+   are unchanged (memo, section 5). The full judge's goldens, classes, trap entries and allowances
+   pass unchanged; numpy-core's `no-dup` classes match `Errno 58`; the imports are the same 43.
+5. **Before landing, in the containers.** linux/arm64: 49 hostile checks pass; `cpython-a`, `-b`
+   and `-c` pass with their 16 gaps; checks (a) and (c) pass. linux/amd64: the same 49 hostile checks pass on Cranelift's x86-64 code (every recursion floor, the 128 KiB window, the deep-data limits); `cpython-a`, `-b` and `-c` pass with their 16 gaps; checks (a) and (c) pass on the x86_64 Linux clang. Neither container printed "trap entries with no trap here", which the darwin judge prints for `c-stack-itertools-tee`: on both Linux hosts every open trap entry trapped as named. 087 has
+   not landed, so its x86-64 edge is not re-measured here. The darwin depths of all fifteen README
+   rows are the same on both sets (memo, section 6), so the README's depth rows stand.
+6. **Decision 9's table and A/B**: preliminary only, against `accepted.json` (memo, section 7):
+   164 fuel rows, 62 up and 98 down, −0.444% to +2.645%, sum +0.22%; `python.wasm` +67,598
+   bytes (code +45,497, name +17,779, data +4,256). The layout control (memo, section 8): `bool`
+   moves 0xFF0 bytes and a bool conversion costs +31.5% fuel, 073's mechanism. **The A/B on the
+   landing base, after 083, follows.**
+7. **The dry run** follows the landing (rule 6b).
+8. **The judge.** `uv run pytest -n 3` on set B: 546/627 pass, 77 gap, 4 blocked, 0 fail; the
+   ratchet lost 0, gained 4 (the new checks), grew 64; the judge changed (the three checks, the
+   record, the fixture). Record: the worktree's `build/086-evidence/latest-full-1.json`. `ruff
+   check` and `ruff format --check` are clean on `src/` and `tests/`.
+9. **The record.** The memo and its folder (086's files only), the facts sheet, the README, the
+   CHANGELOG, the libxml2 sheet and the roadmap line.
+
+### For the lane
+
+- Rebase onto main once 083 has landed; the builder then rebuilds, runs the A/B (main's set
+  rebuilt on that base against 086's set, the same judge commit, one machine), does numpy-core's
+  test-by-test trace under Decision 9's rule, and writes the growth reason.
+- The flags, then: `--accept "<spec 086: wasi-sdk 34 (clang 23.1.0, wasi-libc 2e6fb9d8): every
+  artifact's bytes move once>"`, `--accept-judge "<the three checks of Decision 7,
+  tests/cpython_configure.txt and tests/fixtures/try-table-order.ll>"`, `--accept-growth "<the A/B
+  table>"`.
 
 ## For the owner
 

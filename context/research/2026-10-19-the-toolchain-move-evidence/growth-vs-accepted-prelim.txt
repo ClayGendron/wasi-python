@@ -1,0 +1,33 @@
+fuel: 164 compared, 62 up >0.01%, 98 down >0.01%, median -0.097%, min -0.444%, max +2.645%, sum 3,097,055,946,600 -> 3,103,744,109,673
+  +2.645%  203,355,507,505 -> 208,733,584,551  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+  +1.428%  3,918,679,404 -> 3,974,623,928  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+  +0.621%  16,112,069 -> 16,212,147  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[snapshot]
+  +0.536%  164,602,698,738 -> 165,484,859,835  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+  +0.518%  1,213,059 -> 1,219,338  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+  +0.465%  373,308,015 -> 375,042,435  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+  -0.444%  6,040,380,177 -> 6,013,583,895  tests/checks/test_v1_3_lxml.py::test_the_readmes_encoding_workaround_reads_what_iconv_cannot
+  +0.431%  59,839,885,329 -> 60,097,680,865  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+  -0.393%  779,990,064 -> 776,927,562  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-frompyfunc-snapshot]
+  +0.378%  16,524,245 -> 16,586,759  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]
+  -0.365%  4,928,398,097 -> 4,910,404,935  tests/checks/test_v1_2_portable_and_sealed.py::test_nothing_is_a_shared_library
+  -0.365%  20,057,200 -> 19,984,068  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-list-of-self-snapshot]
+bytes: 3 compared, 2 up >0.01%, 0 down >0.01%, median +0.139%, min -0.000%, max +0.164%, sum 107,930,817 -> 108,060,322
+  +0.164%  41,099,661 -> 41,167,259  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+  +0.139%  44,633,983 -> 44,695,908  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+  -0.000%  22,197,173 -> 22,197,155  tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated
+cpython-a               268,583,771,926 ->    268,539,584,775 -0.016%
+cpython-archives        164,602,698,738 ->    165,484,859,835 +0.536%
+cpython-b               294,515,734,346 ->    294,727,739,155 +0.072%
+cpython-c               372,458,058,296 ->    372,894,845,558 +0.117%
+cpython-fs               59,839,885,329 ->     60,097,680,865 +0.431%
+numpy-core              203,355,507,505 ->    208,733,584,551 +2.645%
+numpy-lib               132,021,562,863 ->    132,015,065,698 -0.005%
+numpy-others            176,698,778,922 ->    176,743,151,009 +0.025%
+pandas-frame            342,714,552,837 ->    342,813,179,127 +0.029%
+pandas-groupby          479,460,811,477 ->    479,715,916,131 +0.053%
+pandas-internals         21,198,972,610 ->     21,199,425,197 +0.002%
+pandas-io-formats        58,645,731,946 ->     58,659,543,558 +0.024%
+pandas-io-parser         93,556,158,855 ->     93,375,047,682 -0.194%
+pandas-libs              26,844,244,384 ->     26,843,396,997 -0.003%
+pandas-reshape          102,664,111,646 ->    102,667,904,004 +0.004%
+pandas-tslibs            38,293,242,525 ->     38,254,175,760 -0.102%

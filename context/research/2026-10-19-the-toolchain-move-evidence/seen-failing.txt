@@ -1,0 +1,50 @@
+                assert done.returncode == 0, f"{sdk}: clang failed: {done.stderr.strip()[-300:]}"
+                errors.append(f"{sdk}: {len(seen)} objects in {TRY_TABLE_RUNS} runs ({counts})")
+E       AssertionError: wasi-sdk-33.0-arm64-macos: 2 objects in 64 runs (4e0dd4cb42bc x13, 601494f76b82 x51)
+E       assert not ['wasi-sdk-33.0-arm64-macos: 2 objects in 64 runs (4e0dd4cb42bc x13, 601494f76b82 x51)']
+----------------------------- Captured stdout call -----------------------------
+E       AssertionError: -HAVE_DUP 1 (recorded, not built)
+E         -HAVE_DUP2 1 (recorded, not built)
+E         -HAVE_DUP3 1 (recorded, not built)
+E         -HAVE_GETC_UNLOCKED 1 (recorded, not built)
+E         -HAVE_PIPE2 1 (recorded, not built)
+E         -HAVE_PPOLL 1 (recorded, not built)
+E         -HAVE_PTHREAD_GETCPUCLOCKID 1 (recorded, not built)
+E         -HAVE_SEM_GETVALUE 1 (recorded, not built)
+E         -HAVE_SEM_OPEN 1 (recorded, not built)
+E         -HAVE_SEM_TIMEDWAIT 1 (recorded, not built)
+E       assert not ([] or ['HAVE_DUP 1', 'HAVE_DUP2 1', 'HAVE_DUP3 1', 'HAVE_GETC_UNLOCKED 1', 'HAVE_PIPE2 1', 'HAVE_PPOLL 1', ...])
+FAIL tests/checks/test_v1_5_rebuild_from_pins.py::test_the_backend_orders_try_tables_alike — AssertionError: wasi-sdk-33.0-arm64-macos: 2 objects in 64 runs (4e0dd4cb42bc x13, 601494f76b82 x51)
+2 failed in 4.55s
+E       AssertionError: no build/tools/wasi-sdk-*/bin/clang: nothing was compiled
+E       assert []
+1 failed in 0.16s
+check (c) logic on the 33 pyconfig.h (rewritten check): ['HAVE_DUP 1', 'HAVE_DUP2 1', 'HAVE_DUP3 1', 'HAVE_GETC_UNLOCKED 1', 'HAVE_PIPE2 1', 'HAVE_PPOLL 1', 'HAVE_PTHREAD_GETCPUCLOCKID 1', 'HAVE_SEM_GETVALUE 1', 'HAVE_SEM_OPEN 1', 'HAVE_SEM_TIMEDWAIT 1'] new: []
+E       AssertionError: os.dup(1) EINVAL
+E         os.dup2(1, 5) ENOTSUP
+E         os.dup2(1, 5, inheritable=False) ENOTSUP
+E         os.pipe2(0) ENOTSUP
+E         time.pthread_getcpuclockid(get_ident()) ENOTSUP
+E         os.pipe absent
+E         
+E       assert ['os.dup(1) E....pipe absent'] == ['os.dup(1) E....pipe absent']
+E         
+E         At index 0 diff: 'os.dup(1) EINVAL' != 'os.dup(1) ENOTSUP'
+E         Use -v to get more diff
+E       AssertionError: os.dup(1) EINVAL
+E         os.dup2(1, 5) ENOTSUP
+E         os.dup2(1, 5, inheritable=False) ENOTSUP
+E         os.pipe2(0) ENOTSUP
+E         time.pthread_getcpuclockid(get_ident()) ENOTSUP
+E         os.pipe absent
+E         
+E       assert ['os.dup(1) E....pipe absent'] == ['os.dup(1) E....pipe absent']
+E         
+PASSED tests/checks/test_v1_5_rebuild_from_pins.py::test_the_backend_orders_try_tables_alike
+PASSED tests/checks/test_v1_5_rebuild_from_pins.py::test_the_guests_configure_results_are_recorded
+FAILED tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[snapshot]
+FAILED tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[plain]
+2 failed, 2 passed in 12.41s
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[snapshot]
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_dup_is_refused_as_not_supported[plain]
+2 passed in 10.40s

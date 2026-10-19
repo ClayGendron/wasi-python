@@ -3,7 +3,7 @@
 - **Status:** drafted
 - **Title:** xmlIO: read and write files without dup() on WASI
 - **Files:** xmlIO.c
-- **Why we carry it:** libxml2 2.15.4 does not compile for `wasm32-wasip1` (wasi-libc declares no `dup`, so clang stops on `xmlIO.c`), and without a `dup` every file libxml2 opens by name (`etree.parse(path)`, XInclude, a DTD, XSLT's `document()`) would fail in the guest.
+- **Why we carry it:** `dup` always fails on WASI preview1. With wasi-sdk 33, wasi-libc declared no `dup`, so clang stopped on `xmlIO.c`; with wasi-sdk 34 it declares one that answers `ENOTSUP` (spec 086, Decision 4), so `xmlIO.c` compiles but its duplicate-then-close path would fail at run time. Without the patch every file libxml2 opens by name (`etree.parse(path)`, XInclude, a DTD, XSLT's `document()`) would fail in the guest.
 
 **This is a facts sheet, not a merge request** (question 80 in
 `context/questions-for-the-owner.md`). libxml2's tree carries no contributor guide and no rule on

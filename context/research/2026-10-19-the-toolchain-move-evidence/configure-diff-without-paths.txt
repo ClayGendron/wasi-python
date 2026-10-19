@@ -1,0 +1,56 @@
+< ac_cv_func_dup2=no
+< ac_cv_func_dup3=no
+< ac_cv_func_dup=no
+> ac_cv_func_dup2=yes
+> ac_cv_func_dup3=yes
+> ac_cv_func_dup=yes
+< ac_cv_func_pipe2=no
+> ac_cv_func_pipe2=yes
+< ac_cv_func_ppoll=no
+> ac_cv_func_ppoll=yes
+< ac_cv_func_pthread_getcpuclockid=no
+> ac_cv_func_pthread_getcpuclockid=yes
+< ac_cv_func_sem_getvalue=no
+< ac_cv_func_sem_open=no
+< ac_cv_func_sem_timedwait=no
+> ac_cv_func_sem_getvalue=yes
+> ac_cv_func_sem_open=yes
+> ac_cv_func_sem_timedwait=yes
+< ac_cv_have_getc_unlocked=no
+> ac_cv_have_getc_unlocked=yes
+< ac_cv_search_sem_init=no
+> ac_cv_search_sem_init='none required'
+< S["LTLIBOBJS"]=" ${LIBOBJDIR}dup2$U.lo"
+> S["LTLIBOBJS"]=""
+< S["LIBOBJS"]=" ${LIBOBJDIR}dup2$U.o"
+> S["LIBOBJS"]=""
+> D["HAVE_PTHREAD_GETCPUCLOCKID"]=" 1"
+> D["HAVE_DUP"]=" 1"
+> D["HAVE_PPOLL"]=" 1"
+> D["HAVE_SEM_GETVALUE"]=" 1"
+> D["HAVE_SEM_OPEN"]=" 1"
+> D["HAVE_SEM_TIMEDWAIT"]=" 1"
+> D["HAVE_DUP3"]=" 1"
+> D["HAVE_PIPE2"]=" 1"
+> D["HAVE_DUP2"]=" 1"
+> D["HAVE_GETC_UNLOCKED"]=" 1"
+< /* #undef HAVE_DUP */
+> #define HAVE_DUP 1
+< /* #undef HAVE_DUP2 */
+> #define HAVE_DUP2 1
+< /* #undef HAVE_DUP3 */
+> #define HAVE_DUP3 1
+< /* #undef HAVE_GETC_UNLOCKED */
+> #define HAVE_GETC_UNLOCKED 1
+< /* #undef HAVE_PIPE2 */
+> #define HAVE_PIPE2 1
+< /* #undef HAVE_PPOLL */
+> #define HAVE_PPOLL 1
+< /* #undef HAVE_PTHREAD_GETCPUCLOCKID */
+> #define HAVE_PTHREAD_GETCPUCLOCKID 1
+< /* #undef HAVE_SEM_GETVALUE */
+> #define HAVE_SEM_GETVALUE 1
+< /* #undef HAVE_SEM_OPEN */
+> #define HAVE_SEM_OPEN 1
+< /* #undef HAVE_SEM_TIMEDWAIT */
+> #define HAVE_SEM_TIMEDWAIT 1

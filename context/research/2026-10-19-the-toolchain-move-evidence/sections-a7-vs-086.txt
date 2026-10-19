@@ -1,0 +1,18 @@
+total 41,099,661 -> 41,167,259 (+67,598)
+functions with bodies 40,577 -> 40,647 (+70)
+  code                           31,897,334 ->   31,942,831 (+45,497)
+  custom:name                     2,443,021 ->    2,460,800 (+17,779)
+  custom:producers                      163 ->          163 (+0)
+  custom:target_features                184 ->          184 (+0)
+  data                            6,656,754 ->    6,661,010 (+4,256)
+  element                            56,505 ->       56,496 (-9)
+  export                                 81 ->           81 (+0)
+  function                           41,037 ->       41,112 (+75)
+  global                                 14 ->           14 (+0)
+  import                              1,629 ->        1,629 (+0)
+  memory                                  4 ->            4 (+0)
+  table                                   9 ->            9 (+0)
+  tag                                     5 ->            5 (+0)
+  type                                2,868 ->        2,868 (+0)
+imports 43 -> 43; only old: []; only new: []
+import modules: ['host', 'wasi_snapshot_preview1']
