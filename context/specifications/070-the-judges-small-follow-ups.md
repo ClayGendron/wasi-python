@@ -84,6 +84,20 @@ After it:
    bounded by `max_tool_calls`, as the README says, and the review says it "can wait". It
    belongs with the next change that touches `_answer` (spec 055 is the nearest).
 
+## Design
+
+- `tests/harness/scan.py`: `import posixpath`; `WORKSPACE_PREFIX`, a pattern for a leading
+  `${{ github.workspace }}/`; rule 16 compares
+  `posixpath.normpath(WORKSPACE_PREFIX.sub("", path))` (Decision 1).
+- `tests/harness/history.py`: one line in `_volume_errors` (Decision 3).
+- `tests/unit/test_scan.py`: `OTHER_SPELLINGS` and two parametrized tests beside rule 16's
+  others. `tests/unit/test_history.py`: `_next_line`, `_volume_1_ending` and `_place`, and four
+  tests at its end (Decisions 2 and 3). `tests/unit/test_tools.py`: `C_SLOT_ENDS`,
+  `_wrapped_chain` and one parametrized test after the bound-keyword test (Decision 4).
+- `tests/checks/test_v1_4_embedding.py`: `DISCOVERY_REFUSED` and one check, parametrized over
+  the two limits, after spec 060's byte-budget check (Decision 5).
+- `README.md` (**Limits**) and `CHANGELOG.md` (`0.1.0a6 — unreleased`).
+
 ## Scope
 
 In: rule 16's path, the boundary and CR cases with the CR rule, the `_C_SLOTS` pin, the README
