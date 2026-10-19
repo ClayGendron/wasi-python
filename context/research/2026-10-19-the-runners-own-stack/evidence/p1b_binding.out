@@ -1,0 +1,9 @@
+# wasmtime-py 49.0.0 declares the setter in its own bindings (wasmtime/_bindings.py, re-exported by
+# wasmtime._ffi), with argtypes [POINTER(wasm_config_t), c_size_t]; only Config lacks a property.
+$ uv run python -c "import wasmtime._ffi as f, wasmtime._bindings as b; print(hasattr(f,'wasmtime_config_async_stack_size_set'), hasattr(b,'wasmtime_config_async_stack_size_set')); print(b._wasmtime_config_async_stack_size_set.argtypes)"
+True True
+[<class 'ctypes.LP_wasm_config_t'>, <class 'ctypes.c_ulong'>]
+# Through that binding, max_wasm_stack 8 MiB, fuel and epochs on: the engine is made (Engine()
+# then closes the config, so the script's later cfg.ptr() raised "already closed"; the engine
+# line ran first).
+_ffi.wasmtime_config_async_stack_size_set(cfg.ptr(), 8 << 20); cfg.max_wasm_stack = 8 << 20; wt.Engine(cfg)  -> made

@@ -36,11 +36,13 @@ Terms used below:
   512 KiB (READ, `config.rs:851`).
 - **Above 2 MiB, wasmtime needs `async_stack_size` at least as large.** It refuses the config
   otherwise (READ, `config.rs:2632–2633`), and wasmtime-py's engine unwraps that error, so the
-  process aborts (READ, `crates/c-api/src/engine.rs:37`; EXECUTED, `p1_config.out`: exit −6, "max_wasm_stack size cannot exceed the
-  async_stack_size", at 2 MiB + 4 KiB, 8 MiB and 16 MiB). wasmtime-py 49 has no Python setter,
+  process aborts (READ, `crates/c-api/src/engine.rs:37`; EXECUTED, `p1_config.out`: exit −6,
+  "max_wasm_stack size cannot exceed the async_stack_size", at 2 MiB + 4 KiB, 8 MiB and 16 MiB). wasmtime-py 49 has no Python setter,
   but its library exports `wasmtime_config_async_stack_size_set`; with it set to W, the engine
-  is made at every size tried (EXECUTED). The async stack size is used only by async calls, which
-  the runner does not make (READ, `config.rs:862–877`).
+  is made at every size tried (EXECUTED). wasmtime-py's own bindings declare that function too
+  (`wasmtime._ffi.wasmtime_config_async_stack_size_set`, with its argument types; EXECUTED,
+  `p1b_binding.out`), so calling it sets no argument types on a shared attribute. The async stack
+  size is used only by async calls, which the runner does not make (READ, `config.rs:862–877`).
 - **Fuel does not depend on W or on the thread** (EXECUTED, `fuel078.out`): five programs (a
   print, numpy, a pandas groupby, spec 071's `__repr__` recursion, freeing a 2,000-deep list) gave
   the same fuel at 512 KiB and 8 MiB, on the caller's thread and on a fresh one.
