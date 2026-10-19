@@ -1,7 +1,7 @@
 # 046 — lxml, with libxml2 and libxslt built in
 
-- **Status:** **built 2026-10-18; revised against its build review (R1, N1); awaiting the
-  reviewer's confirmation** (landing notes below, with "Revised against the build review" and a
+- **Status:** **landed 2026-10-19** (accepted on `5475925` as `41dffc2`, history line 65; the build review,
+  `../reviews/046-lxml-build-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; revised against its build review (R1, N1); confirmed (landing notes below, with "Revised against the build review" and a
   Disposition; branch `spec/046-lxml`, rebased onto main `ff5c568`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): all ten findings that concern it
   (1, 2, 4 to 8) are written in, and the review's Disposition says where; the review confirmed
@@ -1042,3 +1042,28 @@ RED: 75 metric(s) grew
 
 **Disposition of the confirmation's findings.** R1: fixed (README, CHANGELOG, Decision 9, the
 check). N1: fixed (`static int`).
+
+**Landed 2026-10-19** through the lane, after the 0.1.0a6 tag. The lane rebased the branch onto main
+`a0de463` (the a6 release and the a7 bump; specs 057 and the owner's docs between); its diff equals
+the reviewed diff at `777dfe6` line for line (EXECUTED, `build/lane-046/delta.txt`, empty). The
+CHANGELOG entry moved to the 0.1.0a7 section (`64db5bb`). The build review with both confirmations
+(`../reviews/046-lxml-build-2026-10-18.md`: "lands once F1 to F4", reopened for R1 and N1, then
+"confirmed: lands") was committed on the detached HEAD as `5475925`. **The main tree's full build
+from pins** (15 steps, 10 min 31 s; the three new pins fetched and verified) gave `python.wasm`
+`308118d1…` (40,374,948 bytes), the snapshot `ff5246a2…` (74,364,935) and the zip `b5633ecc…`
+(22,098,558), byte for byte the builder's; `SHA256SUMS` is
+`2e3197028788dc28593fdb9428d07c72c0c771e4aefed12ed52a2a799671f8be`, which differs from the
+builder's only in `MANIFEST`'s line for `scripts/00_download.sh` (spec 057's change, after the
+builder's base) (EXECUTED, `build/lane-046-build.log`). The set is frozen read-only as
+`build/sets/s-ff5246a2c2f1a52b`. The oracle fetched lxml's locked wheels once online and then ran
+offline (lxml 6.1.3). The full judge there, serial: `wasi_python v1: 422/438 pass · 14 gap · 2
+blocked · 0 fail (unit suite 1230/1232, 2 skipped)`, `1652 passed, 4 skipped, 14 xfailed in
+798.47s`, accepted with `--accept-judge` (the 15 judge files) and `--accept-growth` (the causes
+above, with the confirmed sizes: `python.wasm` +3,458,451 and the snapshot +3,463,211 bytes) as
+`41dffc2`, history line 65 (EXECUTED, `build/lane-046-accept.log`). The rules tier passed (40/40,
+unpiped); main fast-forwarded. `sameness.py` between the reviewer's record and the lane's is not a
+same-commit comparison here (the reviewer judged on base `ff5c568`, before 057's checks and the
+history volumes' renames), so its 411 differences are main's moves, not this change's; the lane's
+serial record is the one accepted. The x86_64 same bytes and the Windows judge come from the next
+release dry run.
+
