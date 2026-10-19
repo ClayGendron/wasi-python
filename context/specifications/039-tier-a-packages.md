@@ -1,6 +1,6 @@
 # 039 — Tier A: the pure-Python packages
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **built** 2026-10-19 on `spec/039-tier-a-packages` (Landing notes); awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/039-tier-a-packages-spec-2026-10-17.md`): all ten findings are fixed here, and
   its Disposition says where. **Confirmed for build with conditions, written in:** the
   confirmation's condition C1 (the `df.to_latex()` finding) is in Decision 12, and its two
@@ -795,4 +795,199 @@ Nothing here waits on it.
 
 ## Landing notes
 
-Not built.
+**Built** 2026-10-19 by the builder in `../wasi_python-039` on `spec/039-tier-a-packages`, from main
+`e49e515` (033, 035, 023, 046, 047, 051, 057, 063, 069 and the rest landed; 037 and 043 were being
+built beside it, so whichever of 039, 037 and 043 lands later rebases, as Decision 14 says).
+Not reviewed, not accepted. Evidence files are under the worktree's `build/evidence/` (named
+below), the logs under `build/`.
+
+### What changed
+
+- **Recipe.** 31 pins in `downloads/SHA256SUMS` and `scripts/00_download.sh` (Decision 2, every
+  line as written; all 31 fetched and verified, `build/download-039.log`). Step 70 unpacks the
+  pyyaml and markupsafe sdists, gives each `patch_tree` (no patches), stages `yaml/` and
+  `markupsafe/` under `build/pure-install/`, and passes that tree, the two `PKG-INFO` files and
+  the 28 wheels (Decision 4). `assemble_artifacts.py`: `PACKAGES` +30, `WHEELS` +28, pyyaml's and
+  markupsafe's notices from their trees, tqdm's three-part notice and its carried source, sympy's
+  nested notice, each pinned file's hash checked before it is read (`pinned_bytes`, Decision 8).
+  `recipes/ctypes_stand_in/util.py` gains `dllist()` returning `[]` (Decision 5). The release's
+  zero-patch count is 21 trees (19 on main, +2).
+- **Judge.** `tests/checks/test_v1_3_default_profile.py` (the seven job checks, the pure paths,
+  threadpoolctl, the two gap checks), the Excel check in `test_v1_4_embedding.py`, the tqdm and
+  sympy notice check in `test_v1_1_artifact_set.py` (its rule `artifacts.tier_a_notice_errors`,
+  with a self-test of its four mutants in `tests/unit/test_artifact_rules.py`), the two unit
+  checks in `test_build_scripts.py`; seven jobs and goldens, the oracle's 29 locked packages and
+  `jobs.oracle_pure()`; `jobs.run_in_guest` moved; the thirty in `paths.PACKAGES`,
+  `LICENCE_COMPONENTS`, the metadata check's distributions, the synthetic set of the artifact
+  rules' unit tests and `tests/upstream/packages.toml` (each `later`, closed by spec 067, as spec
+  063 asks); pyyaml and markupsafe in `pins.SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS`; the
+  new check file in the `own-guest` shard; 035's check 6 re-based (Decision 13); four gaps.
+- `README.md` (*What the default profile carries*, and the facts it restates), `CHANGELOG.md`.
+
+Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this one.
+
+### Amendments at build, each with its reason
+
+1. **The `markup` job and the README use lxml's default flavor, not its `ImportError`.** Spec 046
+   (lxml) landed first, and its Decision 14 says whichever of 039 and 046 lands second regenerates
+   `markup.expected` with lxml in the oracle and updates the README's `read_html` line. The job
+   prints `read_html default flavor equals bs4: True` and names `lxml` in its versions line; the
+   Decision 9 edge "`pd.read_html` needs `flavor="bs4"`" is gone from the README. The `excel`
+   job's versions line also names `et-xmlfile`, so the line proves that distribution's metadata.
+2. **The gaps close with `context/specifications/041-files-read-by-path-from-the-zip.md`**, which
+   exists as a file, as Decision 12 provides.
+3. **Spec 046's GB18030 check restated** (`test_gb18030_is_never_silently_wrong`, a judge change).
+   With bs4 in the zip, `pd.read_html` of a Chinese GB18030 table that lxml cannot read falls back
+   to bs4, which reads the bytes as UTF-8 and raises `UnicodeDecodeError`, where it raised
+   `ImportError` (bs4 absent). Still never silently wrong. The check, its docstring and the
+   README's line say so. Its fuel grows by the bs4 and html5lib imports (+0.91 G plain, +0.85 G
+   snapshot).
+4. **pandas' own Styler tests are known failures until 041** (`7d1a705`, a judge change to
+   `tests/upstream/pandas.toml`, `tests/upstream/expected/` and `tests/known_gaps.toml`).
+   Before tier A they skipped themselves (`importorskip("jinja2")`); with jinja2 in they run and
+   meet the Styler gap. Eleven files under `pandas/tests/io/formats/style/` build a Styler at
+   import and stop at collection with `TemplateNotFound`, which stopped the whole
+   `pandas-io-formats` group (pytest exit code 2, nothing run): they are `not_selected`, with
+   that reason and 041 as closer. The tests that fail one by one are a class `styler-templates`
+   in `pandas-frame` (2: `test_inspect_getmembers`, `test_latex_repr`) and in `pandas-io-formats`
+   (221: `test_bar.py`, `test_to_latex.py`, and `test_format.py`'s two `to_latex` cases of
+   `test_filepath_or_buffer_arg`, where `TemplateNotFound`, a `LookupError`, is caught by
+   `pytest.raises(LookupError, match="unknown encoding")` with another message), each listed by
+   node id with its gap (`build/evidence/upstream-findings*.json`, `upstream_findings.py`).
+   **One accepted pass falls:** `pandas-frame` 10,852 → 10,851. `test_inspect_getmembers` passed
+   because the `.style` accessor raised `AttributeError` without jinja2, which
+   `inspect.getmembers` skips; it now raises `TemplateNotFound`. The lane needs
+   `--accept-fewer-passes` for it (criterion 4 did not foresee it); spec 041 brings it back.
+   `pandas-io-formats` passes 20 more tests.
+5. **The threadpoolctl check reads `dllist()` last**, after threadpoolctl's calls, so on a zip
+   without `dllist` it fails with threadpoolctl's own `OSError: ctypes is unavailable on
+   wasm32-wasi`, the failure criterion 1 names, not with an `AttributeError` from the check.
+6. **One shared zip member changes:** `ctypes/util.pyc`, Decision 5's `dllist` (criterion 2 says
+   no existing member changes; Decision 5 changes this one by design).
+7. **Decision 13's snapshot rows were the review's measurements on a snapshot that pre-imported
+   numpy and pandas.** Spec 069 removed the pre-imports before this build; the rows below are
+   measured on today's snapshot, against the same caps.
+
+### Acceptance criteria and their evidence
+
+1. **Seen failing first. EXECUTED.** On main's accepted set (`build/old-artifacts/`, a copy of
+   the main tree's `build/artifacts/`, `SHA256SUMS` `c9dcb5b8…`, `python.wasm` `ab78e893…`, the
+   artifact of history line 77), with `WASI_PYTHON_ARTIFACTS` pointing at it, all 19 new or
+   extended guest checks failed (`build/evidence/seen-failing-on-main-set.txt`): the seven jobs
+   with `ModuleNotFoundError` for openpyxl, pypdf, bs4, charset_normalizer, networkx, mpmath and
+   attrs; the pure paths for `yaml`; threadpoolctl for `threadpoolctl` (both binaries); the
+   Excel check for openpyxl (both cases); the tqdm check with "MANIFEST names no tqdm or no
+   sympy"; the licence and metadata checks without the thirty; the two gap checks differently
+   from their gaps (no networkx; the Styler's "requires jinja2"). With the built zip but main's
+   `ctypes/util.pyc` (`build/evidence/no-dllist-set/`), threadpoolctl failed with `OSError:
+   ctypes is unavailable on wasm32-wasi` (`seen-failing-no-dllist.txt`). The unit `dllist`
+   assertion against 033's `util.py`: `AttributeError: … has no attribute 'dllist'`
+   (`seen-failing-dllist-unit.txt`). `test_a_staged_tree_ignores_litter` against a mutant whose
+   `SKIP_NAMES` keeps `.DS_Store`: the two runs differ (`seen-failing-litter-unit.txt`). The
+   tqdm rule's four mutants (the notice without the MPL text, the source missing, one byte
+   changed, sympy's notice without the nested one) each name their finding: the self-test
+   `test_tqdm_notice_carries_the_mpl_and_its_source` in `tests/unit/test_artifact_rules.py`
+   keeps them. The gap checks fail exactly as named: `2 finding(s), digest 2cf3dc27c61a:
+   df.style.to_html(): TemplateNotFound: html.tpl; df.to_latex(): TemplateNotFound: html.tpl`
+   and `1 finding(s), digest e6c0905e9cce: nx.graph_atlas(100): TypeError: filename must be a
+   str or bytes object, or a file`; `test_known_gaps_are_well_formed` passes with them. Spec
+   035's old 20 M bound failed on this zip (26,653,265, the fast tier `build/fast-1.txt`).
+2. **The zip's names and bytes. EXECUTED** (`build/evidence/zip_names.py` →
+   `criterion-2.txt`, under the pinned host Python). Built from empty in the worktree (every
+   build folder removed but the oracle and the evidence; `build/build-039.log`, 16 steps in
+   9 min 48 s): `python.wasm` is byte for byte main's (`cmp`, `ab78e893…`). 2,421 → 4,435
+   members: 2,014 added, 0 removed, exactly the 2,014 step 70's own `wheel_members`, `walk` and
+   `sdist_metadata` give from the pins; 36 metadata members; the only shared member that changed
+   is `ctypes/util.pyc` (amendment 6). Every `METADATA` and `entry_points.txt` equals its pinned
+   wheel's, and pyyaml's and markupsafe's equal their `PKG-INFO`. The first build (main's
+   recipe for steps 00 to 60, this one for 70 to 90) and the build from empty give the same
+   `SHA256SUMS` (`ada941bc…`). `MANIFEST`: 26 → 56 `package` lines, 66 → 97 `pin` lines, four
+   `recipe` lines changed.
+3. **The same bytes everywhere. NOT EXECUTED.** A manual run of the release workflow needs a
+   push and a dispatch, which the builder may not do; it is the lane's (its run number goes
+   here). The litter case is the unit check (criterion 1).
+4. **The judge. EXECUTED, without `--accept`.** `uv run pytest -n 3` once, at `7d1a705`, clean,
+   with this set, the wheel built from it and the upstream kit fetched by hash
+   (`build/full-judge-2.txt`; the record `build/evidence/latest-full.json`, SHA-256
+   `5c44a4bc…`; judge hash `4fd4185f…`):
+
+   ```
+   wasi_python v1: 553/574 pass · 19 gap · 2 blocked · 0 fail   (unit suite 1500/1507, 7 skipped)
+     v1.1  artifact set        38/38
+     v1.2  portable, sealed    119/120 blocked 1
+     v1.3  data stack          107/125 gap 18
+     v1.4  embedding           207/208 gap 1
+     v1.5  rebuild from pins   38/38
+     rules constitution rules  44/45  blocked 1
+   blocked by: prior-art clones 1 · three systems 1
+   ratchet vs 9a446e03f6: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 17 · grew 158 · fewer 1 · more 1 · judge changed: … and 32 more
+   RED: 1 pass count(s) fell (say --accept-fewer-passes); 158 metric(s) grew
+   2053 passed, 9 skipped, 19 xfailed in 575.53s (0:09:35)
+   ```
+
+   The two blocked checks are the worktree's (no prior-art clones; the three systems are the
+   release's). The 19 gaps are main's 15 and this specification's four. The goldens reproduce
+   under the pinned oracle (`test_goldens_reproduce_under_the_pinned_oracle` passed; the oracle's
+   `uv sync -v --frozen` has no `Building` or `Built` line, `build/oracle-sync.log`; pyyaml is
+   staged from the pinned sdist). The seven jobs pass `ruff check` and `ruff format --check`. Spec 051's callback scan,
+   `test_callbacks_have_the_types_cpython_calls`, passes (pure Python adds nothing it reads).
+   The lane accepts with `--accept-judge` (the reasons above and in Decisions 12 and 13),
+   `--accept-growth` (the account below) and `--accept-fewer-passes` (amendment 4).
+
+   **The growth account** (`build/evidence/growth.py` → `growth.txt`, the record against
+   `accepted.json`; 2,014 members and 30 distributions added, none by 023 or 037 since):
+
+   | row of Decision 13 | measured | expected | cap |
+   |---|---|---|---|
+   | plain `-c pass` | +50,591,589 (25,120 a member; 167,481,449 → 218,073,038) | +54.2 M | +60.4 M |
+   | other plain checks | at most +67.4 M (the `lxml_xml` job, 0.28%); the rest +50.6 M to +60.6 M | +54.2 M + timing | +60.4 M + 0.2% |
+   | plain checks that query metadata | the upstream groups, whose pytest scans every distribution's entry points (INFERRED): +0.23 G to +0.64 G, 0.10% to 0.33% | +64.0 M | within the per-read row below, 0.75 G |
+   | snapshot checks | +4,719,693 on `pass` (2,343 a member; 15,631,800 → 20,351,493); a `json` call +4,696,636 | 2,399 a member | 3,500 a member, +7.0 M |
+   | snapshot checks that query metadata | the metadata miss +11,445,467 (5,683 a member); the stand-in check +13.5 M (INFERRED: a metadata query on its path) | +4,844 a member more | +19.1 M |
+   | checks that read every distribution's metadata | 033's check +444 M plain, +389 M snapshot; 035's comparison within its +16.1 M snapshot growth | 18.9 M a distribution | +0.75 G; +1.5 G |
+   | the zip's bytes | +16,529,166 (22,197,173 → 38,726,339) | +16.48 MB | +17.0 MB |
+   | the snapshot's bytes | +729,607 (362 a member; 44,633,983 → 45,363,590) | 366 a member | +2.0 MB |
+   | the plain binary's bytes | 0 | 0 | 0 |
+
+   Growth outside the table's model, each with its cause: 035's checks that walk every member
+   or run zipimport's own reader on zips made from the artifact zip grow with its members by
+   design (`test_resources_read_as_zipfile_reads_them` +4.32 G plain, +4.26 G snapshot; the fast
+   reader's `small`, `padded` and `snapshot` cases +0.28 G, +1.10 G, +0.18 G; the re-read after
+   `invalidate_caches` +99.7 M, two directory reads); `pandas-io-formats` +7.73 G (13.2%), the
+   Styler tests that now run (amendment 4); the GB18030 check, bs4's and html5lib's imports
+   (amendment 3).
+5. **The numbers. EXECUTED** (`build/evidence/measure.py` → `measure.json`, the judge's seeded
+   driver on both sets). Plain `-c pass` 218,073,038 (main 167,481,449); snapshot `-c pass`
+   20,351,493 (main 15,631,800). Import fuel on the snapshot, beyond `-c pass`:
+   `import openpyxl, xlsxwriter` 2.24 G; `import pypdf` 1.42 G; `import bs4, html5lib` 1.28 G;
+   `import yaml, jinja2, tabulate` 1.07 G; `import networkx, patsy` 6.77 G (patsy imports
+   pandas); `import sympy` 4.11 G; `import joblib, narwhals` 1.90 G. Each job on the plain
+   reactor: `excel` 6.95 G, `pdf` 2.45 G, `markup` 6.47 G, `text_formats` 6.41 G, `modelling`
+   7.36 G, `symbolic` 10.22 G, `utilities` 6.79 G. Sizes: zip 38,726,339, snapshot 45,363,590,
+   plain 41,099,661 (unchanged). The snapshot's growth per member: 2,343 fuel and 362 bytes (the
+   review's baseline 2,399 and 366, on the pre-importing snapshot). The top-level split's slope:
+   4,697 a member (check 6's plain note; baseline 4,844). **035's check 6 was re-based**: 035 did
+   not prime the split, and the snapshot miss is 26,653,265 against the old 20 M and the new
+   bound 36,062,000 (20 M + 6,000 × (4,435 − 1,758)); the comparison already opened the zip
+   once (035 landed so), so only the bound changed. The lane writes the proposed text into 035.
+   **The wheel:** `wasi_python-0.1.0a7-py3-none-any.whl`, 60,335,849 bytes (57.5 MiB), SHA-256
+   `43f9cf3f…`, built as the release builds it; main's set gives 43,753,572 (+16,582,277).
+   PyPI's limit is 100 MiB (question 64: the owner waits until a landing would cross it).
+6. **The release. NOT EXECUTED** (criterion 3's dry run is the lane's).
+
+**The artifact set** (`build/artifacts/`): `SHA256SUMS` `ada941bc6ad751b2983b8f14cfbd57776dfd96f0ede3223b3b56fff53b5c901e`.
+
+| file | bytes | SHA-256 |
+|---|---|---|
+| `python.wasm` | 41,099,661 | `ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db` |
+| `python-snapshot.wasm` | 45,363,590 | `a8333e46710221fab584da0d6b368a9ca153ea5d62b7a3ba8e6dcd286a1e667a` |
+| `python-stdlib.zip` | 38,726,339 | `35e85524a58f29c97d661f2ac706f6c100d29afedfaf555a49c72b153aa56639` |
+| `MANIFEST` | 18,861 | `10524240023d881b6fc950c8b4128e307989ed16e257f51faccbfbd1fbcef38a` |
+| `LICENSES/tqdm-4.70.1-source.whl` | 80,199 | `c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73` (the pin's) |
+
+**For the lane.** Rebasing onto 037 or 043, whichever lands first: step 70's `--tree`, `--wheel`
+and `--metadata` lines, `00_download.sh`, `SHA256SUMS`, `assemble_artifacts.py`'s two dicts,
+`paths.PACKAGES` and `LICENCE_COMPONENTS`, the metadata check's distributions, the oracle's
+`pyproject.toml` and `uv.lock` (re-lock), `packages.toml`, `needs.SOURCE_COMPONENTS` and the
+release's tree count (21 plus theirs) each take both sides; the caps are re-derived from the
+members really added.
