@@ -9,9 +9,9 @@
   section "Disposition of the pre-build review" says where each went (`8d9f74e`). **Confirmed for
   build** by the same reviewer (the file's section "Confirmation of 071's revision": "confirmed
   for build once C1 and C2 are written in"); C1 to C6 written in (the section "Disposition of the
-  confirmation"), for the lane to check. **Built 2026-10-18** on main `6cc30bb` (the Landing
-  notes): the set's `SHA256SUMS` `a48b92aa…`; judge 488/505, 0 fail, lost 0, grew 63 (each named
-  below). It changes the artifact set and the build recipe
+  confirmation"), for the lane to check. **Built 2026-10-18**, rebased and rebuilt 2026-10-19
+  on main `b413192` (spec 055 landed; the Landing notes): the set's `SHA256SUMS` `618247d2…`;
+  judge 528/545, 0 fail, lost 0, grew 71 (each named below). It changes the artifact set and the build recipe
   (`recipes/reactor_main.c`), so §5.6 asks for the review before build.
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (it touches `recipes/`): one call added to `recipes/reactor_main.c`,
@@ -705,42 +705,56 @@ The confirmation (the same file, section "Confirmation of 071's revision"; probe
 
 ### What was built
 
-On `spec/071-deep-recursion-raises-recursionerror`, rebased onto main `6cc30bb` (spec 047
-landed; frozen set `s-a8221564acc6afc3`, `SHA256SUMS` `0923cd6e…`):
+First built on main `6cc30bb` (spec 047 landed; set `s-a8221564acc6afc3`), then, when spec 055
+landed, rebased onto main `b413192` (set `s-9d43bf645dfcaa71`, `SHA256SUMS` `b0c4f376…`), wired
+into 055's session path, rebuilt and judged again. The commits on `b413192`:
 
-- `74b6007`: the checks first, with the judge's changes: criteria 1 to 4 and 11 in
+- `d200e49`: the checks first, with the judge's changes: criteria 1 to 4 and 11 in
   `tests/checks/test_v1_2_hostile_guest.py`, criterion 5 and 11's units in
   `tests/unit/test_runner_calls.py`; `engine()` in `tests/harness/guest.py` makes the runner's
   engine (fuel, epoch interruption with a far-off deadline, 512 KiB) and `guest.run` takes
   `own=(engine, module)`; a `wasmtime cli` need (`tests/harness/needs.py`, `paths.wasmtime_cli`).
-- `baa8ec0`: the code. `recipes/reactor_main.c`: `C_STACK_WINDOW` and the
-  `PyUnstable_ThreadState_SetStackProtection` call after `Py_InitializeFromConfig`.
-  `src/wasi_python/runner.py`: `_WASM_STACK`, `max_wasm_stack` in `_engine`,
-  `_trap_handlers_ready` (Linux; `sigaction` and `dladdr` by load base) as the first thing
-  `_drive` does, the message `_TRAP_HANDLERS_REPLACED`, and the two docstrings.
-- `164e16d`: criterion 10's four lxml rows in criterion 1; README (the *Deep recursion* fact, the
-  fourth embedder step, the calling thread, *Safety*'s lines, the generated reference) and the
-  CHANGELOG under 0.1.0a7; the build's evidence beside the memo
-  (`2026-10-18-deep-recursion-on-the-wasm-stack/v3/`).
+- `a1098a3`: the code. `recipes/reactor_main.c`: `C_STACK_WINDOW` and the
+  `PyUnstable_ThreadState_SetStackProtection` call after `Py_InitializeFromConfig` (055's `turn`
+  and `shutdown` exports merged beside it without a conflict). `src/wasi_python/runner.py`:
+  `_WASM_STACK`, `max_wasm_stack` in `_engine`, `_trap_handlers_ready` (Linux; `sigaction` and
+  `dladdr` by load base) as the first thing `_drive` does, the message `_TRAP_HANDLERS_REPLACED`,
+  and the docstrings.
+- `18a471d`: criterion 10's four lxml rows in criterion 1; README and CHANGELOG (0.1.0a7, after
+  055's entry); the build's evidence beside the memo (`…-wasm-stack/v3/`).
+- `0ffbfba`: the first landing notes.
+- `2658b83`: criterion 11's session row, seen failing on `b413192` (below).
+- `682fabd`: **055's seam, wired here since 055 landed first.** The same check at a session's
+  opening (before `_check_preopens`, so before any wasm runs), at the top of `_drive_turn` (before
+  any guest code of each turn: the turn raises the same `RuntimeError` and the session ends as on
+  an error, so no Python shutdown runs guest code), and in `_shutdown` (the ending skips the
+  `shutdown` export, "skipped", when the handlers are replaced); `Session`'s docstrings; the
+  README's *Safety* line names sessions.
+- `e831e47`: 055's `Turns` driver in `tests/harness/guest.py` sets the far-off epoch deadline the
+  runner's engine now needs (without it 8 session checks stopped at once with "wasm trap:
+  interrupt"; a judge change).
 - Then these notes.
 
-The set, built from empty with `scripts/build.sh --plain` in the worktree (16 steps, 7 min 52 s;
-`build/artifacts/`): `SHA256SUMS` `a48b92aa15c5c62f65de42dbf428f6d56bfcbe7b054e86c3aff228d0e5f361f5`;
-`python.wasm` `ce65e305…` (41,092,491 bytes, 283 more than main's), `python-snapshot.wasm`
-`c3b589b8…`, `MANIFEST` `71ab999f…`; the stdlib zip `02026895…` is main's, byte for byte.
+The set, built from empty with `scripts/build.sh --plain` in the worktree (16 steps, 8 min 1 s;
+`build/artifacts/`): `SHA256SUMS` `618247d2c12310138a1df6ef2cc57f965c45fa74a5219ce96777e2289a52ea73`;
+`python.wasm` `c44ca042…` (41,099,725 bytes, 283 more than main's), `python-snapshot.wasm`
+`4a3b16f0…`, `MANIFEST` `25074717…`; the stdlib zip `02026895…` is main's, byte for byte. (The
+first build, on `6cc30bb`: `SHA256SUMS` `a48b92aa…`, `python.wasm` `ce65e305…`.)
 
 ### Seen failing first
 
-- On main's set, with the branch's checks (`build/failfirst-main.log`): 35 of criteria 1 to 3
-  fail, 33 of them `('stack overflow', b'')`, pandas `Series.map` with "maximum recursion depth
-  exceeded" at 249, and the default-engine check with a trap. Criterion 4's pairs pass there, as
-  documented limits must; their stand-in, a 2 MiB stack (`build/standin-c4.py`), completes or
-  raises every trapping depth, so the check fails. The four lxml rows also trap on main's set.
-- Criterion 11 on Linux aarch64 with main's runner and set (`v3/evidence/faulthandler-orders-main-arm64.log`):
-  "after" and "before-then-disable" kill the child (exit 132, SIGILL), "signal-after" hangs it
-  (killed at 120 s); on the branch (`…-branch-arm64.log`, `…-branch-amd64.log`, x86_64 under
-  emulation) those three are refused with the message, and the other three return
-  `trapped stack overflow`. On macOS all six return the trap (the judge's run).
+- On main's set `s-a8221564acc6afc3`, with the branch's checks (`build/failfirst-main.log`): 35 of
+  criteria 1 to 3 fail, 33 of them `('stack overflow', b'')`, pandas `Series.map` with "maximum
+  recursion depth exceeded" at 249, and the default-engine check with a trap. Criterion 4's
+  pairs pass there, as documented limits must; their stand-in, a 2 MiB stack
+  (`build/standin-c4.py`), completes or raises every trapping depth, so the check fails. The four
+  lxml rows also trap on main's set.
+- Criterion 11 on Linux aarch64 with main `b413192`'s runner and set
+  (`v3/evidence/faulthandler-orders-main-b413192-arm64.log`): "after", "before-then-disable" and
+  "session-turn-after" kill the child (exit 132, SIGILL), "signal-after" hangs it (killed at
+  120 s). On the branch (`…-branch-b413192-arm64.log`, and `…-amd64.log` under emulation) those
+  four are refused with the message, and the other three return `trapped stack overflow`. On
+  macOS all seven return the trap (the judge's run).
 - Criterion 5's and 11's units fail on main (no `_WASM_STACK`, no `_trap_handlers_ready`).
 
 ### The criteria
@@ -752,23 +766,24 @@ The set, built from empty with `scripts/build.sh --plain` in the worktree (16 st
    49.0.3 CLI runs the plain binary's `__repr__` recursion to a `RecursionError`, exit 0.
 4. All six pairs hold on arm64; the numbers were chosen against x86_64's edges (the memo's A1).
 5. The unit checks pass.
-6. **The judge** (`uv run pytest -n 3`, `build/judge-071.log`, `build/progress/latest.json`
-   kept): `wasi_python v1: 488/505 pass · 14 gap · 3 blocked · 0 fail (unit suite 1256/1263,
-   7 skipped)`; `1744 passed, 10 skipped, 14 xfailed in 373.34s`; `ratchet vs 7511a10187: lost 0
-   · absent 0 · unrun 0 · unrun locally 1 · gained 52 · grew 63 · judge changed:
-   tests/checks/test_v1_2_hostile_guest.py, tests/harness/guest.py, tests/harness/needs.py and 2
-   more`. The 52 gained are the new checks. numpy's and pandas' groups lose nothing under the new
-   driver engine and the window together, so nothing needed the engine-only run criterion 6 kept
-   for attributing a loss. **CPython's suite** (065 not on main): the memo's harness over all 557
-   modules on the built set through the new driver (`build/cpy071/`,
-   `v3/evidence/cpython-suite-vs-memo.txt`): 27,534 passes against the memo's 27,503. One module
-   lost passes, `test_ordered_dict` (297 to 0, a trap: the three `test_highly_nested` variants of
-   Decision 8, EXECUTED each by id, `v3/evidence/test-ordered-dict-variants.txt`); one gained,
-   `test_functools` (0 to 328: the four `test_recursive_pickle` variants pass by id,
-   `v3/evidence/test-recursive-pickle-variants.txt`). `test_doctest`, `test_exceptions`,
-   `test_syntax` and `test_traceback` still trap, as Decision 7 says. Start fuel for `-c pass`:
-   snapshot 83,535,208 on main's set, 83,485,437 here (−0.06%); plain 167,257,284 and 167,320,292
-   (+0.04%). `sys.getrecursionlimit()` is 1,000.
+6. **The judge** on `b413192`'s rebuild (`uv run pytest -n 3`, `build/judge-071c.log`,
+   `build/progress/latest.json` kept): `wasi_python v1: 528/545 pass · 14 gap · 3 blocked · 0 fail
+   (unit suite 1264/1271, 7 skipped)`; `1792 passed, 10 skipped, 14 xfailed in 592.81s`;
+   `ratchet vs 1dbf2c831f: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 53 · grew 71 ·
+   judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/harness/guest.py,
+   tests/harness/needs.py and 2 more`. The 53 gained are the new checks. numpy's and pandas'
+   groups and 055's session checks lose nothing under the new driver engine and the window
+   together, so nothing needed the engine-only run criterion 6 kept for attributing a loss.
+   **CPython's suite** (065 not on main), run on the first build (`6cc30bb`; the recipe's hunk is
+   the same on both, and 055 adds only the session exports): the memo's harness over all 557
+   modules through the new driver (`build/cpy071/`, `v3/evidence/cpython-suite-vs-memo.txt`):
+   27,534 passes against the memo's 27,503. One module lost passes, `test_ordered_dict` (297 to
+   0, a trap: the three `test_highly_nested` variants of Decision 8, EXECUTED each by id,
+   `v3/evidence/test-ordered-dict-variants.txt`); one gained, `test_functools` (0 to 328: the four
+   `test_recursive_pickle` variants pass by id, `v3/evidence/test-recursive-pickle-variants.txt`).
+   `test_doctest`, `test_exceptions`, `test_syntax` and `test_traceback` still trap, as Decision 7
+   says. Start fuel for `-c pass` against `s-9d43bf645dfcaa71`: snapshot 83,477,136 to 83,420,043
+   (−0.07%); plain 167,460,270 to 167,344,579 (−0.07%). `sys.getrecursionlimit()` is 1,000.
 7. `recipes/patches/` is unchanged; the rules and the patch checks pass in the judge.
 8. README and CHANGELOG as above; `test_rules.py` and the API reference pass.
 9. Recorded for spec 065 (not on main): on this set the four `test_recursive_pickle` variants
@@ -778,44 +793,51 @@ The set, built from empty with `scripts/build.sh --plain` in the worktree (16 st
    lands second removes the four, keeps the five and adds the three, each under question 102.
 10. lxml's four shapes raise on both hosts, at 67, 81, 86 and 77 levels (target, XPath extension,
     resolver, XSLT extension), with margins 1.73, 1.78, 1.49 and 1.45 on x86_64 and 1.83, 2.00,
-    1.60 and 1.56 on arm64 (`v3/evidence/lxml-*.jsonl`); so they are criterion 1 rows, floors 60,
-    70, 75 and 65, and no README limit.
-11. As in "Seen failing first".
+    1.60 and 1.56 on arm64 (`v3/evidence/lxml-*.jsonl`, measured on the first build); so they are
+    criterion 1 rows, floors 60, 70, 75 and 65, and no README limit.
+11. As in "Seen failing first", with the session row.
 
 ### Growth, with its measured reason
 
-63 metrics grew past the ratchet's tolerance (87 grew at all; 36 shrank): one binary's bytes and
-fuel. All are within +0.24% (the largest: `test_a_pandas_warning_names_the_callers_line[snapshot]`,
-+238,019 fuel, +0.24%; `test_upstream_suite[pandas-groupby]`, +217,416,915, +0.05%); the
-binary grew 283 bytes (`test_binary_is_a_core_wasm_module[plain]`), the recipe's call and its
-comment-free strings. Reason: a new `python.wasm` and snapshot. The plain binary's start runs one
-more call (+63,008 fuel for `-c pass`); the snapshot's start is 49,771 fuel cheaper; elsewhere the
-guest's memory layout differs by the relinked binary, so work that depends on addresses (hashing
-of objects by id, the allocator's arenas, the collector's timing) moves a few parts in ten
-thousand either way: the largest shrink is −0.14% (`test_npy_files_round_trip[snapshot]`) and
-`numpy-core` is 159 M fuel cheaper. The engine change does not move fuel: fuel counts wasm
-operators, and epoch checks are native code. The handler check costs no fuel.
+71 metrics grew past the ratchet's tolerance against `b413192`'s accepted record (83 grew at
+all; 40 shrank): one binary's bytes and fuel. The binary grew 283 bytes
+(`test_binary_is_a_core_wasm_module[plain]`), the recipe's call. Fuel: the largest relative
+growth is `test_upstream_suite[numpy-core]`, +1,081,373,954 (+0.53%); every other is within
++0.16% (`test_npy_files_round_trip[snapshot]`, +337,134); the largest shrink is −0.16%
+(`test_callbacks_job_matches_native[snapshot]`). Reason: a new `python.wasm` and snapshot whose
+memory layout differs, so work that depends on addresses (hashing by id, the allocator's arenas,
+the collector's timing) moves a few parts in ten thousand either way; `-c pass` is 0.07% cheaper
+on both binaries. numpy-core's own accepted fuel has moved by as much between landings that did
+not touch numpy (202,349,737,812 at `7511a10`, 203,634,093,365 at `1dbf2c8`, 202,357,454,477 at
+`590ac2e`, `context/progress/accepted.json` at each), and this run's 203,438,828,431 lies inside
+that range. The engine change does not move fuel: fuel counts wasm operators, and epoch checks
+are native code. The handler check costs no fuel.
 
 ### For the lane
 
 - `--accept-judge "spec 071: the judge's driver makes the runner's engine (fuel, epoch
-  interruption, 512 KiB); new checks for deep recursion, the window, the default engine and the
-  CLI, the deep-data limits, the stated engine and Linux's faulthandler orders; a wasmtime cli
+  interruption, 512 KiB), and the session driver sets the far-off epoch deadline it needs; new
+  checks for deep recursion, the window, the default engine and the CLI, the deep-data limits,
+  the stated engine and Linux's faulthandler orders, a session turn included; a wasmtime cli
   need"`.
-- `--accept-growth "spec 071's rebuilt python.wasm and snapshot (one recipe call): fuel moves a few
-  parts in ten thousand either way with the relinked binary's layout, at most +0.24%; the plain
-  start +63,008 fuel; the plain binary +283 bytes"`.
+- `--accept-growth "spec 071's rebuilt python.wasm and snapshot (one recipe call): fuel moves with
+  the relinked binary's layout, at most +0.53% (numpy-core, inside the range its accepted fuel has
+  spanned across landings that did not touch numpy) and +0.16% elsewhere; the plain binary +283
+  bytes"`.
 - **063's faulthandler gap** (`test_a_guest_trap_cannot_kill_a_host_that_enabled_faulthandler`,
-  digest `b5a565e2e3c0`) is not on main at `6cc30bb`, so 063 lands after this and restates that
-  check at its landing to "the host survives: the call is refused, or the trap is returned"; this
-  branch's criterion 11 is the evidence. If 063 lands first, this branch does it at its rebase.
-- **055** is not on main at `6cc30bb`: whichever lands second puts `_trap_handlers_ready()` at the
-  top of 055's turn path (its entry into a living instance), with the same `RuntimeError`.
+  digest `b5a565e2e3c0`) is not on main at `b413192`, so 063 lands after this and restates that
+  check at its landing to "the host survives: the call is refused, or the trap is returned";
+  this branch's criterion 11 is the evidence. If 063 lands first, this branch does it at its
+  rebase.
+- **055** landed first, so this branch wired its turn path (`682fabd`), with criterion 11's
+  session row.
+- **069** also edits `recipes/reactor_main.c`; whichever of 069 and this lands second restates
+  criterion 3's hashes and rebuilds.
 - **065**: criterion 9 above.
-- The judge printed one `PytestUnraisableExceptionWarning` (a `KeyboardInterrupt` inside a store's
-  `__del__`, from wasmtime-py's `_managed.py`), a warning, no failure; it names no check of this
-  specification (INFERRED: a Ctrl-C check's interrupt landing in a worker's collector under
-  `-n 3`).
+- The first judge run printed one `PytestUnraisableExceptionWarning` (a `KeyboardInterrupt`
+  inside a store's `__del__`, from wasmtime-py's `_managed.py`), a warning, no failure; it names
+  no check of this specification (INFERRED: a Ctrl-C check's interrupt landing in a worker's
+  collector under `-n 3`).
 
 ### Departures from the specification, each with its reason
 
@@ -825,11 +847,16 @@ operators, and epoch checks are native code. The handler check costs no fuel.
 - **Criterion 11's Python-handler row** installs `signal.signal(signal.SIGILL, …)`, not
   `SIGSEGV`: the guest's stack-overflow trap raises `SIGILL`, so that is the handler that hangs
   the host today (EXECUTED); a late `SIGSEGV` handler is refused all the same, by the same check.
-- **Criterion 11's second-entry row** is the "after" row, which is a second call in one process;
-  a session's second turn waits for 055 (above).
+- **Criterion 11's second-entry row** is the "after" row (a second call in one process) plus the
+  session row.
+- **Sessions** (055 landed first): beyond the turn entry the coordinator named, the check also
+  runs at a session's opening, and the ending skips Python's shutdown when the handlers are
+  replaced, since both run wasm; a refused turn ends the session as an error does.
 - **Criterion 3's driver parameter** is `own=(engine, module)`, since a store needs the module's
   engine too; such a run counts no fuel.
 - **Decision 8** named one `test_ordered_dict` variant; the build found three, written into
   Decisions 7 and 8 and criterion 9.
+- **Criterion 6's CPython-suite run** was made on the first build (`6cc30bb`), not repeated on the
+  rebuild; the recipe hunk is the same, and the lane re-measures at landing.
 - **Criterion 10** added four rows to criterion 1 and nothing to Decision 5, as it provides for
   shapes that raise.
