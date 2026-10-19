@@ -1,6 +1,6 @@
 # wasi_python
 
-**A statically linked CPython for WebAssembly hosts, with numpy, pandas and
+**A statically linked CPython for WebAssembly hosts, with numpy, pandas, scipy and
 matplotlib compiled in. No browser, no JavaScript. A few pinned releases, not every
 version of everything.**
 
@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, scipy (with OpenBLAS), matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -53,8 +53,8 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with eleven carried patches,
-below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
+The platform's facts, documented rather than patched (with fifteen carried patches,
+below and under *scipy in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
 
@@ -217,6 +217,43 @@ where native regex counts CPU time. regex kept its clock ticks in a 32-bit type 
 releases the change, and makes `timeout=float('inf')` mean no timeout. Its licence is Apache-2.0 and CNRI-Python:
 `LICENSES/regex.txt` is regex's `LICENSE.txt`, then a line naming each patch, and CNRI's
 Python 1.6 licence is in `LICENSES/cpython.txt`.
+
+### scipy in the guest
+
+scipy 1.18.1 is built in (spec 037), all of it but `scipy.odr`: `linalg`, `sparse` (SuperLU,
+ARPACK, PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`,
+`interpolate`, `signal`, `fft`, `special`, `stats`, `spatial` (qhull, `cKDTree`), `ndimage`,
+`cluster`, `io` and the rest. Its 95 compiled modules are builtins; its Python package is in the
+zip. Three golden jobs (`scipy_numeric`, `scipy_solvers`, `scipy_lapack`) print native scipy's
+answers at the same pin, to 9 significant digits for direct results and 6 for iterative ones.
+No Fortran compiler is involved: the LAPACK is OpenBLAS 0.3.34's own C translation, with three
+carried patches (`recipes/patches/OpenBLAS-0.3.34/`: every C LAPACK subroutine returns `void`, as
+OpenBLAS's `develop` branch already does, so no call traps on a mismatched signature), and one
+carried scipy patch gives five of uarray's callbacks the signatures CPython calls them with
+(`recipes/patches/scipy-1.18.1/`). What differs from native:
+
+- **`scipy.odr` is not in the build**: it needs ODRPACK, which is Fortran, and scipy deprecated it
+  for removal in 1.19. `import scipy.odr` raises `ImportError` saying so; `-V` names it.
+- **wasm SIMD**: OpenBLAS's kernels use 128-bit SIMD, so a host must support it (every wasmtime
+  this project supports does, by default). Nothing else in the build uses it.
+- **`workers=`**: `scipy.fft` (and `fftpack`) runs serially whatever `workers` says, with the
+  same answer. `differential_evolution` and `brute` with `workers` other than 1 raise
+  `AttributeError` (a process pool needs `os.pipe`, which WASI lacks), and `cKDTree.query` with
+  `workers` other than 1 raises `RuntimeError` ("can't start new thread"). Use the default, 1.
+- **Not yet, until scipy's next milestone (spec 038)**: `scipy.io.mmread` and `mmwrite` raise
+  `RuntimeError` (fast_matrix_market starts a thread pool); `stats.geninvgauss.cdf`,
+  `genhyperbolic.cdf`, `studentized_range` (and `tukey_hsd`) and `io.arff.loadarff` raise
+  `OSError` from the `ctypes` stand-in; and **`stats.qmc.Sobol` with nothing writable returns all
+  zeros**, after printing "Exception ignored" to stderr: it copies its direction numbers to a
+  temporary file, and scipy swallows the error. Give the call a writable `/tmp` (`root=True`, or a
+  writable grant at `/tmp`) when you use Sobol, `qmc_quad` or `sobol_indices`.
+- **Absent with the platform**: `LowLevelCallable.from_ctypes` and any ctypes function pointer
+  (no libffi); `scipy.datasets`' downloads (no network, and no `pooch`). qhull's `TO <file>`
+  option fails as an unopenable file does (QhullError): the reactor refuses `freopen`, its one
+  user.
+- **`OPENBLAS_*` environment variables** are read by OpenBLAS's constructor when the reactor
+  initializes; on the snapshot that ran at build time, so they do nothing there. OpenBLAS runs on
+  one thread either way, and maps a 16 MiB buffer at its first level-3 call.
 
 ### matplotlib in the guest
 
@@ -432,14 +469,16 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: eleven today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: fifteen today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
-Pillow's, kiwisolver's and regex's callback signatures, regex's timeout ticks, libxml2's file
-input without `dup()`, and pandas' Styler templates and networkx's graph atlas read from a zip):
+Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, regex's timeout
+ticks, libxml2's file input without `dup()`, pandas' Styler templates and networkx's graph atlas
+read from a zip, and OpenBLAS's three: its C LAPACK's subroutines all `void`, as its `develop`
+branch has them):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, sixteen steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, eighteen steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -482,7 +521,8 @@ meson, and the C libraries behind `bz2`, `lzma` and `sqlite3` (bzip2, liblzma
 from xz with xz's own `configure`, and SQLite's one-file amalgamation); compile regex's two C
 files; build libxml2
 and libxslt with their own `configure`s and compile lxml's two modules from the C its sdist
-ships; link everything into one interpreter as builtin modules and relink it
+ships; build OpenBLAS's C LAPACK with its own `make` and scipy with meson, its f2py wrappers
+written on the build host by numpy's f2py (a pinned host wheel); link everything into one interpreter as builtin modules and relink it
 as a WASI reactor; build the bytecode-only, deterministic stdlib zip; snapshot
 the reactor with the pinned wasmtime's own `wasmtime wizer`, the stdlib's
 bootstrap modules pre-imported and no package; assemble

@@ -7,6 +7,11 @@
   carried patches to scipy, a wider `ctypes` stand-in), so it was reviewed before it is built
   (constitution §5.6). It is build-class: it touches `recipes/` (§5.7). It builds after spec 037
   lands.
+  **Amended 2026-10-19 by spec 037's build** (037, Revised at build, items 9 and 10): 037 carries
+  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch`, so this specification's two
+  scipy patches are numbered `0002-…` and `0003-…`; and the `ctypes` stand-in already gives a
+  function type's instance from `cast(int, F)` (uncallable) and names `ctypes._CFuncPtr`, which
+  Decision 3 keeps ("any other cast raises" reads: any other cast but those).
 - **Owner:** Clay Gendron
 - **Kind:** two carried patches to scipy with their pull request drafts, the `ctypes` stand-in
   (spec 033's `recipes/ctypes_stand_in/_types.py`), judge additions and changes (a golden job, a

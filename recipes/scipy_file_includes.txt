@@ -1,7 +1,7 @@
 # Per-file force-includes for scipy's compile (spec 037, Decision 6), read by scripts/wasi-cc when
 # step 57 points WASI_CC_FILE_INCLUDES at the copy it renders into build/scipy-build (@ROOT@ is the
 # repository). One entry per line: a suffix of the compiled source's path, the header that compile
-# gets as `-include`, and, when it is not one, how many compiles it matches (xsf_wrappers.cpp is
+# gets as `-include` (or a flag, when it starts with `-`), and, when it is not one, how many compiles it matches (xsf_wrappers.cpp is
 # compiled into two modules). Step 57 checks the log: each entry matched exactly that many
 # compiles (`/_zeros.c` is the Cython C of scipy.optimize.cython_optimize._zeros; scipy.optimize._zeros is
 # `_zerosmodule.c`).
@@ -17,3 +17,7 @@ xsf_wrappers.cpp @ROOT@/recipes/scipy_special_xsf.h 2
 _batched_linalg_module.cc @ROOT@/recipes/scipy_batched_linalg_rename.h
 /trlib_tri_factor.c @ROOT@/recipes/scipy_trlib_dlagtm.h
 /_superlu_utils.c @ROOT@/recipes/scipy_superlu_gil.h
+# ducc0's C++ (scipy.fft) compiled at -Os: at -O3, -O2 and -O1 the pinned clang places its
+# exception try_table blocks in a different order on every run (eight compiles, eight objects;
+# EXECUTED), which broke the same bytes from any host; at -Os it gives one object every time.
+/pyduccfft.cxx -Os

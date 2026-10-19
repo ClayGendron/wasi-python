@@ -248,8 +248,9 @@ def test_the_wrapper_is_unchanged_without_the_map(tmp_path, argv) -> None:
 
 
 def test_the_wrapper_adds_a_mapped_files_include_and_logs_it(tmp_path) -> None:
-    """A compile whose source path ends with a map entry's suffix gets that entry's -include and
-    one log line; another compile gets neither; a comment line is no entry."""
+    """A compile whose source path ends with a map entry's suffix gets that entry's -include (or
+    its flag, after the compile's own) and one log line; another compile gets neither; a comment
+    line is no entry."""
     mapping = tmp_path / "map.txt"
     mapping.write_text("# a comment\n_flapackmodule.c /r/flapack.h\n/_zeros.c /r/zeros.h\n")
     log = tmp_path / "log.txt"
@@ -265,9 +266,13 @@ def test_the_wrapper_adds_a_mapped_files_include_and_logs_it(tmp_path) -> None:
     assert _wrapper(tmp_path, miss, env) == ["--target=wasm32-wasip1", *miss]
     zeros = ["-O2", "-o", "_zeros.c.o", "-c", "scipy/optimize/cython_optimize/_zeros.so.p/_zeros.c"]
     assert _wrapper(tmp_path, zeros, env)[-2:] == ["-include", "/r/zeros.h"]
+    flagged = ["-O3", "-o", "p.o", "-c", "scipy/fft/_duccfft/pyduccfft.cxx"]
+    mapping.write_text(mapping.read_text() + "/pyduccfft.cxx -Os\n")
+    assert _wrapper(tmp_path, flagged, env) == ["--target=wasm32-wasip1", *flagged, "-Os"]
     assert log.read_text().splitlines() == [
         "_flapackmodule.c\tscipy/linalg/_flapackmodule.c",
         "/_zeros.c\tscipy/optimize/cython_optimize/_zeros.so.p/_zeros.c",
+        "/pyduccfft.cxx\tscipy/fft/_duccfft/pyduccfft.cxx",
     ]
 
 

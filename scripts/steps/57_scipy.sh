@@ -84,7 +84,7 @@ grep -v '^#' "$BUILD/file-includes.txt" | while read -r suffix header count; do
   [ -n "$suffix" ] || continue
   n=$(cut -f 1 "$WASI_CC_FILE_INCLUDES_LOG" | grep -c -x -F -- "$suffix" || :)
   [ "$n" = "${count:-1}" ] || die "per-file include $suffix matched $n compiles, not ${count:-1} (build/scipy-build/file-includes.log)"
-  echo "per-file include: $suffix -> $(basename "$header"), $n compile(s)"
+  echo "per-file include: $suffix -> ${header##*/}, $n compile(s)"
 done
 
 # scipy's side of the LAPACK ABI (Decision 6): six shims of ours, compiled alone, no rename header.
