@@ -7,9 +7,11 @@ It does only what any embedder must do: preopen the stdlib, read-only, in a fold
 inner archive `matplotlib/mpl-data.zip`, extracted once per zip and granted read-only at the path
 matplotlib computes, as the README's embedder contract says (spec 023, Decision 5). It is kept
 apart from `wasi_python.run`, the runner it judges. It also answers `random_get` and
-`clock_time_get` itself, so every run is seeded alike and fuel (instructions executed) repeats to
-a few parts in ten million
-(context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-exact.md).
+`clock_time_get` itself (context/research/2026-10-16-a-host-supplied-clock-and-random-make-fuel-
+exact.md), and a file's times and inode number (spec 083: its times are the clock's values, its
+inode a count), and gives each run its own copy of the stdlib, so no link count is shared. So
+every run is seeded alike, and fuel (instructions executed) repeats exactly on one machine whose
+file system stamps every change apart, at one checkout path.
 """
 
 from __future__ import annotations
@@ -127,6 +129,9 @@ def stdlib_name(python_version: str, stdlib: Path) -> str:
 
 
 def _place(src: Path, dest: Path) -> None:
+    """The stdlib in a run's own folder, with an inode of its own (spec 083, Decision 10): a hard
+    link would share the set's file, whose link count every other run moves, and the guest sees it.
+    On darwin an APFS clone (what `cp -c` makes), else, or if that fails, a copy."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if src.is_dir():
         # A host folder a desktop may write into: its litter is no input, and the seal would
@@ -135,10 +140,27 @@ def _place(src: Path, dest: Path) -> None:
             src, dest, ignore=lambda _d, names: [n for n in names if litter.is_litter(n)]
         )
         return
+    if sys.platform == "darwin" and _clone(src, dest):
+        return
+    shutil.copyfile(src, dest)
+
+
+def _clone(src: Path, dest: Path) -> bool:
+    import ctypes
+
     try:
-        os.link(src, dest)
-    except OSError:
-        shutil.copyfile(src, dest)
+        libc = ctypes.CDLL(None, use_errno=True)
+        return libc.clonefile(os.fsencode(src), os.fsencode(dest), 0) == 0
+    except (OSError, AttributeError):
+        return False
+
+
+def _release(store: wt.Store, lib: Path | None) -> None:
+    """After a guest: its store closed first (on Windows, wasmtime's handles in `lib` go with it),
+    then its own stdlib removed; a removal's error is ignored, so it can never fail a run."""
+    store.close()
+    if lib is not None:
+        shutil.rmtree(lib, ignore_errors=True)
 
 
 def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
@@ -168,6 +190,263 @@ def _random_stream() -> Callable[[int], bytes]:
         return bytes(out[:n])
 
     return take
+
+
+# What the guest learns about a file (spec 083). wasmtime's filestat and readdir calls hand the
+# guest the host's real times, and an inode number that is a hash of the host's own, new for a
+# fresh file; each moves the instructions a program runs. The driver forwards the five calls that
+# carry them to wasmtime and answers those fields itself, as it answers the clock and random.
+P1 = "wasi_snapshot_preview1"
+FILE_CALLS: dict[str, tuple[str, ...]] = {
+    "fd_filestat_get": ("i32", "i32"),
+    "path_filestat_get": ("i32", "i32", "i32", "i32", "i32"),
+    "fd_filestat_set_times": ("i32", "i64", "i64", "i32"),
+    "path_filestat_set_times": ("i32", "i32", "i32", "i32", "i64", "i64", "i32"),
+    "fd_readdir": ("i32", "i32", "i32", "i64", "i32"),
+}
+OWN_PAGE = ("fd_filestat_get", "path_filestat_get")  # the stats the driver makes for itself
+FILESTAT = struct.Struct("<QQB7xQQQQQ")  # dev, ino, filetype, nlink, size, atim, mtim, ctim
+INO_AT, TIMES_AT = 8, 40  # the only fields the driver writes in a stat
+DIRENT = struct.Struct("<QQIB3x")  # d_next, d_ino, d_namlen, d_type, three bytes of padding
+OWN_PATH = FILESTAT.size  # where a stat's path goes on the driver's own page
+ATIM, ATIM_NOW, MTIM, MTIM_NOW = 1, 2, 4, 8  # fstflags
+FORWARD_FUEL = 1 << 20  # lent to each forward and taken back: the trampoline's, not the guest's
+MASK32 = 0xFFFFFFFF
+_forwarders: dict[bool, wt.Module] = {}
+
+
+def forwarders_wat(names: tuple[str, ...], own_page: bool) -> str:
+    """A module that imports each of wasmtime's calls in `names` and exports a function that
+    calls it. wasmtime's WASI reads and writes the memory the calling instance exports: the
+    guest's, imported and exported again; or, with `own_page`, a page of the module's own, so a
+    stat the driver makes for itself never touches a byte of the guest's."""
+    lines = ["(module"]
+    for name in names:
+        lines.append(f'  (import "{P1}" "{name}" (func ${name} {_signature(name)}))')
+    if own_page:
+        lines.append('  (memory (export "memory") 1)')
+    else:
+        lines += ['  (import "env" "memory" (memory 0))', '  (export "memory" (memory 0))']
+    for name in names:
+        gets = " ".join(f"(local.get {i})" for i in range(len(FILE_CALLS[name])))
+        lines.append(f'  (func (export "{name}") {_signature(name)} (call ${name} {gets}))')
+    return "\n".join([*lines, ")"])
+
+
+def _signature(name: str) -> str:
+    return f"(param {' '.join(FILE_CALLS[name])}) (result i32)"
+
+
+def _forwarders_module(eng: wt.Engine, own_page: bool) -> wt.Module:
+    """Compiled once for the driver's own engine; a run on its own engine (`own=`) compiles its
+    own each time, since a module of one engine must never reach another (no key by `id`)."""
+    names = OWN_PAGE if own_page else tuple(FILE_CALLS)
+    if eng is not engine():
+        return wt.Module(eng, forwarders_wat(names, own_page))
+    if own_page not in _forwarders:
+        _forwarders[own_page] = wt.Module(eng, forwarders_wat(names, own_page))
+    return _forwarders[own_page]
+
+
+class FileFacts:
+    """One run's answers about files, by wasmtime's inode number (its hash of the host's):
+    - the inode number: 1 for the first file the guest sees, 2 for the next, and so on;
+    - the times: a file first seen, or whose mtim or ctim moved on the host, takes the clock's
+      next value for each new time (one value for all of them); atim follows `noatime`: it moves
+      only with mtim or ctim, or when the guest sets it, never because the host read the file;
+      a time the guest set is answered as set, while the host keeps it.
+    A 0 (wasmtime's answer for its stdio streams) is answered 0, with no clock step."""
+
+    def __init__(self, now: Callable[[], int]) -> None:
+        self.now = now
+        self.inos: dict[int, int] = {}
+        self.times: dict[int, list[tuple[int, int]]] = {}
+
+    def ino(self, real: int) -> int:
+        return 0 if real == 0 else self.inos.setdefault(real, len(self.inos) + 1)
+
+    def stamp(self, real_ino: int, real: tuple[int, int, int]) -> tuple[int, int, int]:
+        if real_ino == 0 and not any(real):
+            return (0, 0, 0)
+        old = self.times.get(real_ino)
+        fresh = [old is None or old[i][0] != real[i] for i in range(3)]
+        fresh[0] = old is None or fresh[1] or fresh[2]
+        now = self.now() if any(fresh) else 0
+        kept = [
+            (real[i], 0 if real[i] == 0 else now)
+            if fresh[i] or old is None
+            else (real[i], old[i][1])
+            for i in range(3)
+        ]
+        self.times[real_ino] = kept
+        return (kept[0][1], kept[1][1], kept[2][1])
+
+    def filestat(self, raw: bytes) -> bytes:
+        """`raw` with its inode number and times answered; every other byte as wasmtime wrote it."""
+        out = bytearray(raw)
+        ino, times = self.fields(raw)
+        struct.pack_into("<Q", out, INO_AT, ino)
+        struct.pack_into("<QQQ", out, TIMES_AT, *times)
+        return bytes(out)
+
+    def fields(self, raw: bytes) -> tuple[int, tuple[int, int, int]]:
+        _dev, ino, _kind, _nlink, _size, atim, mtim, ctim = FILESTAT.unpack(raw)
+        return self.ino(ino), self.stamp(ino, (atim, mtim, ctim))
+
+    def set_times(self, raw: bytes, chosen: dict[int, int]) -> None:
+        """After a set-times call the host accepted, with the file's stat as the host now gives it:
+        field i (0 atim, 1 mtim) is answered `chosen[i]` while the host keeps that time."""
+        _dev, ino, _kind, _nlink, _size, atim, mtim, ctim = FILESTAT.unpack(raw)
+        self.stamp(ino, (atim, mtim, ctim))
+        for i, value in chosen.items():
+            self.times[ino][i] = ((atim, mtim)[i], value)
+
+    def listing(self, data: bytearray) -> None:
+        """A readdir answer, in place: each whole entry's d_ino answered and its padding zeroed
+        (wasmtime 49.0.0 leaves host bytes there; spec 048); of an entry cut at the end, only the
+        d_ino and padding bytes present are zeroed (wasi-libc never reads a cut entry)."""
+        at = 0
+        while at < len(data):
+            if len(data) - at < DIRENT.size:
+                for lo, hi in ((8, 16), (21, 24)):
+                    end = min(at + hi, len(data))
+                    data[at + lo : end] = bytes(max(0, end - at - lo))
+                return
+            d_next, ino, namlen, kind = DIRENT.unpack_from(data, at)
+            DIRENT.pack_into(data, at, d_next, self.ino(ino), namlen, kind)
+            at += DIRENT.size + namlen
+
+
+class _FileCalls:
+    """The five shadowed calls: each forwarded to wasmtime's own on the guest's memory through a
+    trampoline, fuel-neutral, and a successful answer's fields rewritten by `facts`."""
+
+    def __init__(self, counted: bool, facts: FileFacts) -> None:
+        self.counted = counted
+        self.facts = facts
+        self.funcs: dict[str, Any] = {}
+        self.own: dict[str, Any] = {}
+        self.page: Any = None
+
+    def define(self, linker: wt.Linker) -> None:
+        for name, params in FILE_CALLS.items():
+            kinds = [wt.ValType.i32() if p == "i32" else wt.ValType.i64() for p in params]
+            ty = wt.FuncType(kinds, [wt.ValType.i32()])
+            linker.define_func(P1, name, ty, getattr(self, name), True)
+
+    def bind(self, store: wt.Store, eng: wt.Engine, guest: wt.Instance) -> None:
+        """Instantiate both trampolines with wasmtime's own calls: after the guest, before it
+        runs. Its own linker holds only wasmtime's WASI, on the same store and so the same
+        descriptor table."""
+        plain = wt.Linker(eng)
+        plain.define_wasi()
+        imports: list[Any] = [plain.get(store, P1, name) for name in FILE_CALLS]
+        imports.append(guest.exports(store)["memory"])
+        ex = wt.Instance(store, _forwarders_module(eng, False), imports).exports(store)
+        self.funcs = {name: ex[name] for name in FILE_CALLS}
+        own = [plain.get(store, P1, name) for name in OWN_PAGE]
+        mine = wt.Instance(store, _forwarders_module(eng, True), own).exports(store)
+        self.own = {name: mine[name] for name in OWN_PAGE}
+        self.page = mine["memory"]
+
+    def call(self, caller: wt.Caller, func: Any, *args: int) -> int:
+        """wasmtime's answer, with the guest's fuel as it was before: the trampoline runs on fuel
+        lent to it, so its few instructions never count and never run a guest out early."""
+        if func is None:
+            raise RuntimeError("a file call before the driver's trampolines were bound")
+        before = wt.Store.get_fuel(caller) if self.counted else None  # type: ignore[arg-type]
+        try:
+            if before is not None:
+                lent = min(before + FORWARD_FUEL, UNMETERED)
+                wt.Store.set_fuel(caller, lent)  # type: ignore[arg-type]
+            return func(caller, *args)
+        finally:
+            if before is not None:
+                wt.Store.set_fuel(caller, before)  # type: ignore[arg-type]
+
+    def _answer(self, caller: wt.Caller, at: int) -> None:
+        memory: Any = caller.get("memory")
+        raw = bytes(memory.read(caller, at, at + FILESTAT.size))
+        ino, times = self.facts.fields(raw)
+        memory.write(caller, struct.pack("<Q", ino), at + INO_AT)
+        memory.write(caller, struct.pack("<QQQ", *times), at + TIMES_AT)
+
+    def fd_filestat_get(self, caller: wt.Caller, fd: int, out: int) -> int:
+        errno = self.call(caller, self.funcs.get("fd_filestat_get"), fd, out)
+        if errno == 0:
+            self._answer(caller, out & MASK32)
+        return errno
+
+    def path_filestat_get(
+        self, caller: wt.Caller, fd: int, flags: int, path: int, n: int, out: int
+    ) -> int:
+        args = (fd, flags, path, n, out)
+        errno = self.call(caller, self.funcs.get("path_filestat_get"), *args)
+        if errno == 0:
+            self._answer(caller, out & MASK32)
+        return errno
+
+    def fd_readdir(
+        self, caller: wt.Caller, fd: int, buf: int, length: int, cookie: int, used: int
+    ) -> int:
+        args = (fd, buf, length, cookie, used)
+        errno = self.call(caller, self.funcs.get("fd_readdir"), *args)
+        if errno:
+            return errno
+        memory: Any = caller.get("memory")
+        buf, used = buf & MASK32, used & MASK32
+        count = struct.unpack("<I", bytes(memory.read(caller, used, used + 4)))[0]
+        if count and (used + 4 <= buf or used >= buf + count):  # else the count lies over it
+            data = bytearray(memory.read(caller, buf, buf + count))
+            self.facts.listing(data)
+            memory.write(caller, bytes(data), buf)
+        return 0
+
+    def _chosen(self, atim: int, mtim: int, flags: int) -> dict[int, int]:
+        """What a set-times call sets, by field: an exact time as given, "now" the clock's next."""
+        chosen: dict[int, int] = {}
+        now: int | None = None
+        for i, (value, exact, at_now) in enumerate(
+            ((atim, ATIM, ATIM_NOW), (mtim, MTIM, MTIM_NOW))
+        ):
+            if flags & exact:
+                chosen[i] = value & 0xFFFFFFFFFFFFFFFF
+            elif flags & at_now:
+                now = self.facts.now() if now is None else now
+                chosen[i] = now
+        return chosen
+
+    def _record(self, caller: wt.Caller, errno: int, chosen: dict[int, int]) -> None:
+        if errno == 0:
+            self.facts.set_times(bytes(self.page.read(caller, 0, FILESTAT.size)), chosen)
+
+    def fd_filestat_set_times(
+        self, caller: wt.Caller, fd: int, atim: int, mtim: int, flags: int
+    ) -> int:
+        args = (fd, atim, mtim, flags)
+        errno = self.call(caller, self.funcs.get("fd_filestat_set_times"), *args)
+        if errno == 0 and (chosen := self._chosen(atim, mtim, flags)):
+            got = self.call(caller, self.own.get("fd_filestat_get"), fd, 0)
+            self._record(caller, got, chosen)
+        return errno
+
+    def path_filestat_set_times(
+        self, caller: wt.Caller, fd: int, flags: int, path: int, n: int, a: int, m: int, fst: int
+    ) -> int:
+        args = (fd, flags, path, n, a, m, fst)
+        errno = self.call(caller, self.funcs.get("path_filestat_set_times"), *args)
+        if errno == 0 and (chosen := self._chosen(a, m, fst)):
+            memory: Any = caller.get("memory")
+            path, n = path & MASK32, n & MASK32
+            name = bytes(memory.read(caller, path, path + n))  # wasmtime has just read it
+            short = OWN_PATH + n - self.page.data_len(caller)
+            if short > 0:
+                self.page.grow(caller, (short + 65535) // 65536)
+            self.page.write(caller, name, OWN_PATH)
+            stat = self.own.get("path_filestat_get")
+            got = self.call(caller, stat, fd, flags, OWN_PATH, n, 0)
+            self._record(caller, got, chosen)
+        return errno
 
 
 def _forms(root: Path) -> set[str]:
@@ -318,6 +597,7 @@ def run(
     i32, i64 = wt.ValType.i32(), wt.ValType.i64()
     take_random = _random_stream()
     ticks = itertools.count(1)
+    files = _FileCalls(counted, FileFacts(lambda: REALTIME_START_NS + next(ticks) * CLOCK_STEP_NS))
 
     def random_get(caller: wt.Caller, buf: int, n: int) -> int:
         caller.get("memory").write(caller, take_random(n), buf)
@@ -371,6 +651,7 @@ def run(
     )
     linker.define_func(p1, "clock_res_get", wt.FuncType([i32, i32], [i32]), clock_res_get, True)
     linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
+    files.define(linker)
 
     exit_code: int | None = None
     trapped: str | None = None
@@ -378,6 +659,7 @@ def run(
     metered = False  # the budget is set only once instantiation has succeeded
     try:
         inst = linker.instantiate(store, mod)
+        files.bind(store, eng, inst)  # before the guest runs (spec 083)
         if counted:
             store.set_fuel(fuel)
             metered = True
@@ -397,16 +679,11 @@ def run(
         trapped = trapped.strip().splitlines()[0] if trapped else "trap"
     except wt.WasmtimeError as e:
         trapped = str(e).strip().splitlines()[0]
+    except BaseException:
+        _release(store, lib)
+        raise
     spent = fuel - store.get_fuel() if metered else 0
-    try:
-        watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
-    finally:
-        if lib is not None:
-            # Never read again: unsealed, so a killed judge leaves at most the live run's sealed
-            # (spec 089, build review F1). Not removed: on this base the zip's link count reaches
-            # fuel, and 083's `_release` removes it.
-            litter.unseal(lib)
-    return Result(
+    result = Result(
         exit_code=exit_code,
         stdout=(io / "stdout").read_bytes(),
         stderr=(io / "stderr").read_bytes(),
@@ -415,6 +692,11 @@ def run(
         root=root,
         trap_cause=cause,
     )
+    try:
+        watch.after()  # a run whose grants changed raises HostLitter: its fuel is not recorded
+    finally:
+        _release(store, lib)  # after the watch: it must see the run's own stdlib copy (spec 089)
+    return result
 
 
 @dataclass(frozen=True)
@@ -464,7 +746,7 @@ class Turns:
         (root / "usr/local/lib").mkdir(parents=True)
         self._io.mkdir()
         self.root = root
-        lib = base / "lib"
+        self._lib = lib = base / "lib"
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
         self.store = wt.Store(engine())
         self.store.set_fuel(UNMETERED)
@@ -560,7 +842,7 @@ class Turns:
         return value
 
     def close(self) -> None:
-        self.store.close()
+        _release(self.store, self._lib)
 
 
 def turns(wasm: Path, **kw: Any) -> Turns:
