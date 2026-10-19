@@ -79,72 +79,8 @@ reason = "platform.libc_ver() at import opens sys.executable, a file the guest d
 closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
 
 # The trap entries (Decision 1). Spec 071's C-stack window closed the four test_recursive_pickle
-# entries (no trap on its set, on both hosts; removed at the rebase onto it). The eight below trap
-# at the runner's 512 KiB stack and close with spec 078 (question 102 answered: the runner runs each
-# guest on a stack of its own, 8 MiB), reserved in the roadmap.
-
-[[trap]]
-id = "c-stack-doctest"
-group = "cpython-b"
-test = "test.test_doctest.test_doctest.TestDocTestFinder.test_issue35753"
-reason = "freeing a 1,000-long chain of _Call objects recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-exceptions"
-group = "cpython-b"
-test = "test.test_exceptions.ExceptionTests.test_recursion_in_except_handler"
-reason = "freeing what the handlers chained recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-syntax"
-group = "cpython-c"
-test = "test.test_syntax.SyntaxErrorTestCase.test_error_on_parser_stack_overflow"
-reason = "the parser's MAXSTACK (4,000 on WASI) needs more than wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-syntax-lazy-import"
-group = "cpython-c"
-test = "test.test_syntax.LazyImportRestrictionTestCase.test_error_on_parser_stack_overflow"
-reason = "the same, inherited (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-ordered-dict-py"
-group = "cpython-c"
-test = "test.test_ordered_dict.PurePythonOrderedDictTests.test_highly_nested"
-reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine (spec 071, Decision 8, EXECUTED there by id; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-ordered-dict-py-subclass"
-group = "cpython-c"
-test = "test.test_ordered_dict.PurePythonOrderedDictSubclassTests.test_highly_nested"
-reason = "the same, the pure-Python subclass (spec 071, Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-ordered-dict-subclass"
-group = "cpython-c"
-test = "test.test_ordered_dict.CPythonOrderedDictSubclassTests.test_highly_nested"
-reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine; seen first on Linux x86-64 (dry run 39192207869), on every host since spec 071 (its Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-itertools-tee"
-group = "cpython-a"
-test = "test.test_itertools.TestPurePythonRoughEquivalents.test_tee_recipe"
-reason = "a long chain of pure-Python tee iterators recurses past the runner's 512 KiB stack on Linux x86-64 only (the lane's dry run 39260247695; reproduced in a linux/amd64 container, it passes on darwin), so an entry on every host (Decision 1; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
-
-[[trap]]
-id = "c-stack-traceback"
-group = "cpython-a"
-module = "test_traceback"
-reason = "printing and freeing deep exception groups; one trap is no test's (it fires after test_comparison whichever test follows), so the whole module (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md"
+# entries; spec 078 (the runner runs each guest on a stack of its own, 8 MiB) closed the nine that
+# trapped at 512 KiB, and their tests run in their groups. None is open.
 
 [[host_dependent]]
 id = "trailing-slash"
@@ -523,7 +459,7 @@ closes_with = "README.md"
 id = "no-test-modules"
 group = "cpython-a"
 outcome = "error"
-match = 'get_stack_pointer'
+match = "get_stack_pointer|No module named '_testcapi'"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
 closes_with = "context/roadmap.md"
 
@@ -549,6 +485,14 @@ group = "cpython-a"
 outcome = "error"
 match = '_path_normpath: path should be string'
 reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-missing-stdlib-info"
+group = "cpython-a"
+outcome = "failed"
+match = "Unsupported platform for Windows-only standard library module"
+reason = "the build's generated _missing_stdlib_info is not in the stdlib zip, so traceback names a missing stdlib module only as 'not found' (README; test_traceback runs since spec 078)"
 closes_with = "README.md"
 
 [[expected]]

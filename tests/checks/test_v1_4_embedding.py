@@ -1464,6 +1464,9 @@ def test_a_deadline_during_the_grant_check_is_a_deadline(monkeypatch) -> None:
     real, calls = runner._check_preopens, []
 
     def late(wt, linker, store, check, preopens):
+        # The deadline passes: the ticker's count, which every call's epoch callback reads since
+        # spec 078 polls every call, and every engine's epoch, which reaches the callback.
+        runner._epoch_ticker._count += 1000
         for engine in list(runner._engines.values()):
             for _ in range(1000):
                 engine.increment_epoch()
@@ -1903,7 +1906,7 @@ def past_deadline():
     # By count, never by time: the ticker's count, which the runner checks before each
     # provider call, and every engine's epoch, which stops the guest, both past this call's
     # deadline (the seams of spec 017's deadline check and tests/unit/test_runner_async.py).
-    call = runner._stack()[-1]  # this provider runs on the guest's thread, under its call
+    call = runner._stack()[-1]  # on the caller's thread, under its call, kept there (spec 078)
     runner._epoch_ticker.count = classmethod(lambda cls: call.stop_at)
     for engine in list(runner._engines.values()):
         for _ in range(int(DEADLINE_S / runner.TICK_S) + 2):

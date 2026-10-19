@@ -382,7 +382,9 @@ def run(
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
-    The guest sees no host folder but the read-only stdlib, and what `root`, `grants` and
+    The guest runs on a thread of the runner's own, with an 8 MiB wasm stack; your `host`,
+    providers and tools' contexts are served on the calling thread, which waits. The guest sees
+    no host folder but the read-only stdlib, and what `root`, `grants` and
     `mounts` give it. Every argument is checked before any work. A call that names no limit has
     the ones `defaults()` returns, read once, when the call is made. Nothing a guest does, and
     no `Exception` a provider, a tool or a gate raises, makes `run` raise: a provider's `OSError`
@@ -409,9 +411,9 @@ def run(
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
             /tmp is writable.
         stdin: The guest's standard input, whole; `None` is empty.
-        host: The door's host function: called with each request's bytes, it returns the
-            response's. It must answer synchronously: an async one raises `TypeError`. Excludes
-            `tools`.
+        host: The door's host function: called with each request's bytes, on the thread that
+            made the call, it returns the response's. It must answer synchronously: an async one
+            raises `TypeError`. Excludes `tools`.
         snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
             package); `False` the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
@@ -465,10 +467,13 @@ def run(
         OSError: A host filesystem call failed while the root, the private folders, the zip's
             copy or the cache was prepared (its subclasses, such as FileExistsError, included).
         RuntimeError: This process was forked after it ran a guest; a folder or the zip's
-            copy changed between the runner's check and its use; or, on Linux, a handler
-            installed or removed after the first run (faulthandler, `signal.signal`, a native
-            crash reporter) replaced wasmtime's trap handlers, so a guest trap would end the
-            process; raised before the guest runs.
+            copy changed between the runner's check and its use; on Linux, a handler installed
+            or removed after the first run (faulthandler, `signal.signal`, a native crash
+            reporter) replaced wasmtime's trap handlers, so a guest trap would end the process;
+            the guest's thread could not start, or has less stack than its 8 MiB wasm stack
+            needs, or its stack cannot be read on this platform; this is CPython 3.14.0 on a
+            C library other than glibc; or wasmtime-py cannot set its async stack size; raised
+            before the guest runs.
         wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
             wasmtime's own open. The type is wasmtime-py's and is not promised.
         KeyboardInterrupt: Ctrl-C.
@@ -531,7 +536,9 @@ async def run_async(
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
     The arguments are `run`'s, without `cancel`, plus `executor`; they are checked, and the
-    defaults read, before anything is queued. If the awaiting task is cancelled, the guest is
+    defaults read, before anything is queued. The worker serves your `host` and providers while
+    the guest runs on a thread of the runner's own, so the worker's own stack size does not
+    matter. If the awaiting task is cancelled, the guest is
     stopped and its worker freed before `asyncio.CancelledError` is raised; a call still queued
     never starts. A mount's provider runs on the worker thread, never the event loop's; a tool
     runs on a thread of its own.
@@ -555,9 +562,9 @@ async def run_async(
             empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where
             /tmp is writable.
         stdin: The guest's standard input, whole; `None` is empty.
-        host: The door's host function: called with each request's bytes, it returns the
-            response's. It must answer synchronously: an async one raises `TypeError`. Excludes
-            `tools`.
+        host: The door's host function: called with each request's bytes, on the thread that
+            made the call, it returns the response's. It must answer synchronously: an async one
+            raises `TypeError`. Excludes `tools`.
         snapshot: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no
             package); `False` the plain reactor.
         fuel: A cap on the guest's executed instructions; past it the call ends "out of
@@ -612,9 +619,9 @@ async def run_async(
         OSError: A host filesystem call failed while the root, the private folders, the zip's
             copy or the cache was prepared (its subclasses, such as FileExistsError, included).
         RuntimeError: This process was forked after it ran a guest; the interpreter is shutting
-            down; a folder or the zip's copy changed between the runner's check and its use; or,
-            on Linux, a handler installed or removed after the first run replaced wasmtime's trap
-            handlers (as `run`).
+            down; a folder or the zip's copy changed between the runner's check and its use; on
+            Linux, a handler installed or removed after the first run replaced wasmtime's trap
+            handlers; or the guest's thread is refused (as `run`).
         wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
             wasmtime's own open. The type is wasmtime-py's and is not promised.
         asyncio.CancelledError: The awaiting task was cancelled; the guest was stopped and its
@@ -1039,8 +1046,14 @@ def _after_fork_in_child() -> None:
     every lock the runner takes is made anew (spec 015's build review, F8)."""
     global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
     global _held_lock, _zip_lock, _zips, _tool_threads_lock
-    global _sessions_lock, _sessions, _reaper_queue, _closers_lock
+    global _sessions_lock, _sessions, _reaper_queue, _closers_lock, _stack_size_lock
     _pool_lock, _live_lock, _held_lock = threading.Lock(), threading.Lock(), threading.Lock()
+    # A fork inside the runner's stack-size window leaves the child at the guest thread's size;
+    # put back the value the runner found (spec 078, the review's F6).
+    if _stack_size_found:
+        threading.stack_size(_stack_size_found[0])
+        _stack_size_found.clear()
+    _stack_size_lock = threading.Lock()
     # A child has none of its parent's tool threads (spec 036, Decision 8).
     _tool_threads_lock, _tool_threads["running"] = threading.Lock(), 0
     _zip_lock, _zips = threading.Lock(), {}  # the parent's zip folders stay the parent's
@@ -2369,6 +2382,8 @@ def _run_checked(
     walked_root, walked = _walk_grants(root, c["grants"], found, cache, entries, serving)
     preopens: list[_Preopen] = []
     private = None
+    home = c.get("home") or _Home()  # this thread, while the guest runs on its own (spec 078)
+    c = {**c, "home": home}
     try:
         if _after_walk is not None:
             _after_walk()
@@ -2378,12 +2393,17 @@ def _run_checked(
         root_path, private = _preopens(found, root, walked_root, walked, preopens)
         return _call(wt, engine, module, root_path, preopens, c, host)
     finally:
-        # Windows holds every walked folder until here; a private root can be removed only after.
-        for w in [walked_root, *(w for _, _, w in walked), *(p.walked for p in preopens)]:
-            if w is not None:
-                w.close()
-        if private is not None:
-            private.remove()
+
+        def release() -> None:
+            # Windows holds every walked folder until here; a private root can be removed only
+            # after.
+            for w in [walked_root, *(w for _, _, w in walked), *(p.walked for p in preopens)]:
+                if w is not None:
+                    w.close()
+            if private is not None:
+                private.remove()
+
+        home.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
 
 
 def _preopens(
@@ -2433,6 +2453,15 @@ def _preopens(
     return root_path, private
 
 
+def _home_of(c: dict[str, Any]) -> _Home:
+    """The call's home thread (spec 078): the one `_run_checked` made, or one made here for a call
+    built by hand (the judge's stand-ins)."""
+    home = c.get("home")
+    if home is None:
+        home = c["home"] = _Home()
+    return home
+
+
 def _call(
     wt: Any,
     engine: wasmtime.Engine,
@@ -2480,12 +2509,16 @@ def _call_deferred(
         guest_home = None if home is None else home[1]
         return _instance(wt, engine, module, store, preopens, guest_home, c, host)
     finally:
-        store.close()
-        if home is not None and tmp_fd is not None:
-            shutil.rmtree(home[0], ignore_errors=True, dir_fd=tmp_fd)
-        elif home is not None and tmp is not None:
-            shutil.rmtree(tmp / home[0], ignore_errors=True)
-        _close(tmp_fd)
+
+        def release() -> None:
+            store.close()
+            if home is not None and tmp_fd is not None:
+                shutil.rmtree(home[0], ignore_errors=True, dir_fd=tmp_fd)
+            elif home is not None and tmp is not None:
+                shutil.rmtree(tmp / home[0], ignore_errors=True)
+            _close(tmp_fd)
+
+        _home_of(c).finish(release)  # never while a guest thread runs (spec 078, Decision 14)
 
 
 def _home_folder(
@@ -2574,7 +2607,10 @@ def _instance(
     ticks = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     # A call with `cancel` is first checked within CANCEL_TICKS ticks, whatever its deadline; its
     # callback then enforces the deadline too (spec 015).
-    store.set_epoch_deadline(ticks if cancel is None else min(CANCEL_TICKS, ticks))
+    # Every call is polled every CANCEL_TICKS ticks (spec 078, Decision 5): so Ctrl-C, and an
+    # exception raised into the home thread, reach a guest that never calls back.
+    store.set_epoch_deadline(min(CANCEL_TICKS, ticks))
+    ht = _home_of(c)  # the home thread (spec 078); `home` is the guest's HOME
     # The ticker's count at which this store's deadline has passed, read after the deadline is set
     # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
     stop_at = None if deadline_s is None else _stop_at(_epoch_ticker.count(), ticks)
@@ -2583,6 +2619,7 @@ def _instance(
         checks.append(cancel.is_set)  # a wait ends at a cancel, deadline or not
     if _ctrl_c_watched():
         checks.append(lambda: _ctrl_c["pending"])  # a wait on the main thread ends at Ctrl-C
+    checks.append(ht.stopped)  # and at an exception raised into the home (spec 078, C1)
     waits = _Waits(
         lambda: time.perf_counter(),
         time.sleep,
@@ -2590,7 +2627,7 @@ def _instance(
     )
     # Under tools=, the runner is the door's host: the frame host, bound by the same deadline,
     # cancel and Ctrl-C, and asked to admit each frame by its length before it is read (036).
-    tool_host = _tool_host(c, stop_at, cancel)
+    tool_host = _tool_host(c, stop_at, cancel, ht)
     admit = None
     if tool_host is not None:
         host, admit = tool_host, tool_host.admit
@@ -2651,34 +2688,40 @@ def _instance(
             engine,
             open_files=c["open_files"],  # spec 068: strict, as file_calls
         )
-        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit)
-        if cancel is not None:
-            _watch(store)
-        with _epoch_ticker(engine, deadline_s is not None or cancel is not None):
-            done = _drive(wt, guest_linker, store, module, call, fuel, every, check, plain=linker)
+        call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
+        _watch(store)  # every call (spec 078, Decision 5)
+        with _epoch_ticker(engine, True):
+            drive = functools.partial(_drive, plain=linker)
+            args = (wt, guest_linker, store, module, call, fuel, every, check)
+            done = _on_guest_thread("run", ht, call, drive, *args)
         fuel_used = _fuel_used(fuel, done, call, store.get_fuel)
         # Spec 034, Decision 8: what the guest wrote is handed over at every ending that returns
         # a result, after the fuel is read; a call that raises never gets here. Every call has a
         # table since spec 048; a guard table's walk does nothing (no mount, nothing owed).
         table.walk()
     finally:
-        if tool_host is not None:  # the call's tool loop, ended without waiting (spec 053)
-            tool_host.close()
-        # The store holds every descriptor the guest opened; a guest can open them until the
-        # host refuses. Close it first, so the clean-up below has descriptors to work with, and
-        # make that clean-up unable to raise (the 0.1.0a2 security review, F1).
-        store.close()
-        with _outputs_lock:  # the guest has ended; wasmtime frees the keys later, on its own thread
-            for key in keys:
-                _outputs.pop(key, None)
-        if table is not None:  # the record kept, the rest dropped now (the build review, F3)
+        if ht.done and table is not None:  # the record kept (the build review, F3)
             # A guard table is never reported: `files` is None without mounts (spec 048).
             files = table.record() if mounts else None
-            table.release()
-        for p in mounted:
-            p.walked.close()
-        if scratch is not None:
-            scratch.remove()
+
+        def release() -> None:
+            if tool_host is not None:  # the call's tool loop, ended without waiting (spec 053)
+                tool_host.close()
+            # The store holds every descriptor the guest opened; a guest can open them until the
+            # host refuses. Close it first, so the clean-up below has descriptors to work with,
+            # and make that clean-up unable to raise (the 0.1.0a2 security review, F1).
+            store.close()
+            with _outputs_lock:  # the guest has ended; wasmtime frees the keys later
+                for key in keys:
+                    _outputs.pop(key, None)
+            if table is not None:  # the rest dropped now (the build review, F3)
+                table.release()
+            for p in mounted:
+                p.walked.close()
+            if scratch is not None:
+                scratch.remove()
+
+        ht.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
     truncated = tuple(s.name for s in (out, err) if s.dropped)
     record = None if tool_host is None else tool_host.record  # on every ending (C6)
     return Completed(
@@ -2809,10 +2852,16 @@ class _Call:
         stop_at: int | None = None,
         table: Any = None,
         admit: Callable[[int], bytes | None] | None = None,
+        *,
+        home: Any = None,
     ) -> None:
         self.context = _context_address(store)
         self.origin_ns = origin_ns  # its waits count from here (spec 055, the review's F6)
-        self.door = _door(host, admit)  # admit: the frame host's, under tools= (spec 036)
+        # The thread that made the call, which runs the embedder's code (spec 078, Decision 4);
+        # None calls it directly (the judge's stand-ins).
+        self.home = home
+        # admit: the frame host's, under tools= (spec 036), whose host is the runner's own code
+        self.door = _door(host, admit, home if admit is None else None)
         self.poll = _poll_oneoff(origin_ns, waits)
         self.stopped: BaseException | None = None
         self.cancel = cancel
@@ -2949,6 +2998,10 @@ def _epoch_answer(context: Any, delta: Any) -> int:
         if _ctrl_c_watched() and _ctrl_c["pending"]:
             _ctrl_c["pending"] = False
             call.stopped = KeyboardInterrupt()
+            return _stop_error(delta)
+        home = getattr(call, "home", None)
+        if home is not None and home.raised is not None:  # raised into the home (spec 078)
+            call.stopped = _Stopped()
             return _stop_error(delta)
         if call.cancel is not None and call.cancel.is_set():
             call.ended = "cancelled"
@@ -3156,10 +3209,14 @@ def _note_ctrl_c(signum: int, frame: Any) -> None:
 
 
 def _ctrl_c_watched() -> bool:
+    """Whether a Ctrl-C on the main thread is deferred for the call this thread serves: on the main
+    thread, whether `_deferred_ctrl_c` holds it; on a guest thread, what its home answered when the
+    entry began (spec 078, Decision 5)."""
     import signal
 
-    main = threading.current_thread() is threading.main_thread()
-    return main and signal.getsignal(signal.SIGINT) is _note_ctrl_c
+    if threading.current_thread() is threading.main_thread():
+        return signal.getsignal(signal.SIGINT) is _note_ctrl_c
+    return bool(getattr(_calls, "watched", False))
 
 
 @contextmanager
@@ -3342,8 +3399,21 @@ def _trap_code_name(code: Any) -> str:
     return code.name.lower().replace("_", " ")
 
 
+def _door_answer(host: Host, request: bytes) -> bytes | None:
+    """The host's answer as plain bytes, or None for a fault; on the home thread, so a response's
+    own code (a bytes subclass's `__bytes__`) runs there too (spec 078, Decision 4)."""
+    response = host(request)
+    if not isinstance(response, (bytes, bytearray, memoryview)):
+        return None
+    if memoryview(response).nbytes > MAX_RESPONSE:
+        return None  # checked in bytes, before the copy
+    return bytes(response)
+
+
 def _door(
-    host: Host | None, admit: Callable[[int], bytes | None] | None = None
+    host: Host | None,
+    admit: Callable[[int], bytes | None] | None = None,
+    home: Any = None,
 ) -> Callable[..., int]:
     """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5).
 
@@ -3375,12 +3445,16 @@ def _door(
             return HOST_FAULT  # memory.read would clamp a frame that runs past memory
         response = None if admit is None else admit(length)
         if response is None:
-            response = host(bytes(memory.read(caller, ptr, ptr + length)))
-        if not isinstance(response, (bytes, bytearray, memoryview)):
+            request = bytes(memory.read(caller, ptr, ptr + length))
+            response = (
+                _door_answer(host, request)
+                if home is None
+                else home.call(_door_answer, host, request)
+            )
+        else:
+            response = _door_answer(lambda _: response, b"")
+        if response is None:
             return HOST_FAULT
-        if memoryview(response).nbytes > MAX_RESPONSE:
-            return HOST_FAULT  # checked in bytes, before the copy
-        response = bytes(response)
         p = alloc(caller, len(response)) & MASK32
         if not p or p + len(response) > memory.data_len(caller):
             return HOST_FAULT
@@ -3546,14 +3620,25 @@ def _count_tool_threads(delta: int) -> None:
         _tool_threads["running"] += delta
 
 
+def _home_context(home: Any) -> Callable[[], contextvars.Context]:
+    """How a tool call copies its context: on the home thread, so it sees what a provider or the
+    door host set earlier in the call (spec 078, Decision 4, the review's F12)."""
+    if home is None:
+        return contextvars.copy_context
+    return lambda: home.call(contextvars.copy_context)
+
+
 def _ctrl_c_now() -> bool:
     """A Ctrl-C is pending for the call on this (the main) thread: read, never cleared."""
     return _ctrl_c_watched() and _ctrl_c["pending"]
 
 
-def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost | None:
+def _tool_host(
+    c: dict[str, Any], stop_at: int | None, cancel: Any, home: Any = None
+) -> _ToolHost | None:
     """The call's frame host, for a call with tools=, bound by the call's deadline, its cancel
-    and Ctrl-C (spec 036, Decisions 2 to 5); None otherwise."""
+    and Ctrl-C (spec 036, Decisions 2 to 5), and by an exception raised into its home thread,
+    where each tool call's context is copied (spec 078, Decision 4, C1); None otherwise."""
     if c.get("tools") is None:
         return None
     from .tools import _Bounded, _ToolHost, _ToolLoop
@@ -3563,8 +3648,9 @@ def _tool_host(c: dict[str, Any], stop_at: int | None, cancel: Any) -> _ToolHost
         stop_at=stop_at,
         ticks=lambda: _epoch_ticker.count(),
         cancel=cancel,
-        ctrl_c=_ctrl_c_now,
+        ctrl_c=_ctrl_c_now if home is None else (lambda: _ctrl_c_now() or home.stopped()),
         count=_count_tool_threads,
+        context=_home_context(home),
     )
     # Under run_async, the caller's loop; otherwise a private loop of the call's own (spec 053).
     tool_loop = _ToolLoop(c.get("tool_loop"), count=_count_tool_threads)
@@ -3593,10 +3679,39 @@ def _release() -> None:
     _engines.clear()
 
 
-# wasmtime's default wasm stack, stated (spec 071, Decision 3): the guest's C-stack window (128 KiB,
-# recipes/reactor_main.c) is sized for it, and wasm runs on the calling thread's own stack, so a
-# larger limit than the thread has would end the host process instead of trapping.
-_WASM_STACK = 512 * 1024
+# The guest's stack (spec 078). Every entry into wasm runs on a guest thread the runner makes for
+# it, with _THREAD_STACK bytes of stack, _WASM_STACK of them for wasm (Decision 1). The C-stack
+# window (128 KiB, recipes/reactor_main.c, spec 071) is unchanged. _HOST_ROOM holds what runs below
+# the guest's frames: the runner's own callbacks (measured at most 48 KiB), and the collector's
+# finalizers, audit hooks and trace functions that can run inside them (Decision 2; review F9).
+_WASM_STACK = 8 << 20
+_HOST_ROOM = 2 << 20
+_THREAD_STACK = _WASM_STACK + _HOST_ROOM
+_GUEST_SLICE = CANCEL_TICKS * TICK_S  # how often a waiting thread looks up (Decisions 14, 15)
+_stack_size_lock = threading.Lock()
+_stack_size_found: list[int] = []  # the value threading.stack_size had, while the window is open
+# Test hook: told each entry's kind ("run", "open", "turn", "shutdown"), on its guest thread, once
+# its stack is checked and before any wasm (spec 078, criterion 1).
+_on_entry: Callable[[str], None] | None = None
+
+
+def _set_async_stack(cfg: Any, size: int) -> None:
+    """wasmtime's async stack size, which must be at least `max_wasm_stack` above 2 MiB, or
+    wasmtime refuses the config and wasmtime-py's engine aborts the process (spec 078, Decision 1).
+    Through `Config.async_stack_size` when wasmtime-py has it, else its own declared binding; with
+    neither, a RuntimeError before any engine is made."""
+    if isinstance(getattr(type(cfg), "async_stack_size", None), property):
+        cfg.async_stack_size = size
+        return
+    from wasmtime import _ffi
+
+    setter = getattr(_ffi, "wasmtime_config_async_stack_size_set", None)
+    if not callable(setter):
+        raise RuntimeError(
+            f"wasmtime-py {_wasmtime_version()} cannot set async_stack_size, which the runner's "
+            f"{_WASM_STACK >> 20} MiB wasm stack needs"
+        )
+    setter(cfg.ptr(), size)
 
 
 def _engine(metered: bool) -> wasmtime.Engine:
@@ -3609,9 +3724,386 @@ def _engine(metered: bool) -> wasmtime.Engine:
             cfg = wt.Config()
             cfg.consume_fuel = metered
             cfg.epoch_interruption = True
+            _set_async_stack(cfg, _WASM_STACK)  # first: an 8 MiB stack without it aborts
             cfg.max_wasm_stack = _WASM_STACK
             _engines[metered] = wt.Engine(cfg)
         return _engines[metered]
+
+
+class _Stopped(BaseException):
+    """The guest thread's stop when its home has stopped (an exception raised into the home, or a
+    home that left): it stops the call as a host function's BaseException does (Decision 15)."""
+
+
+class _ThreadTooSmall(RuntimeError):
+    pass
+
+
+_DONE = object()
+
+
+class _Box:
+    """One hand-off: a function and its arguments, run on the home thread; the guest thread waits
+    on `lock`, which `answer` releases once."""
+
+    __slots__ = ("fn", "args", "lock", "value", "error", "answered")
+
+    def __init__(self, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
+        self.fn, self.args = fn, args
+        self.lock = threading.Lock()
+        self.lock.acquire()
+        self.value: Any = None
+        self.error: BaseException | None = None
+        self.answered = False
+
+    def answer(self, value: Any = None, error: BaseException | None = None) -> None:
+        if not self.answered:
+            self.value, self.error, self.answered = value, error, True
+            self.lock.release()
+
+    def run(self) -> None:
+        try:
+            value = self.fn(*self.args)
+        except BaseException as e:  # the embedder's own, met on the guest thread as today
+            self.answer(error=e)
+        else:
+            self.answer(value)
+
+
+class _Home:
+    """The thread that made a call (spec 078, Decision 2): it waits while the call's guest thread
+    runs, serves the embedder's code the guest thread hands it (Decision 4), and keeps the
+    teardown of what the guest uses until the guest thread has ended (Decision 14)."""
+
+    def __init__(self) -> None:
+        self.ident = threading.get_ident()
+        self.inbox: queue.SimpleQueue[Any] = queue.SimpleQueue()
+        self.lock = threading.Lock()
+        self.serving = False
+        self.raised: BaseException | None = None
+        self.watched = False  # this thread's _ctrl_c_watched(), for its guest thread (Decision 5)
+        self.thread: threading.Thread | None = None
+        self.done = True  # no guest thread is running
+        self.abandoned = False
+        self.steps: list[Callable[[], Any]] = []
+        self.result: tuple[Any, BaseException | None] = (None, None)
+
+    def stop(self, error: BaseException) -> None:
+        """Keep the first exception raised into the home; the epoch callback, the runner's waits
+        and any hand-off then stop the guest."""
+        if self.raised is None:
+            self.raised = error
+
+    def stopped(self) -> bool:
+        return self.raised is not None
+
+    def call(self, fn: Callable[..., Any], *args: Any) -> Any:
+        """fn(*args) on the home thread: directly when already there, else handed home and waited
+        for in slices, until it is answered, the home has an exception, or it stops serving."""
+        if threading.get_ident() == self.ident:
+            return fn(*args)
+        box = _Box(fn, args)
+        self.inbox.put(box)
+        while not box.lock.acquire(timeout=_GUEST_SLICE):
+            if self.raised is not None or not self.serving:
+                raise _Stopped()
+        if box.error is not None:
+            raise box.error
+        return box.value
+
+    def serve(self) -> None:
+        """Run what the guest thread hands home until it is done. An exception raised into this
+        loop is kept as the call's stop, and the hand-off in flight is answered with a stop."""
+        self.serving = True
+        item: Any = None
+        try:
+            while True:
+                try:
+                    item = None
+                    item = self.inbox.get(timeout=_GUEST_SLICE)
+                    if item is _DONE:
+                        return
+                    item.run()
+                    item = None
+                except queue.Empty:
+                    continue
+                except BaseException as e:
+                    self.stop(e)
+                    if item is _DONE:
+                        return
+                    if item is not None:
+                        item.answer(error=_Stopped())
+        finally:
+            self.serving = False
+
+    def finish(self, step: Callable[[], Any]) -> bool:
+        """Run `step` now if no guest thread runs, and say so; else leave it to the guest thread,
+        which runs it at its end, and stop the guest (an abandoned home is a stopped one)."""
+        with self.lock:
+            if not self.done:
+                self.abandoned = True
+                self.steps.append(step)
+                self.stop(_Stopped())
+                return False
+        step()
+        return True
+
+    def body(self, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
+        """The guest thread: check its stack, tell the interpreter where it guesses, run fn; then
+        hand the result home and run the steps an abandoned home left."""
+        value: Any = None
+        error: BaseException | None = None
+        try:
+            try:
+                bounds = _guest_stack()
+                if bounds is None or bounds[1] < _WASM_STACK + _HOST_ROOM // 2:
+                    have = "unreadable" if bounds is None else f"{bounds[1]:,} bytes"
+                    raise _ThreadTooSmall(
+                        f"the guest's thread has {have} of stack, less than the "
+                        f"{(_WASM_STACK + _HOST_ROOM // 2) >> 20} MiB its {_WASM_STACK >> 20} MiB "
+                        "wasm stack needs (did other code change threading.stack_size while the "
+                        "runner started it?); the call was refused"
+                    )
+                _tell_interpreter(*bounds)
+                _calls.watched = self.watched
+                if _on_entry is not None:
+                    _on_entry(kind)
+                # The ticker runs while any guest thread runs, so its epoch checks go on even if
+                # its home has been forced out (spec 078, Decision 14).
+                with _epoch_ticker(None, True):
+                    value = fn(*args)
+            except BaseException as e:
+                error = e
+        finally:
+            self.result = (value, error)
+            self.inbox.put(_DONE)
+            with self.lock:
+                self.done = True
+                steps, self.steps = (self.steps, []) if self.abandoned else ([], self.steps)
+            for step in steps:
+                try:
+                    step()
+                except BaseException:
+                    pass
+
+
+def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
+    """Start a guest thread with _THREAD_STACK bytes, restoring threading.stack_size without
+    erasing a value another thread set inside the window (Decision 2, the review's F6)."""
+    context = contextvars.copy_context()
+    thread = threading.Thread(
+        target=context.run, args=(home.body, kind, fn, args), name="wasi-python-guest"
+    )
+    with _stack_size_lock:
+        old = threading.stack_size(_THREAD_STACK)
+        _stack_size_found[:] = [old]
+        try:
+            home.done = False
+            home.thread = thread
+            try:
+                thread.start()
+            except BaseException:
+                home.done, home.thread = True, None
+                raise
+        finally:
+            current = threading.stack_size(old)
+            if current != _THREAD_STACK:
+                threading.stack_size(current)  # another thread's, set inside the window
+            _stack_size_found.clear()
+
+
+def _join_guest(home: _Home) -> None:
+    """Wait until the guest thread has ended; an exception raised meanwhile stops the guest and
+    the wait goes on (Decision 14)."""
+    while home.thread is not None:
+        try:
+            if not home.thread.is_alive():
+                return
+            home.thread.join(_GUEST_SLICE)
+        except BaseException as e:
+            home.stop(e)
+
+
+def _on_guest_thread(kind: str, home: _Home, call: Any, fn: Callable[..., Any], *args: Any) -> Any:
+    """fn(*args) on a guest thread of its own, this thread serving it as its home; returns or
+    raises only once that thread has ended (spec 078, Decisions 2, 14 and 15). `call` is pushed on
+    this thread's stack meanwhile, so a host function finds it as before (Decision 16)."""
+    stack = _stack()
+    if call is not None:
+        stack.append(call)
+    try:
+        value: Any = None
+        error: BaseException | None = None
+        for attempt in (0, 1):
+            home.raised = None
+            home.watched = _ctrl_c_watched()
+            try:
+                _start_guest(home, kind, fn, args)
+                home.serve()
+            except BaseException as e:
+                home.stop(e)
+                raise
+            finally:
+                _join_guest(home)
+            value, error = home.result
+            home.result = (None, None)
+            if not (attempt == 0 and isinstance(error, _ThreadTooSmall) and home.raised is None):
+                break
+    finally:
+        if call is not None and stack and stack[-1] is call:
+            stack.pop()
+    if home.raised is not None:
+        raise home.raised
+    if error is not None:
+        raise error
+    return value
+
+
+# The guest thread's own stack (Decision 3). Each C function is a private prototype, resolved once;
+# no argtypes are set on a shared ctypes attribute. What is measured is the thread's whole stack as
+# the C library reports it (glibc's static TLS and thread descriptor lie inside it, and the frames
+# above the entry count too), not the room left at the entry: the 1 MiB between the refusal line
+# and the thread's size, and the host room, absorb both (the review's F14).
+_stack_api: dict[str, Any] = {}
+
+
+def _guest_stack(platform: str | None = None) -> tuple[int, int] | None:
+    """(the usable bottom, the usable size) of this thread's stack, or None if unreadable."""
+    try:
+        plat = platform if platform is not None else sys.platform
+        if plat.startswith(("linux", "android")):
+            return _posix_stack()
+        if plat == "darwin":
+            return _darwin_stack()
+        if plat == "win32":
+            return _windows_stack()
+    except Exception:
+        return None
+    return None
+
+
+def _posix_stack() -> tuple[int, int] | None:
+    if "getattr" not in _stack_api:
+        libc = ctypes.CDLL(None)
+        vp, sz = ctypes.c_void_p, ctypes.c_size_t
+        _stack_api["self"] = ctypes.CFUNCTYPE(ctypes.c_ulong)(("pthread_self", libc))
+        _stack_api["getattr"] = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulong, vp)(
+            ("pthread_getattr_np", libc)
+        )
+        _stack_api["getstack"] = ctypes.CFUNCTYPE(
+            ctypes.c_int, vp, ctypes.POINTER(vp), ctypes.POINTER(sz)
+        )(("pthread_attr_getstack", libc))
+        _stack_api["guard"] = ctypes.CFUNCTYPE(ctypes.c_int, vp, ctypes.POINTER(sz))(
+            ("pthread_attr_getguardsize", libc)
+        )
+        _stack_api["destroy"] = ctypes.CFUNCTYPE(ctypes.c_int, vp)(("pthread_attr_destroy", libc))
+    attr = (ctypes.c_char * 1024)()  # larger than any pthread_attr_t
+    if _stack_api["getattr"](_stack_api["self"](), attr) != 0:
+        return None
+    try:
+        addr, size, guard = ctypes.c_void_p(), ctypes.c_size_t(), ctypes.c_size_t()
+        if _stack_api["getstack"](attr, ctypes.byref(addr), ctypes.byref(size)) != 0:
+            return None
+        if _stack_api["guard"](attr, ctypes.byref(guard)) != 0:
+            return None
+    finally:
+        _stack_api["destroy"](attr)
+    if not addr.value or size.value <= guard.value:
+        return None
+    return addr.value + guard.value, size.value - guard.value
+
+
+def _darwin_stack() -> tuple[int, int] | None:
+    if "top" not in _stack_api:
+        libc = ctypes.CDLL(None)
+        vp = ctypes.c_void_p
+        _stack_api["self"] = ctypes.CFUNCTYPE(vp)(("pthread_self", libc))
+        _stack_api["top"] = ctypes.CFUNCTYPE(vp, vp)(("pthread_get_stackaddr_np", libc))
+        _stack_api["size"] = ctypes.CFUNCTYPE(ctypes.c_size_t, vp)(
+            ("pthread_get_stacksize_np", libc)
+        )
+    me = _stack_api["self"]()
+    top, size = _stack_api["top"](me), _stack_api["size"](me)
+    if not top or not size or size >= top:
+        return None
+    return top - size, size
+
+
+def _windows_stack() -> tuple[int, int] | None:
+    """Counted conservatively: high - low - the thread's stack guarantee - one page (F7)."""
+    if "limits" not in _stack_api:
+        kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined]
+        up = ctypes.POINTER(ctypes.c_size_t)
+        _stack_api["limits"] = ctypes.WINFUNCTYPE(None, up, up)(  # type: ignore[attr-defined]
+            ("GetCurrentThreadStackLimits", kernel32)
+        )
+        _stack_api["guarantee"] = ctypes.WINFUNCTYPE(  # type: ignore[attr-defined]
+            ctypes.c_int, ctypes.POINTER(ctypes.c_ulong)
+        )(("SetThreadStackGuarantee", kernel32))
+    low, high = ctypes.c_size_t(), ctypes.c_size_t()
+    _stack_api["limits"](ctypes.byref(low), ctypes.byref(high))
+    guarantee = ctypes.c_ulong(0)
+    if not _stack_api["guarantee"](ctypes.byref(guarantee)):  # 0 asks; it changes nothing
+        return None
+    return _windows_usable(low.value, high.value, guarantee.value)
+
+
+def _windows_usable(
+    low: int, high: int, guarantee: int, page: int = 4096
+) -> tuple[int, int] | None:
+    size = high - low - guarantee - page
+    return (low + guarantee + page, size) if size > 0 else None
+
+
+def _pyapi(name: str, restype: Any, *argtypes: Any) -> Any:
+    """A private prototype of a C API function: no restype or argtypes is set on
+    `ctypes.pythonapi`'s shared attributes (spec 078, the review's F5). AttributeError if absent."""
+    return ctypes.PYFUNCTYPE(restype, *argtypes)((name, ctypes.pythonapi))
+
+
+def _tell_interpreter(
+    bottom: int,
+    size: int,
+    *,
+    implementation: str | None = None,
+    version: tuple[int, ...] | None = None,
+    platform: str | None = None,
+    libc: str | None = None,
+    resolve: Callable[..., Any] | None = None,
+) -> bool:
+    """Where CPython 3.14 and later guess their thread's stack (Linux without glibc), tell the
+    interpreter this thread's real one, or a callback from deep in the guest ends the process
+    (Decision 3). True when told. CPython 3.14.0 there has no such call: RuntimeError."""
+    import platform as platform_module
+
+    name = implementation if implementation is not None else sys.implementation.name
+    ver = version if version is not None else tuple(sys.version_info[:3])
+    plat = platform if platform is not None else sys.platform
+    if name != "cpython" or ver[:2] < (3, 14) or not plat.startswith("linux"):
+        return False
+    lib = libc if libc is not None else platform_module.libc_ver()[0]
+    if lib == "glibc":
+        return False
+    find = resolve if resolve is not None else _pyapi
+    try:
+        get = find("PyThreadState_Get", ctypes.c_void_p)
+        protect = find(
+            "PyUnstable_ThreadState_SetStackProtection",
+            ctypes.c_int,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        )
+    except AttributeError:
+        raise RuntimeError(
+            f"CPython {'.'.join(map(str, ver))} on this C library guesses its thread's stack and "
+            "cannot be told the guest thread's; use CPython 3.14.1 or later"
+        ) from None
+    try:
+        protect(get(), bottom, size)
+    except Exception as e:
+        raise RuntimeError(f"the interpreter refused the guest thread's stack: {e}") from None
+    return True
 
 
 # Linux: the fatal signals wasmtime 49 handles to turn a fault in wasm into a trap
@@ -3819,7 +4311,7 @@ class _epoch_ticker:
     _thread: threading.Thread | None = None
     _cond = threading.Condition()
 
-    def __init__(self, engine: wasmtime.Engine, wanted: bool) -> None:
+    def __init__(self, engine: wasmtime.Engine | None, wanted: bool) -> None:
         self.wanted = wanted
 
     @classmethod
@@ -3898,14 +4390,19 @@ class SessionEnded(RuntimeError):
 
 
 class _Either:
-    """A stop that is set when either event is: a turn's `cancel`, or its session's closing."""
+    """A stop that is set when either event is: a turn's `cancel`, or its session's closing; or
+    when an exception was raised into the turn's home thread (spec 078, C1)."""
 
-    __slots__ = ("first", "second")
+    __slots__ = ("first", "second", "home")
 
-    def __init__(self, first: threading.Event | None, second: threading.Event) -> None:
-        self.first, self.second = first, second
+    def __init__(
+        self, first: threading.Event | None, second: threading.Event, home: Any = None
+    ) -> None:
+        self.first, self.second, self.home = first, second, home
 
     def is_set(self) -> bool:
+        if self.home is not None and self.home.raised is not None:
+            return True
         return (self.first is not None and self.first.is_set()) or self.second.is_set()
 
 
@@ -3948,6 +4445,7 @@ class _State:
         self.home: tuple[str, Path | None, int | None] | None = None
         self.counted = False
         self.context: Any = None  # a copy taken at the opening, for a closer (the re-review's F7)
+        self.ending_home: Any = None  # the ending's home thread, while it runs (spec 078)
 
 
 _sessions_lock = threading.Lock()
@@ -4167,18 +4665,26 @@ def _end_session(state: _State, owner: int | None = None) -> BaseException | Non
             return None
     outcome, raised = "skipped", None
     try:
-        try:
-            if _shutdown_applies(state):
-                outcome, raised = _shutdown(state)
-        except BaseException as e:
-            outcome, raised = "stopped", e
-        finally:
-            _release_session(state)
+        if _shutdown_applies(state):
+            outcome, raised = _shutdown(state)
+    except BaseException as e:
+        outcome, raised = "stopped", e
     finally:
-        with state.lock:
-            state.outcome = outcome
-        state.done.set()
-        _wake_reaper()
+
+        def finish() -> None:
+            try:
+                _release_session(state)
+            finally:
+                with state.lock:
+                    state.outcome = outcome
+                state.done.set()
+                _wake_reaper()
+
+        home = state.ending_home
+        if home is None:
+            finish()
+        else:  # never while the ending's guest thread runs (spec 078, Decision 14)
+            home.finish(finish)
     return raised
 
 
@@ -4212,30 +4718,14 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
         return "skipped", None  # (spec 071, Decision 9)
     ticks = max(1, math.ceil(left / TICK_S))
     fuel = state.c["fuel"] if state.metered else None
-    call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None)
-    wt, store = state.wt, state.store
-    value = exited = None
-    trapped: str | None = None
-    stack = _stack()
-    stack.append(call)
-    _calls.lost = False
+    home = state.ending_home = _Home()  # the ending's home thread (spec 078)
+    call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None, home)
+    wt = state.wt
     try:
         with _epoch_ticker(state.engine, True):
-            try:
-                if _on_export is not None:
-                    _on_export("shutdown", threading.get_ident())
-                value = state.exports["shutdown"](store)
-            except wt.ExitTrap as e:
-                exited = e.code
-            except wt.Trap as e:
-                trapped = _trap_name(e)
-                e.__traceback__ = None
-            except wt.WasmtimeError as e:
-                trapped = _first_line(str(e))
-                e.__traceback__ = None
-            finally:
-                stack.pop()
-                lost, _calls.lost = getattr(_calls, "lost", False), False
+            value, exited, trapped, lost = _on_guest_thread(
+                "shutdown", home, call, _shutdown_export, state, call
+            )
         raised: BaseException | None = None
         cause = call.stopped
         if lost:
@@ -4259,6 +4749,33 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     finally:
         if tool_host is not None and state.private_loop is not None:
             state.private_loop.cancel_tasks()  # the loop itself closes with the session's release
+
+
+def _shutdown_export(state: _State, call: _Call) -> tuple[int | None, int | None, str | None, bool]:
+    """The `shutdown` export, on the ending's guest thread (spec 078): (its value, an exit code, a
+    trap's name, whether the runner lost track of the call)."""
+    wt, store = state.wt, state.store
+    value = exited = None
+    trapped: str | None = None
+    stack = _stack()
+    stack.append(call)
+    _calls.lost = False
+    try:
+        if _on_export is not None:  # told the home thread, the one spec 055 means
+            _on_export("shutdown", _home_ident(call))
+        value = state.exports["shutdown"](store)
+    except wt.ExitTrap as e:
+        exited = e.code
+    except wt.Trap as e:
+        trapped = _trap_name(e)
+        e.__traceback__ = None
+    except wt.WasmtimeError as e:
+        trapped = _first_line(str(e))
+        e.__traceback__ = None
+    finally:
+        stack.pop()
+        lost, _calls.lost = getattr(_calls, "lost", False), False
+    return value, exited, trapped, lost
 
 
 def _release_session(state: _State) -> None:
@@ -4318,6 +4835,7 @@ def _arm(
     stop: Any,
     output_bytes: int | None,
     loop: Any,
+    home: Any = None,
 ) -> tuple[_Call, _Stream, _Stream, Any]:
     """One call into the session's instance: its fuel and epoch deadline re-armed, its waits on
     the session's clock base, fresh output streams, a frame host and mount counters of its own
@@ -4336,6 +4854,8 @@ def _arm(
         checks.append(stop.is_set)
     if _ctrl_c_watched():
         checks.append(lambda: _ctrl_c["pending"])
+    if home is not None:
+        checks.append(home.stopped)  # a wait ends at an exception raised into the home (C1)
     waits = _Waits(
         lambda: time.perf_counter(),
         time.sleep,
@@ -4346,23 +4866,25 @@ def _arm(
         _outputs[state.keys[0]], _outputs[state.keys[1]] = out, err
     host, admit, tool_host = state.host, None, None
     if state.c.get("tools") is not None:
-        tool_host = _session_tool_host(state, stop_at, stop, loop)
+        tool_host = _session_tool_host(state, stop_at, stop, loop, home)
         host, admit = tool_host, tool_host.admit
     state.table.new_turn()
-    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, state.table, admit)
+    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, state.table, admit, home=home)
     if _on_call is not None:
         _on_call(kind, call)
     return call, out, err, tool_host
 
 
-def _session_tool_host(state: _State, stop_at: int | None, stop: Any, loop: Any) -> Any:
+def _session_tool_host(
+    state: _State, stop_at: int | None, stop: Any, loop: Any, home: Any = None
+) -> Any:
     """A frame host per turn; one bound per session, so abandoned tool threads are counted
     across its turns; one private tool loop per session for its synchronous turns, or the
     caller's loop for a turn by run_async (Decision 5, Decision 11)."""
     from .tools import _ToolHost, _ToolLoop
 
     c = state.c
-    state.bounded.rearm(stop_at, stop)
+    state.bounded.rearm(stop_at, stop, _home_context(home))
     if loop is not None:
         tool_loop = _ToolLoop(loop, count=_count_tool_threads)
     else:
@@ -4383,6 +4905,11 @@ class _TurnDone(NamedTuple):
     completed: Completed
     cause: str | None  # what ends the session, if the turn does
     returned: bool  # the export returned a status: the interpreter is sound
+
+
+def _home_ident(call: Any) -> int:
+    home = getattr(call, "home", None)
+    return threading.get_ident() if home is None else home.ident
 
 
 def _drive_turn(
@@ -4416,8 +4943,8 @@ def _drive_turn(
                 memory.write(store, data, p)
             else:
                 p = 0  # the guest raises MemoryError for its code
-        if _on_export is not None:
-            _on_export("turn", threading.get_ident())
+        if _on_export is not None:  # told the home thread, the one spec 055 means (spec 078)
+            _on_export("turn", _home_ident(call))
         value = exports["turn"](store, p, len(data))
     except wt.ExitTrap as e:
         exit_code = e.code
@@ -4457,7 +4984,9 @@ def _turn_inside(
     output_bytes: int | None,
     cancel: threading.Event | None,
     loop: Any,
+    home: Any = None,
 ) -> _TurnDone:
+    home = home if home is not None else _Home()
     own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
     ticks, capped = own, False
     if state.lifetime_s is not None:  # the lifetime caps the turn's deadline (the review's F4)
@@ -4465,11 +4994,13 @@ def _turn_inside(
         cap = max(1, math.ceil(left / TICK_S))
         if cap < own:
             ticks, capped = cap, True
-    stop = _Either(cancel, state.closing)
-    call, out, err, tool_host = _arm(state, "turn", fuel, ticks, stop, output_bytes, loop)
+    stop = _Either(cancel, state.closing, home)
+    call, out, err, tool_host = _arm(state, "turn", fuel, ticks, stop, output_bytes, loop, home)
     try:
         with _epoch_ticker(state.engine, True):
-            value, exit_code, trapped, ran = _drive_turn(state, call, data)
+            value, exit_code, trapped, ran = _on_guest_thread(
+                "turn", home, call, _drive_turn, state, call, data
+            )
         if _after_export is not None:
             _after_export()
         returned = value is not None
@@ -4526,12 +5057,16 @@ def _session_turn(
     session has ended by its return, run the ending here (Decision 7, step 6)."""
     done: _TurnDone | None = None
     error: BaseException | None = None
+    home = _Home()  # this thread, while the turn runs on a guest thread (spec 078)
     try:
         try:
             with _deferred_ctrl_c():
-                done = _turn_inside(state, data, fuel, deadline_s, output_bytes, cancel, loop)
+                done = _turn_inside(state, data, fuel, deadline_s, output_bytes, cancel, loop, home)
         except BaseException as e:
             error = e
+        if not home.done:  # forced out while the guest thread runs (spec 078, Decision 14)
+            home.finish(lambda: _abandon_turn(state))
+            raise error if error is not None else RuntimeError("wasi_python lost a turn")
         with state.lock:
             if error is not None:
                 state.sound = False  # whatever the export returned: no shutdown (F3's error row)
@@ -4564,6 +5099,18 @@ def _session_turn(
         raise error
     assert done is not None
     return done.completed
+
+
+def _abandon_turn(state: _State) -> None:
+    """A turn whose home was forced out, run by its guest thread at its end: the session ends as
+    on an error, and only now may another thread enter its store (spec 078, Decision 14)."""
+    with state.lock:
+        state.sound = False
+        _mark(state, "error")
+        state.busy = False
+        state.turn_thread = None
+        state.last_end = _session_clock()
+    _wake_reaper()
 
 
 def _end_with_ctrl_c(state: _State, owner: int | None = None) -> BaseException | None:
@@ -4613,6 +5160,7 @@ def _open_session(
     walked_root, walked = _walk_grants(root, c["grants"], found, cache, entries, serving)
     state.walked = [w for w in [walked_root, *(w for _, _, w in walked)] if w is not None]
     preopens: list[_Preopen] = []
+    home = _Home()  # this thread, while the opening's wasm runs on a guest thread (spec 078)
     try:
         root_path, state.private = _preopens(found, root, walked_root, walked, preopens)
         state.walked += [p.walked for p in preopens]
@@ -4682,14 +5230,21 @@ def _open_session(
         table.session = True
         store.set_epoch_deadline(NO_DEADLINE)  # no guest code runs before the first turn
         _watch(store)  # every turn can be stopped by a close (Decision 6)
-        not_ready = _trap_handlers_ready()  # spec 071, Decision 9: before any wasm runs
-        if not_ready is not None:
-            raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
         check = _check_module(wt, engine, metered)
-        _check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once
-        instance = guest_linker.instantiate(store, module)
-        table.bind(wt, store, linker, instance)
-        state.exports = instance.exports(store)
+        state.exports = _on_guest_thread(
+            "open",
+            home,
+            None,
+            _open_wasm,
+            wt,
+            linker,
+            guest_linker,
+            store,
+            check,
+            every,
+            module,
+            table,
+        )
         state.needs_initialize = "_initialize" in state.exports
         state.wt, state.engine, state.metered = wt, engine, metered
         if c.get("tools") is not None:
@@ -4702,8 +5257,29 @@ def _open_session(
                 count=_count_tool_threads,
             )
     except BaseException:
-        _release_session(state)
+        home.finish(lambda: _release_session(state))  # never under a running guest (spec 078)
         raise
+
+
+def _open_wasm(
+    wt: Any,
+    linker: Any,
+    guest_linker: Any,
+    store: Any,
+    check: Any,
+    every: list[_Preopen],
+    module: Any,
+    table: Any,
+) -> Any:
+    """A session's opening wasm, on its guest thread (spec 078): the signal guard, the preopen
+    check, the instantiation and the mount table's bind; the instance's exports."""
+    not_ready = _trap_handlers_ready()  # spec 071, Decision 9: before any wasm runs
+    if not_ready is not None:
+        raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
+    _check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once
+    instance = guest_linker.instantiate(store, module)
+    table.bind(wt, store, linker, instance)
+    return instance.exports(store)
 
 
 class Session:
@@ -5030,9 +5606,10 @@ class Session:
                 in that case the session's ending runs here first, so `run` may block for up
                 to `shutdown_s` (plus any call of your own code it makes) before it raises.
             RuntimeError: A turn is already running in this session; this process was forked
-                after it ran a guest; the runner lost track of the turn; or, on Linux,
-                wasmtime's trap handlers were replaced after the first run (as `run`; the turn
-                runs no guest code and the session ends, without Python's shutdown).
+                after it ran a guest; the runner lost track of the turn; on Linux, wasmtime's
+                trap handlers were replaced after the first run (as `run`; the turn runs no
+                guest code and the session ends, without Python's shutdown); or the guest's
+                thread is refused (as `run`).
             KeyboardInterrupt: Ctrl-C.
             BaseException: One that is not an `Exception`, raised by your own host, provider,
                 tool or gate, propagates.

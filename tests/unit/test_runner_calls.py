@@ -231,7 +231,7 @@ def test_a_handler_a_host_sets_during_a_call_is_kept(default_ctrl_c) -> None:
 
 
 class RecordingConfig:
-    """A wasmtime.Config stand-in that keeps what is set on it."""
+    """A wasmtime.Config stand-in that keeps what is set on it, in order."""
 
     def __init__(self) -> None:
         self.set: dict[str, object] = {}
@@ -242,39 +242,111 @@ class RecordingConfig:
         else:
             self.set[name] = value
 
+    def ptr(self) -> RecordingConfig:
+        return self
+
+
+def _record_async_stack(monkeypatch) -> None:
+    """wasmtime-py's own binding for the async stack size, recording into the stand-in."""
+    monkeypatch.setattr(
+        _ffi,
+        "wasmtime_config_async_stack_size_set",
+        lambda cfg, size: cfg.set.__setitem__("async_stack_size (binding)", size),
+    )
+
+
+STATED = 8 * 1024 * 1024
+
 
 def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
-    """Spec 071, criterion 5: the runner's engines are made with a 512 KiB wasm stack, stated,
-    beside fuel (for the metered one) and epoch interruption."""
+    """Spec 078, criterion 2 (restating spec 071's criterion 5): the runner's engines are made
+    with an 8 MiB wasm stack, stated, beside fuel (for the metered one) and epoch interruption;
+    wasmtime's async stack size is raised to it first, through wasmtime-py's own binding."""
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
     monkeypatch.setattr(runner, "_engines", {})
     monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
+    _record_async_stack(monkeypatch)
     runner._engine(True)
     runner._engine(False)
-    assert runner._WASM_STACK == 512 * 1024
-    assert [c.set for c in made] == [
-        {"consume_fuel": True, "epoch_interruption": True, "max_wasm_stack": 512 * 1024},
-        {"consume_fuel": False, "epoch_interruption": True, "max_wasm_stack": 512 * 1024},
+    assert runner._WASM_STACK == STATED
+    assert runner._THREAD_STACK == STATED + 2 * 1024 * 1024
+    assert [list(c.set.items()) for c in made] == [
+        [
+            ("consume_fuel", True),
+            ("epoch_interruption", True),
+            ("async_stack_size (binding)", STATED),
+            ("max_wasm_stack", STATED),
+        ],
+        [
+            ("consume_fuel", False),
+            ("epoch_interruption", True),
+            ("async_stack_size (binding)", STATED),
+            ("max_wasm_stack", STATED),
+        ],
     ]
 
 
+def test_the_async_stack_size_property_is_preferred(monkeypatch) -> None:
+    """Spec 078, criterion 2: a wasmtime-py whose Config has an async_stack_size property is set
+    through it, and the binding is not called."""
+
+    class WithProperty(RecordingConfig):
+        @property
+        def async_stack_size(self) -> int:
+            return 0
+
+        @async_stack_size.setter
+        def async_stack_size(self, size: int) -> None:
+            self.set["async_stack_size (property)"] = size
+
+        def __setattr__(self, name: str, value: object) -> None:
+            if name == "async_stack_size":
+                object.__setattr__(self, name, value)
+            else:
+                super().__setattr__(name, value)
+
+    monkeypatch.setattr(_ffi, "wasmtime_config_async_stack_size_set", None)
+    cfg = WithProperty()
+    runner._set_async_stack(cfg, STATED)
+    assert cfg.set == {"async_stack_size (property)": STATED}
+
+
+def test_no_engine_is_made_without_the_async_stack_size(monkeypatch) -> None:
+    """Spec 078, criterion 2 (the review's F5): with neither the property nor the binding, the
+    engine is refused with RuntimeError naming wasmtime-py's version, before max_wasm_stack is set
+    and before an Engine is made (wasmtime's refusal would abort the process)."""
+    made: list[RecordingConfig] = []
+    monkeypatch.setattr(wt, "Config", RecordingConfig)
+    monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
+    monkeypatch.setattr(runner, "_engines", {})
+    monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
+    monkeypatch.delattr(_ffi, "wasmtime_config_async_stack_size_set")
+    with pytest.raises(RuntimeError, match=r"wasmtime-py .* cannot set async_stack_size"):
+        runner._engine(True)
+    assert made == []
+
+
 def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
-    """Spec 071, criterion 5 (Decision 3): the judge's driver makes the runner's engine: fuel,
-    epoch interruption and the same 512 KiB stack, so checks see the frames `run` gives."""
+    """Spec 078, criterion 2 (restating spec 071's criterion 5, Decision 3): the judge's driver
+    makes the runner's engine: fuel, epoch interruption and the same 8 MiB stack, the async stack
+    size first, so checks see the frames `run` gives."""
     from harness import guest
 
     made: list[RecordingConfig] = []
     monkeypatch.setattr(wt, "Config", RecordingConfig)
     monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
     monkeypatch.setattr(guest, "_engine", None)
+    _record_async_stack(monkeypatch)
     guest.engine()
-    assert made[0].set == {
-        "consume_fuel": True,
-        "epoch_interruption": True,
-        "max_wasm_stack": 512 * 1024,
-    }
+    assert list(made[0].set.items()) == [
+        ("consume_fuel", True),
+        ("epoch_interruption", True),
+        ("async_stack_size (binding)", STATED),
+        ("max_wasm_stack", STATED),
+    ]
+    assert guest.THREAD_STACK == runner._THREAD_STACK
 
 
 def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:

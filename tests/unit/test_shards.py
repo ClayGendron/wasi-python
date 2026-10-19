@@ -405,13 +405,29 @@ def test_a_node_whose_file_defines_no_such_check_is_named() -> None:
 # CPython's groups in the plan (spec 065, Decision 7, criterion 6)
 
 
+def _with_stand_in_traps():
+    """The judge's configs with stand-in CPython trap entries: since spec 078 closed the nine,
+    none is open, and the rules for one still hold."""
+    from dataclasses import replace
+
+    from harness import upstream
+
+    configs = upstream.load_all()
+    traps = [
+        upstream.Trap("t-c", "", "r", "README.md", "cpython-c", "test.test_x.T.test_c", ""),
+        upstream.Trap("t-a", "", "r", "README.md", "cpython-a", "", "test_x"),
+        upstream.Trap("t-b", "", "r", "README.md", "cpython-b", "test.test_x.T.test_b", ""),
+    ]
+    return {**configs, "python": replace(configs["python"], traps=traps)}
+
+
 def test_a_cpython_trap_goes_with_its_named_group() -> None:
     from harness import upstream
 
-    groups = shards.group_of()
-    assert groups[upstream.trap_node("c-stack-ordered-dict-py")] == "cpython-c"
-    assert groups[upstream.trap_node("c-stack-traceback")] == "cpython-a"
-    assert groups[upstream.trap_node("c-stack-doctest")] == "cpython-b"
+    groups = shards.group_of(_with_stand_in_traps())
+    assert groups[upstream.trap_node("t-c")] == "cpython-c"
+    assert groups[upstream.trap_node("t-a")] == "cpython-a"
+    assert groups[upstream.trap_node("t-b")] == "cpython-b"
 
 
 def test_cpython_fs_runs_on_three_systems_and_the_archives_on_linux_only() -> None:
@@ -437,10 +453,9 @@ def test_cpython_entry_checks_go_with_their_group() -> None:
 def test_stand_in_a_cpython_trap_placed_by_the_path_rule_finds_no_group() -> None:
     """Criterion 6's stand-in: 063's path rule alone gives a regrtest trap (no file) no group, so
     it would fall into `rest`."""
-    from harness import upstream
 
-    cfg = upstream.load_all()["python"]
-    t = next(t for t in cfg.traps if t.id == "c-stack-ordered-dict-py")
+    cfg = _with_stand_in_traps()["python"]
+    t = next(t for t in cfg.traps if t.id == "t-c")
     assert not any(
         t.file and t.file.startswith(p + "/") for g in cfg.groups.values() for p in g.paths
     )

@@ -24,6 +24,7 @@ import shutil
 import struct
 import sys
 import tempfile
+import threading
 import zipfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -35,7 +36,8 @@ import wasmtime as wt
 from harness import litter, paths
 
 DEFAULT_FUEL = 2 * 10**11
-WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
+WASM_STACK = 8 << 20  # the runner's stated wasm stack (spec 078, Decision 1; spec 071, Decision 3)
+THREAD_STACK = WASM_STACK + (2 << 20)  # the runner's guest thread (spec 078, Decision 2)
 EPOCH_FAR_OFF = 2**40  # epochs are on, as in the runner, but no check is ever interrupted
 UNMETERED = 2**63 - 1  # instantiation's own memory fill is not the guest's work (spec 008)
 NO_HOST = -1
@@ -58,16 +60,50 @@ MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"
 
 def engine() -> wt.Engine:
     """The runner's engine (spec 071, Decision 3): fuel, epoch interruption and the runner's
-    512 KiB wasm stack, so a check sees the native frames and the stack `run` gives. Epoch checks
-    make Cranelift's frames larger; a driver without them measured more room than users get."""
+    8 MiB wasm stack (spec 078), so a check sees the native frames and the stack `run` gives.
+    Epoch checks make Cranelift's frames larger; a driver without them measured more room than
+    users get. Above 2 MiB wasmtime needs the async stack size raised first."""
     global _engine
     if _engine is None:
+        from wasmtime import _ffi
+
         cfg = wt.Config()
         cfg.consume_fuel = True
         cfg.epoch_interruption = True
+        _ffi.wasmtime_config_async_stack_size_set(cfg.ptr(), WASM_STACK)
         cfg.max_wasm_stack = WASM_STACK
         _engine = wt.Engine(cfg)
     return _engine
+
+
+_stack_lock = threading.Lock()
+
+
+def on_own_stack(fn: Callable[[], Any]) -> Any:
+    """fn() on a thread with room for the 8 MiB wasm stack, as the runner gives (spec 078): its
+    value, or its exception. The driver's host functions run there too; they are the judge's own."""
+    import contextvars
+
+    box: dict[str, Any] = {}
+
+    def body() -> None:
+        try:
+            box["value"] = fn()
+        except BaseException as e:
+            box["error"] = e
+
+    context = contextvars.copy_context()
+    thread = threading.Thread(target=context.run, args=(body,), name="wasi-python-judge-guest")
+    with _stack_lock:
+        old = threading.stack_size(THREAD_STACK)
+        try:
+            thread.start()
+        finally:
+            threading.stack_size(old)
+    thread.join()
+    if "error" in box:
+        raise box["error"]
+    return box.get("value")
 
 
 def module(path: Path) -> wt.Module:
@@ -658,7 +694,9 @@ def run(
     trapped: str | None = None
     cause: str | None = None
     metered = False  # the budget is set only once instantiation has succeeded
-    try:
+
+    def go() -> int:  # on a thread with room for the wasm stack (spec 078)
+        nonlocal metered
         inst = linker.instantiate(store, mod)
         files.bind(store, eng, inst)  # before the guest runs (spec 083)
         if counted:
@@ -667,11 +705,13 @@ def run(
         exports = inst.exports(store)
         if how == "command":
             exports["_start"](store)
-            exit_code = 0
-        else:
-            if how == "reactor":
-                exports["_initialize"](store)
-            exit_code = exports["run"](store)
+            return 0
+        if how == "reactor":
+            exports["_initialize"](store)
+        return exports["run"](store)
+
+    try:
+        exit_code = on_own_stack(go)
     except wt.ExitTrap as e:
         exit_code = e.code
     except wt.Trap as e:
@@ -799,11 +839,15 @@ class Turns:
         value: int | None = None
         trapped: str | None = None
         exit_code: int | None = None
-        try:
+
+        def go() -> int:  # on a thread with room for the wasm stack (spec 078)
             if self.how == "reactor" and not self._initialized:
                 self._initialized = True
                 self.exports["_initialize"](self.store)
-            value = fn()
+            return fn()
+
+        try:
+            value = on_own_stack(go)
         except wt.ExitTrap as e:
             exit_code = e.code
         except wt.Trap as e:

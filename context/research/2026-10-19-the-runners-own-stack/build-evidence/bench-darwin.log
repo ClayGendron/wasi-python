@@ -1,0 +1,5 @@
+# Benchmark, not a check: p4 on darwin arm64 with the branch's runner (main's runner measured 31.5 us and 43.5-44.0 us in the research, p4_callback_cost-darwin.out).
+provider:   40.8 us per guest os.stat (calls 5000)
+door:       49.5 us per door call
+provider:   40.0 us per guest os.stat (calls 5000)
+door:       49.5 us per door call

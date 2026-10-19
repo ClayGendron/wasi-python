@@ -1885,18 +1885,28 @@ class _Bounded:
         count: Callable[[int], Any] = lambda delta: None,
         start: Callable[[threading.Thread], Any] = threading.Thread.start,
         clock: Callable[[], float] = time.monotonic,
+        context: Callable[[], contextvars.Context] = contextvars.copy_context,
     ) -> None:
         self._tick, self._stop_at, self._ticks = tick_s, stop_at, ticks
         self._cancel, self._ctrl_c, self._count = cancel, ctrl_c, count
         self._start, self._clock = start, clock
+        self._context = context  # where a call's context is copied: the home thread (spec 078)
         self._lock = threading.Lock()
         self._abandoned = 0  # this call's threads still running after their call was answered
 
-    def rearm(self, stop_at: int | None, cancel: Any) -> None:
-        """A session's next turn: its deadline and stop (spec 055, Decision 11). The count of
-        abandoned threads carries over, so it bounds the whole session, not each turn."""
+    def rearm(
+        self,
+        stop_at: int | None,
+        cancel: Any,
+        context: Callable[[], contextvars.Context] | None = None,
+    ) -> None:
+        """A session's next turn: its deadline and stop (spec 055, Decision 11), and where its
+        tool calls copy their context (spec 078). The count of abandoned threads carries over, so
+        it bounds the whole session, not each turn."""
         with self._lock:
             self._stop_at, self._cancel = stop_at, cancel
+            if context is not None:
+                self._context = context
 
     def _ended(self) -> str | None:
         """'cancelled' or 'deadline' when the run is ending, else None."""
@@ -1939,7 +1949,7 @@ class _Bounded:
 
     def _started(self, work: _Work, slot: _Slot) -> bool:
         """Start the work's thread; False, with the fault in the slot, if it cannot start."""
-        context = contextvars.copy_context()
+        context = self._context()
 
         def target() -> None:
             try:

@@ -1,0 +1,23 @@
+# The full judge on the branch (uv run pytest -n 3), darwin arm64, main's set; its progress block.
+=================================== progress ===================================
+wasi_python v1: 532/645 pass · 57 gap · 56 blocked · 0 fail   (unit suite 1595/1603, 8 skipped)
+  v1.1  artifact set        36/37  blocked 1
+  v1.2  portable, sealed    148/150 blocked 2
+  v1.3  data stack          82/170 gap 56 blocked 32
+  v1.4  embedding           206/207 gap 1
+  v1.5  rebuild from pins   16/36  blocked 20
+  rules constitution rules  44/45  blocked 1
+blocked by: source tree numpy 17 · source tree pandas 16 · compile records 2 · oracle 1 · prior-art clones 1 · source tree bzip2 1 · source tree freetype 1 · source tree harfbuzz 1 · source tree kiwisolver 1 · source tree libraqm 1 · source tree libxml2 1 · source tree libxslt 1 · source tree lxml 1 · source tree matplotlib 1 · source tree pillow 1 · source tree qhull 1 · source tree regex 1 · source tree sheenbidi 1 · source tree sqlite 1 · source tree xz 1 · source tree zlib 1 · three systems 1 · wasmtime cli 1 · wheel 1
+gaps close with: README 41 · notes 6 · 2026-10-18-cpythons-own-tests-under-the-runtime 3 · roadmap 3 · 2026-10-17-matplotlib-on-the-current-line 2 · roadmap 1 · 002-the-progress-harness 1
+next: context/research/2026-10-16-reproducible-builds-on-linux.md (unblocks 49, closes 0)
+ratchet vs b91e0eaa4e: lost 0 · absent 14 · unrun 0 · unrun locally 42 · gained 35 · grew 3 · more 3 · upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/checks/test_v1_4_sessions.py and 11 more
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[etree-target]
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[eval-parens]
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[expat-handler]
+GREW tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]: fuel 268583771926 -> 275203965431
+GREW tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]: fuel 294515734346 -> 295232872667
+GREW tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]: fuel 372458058296 -> 372914430838
+RED: 14 accepted check(s) absent (retire them with --retire); 3 metric(s) grew
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups · CPython's tests that need its C test modules (number 101) · CPython under -bb
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========== 2127 passed, 64 skipped, 57 xfailed in 316.90s (0:05:16) ===========

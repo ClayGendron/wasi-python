@@ -1,0 +1,3 @@
+# edges078.py on darwin arm64, the branch
+{"case": "relaxng", "max_ok": 6388, "at": "ok", "arch": "arm64"}
+{"case": "xslt-apply-copy", "max_ok": 200000, "unbounded": true, "at": "XSLTApplyError unknown error", "arch": "arm64"}

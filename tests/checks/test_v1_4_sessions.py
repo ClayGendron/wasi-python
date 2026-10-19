@@ -1288,3 +1288,14 @@ def test_a_closer_sees_the_openings_context(fake_clock) -> None:
     runner._reap(900.0)
     s.close()
     assert (s.ended, s.shutdown_outcome, seen) == ("idle", "finished", ["opening"])
+
+
+def test_a_turn_frees_a_deep_structure() -> None:
+    """Spec 078, criterion 10: on the runner's 8 MiB stack a turn that frees a 20,000-deep list
+    (a trap at 512 KiB, which ended the session) completes, and the session goes on."""
+    wp = _wp()
+    with wp.Session() as s:
+        r = s.run("x = []\nfor i in range(20000): x = [x]\ndel x\nprint('freed')")
+        assert (r.exit_code, r.trapped, r.stdout) == (0, None, b"freed\n"), r
+        assert s.ended is None
+        assert s.run("print('on')").stdout == b"on\n"

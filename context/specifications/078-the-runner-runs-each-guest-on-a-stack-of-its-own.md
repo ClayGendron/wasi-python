@@ -1,6 +1,6 @@
 # 078 — The runner runs each guest on a stack of its own
 
-- **Status:** drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
+- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes; for its build review). Before: drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
   from main `3561e55`, with its research
   (`../research/2026-10-19-the-runners-own-stack.md`); reviewed before build the same day at the
   lane's request (`scratchpad/078-review/078-the-runner-runs-each-guest-on-a-stack-of-its-own-spec-2026-10-19.md`,
@@ -886,7 +886,8 @@ call's store and folders are released by it once it has (never while it runs)".
 ## For the owner
 
 The pre-build review weighed the draft's three points; the spec takes its recommendations as its
-position, and the lane tells the owner.
+position, and the lane tells the owner. **The owner accepted all three on 2026-10-19**
+(`../decisions.md`, "105, and the open points of 078, 084 and 085, answered").
 
 - **The window knob: a follow-up, after 086.** At 8 MiB a 256 KiB window would about double every
   depth through Python code (`__repr__` 214 to 462, arm64), still below native's 1,000. It needs the
@@ -964,4 +965,155 @@ binding) accepted as better than the ask.
 
 ## Landing notes
 
-None yet: drafted, not built.
+### What was built
+
+On `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`, rebased onto main `3866f56` (spec
+065 landed; no runner code moved since the draft), against a private clone of main's set
+`build/sets/s-c50ca51fae5eb55b-c9dcb5b8` in the worktree's `build/artifacts` (no rebuild: the
+artifact set does not change), with the pinned CPython tarball cloned into the worktree's
+`downloads/` and unpacked in its `build/` so the CPython groups run. Evidence beside the research
+memo, in `../research/2026-10-19-the-runners-own-stack/build-evidence/`.
+
+- `src/wasi_python/runner.py`: `_WASM_STACK` 8 MiB, `_HOST_ROOM` 2 MiB, `_THREAD_STACK`;
+  `_set_async_stack` (the property if present, else wasmtime-py's declared binding looked up with
+  `getattr` and checked callable, else `RuntimeError` before any engine); `_Home`, `_Box`,
+  `_Stopped`, `_start_guest`, `_join_guest`, `_on_guest_thread`; `_guest_stack` (private prototypes
+  per platform) and `_windows_usable`; `_pyapi` and `_tell_interpreter`; `_home_of`, `_home_context`,
+  `_door_answer`, `_home_ident`, `_abandon_turn`, `_shutdown_export`, `_open_wasm`; every run's
+  teardown and every session's release through `home.finish`; every call polled; the docstrings.
+- `src/wasi_python/mounts.py`: `_home`; `_stat`, `_read`, `_list` split into a gate on the guest
+  thread and an `_*_answer` on the home; `_change` hands `_made` home.
+- `src/wasi_python/tools.py`: `_Bounded(context=…)` and `rearm(…, context)`.
+- `tests/harness/guest.py` (the judge's driver; **two small hunks for 083's rebase**): the
+  constants and `engine()` (async stack first, 8 MiB), `on_own_stack`, and in `run()` only the
+  `try` block around instantiate and the exports, now `exit_code = on_own_stack(go)`; in `Turns`
+  only `_call`'s body. 083's edits to `run()` touch its host functions and `_FileCalls`, above
+  that block; the merge should be textual.
+- The checks, the judge's changes, `README.md` and `CHANGELOG.md` (0.1.0a8) as below.
+
+### Seen failing first
+
+The branch's checks against main's runner (a scratch clone of `3866f56` with the branch's test
+files, the same set; `build-evidence/failfirst-main.log`): 42 failed, 6 errors, 23 passed. Failing as the
+spec says: every unit of criteria 1 to 4 and 17 and 18 (no guest thread, no `_Home`); criterion 2's
+four units (512 KiB); criterion 9's restated limits and every row of `test_deep_data_raises` but
+the `xml.sax` and `ElementTree` rows (traps at 512 KiB); criteria 1, 3, 5, 10 and 17 through the
+runner; criterion 7's `run` row (the child was killed at its limit); criterion 8's computing row
+(ran to its deadline). Passing on main, each a guard: criterion 6 (host functions were on the
+caller's thread already; it guards against the other design); criterion 7's session row (a turn
+was already polled every 5 ticks); criterion 8's sleeping and tool rows, which main stops through
+the handler's exception landing in its own wait: against the branch with C1's two readings removed
+both hung until the child's limit (EXECUTED, then put back); criterion 9's `xml.sax` and
+`ElementTree` rows (they raise on arm64 at 512 KiB, trap on x86_64); criterion 11's rows (the new
+program traps at 512 KiB too).
+
+### The criteria
+
+1. Every entry runs once on a guest thread with at least 9 MiB, its home elsewhere: `run`,
+   `run_async` (own pool and an executor), a session's open, two turns and its ending, an idle
+   session ended by a closer (`test_every_entry_runs_on_a_guest_thread_with_room`).
+2. The stated engine: 8 MiB, the async stack size set first, the property preferred, a refusal
+   before any engine without either (four units in `test_runner_calls.py`).
+3. A small or unreadable guest stack is refused before any wasm, after one retry, for `run`, an
+   opening and a turn; the stack-size restore puts back another thread's value; Windows' count
+   (`test_runner_threads.py`, `test_a_small_guest_thread_is_refused_before_any_wasm`).
+4. The interpreter is told its stack on musl CPython 3.14.1 and later, refused on 3.14.0, told
+   nothing elsewhere; FreeBSD is unreadable; the prototypes are private (units).
+5. A 256 KiB calling thread and an executor of such threads run a 20,000-deep free and the
+   `__repr__` recursion to their end, on darwin and on linux/amd64.
+6. The door host, every provider step (a generator `list` using the caller's `sqlite3`
+   connection, a `__getattr__` provider, a read's `__buffer__`, a `bytes` subclass's `__bytes__`)
+   and a tool's context run on the caller's thread; through `run`, a session and `run_async`.
+7. Ctrl-C (a simulated SIGINT on ticks) stops a computing guest with `deadline_s=None`, through
+   `run` and a turn; the next call works.
+8. An embedder's raising SIGINT handler stops a computing, a sleeping and a tool-waiting guest.
+9. Restated limits and the new raise rows, metered, pass on darwin and linux/amd64. RelaxNG of a
+   tree built in Python, measured through `run`: 6,388 on arm64, 5,756 on x86_64 (it traps
+   above; the README says about 5,700); a copying `apply-templates` raises `XSLTApplyError` at
+   any depth tried (`build-evidence/edges-darwin.jsonl`, `build-evidence/amd64.log`).
+10. A turn frees a 20,000-deep list and the session goes on.
+11. Spec 071's faulthandler orders pass with the new deep program on darwin (Linux rows run in the
+    release).
+12. **The judge** (`uv run pytest -n 3`, `build-evidence/judge.log`; the worktree's `build/progress/latest.json` kept):
+    `wasi_python v1: 532/645 pass · 57 gap · 56 blocked · 0 fail (unit suite 1595/1603, 8
+    skipped)`; `2127 passed, 64 skipped, 57 xfailed in 316.90s`; `ratchet vs b91e0eaa4e: lost 0 ·
+    absent 14 · unrun 0 · unrun locally 42 · gained 35 · grew 3`. The 14 absent are the five old
+    `test_deep_data_limits` rows (json-loads, eval-parens, expat-handler, sax-handler,
+    etree-target), now raises, and the nine `test_upstream_trap[c-stack-*]` checks, closed: the
+    lane retires them (`--retire`). The three that grew are the CPython groups that now run the
+    tests the nine entries kept out: `cpython-a` 268,583,771,926 to 275,203,965,431 (+2.5%:
+    `test_traceback` whole, `test_tee_recipe`), `cpython-b` +717,138,321 (+0.24%: `test_doctest`'s
+    and `test_exceptions`' tests), `cpython-c` +456,372,542 (+0.12%: the two `test_syntax` and
+    three `test_ordered_dict` tests). No other fuel metric moved: the stack and the thread move
+    none (the research's `fuel078.out`).
+13. CPython's suite: the nine entries and their gaps are removed; `test_traceback` joins
+    `cpython-a`'s plan; its 168 non-passing results are classed (139 `_testcapi` errors into
+    `no-test-modules`, whose match gains "No module named '_testcapi'"; 10 into `read-only-eperm`,
+    `import_helper.forget` removing a missing `.pyc` under the zip's read-only grant; one failure
+    into a new class `no-missing-stdlib-info`: the build's generated `_missing_stdlib_info` is not
+    in the zip, so `traceback` names a missing stdlib module generically, written into the README).
+    The CPython groups' checks: `7 passed, 54 xfailed` on darwin; `cpython-a`, `-b`, `-c`: `4
+    passed, 20 xfailed` on linux/amd64, `test_tee_recipe` and the other eight passing in their
+    groups (`build-evidence/amd64.log`).
+14. README, CHANGELOG, the docstrings; `test_rules.py` passes; the API reference regenerated;
+    `tests/public_api.txt` unchanged.
+15. Windows: not run here. **The lane runs the release workflow on all three systems before
+    landing 078** (criteria 15 and 19).
+16. musl, Alpine aarch64 and x86_64 (`build-evidence/musl.log`): on CPython 3.14.5 and 3.13.13 a 256 KiB
+    calling thread frees a 20,000-deep list and a door callback at every level of a 30,000-deep
+    free completes; on 3.14.0 both are refused with the 3.14.1 message and the host lives.
+17. The home never tears down a running guest: the units, and two child rows through `run`
+    recording that no store is closed while its wasm runs.
+18. A hand-off taken is always answered (units with a stand-in inbox and box).
+19. linux/amd64 in `ghcr.io/astral-sh/uv:0.9-trixie-slim` under Rosetta: the nine entries' tests
+    pass in their groups (13 above); the hostile-guest checks of 078 there: 35 passed. Windows
+    waits for the lane's run (15).
+
+### The hand-off's price, on Linux (benchmarks; `build-evidence/bench-*.log`)
+
+On darwin the branch measured 40.0 to 40.8 µs per provider `stat` and 49.5 µs per door call
+(main: 31.5 and 44): as the spec said, about a quarter more. **On Linux it is larger.** In Docker
+Desktop's VM with no other container running, the same session: main's runner 29.1 to 31.8 µs per
+provider `stat` and 40.4 to 41.5 µs per door call; the branch's 85.1 to 103.2 µs and 97.0 to
+103.2 µs, about three times, and one hand-off round trip alone 32 to 35 µs. A guest that makes many
+provider or door calls pays it; the 10,000 calls of the default `max_file_calls` would cost about
+0.6 s more of host time. Native Linux (no VM) was not measured. The lane should tell the owner, who
+accepted the price on darwin's number.
+
+### Departures from the specification, each with its reason
+
+- **Where the checks live.** The checks that run a guest (criteria 1, 3, 5 to 8, 17) are in
+  `tests/checks/test_v1_2_hostile_guest.py`, since unit tests run without an artifact set; the
+  stand-in units (criteria 2 to 4, 17, 18) are in `tests/unit/test_runner_threads.py` and
+  `tests/unit/test_runner_calls.py`.
+- **The ticker runs while any guest thread runs** (`_Home.body` holds it): a home forced out of
+  its join leaves its `with _epoch_ticker` block, so without it the abandoned guest's epoch checks
+  stopped and it ran on (seen: criterion 17's abandoned row hung before this).
+- **Judge changes the spec did not name:** `test_v1_4_embedding.py`'s
+  `test_a_deadline_during_the_grant_check_is_a_deadline` now advances the ticker's count beside
+  the engines' epoch, since every call's deadline is now judged by the epoch callback from that
+  count; `test_regrtest.py`'s file test (543 modules, no traps, 26 classes) and `test_shards.py`'s
+  two trap tests, now on stand-in trap entries since none is open; spec 065's files as criterion 13
+  says; `tests/release_shards.toml` puts `tests/unit/test_runner_threads.py` in the own-runner
+  shard (macOS, Linux, Windows), as the rules ask of a new product test file.
+- **Criterion 1's idle row** drives `runner._reap` directly with a later clock instead of the
+  reaper's injected clock.
+- **`_tell_interpreter`** takes a `resolve` for its unit, in place of a stand-in `pythonapi`,
+  which ctypes cannot resolve names from.
+
+### For the lane
+
+- `--accept-judge "spec 078: the runner and the judge's driver run each guest on a 10 MiB thread
+  of its own with an 8 MiB wasm stack; 071's deep-data limits restated at 8 MiB, new checks for
+  what now raises, for the guest thread, its stack check, the interpreter told its stack on musl,
+  small calling threads, host functions on the caller's thread, Ctrl-C, the home waiting for its
+  guest and every hand-off answered; the faulthandler child traps by freeing; the grant-check
+  deadline advances the ticker's count; spec 065's nine trap entries closed, test_traceback in
+  cpython-a with its results classed, and the regrtest and shard units restated"`.
+- `--retire` the 14 absent checks above.
+- `--accept-growth "spec 078: the CPython groups now run the tests spec 065's nine trap entries kept
+  out (test_traceback whole and test_tee_recipe in cpython-a +2.5%; test_doctest's and
+  test_exceptions' tests in cpython-b +0.24%; the test_syntax and test_ordered_dict tests in
+  cpython-c +0.12%); no other fuel moves"`.
+- The release workflow on all three systems before landing (criteria 15 and 19).
+- 083 rebases over the driver's two hunks named above.

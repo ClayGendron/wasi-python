@@ -1,0 +1,35 @@
+# Benchmarks, not checks. Linux: Docker Desktop's VM (wp040-arm64, CPython 3.14.2), no other container running.
+# First: the branch's runner, two rounds of p4 (host time per guest os.stat through a provider, per door call) and p3 (thread start, one hand-off round trip).
+# Then, the same session: main 3866f56's runner (/mainsrc) and the branch's (/w/src), p4 twice each.
+provider:   89.9 us per guest os.stat (calls 5000)
+door:      103.2 us per door call
+provider:   90.3 us per guest os.stat (calls 5000)
+door:       98.7 us per door call
+3.14.2 linux
+thread start+join, stack_size=        0:    74.4 us
+thread start+join, stack_size=  9437184:    76.4 us
+thread start+join, stack_size= 16777216:    77.5 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):    32.2 us
+callback handed to the caller (50 ms timed wait):    32.2 us
+provider:   86.4 us per guest os.stat (calls 5000)
+door:       98.2 us per door call
+provider:   85.1 us per guest os.stat (calls 5000)
+door:       97.0 us per door call
+3.14.2 linux
+thread start+join, stack_size=        0:    75.2 us
+thread start+join, stack_size=  9437184:    76.2 us
+thread start+join, stack_size= 16777216:    76.4 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):    33.9 us
+callback handed to the caller (50 ms timed wait):    35.2 us
+src /mainsrc
+provider:   31.8 us per guest os.stat (calls 5000)
+door:       40.4 us per door call
+provider:   29.1 us per guest os.stat (calls 5000)
+door:       41.5 us per door call
+src /w/src
+provider:  103.2 us per guest os.stat (calls 5000)
+door:      102.4 us per door call
+provider:   90.4 us per guest os.stat (calls 5000)
+door:       99.7 us per door call

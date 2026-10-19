@@ -2438,89 +2438,170 @@ def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
     assert "RecursionError" in out.stdout, out.stdout[-400:]
 
 
-# Spec 071, criterion 4: what still traps at 512 KiB, with the lower host's numbers. Each kind has a
-# depth that completes on both hosts with a quarter of room, and one (or an unbounded recursion)
-# well past both edges that ends in the named trap. The structure is built, acted on, and either
-# freed (`del`) or left (os._exit) so freeing is not what is measured.
+# Spec 078, criterion 9 (restating spec 071's criterion 4): what still traps at the runner's 8 MiB
+# wasm stack, with the lower host's numbers. Each kind has a depth that ends without a trap on both
+# hosts with a quarter of room, and one at least 40% past the higher host's edge that ends in the
+# named trap; then the next call works. The structure is built, acted on, and either freed (`del`)
+# or left (os._exit) so freeing is not what is measured. Edges, arm64 / x86_64 (the research's
+# edges-8m-*.jsonl): freeing a list 37,433 / 32,753; a dict 22,785 / 20,962; hash 40,313 / 40,312;
+# compiling terms 58,227 / 52,402; C14N 23,818 / 23,817; a raised recursion limit 47,642 / 43,670.
+DONE = "print('ok', flush=True)\nos._exit(0)"
 LIMIT_FREE = (
     "import os\nN = {n}\nx = []\nfor i in range(N): x = [x]\ndel x\nprint('ok', flush=True)"
 )
-LIMIT_LOADS = (
-    "import json, os\nN = {n}\nx = json.loads('[' * N + ']' * N)\nprint('ok', flush=True)\n"
-    "os._exit(0)"
+LIMIT_FREE_DICT = (
+    "import os\nN = {n}\nx = {{}}\nfor i in range(N): x = {{'k': x}}\ndel x\n"
+    "print('ok', flush=True)"
 )
-LIMIT_PARENS = (
-    "import os\nN = {n}\neval('(' * N + '1' + ')' * N)\nprint('ok', flush=True)\nos._exit(0)"
+LIMIT_HASH = "import os\nN = {n}\nx = ()\nfor i in range(N): x = (x,)\nhash(x)\n" + DONE
+LIMIT_COMPILE = (
+    "import os\nN = {n}\ntry:\n    compile('+'.join(['1'] * N), 's', 'eval')\n"
+    "except RecursionError:\n    pass\n" + DONE
 )
-LIMIT_EXPAT = """import os
-import xml.parsers.expat as E
-N, d = {n}, 0
-def h(name, attrs):
-    global d
-    d += 1
-    if d < N:
-        p = E.ParserCreate(); p.StartElementHandler = h; p.Parse('<a/>', True)
-h(None, None)
-print('ok', d, flush=True)
-os._exit(0)
-"""
-LIMIT_SAX = """import os, xml.sax
-N, d = {n}, 0
-class H(xml.sax.ContentHandler):
-    def startElement(self, n, a):
-        global d
-        d += 1
-        if d < N: xml.sax.parseString(b'<a/>', H())
-try:
-    xml.sax.parseString(b'<a/>', H())
-    print('ok', d, flush=True)
-except RecursionError:
-    print('RecursionError', d, flush=True)
-os._exit(0)
-"""
-LIMIT_ETREE = """import os, xml.etree.ElementTree as ET
-N, d = {n}, 0
-class T(ET.TreeBuilder):
-    def start(self, tag, attrs):
-        global d
-        d += 1
-        if d < N: ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))
-        return super().start(tag, attrs)
-try:
-    ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))
-    print('ok', d, flush=True)
-except RecursionError:
-    print('RecursionError', d, flush=True)
-os._exit(0)
-"""
-UNBOUNDED = 10**6
-# kind: (program, completes at, traps at, a RecursionError may stand for the trap on some hosts)
+LIMIT_C14N = (
+    "import os\nfrom lxml import etree\nN = {n}\nroot = etree.Element('a'); e = root\n"
+    "for i in range(N): e = etree.SubElement(e, 'a')\netree.tostring(root, method='c14n')\n" + DONE
+)
+LIMIT_RAISED = (
+    "import os, sys\nN = {n}\nsys.setrecursionlimit(N)\ndef f(): f()\ntry:\n    f()\n"
+    "except RecursionError:\n    pass\n" + DONE
+)
+# kind: (program, ends without a trap at, traps at)
 LIMITS = {
-    "free-list": (LIMIT_FREE, 1500, 3300, False),
-    "json-loads": (LIMIT_LOADS, 800, 2000, False),
-    "eval-parens": (LIMIT_PARENS, 100, 199, False),
-    "expat-handler": (LIMIT_EXPAT, 60, UNBOUNDED, False),
-    "sax-handler": (LIMIT_SAX, 60, UNBOUNDED, True),
-    "etree-target": (LIMIT_ETREE, 60, UNBOUNDED, True),
+    "free-list": (LIMIT_FREE, 24_000, 52_500),
+    "free-dict": (LIMIT_FREE_DICT, 15_000, 32_000),
+    "hash-tuple": (LIMIT_HASH, 30_000, 57_000),
+    "compile-terms": (LIMIT_COMPILE, 39_000, 82_000),
+    "c14n-deep-tree": (LIMIT_C14N, 17_000, 34_000),
+    "raised-recursion-limit": (LIMIT_RAISED, 32_000, 67_000),
 }
 
 
 @pytest.mark.parametrize("kind", list(LIMITS))
 def test_deep_data_limits(kind: str) -> None:
-    """Spec 071, criterion 4: the README's limits hold, on a metered call (the engine the limits
-    were measured on, whose frames are larger). The completing depth completes; the deep one ends
-    in the trap "stack overflow" (or, for SAX and ElementTree targets, a RecursionError on hosts
-    with smaller frames), the host survives, and the next call works."""
-    run = functools.partial(_run(), fuel=10**11)  # metered, as the README's limits were measured
-    program, good, deep, either = LIMITS[kind]
+    """Spec 078, criterion 9 (restating spec 071's criterion 4): the README's limits at the
+    runner's 8 MiB wasm stack hold, on a metered call (the engine the limits were measured on).
+    The shallower depth ends without a trap; the deep one ends in the trap "stack overflow", the
+    host survives, and the next call works."""
+    run = functools.partial(_run(), fuel=10**12)  # metered, as the README's limits were measured
+    program, good, deep = LIMITS[kind]
     ok = run(["-c", program.format(n=good)])
     assert (ok.exit_code, ok.trapped) == (0, None), (ok.trapped, ok.stderr[-600:])
     assert ok.stdout.decode().startswith("ok"), ok.stdout
     bad = run(["-c", program.format(n=deep)])
-    if either and bad.trapped is None:
-        assert bad.stdout.decode().startswith("RecursionError"), bad.stdout
-    else:
-        assert (bad.exit_code, bad.trapped) == (None, "stack overflow"), (bad, bad.stdout)
+    assert (bad.exit_code, bad.trapped) == (None, "stack overflow"), (bad, bad.stdout)
+    after = run(["-c", "print('ok')"])
+    assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
+
+
+# Spec 078, criterion 9: what traps at 512 KiB and now ends in its own exception (or completes) at
+# 8 MiB, on both hosts (the research's edges-8m-*.jsonl). Each program prints the exception's class.
+CAUGHT = """import os
+N = {n}
+{build}
+try:
+    {act}
+    r = "ok"
+except Exception as e:
+    r = type(e).__name__ + " " + str(e)[:60]
+print(r, flush=True)
+os._exit(0)
+"""
+NEST = "x = []\nfor i in range(N): x = [x]"
+EXPAT_AGAIN = (
+    "import xml.parsers.expat as E\ndef h(name, attrs):\n"
+    "    p = E.ParserCreate(); p.StartElementHandler = h; p.Parse('<a/>', True)"
+)
+SAX_AGAIN = (
+    "import xml.sax\nclass H(xml.sax.ContentHandler):\n    def startElement(self, n, a):\n"
+    "        xml.sax.parseString(b'<a/>', H())"
+)
+ETREE_AGAIN = (
+    "import xml.etree.ElementTree as ET\nclass T(ET.TreeBuilder):\n    def start(self, tag, a):\n"
+    "        ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))\n"
+    "        return super().start(tag, a)"
+)
+HOOK = (
+    "import json\nclass O:\n    def __init__(self, k): self.k = k\n"
+    "def dflt(o): return [O(o.k - 1)] if o.k > 0 else []"
+)
+DEEP_TREE = (
+    "from lxml import etree\nroot = etree.Element('a'); e = root\n"
+    "for i in range(N): e = etree.SubElement(e, 'a')"
+)
+XSLT_CALL = (
+    'from lxml import etree\nx = etree.XSLT(etree.XML(\'<xsl:stylesheet version="1.0" '
+    'xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="/">'
+    '<xsl:call-template name="r"><xsl:with-param name="n" select="%d"/></xsl:call-template>'
+    '</xsl:template><xsl:template name="r"><xsl:param name="n"/><xsl:if test="$n &gt; 0">'
+    '<xsl:call-template name="r"><xsl:with-param name="n" select="$n - 1"/></xsl:call-template>'
+    "</xsl:if></xsl:template></xsl:stylesheet>' % N))"
+)
+XSLT_APPLY = (
+    DEEP_TREE + '\nx = etree.XSLT(etree.XML(\'<xsl:stylesheet version="1.0" '
+    'xmlns:xsl="http://www.w3.org/1999/XSL/Transform"><xsl:template match="a"><b>'
+    "<xsl:apply-templates/></b></xsl:template></xsl:stylesheet>'))"
+)
+# kind: (depth, build, act, the printed line's start)
+RAISES = {
+    "json-loads": (
+        400_000,
+        "import json\ns = '[' * N + ']' * N",
+        "json.loads(s)",
+        "RecursionError",
+    ),
+    "eq-lists": (
+        400_000,
+        NEST + "\ny = []\nfor i in range(N): y = [y]",
+        "x == y",
+        "RecursionError",
+    ),
+    "repr-list": (400_000, NEST, "repr(x)", "RecursionError"),
+    "json-dumps": (400_000, "import json\n" + NEST, "json.dumps(x)", "RecursionError"),
+    "json-default": (2_000, HOOK, "json.dumps(O(N), default=dflt)", "RecursionError"),
+    "eval-parens": (199, "s = '(' * N + '1' + ')' * N", "eval(s)", "MemoryError Parser stack"),
+    "eval-unary": (100_000, "s = '-' * N + '1'", "eval(s)", "MemoryError Parser stack"),
+    "expat-handler": (0, EXPAT_AGAIN, "h(None, None)", "RecursionError"),
+    "sax-handler": (0, SAX_AGAIN, "xml.sax.parseString(b'<a/>', H())", "RecursionError"),
+    "etree-target": (
+        0,
+        ETREE_AGAIN,
+        "ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))",
+        "RecursionError",
+    ),
+    "exception-group": (
+        10_000,
+        "import traceback\ng = ValueError(0)\nfor i in range(N): g = ExceptionGroup('g', [g])",
+        "traceback.format_exception(g)",
+        "ok",
+    ),
+    "xpath-parens": (
+        6_000,
+        "from lxml import etree",
+        "etree.XML('<a/>').xpath('(' * N + '1' + ')' * N)",
+        "XPathEvalError",
+    ),
+    "xpath-predicates": (
+        6_000,
+        "from lxml import etree",
+        "etree.XML('<a/>').xpath('/a' + '[1]' * N)",
+        "XPathEvalError",
+    ),
+    "xslt-call-template": (4_000, XSLT_CALL, "x(etree.XML('<a/>'))", "XSLTApplyError"),
+    "xslt-apply-templates": (4_000, XSLT_APPLY, "x(etree.ElementTree(root))", "XSLTApplyError"),
+}
+
+
+@pytest.mark.parametrize("kind", list(RAISES))
+def test_deep_data_raises(kind: str) -> None:
+    """Spec 078, criterion 9: recursion in C over nested data, the parser, expat's callbacks, deep
+    exception groups, XPath and XSLT, which trap at 512 KiB, end in their own exception (or
+    complete) at the runner's 8 MiB stack, on a metered call; the next call works."""
+    run = functools.partial(_run(), fuel=10**12)
+    depth, build, act, start = RAISES[kind]
+    done = run(["-c", CAUGHT.format(n=depth, build=build, act=act)])
+    assert (done.exit_code, done.trapped) == (0, None), (done.trapped, done.stderr[-600:])
+    assert done.stdout.decode().startswith(start), done.stdout
     after = run(["-c", "print('ok')"])
     assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
 
@@ -2545,7 +2626,9 @@ elif order == "after-then-disable":
     faulthandler.disable()
 elif order == "signal-after":
     signal.signal(signal.SIGILL, lambda *a: None)
-deep = "import json\njson.loads('[' * 200000 + ']' * 200000)"
+# A guest that traps at the runner's 8 MiB stack: freeing a 200,000-deep list (spec 078,
+# criterion 11; json.loads of nested arrays now raises RecursionError there).
+deep = "x = []\nfor i in range(200000): x = [x]\ndel x"
 try:
     if order == "session-turn-after":  # spec 055's turn path: a turn after a late enable
         with wasi_python.Session() as session:
@@ -2599,3 +2682,402 @@ def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
         assert "faulthandler.disable() undoes it" in line, line
     else:
         assert line == "trapped stack overflow", line
+
+
+# Spec 078: the runner runs each guest on a stack of its own. Every entry into wasm runs on a
+# guest thread the runner makes, with a 10 MiB stack (8 MiB of it for wasm), checked before any
+# wasm; the embedder's code runs on the thread that made the call (the home); Ctrl-C and an
+# exception raised into the home reach the guest. A child process has a 120 s limit only so a hang
+# fails the row instead of the run; an interrupt is started on ticks of the runner's ticker,
+# counted, never after a delay.
+TICKS_THEN = """
+import threading, _thread
+from wasi_python import runner
+def after_ticks(action):
+    def wait():
+        start = runner._epoch_ticker.count()
+        while runner._epoch_ticker.count() < start + runner.CANCEL_TICKS + 2:
+            threading.Event().wait(0.001)
+        action()
+    threading.Thread(target=wait, daemon=True).start()
+"""
+
+
+def _child(program: str, *args: str) -> tuple[int, list[str], str]:
+    _run()
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONFAULTHANDLER"}
+    try:
+        out = subprocess.run(
+            [sys.executable, "-c", program, *args],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"{args}: the child did not end within its limit")
+    return out.returncode, out.stdout.strip().splitlines(), out.stderr[-1500:]
+
+
+def test_every_entry_runs_on_a_guest_thread_with_room() -> None:
+    """Spec 078, criterion 1: each run, each session's opening, turn and ending (a closer's
+    included) enters wasm exactly once, on a thread that is not the caller's, whose stack is at
+    least the refusal line; run_async with its own pool and with an executor the same."""
+    import asyncio
+    import concurrent.futures
+    import threading
+
+    run = _run()
+    import wasi_python
+    from wasi_python import runner
+
+    seen: list[tuple[str, int, int]] = []
+
+    def entry(kind: str) -> None:
+        bounds = runner._guest_stack()
+        seen.append((kind, threading.get_ident(), 0 if bounds is None else bounds[1]))
+
+    me = threading.get_ident()
+    line = runner._WASM_STACK + runner._HOST_ROOM // 2
+    old = runner._on_entry
+    runner._on_entry = entry
+    try:
+        assert run(["-c", "print(1)"]).exit_code == 0
+        assert [k for k, _, _ in seen] == ["run"]
+        with concurrent.futures.ThreadPoolExecutor(1) as pool:
+            for executor in (None, pool):
+                done = asyncio.run(wasi_python.run_async(["-c", "print(1)"], executor=executor))
+                assert done.exit_code == 0
+        with wasi_python.Session() as s:
+            assert s.run("x = 1").exit_code == 0
+            assert s.run("print(x)").stdout == b"1\n"
+        idle = wasi_python.Session(idle_s=1)
+        assert idle.run("y = 2").exit_code == 0
+        runner._reap(runner._session_clock() + 10)  # its idle bound passed: a closer ends it
+        assert idle._state.done.wait(120)
+    finally:
+        runner._on_entry = old
+    kinds = [k for k, _, _ in seen]
+    assert kinds == ["run", "run", "run", "open", "turn", "turn", "shutdown"] + [
+        "open",
+        "turn",
+        "shutdown",
+    ], kinds
+    assert all(ident != me for _, ident, _ in seen), seen
+    assert all(size >= line for _, _, size in seen), seen
+    assert idle.ended == "idle" and idle.shutdown_outcome == "finished"
+
+
+def test_a_small_guest_thread_is_refused_before_any_wasm(monkeypatch) -> None:
+    """Spec 078, criterion 3: a guest thread whose stack reads under 9 MiB (or cannot be read)
+    refuses the call, a session's opening and a turn with RuntimeError before any wasm runs; the
+    door host and the hook are never called; with the real check, the next call works."""
+    run = _run()
+    import wasi_python
+    from wasi_python import runner
+
+    calls: list[bytes] = []
+    entries: list[str] = []
+    monkeypatch.setattr(runner, "_on_entry", entries.append)
+    with wasi_python.Session() as session:
+        for answer in ((4096, 8 << 20), None):
+            monkeypatch.setattr(runner, "_guest_stack", lambda platform=None, a=answer: a)
+            with pytest.raises(RuntimeError, match="less than the 9 MiB"):
+                run(["-c", "import _host; _host.call(b'x')"], host=calls.append)
+            with pytest.raises(RuntimeError, match="less than the 9 MiB"):
+                wasi_python.Session()
+            monkeypatch.undo()
+            monkeypatch.setattr(runner, "_on_entry", entries.append)
+        monkeypatch.setattr(runner, "_guest_stack", lambda platform=None: (4096, 8 << 20))
+        with pytest.raises(RuntimeError, match="less than the 9 MiB"):
+            session.run("print(1)")
+        monkeypatch.undo()
+    assert (calls, entries) == ([], ["open"]), (calls, entries)
+    assert run(["-c", "print('ok')"]).stdout == b"ok\n"
+
+
+SMALL_CALLER = """
+import asyncio, concurrent.futures, sys, threading
+import wasi_python
+row = sys.argv[1]
+FREE = "x = []\\nfor i in range(20000): x = [x]\\ndel x\\nprint('ok')"
+REPR = ("class A:\\n    def __repr__(self): return repr(self)\\n"
+        "try:\\n    repr(A())\\nexcept RecursionError:\\n    print('RecursionError')")
+code = FREE if row in ("thread-free", "executor-free") else REPR
+out = {}
+threading.stack_size(256 * 1024)  # this process's threads are small, as musl's are
+if row.startswith("thread"):
+    t = threading.Thread(target=lambda: out.update(d=wasi_python.run(["-c", code])))
+    t.start(); t.join()
+else:
+    with concurrent.futures.ThreadPoolExecutor(1) as pool:
+        out["d"] = asyncio.run(wasi_python.run_async(["-c", code], executor=pool))
+d = out["d"]
+print(d.exit_code, d.trapped, d.stdout.decode().strip(), flush=True)
+"""
+
+
+@pytest.mark.parametrize("row", ["thread-free", "thread-repr", "executor-free", "executor-repr"])
+def test_a_guest_cannot_overrun_a_small_calling_thread(row: str) -> None:
+    """Spec 078, criterion 5: a caller whose thread has 256 KiB of stack (musl gives 128 KiB) runs
+    a guest that frees a 20,000-deep list, or recurses through __repr__, to its end; so does
+    run_async on an executor of such threads. On main the first killed the host (SIGILL)."""
+    code, lines, err = _child(SMALL_CALLER, row)
+    assert code == 0, (row, code, err)
+    want = "ok" if row.endswith("free") else "RecursionError"
+    assert lines[-1] == f"0 None {want}", (row, lines)
+
+
+CTRL_C_CHILD = (
+    TICKS_THEN
+    + """
+import signal, sys, time
+import wasi_python
+from wasi_python.tools import tool
+row = sys.argv[1]
+main = threading.main_thread().ident
+if row.startswith("raising"):
+    def handler(signum, frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGINT, handler)
+    if hasattr(signal, "pthread_kill"):
+        interrupt = lambda: signal.pthread_kill(main, signal.SIGINT)
+    else:
+        interrupt = _thread.interrupt_main
+else:
+    interrupt = _thread.interrupt_main  # Python's default handler: a simulated SIGINT
+def host(request):
+    after_ticks(interrupt)
+    return b"go"
+never = threading.Event()
+@tool
+def block() -> str:
+    \"\"\"Wait for an event nobody sets.\"\"\"
+    never.wait()
+    return "never"
+GO = "import _host\\n_host.call(b'go')\\n"
+kw = {"deadline_s": None}
+if row.endswith("tool"):
+    def gate(call):
+        after_ticks(interrupt)
+        return True
+    code = "from host import tools\\ntools.block()"
+    kw.update(tools=[block], gate=gate)
+else:
+    sleep = "import time\\ntime.sleep(10**6)"
+    code = GO + (sleep if row.endswith("sleep") else "while True: pass")
+    kw.update(host=host)
+if row.startswith("raising"):
+    kw["cancel"] = threading.Event()
+try:
+    if row == "default-turn":
+        with wasi_python.Session(deadline_s=None, host=host) as s:
+            s.run(code)
+    else:
+        wasi_python.run(["-c", code], **kw)
+    print("returned", flush=True)
+except KeyboardInterrupt:
+    print("interrupted", flush=True)
+signal.signal(signal.SIGINT, signal.default_int_handler)
+print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush=True)
+"""
+)
+
+
+@pytest.mark.parametrize("row", ["default", "default-turn"])
+def test_ctrl_c_stops_a_computing_guest(row: str) -> None:
+    """Spec 078, criterion 7: on the main thread, with deadline_s=None and no cancel, a Ctrl-C
+    (Python's default handler; a simulated SIGINT) stops a guest that computes and never calls
+    back, and run (or the turn) raises KeyboardInterrupt; the next call works. On main the call
+    never ended."""
+    code, lines, err = _child(CTRL_C_CHILD, row)
+    assert code == 0, (row, code, err)
+    assert lines[-2:] == ["interrupted", "next 1"], (row, lines, err)
+
+
+@pytest.mark.parametrize("row", ["raising", "raising-sleep", "raising-tool"])
+def test_an_embedders_raising_sigint_handler_stops_the_call(row: str) -> None:
+    """Spec 078, criterion 8 (and the confirmation's C1): an embedder's SIGINT handler that raises
+    KeyboardInterrupt, with cancel= set and deadline_s=None, stops a guest that computes, one that
+    sleeps, and one waiting for a tool; run raises KeyboardInterrupt and the next call works. On
+    main ctypes dropped the interrupt in the epoch callback and the call ran on."""
+    code, lines, err = _child(CTRL_C_CHILD, row)
+    assert code == 0, (row, code, err)
+    assert lines[-2:] == ["interrupted", "next 1"], (row, lines, err)
+
+
+HOME_CHILD = """
+import sys, threading, wasmtime
+import wasi_python
+from wasi_python import runner
+row = sys.argv[1]
+state = {"wasm returned": True, "bad": []}
+real_drive, real_close, real_join = runner._drive, wasmtime.Store.close, runner._join_guest
+def drive(*a, **k):
+    state["wasm returned"] = False
+    try:
+        return real_drive(*a, **k)
+    finally:
+        state["wasm returned"] = True
+def close(self):
+    if not state["wasm returned"]:
+        state["bad"].append(threading.current_thread().name)
+    return real_close(self)
+runner._drive, wasmtime.Store.close = drive, close
+real_serve = runner._Home.serve
+once = []
+def serve(self):
+    if not once:
+        once.append(1)
+        self.serving = True
+        raise KeyboardInterrupt  # raised into the home just after its guest thread started
+    return real_serve(self)
+runner._Home.serve = serve
+def join(home):
+    if row == "abandoned" and len(once) == 1:
+        once.append(2)
+        raise KeyboardInterrupt  # and again, inside its join: the home is forced out
+    return real_join(home)
+runner._join_guest = join
+try:
+    wasi_python.run(["-c", "while True: pass"], deadline_s=None)
+    print("returned", flush=True)
+except KeyboardInterrupt:
+    print("interrupted", flush=True)
+for t in list(threading.enumerate()):
+    if t.name == "wasi-python-guest":
+        t.join(60)
+print("bad closes", state["bad"], flush=True)
+print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush=True)
+"""
+
+
+@pytest.mark.parametrize("row", ["raised-into-home", "abandoned"])
+def test_the_home_never_tears_down_a_running_guest(row: str) -> None:
+    """Spec 078, criterion 17 (the review's F1): an exception raised into the home while its guest
+    computes stops the guest, and the call raises only after the guest thread ended; a home forced
+    out of its join as well leaves the teardown to the guest thread. In neither is a store closed
+    while its wasm runs, and the next call works."""
+    code, lines, err = _child(HOME_CHILD, row)
+    assert code == 0, (row, code, err)
+    assert lines[-3:] == ["interrupted", "bad closes []", "next 1"], (row, lines, err)
+
+
+def test_host_functions_run_on_the_callers_thread() -> None:
+    """Spec 078, criterion 6 (and the review's F4, F12): the door host, every provider step (a
+    generator listing using the caller's sqlite3 connection, a __getattr__ provider, a read's
+    buffer, a bytes subclass's __bytes__) and a tool's context run on the thread that called run,
+    in its live context: thread-locals, context variables and signal.signal work there; through
+    run, a session turn and run_async (whose home is its worker)."""
+    import asyncio
+    import contextvars
+    import signal
+    import sqlite3
+    import threading
+
+    run = _run()
+    import wasi_python
+    from wasi_python import Mount
+    from wasi_python.mounts import Stat
+    from wasi_python.tools import tool
+
+    var = contextvars.ContextVar("v078")
+    set_inside = contextvars.ContextVar("v078-inside")
+    local = threading.local()
+    where: list[tuple[str, int]] = []
+
+    class Answer(bytes):
+        def __bytes__(self) -> bytes:
+            where.append(("door __bytes__", threading.get_ident()))
+            return (
+                b"door:" + var.get("none").encode() + b":" + local.__dict__.get("v", "-").encode()
+            )
+
+    def host(request: bytes) -> bytes:
+        where.append(("door", threading.get_ident()))
+        if threading.current_thread() is threading.main_thread() and hasattr(signal, "SIGUSR1"):
+            signal.signal(signal.SIGUSR1, signal.signal(signal.SIGUSR1, signal.SIG_DFL))
+        set_inside.set("set by the door host")
+        return Answer(b"")
+
+    class Buffered(bytes):
+        """An answer whose buffer export is the provider's code (CPython 3.12 and later)."""
+
+        def __buffer__(self, flags: int) -> memoryview:
+            where.append(("read __buffer__", threading.get_ident()))
+            return memoryview(bytes.__bytes__(self) if hasattr(bytes, "__bytes__") else b"abc")
+
+    class Provider:
+        def __init__(self, conn: sqlite3.Connection) -> None:
+            self.conn = conn
+
+        def stat(self, path):
+            where.append(("stat", threading.get_ident()))
+            return Stat("dir") if path == "/" else Stat("file", size=3)
+
+        def list(self, path):
+            where.append(("list", threading.get_ident()))
+            self.conn.execute("select 1")  # a thread-bound connection, check_same_thread
+            yield ("a", "file")
+
+        def read(self, path):
+            where.append(("read", threading.get_ident()))
+            set_inside.set("set by the provider")
+            return Buffered(b"abc")
+
+    class Lookup:
+        """Methods served through __getattr__: the lookup is the provider's code too."""
+
+        def __getattr__(self, name):
+            where.append(("getattr " + name, threading.get_ident()))
+            return getattr(Provider(conn), name)
+
+    @tool
+    def seen() -> str:
+        """What a tool sees of the caller's context."""
+        return set_inside.get("unset")
+
+    code = (
+        "import _host, os\nprint(_host.call(b'x'))\nprint(os.listdir('/m'), os.listdir('/g'))\n"
+        "print(open('/m/a').read())"
+    )
+    tool_code = "from host import tools\nopen('/m/a').read()\nprint(tools.seen())"
+    conn = sqlite3.connect(":memory:")
+
+    def check(done, home: int, label: str) -> None:
+        assert (done.exit_code, done.trapped) == (0, None), (label, done.stderr[-800:])
+        assert done.files.faults == (), (label, done.files.faults)
+        assert {ident for _, ident in where} == {home}, (label, where)
+        where.clear()
+
+    var.set("from the caller")
+    local.v = "caller-local"
+    me = threading.get_ident()
+    mounts = [Mount(Provider(conn), "/m"), Mount(Lookup(), "/g")]
+    done = run(["-c", code], host=host, mounts=mounts)
+    check(done, me, "run")
+    assert done.stdout.decode().splitlines()[0] == "b'door:from the caller:caller-local'"
+    assert set_inside.get() == "set by the door host" or set_inside.get() == "set by the provider"
+    done = run(["-c", tool_code], tools=[seen], mounts=[Mount(Provider(conn), "/m")])
+    check(done, me, "tool")
+    assert done.stdout == b"set by the provider\n", done.stdout
+    with wasi_python.Session(host=host, mounts=mounts) as session:
+        check(session.run(code), me, "turn")
+    workers: list[int] = []
+
+    def worker_conn() -> None:
+        workers.append(threading.get_ident())
+
+    async def main():
+        loop = asyncio.get_running_loop()
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(1) as pool:
+            await loop.run_in_executor(pool, worker_conn)
+            return await wasi_python.run_async(
+                ["-c", "import _host\nprint(_host.call(b'x'))"], host=host, executor=pool
+            )
+
+    done = asyncio.run(main())
+    assert (done.exit_code, done.trapped) == (0, None), done.stderr[-800:]
+    assert {ident for _, ident in where} == set(workers), (where, workers)

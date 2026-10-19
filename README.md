@@ -82,8 +82,10 @@ raises `OSError` `EINVAL` on a macOS host, `FileNotFoundError` on Linux, as nati
 `NotADirectoryError` (`ENOTDIR`) on Windows. The standard library is bytecode in a
 zip: tracebacks into it show no source line; `inspect.getsource`, `linecache`, `pdb` and `pydoc`
 have no source for it; `os.path.exists` of a stdlib module's `__file__` is false, and the zip's
-path cannot be listed. `sys.executable` names `/usr/local/bin/python.wasm`, which the guest does
-not have, so `platform.libc_ver()` raises `FileNotFoundError`. The stdlib zip carries no package's
+path cannot be listed. The build's generated `_missing_stdlib_info` is not in the zip, so a
+missing standard library module is named only as "Standard library module 'msvcrt' was not
+found", not as Windows-only or disabled. `sys.executable` names `/usr/local/bin/python.wasm`,
+which the guest does not have, so `platform.libc_ver()` raises `FileNotFoundError`. The stdlib zip carries no package's
 `tests` folders and no `conftest.py`, so `numpy.conftest`, which numpy's own module list names,
 does not import. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The zip's directory is read
@@ -238,20 +240,19 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
 - **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
   `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
   `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
-  allows 1,000; a program that recursed deeper than that and finished on an earlier release now
-  raises. wasmtime gives wasm frames 512 KiB of native stack, and CPython's guard watches only the
-  C stack in linear memory, so the guest narrows that guard to 128 KiB (spec 071). Some recursion
-  still ends the call with the trap "stack overflow": a callback out of expat (`pyexpat`,
-  `xml.sax`, an `ElementTree` parser target) that parses again more than about 95 levels deep;
-  freeing a nested list more than about 2,000 deep (a dict 1,300); `json.loads` past 1,100
-  levels; `repr` of nested lists past 1,800 and `==` past 1,350; source with more than 130
-  nested brackets; an `ExceptionGroup` nested past 720; freeing a traceback longer than about
-2,700 frames (deep recursion is itself fine, but once a program raises `sys.setrecursionlimit`
-past that, the `RecursionError`'s traceback traps when it is freed); XPath with more
-than about 375 nested parentheses or 4,600 chained predicates; XSLT `call-template` nested past
-about 480 levels, or `apply-templates` over a tree deeper than about 470 with a template that copies (about 670 with one that only applies templates); C14N of a tree about
-1,500 deep, or RelaxNG validation of one about 430 deep (a parsed document stops at depth 256 unless `huge_tree`
-or `recover=True` is given). The trap ends only that call.
+  allows 1,000. The runner runs each guest on a thread of its own with 8 MiB of native stack
+  (spec 078), and CPython's guard watches 128 KiB of the C stack in linear memory (spec 071), so
+  recursion in C over nested data raises too: `repr`, `==` and `json` both ways of nested data,
+  the parser (`MemoryError`), deep `ExceptionGroup`s, callbacks out of expat (`pyexpat`,
+  `xml.sax`, an `ElementTree` target); XPath and XSLT stop at their own limits with their own
+  errors. Some recursion still ends the call with the trap "stack overflow": freeing a nested list
+  more than about 32,000 deep (a dict 20,000); `hash` of a nested tuple past 40,000 (natively a
+  crash); compiling an expression of more than about 52,000 terms; freeing a traceback longer
+  than about 43,000 frames (once a program raises `sys.setrecursionlimit` past that and reaches
+  it); C14N of a tree about 23,000 deep, or RelaxNG validation of one about 5,700 deep. A chain
+  of more than 1,897 `map` objects ends in the trap "unreachable". The trap ends only that call.
+  An embedder that keeps wasmtime's default 512 KiB stack meets lower limits (*From any
+  language*, step 4).
 
 FreeType's licence asks every binary distribution to say this in its documentation, and this
 README is the wheel's description:
@@ -702,13 +703,21 @@ one process about 20 to 25 ms. The runner finds the artifact set through
 `wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
 checkout's `build/artifacts/`, else the wheel's own copy.
 
-`run` runs the guest on the calling thread, with 512 KiB of wasm stack (spec 071); call it from
-a thread with that much free above your own frames. Python's threads have about 2 MB or more on
-glibc Linux, macOS and Windows, but **musl (Alpine) gives a thread 128 KiB**: there a guest that
-recurses, run on a default thread or through `run_async`'s own pool, kills your process with
-SIGSEGV. Set `threading.stack_size(1 << 20)` (or more) before the runner's first `run_async` and
-before you make threads that call `run`. An application that lowered `threading.stack_size`, or
-an executor with small threads passed to `run_async`, has the same problem anywhere.
+`run` runs each guest on a thread of its own, made for the call, with 10 MiB of stack, 8 MiB of
+it for wasm (spec 078), and checks that thread's stack before any wasm runs; the calling thread's
+own size does not matter, musl's 128 KiB threads and `run_async`'s pool there included. Your
+`host` function and providers still run on the thread that called `run`, which waits; tools still
+run on threads of their own, in a copy of that thread's context. A thread another thread starts
+while the runner starts its own gets 10 MiB too (`threading.stack_size` is one value per
+interpreter). On Windows, CPython commits a thread's whole stack, so each running guest commits
+10 MiB. On CPython 3.14.0 on a C library other than glibc (musl) every call is refused with
+`RuntimeError`: that interpreter guesses its thread's stack and cannot be told the guest
+thread's (use 3.14.1 or later). Platforms whose thread stack the runner cannot read (FreeBSD; any
+but Linux, Android, macOS and Windows) are refused the same way. Code that runs inside a guest's
+callback still runs on the guest's thread, below its frames, with 2 MiB of room: the collector's
+finalizers and weakref callbacks, audit hooks, and trace or profile functions set for all
+threads; on CPython 3.11 to 3.13 keep them shallow (3.14 and later turn deep Python there into
+`RecursionError`).
 
 ### Grants
 
@@ -1033,8 +1042,9 @@ A path a more specific preopen owns, spelled past the guest's C library
   runner zeroes a grant's listing too, which the wasmtime-py 49.0.0 it uses
   fills from uninitialized host memory (see *Safety*).
 
-**Time and threads.** A provider runs synchronously on the thread that runs
-the guest; under `run_async` that is a worker thread, never the event loop's.
+**Time and threads.** A provider runs synchronously on the thread that called
+`run` (under `run_async`, the worker thread, never the event loop's) while the
+guest waits on its own thread (spec 078).
 Before each provider call the runner checks the call's `cancel` and its
 deadline; if either has passed, the provider is not called. Your provider's
 own time is outside the deadline and cannot be interrupted: bound its calls
@@ -1303,7 +1313,8 @@ async def run_code(code: str):
   32 MiB of output and a copy of its `stdin`, so 8 workers bound one
   process at about 8.3 GiB, plus the disk a guest writes and up to
   `max_open_files` file descriptors each (1,024 by default), within the
-  process's own soft limit (see *Safety*). A new size applies to calls submitted afterwards; calls
+  process's own soft limit (see *Safety*), and a guest thread with a 10 MiB
+  stack each. A new size applies to calls submitted afterwards; calls
   already running or queued on the old pool still run there, so for a while
   both pools' workers may run guests (after 8 to 4, up to 12 at once). Four server worker processes have four pools: four
   times that. A container's CPU quota is not seen; set the size with
@@ -1313,7 +1324,8 @@ async def run_code(code: str):
 - **A synchronous endpoint** that calls `run` also keeps the loop free (the
   framework runs it on a thread), but it cannot be cancelled.
 - **`executor`** must run callables on threads of this process; a process
-  or interpreter pool is refused.
+  or interpreter pool is refused. The guest itself runs on a thread of the
+  runner's own, so the executor's thread size does not matter.
 - **Forking.** A process forked after it ran a guest refuses to run guests
   (`RuntimeError`): wasmtime does not support use across a fork. Warm the
   runner up after the fork (in gunicorn's `post_fork`, say), never before.
@@ -1347,14 +1359,30 @@ Any other embedder does the same four things:
 3. **Call `_initialize`** (the plain reactor only) **and then `run`**,
    once per instance, with argv (`argv[0]` is `/usr/local/bin/python.wasm`)
    and the environment given through WASI. `run` returns the exit status.
-4. **Give the guest at least 512 KiB of native stack** (`max_wasm_stack`, wasmtime's default),
-   on a host thread with room for it and for your own frames above it: wasm runs on the
-   calling thread's stack, and a limit larger than the thread can end the host process. With
-   it, recursion through Python code raises `RecursionError`, except through expat's
-   callbacks. More stack, on a thread that has it, lifts the limits under *Deep recursion*:
-   1 MiB covers nested `repr` and `json.dumps` and the parser; 8 MiB covers `json.loads`, `==`,
-   and freeing 10,000-deep structures. On Linux, install `faulthandler`, and any crash reporter
-   or signal handler for `SIGSEGV`, `SIGILL` or `SIGFPE`, before your first engine, or not at
+4. **Give the guest 8 MiB of native stack, on a thread with room for it.** Set
+   `max_wasm_stack` to 8 MiB; above 2 MiB wasmtime also needs `async_stack_size` at least as
+   large, or it refuses the engine (wasmtime-py 49's `Config` has no property for it: call its
+   declared binding `wasmtime._ffi.wasmtime_config_async_stack_size_set(config.ptr(), size)`
+   first; without it wasmtime-py's engine aborts the process on the refusal). wasm runs on the
+   calling thread's own stack, so make every call into the guest on a thread with 8 MiB plus your
+   own frames (the runner gives 10 MiB; a Linux main thread has 8 MiB and a Windows one 2 MB, too
+   little: a guest that uses its stack then kills the process). On CPython 3.14.1 or later on
+   musl, tell the interpreter that thread's stack (`PyUnstable_ThreadState_SetStackProtection`),
+   or a host function called from deep in the guest ends the process. With wasmtime's default
+   512 KiB instead, recursion through Python code still raises, except through expat's callbacks,
+   and these trap: a callback out of expat (`pyexpat`, `xml.sax`, an `ElementTree` parser target)
+   that parses again more than about 95 levels deep; freeing a nested list more than about 2,000
+   deep (a dict 1,300); `json.loads` past 1,100 levels; `repr` of nested lists past 1,800 and
+   `==` past 1,350; source with more than 130 nested brackets; an `ExceptionGroup` nested past
+   720; freeing a traceback longer than about 2,700 frames (deep recursion is itself fine, but
+   once a program raises `sys.setrecursionlimit` past that, the `RecursionError`'s traceback
+   traps when it is freed); XPath with more than about 375 nested parentheses or 4,600 chained
+   predicates; XSLT `call-template` nested past about 480 levels, or `apply-templates` over a
+   tree deeper than about 470 with a template that copies (about 670 with one that only applies
+   templates); C14N of a tree about 1,500 deep, or RelaxNG validation of one about 430 deep (a
+   parsed document stops at depth 256 unless `huge_tree` or `recover=True` is given). On Linux,
+   install `faulthandler`, and any crash reporter or signal handler for `SIGSEGV`, `SIGILL` or
+   `SIGFPE`, before your first engine, or not at
    all: enabling or disabling one later makes any guest trap kill or hang your process.
 
 An embedder that keeps an instance across turns, as `Session` does, calls the
@@ -2456,7 +2484,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
 - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the call where /tmp is writable.
 - `stdin`: The guest's standard input, whole; `None` is empty.
-- `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
+- `host`: The door's host function: called with each request's bytes, on the thread that made the call, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
 - `snapshot`: `True` runs the snapshot binary, with the stdlib's bootstrap imported (no package); `False` the plain reactor.
 - `fuel`: A cap on the guest's executed instructions; past it the call ends "out of fuel". `None` (the default) sets no cap.
 - `deadline_s`: Wall-clock seconds; past them the call ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit.
@@ -2479,7 +2507,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
-- `RuntimeError`: This process was forked after it ran a guest; a folder or the zip's copy changed between the runner's check and its use; or, on Linux, a handler installed or removed after the first run (faulthandler, `signal.signal`, a native crash reporter) replaced wasmtime's trap handlers, so a guest trap would end the process; raised before the guest runs.
+- `RuntimeError`: This process was forked after it ran a guest; a folder or the zip's copy changed between the runner's check and its use; on Linux, a handler installed or removed after the first run (faulthandler, `signal.signal`, a native crash reporter) replaced wasmtime's trap handlers, so a guest trap would end the process; the guest's thread could not start, or has less stack than its 8 MiB wasm stack needs, or its stack cannot be read on this platform; this is CPython 3.14.0 on a C library other than glibc; or wasmtime-py cannot set its async stack size; raised before the guest runs.
 - `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
 - `KeyboardInterrupt`: Ctrl-C.
 - `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
@@ -2527,7 +2555,7 @@ async def run_async(
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
-- `RuntimeError`: This process was forked after it ran a guest; the interpreter is shutting down; a folder or the zip's copy changed between the runner's check and its use; or, on Linux, a handler installed or removed after the first run replaced wasmtime's trap handlers (as `run`).
+- `RuntimeError`: This process was forked after it ran a guest; the interpreter is shutting down; a folder or the zip's copy changed between the runner's check and its use; on Linux, a handler installed or removed after the first run replaced wasmtime's trap handlers; or the guest's thread is refused (as `run`).
 - `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
 - `asyncio.CancelledError`: The awaiting task was cancelled; the guest was stopped and its worker freed first.
 - `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
@@ -2874,9 +2902,10 @@ has one.
 - **grants** are read-only unless they say otherwise, checked before any
   work, and checked again after wasmtime opens them (see *Grants*); the stdlib
   zip is a read-only grant on every call;
-- **deep recursion** through Python code raises `RecursionError`: the C-stack guard watches
-  128 KiB, sized for the runner's 512 KiB wasm stack (see *Deep recursion* for what still
-  traps);
+- **deep recursion** through Python code raises `RecursionError`, and recursion in C over nested
+  data too: the guest runs on a thread of the runner's own with 8 MiB of wasm stack, whose size is
+  checked before any wasm runs, so a guest cannot use more stack than its thread has; the C-stack
+  guard watches 128 KiB (see *Deep recursion* for what still traps);
 - **a guest trap cannot end or hang your process through a replaced signal handler** (Linux):
   each entry into the guest (each `run`, each session's opening and turn) is refused with
   `RuntimeError`, before guest code runs, and a session's ending skips Python's shutdown, when
@@ -2932,10 +2961,11 @@ has one.
   wasmtime-py's shared callback tables; whatever a host function catches (a
   trap in the guest's allocator, a host's `SystemExit` or `CancelledError`,
   Ctrl-C) stops that call and is reported or raised by that call's `run`, on
-  its own thread. While `run` holds the main thread under Python's default
-  SIGINT handler, Ctrl-C ends the call at the guest's next wait or door
-  call, or during a wait, or else at its deadline; an embedder's own
-  handler is left alone.
+  its own thread. While `run` holds the main thread, Ctrl-C ends the call
+  at the guest's next wait, door call or epoch check (every 50 ms of
+  computation), and is raised from `run`; an embedder's own SIGINT handler
+  that raises lands in the runner's wait, never in wasmtime, and stops the
+  call the same way (spec 078).
 
 To report a way around any of this, see [SECURITY.md](SECURITY.md).
 
@@ -2982,14 +3012,11 @@ another call's root (it can hard-link or change the files that call uses,
 and make that call's `run` raise `ValueError`, `RuntimeError`,
 `WasmtimeError` or `OSError`; nothing outside the grants changes); a guest that waits
 (`time.sleep`, `select`) in a call with `deadline_s=None`, which waits as
-long as it asks (no instruction runs, so fuel does not stop it); Ctrl-C
-for a guest that never waits or calls the door in a call with
-`deadline_s=None` and no `cancel` (it runs on; with `cancel=`, the runner's
-check ends it); Ctrl-C under an embedder's SIGINT handler
-that raises, asyncio's on a second Ctrl-C included, while a guest runs on
-the main thread: wasmtime-py, or under `cancel=` the runner's epoch
-callback, can then abort the process, so call `run` on a worker thread
-(`run_async`, `asyncio.to_thread`, a thread pool) there; other code in the
+long as it asks (no instruction runs, so fuel does not stop it); a second
+exception from your SIGINT handler landing inside the runner's own wait for
+the guest's thread, after which `run` may raise before that thread has
+stopped: the thread stops at its next epoch check, and the call's store and
+folders are released by it once it has, never while it runs; other code in the
 same process using wasmtime-py directly, whose exceptions can reach a
 trapping `run` through wasmtime-py's shared exception slot; an `env=` that
 overrides `HOME` or `PYTHONTZPATH` on a reused root (pdb then reads a
@@ -3006,14 +3033,10 @@ host CPU spent on tool frames, within two limits: their parsing by the
 request-byte budget (16 MiB by default), and each frame's fixed cost and each
 `list` answer's copy by `max_tool_calls` (1,000 by default); with a limit set
 to `None`, the deadline bounds what it bounded (see *Tools*, "The host's cost
-per frame"); recursion in C over very deep data, callbacks out of expat, and freeing very deep
-structures, which end the call with a stack-overflow trap (see *Deep recursion*; the next call
-is unaffected); on Linux, a signal-handler change made during a call, by a host function on the
-calling thread or by another thread (the next call is refused); a call on a thread with less
-stack than the guest's 512 KiB plus your own frames, such as any default thread on musl (Alpine,
-128 KiB) and so `run_async`'s own pool there, where a recursing guest kills the process with
-SIGSEGV (set `threading.stack_size(1 << 20)` or more before those threads are made; see
-*Running it*); timing
+per frame"); recursion in C over very deep data and freeing very deep structures, past the
+limits under *Deep recursion*, which end the call with a stack-overflow trap (the next call is
+unaffected); on Linux, a signal-handler change made during a call, by a host function on the
+calling thread or by another thread (the next call is refused); timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

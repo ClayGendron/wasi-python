@@ -6,6 +6,24 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **Each guest runs on a stack of its own** (spec 078; question 102). The runner runs every guest
+  on a thread it makes for the call, with 10 MiB of stack, 8 MiB of it for wasm (it was 512 KiB
+  on the caller's thread), and checks that thread's stack before any wasm runs. Recursion in C
+  over nested data (`repr`, `==`, `json` both ways), the parser, deep exception groups, expat's
+  callbacks, XPath and XSLT now raise instead of ending the call in a trap; freeing nested
+  structures, deep `hash`, long expressions, C14N, RelaxNG and very high recursion limits still
+  trap, 10 to 16 times deeper (the README lists them). A recursing guest can no longer kill a host
+  whose calling thread is small, such as musl's 128 KiB threads and `run_async`'s pool there. Your
+  `host` function and providers still run on the thread that called `run`. Ctrl-C now stops a
+  guest that computes without calling back, and an embedder's SIGINT handler that raises stops
+  the call instead of being lost. Spec 065's nine trap entries close: their tests run in their
+  groups, `test_traceback` whole. **Changed:** each running guest holds one more thread (10 MiB
+  of stack reserved; committed on Windows); a door or provider call costs one thread hand-off
+  each way; every call's epoch deadline is checked every 50 ms. On CPython 3.14.0 on musl every
+  call is refused (use 3.14.1 or later), and so is every call on a platform whose thread stack
+  the runner cannot read (FreeBSD; any but Linux, Android, macOS and Windows). No public name,
+  signature or default changes; fuel does not change.
+
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result

@@ -43,7 +43,7 @@ import struct
 import sys
 import types
 from array import array
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -838,7 +838,14 @@ class _Files:
         deadline, then the file-call limit. (0, answer) when the provider answered."""
         if errno := self._gate(caller):
             return errno, None
-        return self._invoke(mount, method, args)
+        return self._home(self._invoke, mount, method, args)
+
+    def _home(self, fn: Callable[..., Any], *args: Any) -> Any:
+        """fn(*args) on the call's home thread, where the embedder's code runs (spec 078,
+        Decision 4): every step that can run a provider's code (its method, an answer's buffer
+        or iteration, an exception's text) goes through here. Directly without a home."""
+        home = getattr(self.call, "home", None)
+        return fn(*args) if home is None else home.call(fn, *args)
 
     def _gate(self, caller: Any) -> int:
         """0, or the errno that stops a provider call while the guest runs (Decision 10 of spec
@@ -883,7 +890,7 @@ class _Files:
         write-back owed by a close or sync is recorded once, by the ending (N3, Decision 5)."""
         if errno := self._gate(caller):
             return errno, False
-        return self._made(mount, method, at, paths, data), True
+        return self._home(self._made, mount, method, at, paths, data), True
 
     def _made(
         self, mount: _Mounted, method: str, at: str, paths: tuple[str, ...], data: tuple[Any, ...]
@@ -935,8 +942,14 @@ class _Files:
 
     def _stat(self, caller: Any, mount: _Mounted, path: str) -> tuple[int, str, int, int]:
         """(0, kind, size, mtime_ns), or (errno, "", 0, 0). Every answer is judged by its real
-        type, which runs no provider code; what is left to look at runs inside the boundary."""
-        errno, answer = self._ask(caller, mount, "stat", path)
+        type, which runs no provider code; what is left to look at runs inside the boundary, on
+        the home thread (spec 078: a `Stat` subclass's properties are the provider's code)."""
+        if errno := self._gate(caller):
+            return errno, "", 0, 0
+        return self._home(self._stat_answer, mount, path)
+
+    def _stat_answer(self, mount: _Mounted, path: str) -> tuple[int, str, int, int]:
+        errno, answer = self._invoke(mount, "stat", (path,))
         if errno:
             return errno, "", 0, 0
         try:
@@ -960,8 +973,16 @@ class _Files:
         self, caller: Any, mount: _Mounted, path: str, buffer: bool = False
     ) -> tuple[int, bytes | bytearray | None]:
         """(0, bytes) for a file (a bytearray when `buffer`, for a descriptor that may write),
-        (0, None) for a folder (EISDIR), or (errno, None)."""
-        errno, answer = self._ask(caller, mount, "read", path)
+        (0, None) for a folder (EISDIR), or (errno, None). The answer is taken as a buffer on the
+        home thread, where its buffer export, the provider's code, runs (spec 078)."""
+        if errno := self._gate(caller):
+            return errno, None
+        return self._home(self._read_answer, mount, path, buffer)
+
+    def _read_answer(
+        self, mount: _Mounted, path: str, buffer: bool
+    ) -> tuple[int, bytes | bytearray | None]:
+        errno, answer = self._invoke(mount, "read", (path,))
         if errno:
             return errno, None
         try:
@@ -985,8 +1006,17 @@ class _Files:
         header, `d_next` included, then its name) and an array of where each starts. It is
         judged against the staging bound as it is gathered, counting the bytes allocated for
         the buffer, the array and the set of names that finds a repeat; once gathered, it holds
-        the buffer and the array. Every name is checked before the guest sees it."""
-        errno, answer = self._ask(caller, mount, "list", path)
+        the buffer and the array. Every name is checked before the guest sees it. The call and
+        the whole gathering (iter, each next, close) run on the home thread, so a generator
+        `list` runs its body there (spec 078, Decision 4)."""
+        if errno := self._gate(caller):
+            return errno, None, 0
+        return self._home(self._list_answer, mount, path, ino, released)
+
+    def _list_answer(
+        self, mount: _Mounted, path: str, ino: int, released: int
+    ) -> tuple[int, _Listing | None, int]:
+        errno, answer = self._invoke(mount, "list", (path,))
         if errno:
             return errno, None, 0
         iterator = None

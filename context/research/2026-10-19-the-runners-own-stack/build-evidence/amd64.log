@@ -1,0 +1,21 @@
+# linux/amd64 (ghcr.io/astral-sh/uv:0.9-trixie-slim under Rosetta), the branch: the CPython groups a, b, c (the nine closed entries' tests among them), the hostile-guest checks of spec 078, and two edges through run.
+  v1.1  artifact set         0/0   
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           4/91  gap 20
+  v1.4  embedding            0/0   
+  v1.5  rebuild from pins    0/0   
+ratchet vs b91e0eaa4e: lost 0 · absent 9 · unrun 0 · gained 0 · grew 0 · upstream unrun 68 · not selected 540 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/checks/test_v1_4_sessions.py and 9 more
+ABSENT tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-doctest]
+ABSENT tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-exceptions]
+ABSENT tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-itertools-tee]
+RED: 9 accepted check(s) absent (retire them with --retire)
+4 passed, 20 xfailed in 174.76s (0:02:54)
+ratchet vs b91e0eaa4e: lost 0 · absent 5 · unrun 0 · gained 34 · grew 0 · upstream unrun 100 · not selected 538 · judge changed: tests/checks/test_v1_2_hostile_guest.py, tests/checks/test_v1_4_embedding.py, tests/checks/test_v1_4_sessions.py and 9 more
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[etree-target]
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[eval-parens]
+ABSENT tests/checks/test_v1_2_hostile_guest.py::test_deep_data_limits[expat-handler]
+RED: 5 accepted check(s) absent (retire them with --retire)
+35 passed in 71.34s (0:01:11)
+{"case": "relaxng", "max_ok": 5756, "at": "ok", "above": null, "arch": "x86_64"}
+{"case": "xslt-apply-copy", "max_ok": 200000, "unbounded": true, "at": "XSLTApplyError unknown error", "arch": "x86_64"}
+x86_64 ('glibc', '2.41') 3.14.3 (main, Feb  3 2026, 22:52:18) [Clang 21.1.4 ]

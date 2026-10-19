@@ -168,13 +168,13 @@ closes_with = "README.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
-match = "1 finding(s), digest e9ee1c0bf344"
+match = "140 finding(s), digest 6aa3974a625c"
 reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
 closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-read-only-eperm]"
-match = "1 finding(s), digest 81d5aff98496"
+match = "11 finding(s), digest baa15de6a268"
 reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
 closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 
@@ -188,6 +188,12 @@ closes_with = "README.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-stdlib-zip-error]"
 match = "1 finding(s), digest 4e1870ead74a"
 reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-missing-stdlib-info]"
+match = "1 finding(s), digest 932b28af4c58"
+reason = "the build's generated _missing_stdlib_info is not in the stdlib zip, so traceback names a missing stdlib module only as 'not found' (README; test_traceback runs since spec 078)"
 closes_with = "README.md"
 
 [[gap]]
@@ -430,56 +436,3 @@ match = "1 finding(s), digest d884ec604262"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
 closes_with = "README.md"
 
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-doctest]"
-match = "1 finding(s), digest 0179a8ef4404"
-reason = "freeing a 1,000-long chain of _Call objects recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-exceptions]"
-match = "1 finding(s), digest d7065e308e6e"
-reason = "freeing what the handlers chained recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-syntax]"
-match = "1 finding(s), digest 60a8627832df"
-reason = "the parser's MAXSTACK (4,000 on WASI) needs more than wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-syntax-lazy-import]"
-match = "1 finding(s), digest 8ef3e2c3044d"
-reason = "the same, inherited (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-py]"
-match = "1 finding(s), digest 0236d05bdcf9"
-reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine (spec 071, Decision 8, EXECUTED there by id; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-py-subclass]"
-match = "1 finding(s), digest 76d6a0b2ccde"
-reason = "the same, the pure-Python subclass (spec 071, Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-subclass]"
-match = "1 finding(s), digest bcad0e9d8ecb"
-reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine; seen first on Linux x86-64 (dry run 39192207869), on every host since spec 071 (its Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-traceback]"
-match = "1 finding(s), digest 6750702ec38f"
-reason = "printing and freeing deep exception groups; one trap is no test's (it fires after test_comparison whichever test follows), so the whole module (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-itertools-tee]"
-match = "1 finding(s), digest b560ff3f4e57"
-reason = "a long chain of pure-Python tee iterators recurses past the runner's 512 KiB stack on Linux x86-64 only (the lane's dry run 39260247695; reproduced in a linux/amd64 container, it passes on darwin), so an entry on every host (Decision 1; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
-closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"

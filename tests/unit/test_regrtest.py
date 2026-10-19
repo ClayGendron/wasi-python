@@ -522,9 +522,10 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
         "cpython-b",
         "cpython-c",
     }
-    assert sum(len(g.modules) for g in PY.groups.values()) == 542
-    # nine, one the dry run found (F5), less the four spec 071 closed, plus its two (Decision 8)
-    assert len(PY.traps) == 9 and len(PY.expected) == 25  # and one seen on Linux x86-64 (F5)
+    # 542, and test_traceback since spec 078 closed its trap entry
+    assert sum(len(g.modules) for g in PY.groups.values()) == 543
+    # spec 078 closed the nine trap entries (an 8 MiB stack); its test_traceback added one class
+    assert len(PY.traps) == 0 and len(PY.expected) == 26
     from harness import plugin, shards
 
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
