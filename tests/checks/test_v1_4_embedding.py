@@ -153,11 +153,12 @@ def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
 
 FACTS = """
 import os, time
+now = lambda: time.clock_gettime_ns(time.CLOCK_REALTIME)  # the guest's clock: the driver's
 facts = []
 for e in sorted(os.scandir('/g'), key=lambda e: e.name):
     s = e.stat()
     facts.append((e.name, str(s.st_ino), repr(s.st_mtime), s.st_mtime_ns,
-                  e.inode() == s.st_ino, time.time() >= s.st_mtime))
+                  e.inode() == s.st_ino, now() >= s.st_mtime_ns))
 os.mkdir('/d')
 open('/d/x', 'w').write('x')
 os.utime('/d/x', ns=(1, 2))
@@ -165,7 +166,7 @@ open('/d/y', 'w').write('y')
 x, y = os.stat('/d/x'), os.stat('/d/y')
 print(facts)
 print(len({f[1] for f in facts}), max(int(f[1]) for f in facts) < 2**30, all(f[4] for f in facts),
-      all(f[5] for f in facts), time.time() >= y.st_mtime, x.st_atime_ns, x.st_mtime_ns)
+      all(f[5] for f in facts), now() >= y.st_mtime_ns, x.st_atime_ns, x.st_mtime_ns)
 """
 
 
