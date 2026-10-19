@@ -1,0 +1,4 @@
+dir gap      plain     exit 0 kept 0: 
+dir globals  plain     exit 0 kept -: unfrozen True is __main__ True names ['__builtins__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__'] values ('__main__', '/app/__main__.py', '', '__main__', 'SourceFileLoader', 'dict') argv0 /app
+dir gap      snapshot  exit 0 kept 0: 
+dir globals  snapshot  exit 0 kept -: unfrozen True is __main__ True names ['__builtins__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__'] values ('__main__', '/app/__main__.py', '', '__main__', 'SourceFileLoader', 'dict') argv0 /app

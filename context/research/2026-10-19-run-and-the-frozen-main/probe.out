@@ -1,0 +1,53 @@
+case                   binary              kept            fuel  stderr
+gap                    plain                100     168,035,122  
+gap                    snapshot               0      16,185,307  
+no-def                 plain                100     167,826,165  
+no-def                 snapshot             100      15,988,827  
+class                  plain                100     168,157,131  
+class                  snapshot             100      16,363,748  
+lambda                 plain                100     168,004,417  
+lambda                 snapshot               0      16,172,629  
+main-kept-alive        plain                100     168,239,140  
+main-kept-alive        snapshot             100      16,425,761  
+reporter               plain                  -     168,481,760  R finalized
+reporter               snapshot               -      16,740,494  
+reporter-no-def        plain                  -     168,368,356  R finalized
+reporter-no-def        snapshot               -      16,581,617  
+script                 plain                  0     237,174,038  
+script                 snapshot               0      36,474,579  
+zip-left-open          plain         zip ok 100     379,041,410  
+zip-left-open          snapshot  zip BAD (135 bytes)     126,515,381  
+bare                   plain                  -     167,476,282  
+bare                   snapshot               -      15,631,800  
+bare+import-gc         plain                  -     167,920,364  
+bare+import-gc         snapshot               -      15,681,309  
+bare+unfreeze          plain                  -     167,989,079  
+bare+unfreeze          snapshot               -      43,851,798  
+bare+walk              plain                  -     444,220,984  
+bare+walk              snapshot               -      17,518,685  
+bare+fresh-main        plain                  -     168,900,583  
+bare+fresh-main        snapshot               -      17,097,907  
+gap+import-gc          plain                100     168,386,494  
+gap+import-gc          snapshot               0      16,217,140  
+gap+unfreeze           plain                100     168,553,081  
+gap+unfreeze           snapshot             100      44,409,524  
+gap+walk               plain                100     446,379,461  
+gap+walk               snapshot             100      18,230,216  
+gap+fresh-main         plain                100     169,437,027  
+gap+fresh-main         snapshot             100      17,634,641  
+zip+unfreeze           plain         zip ok 100     379,458,702  
+zip+unfreeze           snapshot      zip ok 100     154,589,433  
+zip+walk               plain         zip ok 100     576,887,855  
+zip+walk               snapshot  zip BAD (135 bytes)     164,027,817  
+zip+fresh-main         plain         zip ok 100     380,325,527  
+zip+fresh-main         snapshot      zip ok 100     127,269,833  
+pandas                 plain                  -   4,917,841,605  
+pandas                 snapshot               -   4,600,110,254  
+pandas+import-gc       plain                  -   4,917,373,942  
+pandas+import-gc       snapshot               -   4,600,544,930  
+pandas+unfreeze        plain                  -   4,917,531,548  
+pandas+unfreeze        snapshot               -   4,644,580,241  
+pandas+walk            plain                  -   5,692,972,147  
+pandas+walk            snapshot               -   5,072,276,241  
+pandas+fresh-main      plain                  -   4,919,973,650  
+pandas+fresh-main      snapshot               -   4,601,596,225  

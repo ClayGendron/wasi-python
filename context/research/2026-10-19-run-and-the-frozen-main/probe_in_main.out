@@ -1,0 +1,8 @@
+script today (run_path)  plain     exit 0 kept    0 fuel   237,174,038  
+script today (run_path)  snapshot  exit 0 kept    0 fuel    36,474,579  
+script in a fresh main   plain     exit 0 kept  100 fuel   239,381,255  
+script in a fresh main   snapshot  exit 0 kept  100 fuel    38,566,664  
+-m today (run_module)    plain     exit 0 kept    0 fuel   183,580,947  
+-m today (run_module)    snapshot  exit 0 kept    0 fuel    24,104,293  
+-m in a fresh main       plain     exit 0 kept  100 fuel   184,168,402  
+-m in a fresh main       snapshot  exit 0 kept  100 fuel    24,649,281  

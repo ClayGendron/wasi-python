@@ -197,12 +197,17 @@ Follow-ups decided by the owner: a provider's `OSError` carries its errno to the
 89; a later build-class specification).
 
 Follow-up from spec 069's pre-build review (2026-10-18, the lane's ruling on its F1): **spec
-073, `run` keeps an unclosed file's buffered bytes** (not drafted). On the snapshot, `run` loses
-the buffered bytes of a file left open when `__main__` defines a function (the frozen heap; found
-by spec 055's addendum, P10b); sessions unfreeze at close (spec 055), `run` does not. A gap until
-then (`tests/known_gaps.toml`, `test_run_keeps_an_unclosed_files_bytes[snapshot]`). If its fix
-unfreezes the heap, it restates spec 069's check (b) (the snapshot's start at least 8 times
-cheaper than the plain start: unfrozen, a bare run is 43.8 M fuel, 3.8 times).
+073, `run` keeps an unclosed file's buffered bytes** (drafted 2026-10-19 on
+`spec/073-run-keeps-unclosed-files-bytes`; build-class, so reviewed before it is built). On the
+snapshot, `run` loses the buffered bytes of a file left open when `__main__` defines a function:
+`__main__`'s dict is frozen, so once its module dies at finalization nothing frees it (the frozen
+heap; found by spec 055's addendum, P10b). Its draft found that a script and `-m` lose them on
+both binaries too, in runpy's temporary module. It gives every program a fresh, unfrozen
+`__main__` and runs a script and `-m` in it, as CPython does (about 0.5 M fuel; the freeze and
+spec 069's check (b) stay). It closes the gap `test_run_keeps_an_unclosed_files_bytes[snapshot]`
+and adds one for the corner it leaves (a program's object hung on the frozen heap), which
+question 103 asks the owner about (unfreezing would close it for 28.2 M a call, restating check
+(b)).
 
 Follow-ups from spec 068's pre-build review (2026-10-18): **spec 072, a bound on path depth**
 (not drafted): a limit on the components of every path a path call resolves, so the descriptors

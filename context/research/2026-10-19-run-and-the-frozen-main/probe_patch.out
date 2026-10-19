@@ -1,0 +1,8 @@
+patched                    plain     exit 0 kept  100 fuel   283,688,671  
+patched                    snapshot  exit 0 kept    0 fuel    15,645,941  
+patched, fresh main        plain     exit 0 kept  100 fuel   285,312,132  
+patched, fresh main        snapshot  exit 0 kept    0 fuel    17,051,775  
+patched, fresh main+keep   plain     exit 0 kept  100 fuel   288,274,743  
+patched, fresh main+keep   snapshot  exit 0 kept    0 fuel    20,633,113  
+patched+unfreeze           plain     exit 0 kept  100 fuel   284,273,405  
+patched+unfreeze           snapshot  exit 0 kept  100 fuel    44,666,384  

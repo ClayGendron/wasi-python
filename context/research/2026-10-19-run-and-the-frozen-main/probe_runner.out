@@ -1,0 +1,10 @@
+-c      plain     exit 0 kept 100
+script  plain     exit 0 kept 0
+-c      snapshot  exit 0 kept 0
+script  snapshot  exit 0 kept 0
+stdin   plain     exit 0 kept 100
+-m      plain     exit 0 kept 0
+sys.executable plain: /usr/local/bin/python.wasm
+stdin   snapshot  exit 0 kept 0
+-m      snapshot  exit 0 kept 0
+sys.executable snapshot: /usr/local/bin/python.wasm

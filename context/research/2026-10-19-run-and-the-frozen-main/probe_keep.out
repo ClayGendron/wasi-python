@@ -1,0 +1,14 @@
+bare                       plain     exit 0 kept    - fuel     167,476,282  
+bare                       snapshot  exit 0 kept    - fuel      15,631,800  
+bare+keep                  plain     exit 0 kept    - fuel     168,768,574  
+bare+keep                  snapshot  exit 0 kept    - fuel      18,458,718  
+json-stash                 plain     exit 0 kept  100 fuel     283,335,080  
+json-stash                 snapshot  exit 0 kept    0 fuel      16,077,423  
+json-stash+keep            plain     exit 0 kept  100 fuel     286,311,148  
+json-stash+keep            snapshot  exit 0 kept  100 fuel      18,855,201  
+gap+keep (main not kept)   plain     exit 0 kept  100 fuel     169,292,784  
+gap+keep (main not kept)   snapshot  exit 0 kept    0 fuel      18,928,545  
+pandas                     plain     exit 0 kept    - fuel   4,917,841,605  
+pandas                     snapshot  exit 0 kept    - fuel   4,600,110,254  
+pandas+keep                plain     exit 0 kept    - fuel   4,932,392,539  
+pandas+keep                snapshot  exit 0 kept    - fuel   4,619,001,276  

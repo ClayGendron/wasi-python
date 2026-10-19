@@ -1,0 +1,18 @@
+bare    plain     control  exit 0 kept    - fuel     168,359,735
+bare    plain     fresh    exit 0 kept    - fuel     168,900,583
+bare    plain     fresh - control = +540,848
+bare    snapshot  control  exit 0 kept    - fuel      16,564,773
+bare    snapshot  fresh    exit 0 kept    - fuel      17,097,907
+bare    snapshot  fresh - control = +533,134
+gap     plain     control  exit 0 kept  100 fuel     168,913,453
+gap     plain     fresh    exit 0 kept  100 fuel     169,437,027
+gap     plain     fresh - control = +523,574
+gap     snapshot  control  exit 0 kept    0 fuel      17,057,309
+gap     snapshot  fresh    exit 0 kept  100 fuel      17,634,641
+gap     snapshot  fresh - control = +577,332
+pandas  plain     control  exit 0 kept    - fuel   4,917,718,989
+pandas  plain     fresh    exit 0 kept    - fuel   4,919,973,650
+pandas  plain     fresh - control = +2,254,661
+pandas  snapshot  control  exit 0 kept    - fuel   4,601,180,295
+pandas  snapshot  fresh    exit 0 kept    - fuel   4,601,596,225
+pandas  snapshot  fresh - control = +415,930

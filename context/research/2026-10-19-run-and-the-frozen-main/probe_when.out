@@ -1,0 +1,7 @@
+== plain: exit 0, fuel 186,602,427
+program ends: sys.modules 41, os wiped False
+__main__ module died: sys.modules 41, os wiped False
+a value in __main__ finalized: sys.modules 0, os wiped False
+== snapshot: exit 0, fuel 27,720,056
+program ends: sys.modules 72, os wiped False
+__main__ module died: sys.modules 72, os wiped False

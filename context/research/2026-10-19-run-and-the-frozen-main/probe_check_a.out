@@ -1,0 +1,12 @@
+plain unclosed file: 3 finding(s), digest e6d5609d06d8: script: a file left open kept 0 of 100 bytes; directory: a file left open kept 0 of 100 bytes; -m: a file left open kept 0 of 100 bytes
+    script: a file left open kept 0 of 100 bytes
+    directory: a file left open kept 0 of 100 bytes
+    -m: a file left open kept 0 of 100 bytes
+snapshot unclosed file: 7 finding(s), digest 98d69ac9128b: -c: a file left open kept 0 of 100 bytes; -c: a zip left open is unreadable; stdin: a file left open kept 0 of 100 bytes; stdin: a zip left open is unreadable; script: a file left open kept 0 of 100 bytes; +2 more
+    -c: a file left open kept 0 of 100 bytes
+    -c: a zip left open is unreadable
+    stdin: a file left open kept 0 of 100 bytes
+    stdin: a zip left open is unreadable
+    script: a file left open kept 0 of 100 bytes
+    directory: a file left open kept 0 of 100 bytes
+    -m: a file left open kept 0 of 100 bytes
