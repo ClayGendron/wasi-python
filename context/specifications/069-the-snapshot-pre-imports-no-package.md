@@ -1,6 +1,6 @@
 # 069 — The snapshot pre-imports no package
 
-- **Status:** **built 2026-10-19; revised against its build review** (the build review,
+- **Status:** **landed 2026-10-19** (accepted on `96cf575` as `fc9282b`, history line 71; the build review, `../reviews/069-the-snapshot-pre-imports-no-package-build-2026-10-19.md`, confirmed it; see the Landing notes' last part). Before landing: **built 2026-10-19; revised against its build review** (the build review,
   `../reviews/069-the-snapshot-pre-imports-no-package-build-2026-10-19.md`, written in a
   scratchpad and copied by the lane: "lands once F1 is written in"; F1 to F4 are written in, the
   Landing notes' last part). Built on `spec/069-the-snapshot-pre-imports-no-package`, rebased onto
@@ -1084,3 +1084,23 @@ The build review: "lands once F1 is written in"; the lane asked for F2 to F4 too
     The lane rebuilds at landing anyway.
 - **Re-run:** check (a) on the built set (passes), on S1, S2, S7 and S8 and on main's set
   (above), and the fast tier with `-n 3` (`fast-2.log`): 1704 passed, 10 skipped, 1 xfailed; ratchet lost 0, absent 1 (the retired check), gained 5, grew 20 (the fast tier's share of the 38), as before the revision.
+
+**Landed 2026-10-19** through the lane, after spec 076. The lane rebased the branch onto main
+`3ea0582` (spec 076 since `b413192`) with no conflict; its diff equals the reviewed diff at `0fa9f60`
+line for line (EXECUTED, `build/lane-069/delta.txt`, empty). The pre-build review with its
+confirmation and the build review with its confirmation
+(`../reviews/069-the-snapshot-pre-imports-no-package-spec-2026-10-18.md`,
+`../reviews/069-the-snapshot-pre-imports-no-package-build-2026-10-19.md`) were committed on the
+detached HEAD as `96cf575`. **The main tree's full build from pins** (16 steps, 8 min 28 s) gave
+`SHA256SUMS` `1889459ead8b9b93bfd3ee7e1caa3ef8efe535c2f7abbd6489b9902feae216b7`, byte for byte the
+builder's: `python.wasm` `5ab6bc5d…` (41,099,442 bytes), the snapshot `1a7242a7…` (44,633,705, 30.4
+MB smaller than 055's), the zip unchanged (EXECUTED, `build/lane-069-build.log`). The set is frozen
+read-only as `build/sets/s-1a7242a7a8b518f4`. The full judge there, serial: `wasi_python v1: 480/497
+pass · 15 gap · 2 blocked · 0 fail (unit suite 1270/1272, 2 skipped)`, `1750 passed, 4 skipped, 15
+xfailed in 698.01s` (the fifteenth gap is check (h)'s, closed by spec 073), accepted with
+`--accept-judge`, `--accept-growth` (the confirmed reason) and `--retire
+tests/checks/test_v1_3_data_stack.py::test_snapshot_preimports_the_stack` as `fc9282b`, history line
+71 (EXECUTED, `build/lane-069-accept.log`). The rules tier passed (40/40, unpiped); main
+fast-forwarded. Spec 071 lands next and restates criterion 3's hashes on this set; spec 065 drops its
+adaptation A1.
+
