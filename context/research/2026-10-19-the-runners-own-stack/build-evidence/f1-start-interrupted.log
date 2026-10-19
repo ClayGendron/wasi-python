@@ -3,4 +3,9 @@ interrupted
 guest threads alive when run raised: []
 closes while wasm ran: []
 exit=0
-# The new criterion-17 child row, start-interrupted, with 7aa0c52's runner (git archive into a scratch folder, PYTHONPATH): exit -6, no output (seen failing first).
+# The new criterion-17 child row, start-interrupted, with 7aa0c52's runner (git archive into a scratch
+# folder, PYTHONPATH), four fresh runs (the delta review's D2 corrected an earlier "exit -6" here,
+# which did not reproduce): each exits 0 but records two closes under running wasm, so the row
+# fails; the branch's four runs record none.
+7aa0c52 run 1-4: exit 0 ['interrupted', "bad closes ['MainThread', 'MainThread']", 'next 1']
+branch run 1-4:  exit 0 ['interrupted', 'bad closes []', 'next 1']

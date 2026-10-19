@@ -976,7 +976,7 @@ fixed or answered". Each finding, and where it went:
   after it ends and nothing is torn down under it; a start that fails before the body takes it is
   cancelled, and a body that starts anyway returns at once. Units
   (`test_an_interrupted_thread_start_keeps_its_guest`, `test_a_failed_thread_start_is_cancelled`)
-  and a child row (`start-interrupted`, which on `7aa0c52`'s runner ended with exit −6). The
+  and a child row (`start-interrupted`, which on `7aa0c52`'s runner exits 0 but records two closes on `MainThread` under running wasm, four runs in four; corrected by the delta review's D2). The
   review's own probe, unchanged, now prints `guest threads alive when run raised: []` and
   `closes while wasm ran: []` (`build-evidence/f1-start-interrupted.log`).
 - **F2 (fixed).** The class `no-missing-stdlib-info` and its gap now close with a roadmap entry
@@ -995,7 +995,7 @@ fixed or answered". Each finding, and where it went:
   the interrupt); the musl log has all five rows; the nine entries trapping at 512 KiB on
   linux/amd64 with main's runner are recorded (`build-evidence/amd64-main-traps.log`).
 - **F5 (fixed).** The `--accept-judge` text names the widened `no-test-modules` match, the ten
-  `read-only-eperm` additions, the new class, the three gaps' digests, `tests/release_shards.toml`,
+  `read-only-eperm` additions, the new class, two gaps' digests restated and one added, one comment in `test_v1_4_embedding.py`, `tests/release_shards.toml`,
   the removed stand-in and the new rows.
 - **F6 (answered).** The first build's record was overwritten by a partial run. The final full
   judge ran once on the clean committed tree, and its record is kept at
@@ -1014,6 +1014,25 @@ fixed or answered". Each finding, and where it went:
   `test_a_guest_thread_is_not_the_home_and_has_room` (own-runner shard) and
   `test_every_entry_runs_on_a_guest_thread_with_room` (hostile shard) first in the pre-landing
   release run (criterion 15).
+
+## Disposition of the delta review
+
+The delta review (`scratchpad/078-buildreview/078-the-runner-runs-each-guest-on-a-stack-of-its-own-build-delta-2026-10-19.md`,
+for the lane to copy): F1, F7 and F4 confirmed fixed; "lands once D1 is fixed".
+
+- **D1 (fixed).** The `--accept-judge` text (For the lane) carries no double quote inside its
+  argument (the class's message is written without quotes), says "two gaps' digests restated and
+  one added", and names the one comment in `test_v1_4_embedding.py` again. Pasted into zsh with
+  `eval "set -- <the line>"` and `printf '%s\n'`: two words, the flag and the whole text as one
+  argument (EXECUTED).
+- **D2 (corrected).** The start row on `7aa0c52`'s runner exits 0 and records
+  `bad closes ['MainThread', 'MainThread']`, four fresh runs in four (the branch: `bad closes []`,
+  four in four); the earlier "exit −6" did not reproduce and is replaced in the criteria, the
+  Disposition of the build review and `build-evidence/f1-start-interrupted.log`.
+- **D3 (built).** `_join_guest` has the backstop: when the wait times out and the thread is not
+  alive (never ran its body, or ended without setting `ended`), it cancels under the lock and
+  returns; a body that starts after that returns at once. One unit,
+  `test_the_join_does_not_wait_for_a_thread_that_never_ran`.
 
 ## Landing notes
 
@@ -1124,7 +1143,7 @@ program traps at 512 KiB too).
 17. The home never tears down a running guest: the units, and three child rows through `run`
     recording that no store is closed while its wasm runs (an exception into the home; a home
     forced out of its join; since the build review's F1, an interrupt inside `Thread.start()`
-    after the OS made the thread, which on `7aa0c52`'s runner ended the child with exit −6), and
+    after the OS made the thread, which on `7aa0c52`'s runner records two closes on `MainThread` under running wasm, four runs in four; the delta review's D2), and
     the session row (`test_an_abandoned_turn_keeps_its_session_busy`: `busy` held, a second turn
     refused, the session ends "error"). The build review's own F1 probe, unchanged, on the fix:
     `closes while wasm ran: []` (`build-evidence/f1-start-interrupted.log`).
@@ -1196,18 +1215,12 @@ Linux.
 
 ### For the lane
 
-- `--accept-judge "spec 078: the runner and the judge's driver run each guest on a 10 MiB thread
-  of its own with an 8 MiB wasm stack; 071's deep-data limits restated at 8 MiB, new checks for
-  what now raises, for the guest thread, its stack check, the interpreter told its stack on musl,
-  small calling threads, host functions on the caller's thread, Ctrl-C, the home waiting for its
-  guest and every hand-off answered; the faulthandler child traps by freeing; the grant-check
-  deadline advances the ticker's count; spec 065's nine trap entries and their gaps closed;
-  test_traceback in cpython-a: no-test-modules' match widened to "No module named '_testcapi'"
-  (139 members), read-only-eperm +10, a new class no-missing-stdlib-info (1) closing with a
-  roadmap entry, those three gaps' digests restated; test_runner_threads.py in the own-runner
-  shard (tests/release_shards.toml); the regrtest and shard units restated; test_runner_mounts'
-  inert _ask stand-in removed; the relaxng-deep-tree limit row, the session, start and hand-off
-  child rows"`.
+- The judge change, one argument, pasted as is (the delta review's D1: no double quote inside it):
+
+  ```
+  --accept-judge "spec 078: the runner and the judge's driver run each guest on a 10 MiB thread of its own with an 8 MiB wasm stack; 071's deep-data limits restated at 8 MiB, new checks for what now raises, for the guest thread, its stack check, the interpreter told its stack on musl, small calling threads, host functions on the caller's thread, Ctrl-C, the home waiting for its guest and every hand-off answered; the faulthandler child traps by freeing; the grant-check deadline advances the ticker's count; one comment in test_v1_4_embedding.py; spec 065's nine trap entries and their gaps closed; test_traceback in cpython-a: no-test-modules' match widened to No module named '_testcapi' (139 members), read-only-eperm +10, a new class no-missing-stdlib-info (1) closing with a roadmap entry, two gaps' digests restated and one added; test_runner_threads.py in the own-runner shard (tests/release_shards.toml); the regrtest and shard units restated; test_runner_mounts' inert _ask stand-in removed; the relaxng-deep-tree limit row, the session, start and hand-off child rows"
+  ```
+
 - `--retire` the 14 absent checks above.
 - `--accept-growth "spec 078: the CPython groups now run the tests spec 065's nine trap entries kept
   out (test_traceback whole and test_tee_recipe in cpython-a +2.5%; test_doctest's and

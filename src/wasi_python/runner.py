@@ -3945,6 +3945,17 @@ def _join_guest(home: _Home) -> None:
         try:
             if home.ended.wait(_GUEST_SLICE):
                 return
+            thread = home.thread
+            if thread is None or not thread.is_alive():
+                # A backstop (the delta review's D3): a thread that never ran its body, or whose
+                # body ended without saying so (a second exception in the start's own handler, an
+                # embedder's trace hook raising at its first frame), would never set `ended`. Under
+                # the lock, a body not yet running is cancelled: it returns at once if it starts.
+                with home.lock:
+                    if not home.ended.is_set():
+                        home.state, home.done, home.serving = "cancelled", True, False
+                        home.ended.set()
+                return
         except BaseException as e:
             home.stop(e)
 

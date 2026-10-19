@@ -352,3 +352,19 @@ def test_a_stopped_home_answers_new_hand_offs_with_a_stop(roomy) -> None:
     home.inbox.put(runner._DONE)
     home.serve()
     assert box.answered and isinstance(box.error, runner._Stopped)
+
+
+def test_the_join_does_not_wait_for_a_thread_that_never_ran() -> None:
+    """Spec 078 (the delta review's D3): a start left "starting" by a thread that never ran its
+    body (a second exception in the start's handler, a trace hook raising at its first frame) is
+    cancelled by the join, which returns; a body that starts after it returns at once."""
+    home = runner._Home()
+    ran: list[int] = []
+    never = threading.Thread(target=lambda: None)  # made, never started: no body will run
+    with home.lock:
+        home.state, home.done, home.thread = "starting", False, never
+        home.ended.clear()
+    runner._join_guest(home)
+    assert (home.state, home.done, home.ended.is_set()) == ("cancelled", True, True)
+    home.body("run", lambda: ran.append(1), ())
+    assert ran == []
