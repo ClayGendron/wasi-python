@@ -1,0 +1,18 @@
+== fast tier -n 3 (fast-2.log)
+wasi_python v1: 483/625 pass · 1 gap · 22 blocked · 0 fail · 119 deselected   (unit suite 1597/1605, 8 skipped)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 20 · gained 2 · grew 0 · upstream unrun 99 · not selected 43 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_4_embedding.py, tests/harness/guest.py and 5 more
+=========== 2080 passed, 30 skipped, 1 xfailed in 213.14s (0:03:33) ============
+== full judge -n 3 (full.log), 18:52:47-19:01:35, set nlink check: links>1:        0
+wasi_python v1: 525/625 pass · 77 gap · 23 blocked · 0 fail   (unit suite 1597/1605, 8 skipped)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 2 · grew 0 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_4_embedding.py, tests/harness/guest.py and 5 more
+=========== 2122 passed, 31 skipped, 77 xfailed in 527.63s (0:08:47) ===========
+== sameness.py pre-review full run vs final full run
+suite: {'passed': 1592, 'skipped': 8, 'total': 1600} != {'passed': 1597, 'skipped': 8, 'total': 1605}
+== tripwire on build/harness during the final full run (any .DS_Store or ._* first seen)
+18:52:47 birth=18:28:06 size=8196 build/harness/.DS_Store
+18:52:47 birth=18:28:06 size=6148 build/harness/cpython/.DS_Store
+18:52:47 birth=18:28:11 size=6148 build/harness/upstream/.DS_Store
+== tripwire during the pre-review full run
+18:28:06 birth=18:28:06 size=6148 build/harness/.DS_Store
+18:28:06 birth=18:28:06 size=6148 build/harness/cpython/.DS_Store
+18:28:12 birth=18:28:11 size=6148 build/harness/upstream/.DS_Store

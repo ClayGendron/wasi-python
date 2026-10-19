@@ -1,0 +1,24 @@
+== mutant-a-noseal-plain.log
+E           harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /stage/.DS_Store (before the run); /stage/judge/.DS_Store (before the run); /stage/lib/.DS_Store (before the run); /stage/lib/test/.DS_Store (before the run) (litter such as .DS_Store comes from macOS's folder-size cache: System Settings' storage scan, Finder; spec 0
+1 failed in 5.09s
+== mutant-a-noseal-snapshot.log
+E           harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /stage/.DS_Store (before the run); /stage/judge/.DS_Store (before the run); /stage/lib/.DS_Store (before the run); /stage/lib/test/.DS_Store (before the run) (litter such as .DS_Store comes from macOS's folder-size cache: System Settings' storage scan, Finder; spec 0
+1 failed in 5.21s
+== mutant-b-noseal-nowatch-plain.log
+E               AssertionError: b"/stage ['.DS_Store', 'judge', 'lib']
+E                 /stage/lib ['.DS_Store', 'c.py', 'test']
+E                 /stage/lib/test ['.DS_Store', 'a.py', 'b.txt']
+E                 /stage/judge ['.DS_Store', 'd.json']
+E                 "
+== mutant-b-noseal-nowatch-snapshot.log
+E               AssertionError: b"/stage ['.DS_Store', 'judge', 'lib']
+E                 /stage/lib ['.DS_Store', 'c.py', 'test']
+E                 /stage/lib/test ['.DS_Store', 'a.py', 'b.txt']
+E                 /stage/judge ['.DS_Store', 'd.json']
+E                 "
+== mutant-c-fuel-plain.log
+E               AssertionError: (168162442, 168144427)
+E               assert 168162442 == 168144427
+E                +  where 168162442 = Result(exit_code=0, stdout=b"/stage ['.DS_Store', 'judge', 'lib']\n/stage/lib ['.DS_Store', 'c.py', 'test']\n/stage/li...oot=PosixPath('/Users/claygendron/Git/Repos/wasi_python-089/build/harness/guest-ptfwgpz7/run-0/root'), trap_cause=None).fuel
+E                +  and   168144427 = Result(exit_code=0, stdout=b"/stage ['judge', 'lib']\n/stage/lib ['c.py', 'test']\n/stage/lib/test ['a.py', 'b.txt']\n...oot=PosixPath('/Users/claygendron/Git/Repos/wasi_python-089/build/harness/guest-ptfwgpz7/run-1/root'), trap_cause=None).fuel
+1 failed in 6.94s

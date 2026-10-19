@@ -149,7 +149,7 @@ read-only (no write bit on any folder, unsealed and retried at removal) and fail
 whose grants gain litter or change, naming the file. macOS's folder-size cache wrote `.DS_Store`
 into `build/harness/cpython/run-*` mid-run and moved fuel silently (spec 083's build review;
 research `2026-10-19-ds-store-in-the-judges-stages.md`). Parallel-safe; **lands before 083**, which
-rebases onto it and may add the `fd_readdir` litter watch. **090**, the build and its artifact
+rebases onto it; an `fd_readdir` litter watch is left to a later spec. **090**, the build and its artifact
 checks agree on one litter list (`._*`, `Icon\r`, volume-root names), the release tarball packs
 `SHA256SUMS`' list, the repo's `.gitignore` lists litter. Build-class; after 089 or beside it.
 

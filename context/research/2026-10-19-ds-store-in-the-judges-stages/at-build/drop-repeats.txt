@@ -1,0 +1,5 @@
+2 passed in 9.87s
+2 passed in 9.70s
+2 passed in 9.77s
+   3 "fuel": 16284357
+   3 "fuel": 168144427
