@@ -1538,7 +1538,8 @@ done.stdout                                    # b'Ada\n'
     run is being cancelled is answered `cancelled`. On a loop you run
     yourself on the main thread without `asyncio.run`, a Ctrl-C that lands
     inside a gate's or a tool's own code ends that call as a fault (a
-    gate's call is refused) and is not raised again; `asyncio.run` turns Ctrl-C into a cancel of the call.
+    gate's call is refused) and is not raised again; `asyncio.run` turns
+    Ctrl-C into a cancel of the call.
     Tasks the tool spawns are yours: under `run_async` their exceptions
     reach your loop as asyncio delivers them, so a `KeyboardInterrupt` from
     one reaches your `asyncio.run`.

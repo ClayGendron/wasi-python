@@ -1068,19 +1068,24 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
 
     with warnings.catch_warnings(record=True) as seen:
         warnings.simplefilter("always")
-        # The wrapper's first step raises GeneratorExit: neither a return nor an error.
+        # The cleanups are in `finally`: a failing assertion must not leave the private loop's
+        # thread running, or every later check's `joined` fail-safe waits 60 s on it (spec
+        # 075's build review, F1).
         loop = T._ToolLoop(given)
-        coro = body()
-        with pytest.raises(RuntimeError, match="^the awaitable ended without a result$"):
-            loop.run(coro, _FirstStep(GeneratorExit))
-        assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
+        try:
+            # The wrapper's first step raises GeneratorExit: neither a return nor an error.
+            coro = body()
+            with pytest.raises(RuntimeError, match="^the awaitable ended without a result$"):
+                loop.run(coro, _FirstStep(GeneratorExit))
+            assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
 
-        # A skipped post: `_NotStarted`, not the RuntimeError above (Decision 1's order).
-        coro = body()
-        with pytest.raises(T._NotStarted):
-            loop.run(coro, _FirstStep(False))
-        assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
-        loop.close()
+            # A skipped post: `_NotStarted`, not the RuntimeError above (Decision 1's order).
+            coro = body()
+            with pytest.raises(T._NotStarted):
+                loop.run(coro, _FirstStep(False))
+            assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
+        finally:
+            loop.close()
 
         # Through the frame host: the gate's call is refused, with the backstop's fault.
         ran: list = []
@@ -1096,12 +1101,34 @@ def test_the_tool_loop_gives_a_value_only_when_the_awaitable_returned(
 
         monkeypatch.setattr(T._Bounded, "_begin", begin)
         host = _host([effect], gate=async_gate, loop=given)
-        assert answer(host(call_frame("effect"))) == ("denied", "effect was refused")
-        fault = "RuntimeError: the awaitable ended without a result"
-        assert (_last(host).outcome, _last(host).fault, ran) == ("denied", fault, [])
-        host.close()
+        try:
+            assert answer(host(call_frame("effect"))) == ("denied", "effect was refused")
+            fault = "RuntimeError: the awaitable ended without a result"
+            assert (_last(host).outcome, _last(host).fault, ran) == ("denied", fault, [])
+        finally:
+            host.close()
         _join_tool_threads()
         gc.collect()
     assert runs == []
     assert caller.thread.is_alive() and not caller.loop.is_closed()
     assert [w for w in seen if issubclass(w.category, RuntimeWarning)] == []
+
+
+def test_a_generatorexit_thrown_into_the_wrapper_is_raised_on(monkeypatch) -> None:
+    """Spec 075, Decision 2 (its build review, N1): a `GeneratorExit` met at the wrapper's
+    `await` is recorded and raised on, so the wrapper never ends as though its awaitable had
+    returned (the reviewer's X2, recorded but not re-raised, ends it with `StopIteration`)."""
+    monkeypatch.setattr(T.asyncio, "current_task", lambda: object())  # no loop needed
+    loop = asyncio.new_event_loop()
+    try:
+        post = T._Post(loop.create_future())
+        wrapper = T._ToolLoop()._wrapper(post, None)
+        assert wrapper.send(None) is post.awaitable  # the wrapper waits at its `await`
+        thrown = GeneratorExit()
+        with pytest.raises(GeneratorExit) as raised:
+            wrapper.throw(thrown)
+        assert raised.value is thrown
+        assert (post.error, post.returned, post.ended.is_set()) == (thrown, False, True)
+        assert inspect.getcoroutinestate(wrapper) == inspect.CORO_CLOSED
+    finally:
+        loop.close()

@@ -7,8 +7,11 @@
   F2, N1 and N3 written in; the section "Disposition of the pre-build review"), and rebased
   onto main `23f1c4f` (071 and 069 landed; neither touches `tools.py` or the two unit files);
   **confirmed for build 2026-10-19** (the review's Confirmation: "Confirmed for build", with two
-  cosmetic points, c1 and c2, taken at the build); **built 2026-10-19** (the Landing notes),
-  awaiting its build review. It changes neither the guest's imports nor its exports, the
+  cosmetic points, c1 and c2, taken at the build); **built 2026-10-19** (the Landing notes);
+  build-reviewed the same day (`../reviews/075-tools-small-fixes-build-2026-10-19.md`, written
+  in the coordinator's scratchpad, `075-buildreview/`, and copied in by the lane; "lands once F1
+  is fixed", the five departures accepted); **revised against it** (the section "Disposition of
+  the build review"). It changes neither the guest's imports nor its exports, the
   artifact set nor the build recipe, so §5.6 asks no review before build. One is asked for
   because Decisions 1 to 3 change the gate's fail-closed path, the control §4.4 names. A
   different agent reviews the build.
@@ -348,6 +351,14 @@ the main tree under `build/reviews-evidence/075-build/`.
    `_ToolLoop.run` (fails the skipped-post row: `RuntimeError`, not `_NotStarted`). Today S11
    survives every other unit check (the review's `m1b`, 260 passed), so this row is its only
    catch.
+   - The check's cleanups (`loop.close()`, `host.close()`) are in `finally`, so a failing
+     assertion does not leave the private loop's thread for the file's `joined` fail-safe to
+     wait on (the build review's F1).
+   - **Decision 2's re-raise** has its own row (the build review's N1),
+     `test_a_generatorexit_thrown_into_the_wrapper_is_raised_on`: a wrapper waiting at its
+     `await` on a pending `Future`, given `throw(GeneratorExit())`, raises that same
+     `GeneratorExit` on, with `post.error` holding it, `returned` false and `ended` set.
+     Stand-in X2 (recorded, not re-raised) ends the wrapper with `StopIteration` and fails it.
 
 4. **`test_an_oversized_tool_list_is_refused_before_it_is_built`** (unit,
    `tests/unit/test_tools.py`). `T._ToolHost._list_answer` is wrapped to count its calls, and
@@ -418,6 +429,29 @@ across 13 kinds of awaitable, where main fails open on 6 (24 rows).
 - **N4, the backstop pinned through the first step only.** No change: as the review says, that
   is the one path left, and criterion 3 pins it there.
 - **N5 and N6.** No change: Decision 6 reads correctly, and the constitution checks hold.
+
+## Disposition of the build review
+
+The review: `075-tools-small-fixes-build-2026-10-19.md`, written in the coordinator's scratchpad
+(`075-buildreview/`, its probes and logs beside it) and copied to `context/reviews/` by the lane.
+Verdict: "lands once F1 is fixed". All five departures accepted.
+
+- **F1 (low), criterion 3 leaks its private loop when it fails.** Fixed: `loop.close()` and
+  `host.close()` are in `try`/`finally`. Re-run with the three tool files whole, as the review
+  ran them (EXECUTED, `standins-revised.py`, `standins-revised.out`): S11 fails criterion 3's two
+  rows, 2 failed, 323 passed, in 8.4 s (the review: 791 s); the review's X1 fails 3 in 3.7 s.
+- **N1, X2 survives.** Written in: the row above, which X2 fails (1 failed, 324 passed, 5.1 s).
+  One correction to the review's account: X2 does not make a closed wrapper raise `RuntimeError:
+  coroutine ignored GeneratorExit`. A wrapper that swallows `GeneratorExit` and then returns,
+  awaiting nothing more, is a legal close; `close()` and the garbage collector's close behave
+  the same with and without the re-raise (EXECUTED, `x2/probe.py`, `x2/probe.out`: "close
+  returned None", the error recorded, in both). So the row pins what the re-raise does change:
+  the wrapper does not end as though its awaitable had returned (a `StopIteration` from
+  `throw`), and its task ends with the exception, not a result.
+- **N2, a host path in a guest's arguments.** No change here: a judge defect for spec 080's
+  scope, as the review says; the lane judges in the main tree.
+- **N3, README line 1541.** Rewrapped at 76 columns.
+- **N4.** No change.
 
 ## Landing notes
 
@@ -512,6 +546,22 @@ check measures that time; on the built code the five checks run in seconds.
 - **The README clause** reads "a Ctrl-C that lands inside a gate's or a tool's own code ends
   that call as a fault (a gate's call is refused)", not "refuses that call": a tool's call is
   `tool_error`, not refused.
+
+### Revised against the build review (2026-10-19)
+
+The revision is the commit after `2284e7d`; it touches criterion 3's check, one new unit row,
+README line 1541 and this specification.
+
+- **The changed tests:** the three tool files, `325 passed` on the revision (one more than at
+  the build: N1's row). S11, X1 and X2 each fail, in seconds (the Disposition).
+- **The fast tier** (`rev-fast-n3.log`, `-n 3`): `wasi_python v1: 474/550 pass · 1 gap · 24
+  blocked · 0 fail · 51 deselected (unit suite 1360/1368, 8 skipped)`, `ratchet vs 9dad163977:
+  lost 0 · absent 0 · unrun 0 · unrun locally 22 · gained 0 · grew 3 · upstream unrun 31 · not
+  selected 37 · judge changed: tests/unit/test_async_tools.py, tests/unit/test_tools.py`; GREW
+  `[lru-cache-plain]`, `[pickle-partial-plain]` and `[setrecursionlimit-plain]`, spec 071's
+  unseeded recursion rows again, a different set this time; `1834 passed, 32 skipped, 1
+  xfailed`, exit 1 on those metrics alone.
+- `ruff check` and `ruff format --check` on `src tests recipes/guest`: clean.
 
 ### Not done here
 
