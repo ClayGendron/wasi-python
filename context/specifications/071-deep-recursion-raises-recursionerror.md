@@ -146,7 +146,7 @@ The cause (EXECUTED, READ; the memo's section 1) is two stacks:
 
 6. **Not in this specification: a larger runner stack, and carried CPython patches.** Each
    would close what Decision 5 lists; each is a separate decision with a cost this one does not
-   pay. The section "For the owner" puts the choice.
+   pay. Question 102 (`../questions-for-the-owner.md`) puts the choice.
    - **A stack the runner owns.** The runner would run each guest on a thread of its own, made
      with `threading.stack_size`. 2 MiB closes spec 065's five trap entries; 8 MiB closes the
      data shapes and 10,000-deep frees (EXECUTED, the memo's sections 3 and 4). But `run`'s host
@@ -167,9 +167,9 @@ The cause (EXECUTED, READ; the memo's section 1) is two stacks:
      - `test_syntax`'s `test_error_on_parser_stack_overflow`: the parser's own limit, `MAXSTACK`
        4,000 on WASI, needs more than 512 KiB;
      - `test_traceback`, whole module: printing and freeing deep exception groups.
-   - Their closer becomes the owner's answer to the choice in "For the owner" (the file
-     `context/questions-for-the-owner.md`, where the lane numbers it), since what closes them is
-     Decision 6's choice.
+   - Their closer becomes **question 102** (`context/questions-for-the-owner.md`): what closes
+     them is Decision 6's choice, which is the owner's. Each gap's `closes_with` names that file,
+     and its reason names question 102.
    - **If 065 lands first,** this builder removes `test_recursive_pickle`'s trap gap and retires
      its trap check (spec 050's condition C1: the check passes on this set), and rewrites the four
      reasons and closers, with `--accept-judge "<reason>"`. **If this lands first,** 065's builder
@@ -185,7 +185,7 @@ The cause (EXECUTED, READ; the memo's section 1) is two stacks:
 At wasmtime's default stack, for any embedder and on both binaries, recursion that runs through
 Python code raises `RecursionError` instead of ending the guest. What still traps (C over very
 deep data, freeing very deep structures, the parser, deep exception groups) is written down with
-its limits, checked, and named as the owner's choice to close.
+its limits, checked, and named as the owner's choice to close (question 102).
 
 ## Design
 
@@ -329,7 +329,7 @@ one program.
 
 9. **Spec 065.** As Decision 7 says, by landing order. If 065 has landed, its
    `test_recursive_pickle` trap check passes on the built set and its gap and check go; the four
-   others still trap with the named reasons.
+   others still trap with the named reasons and name question 102 as their closer.
 
 ## README
 
@@ -375,24 +375,11 @@ over very deep data, and freeing very deep structures, end the call with a stack
 ## For the owner
 
 Spec 065's other four trap entries, and the limits of Decision 5, close only by a choice this
-specification does not make (Decision 6). The text for `context/questions-for-the-owner.md`,
-numbered by the lane:
-
-> Deep data recursion, freeing deep structures, the parser and deep exception groups still trap
-> at wasmtime's default stack (spec 071's limits; four of spec 065's trap entries). Which closes
-> them? (a) The runner runs each guest on a thread of its own with an 8 MiB stack, and the
-> README asks other embedders for the same: it closes all four entries (2 MiB is enough for
-> them) and every data limit measured but 100,000-deep frees, a 100,000-term expression and the
-> two shapes that crash native CPython too, with no change to CPython; but
-> `run`'s host functions then run on the runner's thread, not the caller's. (b) Carry CPython
-> patches for WASI (a depth count in `_Py_Dealloc`, a smaller parser `MAXSTACK`, a count in
-> `Py_EnterRecursiveCall`): every embedder is covered at wasmtime's default stack, but the
-> patches diverge from upstream, whose WASI answer is a larger stack, perhaps for good.
-> (c) Keep them as documented limits.
-
-The research's lean is (a): it needs no divergence from CPython, it is what upstream's own WASI
-CI does, and it reaches furthest. (b) is the choice if embedders that keep wasmtime's default
-must be covered too.
+specification does not make (Decision 6). It is **question 102** in
+`../questions-for-the-owner.md`: (a) a stack the runner owns, 8 MiB, on a thread of its own;
+(b) carried CPython patches for WASI; (c) documented limits, as now. The facts and each option's
+cost are there. The research's lean, and the question's recommendation, is (a); (b) is the choice
+if embedders that keep wasmtime's default stack must be covered too.
 
 ## Landing notes
 
