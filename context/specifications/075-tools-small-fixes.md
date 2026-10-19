@@ -1,7 +1,12 @@
 # 075 — tools.py small fixes
 
-- **Status:** drafted 2026-10-19 on `spec/075-tools-small-fixes` from main `d900dd9`; awaiting
-  its pre-build review. It changes neither the guest's imports nor its exports, the artifact
+- **Status:** drafted 2026-10-19 on `spec/075-tools-small-fixes` from main `d900dd9`; reviewed
+  before build the same day (`../reviews/075-tools-small-fixes-spec-2026-10-19.md`, written in
+  the coordinator's scratchpad, `075-review/`, with its probes q1 to q3, and copied in by the
+  lane; verdict: "ready once F1 and F2 are written in"); **revised against it 2026-10-19** (F1,
+  F2, N1 and N3 written in; the section "Disposition of the pre-build review"), and rebased
+  onto main `23f1c4f` (071 and 069 landed; neither touches `tools.py` or the two unit files);
+  awaiting the reviewer's confirmation, then the build. It changes neither the guest's imports nor its exports, the artifact
   set nor the build recipe, so §5.6 asks no review before build. One is asked for because
   Decisions 1 to 3 change the gate's fail-closed path, the control §4.4 names. A different
   agent reviews the build.
@@ -34,7 +39,12 @@
     - `probe_fixed.py` (`probe_fixed.out`): the same rows against a scratch copy of `tools.py`
       with Decisions 1 and 2 applied by `apply_fix.py`;
     - `probe_backstop.py` (`probe_backstop.out`): a wrapper that ends with neither a return nor
-      an error, on main and on the fixed copy.
+      an error, on main and on the fixed copy;
+  - the pre-build review's probes (EXECUTED there, in `075-review/probes/` with `logs/`): q1,
+    thirteen kinds of awaitable handed back by a gate and by a tool on both loops (6 kinds fail
+    open on main, 0 on the fix); q2, a real SIGINT against an async gate under `asyncio.run`
+    and under `loop.run_until_complete`; q3, criterion 3's fault and a skipped post, on main and
+    on the fix; and the mutants `m1` and `m1b`.
 
 ## Intent
 
@@ -130,23 +140,43 @@ optional; spec 070's Decision 6 placed it here.
    | returns `False` | `denied`, no fault | not run |
    | returns anything else | `denied`, fault `TypeError: the gate returned …` | not run |
    | raises `ToolDenied` or `ToolError` | `denied`, its message, no fault | not run |
-   | raises `CancelledError` while the run is being cancelled (its `cancel` set, or a Ctrl-C pending) | `cancelled` | not run |
+   | raises `CancelledError` while the run is being cancelled (its `cancel` set, which under `run_async` includes the task's cancellation; or, under `run` only, a Ctrl-C pending) | `cancelled` | not run |
    | raises any other exception, `Exception` or `BaseException`: `KeyboardInterrupt`, `SystemExit`, `GeneratorExit`, `CancelledError` at any other time, a custom `BaseException` | `denied`, fault naming it | not run |
    | its awaitable ends without returning (Decision 1) | `denied`, fault `RuntimeError: the awaitable ended without a result` | not run |
    | the call was answered before its awaitable started (spec 056, 053 Decision 5) | `cancelled` (unread) | not run |
 
+   The table is what `_Work` answers. **At a deadline or a `timeout_s`** the record shows the
+   bound's answer instead: the bound has already answered `timeout` and dropped the work's
+   result, so a `CancelledError` the gate then meets (the runner cancels a started task at
+   every end) is `denied` in `_Work` but the record says `timeout`, `abandoned` (the review's
+   N3; `_ended` names a deadline "deadline", not "cancelled").
+
    Each one, and why it stays in the call:
-   - **`KeyboardInterrupt`.** In a gate it is the gate's own `raise`, not the user's Ctrl-C.
-     The runner turns Ctrl-C into a flag while a guest runs on the main thread
-     (`_deferred_ctrl_c`), and a gate runs on a work thread or as a task on the tool loop.
-     The bound reads that flag, answers `cancelled`, and `run` raises `KeyboardInterrupt`
-     after the call (spec 036, Decision 6); that path does not change. Raised out of a work
-     thread, it would end that thread with a traceback; out of a task on the caller's loop, it
-     would leave the embedder's `asyncio.run`, far from the call (spec 053, finding 5, case
-     A6). One edge stays as spec 053 decided it (INFERRED): an embedder that runs its loop on
-     the main thread outside `asyncio.run`, with Python's default handler, can have a real
-     Ctrl-C raised inside a gate's coroutine. That gate's call is refused and recorded, not
-     raised. Refusing is the closed direction, and the run goes on to its own ends.
+   - **`KeyboardInterrupt`.** It stays in the call, and how a real Ctrl-C reaches a gate
+     depends on the entry point (the review's F2).
+     - **Under `run`,** the guest runs on the main thread, and `_deferred_ctrl_c` turns Ctrl-C
+       into a flag. A gate runs on a work thread or on the private loop's thread, so a real
+       Ctrl-C never lands in its code: a `KeyboardInterrupt` there is the gate's own `raise`.
+       The bound reads the flag, answers `cancelled`, and `run` raises `KeyboardInterrupt`
+       after the call (spec 036, Decision 6). That path does not change.
+     - **Under `run_async`,** the runner defers nothing: the guest runs on a worker thread, so
+       `_deferred_ctrl_c` passes straight through and no Ctrl-C flag is ever pending. Ctrl-C
+       belongs to the embedder's loop. Under `asyncio.run` its handler cancels the main task,
+       `run_async` sets the call's `cancel`, the gate meets `CancelledError`, and the call is
+       answered `cancelled` (the table's `CancelledError` row; EXECUTED by the review's q2,
+       `logs/q2_*_asyncio.run-sleepy.log`).
+     - **The edge, EXECUTED** (the review's q2, a real SIGINT, `logs/q2_main_busy.log` and
+       `logs/q2_fixed_busy.log`, the same on main and on the fix): an embedder that runs its
+       loop on the main thread itself (`loop.run_until_complete`), with Python's default
+       handler, while an async gate's own code runs. The gate raises `KeyboardInterrupt`; the
+       call is `denied` with fault `KeyboardInterrupt`; the guest gets `ToolDenied` and runs
+       on; `run_async` returns normally; the embedder never sees its Ctrl-C. Spec 053 decided
+       this (a `KeyboardInterrupt` in the wrapper's task stays in the call), and this spec
+       keeps it: refusing is the closed direction. The README now says what it costs
+       (Decision 8): the Ctrl-C is consumed, and the run goes on to its own ends.
+     - Raised out of a work thread instead, it would end that thread with a traceback; out of a
+       task on the caller's loop, it would leave the embedder's `asyncio.run`, far from the call
+       (spec 053, finding 5, case A6).
    - **`SystemExit`.** A gate's `sys.exit()` is not the embedder's exit. On a work thread it
      would end the thread silently; on the caller's loop it would leave `asyncio.run`. So it
      is a fault (053, Decision 6).
@@ -200,6 +230,11 @@ optional; spec 070's Decision 6 placed it here.
      `SystemExit` and `CancelledError`, and says that from a gate any of them refuses the call
      (`denied`), as from a sync gate. *Reason:* the item lists the `BaseException`s by name;
      leaving out the one that failed would leave the reader to guess.
+   - The same item gains one clause (the review's F2): on a loop you run yourself on the main
+     thread without `asyncio.run`, a Ctrl-C that lands inside a gate's or a tool's own code
+     refuses that call and is not raised again; `asyncio.run` turns Ctrl-C into a cancel of the
+     call. *Reason:* without it an operator's Ctrl-C can vanish, and the run goes on to its
+     deadline (60 s by default). The behaviour stays; the embedder is told what it costs.
    - `CHANGELOG.md`, under `0.1.0a7 — unreleased`, one **Fixed** entry naming both items,
      citing the a6 security review's F1 and spec 060's N1.
 
@@ -231,9 +266,14 @@ In: Decisions 1 to 8. Out, each with its reason:
 - **`_Work`'s gate block.** It is right for every row once `_ToolLoop.run` raises; changing it
   (for example, refusing every awaited `None`) would refuse a gate that allows by returning
   `None`, which the README promises works.
-- **A real Ctrl-C raised into a gate's coroutine on a main-thread caller's loop** outside
-  `asyncio.run`. Spec 053 decided that a `KeyboardInterrupt` in the wrapper's task stays in the
-  call (Decision 3 here); that decision is not reopened.
+- **A real Ctrl-C raised into a gate's or a tool's code on a main-thread loop the embedder runs
+  itself,** outside `asyncio.run` (EXECUTED by the review's q2: the call is refused, the Ctrl-C
+  consumed). Spec 053 decided that a `KeyboardInterrupt` in the wrapper's task stays in the call
+  (Decision 3 here); that decision is not reopened. The README says what it costs (Decision 8).
+  Under `run` this cannot happen: the Ctrl-C is a flag, and gates run off the main thread.
+- **A Ctrl-C in the `select` of a `run_until_complete` loop,** which leaves the call's work
+  thread waiting until the embedder closes its loop (the review's N2, q2): spec 053's F7 (d), as
+  decided.
 - **The `list` answer's copy into guest memory,** per frame and bounded by `max_tool_calls`, as
   the README says (spec 060's Scope).
 - **Any change to `scripts/`, `recipes/`, the guest package or the workflow.**
@@ -249,7 +289,11 @@ the main tree under `build/reviews-evidence/075-build/`.
    coroutine; an object with an async `__call__`), two loops (`_ToolLoop()` and
    `_ToolLoop(caller.loop)`), and these raises: `GeneratorExit()`, a subclass of
    `GeneratorExit`, `GeneratorExit("text")`, `KeyboardInterrupt()`, `SystemExit(3)`,
-   `asyncio.CancelledError()` (no cancel set) and a custom `BaseException` subclass. Each row:
+   `asyncio.CancelledError()` (no cancel set) and a custom `BaseException` subclass. Two more
+   gate forms carry the `GeneratorExit()` and subclass raises only (the review's N1, q1): an
+   `async def` that awaits a `Future` of the running loop given `set_exception(GeneratorExit())`
+   (or the subclass); and a `def` returning an object whose `__await__` is a bare iterator whose
+   `__next__` raises it. Each row:
    - the answer is `denied`, "effect was refused";
    - the outcome's `fault` begins with the raised type's own name (`GeneratorExit: text` for the
      third);
@@ -260,15 +304,16 @@ the main tree under `build/reviews-evidence/075-build/`.
    And, as its allow rows, the three async forms returning `None` and returning `True` each give
    `ok` and run the tool once, under both loops.
 
-   *Seen failing on main:* the 18 rows with an async form and a `GeneratorExit` (3 forms × 3
-   raises × 2 loops) give `ok`, and the tool runs (`probe_main.out` shows 12 of them). The other
-   rows pass on main; they pin what must not move.
-   *Stand-ins:* S1, main's code (18 failed). S2, Decision 1 alone, without Decision 2's
-   `post.error = e` (the 18 fail on the fault's name: `RuntimeError: the awaitable ended…`).
+   *Seen failing on main:* 26 rows give `ok`, and the tool runs: the 18 with an async form and a
+   `GeneratorExit` (3 forms × 3 raises × 2 loops; `probe_main.out` shows 12 of them) and the 8
+   of the two extra forms (2 forms × 2 raises × 2 loops; the review's q1, `logs/q1_main.log`).
+   The other rows pass on main; they pin what must not move.
+   *Stand-ins:* S1, main's code (26 failed). S2, Decision 1 alone, without Decision 2's
+   `post.error = e` (the 26 fail on the fault's name: `RuntimeError: the awaitable ended…`).
    S3, `_Work` refuses every `None` an awaitable gives, in place of Decisions 1 and 2 (the
-   allow rows with `None` fail, and the 18 have no fault). S4, Decision 2's `except` catching `GeneratorExit` itself but
-   not a subclass, written as `except GeneratorExit as e: if type(e) is GeneratorExit: …`
-   (the 6 subclass rows fail).
+   allow rows with `None` fail, and the 26 have no fault). S4, Decision 2's `except` catching
+   `GeneratorExit` itself but not a subclass, written as `except GeneratorExit as e: if type(e)
+   is GeneratorExit: …` (the 10 subclass rows fail).
 
 2. **`test_an_async_tool_that_raises_generatorexit_is_a_fault`** (unit, same file), over the
    three async tool forms, the two loops and `GeneratorExit()` and a subclass: the answer is
@@ -283,10 +328,23 @@ the main tree under `build/reviews-evidence/075-build/`.
      `RuntimeError` "the awaitable ended without a result"; the coroutine is closed
      (`inspect.getcoroutinestate` is `CORO_CLOSED`) and never ran; no `RuntimeWarning`.
    - Through the frame host, with `T._Bounded._begin` patched to raise `GeneratorExit`: an async
-     gate's call is `denied` with that fault, and the tool ran 0 times.
+     gate's call is `denied`, "effect was refused", with `fault` exactly
+     **`RuntimeError: the awaitable ended without a result`**, and the tool ran 0 times. Not
+     `GeneratorExit`: the first step's `except GeneratorExit: raise` does not record it, on
+     purpose (Decision 2), so Decision 1's backstop is what refuses (the review's F1, EXECUTED
+     there, `logs/q3_fixed.log`).
+   - **A skipped post keeps its order** (the review's F1). `_ToolLoop.run(coro, ops)`, under both
+     loops, with an `ops` whose `start` returns `False`, raises `_NotStarted`, not
+     `RuntimeError`; the coroutine is `CORO_CLOSED` and never ran; no `RuntimeWarning`.
 
-   *Seen failing on main:* `run` returns `None` (`probe_backstop.out`), and the gate allows.
-   *Stand-ins:* S1 (fails); S5, Decision 2 alone, without Decision 1 (fails both parts).
+   *Seen failing on main:* `run` returns `None` (`probe_backstop.out`), and the gate allows
+   (the review's q3, `logs/q3_main.log`: `ok`, the tool run). The skipped-post row passes on
+   main; it pins Decision 1's order.
+   *Stand-ins:* S1 (fails the first two parts); S5, Decision 2 alone, without Decision 1 (fails
+   the first two parts); **S11, the `skipped` test moved after the `returned` test** in
+   `_ToolLoop.run` (fails the skipped-post row: `RuntimeError`, not `_NotStarted`). Today S11
+   survives every other unit check (the review's `m1b`, 260 passed), so this row is its only
+   catch.
 
 4. **`test_an_oversized_tool_list_is_refused_before_it_is_built`** (unit,
    `tests/unit/test_tools.py`). `T._ToolHost._list_answer` is wrapped to count its calls, and
@@ -318,8 +376,8 @@ the main tree under `build/reviews-evidence/075-build/`.
    S9, the verdict remembered at the first `list` frame (id 10 is answered `ok` after id 9);
    S10, the envelope one byte short (id 10 passes).
 
-6. **The documents.** The README's **Faults stay in the call** names `GeneratorExit` and says a
-   gate's fault refuses, as Decision 8 says. `CHANGELOG.md` has one **Fixed** entry under
+6. **The documents.** The README's **Faults stay in the call** names `GeneratorExit`, says a
+   gate's fault refuses, and carries the Ctrl-C clause, as Decision 8 says. `CHANGELOG.md` has one **Fixed** entry under
    `0.1.0a7 — unreleased`. The existing checks of specs 053 and 060
    (`test_faults_in_an_awaitable_stay_in_the_record`, `test_the_tool_list_is_encoded_once` and
    the rest of both files) pass unchanged.
@@ -331,6 +389,33 @@ the main tree under `build/reviews-evidence/075-build/`.
    `uv run python tests/harness/api.py --check` exits 0: `tests/public_api.txt` and the README's
    reference do not change.
 
+## Disposition of the pre-build review
+
+The review: `075-tools-small-fixes-spec-2026-10-19.md`, written in the coordinator's scratchpad
+(`075-review/`, its probes q1 to q3 and mutants beside it) and copied to `context/reviews/` by
+the lane. Verdict: "ready once F1 and F2 are written in". It found no fail-open path on the fix
+across 13 kinds of awaitable, where main fails open on 6 (24 rows).
+
+- **F1 (low), criterion 3's fault and a skipped-post row.** Written in. Criterion 3 states the
+  exact fault, `RuntimeError: the awaitable ended without a result`, and why it is not
+  `GeneratorExit`. It gains the skipped-post row (`ops.start` returns `False`: `_NotStarted`,
+  the coroutine closed) under both loops, with stand-in S11, the review's `m1b`.
+- **F2 (low), the Ctrl-C edge.** Written in. Decision 3's `KeyboardInterrupt` bullet is split
+  by entry point: the flag is `run`'s alone; under `run_async` Ctrl-C reaches the call only as
+  its cancel. The edge is relabelled EXECUTED, citing q2, there and in the Scope. The table's
+  `CancelledError` row scopes "a Ctrl-C pending" to `run`. Decision 8 and criterion 6 add the
+  README clause the review gives.
+- **N1, two more awaitable rows.** Written into criterion 1: a `Future` given
+  `set_exception(GeneratorExit())` and a bare `__await__` iterator, each with `GeneratorExit` and
+  a subclass, under both loops (8 rows that fail on main). The stand-in counts move with them.
+- **N2, a Ctrl-C in a `run_until_complete` loop's `select`.** No change: spec 053's F7 (d), as
+  decided; named in the Scope.
+- **N3, the table at a deadline.** Written in, below the table: the record shows the bound's
+  `timeout`, not `_Work`'s `denied`.
+- **N4, the backstop pinned through the first step only.** No change: as the review says, that
+  is the one path left, and criterion 3 pins it there.
+- **N5 and N6.** No change: Decision 6 reads correctly, and the constitution checks hold.
+
 ## Landing notes
 
-Not built. This specification waits for its pre-build review.
+Not built. This specification waits for its pre-build review's confirmation.
