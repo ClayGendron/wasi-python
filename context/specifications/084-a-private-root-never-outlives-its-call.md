@@ -887,7 +887,15 @@ rebuild checks need source trees a build makes, so they are blocked here):
   new embedding nodes; the 125 blocked are the upstream groups and rebuild checks this worktree
   has no source trees for.
 
-`build/progress/latest.json` is kept in the worktree for the lane.
+The work was paused by the owner after the build and resumed the same day. A spec-rules run
+made after the full judge had overwritten `build/progress/latest.json`, so the full judge was run
+again, `-n 3`, on `43a96ef` (whose code and checks are `e4d418f`'s; `build/full-084-build2.log`):
+the same lines, `501/629 pass · 3 gap · 125 blocked · 0 fail`, `2096 passed, 133 skipped, 3
+xfailed`, `lost 0 · grew 0 · gained 6`. Its record, `build/progress/latest.json`, is kept in the
+worktree for the lane; no judge was run after it. Main has since moved to `932bc00`, which
+changes only `README.md` (two recursion trap rows) and `context/questions-for-the-owner.md`; the
+lane's rebase meets the README's *Not protected* paragraph only if those rows sit in it (they do
+not: they are in the recursion table).
 
 ### Departures from the specification
 
