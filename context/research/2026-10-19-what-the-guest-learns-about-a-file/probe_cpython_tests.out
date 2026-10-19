@@ -1,0 +1,17 @@
+# main's driver
+exit 0; stderr: The only matching files are: ['test_logging-2-v5twpvdi.log']
+FAIL: test_utime_current (test.test_os.test_os.UtimeTests.test_utime_current)
+FAIL: test_utime_current_old (test.test_os.test_os.UtimeTests.test_utime_current_old)
+FAIL: test_rollover (test.test_logging.TimedRotatingFileHandlerTest.test_rollover)
+FAILED (failures=3, skipped=5)
+ran 27 failures 3 errors 0 skipped 5
+FAIL test.test_os.test_os.UtimeTests.test_utime_current AssertionError: 1792406557.139945 != 1767225600.000032 within 0.05 delta (25180957.139913082 difference) : st_time=1792406557.139945, current=1767225600.000032,
+FAIL test.test_os.test_os.UtimeTests.test_utime_current_old AssertionError: 1792406557.144451 != 1767225600.0000372 within 0.05 delta (25180957.14441371 difference) : st_time=1792406557.144451, current=1767225600.0000372
+FAIL test.test_logging.TimedRotatingFileHandlerTest.test_rollover AssertionError: False is not true : No rotated files found, went back 300 seconds
+
+# the prototype
+exit 0; stderr: The only matching files are: ['test_logging-2-v5twpvdi.log']
+FAIL: test_rollover (test.test_logging.TimedRotatingFileHandlerTest.test_rollover)
+FAILED (failures=1, skipped=5)
+ran 27 failures 1 errors 0 skipped 5
+FAIL test.test_logging.TimedRotatingFileHandlerTest.test_rollover AssertionError: False is not true : No rotated files found, went back 300 seconds

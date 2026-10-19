@@ -1,0 +1,12 @@
+# probe_ino.py on the prototype: the lxml import (test_lxml_is_builtin_at_manifest_versions' program) when every inode number answered is one value; times fixed
+0x1 0 208807522
+0x2 0 208807522
+0x3 0 208807522
+0x3e8 0 208807522
+0x3fffffff 0 208827191
+0x40000000 0 208804852
+0xfffffffffff 0 208804852
+0xfffffffffffffff 0 208804852
+0x1000000000000000 0 208804903
+0xc95f4a93669a5fef 0 208804903
+0xc95f4a93669a5fee 0 208804903

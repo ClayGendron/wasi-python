@@ -1,0 +1,255 @@
+diff --git a/tests/harness/guest.py b/tests/harness/guest.py
+index 0000000..647cfb5 100644
+--- a/tests/harness/guest.py
++++ b/tests/harness/guest.py
+@@ -154,6 +154,222 @@ def _random_stream() -> Callable[[int], bytes]:
+     return take
+ 
+ 
++# What the guest learns about a file (spec 083). wasmtime's filestat and readdir calls hand the
++# guest two things that differ from run to run: the host's real times, and an inode number that
++# is a hash of the host's own (`dev`, `ino`), so a fresh file has a fresh one. Each changes the
++# instructions a program runs (a time's digits, an inode's 30-bit digits: 17 instructions a
++# step). The driver answers both itself, as it answers the clock and random.
++P1 = "wasi_snapshot_preview1"
++FILE_CALLS: dict[str, tuple[str, ...]] = {
++    "fd_filestat_get": ("i32", "i32"),
++    "path_filestat_get": ("i32", "i32", "i32", "i32", "i32"),
++    "fd_filestat_set_times": ("i32", "i64", "i64", "i32"),
++    "path_filestat_set_times": ("i32", "i32", "i32", "i32", "i64", "i64", "i32"),
++    "fd_readdir": ("i32", "i32", "i32", "i64", "i32"),
++}
++OWN_PAGE = ("fd_filestat_get", "path_filestat_get")  # the stats the driver makes for itself
++FILESTAT = struct.Struct("<QQB7xQQQQQ")  # dev, ino, filetype, nlink, size, atim, mtim, ctim
++DIRENT = struct.Struct("<QQIB3x")  # d_next, d_ino, d_namlen, d_type, three bytes of padding
++OWN_PATH = FILESTAT.size  # where a stat's path goes on the driver's own page
++ATIM, ATIM_NOW, MTIM, MTIM_NOW = 1, 2, 4, 8  # fstflags
++MASK32 = 0xFFFFFFFF
++
++
++def forwarders_wat(names: tuple[str, ...], own_page: bool) -> str:
++    """A module that imports each of wasmtime's calls in `names` and exports a function that
++    calls it. wasmtime's WASI reads and writes the memory the calling instance exports: the
++    guest's, imported and exported again; or, with `own_page`, a page of the module's own, so a
++    stat the driver makes for itself never touches a byte of the guest's."""
++    lines = ["(module"]
++    for name in names:
++        sig = f"(param {' '.join(FILE_CALLS[name])}) (result i32)"
++        lines.append(f'  (import "{P1}" "{name}" (func ${name} {sig}))')
++    if own_page:
++        lines.append('  (memory (export "memory") 1)')
++    else:
++        lines.append('  (import "env" "memory" (memory 0))')
++        lines.append('  (export "memory" (memory 0))')
++    for name in names:
++        params = FILE_CALLS[name]
++        sig = f"(param {' '.join(params)}) (result i32)"
++        gets = " ".join(f"(local.get {i})" for i in range(len(params)))
++        lines.append(f'  (func (export "{name}") {sig} (call ${name} {gets}))')
++    lines.append(")")
++    return "\n".join(lines)
++
++
++_forwarders: dict[tuple[int, bool], wt.Module] = {}
++
++
++def _forwarders_module(eng: wt.Engine, own_page: bool) -> wt.Module:
++    key = (id(eng), own_page)
++    if key not in _forwarders:
++        names = OWN_PAGE if own_page else tuple(FILE_CALLS)
++        _forwarders[key] = wt.Module(eng, forwarders_wat(names, own_page))
++    return _forwarders[key]
++
++
++class FileFacts:
++    """One run's answers about files, by wasmtime's inode number (its hash of the host's):
++    - the inode number: 1 for the first file the guest sees, 2 for the next, and so on;
++    - each of atim, mtim and ctim: the host's time and the answer given for it. A time the guest
++      has not seen for that file takes the clock's next value (one value for all the times new in
++      one answer); a time it has seen keeps its answer; a time the guest set is answered as set.
++    """
++
++    def __init__(self, now: Callable[[], int]) -> None:
++        self.now = now
++        self.inos: dict[int, int] = {}
++        self.times: dict[int, list[tuple[int, int]]] = {}
++
++    def ino(self, real: int) -> int:
++        return self.inos.setdefault(real, len(self.inos) + 1)
++
++    def stamp(self, real_ino: int, real: tuple[int, int, int]) -> tuple[int, int, int]:
++        old = self.times.get(real_ino)
++        fresh = [old is None or old[i][0] != real[i] for i in range(3)]
++        now = self.now() if any(fresh) else 0
++        kept = [(real[i], now) if fresh[i] or old is None else old[i] for i in range(3)]
++        self.times[real_ino] = kept
++        return (kept[0][1], kept[1][1], kept[2][1])
++
++    def filestat(self, raw: bytes) -> bytes:
++        dev, ino, kind, nlink, size, *real = FILESTAT.unpack(raw)
++        times = self.stamp(ino, (real[0], real[1], real[2]))
++        return FILESTAT.pack(dev, self.ino(ino), kind, nlink, size, *times)
++
++    def set_times(self, raw: bytes, chosen: dict[int, int]) -> None:
++        """After a set_times the host accepted, with the file's stat as the host now gives it:
++        field i (0 atim, 1 mtim) is answered `chosen[i]` while the host keeps that time."""
++        _dev, ino, _kind, _nlink, _size, *real = FILESTAT.unpack(raw)
++        self.stamp(ino, (real[0], real[1], real[2]))
++        for i, value in chosen.items():
++            self.times[ino][i] = (real[i], value)
++
++    def listing(self, data: bytearray) -> None:
++        """A readdir answer, in place: each whole entry's d_ino answered, its padding zeroed
++        (wasmtime 49.0.0 leaves host bytes there; spec 048); a cut entry's d_ino and padding
++        bytes zeroed, which wasi-libc never reads, since it lists again from that entry."""
++        at = 0
++        while at < len(data):
++            head = data[at : at + DIRENT.size]
++            if len(head) < DIRENT.size:
++                data[at + 8 : at + DIRENT.size] = bytes(max(0, len(head) - 8))
++                break
++            d_next, ino, namlen, kind = DIRENT.unpack(head)
++            data[at : at + DIRENT.size] = DIRENT.pack(d_next, self.ino(ino), namlen, kind)
++            at += DIRENT.size + namlen
++
++
++class _FileCalls:
++    """The shadowed calls: each forwarded to wasmtime's own on the guest's memory through a
++    trampoline, fuel-neutral, and its answer rewritten by `facts`."""
++
++    def __init__(self, counted: bool, facts: FileFacts) -> None:
++        self.counted = counted
++        self.facts = facts
++        self.funcs: dict[str, Any] = {}
++        self.own: dict[str, Any] = {}
++        self.page: Any = None
++
++    def bind(self, store: wt.Store, eng: wt.Engine, plain: wt.Linker, guest: wt.Instance) -> None:
++        """Instantiate both trampolines with wasmtime's own calls from `plain`: after the guest,
++        before it runs."""
++        imports: list[Any] = [plain.get(store, P1, name) for name in FILE_CALLS]
++        imports.append(guest.exports(store)["memory"])
++        ex = wt.Instance(store, _forwarders_module(eng, False), imports).exports(store)
++        self.funcs = {name: ex[name] for name in FILE_CALLS}
++        own = [plain.get(store, P1, name) for name in OWN_PAGE]
++        mine = wt.Instance(store, _forwarders_module(eng, True), own).exports(store)
++        self.own = {name: mine[name] for name in OWN_PAGE}
++        self.page = mine["memory"]
++
++    def call(self, caller: wt.Caller, func: Any, *args: int) -> int:
++        """wasmtime's answer, with the guest's fuel as it was before: the trampoline's few
++        instructions are the driver's, not the guest's."""
++        before = wt.Store.get_fuel(caller) if self.counted else None  # type: ignore[arg-type]
++        try:
++            return func(caller, *args)
++        finally:
++            if before is not None:
++                wt.Store.set_fuel(caller, before)  # type: ignore[arg-type]
++
++    def fd_filestat_get(self, caller: wt.Caller, fd: int, out: int) -> int:
++        errno = self.call(caller, self.funcs["fd_filestat_get"], fd, out)
++        if errno == 0:
++            self._answer(caller, out & MASK32)
++        return errno
++
++    def path_filestat_get(
++        self, caller: wt.Caller, fd: int, flags: int, path: int, n: int, out: int
++    ) -> int:
++        errno = self.call(caller, self.funcs["path_filestat_get"], fd, flags, path, n, out)
++        if errno == 0:
++            self._answer(caller, out & MASK32)
++        return errno
++
++    def _answer(self, caller: wt.Caller, at: int) -> None:
++        memory = caller.get("memory")
++        raw = bytes(memory.read(caller, at, at + FILESTAT.size))  # type: ignore[union-attr]
++        memory.write(caller, self.facts.filestat(raw), at)  # type: ignore[union-attr]
++
++    def fd_readdir(
++        self, caller: wt.Caller, fd: int, buf: int, length: int, cookie: int, used: int
++    ) -> int:
++        errno = self.call(caller, self.funcs["fd_readdir"], fd, buf, length, cookie, used)
++        if errno:
++            return errno
++        memory = caller.get("memory")
++        buf, used = buf & MASK32, used & MASK32
++        count = struct.unpack("<I", bytes(memory.read(caller, used, used + 4)))[0]  # type: ignore[union-attr]
++        if count and (used + 4 <= buf or used >= buf + count):  # else the count lies over it
++            data = bytearray(memory.read(caller, buf, buf + count))  # type: ignore[union-attr]
++            self.facts.listing(data)
++            memory.write(caller, bytes(data), buf)  # type: ignore[union-attr]
++        return 0
++
++    def _chosen(self, atim: int, mtim: int, flags: int) -> dict[int, int]:
++        """What a set_times sets, by field: an exact time as given, `now` as the clock's next."""
++        chosen: dict[int, int] = {}
++        now: int | None = None
++        for i, (value, exact, at_now) in enumerate(((atim, ATIM, ATIM_NOW), (mtim, MTIM, MTIM_NOW))):
++            if flags & exact:
++                chosen[i] = value & 0xFFFFFFFFFFFFFFFF
++            elif flags & at_now:
++                now = self.facts.now() if now is None else now
++                chosen[i] = now
++        return chosen
++
++    def _record(self, caller: wt.Caller, errno: int, chosen: dict[int, int]) -> None:
++        if errno == 0:
++            self.facts.set_times(bytes(self.page.read(caller, 0, FILESTAT.size)), chosen)
++
++    def fd_filestat_set_times(
++        self, caller: wt.Caller, fd: int, atim: int, mtim: int, flags: int
++    ) -> int:
++        errno = self.call(caller, self.funcs["fd_filestat_set_times"], fd, atim, mtim, flags)
++        if errno == 0 and (chosen := self._chosen(atim, mtim, flags)):
++            self._record(caller, self.call(caller, self.own["fd_filestat_get"], fd, 0), chosen)
++        return errno
++
++    def path_filestat_set_times(
++        self, caller: wt.Caller, fd: int, flags: int, path: int, n: int, atim: int, mtim: int, fst: int
++    ) -> int:
++        args = (fd, flags, path, n, atim, mtim, fst)
++        errno = self.call(caller, self.funcs["path_filestat_set_times"], *args)
++        if errno == 0 and (chosen := self._chosen(atim, mtim, fst)):
++            memory = caller.get("memory")
++            path, n = path & MASK32, n & MASK32
++            name = bytes(memory.read(caller, path, path + n))  # type: ignore[union-attr]  # wasmtime just read it
++            short = OWN_PATH + n - self.page.data_len(caller)
++            if short > 0:
++                self.page.grow(caller, (short + 65535) // 65536)
++            self.page.write(caller, name, OWN_PATH)
++            got = self.call(caller, self.own["path_filestat_get"], fd, flags, OWN_PATH, n, 0)
++            self._record(caller, got, chosen)
++        return errno
++
++
+ def run(
+     wasm: Path,
+     argv: list[str],
+@@ -231,6 +447,9 @@ def run(
+     i32, i64 = wt.ValType.i32(), wt.ValType.i64()
+     take_random = _random_stream()
+     ticks = itertools.count(1)
++    files = _FileCalls(counted, FileFacts(lambda: REALTIME_START_NS + next(ticks) * CLOCK_STEP_NS))
++    plain = wt.Linker(eng)
++    plain.define_wasi()
+ 
+     def random_get(caller: wt.Caller, buf: int, n: int) -> int:
+         caller.get("memory").write(caller, take_random(n), buf)
+@@ -275,6 +494,9 @@ def run(
+         p1, "clock_time_get", wt.FuncType([i32, i64, i32], [i32]), clock_time_get, True
+     )
+     linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
++    for name, params in FILE_CALLS.items():
++        kinds = [i32 if p == "i32" else i64 for p in params]
++        linker.define_func(p1, name, wt.FuncType(kinds, [i32]), getattr(files, name), True)
+ 
+     exit_code: int | None = None
+     trapped: str | None = None
+@@ -282,6 +504,7 @@ def run(
+     metered = False  # the budget is set only once instantiation has succeeded
+     try:
+         inst = linker.instantiate(store, mod)
++        files.bind(store, eng, plain, inst)
+         if counted:
+             store.set_fuel(fuel)
+             metered = True

@@ -1,0 +1,5 @@
+# probe_dino.py on main's driver: readdir's d_ino against the stat's st_ino, and st_dev
+s True True 0x24ded47f0a663559
+a True True 0x3d62e2b95cdc840a
+dev 1 1
+ exit 0; stderr: 

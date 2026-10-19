@@ -1,0 +1,3 @@
+# probe_const_out.py on the prototype: a program that writes a module into a folder already on sys.path and imports it, with the prototype's times and with one constant time
+the clock's next value on a change: exit 0; stdout '1 2'; stderr tail []
+one constant: exit 1; stdout ''; stderr tail ["ModuleNotFoundError: No module named 'b'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?"]

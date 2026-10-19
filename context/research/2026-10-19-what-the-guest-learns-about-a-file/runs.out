@@ -1,0 +1,6 @@
+ratchet vs de10146d21: lost 0 · absent 0 · unrun 0 · unrun locally 11 · gained 0 · grew 0 · upstream unrun 32 · not selected 375
+============ 148 passed, 11 skipped, 1 xfailed in 65.23s (0:01:05) =============
+ratchet vs de10146d21: lost 0 · absent 0 · unrun 0 · unrun locally 11 · gained 0 · grew 21 · upstream unrun 32 · not selected 375
+================= 148 passed, 11 skipped, 1 xfailed in 59.30s ==================
+ratchet vs de10146d21: lost 0 · absent 0 · unrun 0 · unrun locally 11 · gained 0 · grew 21 · upstream unrun 32 · not selected 375
+============ 148 passed, 11 skipped, 1 xfailed in 62.32s (0:01:02) =============

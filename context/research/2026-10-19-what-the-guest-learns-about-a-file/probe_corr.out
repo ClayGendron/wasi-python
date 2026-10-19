@@ -1,0 +1,4 @@
+# probe_corr.py on the times-only prototype (times fixed by the driver, inode numbers wasmtime's: a SipHash
+# of the host's): 120 runs of open, write, os.stat; the fuel step (from the smallest) by the inode's class
+ino < 2**60 (two 30-bit digits)    fuel step   0: 12 runs
+ino >= 2**60 (three)               fuel step  17: 108 runs

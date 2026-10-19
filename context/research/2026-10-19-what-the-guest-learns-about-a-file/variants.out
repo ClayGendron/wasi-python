@@ -1,0 +1,9 @@
+# variant 'sepclock': file times from the clock's last tick plus one nanosecond per stamp, so stats never step the clock (not the design). One pass of the 69 functions:
+E       AssertionError: ('True True False
+tests/checks/test_v1_4_embedding.py:149: AssertionError
+wasi_python v1: 147/160 pass · 1 gap · 11 blocked · 1 fail   (unit suite 0/0)
+FAIL tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot] — AssertionError: ('True True False
+FAILED tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]
+======= 1 failed, 147 passed, 11 skipped, 1 xfailed in 131.22s (0:02:11) =======
+
+# variant 'inobase': inode numbers counted from 2**63 + 1 (not the design): see moved_inobase.out

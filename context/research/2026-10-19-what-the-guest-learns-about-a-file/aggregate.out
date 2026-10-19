@@ -1,0 +1,16 @@
+== pa-1
+rows 146 (the two lxml grant rows left out: their fuel follows the checkout's path, spec 081)
+total +18,083,274 of 260,880,907,294 (+0.00693%)
+mean +0.00021%  median +0.00000%  largest rise +0.0776%  largest fall -0.0545%
+== pb-1
+rows 146 (the two lxml grant rows left out: their fuel follows the checkout's path, spec 081)
+total -14,934,217 of 260,880,907,294 (-0.00572%)
+mean -0.00032%  median +0.00000%  largest rise +0.0419%  largest fall -0.0771%
+== pc-1
+rows 145 (the two lxml grant rows left out: their fuel follows the checkout's path, spec 081)
+total +18,083,714 of 260,864,383,049 (+0.00693%)
+mean +0.00024%  median +0.00000%  largest rise +0.0776%  largest fall -0.0545%
+== pt-1
+rows 146 (the two lxml grant rows left out: their fuel follows the checkout's path, spec 081)
+total -15,833,260 of 260,880,907,294 (-0.00607%)
+mean -0.00053%  median +0.00000%  largest rise +0.0419%  largest fall -0.0771%

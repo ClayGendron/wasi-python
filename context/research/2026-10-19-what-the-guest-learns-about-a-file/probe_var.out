@@ -1,0 +1,19 @@
+# probe_var.py: 60 runs each; 'main' is main's driver, 'times' the times-only prototype, 'both' the prototype (times and inode numbers)
+## program: import os, time;open('/f', 'w').write('x');print(time.localtime(os.stat('/f').st_mtime).tm_year);
+main  main 16255056 {0: 4, 17: 56}
+times 16255107 {0: 3, 17: 57}
+both  16254698 {0: 60}
+## program: import os;open('/f', 'w').write('x');os.stat('/f');
+main  main 16062213 {0: 6, 17: 54}
+times 16062213 {0: 2, 17: 58}
+both  16061813 {0: 60}
+## program: import os;open('/f', 'w').write('x');x = str(os.stat('/f').st_ino);
+main  main 16137823 {0: 1, 143: 4, 204: 34, 241: 21}
+times 16137823 {0: 1, 108: 1, 143: 3, 204: 25, 241: 30}
+both  16136588 {0: 60}
+## the forward alone (prototype with no rewrite) costs the guest nothing: its fuel equals main's
+norewrite 16255056 {0: 12, 17: 48}
+main 16255056 {0: 7, 17: 53}
+## and with the trampoline's instructions let through (not the design): 11 more
+norestore 16254709 {0: 60}
+none 16254698 {0: 60}

@@ -1,0 +1,2 @@
+# on this machine (darwin-arm64, APFS), 26.5.2
+writes 5000; distinct mtimes 5000; repeats 0; smallest step 2917 ns; commonest [(3750, 865), (3792, 451), (3708, 427)]

@@ -1,0 +1,19 @@
+# The prototype's fast tier (uv run pytest -m 'not slow' -n 3) in a git-archive copy of main with prototype.diff applied (not a git
+# checkout: test_landing_lane's errors, test_plugin, test_several_cores, the typed-package and manifest-recipes checks need git or
+# a clean tree; ruff flags the prototype's unformatted line). No guest check fails; the ratchet's GREW lines are Decision 7's rows.
+wasi_python v1: 467/551 pass · 1 gap · 28 blocked · 4 fail · 51 deselected   (unit suite 1360/1378, 9 skipped)
+FAIL tests/checks/test_rules.py::test_ruff_check_is_clean — AssertionError: ['E501 Line too long (101 > 100)', '   --> tests/harness/guest.py:335:101', '    |']
+FAIL tests/checks/test_rules.py::test_ruff_format_is_clean — AssertionError: ['unformatted: File would be reformatted', '   --> tests/harness/guest.py:335:52', '    |']
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 5 finding(s), digest a73c1c341dc7: stale artifact: scripts/__pycache__/assemble_artifacts.
+ratchet vs de10146d21: lost 4 · absent 0 · unrun 0 · unrun locally 26 · gained 0 · grew 17 · upstream unrun 31 · not selected 37
+GREW tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[snapshot]: fuel 208776178 -> 208807522
+GREW tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[plain]: fuel 440316072 -> 440388911
+GREW tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lxml-target-snapshot]: fuel 229963362 -> 229987947
+ERROR tests/unit/test_landing_lane.py::test_accept_in_a_worktree_is_refused_before_collection[-n 2]
+ERROR tests/unit/test_landing_lane.py::test_accept_elsewhere_and_partial_proceed_in_a_worktree
+ERROR tests/unit/test_landing_lane.py::test_the_guards_hold_under_several_cores_in_a_main_tree
+ERROR tests/unit/test_landing_lane.py::test_a_plugin_registered_while_collecting_is_foreign_on_any_cores[steer052]
+ERROR tests/unit/test_landing_lane.py::test_a_plugin_registered_while_collecting_is_foreign_on_any_cores[spoof052]
+ERROR tests/unit/test_landing_lane.py::test_the_plugin_self_tests_pass_in_a_worktree
+ERROR tests/unit/test_landing_lane.py::test_accept_in_a_worktree_is_refused_before_collection[serial]
+= 6 failed, 1827 passed, 37 skipped, 1 xfailed, 7 errors in 246.00s (0:04:05) ==
