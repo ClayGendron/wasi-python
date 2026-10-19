@@ -1,0 +1,12 @@
+# kind8.py at 8 MiB, darwin arm64, main's snapshot: the trap just past each edge.
+{"case": "map_chain", "n": 1898, "trapped": "trap:     wasm trap: wasm `unreachable` instruction executed", "out": "", "stack": 8388608}
+{"case": "compile_terms", "n": 58228, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 8388608}
+{"case": "hash_tuple", "n": 40314, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 8388608}
+{"case": "free_list", "n": 37434, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 8388608}
+# py_unbounded_limit_raised (sys.setrecursionlimit(N), then def f(): f()):
+{"case": "py_unbounded_limit_raised", "n": 3000, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 524288}
+{"case": "py_unbounded_limit_raised", "n": 10000, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 524288}
+{"case": "py_unbounded_limit_raised", "n": 100000, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 524288}
+{"case": "py_unbounded_limit_raised", "n": 3000, "trapped": null, "out": "RecursionError maximum recursion depth exceeded 3000", "stack": 8388608}
+{"case": "py_unbounded_limit_raised", "n": 10000, "trapped": null, "out": "RecursionError maximum recursion depth exceeded 10000", "stack": 8388608}
+{"case": "py_unbounded_limit_raised", "n": 100000, "trapped": "trap:     wasm trap: call stack exhausted", "out": "", "stack": 8388608}

@@ -1,0 +1,108 @@
+{"row": "repr", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 214 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "getattr", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 214 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "eq", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 244 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "lru-cache", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 208 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "heapq", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 244 Stack overflow (used 112 kB) while calling a Python object", "arch": "arm64"}
+{"row": "sorted-key", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 52 Stack overflow (used 113 kB)", "arch": "arm64"}
+{"row": "map", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 222 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "re-sub", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 148 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 164 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 53 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 99 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "lxml-target", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 67 Stack overflow (used 112 kB) while calling a Python object", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 1 Stack overflow (used 112 kB) while decoding a JSON array from a unicode string", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 1 Stack overflow (used 112 kB) in comparison", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 1 Stack overflow (used 112 kB) while getting the repr of an object", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 1 Stack overflow (used 112 kB) while encoding a JSON object", "arch": "arm64"}
+{"row": "expat", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 137 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "sax", "stack": 8388608, "window": "none", "trapped": null, "out": "RecursionError 118 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "repr", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 338 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "getattr", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 338 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "eq", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 385 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "lru-cache", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 329 Stack overflow (used 176 kB) while calling a Python object", "arch": "arm64"}
+{"row": "heapq", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 385 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "sorted-key", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 82 Stack overflow (used 177 kB)", "arch": "arm64"}
+{"row": "map", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 350 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "re-sub", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 234 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 259 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 84 Stack overflow (used 177 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 156 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "lxml-target", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 106 Stack overflow (used 176 kB) while calling a Python object", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 1 Stack overflow (used 176 kB) while decoding a JSON array from a unicode string", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 1 Stack overflow (used 176 kB) in comparison", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 1 Stack overflow (used 176 kB) while getting the repr of an object", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 1 Stack overflow (used 176 kB) while encoding a JSON object", "arch": "arm64"}
+{"row": "expat", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 216 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "sax", "stack": 8388608, "window": "196608", "trapped": null, "out": "RecursionError 165 maximum recursion depth exceeded", "arch": "arm64"}
+{"row": "repr", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 462 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "getattr", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 463 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "eq", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 527 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "lru-cache", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 449 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "heapq", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 526 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "sorted-key", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 111 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "map", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 478 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "re-sub", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 319 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 355 Stack overflow (used 240 kB) while calling a Python object", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 115 Stack overflow (used 241 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 200 maximum recursion depth exceeded", "arch": "arm64"}
+{"row": "lxml-target", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 145 Stack overflow (used 240 kB) while calling a Python object", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 1 Stack overflow (used 240 kB) while decoding a JSON array from a unicode string", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 1 Stack overflow (used 240 kB) in comparison", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 1 Stack overflow (used 240 kB) while getting the repr of an object", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 1 Stack overflow (used 240 kB) while encoding a JSON object", "arch": "arm64"}
+{"row": "expat", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 294 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "sax", "stack": 8388608, "window": "262144", "trapped": null, "out": "RecursionError 165 maximum recursion depth exceeded", "arch": "arm64"}
+{"row": "repr", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 214 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "getattr", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 214 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "eq", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 244 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "lru-cache", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 208 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "heapq", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 244 Stack overflow (used 112 kB) while calling a Python object", "arch": "arm64"}
+{"row": "sorted-key", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 52 Stack overflow (used 113 kB)", "arch": "arm64"}
+{"row": "map", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 222 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "re-sub", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 148 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 164 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 53 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 99 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "lxml-target", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 67 Stack overflow (used 112 kB) while calling a Python object", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 524288, "window": "none", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 524288, "window": "none", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 524288, "window": "none", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 524288, "window": "none", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "expat", "stack": 524288, "window": "none", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "sax", "stack": 524288, "window": "none", "trapped": null, "out": "RecursionError 118 Stack overflow (used 112 kB)", "arch": "arm64"}
+{"row": "repr", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 338 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "getattr", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 338 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "eq", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 385 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "lru-cache", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "heapq", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "sorted-key", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 82 Stack overflow (used 177 kB)", "arch": "arm64"}
+{"row": "map", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 350 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "re-sub", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 234 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 259 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 84 Stack overflow (used 177 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 156 Stack overflow (used 176 kB)", "arch": "arm64"}
+{"row": "lxml-target", "stack": 524288, "window": "196608", "trapped": null, "out": "RecursionError 106 Stack overflow (used 176 kB) while calling a Python object", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "expat", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "sax", "stack": 524288, "window": "196608", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "repr", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "getattr", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "eq", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "lru-cache", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "heapq", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "sorted-key", "stack": 524288, "window": "262144", "trapped": null, "out": "RecursionError 111 Stack overflow (used 240 kB)", "arch": "arm64"}
+{"row": "map", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "re-sub", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "pickle-reduce", "stack": 524288, "window": "262144", "trapped": null, "out": "RecursionError 355 Stack overflow (used 240 kB) while calling a Python object", "arch": "arm64"}
+{"row": "np-frompyfunc", "stack": 524288, "window": "262144", "trapped": null, "out": "RecursionError 115 Stack overflow (used 241 kB)", "arch": "arm64"}
+{"row": "np-vectorize", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "lxml-target", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-json-loads", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-eq-list", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-repr-list", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "data-json-dumps", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "expat", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}
+{"row": "sax", "stack": 524288, "window": "262144", "trapped": "wasm trap: call stack exhausted", "out": "", "arch": "arm64"}

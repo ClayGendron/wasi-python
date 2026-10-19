@@ -1,0 +1,18 @@
+# Alpine (musl) aarch64, wasmtime-py 49.0.0, main's set, W = 8388608, a 32 MiB thread, list-door at
+# depth 20000 (a door call from a finalizer at every level), without and with the guest thread
+# telling CPython its real stack (stackrun.py, PROTECT=1: PyUnstable_ThreadState_SetStackProtection).
+CPython 3.14.5, no PROTECT: exit 134
+  Fatal Python error: _Py_CheckRecursiveCall: Unrecoverable stack overflow (used 3906 kB) while calling a Python object
+  (current thread: wasmtime_func_call <- _drive <- _instance <- _call_deferred <- _call <- _run_checked <- run)
+CPython 3.14.5, PROTECT=1: {"thread_stack": 33555920, "protect": 0, "exit": 0, "trapped": null, "stdout": "freed\n"}
+CPython 3.14.5, PROTECT=1: list-door edge 37401; smallest surviving T = 8433664 (+44 KiB over W)
+CPython 3.13.13, no PROTECT, list-door:37401: exit 0, "freed" (3.13 counts C recursion, it reads no stack pointer)
+CPython 3.14.0, no PROTECT, list-door:37401: Fatal Python error: _Py_CheckRecursiveCall: Unrecoverable stack overflow (used 8195 kB)
+# ctypes.pythonapi has PyUnstable_ThreadState_SetStackProtection:
+3.14.0 False
+3.14.1 True
+3.14.2 True   (darwin, the project's venv)
+3.14.5 True
+3.15.0b2 True
+3.13.13 False
+3.12.13 False

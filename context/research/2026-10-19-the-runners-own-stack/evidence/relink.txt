@@ -1,0 +1,9 @@
+# The reactor relinked from the main tree's build (build/Python-3.15.0/cross-build/wasm32-wasip1, read
+# only; built 2026-10-19 05:19 for main's set), with the compile and link commands of
+# build/link/reactor-commands.txt, every output (object, map, binary) moved to the scratch folder,
+# then llvm-strip --strip-debug as step 60 does.
+# The recipe unchanged (control):
+ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db  control/python.wasm
+ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db  main's set python.wasm (s-c50ca51fae5eb55b-c9dcb5b8)
+# The recipe plus research_guard (research_main.diff): the window from RESEARCH_C_STACK at run():
+f5e23243eb3e047a328a87c34a1b109b401e6641a62865380c1cf8486030e455  research/python.wasm

@@ -1,0 +1,47 @@
+# First run (the probe before its outer try was added): on CPython 3.11.14, glibc aarch64, Python's
+# default handler's KeyboardInterrupt landed at 'while True:', outside the loop's own try, and escaped:
+3.14.2 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1}
+3.11.14 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0}
+Traceback (most recent call last):
+  File "/work/p6_home_signals.py", line 37, in <module>
+    print(scenario(h, t), flush=True)
+          ^^^^^^^^^^^^^^
+  File "/work/p6_home_signals.py", line 21, in scenario
+    while True:
+KeyboardInterrupt
+# Then three more runs each of 3.14.2 and 3.11.14 with the outer try (none escaped), and probe 3:
+3.14.2 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.11.14 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.14.2 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.11.14 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.14.2 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.11.14 linux
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+3.14.2 linux
+thread start+join, stack_size=        0:   145.6 us
+thread start+join, stack_size=  9437184:    84.4 us
+thread start+join, stack_size= 16777216:    91.7 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):    33.0 us
+callback handed to the caller (50 ms timed wait):    36.0 us

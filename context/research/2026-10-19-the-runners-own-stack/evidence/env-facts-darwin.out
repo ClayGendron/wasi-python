@@ -1,0 +1,1 @@
+{"platform": "darwin", "machine": "arm64", "libc": ["", ""], "python": "3.14.2", "main_thread_stack": 8372224, "rlimit_stack_soft": 8372224, "threading_stack_size_default": 0, "default_thread_stack": 16789504}

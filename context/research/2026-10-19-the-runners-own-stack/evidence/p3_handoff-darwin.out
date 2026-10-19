@@ -1,0 +1,14 @@
+3.14.2 darwin
+thread start+join, stack_size=        0:    38.9 us
+thread start+join, stack_size=  9437184:    36.1 us
+thread start+join, stack_size= 16777216:    38.6 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):     7.0 us
+callback handed to the caller (50 ms timed wait):     7.3 us
+3.14.2 darwin
+thread start+join, stack_size=        0:    50.2 us
+thread start+join, stack_size=  9437184:    42.7 us
+thread start+join, stack_size= 16777216:    48.0 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):     7.5 us
+callback handed to the caller (50 ms timed wait):     7.7 us

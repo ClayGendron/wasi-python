@@ -1,0 +1,8 @@
+{"platform": "linux", "machine": "x86_64", "libc": ["musl", "1"], "python": "3.14.5", "main_thread_stack": 12181504, "rlimit_stack_soft": 8388608, "threading_stack_size_default": 0, "default_thread_stack": 133880}
+RESULT W=8388608 T=33554432 list-door: last depth that completes = 32725
+RESULT W=8388608 list-door:32725: smallest surviving T = 8433664 (+44 KiB over W)
+RESULT W=8388608 T=33554432 list: last depth that completes = 32753
+RESULT W=8388608 list:32753: smallest surviving T = 8392704 (+4 KiB over W)
+RESULT W=8388608 free100k: smallest surviving T = 8392704 (+4 KiB over W)
+W=8388608 T=main shape=free100k: exit -11 trapped=None stdout='' thread_stack=None
+W=8388608 T=1048576 shape=free100k: exit -11 trapped=None stdout='' thread_stack=None

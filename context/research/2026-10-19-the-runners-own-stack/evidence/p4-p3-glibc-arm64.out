@@ -1,0 +1,11 @@
+provider:   32.4 us per guest os.stat (calls 5000)
+door:       47.7 us per door call
+provider:   32.9 us per guest os.stat (calls 5000)
+door:       46.4 us per door call
+3.14.2 linux
+thread start+join, stack_size=        0:    57.2 us
+thread start+join, stack_size=  9437184:   106.5 us
+thread start+join, stack_size= 16777216:   466.1 us
+callback called directly:               0.03 us
+callback handed to the caller (untimed wait):   494.9 us
+callback handed to the caller (50 ms timed wait):   102.4 us

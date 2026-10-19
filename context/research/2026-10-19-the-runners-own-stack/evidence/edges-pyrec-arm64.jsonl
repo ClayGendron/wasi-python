@@ -1,0 +1,2 @@
+{"case": "py_unbounded_limit_raised", "max_ok": 2958, "at_max": "RecursionError maximum recursion depth exceeded 2958", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "py_unbounded_limit_raised", "max_ok": 47642, "at_max": "RecursionError maximum recursion depth exceeded 47642", "above": "trap", "stack": 8388608, "arch": "arm64"}

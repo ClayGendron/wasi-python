@@ -1,0 +1,4 @@
+# spec 016's test_a_stack_overflow_is_named program (sys.setrecursionlimit(10**8), then f(n + 1)
+# forever) through wasi_python.run, metered, on a 9 MiB thread (stackrun.py ... named metered):
+{"thread_stack": 9449472, "exit": null, "trapped": "stack overflow", "fuel": 9382419925, "wasm_stack": 524288}
+{"thread_stack": 9449472, "exit": null, "trapped": "stack overflow", "fuel": 9773816603, "wasm_stack": 8388608}

@@ -1,0 +1,4 @@
+provider:   31.5 us per guest os.stat (calls 5000)
+door:       43.5 us per door call
+provider:   31.5 us per guest os.stat (calls 5000)
+door:       44.0 us per door call

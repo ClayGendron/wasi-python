@@ -1,0 +1,6 @@
+small-thread exit -4  []
+ctrl-c-no-deadline killed at its 120 s limit
+raising-handler exit 0 returned deadline | next b'1\n' 
+raising-handler exit 0 returned deadline | next b'1\n' 
+raising-handler exit 0 returned deadline | next b'1\n' 
+raising-handler exit 0 returned deadline | next b'1\n' stderr: h at 0x1035ca140>: / Traceback (most recent call last): /   File "/Users/claygendron/Git/Repos/wasi_python-078/src/wasi_python/runner.py", line 2992, in _on_epoch /     def _on_epoch(context: Any, data: Any, delta: Any, kind: Any) -> int: /   File "<string>", line 21, in handler / KeyboardInterrupt:

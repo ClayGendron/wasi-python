@@ -1,0 +1,29 @@
+364a365,390
+> /* RESEARCH ONLY (spec 078's research, not a recipe): the C-stack guard's window from the
+>  * environment variable RESEARCH_C_STACK (bytes), applied at run(). Absent: the recipe's 128 KiB. */
+> static void
+> research_guard(void)
+> {
+>     size_t count = 0, size = 0;
+>     if (__wasi_environ_sizes_get(&count, &size) != 0) {
+>         return;
+>     }
+>     char **items = calloc(count + 1, sizeof(char *));
+>     char *buf = malloc(size + 1);
+>     if (items && buf && __wasi_environ_get((uint8_t **)items, (uint8_t *)buf) == 0) {
+>         for (size_t i = 0; i < count; i++) {
+>             if (strncmp(items[i], "RESEARCH_C_STACK=", 17) == 0) {
+>                 size_t n = strtoul(items[i] + 17, NULL, 10);
+>                 if (PyUnstable_ThreadState_SetStackProtection(PyThreadState_Get(), &__stack_high - n, n) < 0) {
+>                     PyErr_Print();
+>                     abort();
+>                 }
+>             }
+>         }
+>     }
+>     free(items);
+>     free(buf);
+> }
+> 
+378a405
+>     research_guard();

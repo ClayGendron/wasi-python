@@ -1,0 +1,23 @@
+# Probe 5 on darwin arm64 (CPython 3.14.2, wasmtime-py 49.0.0), main's set, metered runner engine,
+# max_wasm_stack W = 8388608. T is the size asked of threading.stack_size; macOS reports 12 KiB more
+# (pthread_get_stacksize_np: 8400896 for 8388608). Exit -4 is SIGILL, -11 SIGSEGV.
+W=8388608 T=16777216 shape=free100k: exit 0 trapped=stack overflow stdout='' thread_stack=16789504
+W=8388608 T=8388608 shape=free100k: exit 0 trapped=stack overflow stdout='' thread_stack=8400896
+W=8388608 T=8372224 shape=free100k: exit -4 trapped=None
+W=8388608 T=8323072 shape=free100k: exit -4 trapped=None
+W=8388608 T=7864320 shape=free100k: exit -4 trapped=None
+W=8388608 T=7340032 shape=free100k: exit -4 trapped=None
+W=8388608 T=6291456 shape=free100k: exit -4 trapped=None
+W=8388608 T=5242880 shape=free100k: exit -4 trapped=None
+W=8388608 T=4194304 shape=free100k: exit -4 trapped=None
+W=8388608 T=2097152 shape=free100k: exit -4 trapped=None
+W=8388608 T=1048576 shape=free100k: exit -4 trapped=None
+W=8388608 T=main shape=free100k: exit -11 trapped=None
+W=67108864 T=main shape=free100k: exit 139 (the shell's code for SIGSEGV)
+RESULT W=8388608 T=33554432 list: last depth that completes = 37433
+RESULT W=8388608 T=33554432 list-door: last depth that completes = 37401
+RESULT W=8388608 T=33554432 list-provider: last depth that completes = 37421
+RESULT W=8388608 list-door:37401: smallest surviving T = 8409088 (+20 KiB over W)
+RESULT W=8388608 list-provider:37421: smallest surviving T = 8409088 (+20 KiB over W)
+RESULT W=8388608 list:37433: smallest surviving T = 8376320 (-12 KiB over W)
+RESULT W=8388608 free100k: smallest surviving T = 8376320 (-12 KiB over W)

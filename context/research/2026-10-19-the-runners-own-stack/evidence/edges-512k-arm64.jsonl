@@ -1,0 +1,23 @@
+{"case": "free_list", "max_ok": 2325, "at_max": "ok 2325", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "free_tuple", "max_ok": 2326, "at_max": "ok 2326", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "free_dict", "max_ok": 1415, "at_max": "ok 1415", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "repr_list", "max_ok": 1912, "at_max": "ok 1912", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "json_dumps", "max_ok": 1478, "at_max": "ok 1478", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "json_loads", "max_ok": 1204, "at_max": "ok 1204", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "eq_list", "max_ok": 1551, "at_max": "ok 1551", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "hash_tuple", "max_ok": 2504, "at_max": "ok 2504", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "map_chain", "max_ok": 1897, "at_max": "RecursionError Stack overflow (used 119 kB) while calling a Python object 1897", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "json_default", "max_ok": 1082, "at_max": "ok 1082", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "eval_parens", "max_ok": 141, "at_max": "ok 141", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "eval_unary", "max_ok": 3222, "at_max": "RecursionError Stack overflow (used 112 kB) during compilation 3222", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "compile_terms", "max_ok": 3614, "at_max": "RecursionError Stack overflow (used 112 kB) during compilation 3614", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "exc_group", "max_ok": 833, "at_max": "ok 833", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "expat", "max_ok": 130, "at_max": "ok 130", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "sax", "max_ok": 20000, "unbounded_to": 20000, "at_max": "RecursionError Stack overflow (used 112 kB) 20000", "stack": 524288, "arch": "arm64"}
+{"case": "etree_target", "max_ok": 20000, "unbounded_to": 20000, "at_max": "RecursionError Stack overflow (used 112 kB) while calling a Python object 20000", "stack": 524288, "arch": "arm64"}
+{"case": "py_recursion_limit_raised", "max_ok": 400000, "unbounded_to": 400000, "at_max": "ok 400000", "stack": 524288, "arch": "arm64"}
+{"case": "xpath_parens", "max_ok": 356, "at_max": "ok 356", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "xpath_predicates", "max_ok": 4055, "at_max": "ok 4055", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "xslt_call_template", "max_ok": 461, "at_max": "ok 461", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "xslt_apply_templates", "max_ok": 661, "at_max": "ok 661", "above": "trap", "stack": 524288, "arch": "arm64"}
+{"case": "c14n_deep_tree", "max_ok": 1477, "at_max": "ok 1477", "above": "trap", "stack": 524288, "arch": "arm64"}

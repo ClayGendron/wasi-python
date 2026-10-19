@@ -1,0 +1,8 @@
+# fuel078.py on darwin arm64 (CPython 3.14.2, wasmtime-py 49.0.0), main's set, the 078 worktree's
+# judge driver (seeded random, stepped clock), runner's engine (fuel, epoch), each program once per
+# configuration: the wasm stack (512 KiB or 8 MiB) and the thread (the caller's, or a fresh one).
+hello            {"512K/caller": 15725004, "512K/own-thread": 15725004, "8192K/caller": 15725004, "8192K/own-thread": 15725004} same
+numpy            {"512K/caller": 776666891, "512K/own-thread": 776666891, "8192K/caller": 776666891, "8192K/own-thread": 776666891} same
+pandas-groupby   {"512K/caller": 4608371954, "512K/own-thread": 4608371954, "8192K/caller": 4608371954, "8192K/own-thread": 4608371954} same
+repr-recursion   {"512K/caller": 19014643, "512K/own-thread": 19014643, "8192K/caller": 19014643, "8192K/own-thread": 19014643} same
+free-2000        {"512K/caller": 22352701, "512K/own-thread": 22352701, "8192K/caller": 22352701, "8192K/own-thread": 22352701} same

@@ -1,0 +1,182 @@
+# test_traceback at 8 MiB through cpy078.py (darwin arm64, main's set; the research driver, not 065's): its ERROR and FAIL lines and summary, filtered from the full -v output.
+ 139 ModuleNotFoundError: No module named '_testcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+   8 ERROR: test_import_from_suggestions (test.test_traceback.PurePythonSuggestionFormattingTests.test_import_from_suggestions)
+   6 ERROR: test_import_from_suggestions_underscored (test.test_traceback.PurePythonSuggestionFormattingTests.test_import_from_suggestions_underscored)
+   4 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.PurePythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names)
+   4 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names)
+   2 ERROR: test_import_from_suggestions_underscored (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_suggestions_underscored)
+   2 ERROR: test_import_from_suggestions_non_string (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_suggestions_non_string)
+   2 ERROR: test_import_from_suggestions_do_not_trigger_for_big_namespaces (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_suggestions_do_not_trigger_for_big_namespaces)
+   2 ERROR: test_import_from_suggestions (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_suggestions)
+   1 Total tests: run=434 failures=1 skipped=193
+   1 Total test files: run=1/1 failed=1
+   1 Total duration: 2 ms
+   1 Result: FAILURE
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/yVEFGnqoyBCjxhuv.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/YUtAWoTTLTluzeYW.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/yRezjHAYuWZcNZhv.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/YnWnYSOQjddpRkun.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/YMmBLEUQhkRpdtVp.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/XQAqdmZiNbUmFQPy.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/WgmmdFJxGUWjFJBR.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/uTRCdgBNPuIBUWyW.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/TsrsMEbTWHsvLVEW.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/tlkxhqbvTnmnkBSF.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/sjjRvabkQIdmwMVk.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/RvNKlggmSAMwZNHn.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/rRpffQMzBwtsqGuA.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/PlmsOomrSqMmqgzi.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/pHoOWbjzXXQXJdVf.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/OdaZSuedHgvhFDeD.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/NQsdojTOyrUpFqPG.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/NPZInZknzSWqIKiv.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/NbcfQCOLAjjEeIDa.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/LlCZRuWXyOWIzqow.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/juWpgkoCPxVLLcvY.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/jjetWGNwwAtKlmgZ.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/InTqRzdzYEuwZkfb.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/IMLCjyKWNknLyBzQ.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/HtjXTWvvPvNyFfNN.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/gFNGOSefmecttxJW.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/FmDaIrNhgccyMHCN.pyc'
+   1 PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/EiPdUvFOjsUqvRmT.pyc'
+   1 ModuleNotFoundError: Standard library module 'msvcrt' was not found
+   1 FAILED (failures=1, errors=167, skipped=193)
+   1 FAIL: test_windows_only_module_error (test.test_traceback.MiscTest.test_windows_only_module_error)
+   1 ERROR: test_unhashable (test.test_traceback.TestTracebackFormat.test_unhashable)
+   1 ERROR: test_unhashable (test.test_traceback.TestFallbackTracebackFormat.test_unhashable)
+   1 ERROR: test_unbound_local_error_with_side_effect (test.test_traceback.CPythonSuggestionFormattingTests.test_unbound_local_error_with_side_effect)
+   1 ERROR: test_unbound_local_error_with_instance (test.test_traceback.CPythonSuggestionFormattingTests.test_unbound_local_error_with_instance)
+   1 ERROR: test_unbound_local_error_does_not_match (test.test_traceback.CPythonSuggestionFormattingTests.test_unbound_local_error_does_not_match)
+   1 ERROR: test_traceback_format_with_cleared_frames (test.test_traceback.TestTracebackFormat.test_traceback_format_with_cleared_frames)
+   1 ERROR: test_traceback_format_with_cleared_frames (test.test_traceback.TestFallbackTracebackFormat.test_traceback_format_with_cleared_frames)
+   1 ERROR: test_traceback_format (test.test_traceback.TestTracebackFormat.test_traceback_format)
+   1 ERROR: test_traceback_format (test.test_traceback.TestFallbackTracebackFormat.test_traceback_format)
+   1 ERROR: test_syntax_error_various_offsets (test.test_traceback.CExcReportingTests.test_syntax_error_various_offsets)
+   1 ERROR: test_syntax_error_offset_at_eol (test.test_traceback.CExcReportingTests.test_syntax_error_offset_at_eol)
+   1 ERROR: test_syntax_error_no_lineno (test.test_traceback.CExcReportingTests.test_syntax_error_no_lineno)
+   1 ERROR: test_suggestions_with_custom___dir__ (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_with_custom___dir__)
+   1 ERROR: test_suggestions_with_custom___dir__ (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_suggestions_with_custom___dir__)
+   1 ERROR: test_suggestions_underscored (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_underscored)
+   1 ERROR: test_suggestions_underscored (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_suggestions_underscored)
+   1 ERROR: test_suggestions_not_normalized (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_not_normalized)
+   1 ERROR: test_suggestions_not_normalized (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_suggestions_not_normalized)
+   1 ERROR: test_suggestions_no_args (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_no_args)
+   1 ERROR: test_suggestions_invalid_args (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_invalid_args)
+   1 ERROR: test_suggestions_for_same_name (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions_for_same_name)
+   1 ERROR: test_suggestions_for_same_name (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_suggestions_for_same_name)
+   1 ERROR: test_suggestions (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_suggestions)
+   1 ERROR: test_suggestions (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_suggestions)
+   1 ERROR: test_simple (test.test_traceback.CExcReportingTests.test_simple)
+   1 ERROR: test_print_exception_bad_type_capi (test.test_traceback.TestTracebackFormat.test_print_exception_bad_type_capi)
+   1 ERROR: test_print_exception_bad_type_capi (test.test_traceback.TestFallbackTracebackFormat.test_print_exception_bad_type_capi)
+   1 ERROR: test_name_error_with_instance_not_normalized (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_with_instance_not_normalized)
+   1 ERROR: test_name_error_with_instance (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_with_instance)
+   1 ERROR: test_name_error_with_custom_exceptions (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_with_custom_exceptions)
+   1 ERROR: test_name_error_suggestions_with_non_string_candidates (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_with_non_string_candidates)
+   1 ERROR: test_name_error_suggestions_from_globals (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_from_globals)
+   1 ERROR: test_name_error_suggestions_from_builtins_when_builtins_is_module (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_from_builtins_when_builtins_is_module)
+   1 ERROR: test_name_error_suggestions_from_builtins (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_from_builtins)
+   1 ERROR: test_name_error_suggestions_do_not_trigger_for_too_many_locals (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_do_not_trigger_for_too_many_locals)
+   1 ERROR: test_name_error_suggestions_do_not_trigger_for_long_names (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions_do_not_trigger_for_long_names)
+   1 ERROR: test_name_error_suggestions (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_suggestions)
+   1 ERROR: test_name_error_for_stdlib_modules (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_for_stdlib_modules)
+   1 ERROR: test_name_error_for_private_stdlib_modules (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_for_private_stdlib_modules)
+   1 ERROR: test_name_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_bad_suggestions_do_not_trigger_for_small_names) (name='v')
+   1 ERROR: test_name_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_bad_suggestions_do_not_trigger_for_small_names) (name='py')
+   1 ERROR: test_name_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_bad_suggestions_do_not_trigger_for_small_names) (name='m')
+   1 ERROR: test_name_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_name_error_bad_suggestions_do_not_trigger_for_small_names) (name='b')
+   1 ERROR: test_message_none (test.test_traceback.CExcReportingTests.test_message_none)
+   1 ERROR: test_KeyboardInterrupt_at_first_line_of_frame (test.test_traceback.CExcReportingTests.test_KeyboardInterrupt_at_first_line_of_frame)
+   1 ERROR: test_import_from_suggestions_non_string (test.test_traceback.PurePythonSuggestionFormattingTests.test_import_from_suggestions_non_string)
+   1 ERROR: test_import_from_suggestions_do_not_trigger_for_long_attributes (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_suggestions_do_not_trigger_for_long_attributes)
+   1 ERROR: test_import_from_suggestions_do_not_trigger_for_big_namespaces (test.test_traceback.PurePythonSuggestionFormattingTests.test_import_from_suggestions_do_not_trigger_for_big_namespaces)
+   1 ERROR: test_import_from_error_with_bad_name (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_with_bad_name)
+   1 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names) (name='v')
+   1 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names) (name='py')
+   1 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names) (name='m')
+   1 ERROR: test_import_from_error_bad_suggestions_do_not_trigger_for_small_names (test.test_traceback.CPythonSuggestionFormattingTests.test_import_from_error_bad_suggestions_do_not_trigger_for_small_names) (name='b')
+   1 ERROR: test_getattr_nested_with_property (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_with_property)
+   1 ERROR: test_getattr_nested_returns_first_match_only (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_returns_first_match_only)
+   1 ERROR: test_getattr_nested_prioritizes_direct_matches (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_prioritizes_direct_matches)
+   1 ERROR: test_getattr_nested_no_suggestion_for_deep_nesting (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_no_suggestion_for_deep_nesting)
+   1 ERROR: test_getattr_nested_limits_attribute_checks (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_limits_attribute_checks)
+   1 ERROR: test_getattr_nested_ignores_private_attributes (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_ignores_private_attributes)
+   1 ERROR: test_getattr_nested_handles_hasattr_exceptions (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_handles_hasattr_exceptions)
+   1 ERROR: test_getattr_nested_handles_attribute_access_exceptions (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_handles_attribute_access_exceptions)
+   1 ERROR: test_getattr_nested_attribute_suggestions (test.test_traceback.CPythonSuggestionFormattingTests.test_getattr_nested_attribute_suggestions)
+   1 ERROR: test_exception_with_note (test.test_traceback.CExcReportingTests.test_exception_with_note)
+   1 ERROR: test_exception_with_multiple_notes (test.test_traceback.CExcReportingTests.test_exception_with_multiple_notes) (e=ValueError(42))
+   1 ERROR: test_exception_with_multiple_notes (test.test_traceback.CExcReportingTests.test_exception_with_multiple_notes) (e=SyntaxError('bad syntax'))
+   1 ERROR: test_exception_with_invalid_notes (test.test_traceback.CExcReportingTests.test_exception_with_invalid_notes)
+   1 ERROR: test_exception_qualname (test.test_traceback.CExcReportingTests.test_exception_qualname)
+   1 ERROR: test_exception_modulename_not_unicode (test.test_traceback.CExcReportingTests.test_exception_modulename_not_unicode)
+   1 ERROR: test_exception_modulename (test.test_traceback.CExcReportingTests.test_exception_modulename) (modulename='some_module')
+   1 ERROR: test_exception_modulename (test.test_traceback.CExcReportingTests.test_exception_modulename) (modulename='builtins')
+   1 ERROR: test_exception_modulename (test.test_traceback.CExcReportingTests.test_exception_modulename) (modulename='__main__')
+   1 ERROR: test_exception_group_wrapped_naked (test.test_traceback.CExcReportingTests.test_exception_group_wrapped_naked)
+   1 ERROR: test_exception_group_with_notes (test.test_traceback.CExcReportingTests.test_exception_group_with_notes)
+   1 ERROR: test_exception_group_with_multiple_notes (test.test_traceback.CExcReportingTests.test_exception_group_with_multiple_notes)
+   1 ERROR: test_exception_group_width_limit (test.test_traceback.CExcReportingTests.test_exception_group_width_limit)
+   1 ERROR: test_exception_group_nested (test.test_traceback.CExcReportingTests.test_exception_group_nested)
+   1 ERROR: test_exception_group_depth_limit (test.test_traceback.CExcReportingTests.test_exception_group_depth_limit)
+   1 ERROR: test_exception_group_deep_recursion_capi (test.test_traceback.TestTracebackFormat.test_exception_group_deep_recursion_capi)
+   1 ERROR: test_exception_group_deep_recursion_capi (test.test_traceback.TestFallbackTracebackFormat.test_exception_group_deep_recursion_capi)
+   1 ERROR: test_exception_group_context_with_context (test.test_traceback.CExcReportingTests.test_exception_group_context_with_context)
+   1 ERROR: test_exception_group_cause (test.test_traceback.CExcReportingTests.test_exception_group_cause)
+   1 ERROR: test_exception_group_basic (test.test_traceback.CExcReportingTests.test_exception_group_basic)
+   1 ERROR: test_exception_bad__str__ (test.test_traceback.CExcReportingTests.test_exception_bad__str__)
+   1 ERROR: test_exception_angle_bracketed_filename (test.test_traceback.CExcReportingTests.test_exception_angle_bracketed_filename)
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='v')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='py')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='m')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='b')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='v')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='py')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='m')
+   1 ERROR: test_do_not_trigger_for_small_names (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_small_names) (name='b')
+   1 ERROR: test_do_not_trigger_for_long_attributes (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_long_attributes)
+   1 ERROR: test_do_not_trigger_for_long_attributes (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_long_attributes)
+   1 ERROR: test_do_not_trigger_for_big_dicts (test.test_traceback.CPythonGetattrSuggestionFormattingTests.test_do_not_trigger_for_big_dicts)
+   1 ERROR: test_do_not_trigger_for_big_dicts (test.test_traceback.CPythonDelattrSuggestionFormattingTests.test_do_not_trigger_for_big_dicts)
+   1 ERROR: test_cross_language_works_for_subclasses (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_works_for_subclasses)
+   1 ERROR: test_cross_language_no_hint_for_unknown_attr (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_no_hint_for_unknown_attr)
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='tuple', attr='remove')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='tuple', attr='insert')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='tuple', attr='extend')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='tuple', attr='append')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='frozenset', attr='update')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='frozenset', attr='remove')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='frozenset', attr='discard')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='frozenset', attr='add')
+   1 ERROR: test_cross_language_mutable_on_immutable (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_mutable_on_immutable) (type='frozendict', attr='update')
+   1 ERROR: test_cross_language_levenshtein_fallback (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_levenshtein_fallback)
+   1 ERROR: test_cross_language_float_bitwise (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_float_bitwise) (attr='__xor__')
+   1 ERROR: test_cross_language_float_bitwise (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_float_bitwise) (attr='__rshift__')
+   1 ERROR: test_cross_language_float_bitwise (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_float_bitwise) (attr='__or__')
+   1 ERROR: test_cross_language_float_bitwise (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_float_bitwise) (attr='__lshift__')
+   1 ERROR: test_cross_language_float_bitwise (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language_float_bitwise) (attr='__and__')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type=<class 'list'>, attr='contains')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type=<class 'list'>, attr='add')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type=<class 'dict'>, attr='put')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='str', attr='trimStart')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='str', attr='trimEnd')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='str', attr='toUpperCase')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='str', attr='toLowerCase')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='list', attr='push')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='list', attr='concat')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='list', attr='addAll')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='dict', attr='putAll')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='dict', attr='keySet')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='dict', attr='entrySet')
+   1 ERROR: test_cross_language (test.test_traceback.CPythonSuggestionFormattingTests.test_cross_language) (type='dict', attr='entries')
+   1 ERROR: test_context_suppression (test.test_traceback.CExcReportingTests.test_context_suppression)
+   1 ERROR: test_context (test.test_traceback.CExcReportingTests.test_context)
+   1 ERROR: test_colorized_traceback_is_the_default (test.test_traceback.TestColorizedTraceback.test_colorized_traceback_is_the_default)
+   1 ERROR: test_cause_recursive (test.test_traceback.CExcReportingTests.test_cause_recursive)
+   1 ERROR: test_cause_and_context (test.test_traceback.CExcReportingTests.test_cause_and_context)
+   1 ERROR: test_cause (test.test_traceback.CExcReportingTests.test_cause)
+   1 ERROR: test_attribute_error_with_non_string_candidates (test.test_traceback.CPythonSuggestionFormattingTests.test_attribute_error_with_non_string_candidates)
+   1 ERROR: test_attribute_error_with_failing_dict (test.test_traceback.CPythonSuggestionFormattingTests.test_attribute_error_with_failing_dict)
+   1 ERROR: test_attribute_error_with_bad_name (test.test_traceback.CPythonSuggestionFormattingTests.test_attribute_error_with_bad_name)
+   1 ERROR: test_attribute_error_inside_nested_getattr (test.test_traceback.CPythonSuggestionFormattingTests.test_attribute_error_inside_nested_getattr)

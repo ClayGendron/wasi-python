@@ -1,0 +1,17 @@
+python setter for async_stack_size: False
+library exports wasmtime_config_async_stack_size_set: True
+max_wasm_stack    524288  plain config                             exit    0  
+max_wasm_stack    524288  async_stack_size = max_wasm_stack + 0    exit    0  
+max_wasm_stack    524288  async_stack_size = max_wasm_stack + 1048576 exit    0  
+max_wasm_stack   2097152  plain config                             exit    0  
+max_wasm_stack   2097152  async_stack_size = max_wasm_stack + 0    exit    0  
+max_wasm_stack   2097152  async_stack_size = max_wasm_stack + 1048576 exit    0  
+max_wasm_stack   2101248  plain config                             exit   -6  called `Result::unwrap()` on an `Err` value: max_wasm_stack size cannot exceed the async_stack_size
+max_wasm_stack   2101248  async_stack_size = max_wasm_stack + 0    exit    0  
+max_wasm_stack   2101248  async_stack_size = max_wasm_stack + 1048576 exit    0  
+max_wasm_stack   8388608  plain config                             exit   -6  called `Result::unwrap()` on an `Err` value: max_wasm_stack size cannot exceed the async_stack_size
+max_wasm_stack   8388608  async_stack_size = max_wasm_stack + 0    exit    0  
+max_wasm_stack   8388608  async_stack_size = max_wasm_stack + 1048576 exit    0  
+max_wasm_stack  16777216  plain config                             exit   -6  called `Result::unwrap()` on an `Err` value: max_wasm_stack size cannot exceed the async_stack_size
+max_wasm_stack  16777216  async_stack_size = max_wasm_stack + 0    exit    0  
+max_wasm_stack  16777216  async_stack_size = max_wasm_stack + 1048576 exit    0  

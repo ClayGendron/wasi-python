@@ -1,0 +1,14 @@
+{"label": "doctest", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 2222339330, "tail": []}
+{"label": "exceptions", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 2495836069, "tail": []}
+{"label": "syntax-both", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 2008733033, "tail": []}
+{"label": "odict-py", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 1862046054, "tail": []}
+{"label": "odict-py-subclass", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 1862373945, "tail": []}
+{"label": "odict-c-subclass", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 1825736681, "tail": []}
+{"label": "traceback-module", "stack": 524288, "exit": null, "trapped": "error while executing at wasm backtrace:", "cause": "wasm trap: call stack exhausted", "fuel": 2503909073, "tail": []}
+{"label": "doctest", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 2372681588, "tail": ["Total tests: run=1 (filtered)", "Result: SUCCESS"]}
+{"label": "exceptions", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 2610534359, "tail": ["Total tests: run=1 (filtered)", "Result: SUCCESS"]}
+{"label": "syntax-both", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 2214831962, "tail": ["Total tests: run=2 (filtered)", "Result: SUCCESS"]}
+{"label": "odict-py", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 1997130332, "tail": ["Total tests: run=1 (filtered)", "Result: SUCCESS"]}
+{"label": "odict-py-subclass", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 1997552124, "tail": ["Total tests: run=1 (filtered)", "Result: SUCCESS"]}
+{"label": "odict-c-subclass", "stack": 8388608, "exit": 0, "trapped": null, "cause": null, "fuel": 1960543782, "tail": ["Total tests: run=1 (filtered)", "Result: SUCCESS"]}
+{"label": "traceback-module", "stack": 8388608, "exit": 2, "trapped": null, "cause": null, "fuel": 7880321698, "tail": ["Total tests: run=434 failures=1 skipped=193", "Result: FAILURE"]}

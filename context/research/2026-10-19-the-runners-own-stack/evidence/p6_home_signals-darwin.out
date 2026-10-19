@@ -1,0 +1,4 @@
+3.14.2 darwin
+{'handler': 'flag', 'timed': True, 'flag_seen': True, 'keyboard_interrupt_caught': 0, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': True, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
+{'handler': 'default', 'timed': False, 'flag_seen': False, 'keyboard_interrupt_caught': 1, 'escaped_the_loop': False}
