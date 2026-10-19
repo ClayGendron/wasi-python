@@ -4,11 +4,15 @@
   `a6dfc17` (`d203d78`); **revised 2026-10-19 against its pre-build review** (written in the
   lane's scratchpad, `084-review/084-a-private-root-never-outlives-its-call-spec-2026-10-19.md`,
   with its probes and logs, to be copied to `../reviews/` by the lane; verdict: "ready once F1
-  to F3 are written in"; every finding answered in "Disposition of the pre-build review"). It
+  to F3 are written in"; every finding answered in "Disposition of the pre-build review");
+  **confirmed for build once C1 is written in** (the confirmation, appended to the same review,
+  on `eaf584d`), and C1, C2 and N1 are written in (the same section). It builds after spec 083
+  lands, since both touch the runner (the lane). It
   changes neither the guest's imports nor its exports, the artifact set nor the build recipe,
   so §5.6 asks no review before build; the lane asked for one. The review says none of its
   findings needs another pre-build review if written in as it asks. A different agent reviews
-  the build, and re-runs the review's F1 and F2 probes against the built code. Due before
+  the build, and re-runs the review's `r1_escalation.py` and `r2_walk_attacks.py` against the
+  built `_remove_tree`. Due before
   0.1.0 final (the 0.1.0a7 security review, F1).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
@@ -137,7 +141,8 @@ next process's sweep with 5.
    folder, the zip folder), in `_sweep_entry`, and in the fresh `HOME`'s two removals
    (`_call_deferred` and `_remove_home`). It returns True when nothing is left at the name, and
    never raises `OSError`.
-   - Its form: `_remove_tree(path, *, dir_fd=None) -> bool`. With `dir_fd`, `path` is a name in
+   - Its form: `_remove_tree(path, *, dir_fd=None, budget=None) -> bool` (`budget`: Decision
+     12, the `HOME` removals only). With `dir_fd`, `path` is a name in
      that folder, as `shutil.rmtree` takes it. The checks patch it by this name.
    - **Not changed:** the zip folder's own helpers (`_copy_zip`, `_extract_data`, `_real_folder`)
      keep `shutil.rmtree` for what they replace inside the zip folder. Only the runner writes
@@ -161,13 +166,17 @@ next process's sweep with 5.
      until it meets the first folder, and descends into it. The folder is listed again after a
      descent returns, and after a listing that removed something. A listing that removes nothing
      and finds no folder to enter ends that folder. Without a writer, every entry is read about
-     once; with one, Decision 12's budget ends the walk.
+     once; with one (only a `HOME` can have one), Decision 12's budget ends the walk.
    - **Links are never followed.** An entry is a folder only if `DirEntry.is_dir(follow_symlinks=
      False)` says so. A link, to anything, is unlinked like a file. A folder swapped for a link
      between the listing and the open fails the `O_NOFOLLOW` open; the name is then recorded as
      failed and left, and the removal returns False (the review's attack B, EXECUTED: the link
      and the moved folder are left, the canary kept). Only a concurrent writer can make that
      swap; a private root is then retried by the sweep, which sees a plain link and unlinks it.
+   - **A folder it cannot open** (`EACCES` or `EPERM` on the open: a folder of mode `0000`, say)
+     is tried once with `rmdir` by name before it is recorded as failed (the confirmation's N1).
+     Removing an empty folder needs only the parent's write permission, which the guest has as
+     well, so this oversteps nothing; a folder that is not empty refuses, and is left.
    - **Another device.** A folder whose `st_dev` differs from the top's is never entered; it is
      left and the removal fails. A guest cannot mount anything; only the host could put one
      there. `st_dev` does not tell a bind mount of the same filesystem from a plain folder, so
@@ -378,7 +387,8 @@ next process's sweep with 5.
       descriptors are there unless other calls hold the whole table. Then the removal fails, the
       folder keeps its lock file, and the next sweep retries it.
 
-12. **A budget bounds each removal against a concurrent writer (the review's F3).**
+12. **A budget bounds the removals that can have a concurrent writer: the `HOME`'s (the review's
+    F3; its confirmation, C1).**
     - **The case.** A `HOME` in a caller's root, or in a writable grant at `/tmp`, can be written
       while it is removed, by another call on the same root (a session, or a call with
       `deadline_s=None`). Decision 2 lists a folder again after a listing that removed something,
@@ -387,23 +397,43 @@ next process's sweep with 5.
       files added (EXECUTED by the review, `r2.log`, `E_writer_*`; `r2_walk2.out` the same for
       the revised walk under the default budget, since 20,000 is below it). Today's `rmtree`
       lists each folder once and gives up.
-    - **The bound.** Each `_remove_tree` call may make at most `_REMOVE_BUDGET = 2**20`
-      (1,048,576) counted calls: each `os.open`, listing, `os.unlink` and `os.rmdir`. Past it,
-      the walk closes what it holds and returns False: the folder is left, warned about and,
-      if it is a private folder, retried by the sweep with a fresh budget. A writer can hold one
-      removal for at most that many calls. With a budget of 10,000 and a writer adding a file
-      after each unlink, the revised walk returned False after 4,998 unlinks and 5,000 listings;
-      with the default budget and the writer stopped at 50,000 files, it removed everything
-      (EXECUTED, `t_writer.out`).
+    - **The bound.** `_remove_tree` takes `budget=None`. The two `HOME` removals
+      (`_call_deferred`, `_remove_home`) pass `budget=_REMOVE_BUDGET`, `2**20` (1,048,576)
+      counted calls: each `os.open`, listing, `os.unlink` and `os.rmdir`. Past it, the walk
+      closes what it holds and returns False: the `HOME` is left in the caller's folder and
+      named in a warning. A writer can hold one `HOME` removal for at most that many calls:
+      about 50 s on an arm64 Mac (the review's benchmark, `r7_entry_rate.log`: 83,103 counted
+      calls in 4.3 s of host time on a flat tree; a benchmark fact, never a check). With a
+      budget of 10,000 and a writer adding a file after each unlink, the revised walk returned
+      False after 4,998 unlinks and 5,000 listings; with the default budget and the writer
+      stopped at 50,000 files, it removed everything (EXECUTED, `t_writer.out`).
+    - **No budget for private folders.** `_Private.remove` and `_sweep_entry` pass none: the
+      private root, the stdin and scratch folders and the zip folder. None has a writer when it
+      is removed:
+      - the call's guest has ended: its store is closed first (`_run_checked`'s and
+        `_instance`'s `finally`; a session's release; under 078, the guest's thread after its
+        store);
+      - the folder is `0700`, under a name drawn at random and never handed to the embedder or
+        the guest (no field of `Completed` carries it), and only the runner writes the stdin,
+        scratch and zip folders; no grant may reach the temporary folder (spec 032), so no
+        other call's guest can either; a mount's placeholder in the scratch folder is served by the
+        embedder's provider, never written on disk by the guest;
+      - a sweep removes a dead process's folder only under its lock, so no live call of any
+        process writes it;
+      - a host process of the same user could still write it, but such a process can do anything
+        to the user's files, and the identity check keeps the walk inside the tree regardless.
+      I found no case where a private folder has a writer. A budget there would buy nothing, and
+      would cost F1's harm again by size: a guest made 83,000 files in 10 s (the review,
+      `r7_entry_rate.log`), so a session or a call with `deadline_s=None` can pass the four
+      million entries that four budgets remove, and such a root would outlive its call.
     - **Why a budget of calls, not a cap on listings per visit.** A cap on listings still lets
       one listing grow with a writer on some filesystems (a directory stream may return entries
       made after it opened), and needs a second rule for very wide folders; a count of calls
       bounds every case with one number, counts operations, and times nothing.
-    - **What it costs a legitimate tree.** None for the trees a call makes in practice: the
-      prototype spent about 3.5 counted calls per entry (`t_walk.out`), so one budget removes
-      about 300,000 entries. A private root larger than that is removed over several attempts:
-      its own removal and up to three sweeps in this process, each with a fresh budget, then
-      the next process's. A `HOME` larger than that is left in the caller's folder and named.
+    - **What it costs a legitimate `HOME`.** One budget removes about 300,000 entries (the
+      prototype spent about 3.5 counted calls per entry, `t_walk.out`). A `HOME` larger than that
+      is left in the caller's folder and named; a guest that needs such a cache in its `HOME`
+      can be given `HOME` in `env=`.
     - **The value.** 2**20 is large enough that no check or common call meets it, and small
       enough that a writer cannot hold a `run` for more than about a million system calls. The
       checks patch `runner._REMOVE_BUDGET` to test the bound.
@@ -414,19 +444,23 @@ A folder the runner makes for a call is gone when the call returns, whatever the
 it: deep, wide, full of links. The removal never deletes what the host forbids: it changes no
 mode and no attribute, so content the host made read-only is left, even when the guest moved it
 in. If anything stops the removal (such content, a file another program holds open, a full
-descriptor table, a writer past the budget), the folder keeps its lock file, the embedder gets
-one warning, and the next call retries it. The removal holds two descriptors whatever the depth,
-and creates nothing.
+descriptor table), a private folder keeps its lock file, the embedder gets one warning, and
+the next call retries it. A `HOME` in the caller's folder, which another call on that root may
+be writing, has a budget of calls; past it, it is left and named. The removal holds two
+descriptors whatever the depth, and creates nothing.
 
 ## Design
 
-- **`_remove_tree(path, *, dir_fd=None) -> bool`** (`runner.py`, beside `_Private`). POSIX
+- **`_remove_tree(path, *, dir_fd=None, budget=None) -> bool`** (`runner.py`, beside
+  `_Private`). POSIX
   (`_dir_fd_ok()` true): Decision 2's walk, through descriptors. Elsewhere: Decision 3's walk,
   through extended-length paths (the `\\?\` prefix only on Windows; the same code with plain
   absolute paths when a test forces this branch on POSIX). Both: no permission repair
-  (Decision 4), the identity check at the top, Decision 12's budget, `False` on any failure,
+  (Decision 4), the identity check at the top, Decision 12's budget when one is passed (the
+  `HOME` removals only), `False` on any failure,
   `True` when the name is gone. It keeps the first error it met, for the warning.
-- **`_REMOVE_BUDGET = 2**20`**, a module constant (Decision 12).
+- **`_REMOVE_BUDGET = 2**20`**, a module constant (Decision 12), passed as `budget=` by the two
+  `HOME` removals only; `_remove_tree(path, *, dir_fd=None, budget=None)`.
 - **`_Private.remove`**: `gone = _remove_tree(self.path)` guarded (Decision 6); unlock and close;
   the lock file unlinked only if the folder is gone (as today); `_drop(self.name)`; then, if the
   folder is left, `_left(self.path, error)`: queue the warning once (Decision 7) and re-arm the
@@ -519,6 +553,13 @@ expects a warning calls `runner._flush_warnings()` before it looks.
      child's temporary folder), and exactly one `RuntimeWarning` names the folder. The case
      restores the modes and deletes what is left, by name.
    - On POSIX the check skips as root (modes refuse nothing to root), saying so.
+   - **Windows (the confirmation's C2, for the builder).** wasmtime 49 deletes a guest's file
+     through Rust's `std::fs` (READ by the review, `filesystem/windows.rs`), which may delete a
+     read-only file on Windows. The rows assert the guest's own unlink result first. If the
+     guest's unlink succeeds on the Windows shard, the Windows rows skip with that reason ("a
+     Windows guest deletes a read-only file itself"), the landing notes record it, and the README
+     says nothing that suggests the read-only attribute protects a file from a guest. Criterion
+     8's Windows row still guards the walk itself.
    - Main keeps the file (EXECUTED by the review, `r1-*-main.log`), so this guards the design,
      not a defect of main. Stand-in: Decision 4's repair as first drafted (`fchmod` to `0700`
      on `PermissionError`; on Windows `os.chmod(p, stat.S_IWRITE)`): `secret` is deleted
@@ -568,21 +609,30 @@ expects a warning calls `runner._flush_warnings()` before it looks.
    the canary is emptied in all three (EXECUTED against the revised prototype, `r2_walk2.out`).
 8. **`test_read_only_content_is_left_and_named`** (unit; criterion 6 of the first draft,
    inverted by the review's F1).
-   - **POSIX:** a top holding a folder at `0500` with a file in it, and an empty folder at
-     `0000` holding nothing. `_remove_tree` returns False; the `0500` folder and its file are
-     there; no mode changed (each `stat` as before). Through a `_Private` with the same content:
+   - **POSIX:** a top holding a folder at `0500` with a file in it, a folder at `0000` holding
+     a file, and an empty folder at `0000`. `_remove_tree` returns False; the `0500` folder and
+     its file, and the non-empty `0000` folder, are there with their modes unchanged (each
+     `stat` as before); the empty `0000` folder is gone (N1: `rmdir` by name). Through a `_Private` with the same content:
      `remove()` keeps the folder and its lock file and queues one `RuntimeWarning` naming it.
      Skipped as root, saying so.
    - **Windows:** a file with the read-only attribute in a folder: the same, and the attribute
      still set.
    - Seen failing on main in kind: `rmtree` leaves the content too, but no warning is given (the
-     warning assertion fails). Stand-in: a permission repair: the content is deleted.
-9. **`test_a_writer_cannot_keep_the_removal_going`** (unit; the review's F3). `runner.
-   _REMOVE_BUDGET` patched to 10,000; a hook on `os.unlink` adds a new file to the same folder
-   after each unlink, up to 50,000 files. `_remove_tree` returns False, and the counted calls
-   (opens, listings, unlinks, `rmdir`s) number at most 10,000. With the budget at its default
-   and the writer stopped at 2,000 files, it returns True and the folder is gone. Stand-in: no
-   budget: the 50,000 files are all unlinked (the writer, not the walk, decides when it ends).
+     warning assertion fails). Stand-ins: a permission repair: the content is deleted; no
+     `rmdir` before recording a folder that cannot be opened: the empty `0000` folder is left.
+9. **`test_a_writer_cannot_keep_a_home_removal_going`** (unit; the review's F3 and C1).
+   `runner._REMOVE_BUDGET` patched to 10,000; a hook on `os.unlink` adds a new file to the same
+   folder after each unlink, up to 50,000 files.
+   - **A `HOME`'s removal** (`_remove_home` on a `.home-…` folder in a caller-style folder, with
+     its handle): it returns with the folder left, the counted calls (opens, listings, unlinks,
+     `rmdir`s) number at most 10,000, and one warning names the folder. With the budget at its
+     default and the writer stopped at 2,000 files, the folder is gone.
+   - **A private folder has no budget** (C1): a `_Private` holding 12,000 files (more than the
+     patched budget), no writer: `remove()` removes it whole, with more than 10,000 counted
+     calls, and no warning.
+   - Stand-ins: no budget on the `HOME`: the 50,000 files are all unlinked (the writer, not the
+     walk, decides when it ends); the budget passed by `_Private.remove` too: the private folder
+     is left.
 10. **`test_what_a_removal_leaves_is_retried_by_the_next_calls_sweep`** (unit).
     - A `_Private("wasi-python-root-")` with a file in it; `runner._remove_tree` patched to fail
       once, then the real one. `remove()` returns; both the folder and its lock file are kept;
@@ -650,7 +700,9 @@ expects a warning calls `runner._flush_warnings()` before it looks.
       past the budget) keeps its lock file, is named in a `RuntimeWarning` and is retried by the
       next call's sweep, up to three times per process, then by the next process; a `HOME` left
       in the caller's own folder is warned about and not retried; a concurrent call on the same
-      root can hold another call's `HOME` removal for up to about a million system calls; and
+      root can hold another call's `HOME` removal for up to about a million system calls (about
+      50 s on an arm64 Mac, given as a benchmark fact), and a `HOME` past that is left and
+      named, while a private folder has no such limit; and
       Windows guests can make links where the user holds the symbolic-link privilege (no
       sentence says they cannot).
     - The CHANGELOG's 0.1.0a8 section has two **Fixed** entries: the private root and `HOME`
@@ -692,7 +744,7 @@ finding:
   as its stand-in (EXECUTED against the revised prototype: the canary is emptied in all three
   without the check, kept with it, `r2_walk2.out`).
 - **F3 (medium).** Taken as a bound, not a named hang: Decision 12, a budget of 2**20 counted
-  calls per removal, and criterion 9 (EXECUTED, `t_writer.out`). Decision 12 says why a budget
+  calls per removal (the `HOME` removals only, after the confirmation's C1), and criterion 9 (EXECUTED, `t_writer.out`). Decision 12 says why a budget
   rather than a cap on listings per visit. The README names the residual (a concurrent call can
   hold another call's `HOME` removal for up to that many calls).
 - **F4 (low).** Gone with F1: no chmod remains, by name or by descriptor.
@@ -719,6 +771,23 @@ finding:
   `unlink` on an empty top (Decision 2).
 - **The owner's points stand:** a warning, not a `stats()` key (Decision 7); a retry bound of
   three (Decision 5). The review agrees with both.
+
+**The confirmation (2026-10-19, "confirmed once C1 is written in"):**
+
+- **C1.** Taken, the first of the review's two fixes: the budget applies to the two `HOME`
+  removals only (Decision 12, the Design, Decision 1's form); `_Private.remove` and
+  `_sweep_entry` pass none, so the Intent's promise holds for a private folder of any size.
+  Decision 12 says why no private folder has a writer (the guest ended, the store closed, a
+  random `0700` name no field carries, no grant reaching the temporary folder, the lock for a
+  dead root) and that I found no case where one does. Criterion 9 adds a private-folder row
+  with no budget, and a stand-in that passes the budget there. The README gives "about a million
+  calls is roughly 50 s on an arm64 Mac" as a benchmark fact (criterion 19), from the review's
+  `r7_entry_rate.log`.
+- **C2.** Written in for the builder (criterion 3's Windows bullet): the rows check the guest's
+  own unlink first, and skip with the reason if a Windows guest deletes a read-only file itself.
+- **N1.** Taken: a folder the walk cannot open is tried once with `rmdir` by name before it is
+  recorded as failed (Decision 2); criterion 8's empty `0000` folder is now removed, with a
+  stand-in.
 
 The criteria are renumbered: the draft's 1 and 2 keep their numbers; 3 is new (F1); the draft's
 3, 4 and 5 are 4, 5 and 6; 7 is new (F2); the draft's 6, inverted, is 8; 9 is new (F3); the
