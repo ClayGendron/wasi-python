@@ -990,6 +990,22 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    PyPI's limit is 100 MiB (question 64: the owner waits until a landing would cross it).
 6. **The release. NOT EXECUTED** (criterion 3's dry run is the lane's).
 
+**Rebased 2026-10-19 onto main `a6dfc17`** (081, the a7 security review's README corrections,
+questions 100 to 104, the 0.1.0a7 release and the bump to 0.1.0a8). `git diff e49e515 a6dfc17
+--name-only` names no file under `scripts/`, `recipes/` or `downloads/`, so the artifact set
+(`SHA256SUMS` `ada941bc…`) stands unrebuilt. One conflict, the README's stdlib-zip size (main
+22 MB, this 38.7 MB); the CHANGELOG entries move under "0.1.0a8 — unreleased". The fast tier on
+the rebased tree with this set (`uv run pytest -m "not slow" -n 3`, `build/fast-rebase.txt`):
+509/574 pass, 3 gap, 2 blocked, 0 fail, 60 deselected; ratchet vs `dfbf8e044f`: lost 0, gained
+10, grew 131. Grew is the earlier fast tier's 128 plus the three checks that were lost before the
+judge changes (the two GB18030 cases and check 6's snapshot case). Of the fast tier's metrics,
+128 equal the pre-rebase full record and 10 moved: the lxml check
+`test_stylesheets_and_entities_reach_only_grants` by −1,039,633 (plain) and −927,266
+(snapshot), which is 081's lxml-check change, and eight checks by ±17 or ±34 fuel, the size of
+081's driver change to what the guest sees of the checkout (`build/evidence/latest-fast-rebase.json`
+against `latest-full.json`). The fewer row (`pandas-frame`) is an upstream group, which the
+fast tier does not run; nothing in the product changed.
+
 **The artifact set** (`build/artifacts/`): `SHA256SUMS` `ada941bc6ad751b2983b8f14cfbd57776dfd96f0ede3223b3b56fff53b5c901e`.
 
 | file | bytes | SHA-256 |

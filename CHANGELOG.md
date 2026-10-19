@@ -82,8 +82,6 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   bytes they checked, and raise `ArtifactsMissing` on a difference; a set passed as `artifacts=` is the caller's own, as before. No public name,
   signature or default changes.
 
-## 0.1.0a7 — 2026-10-19
-
 - **Added: tier A of the default profile, thirty pure-Python packages** (spec 039; the owner's
   decisions 43 to 47). By family: Excel (openpyxl 3.1.5, et-xmlfile 2.0.0, xlsxwriter 3.2.9,
   xlrd 2.0.2); PDF (pypdf 6.21.1); HTML and XML (beautifulsoup4 4.15.0, soupsieve 3.0.3,
@@ -119,6 +117,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   pickle run code from their input inside the guest, as natively; the safe forms refuse. `pd.read_html` of a GB18030
   page whose tables lxml cannot read now falls back to bs4 and raises `UnicodeDecodeError`
   (`ImportError` before).
+
+## 0.1.0a7 — 2026-10-19
+
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the
