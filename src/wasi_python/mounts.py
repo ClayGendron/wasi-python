@@ -327,8 +327,9 @@ def _raised(e: BaseException) -> Errno | None:
 
 # The 29 preview1 calls that act on a descriptor and are not forward-safe, with their raw
 # parameters (the result is one i32): every call the guest's file traffic can name a provider
-# number in. fd_renumber, fd_allocate and fd_fdstat_set_rights are not imported by today's
-# binaries; they are shadowed so a later binary cannot reach a provider number unseen.
+# number in. fd_allocate and fd_fdstat_set_rights are not imported by today's binaries (fd_renumber
+# is since spec 043, through qhull's freopen); they are shadowed so a later binary cannot reach a
+# provider number unseen.
 SIGNATURES: dict[str, tuple[str, ...]] = {
     "fd_advise": ("i32", "i64", "i64", "i32"),
     "fd_allocate": ("i32", "i64", "i64"),

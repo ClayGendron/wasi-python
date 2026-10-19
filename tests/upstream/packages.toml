@@ -98,6 +98,12 @@ kind = "later"
 reason = "its own suite is not run yet (its sdist is pinned)"
 closes_with = "spec 066"
 
+[package.contourpy]
+# spec 043: matplotlib's contours; its sdist carries its tests/ folder.
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"
+
 [package.fonttools]
 kind = "later"
 reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"

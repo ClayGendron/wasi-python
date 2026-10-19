@@ -1,0 +1,10 @@
+versions python=3.15 matplotlib=3.11.2 contourpy=1.4.0 numpy=2.5.2
+delaunay 48x3 triangles 89432076058c35fd067d617503555fac4f69bf51e3b7f26951f0203051d6d369 neighbors 9339a93a6b6b6bffc38b67e9800e8b3531d87a68435f051f15be29b0a0438709
+collinear RuntimeError Error in qhull Delaunay triangulation calculation: singular input data (exitcode=2); use python verbose option (-v) to see original qhull error.
+contourpy serial 1 57 -6.51274838 -7.0351887
+contourpy mpl2014 1 57 -6.4351887 -7.07452843
+contourpy mpl2005 1 57 -6.4351887 -7.07452843
+levels -0.6 -0.4 -0.2 0 0.2 0.4 0.6 0.8 1
+svg 49665 8d9f6bfe7c5174c6c5de73ba9cd1135e697c521abb23d3ef8302b908243c1142
+pdf 13195 tags 6 b9f76bce534ff537cf7ab94e7541d3f4a3a2e4242fec43a7181062f424565c22
+rgba 300x600x4 3d0651da2d6a34870b05175f9891fe993eb24aceab66623f5a6ba45313b31e36

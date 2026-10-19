@@ -1,6 +1,7 @@
 """v1.3: matplotlib, the first milestone (spec 023): a line plot saved as a PNG in a granted folder
-is native matplotlib's image, pixel for pixel; its errors reach Python as native's do; and what M1
-leaves out fails in the named way until M2."""
+is native matplotlib's image, pixel for pixel; its errors reach Python as native's do. The second
+milestone (spec 043): Delaunay triangulations through `_qhull`, contours through contourpy, and
+SVG and PDF saves whose bytes are native matplotlib's (the PDF up to its font subset tags)."""
 
 from __future__ import annotations
 
@@ -17,6 +18,13 @@ BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
 # The guest's PNG file, pinned (spec 023, Decision 8): the same bytes on both binaries and every
 # host. Native's differ (its Pillow deflates with zlib-ng), so only the guest's are pinned.
 PNG_SHA256 = "b8759b7ba05818b6bc3eb95b85387cc592691571ed92e6bf5d9c0e596b68d9a3"
+# The guest's PDF file from the plot_contour job, pinned (spec 043, Decision 9): the same bytes on
+# both binaries and every host. Native's differ in their font subset tags (matplotlib derives each
+# from hash(), 32 bits wide in the guest), so the golden holds the PDF with its tags normalized.
+# The pin moves with the guest's zlib (step 30): the PDF's streams are deflated at level 6, so a
+# zlib release needs a judge change, with its reason, and the normalized golden must still hold.
+PDF_SHA256 = "9f21cc48b8e37f0052745d7c66c3de245ac36db91f42c93f1e219c554f32b990"
+PDF_TAG = re.compile(rb"/[A-Z]{1,6}\+")
 MPL_ENV = {"MPLCONFIGDIR": "/mplconfig"}  # a writable cache folder in the judge's root
 
 
@@ -96,6 +104,75 @@ def test_kiwisolver_raises_unsatisfiable_constraint(guest, which) -> None:
     assert r.text == "UnsatisfiableConstraint kiwisolver.exceptions\n1.5.1 0.0\n", r.text
 
 
+@pytest.mark.slow
+@BINARY
+def test_plot_contour_job_matches_native(guest, which) -> None:
+    """The second milestone: a Delaunay triangulation, qhull's error, contourpy's three algorithms,
+    `contourf`, `contour`, `clabel`, `tricontourf` and `triplot`, and the figure saved to SVG and
+    PDF, each printed line equal to the oracle's (recorded on the platform
+    tests/jobs/plot_contour.platform names). The SVG and PDF files `savefig` wrote in a granted
+    folder are the files the golden describes, the PDF with its subset tags normalized; and the
+    PDF's own bytes are the pinned ones (spec 043, Decisions 8 and 9)."""
+    job = "plot_contour"
+    files = {
+        f"/jobs/{job}.py": jobs.script(job).read_bytes(),
+        "/out/.keep": b"",
+        "/saves/.keep": b"",
+    }
+    files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
+    argv = [f"/jobs/{job}.py", "/data", "/out", "/saves"]
+    r = guest(which, argv, files=files, env=MPL_ENV, mpl_data=True)
+    assert r.exit_code == 0, f"{job}: {r.describe()}"
+    (r.root / "out" / ".keep").unlink()
+    expected = jobs.expected_path(job).read_bytes()
+    why = jobs.compare(expected, jobs.render(r.stdout, r.root / "out"))
+    assert why is None, why
+    svg_line = re.search(rb"^svg (\d+) ([0-9a-f]{64})$", expected, re.M)
+    pdf_line = re.search(rb"^pdf (\d+) tags (\d+) ([0-9a-f]{64})$", expected, re.M)
+    assert svg_line and pdf_line, "plot_contour.expected has no svg or pdf line"
+    svg = (r.root / "saves" / "contour.svg").read_bytes()
+    assert (len(svg), hashlib.sha256(svg).hexdigest()) == (
+        int(svg_line[1]),
+        svg_line[2].decode(),
+    ), "the SVG file differs from the golden's"
+    pdf = (r.root / "saves" / "contour.pdf").read_bytes()
+    normalized, tags = PDF_TAG.subn(b"/XXXXXX+", pdf)
+    assert (len(normalized), tags, hashlib.sha256(normalized).hexdigest()) == (
+        int(pdf_line[1]),
+        int(pdf_line[2]),
+        pdf_line[3].decode(),
+    ), "the PDF file, its tags normalized, differs from the golden's"
+    assert hashlib.sha256(pdf).hexdigest() == PDF_SHA256, hashlib.sha256(pdf).hexdigest()
+
+
+THREADS = """
+import numpy as np, contourpy
+x = np.linspace(-2.0, 2.0, 201)
+X, Y = np.meshgrid(x, x)
+Z = np.sin(3.0 * X) * np.cos(2.0 * Y) + 0.1 * X
+serial = contourpy.contour_generator(X, Y, Z, name="serial", line_type="Separate", chunk_count=16)
+threaded = contourpy.contour_generator(
+    X, Y, Z, name="threaded", line_type="Separate", chunk_count=16, thread_count=4
+)
+a, b = serial.lines(0.3), threaded.lines(0.3)
+same = len(a) == len(b) and all(np.array_equal(p, q) for p, q in zip(a, b))
+print(contourpy.max_threads(), threaded.thread_count, len(a), sum(map(len, a)), same)
+"""
+
+
+@pytest.mark.slow
+def test_contourpy_runs_one_thread(guest) -> None:
+    """The guest has no threads: `contourpy.max_threads()` is 1, and the `threaded` algorithm asked
+    for four threads runs one, with lines whose points equal `serial`'s at the same chunk count
+    (the points depend on the chunk count, so both use 16; spec 043, Decisions 7 and 9)."""
+    r = guest("snapshot", ["-c", THREADS])
+    assert r.exit_code == 0, r.describe()
+    fields = r.text.split()
+    assert len(fields) == 5, r.text
+    max_threads, used, _lines, _points, same = fields
+    assert (max_threads, used, same) == ("1", "1", "True"), r.text
+
+
 TRIANGULATION = """
 import matplotlib.tri as mtri
 try:
@@ -108,9 +185,9 @@ except Exception as e:
 
 @pytest.mark.slow
 def test_delaunay_triangulation_runs(guest) -> None:
-    """A Delaunay triangulation of four points gives two triangles. M1 leaves matplotlib's
-    `_qhull` out of the link (it needs a writable /dev/null, a second carried patch), so this is a
-    known gap that M2 closes; triangles given explicitly work through `_tri`."""
+    """A Delaunay triangulation of four points gives two triangles, through matplotlib's `_qhull`
+    with carried patch 0002, which opens no /dev/null on WASI (spec 043; a known gap of M1's,
+    closed by M2)."""
     r = _plot(guest, "snapshot", TRIANGULATION)
     assert r.exit_code == 0, r.describe()
     found = [] if r.text == "(2, 3)\n" else [r.text.strip()]
@@ -132,8 +209,8 @@ except Exception as e:
 
 @pytest.mark.slow
 def test_contour_runs(guest) -> None:
-    """`contour` draws a QuadContourSet. contourpy is M2's (its own build), so this is a known gap
-    that M2 closes."""
+    """`contour` draws a QuadContourSet, through contourpy, built in by M2 (spec 043; a known gap of
+    M1's, closed by M2)."""
     r = _plot(guest, "snapshot", CONTOUR)
     assert r.exit_code == 0, r.describe()
     found = [] if r.text == "QuadContourSet\n" else [r.text.strip()]

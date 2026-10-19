@@ -44,6 +44,8 @@ PIN_FILES = {
     "pyparsing-3.3.3-py3-none-any.whl": b"pyparsing pin",
     "packaging-26.3-py3-none-any.whl": b"packaging pin",
     "fonttools-4.67.0-py3-none-any.whl": b"fonttools pin",
+    "contourpy-1.4.0.tar.gz": b"contourpy pin",
+    "qhull-8.0.2.tar.gz": b"qhull pin",
     "libxml2-2.15.4.tar.xz": b"libxml2 pin",
     "libxslt-1.1.45.tar.xz": b"libxslt pin",
     "lxml-6.1.3.tar.gz": b"lxml pin",
@@ -105,6 +107,8 @@ PACKAGES = {
     "pyparsing": "3.3.3",
     "packaging": "26.3",
     "fonttools": "4.67.0",
+    "contourpy": "1.4.0",
+    "qhull": "8.0.2",
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
     "lxml": "6.1.3",
@@ -524,16 +528,18 @@ def _zip_of(path: Path, members: dict[str, bytes]) -> Path:
     return path
 
 
-def test_host_facts_in_the_two_members_are_named(work) -> None:
-    sysconfig, config = rules.HOST_FACT_MEMBERS
+def test_host_facts_in_the_three_members_are_named(work) -> None:
+    sysconfig, config, contourpy = rules.HOST_FACT_MEMBERS
     neutral = {
         sysconfig: b"BUILD_GNU_TYPE build HAVE_LINUX_CAN_H /wasi-python-build/x",
         config: b"cpu build family build endian little system build",
+        contourpy: b"build_cpu build build_cpu_system build /wasi-python-build",
     }
     assert rules.host_fact_errors(_zip_of(work / "a.zip", neutral), "/home/me/repo") == []
     leaky = {
         sysconfig: b"aarch64-apple-darwin /usr/bin/install -c /home/me/repo/build",
         config: b"system linux",
+        contourpy: b"build_cpu_system linux build_cpu aarch64 /home/me/repo/build",
     }
     assert rules.host_fact_errors(_zip_of(work / "b.zip", leaky), "/home/me/repo") == [
         f"{sysconfig}: holds 'darwin'",
@@ -542,9 +548,13 @@ def test_host_facts_in_the_two_members_are_named(work) -> None:
         f"{sysconfig}: holds '/usr/bin'",
         f"{sysconfig}: holds '/home/me/repo'",
         f"{config}: holds 'linux'",
+        f"{contourpy}: holds 'aarch64'",
+        f"{contourpy}: holds 'linux'",
+        f"{contourpy}: holds '/home/me/repo'",
     ]
     assert rules.host_fact_errors(_zip_of(work / "c.zip", {config: b""}), "/r") == [
-        f"{sysconfig}: not in the zip"
+        f"{sysconfig}: not in the zip",
+        f"{contourpy}: not in the zip",
     ]
 
 

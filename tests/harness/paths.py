@@ -70,6 +70,10 @@ LICENCE_COMPONENTS = (
     "pyparsing",
     "packaging",
     "fonttools",
+    # matplotlib's second milestone (spec 043, Decision 11): contourpy, whose notice carries
+    # LICENSE_YORICK for its GIST-derived code, and qhull, now linked
+    "contourpy",
+    "qhull",
     # lxml (spec 046, Decision 15)
     "libxml2",
     "libxslt",
@@ -131,6 +135,8 @@ PACKAGES = (
     "pyparsing",
     "packaging",
     "fonttools",
+    "contourpy",
+    "qhull",
     "libxml2",
     "libxslt",
     "lxml",
@@ -559,14 +565,21 @@ def _top_level_licence(archive: Path) -> bytes | None:
 # Licence text a notice must hold besides the top-level file, read from the same pinned archive
 # (spec 007's build review, finding 7): xz's library is under 0BSD, and SQLite's notice is the
 # blessing at the head of sqlite3.h. libxml2's and libxslt's terms are in a top-level file named
-# `Copyright`, which the top-level search does not match (spec 046, Decision 15).
+# `Copyright`, which the top-level search does not match (spec 046, Decision 15); qhull's in
+# `COPYING.txt` (spec 043, Decision 11).
 BLESSING = b"The author disclaims copyright to this source code."
 MORE_LICENCE = {
     "xz": "COPYING.0BSD",
     "sqlite": "sqlite3.h",
     "libxml2": "Copyright",
     "libxslt": "Copyright",
+    "qhull": "COPYING.txt",
 }
+# A notice a component's file must hold that ships in another component's pinned archive, named
+# here so it stays if that component's own list changes (spec 043, Decision 11): contourpy's
+# mpl2005 code came from GIST's gcntr.c, whose notice, the Regents of the University of
+# California's, matplotlib ships as LICENSE/LICENSE_YORICK.
+BORROWED_LICENCE = {"contourpy": ("matplotlib", "LICENSE/LICENSE_YORICK")}
 
 
 def _more_licence(component: str, archive: Path) -> list[bytes]:
@@ -583,6 +596,24 @@ def _more_licence(component: str, archive: Path) -> list[bytes]:
                     return [data]
                 return [BLESSING] if BLESSING in data else []
     return []
+
+
+def _borrowed_licence(component: str, m: Manifest | None) -> list[bytes]:
+    """The notice BORROWED_LICENCE names for a component, read from the other component's pinned
+    archive; nothing when there is none, or when that archive is not here (presence only)."""
+    if component not in BORROWED_LICENCE:
+        return []
+    other, member = BORROWED_LICENCE[component]
+    archive = licence_source(other, m)
+    if archive is None:
+        return []
+    with tarfile.open(archive) as t:
+        for info in t:
+            parts = info.name.split("/", 1)
+            if len(parts) == 2 and parts[1] == member and info.isfile():
+                f = t.extractfile(info)
+                return [f.read() if f else b""]
+    raise ValueError(f"{archive.name} holds no {member}")
 
 
 def licence_source(component: str, m: Manifest | None) -> Path | None:
@@ -624,6 +655,11 @@ def licence_errors(directory: Path, m: Manifest | None) -> tuple[list[str], list
             continue
         text = _top_level_licence(src) if src else None
         wanted = ([text] if text is not None else []) + (_more_licence(c, src) if src else [])
+        try:
+            borrowed = _borrowed_licence(c, m) if src else []
+        except ValueError as e:
+            errors.append(f"LICENSES/{c}.txt: {e}")
+            continue
         if not wanted:
             presence.append(c)
             continue
@@ -631,6 +667,9 @@ def licence_errors(directory: Path, m: Manifest | None) -> tuple[list[str], list
         body = f.read_bytes()
         if not all(w in body for w in wanted):
             errors.append(f"LICENSES/{c}.txt does not contain the licence of {src.name}")
+        if not all(w in body for w in borrowed):
+            other, member = BORROWED_LICENCE[c]
+            errors.append(f"LICENSES/{c}.txt does not contain {other}'s {member}")
     return errors, content, presence
 
 

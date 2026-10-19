@@ -40,6 +40,7 @@ JOBS = (
     "pandas_tz",
     "plot_line",
     "plot_callbacks",
+    "plot_contour",
     "lxml_xml",
     "regex_features",
     # Tier A, one job per family (spec 039, Decision 11)
@@ -56,8 +57,9 @@ JOBS = (
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
 # guest's never do. Each records its platform in tests/jobs/<job>.platform; the oracle reproduces
-# it only there, and the guest must match it everywhere.
-PLATFORM_BOUND = ("plot_line",)
+# it only there, and the guest must match it everywhere. plot_contour (spec 043, Decision 8) prints
+# a figure's RGBA buffer and its SVG and PDF bytes, so it is bound in the same way.
+PLATFORM_BOUND = ("plot_line", "plot_contour")
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
 # guest does (spec 039, Decision 11): nothing is built on the host.

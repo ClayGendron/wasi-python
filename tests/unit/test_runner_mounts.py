@@ -359,8 +359,9 @@ def test_every_descriptor_import_is_shadowed(name) -> None:
     assert takes_a_descriptor - allowed == set()
     assert len(mounts_module.SHADOWED) == 29
     assert set(mounts_module.SHADOWED).isdisjoint(mounts_module.FORWARD_SAFE)
-    # memo finding 1: 26 file calls and the preopen pair, beside the four sock_* and poll_oneoff
-    assert len({n for n in takes_a_descriptor if n.startswith(("fd_", "path_"))}) == 28
+    # memo finding 1: 26 file calls and the preopen pair, beside the four sock_* and poll_oneoff;
+    # and fd_renumber since spec 043 (qhull's freopen, linked with matplotlib's _qhull)
+    assert len({n for n in takes_a_descriptor if n.startswith(("fd_", "path_"))}) == 29
 
 
 def test_the_mount_linker_shadows_every_call(placeholder) -> None:

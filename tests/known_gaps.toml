@@ -82,22 +82,6 @@ match = "1 finding(s), digest 9d47cafba98d"
 reason = "no processes: subprocess is unavailable on WASI"
 closes_with = "README.md"
 
-# matplotlib's first milestone (spec 023) leaves two things to M2, each named with its fix in the
-# research memo: _qhull needs a second carried patch (a writable /dev/null), and contourpy its own
-# build (a meson-python stand-in and a host-path rewrite).
-
-[[gap]]
-check = "tests/checks/test_v1_3_matplotlib.py::test_delaunay_triangulation_runs"
-match = "1 finding(s), digest cf1e0f679633"
-reason = "matplotlib._qhull is left out of M1's link: Triangulation(x, y) raises ImportError; triangles given explicitly work through _tri"
-closes_with = "context/research/2026-10-17-matplotlib-on-the-current-line.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_matplotlib.py::test_contour_runs"
-match = "1 finding(s), digest e3bade7e9e73"
-reason = "contourpy is not built in M1: contour raises ModuleNotFoundError for contourpy"
-closes_with = "context/research/2026-10-17-matplotlib-on-the-current-line.md"
-
 # CPython's own tests (spec 065): each class of known failures, listed by test id in
 # tests/upstream/expected/cpython-*/<class>.txt; each open trap entry (one constant finding on
 # every host, Decision 1); the deselection and the environment entries (Decision 21).

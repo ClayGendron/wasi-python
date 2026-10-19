@@ -1372,7 +1372,7 @@ def test_fp_record_scan_requires_every_listed_record_and_lists_every_record(work
     assert len(read) == len(scan.MESON_BUILDS) + len(scan.AUTOCONF_MAKEFILES) + 1 + len(
         scan.LINK_RECORDS
     )
-    assert read[0] == "freetype-build/compile_commands.json: 1 commands"
+    assert read[0] == "contourpy-build/compile_commands.json: 1 commands"  # the first, sorted
     # A listed record missing; an unlisted record present; a banned option on one command.
     (build / "pandas-build" / "compile_commands.json").unlink()
     errors, _ = scan.fp_record_errors(work)

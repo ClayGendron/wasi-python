@@ -639,3 +639,49 @@ def test_the_pre_import_list_is_read_from_the_recipe() -> None:
     for text in ("#ifndef PREIMPORT\n#endif\n", RECIPE_ONE + RECIPE_ONE.splitlines()[1] + "\n"):
         with pytest.raises(SystemExit, match="recipes/reactor_main.c"):
             assemble_artifacts.preimport_list(text)
+
+
+# contourpy's _build_config.py as meson writes it (spec 043, Decision 4): its host keys are keyword
+# arguments of the dict(...) call build_config() returns, not a dict display.
+CONTOURPY_CONFIG = """
+def build_config() -> dict[str, str]:
+    return dict(
+        python_path=r"/home/me/repo/scripts/python-wasi-cross",
+        build_dir=r"/home/me/repo/build/contourpy-build/lib/contourpy/util",
+        host_cpu="wasm32",
+        host_cpu_endian="little",
+        build_cpu="aarch64",
+        build_cpu_family="aarch64",
+        build_cpu_endian="little",
+        build_cpu_system="darwin",
+    )
+"""
+CONTOURPY_MEMBER = "contourpy/util/_build_config.py"
+
+
+def test_contourpys_build_host_keys_are_set_to_build() -> None:
+    """build_cpu, build_cpu_family and build_cpu_system read back as `build`; the endian and the
+    host machine's keys stay as meson wrote them."""
+    text = make_stdlib_zip.host_neutral(CONTOURPY_CONFIG, CONTOURPY_MEMBER)
+    namespace: dict = {}
+    exec(text, namespace)
+    got = namespace["build_config"]()
+    assert {k: got[k] for k in ("build_cpu", "build_cpu_family", "build_cpu_system")} == {
+        "build_cpu": "build",
+        "build_cpu_family": "build",
+        "build_cpu_system": "build",
+    }
+    assert (got["build_cpu_endian"], got["host_cpu"]) == ("little", "wasm32")
+    assert "aarch64" not in text and "darwin" not in text
+
+
+@pytest.mark.parametrize("key", ["build_cpu", "build_cpu_family", "build_cpu_system"])
+def test_contourpys_config_without_a_build_key_stops(key) -> None:
+    lines = [t for t in CONTOURPY_CONFIG.splitlines() if not t.strip().startswith(key + "=")]
+    with pytest.raises(SystemExit, match=f"no {key} to make host-neutral"):
+        make_stdlib_zip.host_neutral("\n".join(lines) + "\n", CONTOURPY_MEMBER)
+
+
+def test_contourpys_config_without_its_dict_call_stops() -> None:
+    with pytest.raises(SystemExit, match="no dict"):
+        make_stdlib_zip.host_neutral("def build_config():\n    return {}\n", CONTOURPY_MEMBER)

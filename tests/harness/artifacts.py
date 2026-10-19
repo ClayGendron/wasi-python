@@ -209,7 +209,11 @@ def wheel_errors(wheel: Path, d: Path) -> list[str]:
 
 # The two zip members that once recorded the build host (spec 012, Decision 5), and the words that
 # would show a host in them. Case-sensitive: the sysconfig member holds keys such as HAVE_LINUX_*.
-HOST_FACT_MEMBERS = ("_sysconfigdata__wasi_wasm32-wasi.pyc", "numpy/__config__.pyc")
+HOST_FACT_MEMBERS = (
+    "_sysconfigdata__wasi_wasm32-wasi.pyc",
+    "numpy/__config__.pyc",
+    "contourpy/util/_build_config.pyc",  # spec 043, Decision 4
+)
 HOST_WORDS = (
     "darwin",
     "apple",
@@ -222,12 +226,14 @@ HOST_WORDS = (
     "python.exe",
     "/usr/bin",
 )
-NUMPY_HOST_WORDS = ("linux",)  # numpy's member has no HAVE_LINUX_* keys, so bare `linux` is a host
+# numpy's and contourpy's members have no HAVE_LINUX_* keys, so bare `linux` is a host word there.
+NUMPY_HOST_WORDS = ("linux",)
+BARE_LINUX_MEMBERS = ("numpy/", "contourpy/")
 
 
 def host_fact_errors(z: Path, repo: str) -> list[str]:
-    """The two members' bytecode, scanned as ASCII: the judge's Python cannot unmarshal the
-    guest's, and the strings a host leaves are plain text inside it."""
+    """The members' bytecode, scanned as ASCII: the judge's Python cannot unmarshal the guest's,
+    and the strings a host leaves are plain text inside it."""
     errors = []
     with zipfile.ZipFile(z) as archive:
         names = set(archive.namelist())
@@ -236,7 +242,8 @@ def host_fact_errors(z: Path, repo: str) -> list[str]:
                 errors.append(f"{member}: not in the zip")
                 continue
             data = archive.read(member)
-            words = HOST_WORDS + (NUMPY_HOST_WORDS if member.startswith("numpy/") else ()) + (repo,)
+            bare = NUMPY_HOST_WORDS if member.startswith(BARE_LINUX_MEMBERS) else ()
+            words = HOST_WORDS + bare + (repo,)
             errors += [f"{member}: holds {w!r}" for w in words if w.encode() in data]
     return errors
 

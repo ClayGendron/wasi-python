@@ -164,6 +164,7 @@ SOURCE_COMPONENTS = (
     "pillow",
     "kiwisolver",
     "matplotlib",
+    "contourpy",
     "libxml2",
     "libxslt",
     "lxml",

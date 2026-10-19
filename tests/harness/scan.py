@@ -270,13 +270,15 @@ CPP_CROSS_FILES = (
 # kiwisolver's C++ is compiled by step 55 itself: its flags variable, and the compile that uses it.
 CPP_DIRECT = "scripts/steps/55_matplotlib.sh"
 CPP_EH_AGAINST = ("'-fno-exceptions'", "'-wasm-use-legacy-eh=true'", "'-fno-wasm-exceptions'")
+CPP_SETUP_CROSS = '--cross-file "$B/wasi-matplotlib.cross"'
 
 
 def cpp_exception_errors(root: Path) -> list[str]:
     """Every C++ object is compiled, and the binary linked, for standard-form exceptions (spec 005,
     Decision 9): a cross file without the flags compiles C++ whose `throw` is never caught. Every
     C++ build is judged (spec 023): numpy's and pandas' cross files, HarfBuzz's (step 37),
-    matplotlib's, and kiwisolver's compile line in step 55."""
+    matplotlib's, kiwisolver's compile line in step 55, and contourpy's configure there, with
+    matplotlib's cross file (spec 043)."""
     errors = []
     for cross in CPP_CROSS_FILES:
         lines = [t for t in (root / cross).read_text().splitlines() if t.startswith("cpp_args")]
@@ -297,6 +299,13 @@ def cpp_exception_errors(root: Path) -> list[str]:
     compiles = [t for t in direct if t.lstrip().startswith("$CXX ")]
     if not compiles or not all("$CXX_EH" in t for t in compiles):
         errors.append(f"{CPP_DIRECT}: a $CXX compile without $CXX_EH")
+    # contourpy's C++ is configured by step 55 with matplotlib's cross file (spec 043, Decision 4):
+    # every meson setup there names it, and one of them is contourpy's.
+    setups = [t for t in direct if t.lstrip().startswith("meson setup ")]
+    if not all(CPP_SETUP_CROSS in t for t in setups):
+        errors.append(f"{CPP_DIRECT}: a meson setup without {CPP_SETUP_CROSS}")
+    if not any('"$B/contourpy-build"' in t for t in setups):
+        errors.append(f"{CPP_DIRECT}: no meson setup of contourpy-build")
     link = (root / "scripts/steps/60_link.sh").read_text().splitlines()
     if not any("-lunwind" in t and t.lstrip().startswith("echo") for t in link):
         errors.append("scripts/steps/60_link.sh: Setup.local does not link -lunwind")
@@ -767,6 +776,7 @@ MESON_BUILDS = (
     "sheenbidi-build",
     "libraqm-build",
     "matplotlib-build",
+    "contourpy-build",  # spec 043
 )
 # The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's: spec 046), and
 # step 60's two command files.

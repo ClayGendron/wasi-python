@@ -365,6 +365,7 @@ DISTRIBUTIONS = (
     "beautifulsoup4",
     "charset-normalizer",
     "cloudpickle",
+    "contourpy",
     "cycler",
     "defusedxml",
     "et-xmlfile",
@@ -405,7 +406,7 @@ DISTRIBUTIONS = (
     "xlrd",
     "xlsxwriter",
     "xmltodict",
-)  # matplotlib and its distributions: spec 023; lxml: spec 046; tier A: spec 039
+)  # specs: matplotlib and its distributions 023; lxml 046; tier A 039; contourpy 043
 
 METADATA = """
 import json, re

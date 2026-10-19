@@ -3467,3 +3467,69 @@ def test_the_string_hash_is_siphash13(guest, which) -> None:
     r = guest(which, ["-c", HASH_PROBE])
     assert r.exit_code == 0, r.describe()
     assert r.text.splitlines() == ["siphash13 32 64 128"], r.text
+
+
+# Spec 043, Decision 9: matplotlib's `_qhull` sends qhull's messages to a stream that writes
+# nowhere and opens no path (carried patch 0002). Released, it opens MPL_DEVNULL, /dev/null, for
+# writing: in a writable root that holds a `dev` folder, that makes a regular file in the host's
+# folder no Python code asked for.
+TRI_IMPORT = "import matplotlib.tri as mtri\n"
+TRI_RUN = """
+try:
+    mtri.Triangulation([0.0, 1.0, 2.0, 3.0], [0.0, 1.0, 2.0, 3.0])
+except RuntimeError as e:
+    print("collinear", str(e).split(":")[0])
+print("good", mtri.Triangulation([0.0, 1.0, 0.0, 1.0], [0.0, 0.0, 1.0, 1.0]).triangles.shape)
+"""
+
+
+def _listing(folder: Path) -> list[tuple[str, str, int]]:
+    """Every path under a folder, with its type and, for a file, its size."""
+    out = []
+    for p in sorted(folder.rglob("*")):
+        kind = "link" if p.is_symlink() else "dir" if p.is_dir() else "file"
+        out.append(
+            (p.relative_to(folder).as_posix(), kind, p.lstat().st_size if kind == "file" else 0)
+        )
+    return out
+
+
+@pytest.mark.slow
+def test_a_triangulation_leaves_every_writable_grant_as_it_was(guest_turns, guest_workdir) -> None:
+    """Spec 043, Decision 9: in a call whose writable root holds a `dev` folder, a Delaunay
+    triangulation and a qhull error leave every writable grant as it was: the root, and the font
+    cache's own grant (MPLCONFIGDIR), each listed with every path's type and size after
+    matplotlib's import and again after the triangulations, in one instance kept across two
+    calls."""
+    from harness import guest as driver
+
+    directory = paths.artifact_dir()
+    assert directory is not None
+    _, tag = _version()
+    cache = Path(tempfile.mkdtemp(prefix="mplconfig-", dir=guest_workdir))
+    data = driver.mpl_data_dir(directory / "python-stdlib.zip", guest_workdir)
+    t = guest_turns(
+        "snapshot",
+        preopens=[
+            (f"/usr/local/lib/python{tag}.zip/matplotlib/mpl-data", data, False),
+            ("/mplconfig", cache, True),
+        ],
+        env={"MPLCONFIGDIR": "/mplconfig"},
+    )
+    (t.root / "dev").mkdir()
+    (t.root / "dev" / "keep").write_bytes(b"")
+    first = t.turn(TRI_IMPORT)
+    assert first.trapped is None and first.value == 0, first.describe()
+    grants = {"/": t.root, "/mplconfig": cache}
+    before = {g: _listing(p) for g, p in grants.items()}
+    assert before["/mplconfig"], "matplotlib's import wrote no font cache: the grant is not used"
+    second = t.turn(TRI_RUN)
+    assert second.trapped is None and second.value == 0, second.describe()
+    assert second.text == (
+        "collinear Error in qhull Delaunay triangulation calculation\ngood (2, 3)\n"
+    ), second.text
+    after = {g: _listing(p) for g, p in grants.items()}
+    changed = [
+        f"{g}: {sorted(set(after[g]) ^ set(before[g]))}" for g in grants if after[g] != before[g]
+    ]
+    assert not changed, "a writable grant changed: " + "; ".join(changed)
