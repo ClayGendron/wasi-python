@@ -1,0 +1,1 @@
+regex==2026.9.29 --hash=sha256:a714befaacbd10092ffe4cea0d3c5f008fb9efe9bc322c715bcdfdee414b9a3d

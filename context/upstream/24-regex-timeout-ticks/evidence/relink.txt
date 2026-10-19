@@ -1,0 +1,17 @@
+# The scratch binaries (EXECUTED 2026-10-19, macOS arm64, in a scratch folder outside the repository)
+# Each: _regex.c compiled by scripts/wasi-cc with step 53's flags (-O2 -DNDEBUG, the prefix map,
+# CPython 3.15.0's Include and the cross build's pyconfig.h), archived with the build's own
+# _regex_unicode.o, and linked by step 60's reactor link command (build/link/reactor-commands.txt,
+# line 3) with only the regex archive, the map and the output path changed; then llvm-strip
+# --strip-debug, as step 60 does. The output is named python.wasm: wasm-ld writes the output's file
+# name into the name section, so another name changes 5 bytes there.
+#
+# regex 2026.9.29 + 0001 (the carried patch):
+#   _regex.o equals build/regex-build/_regex.o byte for byte (cmp)
+#   python.wasm  41099661 bytes  ab78e8931e76aaf996d74d3b7766fcdf0249119faab4d0dfa153a6b14d6887db
+#   = the set s-c50ca51fae5eb55b-c9dcb5b8's python.wasm (ab78e893...), byte for byte
+# regex 2026.9.29 + 0001 + 0002 (fix.patch):
+#   0 warnings with step 53's flags; none on the changed lines with -Wall -Wextra -Wconversion -Wshorten-64-to-32
+#   python.wasm  41099863 bytes  5f8d1b29c91849aaeab813fb1d4c498404812d7ac1e2e260b9160e8c9f112801
+#   (+202 bytes)
+# The snapshot was not rebuilt (regex is not pre-imported; step 80 makes it from the plain binary).

@@ -1,0 +1,25 @@
+# decode_timeout as compiled for wasm32-wasip1 (wasi-sdk 33, -O2 -DNDEBUG), one of its nine inlined copies
+## the pinned source with 0001 (equal, byte for byte, to build/regex-build/_regex.o of set c9dcb5b8)
+45           	i32.eqz
+0d 00        	br_if   	0                       # 0: down to label205
+20 09        	local.get	9
+44 00 00 00 00 65 cd cd 41   	f64.const	0x1.dcd65p29
+a2           	f64.mul 
+fc 02        	i32.trunc_sat_f64_s
+22 07        	local.tee	7
+41 7e        	i32.const	-2
+47           	i32.ne  
+## with 0002
+66           	f64.ge  
+45           	i32.eqz
+0d 00        	br_if   	0                       # 0: down to label205
+20 0a        	local.get	10
+44 00 00 00 00 65 cd cd 41   	f64.const	0x1.dcd65p29
+a2           	f64.mul 
+22 0a        	local.tee	10
+44 00 00 00 00 00 00 e0 43   	f64.const	0x1p63
+66           	f64.ge  
+0d 00        	br_if   	0                       # 0: down to label205
+20 0a        	local.get	10
+fc 06        	i64.trunc_sat_f64_s
+22 09        	local.tee	9

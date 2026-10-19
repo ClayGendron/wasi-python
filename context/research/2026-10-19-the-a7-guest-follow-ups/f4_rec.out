@@ -1,0 +1,20 @@
+1000 unbounded, uncaught, limit L | 1 None |  | RecursionError: maximum recursion depth exceeded
+1000 unbounded, caught, limit L | 0 None | RecursionError maximum recursion depth exceeded | 
+1000 bounded N=L-50, limit L | 0 None | ok 950 | 
+1000 bounded via list.sort key | 1 None |  | RecursionError: Stack overflow (used 113 kB)
+2000 unbounded, uncaught, limit L | 1 None |  | RecursionError: maximum recursion depth exceeded
+2000 unbounded, caught, limit L | 0 None | RecursionError maximum recursion depth exceeded | 
+2000 bounded N=L-50, limit L | 0 None | ok 1950 | 
+2000 bounded via list.sort key | 1 None |  | RecursionError: Stack overflow (used 113 kB)
+3000 unbounded, uncaught, limit L | None stack overflow |  | RecursionError: maximum recursion depth exceeded
+3000 unbounded, caught, limit L | None stack overflow |  | 
+3000 bounded N=L-50, limit L | 0 None | ok 2950 | 
+3000 bounded via list.sort key | 1 None |  | RecursionError: Stack overflow (used 113 kB)
+10000 unbounded, uncaught, limit L | None stack overflow |  | RecursionError: maximum recursion depth exceeded
+10000 unbounded, caught, limit L | None stack overflow |  | 
+10000 bounded N=L-50, limit L | 0 None | ok 9950 | 
+10000 bounded via list.sort key | 1 None |  | RecursionError: Stack overflow (used 113 kB)
+100000 unbounded, uncaught, limit L | None stack overflow |  | RecursionError: maximum recursion depth exceeded
+100000 unbounded, caught, limit L | None stack overflow |  | 
+100000 bounded N=L-50, limit L | 0 None | ok 99950 | 
+100000 bounded via list.sort key | 1 None |  | RecursionError: Stack overflow (used 113 kB)

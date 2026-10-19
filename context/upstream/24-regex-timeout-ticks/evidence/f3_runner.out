@@ -1,0 +1,9 @@
+# WASI_PYTHON_ARTIFACTS=<set> and then <set with 0002's python.wasm>: uv run python -I f3_runner.py 2.0,3,5  (wasi_python.run, the host's real clock, snapshot=False, deadline_s=12; the first call on the second set includes compiling the new binary)
+== set
+timeout 2.0 | None TimeoutError after 2.0 guest s | host 2.4 s
+timeout 3 | deadline  | host 12.0 s
+timeout 5 | deadline  | host 12.0 s
+== set-0002
+timeout 2.0 | None TimeoutError after 2.0 guest s | host 7.1 s
+timeout 3 | None TimeoutError after 3.0 guest s | host 3.1 s
+timeout 5 | None TimeoutError after 5.0 guest s | host 5.1 s

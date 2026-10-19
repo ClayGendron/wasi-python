@@ -1,0 +1,18 @@
+{"kind": "setrecursionlimit", "mode": "metered", "binary": "snapshot", "lo": 500, "lo_got": "ok", "hi": 10000, "hi_got": "ok"}
+{"kind": "setrecursionlimit", "mode": "metered", "binary": "plain", "lo": 500, "lo_got": "ok", "hi": 10000, "hi_got": "ok"}
+{"kind": "xpath-parens", "mode": "metered", "binary": "snapshot", "last_ok": 356, "first_trap": 357, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xpath-predicates", "mode": "metered", "binary": "snapshot", "last_ok": 4055, "first_trap": 4056, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "relaxng", "mode": "metered", "binary": "snapshot", "last_ok": 395, "first_trap": 396, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "c14n", "mode": "metered", "binary": "snapshot", "last_ok": 1478, "first_trap": 1479, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xpath-parens", "mode": "metered", "binary": "plain", "last_ok": 356, "first_trap": 357, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "relaxng", "mode": "metered", "binary": "plain", "last_ok": 395, "first_trap": 396, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xpath-predicates", "mode": "metered", "binary": "plain", "last_ok": 4055, "first_trap": 4056, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "c14n", "mode": "metered", "binary": "plain", "last_ok": 1478, "first_trap": 1479, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "traceback-freed", "mode": "metered", "binary": "snapshot", "last_ok": 2957, "first_trap": 2958, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "limit-reached", "mode": "metered", "binary": "snapshot", "last_ok": 2960, "first_trap": 2961, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-call-template", "mode": "metered", "binary": "snapshot", "last_ok": 461, "first_trap": 462, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "traceback-freed", "mode": "metered", "binary": "plain", "last_ok": 2957, "first_trap": 2958, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "limit-reached", "mode": "metered", "binary": "plain", "last_ok": 2960, "first_trap": 2961, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-apply-templates", "mode": "metered", "binary": "snapshot", "last_ok": 450, "first_trap": 451, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-call-template", "mode": "metered", "binary": "plain", "last_ok": 461, "first_trap": 462, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-apply-templates", "mode": "metered", "binary": "plain", "last_ok": 450, "first_trap": 451, "trap": "trap:stack overflow", "next_call": "ok"}

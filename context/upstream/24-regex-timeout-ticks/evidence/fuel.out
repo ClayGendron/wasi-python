@@ -1,0 +1,7 @@
+# uv run python -I fuel.py <set> <work> <set>/python.wasm <scratch>/0002/python.wasm  (the judge's seeded driver; fuel = instructions)
+set 'pass' 0 167481449
+set 'import regex' 0 396193197
+set "import regex; regex.search(r'(a|aa)+$', 'a'*12+'!', timeout=3)" 0 401176576
+0002 'pass' 0 167481449
+0002 'import regex' 0 396193197
+0002 "import regex; regex.search(r'(a|aa)+$', 'a'*12+'!', timeout=3)" 0 401176434

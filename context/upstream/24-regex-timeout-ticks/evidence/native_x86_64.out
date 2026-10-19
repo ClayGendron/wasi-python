@@ -1,0 +1,8 @@
+# docker run --rm --platform linux/amd64 -v <this folder>:/w:ro wp040-amd64 sh -c 'cd /tmp && uv venv -q -p 3.15 v; uv pip install -q -p v/bin/python --require-hashes -r /w/native_x86_64.requirements.txt; v/bin/python /w/native_x86_64.py'
+# (the research image wp040-amd64, Debian 13, uv 0.9.22; regex 2026.9.29's cp315 manylinux x86_64 wheel, PyPI's SHA-256; 2026-10-19)
+x86_64 2026.9.29
+timeout 1.0 -> completed None 0.032
+timeout 1000000000000.0 -> completed None 0.027
+timeout 10000000000000.0 -> TimeoutError 0.0
+timeout 1e+30 -> TimeoutError 0.0
+timeout inf -> TimeoutError 0.0

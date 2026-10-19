@@ -1,0 +1,4 @@
+{"kind": "xslt-apply-bare", "mode": "unmetered", "binary": "snapshot", "last_ok": 676, "first_trap": 677, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-apply-bare", "mode": "metered", "binary": "snapshot", "last_ok": 662, "first_trap": 663, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-apply-bare", "mode": "unmetered", "binary": "plain", "last_ok": 676, "first_trap": 677, "trap": "trap:stack overflow", "next_call": "ok"}
+{"kind": "xslt-apply-bare", "mode": "metered", "binary": "plain", "last_ok": 662, "first_trap": 663, "trap": "trap:stack overflow", "next_call": "ok"}

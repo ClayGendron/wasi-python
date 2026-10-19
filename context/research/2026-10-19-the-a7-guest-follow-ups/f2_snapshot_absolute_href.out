@@ -1,0 +1,46 @@
+# the first version of f2_driver.py (absolute hrefs only, before the file: URL and base_url cases), on python-snapshot.wasm
+exit 0 None fuel 211000190
+{
+"import DENY_ALL": [
+"XSLTParseError",
+"Cannot resolve URI string://__STRING__XSLT__/ro/ent.xsl"
+],
+"import DENY_ALL absent file": [
+"XSLTParseError",
+"Cannot resolve URI string://__STRING__XSLT__/ro/none.xsl"
+],
+"import refusing resolver": [
+"ValueError",
+"refused: ro/ent.xsl"
+],
+"import refusing resolver, file: URL": [
+"ValueError",
+"refused: file:///ro/ent.xsl"
+],
+"import refusing resolver, relative": [
+"ValueError",
+"refused: file:///ro/ent.xsl"
+],
+"include DENY_ALL": [
+"XSLTParseError",
+"Cannot resolve URI string://__STRING__XSLT__/ro/ent.xsl"
+],
+"include DENY_ALL absent file": [
+"XSLTParseError",
+"Cannot resolve URI string://__STRING__XSLT__/ro/none.xsl"
+],
+"include refusing resolver": [
+"ValueError",
+"refused: ro/ent.xsl"
+],
+"include refusing resolver, file: URL": [
+"ValueError",
+"refused: file:///ro/ent.xsl"
+],
+"include refusing resolver, relative": [
+"ValueError",
+"refused: file:///ro/ent.xsl"
+]
+}
+
+

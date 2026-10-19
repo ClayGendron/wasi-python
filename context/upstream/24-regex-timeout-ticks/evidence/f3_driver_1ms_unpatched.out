@@ -1,0 +1,12 @@
+# uv run python -I f3_driver.py <set>/python.wasm <set> <work> 1000000 "0.5,2.0,2.1,2.147,2.148,2.2,3,5,1e9,float('inf')" 2e10 '(a|aa)+$' "'a'*100+'!'"
+# <set>: a copy of s-c50ca51fae5eb55b-c9dcb5b8 (python.wasm ab78e893...): regex 2026.9.29 with 0001 only; the judge's driver, its clock stepping 1 ms per read
+step=1000000 timeout=0.5: exit=0 trapped=None fuel=425048318 out='TimeoutError regex timed out\nguest-ns 502000000'
+step=1000000 timeout=2.0: exit=0 trapped=None fuel=500501342 out='TimeoutError regex timed out\nguest-ns 2002000000'
+step=1000000 timeout=2.1: exit=0 trapped=None fuel=505530305 out='TimeoutError regex timed out\nguest-ns 2102000000'
+step=1000000 timeout=2.147: exit=0 trapped=None fuel=507732881 out='TimeoutError regex timed out\nguest-ns 2149000000'
+step=1000000 timeout=2.148: exit=None trapped=out of fuel fuel=20000000000 out=''
+step=1000000 timeout=2.2: exit=None trapped=out of fuel fuel=20000000000 out=''
+step=1000000 timeout=3: exit=None trapped=out of fuel fuel=20000000000 out=''
+step=1000000 timeout=5: exit=None trapped=out of fuel fuel=20000000000 out=''
+step=1000000 timeout=1e9: exit=None trapped=out of fuel fuel=20000000000 out=''
+step=1000000 timeout=float('inf'): exit=None trapped=out of fuel fuel=20000000000 out=''

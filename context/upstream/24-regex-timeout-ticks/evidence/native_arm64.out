@@ -1,0 +1,7 @@
+# build/oracle/venv/bin/python -I native_x86_64.py on macOS arm64 (the judge's oracle venv: CPython 3.15.0, regex 2026.9.29's macosx_11_0_arm64 wheel), 2026-10-19
+arm64 2026.9.29
+timeout 1.0 -> completed None 0.017
+timeout 1000000000000.0 -> completed None 0.016
+timeout 10000000000000.0 -> completed None 0.017
+timeout 1e+30 -> completed None 0.016
+timeout inf -> completed None 0.016

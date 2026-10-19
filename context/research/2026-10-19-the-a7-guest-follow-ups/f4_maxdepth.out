@@ -1,0 +1,6 @@
+max_depth 250 N 2000 metered | None | call-template XSLTApplyError n / apply-templates copy XSLTApplyError unknown error / apply-templates heavy XSLTApplyError w | 
+max_depth 250 N 2000 unmetered | None | call-template XSLTApplyError n / apply-templates copy XSLTApplyError unknown error / apply-templates heavy XSLTApplyError w | 
+max_depth 300 N 2000 metered | None | call-template XSLTApplyError n / apply-templates copy XSLTApplyError unknown error / apply-templates heavy XSLTApplyError w | 
+max_depth 300 N 2000 unmetered | None | call-template XSLTApplyError n / apply-templates copy XSLTApplyError unknown error / apply-templates heavy XSLTApplyError w | 
+max_depth 3000 N 2000 metered | stack overflow |  | 
+max_depth 3000 N 2000 unmetered | stack overflow |  | 
