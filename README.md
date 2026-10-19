@@ -238,8 +238,8 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   nested brackets; an `ExceptionGroup` nested past 720; plain Python recursion between about 1,000
 and 3,000 levels once a program raises `sys.setrecursionlimit` to 3,000 or more; XPath with more
 than about 375 nested parentheses or 4,600 chained predicates; XSLT `call-template` nested past
-about 480 levels, or `apply-templates` over a tree deeper than about 670; C14N and RelaxNG
-validation of a tree about 2,000 deep (a parsed document stops at depth 256 unless `huge_tree`
+about 480 levels, or `apply-templates` over a tree deeper than about 670; C14N of a tree about
+1,500 deep, or RelaxNG validation of one about 430 deep (a parsed document stops at depth 256 unless `huge_tree`
 or `recover=True` is given). The trap ends only that call.
 
 FreeType's licence asks every binary distribution to say this in its documentation, and this
