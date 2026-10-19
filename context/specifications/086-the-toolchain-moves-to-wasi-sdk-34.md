@@ -1,7 +1,11 @@
 # 086 — The toolchain moves to wasi-sdk 34
 
 - **Status:** drafted 2026-10-19 on `spec/086-wasi-sdk-34` from main `932bc00`, rebased onto main
-  `3866f56` (the owner's answer to question 105). Not yet reviewed. It changes the build recipe and
+  `3866f56` (the owner's answer to question 105). **Revised 2026-10-19 against its pre-build review**
+  (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-spec-2026-10-19.md`, written in the lane's
+  scratchpad with its probes, copied by the lane; verdict "ready once F1 to F5 are written in"):
+  F1 to F5 are written in as the lane ruled, F6 to F10 are fixed, and "Disposition of the
+  pre-build review" at the end says where. It changes the build recipe and
   every byte of the artifact set, so it is reviewed once before it is built (constitution §5.6).
   It changes neither the guest's imports nor its exports (EXECUTED, the trial below). The drafter
   ran the whole move once in a throwaway copy, so most facts here are EXECUTED; the section "The
@@ -26,11 +30,18 @@
   - **New:**
     - `recipes/fcntl_dup_refusal.c`: wasi-libc's `fcntl` answers the two dup commands as its `dup`
       does (Decision 5);
-    - `tests/cpython_configure.txt`: the guest CPython's configure results, recorded (Decision 6);
+    - `tests/cpython_configure.txt`: every `#define` of the guest CPython's `pyconfig.h`, recorded
+      (Decisions 6 and 7);
+    - `tests/fixtures/try-table-order.ll`: the memo's reproducer, copied under the judge's paths
+      (Decision 7, check (a));
     - three checks (Decision 7);
+    - an evidence folder, `context/research/2026-10-19-the-toolchain-move-evidence/`, with a short
+      memo: the surface probe (`surface_probe.py`) and its diff, the five `SHA256SUMS`, Decision 9's
+      table, the other libraries' configure diffs, and the container runs (Decisions 6, 9 and 10,
+      criteria 3 to 5), as spec 059 moved its evidence in (its Decision 10);
     - `context/upstream/25-wasi-libc-fcntl-dupfd/`: a facts sheet for wasi-libc (Decision 5; 23 and 24
       are taken by 037's and 087's branches).
-  - **Judge changes:** the three new checks and the recorded list. No golden, allowance, class,
+  - **Judge changes:** the three new checks, the recorded list and the fixture. No golden, allowance, class,
     trap entry or gap changes (Decision 8). So the lane accepts with `--accept-judge` (the new
     checks) and `--accept-growth` (Decision 9).
   - **Not changed:** `tests/public_api.txt` (no public name moves), `src/`, the release
@@ -107,7 +118,7 @@ The drafter ran the move once, before writing a decision, so that each decision 
 | linux/amd64 container (Rosetta), one build, its own x86_64 clang | the same `SHA256SUMS` (`0083fcef…`): wasi-sdk 34's x86_64 and aarch64 Linux clangs agree under `-ffp-contract=off`, as 33's did (spec 059) | EXECUTED |
 | the full judge, `-n 3` | 0 fail, lost 0, grew 59, with numpy's and pandas' groups blocked (no upstream kit yet); the five CPython groups pass with their allowances unchanged | EXECUTED |
 | the upstream suites, kit fetched (`tests/upstream/fetch.py`), run alone | pandas' eight groups and numpy's other two pass; **numpy-core fails**: eight tests that fail with `Errno 58` now fail with `Errno 28` (Decision 5); its counts and digest are unchanged (9,519 passed, `df21e78e7032`) | EXECUTED |
-| Decision 5's refusal, trialled (appended to the guard's unit in the clone, `-Wl,--wrap=fcntl`, relinked from step 60) | `os.dup(1)` raises errno 58 again; numpy-core passes, its classes matching; the fast tier: 0 fail, lost 0; `python.wasm` +117 bytes over the trial set | EXECUTED |
+| Decision 5's refusal, trialled (appended to the guard's unit in the clone, `-Wl,--wrap=fcntl`, relinked from step 60) | `os.dup(1)` raises errno 58 again; numpy-core passes, its classes matching; the fast tier: 0 fail, lost 0; `python.wasm` +117 bytes over the trial set. The trialled wrapper read its argument for every command; the design reads it only where one is passed (Decision 5, the review's F8) | EXECUTED |
 | numpy's and pandas' fuel | **numpy-core +2.645%** (203.36 G → 208.73 G, on the set with the refusal); the other ten groups from −0.194% (pandas-io-parser) to +0.053% (pandas-groupby) | EXECUTED |
 | numpy-core's rise, probed (time box 15 min) | the same workloads on 0.1.0a7's set and the trial set move under 0.6% each: libm calls −0.27%, sorts +0.18%, float formatting −0.08%, copies −0.17%, `np.char` +0.38%, `long double` arithmetic −0.12% and formatting −0.52%; the rise is **not traced** (Decision 9) | EXECUTED |
 | fuel, every row the full judge compared (numpy's and pandas' groups not among them) | 153 rows: 57 up and 96 down by more than 0.01%; from −0.444% to +1.428%; the sum 1,421.60 G → 1,422.73 G (+0.08%) | EXECUTED |
@@ -221,6 +232,7 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
    | `60_link.sh` link flags (`-lc++ -lc++abi -lunwind -lsetjmp`), neutral-runtime check | libc++ 23 | holds |
    | `assemble_artifacts.py` | notice names from the line | follows Decision 1 |
    | `iconv_refusals.c` and its wraps | musl's decoder | stays (above) |
+   | `fcntl_dup_refusal.c` and its wrap (new here) | wasi-libc's `fcntl` on preview1 | added (Decision 5); the next toolchain move checks it here |
    | `reactor_main.c` (`__wasi_*` wraps, `<wasi/libc.h>`) | wasi-libc | holds |
    | `hostmodule.c` | none | holds |
    | `npy_rename.h`, `pandas_rename.h`, `npy_random_legacy_rename.h` | wasm32 `long`, wasm-ld warnings | holds |
@@ -255,13 +267,25 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
      reaches it: it is a header macro.
    - **The decision**, trialled (EXECUTED, above). A recipe, as `iconv_refusals.c` is (spec 046, Decision 9):
      `recipes/fcntl_dup_refusal.c`, compiled into the reactor's link by step 60 beside that file,
-     with `-Wl,--wrap=fcntl`. `__wrap_fcntl(fd, cmd, ...)` answers `F_DUPFD` and `F_DUPFD_CLOEXEC`
-     with `errno = ENOTSUP` and −1, as wasi-libc's `dup` does, and passes every other command and
-     its one argument to `__real_fcntl` unchanged (read with `va_arg` as an `int`, which is what
-     wasi-libc's own `fcntl` reads for every command it takes an argument for). It changes no
-     upstream source. Its header comment names the facts sheet and says to remove it, with its
-     wrap flag, when a wasi-sdk release's `fcntl` returns `ENOTSUP` for these commands on
-     preview1; Decision 7's check (b) turns red that day.
+     with `-Wl,--wrap=fcntl`. `__wrap_fcntl(fd, cmd, ...)` is one `switch`:
+     - `F_DUPFD` and `F_DUPFD_CLOEXEC`: `errno = ENOTSUP`, return −1, as wasi-libc's `dup` does;
+     - the commands that take no argument (`F_GETFD`, `F_GETFL`, and any other without one):
+       `__real_fcntl(fd, cmd)`, with no `va_arg`. wasm32 clang passes a null vararg buffer for a
+       call with no variadic arguments, so reading one would read linear memory at 0 (the review's
+       F8, EXECUTED there);
+     - the commands that take one: `F_SETFD` and `F_SETFL` read an `int`, `F_GETLK`, `F_SETLK` and
+       `F_SETLKW` a pointer, each with `va_arg` and passed on unchanged; an unknown command is
+       passed on with no argument, and wasi-libc answers it `EINVAL` as before.
+     It changes no upstream source.
+   - **Step 60's guard compile becomes two.** Today one `sed` turns the reactor's compile command
+     into `iconv_refusals.o` (`60_link.sh:114`). It becomes a loop over the two recipe files, each
+     to its own object, both added to the link, and a failed compile names its file
+     (`recipes/fcntl_dup_refusal.c did not compile`).
+   - **What removes it.** Its header comment names the facts sheet and says to remove it, with its
+     wrap flag, when a wasi-sdk release's `fcntl` returns `ENOTSUP` for these commands on preview1.
+     No check turns red that day: with upstream fixed, check (b) passes with or without the
+     refusal (the review's F6). The signals are the facts sheet's answer and the next toolchain
+     move's recipe table, which names this file as Decision 3's table does.
    - **Why not accept `EINVAL`.** It would be a judge change (numpy's `no-dup` class and its gap,
      which match `Errno 58`) that makes the guest's answer worse: "Invalid argument" tells a
      program its call was wrong, when the platform cannot do it. A toolchain move should change
@@ -278,6 +302,10 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
    own `config.site` forces only `pipe` off (READ). What a program sees (EXECUTED, the trial guest):
    - `os.dup2`, `os.pipe2` and `time.pthread_getcpuclockid` now exist, and each raises
      `OSError: [Errno 58] Not supported`. `os.pipe` stays absent.
+   - `select.PIPE_BUF` (4096) now exists: `limits.h` defines `PIPE_BUF`, and `selectmodule.c`
+     exports it under `#ifdef PIPE_BUF` (the review's F2, READ and EXECUTED on the sysroot). A
+     constant; nothing reads it without a pipe, and `os.pipe` is absent.
+   - `sysconfig.get_config_vars()` shows the ten flipped `HAVE_*` (the zip's −18 bytes).
    - `select.poll` works as before, now through `ppoll` (a registered stdout polls writable).
    - `getc_unlocked` and `flockfile` are real functions in a single-threaded libc; `fileobject.c`
      uses them.
@@ -295,32 +323,55 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
    five CPython groups and pandas' eight pass with their allowances unchanged (EXECUTED). So the
    smallest true thing is to accept them, say so in the README's platform facts, and record them.
 
-   **Recorded.** `tests/cpython_configure.txt` lists every `HAVE_*` macro the guest's `pyconfig.h`
-   defines, one per line, sorted. Decision 7's check (c) reads the build's `pyconfig.h` and names
-   each macro that differs. A later toolchain move that flips a result then fails a check, and its
+   **The whole surface is compared, not assumed.** `surface_probe.py` (the evidence folder) runs in
+   both binaries of main's set and of 086's set, on one machine. It writes `sorted(dir(m))` for
+   every module in `sys.builtin_module_names` and every compiled extension module in the zip, and
+   `sysconfig.get_config_vars()`. The diff is the accepted list: the three functions,
+   `select.PIPE_BUF`, and the ten `HAVE_*` config variables. Any other difference stops the build
+   until it is traced and either accepted here, with the README's platform facts, or fixed
+   (criterion 4).
+
+   **The other libraries probe libc too** (the review's F9). libxml2, libxslt and xz configure with
+   autoconf; numpy, pandas, FreeType, HarfBuzz and matplotlib with meson. The builder diffs each
+   generated config header between a 33 tree (spec 043's worktree, read only) and the 34 tree:
+   `libxml2-build/config.h`, `libxslt-build/config.h`, the xz and other autoconf `config.h` files,
+   numpy's `_numpyconfig.h` and meson `config.h` files, pandas', FreeType's and HarfBuzz's. Each
+   flip is recorded in the evidence folder and treated as this decision treats CPython's: traced to
+   what a program sees, then accepted and documented, or held back by a recipe if it is wrong.
+
+   **Recorded.** `tests/cpython_configure.txt` lists every `#define` line of the guest's
+   `pyconfig.h`, name and value, sorted (the review's F10: the non-`HAVE_*` lines are the same on 33
+   and 34 today, EXECUTED there, and recording them too catches a later `SIZEOF_*` or `ALIGNOF_*`
+   move at no cost). Decision 7's check (c) reads the build's `pyconfig.h` and names each line that
+   differs. A later toolchain move that flips a result then fails a check, and its
    specification states why, instead of the flip passing unseen.
 
 7. **The checks, written first.** Each is seen failing on today's tree (wasi-sdk 33) or against a
    planted input before the recipe changes, and the landing notes quote the failure.
    - **(a) `test_the_backend_orders_try_tables_alike`** (`tests/checks/test_v1_5_rebuild_from_pins.py`,
-     need: the toolchain unpacked under `build/tools/`). It compiles the memo's reproducer,
-     `context/research/2026-10-19-the-try-table-order-in-llvm/try-table-order.ll`, 64 times with
-     each `build/tools/wasi-sdk-*/bin/clang` (`--target=wasm32-wasip1 -O3 -fwasm-exceptions -mllvm
-     -wasm-use-legacy-eh=false -c -Xclang -disable-llvm-passes`), and asserts one object. It counts
+     need: `compile records`, from the fixed vocabulary, as `test_every_compile_contracts_nothing`
+     uses). Its input is `tests/fixtures/try-table-order.ll`, a copy of the memo's reproducer under
+     the judge's paths, whose SHA-256 the check names
+     (`63a709ecfd611ccbe7d2beb4d5c5c2b85e450fa2217296d117957b398ee138a3`, EXECUTED), so an edit to it
+     changes the judge hash. It compiles it 64 times with each `build/tools/wasi-sdk-*/bin/clang`
+     (`--target=wasm32-wasip1 -O3 -fwasm-exceptions -mllvm -wasm-use-legacy-eh=false -c -Xclang
+     -disable-llvm-passes`), and asserts one object. It **fails** if it finds no such clang, so it
+     cannot pass with nothing compiled. It counts
      distinct hashes, never time. **Seen failing:** on 33 the trial's 64 runs gave two objects (19
      and 45); a false pass on 33 needs all 64 runs to agree, about (45/64)^64 + (19/64)^64, under
      10^-9. On 34, 64 runs gave one (EXECUTED). This is the memo's ducc0 case reduced to 30 lines,
      in the repository, so it guards 086 before scipy exists on main.
    - **(b) `test_dup_is_refused_as_not_supported`** (`tests/checks/test_v1_2_hostile_guest.py`, both
-     binaries): `os.dup(1)`, `os.dup2(1, 5)` and `os.pipe2(0)` each raise `OSError` with
-     `errno.ENOTSUP`, and `os.pipe` is absent. **Seen failing:** on the 34 set without Decision 5
+     binaries): `os.dup(1)`, `os.dup2(1, 5)`, `os.dup2(1, 5, inheritable=False)` (the `dup3`
+     path), `os.pipe2(0)` and `time.pthread_getcpuclockid(threading.get_ident())` each raise
+     `OSError` with `errno.ENOTSUP`, and `os.pipe` is absent (the review's F6). **Seen failing:** on the 34 set without Decision 5
      (the trial's set), `os.dup` raises errno 28. On 33's set `os.dup2` is absent, so the check
      is written for 34; its first run is against the trial set.
    - **(c) `test_the_guests_configure_results_are_recorded`** (`tests/checks/test_v1_5_rebuild_from_pins.py`,
-     need: compile records): the set of `#define HAVE_*` lines in
-     `build/Python-3.15.0/cross-build/wasm32-wasip1/pyconfig.h` equals `tests/cpython_configure.txt`;
-     a difference names each macro. **Seen failing:** the list written from 34's `pyconfig.h`,
-     run against a 33 build tree, names the ten.
+     need: compile records): the sorted `#define` lines of
+     `build/Python-3.15.0/cross-build/wasm32-wasip1/pyconfig.h` equal `tests/cpython_configure.txt`;
+     a difference names each line. **Seen failing:** the list written from 34's `pyconfig.h`, run
+     against a 33 build tree, names the ten `HAVE_*` lines and no other.
    - The release shards: (a) and (c) go to the `build` shard, (b) with its file's shard
      (`tests/release_shards.toml`); `test_release_shards_cover_the_judge` holds that.
 
@@ -336,12 +387,13 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
      Cranelift's frames move. An open entry accepts "the named trap or no trap", so a trap that
      goes away is not red, and a new trap in a group is. On darwin-arm64 the trial matched every
      entry; `c-stack-itertools-tee` did not trap there, as before (it traps on Linux x86-64 only)
-     (EXECUTED). The Linux hosts are checked by the release dry run (criterion 6).
+     (EXECUTED). The Linux hosts are checked in the containers before landing (criterion 5), and
+     again by the release dry run (criterion 7).
    - **Spec 071's window and its floors.** `C_STACK_WINDOW` (128 KiB, `reactor_main.c:154`) does not
      change. The depths under it are clang's frame layout. Each `RECURSIONS` floor is "measured
      depth less a tenth", so a depth that falls more than a tenth turns a check red. On darwin-arm64
-     every floor held and the window check still reads "used 112 kB" (EXECUTED). The x86-64 floors
-     run in the dry run. A floor that fails there is re-measured with spec 071's own script and
+     every floor held and the window check still reads "used 112 kB" (EXECUTED). The x86-64 and
+     Linux arm64 floors run in the containers before landing (criterion 5). A floor that fails is re-measured with spec 071's own script and
      reported, not lowered quietly: lowering one is a judge change with the measured depth.
    - **Spec 078** (parallel-safe, not landed) records depths and edges at 8 MiB that Cranelift's
      frames set (its Decision 11; it says "086 … re-measures Decision 11's edges", line 396).
@@ -369,60 +421,90 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
      code +45,304, name +17,763, data +4,256), and names the largest functions that grew, from the
      name section. Causes are labelled: the new libc functions and libc++ 23 (EXECUTED, the
      function count +69), the backend's choices (INFERRED).
-   - **The bound.** A fuel row that rises more than 1% is traced to a measured cause before it is
-     accepted; the trial has two, numpy-core (+2.645%, not yet traced) and the compress job
-     (+1.428%). The build stops, before any acceptance, if any one of these holds: a fuel row rises
-     more than 3%; the sum of the
-     judge's fuel rises more than 1% (the trial: +0.08%); `python.wasm` or the snapshot grows more
-     than 1% (the trial: +0.164% and +0.138%); the zip changes beyond `_sysconfigdata`. After the
-     trace, a cause that is the toolchain's own (a libm routine, a libc path, a backend choice) is
-     accepted with its numbers; a cause in a recipe is fixed.
-   - **How numpy-core's rise is traced.** Run numpy-core's test files one at a time, with the
-     group's own driver and stage, on 0.1.0a7's set and on the new one, and compare fuel per file;
-     then, inside the file that carries the rise, per test. Spec 073 saw this group move +2.21% on
-     its own set from which module the suite imported first (073's Landing notes), so the trace
-     also runs the new set twice to confirm the number is stable. The cause, or "not found after two
-     attempts" (AGENTS.md rule 7), goes in the landing notes and in the growth reason.
+   - **The A/B, on one machine.** A row's growth is 086's own only when it is measured as an A/B:
+     main's set, rebuilt on the exact base 086 lands on, against 086's set, both judged by the same
+     commit of the judge on the same machine. The table above is made against `accepted.json`; the
+     bound below applies to the A/B delta, never to `accepted.json`'s figure alone, so a rebase onto
+     073 (or anything else that moves a group) cannot push a row over the bound for that
+     specification's reasons (the review's F1).
+   - **A layout control first.** Spec 073's delta review MEASURED that numpy-core's fuel moves with
+     memory layout: `test_strings.py::test_string_comparisons` converts lists of 32,768 bools, and
+     numpy's `_global_pytype_to_type_dict` lookup is keyed by `bool`'s address, so +4.29 G of 073's
+     +4.48 G came from `bool` moving 0x780 when the data segment changed size (073's first build
+     gave −73.6 M). 086's data section grows 4,256 bytes (the trial), so the same mechanism is the
+     first suspect for numpy-core's +2.645%. Before tracing any row the builder: prints `id(bool)`
+     (and `id(True)`) in both sets; runs that test alone on both sets and compares its fuel; and,
+     on one set, changes only the layout (an extra environment variable of a few KiB) and sees how
+     far the group moves.
+   - **The rule** (one rule, the lane's ruling on F1):
+     - a row whose A/B rise is over 3% **stops the build**;
+     - a row whose A/B rise is between 1% and 3% is **traced file by file**: the group's test
+       files one at a time, with its own driver and stage, on both sets; then per test inside the
+       file that carries it; numpy-core's `test_strings.py` first, by the control above;
+     - if two attempts do not find the cause, AGENTS.md rule 7 applies: the builder records where
+       it stood and why in the evidence memo and the landing notes, and the row is accepted with
+       that record in its growth reason. The build moves on.
+   - **The other bounds.** The build also stops if the sum of the judge's fuel rises more than 1%
+     (the trial: +0.08%), if `python.wasm` or the snapshot grows more than 1% (the trial: +0.164% and
+     +0.138%), or if the zip changes beyond `_sysconfigdata`. A traced cause that is the toolchain's
+     own (a libm routine, a libc path, a backend choice, a layout shift) is accepted with its
+     numbers; a cause in a recipe is fixed.
    - **What is never accepted.** A lost pass, a group whose pass count falls, a golden that moves
      untraced, a new import or export, a host whose `SHA256SUMS` differs. Each stops the build;
      after two failed attempts on one hypothesis the builder writes it down (AGENTS.md rule 7).
    - **The landing's flags** (the lane's): `--accept "<spec 086: wasi-sdk 34 (clang 23.1.0,
      wasi-libc 2e6fb9d8): every artifact's bytes move once>"`, `--accept-judge "<the three checks
-     of Decision 7 and tests/cpython_configure.txt>"`, `--accept-growth "<the toolchain move, with
-     the measured table: N fuel rows up, M down, the range, the sum; python.wasm +X bytes, code +C,
-     name +N, data +D>"`.
+     of Decision 7, tests/cpython_configure.txt and tests/fixtures/try-table-order.ll>"`,
+     `--accept-growth "<the toolchain move, with the A/B table: N fuel rows up, M down, the range,
+     the sum, the layout control, each 1 to 3% row's cause or rule 7's record; python.wasm +X bytes,
+     code +C, name +N, data +D>"`.
 
-10. **The order with the specifications in flight.** The roadmap's landing order is 083, 039, 073,
-    085, 084, 043 (built or confirmed), with 086 built now in 037's slot (`../roadmap.md`, "In
-    flight"). 086 is one build slot of four.
-    - **Every build-class specification that lands before 086** changes main under 086. At each,
-      086 rebases, rebuilds from empty `downloads/` and `build/` on macOS, re-runs criterion 3's
-      same-bytes builds if the rebase touched a recipe hunk, and re-measures Decision 9's table.
-      A rebase that changes 086's own recipe hunks gets a delta review (§5.7).
+10. **The order with the specifications in flight.** 086 takes 037's build slot once confirmed
+    (question 105's entry); it is one build slot of four.
+    - **Where 086 lands** (the lane's ruling on F4). When it is built and reviewed, after whatever
+      is ahead of it in the lane: 083, 039, 073, 085 and 084 (`../roadmap.md`, "In flight"), and
+      043 too if 043 is ready first, since the packages come first. 037 rebases onto 086. Whichever
+      of 086 and 043 lands second rebuilds with clang 23 for contourpy and qhull (the trigger
+      below).
+    - **The base Decision 9 is measured on** is the exact commit 086 lands on, after every landing
+      that moved accepted fuel or bytes: build-class or parallel-safe. In particular 083 lands
+      first and its driver change moves fuel, so 086's table and A/B are made after 083.
+    - **At every rebase** 086 rebuilds from empty `downloads/` and `build/` on macOS and
+      re-measures Decision 9's table. A rebase that changes 086's own recipe hunks gets a delta
+      review (§5.7).
+    - **The same-bytes trigger** (the lane's ruling on F3). Whenever code first compiled by clang
+      23 arrives at a rebase (043's contourpy and qhull, 087's patched regex, 073's `reactor_main.c`,
+      anything build-class that brings new or changed compiled sources), the linux/arm64 container
+      comparison is re-run alongside the macOS build: one container build from empty `downloads/`
+      and `build/`, its `SHA256SUMS` equal to macOS's. At 086's rebase it is 086's duty; for a
+      specification that lands after 086, it is that specification's, at its rebase onto 086.
+      ducc0 showed that one file is enough to break the bytes.
     - **039** (tier A; build-class, pure Python, being landed): its pins sit beside 086's in
       `SHA256SUMS` and `00_download.sh` (text neighbours only). Its fuel bounds per zip member
       (`20_000_000 + 6_000*(members-1_758)`) are relative and are re-run, not restated.
     - **043** (matplotlib M2; build-class; adds contourpy's C++ with `-Dwerror=false` and a qhull
       patch): whichever lands second rebuilds with both. Its contourpy objects then compile with
       clang 23: the builder checks step 60's constructor list (043 adds `_GLOBAL__sub_I_*` names;
-      clang can renumber `__cxx_global_var_init.N`) and the warnings (no `-Werror`, READ). Its
-      recorded fuel and sizes are re-measured by the later one.
+      clang can renumber `__cxx_global_var_init.N`) and the warnings (no `-Werror`, READ), and runs
+      the same-bytes trigger's container comparison. Its recorded fuel and sizes are re-measured by
+      the later one.
     - **073** (`run` keeps an unclosed file's bytes; build-class, `reactor_main.c` and
       `reactor_bootstrap.py`): no shared hunk. The later one rebuilds and re-measures 073's fuel
       table (the snapshot's start, about +28 M; check (b)'s ratio).
     - **085** (gather checks what it trusts; build-class only for `release.yml`): no shared file.
       It already writes question 105's answer in. G7 and its set hash stay exact, which 086 makes
       true for scipy too.
-    - **083** (parallel-safe, lands next): judge only. Its checks compare two runs, so they hold;
-      its absolute fuel figures are re-measured by the later one.
+    - **083** (parallel-safe, lands next): judge only. Its checks compare two runs, so they hold.
+      It lands before 086, so 086 is the later one: its fuel moves are in the base 086 measures on.
     - **084** (parallel-safe): directory depth, not stack depth; unaffected.
     - **078** (parallel-safe): Decision 8 above.
     - **087** (build-class; carries `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch` and a
       `MODIFIED` line in `assemble_artifacts.py`): no shared hunk. The later one rebuilds; 087's
       `python.wasm` bytes (+202), its fuel figures and its Decision 6 depth table (XPath and XSLT
       depths; 087 says 086 re-measures them, its lines 319 and 393) are re-measured on the later
-      set. Its patch applies on clang 23 unchanged (it is C source; step 53 prints 0 warnings on 34,
-      EXECUTED).
+      set, the x86-64 edge (its 4,800) in the linux/amd64 container (criterion 5). Its patch applies
+      on clang 23 unchanged (it is C source; step 53 prints 0 warnings on 34, EXECUTED). The
+      same-bytes trigger applies to its patched `_regex.c`.
     - **037** (scipy; built, waiting): **rebases onto 086 after 086 lands.** At that rebase it:
       deletes `recipes/same_bytes_exceptions.toml`, `scripts/same_bytes.py`, `scripts/compare_sets.py`,
       `tests/unit/test_same_bytes.py` and `tests/unit/fixtures/same_bytes_ducc0.json`; removes the
@@ -443,18 +525,22 @@ lxml's encodings workaround −0.444%, `np.frompyfunc` recursion −0.393%, `tes
 
 11. **Documentation.** The README's reproducibility paragraph names wasi-sdk 34 and clang 23.1.0
     and says every build host gives the same bytes with no exception. Its platform facts gain
-    Decision 6's three attributes ("exist and raise `ENOTSUP`, as `os.dup` does"). `README.md:16`
+    Decision 6's three attributes ("exist and raise `ENOTSUP`, as `os.dup` does") and
+    `select.PIPE_BUF`, and whatever else the surface comparison lists. One line says the set is
+    built with wasi-sdk 34 while CPython 3.15.0's WASI driver names 33, which it only warns about
+    (the review's N2). `README.md:16`
     and the CHANGELOG's history keep their 33 sentences (history). The CHANGELOG's next alpha
     section says: the toolchain is wasi-sdk 34 (clang 23.1.0, wasi-libc `2e6fb9d8`, musl 1.2.6);
     every artifact's bytes changed; the new `fcntl` refusal and its upstream sheet; the three new
-    attributes. The roadmap's reservation for 086 points here.
+    functions and `select.PIPE_BUF`. The roadmap's reservation for 086 points here.
 
 ## Intent
 
 Move the pinned toolchain from wasi-sdk 33 to wasi-sdk 34 so that the compiler gives the same
 bytes for the same source on every run and every host, scipy's ducc0 included, and so spec 037
 needs no exception. Keep what a guest program sees the same, except three new functions that fail
-as `os.dup` already does, which are recorded and documented. Measure every number that moves and
+as `os.dup` already does and one new constant (`select.PIPE_BUF`), which are compared by script,
+recorded and documented. Measure every number that moves and
 accept it with its cause.
 
 ## Design
@@ -465,13 +551,16 @@ accept it with its cause.
 3. Add `recipes/fcntl_dup_refusal.c` and its wrap flag to step 60's guard compile (Decision 5);
    draft the facts sheet.
 4. Build on macOS from empty `downloads/` and `build/`. Run the full judge. Write Decision 9's
-   table. Stop on its bound.
-5. Prove the bytes (criterion 3), then the README, the CHANGELOG and the roadmap line.
+   table and its A/B, after the layout control. Stop on its bound.
+5. Compare the surface and the other libraries' configure headers (Decision 6).
+6. Prove the bytes (criterion 3) and run the Linux floors and trap entries (criterion 5), then the
+   README, the CHANGELOG, the evidence memo and the roadmap line.
 
 ## Scope
 
 - **In:** the pins, the two names, the `fcntl` refusal, the recorded configure results, three
-  checks, the README and CHANGELOG lines, re-measured numbers.
+  checks and their fixture, the surface comparison, the Linux container runs before landing, the
+  evidence memo, the README and CHANGELOG lines, re-measured numbers.
 - **Out:**
   - **Removing spec 037's exception.** It is not on main; 037 does it at its rebase (Decision 10).
   - **The x86-64 fallback's removal.** `clang-emulated` stays switched off for one release, as spec
@@ -487,8 +576,9 @@ accept it with its cause.
 ## Acceptance criteria
 
 1. **Seen failing first**, each quoted in the landing notes: check (a) on today's tree gives two
-   objects; check (b) on the trial-like set (no refusal) names errno 28; check (c) against a 33
-   build tree names the ten macros. Then the recipe changes.
+   objects; check (a) with no clang under `build/tools/` fails, naming that; check (b) on the
+   trial-like set (no refusal) names errno 28; check (c) against a 33 build tree names the ten
+   `HAVE_*` lines. Then the recipe changes.
 2. **The pins.** `downloads/SHA256SUMS` holds exactly Decision 1's fifteen lines in place of 33's
    fifteen; `scripts/00_download.sh` fetches each from a literal URL; a build from empty
    `downloads/` verifies all of them (`downloads: N pins, N fetched, N verified`). No `33.0`,
@@ -502,28 +592,96 @@ accept it with its cause.
    - Check (a) passes on each host's SDK (macOS, and in both containers: the x86_64 and aarch64
      Linux clangs).
    - The landing notes list the five `SHA256SUMS` hashes. One file, or the build stops.
-4. **Nothing a program sees moves but Decision 6's three attributes.** The full judge's goldens,
-   classes, trap entries and allowances are unchanged and pass; numpy-core's `no-dup` classes
-   match `Errno 58` again; `python.wasm`'s imports are the same 43 and its exports the same.
-5. **Decision 9's table** is in the landing notes, inside its bound, with causes labelled, and with
-   the README numbers re-measured where they moved.
-6. **The dry run.** One `workflow_dispatch` run of `release.yml` on main's exact commit after the
+   - At every later rebase that brings code first compiled by clang 23, the linux/arm64 container
+     comparison again (Decision 10's trigger).
+4. **Nothing a program sees moves but the accepted list.** `surface_probe.py`, run on both
+   binaries of main's set and of 086's set on one machine, compares every builtin and compiled
+   extension module's `dir()` and `sysconfig.get_config_vars()`. Its diff is exactly Decision 6's
+   accepted list (`os.dup2`, `os.pipe2`, `time.pthread_getcpuclockid`, `select.PIPE_BUF`, the ten
+   `HAVE_*`), or each further line is traced and added to that list and the README, or fixed. The
+   other libraries' configure diffs are recorded (Decision 6). The full judge's goldens, classes,
+   trap entries and allowances are unchanged and pass; numpy-core's `no-dup` classes match
+   `Errno 58` again; `python.wasm`'s imports are the same 43 and its exports the same.
+5. **The Linux floors and trap entries, before landing** (the lane's ruling on F5, as 065 did).
+   In the linux/amd64 container (Cranelift's x86-64 code, under Rosetta) and in the linux/arm64
+   container, on 086's set: `test_v1_2_hostile_guest.py`'s recursion checks,
+   `test_the_c_stack_window_is_128_kib`, and the CPython groups that carry spec 065's trap entries.
+   Each passes, with each open trap entry trapping as named or not at all; a floor that fails is
+   re-measured with spec 071's script and changed only as a judge change with the measured depth
+   (Decision 8). 087's x86-64 edge is re-measured in the same run if 087 has landed. Windows stays
+   with the dry run (criterion 7); a Windows floor that fails there is handled the same way.
+6. **Decision 9's table and its A/B** are in the landing notes, with the layout control's numbers,
+   inside the bound, with causes labelled (or rule 7's record for a 1 to 3% row), and with the
+   README numbers re-measured where they moved.
+7. **The dry run.** One `workflow_dispatch` run of `release.yml` on main's exact commit after the
    landing passes every job on the three systems, `same-bytes` included, with no exception. No
    tag before it passes (AGENTS.md rule 6b).
-7. **The judge.** `uv run pytest` is green and accepted by the lane with Decision 9's three flags;
+8. **The judge.** `uv run pytest` is green and accepted by the lane with Decision 9's three flags;
    lost 0. `ruff check` and `ruff format --check` are clean.
-8. **The record.** The facts sheet, the README, the CHANGELOG, the libxml2 sheet's reason and the
-   roadmap line exist as Decisions 4, 5 and 11 say.
+9. **The record.** The facts sheet, the evidence memo and folder (naming only 086's files: the
+   review's N1), the README, the CHANGELOG, the libxml2 sheet's reason and the roadmap line exist
+   as Decisions 4, 5, 6 and 11 say.
 
 ## For the owner
 
-1. **Nothing blocks the build.** Every choice above is decided. Two are worth knowing:
-   - **Guest programs gain `os.dup2`, `os.pipe2` and `time.pthread_getcpuclockid`**, each raising
-     `ENOTSUP` (Decision 6). This is what wasi-libc 34 provides. Holding them out would take
-     forced `#undef`s in CPython's compile and a `dup2` symbol clash risk. **Recommendation:
-     accept** (as decided).
-   - **A second link-time refusal joins `iconv_refusals.c`**, so `os.dup` keeps `ENOTSUP` (Decision
-     5). It goes when wasi-libc fixes the header-and-`fcntl` mismatch. A new facts sheet,
-     `upstream/25-wasi-libc-fcntl-dupfd/`, is yours to send. **Recommendation: send it** once 086
-     lands; the fix is one line.
+1. **Nothing blocks the build.** Every choice above is decided. Three are worth knowing:
+   - **Accepting the new attributes.** Guest programs gain `os.dup2`, `os.pipe2` and
+     `time.pthread_getcpuclockid`, each raising `ENOTSUP`, and the constant `select.PIPE_BUF`
+     (4096) (Decision 6). This is what wasi-libc 34 provides. Holding them out would take forced
+     `#undef`s in CPython's compile and a `dup2` symbol clash. The reviewer concurs.
+     **Recommendation: accept** (as decided), and the README lists them.
+   - **Sending the wasi-libc sheet after landing.** A second link-time refusal joins
+     `iconv_refusals.c`, so `os.dup` keeps `ENOTSUP` (Decision 5). It goes when wasi-libc's `fcntl`
+     answers `ENOTSUP` for its two dup commands on preview1, as its `dup` does. The facts sheet,
+     `upstream/25-wasi-libc-fcntl-dupfd/`, is yours to send. **Recommendation: send it once 086
+     lands**; the fix is one line, and it lets the refusal go.
+   - **numpy-core's fuel moves with memory layout.** 073 measured it; 086's control (Decision 9)
+     will say how much of its +2.645% is the same. If it is, a later judge-side look at that one
+     group's fuel, outside 086, may be worth a question. Nothing to decide now.
 2. **The brief's "wasi-sdk 32" was 33.** No decision; recorded above.
+
+## Disposition of the pre-build review (2026-10-19)
+
+The review (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-spec-2026-10-19.md`, in the lane's
+scratchpad with its probes, copied by the lane) said "ready once F1 to F5 are written in"; F6 to F10
+to be fixed or answered. The lane ruled on each; all are written in.
+
+- **F1 (medium), numpy-core's rule contradicted itself.** One rule now (Decision 9, "The rule"):
+  measured as an A/B on one machine (main's set against 086's, the same judge commit) after a
+  layout control, never against `accepted.json` alone; over 3% stops the build; 1 to 3% is traced
+  file by file; two failed attempts invoke AGENTS.md rule 7 (recorded, then accepted with the
+  record). The control starts from 073's measured mechanism: `bool`'s address and
+  `test_strings.py::test_string_comparisons`.
+- **F2 (medium), the surface moves by more than three attributes.** `select.PIPE_BUF` is added to
+  the accepted list (Decision 6, Decision 11, For the owner), and criterion 4 now compares every
+  module's `dir()` and `sysconfig` across both sets by `surface_probe.py`.
+- **F3 (medium), no trigger for code first compiled by clang 23.** Decision 10's same-bytes
+  trigger: the linux/arm64 container comparison is re-run, beside the macOS build, at every rebase
+  that brings such code (043's contourpy and qhull, 087's patch, 073, anything build-class), by
+  whichever specification rebases; criterion 3's last bullet.
+- **F4 (medium), where 086 lands and on what base.** Decision 10: after 083, 039, 073, 085 and 084,
+  and after 043 if 043 is ready first; 037 rebases onto 086; whichever of 086 and 043 lands second
+  rebuilds contourpy and qhull with clang 23. Decision 9 is measured on the exact base 086 lands on,
+  after 083's driver change.
+- **F5 (medium), x86-64 floors and Linux trap entries only after landing.** Criterion 5: run in the
+  linux/amd64 and linux/arm64 containers before landing, as 065 did; Windows stays with the dry
+  run, under the same re-measure rule.
+- **F6 (low), check (b) never turns red on an upstream fix.** The false sentence is gone; the
+  removal signals are the facts sheet and the next toolchain move's recipe table, which now names
+  `fcntl_dup_refusal.c` (Decisions 3 and 5). Check (b) also covers `pthread_getcpuclockid` and the
+  `dup3` path.
+- **F7 (low), check (a)'s input and need.** The reproducer is copied to
+  `tests/fixtures/try-table-order.ll` with its SHA-256 named; the need is `compile records`; the
+  check fails when it finds no clang (Decision 7, criterion 1).
+- **F8 (low), the wrapper read an argument that may not exist.** The wrapper reads `va_arg` only
+  for commands that take one; the justification is corrected; step 60's guard compile becomes a
+  loop whose failure names its file (Decision 5). The trial's table says the trialled wrapper read
+  unconditionally.
+- **F9 (low), other components probe libc.** Decision 6: the builder diffs every generated config
+  header, 33 against 34, and treats each flip as CPython's.
+- **F10 (nit), record every `#define`.** Done (Decisions 6 and 7).
+- **N1.** The evidence moves into the repository with only 086's files named (criterion 9); the
+  worktree's `build/086-evidence/` also holds older scripts from the shared scratch folder, which
+  are not 086's.
+- **N2.** One README line (Decision 11).
+- **N3, N4.** No action.
