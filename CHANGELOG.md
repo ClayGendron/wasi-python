@@ -4,7 +4,7 @@ One section per release of the `wasi-python` artifact set and wheel, newest firs
 body is the release's notes on GitHub. `release/version.py bump` adds a section; `release/version.py
 release` dates it and tags the release (context/specifications/004-alpha-releases.md).
 
-## 0.1.0a6 — unreleased
+## 0.1.0a6 — 2026-10-19
 
 - **The x86_64 rebuild runs natively** (spec 059). Every compile carries `-ffp-contract=off`,
   set once in the toolchain's own `clang.cfg` and `clang++.cfg` by step 10, so wasi-sdk's x86_64
