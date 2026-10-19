@@ -364,6 +364,7 @@ class Turns:
         _place(stdlib, lib / stdlib_name(python_version, stdlib))
         self.store = wt.Store(engine())
         self.store.set_fuel(UNMETERED)
+        self.store.set_epoch_deadline(EPOCH_FAR_OFF)  # the runner's engine has epochs (spec 071)
         wasi = wt.WasiConfig()
         wasi.argv = [ARGV0, *(argv or [])]
         wasi.env = sorted((env or {}).items())
