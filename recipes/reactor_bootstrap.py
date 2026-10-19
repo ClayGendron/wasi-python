@@ -41,11 +41,16 @@ def _run_file(target, main):
     # file loader set in __main__ (SourcelessFileLoader for a .pyc, as set_main_loader), the code
     # run there, and __file__ removed again on every path (spec 073, Decision 2). The code is read
     # as runpy.run_path reads it, so an OSError still rises from runpy's frame (_only_runpy).
+    # The loaders come from _frozen_importlib_external, where CPython's set_main_loader takes them
+    # (_PyImport_GetImportlibExternalLoader): `from importlib.machinery import ...` would run that
+    # module's __getattr__, which imports warnings into every script run (spec 073's build
+    # review, B1).
+    import _frozen_importlib_external as external
     import runpy
-    from importlib.machinery import SourceFileLoader, SourcelessFileLoader
 
     code = runpy._get_code_from_file(target, "__main__")
-    loader = SourcelessFileLoader if target.endswith(".pyc") else SourceFileLoader
+    pyc = target.endswith(".pyc")
+    loader = external.SourcelessFileLoader if pyc else external.SourceFileLoader
     g = main.__dict__
     g["__file__"] = target
     g["__loader__"] = loader("__main__", target)

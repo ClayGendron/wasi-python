@@ -140,9 +140,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   undoes the snapshot's frozen heap before it finalizes, as a session's close does (the owner's
   answer to question 103), so the snapshot finalizes as CPython does: a `ZipFile` left open gets
   its directory written too. The price is the finalization: a bare snapshot call costs about
-  43.7M guest instructions instead of 15.6M, most of it after the program has ended. So a
-  `fuel=` cap on a snapshot call must cover about 28M more (about 46M after `import
-  pandas`), or the call ends `"out of fuel"`, with `exit_code` `None`, after its output was
+  43.8M guest instructions instead of 15.6M, most of it after the program has ended. So a
+  `fuel=` cap on a snapshot call must cover about 28M more (more after large imports, up to
+  about 90M), or the call ends `"out of fuel"`, with `exit_code` `None`, after its output was
   written.
 - **Changed: a script's, a directory's and `-m`'s `__main__` are CPython's own** (spec 073). A
   script's `__package__` is `None` and its `__loader__` a `SourceFileLoader` (a

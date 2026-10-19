@@ -193,11 +193,14 @@ def test_run_keeps_unclosed_files_in_every_mode(guest_workdir, which) -> None:
 
 
 MAIN_PROBE = """\
-import atexit, gc, pickle, sys
+import sys
+W = ('warnings' in sys.modules, '_py_warnings' in sys.modules)
+import atexit, gc, pickle
 class C:
     pass
 g = globals()
 print(repr((
+    W,
     any(o is g for o in gc.get_objects()),
     g is sys.modules['__main__'].__dict__,
     sorted(k for k in g if k.startswith('__')),
@@ -241,7 +244,9 @@ def test_every_program_runs_in_an_unfrozen_main(guest_workdir, which) -> None:
     """Spec 073, check C: in every mode the program's globals are __main__'s, in a collector
     generation (gc.get_objects() never lists the frozen one), with native CPython's names and
     values; and an atexit handler finds the program's __main__ (its class pickles), with
-    `__file__` gone after a script, as CPython removes it, and kept for a directory and -m."""
+    `__file__` gone after a script, as CPython removes it, and kept for a directory and -m. A
+    program starts without `warnings` in sys.modules in every mode, as native CPython's does (the
+    build review's B1: a script's loader import once brought it in)."""
     import ast
 
     for mode in RUN_MODES:
@@ -249,10 +254,17 @@ def test_every_program_runs_in_an_unfrozen_main(guest_workdir, which) -> None:
         assert done.exit_code == 0, (mode, done)
         lines = done.stdout.decode().splitlines()
         assert len(lines) == 2, (mode, done)
-        unfrozen, is_main, names, values = ast.literal_eval(lines[0])
+        warned, unfrozen, is_main, names, values = ast.literal_eval(lines[0])
         names_want, values_want, file_at_exit = MAIN_WANT[mode]
-        got = (unfrozen, is_main, names, values, ast.literal_eval(lines[1]))
-        want = (True, True, names_want, values_want, ("atexit", True, True, file_at_exit))
+        got = (warned, unfrozen, is_main, names, values, ast.literal_eval(lines[1]))
+        want = (
+            (False, False),
+            True,
+            True,
+            names_want,
+            values_want,
+            ("atexit", True, True, file_at_exit),
+        )
         assert got == want, (mode, got, want)
 
 
