@@ -81,7 +81,7 @@ green). Building: 037 (scipy, first milestone; its same-bytes exception for ducc
 104, reviewed and being built), 043 (matplotlib M2) and 039 (tier A), each build-class. Confirmed
 for build: 083 (the judge fixes the file times, inode numbers and link count a guest sees, so fuel
 does not wobble; builds after 065 lands) and 073 (`run` keeps an unclosed file's bytes:
-a fresh `__main__` for every program; build-class, builds when no package is ready).
+a fresh `__main__` for every program, and, by question 103's answer, the freeze undone before `run` finalizes; being amended; build-class, builds when no package is ready).
 
 Confirmed for build, in the build-class queue (up to four built at once while the packages come
 first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
@@ -112,11 +112,17 @@ closers. Spec 071 is widened to own the Linux host crash spec 063's build review
 guest trap after the host enabled faulthandler past the runner's first engine); 063's gap for it
 names 071 here.
 
-Reserved: 078, "the runner's own threads have room for the wasm stack" (spec 071's build review,
-F1): `run_async`'s own pool is made by the runner, so it could give its threads a stack that holds
-the guest's 512 KiB, where musl's default of 128 KiB lets a recursing guest kill the host
-(EXECUTED there; main does the same). It is the small, pool-only neighbour of question 102's
-option (a), a stack the runner owns for every call; if the owner chooses (a), 078 is folded in.
+Reserved: 078, "the runner runs each guest on a stack of its own" (question 102 answered (a),
+2026-10-19; it folds in the first 078, spec 071's build review F1, the musl pool): the runner runs
+each guest on a thread of its own with an 8 MiB stack, and the README asks other embedders for the
+same. It closes spec 065's six recursion trap entries and the data depths 071 documents; its design
+answers the thread costs question 102 lists (host functions on the runner's thread, the caller's
+contextvars, Ctrl-C, `threading.stack_size`, `run_async` with the caller's executor). Parallel-safe,
+before 0.1.0.
+
+Reserved: 088, the judge-only binary (questions 89 and 101): a build never published, linked with
+numpy's C test modules and built with CPython's (`--enable-test-modules`), on which the judge runs
+the tests that need them. Build-class; after the packages.
 
 Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
 inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,

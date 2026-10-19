@@ -8,6 +8,39 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 100 to 103, and the toolchain move's place, answered (2026-10-19)
+
+The owner answered the four open questions and one new one in the session, choosing among the
+options each question set out (their text is in this file's history, `questions-for-the-owner.md`
+before this commit).
+
+- **100 (where the cap on open files protects):** "Leave limits alone." The cap stays 1,024; the
+  library never changes the process's limits; the README tells embedders to raise their soft
+  `RLIMIT_NOFILE` or set `max_open_files` below it; `wasi-python run` raises its own, since it
+  owns its process. Spec 072 (a bound on path depth) still closes the deep-path descriptors.
+- **101 (CPython's C test modules):** "Yes, same judge binary." The later judge-only build of
+  question 89, never published, is also built with CPython's test modules
+  (`--enable-test-modules`), and the tests that need them run there. Spec 065's class,
+  deselection and three left-out modules close with that specification (reserved in the roadmap
+  as 088) instead of this question.
+- **102 (what closes the deep-recursion traps):** "(a) Runner-owned 8 MiB stack." The runner runs
+  each guest on a thread of its own with an 8 MiB stack, and the README asks other embedders for
+  the same. Spec 078 (the runner's own threads have room for the wasm stack) is folded in and
+  widened to this; its costs (host functions on the runner's thread, the caller's contextvars
+  copied in, Ctrl-C stopped from another thread, `threading.stack_size` under a lock or a pool of
+  its own, `run_async` with the caller's executor) are its design's to answer. Before 0.1.0.
+  Spec 065's trap entries name 078 as their closer once it is drafted.
+- **103 (finalizing what a program hangs on the frozen heap):** "Yes, unfreeze before finalizing."
+  `run` on the snapshot undoes the freeze before it finalizes, as a session's close does (spec
+  055), so the snapshot finalizes exactly as CPython does, at about +28 M instructions a call.
+  Spec 073 is amended to do this as well as give every program a fresh `__main__` (which still
+  fixes a script and `-m` on both binaries); spec 069's check (b), the snapshot's start at least
+  8 times cheaper than the plain start, is restated by 073 with this decision as its reason
+  (about 3.8 times), and check D's gap closes.
+- **The toolchain move (spec 086, wasi-sdk 34):** "After the packages." scipy lands with its
+  same-bytes exception (question 104); 086 takes a build slot once the package chains are built,
+  or when no package is ready, and removes the exception.
+
 ### 104, answered: scipy lands with a narrow same-bytes exception for ducc0, fixed in parallel (2026-10-19)
 
 - **Asked:** 2026-10-19 (question 104, from spec 037's build: its research memo
