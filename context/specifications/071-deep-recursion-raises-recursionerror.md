@@ -800,18 +800,19 @@ first build, on `6cc30bb`: `SHA256SUMS` `a48b92aa…`, `python.wasm` `ce65e305�
 ### Growth, with its measured reason
 
 71 metrics grew past the ratchet's tolerance against `b413192`'s accepted record (83 grew at
-all; 40 shrank): one binary's bytes and fuel. The binary grew 283 bytes
-(`test_binary_is_a_core_wasm_module[plain]`), the recipe's call. Fuel: the largest relative
-growth is `test_upstream_suite[numpy-core]`, +1,081,373,954 (+0.53%); every other is within
-+0.16% (`test_npy_files_round_trip[snapshot]`, +337,134); the largest shrink is −0.16%
-(`test_callbacks_job_matches_native[snapshot]`). Reason: a new `python.wasm` and snapshot whose
-memory layout differs, so work that depends on addresses (hashing by id, the allocator's arenas,
-the collector's timing) moves a few parts in ten thousand either way; `-c pass` is 0.07% cheaper
-on both binaries. numpy-core's own accepted fuel has moved by as much between landings that did
-not touch numpy (202,349,737,812 at `7511a10`, 203,634,093,365 at `1dbf2c8`, 202,357,454,477 at
-`590ac2e`, `context/progress/accepted.json` at each), and this run's 203,438,828,431 lies inside
-that range. The engine change does not move fuel: fuel counts wasm operators, and epoch checks
-are native code. The handler check costs no fuel.
+all; 40 shrank). The cause, measured by the build review (its F4; EXECUTED there,
+`coerce_probe.txt` and `core-compare.txt`), replaces the first notes' "layout in general":
+
+- The rebuilt binary moves CPython's static type objects by 64 bytes (`bool` at `0x15c5598`
+  against `0x15c5558`). numpy looks up each Python scalar's DType in a dict keyed by the type's
+  address, and `bool`'s new address costs more there: `np.array` of 131,072 Python bools, four
+  times, costs 669,301,880 fuel against 642,039,204 on main's set (+4.25%); int, float, complex,
+  str and `np.float32` stay within ±0.02%. These are the numbers spec 047's delta measured.
+- So numpy-core grows +1.08 G (+0.53%), all of it in `test_strings.py::test_string_comparisons`
+  (108 cases, about +10 M each; every other numpy-core test within ±1.0 M).
+- Every other fuel metric moved by at most +0.155% / −0.162%. The plain binary grew 283 bytes,
+  the recipe's call. `-c pass` is 0.07% cheaper on both binaries. Neither the engine change nor
+  the handler check adds fuel.
 
 ### For the lane
 
@@ -820,10 +821,13 @@ are native code. The handler check costs no fuel.
   checks for deep recursion, the window, the default engine and the CLI, the deep-data limits,
   the stated engine and Linux's faulthandler orders, a session turn included; a wasmtime cli
   need"`.
-- `--accept-growth "spec 071's rebuilt python.wasm and snapshot (one recipe call): fuel moves with
-  the relinked binary's layout, at most +0.53% (numpy-core, inside the range its accepted fuel has
-  spanned across landings that did not touch numpy) and +0.16% elsewhere; the plain binary +283
-  bytes"`.
+- `--accept-growth "spec 071's rebuilt python.wasm and snapshot (one recipe call; plain +283
+  bytes) move CPython's static type objects by 64 bytes; numpy looks up each Python bool's DType
+  in a dict keyed by the type's address, and bool's new address costs more there (np.array of
+  131,072 bools +4.25%; int, float, complex, str and np.float32 within ±0.02%), so numpy-core
+  grows +1.08 G (+0.53%), all of it in test_strings.py::test_string_comparisons (108 cases, about
+  +10 M each), the cause spec 047's delta measured; every other fuel metric within ±0.17%"` (the
+  build review's wording, which the lane uses).
 - **063's faulthandler gap** (`test_a_guest_trap_cannot_kill_a_host_that_enabled_faulthandler`,
   digest `b5a565e2e3c0`) is not on main at `b413192`, so 063 lands after this and restates that
   check at its landing to "the host survives: the call is refused, or the trap is returned";
@@ -838,6 +842,29 @@ are native code. The handler check costs no fuel.
   inside a store's `__del__`, from wasmtime-py's `_managed.py`), a warning, no failure; it names
   no check of this specification (INFERRED: a Ctrl-C check's interrupt landing in a worker's
   collector under `-n 3`).
+
+### Revised against the build review (2026-10-19)
+
+The build review (`scratchpad/071-buildreview/071-deep-recursion-raises-recursionerror-build-2026-10-19.md`,
+for the lane to copy to `../reviews/`): "lands once F1 is written in"; all five departures
+accepted; Decision 9 held in 15 orders on glibc and musl, both architectures.
+
+- **F1.** The README's *Running it* paragraph no longer says threads have 2 MB "on every host":
+  musl (Alpine) gives a thread 128 KiB, so a recursing guest on a default thread, or through
+  `run_async`'s own pool, kills the host with SIGSEGV (main does the same; not a regression).
+  The remedy, `threading.stack_size(1 << 20)` or more before those threads are made, is there and
+  under *Not protected*. The roadmap reserves spec 078, "the runner's own threads have room for
+  the wasm stack" (`run_async`'s pool), as question 102 option (a)'s small neighbour.
+- **F2.** Criterion 4 now runs metered (`fuel=10**11`), the engine the README's limits come from.
+  On arm64 its six kinds pass as before; on x86_64, metered, every deep row traps, the
+  `ElementTree` target included, and every completing row and the next call work
+  (`v3/evidence/criterion-4-metered-amd64.log`).
+- **F3.** `Session.shutdown_outcome`'s docstring names the new reason for "skipped".
+- **F4.** The growth reason above.
+- The changed checks and the fast tier (`uv run pytest -m "not slow" -n 3`,
+  `build/fast-071d.log`): `491/545 pass · 0 gap · 3 blocked · 0 fail · 51 deselected (unit suite
+  1264/1271, 7 skipped)`; `1755 passed, 10 skipped in 204.42s`; ratchet lost 0, gained 53, grew
+  58 (the same growth).
 
 ### Departures from the specification, each with its reason
 

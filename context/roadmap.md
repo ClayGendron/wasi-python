@@ -106,6 +106,12 @@ Reserved: 075, "tools.py small fixes", a small follow-up in `src/wasi_python/too
 measured and refused; refuse it from the lengths first; spec 070, Decision 6) and the 0.1.0a6
 security review's F1 (an async gate that raises `GeneratorExit` lets the call through).
 
+Reserved: 078, "the runner's own threads have room for the wasm stack" (spec 071's build review,
+F1): `run_async`'s own pool is made by the runner, so it could give its threads a stack that holds
+the guest's 512 KiB, where musl's default of 128 KiB lets a recursing guest kill the host
+(EXECUTED there; main does the same). It is the small, pool-only neighbour of question 102's
+option (a), a stack the runner owns for every call; if the owner chooses (a), 078 is folded in.
+
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).

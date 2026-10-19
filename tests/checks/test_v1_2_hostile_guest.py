@@ -4,6 +4,7 @@ made or behaviour that already held."""
 
 from __future__ import annotations
 
+import functools
 import os
 import subprocess
 import sys
@@ -2500,10 +2501,11 @@ LIMITS = {
 
 @pytest.mark.parametrize("kind", list(LIMITS))
 def test_deep_data_limits(kind: str) -> None:
-    """Spec 071, criterion 4: the README's limits hold. The completing depth completes; the deep
-    one ends in the trap "stack overflow" (or, for SAX and ElementTree targets, a RecursionError
-    on hosts with smaller frames), the host survives, and the next call works."""
-    run = _run()
+    """Spec 071, criterion 4: the README's limits hold, on a metered call (the engine the limits
+    were measured on, whose frames are larger). The completing depth completes; the deep one ends
+    in the trap "stack overflow" (or, for SAX and ElementTree targets, a RecursionError on hosts
+    with smaller frames), the host survives, and the next call works."""
+    run = functools.partial(_run(), fuel=10**11)  # metered, as the README's limits were measured
     program, good, deep, either = LIMITS[kind]
     ok = run(["-c", program.format(n=good)])
     assert (ok.exit_code, ok.trapped) == (0, None), (ok.trapped, ok.stderr[-600:])

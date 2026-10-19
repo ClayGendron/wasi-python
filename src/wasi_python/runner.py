@@ -4922,8 +4922,9 @@ class Session:
     def shutdown_outcome(self) -> str | None:
         """`None` until the session's ending has finished; then "finished" (Python's shutdown
         ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no
-        shutdown ran: the session was stopped mid-turn, no turn ever ran, or `shutdown_s` was
-        0). `close()` waits for the ending."""
+        shutdown ran: the session was stopped mid-turn, no turn ever ran, `shutdown_s` was 0,
+        or, on Linux, wasmtime's trap handlers were replaced after the first run). `close()`
+        waits for the ending."""
         return self._state.outcome
 
     def _turn_args(

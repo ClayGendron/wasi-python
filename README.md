@@ -658,8 +658,11 @@ checkout's `build/artifacts/`, else the wheel's own copy.
 
 `run` runs the guest on the calling thread, with 512 KiB of wasm stack (spec 071); call it from
 a thread with that much free above your own frames. Python's threads have about 2 MB or more on
-every host, but an application that lowered `threading.stack_size`, or an executor with small
-threads passed to `run_async`, may not.
+glibc Linux, macOS and Windows, but **musl (Alpine) gives a thread 128 KiB**: there a guest that
+recurses, run on a default thread or through `run_async`'s own pool, kills your process with
+SIGSEGV. Set `threading.stack_size(1 << 20)` (or more) before the runner's first `run_async` and
+before you make threads that call `run`. An application that lowered `threading.stack_size`, or
+an executor with small threads passed to `run_async`, has the same problem anywhere.
 
 ### Grants
 
@@ -2244,7 +2247,7 @@ One instance of the runtime kept across several calls, each a turn: variables, f
 - `Session.__exit__`: Close the session as the `with` block is left, however it is left.
   - `exc`: The exception leaving the block, if any; it is never suppressed.
 - `Session.ended`: `None` while the session can run turns; once it cannot, why: "closed", "idle", "lifetime", "quit" (a turn called `exit()` or `quit()`), "exit" (a turn called `os._exit`), "error" (a turn raised in your process), or the stopped turn's `trapped`. Set once, and never changed.
-- `Session.shutdown_outcome`: `None` until the session's ending has finished; then "finished" (Python's shutdown ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no shutdown ran: the session was stopped mid-turn, no turn ever ran, or `shutdown_s` was 0). `close()` waits for the ending.
+- `Session.shutdown_outcome`: `None` until the session's ending has finished; then "finished" (Python's shutdown ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no shutdown ran: the session was stopped mid-turn, no turn ever ran, `shutdown_s` was 0, or, on Linux, wasmtime's trap handlers were replaced after the first run). `close()` waits for the ending.
 - `Session.run`: Run one turn of code in the session and return how it ended.
   - `code`: The turn's source, a str.
   - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
@@ -2948,7 +2951,11 @@ to `None`, the deadline bounds what it bounded (see *Tools*, "The host's cost
 per frame"); recursion in C over very deep data, callbacks out of expat, and freeing very deep
 structures, which end the call with a stack-overflow trap (see *Deep recursion*; the next call
 is unaffected); on Linux, a signal-handler change made during a call, by a host function on the
-calling thread or by another thread (the next call is refused); timing
+calling thread or by another thread (the next call is refused); a call on a thread with less
+stack than the guest's 512 KiB plus your own frames, such as any default thread on musl (Alpine,
+128 KiB) and so `run_async`'s own pool there, where a recursing guest kills the process with
+SIGSEGV (set `threading.stack_size(1 << 20)` or more before those threads are made; see
+*Running it*); timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope
