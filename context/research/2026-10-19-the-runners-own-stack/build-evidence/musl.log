@@ -1,25 +1,43 @@
-# Alpine (musl), the built runner (PYTHONPATH=src), wasmtime-py 49.0.0: aarch64 then x86_64.
+# Alpine (musl), the built runner (PYTHONPATH=src), wasmtime-py 49.0.0, 256 KiB calling threads: aarch64 then x86_64 (criterion 16, all five rows).
 3.14.5
-small-thread-free (0, None, 'ok')
+thread-free (0, None, 'ok')
+thread-repr (0, None, 'RecursionError')
 door-at-depth (0, None, 'freed')
+executor-free (0, None, 'ok')
+executor-repr (0, None, 'RecursionError')
 exit 0
 3.13.13
-small-thread-free (0, None, 'ok')
+thread-free (0, None, 'ok')
+thread-repr (0, None, 'RecursionError')
 door-at-depth (0, None, 'freed')
+executor-free (0, None, 'ok')
+executor-repr (0, None, 'RecursionError')
 exit 0
 3.14.0
-small-thread-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; use CPython 3.14.1 or")
-door-at-depth ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; use CPython 3.14.1 or")
+thread-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+thread-repr ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+door-at-depth ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+executor-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+executor-repr ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
 exit 0
 3.14.5
-small-thread-free (0, None, 'ok')
+thread-free (0, None, 'ok')
+thread-repr (0, None, 'RecursionError')
 door-at-depth (0, None, 'freed')
+executor-free (0, None, 'ok')
+executor-repr (0, None, 'RecursionError')
 exit 0
 3.13.13
-small-thread-free (0, None, 'ok')
+thread-free (0, None, 'ok')
+thread-repr (0, None, 'RecursionError')
 door-at-depth (0, None, 'freed')
+executor-free (0, None, 'ok')
+executor-repr (0, None, 'RecursionError')
 exit 0
 3.14.0
-small-thread-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; use CPython 3.14.1 or")
-door-at-depth ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; use CPython 3.14.1 or")
+thread-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+thread-repr ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+door-at-depth ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+executor-free ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
+executor-repr ('RuntimeError', "CPython 3.14.0 on this C library guesses its thread's stack and cannot be told the guest thread's; u")
 exit 0

@@ -3783,7 +3783,13 @@ class _Home:
         self.raised: BaseException | None = None
         self.watched = False  # this thread's _ctrl_c_watched(), for its guest thread (Decision 5)
         self.thread: threading.Thread | None = None
+        # The start handshake (the build review's F1), under `lock`: "idle", "starting" (asked of
+        # the OS), "running" (the guest body took it), "cancelled" (the start failed before the
+        # body took it: the body, if the OS made the thread anyway, returns at once).
+        self.state = "idle"
         self.done = True  # no guest thread is running
+        self.ended = threading.Event()  # set by the guest body at its end, or by a cancelled start
+        self.ended.set()
         self.abandoned = False
         self.steps: list[Callable[[], Any]] = []
         self.result: tuple[Any, BaseException | None] = (None, None)
@@ -3802,6 +3808,8 @@ class _Home:
         for in slices, until it is answered, the home has an exception, or it stops serving."""
         if threading.get_ident() == self.ident:
             return fn(*args)
+        if self.raised is not None:  # the call has stopped: no more embedder code (F7)
+            raise _Stopped()
         box = _Box(fn, args)
         self.inbox.put(box)
         while not box.lock.acquire(timeout=_GUEST_SLICE):
@@ -3823,7 +3831,10 @@ class _Home:
                     item = self.inbox.get(timeout=_GUEST_SLICE)
                     if item is _DONE:
                         return
-                    item.run()
+                    if self.raised is not None:  # stopped: answered, never run (F7)
+                        item.answer(error=_Stopped())
+                    else:
+                        item.run()
                     item = None
                 except queue.Empty:
                     continue
@@ -3851,6 +3862,10 @@ class _Home:
     def body(self, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
         """The guest thread: check its stack, tell the interpreter where it guesses, run fn; then
         hand the result home and run the steps an abandoned home left."""
+        with self.lock:  # the start handshake (the build review's F1)
+            if self.state == "cancelled":
+                return  # its start failed: no wasm, nothing to tear down, nobody waiting
+            self.state = "running"
         value: Any = None
         error: BaseException | None = None
         try:
@@ -3879,12 +3894,14 @@ class _Home:
             self.inbox.put(_DONE)
             with self.lock:
                 self.done = True
+                self.state = "idle"
                 steps, self.steps = (self.steps, []) if self.abandoned else ([], self.steps)
             for step in steps:
                 try:
                     step()
                 except BaseException:
                     pass
+            self.ended.set()
 
 
 def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any, ...]) -> None:
@@ -3898,12 +3915,20 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
         old = threading.stack_size(_THREAD_STACK)
         _stack_size_found[:] = [old]
         try:
-            home.done = False
-            home.thread = thread
             try:
+                with home.lock:  # the start handshake (the build review's F1)
+                    home.state, home.done, home.thread = "starting", False, thread
+                    home.serving = True  # before the guest can hand anything off (F7)
+                    home.ended.clear()
                 thread.start()
             except BaseException:
-                home.done, home.thread = True, None
+                # Raised before the OS made the thread, or after it did (an interrupt in start()'s
+                # own wait): only a start the body has not taken is cancelled; a running guest is
+                # kept, so the home waits for it and nothing is torn down under it.
+                with home.lock:
+                    if home.state == "starting":
+                        home.state, home.done, home.serving = "cancelled", True, False
+                        home.ended.set()
                 raise
         finally:
             current = threading.stack_size(old)
@@ -3913,13 +3938,13 @@ def _start_guest(home: _Home, kind: str, fn: Callable[..., Any], args: tuple[Any
 
 
 def _join_guest(home: _Home) -> None:
-    """Wait until the guest thread has ended; an exception raised meanwhile stops the guest and
-    the wait goes on (Decision 14)."""
-    while home.thread is not None:
+    """Wait until the guest body has ended (its event, which a cancelled start also sets); an
+    exception raised meanwhile stops the guest and the wait goes on (Decision 14; the build
+    review's F1: never `thread.is_alive()` alone, which a forgotten thread would not answer)."""
+    while True:
         try:
-            if not home.thread.is_alive():
+            if home.ended.wait(_GUEST_SLICE):
                 return
-            home.thread.join(_GUEST_SLICE)
         except BaseException as e:
             home.stop(e)
 
@@ -3945,6 +3970,7 @@ def _on_guest_thread(kind: str, home: _Home, call: Any, fn: Callable[..., Any], 
                 raise
             finally:
                 _join_guest(home)
+                home.serving = False
             value, error = home.result
             home.result = (None, None)
             if not (attempt == 0 and isinstance(error, _ThreadTooSmall) and home.raised is None):

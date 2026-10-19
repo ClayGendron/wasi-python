@@ -492,8 +492,8 @@ id = "no-missing-stdlib-info"
 group = "cpython-a"
 outcome = "failed"
 match = "Unsupported platform for Windows-only standard library module"
-reason = "the build's generated _missing_stdlib_info is not in the stdlib zip, so traceback names a missing stdlib module only as 'not found' (README; test_traceback runs since spec 078)"
-closes_with = "README.md"
+reason = "the build's generated _missing_stdlib_info.py is not in the stdlib zip (scripts/steps/70_zip.sh copies _sysconfigdata, not it), so traceback names a missing stdlib module only as 'not found' (test_traceback runs since spec 078)"
+closes_with = "context/roadmap.md"
 
 [[expected]]
 id = "no-executable-file"

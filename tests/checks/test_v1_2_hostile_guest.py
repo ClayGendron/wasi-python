@@ -2462,6 +2462,13 @@ LIMIT_C14N = (
     "import os\nfrom lxml import etree\nN = {n}\nroot = etree.Element('a'); e = root\n"
     "for i in range(N): e = etree.SubElement(e, 'a')\netree.tostring(root, method='c14n')\n" + DONE
 )
+LIMIT_RELAXNG = (
+    "import os\nfrom lxml import etree\nN = {n}\nroot = etree.Element('a'); e = root\n"
+    "for i in range(N): e = etree.SubElement(e, 'a')\nrng = etree.RelaxNG(etree.XML("
+    '\'<grammar xmlns="http://relaxng.org/ns/structure/1.0"><start><ref name="a"/></start>'
+    '<define name="a"><element name="a"><optional><ref name="a"/></optional></element>'
+    "</define></grammar>'))\nrng.validate(etree.ElementTree(root))\n" + DONE
+)
 LIMIT_RAISED = (
     "import os, sys\nN = {n}\nsys.setrecursionlimit(N)\ndef f(): f()\ntry:\n    f()\n"
     "except RecursionError:\n    pass\n" + DONE
@@ -2473,6 +2480,7 @@ LIMITS = {
     "hash-tuple": (LIMIT_HASH, 30_000, 57_000),
     "compile-terms": (LIMIT_COMPILE, 39_000, 82_000),
     "c14n-deep-tree": (LIMIT_C14N, 17_000, 34_000),
+    "relaxng-deep-tree": (LIMIT_RELAXNG, 4_300, 9_000),  # edges 6,388 / 5,756 (the build)
     "raised-recursion-limit": (LIMIT_RAISED, 32_000, 67_000),
 }
 
@@ -2922,9 +2930,10 @@ def drive(*a, **k):
 def close(self):
     if not state["wasm returned"]:
         state["bad"].append(threading.current_thread().name)
+        return None  # recorded, not done: a real close under running wasm ends the process
     return real_close(self)
 runner._drive, wasmtime.Store.close = drive, close
-real_serve = runner._Home.serve
+real_serve, real_start = runner._Home.serve, threading.Thread.start
 once = []
 def serve(self):
     if not once:
@@ -2932,7 +2941,15 @@ def serve(self):
         self.serving = True
         raise KeyboardInterrupt  # raised into the home just after its guest thread started
     return real_serve(self)
-runner._Home.serve = serve
+def start(self):
+    real_start(self)
+    if self.name == "wasi-python-guest" and not once:
+        once.append(1)
+        raise KeyboardInterrupt  # in start()'s own wait, after the OS made the thread
+if row == "start-interrupted":
+    threading.Thread.start = start
+else:
+    runner._Home.serve = serve
 def join(home):
     if row == "abandoned" and len(once) == 1:
         once.append(2)
@@ -2952,12 +2969,13 @@ print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush
 """
 
 
-@pytest.mark.parametrize("row", ["raised-into-home", "abandoned"])
+@pytest.mark.parametrize("row", ["raised-into-home", "abandoned", "start-interrupted"])
 def test_the_home_never_tears_down_a_running_guest(row: str) -> None:
-    """Spec 078, criterion 17 (the review's F1): an exception raised into the home while its guest
-    computes stops the guest, and the call raises only after the guest thread ended; a home forced
-    out of its join as well leaves the teardown to the guest thread. In neither is a store closed
-    while its wasm runs, and the next call works."""
+    """Spec 078, criterion 17 (the review's F1; the build review's F1): an exception raised into
+    the home while its guest computes stops the guest, and the call raises only after the guest
+    thread ended; a home forced out of its join as well leaves the teardown to the guest thread;
+    an interrupt inside Thread.start() after the OS made the thread keeps the guest known to its
+    home. In none is a store closed while its wasm runs, and the next call works."""
     code, lines, err = _child(HOME_CHILD, row)
     assert code == 0, (row, code, err)
     assert lines[-3:] == ["interrupted", "bad closes []", "next 1"], (row, lines, err)
@@ -3081,3 +3099,136 @@ def test_host_functions_run_on_the_callers_thread() -> None:
     done = asyncio.run(main())
     assert (done.exit_code, done.trapped) == (0, None), done.stderr[-800:]
     assert {ident for _, ident in where} == set(workers), (where, workers)
+
+
+ABANDONED_TURN_CHILD = """
+import threading, wasmtime
+import wasi_python
+from wasi_python import runner
+state = {"in wasm": 0, "bad": []}
+real_turn, real_close = runner._drive_turn, wasmtime.Store.close
+def drive_turn(*a, **k):
+    state["in wasm"] += 1
+    try:
+        return real_turn(*a, **k)
+    finally:
+        state["in wasm"] -= 1
+def close(self):
+    if state["in wasm"]:
+        state["bad"].append(threading.current_thread().name)
+        return None
+    return real_close(self)
+runner._drive_turn, wasmtime.Store.close = drive_turn, close
+real_serve, real_join = runner._Home.serve, runner._join_guest
+armed = []
+def serve(self):
+    if armed == [1]:
+        armed.append(2)
+        self.serving = True
+        raise KeyboardInterrupt
+    return real_serve(self)
+def join(home):
+    if armed == [1, 2]:
+        armed.append(3)
+        raise SystemExit("forced out")
+    return real_join(home)
+runner._Home.serve, runner._join_guest = serve, join
+s = wasi_python.Session(deadline_s=None)
+print("first", s.run("x = 1").exit_code, flush=True)
+armed.append(1)
+try:
+    s.run("while True: pass")
+except BaseException as e:
+    print("turn raised", type(e).__name__, flush=True)
+alive = [t for t in threading.enumerate() if t.name == "wasi-python-guest"]
+print("busy while its guest runs", s._state.busy, flush=True)
+try:
+    s.run("print(2)")
+    print("second turn ran", flush=True)
+except RuntimeError as e:
+    print("second turn refused", str(e), flush=True)
+for t in alive:
+    t.join(60)
+print("then busy", s._state.busy, "ended", s.ended, flush=True)
+s.close()
+print("closes while wasm ran", state["bad"], flush=True)
+with wasi_python.Session() as t:
+    print("next session", t.run("print(3)").stdout.decode().strip(), flush=True)
+"""
+
+
+def test_an_abandoned_turn_keeps_its_session_busy() -> None:
+    """Spec 078, criterion 17's session row (the build review's F4): a turn whose home is forced
+    out keeps the session busy until its guest thread ends; a second turn meanwhile is refused; the
+    session then ends "error", no store is closed under wasm, and the next session works."""
+    code, lines, err = _child(ABANDONED_TURN_CHILD)
+    assert code == 0, (code, err)
+    assert lines == [
+        "first 0",
+        "turn raised SystemExit",
+        "busy while its guest runs True",
+        "second turn refused a turn is already running in this session",
+        "then busy False ended error",
+        "closes while wasm ran []",
+        "next session 3",
+    ], (lines, err)
+
+
+HANDOFF_CHILD = """
+import queue, sys, threading
+import wasi_python
+from wasi_python import Mount, runner
+from wasi_python.mounts import Stat
+row = sys.argv[1]
+class P:
+    def stat(self, path):
+        return Stat("dir") if path == "/" else Stat("file", size=3)
+    def list(self, path):
+        return [("a", "file")]
+    def read(self, path):
+        return b"abc"
+once = []
+if row == "after-get":
+    class Inbox:
+        def __init__(self):
+            self.inner = queue.SimpleQueue()
+        def put(self, item):
+            self.inner.put(item)
+        def get(self, timeout=None):
+            item = self.inner.get(timeout=timeout)
+            if isinstance(item, runner._Box) and not once:
+                once.append(1)
+                raise KeyboardInterrupt  # the hand-off is taken, not yet held by serve
+            return item
+    real_init = runner._Home.__init__
+    def init(self):
+        real_init(self)
+        self.inbox = Inbox()
+    runner._Home.__init__ = init
+else:
+    real_run = runner._Box.run
+    def run_box(self):
+        self.fn(*self.args)
+        if not once:
+            once.append(1)
+            raise KeyboardInterrupt  # after the provider answered, before the box is released
+        real_run(self)
+    runner._Box.run = run_box
+try:
+    wasi_python.run(["-c", "print(open('/m/a').read())"], mounts=[Mount(P(), "/m")])
+    print("returned", flush=True)
+except KeyboardInterrupt:
+    print("interrupted", flush=True)
+print("next", wasi_python.run(["-c", "print(1)"]).stdout.decode().strip(), flush=True)
+"""
+
+
+@pytest.mark.parametrize("row", ["after-get", "before-answer"])
+def test_an_interrupted_hand_off_is_answered_through_run(row: str) -> None:
+    """Spec 078, criterion 18 through run (the build review's F4): an interrupt landing just after
+    the home took a provider's hand-off, or after the provider answered and before its box was
+    released, still ends the call: run raises KeyboardInterrupt within the child's limit, and the
+    next call works."""
+    code, lines, err = _child(HANDOFF_CHILD, row)
+    assert code == 0, (row, code, err)
+    assert lines[-2:] == ["interrupted", "next 1"], (row, lines, err)

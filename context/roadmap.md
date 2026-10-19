@@ -152,6 +152,13 @@ rebases onto it; an `fd_readdir` litter watch is left to a later spec. **090**, 
 checks agree on one litter list (`._*`, `Icon\r`, volume-root names), the release tarball packs
 `SHA256SUMS`' list, the repo's `.gitignore` lists litter. Build-class; after 089 or beside it.
 
+Reserved (the lane numbers it): the stdlib zip carries CPython's generated `_missing_stdlib_info.py`.
+The WASI build writes it beside `_sysconfigdata__wasi_wasm32-wasi.py` in
+`cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.15/`, and `scripts/steps/70_zip.sh` copies only
+the latter, so `traceback` names a missing stdlib module only as "not found" (spec 078's build
+review, F2; the class `no-missing-stdlib-info` in `cpython-a` closes with it). A one-line
+build-class fix; it may ride with 086, which rebuilds anyway.
+
 Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
 inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,
 16 guard refusals in `test_runner_calls.py` and `test_runner_mounts.py` after `test_landing_lane`

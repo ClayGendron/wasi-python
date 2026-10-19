@@ -963,6 +963,58 @@ binding) accepted as better than the ask.
 - **The builder note.** Decision 1: the binding is looked up with `getattr(…, None)` and checked
   callable.
 
+## Disposition of the build review
+
+The build review (`scratchpad/078-buildreview/078-the-runner-runs-each-guest-on-a-stack-of-its-own-build-2026-10-19.md`,
+its probes and record beside it; for the lane to copy to `../reviews/`): "lands once F1 to F5 are
+fixed or answered". Each finding, and where it went:
+
+- **F1 (fixed).** The start is a handshake under `home.lock` (`_Home.state`: "starting",
+  "running", "cancelled"); the join waits on `home.ended`, which the body sets, never on
+  `thread.is_alive()` alone; `done` is set false inside the guarded region. An interrupt inside
+  `Thread.start()` after the OS made the thread keeps the guest known, so the call raises only
+  after it ends and nothing is torn down under it; a start that fails before the body takes it is
+  cancelled, and a body that starts anyway returns at once. Units
+  (`test_an_interrupted_thread_start_keeps_its_guest`, `test_a_failed_thread_start_is_cancelled`)
+  and a child row (`start-interrupted`, which on `7aa0c52`'s runner ended with exit −6). The
+  review's own probe, unchanged, now prints `guest threads alive when run raised: []` and
+  `closes while wasm ran: []` (`build-evidence/f1-start-interrupted.log`).
+- **F2 (fixed).** The class `no-missing-stdlib-info` and its gap now close with a roadmap entry
+  (reserved, for the lane to number): the zip step copies `_missing_stdlib_info.py` beside
+  `_sysconfigdata`, a one-line build-class fix not made in 078. The README line says it is a
+  current limit with that fix reserved.
+- **F3 (with the owner; answered).** The owner accepted the Linux hand-off price on 2026-10-19,
+  "Accept (Recommended)", asked with darwin at about 25% more per call (31 to 40 µs) and Linux in
+  Docker's VM at about three times (30 to 90–100 µs), native Linux unmeasured, up to about 0.6 s
+  more host time per run at the 10,000-file-call limit. The numbers stay in the notes; the
+  follow-up (a cheaper hand-off, such as running simple provider calls without switching
+  threads, and a measurement on native Linux) is written there.
+- **F4 (built).** Criterion 9's RelaxNG row is in `LIMITS` (completes at 4,300, traps at 9,000);
+  criterion 17's session row is `test_an_abandoned_turn_keeps_its_session_busy`; criterion 18
+  has two child rows through `run` beside its units (and a listed departure for how they land
+  the interrupt); the musl log has all five rows; the nine entries trapping at 512 KiB on
+  linux/amd64 with main's runner are recorded (`build-evidence/amd64-main-traps.log`).
+- **F5 (fixed).** The `--accept-judge` text names the widened `no-test-modules` match, the ten
+  `read-only-eperm` additions, the new class, the three gaps' digests, `tests/release_shards.toml`,
+  the removed stand-in and the new rows.
+- **F6 (answered).** The first build's record was overwritten by a partial run. The final full
+  judge ran once on the clean committed tree, and its record is kept at
+  `build/078/latest-full.json` in the worktree (the Landing notes, "The final judge").
+- **F7 (fixed).** `serving` is set before `start()`; `call` raises `_Stopped` without posting once
+  the home has an exception; `serve` answers queued hand-offs with `_Stopped` instead of running
+  them (`test_a_stopped_home_answers_new_hand_offs_with_a_stop`).
+- **F8 (fixed).** `_Files._ask` and `test_runner_mounts.py`'s inert stand-in for it are removed.
+- **F9 (answered).** The CPython groups' fuel wobbles before 083 (the build review measured
+  `cpython-a` 1.02 × 10⁻⁴ from the builder's). The growth text gives percentages only; the lane
+  takes the growth values, and the sameness record, from its own runs after rebasing onto 083.
+- **F10 (fixed).** The notes now say that one 083 line, `files.bind`, is inside the moved block and
+  that git places it in `go()`.
+- **F11 (answered).** Nothing is found likely to break on Windows, but a misread of
+  `_windows_stack` would refuse every call there; the lane reads the Windows lines of
+  `test_a_guest_thread_is_not_the_home_and_has_room` (own-runner shard) and
+  `test_every_entry_runs_on_a_guest_thread_with_room` (hostile shard) first in the pre-landing
+  release run (criterion 15).
+
 ## Landing notes
 
 ### What was built
@@ -987,8 +1039,10 @@ memo, in `../research/2026-10-19-the-runners-own-stack/build-evidence/`.
 - `tests/harness/guest.py` (the judge's driver; **two small hunks for 083's rebase**): the
   constants and `engine()` (async stack first, 8 MiB), `on_own_stack`, and in `run()` only the
   `try` block around instantiate and the exports, now `exit_code = on_own_stack(go)`; in `Turns`
-  only `_call`'s body. 083's edits to `run()` touch its host functions and `_FileCalls`, above
-  that block; the merge should be textual.
+  only `_call`'s body. One 083 line, `files.bind(store, eng, inst)`, is inside the moved block:
+  git places it in `go()`, so it runs on the judge's guest thread before the guest runs, which
+  is correct; 083's `except BaseException: _release(...)` joins the new `try` (the build
+  review's merge, clean, EXECUTED there).
 - The checks, the judge's changes, `README.md` and `CHANGELOG.md` (0.1.0a8) as below.
 
 ### Seen failing first
@@ -1029,12 +1083,15 @@ program traps at 512 KiB too).
 8. An embedder's raising SIGINT handler stops a computing, a sleeping and a tool-waiting guest.
 9. Restated limits and the new raise rows, metered, pass on darwin and linux/amd64. RelaxNG of a
    tree built in Python, measured through `run`: 6,388 on arm64, 5,756 on x86_64 (it traps
-   above; the README says about 5,700); a copying `apply-templates` raises `XSLTApplyError` at
-   any depth tried (`build-evidence/edges-darwin.jsonl`, `build-evidence/amd64.log`).
+   above; the README says about 5,700), now the row `relaxng-deep-tree` of
+   `test_deep_data_limits` (completes at 4,300, traps at 9,000; the build review's F4); a copying
+   `apply-templates` raises `XSLTApplyError` at any depth tried
+   (`build-evidence/edges-darwin.jsonl`, `build-evidence/amd64.log`).
 10. A turn frees a 20,000-deep list and the session goes on.
 11. Spec 071's faulthandler orders pass with the new deep program on darwin (Linux rows run in the
     release).
-12. **The judge** (`uv run pytest -n 3`, `build-evidence/judge.log`; the worktree's `build/progress/latest.json` kept):
+12. **The judge, first build** (`uv run pytest -n 3`, `build-evidence/judge.log`; that record was
+    overwritten by a later partial run, the build review's F6; the final record is below):
     `wasi_python v1: 532/645 pass · 57 gap · 56 blocked · 0 fail (unit suite 1595/1603, 8
     skipped)`; `2127 passed, 64 skipped, 57 xfailed in 316.90s`; `ratchet vs b91e0eaa4e: lost 0 ·
     absent 14 · unrun 0 · unrun locally 42 · gained 35 · grew 3`. The 14 absent are the five old
@@ -1059,17 +1116,28 @@ program traps at 512 KiB too).
     `tests/public_api.txt` unchanged.
 15. Windows: not run here. **The lane runs the release workflow on all three systems before
     landing 078** (criteria 15 and 19).
-16. musl, Alpine aarch64 and x86_64 (`build-evidence/musl.log`): on CPython 3.14.5 and 3.13.13 a 256 KiB
-    calling thread frees a 20,000-deep list and a door callback at every level of a 30,000-deep
-    free completes; on 3.14.0 both are refused with the 3.14.1 message and the host lives.
-17. The home never tears down a running guest: the units, and two child rows through `run`
-    recording that no store is closed while its wasm runs.
-18. A hand-off taken is always answered (units with a stand-in inbox and box).
+16. musl, Alpine aarch64 and x86_64 (`build-evidence/musl.log`, all five rows since the build
+    review's F4): on CPython 3.14.5 and 3.13.13, from 256 KiB threads, a 20,000-deep free, the
+    `__repr__` recursion (`RecursionError`), `run_async` on an executor of such threads (both
+    programs) and a door callback at every level of a 30,000-deep free all complete; on 3.14.0
+    every row is refused with the 3.14.1 message and the host lives.
+17. The home never tears down a running guest: the units, and three child rows through `run`
+    recording that no store is closed while its wasm runs (an exception into the home; a home
+    forced out of its join; since the build review's F1, an interrupt inside `Thread.start()`
+    after the OS made the thread, which on `7aa0c52`'s runner ended the child with exit −6), and
+    the session row (`test_an_abandoned_turn_keeps_its_session_busy`: `busy` held, a second turn
+    refused, the session ends "error"). The build review's own F1 probe, unchanged, on the fix:
+    `closes while wasm ran: []` (`build-evidence/f1-start-interrupted.log`).
+18. A hand-off taken is always answered: units with a stand-in inbox and box, and since the build
+    review's F4 two child rows through `run` with a provider's hand-off
+    (`test_an_interrupted_hand_off_is_answered_through_run`, after the get and before the answer).
 19. linux/amd64 in `ghcr.io/astral-sh/uv:0.9-trixie-slim` under Rosetta: the nine entries' tests
-    pass in their groups (13 above); the hostile-guest checks of 078 there: 35 passed. Windows
-    waits for the lane's run (15).
+    pass in their groups (13 above); the hostile-guest checks of 078 there: 35 passed. Before the
+    change, main's runner in the same container: every one of the nine trap checks saw its trap
+    ("trap at or after" its test, 9 xfailed; `build-evidence/amd64-main-traps.log`, since the
+    build review's F4). Windows waits for the lane's run (15).
 
-### The hand-off's price, on Linux (benchmarks; `build-evidence/bench-*.log`)
+### The hand-off's price, on Linux (benchmarks; `build-evidence/bench-*.log`; the owner accepted it, 2026-10-19)
 
 On darwin the branch measured 40.0 to 40.8 µs per provider `stat` and 49.5 µs per door call
 (main: 31.5 and 44): as the spec said, about a quarter more. **On Linux it is larger.** In Docker
@@ -1077,8 +1145,10 @@ Desktop's VM with no other container running, the same session: main's runner 29
 provider `stat` and 40.4 to 41.5 µs per door call; the branch's 85.1 to 103.2 µs and 97.0 to
 103.2 µs, about three times, and one hand-off round trip alone 32 to 35 µs. A guest that makes many
 provider or door calls pays it; the 10,000 calls of the default `max_file_calls` would cost about
-0.6 s more of host time. Native Linux (no VM) was not measured. The lane should tell the owner, who
-accepted the price on darwin's number.
+0.6 s more of host time. Native Linux (no VM) was not measured. The owner was asked with these
+numbers and answered "Accept (Recommended)" on 2026-10-19. **Follow-up:** a cheaper hand-off, for
+example running simple provider calls without switching threads, and a measurement on native
+Linux.
 
 ### Departures from the specification, each with its reason
 
@@ -1100,6 +1170,15 @@ accepted the price on darwin's number.
   reaper's injected clock.
 - **`_tell_interpreter`** takes a `resolve` for its unit, in place of a stand-in `pythonapi`,
   which ctypes cannot resolve names from.
+- **Criterion 18** is built both as units on stand-in inboxes and boxes and, since the build
+  review, as two child rows through `run`; the child rows drive the hand-off through the same
+  stand-ins, since an interrupt cannot be landed at an exact bytecode otherwise.
+- **The start handshake** (the build review's F1): `_Home.state` ("idle", "starting", "running",
+  "cancelled") under `home.lock`, and `home.ended`, an event the body sets, on which the join
+  waits; a start that fails before the body takes it is cancelled and its body, if the OS made
+  the thread anyway, returns at once. `serving` is set before `start()`, a stopped home posts no
+  hand-off and answers queued ones with a stop (F7). `_Files._ask`, dead since the split, and its
+  inert stand-in in `test_runner_mounts.py` are removed (F8, a listed judge change).
 
 ### For the lane
 
@@ -1108,8 +1187,13 @@ accepted the price on darwin's number.
   what now raises, for the guest thread, its stack check, the interpreter told its stack on musl,
   small calling threads, host functions on the caller's thread, Ctrl-C, the home waiting for its
   guest and every hand-off answered; the faulthandler child traps by freeing; the grant-check
-  deadline advances the ticker's count; spec 065's nine trap entries closed, test_traceback in
-  cpython-a with its results classed, and the regrtest and shard units restated"`.
+  deadline advances the ticker's count; spec 065's nine trap entries and their gaps closed;
+  test_traceback in cpython-a: no-test-modules' match widened to "No module named '_testcapi'"
+  (139 members), read-only-eperm +10, a new class no-missing-stdlib-info (1) closing with a
+  roadmap entry, those three gaps' digests restated; test_runner_threads.py in the own-runner
+  shard (tests/release_shards.toml); the regrtest and shard units restated; test_runner_mounts'
+  inert _ask stand-in removed; the relaxng-deep-tree limit row, the session, start and hand-off
+  child rows"`.
 - `--retire` the 14 absent checks above.
 - `--accept-growth "spec 078: the CPython groups now run the tests spec 065's nine trap entries kept
   out (test_traceback whole and test_tee_recipe in cpython-a +2.5%; test_doctest's and

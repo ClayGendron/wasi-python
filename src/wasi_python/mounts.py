@@ -702,7 +702,7 @@ class _Files:
         """The ending's write-backs (spec 034, Decision 8), made after the guest has stopped by
         any ending that returns a result, on the call's thread, outside every host function:
         one `write` for each dirty buffer of a writable mount that is not unlinked, owed buffers
-        included, in ascending provider number. Its own counted call path, never `_ask`: no
+        included, in ascending provider number. Its own counted call path, never the gate: no
         cancel or deadline check (the guest is gone), never `call.ended` or the epoch or the
         fuel. Bounded by construction: at most MAX_MOUNT_FILES buffers, the staging bound in
         bytes, and the file calls left; a write-back past the limit is recorded, not made. It
@@ -832,13 +832,6 @@ class _Files:
         return self.table.get(fd & MASK32)
 
     # The provider (Decisions 3, 4, 8 and 10).
-
-    def _ask(self, caller: Any, mount: _Mounted, method: str, *args: Any) -> tuple[int, Any]:
-        """One provider call, counted, or the errno that stops it first: the call's cancel, its
-        deadline, then the file-call limit. (0, answer) when the provider answered."""
-        if errno := self._gate(caller):
-            return errno, None
-        return self._home(self._invoke, mount, method, args)
 
     def _home(self, fn: Callable[..., Any], *args: Any) -> Any:
         """fn(*args) on the call's home thread, where the embedder's code runs (spec 078,

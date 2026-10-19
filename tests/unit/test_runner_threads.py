@@ -44,7 +44,7 @@ def test_a_guest_thread_is_not_the_home_and_has_room() -> None:
     ((ident, bounds),) = seen
     assert ident != threading.get_ident()
     assert bounds is not None and bounds[1] >= runner._WASM_STACK + runner._HOST_ROOM // 2
-    assert home.done and not home.thread.is_alive()
+    assert home.done and home.ended.is_set()
 
 
 def test_a_small_guest_thread_is_refused_after_one_retry(monkeypatch) -> None:
@@ -204,7 +204,7 @@ def test_an_interrupted_hand_off_is_answered(roomy) -> None:
 
     with pytest.raises(KeyboardInterrupt):
         runner._on_guest_thread("run", home, None, fn)
-    assert met == [runner._Stopped] and not home.thread.is_alive()
+    assert met == [runner._Stopped] and home.ended.is_set()
 
     class LateBox(runner._Box):
         def run(self) -> None:
@@ -219,7 +219,7 @@ def test_an_interrupted_hand_off_is_answered(roomy) -> None:
             runner._on_guest_thread("run", home, None, fn)
     finally:
         runner._Box = original
-    assert met == [runner._Stopped] and not home.thread.is_alive()
+    assert met == [runner._Stopped] and home.ended.is_set()
 
 
 def test_the_home_waits_for_its_guest_thread(monkeypatch, roomy) -> None:
@@ -241,7 +241,7 @@ def test_the_home_waits_for_its_guest_thread(monkeypatch, roomy) -> None:
 
     with pytest.raises(KeyboardInterrupt):
         runner._on_guest_thread("run", home, None, fn)
-    assert ended.is_set() and not home.thread.is_alive() and home.done
+    assert ended.is_set() and home.ended.is_set() and home.done
 
 
 def test_an_abandoned_home_leaves_its_teardown_to_the_guest(monkeypatch, roomy) -> None:
@@ -293,3 +293,62 @@ def test_a_tool_copies_the_homes_context() -> None:
     copy = runner._home_context(home)()  # called on the home itself: directly
     assert copy[var] == "set on the home"
     assert runner._home_context(None) is contextvars.copy_context
+
+
+def test_an_interrupted_thread_start_keeps_its_guest(monkeypatch, roomy) -> None:
+    """Spec 078, criterion 17 (the build review's F1): an interrupt raised inside Thread.start()
+    after the OS made the thread leaves the guest known to its home: the call raises only once the
+    guest has ended, and a teardown waits for it."""
+    home = runner._Home()
+    ended = threading.Event()
+    real_start = threading.Thread.start
+
+    def start(self) -> None:
+        real_start(self)
+        raise KeyboardInterrupt  # as in start()'s own wait, after the thread was made
+
+    monkeypatch.setattr(threading.Thread, "start", start)
+
+    def fn() -> None:
+        while home.raised is None:  # the epoch callback's part
+            ended.wait(0.001)
+        ended.set()
+
+    with pytest.raises(KeyboardInterrupt):
+        runner._on_guest_thread("run", home, None, fn)
+    assert ended.is_set() and home.ended.is_set() and home.done
+    ran = []
+    assert home.finish(lambda: ran.append(1)) is True and ran == [1]
+
+
+def test_a_failed_thread_start_is_cancelled(monkeypatch, roomy) -> None:
+    """Spec 078, criterion 17 (the build review's F1): a start that fails before the body takes
+    it is cancelled: the call raises, nothing ran, and a body the OS starts anyway returns at
+    once."""
+    home = runner._Home()
+    ran: list[int] = []
+
+    def start(self) -> None:
+        raise RuntimeError("can't start new thread")
+
+    monkeypatch.setattr(threading.Thread, "start", start)
+    with pytest.raises(RuntimeError, match="can't start"):
+        runner._on_guest_thread("run", home, None, lambda: ran.append(1))
+    assert (ran, home.state, home.done, home.ended.is_set()) == ([], "cancelled", True, True)
+    home.body("run", lambda: ran.append(2), ())  # a body that starts after its cancel
+    assert ran == [] and home.state == "cancelled"
+
+
+def test_a_stopped_home_answers_new_hand_offs_with_a_stop(roomy) -> None:
+    """Spec 078 (the build review's F7): once the home has an exception, a new hand-off is not
+    posted, and one already posted is answered with a stop, never run."""
+    home = runner._Home()
+    home.stop(KeyboardInterrupt())
+    home.ident = -1  # as seen from a guest thread
+    with pytest.raises(runner._Stopped):
+        home.call(lambda: pytest.fail("ran after the stop"))
+    box = runner._Box(lambda: pytest.fail("ran after the stop"), ())
+    home.inbox.put(box)
+    home.inbox.put(runner._DONE)
+    home.serve()
+    assert box.answered and isinstance(box.error, runner._Stopped)

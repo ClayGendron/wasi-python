@@ -1,0 +1,6 @@
+# The build review's F1 probe (start_interrupted.py, unchanged) on the fixed branch, darwin arm64. On 7aa0c52 it printed: closes while wasm ran: ['MainThread', 'MainThread'].
+interrupted
+guest threads alive when run raised: []
+closes while wasm ran: []
+exit=0
+# The new criterion-17 child row, start-interrupted, with 7aa0c52's runner (git archive into a scratch folder, PYTHONPATH): exit -6, no output (seen failing first).

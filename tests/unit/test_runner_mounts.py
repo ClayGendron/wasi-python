@@ -666,7 +666,6 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
 
     def gathered(staging: int) -> tuple[int, int, int, int]:
         table = _Files([(Mount(Generated(), "/m"), 3)], [], None, staging, False)
-        table._ask = lambda caller, mount, method, path: (0, mount.provider.list(path))
         tracemalloc.start()
         try:
             errno, listing, held = table._list(None, table.mounts[0], "/", 1)
