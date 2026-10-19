@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** built 2026-10-19, judged green on macOS (0 fail, lost 0). Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done), and it is built: the macOS and linux/arm64 sets from empty at `e8573ae` pass `scripts/compare_sets.py`. The build review is next. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** built 2026-10-19, judged green on macOS (0 fail, lost 0). Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done), and it is built: the macOS and linux/arm64 sets from empty at `e8573ae` pass `scripts/compare_sets.py`; the implementation review's I1 to I3 are fixed. **G7 and "three systems" key on `python.wasm`'s hash, which the exception lets vary**: a canonical-digest amendment to Decision 17 is written and awaits question 105 (option (a); option (b) moves the toolchain, 086, first). The build review is next. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -771,7 +771,10 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
          tables, memory, globals, exports, elements, data, `name`, `producers`,
          `target_features`, every custom section), so function indices and names agree;
       3. the code sections hold the same number of bodies, and every body is byte for byte equal
-         except bodies of the recipe's named functions;
+         except bodies of the recipe's named functions; at least one named body differs, and A
+         with B's differing named bodies spliced in is B byte for byte, so nothing outside those
+         bodies' contents differs, not a body's size LEB nor the code section's (the
+         implementation review's I1);
       4. for each named body that differs, the two decode with the script's own decoder, which
          fails closed (F6) on an opcode outside its table, a LEB longer than 5 (u32) or 10 (s64)
          bytes, a read past the body, a control stack not empty exactly at the last byte, a
@@ -803,13 +806,17 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       it is taken). There is no not-machine-checked line: rule 8 checks the handlers.
     - **Fuel** (F7): every moved opening crosses only `i32.const; call; local.set`, with no branch,
       block or `end` between (the review, EXECUTED), so each `try_table` runs as often on every
-      path in both variants: the variants' fuel is identical (INFERRED from that; measured fuel of
-      one binary varies about 0.1% from run to run, which hides any difference). A sameness or
+      path in both variants. Measured (EXECUTED, the implementation review): the judge's own
+      driver ran one program building `fft`, `rfft` and `irfft` plans for `float32`, `float64`
+      and `longdouble` and lengths 997 and 1536, three runs on each of two variants: 3,651,499,402
+      fuel on `lin.wasm` three times, and on `mac.wasm` twice, once 34 fewer (the driver's
+      documented residual of a few parts in ten million). The variants' fuel is the same. A sameness or
       ratchet difference between two sets is not the exception's without evidence.
     - **Where it is checked.**
       - `scripts/compare_sets.py SET REBUILT [--wheels RELEASE.whl REBUILT.whl]`
-        holds the whole comparison (F4): every line of the rebuild's `SHA256SUMS` equals the
-        set's but the two binaries' lines; each rebuilt binary hashes to its own line in the
+        holds the whole comparison (F4): the rebuild's `SHA256SUMS` is the set's, byte for
+        byte, with only the two binaries' digests replaced (line ends and the last newline
+        count: the implementation review's I2); each rebuilt binary hashes to its own line in the
         rebuild's `SHA256SUMS` (so a stale or mixed-up file proves nothing); each rebuilt binary
         passes `same_bytes.py` against the set's; and the two wheels are equal entry for entry
         (name, mode, size, CRC, date, bytes) but the two binaries' entries, which must be the
@@ -823,7 +830,8 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
         other job that checks out (the repository is public, where a checkout may pass without
         it, but the job states what it reads; `scan.JOB_PERMISSIONS["same-bytes"]`, spec 057's
         table, changes with it).
-        `scan.rebuild_gate_errors` requires that call with both runners, no `||` or `set +e`, and
+        `scan.rebuild_gate_errors` requires that call with both runners, no `||` or `set +e`, no
+        step-level `if:` on any step of the job (the implementation review's I3), and
         `attest` and `publish` still needing `same-bytes`; today's `cmp` rule is replaced, not
         kept beside it.
       - Locally: the builder's macOS and linux/arm64 comparison and the lane's comparison of its
@@ -874,6 +882,62 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       The normal end is the toolchain move to wasi-sdk 34 (reserved by the lane): it deletes the
       recipe file, `same_bytes.py`'s exception path and this check, restores byte-for-byte
       comparison in the gate, and amends the README lines back.
+    - **Amendment (2026-10-19), pending question 105: a canonical digest for the judge's
+      bindings.** *Not built; it is built only if the owner picks option (a) of question 105;
+      option (b) moves the toolchain (086) before this specification instead.* The finding
+      (spec 085's draft, confirmed by the lane in `tests/harness/gather.py`): the gather's G7
+      requires the newest acceptance's `artifact` (the `python.wasm` the lane judged) to equal
+      the SHA-256 of the `python.wasm` the release's build job made. Under this exception every
+      build makes its own `python.wasm`, so once 037 lands every release and every dry run of
+      main fails G7. The "three systems" need (`history.systems_that_passed`, matching accepted
+      runs by that hash) has the same shape (F9 named it; it did not name G7).
+      - **The digest.** `scripts/same_bytes.py` gains `canonical_digest(data, artifact)` and
+        `--canonical FILE [--as NAME]`: the SHA-256 of a version tag, the recipe's names for the
+        artifact (sorted), and the file cut at each named body's content: every byte outside
+        those contents as it is, and for each named body its rule-6 bytes (the body with only its
+        `try_table` instructions deleted), its rule-7 sequence (labels absolute) and its rule-8
+        effective handler chains, each part length-prefixed. Rules 1, 3 (each name once), 4 and
+        5 refuse, so a file they refuse has no digest. Two files have one digest exactly when
+        they pass rules 2 to 8 against each other, I1's splice included: the outside bytes carry
+        rule 2, rule 3, the body sizes and the framing; the three parts carry rules 6 to 8.
+      - **Shown on a scratch prototype** (EXECUTED, the builder's scratchpad `037-amend/`,
+        `canon.py` and `canon_probe.py`; outside git): `mac.wasm` (`2de9ee20…`), `lin.wasm`
+        (`3414b489…`) and `e8573ae`'s `python.wasm` (`a25dd5bf…`) share the digest `a160ebf6…`;
+        the review's I1 probes on `lin.wasm` (an unnamed body's size LEB padded, the code
+        section's size LEB padded) change it, and `compare` refuses both (rule 3); all 90 of the
+        review's mutants (a `try_table` moved past a `call`, in every named body) change it, and
+        `compare` refuses all 90; 180 random one-bit changes (60 anywhere, 60 inside the named
+        bodies, 60 in the code section outside them) each change it or are refused, none leaves
+        it. The snapshot's digest is computed the same way (`e8573ae`'s: `597f65fb…`); a second
+        snapshot variant was not at hand (the linux one was deleted for disk), so equality
+        across snapshot variants is INFERRED from the reactor's (Wizer copies the code section)
+        and is the build's first check.
+      - **Recorded at acceptance.** `plugin.run_meta` gains `artifact_canonical` beside
+        `artifact` (`None` when no exception holds for the line, or the recipe is refused);
+        `scoreboard`'s history line carries it beside `artifact` from the first line written with
+        it, as spec 085 adds `set_sums`; older lines have no such key and are read as `None`.
+      - **The release.** The build job prints and hands on `wasm-canonical`
+        (`uv run python scripts/same_bytes.py --canonical build/artifacts/python.wasm`) beside
+        `wasm-sha256`; the gather reads it as `WASM_CANONICAL`. G7 compares
+        `newest["artifact_canonical"]` with it while the recipe holds for the commit (both
+        present and equal), and `artifact` with `wasm-sha256` otherwise; G2 keeps the exact hash,
+        since every shard judges the build job's own set. The gather's "three systems … on"
+        line names both. `scan.release_binding_errors` and the gather's input checks gain the
+        new output and input.
+      - **"Three systems".** The need uses the same digest while the exception holds:
+        `systems_that_passed` matches `artifact_canonical` when both the local `python.wasm` and
+        the line have one, the plain hash otherwise. The variants run the same instructions with
+        the same handlers and the same fuel (F7), so a system that passed one variant passed
+        them all; matching the plain hash would make the need unmeetable by any local build.
+      - **Checks** (written first if built): unit rows for the digest (the fixture pairs
+        spliced into the test's small modules share one; a padded size LEB, a changed byte
+        outside or inside a named body, the review's mutant, another recipe name list each give
+        another or none); gather rows for G7 with equal digests and unequal hashes (green), and
+        unequal digests (red), and with no digest (the exact rule); a history row for
+        `systems_that_passed` by digest.
+      - **It goes away with 086.** The toolchain move deletes the recipe, so `canonical_digest`
+        returns `None`, `artifact_canonical` is `None` on every new line, and G7 and the need
+        fall back to the exact hash; 086 deletes the code with the exception.
 
 ## Intent
 
@@ -1223,7 +1287,7 @@ release dry run's.
   offsets; the still-needed check compares the decoder with `llvm-objdump` on its three fresh
   objects. It fails closed on the cases F6 lists, each a unit row.
 - **The rules.** Both real fixture pairs pass, and each failure Decision 17 lists is a unit row
-  naming its rule (`tests/unit/test_same_bytes.py`, 44 rows): among them the review's mutant, a
+  naming its rule (`tests/unit/test_same_bytes.py`, 44 rows at `e8573ae`, 52 with I1 and I2's): among them the review's mutant, a
   `try_table` moved past a `call` and its `local.set`, built from the fixture at each of 12
   sites, every one failing rule 8 with one call losing its handler, and every changed
   catch-all target (more than ten) failing rules 4, 5 or 8. Rules 2 and 3 run on small modules
@@ -1238,8 +1302,21 @@ release dry run's.
   in `tests/unit/test_scan.py`; `JOB_PERMISSIONS["same-bytes"]` is `contents: read`.
 - **The still-needed check** is in the slow tier (32 s: three parallel compiles and three
   disassemblies) and the build shard; it passed in the judge below.
-- **Not measured:** fuel across variants stays INFERRED (F7, the decision's reason); the snapshot
-  keeps a name section (40,620 names on main's), so rule 3 holds for it as for the reactor.
+- **Fuel across variants** is now measured (the implementation review, EXECUTED): 3,651,499,402
+  on both variants, three runs each (Decision 17, fuel). The snapshot keeps a name section
+  (40,620 names on main's), so rule 3 holds for it as for the reactor.
+- **The implementation review** (`../reviews/037-the-same-bytes-exception-design-2026-10-19.md`,
+  its last section): lands once I1 and I2 are fixed. Fixed in the commit after `ad937dc`, each
+  with unit rows seen failing first against `ad937dc`'s scripts (9 failed, 247 passed; with the
+  fix 256 passed): I1, B must be A with B's differing named bodies spliced in, and a difference
+  where no named body differs is refused (four rows: a padded body-size LEB and a padded code
+  size, each alone and beside a differing named body); I2, the rebuild's `SHA256SUMS` is
+  compared as bytes with only the exception lines' digests replaced (four rows: CRLF and no last
+  newline, each with and without a differing binary); I3, a step-level `if:` on any `same-bytes`
+  step is refused (one mutation row). The three real `python.wasm` variants (`mac.wasm`,
+  `lin.wasm`, `e8573ae`'s) still pass pairwise, 8 named functions each; the real workflow passes
+  the gate. The review's G7 and G8 (the call's words, not their shell meaning) are noted, no
+  change.
 
 ### The numbers (Decision 14, criterion 5)
 
