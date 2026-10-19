@@ -381,7 +381,7 @@ def _wrapped_chain(end: Any, links: int) -> Any:
 
 @pytest.mark.parametrize("slot", list(C_SLOT_ENDS))
 def test_the_bound_keyword_walk_stops_at_each_c_slot(slot) -> None:
-    """Spec 070, item 3 (spec 060's build review, N3): the walk stops at a C `__call__` itself,
+    """Spec 070, Decision 4 (spec 060's build review, N3): the walk stops at a C `__call__` itself,
     in the hop that meets it, as at a function. A function at the end of 63 links is the deepest
     chain the walk reads (64 hops); one link more is refused. Each slot kind at the same depth is
     read too, so no kind of `_C_SLOTS` can go without a hop more and the refusal."""

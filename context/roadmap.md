@@ -94,6 +94,11 @@ one defect fixed before 0.1.0 by its own specification (071): C-level recursion 
 instead of raising `RecursionError`. After 0.1.0: a Rust core shared at least partly by
 Python and JavaScript (question 96); the tool protocol's `batch` (question 90).
 
+Reserved: 075, "tools.py small fixes", a small follow-up in `src/wasi_python/tools.py`: spec
+060's build review N1 (an oversized tool list is built whole on every `list` frame, only to be
+measured and refused; refuse it from the lengths first; spec 070, Decision 6) and the 0.1.0a6
+security review's F1 (an async gate that raises `GeneratorExit` lets the call through).
+
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).

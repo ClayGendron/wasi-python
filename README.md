@@ -1572,7 +1572,8 @@ base64, becomes bytes; any other `$bytes` object is a `protocol` answer. Then
 the version, the operation, the tool's name (`unknown_tool`), and the
 arguments against the tool's input schema (`invalid_arguments`). Every frame
 counts toward the run's budget, the guest's discovery frame included; past it
-the guest gets `ToolBudgetExceeded` and runs on. Answers are encoded as ASCII
+the guest gets `ToolBudgetExceeded` and runs on (an `ImportError`, if the
+discovery frame itself is refused; see **Limits**). Answers are encoded as ASCII
 JSON, so an echoed lone surrogate still encodes. A message is at most 4,096
 characters, and each piece of guest text it repeats is cut to 64 first.
 

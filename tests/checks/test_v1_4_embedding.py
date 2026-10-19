@@ -4548,7 +4548,7 @@ else:
     "limit", [{"max_tool_calls": 0}, {"max_tool_request_bytes": 0}], ids=["calls", "bytes"]
 )
 def test_a_refused_discovery_frame_is_an_import_error(guest_workdir, limit) -> None:
-    """Spec 070, item 3 (spec 060's build review, N2), as the README's **Limits** says: when the
+    """Spec 070, Decision 5 (spec 060's build review, N2), as the README's **Limits** says: when the
     guest's discovery frame is itself refused, `from host import tools` raises `ImportError`
     naming the refusal, not `ToolBudgetExceeded`; the host ran no tool and read no frame past the
     one it refused."""

@@ -556,8 +556,8 @@ def test_a_first_line_whose_n_is_not_a_number_is_reported_not_raised(vols) -> No
 
 
 # ---------------------------------------------------------------------------------------------
-# Spec 070, item 2 (spec 062's build review, F1 and F2): the roll at exactly BUDGET bytes, and a
-# volume that holds a carriage return.
+# Spec 070, Decisions 2 and 3 (spec 062's build review, F1 and F2): the roll at exactly BUDGET
+# bytes, and a volume that holds a carriage return.
 
 
 def _next_line(folder: Path) -> tuple[str, str]:
@@ -628,4 +628,14 @@ def test_a_volume_that_holds_a_carriage_return(vols) -> None:
     folder, v, _ = vols
     data = v[2].read_bytes()
     v[2].write_bytes(data[:-1] + b"\r\n")
+    assert check_folder(folder) == [f"{v[2].name} holds a carriage return"]
+
+
+def test_a_bare_carriage_return_inside_the_newest_line(vols) -> None:
+    """Spec 070's build review, F2: a CR away from the line's end, inside the newest line, where
+    `json.loads` reads it as whitespace and nothing chains to it."""
+    folder, v, _ = vols
+    data = v[2].read_bytes()
+    i = data.rindex(b'{"') + 1  # just after the newest line's last opening brace
+    v[2].write_bytes(data[:i] + b"\r" + data[i:])
     assert check_folder(folder) == [f"{v[2].name} holds a carriage return"]

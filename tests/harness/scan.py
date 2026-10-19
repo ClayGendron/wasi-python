@@ -1232,8 +1232,9 @@ def rebuild_gate_errors(text: str) -> list[str]:
 # What is checked, signed and published is what the build job made (spec 057)
 
 ASSETS_ID = "${{ needs.build.outputs.assets-id }}"
-# A download's `path:` with a leading workspace expression dropped (spec 070, item 1).
-WORKSPACE_PREFIX = re.compile(r"^\$\{\{\s*github\.workspace\s*\}\}/")
+# A download's `path:` with a leading workspace expression dropped (spec 070, Decision 1).
+WORKSPACE_PREFIX = re.compile(r"^\$\{\{\s*github\.workspace\s*\}\}/+")
+
 SUMS_SHA256 = "${{ needs.build.outputs.sums-sha256 }}"
 CHECK_STEP = "These are the bytes the build job made"
 GUARD_TEST = '"" | *[!0-9]*)'
@@ -1271,6 +1272,15 @@ def _guard_tests(run: str, var: str) -> bool:
         if f'"${var}"' in m[2].split() and re.search(rf'case "\${m[1]}" in\s*\n\s*{branch}', m[3]):
             return True
     return False
+
+
+def download_path(value: object) -> str:
+    """A download's `path:` as the folder it names: one pair of matching YAML quotes dropped,
+    then a leading `${{ github.workspace }}/`, then `posixpath.normpath` (spec 070, Decision 1)."""
+    text = str(value).strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1]
+    return posixpath.normpath(WORKSPACE_PREFIX.sub("", text))
 
 
 def release_binding_errors(text: str) -> list[str]:
@@ -1455,7 +1465,7 @@ def release_binding_errors(text: str) -> list[str]:
             if f.get("uses", "").startswith("actions/download-artifact@")
         ]
         for w in downloads:
-            path = posixpath.normpath(WORKSPACE_PREFIX.sub("", str(w.get("path", ""))))
+            path = download_path(w.get("path", ""))
             if (path == "release-assets" or path.startswith("release-assets/")) and w.get(
                 "artifact-ids"
             ) != ASSETS_ID:

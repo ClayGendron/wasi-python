@@ -853,14 +853,19 @@ def test_release_binding_scan_reads_with_not_the_display_name() -> None:
     assert scan.release_binding_errors(renamed) == []
 
 
-# Spec 070, item 1 (spec 057's Confirmation, its remaining gap): rule 16 reads `path:` as a path,
-# so another spelling of release-assets in same-bytes is the plain spelling's breach.
+# Spec 070, Decision 1 (spec 057's Confirmation, its remaining gap): rule 16 reads `path:` as a
+# path, so another spelling of release-assets in same-bytes is the plain spelling's breach.
 OTHER_SPELLINGS = [
     "./release-assets",
     "rebuilds/../release-assets",
     "${{ github.workspace }}/release-assets",
     "${{github.workspace}}/./release-assets/",
     "./release-assets/wheel",
+    # The build review's F1: a quoted value, as a YAML formatter may write it, and a doubled slash.
+    '"release-assets"',
+    "'release-assets'",
+    '"./release-assets"',
+    "${{ github.workspace }}//release-assets",
 ]
 
 
@@ -876,6 +881,7 @@ def test_rule_16_reads_the_download_path_as_a_path(spelling) -> None:
     [
         "./rebuilt-wheels/ubuntu-24.04-arm",
         "${{ github.workspace }}/rebuilt-wheels/ubuntu-24.04-arm",
+        '"rebuilt-wheels/ubuntu-24.04-arm"',
     ],
 )
 def test_rule_16_lets_another_spelling_of_a_rebuild_folder_through(spelling) -> None:
