@@ -31,8 +31,9 @@ iconv_t __real_iconv_open(const char *to, const char *from);
 size_t __real_iconv(iconv_t cd, char **in, size_t *inleft, char **out, size_t *outleft);
 int __real_iconv_close(iconv_t cd);
 
-/* The handle of a refused decoder: an address no real iconv_open returns. */
-static char refused;
+/* The handle of a refused decoder: an address no real iconv_open returns. musl's handles are odd
+ * integers (f<<16 | t<<1 | 1) or heap pointers; an int's address is even and static. */
+static int refused;
 #define REFUSED ((iconv_t)&refused)
 
 /* Whether an encoding name is GB18030, ignoring case and punctuation ("GB-18030", "gb_18030"). */

@@ -81,9 +81,12 @@ release` dates it and tags the release (context/specifications/004-alpha-release
     characters wrongly without an error: `recipes/iconv_refusals.c`, linked into the reactor
     with `-Wl,--wrap=iconv_open`, `iconv` and `iconv_close`, until a wasi-sdk carries musl's fix
     (`context/upstream/15-wasi-libc-gb18030-decoder/`). Strict XML raises, `recover=True` keeps
-    no root, the HTML parser keeps only the ASCII text before it, `read_html` raises; no
-    character is read wrongly in any mode. The README gives the working route: decode with
-    Python's codec and give lxml the text.
+    no root, the HTML parser keeps only the ASCII text before it, `read_html` of a Chinese
+    table raises; no character is read wrongly in any mode. But a table that reaches the first
+    non-ASCII byte comes back cut there with no exception: its last row may be all NaN, a
+    column may turn float, and the rows and tables after it are missing (check `error_log`).
+    The README gives the working route: decode with Python's `gb18030` codec and give lxml the
+    text.
   - **XSLT reads and writes files by default.** A stylesheet without an `access_control`, or a
     document it loads with `document()`, can read any file in a grant (external entities
     included) and write into any writable grant; use `etree.XSLTAccessControl.DENY_ALL` for

@@ -377,6 +377,18 @@ def html():
     return [[e.text for e in d.iter("p")], [e.type_name for e in p.error_log]]
 case("lxml.html", html)
 case("read_html", lambda: pd.read_html(io.BytesIO(table))[0].to_dict("list"))
+def cut(body):
+    doc = ('<html><head><meta charset="gb18030"></head><body>%s</body></html>' % body)
+    tabs = pd.read_html(io.BytesIO(doc.encode("gb18030")))
+    return [{c: [None if v != v else v for v in t[c].tolist()] for c in t}
+            | {"dtypes": [str(d) for d in t.dtypes]} for t in tabs]
+case("read_html straddling", lambda: cut(
+    "<table><tr><th>k</th><th>v</th></tr><tr><td>a</td><td>1</td></tr><tr><td>b</td><td>2</td>"
+    "</tr><tr><td>中文</td><td>3</td></tr><tr><td>c</td><td>4</td></tr></table>"
+    "<table><tr><th>z</th></tr><tr><td>9</td></tr></table>"))
+case("read_html ascii header", lambda: cut(
+    "<table><tr><th>code</th><th>name</th></tr><tr><td>600000</td><td>浦发银行</td></tr>"
+    "<tr><td>600036</td><td>招商银行</td></tr></table>"))
 case("encoding=", lambda: etree.fromstring(xml, etree.XMLParser(encoding="gb18030")).text)
 case("write", lambda: etree.tostring(etree.fromstring("<r>中</r>"), encoding="gb18030"))
 case("python's codec, xml", lambda: etree.fromstring(xml.decode("gb18030").split("?>", 1)[1]).text)
@@ -396,9 +408,11 @@ def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     above it (spec 046, Decision 9, revised against the build review's finding 1). In no mode is
     a character decoded wrongly: strict XML raises "Invalid bytes"; `recover=True` keeps no
     root; lxml's HTML parser ends the text there (an `ERR_INVALID_ENCODING` in its error log),
-    where refusing the encoding made it read the page as windows-1252; `read_html` finds no table
-    with lxml and raises (bs4 is not in the build); asking for GB18030 by name, to read or to
-    write, raises `LookupError`. Python's own codec, then lxml, reads every character."""
+    where refusing the encoding made it read the page as windows-1252; `read_html` of a Chinese
+    table finds no table with lxml and raises (bs4 is not in the build), but a table that reaches
+    the first non-ASCII byte comes back cut there with no exception (the README's one silent
+    case, pinned as documented); asking for GB18030 by name, to read or to write, raises
+    `LookupError`. Python's own codec, then lxml, reads every character."""
     r = guest(which, ["-c", GB18030])
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text)
@@ -407,6 +421,13 @@ def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     assert got["xml recover"] == ["ok", [None, ["ERR_INVALID_ENCODING"]]], got["xml recover"]
     assert got["lxml.html"] == ["ok", [[None], ["ERR_INVALID_ENCODING"]]], got["lxml.html"]
     assert got["read_html"][0] == "ImportError", got["read_html"]
+    # The silent case the README names (the review's R1): a table that reaches the first
+    # non-ASCII byte comes back cut there, with no exception; its last row may be all NaN, a column
+    # may turn float, and the rows and tables after it are missing. Pinned as documented.
+    straddling = [{"k": ["a", "b", None], "v": [1.0, 2.0, None], "dtypes": ["str", "float64"]}]
+    assert got["read_html straddling"] == ["ok", straddling], got["read_html straddling"]
+    header = [{"code": [600000], "name": [None], "dtypes": ["int64", "float64"]}]
+    assert got["read_html ascii header"] == ["ok", header], got["read_html ascii header"]
     assert got["encoding="][0] == "LookupError", got["encoding="]
     assert got["write"][0] == "LookupError", got["write"]
     assert got["python's codec, xml"] == ["ok", TEXT], got["python's codec, xml"]

@@ -1,7 +1,7 @@
 # 046 — lxml, with libxml2 and libxslt built in
 
-- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
-  confirmation** (landing notes below, with "Revised against the build review" and a
+- **Status:** **built 2026-10-18; revised against its build review (R1, N1); awaiting the
+  reviewer's confirmation** (landing notes below, with "Revised against the build review" and a
   Disposition; branch `spec/046-lxml`, rebased onto main `ff5c568`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): it is built after owner question 82 (a) is answered, or otherwise after spec 038; the builder measures the snapshot with the new flags (only the plain binary was rebuilt in review) and records the same-bytes result on a second host. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): all ten findings that concern it
   (1, 2, 4 to 8) are written in, and the review's Disposition says where; the review confirmed
@@ -381,8 +381,18 @@ wasi-libc's, it has no zlib, and one lxml module reads its data files by path.
      `recover=True` gives no root and logs `ERR_INVALID_ENCODING`; `lxml.html` keeps only the
      ASCII text before the first Chinese character (the `<title>`; the body's text after it is
      gone) and logs `ERR_INVALID_ENCODING`; `pd.read_html` finds no table with lxml and raises
-     `ImportError` for bs4, which the build lacks (a table wholly before the first non-ASCII
-     byte is still read); naming the encoding raises `LookupError`. Python's own codec, then
+     `ImportError` for bs4, which the build lacks; naming the encoding raises `LookupError`.
+     **One silent case remains, and it is about the data's shape, not its characters** (the
+     build review's confirmation, R1): the HTML parser ends the document at the first
+     non-ASCII byte and closes the open elements, so a table that reaches that byte comes back
+     cut there with no exception. Its last row may be all NaN (a row the page does not have), a
+     column may turn float, and the rows and tables after it are missing (EXECUTED: `k`/`v`
+     rows `a 1`, `b 2`, `中文 3`, `c 4` and a second table read as one table
+     `{'k': ['a', 'b', nan], 'v': [1.0, 2.0, nan]}`; `600000` 浦发银行, `600036` 招商银行 read
+     as `{'code': [600000], 'name': [nan]}`); a table wholly before the byte reads right. No
+     wrapper does better: refusing the encoding brings back the windows-1252 reading of every
+     character. The README names the symptoms and points to the parser's `error_log` and to
+     Python's codec, and the check pins the cut shape. Python's own codec, then
      lxml, reads every character in each route. A check holds each mode
      (`test_gb18030_is_never_silently_wrong`, both binaries). **Not chosen:** (a) keeping the
      refusal and documenting the fallback, which leaves every non-ASCII character of a GB18030

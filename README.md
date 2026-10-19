@@ -269,7 +269,7 @@ the first character the conversion cannot read, drop the rest, and write
 **GB18030 fails on purpose.** wasi-libc decodes 1,617 of its characters as other characters
 without an error. So its decoder is wrapped (`recipes/iconv_refusals.c`, until a wasi-sdk carries
 musl's fix): a GB18030 decode passes ASCII through and fails at the first byte above it. In no
-mode is a character read wrongly:
+mode is a character read wrongly, but in HTML the document ends at that byte:
 
 - strict XML (`etree.fromstring`, `etree.parse`) raises `XMLSyntaxError` ("Invalid bytes in
   character encoding");
@@ -278,8 +278,14 @@ mode is a character read wrongly:
 - the HTML parser keeps only the ASCII text before the first Chinese character, as above (a
   page whose `<title>` is ASCII keeps its title; the body's text after the first non-ASCII byte
   is gone);
-- `pd.read_html` finds no table with lxml, then tries `bs4`, which is not in the build, and
-  raises `ImportError` (a table entirely before the first non-ASCII byte would still be read);
+- `pd.read_html` of a page whose tables hold Chinese from their first row finds no table with
+  lxml, then tries `bs4`, which is not in the build, and raises `ImportError`. **But a table that
+  reaches the first non-ASCII byte comes back cut there, and nothing is raised:** its last row
+  may be all `NaN` (a row the page does not have), a column may turn float, and the rows and
+  tables after it are missing. A table of ASCII codes and Chinese names
+  (`600000` 浦发银行, `600036` 招商银行) reads as one row, `{'code': [600000], 'name': [nan]}`.
+  Check the parser's `error_log` (`lxml.html.HTMLParser()` passed to lxml), or, better, decode
+  with Python's `gb18030` codec first (below); a table wholly before that byte reads right;
 - naming GB18030 to lxml (`XMLParser(encoding="gb18030")`, `read_html(…, encoding="gb18030")`,
   `tostring(…, encoding="gb18030")`) raises `LookupError`.
 
