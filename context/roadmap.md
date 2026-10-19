@@ -126,8 +126,8 @@ and `test_plugin`, since 071).
 
 Reserved: 083, the judge's driver answers file timestamps from its fixed clock (spec 081's review,
 F1): wasmtime's `filestat` calls hand the guest the host's real modification times, so a program
-that uses them costs 17 instructions more on some runs (at most 119 seen; the smallest accepted
-row allows 121).
+that uses them costs steps of 17 instructions on some runs (up to 187 at one path on matplotlib's
+plot row in 081's build; the smallest accepted row allows 121).
 
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question

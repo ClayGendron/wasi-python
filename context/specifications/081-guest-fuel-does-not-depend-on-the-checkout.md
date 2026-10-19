@@ -1,7 +1,8 @@
 # 081 — guest fuel does not depend on where the repository is checked out
 
-- **Status:** drafted 2026-10-19 on `spec/081-guest-fuel-does-not-depend-on-the-checkout` from
-  main `8f8de73`; not built. It changes neither the guest's imports nor its exports, the artifact
+- **Status:** **built 2026-10-19** on `spec/081-guest-fuel-does-not-depend-on-the-checkout`,
+  rebased onto main `3f69654` (the Landing notes); drafted the same day from main `8f8de73`.
+  Decision 5's merge waits for spec 063's landing. It changes neither the guest's imports nor its exports, the artifact
   set nor the build recipe, so §5.6 asks no review before build. It was sent for one anyway, at
   the lane's request, and revised against it the same day ("ready once F1 to F3 are written
   in": `../reviews/081-guest-fuel-does-not-depend-on-the-checkout-spec-2026-10-19.md`, and the
@@ -289,7 +290,74 @@ failure.
 
 ## Landing notes
 
-Not built yet.
+### What was built
+
+On `spec/081-guest-fuel-does-not-depend-on-the-checkout`, rebased onto main `3f69654` (075's
+landing) with no conflict: the draft and its revision, then `b760a6e` (the checks, written first),
+`fa5321e` (the guard), `767404d` (the lxml check), then these notes. Evidence:
+`../research/2026-10-19-guest-fuel-and-the-checkout-path/build/`. All runs against
+`build/sets/s-c50ca51fae5eb55b` in the main tree, read only; `-n 3`.
+
+The confirmation's two points are taken. c1: `_forms` makes a `file:` URI only for an absolute
+path, so the Windows-shaped unit row runs on POSIX. c2: the check binds `host = str(ro /
+"secret.txt")` once, asserts on that string, and passes that string to `OUTSIDE`.
+
+### The checks fail first (criteria 1 and 4a, EXECUTED)
+
+- On main's driver, all six new unit rows fail (`unit_first.out`).
+- Against the draft's prototype guard, three fail, as criterion 4a asks: the `file:` URI, the
+  Windows root (escaped and in another case) and the system temp root (`unit_against_prototype.out`).
+- With the guard alone (`fa5321e`), of the 69 fuel functions exactly the lxml grant check's two
+  rows fail, each `ValueError: a measured run gives the guest a host path in argv[3]` (`build_guard_only.out`).
+  No other measured run is refused by the added roots and forms, here or in the full judge.
+
+### Two paths, one fuel (criteria 2 and 4, EXECUTED)
+
+- **The two lxml rows**, from the worktree (44 characters) and the clone (205), three runs at
+  each: plain **506,200,859** and snapshot **215,014,922** every time (`build_fixed.out`,
+  `build_spread3.out`). These are Decision 3's restated values, to the instruction.
+- **All 148 rows that run without a build**, three runs at each path (`spread.py`,
+  `build_spread3.out`): no row is offset by the path. On 146 rows the spread between the paths is
+  no wider than the spread at one path. On matplotlib's two plot rows it is wider by 34 (two
+  steps of 17): `test_plot_line_job_matches_native[snapshot]` spreads 187 at one path and 221
+  over both, `[plain]` 102 and 136. Their means differ by −62 and −34 instructions (under one part
+  in 10^8), the long path the *lower*; before the fix the lxml snapshot row moved +113,522. These
+  are Decision 4's timestamps, whose spread six samples can widen; the literal reading of
+  criterion 4 misses on these two rows by two steps, and I say so rather than re-run.
+- **Decision 4's bound moves.** The draft saw steps up to 119; the build sees 187 at one path on
+  matplotlib's plot row (8.8 G instructions; 2 parts in 10^8). On that row it is harmless; it
+  shows that a check reading many file times takes more steps. The roadmap line for 083 says so.
+
+### The probe still bites (criterion 3, EXECUTED, `mutate.py`, `build_mutants.out`)
+
+In the long clone, each mutant fails both rows:
+- `m1`, `ro` granted at its own host path for `OUTSIDE`: `entity outside grants: ok
+  '<r>SECRET\n</r>'` and `the host's secret was read`;
+- `m2`, the control naming `file:///ro/elsewhere.txt`: the control gives `<r/>`;
+- `m3`, a made-up host path: the host-side assertion (`FileNotFoundError`);
+- `m4`, `SAFETY` answering "entity outside grants" too: the disjoint-keys assertion.
+
+### The judge (criterion 5, EXECUTED, `build/fast-081.log` and `build/full-081.log` in the worktree)
+
+- `ruff check` and `ruff format --check` on `src/` and `tests/`: clean.
+- Fast tier (`uv run pytest -m "not slow" -n 3`): `474/550 pass · 1 gap · 24 blocked · 0 fail ·
+  51 deselected (unit suite 1366/1374, 8 skipped)`; `1840 passed, 32 skipped, 1 xfailed`;
+  `ratchet vs 35f76d3b3d: lost 0 · absent 0 · unrun 0 · unrun locally 22 · gained 0 · grew 0 ·
+  upstream unrun 31 · not selected 37 · judge changed: tests/checks/conftest.py,
+  tests/checks/test_v1_3_lxml.py, tests/harness/guest.py and 1 more`.
+- Full (`uv run pytest -n 3`): `491/550 pass · 3 gap · 56 blocked · 0 fail (unit suite
+  1366/1374, 8 skipped)`; `1857 passed, 64 skipped, 3 xfailed`; `ratchet vs 35f76d3b3d: lost 0
+  · absent 0 · unrun 0 · unrun locally 42 · gained 0 · grew 0 · upstream unrun 31 · judge
+  changed: …` (the same four files). The blocked checks need source trees, the oracle, the
+  wheel, the wasmtime CLI and the like, which a worktree without a build lacks; the lane runs
+  them. Its `build/progress/latest.json` is kept in the worktree.
+- The two restated rows fall, so the ratchet prints no line for them.
+
+### Still to do: Decision 5
+
+When spec 063 lands, this branch rebases onto it and merges the lxml check by hand as Decision 5
+says (063's `win32` branch for the outside case, its docstring sentence and `import sys`); then
+the fast tier again, and the lane's delta review if the merge moved anything beyond that.
 
 ### For the lane
 
