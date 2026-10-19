@@ -133,6 +133,13 @@ reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner
 closes_with = "context/roadmap.md"
 
 [[trap]]
+id = "c-stack-itertools-tee"
+group = "cpython-a"
+test = "test.test_itertools.TestPurePythonRoughEquivalents.test_tee_recipe"
+reason = "a long chain of pure-Python tee iterators recurses past the runner's 512 KiB stack on Linux x86-64 only (the lane's dry run 39260247695; reproduced in a linux/amd64 container, it passes on darwin), so an entry on every host (Decision 1; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
 id = "c-stack-traceback"
 group = "cpython-a"
 module = "test_traceback"

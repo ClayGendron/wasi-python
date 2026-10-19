@@ -477,3 +477,9 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-t
 match = "1 finding(s), digest 6750702ec38f"
 reason = "printing and freeing deep exception groups; one trap is no test's (it fires after test_comparison whichever test follows), so the whole module (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
 closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-itertools-tee]"
+match = "1 finding(s), digest b560ff3f4e57"
+reason = "a long chain of pure-Python tee iterators recurses past the runner's 512 KiB stack on Linux x86-64 only (the lane's dry run 39260247695; reproduced in a linux/amd64 container, it passes on darwin), so an entry on every host (Decision 1; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"

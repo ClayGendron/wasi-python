@@ -524,7 +524,7 @@ def test_the_judges_own_cpython_files_load_and_pass_the_rules_without_the_tarbal
     }
     assert sum(len(g.modules) for g in PY.groups.values()) == 542
     # nine, one the dry run found (F5), less the four spec 071 closed, plus its two (Decision 8)
-    assert len(PY.traps) == 8 and len(PY.expected) == 25
+    assert len(PY.traps) == 9 and len(PY.expected) == 25  # and one seen on Linux x86-64 (F5)
     from harness import plugin, shards
 
     gaps, _ = plugin.load_gaps(paths.KNOWN_GAPS)
