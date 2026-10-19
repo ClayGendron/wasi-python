@@ -36,6 +36,11 @@
   Amended 2026-10-19 by the owner: the packages come first, and up to
   four changes to the build recipe may be built at once while they do
   (§5.7).
+  Amended 2026-10-19 by the owner, to speed the work toward 0.1.0: a
+  dependent specification may be built on its dependency's reviewed
+  tip (§4.14, a stacked build); up to three reviewed parallel-safe
+  specifications may land in one batch (§5.4, §5.7); and a finding
+  ranked Low or a note needs no further review round (§5.6).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -205,8 +210,14 @@ works.
 14. **Git.** Commit or push only when the owner asks. Work on one
     specification may run in its own git worktree, outside the
     repository, on a local branch named `spec/NNN-<slug>` made from
-    main's tip; the branch is never pushed and is deleted with its
-    worktree when the specification lands or is abandoned. No other
+    main's tip, or, when its header's "Depends on" names a specification
+    that is built and reviewed but not yet landed, from that
+    specification's reviewed tip, the header naming the base commit (a
+    stacked build, owner, 2026-10-19). A stacked build lands only after
+    its base, rebased onto main, with a delta review of what the rebase
+    changed (§5.7). The branch is never pushed except for a dry run
+    (question 98), and is deleted with its worktree when the
+    specification lands or is abandoned. No other
     branch or worktree unless asked. Main moves only by fast-forward,
     through the landing lane (§5.7). One exception (question 70): an
     acceptance commit that is unpushed and breaks rule 1 may be undone
@@ -237,7 +248,10 @@ works.
 4. **Small, finished, verified.** A landing is one specification,
    green, with its landing notes written and its numbers reproduced.
    Half-built work is not landed; it is reported as half-built.
-   Specifications may be built in parallel; they land one at a time.
+   Specifications may be built in parallel; they land one at a time,
+   except that up to three reviewed parallel-safe specifications may
+   land as one batch (§5.7; owner, 2026-10-19). Each keeps its own
+   commits, review and landing notes.
 5. **A release is a re-run, not a project.** A new pinned set means:
    re-pin, re-run, re-verify, publish, and write the memo that says
    what changed. That must cost days, not weeks, which is why
@@ -252,7 +266,11 @@ works.
    tests, checks each acceptance criterion against its evidence,
    checks the change against §4 and §7, and reports ranked findings.
    Each finding is fixed or answered in writing before the landing;
-   the landing notes cite the review. A specification that changes
+   the landing notes cite the review. A finding ranked Low, or a note,
+   is answered by the builder without another review round when its
+   answer is in writing or touches only `context/`; a fix to code for
+   it is read by the lane against the finding at the landing (owner,
+   2026-10-19). A specification that changes
    the guest's imports or exports, the artifact set or the build
    recipe is reviewed once more before it is built, so a wrong design
    is caught before it is code. Reviews live in `context/reviews/`.
@@ -273,7 +291,12 @@ works.
    whose recipe hunks the rebase altered, or whose measured numbers moved
    beyond what its review saw, gets a delta review before it lands
    (owner, 2026-10-18, question 91; before that, one at a time,
-   2026-10-17).
+   2026-10-17). Up to three reviewed parallel-safe specifications (none
+   build-class) may land as one batch: the lane rebases each in turn
+   onto main, compares each with what was reviewed, judges the batch's
+   tip once, accepts once, and fast-forwards; a red batch or an
+   unexplained difference splits it, and its specifications land alone
+   (owner, 2026-10-19).
 
 ## 6. Deciding when the rules do not say
 

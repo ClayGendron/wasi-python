@@ -8,6 +8,47 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### Speeding the work toward 0.1.0, and 078's Linux price (2026-10-19)
+
+The owner asked for a measure of the pace and for proposals to speed it, and chose in the session
+among the options set out. The evidence is two memos written in the lane's scratchpad on
+2026-10-19: the pace (0.87 landings an hour; the landing queue is the bottleneck; likely ready
+Fri 2026-10-23) and the proposals (P1 to P12, ranked; likely ready Thu 2026-10-22 if adopted).
+
+- **Stacked builds (P1), approved.** A dependent specification may be built on its dependency's
+  reviewed tip, not only main's; it lands after its base, rebased, with a delta review.
+  Constitution §4.14 amended; AGENTS.md rule 2.
+- **The lane accepts on three cores (P4), approved.** `uv run pytest -n 3 --accept`, serial every
+  fifth counted landing as the periodic confirmation; spec 052's Decision 11 bar restated, since
+  every recorded comparison differed only by checks blocked in a worktree.
+  `context/progress/README.md` steps 3 and 3a; AGENTS.md rules 3a and 6a.
+- **A permission allowlist (P6), approved as a draft for the owner to review.** A tracked
+  `.claude/settings.json` allowing routine commands (worktrees, the judge, the build, reading and
+  dispatching the release workflow), never one that pushes, tags or publishes. The agent drafts
+  it; the owner reviews it before it is committed, since it changes what agents may run unasked.
+- **numpy-core's layout-dependent fuel as a fact (P3), approved.** A small judge-only
+  specification (091) takes `test_string_comparisons`' fuel, which moves with the bool DType
+  object's address at every build-class landing (047, 071, 073, 043, 086), out of the ratchet as a
+  recorded fact, by a reviewed judge change; the group's passes stay ratcheted.
+- **Batch landings, approved.** Up to three reviewed parallel-safe specifications land as one
+  batch, judged and accepted once; a red batch or an unexplained difference splits it.
+  Build-class specifications land alone. Constitution §5.4 and §5.7.
+- **Review follows risk, approved.** The pre-build review is required where §5.6 requires it and
+  for the runner's code, optional for judge-only or context-only specifications; a Low finding or
+  a note needs no further review round when answered in writing or in `context/` only.
+  Constitution §5.6; AGENTS.md rule 8.
+- **Not adopted:** dropping the lane's local rebuild in favour of CI's, and a 1e-3 fuel band for
+  CI against local (085's Decision 9 stays "not now").
+- **The lane's own changes, the owner told:** 086 lands right after 083, then 039 and 043, with
+  073, 085, 084, 078 and 087 in the gaps (P2); a build-class, growth or Windows-touching
+  specification is built only once its branch's dry run has run, and the lane's main dry run runs
+  every second landing or before a tag (P5); `build/lane.lock` keeps other full judges off the
+  machine while the lane accepts (P8); the whole-surface security review starts now on main, with
+  an addendum per package (P7).
+- **078's hand-off price on Linux:** "Accept (Recommended)". About 3× per provider or door call in
+  a Docker VM (30 to 90–100 µs), against the quarter more on darwin accepted earlier; native Linux
+  unmeasured; a cheaper hand-off and a native measurement are a follow-up.
+
 ### 105, and the open points of 078, 084 and 085, answered (2026-10-19)
 
 The owner answered in the session, choosing among the options each set out (question 105's text

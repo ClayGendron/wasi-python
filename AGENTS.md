@@ -77,7 +77,15 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    specification lands after a rebase, a full rebuild in the main tree
    and a delta review if its recipe hunks or numbers moved; build-class means
    it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the
-   release workflow).
+   release workflow). Two exceptions (the owner, 2026-10-19): up to three
+   reviewed parallel-safe specifications may land as one batch, judged
+   and accepted once (constitution §5.7); and a specification whose
+   dependency is built and reviewed may be built on that dependency's
+   reviewed tip (§4.14, a stacked build), rebasing onto main when the base
+   lands, with a delta review. A build-class, growth or Windows-touching
+   specification is "built" only once its builder has dispatched the
+   release workflow on its branch and every red line there is a growth
+   line or G7; the build review reads that run.
 3. **Write the check before the code.** A new behaviour gets a check
    (or a gap entry naming its closer) first. A new failure mode, once
    seen, becomes a check, so it cannot come back.
@@ -88,12 +96,14 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    a slow check you are changing alone by its node id. Both tiers may
    run on several cores with `-n 6` (spec 052): the same verdicts, about
    a third of the time; use `-n 3` when another agent's judge is running
-   on the machine. The full judge runs once per stage, at its end: the
-   builder's `uv run pytest -n 6` before it writes "built", the
+   on the machine. While `build/lane.lock` exists in the main tree (the
+   lane's accepting judge is running), run no full judge: the fast tier
+   or a single node id only. The full judge runs once per stage, at its
+   end: the builder's `uv run pytest -n 6` before it writes "built", the
    reviewer's before its verdict (the reviewer re-runs the counted
    tests, constitution §5.6), each keeping its `build/progress/latest.json`
-   for the lane; and the lane's serial `uv run pytest` on the exact
-   commit it accepts.
+   for the lane; and the lane's `uv run pytest -n 3` on the exact commit
+   it accepts (serial every fifth counted landing, the owner, 2026-10-19).
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
    golden output, `tests/known_gaps.toml`, the upstream suites'
    allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`, CPython's plan
@@ -112,9 +122,10 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
 6a. **Only the lane accepts.** A builder runs the judge in its worktree
    without `--accept`, against the frozen artifact set its class
    allows. The lane rebases, compares with the reviewed diff, judges
-   the exact commit in the main tree **serially**, accepts, and
+   the exact commit in the main tree on three cores (**serially** every
+   fifth counted landing; the owner, 2026-10-19), accepts, and
    fast-forwards main. It records `uv run python tests/harness/sameness.py`
-   between the reviewer's `-n 6` record and its own serial one; a
+   between the reviewer's record and its own; a
    difference stops the landing until the check is fixed, never a
    re-run (spec 052, Decision 11). Progress files are never merged:
    take main's and accept again.
@@ -131,7 +142,12 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    or specification, and move to work that does not depend on it.
 8. **The implementer never reviews.** A fresh agent gets the
    specification and the diff, re-runs the scoreboard, and writes the
-   review under `context/reviews/`.
+   review under `context/reviews/`. Review follows risk (the owner,
+   2026-10-19): the pre-build review is required where constitution §5.6
+   requires it (the guest's imports or exports, the artifact set, the
+   build recipe) and for the runner's code, optional for a judge-only or
+   context-only specification; a Low finding or a note needs no further
+   review round when its answer is in writing or touches only `context/`.
 9. **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a
    `git mv` or an earlier `git add` stays staged and rides along. A commit on `main` is green on
    its own; when two pieces of work share the tree, check the commit in a clean clone. A

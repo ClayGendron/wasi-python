@@ -174,11 +174,17 @@ The steps, in order:
 2. **Detach.** Run `git switch --detach <the rebased, reviewed commit>`. It changes no working
    file that step 1 left. For a change built in the main tree, commit the change, its
    specification and its review here first, on the detached HEAD.
-3. **Accept.** Run `uv run pytest --accept "<reason>"`, with `--accept-judge` when the judge
-   changed. **Serially**: the verdict of record stays serial (spec 052, Decision 11).
+3. **Accept.** Create `build/lane.lock` (no other agent runs a full judge while it exists, AGENTS.md
+   rule 3a), run `uv run pytest -n 3 --accept "<reason>"`, with `--accept-judge` when the judge
+   changed, then remove the lock. Every fifth counted landing, and any landing whose reviewer's
+   record was serial, runs serially instead (`uv run pytest --accept …`); its sameness line (3a) is
+   the periodic serial confirmation spec 052's Decision 11 asks for (the owner, 2026-10-19).
 3a. **Compare** (spec 052). When the rebase changed no judged file and no code, the
-   landing notes record `uv run python tests/harness/sameness.py <the reviewer's -n 6
-   latest.json> build/progress/latest.json` (the lane's serial record from step 3) and its output.
+   landing notes record `uv run python tests/harness/sameness.py <the reviewer's
+   latest.json> build/progress/latest.json` (the lane's record from step 3) and its output.
+   For a batch (constitution §5.7), the lane compares its record with each reviewer's; a
+   difference is explained only by a row another specification in the batch changed, and any
+   other difference splits the batch.
    A difference stops the landing here: it is a defect of a check (order, speed, a shared
    path) or of the harness, written in the landing notes and fixed by its own judge change. Nobody
    re-runs to make it go away. When the rebase did change a judged file or code, the notes say so,
@@ -202,11 +208,13 @@ The steps, in order:
    detached and nothing has been pushed, so main has not moved. Then redo step 4.
 6. **Move main.** Run `git switch main && git merge --ff-only <the acceptance commit>`.
 
-**Ten clean landings** (spec 052, Decision 11). After ten consecutive counted landings with no
-difference, a research memo that counts them may move step 3 to `uv run pytest -n 6 --accept
-"<reason>"` without a new specification. That memo names a periodic serial confirmation (one
-serial run at least every tenth landing, compared the same way) and what a difference does (a
-stopped landing and a fix). The count restarts at any difference.
+**Ten clean landings** (spec 052, Decision 11, restated by the owner on 2026-10-19). Step 3 runs
+on three cores from 2026-10-19, ahead of the count Decision 11 asked for: as first written, its bar
+could not be met, since every recorded comparison (063, 065, 081) differed only by checks blocked
+in the reviewer's worktree and run in the main tree. A comparison is now clean when every
+difference is such a check, or a defect since fixed by a landed judge change. A difference of any
+other kind stops the landing and is fixed, and the lane returns to serial acceptance until ten
+clean landings follow.
 
 **The upstream suites on the lane (spec 050).** The lane fetches the kit once
 (`uv run python tests/upstream/fetch.py`) and keeps the source trees under `build/`. The landing

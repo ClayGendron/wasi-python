@@ -88,12 +88,19 @@ come first). **083 lands next, ahead of every built package**: the judge's CPyth
 file times, inode numbers and the zip's link count, so their fuel differs between the lane's machine
 and the release runners, and every dry run, main's included, goes red on `cpython-fs` until 083
 lands (039's dry run on its acceptance, run 39291580648, +0.04%; 065's build review, section 4,
-predicted it). Then, one at a time: 039 (tier A; accepted on its branch, re-accepted after 083),
-073 (`run` keeps an unclosed file's bytes; lands, numpy-core's growth measured), 085 (gather checks
-what it trusts; lands), 084 (a private root never outlives its call; lands), 043 (matplotlib M2;
-rebase, rebuild, delta review). Being built: 083, and 086 drafted (question 105 answered (b): the
-toolchain moves first, and 037, scipy, waits for it and drops its exception). Confirmed for build:
-078 (after 083) and 087 (build-class, it carries a patch; takes a free slot).
+predicted it). 089 (host litter never reaches a verdict: the judge seals its stages, so the
+.DS_Store files macOS writes cannot reach the guest) lands before 083; 090 (the build ignores host
+litter, build-class) follows later. The order after 083 (the owner told, 2026-10-19, `decisions.md`):
+086 (wasi-sdk 34; rebase, rebuild, A/B), then 039 (tier A; re-accepted after 083), then 043
+(matplotlib M2; rebase, rebuild, delta review), then 037's rework, built on 043's and 086's
+reviewed tips once they are (a stacked build). The parallel-safe specifications land in the gaps,
+in batches of up to three: 073 (`run` keeps an unclosed file's bytes), 085 (gather checks what it
+trusts), 084 (a private root never outlives its call), 078 (built and reviewed, after 083) and 087
+(build-class, it carries a patch; lands alone). Reserved: 091, numpy-core's layout-dependent fuel
+as a fact (judge-only, parallel-safe; `test_string_comparisons`' fuel moves with the bool DType
+object's address at every build-class landing, so it leaves the ratchet as a recorded fact while
+the group's passes stay ratcheted). The whole-surface security review for 0.1.0 starts now on
+main, with an addendum per package that lands after it.
 
 Confirmed for build, in the build-class queue (up to four built at once while the packages come
 first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
