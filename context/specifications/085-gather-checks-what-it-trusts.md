@@ -645,6 +645,36 @@ blocked by `three systems`, two for the descriptor check on macOS and Linux, one
 forged tallies, the dropped fuel, and ten times the fuel under `wasmtime` `48.0.0` (G2; the
 ratchet stays silent there, which is why G2 binds it).
 
+### The judge (no `--accept`; EXECUTED)
+
+Against a private copy of main's set, `build/085/set` (a clone of
+`build/sets/s-c50ca51fae5eb55b-c9dcb5b8`), through `WASI_PYTHON_ARTIFACTS`.
+
+- **Full judge**, `uv run pytest -n 3` on `9128176`, a clean tree (`build/085/full-n3.log`; its
+  record kept as `build/progress/latest.json`):
+  `wasi_python v1: 495/623 pass · 3 gap · 125 blocked · 0 fail (unit suite 1622/1630, 8
+  skipped)`; `ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 49 · gained 0 ·
+  grew 0 · upstream unrun 99 · judge changed: tests/harness/gather.py, tests/harness/plugin.py,
+  tests/harness/scan.py and 6 more`; `2117 passed, 133 skipped, 3 xfailed`. The blocked checks are
+  the worktree's missing source trees, clones, oracle, wheel and wasmtime CLI, as in any worktree.
+  The record's `meta.set_sums` is `c9dcb5b84ae2…`, the set's own `SHA256SUMS`, as Decision 4
+  says.
+- **Fast tier**, `uv run pytest -m "not slow" -n 3`, before the Landing notes existed
+  (`build/085/fast-1.log`): one fail, `test_specifications_have_their_header_and_sections`, on
+  this spec's missing `## Landing notes` section and header form; fixed in the spec, and the full
+  judge above has 0 fail. `ruff check` and `ruff format --check` are green on `src/` and `tests/`.
+
+### Amended at build, each with its reason
+
+- **`merge` adds only whole-number tallies.** A tally of strings made the merged record raise
+  before any red line was printed; it is now a G4 line (Decision 2) and left out of the sum.
+- **The scan's unit test also checks the gather's guard step** (`SET_SUMS_SHA256` tested as 64
+  hex), which no rule held; and the spec's header line takes the form the rules check reads
+  (`- **Research it stands on:**`).
+- **c1 and c2 taken** (the confirmation's builder notes): a module constant holding a bare CI need
+  in `tests/harness/` is flagged; a need passed to a helper from inside a check's body is named
+  in Decision 1 as found only at a dry run; `VOCABULARY_FILES` are skipped before parsing.
+
 ### For the lane
 
 - **Criterion 2's branch-dry-run part, criteria 4 to 7.** Push the branch and dispatch the
