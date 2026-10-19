@@ -1,6 +1,6 @@
 # 078 — The runner runs each guest on a stack of its own
 
-- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes; for its build review). Before: drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
+- **Status:** **built 2026-10-19** on main `3866f56`; its build review said "lands once F1 to F5 are fixed or answered", and all eleven findings are answered ("Disposition of the build review"; the final judge on `2a0a98d`). Before: drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
   from main `3561e55`, with its research
   (`../research/2026-10-19-the-runners-own-stack.md`); reviewed before build the same day at the
   lane's request (`scratchpad/078-review/078-the-runner-runs-each-guest-on-a-stack-of-its-own-spec-2026-10-19.md`,
@@ -1136,6 +1136,20 @@ program traps at 512 KiB too).
     change, main's runner in the same container: every one of the nine trap checks saw its trap
     ("trap at or after" its test, 9 xfailed; `build-evidence/amd64-main-traps.log`, since the
     build review's F4). Windows waits for the lane's run (15).
+
+### The final judge (after the build review)
+
+On `2a0a98d`, clean (`dirty: false`), once, `uv run pytest -n 3`; the record kept at
+`build/078/latest-full.json` in the worktree (with its log, `build/078/judge-full.log`):
+
+- `wasi_python v1: 537/650 pass · 57 gap · 56 blocked · 0 fail (unit suite 1598/1606, 8 skipped)`;
+  `2135 passed, 64 skipped, 57 xfailed in 379.73s`.
+- `ratchet vs b91e0eaa4e: lost 0 · absent 14 · unrun 0 · unrun locally 42 · gained 40 · grew 3`.
+  The 14 absent and the 3 grown are those above (`cpython-a` 275,203,970,760, `cpython-b`
+  295,232,868,940, `cpython-c` 372,917,397,662: +2.47%, +0.24%, +0.12%); the five more gained are
+  the build review's new rows (the RelaxNG limit, the session row, the start row, the two
+  hand-off rows).
+- The fast tier on the same commit: `514/650 pass · 1 gap · 24 blocked · 0 fail`, lost 0, grew 0.
 
 ### The hand-off's price, on Linux (benchmarks; `build-evidence/bench-*.log`; the owner accepted it, 2026-10-19)
 
