@@ -1,6 +1,6 @@
 # 070 — The judge's small follow-ups
 
-- **Status:** built 2026-10-18; its build review (written in the lane's scratchpad,
+- **Status:** **landed 2026-10-19** (accepted on `7eda426` as `75e35e6`, history line 66; the build review, `../reviews/070-the-judges-small-follow-ups-build-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; its build review (written in the lane's scratchpad,
   `070-buildreview/`, and copied to `context/reviews/` by the lane) said
   "lands once F1 to F4 are fixed or answered in writing"; revised 2026-10-19 with F1 to F4 fixed
   and N2 done as the lane ruled (the Disposition), and rebased onto main `a0de463` (the 0.1.0a6
@@ -258,3 +258,18 @@ changes); these notes are the commit after it. Same frozen set, `s-4eb5418a2b1bb
 - `ruff check` and `ruff format --check` on `src tests recipes/guest`: clean.
 - **Not done here:** no `--accept`, no push. The delta review gets the Disposition, `git diff
   9a1515f 6bdbe91`, stand-ins S13 to S18 and the fast tier.
+
+**Landed 2026-10-19** through the lane, after spec 046. The lane rebased the branch onto main
+`7d377dd`; the one conflict was `CHANGELOG.md`'s 0.1.0a7 section (both entries kept, lxml's first),
+and the diff otherwise equals the reviewed diff at `282f71a` line for line (EXECUTED,
+`build/lane-070/delta.txt`: only the placeholder line and a blank line differ). The build review with
+its confirmation (`../reviews/070-the-judges-small-follow-ups-build-2026-10-18.md`: "lands once F1 to
+F4", then "confirmed, it lands") was committed on the detached HEAD as `7eda426`. No build: 070
+changes only the judge, the README and the CHANGELOG, so main's set `s-ff5246a2c2f1a52b` stands. The
+full judge there, serial: `wasi_python v1: 424/440 pass · 14 gap · 2 blocked · 0 fail (unit suite
+1252/1254, 2 skipped)`, `1676 passed, 4 skipped, 14 xfailed in 1085.28s`, accepted with
+`--accept-judge` (six judge files, only stricter) as `75e35e6`, history line 66 (EXECUTED,
+`build/lane-070-accept.log`). The rules tier passed (40/40, unpiped); main fast-forwarded. Spec 065
+takes the hostile-guest helper that fails instead of blocking without an artifact set (its review's
+fast-tier note); spec 075 takes 060's N1 and the a6 review's F1.
+

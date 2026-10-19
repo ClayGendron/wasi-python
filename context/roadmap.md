@@ -59,7 +59,7 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag); 070 (the judge's small follow-ups).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
@@ -69,9 +69,13 @@ question 95) and its security review's addendum ("a5 may be released"), and publ
 the build job's (`python.wasm` `42344e2c…`, snapshot `c4190ca0…`, zip `daf2cdd8…`), which is spec
 035's reviewed set (`SHA256SUMS` `3c0ec02e…`). 0.1.0a6 was tagged 2026-10-19 on `7b473f6` after its
 dry run (39182011247) passed on all three systems on `ef1441b` and its security review said "a6 may be
-released"; its tag run is 39184720868 (hashes hand-checked when it ends).
+released", and published the same night (run 39184720868, every job green). Hand-checked: the wheel on
+PyPI and on the GitHub release is `fe23e238…4c02` (52,096,520 bytes), the tarball `8126b2de…8f3a`,
+the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed list; the artifacts
+inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
+`16ee747c…`; `SHA256SUMS` `c353b1d9…`).
 
-Building now (decision 91: up to three build-class at once): 047 (regex; confirmed, lands next after its rebase onto 046), 063 (the release judges in parallel shards). Confirmed, landing in turn: 070 (the judge's small follow-ups), 068 (a cap on open files). Confirmed for build: 055 (bounded sessions;
+Building now (decision 91: up to three build-class at once): 047 (regex; confirmed, lands next after its rebase onto 046), 063 (the release judges in parallel shards). Confirmed, landing next: 068 (a cap on open files). Building: 055 (bounded sessions). Built, in review: 063 (its Windows own-guest job fails four grant checks newly run there; spec 076, the grant checks agree on Windows, is being drafted to fix them before 063 lands). Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
 before the release after a5). Confirmed for build, building next: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
 every compile; the owner's decision of 2026-10-18).
