@@ -1846,7 +1846,7 @@ def test_open_files_are_counted_on_a_call_without_mounts(tmp_path) -> None:
 def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> None:
     """Spec 068, criterion 2: mount files count with wasmtime's under one cap; a refused open in
     a mount makes no provider call and spends no file call; a close of either kind frees a slot
-    for either kind."""
+    for either kind; a renumber of two held grant numbers frees one, with mounts as without."""
     folder = _folder(tmp_path)
     provider = MemoryProvider()
     m = Mounted(provider, placeholder, folders=[(folder, "/w", False)])
@@ -1866,6 +1866,12 @@ def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> No
     assert r("fd_close", grant[0]) == 0
     assert r.open(3, "a.txt")[0] == 0
     assert r.open(3, "b.txt")[0] == EMFILE and r.open(4, "f3")[0] == EMFILE
+    # The build review's F1: in a table with mounts, a renumber of two held grant numbers closes
+    # one and frees its slot, as in a guard table.
+    held = sorted(m.table.held)
+    assert len(held) == 2 and r("fd_renumber", held[0], held[1]) == 0
+    assert r.open(4, "f3")[0] == 0
+    assert r.open(4, "f4")[0] == EMFILE
 
     m = Mounted(provider, placeholder, file_calls=3)
     m.table.open_files = 2

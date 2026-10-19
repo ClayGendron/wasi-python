@@ -625,6 +625,8 @@ restored. The landing notes list each with its failing line.
      `read` count is unchanged (still 2).
    - Closing a mount file lets a folder file open (0); closing a folder file lets a mount file
      open (0); the next open of either kind answers `EMFILE`.
+   - In this table with mounts, `fd_renumber` of two held grant numbers answers 0 and frees one:
+     one open then answers 0, and the next `EMFILE` (the build review's F1).
    - A refused open spends no file call: with `file_calls=3` on a fresh harness and the cap at 2,
      two mount opens (2 calls), then two refused mount opens, then `table.total` is 2 and no run
      has ended.
@@ -632,7 +634,9 @@ restored. The landing notes list each with its failing line.
    Seen failing on main: `_Files` keeps no cap (the fifth opens answer 0). Stand-ins: (i) mount
    files not counted (`opened` left out of the count): the fifth mount open answers 0; (j) the
    cap checked after the provider call: the `read` count is 3 for the refused open; (k) the held
-   set left out of the count in a mount table: the fifth folder open answers 0.
+   set left out of the count in a mount table: the fifth folder open answers 0; (f2) `fd_renumber`
+   left untracked in a table with mounts (the build review's M2): the open after the renumber
+   answers `EMFILE`.
 3. **`test_the_open_file_cap_is_a_limit_with_a_default`** (unit,
    `tests/unit/test_runner_limits.py`, beside the defaults' existing units, no artifacts;
    artifact lookups counted as spec 053's criterion 1 counts them):
@@ -861,6 +865,7 @@ Every one was caught.
 | (h) the `ENOTSUP` rule in a guard table | criterion 1 | the parity rows differ |
 | (t') the `from != to` test dropped | criterion 1 | `0 == 33` |
 | (u') `to` dropped only when `from` is held | criterion 1 | `33 == 0` |
+| (f2) `fd_renumber` untracked in a table with mounts (after the build review) | criterion 2 | `33 == 0` |
 | (i) mount files not counted | criterion 2 | `(0, 7) == (33, None)` |
 | (j) the cap after the provider call | criterion 2 | `3 == 2` (reads) |
 | (k) the held set left out in a mount table | criterion 2 | `(0, 7) == (33, None)` |
@@ -926,7 +931,8 @@ Every one was caught.
     bottom 300 times took this process from 4 descriptors to a peak of 311. That is the stated
     limit (Decision 1) spec 072 will close.
 - **Criterion 10.** The README and the CHANGELOG carry Decision 13's text, in the unreleased
-  section (today "0.1.0a6 — unreleased"; the review's N3). Decision 9 asks no 055 edit now: 068 is
+  section (the review's N3): "0.1.0a7 — unreleased" since the rebase onto `a0de463` (0.1.0a6 was
+  tagged without 068). Decision 9 asks no 055 edit now: 068 is
   landing first, so the lane tells 055's branch the names `max_open_files=` and
   `Defaults.open_files`.
 - **Criterion 11** does not apply: 055 has not landed.
@@ -950,6 +956,27 @@ Every one was caught.
   True`).
 - **Criterion 1's ENOENT** is the module's existing `ENOENT` (the rules check refuses a name bound
   twice at module level).
+
+### After the build review
+
+The build review (written in the coordinator's scratchpad, `068-buildreview/`, for the lane to copy
+to `../reviews/068-a-cap-on-open-files-build-2026-10-18.md`): "lands"; F1 a suggested row, F2 a
+note. Both were taken, with the lane's rebase:
+
+- **Rebased** onto main `a0de463` (0.1.0a6 released, the bump to 0.1.0a7). The CHANGELOG's two
+  lines moved from the now-released 0.1.0a6 section into "0.1.0a7 — unreleased".
+- **F1:** criterion 2 gains the row: in a table with mounts, `fd_renumber` of two held grant
+  numbers frees one (one open answers 0, the next `EMFILE`). Its stand-in (f2), the held set's
+  update skipped when the table has mounts (the review's M2), fails it: `33 == 0`
+  (`build/068/standins-f2.log`, with (v) and (x) re-run after F2).
+- **F2:** the unreachable `if resource is None` in `cli._raise_descriptor_limit` is deleted: with
+  `sys.modules["resource"] = None`, `import resource` raises `ImportError`, which the line above
+  catches. Criterion 6's row for it still passes.
+- **The fast tier after these**, `uv run pytest -m "not slow" -n 3` (`build/068/fast-a0de463.log`):
+  `wasi_python v1: 353/418 pass · 0 gap · 19 blocked · 0 fail · 46 deselected (unit suite
+  1228/1236, 8 skipped)`, v1.4 163/163; `ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 ·
+  unrun locally 17 · gained 2 · grew 0`; 1581 passed, 27 skipped. The changed checks by node id: 4
+  passed. `ruff check`, `ruff format --check` and `tests/harness/api.py --check` are clean.
 
 ### For the lane
 

@@ -185,8 +185,6 @@ def _raise_descriptor_limit() -> None:
         import resource
     except ImportError:
         return
-    if resource is None:  # a module blocked in sys.modules
-        return
     try:
         which, infinity = resource.RLIMIT_NOFILE, resource.RLIM_INFINITY
         soft, hard = resource.getrlimit(which)
