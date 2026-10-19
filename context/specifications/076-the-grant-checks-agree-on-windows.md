@@ -671,4 +671,132 @@ F4 and upheld option (c) for the errno. Each finding:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-19 by the implementer (Claude Opus 5.5) in the worktree `../wasi_python-076`, on
+`spec/076-the-grant-checks-agree-on-windows` from main `6fd89e0` (the spec at `c0c5698`,
+confirmed for build). Every local claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2,
+wasmtime-py 49.0.0, against the frozen artifact set `build/sets/s-ff5246a2c2f1a52b` of the main
+tree, read only (`WASI_PYTHON_ARTIFACTS`). Logs are in the worktree's git-ignored `build/076/`.
+
+### What was built (`cb1d8be`)
+
+- `src/wasi_python/runner.py`: `_rewritten`, `_WIN_DEVICES` and the seam `_drive_folder`;
+  `_walk_windows` rewritten as Decision 1 and the Design say (the judged start, `..` on the
+  walked folders, concatenated prefixes, the refusal of names Windows rewrites, the drive's root
+  with its separator), `ntpath` by name; the unjudged walk is unchanged in effect.
+- `tests/harness/files.py`: `WRONG_MODE_ERRNO` and `wrong_mode_errno()`.
+- `tests/unit/test_runner_grants.py`: `test_the_walk_takes_dot_dot_on_the_real_file_system` (no
+  skip), the Win32 model, `test_the_windows_walk_takes_dot_dot_on_walked_folders`,
+  `test_the_windows_walk_records_the_true_chain` (a fuzz of 16,653 spellings), and the two raw
+  wrong-mode rows in `test_a_read_only_grant_refuses_raw_writes`.
+- `tests/checks/test_v1_2_hostile_guest.py`: the per-system write row, the Windows link branch
+  deleted; four rows and two `exists()` assertions in the bad-grant check.
+- `tests/unit/test_runner_mounts.py`: `NATIVE_RENAME_END` and the per-system endings.
+- `README.md` (*Grants*), `CHANGELOG.md` (0.1.0a7), facts sheet 12's fact 5, facts sheet 20 and
+  its row in `context/upstream/README.md`; this spec's Decision 1, Design and criterion 1 gain
+  the confirmation's two notes (reserved names, a drive's root), as the lane ruled.
+
+### Seen failing first, and against every stand-in
+
+- Before the code, the two walk-model cases failed (`2 failed`: no `runner._drive_folder`); the
+  raw rows, the real-file-system case and the three Windows-facing checks passed on macOS, as
+  they must: their Windows values are what spec 063's three dry runs printed (EXECUTED there),
+  and the stand-ins below show each new assertion bites.
+- `build/076/stand-ins.log` (a script that edits one file, runs the named nodes, restores the
+  file; `git diff` hashed before and after, equal): **S1 to S4 and S6 to S15 all CAUGHT**. S1
+  (collapse by `normpath`): "DID NOT RAISE". S2 (refuse every `..`): `C:\b\sub\..\x` "does not
+  exist". S3 (a `..` that keeps its handle): the held set has `c:\b\sub` too. S4 (`_walk_posix`
+  normalises): the real-file-system case "DID NOT RAISE". S6, S7 (the hostile check with `win32`
+  values, or the old branch): the table differs. S8: `assert 8 == 2`. S9: `'returned 54' ==
+  'returned 44'`. S10 (`_source_type` answers 0): `('returned 63', 2005) == ('returned 54',
+  2005)`. S11 (no refusal): `C:\b\D:sub` "does not exist" instead of refused. S12 (`ntpath.join`,
+  `:` allowed): "DID NOT RAISE". S13 (rooted at a bare separator): `'\b\x' == 'C:\b\x'`. S14 (no
+  device names): "DID NOT RAISE". S15 (`C:` without its separator): a wrong chain.
+- `build/076/stand-in-S5.log`: S5, S4's stand-in on the bad-grant check: "DID NOT RAISE". And
+  Decision 2's evidence: under S1's collapse the model walks `C:\b\cache\new\..\made` to
+  `C:\b\cache\made`, whose chain holds the module cache's identity, so `_judge` would refuse it
+  as inside the cache.
+
+### The judge (no `--accept`)
+
+- Fast tier, `uv run pytest -m "not slow" -n 3` (`build/076/fast-1.log`): `wasi_python v1:
+  371/442 pass · 0 gap · 22 blocked · 0 fail · 49 deselected (unit suite 1254/1262, 8 skipped)`,
+  `ratchet vs 75f03ab77e: lost 0 · absent 0 · unrun 0 · unrun locally 20 · gained 0 · grew 0 ·
+  upstream unrun 31 · not selected 35 · judge changed: tests/checks/test_v1_2_hostile_guest.py,
+  tests/harness/files.py, tests/unit/test_runner_grants.py and 1 more`, `1625 passed, 30 skipped
+  in 260.87s`. (Before the change, `build/076/fast-baseline.log`: 371/442, unit suite
+  1251/1259, 0 fail.)
+- Full judge, `uv run pytest -n 3` (`build/076/full-n3.log`, its record
+  `build/076/full-n3-latest.json`): `wasi_python v1: 386/442 pass · 2 gap · 54 blocked · 0 fail
+  (unit suite 1254/1262, 8 skipped)`, `ratchet vs 75f03ab77e: lost 0 · absent 0 · unrun 0 ·
+  unrun locally 40 · gained 0 · grew 0 · upstream unrun 31 · judge changed: (the four files)`,
+  `1640 passed, 62 skipped, 2 xfailed in 227.51s`. The blocked checks are the worktree's missing
+  source trees and clones (`source tree numpy 17 · source tree pandas 16 · …`), as in any
+  worktree.
+- `ruff check` and `ruff format --check` on `src`, `tests` and `recipes/guest`: clean.
+  `tests/public_api.txt`: unchanged.
+- The judge change, for the lane's `--accept-judge`: "spec 076: the read-only grant check
+  states the wrong-mode errno per system and drops a Windows branch the product never matched;
+  the bad-grant check gains four rows; the rename check states wasmtime 49.0.0's Windows ending
+  per system and asserts the guard's ENOTDIR everywhere; three unit cases and two raw rows; one
+  per-system table in tests/harness/files.py; and one v1.3 check reads the README as UTF-8,
+  which Windows' default encoding cannot".
+
+### On Windows (criterion 9)
+
+**Dry run 1: run 39193391287**, dispatched on `spec/076-verify`, `headSha`
+`baa4b3eb039ee35c7622fb50cc3bbbb857f65af0`, whose parent is `cb1d8be` (this branch's build, as
+built); the temporary commit's diff is `build/076/verify-commit.diff` (the verify step gains
+`-rA` and the three node ids, nothing else). The throwaway branch was deleted on GitHub after
+the run. Verdicts: the three rebuilds, `build and judge (arm64 macOS)`, `the same bytes from
+every host`, `verify (ubuntu-24.04)` and `verify (macos-15)` passed; **`verify (windows-2025)`
+failed on one check that is not this spec's**. Every node criterion 9 names passed there
+(`build/076/dryrun-windows-verify.log`, quoted in `build/076/dryrun1-windows-passed.txt`):
+
+```
+PASSED tests/unit/test_runner_grants.py::test_the_walk_takes_dot_dot_on_the_real_file_system
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_takes_dot_dot_on_walked_folders
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_records_the_true_chain
+PASSED tests/unit/test_runner_grants.py::test_a_read_only_grant_refuses_raw_writes
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[plain]
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[snapshot]
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work
+PASSED tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_neutral
+```
+
+So on Windows every refusal of the bad-grant check ran and refused, the read twin answered 2 as
+predicted (the raw case asserts it), and the rename loop ran whole over its caps. The one
+failure: `FAILED tests/checks/test_v1_3_data_stack.py::test_default_integer_width_is_documented
+- UnicodeDecodeError: 'charmap' codec can't decode byte 0x8f in position 20429`; the step's
+scoreboard: `wasi_python v1: 218/222 pass · 0 gap · 3 blocked · 1 fail (unit suite 95/102, 7
+skipped)`, `blocked by: oracle 1 · three systems 1 · wheel 1`, `1 failed, 313 passed, 10
+skipped`. The check reads the README with the host's default encoding (cp1252 on Windows); the
+README has held UTF-8 Chinese text since spec 046's `d453591` (after the 0.1.0a6 tag), so main's
+own next release dry run fails there too (READ: `git log -S`, and the README decodes as UTF-8
+but not as cp1252 at byte 20429). Fixed here (departure 6), and run again.
+
+WINDOWS-RUN-2
+
+### Departures from the specification, each with its reason
+
+1. **The table is `WRONG_MODE_ERRNO` / `wrong_mode_errno()`**, not `READ_DESCRIPTOR_ERRNO`: it
+   holds the read twin too (a read through a write-only descriptor), so the name says both.
+2. **One more unit case, `test_the_windows_walk_records_the_true_chain`**: the confirmation's
+   fuzz idea, written here over this file's own model (16,653 spellings under seven heads;
+   every accepted walk's chain is the true chain; 642 accepted and 16,011 refused on macOS).
+3. **A share or verbatim drive with no separator after it is rooted.** The Design tests only
+   whether the tail starts with a separator; `ntpath.splitdrive("\\\\b\\x")` gives the drive
+   `\\b\x` and an empty tail, which the fuzz sent to `_drive_folder`. Such a drive now starts at
+   its own root, as a UNC path does.
+4. **Rewritten names are checked over every component before anything is opened**: the start's
+   own components (the current folder), the existing part and the tail to be made alike. The
+   spec's rule, in one place.
+5. **The temporary commit was made without a local branch**: `git commit-tree` on the spec
+   branch's tip, pushed straight to `refs/heads/spec/076-verify`; so only the GitHub branch is
+   deleted after the run.
+6. **One check outside the spec reads the README as UTF-8**:
+   `test_default_integer_width_is_documented` (`tests/checks/test_v1_3_data_stack.py`) now
+   calls `paths.README.read_text("utf-8")`. It failed dry run 1's Windows verify on a defect
+   already on main (cp1252 cannot read spec 046's README text), and criterion 9 asks for every
+   job green. The README is UTF-8; the assertion is unchanged, so nothing is loosened. Spec 063
+   sets `PYTHONUTF8` in its judge jobs for the same class of failure; this line makes the check
+   right without it. A judge change, named for the lane.

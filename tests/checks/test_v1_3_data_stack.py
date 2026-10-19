@@ -159,7 +159,7 @@ def test_default_integer_width_is_documented(guest) -> None:
     r = guest("plain", ["-c", "import numpy as np; print(np.dtype(np.int_).itemsize * 8)"])
     assert r.exit_code == 0, r.describe()
     bits = r.text.strip()
-    stated = re.findall(r"default\s+integer\s+is\s+(\d+)-bit", paths.README.read_text())
+    stated = re.findall(r"default\s+integer\s+is\s+(\d+)-bit", paths.README.read_text("utf-8"))
     assert stated and set(stated) == {bits}, (
         f"the guest's default integer is {bits}-bit; README says {stated}"
     )
