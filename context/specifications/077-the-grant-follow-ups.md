@@ -5,9 +5,14 @@
   scratchpad, `077-review/077-the-grant-follow-ups-spec-2026-10-19.md`, with its probes, to be
   copied to `../reviews/` by the lane; verdict: "ready once F1 and F2"; the lane's rulings on F1,
   F2, N1 and N2 written in; every finding answered in "Disposition of the pre-build review");
-  awaiting the reviewer's confirmation. The lane asked for that review, though §5.6 does not: the
-  spec changes neither the guest's imports nor its exports, the artifact set nor the build
-  recipe. A different agent reviews the build.
+  confirmed for build at `cba597e` (the confirmation is appended to the same review); rebased
+  onto main `23f1c4f` (specs 069 and 071) as `aaac75e`; **built 2026-10-19** (`42795d4`; the
+  Landing notes): the full judge has 0 fail on macOS, its one growth a run-to-run variation of
+  spec 071's checks that main shows too; **the Windows dry run 39210847037 did not reach
+  Windows**: the macOS build job's judge failed on that same variation, so criterion 6 is open
+  and the lane decides how it proceeds. The lane asked for the pre-build review, though §5.6
+  does not: the spec changes neither the guest's imports nor its exports, the artifact set nor
+  the build recipe. A different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** the runner, the judge and docs; **parallel-safe**, not build-class.
@@ -261,7 +266,99 @@ Stand-ins are made in the worktree, run, and restored; their output goes to `bui
 
 ## Landing notes
 
-Not yet built.
+Built 2026-10-19 by the implementer (Claude Opus 5.5) in the worktree `../wasi_python-077`, on
+`spec/077-the-grant-follow-ups`. The spec was confirmed for build at `cba597e`, then rebased with
+no conflict onto main `23f1c4f` (specs 069 and 071 landed), where it is `aaac75e`, the same text.
+Every local claim below was run (EXECUTED) on macOS arm64, CPython 3.14.2, wasmtime-py 49.0.0,
+against main's frozen artifact set `build/sets/s-c50ca51fae5eb55b` of the main tree, read only
+(`WASI_PYTHON_ARTIFACTS`). Logs are in the worktree's git-ignored `build/077/`.
+
+### What was built (`42795d4`)
+
+- `src/wasi_python/runner.py`: `_WIN_DEVICES` holds upper-case names, Microsoft's with the six
+  superscript names and CPython's `CONIN$` and `CONOUT$`; a new `_WIN_RESERVED_CHARS`;
+  `_rewritten` refuses a reserved character and compares the stem upper-cased (Decisions 2, 3).
+- `tests/unit/test_runner_grants.py`: the `read` export through the iovec at 200 and the zeroed
+  control row (Decision 1); the model's reserved names and characters and the `c:\b\com0`
+  folder; criterion 1's nine refused rows and the `COM0` row; the new
+  `test_a_rewritten_name_is_one_ntpath_refuses`.
+- `README.md` (*Grants*) and `CHANGELOG.md` (0.1.0a7, 076's bullet), as the Design says.
+
+### Seen failing first, and against every stand-in
+
+- Before the code (`build/077/seen-failing.log`), with the checks written and the runner and
+  the `read` export unchanged: `3 failed, 1 passed`. The walk-model case: "DID NOT RAISE" (its
+  first new row, `C:\b\new\COM¹`). The oracle case listed the names that differ: `com¹`,
+  `LPT³`, `conin$`, `CONOUT$`, `x*y`, `a\x01` and more. The raw case's control: `assert 0 ==
+  2`. The fuzz case passed with the model's change, as it must; its count, 16,653, held.
+- `build/077/stand-ins.log` (`build/077/standins.py` edits one file, runs the named nodes and
+  restores the file; the `git diff` hash is equal before and after): **S1 to S6 all CAUGHT**.
+  - S1 (no superscripts) and S2 (no console names): the walk-model case "DID NOT RAISE", and the
+    oracle case lists the differing names.
+  - S3 (the export back at 400 and 408): `assert 0 == 2` on the control's count.
+  - S4 (the write-only descriptor opened `READ | WRITE`): the read row, `assert 0 == 8`.
+  - S5 (no reserved characters): "DID NOT RAISE", and the oracle case lists `x*y`, `a\x01`, `?`.
+  - S6 (the stem lower-cased): the oracle case lists `con\u0131n$` and its spellings.
+
+### The judge (no `--accept`)
+
+- Fast tier, `uv run pytest -m "not slow" -n 3` (`build/077/fast-1.log`): `wasi_python v1:
+  474/550 pass · 1 gap · 24 blocked · 0 fail · 51 deselected (unit suite 1268/1276, 8
+  skipped)`; `ratchet vs 9dad163977: lost 0 · absent 0 · unrun 0 · unrun locally 22 · gained 0
+  · grew 1 · upstream unrun 31 · not selected 37 · judge changed:
+  tests/unit/test_runner_grants.py`; `1742 passed, 32 skipped, 1 xfailed`.
+- Full judge, `uv run pytest -n 3` (`build/077/full-n3.log`, its record
+  `build/077/full-n3-latest.json`): `wasi_python v1: 491/550 pass · 3 gap · 56 blocked · 0 fail
+  (unit suite 1268/1276, 8 skipped)`; `ratchet vs 9dad163977: lost 0 · absent 0 · unrun 0 ·
+  unrun locally 42 · gained 0 · grew 1 · upstream unrun 31 · judge changed:
+  tests/unit/test_runner_grants.py`; `1759 passed, 64 skipped, 3 xfailed`. The blocked checks
+  are the worktree's missing source trees and clones, as in any worktree.
+- **The one growth is not this spec's.** Every run shows some of spec 071's
+  `test_recursion_through_python_raises[heapq-plain]`, `[lru-cache-plain]` and
+  `[pickle-partial-plain]` above the accepted fuel, by 0.03 to 0.26 %. The count and the values
+  differ on each run. In the fast tier it was `pickle-partial-plain`, 247,215,911 → 247,800,861;
+  in the full judge, `lru-cache-plain`, 217,073,420 → 217,452,861.
+  - I ran the check alone twice on this branch, and twice on a pristine `git archive main` copy
+    against the same set. It grew on every run. On main it grew in 2 and then 3 rows, for
+    example `heapq-plain` 177,337,468 → 177,599,451 and then → 177,481,847.
+  - So these three rows vary from run to run on main itself. 077 changes no guest code, and no
+    line those checks reach.
+  - Only `-plain` rows grew in these six runs, never their `-snapshot` twins. That fits a hash seed drawn fresh at each
+    plain start, where a snapshot has its seed frozen (INFERRED, not tested).
+  - Left for the lane (AGENTS.md rule 4: the judge is not this spec's to change).
+- `ruff check` and `ruff format --check` on `src` and `tests`: clean. `tests/public_api.txt`:
+  unchanged.
+- The judge change, for the lane's `--accept-judge`: "spec 077: the raw read row reads two real
+  bytes through the iovec at 200, checked by a zeroed control read; the Windows walk model
+  refuses the superscript device names, CONIN$, CONOUT$ and the reserved characters, upper-cased
+  as CPython does, with a COM0 row; one new unit case pins `_rewritten` to `ntpath.isreserved`
+  over 18,275 names".
+
+### On Windows (criterion 6): not reached
+
+**Dry run 1: run 39210847037**, dispatched on `spec/077-verify`.
+- Its `headSha` is `70bdf252fc7a78cb4cc792f8587fb37134508c89`, and its only parent is `42795d4`
+  (this branch's build, as built).
+- The temporary commit was made with `git commit-tree`, with no local branch, and pushed
+  straight to `refs/heads/spec/077-verify`, not forced. Its diff (`build/077/verify-commit.diff`)
+  changes only `.github/workflows/release.yml`, +1 −1: `-rA` appended to the verify step's first
+  command line.
+- Verdicts: both `rebuild from the pins` jobs passed. **`build and judge (arm64 macOS)` failed in
+  its step "The judge"**, so `verify` on all three systems, `the same bytes from every host`,
+  attest and both publishes were skipped.
+- The judge's lines (`build/077/dryrun1-failed.log`): `wasi_python v1: 513/550 pass · 3 gap ·
+  34 blocked · 0 fail (unit suite 1269/1276, 7 skipped)`; `ratchet vs 9dad163977: lost 0 ·
+  absent 0 · unrun 0 · unrun locally 21 · gained 1 · grew 2 · …`; `GREW
+  …[lru-cache-plain]: fuel 217073420 -> 217597671`, `GREW …[pickle-partial-plain]: fuel
+  247215911 -> 247851144`, `RED: 2 metric(s) grew`; `1782 passed, 41 skipped, 3 xfailed`.
+- The throwaway branch was deleted on GitHub after the run (`git ls-remote` shows none).
+
+So no `PASSED` line exists yet from `verify (windows-2025)`, and criterion 6 is open. The
+failure is the run-to-run variation above, on main's own checks, not a row of this spec.
+Main's next release dry run will meet it too: main's last one, 39203056348, ran before 071
+landed. Re-running until the fuel happens to fall is not a fix. The route stays as Decision 5
+says, and it runs again once the lane has dealt with the variation. The lane may also make
+another ruling, for example taking the Windows evidence from 063's shards if 063 lands first.
 
 ## One line
 
