@@ -1655,3 +1655,31 @@ def test_config_log_skips_only_direct_children_of_build(work) -> None:
     write(work, "build/xz-build/harness/config.log", "")
     got = [str(p.relative_to(work)) for p in scan.config_logs(work / "build")]
     assert got == ["build/xz-build/harness/config.log"], got
+
+
+def test_ninja_reader_skips_only_command_and_names_other_variables(work) -> None:
+    # The build review's F1: only meson's `$COMMAND` indirection is skipped.
+    root = work.resolve()
+    text = (
+        "rule CUSTOM_COMMAND\n command = $COMMAND\n"
+        "rule ODD\n command = $PY gen.py\n"
+        "build out: ODD in\n PY = /usr/bin/python3\n"
+    )
+    hits, read = scan.ninja_hits(text, root, SHIMS, root)
+    assert hits == ["4: $PY is a ninja variable the judge does not read"], hits
+    assert read == 1
+
+
+def test_step_folder_with_a_command_substitution_is_unresolved(work) -> None:
+    # The build review's F2: `$(` and backticks are never resolved, so never skipped.
+    root = work.resolve()
+    steps = {
+        "common.sh": 'B="$HERE/build"\n',
+        "99_odd.sh": 'export PATH="$(pwd)/x:$PATH"\nPATH=`pwd`/y:$PATH\n',
+    }
+    folders, unresolved = scan.step_path_folders(steps, root, {})
+    assert folders == [], folders
+    assert unresolved == [
+        "99_odd.sh: PATH folder $(pwd)/x cannot be resolved",
+        "99_odd.sh: PATH folder `pwd`/y cannot be resolved",
+    ], unresolved

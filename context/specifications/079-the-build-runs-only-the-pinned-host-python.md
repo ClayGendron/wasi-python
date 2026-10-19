@@ -749,6 +749,8 @@ cc: cc (Debian 14.2.0-19) 14.2.0
 nproc: 10
 ```
 
+The `find` prunes the clone and also the three mounts (`/src`, the bare copy of the branch; `/cache`, the downloads; `/out`, this run's output) besides Decision 8's `/proc` and `/sys`. None of them is on the build's `PATH`, and none holds a Python of its own (the build review's N1).
+
 Its `SHA256SUMS` and `MANIFEST` equal macOS's byte for byte (`c9dcb5b84ae2447a`). FreeType found
 `build/tools/host-python/python3`, CPython's configure found `build/tools/host-python/python3.15`,
 the log is absent, and the stand-in held the fixed list's 25 names only: this host has no
@@ -800,6 +802,24 @@ specification closes **the 0.1.0a6 security review's F2**: FreeType's configurat
 HarfBuzz's generated sources, matplotlib's `matplotlibrc` and CPython's configure probe now run
 the pinned host Python, step 10 prints it, and the build fails if any other Python is run by
 name; the container without Python proves the absolute-path route.
+
+### Revised against the build review (2026-10-19)
+
+The build review (the scratchpad's
+`079-buildreview/079-the-build-runs-only-the-pinned-host-python-build-2026-10-19.md`, to be copied
+to `../reviews/` by the lane) said "lands once F1 and F2". It accepted every departure above and
+found C1 to C3 in the code. Both findings are judge-only, so the artifact set is unchanged and not
+rebuilt.
+
+- **F1, fixed:** `scan.ninja_hits` skips exactly `$COMMAND` (and `${COMMAND}`); any other leading
+  ninja variable is a hit, `… is a ninja variable the judge does not read`. Unit case
+  `test_ninja_reader_skips_only_command_and_names_other_variables` (`command = $PY gen.py` with
+  `PY = /usr/bin/python3` on the edge).
+- **F2, fixed:** in the step-folder rule, a part holding `$(` or a backtick is unresolved, so a
+  hit. Unit case `test_step_folder_with_a_command_substitution_is_unresolved`.
+- **N1, written in:** criterion 4's note names the three mounts the container's `find` prunes.
+- N2 and N3 need no change: N2 is what Decision 8's container proves; N3's `wasi-sdk/bin` holds no
+  Python.
 
 ### For the reviewer
 

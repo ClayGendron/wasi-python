@@ -2023,13 +2023,18 @@ def meson_log_hits(text: str, root: Path, shims: tuple[str, ...], cwd: Path) -> 
 
 
 def ninja_hits(text: str, root: Path, shims: tuple[str, ...], cwd: Path) -> tuple[list[str], int]:
-    """(hits, commands read) over one build.ninja's COMMAND and command lines; a ninja variable
-    ($COMMAND) is the rule's indirection, not a program."""
+    """(hits, commands read) over one build.ninja's COMMAND and command lines. `$COMMAND` is
+    meson's rule indirection and is skipped; any other leading ninja variable is a hit."""
     hits, read = [], 0
     for n, line in enumerate(text.splitlines(), 1):
-        if not (m := _NINJA_COMMAND.match(line)) or m[1].startswith("$"):
+        if not (m := _NINJA_COMMAND.match(line)):
             continue
+        if m[1].strip() in ("$COMMAND", "${COMMAND}"):
+            continue  # meson's rule indirection: each COMMAND = line it stands for is read
         read += 1
+        if m[1].startswith("$"):
+            hits.append(f"{n}: {m[1].split()[0]} is a ninja variable the judge does not read")
+            continue
         if problem := program_problem(_tokens(m[1]), root, shims, cwd):
             hits.append(f"{n}: {problem}")
     return hits, read
@@ -2062,7 +2067,10 @@ _SIMPLE_ASSIGN = re.compile(
 
 
 def _resolve(expr: str, values: dict[str, str]) -> str | None:
-    """A shell word's variables replaced from `values`; None if one is unknown."""
+    """A shell word's variables replaced from `values`; None if one is unknown, or if the word
+    holds a command substitution (`$(` or a backtick), which is never resolved."""
+    if "$(" in expr or "`" in expr:
+        return None
     missing = []
 
     def sub(m: re.Match[str]) -> str:
