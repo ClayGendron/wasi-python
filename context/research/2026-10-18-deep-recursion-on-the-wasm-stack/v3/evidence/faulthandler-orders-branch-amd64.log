@@ -1,0 +1,7 @@
+warm 0
+none | rc 0 | trapped stack overflow
+before | rc 0 | trapped stack overflow
+after | rc 0 | refused wasmtime's handler for SIGSEGV was replaced after the first run, by a handler installed or removed since (faulthandler, signal.signal, or a native crash
+before-then-disable | rc 0 | refused wasmtime's handler for SIGSEGV was replaced after the first run, by a handler installed or removed since (faulthandler, signal.signal, or a native crash
+after-then-disable | rc 0 | trapped stack overflow
+signal-after | rc 0 | refused wasmtime's handler for SIGILL was replaced after the first run, by a handler installed or removed since (faulthandler, signal.signal, or a native crash 

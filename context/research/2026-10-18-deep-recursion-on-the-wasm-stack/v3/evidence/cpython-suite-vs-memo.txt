@@ -1,0 +1,11 @@
+passes: memo 27503 built set 27534
+modules that lost passes: 1
+  LOST test_ordered_dict 297 -> 0 error while executing at wasm backtrace:
+modules that gained passes: 1
+  GAINED test_functools 0 -> 328
+modules that trapped or hung: 5
+  TRAP test_doctest error while executing at wasm backtrace: 0 0
+  TRAP test_exceptions error while executing at wasm backtrace: 0 0
+  TRAP test_ordered_dict error while executing at wasm backtrace: 297 0
+  TRAP test_syntax error while executing at wasm backtrace: 0 0
+  TRAP test_traceback error while executing at wasm backtrace: 0 0

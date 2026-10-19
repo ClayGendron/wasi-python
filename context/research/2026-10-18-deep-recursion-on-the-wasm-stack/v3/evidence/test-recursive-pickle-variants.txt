@@ -1,0 +1,4 @@
+test_recursive_pickle (test.test_functools.TestPartialC.test_recursive_pickle) ... ok
+test_recursive_pickle (test.test_functools.TestPartialCSubclass.test_recursive_pickle) ... ok
+test_recursive_pickle (test.test_functools.TestPartialPy.test_recursive_pickle) ... ok
+test_recursive_pickle (test.test_functools.TestPartialPySubclass.test_recursive_pickle) ... ok
