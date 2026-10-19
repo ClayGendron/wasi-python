@@ -1,6 +1,6 @@
 # 075 — tools.py small fixes
 
-- **Status:** drafted 2026-10-19 on `spec/075-tools-small-fixes` from main `d900dd9`; reviewed
+- **Status:** **landed 2026-10-19** (accepted on `35f76d3` as `2e70571`, history line 74; the build review, `../reviews/075-tools-small-fixes-build-2026-10-19.md`, said it lands once F1, and F1 was fixed). Before landing: drafted 2026-10-19 on `spec/075-tools-small-fixes` from main `d900dd9`; reviewed
   before build the same day (`../reviews/075-tools-small-fixes-spec-2026-10-19.md`, written in
   the coordinator's scratchpad, `075-review/`, with its probes q1 to q3, and copied in by the
   lane; verdict: "ready once F1 and F2 are written in"); **revised against it 2026-10-19** (F1,
@@ -569,3 +569,16 @@ No `--accept`, no push, no rebase. The build review gets this specification and 
 23f1c4f..` on this branch. **The lane accepts with `--accept-judge`**, reason: "spec 075: two
 unit files gain its checks (criteria 1 to 5); no check, golden, gap or allowance edited"; and
 it rules on spec 071's fuel noise above, which any judge on the plain binary can show.
+
+**Landed 2026-10-19** through the lane, after spec 080. The lane rebased the branch onto main
+`8f8de73` with no conflict; its diff equals the reviewed diff at `bc19810` line for line (EXECUTED,
+`build/lane-075/delta.txt`, empty). The pre-build review with its confirmation and the build review
+(`../reviews/075-tools-small-fixes-spec-2026-10-19.md`, `../reviews/075-tools-small-fixes-build-2026-10-19.md`)
+were committed on the detached HEAD as `35f76d3`. No build: 075 changes `src/wasi_python/tools.py`,
+two unit files and documents. The full judge, serial: `wasi_python v1: 533/550 pass · 15 gap · 2
+blocked · 0 fail (unit suite 1366/1368, 2 skipped)`, `1899 passed, 4 skipped, 15 xfailed in
+1503.29s`, accepted with `--accept-judge` as `2e70571`, history line 74; nothing grew (EXECUTED,
+`build/lane-075-accept.log`). The rules tier passed (40/40, unpiped); main fast-forwarded. This
+closes the 0.1.0a6 security review's F1: a gate allows only by returning, so a GeneratorExit or
+any other exception refuses the call.
+
