@@ -33,6 +33,9 @@
   three changes to the build recipe may be built at once; each still
   lands alone, after a rebase, a rebuild and the judge on its own
   commit (§5.7).
+  Amended 2026-10-19 by the owner: the packages come first, and up to
+  four changes to the build recipe may be built at once while they do
+  (§5.7).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -262,8 +265,8 @@ works.
    rebases one reviewed branch onto main, compares it with what was
    reviewed, runs the full judge on that exact commit in the main
    tree, accepts there, and fast-forwards main. Only the lane accepts.
-   Up to three changes to the build recipe may be built and reviewed at
-   once, each in its own worktree, and each still lands alone. At its
+   Up to three changes to the build recipe (four while the packages come
+   first, owner, 2026-10-19) may be built and reviewed at once, each in its own worktree, and each still lands alone. At its
    landing the lane rebases it onto main, rebuilds the artifact set from
    the pins in the main tree, compares that set with the builder's
    rebuilt on the same base, judges and re-measures it there; a change

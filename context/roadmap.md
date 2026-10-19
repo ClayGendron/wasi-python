@@ -75,17 +75,21 @@ the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed 
 inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
 `16ee747c…`; `SHA256SUMS` `c353b1d9…`).
 
-In flight (decision 91: up to three build-class at once). Built, landing next: 081 (guest fuel
+In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages come first). Built, landing next: 081 (guest fuel
 does not depend on where the repo is checked out; after its merge with 063's lxml check and a delta
 look). Confirmed and built on 063, rebasing onto main: 065 (CPython's own tests in the release).
-Building: 037 (scipy, first milestone; build-class). Drafted, in pre-build review: 083 (the judge
+Building: 037 (scipy, first milestone), 043 (matplotlib M2) and 039 (tier A), each build-class. Drafted, in pre-build review: 083 (the judge
 fixes the file times and inode numbers a guest sees, so fuel does not wobble; before 0.1.0).
 
-Confirmed for build, in the build-class queue (up to three built at once, each landing alone, §5.7
-as amended 2026-10-18), in this order: 037 and 038 (scipy), 043 (matplotlib M2; question 81
-answered), 039 (tier A), 041 (files read by path from the zip), 042 (seaborn and reportlab;
-question 73 adds the barcode folder, written in before its build), 044 and 045 (scikit-learn,
-statsmodels; question 83 answered).
+Confirmed for build, in the build-class queue (up to four built at once while the packages come
+first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
+2026-10-19: "I want them done soon"): a free slot goes to the next package whose dependencies have
+landed, and the lane lands a built package before any other built specification but 065. The two
+chains: 037, 038 (scipy), then 044 (scikit-learn), then 045 (statsmodels); 039 (tier A), then 041
+(files read by path from the zip) and, with 043 (matplotlib M2; question 81 answered), 042 (seaborn
+and reportlab; question 73 adds the barcode folder, written in before its build). Questions 83 and
+81 are answered. The other build-class specifications (073, 072, 078) take a slot only when no
+package is ready to build.
 
 Added by the owner 2026-10-18, evening (`decisions.md`): CPython's own test suite gates 0.1.0
 (question 99; its research is running, its specification follows spec 063); a per-sandbox cap on

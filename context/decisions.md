@@ -8,6 +8,20 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### The packages come first, with four build slots (2026-10-19)
+
+- **Asked:** 2026-10-19, in the session. The owner, that morning: "Can we bring scipy and other
+  packages up in the priority list? I want them done soon." The agent offered three shapes for
+  039 (tier A), the next package with every dependency landed, while the three build slots held
+  037, 043 and 065: a fourth slot now; 039 when 065 lands; or 065 paused for 039.
+- **The owner, 2026-10-19:** a fourth slot now.
+- **What follows:** constitution §5.7 and AGENTS.md rule 2 are amended: up to four build-class
+  specifications are built at once while the packages come first; each still lands alone. A free
+  build slot goes to the next package whose dependencies have landed (037, 038, 044, 045; 039, 041;
+  043, 042); 073, 072 and 078 build only when no package is ready. The lane lands a built package
+  before any other built specification, except 065, which gates 0.1.0 (question 99) and was already
+  close to landing. 039 starts at once.
+
 ### 99, answered: CPython's own test suite gates 0.1.0 (2026-10-18)
 
 - **Asked:** 2026-10-18 (question 99: should CPython's own test suite gate a release? Source: spec
