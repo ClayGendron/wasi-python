@@ -945,7 +945,9 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    - `--accept-growth "tier A adds 2,014 members and 30 distributions: every row of Decision 13's
      account is inside its cap; the upstream groups' growth is one to three entry-point scans per
      session at +205 M each (the build review's F4); 035's member-walking checks grow with the zip
-     by design; pandas-io-formats runs the Styler tests; the GB18030 check imports bs4"`;
+     by design; pandas-io-formats runs the Styler tests; the GB18030 check imports bs4; CPython's
+     five groups (065) grow 0.13% to 4.27% with every outcome unchanged, a distribution scan
+     costing +199 M"`;
    - `--accept-fewer-passes "pandas-frame 10,852 -> 10,851: test_inspect_getmembers meets the
      Styler gap (.style raises TemplateNotFound, a LookupError, where it raised AttributeError
      without jinja2); spec 041 restores it"`.
@@ -1033,6 +1035,31 @@ main-tree rebuild reproduced `ada941bc`):
 
 The fast tier after both fixes (`build/fast-dryrun-fix.txt`): 509/574 pass, 3 gap, 2 blocked,
 0 fail, 60 deselected; ratchet vs `dfbf8e044f`: lost 0, gained 10, grew 131, as before.
+
+**Rebased 2026-10-19 onto main `9d89535`** (spec 065, CPython's own tests in the release).
+`git diff a6dfc17 9d89535 --name-only` names no file under `scripts/`, `recipes/` or `downloads/`,
+so the set `ada941bc…` stands (the lane froze it as `build/sets/s-a8333e46710221fa-ada941bc`).
+Conflicts, each kept on both sides: `tests/known_gaps.toml` (065's CPython gaps, then this
+specification's four) and the CHANGELOG's 0.1.0a8 section (065's entry, then this
+specification's three; the blank line before "0.1.0a7" that `0dd1ddd` dropped is restored, and
+the 0.1.0a7 section and older are byte for byte main's). `tests/upstream/packages.toml`,
+`tests/release_shards.toml` and the README merged without conflict; the rules, the shard and
+upstream unit tests and `test_every_package_names_its_own_suite` pass (155 passed). The fast tier
+(`build/fast-rebase-065.txt`): 510/643 pass, 3 gap, 2 blocked, 0 fail, 128 deselected; ratchet vs
+`b91e0eaa4e`: lost 0, gained 10, grew 131, as before. Its metrics against the pre-rebase full
+record: 128 equal, 10 moved, the same ones as after the `a6dfc17` rebase (081's lxml check, −1.04 M
+and −0.93 M; eight checks by ±17 to ±68 fuel). **065's CPython groups on this set**, run by node
+id (`build/cpython-groups.txt`, `cpython-traps.txt`): all five group checks pass, the 53 class gaps
+and the 9 trap gaps match, passes equal the accepted ones in every group, lost 0; five grow, to
+add to `--accept-growth`: `cpython-a` +0.73 G (+0.27%), `cpython-archives` +1.03 G (+0.63%),
+`cpython-b` +0.37 G (+0.13%), `cpython-c` +2.48 G (+0.67%), `cpython-fs` +2.55 G (+4.27%). Cause,
+measured: `cpython-fs` run on main's set and on this one gives every test the same outcome
+(0 of its tests change; `build/evidence/cpython_fs_diff.py` → `cpython-fs-diff.txt`), and the
+costs that grow with the zip are, on the snapshot (`walk_costs.py` → `walk-costs.txt`): one
+scan of every distribution's `Name` +198.6 M (319.5 M → 518.1 M), `pkgutil.iter_modules()`
++17.1 M, and a full `pkgutil.walk_packages()` +15.8 G (9.2 G → 25.0 G, it imports every package).
+`test_importlib`'s metadata tests and `test_pkgutil` and `test_site` are in `cpython-fs`; how
+many scans each group makes is INFERRED (about a dozen distribution scans for `cpython-fs`).
 
 **The artifact set** (`build/artifacts/`): `SHA256SUMS` `ada941bc6ad751b2983b8f14cfbd57776dfd96f0ede3223b3b56fff53b5c901e`.
 
