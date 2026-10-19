@@ -76,7 +76,9 @@ The drafter ran the move once, before writing a decision, so that each decision 
   `SHA256SUMS`, `10_tools.sh` and `60_link.sh` (the pins and the `+m` names, Decisions 1 and 2;
   not Decision 5's wrap). No branch file was edited. The containers are the research images of
   specs 040 and 059 (`wp040-arm64`, `wp040-amd64`), each cloning the clone and laying the five
-  files over it.
+  files over it. The large trees are deleted; the logs, the five `SHA256SUMS`, the judge records,
+  both `pyconfig.h` files, the probes and the drafter's scripts are kept in the worktree's
+  git-ignored `build/086-evidence/` (1.7 MB) for the reviewer.
 - **Downloads.** Each tarball was fetched into its own new folder and hashed before use.
 - **Runs.** `scripts/build.sh --plain` (macOS builds and container builds, below), then
   `uv run pytest -n 3` and the upstream suites on the clone's set.
