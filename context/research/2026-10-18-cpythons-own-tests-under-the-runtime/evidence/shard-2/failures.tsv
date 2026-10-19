@@ -1,0 +1,61 @@
+module	outcome	test	reason
+test_contextlib	failed	test.test_contextlib.TestExitStack.test_exit_exception_traceback	AssertionError: AssertionError: Lists differ: [('te[76 chars]_', ''), ('__exit__', ''), ('_exit_wrapper', '[26 chars]xc')] != [('te[76 chars]_', 'raise exc'), ('__exit__', 'if cb(*exc_det[78 chars]xc')] First differing element 1: ('__exit__', '') ('__exit__', 'raise exc') [('test_exit_exception_trac
+test_dbm_sqlite3	failed	test.test_dbm_sqlite3.ReadOnlyFilesystem.test_readonly_file_write	AssertionError: AssertionError: error not raised
+test_frame	error	test.test_frame.TestFrameCApi.test_basic	AttributeError: AttributeError: module 'ctypes' has no attribute 'pythonapi'
+?	failed	?	subtest failure (no testcase result)
+?	failed	?	subtest failure (no testcase result)
+test_logging	failed	test.test_logging.TimedRotatingFileHandlerTest.test_rollover	AssertionError: AssertionError: False is not true : No rotated files found, went back 300 seconds
+test_module	failed	test.test_module.ModuleTests.test_module_repr_source	AssertionError: AssertionError: "_init__.pyc'>" != "__init__.py'>" - _init__.pyc'> ? - + __init__.py'> ? + : "<module 'unittest' from '/usr/local/lib/python315.zip/unittest/__init__.pyc'>" does not end with "__init__.py'>"
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_enter_scope_two_events	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_fire_event	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_fire_event_failing_callback	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_missing_exception	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestDisable.test_disable_legal_events	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_call_then_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_instruction_then_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_instruction_then_line	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_line_then_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_turn_off_only_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_with_restart	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_attr	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_method_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_method_call_error	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_vs_other_type_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_exception_handled	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_exception_handled_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_throw	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_throw_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_unwind	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_unwind_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_raise	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_raise_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_reraise	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_reraise_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_set_non_local_event	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestOptimizer.test_for_loop	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_105162	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_108390	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_134879	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_call_function_ex	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_gh108976	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_instruction_explicit_callback	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestSetGetEvents.test_global	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestSetGetEvents.test_local	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestTier2Optimizer.test_monitoring_already_opimized_loop	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_platform	error	test.test_platform.PlatformTest.test_libc_ver	FileNotFoundError: FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_bad_counter_during_dealloc	ValueError: ValueError: tool 2 is already in use
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_bad_descriptor	ValueError: ValueError: tool 2 is already in use
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_calling_conventions	ValueError: ValueError: tool 2 is already in use
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_clear_with_nested_calls	ValueError: ValueError: tool 2 is already in use
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_cprofile	ValueError: ValueError: tool 2 is already in use
+test_profiling	error	test.test_profiling.test_tracing_profiler.CProfileTest.test_enable_in_external_timer	ValueError: ValueError: tool 2 is already in use
+test_trace	error	test.test_trace.TestCoverageCommandLineOutput.test_cover_files_written_no_highlight	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/trace.cover'

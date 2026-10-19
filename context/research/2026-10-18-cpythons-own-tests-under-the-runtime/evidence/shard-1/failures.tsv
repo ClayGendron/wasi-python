@@ -1,0 +1,77 @@
+module	outcome	test	reason
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_after_last_statement	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_condition	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_exception_on_condition_evaluation	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_ignore_count	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_clear_two_bp_on_same_line	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_disabled_temporary_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_ignore_count_on_disabled_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_temporary_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_next_command_in_generator_for_loop	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_next_command_in_generator_with_subiterator	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+?	failed	?	subtest failure (no testcase result)
+test_bdb	error	test.test_bdb.IssuesTestCase.test_return_command_in_generator_with_subiterator	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_step_at_return_with_no_trace_in_caller	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.RunTestCase.test_runeval_step	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.StateTestCase.test_next_over_import	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.StateTestCase.test_skip	PermissionError: Traceback (most recent call last): File "/cpy/lib/test/test_bdb.py", line 549, in create_modules yield File "/cpy/lib/test/test_bdb.py", line 754, in test_skip with TracerRun(self, skip=skip) as tracer: ~~~~~~~~~^^^^^^^^^^^^^^^^^ File "/cpy/lib/test/test_bdb.py", line 454, in __exit
+test_contextlib_async	failed	test.test_contextlib_async.TestAsyncExitStack.test_exit_exception_traceback	AssertionError: AssertionError: Lists differ: [('te[191 chars]_', ''), ('__aexit__', ''), ('_exit_wrapper', [27 chars]xc')] != [('te[191 chars]_', 'raise exc'), ('__aexit__', 'cb_suppress =[89 chars]xc')] First differing element 3: ('__aexit__', '') ('__aexit__', 'raise exc') [('test_exit_exception_
+test_linecache	failed	test.test_linecache.LineCacheTests.test_clearcache	AssertionError: AssertionError: Lists differ: ['/usr/local/lib/python315.zip/linecache.p[37 chars].py'] != [] First list contains 2 additional elements. First extra element 0: '/usr/local/lib/python315.zip/linecache.py' + [] - ['/usr/local/lib/python315.zip/linecache.py', - '/usr/local/lib/python315
+test_linecache	failed	test.test_linecache.LineCacheTests.test_frozen	AssertionError: AssertionError: 0 not greater than 0
+test_linecache	failed	test.test_linecache.LineCacheTests.test_getline	AssertionError: AssertionError: TypeError not raised by getline
+test_linecache	failed	test.test_linecache.LineCacheTests.test_memoryerror	AssertionError: AssertionError: [] is not true
+test_mmap	error	test.test_mmap.LargeMmapTests.test_large_filesize	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.LargeMmapTests.test_large_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_access_parameter	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_anonymous	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_basic	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_concat_repeat_exception	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_context_manager	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_context_manager_exception	UnboundLocalError: UnboundLocalError: cannot access local variable 'm' where it is not associated with a value
+test_mmap	error	test.test_mmap.MmapTests.test_double_close	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_empty_file	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_entire_file	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_error	AttributeError: AttributeError: module 'mmap' has no attribute 'error'
+test_mmap	error	test.test_mmap.MmapTests.test_extended_getslice	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_extended_set_del_slice	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_find_end	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_flush_parameters	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_flush_return_value	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_io_methods	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_length_0_large_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_length_0_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_mmap_closed_by_int_scenarios	AttributeError: AttributeError: module 'mmap' has no attribute 'ACCESS_DEFAULT'
+test_mmap	error	test.test_mmap.MmapTests.test_move	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_non_ascii_byte	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_read_all	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_read_invalid_arg	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_repr	AttributeError: AttributeError: module 'mmap' has no attribute 'ACCESS_DEFAULT'
+test_mmap	error	test.test_mmap.MmapTests.test_rfind	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_subclass	TypeError: TypeError: object.__new__() takes exactly one argument (the type to instantiate)
+test_mmap	error	test.test_mmap.MmapTests.test_tougher_find	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_trackfd_neg1	OSError: OSError: mmap is unavailable on wasm32-wasi
+?	failed	?	subtest failure (no testcase result)
+test_mmap	error	test.test_mmap.MmapTests.test_weakref	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_write_returning_the_number_of_bytes_written	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.CDumpPickle_LoadPickle.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.CPicklerTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.DumpPickle_CLoadPickle.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.InMemoryPickleTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.PyPicklerTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickletools	error	test.test_pickletools.OptimizedPickleTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocDocTest.test_mixed_case_module_names_are_lower_cased	TypeError: TypeError: argument of type 'NoneType' is not a container or iterable
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocDocTest.test_synopsis_sourceless	NotADirectoryError: NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/os.pyc'
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocImportTest.test_importfile	NotADirectoryError: NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/pydoc.pyc'
+test_pydoc.test_pydoc	failed	test.test_pydoc.test_pydoc.PydocUrlHandlerTest.test_url_requests	AssertionError: AssertionError: 'Pydoc: Error - ' != 'Pydoc: Index of Modules' - Pydoc: Error - + Pydoc: Index of Modules : <!DOCTYPE> <html lang="en"> <head> <meta charset="utf-8"> <title>Pydoc: Error - </title> <link rel="stylesheet" type="text/css" href="pydoc_data/_pydoc.css"></head><body> <div 
+test_pydoc.test_pydoc	failed	test.test_pydoc.test_pydoc.TestInternalUtilities.test__get_version	AssertionError: AssertionError: 1 != 0
+test_shutil	error	test.test_shutil.TestCopy.test_copyfile_nonexistent_dir	OSError: OSError: [Errno 28] Invalid argument: '/tmp/test_python_worker_495134æ/tmp9zpp79mp/does_not_exist/'
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_delete_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_dml_does_not_auto_commit_before	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_insert_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_multiple_cursors_and_iternext	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_replace_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_toggle_auto_commit	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_update_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_support	error	test.test_support.TestSupport.test_forget	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/@test_42_tmpæ.pyc'
+test_sys	error	test.test_sys.SysModuleTest.test_stdlib_dir	TypeError: TypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType

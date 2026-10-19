@@ -86,7 +86,10 @@ Added by the owner 2026-10-18, evening (`decisions.md`): CPython's own test suit
 open files before 0.1.0, default 1,024 (question 92); spec 055 closes sessions as Jupyter does,
 running Python's shutdown under a small budget (question 92); landing through pull requests that
 must pass their checks (spec 064, after 063). The default snapshot pre-imports no package (question 34;
-spec 069, build-class). After 0.1.0: a Rust core shared at least partly by
+spec 069, build-class). CPython's own suite runs in the guest (27,503 passes; research
+`2026-10-18-cpythons-own-tests-under-the-runtime.md`); it gates 0.1.0 through spec 065. It found
+one defect fixed before 0.1.0 by its own specification (071): C-level recursion traps the guest
+instead of raising `RecursionError`. After 0.1.0: a Rust core shared at least partly by
 Python and JavaScript (question 96); the tool protocol's `batch` (question 90).
 
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question

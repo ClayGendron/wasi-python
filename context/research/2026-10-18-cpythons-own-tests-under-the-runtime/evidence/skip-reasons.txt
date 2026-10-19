@@ -1,0 +1,87 @@
+== module skips (whole module), by reason
+53 GIL enabled
+50 requires socket support
+16 test module requires subprocess
+15 requires threading support
+9 No module named '_multiprocessing'
+7 requires working os.fork()
+6 test_gdb only works on source builds at the moment.
+6 No module named '_testinternalcapi'
+5 No module named '_testmultiphase'
+4 No module named 'termios'
+4 No module named '_tkinter'
+3 test requires gethostname()
+3 No socket support
+2 Test only runs when _remote_debugging is available
+2 No module named 'fcntl'
+2 No module named 'tkinter'
+2 No module named '_ssl'
+1 0:00:00 [1/1] test_asyncio.test_base_events skipped
+1 0:00:00 [1/1] test_asyncio.test_buffered_proto skipped
+1 0:00:00 [1/1] test_asyncio.test_context skipped
+1 0:00:00 [1/1] test_asyncio.test_eager_task_factory skipped
+1 0:00:00 [1/1] test_asyncio.test_events skipped
+1 0:00:00 [1/1] test_asyncio.test_free_threading skipped
+1 0:00:00 [1/1] test_asyncio.test_futures skipped
+1 0:00:00 [1/1] test_asyncio.test_futures2 skipped
+1 0:00:00 [1/1] test_asyncio.test_graph skipped
+1 0:00:00 [1/1] test_asyncio.test_locks skipped
+1 0:00:00 [1/1] test_asyncio.test_pep492 skipped
+1 0:00:00 [1/1] test_asyncio.test_proactor_events skipped
+1 0:00:00 [1/1] test_asyncio.test_protocols skipped
+1 0:00:00 [1/1] test_asyncio.test_queues skipped
+1 0:00:00 [1/1] test_asyncio.test_runners skipped
+1 0:00:00 [1/1] test_asyncio.test_selector_events skipped
+1 0:00:00 [1/1] test_asyncio.test_sendfile skipped
+1 0:00:00 [1/1] test_asyncio.test_server skipped
+1 0:00:00 [1/1] test_asyncio.test_server_context skipped
+1 0:00:00 [1/1] test_asyncio.test_sock_lowlevel skipped
+1 0:00:00 [1/1] test_asyncio.test_ssl skipped
+1 0:00:00 [1/1] test_asyncio.test_sslproto skipped
+1 0:00:00 [1/1] test_asyncio.test_staggered skipped
+== test skips, by reason (top 45)
+750 requires subprocess support
+227 test requires a Windows-compatible system
+197 test requires C version
+177 requires zstd
+148 requires _testcapi
+136 requires symlinks
+129 requires Windows-flavoured path class
+105 Requires functional symlink implementation
+99 requires _testinternalcapi
+95 _testinternalcapi required
+92 requires threading support
+78 ndarray object required for this test
+68 No module named '_testcapi'
+62 requires the C _uuid module
+55 tzset required
+53 No socket support
+50 resource 'cpu' is not enabled
+48 Test requires os.kill
+43 need _testcapi module
+36 Exhausts stack on WASI
+35 requires working os.chmod()
+34 No module named '_testmultiphase'
+32 requires socket support
+30 Test needs os.fwalk()
+30 Skipping tzdata-specific tests: tzdata not installed
+29 Cannot create invalid FD on WASI.
+28 not enough memory: NG minimum needed
+28 requires _hashlib
+26 No module named '_testinternalcapi'
+25 umask is not implemented on Emscripten/WASI.
+24 _testinternalcapi.hamt() not available
+24 need Pickler class
+20 WASI: Skip symlink test for now
+19 requires os.pipe()
+18 Remote debugging is not enabled
+18 Hypothesis required for property test with no specified examples
+18 need _testcapi
+16 test requires signal.alarm()
+16 requires OS X
+15 os.sendfile() not supported
+14 os.copy_file_range() not supported
+13 code pages are specific to Windows
+13 Requires warn_default_encoding
+13 Read only file format
+12 requires os.mkfifo()

@@ -1,0 +1,23 @@
+module	outcome	test	reason
+test_call	error	test.test_call.TestRecursion.test_margin_is_sufficient	AttributeError: AttributeError: 'NoneType' object has no attribute 'get_stack_pointer'
+test_importlib	error	test.test_importlib.resources.test_files.ImplicitContextFilesDiskTests.test_implicit_files_with_compiled_importlib	ModuleNotFoundError: ModuleNotFoundError: No module named 'c_resources'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_importlib	error	test.test_importlib.resources.test_files.ImplicitContextFilesZipTests.test_implicit_files_with_compiled_importlib	ModuleNotFoundError: ModuleNotFoundError: No module named 'c_resources'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestGetsourceStdlib.test_getsource_stdlib_collections_abc	OSError: OSError: could not get source code
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestGetsourceStdlib.test_getsource_stdlib_decimal	OSError: OSError: could not get source code
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_extension_module	ModuleNotFoundError: ModuleNotFoundError: No module named '_testcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_frozen_module	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_module	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_package	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_buffered_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+?	failed	?	subtest failure (no testcase result)
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_raw_bytes_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_raw_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_buffered_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+?	failed	?	subtest failure (no testcase result)
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_raw_bytes_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_raw_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_memoryview	error	test.test_memoryview.OtherTest.test_ctypes_cast	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_os.test_os	failed	test.test_os.test_os.UtimeTests.test_utime_current	AssertionError: AssertionError: 1792369781.15174 != 1767225600.0372941 within 0.05 delta (25144181.114445925 difference) : st_time=1792369781.15174, current=1767225600.0372941, dt=25144181.114445925
+test_os.test_os	failed	test.test_os.test_os.UtimeTests.test_utime_current_old	AssertionError: AssertionError: 1792369781.158259 != 1767225600.037299 within 0.05 delta (25144181.120959997 difference) : st_time=1792369781.158259, current=1767225600.037299, dt=25144181.120959997
+test_unittest	failed	test.test_unittest.test_result.Test_TestResult.test_addFailure_filter_traceback_frames	AssertionError: AssertionError: 'raise self.failureException(msg)' not found in ' File "/usr/local/lib/python315.zip/unittest/case.py", line 772, in fail\n'
+test_unittest	failed	test.test_unittest.test_result.Test_TestResult.test_addFailure_filter_traceback_frames_context	AssertionError: AssertionError: 'raise self.failureException(msg)' not found in ' File "/usr/local/lib/python315.zip/unittest/case.py", line 772, in fail\n'

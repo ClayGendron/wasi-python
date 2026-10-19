@@ -1,0 +1,153 @@
+module	outcome	test	reason
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestGetsourceStdlib.test_getsource_stdlib_collections_abc	OSError: OSError: could not get source code
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestGetsourceStdlib.test_getsource_stdlib_decimal	OSError: OSError: could not get source code
+test_inspect.test_inspect	error	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_extension_module	ModuleNotFoundError: ModuleNotFoundError: No module named '_testcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_frozen_module	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_module	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_inspect.test_inspect	failed	test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_package	AssertionError: AssertionError: Items in the first set but not the second: 'error' Items in the second set but not the first: 'lineno'
+test_io.test_bufferedio	failed	?	subtest failure (no testcase result)
+test_io.test_bufferedio	failed	?	subtest failure (no testcase result)
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_buffered_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	failed	?	subtest failure (no testcase result)
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_raw_bytes_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.CIOTest.test_raw_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_buffered_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	failed	?	subtest failure (no testcase result)
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_raw_bytes_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_io.test_general	error	test.test_io.test_general.PyIOTest.test_raw_file_io	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_os.test_os	failed	test.test_os.test_os.UtimeTests.test_utime_current	AssertionError: AssertionError: 1792367518.166343 != 1767225600.0010219 within 0.05 delta (25141918.16532111 difference) : st_time=1792367518.166343, current=1767225600.0010219, dt=25141918.16532111
+test_os.test_os	failed	test.test_os.test_os.UtimeTests.test_utime_current_old	AssertionError: AssertionError: 1792367518.182693 != 1767225600.001027 within 0.05 delta (25141918.181665897 difference) : st_time=1792367518.182693, current=1767225600.001027, dt=25141918.181665897
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocDocTest.test_mixed_case_module_names_are_lower_cased	TypeError: TypeError: argument of type 'NoneType' is not a container or iterable
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocDocTest.test_synopsis_sourceless	NotADirectoryError: NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/os.pyc'
+test_pydoc.test_pydoc	error	test.test_pydoc.test_pydoc.PydocImportTest.test_importfile	NotADirectoryError: NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/pydoc.pyc'
+test_pydoc.test_pydoc	failed	test.test_pydoc.test_pydoc.PydocUrlHandlerTest.test_url_requests	AssertionError: AssertionError: 'Pydoc: Error - ' != 'Pydoc: Index of Modules' - Pydoc: Error - + Pydoc: Index of Modules : <!DOCTYPE> <html lang="en"> <head> <meta charset="utf-8"> <title>Pydoc: Error - </title> <link rel="stylesheet" type="text/css" href="pydoc_data/_pydoc.css"></head><body> <div 
+test_pydoc.test_pydoc	failed	test.test_pydoc.test_pydoc.TestInternalUtilities.test__get_version	AssertionError: AssertionError: 1 != 0
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_after_last_statement	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_condition	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_exception_on_condition_evaluation	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_bp_ignore_count	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_clear_two_bp_on_same_line	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_disabled_temporary_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_ignore_count_on_disabled_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.BreakpointTestCase.test_temporary_bp	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_next_command_in_generator_for_loop	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_next_command_in_generator_with_subiterator	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	failed	?	subtest failure (no testcase result)
+test_bdb	error	test.test_bdb.IssuesTestCase.test_return_command_in_generator_with_subiterator	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.IssuesTestCase.test_step_at_return_with_no_trace_in_caller	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.RunTestCase.test_runeval_step	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.StateTestCase.test_next_over_import	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/test_module_for_bdb.pyc'
+test_bdb	error	test.test_bdb.StateTestCase.test_skip	PermissionError: Traceback (most recent call last): File "/cpy/lib/test/test_bdb.py", line 549, in create_modules yield File "/cpy/lib/test/test_bdb.py", line 754, in test_skip with TracerRun(self, skip=skip) as tracer: ~~~~~~~~~^^^^^^^^^^^^^^^^^ File "/cpy/lib/test/test_bdb.py", line 454, in __exit
+test_call	error	test.test_call.TestRecursion.test_margin_is_sufficient	AttributeError: AttributeError: 'NoneType' object has no attribute 'get_stack_pointer'
+test_contextlib	failed	test.test_contextlib.TestExitStack.test_exit_exception_traceback	AssertionError: AssertionError: Lists differ: [('te[76 chars]_', ''), ('__exit__', ''), ('_exit_wrapper', '[26 chars]xc')] != [('te[76 chars]_', 'raise exc'), ('__exit__', 'if cb(*exc_det[78 chars]xc')] First differing element 1: ('__exit__', '') ('__exit__', 'raise exc') [('test_exit_exception_trac
+test_contextlib_async	failed	test.test_contextlib_async.TestAsyncExitStack.test_exit_exception_traceback	AssertionError: AssertionError: Lists differ: [('te[191 chars]_', ''), ('__aexit__', ''), ('_exit_wrapper', [27 chars]xc')] != [('te[191 chars]_', 'raise exc'), ('__aexit__', 'cb_suppress =[89 chars]xc')] First differing element 3: ('__aexit__', '') ('__aexit__', 'raise exc') [('test_exit_exception_
+test_dbm_sqlite3	failed	test.test_dbm_sqlite3.ReadOnlyFilesystem.test_readonly_file_write	AssertionError: AssertionError: error not raised
+test_frame	error	test.test_frame.TestFrameCApi.test_basic	AttributeError: AttributeError: module 'ctypes' has no attribute 'pythonapi'
+test_importlib	error	test.test_importlib.resources.test_files.ImplicitContextFilesDiskTests.test_implicit_files_with_compiled_importlib	ModuleNotFoundError: ModuleNotFoundError: No module named 'c_resources'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_importlib	error	test.test_importlib.resources.test_files.ImplicitContextFilesZipTests.test_implicit_files_with_compiled_importlib	ModuleNotFoundError: ModuleNotFoundError: No module named 'c_resources'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual environment?
+test_linecache	failed	test.test_linecache.LineCacheTests.test_clearcache	AssertionError: AssertionError: Lists differ: ['/usr/local/lib/python315.zip/linecache.p[37 chars].py'] != [] First list contains 2 additional elements. First extra element 0: '/usr/local/lib/python315.zip/linecache.py' + [] - ['/usr/local/lib/python315.zip/linecache.py', - '/usr/local/lib/python315
+test_linecache	failed	test.test_linecache.LineCacheTests.test_frozen	AssertionError: AssertionError: 0 not greater than 0
+test_linecache	failed	test.test_linecache.LineCacheTests.test_getline	AssertionError: AssertionError: TypeError not raised by getline
+test_linecache	failed	test.test_linecache.LineCacheTests.test_memoryerror	AssertionError: AssertionError: [] is not true
+test_logging	failed	test.test_logging.TimedRotatingFileHandlerTest.test_rollover	AssertionError: AssertionError: False is not true : No rotated files found, went back 300 seconds
+test_memoryview	error	test.test_memoryview.OtherTest.test_ctypes_cast	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.LargeMmapTests.test_large_filesize	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.LargeMmapTests.test_large_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_access_parameter	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_anonymous	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_basic	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_concat_repeat_exception	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_context_manager	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_context_manager_exception	UnboundLocalError: UnboundLocalError: cannot access local variable 'm' where it is not associated with a value
+test_mmap	error	test.test_mmap.MmapTests.test_double_close	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_empty_file	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_entire_file	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_error	AttributeError: AttributeError: module 'mmap' has no attribute 'error'
+test_mmap	error	test.test_mmap.MmapTests.test_extended_getslice	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_extended_set_del_slice	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_find_end	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_flush_parameters	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_flush_return_value	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_io_methods	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_length_0_large_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_length_0_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_mmap_closed_by_int_scenarios	AttributeError: AttributeError: module 'mmap' has no attribute 'ACCESS_DEFAULT'
+test_mmap	error	test.test_mmap.MmapTests.test_move	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_non_ascii_byte	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_offset	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_read_all	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_read_invalid_arg	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_repr	AttributeError: AttributeError: module 'mmap' has no attribute 'ACCESS_DEFAULT'
+test_mmap	error	test.test_mmap.MmapTests.test_rfind	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_subclass	TypeError: TypeError: object.__new__() takes exactly one argument (the type to instantiate)
+test_mmap	error	test.test_mmap.MmapTests.test_tougher_find	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_trackfd_neg1	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	failed	?	subtest failure (no testcase result)
+test_mmap	error	test.test_mmap.MmapTests.test_weakref	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_mmap	error	test.test_mmap.MmapTests.test_write_returning_the_number_of_bytes_written	OSError: OSError: mmap is unavailable on wasm32-wasi
+test_module	failed	test.test_module.ModuleTests.test_module_repr_source	AssertionError: AssertionError: "_init__.pyc'>" != "__init__.py'>" - _init__.pyc'> ? - + __init__.py'> ? + : "<module 'unittest' from '/usr/local/lib/python315.zip/unittest/__init__.pyc'>" does not end with "__init__.py'>"
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_enter_scope_two_events	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_fire_event	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_fire_event_failing_callback	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestCApiEventGeneration.test_missing_exception	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestDisable.test_disable_legal_events	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_call_then_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_instruction_then_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_instruction_then_line	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestInstallIncrementally.test_line_then_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_turn_off_only_instruction	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLineAndInstructionEvents.test_with_restart	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_attr	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_method_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_method_call_error	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLoadSuperAttr.test_vs_other_type_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_exception_handled	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_exception_handled_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_throw	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_throw_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_unwind	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_py_unwind_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_raise	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_raise_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_reraise	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_local_reraise_disable	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_set_non_local_event	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestLocalEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_c_call	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_simple	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestManyEvents.test_try_except	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestOptimizer.test_for_loop	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_105162	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_108390	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_134879	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_call_function_ex	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_gh108976	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestRegressions.test_instruction_explicit_callback	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestSetGetEvents.test_global	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestSetGetEvents.test_local	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_monitoring	failed	test.test_monitoring.TestTier2Optimizer.test_monitoring_already_opimized_loop	AssertionError: AssertionError: 'test TestCApiEventGeneration' is not None
+test_pickle	error	test.test_pickle.CDumpPickle_LoadPickle.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.CPicklerTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.DumpPickle_CLoadPickle.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.InMemoryPickleTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickle	error	test.test_pickle.PyPicklerTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_pickletools	error	test.test_pickletools.OptimizedPickleTests.test_buffers_numpy	OSError: OSError: ctypes is unavailable on wasm32-wasi
+test_platform	error	test.test_platform.PlatformTest.test_libc_ver	FileNotFoundError: FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_shutil	error	test.test_shutil.TestCopy.test_copyfile_nonexistent_dir	OSError: OSError: [Errno 28] Invalid argument: '/tmp/test_python_worker_495134æ/tmpts7ahrwh/does_not_exist/'
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_delete_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_dml_does_not_auto_commit_before	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_insert_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_multiple_cursors_and_iternext	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_replace_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_toggle_auto_commit	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_sqlite3	error	test.test_sqlite3.test_transactions.TransactionTests.test_update_starts_transaction	sqlite3.OperationalError: sqlite3.OperationalError: database is locked
+test_support	error	test.test_support.TestSupport.test_forget	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/@test_42_tmpæ.pyc'
+test_sys	error	test.test_sys.SysModuleTest.test_stdlib_dir	TypeError: TypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType
+test_trace	error	test.test_trace.TestCoverageCommandLineOutput.test_cover_files_written_no_highlight	PermissionError: PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/trace.cover'
+test_unittest	failed	test.test_unittest.test_result.Test_TestResult.test_addFailure_filter_traceback_frames	AssertionError: AssertionError: 'raise self.failureException(msg)' not found in ' File "/usr/local/lib/python315.zip/unittest/case.py", line 772, in fail\n'
+test_unittest	failed	test.test_unittest.test_result.Test_TestResult.test_addFailure_filter_traceback_frames_context	AssertionError: AssertionError: 'raise self.failureException(msg)' not found in ' File "/usr/local/lib/python315.zip/unittest/case.py", line 772, in fail\n'

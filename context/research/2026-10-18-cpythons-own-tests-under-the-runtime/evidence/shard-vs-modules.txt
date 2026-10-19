@@ -1,0 +1,17 @@
+== shard-0-a4: 160 modules
+  per-module sessions: {'passed': 10183, 'skipped': 1216, 'error': 13, 'failed': 9} fuel 535.1 G
+  one session:         {'passed': 10183, 'skipped': 1216, 'error': 13, 'failed': 9} fuel 352.1 G wall 135.7 s
+  non-pass only in the shared session: 0
+  non-pass only in per-module sessions: 0 []
+== shard-1-a4: 231 modules
+  per-module sessions: {'skipped': 1206, 'passed': 8160, 'error': 67, 'failed': 9, 'xfailed': 2} fuel 616.1 G
+  one session:         {'skipped': 1206, 'passed': 8160, 'error': 67, 'failed': 9, 'xfailed': 2} fuel 420.0 G wall 100.2 s
+  non-pass only in the shared session: 0
+  non-pass only in per-module sessions: 0 []
+== shard-2: 161 modules
+  per-module sessions: {'passed': 9160, 'skipped': 1496, 'failed': 51, 'error': 3, 'xfailed': 3} fuel 536.2 G
+  one session:         {'passed': 9154, 'skipped': 1496, 'failed': 51, 'error': 9, 'xfailed': 3} fuel 382.1 G wall 317.3 s
+  non-pass only in the shared session: 6
+    6 test_profiling ValueError: ValueError: tool 2 is already in use
+
+  non-pass only in per-module sessions: 0 []

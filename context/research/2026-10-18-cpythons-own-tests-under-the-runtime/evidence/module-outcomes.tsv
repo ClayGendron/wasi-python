@@ -1,0 +1,281 @@
+module	status	regrtest	trap	stderr
+test_asyncio.test_base_events	module-skipped	skipped		
+test_asyncio.test_buffered_proto	module-skipped	skipped		
+test_asyncio.test_context	module-skipped	skipped		
+test_asyncio.test_eager_task_factory	module-skipped	skipped		
+test_asyncio.test_events	module-skipped	skipped		
+test_asyncio.test_free_threading	module-skipped	skipped		
+test_asyncio.test_futures	module-skipped	skipped		
+test_asyncio.test_futures2	module-skipped	skipped		
+test_asyncio.test_graph	module-skipped	skipped		
+test_asyncio.test_locks	module-skipped	skipped		
+test_asyncio.test_pep492	module-skipped	skipped		
+test_asyncio.test_proactor_events	module-skipped	skipped		
+test_asyncio.test_protocols	module-skipped	skipped		
+test_asyncio.test_queues	module-skipped	skipped		
+test_asyncio.test_runners	module-skipped	skipped		
+test_asyncio.test_selector_events	module-skipped	skipped		
+test_asyncio.test_sendfile	module-skipped	skipped		
+test_asyncio.test_server	module-skipped	skipped		
+test_asyncio.test_server_context	module-skipped	skipped		
+test_asyncio.test_sock_lowlevel	module-skipped	skipped		
+test_asyncio.test_ssl	module-skipped	skipped		
+test_asyncio.test_sslproto	module-skipped	skipped		
+test_asyncio.test_staggered	module-skipped	skipped		
+test_asyncio.test_streams	module-skipped	skipped		
+test_asyncio.test_subprocess	module-skipped	skipped		
+test_asyncio.test_taskgroups	module-skipped	skipped		
+test_asyncio.test_tasks	module-skipped	skipped		
+test_asyncio.test_threads	module-skipped	skipped		
+test_asyncio.test_timeouts	module-skipped	skipped		
+test_asyncio.test_tools	module-skipped	skipped		
+test_asyncio.test_transports	module-skipped	skipped		
+test_asyncio.test_unix_events	module-skipped	skipped		
+test_asyncio.test_waitfor	module-skipped	skipped		
+test_asyncio.test_windows_events	module-skipped	skipped		
+test_asyncio.test_windows_utils	module-skipped	skipped		
+test_concurrent_futures.test_as_completed	module-skipped	skipped		
+test_concurrent_futures.test_deadlock	module-skipped	skipped		
+test_concurrent_futures.test_future	module-skipped	skipped		
+test_concurrent_futures.test_init	module-skipped	skipped		
+test_concurrent_futures.test_interpreter_pool	module-skipped	skipped		
+test_concurrent_futures.test_process_pool	module-skipped	skipped		
+test_concurrent_futures.test_shutdown	module-skipped	skipped		
+test_concurrent_futures.test_thread_pool	module-skipped	skipped		
+test_concurrent_futures.test_wait	module-skipped	skipped		
+test_free_threading.test_bisect	module-skipped	skipped		
+test_free_threading.test_bz2	module-skipped	skipped		
+test_free_threading.test_capi	module-skipped	skipped		
+test_free_threading.test_code	module-skipped	skipped		
+test_free_threading.test_collections	module-skipped	skipped		
+test_free_threading.test_context	module-skipped	skipped		
+test_free_threading.test_cprofile	module-skipped	skipped		
+test_free_threading.test_csv	module-skipped	skipped		
+test_free_threading.test_dbm_gnu	module-skipped	skipped		
+test_free_threading.test_dict	module-skipped	skipped		
+test_free_threading.test_dict_watcher	module-skipped	skipped		
+test_free_threading.test_enumerate	module-skipped	skipped		
+test_free_threading.test_exceptions	module-skipped	skipped		
+test_free_threading.test_frame	module-skipped	skipped		
+test_free_threading.test_func_annotations	module-skipped	skipped		
+test_free_threading.test_functions	module-skipped	skipped		
+test_free_threading.test_functools	module-skipped	skipped		
+test_free_threading.test_gc	module-skipped	skipped		
+test_free_threading.test_generators	module-skipped	skipped		
+test_free_threading.test_grp	module-skipped	skipped		
+test_free_threading.test_heapq	module-skipped	skipped		
+test_free_threading.test_io	module-skipped	skipped		
+test_free_threading.test_iteration	module-skipped	skipped		
+test_free_threading.test_itertools	module-skipped	skipped		
+test_free_threading.test_itertools_combinatoric	module-skipped	skipped		
+test_free_threading.test_json	module-skipped	skipped		
+test_free_threading.test_list	module-skipped	skipped		
+test_free_threading.test_lzma	module-skipped	skipped		
+test_free_threading.test_methodcaller	module-skipped	skipped		
+test_free_threading.test_mmap	module-skipped	skipped		
+test_free_threading.test_monitoring	module-skipped	skipped		
+test_free_threading.test_pickle	module-skipped	skipped		
+test_free_threading.test_pwd	module-skipped	skipped		
+test_free_threading.test_races	module-skipped	skipped		
+test_free_threading.test_re	module-skipped	skipped		
+test_free_threading.test_readline	module-skipped	skipped		
+test_free_threading.test_resource	module-skipped	skipped		
+test_free_threading.test_reversed	module-skipped	skipped		
+test_free_threading.test_set	module-skipped	skipped		
+test_free_threading.test_slots	module-skipped	skipped		
+test_free_threading.test_sqlite3	module-skipped	skipped		
+test_free_threading.test_str	module-skipped	skipped		
+test_free_threading.test_string_template_race	module-skipped	skipped		
+test_free_threading.test_suggestions	module-skipped	skipped		
+test_free_threading.test_sys	module-skipped	skipped		
+test_free_threading.test_syslog	module-skipped	skipped		
+test_free_threading.test_threading	module-skipped	skipped		
+test_free_threading.test_tokenize	module-skipped	skipped		
+test_free_threading.test_type	module-skipped	skipped		
+test_free_threading.test_types	module-skipped	skipped		
+test_free_threading.test_uuid	module-skipped	skipped		
+test_free_threading.test_zip	module-skipped	skipped		
+test_free_threading.test_zlib	module-skipped	skipped		
+test_gdb.test_backtrace	module-skipped	skipped		
+test_gdb.test_cfunction	module-skipped	skipped		
+test_gdb.test_cfunction_full	module-skipped	skipped		
+test_gdb.test_jit	module-skipped	skipped		
+test_gdb.test_misc	module-skipped	skipped		
+test_gdb.test_pretty_print	module-skipped	skipped		
+test_inspect.test_inspect	failed	failed (3 errors, 3 failures)		test test_inspect.test_inspect failed -- multiple errors occurred; run in verbose mode for details
+test_io.test_bufferedio	failed	failed (4 errors)		test test_io.test_bufferedio failed -- multiple errors occurred; run in verbose mode for details
+test_io.test_general	failed	failed (10 errors)		test test_io.test_general failed -- multiple errors occurred; run in verbose mode for details
+test_multiprocessing_fork.test_manager	module-skipped	skipped		
+test_multiprocessing_fork.test_misc	module-skipped	skipped		
+test_multiprocessing_fork.test_processes	module-skipped	skipped		
+test_multiprocessing_fork.test_threads	module-skipped	skipped		
+test_multiprocessing_forkserver.test_manager	module-skipped	skipped		
+test_multiprocessing_forkserver.test_misc	module-skipped	skipped		
+test_multiprocessing_forkserver.test_preload	module-skipped	skipped		
+test_multiprocessing_forkserver.test_processes	module-skipped	skipped		
+test_multiprocessing_forkserver.test_threads	module-skipped	skipped		
+test_multiprocessing_spawn.test_manager	module-skipped	skipped		
+test_multiprocessing_spawn.test_misc	module-skipped	skipped		
+test_multiprocessing_spawn.test_processes	module-skipped	skipped		
+test_multiprocessing_spawn.test_threads	module-skipped	skipped		
+test_os.test_os	failed	failed (2 failures)		test test_os.test_os failed -- multiple errors occurred; run in verbose mode for details
+test_os.test_posix	module-error	failed (uncaught exception)		                     ~~~~~~~~~~~~~~~~~^^ |   File "/usr/local/lib/python315.zip/platform.py", line 210, in libc_ver | FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_os.test_windows	module-skipped	skipped		
+test_pydoc.test_pydoc	failed	failed (3 errors, 2 failures)		test test_pydoc.test_pydoc failed -- multiple errors occurred; run in verbose mode for details
+test__interpchannels	module-skipped	skipped		
+test__interpreters	module-skipped	skipped		
+test_android	module-skipped	skipped		
+test_apple	module-skipped	skipped		
+test_argparse	module-skipped	skipped		
+test_asdl_parser	module-skipped	skipped		
+test_ast	module-error	failed (uncaught exception)		  File "/cpy/lib/test/libregrtest/single.py", line 38, in run_unittest |     raise Exception("errors while loading tests") | Exception: errors while loading tests
+test_asyncgen	module-skipped	skipped		
+test_bdb	failed	failed (18 errors)		Warning --   Before: (23831832, ['/usr/local/lib/python315.zip', '/cpy/lib'], ['/usr/local/lib/python315.zip', '/cpy/lib']) | Warning --   After:  (23831832, ['/usr/local/lib/python315.zip', '/cpy/lib'], ['/usr/local/lib/python315.zip', '/cpy/lib', '/tmp/test_python_worker_495134æ/tempcwd', '/tmp/te
+test_bytes	module-skipped	skipped		
+test_c_locale_coercion	no-tests	passed		
+test_c_stack_unwind	module-skipped	skipped		
+test_calendar	module-error	failed (uncaught exception)		                                                     ~~~~~~~~~~~~~~~~~^^ |   File "/usr/local/lib/python315.zip/platform.py", line 210, in libc_ver | FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_call	failed	failed (1 error)		    this_sp = _testinternalcapi.get_stack_pointer() |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ | AttributeError: 'NoneType' object has no attribute 'get_stack_pointer'
+test_capi	module-skipped	skipped		
+test_class	module-error	failed (uncaught exception)		  File "/cpy/lib/test/test_class.py", line 860, in <module> |     from _testinternalcapi import has_inline_values | ModuleNotFoundError: No module named '_testinternalcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual envir
+test_clinic	module-skipped	skipped		
+test_cmd_line	module-skipped	skipped		
+test_code	module-error	failed (uncaught exception)		         ^^^^^^^^^^^^^^^^ |   File "/usr/local/lib/python315.zip/ctypes/__init__.py", line 44, in __getattr__ | AttributeError: module 'ctypes' has no attribute 'pythonapi'
+test_compileall	module-skipped	skipped		
+test_contextlib	failed	failed (1 failure)		+  ('__exit__', 'if cb(*exc_details):'), | +  ('_exit_wrapper', 'callback(*args, **kwds)'), |    ('raise_exc', 'raise exc')]
+test_contextlib_async	failed	failed (1 failure)		+  ('__aexit__', 'cb_suppress = cb(*exc_details)'), | +  ('_exit_wrapper', 'callback(*args, **kwds)'), |    ('raise_exc', 'raise exc')]
+test_crossinterp	module-skipped	skipped		
+test_ctypes	module-error	failed (uncaught exception)		  File "/cpy/lib/test/libregrtest/single.py", line 38, in run_unittest |     raise Exception("errors while loading tests") | Exception: errors while loading tests
+test_curses	module-skipped	skipped		
+test_dbm_gnu	module-skipped	skipped		
+test_dbm_ndbm	module-skipped	skipped		
+test_dbm_sqlite3	failed	failed (1 failure)		    with self.assertRaises(dbm_sqlite3.error): |          ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^ | AssertionError: error not raised
+test_devpoll	module-skipped	skipped		
+test_doctest	trap		wasm trap: call stack exhausted	
+test_docxmlrpc	module-skipped	skipped		
+test_dtrace	module-skipped	skipped		
+test_embed	module-skipped	skipped		
+test_ensurepip	module-error	failed (uncaught exception)		  File "/cpy/lib/test/test_ensurepip.py", line 12, in <module> |     import ensurepip | ModuleNotFoundError: Standard library module 'ensurepip' was not found
+test_epoll	module-skipped	skipped		
+test_exceptions	trap		wasm trap: call stack exhausted	
+test_external_inspection	module-skipped	skipped		
+test_faulthandler	module-skipped	skipped		
+test_fcntl	module-skipped	skipped		
+test_file_eintr	module-skipped	skipped		
+test_fileutils	module-skipped	skipped		
+test_fork1	module-skipped	skipped		
+test_frame	failed	failed (1 error)		                            ^^^^^^^^^^^^^^^^ |   File "/usr/local/lib/python315.zip/ctypes/__init__.py", line 44, in __getattr__ | AttributeError: module 'ctypes' has no attribute 'pythonapi'
+test_ftplib	module-skipped	skipped		
+test_functools	trap		wasm trap: call stack exhausted	
+test_gc_stats	module-skipped	skipped		
+test_generated_cases	module-skipped	skipped		
+test_genericalias	module-error	failed (uncaught exception)		                          ^^^^^^^^^^^^ |   File "/usr/local/lib/python315.zip/ctypes/__init__.py", line 44, in __getattr__ | AttributeError: module 'ctypes' has no attribute 'Array'
+test_getopt	module-skipped	skipped		
+test_getpath	module-error	failed (uncaught exception)		  File "/cpy/lib/test/test_getpath.py", line 14, in <module> |     from _testinternalcapi import get_getpath_codeobject | ModuleNotFoundError: No module named '_testinternalcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your virtual
+test_grp	module-skipped	skipped		
+test_httplib	module-skipped	skipped		
+test_httpservers	module-skipped	skipped		
+test_idle	module-skipped	skipped		
+test_imaplib	module-skipped	skipped		
+test_import	module-skipped	skipped		
+test_importlib	failed	failed (2 errors)		test test_importlib failed -- multiple errors occurred; run in verbose mode for details
+test_ioctl	module-skipped	skipped		
+test_kqueue	module-skipped	skipped		
+test_launcher	module-skipped	skipped		
+test_linecache	failed	failed (4 failures)		test test_linecache failed -- multiple errors occurred; run in verbose mode for details
+test_logging	failed	failed (1 failure)		Stderr: | Test time: 2026-01-01 00-00-00 | The only matching files are: ['test_logging-2-ud08d2uz.log']
+test_mailbox	module-skipped	skipped		
+test_memoryview	failed	failed (1 error)		               ~~~~~~~~~~~~~~~^^^^^ |   File "/usr/local/lib/python315.zip/ctypes/_types.py", line 67, in __new__ | OSError: ctypes is unavailable on wasm32-wasi
+test_mmap	failed	failed (35 errors)		test test_mmap failed -- multiple errors occurred; run in verbose mode for details
+test_module	failed	failed (1 failure)		+ __init__.py'> | ? + |  : "<module 'unittest' from '/usr/local/lib/python315.zip/unittest/__init__.pyc'>" does not end with "__init__.py'>"
+test_monitoring	failed	failed (45 failures)		test test_monitoring failed -- multiple errors occurred; run in verbose mode for details
+test_msvcrt	module-skipped	skipped		
+test_multiprocessing_main_handling	module-skipped	skipped		
+test_opcache	module-skipped	skipped		
+test_openpty	module-skipped	skipped		
+test_optimizer	module-skipped	skipped		
+test_optparse	module-skipped	skipped		
+test_pdb	failed	failed (6 failures)		test test_pdb failed -- multiple errors occurred; run in verbose mode for details
+test_peg_generator	module-skipped	skipped (resource denied)		
+test_perf_profiler	module-skipped	skipped		
+test_perfmaps	module-skipped	skipped		
+test_pickle	failed	failed (5 errors)		test test_pickle failed -- multiple errors occurred; run in verbose mode for details
+test_pickletools	failed	failed (1 error)		  File "/usr/local/lib/python315.zip/numpy/_core/_internal.py", line 267, in __init__ |   File "/usr/local/lib/python315.zip/ctypes/_types.py", line 67, in __new__ | OSError: ctypes is unavailable on wasm32-wasi
+test_pkgutil	module-skipped	skipped		
+test_platform	failed	failed (1 error)		    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^ |   File "/usr/local/lib/python315.zip/platform.py", line 210, in libc_ver | FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_poll	module-skipped	skipped		
+test_poplib	module-skipped	skipped		
+test_pty	module-skipped	skipped		
+test_pwd	module-skipped	skipped		
+test_pyclbr	module-skipped	skipped		
+test_pyrepl	module-skipped	skipped		
+test_queue	module-skipped	skipped		
+test_readline	module-skipped	skipped		
+test_regrtest	module-skipped	skipped		
+test_remote_pdb	module-skipped	skipped		
+test_repl	module-skipped	skipped		
+test_resource	module-skipped	skipped		
+test_runpy	module-skipped	skipped		
+test_samply_profiler	module-skipped	skipped		
+test_select	module-skipped	skipped		
+test_selectors	module-skipped	skipped		
+test_shutil	failed	failed (1 error)		  File "/usr/local/lib/python315.zip/unittest/case.py", line 245, in handle |   File "/usr/local/lib/python315.zip/shutil.py", line 315, in copyfile | OSError: [Errno 28] Invalid argument: '/tmp/test_python_worker_495134æ/tmpts7ahrwh/does_not_exist/'
+test_site	module-skipped	skipped		
+test_smtplib	module-skipped	skipped		
+test_smtpnet	module-skipped	skipped		
+test_socket	module-skipped	skipped		
+test_socketserver	module-skipped	skipped (resource denied)		
+test_sqlite3	failed	failed (7 errors)		test test_sqlite3 failed -- multiple errors occurred; run in verbose mode for details
+test_ssl	module-skipped	skipped		
+test_stable_abi_ctypes	module-skipped	skipped		
+test_startfile	module-skipped	skipped		
+test_strptime	module-error	failed (uncaught exception)		    libc_ver = platform.libc_ver() |   File "/usr/local/lib/python315.zip/platform.py", line 210, in libc_ver | FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_subprocess	module-skipped	skipped		
+test_support	failed	failed (1 error)		    _unlink(filename) |     ~~~~~~~^^^^^^^^^^ | PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/@test_42_tmpæ.pyc'
+test_syntax	trap		wasm trap: call stack exhausted	
+test_sys	failed	failed (1 error)		    os.path.normpath(expected)) |     ~~~~~~~~~~~~~~~~^^^^^^^^^^ | TypeError: _path_normpath: path should be string, bytes or os.PathLike, not NoneType
+test_sysconfig	module-error	failed (uncaught exception)		  File "/cpy/lib/test/support/venv.py", line 9, in <module> |     import venv | ModuleNotFoundError: Standard library module 'venv' was not found
+test_syslog	module-skipped	skipped		
+test_tcl	module-skipped	skipped		
+test_termios	module-skipped	skipped		
+test_thread	module-skipped	skipped		
+test_thread_local_bytecode	module-skipped	skipped		
+test_threadedtempfile	module-skipped	skipped		
+test_threading	module-skipped	skipped		
+test_threading_local	module-skipped	skipped		
+test_time	module-error	failed (uncaught exception)		                         ~~~~~~~~~~~~~~~~~^^ |   File "/usr/local/lib/python315.zip/platform.py", line 210, in libc_ver | FileNotFoundError: [Errno 44] No such file or directory: '/usr/local/bin/python.wasm'
+test_timeout	no-tests	passed		
+test_tkinter	module-skipped	skipped		
+test_tools	module-skipped	skipped		
+test_trace	failed	failed (1 error)		    _unlink(filename) |     ~~~~~~~^^^^^^^^^^ | PermissionError: [Errno 63] Operation not permitted: '/usr/local/lib/python315.zip/trace.cover'
+test_traceback	trap		wasm trap: call stack exhausted	
+test_ttk	module-skipped	skipped		
+test_ttk_textonly	module-skipped	skipped		
+test_tty	module-skipped	skipped		
+test_turtle	module-skipped	skipped		
+test_type_cache	module-skipped	skipped		
+test_unittest	failed	failed (2 failures)		test test_unittest failed -- multiple errors occurred; run in verbose mode for details
+test_urllib	module-skipped	skipped		
+test_urllib2	module-skipped	skipped		
+test_urllib2_localnet	module-skipped	skipped		
+test_urllib2net	module-skipped	skipped (resource denied)		
+test_urllib_response	module-skipped	skipped		
+test_urllibnet	module-skipped	skipped (resource denied)		
+test_venv	module-error	failed (uncaught exception)		  File "/cpy/lib/test/test_venv.py", line 9, in <module> |     import ensurepip | ModuleNotFoundError: Standard library module 'ensurepip' was not found
+test_wait3	module-skipped	skipped		
+test_wait4	module-skipped	skipped		
+test_webbrowser	module-skipped	skipped		
+test_winapi	module-skipped	skipped		
+test_winconsoleio	module-skipped	skipped		
+test_winreg	module-skipped	skipped		
+test_winsound	module-skipped	skipped		
+test_with	module-error	failed (uncaught exception)		  File "/cpy/lib/test/test_with.py", line 13, in <module> |     from _testinternalcapi import SelfInterruptingContextManager | ModuleNotFoundError: No module named '_testinternalcapi'. Site initialization is disabled, did you forget to add the site-packages directory to sys.path or to enable your vi
+test_wmi	module-skipped	skipped		
+test_wsgiref	module-skipped	skipped		
+test_xml_dom_xmlbuilder	module-skipped	skipped		
+test_xmlrpc	module-skipped	skipped		
+test_xpickle	module-skipped	skipped (resource denied)		
+test_xxlimited	module-skipped	skipped		
+test_xxtestfuzz	module-skipped	skipped		
+test_zipfile64	module-skipped	skipped (resource denied)		
+test_zstd	module-skipped	skipped		
