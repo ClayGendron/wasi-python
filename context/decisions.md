@@ -8,6 +8,30 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 105, and the open points of 078, 084 and 085, answered (2026-10-19)
+
+The owner answered in the session, choosing among the options each set out (question 105's text
+is in this file's history, `questions-for-the-owner.md` before this commit; the specifications'
+points are in their "For the owner" sections on their branches).
+
+- **105 (scipy's same-bytes exception against gather's G7):** "(b) Toolchain move first." Spec 086
+  (wasi-sdk 34, whose LLVM carries the fix for the `try_table` order) is drafted and built now, and
+  lands before 037; 037's exception is withdrawn at its rebase onto 086, and no canonical digest is
+  built. G7 stays an exact `python.wasm` hash and spec 085's set hash an exact `SHA256SUMS`. 086
+  takes 037's build slot while 037 waits; scipy, and 038, 044 and 045 behind it, arrive after 086.
+  This replaces the previous entry's "after the packages" for 086, and question 104's exception is
+  never landed.
+- **078 (the runner runs each guest on a stack of its own):** all three of the specification's
+  positions accepted: a wider C-stack window is a follow-up after 086, not part of 078; the thread
+  hand-off for the embedder's code (about 7 to 8 µs a door or provider step on darwin, no fuel) is
+  accepted, keeping the README's promise of where host functions run; CPython 3.14.0 on musl is
+  refused with a `RuntimeError` naming 3.14.1.
+- **084 (a private root never outlives its call):** both accepted: a folder left is reported as a
+  `RuntimeWarning`, not a `stats()` key (the public API stays frozen); a failed removal is retried by
+  at most three sweeps per process.
+- **085 (gather checks what it trusts), Decision 9:** "Not now." Gather does not bound fuel across
+  the three systems; a fuel band may be a later specification.
+
 ### 100 to 103, and the toolchain move's place, answered (2026-10-19)
 
 The owner answered the four open questions and one new one in the session, choosing among the

@@ -84,11 +84,16 @@ release is `e7727db9…4b4b` (43,751,127 bytes), the tarball `fc59b977…291d`, 
 passes `shasum -c`.
 
 In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages
-come first). Built, in the lane: 039 (tier A), then 043 (matplotlib M2), then 037 (scipy; question 105 first). Building: 037 (scipy, first milestone; its same-bytes exception for ducc0's FFT, question
-104, reviewed and being built), 043 (matplotlib M2) and 039 (tier A), each build-class. Confirmed
-for build: 083 (the judge fixes the file times, inode numbers and link count a guest sees, so fuel
-does not wobble; builds after 065 lands) and 073 (`run` keeps an unclosed file's bytes:
-a fresh `__main__` for every program, and, by question 103's answer, the freeze undone before `run` finalizes; being amended; build-class, builds when no package is ready).
+come first). **083 lands next, ahead of every built package**: the judge's CPython groups see real
+file times, inode numbers and the zip's link count, so their fuel differs between the lane's machine
+and the release runners, and every dry run, main's included, goes red on `cpython-fs` until 083
+lands (039's dry run on its acceptance, run 39291580648, +0.04%; 065's build review, section 4,
+predicted it). Then, one at a time: 039 (tier A; accepted on its branch, re-accepted after 083),
+073 (`run` keeps an unclosed file's bytes; lands, numpy-core's growth measured), 085 (gather checks
+what it trusts; lands), 084 (a private root never outlives its call; lands), 043 (matplotlib M2;
+rebase, rebuild, delta review). Being built: 083, and 086 drafted (question 105 answered (b): the
+toolchain moves first, and 037, scipy, waits for it and drops its exception). Confirmed for build:
+078 (after 083) and 087 (build-class, it carries a patch; takes a free slot).
 
 Confirmed for build, in the build-class queue (up to four built at once while the packages come
 first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
@@ -155,7 +160,7 @@ Reserved: **086**, the toolchain moves to wasi-sdk 34 (LLVM 23.1.0). The pinned 
 compiles to different bytes on every run; LLVM fixed it upstream (`fd76c9bd`, issue #204883) in
 LLVM 23, and wasi-sdk 34 compiled that file to one object in 16 runs (research
 `2026-10-19-the-try-table-order-in-llvm.md`). The move re-verifies every package's bytes on every
-host and removes spec 037's same-bytes exception (question 104). Clang 23 adds `-Wunused-template`
+host and removes spec 037's same-bytes exception (question 104). Question 105, answered (b): it lands before 037, which never lands the exception. Clang 23 adds `-Wunused-template`
 warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check.
 
 Reserved: 074 (what CPython's suite asks of the product; spec 065's follow-up A, build-class;
