@@ -190,11 +190,27 @@ written in (`revised/prototype_revised.diff`), run through the review's own prob
      listing should hold no host byte.
    - **A listing whose count lies over it** (a guest's `used` pointer inside its own buffer) is
      left as wasmtime wrote it. No check does this; the runner's guard handles it for embedders.
-   - **Why a count from 1.** A number never repeats within a run, never collides, and costs one
-     30-bit digit. A count from 2**63, three digits like wasmtime's hashes, would leave out the
-     inode's part of the moves (it equals the times-only fuel on 135 of 147 rows, Decision 7), but
-     the times' part alone still moves 21 to 24 rows past the tolerance. So an acceptance is needed
-     either way, and the plain count is the simpler answer.
+   - **Why a count from 1** (corrected at the build review, F1). A number never repeats within a
+     run and never collides. The draft gave a second reason: that a count with three 30-bit digits,
+     like wasmtime's hashes, would still need an acceptance because the times alone moved 21 to 24
+     rows past the tolerance. **On the build's base that reason is false.** The times alone move
+     none of the 22 rows that grow (their times-only part is +0.00 to +0.01 parts in 10^4,
+     `at-build/growth.out`), and the build review measured a count from 2**62 returning four of
+     them to their accepted values, three to the instruction (its section 3). So a three-digit
+     count would probably avoid most or all of the growth; that is untested on the other 18 rows.
+     - **The count from 1 stays**, for these reasons: a small number reads as the driver's own and
+       is never mistaken for a host hash, so a check can assert it (`< 2**30`) and a reader can
+       see at once where it came from; a high base would fix no further host input, since the
+       fuel is exact either way (one value over six runs); and every dry run is red until this
+       lands, so re-measuring 168 rows for a different base would hold every landing back. A
+       three-digit base can follow as its own specification if the owner wants fewer restated
+       values.
+     - **The cost of that choice is the growth**, accepted with its measured cause: the inode
+       number's digit count (one where wasmtime's hashes took three), confirmed by the build
+       review on four rows. **Why one digit costs more instructions, not fewer, is unexplained**
+       (the review: two digits cost 17 to 238 fewer than three; one digit costs 15,186 more on
+       kiwisolver and 103 million more on pandas-reshape). The words "an int's digits, hashing,
+       the allocations after" are a label, not a mechanism: INFERRED at most.
 
 4. **What the driver does not answer.**
    - `dev` (wasmtime's answer is always 1, READ in the typed-grants memo), `nlink`, `size` and the
@@ -255,8 +271,10 @@ written in (`revised/prototype_revised.diff`), run through the review's own prob
      How a value turns into instructions inside CPython (an int's digits, a hash's slot, the
      allocations that follow) is INFERRED; the split itself is measured.
    - **Why this is not a cost of the driver.** The moves are symmetric, and the forward itself
-     costs the guest nothing (the measurement). Numbering from 2**63 instead (`moved_inobase.out`)
-     still moves rows past the tolerance (46 rise, 57 fall, 24 past it), from the times alone.
+     costs the guest nothing (the measurement). On the draft's base, numbering from 2**63
+     (`moved_inobase.out`) still moved rows past the tolerance (46 rise, 57 fall, 24 past it); on
+     the build's base that no longer holds (Decision 3, corrected: a three-digit count would
+     probably avoid the growth, and the count from 1 is kept for the reasons given there).
    - **Per-row values in the landing notes.** For each row of the growth list, the landing notes
      give the accepted value, the times-only value and the full value, from the build's own runs:
      the times-only value is measured on a scratch copy of the build with the one-line
@@ -575,6 +593,25 @@ written in". Each finding, and where it went:
   - The driver-values assertion in the real-metadata check: not added, with the reason in
     Decision 5.
 
+## Disposition of the build review
+
+The review (`scratchpad/083-buildreview/083-the-driver-answers-file-timestamps-build-2026-10-19.md`,
+probes beside it; copied to `../reviews/` by the lane): "lands once F1 is answered in writing";
+the code correct, cross-host sameness confirmed on darwin. Answered in `context/` only, with no
+code change and no new judge run, as the lane asked:
+
+- **F1 (medium): answered in writing (option a).** Decision 3's reason is corrected: on this base
+  a three-digit count would probably avoid the growth (measured on four rows); the count from 1
+  stays for the reasons now given there; the growth is accepted with its measured cause, the
+  inode number's digit count; why one digit costs more is unexplained. Decision 7, the landing
+  notes' cause and the `--accept-growth` text say the same.
+- **F2 (low): fixed.** The landing notes name `build/083/latest-full.json` as the full record.
+- **F3 (low): fixed.** Departure 5 (a guest with no memory export raises `KeyError`), and the
+  sentence on criterion 1's prototype half.
+- **F4 (low): taken as a follow-up**, written into the landing notes; no unit row added, so the
+  judge is unchanged by this answer.
+- N1 to N3: no action; N3's addition to the growth text is made.
+
 ## Landing notes
 
 ### What was built
@@ -638,8 +675,10 @@ one value (`fuels.tsv`). Accepted at `9d89535`: 59,839,885,329.
 
 ### The judge (criterion 7, EXECUTED, `full_judge.out`)
 
-The log is `build/full-083.log` and the record `build/progress/latest.json` (a copy at
-`build/083/latest-full.json`), in the worktree.
+The log is `build/full-083.log` and **the full judge's record is `build/083/latest-full.json`**
+(627 checks, on `51f3402`), in the worktree: the lane's sameness step uses that file. The
+worktree's `build/progress/latest.json` is a later partial run (44 checks, dirty), not the record
+(the build review's F2; the draft of these notes named it wrongly).
 
 - `ruff check` and `ruff format --check` on `src/` and `tests/`: clean.
 - Fast tier (`-m "not slow" -n 3`, before the clock fix): one failure, `test_no_test_reads_a_clock`
@@ -689,8 +728,9 @@ Each with its accepted value, its times-only value (one pass of a scratch copy w
 - **The cause, per row.** On every row of the list the times-only part is 0.00 to 0.01 per 10^4
   except `cpython-archives` (−0.67): the times alone barely move these rows on this base. The
   rise is the inode number's size: one 30-bit digit (the count) where wasmtime's hashes took
-  three (two, one time in sixteen), and the work that follows from it (INFERRED inside CPython:
-  an int's digits, hashing, the allocations after). The times-only copy carries the amendment
+  three (two, one time in sixteen). The build review confirmed it on four rows: a count from
+  2**62 returned each to its accepted value. Why one digit costs more, not less, is unexplained
+  (Decision 3). The times-only copy carries the amendment
   too (each run's own stdlib, `nlink` 1), so its column already holds the times' and the link
   count's share against accepted, and the step from it to the build's value is the inode count's
   alone.
@@ -712,6 +752,22 @@ Each with its accepted value, its times-only value (one pass of a scratch copy w
    returns and on any exception out of the guest's calls; an exception before them (a preopen that
    fails) leaves the copy to the session's teardown, costing disk only.
 4. A CHANGELOG entry under 0.1.0a8, at the lane's request; the Kind line says so.
+5. **A guest that exports no memory** (the build review's F3). `bind` reads the guest's `memory`
+   export to instantiate the trampoline on it, so `run()` now raises `KeyError: 'memory'` for a
+   module without one, where main's driver ran it to its exit (EXECUTED by the review,
+   `probes/nomemory.out`). No guest of the judge lacks the export, and the suite is green; it is a
+   change in the driver's contract, declared here, and left as it is.
+
+Criterion 1's other half, the read, cut-entry, zero and fuel-edge rows failing against the
+draft's prototype, is evidenced by the pre-build review's runs and `revised/` (`edges.out`,
+`atime_grant.out`, `semantics.out`), not re-run at build.
+
+**A follow-up (the build review's F4).** Nothing in the unit rows checks that stdio's zeros step
+no clock: a mutant without the zero shortcut answers zeros all the same and passes every row,
+since fd 1 is `FILE_FACTS`' last stat. The judge has no hole there (a CPython guest stats its
+stdio at start, so the ratchet would see a stray step on every row), and this landing changes no
+code. A later judge change adds one more stat of `f` after fd 1 in `FILE_FACTS`, or a `FileFacts`
+row asserting that a zero answer leaves the clock where it was.
 
 ### For the lane
 
@@ -724,4 +780,5 @@ Each with its accepted value, its times-only value (one pass of a scratch copy w
 - `--accept-growth "spec 083: the guest now sees the driver's inode numbers (one 30-bit digit, a
   count) where it saw wasmtime's 64-bit hashes, and clock times where it saw the host's; 22 rows
   rise (+1.00 to +10.04 parts in 10^4), each one value over five runs, the times-only part ~0 but
-  for cpython-archives (growth.out)"`.
+  for cpython-archives (growth.out); the cause is the inode number's digit count (a count from
+  2**62 returned four rows to accepted in the build review), kept for Decision 3's reasons"`.
