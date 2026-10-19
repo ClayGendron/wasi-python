@@ -156,8 +156,8 @@ closes_with = "README.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stepped-clock]"
-match = "3 finding(s), digest 7e3a6520f67e"
-reason = "the judge's stepped clock (spec 002, Decision 9): file times are the host's, time.time() starts at 2026-01-01"
+match = "1 finding(s), digest 896f645c570d"
+reason = "the judge's stepped clock (spec 002, Decision 9): it steps a microsecond a call, so a timed rotation's second never passes (file times follow it since spec 083)"
 closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[gap]]

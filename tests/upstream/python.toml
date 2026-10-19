@@ -499,8 +499,8 @@ closes_with = "README.md"
 id = "stepped-clock"
 group = "cpython-fs"
 outcome = "failed"
-match = 'No rotated files found|within 0\.05 delta'
-reason = "the judge's stepped clock (spec 002, Decision 9): file times are the host's, time.time() starts at 2026-01-01"
+match = 'No rotated files found'
+reason = "the judge's stepped clock (spec 002, Decision 9): it steps a microsecond a call, so a timed rotation's second never passes (file times follow it since spec 083)"
 closes_with = "context/specifications/002-the-progress-harness.md"
 
 [[expected]]
