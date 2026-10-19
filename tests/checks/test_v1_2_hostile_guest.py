@@ -2364,8 +2364,12 @@ def test_pickling_a_deep_list_raises(guest) -> None:
 @BOTH
 def test_the_c_stack_window_is_128_kib(snapshot: bool) -> None:
     """Spec 071, criterion 2: the guard fires 112 kB in, the 128 KiB window less CPython's
-    16 KiB; on the snapshot this also shows the window survived Wizer."""
-    done = _run()(["-c", COUNTED.format(body=RECURSIONS["repr"][0])], snapshot=snapshot)
+    16 KiB; on the snapshot this also shows the window survived Wizer. Through `run`, metered:
+    the product's thin engine meets a Python-through-C recursion end to end (spec 080, F2); it
+    records no fuel."""
+    done = _run()(
+        ["-c", COUNTED.format(body=RECURSIONS["repr"][0])], snapshot=snapshot, fuel=10**11
+    )
     got, depth, message = _recursed(done)
     assert (got, message) == ("RecursionError", "Stack overflow (used 112 kB)"), (got, message)
 

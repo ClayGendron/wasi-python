@@ -112,6 +112,14 @@ the guest's 512 KiB, where musl's default of 128 KiB lets a recursing guest kill
 (EXECUTED there; main does the same). It is the small, pool-only neighbour of question 102's
 option (a), a stack the runner owns for every call; if the owner chooses (a), 078 is folded in.
 
+Reserved: 081, guest fuel does not depend on where the repo is checked out: a host path reaches a
+guest's arguments (spec 075's build review, N2).
+
+Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
+inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,
+16 guard refusals in `test_runner_calls.py` and `test_runner_mounts.py` after `test_landing_lane`
+and `test_plugin`, since 071).
+
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).

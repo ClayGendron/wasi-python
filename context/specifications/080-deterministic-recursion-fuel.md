@@ -75,7 +75,9 @@ because earlier files had made an engine.
 ## Intent
 
 Every fuel metric spec 071 added is the same on every run, so the ratchet can hold it; and 071's
-guard does not fail unit tests that never touch wasmtime, whatever runs before them.
+guard does not fail tests that never touch wasmtime, whatever runs before them. Tests that do
+touch wasmtime after an inline pytest session has replaced its handlers are not in scope (the
+Landing notes, "The open case").
 
 ## Design
 
@@ -157,11 +159,32 @@ The full run was made before item 2's commit; the fast tier again after it (`bui
 the same lines, with `judge changed: tests/checks/test_v1_2_hostile_guest.py,
 tests/unit/test_runner_async.py`.
 
+### The open case (the review's F1)
+
+On Linux's serial unit tier, 16 calls in `test_runner_calls.py` and `test_runner_mounts.py` are
+refused by 071's guard. They run real engines, but after an inline pytest session
+(`test_landing_lane`, `test_plugin`) whose faulthandler plugin disables and re-enables
+faulthandler and so drops wasmtime's handler: the guard is right to refuse there. It predates 080
+(it dates from 071), and the release's Linux shards keep those files in separate processes. Spec
+082 is reserved for it (`context/roadmap.md`): inline pytest sessions keep wasmtime's signal
+handlers, by passing `-p no:faulthandler` to them or running them as subprocesses.
+
+### Revised against the review (2026-10-19)
+
+The review (`scratchpad/080-review/080-deterministic-recursion-fuel-2026-10-19.md`): "lands once
+F1 is answered in writing"; both items sound.
+- **F1.** The Intent is scoped to tests that never touch wasmtime; the open case above; roadmap
+  lines reserving 081 and 082.
+- **F2.** Criterion 2 of spec 071 (`test_the_c_stack_window_is_128_kib`) passes `fuel=10**11`, so
+  `run`'s metered engine meets a Python-through-C recursion end to end; it records no fuel, so
+  nothing is restated.
+
 ### For the lane
 
 - `--accept-judge "spec 080: 071's recursion checks run through the judge's driver, so their fuel
   is the same on every run (restated, mostly lower); two test_runner_async tests that call _drive
-  with stand-ins set 071's guard aside, so they pass on Linux in any order"`.
+  with stand-ins set 071's guard aside, so they pass on Linux in any order; 071's window check
+  runs run metered"`.
 - `--accept-growth "spec 080: test_recursion_through_python_raises[np-frompyfunc-snapshot] is now
   measured through the judge's driver, whose environment differs from run's defaults: +265,026
   fuel (+0.034%), deterministic over five runs"`.
