@@ -1,8 +1,8 @@
 # 055 — Bounded sessions
 
 - **Status:** confirmed for build 2026-10-18; revised for the owner's decision (close and
-  exit() as Jupyter does); the revision's re-review: F1 to F8 written in, awaiting the
-  reviewer's confirmation. The re-review (`../reviews/055-bounded-sessions-close-revision-2026-10-18.md`,
+  exit() as Jupyter does); its re-review confirmed (F3's error row and C1 written in, checked
+  by the lane). The re-review (`../reviews/055-bounded-sessions-close-revision-2026-10-18.md`,
   copied there by the lane; verdict: ready once F1 to F3 are written in) and where each of its
   findings went: "Disposition of the re-review", near the end. The owner answered question 92
   on the evening of 2026-10-18 (`../decisions.md`, "The owner's answers of 2026-10-18,
@@ -135,7 +135,13 @@ variables, DataFrames, functions, classes, lambdas.
      its low byte (`& 0xFF`, the rule `SystemExit`'s status follows), a result that is a
      `tuple` of exactly two items whose first is an `int` to that int's low byte, plus 256 when
      the second item is `True` itself (an identity test, `== Py_True`, so no guest code runs),
-     and anything else, a failed call included, to 1. The bootstrap's turn returns
+     and anything else, a failed call included, to 1. **No guest code runs in that reading**
+     (the re-review's confirmation, C1): the tuple is accepted only if `PyTuple_CheckExact`
+     holds and is read only through `PyTuple_GET_SIZE` and `PyTuple_GET_ITEM`, never the
+     sequence protocol, so a tuple subclass is "anything else"; an int is accepted only if
+     `PyLong_Check` holds and is masked with `PyLong_AsUnsignedLongMask(...) & 0xFF`, which has
+     no overflow path, so a huge or negative guest-made int (2**100 + 4, −1) leaves no
+     exception pending and does not depend on `-1`'s error convention. The bootstrap's turn returns
      `(status, quit)`, `quit` being whether `exit()` or `quit()` was called (Decision 3); a
      guest that fakes `quit` only ends its own session, which it can do anyway with
      `os._exit`. **A failed call is printed without `PyErr_Print`** (the
@@ -492,12 +498,18 @@ variables, DataFrames, functions, classes, lambdas.
       returns, whether the turn ended it or something marked it while the turn ran (Decision
       8), the session's ending runs and the store is closed before `run` returns or raises.
       **The interpreter's state decides what the ending runs** (the re-review's F3): a turn
-      whose export returned (its result is an exit status) left a sound interpreter, so its
-      ending runs Python's shutdown on this thread, and `run` returns up to `shutdown_s` later,
-      whatever marked the session: the turn's own `exit()` or `quit()`, the lifetime passing
-      while it ran, a `close()` from another thread or from the turn's own thread, or the exit
-      hook. A turn that trapped, called `os._exit`, was stopped or raised left the interpreter
-      unwound, and its ending runs no guest code.
+      whose export returned (its result is an exit status) **and whose `run` returns a
+      `Completed`** left a sound interpreter, so its ending runs Python's shutdown on this
+      thread, and `run` returns up to `shutdown_s` later, whatever marked the session: the
+      turn's own `exit()` or `quit()`, the lifetime passing while it ran, a `close()` from
+      another thread or from the turn's own thread, or the exit hook. A turn that trapped,
+      called `os._exit` or was stopped left the interpreter unwound, and its ending runs no
+      guest code. **A turn whose `run` raises runs no shutdown either, whatever the export
+      returned** (the re-review's confirmation, F3's `"error"` row): a Ctrl-C that
+      `_deferred_ctrl_c` noted and raises once the export has returned, a `BaseException` from
+      a provider in step 5's write-back walk, or a lost call ends the session with `"error"`,
+      and running more guest code, and more embedder calls, after the user's Ctrl-C or the
+      embedder's own `BaseException` is what F4 rejects for the write-back.
 
    A turn's return value of −1, or any value outside −1 to 511, means the runner and the guest
    disagree. Since the C side owns the range (Decision 2), no guest code can produce it: it is a
@@ -531,7 +543,9 @@ variables, DataFrames, functions, classes, lambdas.
    - **When the ending runs Python's shutdown: one rule** (the re-review's F3). The ending runs
      Python's shutdown when all of these hold: at least one turn was called in the session; no
      turn is running, and the last turn's export returned (an exit status, not a trap, an exit
-     or a stop), so the interpreter is sound; `shutdown_s` is above 0; the ending's capped
+     or a stop), so the interpreter is sound; that turn's `run` returned a `Completed` (a turn
+     whose `run` raised, the `"error"` row, runs none, even after a normal return from the
+     export: Decision 7, step 6); `shutdown_s` is above 0; the ending's capped
      deadline (below) is still in the future; and this is not a process forked after the
      session was used (Decision 13). **The interpreter's state decides, never the cause or the
      moment it was marked**: a close, an idle bound, a lifetime, an `exit()`, a dropped session
@@ -1214,8 +1228,11 @@ which drives `turn` on one instance without the runner and is itself checked in
    and prints `41`. A fifth with `exit(4)` returns 260 (256 plus 4) and a sixth with
    `quit()` on another instance 256; on a third instance, a turn that sets
    `_reactor._exit_code = lambda e: 300` and raises `SystemExit` returns 44, not 300 (no quit
-   bit from a guest-made status). Stand-ins: a `turn` that finalizes (the fourth returns
-   non-zero or traps); a C side that reads bit 8 of the raw status (the last returns 300).
+   bit from a guest-made status), and one whose `_exit_code` returns `2**100 + 4` returns 4,
+   with nothing on stderr from the C side (C1: no overflow path, no exception left pending).
+   Stand-ins: a `turn` that finalizes (the fourth returns non-zero or traps); a C side that
+   reads bit 8 of the raw status (the 300 case returns 300); a C side that masks with
+   `PyLong_AsLong` (the `2**100 + 4` case returns 1 or leaves an `OverflowError` pending).
 2. `test_run_and_turn_exclude_each_other`: an instance that ran `run` gets −1 from `turn`, and
    no Python runs (stdout and stderr empty); an instance that ran `turn` gets 70 from `run`, with
    the message of Decision 2 on stderr. A negative length gets −1. A `turn` called from the
@@ -1540,9 +1557,15 @@ default's value.
     session is marked. Turn 2 returns `exit_code == 0` with `1\n`; by then the file holds the
     handler's bytes, `ended == "closed"`, `shutdown_outcome == "finished"`, the export-call
     hook records `shutdown` on the turn's thread, and the other thread's `close()` returned
-    only after it. Stand-ins: an ending decided by the moment the session was marked (no
+    only after it. **A turn whose `run` raises** (the re-review's confirmation, F3's
+    `"error"` row): in a child on its main thread, a pure-compute turn (`sum(range(10**6))`,
+    no host call) during which a test hook notes a Ctrl-C through `_deferred_ctrl_c`; the
+    export returns normally, `run` raises `KeyboardInterrupt`, `ended == "error"`,
+    `shutdown_outcome == "skipped"`, no file, and the export-call hook records no
+    `shutdown`. Stand-ins: an ending decided by the moment the session was marked (no
     file, `"skipped"`); an ending run by the waiting `close()`'s thread (the hook records the
-    other thread).
+    other thread); an ending decided by the export's return alone (the Ctrl-C case records a
+    `shutdown` and writes the file).
 
 ## The owner's choices
 
@@ -1800,5 +1823,17 @@ none is declined.
   frozen heap; 055 already re-measures the ending's fuel on the set it builds against
   (*Depends on*, Decision 2). 069's own bullet for 055 is 069's text to update; the lane is
   told.
+
+**The confirmation** (of `59509ac`, appended to the re-review) confirmed F1, F2 and F4 to F8 and
+the notes, reopened F3 narrowly, and added one note, C1; once both are written in, the
+revision is ready for build with no further round, and the lane checks them.
+- **F3's `"error"` row, written in.** The shutdown runs only when the turn's `run` returns a
+  `Completed`: a Ctrl-C noted by `_deferred_ctrl_c` after the export returned, a provider's
+  `BaseException` in the turn's write-back walk, or a lost call ends with `"error"` and no
+  shutdown (Decision 7, step 6; Decision 8's rule). Check: criterion 42's new part.
+- **C1, taken (both).** The C side reads the tuple only if `PyTuple_CheckExact` holds, through
+  `PyTuple_GET_SIZE` and `PyTuple_GET_ITEM`, and masks an int with `PyLong_Check` and
+  `PyLong_AsUnsignedLongMask(...) & 0xFF` (Decision 2). Check: criterion 1's `2**100 + 4`
+  case.
 
 ## Landing notes
