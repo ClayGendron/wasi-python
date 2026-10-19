@@ -44,7 +44,11 @@ openblas_make() { # targets and extra variables
     NO_SHARED=1 NO_AFFINITY=1 DYNAMIC_ARCH=0 \
     CFLAGS="$CFLAGS"
 }
-openblas_make -j8 libs netlib > "$WORK.log" 2>&1 || { tail -n 30 "$WORK.log"; die "OpenBLAS's make failed (build/openblas-build.log)"; }
+# Two runs, never `make libs netlib`: given both goals at once, GNU make 4 runs them in parallel and
+# both `ar -ru` the one archive, which loses members (a Linux arm64 build lost 20, EXECUTED). Each
+# run is parallel inside; the archive takes libs's members, then netlib's, in prerequisite order.
+openblas_make -j8 libs > "$WORK.log" 2>&1 || { tail -n 30 "$WORK.log"; die "OpenBLAS's make libs failed (build/openblas-build.log)"; }
+openblas_make -j8 netlib >> "$WORK.log" 2>&1 || { tail -n 30 "$WORK.log"; die "OpenBLAS's make netlib failed (build/openblas-build.log)"; }
 openblas_make install PREFIX="$INST" > "$WORK-install.log" 2>&1 || { tail -n 30 "$WORK-install.log"; die "OpenBLAS's make install failed"; }
 LIB="$INST/lib/libopenblas.a"
 [ -s "$LIB" ] || die "make install wrote no build/openblas-wasi/lib/libopenblas.a"
