@@ -245,10 +245,11 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   `xml.sax`, an `ElementTree` parser target) that parses again more than about 95 levels deep;
   freeing a nested list more than about 2,000 deep (a dict 1,300); `json.loads` past 1,100
   levels; `repr` of nested lists past 1,800 and `==` past 1,350; source with more than 130
-  nested brackets; an `ExceptionGroup` nested past 720; plain Python recursion between about 1,000
-and 3,000 levels once a program raises `sys.setrecursionlimit` to 3,000 or more; XPath with more
+  nested brackets; an `ExceptionGroup` nested past 720; freeing a traceback longer than about
+2,700 frames (deep recursion is itself fine, but once a program raises `sys.setrecursionlimit`
+past that, the `RecursionError`'s traceback traps when it is freed); XPath with more
 than about 375 nested parentheses or 4,600 chained predicates; XSLT `call-template` nested past
-about 480 levels, or `apply-templates` over a tree deeper than about 670; C14N of a tree about
+about 480 levels, or `apply-templates` over a tree deeper than about 470 with a template that copies (about 670 with one that only applies templates); C14N of a tree about
 1,500 deep, or RelaxNG validation of one about 430 deep (a parsed document stops at depth 256 unless `huge_tree`
 or `recover=True` is given). The trap ends only that call.
 
