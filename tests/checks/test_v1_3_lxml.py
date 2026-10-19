@@ -138,10 +138,9 @@ def test_files_by_path_in_grants(guest, guest_workdir, which) -> None:
 
 
 SAFETY = """
-import json, os, sys
+import json, os
 from lxml import etree
 
-host_secret = sys.argv[1]
 out = {}
 
 def case(label, run):
@@ -177,7 +176,6 @@ def entity(url, **kw):
     return etree.tostring(etree.fromstring(doc, etree.XMLParser(**kw) if kw else None)).decode()
 case("entity default", lambda: entity("file:///ro/secret.txt"))
 case("entity resolved", lambda: entity("file:///ro/secret.txt", resolve_entities=True))
-case("entity outside grants", lambda: entity("file://" + host_secret, resolve_entities=True))
 NET = "http://127.0.0.1:9/x"
 case("entity network", lambda: entity(NET, resolve_entities=True, no_network=False))
 LAUGHS = "<!DOCTYPE r [<!ENTITY a 'aaaaaaaaaa'>" + "".join(
@@ -187,6 +185,29 @@ case("billion laughs", lambda: len(etree.tostring(etree.fromstring(
     LAUGHS.encode(), etree.XMLParser(resolve_entities=True)))))
 print(json.dumps(out))
 """
+
+# The host path outside every grant, in a run of its own that records no fuel: the guest's work
+# moves with the path's length, and the path moves with the checkout (spec 081). Its control
+# reads the same file by its guest path, in the same run (spec 081, Decision 6).
+OUTSIDE = """
+import json, sys
+from lxml import etree
+
+out = {}
+
+def case(label, url):
+    doc = f"<!DOCTYPE r [<!ENTITY e SYSTEM '{url}'>]><r>&e;</r>".encode()
+    try:
+        root = etree.fromstring(doc, etree.XMLParser(resolve_entities=True))
+        out[label] = ["ok", etree.tostring(root).decode()]
+    except Exception as e:
+        out[label] = [type(e).__name__, str(e)]
+
+case("entity by guest path, outside run", "file:///ro/secret.txt")
+case("entity outside grants", "file://" + sys.argv[1])
+print(json.dumps(out))
+"""
+OUTSIDE_KEYS = {"entity by guest path, outside run", "entity outside grants"}
 
 
 @BINARY
@@ -199,11 +220,21 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     `resolve_entities=True` it reads a granted file, a host path outside every grant gives an
     empty element (the guest has no such path; on Windows the drive and backslashes are refused
     by name, so libxml2 reports the load failed, and still nothing is read), an `http:` entity
-    gives an empty element (there is no network), and a billion-laughs document raises."""
+    gives an empty element (there is no network), and a billion-laughs document raises. The host
+    path goes to a run of its own, which records no fuel and also reads the same file by its guest
+    path; the measured run's inputs are guest paths only (spec 081)."""
     ro, rw, preopens = _grants(guest_workdir)
-    r = guest(which, ["-c", SAFETY, str(ro / "secret.txt")], preopens=preopens)
+    host = str(ro / "secret.txt")
+    # The path handed to the guest is the granted file itself, so the probe cannot pass on a
+    # path that names nothing (spec 081, Decision 6).
+    assert Path(host).read_bytes() == SECRET and Path(host).samefile(ro / "secret.txt"), host
+    outside = guest(which, ["-c", OUTSIDE, host], preopens=preopens, record=False)
+    assert outside.exit_code == 0, outside.describe()
+    r = guest(which, ["-c", SAFETY], preopens=preopens)
     assert r.exit_code == 0, r.describe()
-    got = json.loads(r.text)
+    away, measured = json.loads(outside.text), json.loads(r.text)
+    assert set(away) == OUTSIDE_KEYS and not OUTSIDE_KEYS & set(measured), (away, measured)
+    got = {**measured, **away}
     bad = []
 
     def expect(label: str, kind: str, *parts: str) -> None:
@@ -221,6 +252,7 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     expect("xslt exsl:document rw", "ok", "<o>w</o>")
     expect("entity default", "XMLSyntaxError", "Entity 'e' not defined")
     expect("entity resolved", "ok", "<r>SECRET\n</r>")
+    expect("entity by guest path, outside run", "ok", "<r>SECRET\n</r>")
     if sys.platform == "win32":
         # A Windows host path is no guest path at all: its drive and backslashes are refused by
         # name (EPERM), so libxml2 reports the load failed instead of an empty element. Either
@@ -228,10 +260,12 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
         expect(
             "entity outside grants", "XMLSyntaxError", "failed to load", "Operation not permitted"
         )
-        if "SECRET" in str(got["entity outside grants"][1]):
-            bad.append("entity outside grants: the host's secret was read")
     else:
         expect("entity outside grants", "ok", "<r/>")
+    # On every platform, whatever the kind of answer: the host's secret is never read (spec 081,
+    # Decision 5).
+    if "SECRET" in str(got["entity outside grants"][1]):
+        bad.append("entity outside grants: the host's secret was read")
     expect("entity network", "ok", "<r/>")
     expect("billion laughs", "XMLSyntaxError", "amplification")
     assert not bad, "; ".join(bad)
