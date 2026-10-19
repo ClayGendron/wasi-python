@@ -1,0 +1,6 @@
+Spec 071's build (landing notes): measurements on the built set (build/artifacts, SHA256SUMS a48b92aa...).
+lxml-arm64 / lxml-amd64            criterion 10: the four lxml shapes, bounded; all raise at 67, 81, 86, 77 levels
+lxml-stackmin-arm64 / -amd64       criterion 10: the smallest stack at which each stops trapping (margins)
+faulthandler-orders-main-arm64     criterion 11 seen failing first: main's runner and set, Linux aarch64
+faulthandler-orders-branch-arm64   criterion 11 on the branch's runner and the built set, Linux aarch64
+faulthandler-orders-branch-amd64   the same on Linux x86_64 (emulated)

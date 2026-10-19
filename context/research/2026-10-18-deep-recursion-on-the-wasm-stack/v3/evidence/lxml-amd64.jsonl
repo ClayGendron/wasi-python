@@ -1,0 +1,4 @@
+{"case": "lxml_target", "stack_kib": 512, "max_ok": 3000, "at_max": "RecursionError Stack overflow (used 112 kB) while calli 67", "above": ["ok", ""], "arch": "x86_64", "window": 0}
+{"case": "lxml_xpath_ext", "stack_kib": 512, "max_ok": 3000, "at_max": "RecursionError Stack overflow (used 112 kB) while calli 81", "above": ["ok", ""], "arch": "x86_64", "window": 0}
+{"case": "lxml_resolver", "stack_kib": 512, "max_ok": 3000, "at_max": "RecursionError Stack overflow (used 112 kB) while calli 86", "above": ["ok", ""], "arch": "x86_64", "window": 0}
+{"case": "lxml_xslt_ext", "stack_kib": 512, "max_ok": 3000, "at_max": "RecursionError Stack overflow (used 112 kB) 77", "above": ["ok", ""], "arch": "x86_64", "window": 0}

@@ -36,6 +36,24 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `Session`, `SessionEnded`, three `Defaults` fields (`session_idle_s`, `session_lifetime_s`,
   `session_shutdown_s`), `stats()["sessions_open"]`, and two exports in both binaries, `turn` and
   `shutdown`, whose contract the README gives for any embedder. `run` is unchanged.
+- **Deep recursion raises `RecursionError`** (spec 071). A `__repr__` that calls `repr(self)`,
+  `lru_cache` recursion, a recursive sort key or a numpy, pandas or lxml callback used to end the
+  guest in a wasm trap; it now raises, on both binaries, at wasmtime's default 512 KiB stack.
+  The guest narrows CPython's C-stack guard to 128 KiB with CPython's own
+  `PyUnstable_ThreadState_SetStackProtection`, called from the reactor's recipe: no patch.
+  **Changed:** such recursion stops at about half the depth it reached before trapping (214
+  levels for the `__repr__` case, 40 to 250 by shape), so a program that recursed that deep and
+  finished now raises. Callbacks out of expat, recursion in C over very deep data, and freeing
+  very deep structures still trap, with the limits the README lists. The runner now states its
+  wasm stack, 512 KiB, instead of taking wasmtime's default, and the judge's guest driver makes
+  the runner's engine (fuel, epoch interruption, that stack). `python.wasm`, the snapshot and
+  `MANIFEST` change; the zip does not.
+- **On Linux, a host's faulthandler can no longer turn a guest trap into the host's death**
+  (spec 071). If `faulthandler` was enabled or disabled after the runner's first call, a guest
+  trap used to kill the host with SIGILL (and after a late `signal.signal` for `SIGILL`, hang
+  it); `run` now refuses such a call with `RuntimeError` before the guest runs, says why, and
+  names the remedy. Install faulthandler and crash reporters before the first call, or not at
+  all.
 - **lxml, with libxml2 and libxslt built in** (spec 046). lxml 6.1.3's `lxml.etree` and
   `lxml.objectify` are builtins, over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath,
   XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser,

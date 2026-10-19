@@ -2262,6 +2262,46 @@ RECURSIONS = {
         140,
         False,
     ),
+    # lxml's callbacks out of libxml2 and libxslt (spec 071, criterion 10): measured on the built
+    # set, they raise on both hosts (margins 1.45 to 1.78 on x86_64), so they are rows here.
+    "lxml-target": (
+        "from lxml import etree\nclass Tg:\n    def start(self, tag, attrib):\n        mark(); "
+        "etree.fromstring('<a/>', etree.XMLParser(target=Tg()))\n    def close(self): return None\n"
+        "def go(): etree.fromstring('<a/>', etree.XMLParser(target=Tg()))",
+        "RecursionError",
+        STACK_OVERFLOW,
+        60,
+        False,
+    ),
+    "lxml-xpath-extension": (
+        "from lxml import etree\ndoc = etree.fromstring('<a/>')\ndef f(ctx):\n    mark(); "
+        "return doc.xpath('f()', extensions={(None, 'f'): f})\ndef go(): f(None)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        70,
+        False,
+    ),
+    "lxml-resolver": (
+        "from lxml import etree\nclass R(etree.Resolver):\n    def resolve(self, url, pid, ctx):\n"
+        "        mark(); parse(); return self.resolve_string('', ctx)\ndef parse():\n"
+        "    p = etree.XMLParser(load_dtd=True, no_network=False); p.resolvers.add(R())\n"
+        "    etree.fromstring('<!DOCTYPE a SYSTEM \"x.dtd\"><a/>', p)\ndef go(): parse()",
+        "RecursionError",
+        STACK_OVERFLOW,
+        75,
+        False,
+    ),
+    "xslt-extension": (
+        'from lxml import etree\nSHEET = etree.XML(\'<xsl:stylesheet version="1.0" xmlns:xsl='
+        '"http://www.w3.org/1999/XSL/Transform" xmlns:x="urn:x"><xsl:template match="/">'
+        '<a><xsl:value-of select="x:f()"/></a></xsl:template></xsl:stylesheet>\')\n'
+        "DOC = etree.XML('<a/>')\ndef f(ctx):\n    mark(); etree.XSLT(SHEET)(DOC); return 'x'\n"
+        "etree.FunctionNamespace('urn:x')['f'] = f\ndef go(): etree.XSLT(SHEET)(DOC)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        65,
+        False,
+    ),
     "setrecursionlimit": (
         "import sys\nsys.setrecursionlimit(100000)\nclass A:\n    def __repr__(self):\n"
         "        mark(); return repr(self)\ndef go(): repr(A())",

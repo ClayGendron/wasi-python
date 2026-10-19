@@ -223,6 +223,17 @@ for `matplotlib._qhull` (explicit triangles work) and `contour` raises `ModuleNo
   or `MPLCONFIGDIR` in a writable grant.
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
   drawing and saving never start one.
+- **Deep recursion**: recursion that runs through Python code (a `__repr__` that calls
+  `repr(self)`, `lru_cache`, a `sort` key, a numpy, pandas or lxml callback) raises
+  `RecursionError` ("Stack overflow (used 112 kB)") after 40 to 250 levels, where native Python
+  allows 1,000; a program that recursed deeper than that and finished on an earlier release now
+  raises. wasmtime gives wasm frames 512 KiB of native stack, and CPython's guard watches only the
+  C stack in linear memory, so the guest narrows that guard to 128 KiB (spec 071). Some recursion
+  still ends the call with the trap "stack overflow": a callback out of expat (`pyexpat`,
+  `xml.sax`, an `ElementTree` parser target) that parses again more than about 95 levels deep;
+  freeing a nested list more than about 2,000 deep (a dict 1,300); `json.loads` past 1,100
+  levels; `repr` of nested lists past 1,800 and `==` past 1,350; source with more than 130
+  nested brackets; an `ExceptionGroup` nested past 720. The trap ends only that call.
 
 FreeType's licence asks every binary distribution to say this in its documentation, and this
 README is the wheel's description:
@@ -644,6 +655,11 @@ first call with the `.cwasm` on disk takes about 0.1 s, and later calls in
 one process about 20 to 25 ms. The runner finds the artifact set through
 `wasi_python.artifacts()`: `$WASI_PYTHON_ARTIFACTS`, else a source
 checkout's `build/artifacts/`, else the wheel's own copy.
+
+`run` runs the guest on the calling thread, with 512 KiB of wasm stack (spec 071); call it from
+a thread with that much free above your own frames. Python's threads have about 2 MB or more on
+every host, but an application that lowered `threading.stack_size`, or an executor with small
+threads passed to `run_async`, may not.
 
 ### Grants
 
@@ -1260,7 +1276,7 @@ async def run_code(code: str):
 - `run_async` is asyncio only. Under trio, call `run(cancel=event)` from a
   worker thread.
 
-Any other embedder does the same three things:
+Any other embedder does the same four things:
 
 1. **Preopen the artifact set's stdlib zip, read-only, in a folder of its
    own at `/usr/local/lib`** (the guest finds `/usr/local/lib/python315.zip`),
@@ -1275,6 +1291,15 @@ Any other embedder does the same three things:
 3. **Call `_initialize`** (the plain reactor only) **and then `run`**,
    once per instance, with argv (`argv[0]` is `/usr/local/bin/python.wasm`)
    and the environment given through WASI. `run` returns the exit status.
+4. **Give the guest at least 512 KiB of native stack** (`max_wasm_stack`, wasmtime's default),
+   on a host thread with room for it and for your own frames above it: wasm runs on the
+   calling thread's stack, and a limit larger than the thread can end the host process. With
+   it, recursion through Python code raises `RecursionError`, except through expat's
+   callbacks. More stack, on a thread that has it, lifts the limits under *Deep recursion*:
+   1 MiB covers nested `repr` and `json.dumps` and the parser; 8 MiB covers `json.loads`, `==`,
+   and freeing 10,000-deep structures. On Linux, install `faulthandler`, and any crash reporter
+   or signal handler for `SIGSEGV`, `SIGILL` or `SIGFPE`, before your first engine, or not at
+   all: enabling or disabling one later makes any guest trap kill or hang your process.
 
 An embedder that keeps an instance across turns, as `Session` does, calls the
 export **`turn(ptr, len) -> i32`** instead of `run`, once per turn: it writes
@@ -2393,7 +2418,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
-- `RuntimeError`: This process was forked after it ran a guest; or a folder or the zip's copy changed between the runner's check and its use.
+- `RuntimeError`: This process was forked after it ran a guest; a folder or the zip's copy changed between the runner's check and its use; or, on Linux, a handler installed or removed after the first run (faulthandler, `signal.signal`, a native crash reporter) replaced wasmtime's trap handlers, so a guest trap would end the process; raised before the guest runs.
 - `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
 - `KeyboardInterrupt`: Ctrl-C.
 - `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
@@ -2441,7 +2466,7 @@ async def run_async(
 - `ArtifactsMissing`: There is no usable artifact set.
 - `ImportError`: wasmtime-py cannot load; its own error is chained as the cause.
 - `OSError`: A host filesystem call failed while the root, the private folders, the zip's copy or the cache was prepared (its subclasses, such as FileExistsError, included).
-- `RuntimeError`: This process was forked after it ran a guest; the interpreter is shutting down; or a folder or the zip's copy changed between the runner's check and its use.
+- `RuntimeError`: This process was forked after it ran a guest; the interpreter is shutting down; a folder or the zip's copy changed between the runner's check and its use; or, on Linux, a handler installed or removed after the first run replaced wasmtime's trap handlers (as `run`).
 - `wasmtime.WasmtimeError`: Today, for a folder removed between the runner's check and wasmtime's own open. The type is wasmtime-py's and is not promised.
 - `asyncio.CancelledError`: The awaiting task was cancelled; the guest was stopped and its worker freed first.
 - `BaseException`: One that is not an `Exception`, raised by your own host, provider, tool or gate, propagates.
@@ -2788,6 +2813,16 @@ has one.
 - **grants** are read-only unless they say otherwise, checked before any
   work, and checked again after wasmtime opens them (see *Grants*); the stdlib
   zip is a read-only grant on every call;
+- **deep recursion** through Python code raises `RecursionError`: the C-stack guard watches
+  128 KiB, sized for the runner's 512 KiB wasm stack (see *Deep recursion* for what still
+  traps);
+- **a guest trap cannot end or hang your process through a replaced signal handler** (Linux):
+  each entry into the guest is refused with `RuntimeError`, before guest code runs, when
+  wasmtime's trap handlers have been replaced since the first call (by faulthandler,
+  `signal.signal` or a native crash reporter installed or removed after it), since a guest trap
+  would then end or hang the process; install faulthandler and crash reporters before the first
+  call. The check is exact for faulthandler and refuses some crash reporters that would have
+  worked (spec 071);
 - **mounts** (see *Mounts*) are read-only unless you pass `writable=True`,
   your explicit grant of a write channel into your own code; a provider is
   your code, called only with normalized paths, after the runner has checked
@@ -2909,7 +2944,10 @@ host CPU spent on tool frames, within two limits: their parsing by the
 request-byte budget (16 MiB by default), and each frame's fixed cost and each
 `list` answer's copy by `max_tool_calls` (1,000 by default); with a limit set
 to `None`, the deadline bounds what it bounded (see *Tools*, "The host's cost
-per frame"); timing
+per frame"); recursion in C over very deep data, callbacks out of expat, and freeing very deep
+structures, which end the call with a stack-overflow trap (see *Deep recursion*; the next call
+is unaffected); on Linux, a signal-handler change made during a call, by a host function on the
+calling thread or by another thread (the next call is refused); timing
 (the clock is real and fine-grained); real entropy; the one-byte exit status.
 
 ## Scope

@@ -1,0 +1,7 @@
+warm 0
+none | rc 0 | trapped stack overflow
+before | rc 0 | trapped stack overflow
+after | rc 132 | Illegal instruction
+before-then-disable | rc 132 | Illegal instruction
+after-then-disable | rc 0 | trapped stack overflow
+signal-after | rc 124 | 
