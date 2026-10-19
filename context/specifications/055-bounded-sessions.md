@@ -1,6 +1,6 @@
 # 055 — Bounded sessions
 
-- **Status:** built 2026-10-18 (landing notes, near the end); its build review's F1 fixed and F2
+- **Status:** **landed 2026-10-19** (accepted on `1dbf2c8` as `590ac2e`, history line 69; the build review with its delta look, `../reviews/055-bounded-sessions-build-2026-10-19.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18 (landing notes, near the end); its build review's F1 fixed and F2
   to F4 answered, for the lane;
   confirmed for build 2026-10-18; revised for the owner's decision (close and exit() as
   Jupyter does); its re-review confirmed (F3's error row and C1 written in, checked by the
@@ -2012,4 +2012,27 @@ fixes. All are taken, by the lane's rulings.
   the promise's own one-tick precision; a refusal there is a possible later tightening.
 - **N2** taken: `Session.run`'s `Raises:` says that on an expired session it may block for up to
   `shutdown_s` before raising `SessionEnded`.
+
+**Landed 2026-10-19** through the lane, after spec 047. The lane checked the build review's F1 fix
+(`_Files.walk(ending=True)` ignores run_async's exiting flag at exit and keeps the Ctrl-C check) and
+rebased the branch onto main `6cc30bb` with no conflict; its diff equals the reviewed diff at
+`9ef2ddb` line for line (EXECUTED, `build/lane-055/delta.txt`, empty). The re-review of the close
+revision and the build review (`../reviews/055-bounded-sessions-close-revision-spec-2026-10-18.md`,
+`../reviews/055-bounded-sessions-build-2026-10-19.md`) were committed on the detached HEAD as
+`1f2c974`. **The main tree's full build from pins** (16 steps, 8 min 34 s) gave `SHA256SUMS`
+`b0c4f376982d0a2e01e585143c163d15a435d0b73461feea27240cc833f40ca5`: `python.wasm` `18595c7f…`
+(41,099,442 bytes, +7,234 over 047's set), the snapshot `9d43bf64…` (75,083,688, +12,013), the zip
+unchanged (EXECUTED, `build/lane-055-build.log`). Because regex is now linked in, these differ from
+the builder's set, so the reviewer made a delta look on the frozen candidate set
+`build/sets/s-9d43bf645dfcaa71`: the session checks pass there (45, v1.4 39/39), and the growth was
+re-measured on 047's base (plain start +173,560, finalization +69,847; the snapshot's trivial job
+−8,538 and the extra-preopens check −2,047,697, the same work flipping sign with the set). That
+delta look was committed as `1dbf2c8`. A first acceptance run with the old base's growth reason was
+stopped before it wrote anything. The full judge, serial: `wasi_python v1: 476/492 pass · 14 gap · 2
+blocked · 0 fail (unit suite 1266/1268, 2 skipped)`, `1742 passed, 4 skipped, 14 xfailed in
+864.14s`, accepted with `--accept-judge` and `--accept-growth` (the delta look's restated reason) as
+`590ac2e`, history line 69 (EXECUTED, `build/lane-055-accept.log`). The rules tier passed (40/40,
+unpiped); main fast-forwarded. The README's session-close cost figures are for today's snapshot and
+are re-measured after spec 069. Spec 071 wires its signal-handler check into the session's turn path,
+since 055 landed first.
 
