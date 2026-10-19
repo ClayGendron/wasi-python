@@ -1,7 +1,7 @@
 # 047 — regex, built in
 
-- **Status:** **built 2026-10-18; revised against its build review; confirmed; rebased onto
-  spec 046 (main `7d377dd`) and rebuilt; awaiting the reviewer's delta look** (landing notes
+- **Status:** **landed 2026-10-19** (accepted on `7511a10` as `c698279`, history line 68; the build review, `../reviews/047-regex-build-2026-10-18.md`, with its confirmation and its delta look after the rebase onto 046, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18; revised against its build review; confirmed; rebased onto
+  spec 046 (main `7d377dd`) and rebuilt; the delta look confirmed (landing notes
   below; branch `spec/047-regex`, built from main `3e949a1`, rebased onto `4a94c14` and then
   `7d377dd`; the review is
   `build/reviews-evidence/047-buildreview/047-regex-2026-10-18.md` in the main tree, to be
@@ -757,4 +757,24 @@ upstream rows as layout:
 ```
 spec 047 adds regex on 046: python.wasm +717,260 and the snapshot +706,740 bytes (regex's module and its Unicode tables); the zip +98,615 bytes, four members; guest starts +0.04 M to +0.13 M fuel (four more zip members, one more builtin); test_packages_carry_their_metadata +28 M (regex's 40,564-byte METADATA, parsed at 14.1 M and read twice); test_resources_read_as_zipfile_reads_them walks four more members; test_extra_preopens_work_on_the_snapshot +3.0 M and the upstream groups (-195 M to +1,284 M; numpy-core +0.635%, deterministic) move both ways with the snapshot's heap layout, as 046's own landing moved them (-131 M to +234 M) (inferred, not split per test)
 ```
+
+**Landed 2026-10-19** through the lane, after spec 068. The lane rebased the branch onto main
+`6fd89e0` (specs 070 and 068 and questions 100 to 102 since `7d377dd`) with no conflict; its diff
+equals the reviewed diff at `89e3f9d` line for line (EXECUTED, `build/lane-047/delta.txt`, empty).
+The build review with its confirmation and its delta look (`../reviews/047-regex-build-2026-10-18.md`:
+"lands once F1 to F3", "confirmed, it lands", then the delta on 046 "confirmed, it lands", which
+measured numpy-core's growth per test) was committed on the detached HEAD as `7511a10`. **The main
+tree's full build from pins** (16 steps, 10 min 01 s) gave `SHA256SUMS`
+`0923cd6e14f3c984b893585dc8b0031693fba5c05e2454b8f864414214941226`, byte for byte the builder's
+(`python.wasm` `feb7fc07…` 41,092,208 bytes, the snapshot `a8221564…` 75,071,675, the zip
+`02026895…` 22,197,173) (EXECUTED, `build/lane-047-build.log`). The set is frozen read-only as
+`build/sets/s-a8221564acc6afc3`. The oracle fetched regex's locked wheel once online and then ran
+offline (regex 2026.9.29). The full judge there, serial: `wasi_python v1: 437/453 pass · 14 gap · 2
+blocked · 0 fail (unit suite 1258/1260, 2 skipped)`, `1695 passed, 4 skipped, 14 xfailed in
+980.89s`, accepted with `--accept-judge` (14 judge files) and `--accept-growth` (the delta look's
+reason word for word: the bytes, the start cost, the metadata walks, numpy-core's +1,284 M from
+`test_string_comparisons`' bool DType lookup after the static types moved by 0x78710 bytes, and the
+other groups' spread) as `c698279`, history line 68 (EXECUTED, `build/lane-047-accept.log`). The
+rules tier passed (40/40, unpiped); main fast-forwarded. The x86_64 same bytes and the Windows judge
+come from the next release dry run.
 
