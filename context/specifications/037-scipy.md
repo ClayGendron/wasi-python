@@ -1499,4 +1499,4 @@ on the branch at `2968512` (the rebase and F2 come after 043 lands):
   066, Revised at build item 16) and `openblas` (`via scipy`), and `test_v1_3_scipy.py` is in the
   `own-guest` shard (063's rule (g)); the build shard's zero-patch count is 21 (main's 19 and
   OpenBLAS's and scipy's trees).
-- 043 (matplotlib M2) builds after this: Decision 8's conditions a to f fall to it.
+- 043 (matplotlib M2) lands before this (the lane's order: 039, 043, 037), so Decision 8's conditions a, b, d, e and f fall to 037 (043's Decision 6, branch A; the build review's F2), built after the rebase onto main with 043, with a rebuild from empty, a full judge and a delta review. The freopen refusal then covers matplotlib's `_qhull` too (one qhull, one `freopen` caller), so `fd_renumber` leaves the import list again: the builder's plan is to keep the refusal and set 043's tripwire back from 29 to 28, and `mounts.py`'s comment back, as a judge change with that reason (the reviewer's preference).
