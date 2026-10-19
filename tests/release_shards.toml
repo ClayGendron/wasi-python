@@ -1,0 +1,99 @@
+# The release's shards (spec 063, Decisions 2 and 3). `uv run pytest --shard=<name>` runs one; the
+# release workflow runs every shard of each system in that system's judge job, and `build` in the
+# build job; `gather` merges their records. A shard selects by exactly one of:
+#   files   whole test modules (never the upstream file, whose group checks go with their groups)
+#   groups  upstream groups, each with its suite check, its classes' checks and its traps
+#   rest    every item no shard of the plan takes by files or groups (one shard; new files land here)
+# systems: macos, linux, windows; `build` is the build job's own shard (it needs the build tree).
+# Every upstream group is in exactly one Linux shard; every files shard but build runs on all three
+# systems; rest runs on macOS and Linux; every product check file and runner unit file is in a files
+# shard on all three systems, so rest holds only the rules and the judge's own tooling. Changing this file is a judge change (it is under tests/).
+
+[shard.build]
+# The build host's own checks: the trees of every component, the compile records, the zlib tarball.
+files = ["tests/checks/test_v1_5_rebuild_from_pins.py", "tests/unit/test_pins.py"]
+# One check by node id: 071's CLI check needs the wasmtime CLI only the build host unpacks; its
+# file stays in own-guest (the confirmation's D1; a node id kept, so nothing is retired).
+nodes = ["tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli"]
+systems = ["build"]
+
+[shard.own-embedding]
+# 36% of the judge on a CI runner (221 s): the floor of any split by file.
+files = ["tests/checks/test_v1_4_embedding.py"]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-guest]
+files = [
+  "tests/checks/test_v1_2_hostile_guest.py",
+  "tests/checks/test_v1_3_data_stack.py",
+  "tests/checks/test_v1_1_artifact_set.py",
+  "tests/checks/test_v1_3_the_zips_directory.py",
+  "tests/checks/test_v1_3_matplotlib.py",
+  "tests/checks/test_v1_3_lxml.py",
+  "tests/checks/test_v1_3_regex.py",
+  "tests/checks/test_v1_4_sessions.py",
+  "tests/checks/test_v1_2_portable_and_sealed.py",
+  "tests/checks/test_v1_4_public_api.py",
+  "tests/unit/test_runner_mounts.py",
+  "tests/unit/test_runner_grants.py",
+]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-runner]
+# The runner's own unit tests, the product's code on every host (today's verify ran three of them).
+files = [
+  "tests/test_api.py",
+  "tests/unit/test_cli.py",
+  "tests/unit/test_tools.py",
+  "tests/unit/test_async_tools.py",
+  "tests/unit/test_guest_tools.py",
+  "tests/unit/test_runner_async.py",
+  "tests/unit/test_runner_calls.py",
+  "tests/unit/test_runner_cancel.py",
+  "tests/unit/test_runner_data.py",
+  "tests/unit/test_runner_inputs.py",
+  "tests/unit/test_runner_limits.py",
+  "tests/unit/test_runner_sessions.py",
+  "tests/unit/test_runner_sweep.py",
+  "tests/unit/test_runner_tools.py",
+  "tests/unit/test_runner_waits.py",
+]
+systems = ["macos", "linux", "windows"]
+
+[shard.own-rest]
+# The rules and the judge's own tooling (the build scripts, the landing lane, the harness's
+# self-tests) run where the lane and the rebuild hosts run. Not on Windows: the branch dry run
+# 39182550825 found 112 failures there, every one in this tooling, none in a product check
+# (spec 063, Decision 18).
+rest = true
+systems = ["macos", "linux"]
+
+[shard.upstream-groupby]
+groups = ["pandas-groupby"]
+systems = ["linux"]
+
+[shard.upstream-frame]
+groups = ["pandas-frame"]
+systems = ["linux"]
+
+[shard.upstream-numpy-a]
+groups = ["numpy-core", "numpy-lib"]
+systems = ["linux"]
+
+[shard.upstream-numpy-b]
+groups = ["numpy-others", "pandas-reshape"]
+systems = ["linux"]
+
+[shard.upstream-pandas-small]
+groups = ["pandas-io-parser", "pandas-io-formats", "pandas-tslibs", "pandas-libs", "pandas-internals"]
+systems = ["linux"]
+
+[shard.upstream-macos]
+# Where the lane accepts: its fuel is compared with the lane's to 1e-4.
+groups = ["numpy-lib"]
+systems = ["macos"]
+
+[shard.upstream-windows]
+# Where the host's file system differs most (spec 058): files, compressed files, encodings.
+groups = ["pandas-io-parser"]
+systems = ["windows"]

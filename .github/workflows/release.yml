@@ -1,9 +1,11 @@
 # The release workflow (context/specifications/004-alpha-releases.md).
 #
-# A pushed tag v<version> builds the artifact set from its pins, judges it, checks the same bytes on
-# Linux, Windows and macOS, rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires
+# A pushed tag v<version> builds the artifact set from its pins, judges it in parallel shards on
+# Linux, Windows and macOS (spec 063: the judge's own checks on all three, numpy's and pandas' own
+# test suites on Linux and one group of them on macOS and Windows; `gather` decides from every
+# shard's hashed record), rebuilds it from the pins on arm64 Linux and x86_64 Linux and requires
 # the same bytes (specs 012, 040 and 059), and publishes a GitHub release (and, once the owner enables it, the wheel on PyPI). A
-# manual run (workflow_dispatch) is a dry run: build, rebuild and verify, never sign or publish.
+# manual run (workflow_dispatch) is a dry run: build, rebuild, judge and gather, never sign or publish.
 # Third-party actions are pinned by commit, their release named beside each.
 # Every job that reads the build's files downloads them by the id the build job handed on, after a
 # step that refuses an empty id, and checks them against the SHA-256 of SHA256SUMS the build job
@@ -41,6 +43,11 @@ jobs:
     outputs:
       assets-id: ${{ steps.assets.outputs.artifact-id }}
       sums-sha256: ${{ steps.sums.outputs.sha256 }}
+      # Spec 063: the build shard's record, and python.wasm's SHA-256 for the gather, which never
+      # holds the assets (Decision 9).
+      record-id: ${{ steps.record.outputs.artifact-id }}
+      record-sha256: ${{ steps.record-sha.outputs.sha256 }}
+      wasm-sha256: ${{ steps.wasm.outputs.sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,8 +81,22 @@ jobs:
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
           grep -Eq "^19 passed, [0-9]+ deselected in" zero-patch.txt
-      - name: The judge
-        run: uv run pytest -p no:cacheprovider
+      - name: The build shard
+        # Only the checks that need the build host: every component's tree, the compile records and
+        # the zlib tarball (spec 063, Decision 6). The rest of the judge runs in the judge jobs.
+        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
+      - name: The record's SHA-256
+        id: record-sha
+        run: uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
+      - id: record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-build-build
+          path: ${{ runner.temp }}/record/latest.json
+          if-no-files-found: error
+      - name: The SHA-256 of python.wasm, handed to the gather
+        id: wasm
+        run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
       - name: Release assets
         run: uv run python release/version.py assets build/artifacts dist/wasi_python-*.whl release-assets
       - name: The SHA-256 of SHA256SUMS, handed to every job that reads the assets
@@ -101,7 +122,9 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-logs
-          path: build/logs/
+          path: |
+            build/logs/
+            ${{ runner.temp }}/record/
           if-no-files-found: ignore
 
   rebuild-linux-arm64:
@@ -362,6 +385,484 @@ jobs:
             echo "$runner: the same wheel"
           done
 
+  judge-macos:
+    name: judge (macos-15, ${{ matrix.shard }})
+    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
+    # record's id and SHA-256 under the shard's own names. The legs of one system share every
+    # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-macos]
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
+      own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-guest-id: ${{ steps.out.outputs.own-guest-id }}
+      own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
+      own-rest-id: ${{ steps.out.outputs.own-rest-id }}
+      own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
+      upstream-macos-id: ${{ steps.out.outputs.upstream-macos-id }}
+      upstream-macos-sha256: ${{ steps.out.outputs.upstream-macos-sha256 }}
+    env:
+      # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
+      # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the rules in own-rest read the git history
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
+          path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: Unpack the artifact set; the wheel into dist/
+        run: |
+          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
+          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp release-assets/wasi_python-*.whl dist/
+      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run python tests/upstream/fetch.py --shard "$SHARD"
+      - name: The shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+      - name: The record's SHA-256
+        id: sha
+        run: |
+          uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
+      - id: record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-macos-${{ matrix.shard }}
+          path: ${{ runner.temp }}/record/latest.json
+          if-no-files-found: error
+      - name: The record's id and SHA-256, under the shard's own names
+        id: out
+        env:
+          SHARD: ${{ matrix.shard }}
+          RECORD_ID: ${{ steps.record.outputs.artifact-id }}
+          RECORD_SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          echo "$SHARD-id=$RECORD_ID" >> "$GITHUB_OUTPUT"
+          echo "$SHARD-sha256=$RECORD_SHA256" >> "$GITHUB_OUTPUT"
+      - name: Keep the shard's record when it fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-macos-${{ matrix.shard }}-failed-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/record/
+          if-no-files-found: ignore
+
+  judge-linux:
+    name: judge (ubuntu-24.04, ${{ matrix.shard }})
+    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
+    # record's id and SHA-256 under the shard's own names. The legs of one system share every
+    # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
+      own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-guest-id: ${{ steps.out.outputs.own-guest-id }}
+      own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
+      own-rest-id: ${{ steps.out.outputs.own-rest-id }}
+      own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
+      upstream-groupby-id: ${{ steps.out.outputs.upstream-groupby-id }}
+      upstream-groupby-sha256: ${{ steps.out.outputs.upstream-groupby-sha256 }}
+      upstream-frame-id: ${{ steps.out.outputs.upstream-frame-id }}
+      upstream-frame-sha256: ${{ steps.out.outputs.upstream-frame-sha256 }}
+      upstream-numpy-a-id: ${{ steps.out.outputs.upstream-numpy-a-id }}
+      upstream-numpy-a-sha256: ${{ steps.out.outputs.upstream-numpy-a-sha256 }}
+      upstream-numpy-b-id: ${{ steps.out.outputs.upstream-numpy-b-id }}
+      upstream-numpy-b-sha256: ${{ steps.out.outputs.upstream-numpy-b-sha256 }}
+      upstream-pandas-small-id: ${{ steps.out.outputs.upstream-pandas-small-id }}
+      upstream-pandas-small-sha256: ${{ steps.out.outputs.upstream-pandas-small-sha256 }}
+    env:
+      # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
+      # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the rules in own-rest read the git history
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
+          path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: Unpack the artifact set; the wheel into dist/
+        run: |
+          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
+          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp release-assets/wasi_python-*.whl dist/
+      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run python tests/upstream/fetch.py --shard "$SHARD"
+      - name: The shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+      - name: The record's SHA-256
+        id: sha
+        run: |
+          uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
+      - id: record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-linux-${{ matrix.shard }}
+          path: ${{ runner.temp }}/record/latest.json
+          if-no-files-found: error
+      - name: The record's id and SHA-256, under the shard's own names
+        id: out
+        env:
+          SHARD: ${{ matrix.shard }}
+          RECORD_ID: ${{ steps.record.outputs.artifact-id }}
+          RECORD_SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          echo "$SHARD-id=$RECORD_ID" >> "$GITHUB_OUTPUT"
+          echo "$SHARD-sha256=$RECORD_SHA256" >> "$GITHUB_OUTPUT"
+      - name: Keep the shard's record when it fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-linux-${{ matrix.shard }}-failed-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/record/
+          if-no-files-found: ignore
+
+  judge-windows:
+    name: judge (windows-2025, ${{ matrix.shard }})
+    # One leg per shard of this system's plan (tests/release_shards.toml; spec 063, Decision 7).
+    # Each leg runs its shard serially against accepted.json, hashes its record and hands on the
+    # record's id and SHA-256 under the shard's own names. The legs of one system share every
+    # host-side input, so the shared output namespace gives nothing away; the systems are three jobs.
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [own-embedding, own-guest, own-runner, upstream-windows]
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
+      own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-guest-id: ${{ steps.out.outputs.own-guest-id }}
+      own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
+      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
+      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
+      upstream-windows-id: ${{ steps.out.outputs.upstream-windows-id }}
+      upstream-windows-sha256: ${{ steps.out.outputs.upstream-windows-sha256 }}
+    env:
+      # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
+      # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the rules in own-rest read the git history
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
+          path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: Unpack the artifact set; the wheel into dist/
+        run: |
+          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
+          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp release-assets/wasi_python-*.whl dist/
+      - name: What the shard needs (the upstream kit and source trees, verified; spec 063, Decision 5)
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run python tests/upstream/fetch.py --shard "$SHARD"
+      - name: The shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest "$RUNNER_TEMP/record/latest.json"
+      - name: The record's SHA-256
+        id: sha
+        run: |
+          uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
+      - id: record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-windows-${{ matrix.shard }}
+          path: ${{ runner.temp }}/record/latest.json
+          if-no-files-found: error
+      - name: The record's id and SHA-256, under the shard's own names
+        id: out
+        env:
+          SHARD: ${{ matrix.shard }}
+          RECORD_ID: ${{ steps.record.outputs.artifact-id }}
+          RECORD_SHA256: ${{ steps.sha.outputs.sha256 }}
+        run: |
+          echo "$SHARD-id=$RECORD_ID" >> "$GITHUB_OUTPUT"
+          echo "$SHARD-sha256=$RECORD_SHA256" >> "$GITHUB_OUTPUT"
+      - name: Keep the shard's record when it fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-windows-${{ matrix.shard }}-failed-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/record/
+          if-no-files-found: ignore
+
+  gather:
+    name: gather the shards' records
+    # One verdict from every shard's record, each downloaded by the id its job handed on and
+    # checked against the SHA-256 it handed on; tied to this commit, its judge, the build's
+    # python.wasm, the lane's acceptance and three systems (spec 063, Decision 9). It never holds
+    # the assets: python.wasm's hash comes from the build job. It writes no history.
+    needs: [build, judge-macos, judge-linux, judge-windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: Every job handed on its record's id, and the build python.wasm's SHA-256
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
+          BUILD_RECORD_ID: ${{ needs.build.outputs.record-id }}
+          MACOS_OWN_EMBEDDING_ID: ${{ needs.judge-macos.outputs.own-embedding-id }}
+          MACOS_OWN_GUEST_ID: ${{ needs.judge-macos.outputs.own-guest-id }}
+          MACOS_OWN_RUNNER_ID: ${{ needs.judge-macos.outputs.own-runner-id }}
+          MACOS_OWN_REST_ID: ${{ needs.judge-macos.outputs.own-rest-id }}
+          MACOS_UPSTREAM_MACOS_ID: ${{ needs.judge-macos.outputs.upstream-macos-id }}
+          LINUX_OWN_EMBEDDING_ID: ${{ needs.judge-linux.outputs.own-embedding-id }}
+          LINUX_OWN_GUEST_ID: ${{ needs.judge-linux.outputs.own-guest-id }}
+          LINUX_OWN_RUNNER_ID: ${{ needs.judge-linux.outputs.own-runner-id }}
+          LINUX_OWN_REST_ID: ${{ needs.judge-linux.outputs.own-rest-id }}
+          LINUX_UPSTREAM_GROUPBY_ID: ${{ needs.judge-linux.outputs.upstream-groupby-id }}
+          LINUX_UPSTREAM_FRAME_ID: ${{ needs.judge-linux.outputs.upstream-frame-id }}
+          LINUX_UPSTREAM_NUMPY_A_ID: ${{ needs.judge-linux.outputs.upstream-numpy-a-id }}
+          LINUX_UPSTREAM_NUMPY_B_ID: ${{ needs.judge-linux.outputs.upstream-numpy-b-id }}
+          LINUX_UPSTREAM_PANDAS_SMALL_ID: ${{ needs.judge-linux.outputs.upstream-pandas-small-id }}
+          WINDOWS_OWN_EMBEDDING_ID: ${{ needs.judge-windows.outputs.own-embedding-id }}
+          WINDOWS_OWN_GUEST_ID: ${{ needs.judge-windows.outputs.own-guest-id }}
+          WINDOWS_OWN_RUNNER_ID: ${{ needs.judge-windows.outputs.own-runner-id }}
+          WINDOWS_UPSTREAM_WINDOWS_ID: ${{ needs.judge-windows.outputs.upstream-windows-id }}
+        run: |
+          case "$WASM_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of python.wasm"; exit 1 ;;
+          esac
+          if [ "${#WASM_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of python.wasm"
+            exit 1
+          fi
+          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+            case "$id" in
+              "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
+            esac
+          done
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.record-id }}
+          path: records/build
+          digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.judge-macos.outputs.own-embedding-id }},${{ needs.judge-macos.outputs.own-guest-id }},${{ needs.judge-macos.outputs.own-runner-id }},${{ needs.judge-macos.outputs.own-rest-id }},${{ needs.judge-macos.outputs.upstream-macos-id }}
+          path: records/judge-macos
+          digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }}
+          path: records/judge-linux
+          digest-mismatch: error
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.judge-windows.outputs.own-embedding-id }},${{ needs.judge-windows.outputs.own-guest-id }},${{ needs.judge-windows.outputs.own-runner-id }},${{ needs.judge-windows.outputs.upstream-windows-id }}
+          path: records/judge-windows
+          digest-mismatch: error
+      - name: The gather
+        # It reads GITHUB_EVENT_NAME and GITHUB_REF_TYPE as the runner sets them: on a pushed tag the
+        # judge must also be the accepted one (G7).
+        env:
+          WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
+          RECORD_BUILD_BUILD: ${{ needs.build.outputs.record-sha256 }}
+          RECORD_MACOS_OWN_EMBEDDING: ${{ needs.judge-macos.outputs.own-embedding-sha256 }}
+          RECORD_MACOS_OWN_GUEST: ${{ needs.judge-macos.outputs.own-guest-sha256 }}
+          RECORD_MACOS_OWN_RUNNER: ${{ needs.judge-macos.outputs.own-runner-sha256 }}
+          RECORD_MACOS_OWN_REST: ${{ needs.judge-macos.outputs.own-rest-sha256 }}
+          RECORD_MACOS_UPSTREAM_MACOS: ${{ needs.judge-macos.outputs.upstream-macos-sha256 }}
+          RECORD_LINUX_OWN_EMBEDDING: ${{ needs.judge-linux.outputs.own-embedding-sha256 }}
+          RECORD_LINUX_OWN_GUEST: ${{ needs.judge-linux.outputs.own-guest-sha256 }}
+          RECORD_LINUX_OWN_RUNNER: ${{ needs.judge-linux.outputs.own-runner-sha256 }}
+          RECORD_LINUX_OWN_REST: ${{ needs.judge-linux.outputs.own-rest-sha256 }}
+          RECORD_LINUX_UPSTREAM_GROUPBY: ${{ needs.judge-linux.outputs.upstream-groupby-sha256 }}
+          RECORD_LINUX_UPSTREAM_FRAME: ${{ needs.judge-linux.outputs.upstream-frame-sha256 }}
+          RECORD_LINUX_UPSTREAM_NUMPY_A: ${{ needs.judge-linux.outputs.upstream-numpy-a-sha256 }}
+          RECORD_LINUX_UPSTREAM_NUMPY_B: ${{ needs.judge-linux.outputs.upstream-numpy-b-sha256 }}
+          RECORD_LINUX_UPSTREAM_PANDAS_SMALL: ${{ needs.judge-linux.outputs.upstream-pandas-small-sha256 }}
+          RECORD_WINDOWS_OWN_EMBEDDING: ${{ needs.judge-windows.outputs.own-embedding-sha256 }}
+          RECORD_WINDOWS_OWN_GUEST: ${{ needs.judge-windows.outputs.own-guest-sha256 }}
+          RECORD_WINDOWS_OWN_RUNNER: ${{ needs.judge-windows.outputs.own-runner-sha256 }}
+          RECORD_WINDOWS_UPSTREAM_WINDOWS: ${{ needs.judge-windows.outputs.upstream-windows-sha256 }}
+        run: |
+          uv run python tests/harness/gather.py --records records --out release-record
+      - name: Keep the release's record
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-record-${{ github.run_attempt }}
+          path: release-record/
+          if-no-files-found: ignore
+
   verify:
     name: verify (${{ matrix.os }})
     needs: build
@@ -420,32 +921,6 @@ jobs:
             echo "release-assets holds other files than the build job's"
             exit 1
           fi
-      - name: Unpack the artifact set
-        run: |
-          uv run python -c "import sys, tarfile, glob; tarfile.open(glob.glob('release-assets/*.tar.xz')[0]).extractall(sys.argv[1], filter='data')" "$RUNNER_TEMP/set"
-          echo "WASI_PYTHON_ARTIFACTS=$(uv run python -c "import glob, sys; print(glob.glob(sys.argv[1] + '/wasi-python-*')[0])" "$RUNNER_TEMP/set")" >> "$GITHUB_ENV"
-      - name: The v1.1 to v1.4 checks on these bytes
-        # Pass and fail only: the ratchet against the accepted state is the build job's. Fuel
-        # differs slightly between hosts, even on the same bytes (spec 004's landing notes), so
-        # this job compares with an empty baseline, which the scoreboard announces.
-        run: >-
-          uv run pytest -p no:cacheprovider --progress-dir "$RUNNER_TEMP/no-baseline"
-          tests/checks/test_v1_1_artifact_set.py tests/checks/test_v1_2_portable_and_sealed.py
-          tests/checks/test_v1_3_data_stack.py tests/checks/test_v1_4_embedding.py
-          tests/unit/test_runner_sweep.py
-          tests/unit/test_runner_grants.py
-          tests/unit/test_cli.py
-      - name: Nothing passed here is blocked but what this job cannot provide
-        # The empty baseline fails only on a failed check; a check that skipped for a missing
-        # need would pass unnoticed, so the needs that blocked anything are named here.
-        run: |
-          uv run python -c "
-          import json
-          checks = json.load(open('build/progress/latest.json'))['checks'].values()
-          blocked = {c['need'] for c in checks if c['status'] == 'blocked'}
-          print('blocked by:', sorted(blocked))
-          assert blocked <= {'oracle', 'three systems', 'wheel'}, blocked
-          "
       - name: The wheel, installed fresh, runs a program in one call
         # Installed by its plain name, no extra: `pip install wasi-python` must run programs, so
         # a wheel whose plain install could not never publishes (spec 028, Decision 4).
@@ -487,7 +962,7 @@ jobs:
     # x86_64 Linux rebuilt the same bytes (same-bytes, specs 012 and 040). Only a pushed tag gets here: a signature is
     # permanent in the public transparency log, so dry runs never sign.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes]
+    needs: [build, verify, same-bytes, gather]
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
@@ -547,7 +1022,7 @@ jobs:
     name: publish the GitHub release
     # Only a pushed tag publishes; a manual run, even started on a tag, never does.
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, attest]
+    needs: [build, verify, same-bytes, attest, gather]
     runs-on: ubuntu-24.04
     environment: release
     permissions:

@@ -309,7 +309,7 @@ jobs:
     needs: build
   attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify]
+    needs: [build, verify, gather]
     permissions:
       id-token: write
       attestations: write
@@ -325,7 +325,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, attest]
+    needs: [build, verify, attest, gather]
     permissions:
       contents: write
   pypi:
@@ -339,7 +339,14 @@ VERIFY = '          gh attestation verify "$a" --repo "$R" \\\n'
 BAD_WORKFLOWS = [
     (("  attest:\n", "  other:\n"), "no attest job"),
     ((ATTEST_IF, "  attest:\n    if: always()\n"), "attest's or publish's if:"),
-    (("    needs: [build, verify]\n", "    needs: [build]\n"), "attest does not need build and"),
+    (
+        ("    needs: [build, verify, gather]\n", "    needs: [build]\n"),
+        "attest does not need build,",
+    ),
+    (
+        ("    needs: [build, verify, gather]\n", "    needs: [build, verify]\n"),
+        "attest does not need build, verify and gather",
+    ),
     (("      contents: read\n", "      contents: write\n"), "attest's permissions are not"),
     (
         ("actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6", "actions/attest@v4"),
@@ -363,8 +370,12 @@ BAD_WORKFLOWS = [
         "publish has id-token: write or write-all",
     ),
     (
-        ("    needs: [build, verify, attest]\n", "    needs: [build, verify]\n"),
-        "publish does not need attest",
+        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, gather]\n"),
+        "publish does not need attest and gather",
+    ),
+    (
+        ("    needs: [build, verify, attest, gather]\n", "    needs: [build, verify, attest]\n"),
+        "publish does not need attest and gather",
     ),
     # The review's ways around the first scan (spec 009's build review, findings 1 to 4).
     (
@@ -372,13 +383,13 @@ BAD_WORKFLOWS = [
         "no actions/attest step pinned by a 40-hex commit",
     ),
     (
-        ("    needs: [build, verify]\n", "    needs: [build]  # verify\n"),
-        "attest does not need build and",
+        ("    needs: [build, verify, gather]\n", "    needs: [build]  # verify, gather\n"),
+        "attest does not need build,",
     ),
     (
         (
-            "    needs: [build, verify]\n",
-            "    needs: [build, verify]\n    continue-on-error: true\n",
+            "    needs: [build, verify, gather]\n",
+            "    needs: [build, verify, gather]\n    continue-on-error: true\n",
         ),
         "attest has a job-level continue-on-error:",
     ),
@@ -639,7 +650,7 @@ jobs:
     + READ_ASSETS
     + """  attest:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes]
+    needs: [build, verify, same-bytes, gather]
     permissions:
       id-token: write
       attestations: write
@@ -656,7 +667,7 @@ jobs:
             --signer-workflow "$W" --source-ref "$REF" --deny-self-hosted-runners
   publish:
     if: github.event_name == 'push' && github.ref_type == 'tag'
-    needs: [build, verify, same-bytes, attest]
+    needs: [build, verify, same-bytes, attest, gather]
     environment: release
     permissions:
       contents: write
@@ -1024,10 +1035,17 @@ BAD_REBUILDS = [
     ),
     (("same-bytes", '/SHA256SUMS"\n', '/SHA256SUMS" || true\n'), "a step of same-bytes swallows"),
     (
-        ("attest", "    needs: [build, verify, same-bytes]\n", "    needs: [build, verify]\n"),
+        (
+            "attest",
+            "    needs: [build, verify, same-bytes, gather]\n",
+            "    needs: [build, verify, gather]\n",
+        ),
         "attest does not need same-bytes",
     ),
-    (("publish", "same-bytes, attest]", "attest]"), "publish does not need same-bytes"),
+    (
+        ("publish", "same-bytes, attest, gather]", "attest, gather]"),
+        "publish does not need same-bytes",
+    ),
 ]
 
 
@@ -1683,3 +1701,146 @@ def test_step_folder_with_a_command_substitution_is_unresolved(work) -> None:
         "99_odd.sh: PATH folder $(pwd)/x cannot be resolved",
         "99_odd.sh: PATH folder `pwd`/y cannot be resolved",
     ], unresolved
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 063: the release judges in parallel shards (acceptance 5). The good workflow is the real
+# one; each variant breaks one rule of release_shard_errors, or one of 057's widened rules.
+
+REAL_WORKFLOW = (paths.REPO / ".github" / "workflows" / "release.yml").read_text()
+LINUX_IDS = "${{ needs.judge-linux.outputs.own-embedding-id }}"
+MACOS_IDS = "${{ needs.judge-macos.outputs.own-embedding-id }}"
+WASM_STEP = (
+    "      - name: The SHA-256 of python.wasm, handed to the gather\n"
+    "        id: wasm\n"
+    '        run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> '
+    '"$GITHUB_OUTPUT"\n'
+)
+ASSETS_IN_GATHER = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
+        with:
+          artifact-ids: ${{{{ needs.build.outputs.assets-id }}}}
+          path: release-assets
+          digest-mismatch: error
+      - name: The gather
+"""
+
+
+def _shard_errors(text: str) -> list[str]:
+    from harness import shards
+
+    return scan.release_shard_errors(text, shards.load())
+
+
+def test_the_real_workflow_passes_every_release_scan() -> None:
+    assert _shard_errors(REAL_WORKFLOW) == []
+    assert scan.release_binding_errors(REAL_WORKFLOW) == []
+    assert scan.release_attestation_errors(REAL_WORKFLOW) == []
+    assert scan.rebuild_gate_errors(REAL_WORKFLOW) == []
+    assert scan.action_pin_errors(REAL_WORKFLOW) == []
+
+
+def _without_wasm_then_late(text: str) -> str:
+    text = text.replace(WASM_STEP, "", 1)
+    late = "      - name: Keep the build logs when something fails\n"
+    return text.replace(late, WASM_STEP + late, 1)
+
+
+BAD_SHARDS = [
+    ("judge-linux", "upstream-frame, ", "", "rule 2: judge-linux"),
+    ("judge-linux", "upstream-frame, ", "upstream-frame, upstream-extra, ", "rule 2: judge-linux"),
+    ("judge-macos", "own-embedding, own-guest", "own-guest, own-embedding", "rule 2: judge-macos"),
+    (
+        "judge-windows",
+        "      - name: These are the bytes the build job made\n",
+        "      - name: Other bytes\n",
+        "rule 4: judge-windows",
+    ),
+    ("judge-linux", "fetch-depth: 0", "fetch-depth: 1", "rule 3:"),
+    (
+        "judge-linux",
+        "      upstream-frame-sha256: ${{ steps.out.outputs.upstream-frame-sha256 }}\n",
+        "",
+        "rule 5: judge-linux",
+    ),
+    ("attest", "same-bytes, gather]", "same-bytes]", "rule 8: attest"),
+    (
+        "gather",
+        "artifact-ids: ${{ needs.build.outputs.record-id }}",
+        "name: record-build-build",
+        "rule 7: gather does not download",
+    ),
+    ("gather", "      - name: The gather\n", ASSETS_IN_GATHER, "rule 7: gather does not download"),
+    (
+        "judge-linux",
+        "    timeout-minutes: 30\n",
+        "    timeout-minutes: 30\n    continue-on-error: true\n",
+        "rule 1: judge-linux",
+    ),
+    ("judge-macos", "      contents: read\n", "      contents: write\n", "rule 1: judge-macos"),
+    ("build", '--shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"', "", "rule 6:"),
+    ("build", "      wasm-sha256: ${{ steps.wasm.outputs.sha256 }}\n", "", "rule 6:"),
+    (
+        "judge-macos",
+        "          RECORD_ID: ${{ steps.record.outputs.artifact-id }}\n",
+        "          RECORD_ID: x\n",
+        "rule 4: judge-macos",
+    ),
+    (
+        "judge-macos",
+        'echo "$SHARD-id=$RECORD_ID"',
+        'echo "own-guest-id=$RECORD_ID"',
+        "rule 4: judge-macos",
+    ),
+    (
+        "judge-macos",
+        '.hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"',
+        '.hexdigest())" "$RUNNER_TEMP/other.json" >> "$GITHUB_OUTPUT"',
+        "rule 4: judge-macos",
+    ),
+    (
+        "verify",
+        "      - name: The wheel, installed fresh, runs a program in one call\n",
+        "      - name: A judge\n        run: uv run pytest\n"
+        "      - name: The wheel, installed fresh, runs a program in one call\n",
+        "rule 9: verify runs pytest",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    ("job", "old", "new", "error"), BAD_SHARDS, ids=[b[3] + b[1][:30] for b in BAD_SHARDS]
+)
+def test_release_shard_scan_names_each_breach(job, old, new, error) -> None:
+    errors = _shard_errors(_in_job(REAL_WORKFLOW, job, old, new))
+    assert any(e.startswith(error) for e in errors), errors
+
+
+def test_the_python_wasm_hash_must_come_before_the_upload() -> None:
+    errors = _shard_errors(_without_wasm_then_late(REAL_WORKFLOW))
+    assert any(e.startswith("rule 6:") for e in errors), errors
+
+
+def test_a_gather_holding_the_assets_breaks_rule_16_too() -> None:
+    text = _in_job(REAL_WORKFLOW, "gather", "      - name: The gather\n", ASSETS_IN_GATHER)
+    errors = scan.release_binding_errors(text)
+    assert any(e.startswith("rule 16: gather holds the build's files") for e in errors), errors
+    second = ASSETS_IN_GATHER.replace(
+        "needs.build.outputs.assets-id", "needs.build.outputs.record-id"
+    )
+    second = second.replace("path: release-assets", "path: release-assets/more")
+    text = _in_job(REAL_WORKFLOW, "gather", "      - name: The gather\n", second)
+    errors = scan.release_binding_errors(text)
+    assert any(e.startswith("rule 16: gather downloads into release-assets") for e in errors), (
+        errors
+    )
+
+
+def test_a_list_of_ids_from_two_jobs_or_with_one_unguarded_is_refused() -> None:
+    mixed = _in_job(
+        REAL_WORKFLOW, "gather", f"artifact-ids: {MACOS_IDS},", f"artifact-ids: {LINUX_IDS},"
+    )
+    errors = scan.release_binding_errors(mixed)
+    assert any(e.startswith("rule 4: gather") for e in errors), errors
+    unguarded = _in_job(REAL_WORKFLOW, "gather", ' "$MACOS_OWN_GUEST_ID"', "")
+    errors = scan.release_binding_errors(unguarded)
+    assert any(e.startswith("rule 10: gather") for e in errors), errors

@@ -1,0 +1,41 @@
+run 39171852747 (gh run view 39171852747 --json jobs), minutes from the first job's start
+  rebuild from the pins (ubuntu-24.04)          success   start +  0.0  took  15.8
+      Build from the pins                                           15.1
+  rebuild from the pins (ubuntu-24.04-arm)      success   start +  0.0  took  10.0
+      Build from the pins                                            9.3
+  build and judge (arm64 macOS)                 success   start +  0.1  took  26.7
+      Build from the pins                                           12.3
+      The source trees are their tarballs plus the recorded patche   0.5
+      The judge                                                     11.7
+      Release assets                                                 1.4
+  verify (macos-15)                             success   start + 26.9  took   6.5
+      The v1.1 to v1.4 checks on these bytes                         5.8
+  verify (windows-2025)                         success   start + 26.8  took   4.2
+      The v1.1 to v1.4 checks on these bytes                         3.5
+  verify (ubuntu-24.04)                         success   start + 26.8  took   5.5
+      The v1.1 to v1.4 checks on these bytes                         5.0
+  the same bytes from every host                success   start + 26.8  took   0.3
+  attest the release assets                     skipped   start + 33.4  took   0.0
+  publish the GitHub release                    skipped   start + 33.4  took   0.0
+  publish the wheel on PyPI                     skipped   start + 33.4  took   0.0
+  wall: 33.4 min
+run 39152890225 (gh run view 39152890225 --json jobs), minutes from the first job's start
+  build and judge (arm64 macOS)                 success   start +  0.1  took  17.7
+      Build from the pins                                            9.8
+      The judge                                                      6.4
+      Release assets                                                 0.8
+  rebuild from the pins (ubuntu-24.04)          success   start +  0.0  took  87.5
+      Build from the pins                                           86.8
+  rebuild from the pins (ubuntu-24.04-arm)      success   start +  0.0  took   7.2
+      Build from the pins                                            6.9
+  verify (windows-2025)                         success   start + 17.8  took   5.7
+      The v1.1 to v1.4 checks on these bytes                         4.8
+  verify (macos-15)                             success   start + 17.9  took   4.9
+      The v1.1 to v1.4 checks on these bytes                         4.3
+  verify (ubuntu-24.04)                         success   start + 17.8  took   3.6
+      The v1.1 to v1.4 checks on these bytes                         3.3
+  the same bytes from every host                success   start + 87.5  took   0.3
+  attest the release assets                     success   start + 87.9  took   0.3
+  publish the GitHub release                    success   start + 88.2  took   0.3
+  publish the wheel on PyPI                     success   start + 88.5  took   0.5
+  wall: 89.0 min

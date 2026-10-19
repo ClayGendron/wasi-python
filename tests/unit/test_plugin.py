@@ -392,17 +392,21 @@ def test_gained_carry_over_and_another_platform_end_to_end(inner, monkeypatch) -
     _accept_baseline(inner)
     real = plugin.run_meta
 
-    def linux():
+    # A platform no host is, so the case holds on every system (spec 063's first Linux run: on a
+    # Linux host "linux-x86_64" was the baseline's own platform, not another).
+    other = "plan9-amd64"
+
+    def elsewhere():
         meta = real()
-        meta["platform"] = "linux-x86_64"
+        meta["platform"] = other
         return meta
 
-    monkeypatch.setattr(plugin, "run_meta", linux)
-    result, _ = inner("--accept", "on linux", fuel=5_000_000, fail=False)
+    monkeypatch.setattr(plugin, "run_meta", elsewhere)
+    result, _ = inner("--accept", "on another platform", fuel=5_000_000, fail=False)
     assert result.ret == 0  # another platform's fuel is its own baseline
     metrics = accepted_file(inner.progress)["checks"]["test_inner.py::test_ok"]["metrics"]
-    assert metrics["linux-x86_64"]["fuel"] == 5_000_000
-    assert next(v for k, v in metrics.items() if k != "linux-x86_64")["fuel"] == 1_000_000
+    assert metrics[other]["fuel"] == 5_000_000
+    assert next(v for k, v in metrics.items() if k != other)["fuel"] == 1_000_000
     result, _ = inner("-k", "test_ok", "--accept", "partial run", fail=False)
     assert result.ret == 0
     assert "test_inner.py::test_failing" in accepted_file(inner.progress)["checks"]
@@ -492,3 +496,92 @@ def test_an_oversize_line_is_refused_through_the_plugin(inner) -> None:
     result.stdout.fnmatch_lines(["*--accept refused: the history line would be*bytes, over*"])
     assert (inner.progress / "history.jsonl").read_bytes() == before
     assert sorted(p.name for p in inner.progress.iterdir()) == ["history.jsonl"]
+
+
+# ---------------------------------------------------------------------------------------------
+# Spec 063: --shard, a named selection of the judge's own checks (acceptance 3)
+
+SHARD_PLAN = """
+[shard.a]
+files = ["test_inner.py"]
+systems = ["macos", "linux", "windows"]
+
+[shard.rest]
+rest = true
+systems = ["macos", "linux", "windows"]
+
+[shard.empty]
+files = ["test_absent.py"]
+systems = ["macos", "linux", "windows"]
+"""
+UNITS = "def test_u1():\n    pass\n\ndef test_u2():\n    pass\n"
+
+
+@pytest.fixture
+def sharded(inner, pytester: pytest.Pytester):
+    plan = pytester.path / "plan.toml"
+    plan.write_text(SHARD_PLAN)
+    pytester.makepyfile(test_units=UNITS)
+
+    def run(*args, **kw):
+        return inner("--shard-plan", str(plan), *args, **kw)
+
+    return run
+
+
+def test_a_shard_runs_exactly_its_items_and_deselects_the_rest(sharded) -> None:
+    from harness import shards
+
+    result, record = sharded("--shard", "rest", fail=False)
+    assert result.ret == 0, result.stdout.str()
+    checks = record["checks"]
+    assert {n for n, c in checks.items() if c["status"] != "deselected"} == set()
+    assert (
+        set(record["deselected"])
+        == set(checks)
+        == {
+            "test_inner.py::test_ok",
+            "test_inner.py::test_blocked",
+            "test_inner.py::test_failing",
+        }
+    )
+    units = ["test_units.py::test_u1", "test_units.py::test_u2"]
+    assert record["meta"]["shard"] == "rest"
+    assert record["meta"]["units"] == {"count": 2, "digest": shards.units_digest(units)}
+    assert record["suite"]["total"] == 2
+    result, record = sharded("--shard", "a", fail=False)
+    ran = {n for n, c in record["checks"].items() if c["status"] != "deselected"}
+    assert ran == set(record["checks"]) and record["deselected"] == []
+    assert record["meta"]["units"] == {"count": 0, "digest": shards.units_digest([])}
+    assert record["suite"]["total"] == 0
+
+
+def test_a_shard_that_selects_nothing_is_red(sharded) -> None:
+    result, record = sharded("--shard", "empty", fail=False)
+    assert result.ret != 0
+    result.stdout.fnmatch_lines(["*RED:*shard empty selected nothing*"])
+    assert record["meta"]["shard"] == "empty"
+
+
+@pytest.mark.parametrize(
+    ("args", "why"),
+    [
+        (("--shard", "nope"), "the plan holds no such shard"),
+        (("--shard", "a", "--accept", "x"), "with --accept or --retire"),
+        (("--shard", "a", "--retire", "test_inner.py::test_ok"), "with --accept or --retire"),
+        (("--shard", "a", "test_inner.py::test_ok"), "with a node id"),
+        (("--shard", "a", "-n", "2"), "with -n"),
+    ],
+)
+def test_shard_refusals_come_before_collection(sharded, args, why) -> None:
+    result, record = sharded(*args, fail=False)
+    assert result.ret != 0
+    assert why in result.stdout.str() + result.stderr.str()
+    assert record is None  # nothing ran, nothing was written
+
+
+def test_without_shard_the_record_says_none(sharded) -> None:
+    result, record = sharded(fail=False)
+    assert record["meta"]["shard"] is None
+    assert "units" not in record["meta"]
+    assert record["deselected"] == []

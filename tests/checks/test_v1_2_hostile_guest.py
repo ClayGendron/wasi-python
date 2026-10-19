@@ -1289,8 +1289,7 @@ def test_mount_descriptors_are_bounded(guest_workdir, snapshot) -> None:
     host handle, so the runner's own bound, MAX_MOUNT_FILES, holds at any host limit. The run
     exits 0 after 1,024 reads; the placeholder is empty during the run and gone after it."""
     _run()
-    if sys.platform == "win32":
-        pytest.skip("Windows has no RLIMIT_NOFILE to lower")
+    needs.need("descriptor limit")  # Windows has no RLIMIT_NOFILE to lower (spec 063)
     scratch = Path(tempfile.mkdtemp(prefix="mount-fds-", dir=guest_workdir))
     out = subprocess.run(
         [sys.executable, "-c", MOUNT_DESCRIPTORS, str(scratch), "1" if snapshot else "0"],

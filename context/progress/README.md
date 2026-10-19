@@ -211,10 +211,9 @@ notes cite the scoreboard's ratchet line showing no `unrun locally` and no `upst
 every upstream check ran on the commit accepted. `--accept` itself refuses otherwise, unless
 `--partial`.
 
-**Before a release** (recorded, not yet a rule): the release workflow has neither the kit nor the
-source trees, so these checks are blocked there. Someone should confirm that the history
-holds an accepted run of them on the release's artifact hash, as `three systems` does for
-platforms. Making that a rule is a later, build-class change to the release rules.
+**Before a release** (spec 063): the release workflow runs the upstream suites itself, in shards,
+and its `gather` job requires the newest acceptance to be on the release's `python.wasm`, clean and
+not partial, and on a tag the release's judge to be the accepted one.
 
 A red acceptance commit cannot be repaired by accepting again. A red rule makes the run red,
 and `--accept` refuses a red run. That is why step 5 runs before main moves. What the lane does

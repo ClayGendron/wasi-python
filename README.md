@@ -544,8 +544,15 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 ```
 
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
-checks that the source trees are their tarballs plus the recorded patches, runs the whole judge, and checks the same bytes on Linux, Windows and
-macOS. Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, rebuild the
+checks that the source trees are their tarballs plus the recorded patches, and judges the build
+host's own checks; then the rest of the judge runs in shards on macOS, Linux and Windows at once,
+with numpy's and pandas' own test suites on Linux and one group of them on macOS and on Windows
+(`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
+every shard's record by its id and hash, and nothing is signed or published unless every shard ran
+exactly its share on the release's bytes, nothing failed, the probe passed on all three systems,
+and the lane's newest acceptance is on the same `python.wasm` (on a tag, with the same judge). The
+gather writes no history: only the lane accepts
+(`context/specifications/063-the-release-judges-in-parallel-shards.md`). Beside the build, two jobs, `rebuild-linux-arm64` and `rebuild-linux-x86-64`, rebuild the
 set from the pins on an arm64 Linux runner and an x86_64 Linux runner, and `same-bytes` requires
 each one's `SHA256SUMS` and wheel to equal the set's, byte for byte; nothing is signed or
 published until it passes. They are two jobs, not a matrix, so each hands on only its own files'

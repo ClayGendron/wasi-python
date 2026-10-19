@@ -1,0 +1,18 @@
+Each upstream group alone, serially, one pytest per group, frozen set s-4eb5418a2b1bb553, darwin-arm64, 2026-10-18,
+load average 45 to 105 on 10 cores (two builders and the lane shared the machine): wall times are inflated; fuel and passes are not.
+group               status             fuel  passes  wall s
+numpy-core          pass    202,236,167,473    9519    34.1
+numpy-lib           pass    131,245,205,860    4825    24.6
+numpy-others        pass    175,268,036,803    7269    29.2
+pandas-frame        pass    338,092,135,859   10852   143.7
+pandas-groupby      pass    474,737,762,262   22227   137.6
+pandas-internals    pass     16,448,860,639     258    13.2
+pandas-io-formats   pass     53,762,517,157     977    15.6
+pandas-io-parser    pass     88,661,322,076    3474    46.4
+pandas-libs         pass     21,974,630,279    1063    13.1
+pandas-reshape      pass     97,971,244,214    2664    35.6
+pandas-tslibs       pass     33,418,918,250     590    16.2
+total fuel 1,633,816,800,872 total wall 509.33 passes 63718
+artifact 165501431480 darwin-arm64 wasmtime 49.0.0
+numpy-lib, numpy tree only: [{'fuel': 131240031875, 'passes': 4825}]
+slow checks outside the upstream file (data stack, matplotlib): 12 passed, 1 skipped (oracle blocked), 22 deselected, 2 xfailed in 31.40s; real 38.86 s

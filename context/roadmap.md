@@ -101,6 +101,13 @@ one defect fixed before 0.1.0 by its own specification (071): C-level recursion 
 instead of raising `RecursionError`. After 0.1.0: a Rust core shared at least partly by
 Python and JavaScript (question 96); the tool protocol's `batch` (question 90).
 
+Reserved: 065 (CPython's own tests in the release; before 0.1.0, decision 99), 066 (the compiled
+packages' own tests in the release: matplotlib, pillow, kiwisolver, lxml and regex), 067 (the pure-Python
+packages' own tests in the release). Spec 063's `tests/upstream/packages.toml` names them as
+closers. Spec 071 is widened to own the Linux host crash spec 063's build review reproduced (a
+guest trap after the host enabled faulthandler past the runner's first engine); 063's gap for it
+names 071 here.
+
 Reserved: 075, "tools.py small fixes", a small follow-up in `src/wasi_python/tools.py`: spec
 060's build review N1 (an oversized tool list is built whole on every `list` frame, only to be
 measured and refused; refuse it from the lengths first; spec 070, Decision 6) and the 0.1.0a6

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import sys
 import tempfile
 from pathlib import Path
 
@@ -196,8 +197,9 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     aimed at a read-only grant fails and writes nothing; under `DENY_ALL` it is refused; into a
     writable grant it writes. lxml's default parser refuses an external entity; with
     `resolve_entities=True` it reads a granted file, a host path outside every grant gives an
-    empty element (the guest has no such path), an `http:` entity gives an empty element (there
-    is no network), and a billion-laughs document raises."""
+    empty element (the guest has no such path; on Windows the drive and backslashes are refused
+    by name, so libxml2 reports the load failed, and still nothing is read), an `http:` entity
+    gives an empty element (there is no network), and a billion-laughs document raises."""
     ro, rw, preopens = _grants(guest_workdir)
     r = guest(which, ["-c", SAFETY, str(ro / "secret.txt")], preopens=preopens)
     assert r.exit_code == 0, r.describe()
@@ -219,7 +221,17 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
     expect("xslt exsl:document rw", "ok", "<o>w</o>")
     expect("entity default", "XMLSyntaxError", "Entity 'e' not defined")
     expect("entity resolved", "ok", "<r>SECRET\n</r>")
-    expect("entity outside grants", "ok", "<r/>")
+    if sys.platform == "win32":
+        # A Windows host path is no guest path at all: its drive and backslashes are refused by
+        # name (EPERM), so libxml2 reports the load failed instead of an empty element. Either
+        # way nothing outside the grants is read (spec 063's branch dry run 39203592916).
+        expect(
+            "entity outside grants", "XMLSyntaxError", "failed to load", "Operation not permitted"
+        )
+        if "SECRET" in str(got["entity outside grants"][1]):
+            bad.append("entity outside grants: the host's secret was read")
+    else:
+        expect("entity outside grants", "ok", "<r/>")
     expect("entity network", "ok", "<r/>")
     expect("billion laughs", "XMLSyntaxError", "amplification")
     assert not bad, "; ".join(bad)

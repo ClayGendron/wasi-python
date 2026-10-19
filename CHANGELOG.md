@@ -70,6 +70,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   on every step's `PATH`. Behind it, `scripts/build.sh` puts a stand-in for every other Python
   name the host has, which fails the step if it is run. A build host needs no Python of its
   own. The artifacts are the same bytes; `MANIFEST`'s recipe lines change.
+- **The release judges in parallel shards** (spec 063). The release runs numpy's and pandas' own
+  test suites (eleven groups, 63,718 passing tests) on Linux, one group of them on macOS and on
+  Windows, every product check and the runner's own tests on all three systems, and the rules and
+  the judge's own tooling on macOS and Linux, in eighteen parallel jobs after the build. A
+  `gather` job reads every shard's record by id and SHA-256 and publishes nothing unless each
+  shard ran exactly its share on the release's bytes, nothing failed, the probe passed on three
+  systems, and the lane's newest acceptance is on the same `python.wasm`. `uv run pytest
+  --shard=<name>` runs one shard. Every package now names its own suite, or why not yet, in
+  `tests/upstream/packages.toml`.
 - **lxml, with libxml2 and libxslt built in** (spec 046). lxml 6.1.3's `lxml.etree` and
   `lxml.objectify` are builtins, over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath,
   XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser,

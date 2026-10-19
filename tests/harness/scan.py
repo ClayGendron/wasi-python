@@ -507,7 +507,7 @@ def _job_permissions(lines: list[str]) -> set[str]:
 
 def release_attestation_errors(text: str) -> list[str]:
     """Every rule of spec 009, Decision 6, as one line per breach, on the workflow without its
-    comments."""
+    comments; attest and publish also need gather (spec 063, Decision 13)."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     if "attest" not in jobs:
@@ -517,8 +517,8 @@ def release_attestation_errors(text: str) -> list[str]:
     if _job_field(attest, "if") != TAG_ONLY or _job_field(publish, "if") != TAG_ONLY:
         errors.append("attest's or publish's if: is not the pushed-tag condition")
     needs_attest = _job_field(attest, "needs") or ""
-    if not {"build", "verify"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
-        errors.append("attest does not need build and verify")
+    if not {"build", "verify", "gather"} <= set(re.findall(r"[a-z_-]+", needs_attest)):
+        errors.append("attest does not need build, verify and gather")
     if _job_permissions(attest) != ATTEST_PERMISSIONS:
         errors.append(f"attest's permissions are not {sorted(ATTEST_PERMISSIONS)}")
     body = "\n".join(attest)
@@ -552,8 +552,8 @@ def release_attestation_errors(text: str) -> list[str]:
     for name, lines in jobs.items():
         if name not in ("attest", "pypi") and ID_TOKEN.search("\n".join(lines)):
             errors.append(f"{name} has id-token: write or write-all")
-    if "attest" not in re.findall(r"[a-z_-]+", _job_field(publish, "needs") or ""):
-        errors.append("publish does not need attest")
+    if not {"attest", "gather"} <= set(re.findall(r"[a-z_-]+", _job_field(publish, "needs") or "")):
+        errors.append("publish does not need attest and gather")
     return errors
 
 
@@ -1257,6 +1257,9 @@ JOB_PERMISSIONS = {
     **{job: {"contents: read"} for job in REBUILD_JOBS},
     "same-bytes": set(),
     "verify": {"contents: read"},
+    # Spec 063: the judge jobs check out and read the build's files; the gather checks out alone.
+    **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},
+    "gather": {"contents: read"},
     "attest": ATTEST_PERMISSIONS,
     "publish": {"contents: write"},
     "pypi": {"id-token: write"},
@@ -1358,23 +1361,34 @@ def release_binding_errors(text: str) -> list[str]:
                 continue
             w = f.get("with", {})
             ids = w.get("artifact-ids", "")
-            if not NEEDS_OUTPUT.match(ids) or any(key in w for key in NOT_BY_ID):
+            # One id, or several joined by commas, all of one job (spec 063, Decision 16).
+            parts = [p.strip() for p in ids.split(",")] if ids else []
+            matched = [NEEDS_OUTPUT.match(p) for p in parts]
+            if (
+                not parts
+                or not all(matched)
+                or len({m[1] for m in matched if m}) != 1
+                or any(key in w for key in NOT_BY_ID)
+            ):
                 errors.append(f"rule 4: {name} downloads an artifact other than by one id alone")
             if w.get("digest-mismatch") != "error":
                 errors.append(f"rule 5: {name} downloads without digest-mismatch: error")
-            guard = next(
-                (
-                    (g_raw, g)
-                    for g_raw, g in reversed(job_steps[:i])
-                    for var, value in g.get("env", {}).items()
-                    if ids and value == ids and _guard_tests(str(g.get("run", "")), var)
-                ),
-                None,
-            )
-            if guard is None:
+            guards = [
+                next(
+                    (
+                        (g_raw, g)
+                        for g_raw, g in reversed(job_steps[:i])
+                        for var, value in g.get("env", {}).items()
+                        if value == part and _guard_tests(str(g.get("run", "")), var)
+                    ),
+                    None,
+                )
+                for part in parts
+            ]
+            if not parts or None in guards:
                 errors.append(f"rule 10: {name} has no guard step that tests the id it downloads")
             elif ids == ASSETS_ID:
-                guard_blocks[name] = guard[0]
+                guard_blocks[name] = guards[0][0]
     # Rule 6: every output a job reads is one the job it needs defines.
     for name, lines in jobs.items():
         for job, output in re.findall(r"needs\.([\w-]+)\.outputs\.([\w-]+)", "\n".join(lines)):
@@ -1485,6 +1499,265 @@ def release_binding_errors(text: str) -> list[str]:
     pypi = jobs.get("pypi", [])
     if _job_field(pypi, "if") != PYPI_IF or "publish" not in _needs(pypi):
         errors.append(f"rule 18: pypi's if: is not {PYPI_IF!r}, or it does not need publish")
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# The release judges in parallel shards (spec 063)
+
+JUDGE_JOBS = {  # job -> (runner, the plan's system)
+    "judge-macos": ("macos-15", "macos"),
+    "judge-linux": ("ubuntu-24.04", "linux"),
+    "judge-windows": ("windows-2025", "windows"),
+}
+# `--shard=NAME`, never `--shard NAME`: before the plugin loads, pytest reads a bare `build` as a
+# path, collects build/ instead of tests/, and never loads the plugin (the first branch dry run).
+RECORD_PATH = '"$RUNNER_TEMP/record/latest.json"'
+RECORD_UPLOAD_PATH = "${{ runner.temp }}/record/latest.json"
+FETCH_RUN = 'uv run python tests/upstream/fetch.py --shard "$SHARD"\n'
+SHARD_RUN = f'uv run pytest -p no:cacheprovider --shard="$SHARD" --progress-latest {RECORD_PATH}\n'
+SHA_RUN = (
+    "uv run python -c \"import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], "
+    f'\'rb\').read()).hexdigest())" {RECORD_PATH} >> "$GITHUB_OUTPUT"\n'
+)
+OUT_ENV = {
+    "SHARD": "${{ matrix.shard }}",
+    "RECORD_ID": "${{ steps.record.outputs.artifact-id }}",
+    "RECORD_SHA256": "${{ steps.sha.outputs.sha256 }}",
+}
+OUT_RUN = (
+    'echo "$SHARD-id=$RECORD_ID" >> "$GITHUB_OUTPUT"\n'
+    'echo "$SHARD-sha256=$RECORD_SHA256" >> "$GITHUB_OUTPUT"\n'
+)
+BUILD_SHARD_RUN = (
+    f"uv run pytest -p no:cacheprovider --shard=build --progress-latest {RECORD_PATH}\n"
+)
+RECORD_ID_OUTPUT = re.compile(
+    r"needs\.(?:build\.outputs\.record-id|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
+)
+
+
+def _matrix_shards(lines: list[str]) -> list[str] | None:
+    for line in lines:
+        m = re.fullmatch(r"\s+shard:\s*\[(.*)\]\s*", line)
+        if m:
+            return [x.strip() for x in m[1].split(",") if x.strip()]
+    return None
+
+
+def _judge_shape(lines: list[str], runner: str, system: str) -> str:
+    """A judge job with its runner, its system and its own lists set aside: the three must be this
+    text alike (spec 063, rule 3)."""
+    kept, skip = [], False
+    for line in lines:
+        if re.fullmatch(r"    outputs:\s*", line):
+            skip = True
+            continue
+        if skip and line.startswith("      "):
+            continue
+        skip = False
+        if re.fullmatch(r"\s+shard:\s*\[.*\]\s*", line):
+            line = "        shard: [@SHARDS@]"
+        kept.append(line)
+    return "\n".join(kept).replace(runner, "@RUNNER@").replace(system, "@SYSTEM@")
+
+
+def release_shard_errors(text: str, plan: dict) -> list[str]:
+    """The workflow against the shard plan (spec 063's Design, rules 1 to 10), one line per
+    breach, each starting with its rule's number, on the workflow without its comments."""
+    from harness import shards
+
+    text = without_comments(text)
+    jobs = workflow_jobs(text)
+    steps = {
+        name: [(s, step_fields(s)) for s in workflow_steps(lines)] for name, lines in jobs.items()
+    }
+    errors: list[str] = []
+    shapes = set()
+    for job, (runner, system) in JUDGE_JOBS.items():
+        lines = jobs.get(job)
+        if lines is None:
+            errors.append(f"rule 1: no job {job}")
+            continue
+        body = "\n".join(lines)
+        if (
+            _job_field(lines, "runs-on") != runner
+            or _needs(lines) != {"build"}
+            or _job_field(lines, "timeout-minutes") != "30"
+            or _permission_set(lines) != {"contents: read"}
+            or not re.search(r"^      fail-fast: false\s*$", body, re.M)
+            or _job_field(lines, "if") is not None
+            or _job_field(lines, "continue-on-error") is not None
+        ):
+            errors.append(
+                f"rule 1: {job} is not on {runner}, needing build, 30 minutes, contents: read, "
+                "fail-fast: false, with no job-level if: or continue-on-error:"
+            )
+        want = shards.on(plan, system)
+        if _matrix_shards(lines) != want:
+            errors.append(f"rule 2: {job}'s matrix is not the plan's {system} shards {want}")
+        shapes.add(_judge_shape(lines, runner, system))
+        js = [f for _, f in steps[job]]
+        at = {}
+        for i, f in enumerate(js):
+            run = f.get("run")
+            if f.get("uses", "").startswith("actions/download-artifact@"):
+                at.setdefault("download", i)
+            if f.get("name") == CHECK_STEP:
+                at.setdefault("check", i)
+            if run == FETCH_RUN and f.get("env", {}).get("SHARD") == "${{ matrix.shard }}":
+                at.setdefault("fetch", i)
+            if run == SHARD_RUN and f.get("env", {}).get("SHARD") == "${{ matrix.shard }}":
+                at.setdefault("shard", i)
+            if f.get("id") == "sha" and run == SHA_RUN:
+                at.setdefault("sha", i)
+            if (
+                f.get("id") == "record"
+                and f.get("uses", "").startswith("actions/upload-artifact@")
+                and f.get("with", {}).get("path") == RECORD_UPLOAD_PATH
+                and f.get("with", {}).get("if-no-files-found") == "error"
+            ):
+                at.setdefault("record", i)
+            if f.get("id") == "out" and f.get("env") == OUT_ENV and run == OUT_RUN:
+                at.setdefault("out", i)
+        order = ["download", "check", "fetch", "shard", "sha", "record", "out"]
+        if any(k not in at for k in order) or [at[k] for k in order] != sorted(
+            at[k] for k in order
+        ):
+            missing = [k for k in order if k not in at]
+            errors.append(
+                f"rule 4: {job} does not run download, check, fetch, shard, sha, record, out in "
+                f"order, with their fixed texts (missing or other: {missing or 'the order'})"
+            )
+        if re.search(r"\|\||set \+e", "\n".join(str(f.get("run", "")) for f in js)):
+            errors.append(f"rule 4: a step of {job} swallows a failure (|| or set +e)")
+        outputs = _job_map(lines, "outputs")
+        expect = {}
+        for name in want:
+            expect[f"{name}-id"] = f"${{{{ steps.out.outputs.{name}-id }}}}"
+            expect[f"{name}-sha256"] = f"${{{{ steps.out.outputs.{name}-sha256 }}}}"
+        if outputs != expect:
+            errors.append(
+                f"rule 5: {job}'s outputs are not <shard>-id and <shard>-sha256 of its shards"
+            )
+    if len(shapes) > 1:
+        errors.append("rule 3: the three judge jobs differ beyond their runner, system and lists")
+    # Rule 6: the build job judges its own shard and hands on its record and python.wasm's hash.
+    build = [f for _, f in steps.get("build", [])]
+    outputs = _job_map(jobs.get("build", []), "outputs")
+    runs = [str(f.get("run", "")).strip() for f in build]
+    upload_at = next(
+        (
+            i
+            for i, f in enumerate(build)
+            if f.get("uses", "").startswith("actions/upload-artifact@")
+            and f.get("with", {}).get("name") == "release-assets"
+        ),
+        None,
+    )
+    wasm = re.fullmatch(
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("wasm-sha256", "")
+    )
+    wasm_at = next((i for i, f in enumerate(build) if wasm and f.get("id") == wasm[1]), None)
+    rec = re.fullmatch(
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.artifact-id \}\}", outputs.get("record-id", "")
+    )
+    rec_step = next((f for f in build if rec and f.get("id") == rec[1]), {})
+    sha = re.fullmatch(
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("record-sha256", "")
+    )
+    sha_step = next((f for f in build if sha and f.get("id") == sha[1]), {})
+    other_pytest = [
+        r
+        for r in runs
+        if "uv run pytest" in r
+        and "--shard" not in r
+        and "-k test_source_tree_matches_its_tarball" not in r
+    ]
+    if (
+        BUILD_SHARD_RUN.strip() not in runs
+        or other_pytest
+        or wasm_at is None
+        or upload_at is None
+        or wasm_at > upload_at
+        or not re.search(r"(shasum -a 256|sha256sum) build/artifacts/python\.wasm", runs[wasm_at])
+        or rec_step.get("with", {}).get("path") != RECORD_UPLOAD_PATH
+        or str(sha_step.get("run", "")).strip() != SHA_RUN.strip()
+    ):
+        errors.append(
+            "rule 6: build does not run the build shard alone, hand on its record (record-id, "
+            "record-sha256) and python.wasm's SHA-256 made before the upload (wasm-sha256)"
+        )
+    # Rule 7: the gather holds no assets, downloads every record id by job, and runs gather.py.
+    gather = jobs.get("gather")
+    if gather is None:
+        errors.append("rule 7: no job gather")
+    else:
+        gs = [f for _, f in steps["gather"]]
+        if (
+            _job_field(gather, "runs-on") != "ubuntu-24.04"
+            or _job_field(gather, "timeout-minutes") != "15"
+            or _permission_set(gather) != {"contents: read"}
+            or not {"build", *JUDGE_JOBS} <= _needs(gather)
+            or _job_field(gather, "if") is not None
+            or _job_field(gather, "continue-on-error") is not None
+        ):
+            errors.append(
+                "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing build "
+                "and the three judge jobs, with no job-level if: or continue-on-error:"
+            )
+        downloads = [
+            f.get("with", {})
+            for f in gs
+            if f.get("uses", "").startswith("actions/download-artifact@")
+        ]
+        want_ids = {"build": ["${{ needs.build.outputs.record-id }}"]}
+        for job, (_, system) in JUDGE_JOBS.items():
+            want_ids[job] = [
+                f"${{{{ needs.{job}.outputs.{n}-id }}}}" for n in shards.on(plan, system)
+            ]
+        got = {
+            w.get("path", "").rstrip("/"): [x.strip() for x in w.get("artifact-ids", "").split(",")]
+            for w in downloads
+        }
+        want = {f"records/{job}": ids for job, ids in want_ids.items()}
+        if got != want or len(downloads) != len(want):
+            errors.append(
+                "rule 7: gather does not download exactly every record id, each job's into "
+                "records/<job>, and nothing else (never release-assets)"
+            )
+        step = next((f for f in gs if "tests/harness/gather.py" in str(f.get("run", ""))), {})
+        env = step.get("env", {})
+        want_env = {
+            "WASM_SHA256": "${{ needs.build.outputs.wasm-sha256 }}",
+            "RECORD_BUILD_BUILD": "${{ needs.build.outputs.record-sha256 }}",
+        }
+        for job, (_, system) in JUDGE_JOBS.items():
+            for n in shards.on(plan, system):
+                key = f"RECORD_{system}_{n}".upper().replace("-", "_")
+                want_env[key] = f"${{{{ needs.{job}.outputs.{n}-sha256 }}}}"
+        if not step or env != want_env:
+            errors.append(
+                "rule 7: gather's step does not run tests/harness/gather.py with exactly "
+                "WASM_SHA256 and every record's SHA-256 bound in env:"
+            )
+    # Rule 8: attest and publish need the gather; only the gather reads a record id.
+    for job in ("attest", "publish"):
+        if "gather" not in _needs(jobs.get(job, [])):
+            errors.append(f"rule 8: {job} does not need gather")
+    for job, lines in jobs.items():
+        if job != "gather" and RECORD_ID_OUTPUT.search("\n".join(lines)):
+            errors.append(f"rule 8: {job} reads a record id")
+    # Rule 9: verify runs no pytest.
+    if "pytest" in "\n".join(str(f.get("run", "")) for _, f in steps.get("verify", [])):
+        errors.append("rule 9: verify runs pytest")
+    # Rule 10: only build sets wasm-sha256, and only the gather reads it.
+    for job, lines in jobs.items():
+        body = "\n".join(lines)
+        if job != "gather" and "needs.build.outputs.wasm-sha256" in body:
+            errors.append(f"rule 10: {job} reads wasm-sha256")
+        if job != "build" and re.search(r"^      wasm-sha256:", body, re.M):
+            errors.append(f"rule 10: {job} sets wasm-sha256")
     return errors
 
 

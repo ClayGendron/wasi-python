@@ -52,6 +52,10 @@ the hard constraints, and it governs this file. Then `README.md` and
   carries uncommitted work.
 - **All project knowledge lives in this repo** under `context/`; no
   out-of-repo memory.
+- **Every package runs its own tests in the release** (spec 063). A
+  specification that adds a package adds its suite's groups under
+  `tests/upstream/` and to a shard in `tests/release_shards.toml`, or
+  says in `tests/upstream/packages.toml` why not yet; the judge checks it.
 
 ## Working autonomously
 

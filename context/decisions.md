@@ -8,6 +8,32 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 99, answered: CPython's own test suite gates 0.1.0 (2026-10-18)
+
+- **Asked:** 2026-10-18 (question 99: should CPython's own test suite gate a release? Source: spec
+  063, Decision 15 and Scope). Spec 063 makes every component of the artifact name its own suite and
+  runs numpy's and pandas' in every release; CPython's suite (`python -m test`) knows WASI but is
+  large, and was not measured.
+- **The owner, 2026-10-18:** "Gate 0.1.0 regardless".
+- **What follows:** CPython's own suite becomes release shards through its own specification, 065
+  (reserved in the roadmap), before 0.1.0. Until it lands, `python` is `later` in
+  `tests/upstream/packages.toml` with 065 as its closer (spec 063, Decision 15). A research memo
+  measuring a fast selection in the guest comes first (§5.1).
+
+### 98, answered: spec 063's builder dry-runs the release on its branch; changes move to pull requests (2026-10-18)
+
+- **Asked:** 2026-10-18 (question 98: may spec 063's builder push its branch and dispatch
+  `release.yml` on it before landing? Source: spec 063, Decision 18). Spec 063 runs the whole judge
+  on Linux and Windows for the first time; without a branch run, the first measurement would be the
+  lane's dry run on main, and a failure there would block the next tag.
+- **The owner, 2026-10-18:** "Yes, and we should also change the way we push to github: push
+  changes as a branch, create a PR to main that runs the tests."
+- **What follows:** at build time, spec 063's builder pushes its branch, dispatches the release
+  workflow on it as a dry run (never signs or publishes), fixes what Linux and Windows find, and
+  deletes the branch from GitHub after landing (spec 063, Decision 18, acceptance 10). The second
+  half, branches with a pull request to main that runs the tests, is spec 064's; spec 063 keeps its
+  judge jobs and gather reusable as pull-request checks (its Scope). AGENTS.md's push rule changes
+  with 064, not before.
 ### 34, answered: the snapshot pre-imports no package (2026-10-18)
 
 - **Asked:** 2026-10-17 (pre-import matplotlib?); reframed by the owner 2026-10-18: "make it true

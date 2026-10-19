@@ -726,7 +726,8 @@ Out:
   are absent. Before a release, someone should confirm that `history.jsonl` holds an accepted
   run of these checks on the release's artifact hash, as `three systems` does for platforms.
   Making that a rule is a later, build-class change to the release rules. This specification
-  only records it, in `context/progress/README.md`.
+  only records it, in `context/progress/README.md`. (Amended: spec 063 makes it the rule; the
+  release runs these checks in shards and its gather ties them to the lane's acceptance.)
 - **Other packages' suites** (matplotlib, scipy, tier A). Each package's own specification may
   add groups through this mechanism once it lands.
 - **Upstream notes** to pytest about `getuid` and `/dev/null` on WASI.

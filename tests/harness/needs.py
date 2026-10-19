@@ -110,6 +110,14 @@ def _compile_records() -> bool:
     return any((paths.BUILD / n / "compile_commands.json").is_file() for n in scan.MESON_BUILDS)
 
 
+def _descriptor_limit() -> bool:
+    """The host can lower a process's descriptor limit (RLIMIT_NOFILE): POSIX, not Windows. Spec
+    063's first Windows run found the one check that needs it skipping without a need."""
+    import importlib.util
+
+    return importlib.util.find_spec("resource") is not None
+
+
 def _source_tree(component: str) -> Callable[[], bool]:
     def met() -> bool:
         from harness import pins
@@ -127,6 +135,7 @@ SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflo
 SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md"
 SPEC_059 = "context/specifications/059-the-x86-64-rebuild-runs-natively.md"
 SPEC_071 = "context/specifications/071-deep-recursion-raises-recursionerror.md"
+SPEC_032 = "context/specifications/032-a-filesystem-provider.md"
 
 SOURCE_COMPONENTS = (
     "cpython",
@@ -170,6 +179,7 @@ VOCABULARY: dict[str, Need] = {
         Need("upstream kit", _upstream_kit, SPEC_050),  # tests/upstream/fetch.py fetches it
         Need("compile records", _compile_records, SPEC_059),
         Need("wasmtime cli", lambda: paths.wasmtime_cli() is not None, SPEC_071),
+        Need("descriptor limit", _descriptor_limit, SPEC_032),  # RLIMIT_NOFILE (spec 063)
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

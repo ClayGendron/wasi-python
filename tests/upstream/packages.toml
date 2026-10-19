@@ -1,0 +1,145 @@
+# Every component of the artifact names its own test suite, or why it does not run yet (spec 063,
+# Decision 15). One [package.<name>] per name in paths.PACKAGES, needs.SOURCE_COMPONENTS (cpython is
+# python, sqlite is sqlite-autoconf) and the linked runtimes; the judge checks it
+# (test_every_package_names_its_own_suite). Kinds:
+#   suite       its groups are in tests/upstream/<name>.toml and in a release shard
+#   via         its own suite cannot run here; `via` names what reaches it: a suite or later entry,
+#               python, or a module of stdlib_modules
+#   build-only  used only to compile another package; `reason`
+#   later       `reason`, and `closes_with` naming the specification (written or reserved in
+#               context/roadmap.md) that runs its suite
+# A specification that adds a package adds its entry (AGENTS.md).
+
+stdlib_modules = ["zlib", "bz2", "lzma", "sqlite3"]
+
+[package.numpy]
+kind = "suite"
+
+[package.pandas]
+kind = "suite"
+
+[package.python]
+kind = "later"
+reason = "CPython's own suite (python -m test) gates 0.1.0 (the owner, question 99); it is not run yet"
+closes_with = "spec 065"
+
+[package.wasi-libc]
+kind = "via"
+via = "python"
+
+[package.llvm-runtimes]
+# libc++, libc++abi, libunwind, compiler-rt: linked into every binary.
+kind = "via"
+via = "python"
+
+[package.zlib]
+kind = "via"
+via = "zlib"
+
+[package.bzip2]
+kind = "via"
+via = "bz2"
+
+[package.xz]
+kind = "via"
+via = "lzma"
+
+[package.sqlite-autoconf]
+kind = "via"
+via = "sqlite3"
+
+[package.freetype]
+kind = "via"
+via = "matplotlib"
+
+[package.harfbuzz]
+kind = "via"
+via = "matplotlib"
+
+[package.sheenbidi]
+kind = "via"
+via = "matplotlib"
+
+[package.libraqm]
+kind = "via"
+via = "matplotlib"
+
+[package.qhull]
+kind = "via"
+via = "matplotlib"
+
+[package.libxml2]
+kind = "via"
+via = "lxml"
+
+[package.libxslt]
+kind = "via"
+via = "lxml"
+
+[package.pybind11]
+kind = "build-only"
+reason = "headers that compile kiwisolver and matplotlib; nothing of its own runs in the guest"
+
+[package.cppy]
+kind = "build-only"
+reason = "headers that compile kiwisolver; nothing of its own runs in the guest"
+
+[package.matplotlib]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"
+
+[package.pillow]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"
+
+[package.kiwisolver]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"
+
+[package.fonttools]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.pyparsing]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.cycler]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.packaging]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.python-dateutil]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.six]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.tzdata]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.lxml]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"
+
+[package.regex]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned)"
+closes_with = "spec 066"

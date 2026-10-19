@@ -55,6 +55,8 @@ class State:
     crashed: dict[str, str] = field(default_factory=dict)  # failed reports carrying no record
     collections: int = 0  # workers that handed their collection over (the build review, F7)
     worker_foreign: list[str] = field(default_factory=list)  # what steered a worker (F2)
+    shard_items: int | None = None  # under --shard: the items it selected (spec 063, Decision 1)
+    shard_units: list[str] = field(default_factory=list)  # under --shard: its unit tests
 
 
 STATE = pytest.StashKey[State]()
@@ -103,6 +105,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
     g.addoption("--progress-latest", metavar="FILE", help="where the run record is written")
     g.addoption("--known-gaps", metavar="FILE", help="the known gaps file")
+    g.addoption("--shard", metavar="NAME", help="run one shard of the release's plan (spec 063)")
+    g.addoption("--shard-plan", metavar="FILE", help="the shard plan (tests/release_shards.toml)")
 
 
 def _opt(config: pytest.Config, name: str):
@@ -202,6 +206,10 @@ def pytest_configure(config: pytest.Config) -> None:
     gaps_file = _opt(config, "--known-gaps")
     gaps, errors = load_gaps(Path(gaps_file) if gaps_file else paths.KNOWN_GAPS)
     config.stash[STATE] = State(gaps=gaps, gap_errors=errors)
+    if not is_worker(config):
+        refusal = shard_refusal(config)
+        if refusal:
+            pytest.exit(refusal, returncode=4)  # before collection (spec 063, Decision 1)
     config.stash[WORKERS] = len(config.option.tx) if distributing(config) else 0
     if distributing(config):
         config.pluginmanager.register(Controller(config), "wasi_python.controller")
@@ -238,6 +246,50 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                     reason=f"gap: {gap.reason}",
                 )
             )
+
+    shard = _opt(config, "--shard")
+    if shard:  # after every area is recorded, so a check outside the shard is `deselected`
+        from harness import shards
+
+        plan = shards.load(shard_plan(config))
+        mine = set(shards.select([i.nodeid for i in items], plan, shards.group_of())[shard])
+        kept = [i for i in items if i.nodeid in mine]
+        out = [i for i in items if i.nodeid not in mine]
+        if out:
+            config.hook.pytest_deselected(items=out)
+            items[:] = kept
+        state.shard_items = len(kept)
+        state.shard_units = [i.nodeid for i in kept if area_of(i) is None]
+
+
+def shard_plan(config: pytest.Config) -> Path:
+    from harness import shards
+
+    f = _opt(config, "--shard-plan")
+    return Path(f) if f else shards.PLAN
+
+
+def shard_refusal(config: pytest.Config) -> str | None:
+    """Why `--shard` is refused before anything runs: a shard is one serial, unaccepted,
+    whole-plan selection of a name the plan holds (spec 063, Decision 1)."""
+    name = _opt(config, "--shard")
+    if not name:
+        return None
+    from harness import shards
+
+    try:
+        plan = shards.load(shard_plan(config))
+    except (OSError, KeyError, TypeError, ValueError) as e:
+        return f"refused: --shard {name}: the plan does not load ({e})"
+    if name not in plan:
+        return f"refused: --shard {name}: the plan holds no such shard"
+    if getattr(config.option, "numprocesses", None):
+        return f"refused: --shard {name} with -n: a shard runs serially (spec 063, Decision 4)"
+    if _opt(config, "--accept") or _opt(config, "--retire"):
+        return f"refused: --shard {name} with --accept or --retire: only the lane accepts"
+    if any("::" in arg for arg in config.args):
+        return f"refused: --shard {name} with a node id: a shard selects from the whole judge"
+    return None
 
 
 def pytest_deselected(items: list[pytest.Item]) -> None:
@@ -742,9 +794,18 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     meta["partial"] = partial
     meta["overrides"] = [
         f"{o} {_opt(config, o)}"
-        for o in ("--progress-dir", "--known-gaps", "--progress-latest")
+        for o in ("--progress-dir", "--known-gaps", "--progress-latest", "--shard-plan")
         if _opt(config, o)
     ]
+    shard = _opt(config, "--shard")
+    meta["shard"] = shard or None
+    if shard:  # spec 063, Decision 1: what a gather compares with the plan's share
+        from harness import shards
+
+        meta["units"] = {
+            "count": len(state.shard_units),
+            "digest": shards.units_digest(state.shard_units),
+        }
     addopts = os.environ.get("PYTEST_ADDOPTS", "").strip()
     if addopts:
         meta["overrides"].append(f"PYTEST_ADDOPTS {addopts}")
@@ -778,6 +839,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         red.append("steered from outside the judge: " + "; ".join(foreign[:3]))
     if state.gap_errors:
         red.append("tests/known_gaps.toml: " + "; ".join(state.gap_errors))
+    if shard and not state.shard_items:
+        red.append(f"shard {shard} selected nothing")
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
 
     latest = latest_path(config)
     latest.parent.mkdir(parents=True, exist_ok=True)

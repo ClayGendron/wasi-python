@@ -526,3 +526,37 @@ def test_the_pre_import_list_is_the_stdlib_bootstrap() -> None:
     if PREIMPORT_COPY.search(writer):
         hits.append("scripts/assemble_artifacts.py: carries its own PREIMPORT list")
     assert not hits, scan.report(hits)
+
+
+def test_release_shards_cover_the_judge() -> None:
+    """The release's shard plan holds every test file and every upstream group: one rest shard
+    takes what no other names, every group is in one Linux shard, our own shards run on all three
+    systems, and no system runs a group twice (spec 063, Decision 2)."""
+    from harness import shards, upstream
+
+    groups = [g for c in upstream.load_all().values() for g in c.groups]
+    files = shards.test_files(paths.tracked_files("tests"))
+    errors = shards.plan_errors(shards.load(), files, groups)
+    assert not errors, scan.report(errors)
+
+
+def test_every_package_names_its_own_suite() -> None:
+    """Every component of the artifact (paths.PACKAGES, the source components, the linked
+    runtimes) runs its own suite in the release, or says what reaches it, that it only builds
+    another, or which specification will run it (spec 063, Decision 15)."""
+    from harness import shards, upstream
+
+    raw = tomllib.loads(shards.PACKAGES_FILE.read_text())
+    suites = {p: len(c.groups) for p, c in upstream.load_all().items()}
+    errors = shards.package_errors(raw, shards.components(), suites)
+    assert not errors, scan.report(errors)
+
+
+def test_release_judges_in_shards() -> None:
+    """The release runs every shard of the plan in its system's judge job, hands on each record's
+    id and SHA-256, and publishes nothing until the gather, which holds no assets, has read every
+    record (spec 063, Decisions 6 to 9 and 13)."""
+    from harness import shards
+
+    errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())
+    assert not errors, scan.report(errors)
