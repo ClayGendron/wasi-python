@@ -1,6 +1,9 @@
 # 086 — The toolchain moves to wasi-sdk 34
 
-- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes): every criterion but
+- **Status:** **built 2026-10-19** on main `3866f56` (the Landing notes); **build review**
+  (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-build-2026-10-19.md`, in the lane's
+  scratchpad): "lands once the A/B is done on 083's base and B1 is run and written in"; B1 to
+  B3 and N1 are done ("Disposition of the build review"): every criterion but
   Decision 9's A/B, which is measured once 083 has landed (the lane's instruction), and the dry
   run, which follows the landing. **Confirmed for build** at `663bc15` (the review's addendum,
   "ready to build"). Before that: drafted 2026-10-19 on `spec/086-wasi-sdk-34` from main
@@ -664,7 +667,10 @@ is done.
    (13 and 51); with no clang under `build/tools`: "no build/tools/wasi-sdk-*/bin/clang: nothing
    was compiled". (b) on the 34 set without the refusal: `os.dup(1) EINVAL`, both binaries. (c)
    on the 33 tree: the ten `HAVE_*` lines, nothing else. Then each passes on 34
-   (`seen-failing.txt`).
+   (`seen-failing.txt`). (c)'s digest half, the amendment at build, was seen failing by the build
+   review (its section 3, EXECUTED there): `HAVE_SYS_STATVFS_H 0` planted in a copy's `pyconfig.h`
+   gave "a line holding a reserved word moved: digest a4d4a837…, not d8eefd30…", and the restored
+   header passed (the build review's B3).
 2. **The pins.** `downloads: 49 pins, 49 fetched, 49 verified` from empty `downloads/` on macOS;
    the containers verify the Linux pins (6 fetched, 49 verified each). No `33.0`, `161b3195` or
    `4434dabb` remains in `scripts/`, `recipes/` or `SHA256SUMS`; one sentence of history in the
@@ -673,11 +679,17 @@ is done.
    container once: one `SHA256SUMS`, `aac927dc…`, all five (memo, section 2). Check (a) passes on the macOS, aarch64 Linux and x86_64 Linux clangs.
 4. **The surface.** The probe's diff is the accepted list plus `sysconfig` `LIBOBJS`
    (`Python/dup2$U.o` → empty), traced to `HAVE_DUP2` (`AC_REPLACE_FUNCS([dup2])`): a build
-   variable, accepted here, not a README fact. The other libraries' configure headers and probes
+   variable, accepted here, not a README fact. Two values move too, found by the build review's
+   value probe (its B2) and confirmed here (EXECUTED, both binaries): `sys.version` and
+   `platform.python_compiler()` name `Clang 23.1.0-wasi-sdk (… 895aa2c8…)` where they named
+   Clang 22.1.0, as a toolchain move must, accepted; and `time.CLOCK_MONOTONIC` and
+   `time.CLOCK_REALTIME` are 22668564 and 22668568 (22664664 and 22664668 on main's set, the
+   review's figures): wasi-libc's clock ids are the addresses of static objects, so they move with
+   the data segment (0xF00 here), accepted, and the README question is for the owner. The other libraries' configure headers and probes
    are unchanged (memo, section 5). The full judge's goldens, classes, trap entries and allowances
    pass unchanged; numpy-core's `no-dup` classes match `Errno 58`; the imports are the same 43.
 5. **Before landing, in the containers.** linux/arm64: 49 hostile checks pass; `cpython-a`, `-b`
-   and `-c` pass with their 16 gaps; checks (a) and (c) pass. linux/amd64: the same 49 hostile checks pass on Cranelift's x86-64 code (every recursion floor, the 128 KiB window, the deep-data limits); `cpython-a`, `-b` and `-c` pass with their 16 gaps; checks (a) and (c) pass on the x86_64 Linux clang. Neither container printed "trap entries with no trap here", which the darwin judge prints for `c-stack-itertools-tee`: on both Linux hosts every open trap entry trapped as named. 087 has
+   and `-c` pass with their 16 gaps; checks (a) and (c) pass. linux/amd64: the same 49 hostile checks pass on Cranelift's x86-64 code (every recursion floor, the 128 KiB window, the deep-data limits); `cpython-a`, `-b` and `-c` pass with their 16 gaps; checks (a) and (c) pass on the x86_64 Linux clang. Spec 065's nine trap-entry checks (`-k test_upstream_trap`) were not in that first run, which selected only the groups and their classes, so it showed nothing about them (the build review's B1). They were run afterwards in both containers, on the same set (`SHA256SUMS` `aac927dc…`, copied in; `run-086-traps.sh`, `traps-linux-*.txt`): on linux/amd64 all nine trap as named, `c-stack-itertools-tee` included ("trap at or after test.test_itertools.TestPurePythonRoughEquivalents.test_tee_recipe"); on linux/arm64 eight trap as named and `c-stack-itertools-tee` reports "no trap on this host", as on darwin, which an open entry accepts (it traps on Linux x86-64 only). Each stays a gap closed by 078. 087 has
    not landed, so its x86-64 edge is not re-measured here. The darwin depths of all fifteen README
    rows are the same on both sets (memo, section 6), so the README's depth rows stand.
 6. **Decision 9's table and A/B**: preliminary only, against `accepted.json` (memo, section 7):
@@ -695,7 +707,8 @@ is done.
 
 ### For the lane
 
-- Rebase onto main once 083 has landed; the builder then rebuilds, runs the A/B (main's set
+- Rebase onto main once 089 (the stage seal) and then 083 have landed (the lane's order,
+  2026-10-19); the builder then rebuilds, runs the A/B (main's set
   rebuilt on that base against 086's set, the same judge commit, one machine), does numpy-core's
   test-by-test trace under Decision 9's rule, and writes the growth reason.
 - The flags, then: `--accept "<spec 086: wasi-sdk 34 (clang 23.1.0, wasi-libc 2e6fb9d8): every
@@ -716,6 +729,13 @@ is done.
      answers `ENOTSUP` for its two dup commands on preview1, as its `dup` does. The facts sheet,
      `upstream/25-wasi-libc-fcntl-dupfd/`, is yours to send. **Recommendation: send it once 086
      lands**; the fix is one line, and it lets the refusal go.
+   - **Clock ids are not stable across releases.** `time.CLOCK_MONOTONIC` and
+     `time.CLOCK_REALTIME` are wasi-libc data addresses, so their numbers change whenever the data
+     segment moves (by 0xF00 in this move); a program that stored a number instead of using the
+     name would pass the wrong id to a later release. **Recommendation: add one README platform
+     fact** ("the `time.CLOCK_*` ids are addresses that change between releases; use the names"),
+     in 086's README edit if you agree, since it costs one sentence and the platform facts exist to
+     say such things (constitution §4.11).
    - **numpy-core's fuel moves with memory layout.** 073 measured it; 086's control (Decision 9)
      will say how much of its +2.645% is the same. If it is, a later judge-side look at that one
      group's fuel, outside 086, may be worth a question. Nothing to decide now.
@@ -766,3 +786,25 @@ to be fixed or answered. The lane ruled on each; all are written in.
   are not 086's.
 - **N2.** One README line (Decision 11).
 - **N3, N4.** No action.
+
+## Disposition of the build review (2026-10-19)
+
+The review (`../reviews/086-the-toolchain-moves-to-wasi-sdk-34-build-2026-10-19.md`, in the lane's
+scratchpad, copied by the lane) confirmed the bytes, the refusal, the checks and the record, and
+said "lands once the A/B is done on 083's base and B1 is run and written in".
+
+- **B1 (medium), the trap entries were not run in the containers.** Run in both, on the same set
+  (EXECUTED, `../research/2026-10-19-the-toolchain-move-evidence/traps-linux-*.txt`): all nine trap
+  as named on linux/amd64, `c-stack-itertools-tee` included; eight on linux/arm64, with
+  `c-stack-itertools-tee` "no trap on this host", as on darwin. The landing notes' and the memo's
+  unsupported sentence is replaced by these facts. No entry failed to trap where it should.
+- **B2 (low), two more values.** `sys.version` naming Clang 23.1.0 is on the accepted list, and the
+  clock ids' move (wasi-libc data addresses, 0xF00 with the data segment) is in the memo and the
+  criterion 4 notes; the README line is put to the owner with a recommendation.
+- **B3 (low), check (c)'s digest half.** Its seen-failing is the review's planted run, cited in
+  criterion 1.
+- **N1.** The facts sheet's last line now says the row is in the table.
+- **N2.** Noted: a copy of a built tree cannot pass `test_every_build_python_is_pinned`.
+- **Still to come:** the A/B on the landing base, with a delta review if its numbers move beyond
+  the preliminary table's.
+

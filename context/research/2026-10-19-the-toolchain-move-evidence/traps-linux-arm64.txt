@@ -1,0 +1,15 @@
+uname: Linux 7.0.12-linuxkit aarch64
+commit: bd3e5211fc7ea94fb72ff2ea1f38c69bc95bbd7c
+Python-3.15.0.tar.xz: OK
+set: aac927dc826a9bd0d2f09aec77bf589991565dc9eb531daaa66772919e38c86f  SHA256SUMS
+trap entries with no trap here: c-stack-itertools-tee
+9 xfailed in 24.66s
+test_upstream_trap[c-stack-doctest] gap | trap at or after test.test_doctest.test_doctest.TestDocTestFinder.test_issue35753 | {}
+test_upstream_trap[c-stack-exceptions] gap | trap at or after test.test_exceptions.ExceptionTests.test_recursion_in_except_handler | {}
+test_upstream_trap[c-stack-itertools-tee] gap | no trap on this host | {'passed': 1}
+test_upstream_trap[c-stack-ordered-dict-py-subclass] gap | trap at or after test.test_ordered_dict.PurePythonOrderedDictSubclassTests.test_highly_nested | {}
+test_upstream_trap[c-stack-ordered-dict-py] gap | trap at or after test.test_ordered_dict.PurePythonOrderedDictTests.test_highly_nested | {}
+test_upstream_trap[c-stack-ordered-dict-subclass] gap | trap at or after test.test_ordered_dict.CPythonOrderedDictSubclassTests.test_highly_nested | {}
+test_upstream_trap[c-stack-syntax-lazy-import] gap | trap at or after test.test_syntax.LazyImportRestrictionTestCase.test_error_on_parser_stack_overflow | {}
+test_upstream_trap[c-stack-syntax] gap | trap at or after test.test_syntax.SyntaxErrorTestCase.test_error_on_parser_stack_overflow | {}
+test_upstream_trap[c-stack-traceback] gap | trap at or after test.test_traceback.CExcReportingTests.test_exception_group_depth_limit | {'error': 12}

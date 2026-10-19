@@ -14,5 +14,4 @@
   numpy-core's group with it (passes, its classes matching). Spec 086's check
   `test_dup_is_refused_as_not_supported` holds the answer.
 - **Not run:** a wasi-libc rebuilt with the fix (none was built).
-- **README row, for when this lands** (for `context/upstream/README.md`'s table):
-  `| 25-wasi-libc-fcntl-dupfd/ | wasi-libc | on wasip1 the header defines F_DUPFD and F_DUPFD_CLOEXEC, but fcntl answers them EINVAL while dup answers ENOTSUP | a facts sheet; spec 086 answers them ENOTSUP by a recipe until a wasi-sdk carries the fix |`
+- **README row:** in `context/upstream/README.md`'s table since spec 086's build.

@@ -9,7 +9,8 @@
 
 Labels: **EXECUTED** (run here), **READ**, **INFERRED**. Every number has its file beside it. The
 files here are 086's own: `surface_probe.py`, `readme_edges.py`, `fuel_moves.py`,
-`wasm_sections.py`, `run-086-container.sh`, `control/`, `sha256sums/`, and the outputs named below.
+`wasm_sections.py`, `run-086-container.sh`, `run-086-traps.sh`, `control/`, `sha256sums/`, and
+the outputs named below.
 
 ## 1. The checks, seen failing first (EXECUTED, `seen-failing.txt`)
 
@@ -55,7 +56,11 @@ diff, on each binary: `posix` gains `dup2` and `pipe2`, `select` gains `PIPE_BUF
 from `Python/dup2$U.o` to empty. Nothing else. The `LIBOBJS` line follows from `HAVE_DUP2`:
 configure compiles CPython's replacement `dup2` only when the libc lacks one (READ,
 `configure.ac:5882`, `AC_REPLACE_FUNCS([dup2])`). It is a build variable; no program behaviour
-reads it.
+reads it. Two values the probe does not compare move as well (the build review's B2, confirmed
+here, EXECUTED, `b2-version-clocks.txt`): `sys.version` names Clang 23.1.0, and
+`time.CLOCK_MONOTONIC` and `time.CLOCK_REALTIME` are 22668564 and 22668568 (22664664 and 22664668
+on main's set): in wasi-libc a `clockid_t` is the address of a static object (INFERRED from the
+values moving with the data segment), so both ids moved 0xF00 with it.
 
 ## 5. The other libraries' configure results (EXECUTED, `configure-diff-without-paths.txt`)
 
@@ -100,7 +105,7 @@ it explains is the A/B's question (Decision 9), asked on the landing base.
 - **linux/arm64:** the hostile guest's stack-overflow, recursion, deep-list, window, deep-data and
   dup checks: 49 passed. The CPython suites `cpython-a`, `cpython-b` and `cpython-c` pass; their 16
   classes and trap entries stand as gaps. Checks (a) and (c) pass on the aarch64 Linux clang.
-- **linux/amd64 (Rosetta):** the same 49 hostile checks pass on Cranelift's x86-64 code (every recursion floor, the 128 KiB window, the deep-data limits); `cpython-a`, `-b` and `-c` pass with their 16 gaps; checks (a) and (c) pass on the x86_64 Linux clang. Neither container printed "trap entries with no trap here", which the darwin judge prints for `c-stack-itertools-tee`: on both Linux hosts every open trap entry trapped as named.
+- **linux/amd64 (Rosetta):** the same 49 hostile checks pass on Cranelift's x86-64 code (every recursion floor, the 128 KiB window, the deep-data limits); `cpython-a`, `-b` and `-c` pass with their 16 gaps; checks (a) and (c) pass on the x86_64 Linux clang. Spec 065's nine trap-entry checks (`-k test_upstream_trap`) were not in that first run, which selected only the groups and their classes, so it showed nothing about them (the build review's B1). They were run afterwards in both containers, on the same set (`SHA256SUMS` `aac927dc…`, copied in; `run-086-traps.sh`, `traps-linux-*.txt`): on linux/amd64 all nine trap as named, `c-stack-itertools-tee` included ("trap at or after test.test_itertools.TestPurePythonRoughEquivalents.test_tee_recipe"); on linux/arm64 eight trap as named and `c-stack-itertools-tee` reports "no trap on this host", as on darwin, which an open entry accepts (it traps on Linux x86-64 only). Each stays a gap closed by 078.
 
 One line: wasi-sdk 34 gives one `SHA256SUMS` from every host tried, the guest sees three new
 failing functions and one constant, and no depth moved; numpy-core's fuel moves with `bool`'s
