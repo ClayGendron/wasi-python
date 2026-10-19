@@ -1,0 +1,12 @@
+start 15:33:14 mode=on writer=no
+=================================== FAILURES ===================================
+    watch.after(files.facts.litter)  # and after it: a voided run raises HostLitter
+>           raise HostLitter(_message(sorted(set(problems))))
+E           harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /usr/local/lib/python315.zip vanished during the run (litter such as .DS_Store comes from Finder or System Settings' storage scan; see the spec on host litter)
+tests/harness/litter.py:150: HostLitter
+wasi_python v1: 0/1 pass · 0 gap · 0 blocked · 1 fail   (unit suite 0/0)
+FAIL tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives] — harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /usr/local/lib/python315.zip vanished d
+LOST tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+FAILED tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+======================== 1 failed in 491.43s (0:08:11) =========================
+end 15:41:27 exit=0

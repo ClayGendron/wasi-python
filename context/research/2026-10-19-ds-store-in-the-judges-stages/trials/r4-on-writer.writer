@@ -1,0 +1,12 @@
+15:41:59 stages=1 folders=5 wrote=0 refused=0
+15:41:59 stages=2 folders=6 wrote=1 refused=0
+15:42:00 stages=2 folders=6 wrote=0 refused=0
+15:42:00 stages=2 folders=6 wrote=0 refused=0
+15:42:00 stages=2 folders=32 wrote=26 refused=0
+15:42:00 stages=2 folders=126 wrote=94 refused=0
+15:42:01 stages=2 folders=177 wrote=51 refused=0
+15:42:01 stages=2 folders=177 wrote=0 refused=0
+...
+15:47:24 stages=1 folders=5 wrote=0 refused=0
+15:47:24 stages=1 folders=5 wrote=0 refused=0
+15:47:24 stages=1 folders=5 wrote=0 refused=0

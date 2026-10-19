@@ -1,0 +1,455 @@
+diff --git a/tests/checks/conftest.py b/tests/checks/conftest.py
+index ed2129a..1b466a4 100644
+--- a/tests/checks/conftest.py
++++ b/tests/checks/conftest.py
+@@ -3,7 +3,6 @@ driver."""
+ 
+ from __future__ import annotations
+ 
+-import shutil
+ import tempfile
+ from collections.abc import Callable
+ from dataclasses import dataclass
+@@ -11,7 +10,7 @@ from pathlib import Path
+ 
+ import pytest
+ 
+-from harness import needs, paths
++from harness import litter, needs, paths
+ 
+ BINARIES = {"plain": "python.wasm", "snapshot": "python-snapshot.wasm"}
+ CACHE_ENV = "WASI_PYTHON_CACHE"
+@@ -62,7 +61,7 @@ def guest_workdir():
+     paths.HARNESS_TMP.mkdir(parents=True, exist_ok=True)
+     d = Path(tempfile.mkdtemp(prefix="guest-", dir=paths.HARNESS_TMP))
+     yield d
+-    shutil.rmtree(d, ignore_errors=True)
++    litter.remove(d)  # its matplotlib data is sealed (host litter)
+ 
+ 
+ @pytest.fixture
+diff --git a/tests/harness/guest.py b/tests/harness/guest.py
+index 5bdee77..9d5dc7b 100644
+--- a/tests/harness/guest.py
++++ b/tests/harness/guest.py
+@@ -32,7 +32,7 @@ from typing import Any
+ 
+ import wasmtime as wt
+ 
+-from harness import paths
++from harness import litter, paths
+ 
+ DEFAULT_FUEL = 2 * 10**11
+ WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
+@@ -169,6 +169,7 @@ def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
+             inner = io.BytesIO(outer.read(MPL_DATA_MEMBER))
+         with zipfile.ZipFile(inner) as z:
+             z.extractall(dest)
++        litter.seal(dest)  # read-only for every run that shares it (host litter)
+         _mpl_data[key] = dest
+     return _mpl_data[key]
+ 
+@@ -254,6 +255,7 @@ class FileFacts:
+         self.now = now
+         self.inos: dict[int, int] = {}
+         self.times: dict[int, list[tuple[int, int]]] = {}
++        self.litter: set[str] = set()  # litter names a listing handed the guest (host litter)
+ 
+     def ino(self, real: int) -> int:
+         return 0 if real == 0 else self.inos.setdefault(real, len(self.inos) + 1)
+@@ -307,6 +309,9 @@ class FileFacts:
+                 return
+             d_next, ino, namlen, kind = DIRENT.unpack_from(data, at)
+             DIRENT.pack_into(data, at, d_next, self.ino(ino), namlen, kind)
++            name = bytes(data[at + DIRENT.size : at + DIRENT.size + namlen])
++            if len(name) == namlen and litter.is_litter(name.decode("utf-8", "replace")):
++                self.litter.add(name.decode("utf-8", "replace"))
+             at += DIRENT.size + namlen
+ 
+ 
+@@ -576,6 +581,7 @@ def run(
+         name = stdlib_name(python_version or "", stdlib)
+         data = mpl_data_dir(stdlib, workdir)
+         ordered.insert(1, (str(data), f"/usr/local/lib/{name}/matplotlib/mpl-data", False))
++    watch = litter.Watch(ordered)  # host litter: before the run (spec draft)
+     for host_dir, guest_path, writable in ordered:
+         wasi.preopen_dir(host_dir, guest_path, writable)
+     wasi.stdout_file = str(io / "stdout")
+@@ -683,7 +689,10 @@ def run(
+         root=root,
+         trap_cause=cause,
+     )
+-    _release(store, lib)
++    try:
++        watch.after(files.facts.litter)  # and after it: a voided run raises HostLitter
++    finally:
++        _release(store, lib)
+     return result
+ 
+ 
+diff --git a/tests/harness/litter.py b/tests/harness/litter.py
+new file mode 100644
+index 0000000..01c17d2
+--- /dev/null
++++ b/tests/harness/litter.py
+@@ -0,0 +1,186 @@
++"""Host litter: files a host process drops into a folder the guest sees (prototype, spec draft).
++
++macOS writes `.DS_Store` files into folders it sizes or shows (Finder, and System Settings'
++storage scan, through DesktopServices), as the user, at any time. A file that appears in a grant
++while a guest runs changes what the guest lists and the folder's times, and so its fuel. Two
++defences, neither of which ever hides a file from a check:
++
++- A read-only stage is sealed: every folder in it loses its write bits once it is staged, so no
++  process of the user's can add a file to it. It is unsealed only to be removed.
++- Every guest run is watched: each granted folder is scanned for litter before and after the run,
++  a read-only grant must hold exactly the same entries after the run as before, and any litter
++  name the guest is handed by `fd_readdir` voids the run. A voided run raises `HostLitter`, which
++  names the file; it is never filtered out, retried or ignored.
++"""
++
++from __future__ import annotations
++
++import os
++import shutil
++import stat
++import sys
++from collections.abc import Iterable
++from pathlib import Path
++
++from harness import paths
++
++# PROTOTYPE ONLY: P_LITTER=off (neither defence), watch (no seal), on (both; the default).
++MODE = os.environ.get("P_LITTER", "on")
++
++# What an operating system or its helpers leave in folders on their own (never a source file):
++# spec 018's OS_LITTER, widened by the spec draft (AppleDouble `._x` files are matched by prefix).
++LITTER_NAMES = frozenset(
++    {
++        *paths.OS_LITTER,  # .DS_Store, Thumbs.db, desktop.ini
++        ".Spotlight-V100",  # Spotlight's index, at a volume's root
++        ".fseventsd",  # the file system event log, at a volume's root
++        ".Trashes",
++        ".TemporaryItems",
++        ".DocumentRevisions-V100",
++        ".apdisk",
++        "Icon\r",  # a folder's custom icon
++        "ehthumbs.db",
++    }
++)
++
++
++def is_litter(name: str) -> bool:
++    """True for a name only an operating system leaves (AppleDouble `._x` files included)."""
++    return name in LITTER_NAMES or name.startswith("._")
++
++
++class HostLitter(AssertionError):
++    """A file no check put there appeared in a folder the guest sees: the run proves nothing."""
++
++
++def litter_in(root: Path) -> list[str]:
++    """Every litter entry under `root`, relative to it, sorted; symlinks are not followed."""
++    found: list[str] = []
++    for d, dirs, files in os.walk(root):
++        for name in (*dirs, *files):
++            if is_litter(name):
++                found.append(Path(d, name).relative_to(root).as_posix())
++    return sorted(found)
++
++
++def inventory(root: Path) -> frozenset[str]:
++    """Every entry under `root`, relative to it (a folder with a trailing slash)."""
++    out: set[str] = set()
++    for d, dirs, files in os.walk(root):
++        rel = Path(d).relative_to(root)
++        out |= {(rel / n).as_posix() + "/" for n in dirs}
++        out |= {(rel / n).as_posix() for n in files}
++    return frozenset(out)
++
++
++def _folders(root: Path) -> Iterable[str]:
++    for d, _dirs, _files in os.walk(root):
++        yield d
++
++
++def seal(root: Path) -> list[str]:
++    """Take the write bits off every folder under `root` (and `root`), so no process of this user
++    can add, remove or rename an entry in it. Then remove litter that landed while the stage was
++    being written (it was never staged, and no guest has run): each one's folder is opened for the
++    unlink alone, and the scan repeats until it finds none. Returns what was removed, for the
++    run's record. On Windows, where a folder's mode does not stop a write, nothing is sealed."""
++    if MODE != "on":
++        return []
++    _set_writable(root, False)
++    removed: list[str] = []
++    for _ in range(10):
++        found = litter_in(root)
++        if not found:
++            return removed
++        for rel in reversed(found):
++            p = root / rel
++            _set_writable(p.parent, True, deep=False)
++            try:
++                if p.is_dir() and not p.is_symlink():
++                    unseal(p)
++                    shutil.rmtree(p)
++                else:
++                    p.unlink()
++            finally:
++                _set_writable(p.parent, False, deep=False)
++        removed += found
++    raise HostLitter(_message([f"{rel} keeps coming back while sealing" for rel in found]))
++
++
++def _set_writable(root: Path, on: bool, *, deep: bool = True) -> None:
++    if sys.platform == "win32":
++        return
++    for d in _folders(root) if deep else (str(root),):
++        mode = stat.S_IMODE(os.lstat(d).st_mode)
++        bits = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
++        os.chmod(d, mode | stat.S_IWUSR if on else mode & ~bits)
++
++
++def unseal(root: Path) -> None:
++    """Give every folder under `root` its owner's write bit back."""
++    if sys.platform == "win32" or not root.exists():
++        return
++    for d in _folders(root):
++        mode = stat.S_IMODE(os.lstat(d).st_mode)
++        os.chmod(d, mode | stat.S_IWUSR)
++
++
++def remove(root: Path) -> None:
++    """Unseal, then remove, a stage (a sealed folder cannot be emptied). A writer can refill a
++    folder between the unlink of its last entry and its own removal, as spec 018 found for the
++    build's `rm -rf`, so the removal is tried again, five times at most. What is still left then is
++    never read again: every stage has a fresh name."""
++    for _ in range(5):
++        try:
++            unseal(root)
++        except OSError:
++            pass
++        shutil.rmtree(root, ignore_errors=True)
++        if not root.exists():
++            return
++
++
++class Watch:
++    """One guest run's grants, looked at before and after the run.
++
++    `grants` are (host folder, guest path, writable). A read-only grant must list the same entries
++    after the run as before; no grant may hold litter before or after; and the guest must never
++    have been handed a litter name by `fd_readdir` (`seen`, filled by the driver)."""
++
++    def __init__(self, grants: Iterable[tuple[str, str, bool]]) -> None:
++        self.grants = [(Path(h), g, w) for h, g, w in grants] if MODE != "off" else []
++        self.before: dict[str, frozenset[str]] = {}
++        problems: list[str] = []
++        for host, guest, writable in self.grants:
++            problems += [f"{_join(guest, rel)} (before the run)" for rel in litter_in(host)]
++            if not writable:
++                self.before[guest] = inventory(host)
++        if problems:
++            raise HostLitter(_message(problems))
++
++    def after(self, seen: Iterable[str]) -> None:
++        if MODE == "off":
++            return
++        problems = [f"{name!r} handed to the guest by fd_readdir" for name in sorted(set(seen))]
++        for host, guest, writable in self.grants:
++            problems += [f"{_join(guest, rel)} (after the run)" for rel in litter_in(host)]
++            if not writable:
++                now = inventory(host)
++                old = self.before[guest]
++                problems += [f"{_join(guest, rel)} appeared during the run" for rel in now - old]
++                problems += [f"{_join(guest, rel)} vanished during the run" for rel in old - now]
++        if problems:
++            raise HostLitter(_message(sorted(set(problems))))
++
++
++def _join(guest: str, rel: str) -> str:
++    return guest.rstrip("/") + "/" + rel
++
++
++def _message(problems: list[str]) -> str:
++    shown = problems[:8] + ([f"and {len(problems) - 8} more"] if len(problems) > 8 else [])
++    return (
++        "a host process changed a folder the guest sees, so this run's outcome and fuel prove"
++        " nothing: " + "; ".join(shown) + " (litter such as .DS_Store comes from Finder or"
++        " System Settings' storage scan; see the spec on host litter)"
++    )
+diff --git a/tests/harness/regrtest.py b/tests/harness/regrtest.py
+index 6d6f40d..496fcef 100644
+--- a/tests/harness/regrtest.py
++++ b/tests/harness/regrtest.py
+@@ -22,7 +22,7 @@ from collections import Counter
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ 
+-from harness import paths
++from harness import litter, paths
+ 
+ GRANT = "/cpython"
+ STREAM = "judge/outcomes.txt"  # in the guest's root
+@@ -724,7 +724,7 @@ class Session:
+ 
+     def close(self) -> None:
+         if self.root is not None:
+-            shutil.rmtree(self.root, ignore_errors=True)
++            litter.remove(self.root)
+ 
+     def prepare(self, package: str) -> list[str]:
+         if package not in self.prepared:
+@@ -757,6 +757,7 @@ class Session:
+             (judge / f"{g}.json").write_text(json.dumps(group_spec(cfg, g), indent=1))
+         for t in cfg.traps:
+             (judge / f"{t.id}.json").write_text(json.dumps(trap_spec(cfg, t), indent=1))
++        litter.seal(self.root)  # no host process can add to the stage now (host litter)
+         return left_out
+ 
+     def _run(self, name: str, fuel: int) -> tuple[Stream, GuestRun]:
+diff --git a/tests/harness/upstream.py b/tests/harness/upstream.py
+index b59e5ec..726c75a 100644
+--- a/tests/harness/upstream.py
++++ b/tests/harness/upstream.py
+@@ -22,7 +22,7 @@ from collections import Counter
+ from dataclasses import dataclass, field
+ from pathlib import Path, PurePosixPath
+ 
+-from harness import paths
++from harness import litter, paths
+ 
+ HERE = paths.REPO / "tests" / "upstream"
+ KIT = HERE / "kit.txt"
+@@ -751,7 +751,7 @@ class Session:
+ 
+     def close(self) -> None:
+         if self.root is not None:
+-            shutil.rmtree(self.root, ignore_errors=True)
++            litter.remove(self.root)
+ 
+     def _stage_root(self) -> Path:
+         if self.root is None:
+@@ -777,6 +777,8 @@ class Session:
+             for p, c in self.configs.items():
+                 if c.runner == "pytest" and pins.source_pair(p) is not None:
+                     self.prepared[p] = self._prepare(p)
++            if self.root is not None:
++                litter.seal(self.root)  # the whole stage, once (host litter)
+         got = self.prepared.get(package, f"no source tree for {package}")
+         if isinstance(got, str):
+             raise AssertionError(got)
+diff --git a/tests/unit/test_host_litter.py b/tests/unit/test_host_litter.py
+new file mode 100644
+index 0000000..72c88ad
+--- /dev/null
++++ b/tests/unit/test_host_litter.py
+@@ -0,0 +1,107 @@
++"""Host litter (prototype for the spec draft): a sealed stage refuses a writer, a watched run names
++any litter, and nothing is filtered from what the guest is shown. Nothing here needs the artifact
++set; nothing measures time."""
++
++from __future__ import annotations
++
++import struct
++import sys
++from pathlib import Path
++
++import pytest
++
++from harness import guest, litter
++
++POSIX = sys.platform != "win32"
++
++
++def _stage(root: Path) -> Path:
++    for rel in ("lib/test/a.py", "lib/test/data/b.txt", "judge/x.json"):
++        p = root / rel
++        p.parent.mkdir(parents=True, exist_ok=True)
++        p.write_text(rel)
++    return root
++
++
++@pytest.mark.parametrize(
++    "name, yes",
++    [
++        (".DS_Store", True),
++        ("._a.py", True),
++        ("Icon\r", True),
++        (".Spotlight-V100", True),
++        ("a.py", False),
++        (".gitignore", False),
++        ("DS_Store", False),
++        ("Icon", False),
++    ],
++)
++def test_litter_names(name: str, yes: bool) -> None:
++    assert litter.is_litter(name) is yes
++
++
++@pytest.mark.skipif(not POSIX, reason="a folder's mode does not stop a write on Windows")
++def test_a_sealed_stage_refuses_a_writer(tmp_path: Path) -> None:
++    root = _stage(tmp_path / "stage")
++    litter.seal(root)
++    for d in (root, root / "lib", root / "lib/test", root / "lib/test/data", root / "judge"):
++        with pytest.raises(PermissionError):
++            (d / ".DS_Store").write_bytes(b"Bud1")
++    assert litter.litter_in(root) == []
++    litter.remove(root)
++    assert not root.exists()
++
++
++def test_seal_removes_what_landed_while_staging(tmp_path: Path) -> None:
++    root = _stage(tmp_path / "stage")
++    (root / "lib/.DS_Store").write_bytes(b"Bud1")
++    (root / "lib/test/._a.py").write_bytes(b"")
++    assert litter.seal(root) == ["lib/.DS_Store", "lib/test/._a.py"]
++    assert litter.inventory(root) == {
++        "lib/",
++        "lib/test/",
++        "lib/test/data/",
++        "judge/",
++        "lib/test/a.py",
++        "lib/test/data/b.txt",
++        "judge/x.json",
++    }
++    litter.remove(root)
++
++
++def test_a_watched_run_names_litter_before(tmp_path: Path) -> None:
++    root = _stage(tmp_path / "stage")
++    (root / "lib/.DS_Store").write_bytes(b"Bud1")
++    with pytest.raises(litter.HostLitter, match=r"/cpython/lib/\.DS_Store \(before the run\)"):
++        litter.Watch([(str(root), "/cpython", False)])
++
++
++def test_a_watched_run_names_any_new_entry_in_a_read_only_grant(tmp_path: Path) -> None:
++    root = _stage(tmp_path / "stage")
++    w = litter.Watch([(str(root), "/cpython", False)])
++    (root / "lib/test/stray.py").write_text("")  # not litter: still a change, still named
++    with pytest.raises(litter.HostLitter, match=r"/cpython/lib/test/stray\.py appeared"):
++        w.after(())
++
++
++def test_a_watched_run_names_litter_in_a_writable_root(tmp_path: Path) -> None:
++    root = tmp_path / "root"
++    root.mkdir()
++    w = litter.Watch([(str(root), "/", True)])
++    (root / "made-by-the-guest.txt").write_text("")  # a writable root may change
++    w.after(())
++    (root / ".DS_Store").write_bytes(b"Bud1")
++    with pytest.raises(litter.HostLitter, match=r"//?\.DS_Store \(after the run\)"):
++        w.after(())
++
++
++def test_a_listing_records_litter_handed_to_the_guest() -> None:
++    facts = guest.FileFacts(lambda: 1)
++    data = bytearray()
++    for i, name in enumerate((b"a.py", b".DS_Store", b"b")):
++        data += guest.DIRENT.pack(i + 1, 1000 + i, len(name), 4) + name
++    facts.listing(data)
++    assert facts.litter == {".DS_Store"}
++    # the listing itself is not filtered: the guest is shown every entry, the run is voided
++    assert data.count(b".DS_Store") == 1
++    assert struct.unpack_from("<Q", data, 8)[0] == 1

@@ -1,0 +1,6 @@
+15:11:44 birth=15:11:37 size=6148 /Users/claygendron/dsstore-probe-20261019/.DS_Store
+15:12:50 birth=15:12:49 size=6148 /Users/claygendron/dsstore-probe-20261019/plain/.DS_Store
+15:12:50 birth=15:12:49 size=6148 /Users/claygendron/dsstore-probe-20261019/x.noindex/.DS_Store
+15:13:32 birth=15:13:32 size=6148 /Users/claygendron/dsstore-probe-20261019/plain/.DS_Store
+15:14:05 birth=15:14:05 size=6148 /Users/claygendron/dsstore-probe-20261019/x.noindex/.DS_Store
+15:16:33 birth=15:16:33 size=6148 /Users/claygendron/dsstore-probe-20261019/build/.DS_Store

@@ -1,0 +1,4 @@
+start 15:33:14 mode=off writer=yes
+wasi_python v1: 1/1 pass · 0 gap · 0 blocked · 0 fail   (unit suite 0/0)
+======================== 1 passed in 490.73s (0:08:10) =========================
+end 15:41:26 exit=0

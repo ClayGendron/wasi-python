@@ -1,0 +1,4 @@
+/Users/claygendron/dsstore-probe-20261019/.DS_Store
+/Users/claygendron/dsstore-probe-20261019/build/.DS_Store
+/Users/claygendron/dsstore-probe-20261019/plain/.DS_Store
+/Users/claygendron/dsstore-probe-20261019/x.noindex/.DS_Store

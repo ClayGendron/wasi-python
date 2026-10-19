@@ -1,0 +1,5 @@
+start 15:41:59 mode=on writer=no
+wasi_python v1: 1/1 pass · 0 gap · 0 blocked · 0 fail   (unit suite 0/0)
+GREW tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]: fuel 164602698738 -> 164648434127
+======================== 1 passed in 322.97s (0:05:22) =========================
+end 15:47:24 exit=0

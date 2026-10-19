@@ -1,0 +1,11 @@
+start 15:48:04 mode=watch writer=yes
+=================================== FAILURES ===================================
+>           raise HostLitter(_message(problems))
+E           harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /cpython/.DS_Store (before the run); /cpython/judge/.DS_Store (before the run); /cpython/lib/.DS_Store (before the run); /cpython/lib/test/.DS_Store (before the run); /cpython/lib/test/archivetestdata/.DS_Store (before the run); /cpython/lib/test/audiodata/.DS_Store (before the run); /cpython/lib/test/audit_test_data/.DS_Store (before the run); /cpython/lib/test/certdata/.DS_Store (before the run); and 165 more (litter such as .DS_Store comes from Finder or System Settings' storage scan; see the spec on host litter)
+tests/harness/litter.py:159: HostLitter
+wasi_python v1: 0/1 pass · 0 gap · 0 blocked · 1 fail   (unit suite 0/0)
+FAIL tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives] — harness.litter.HostLitter: a host process changed a folder the guest sees, so this run's outcome and fuel prove nothing: /cpython/.DS_Store (before the run); /c
+LOST tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+FAILED tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+============================== 1 failed in 18.13s ==============================
+end 15:48:24 exit=0

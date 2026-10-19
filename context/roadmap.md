@@ -144,6 +144,15 @@ Reserved: 088, the judge-only binary (questions 89 and 101): a build never publi
 numpy's C test modules and built with CPython's (`--enable-test-modules`), on which the judge runs
 the tests that need them. Build-class; after the packages.
 
+Reserved: **089**, host litter never reaches a verdict: the judge seals every stage it grants
+read-only (no write bit on any folder, unsealed and retried at removal) and fails any guest run
+whose grants gain litter or change, naming the file. macOS's folder-size cache wrote `.DS_Store`
+into `build/harness/cpython/run-*` mid-run and moved fuel silently (spec 083's build review;
+research `2026-10-19-ds-store-in-the-judges-stages.md`). Parallel-safe; **lands before 083**, which
+rebases onto it and may add the `fd_readdir` litter watch. **090**, the build and its artifact
+checks agree on one litter list (`._*`, `Icon\r`, volume-root names), the release tarball packs
+`SHA256SUMS`' list, the repo's `.gitignore` lists litter. Build-class; after 089 or beside it.
+
 Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
 inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,
 16 guard refusals in `test_runner_calls.py` and `test_runner_mounts.py` after `test_landing_lane`
