@@ -263,3 +263,55 @@ delta look by the lane.
 A sound build whose bounds, races and security hold under probe; fix the exit-time mount
 write-back that run_async's exit flag silently drops, and restate criterion 16's scope,
 criterion 42's order check and the measured growth reasons.
+
+## Delta look after the rebase onto 047 (2026-10-19)
+
+AGENTS.md rule 2 asks for this because the numbers moved. The lane checked the F1 fix
+(`walk(ending=True)` ignores run_async's exit flag and keeps the Ctrl-C check). It also
+confirmed that the rebased diff equals the reviewed one line for line. I did not repeat either
+check.
+
+- **Head and set.** The worktree is at `b3f0af7`, and `git status` is clean. The candidate set
+  is `build/sets/s-9d43bf645dfcaa71`: `shasum -c` is all OK, and `SHA256SUMS` itself is
+  `b0c4f376…` (EXECUTED).
+- **Session checks on the candidate set** (EXECUTED; `delta-sessions.log`): I ran
+  `WASI_PYTHON_ARTIFACTS=<candidate> uv run pytest -n 3 tests/checks/test_v1_4_sessions.py
+  tests/unit/test_runner_sessions.py`. Result: 45 passed; v1.4 39/39, 0 fail, lost 0.
+- **Growth against 047's set `s-a8221564acc6afc3`** (EXECUTED; `delta-growth.txt`; the same
+  `g3`/`g4`/`g5` probes through the judge's seeded driver):
+
+| row | 047's set | candidate | Δ |
+|---|---:|---:|---:|
+| plain `pass` | 167,230,744 | 167,474,151 | **+243,407** |
+| plain start (`os._exit`) | 138,907,427 | 139,080,987 | +173,560 |
+| plain finalization | 28,323,317 | 28,393,164 | +69,847 |
+| snapshot `pass` | 83,491,413 | 83,482,875 | **−8,538** |
+| snapshot start | 2,654,449 | 2,654,588 | +139 |
+| snapshot finalization | 80,836,964 | 80,828,287 | −8,677 |
+| extra-preopens check (snapshot) | 851,684,561 | 849,636,864 | **−2,047,697** |
+| its `isinstance` walk alone | 396,676,672 | 394,495,938 | −2,180,734 |
+
+The work is the same on both sets: 62,317 against 62,322 objects, 343 types on both, and 1,695
+classes on both.
+
+- **Plain reactor: the measured reason still fits.** The growth is at start, from the larger
+  bootstrap, now about +174 k (it was +119 k on the old base), and in finalization, about +70 k.
+  That is about +0.15% in all.
+- **Snapshot: the address-dependent reason is now confirmed.**
+  - On 047's base, the same bootstrap with the same five extra objects makes the snapshot's
+    trivial job and the extra-preopens check *smaller*: −8.5 k and −2.05 M.
+  - On the old base the same rows grew by +45 k and +1.39 M.
+  - The work is identical and only the sign changed. So the cost moves with object addresses,
+    not with what the bootstrap adds.
+- **Correction to the `--accept-growth` reason**, which still quotes the old base's figures:
+  - the bytes are now +7,234 and +12,013;
+  - the plain reactor's `run` grows by about +175 k at start and +70 k in finalization (about
+    +0.15%);
+  - the snapshot's trivial jobs and `test_extra_preopens_work_on_the_snapshot` no longer grow
+    on 047's base (−8.5 k and −2.05 M);
+  - any snapshot job that does grow is address-dependent, which these two rows show by flipping
+    sign with unchanged work.
+
+  The lane should quote the grew list from its own serial record, `build/lane-055/latest-serial.json`.
+
+**Delta verdict: confirmed, it lands**, once the `--accept-growth` reason is corrected as above.
