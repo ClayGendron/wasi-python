@@ -1,6 +1,6 @@
 # 070 — The judge's small follow-ups
 
-- **Status:** built 2026-10-18; awaiting its build review. Drafted and built the same day on
+- **Status:** built 2026-10-18; awaiting its build review (the Landing notes). Drafted and built the same day on
   `spec/070-the-judges-small-follow-ups` from main `4a94c14` (the Landing notes). It changes
   neither the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6
   asks no review before build. A different agent reviews the build.
@@ -140,3 +140,41 @@ each stand-in applied alone to a scratch copy and run by node id).
    clean on `src tests recipes/guest`.
 
 ## Landing notes
+
+**Built 2026-10-18** on `spec/070-the-judges-small-follow-ups` from main `4a94c14`, in the
+worktree `wasi_python-070`, against the frozen set `build/sets/s-4eb5418a2b1bb553-c353b1d9`
+(the main tree's, `SHA256SUMS` `c353b1d9…`). The build is `302aa95`; `a304d3e` adds the Design
+section that the first full judge found missing; these notes are the commit after it. Evidence
+is in the main tree under `build/reviews-evidence/070-build/`.
+
+- **Checks first.** Each new check was run before its code. On main's code, rule 16's 5
+  spellings failed (`5 failed, 2 passed`) and the CR case failed (`[] == [...]`). The boundary
+  cases, the `_C_SLOTS` cases and the discovery check pin code that is already right, so they
+  pass on main; what shows they bite is their stand-ins.
+- **Stand-ins** (EXECUTED, `standins.py`, `standins.out`): S1 to S12, each applied alone to an
+  rsync copy of the worktree and run by node id, the file restored after. Every one fails what
+  the criteria say it fails: S1 5 failed; S2 2; S3, S4, S5 and S6 1 each; S7 to S10 1 each,
+  each its own kind; S11 4; S12 2 (the import succeeds).
+- **The fast tier** (`fast-n3.log`; `uv run pytest -m "not slow" -n 3`, before the spec file
+  was written): `wasi_python v1: 353/418 pass · 0 gap · 19 blocked · 0 fail · 46 deselected
+  (unit suite 1239/1247, 8 skipped)`, `ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 ·
+  unrun locally 17 · gained 2 · grew 0 · upstream unrun 31 · not selected 32 · judge changed:
+  tests/checks/test_v1_4_embedding.py, tests/harness/history.py, tests/harness/scan.py and 3
+  more`, `1592 passed, 27 skipped`, exit 0.
+- **The full judge, serial, no `--accept`.** The first run on `302aa95`
+  (`full-serial-1-red.log`) had `1 failed`: `test_specifications_have_their_header_and_sections`,
+  "070-the-judges-small-follow-ups.md: no '## Design' section"; `lost 1` was that rule. Fixed in
+  `a304d3e`. The run on `a304d3e` (`full-serial.log`): `wasi_python v1: 365/418 pass · 2 gap · 51
+  blocked · 0 fail (unit suite 1239/1247, 8 skipped)`, `ratchet vs 2ce08a592d: lost 0 · absent 0
+  · unrun 0 · unrun locally 37 · gained 2 · grew 0 · upstream unrun 31 · judge changed:
+  tests/checks/test_v1_4_embedding.py, tests/harness/history.py, tests/harness/scan.py and 3
+  more`, `1604 passed, 59 skipped, 2 xfailed`, exit 0. The blocks are the worktree's missing
+  source trees, oracle, clones, `wheel` and `three systems`, as in any worktree. The 2 gained
+  are criterion 5's two v1.4 checks. The real workflow passes every release scan, and main's
+  two history volumes pass the intact check with the CR rule.
+- `ruff check` and `ruff format --check` on `src tests recipes/guest`: clean.
+- **Parallel work.** Spec 063's branch edits `tests/harness/scan.py` and
+  `tests/unit/test_scan.py` too, though not rule 16's lines. Whichever lands second may meet a
+  local conflict in `test_scan.py`, and keeps both.
+- **Not done here:** no `--accept`, no push, no rebase. The review gets this specification and
+  `git diff 4a94c14..` on this branch. The lane accepts with `--accept-judge`.
