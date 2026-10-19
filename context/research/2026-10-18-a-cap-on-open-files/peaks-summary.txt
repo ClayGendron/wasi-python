@@ -1,0 +1,33 @@
+# Each call's peak of files open at once and its refusals, under the prototype (cap 1024).
+## peaks-fast.txt: 1180 calls; refusals total 0
+peak  calls
+0 951
+1 196
+2 21
+3 1
+4 4
+5 2
+6 2
+241 1
+1024 2
+highest:
+6 0 tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[snapshot] (call)
+241 0 tests/checks/test_v1_2_hostile_guest.py::test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise (call)
+1024 0 tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain] (call)
+1024 0 tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[snapshot] (call)
+## peaks-full.txt: 1180 calls; refusals total 0
+peak  calls
+0 951
+1 196
+2 21
+3 1
+4 4
+5 2
+6 2
+241 1
+1024 2
+highest:
+6 0 tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[snapshot] (call)
+241 0 tests/checks/test_v1_2_hostile_guest.py::test_a_guest_that_uses_up_host_descriptors_cannot_make_run_raise (call)
+1024 0 tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[plain] (call)
+1024 0 tests/checks/test_v1_2_hostile_guest.py::test_mount_descriptors_are_bounded[snapshot] (call)

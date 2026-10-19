@@ -1,0 +1,3 @@
+soft limit 256 -> 0 None opened 245 then errno 29 EIO - I/O error
+EMFILE is 33 EIO is 29 in the guest
+ 

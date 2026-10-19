@@ -1,0 +1,5 @@
+shadows off: open+close median 39.87 us (min 32.39, max 50.56); os.stat median 25.03 us
+shadows on: open+close median 91.75 us (min 84.07, max 112.81); os.stat median 28.05 us
+added per open+close pair: 51.87 us (medians); per 1,024 pairs: 53.12 ms
+plain reactor, import pandas, shadows off: median 998 ms (min 930, max 6690)
+plain reactor, import pandas, shadows on: median 1147 ms (min 1083, max 1427)

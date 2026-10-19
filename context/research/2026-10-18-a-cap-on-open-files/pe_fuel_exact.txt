@@ -1,0 +1,4 @@
+snapshot=True grants: shadows off [111512532, 111512532, 111512532]  on [111512532, 111512532, 111512532]  delta 0  stdout 100 51
+snapshot=True grants+mount: shadows off [113321812, 113321812, 113321812]  on [113321812, 113321812, 113321812]  delta 0  stdout 180 51
+snapshot=False grants: shadows off [331685363, 331685363, 331685363]  on [331685363, 331685363, 331685363]  delta 0  stdout 100 51
+snapshot=False grants+mount: shadows off [333493998, 333493998, 333493998]  on [333493998, 333493998, 333493998]  delta 0  stdout 180 51

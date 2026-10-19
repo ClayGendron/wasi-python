@@ -1,0 +1,163 @@
+diff --git a/src/wasi_python/mounts.py b/src/wasi_python/mounts.py
+index b063d11..446498e 100644
+--- a/src/wasi_python/mounts.py
++++ b/src/wasi_python/mounts.py
+@@ -381,6 +381,8 @@ FORWARD_SAFE = (
+ # Each guard goes when the published floor admits only patched versions (tests/checks/
+ # test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
+ GUARDED = ("fd_readdir", "path_rename")
++# PROTOTYPE 068: the calls that make or free a host descriptor the guest holds.
++COUNTED = ("path_open", "fd_close", "fd_renumber")
+ # What the guard asks wasmtime on its own page, never in the guest's memory: the rename's source
+ # type, and a listing again when the guest's `used` pointer lies over its own listing.
+ PRIVATE = ("path_filestat_get", "fd_readdir")
+@@ -614,6 +616,8 @@ class _Files:
+         staging: int,
+         metered: bool,
+         engine: Any = None,
++        *,
++        open_files: int | None = None,
+     ) -> None:
+         from . import runner
+ 
+@@ -654,6 +658,19 @@ class _Files:
+         # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
+         self.stop_fuel: tuple[BaseException, int] | None = None
+         self.call: _Call | None = None
++        self.open_files = open_files  # PROTOTYPE 068
++        self.held: set[int] = set()  # wasmtime numbers the guest opened and holds
++        self.peak = 0
++        self.refusals = 0
++
++    def open_now(self) -> int:
++        return len(self.held) + self.opened - len(self.owed)
++
++    def at_cap(self) -> bool:
++        if self.open_files is not None and self.open_now() >= self.open_files:
++            self.refusals += 1
++            return True
++        return False
+ 
+     def record(self) -> FileRecord:
+         return FileRecord(
+@@ -688,6 +705,14 @@ class _Files:
+             entry.dirty = False
+ 
+     def release(self) -> None:
++        import os as _os
++
++        log = _os.environ.get("WASI_PYTHON_068_PEAKS")
++        if log:
++            with open(log, "a") as f:
++                f.write(
++                    f"{self.peak} {self.refusals} {_os.environ.get('PYTEST_CURRENT_TEST', '-')}\n"
++                )
+         """Drop what the call held once it has ended (the build review, F3): the staged files
+         and listings, the trampoline's handles and the link back to the call, so nothing waits
+         for the cyclic collector."""
+@@ -1124,7 +1149,10 @@ class _Files:
+     def _fd_close(self, caller: Any, fd: int) -> int:
+         entry = self._entry(fd)
+         if entry is None:
+-            return self.forward(caller, "fd_close", (fd,))
++            errno = self.forward(caller, "fd_close", (fd,))
++            if errno == 0:
++                self.held.discard(fd & MASK32)
++            return errno
+         number = fd & MASK32
+         if entry.preopen:
+             errno = self.forward(caller, "fd_close", (fd,))
+@@ -1497,7 +1525,13 @@ class _Files:
+         a, b = fd & MASK32, to & MASK32
+         if a in self.table or b in self.table or a >= PROVIDER_BASE or b >= PROVIDER_BASE:
+             return ENOTSUP
+-        return self.forward(caller, "fd_renumber", (fd, to))
++        errno = self.forward(caller, "fd_renumber", (fd, to))
++        if errno == 0 and a != b:
++            self.held.discard(b)
++            if a in self.held:
++                self.held.discard(a)
++                self.held.add(b)
++        return errno
+ 
+     # The path calls.
+ 
+@@ -1517,7 +1551,14 @@ class _Files:
+         entry = self._entry(fd)
+         args = (fd, dirflags, ptr, length, oflags, base_rights, inheriting, fdflags, out)
+         if entry is None:
+-            return self.forward(caller, "path_open", args)
++            if self.at_cap():
++                return EMFILE  # before wasmtime opens anything
++            errno = self.forward(caller, "path_open", args)
++            if errno == 0:
++                (number,) = struct.unpack("<I", _Memory(caller).read(out & MASK32, 4))
++                self.held.add(number)
++                self.peak = max(self.peak, self.open_now())
++            return errno
+         _lookup(dirflags)
+         oflags = _flags(oflags, 0xF, 0xFFFF, "Oflags")
+         base_rights = _rights(base_rights)
+@@ -1546,7 +1587,7 @@ class _Files:
+         if isinstance(resolved, int):
+             return resolved
+         path, folder_only = resolved
+-        if self.opened >= MAX_MOUNT_FILES:
++        if self.opened >= MAX_MOUNT_FILES or self.at_cap():
+             return EMFILE  # before the provider: no call, none counted
+         if writes:
+             opened = self._open_writing(caller, mount, path, folder_only, oflags, base_rights)
+@@ -1571,6 +1612,7 @@ class _Files:
+                 opened = _Open(mount, path, "file", data=data, held=len(data))
+                 opened.append, opened.nonblock = bool(fdflags & APPEND), bool(fdflags & NONBLOCK)
+         number = self._take(opened)
++        self.peak = max(self.peak, self.open_now())
+         memory.write(out & MASK32, struct.pack("<I", number))
+         return 0
+ 
+diff --git a/src/wasi_python/runner.py b/src/wasi_python/runner.py
+index 6893e7d..297c93f 100644
+--- a/src/wasi_python/runner.py
++++ b/src/wasi_python/runner.py
+@@ -258,6 +258,7 @@ class _Unset:
+ 
+ 
+ _UNSET: Any = _Unset()
++_PROTO_OPEN_FILES: int | None = 1024  # PROTOTYPE 068
+ 
+ 
+ @dataclass(frozen=True)
+@@ -2472,7 +2473,15 @@ def _instance(
+             # 49.0.2's and 49.0.3's fixes (spec 048, Decision 7).
+             guest_linker = _guard_linker(wt, engine)
+             numbers = []
+-        table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
++        table = _Files(
++            numbers,
++            others,
++            c["file_calls"],
++            staging,
++            fuel is not None,
++            engine,
++            open_files=c.get("open_files", _PROTO_OPEN_FILES),
++        )
+         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit)
+         if cancel is not None:
+             _watch(store)
+@@ -2883,14 +2892,14 @@ def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
+     today's, plus a shadow over the two calls in `mounts.GUARDED` only (fd_readdir and
+     path_rename), in the shared form, as the mount linker's. Every other call stays wasmtime's
+     own. Defined once per engine, like the others."""
+-    from .mounts import GUARDED, SIGNATURES
++    from .mounts import COUNTED, GUARDED, SIGNATURES
+ 
+     with _lock:
+         linker = _guard_linkers.get(engine)
+         if linker is None:
+             linker = _runner_linker(wt, engine)
+             kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
+-            for name in GUARDED:
++            for name in GUARDED + COUNTED:  # PROTOTYPE 068
+                 ty = wt.FuncType([kinds[p] for p in SIGNATURES[name]], [kinds["i32"]])
+                 shadow = _shared("files", EBADF, EIO, name)
+                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)

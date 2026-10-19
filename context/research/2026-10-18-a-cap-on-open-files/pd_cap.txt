@@ -1,0 +1,54 @@
+1. a grant, cap 16: open until refused; a close frees exactly one slot
+cap=16: exit 0 trapped None | opened 16 then EMFILE 'No file descriptors available'; after close+open, next is EMFILE; listdir at the cap: EMFILE; a missing file at the cap: EMFILE; after closing all, opened 16 again 
+2. folders count: 8 folders + 8 files, cap 16
+cap=16: exit 0 trapped None | 17th: EMFILE 
+3. mounts count too, cap 16: 10 mount files + 6 grant files
+cap=16: exit 0 trapped None | /data/f7.txt EMFILE; /mnt/m11 EMFILE; a mount close freed a slot for a grant file 
+   provider reads: 10 (10 opens; the refused one made none)
+4. the default, 1024: exactly 1024 opens, then EMFILE, and the run goes on
+cap=1024: exit 0 trapped None | opened 1024 then EMFILE; still running 
+5. None: no cap; 3000 opens
+cap=None: exit 0 trapped None | opened 3000 
+6. cap 0: what still works
+   snapshot=True 'print(1)': cap=0: exit 0 trapped None | 1 
+   snapshot=True 'import json; print(json.dumps([1]))': cap=0: exit 0 trapped None | [1] 
+   snapshot=True 'import csv; print(csv.__name__)': cap=0: exit 0 trapped None | csv 
+   snapshot=False 'print(1)': cap=0: exit 1 trapped None |  x = '/usr/local'
+  sys.exec_prefix = '/usr/local'
+  sys.path = [
+    '/usr/local/lib/python315.zip',
+  ]
+Fatal Python error: Failed to import encodings module
+Python runtime state: core initialized
+ModuleNotFoundError: No module named 'encodings'
+
+Current thread 0x016349c0 (most recent call first):
+
+   snapshot=False 'import json; print(json.dumps([1]))': cap=0: exit 1 trapped None |  x = '/usr/local'
+  sys.exec_prefix = '/usr/local'
+  sys.path = [
+    '/usr/local/lib/python315.zip',
+  ]
+Fatal Python error: Failed to import encodings module
+Python runtime state: core initialized
+ModuleNotFoundError: No module named 'encodings'
+
+Current thread 0x016349c0 (most recent call first):
+
+   snapshot=False 'import csv; print(csv.__name__)': cap=0: exit 1 trapped None |  x = '/usr/local'
+  sys.exec_prefix = '/usr/local'
+  sys.path = [
+    '/usr/local/lib/python315.zip',
+  ]
+Fatal Python error: Failed to import encodings module
+Python runtime state: core initialized
+ModuleNotFoundError: No module named 'encodings'
+
+Current thread 0x016349c0 (most recent call first):
+
+7. files left open at exit do not carry into the next call
+cap=4: exit 0 trapped None | held 4 
+cap=4: exit 0 trapped None | held 4 again 
+8. cap 1 and 2 on the plain reactor: the zip needs one at a time
+   snapshot=False cap=1: cap=1: exit 0 trapped None | [1] 1 
+   snapshot=False cap=2: cap=2: exit 0 trapped None | [1] 1 

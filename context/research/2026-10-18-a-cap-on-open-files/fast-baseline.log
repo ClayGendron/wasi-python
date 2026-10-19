@@ -1,0 +1,46 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.2, pytest-9.1.1, pluggy-1.7.0
+rootdir: /Users/claygendron/Git/Repos/wasi_python-068
+configfile: pyproject.toml
+testpaths: tests
+plugins: xdist-3.8.0
+created: 3/3 workers
+3 workers [1601 items]
+
+....s.............................................................s..... [  4%]
+.............................................................s.......... [  8%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+...........................................................sssssssssssss [ 22%]
+ss...s.................................................................. [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+.......................ssss............................................. [ 40%]
+........................................................................ [ 44%]
+....................s................................................... [ 49%]
+............................................................ss.......... [ 53%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+........................................................................ [ 89%]
+........................................................................ [ 94%]
+................................................s....................... [ 98%]
+.................                                                        [100%]
+=================================== progress ===================================
+wasi_python v1: 351/416 pass · 0 gap · 19 blocked · 0 fail · 46 deselected   (unit suite 1223/1231, 8 skipped)
+  v1.1  artifact set        27/28  blocked 1
+  v1.2  portable, sealed    65/66  blocked 1
+  v1.3  data stack          42/88  
+  v1.4  embedding           162/162 
+  v1.5  rebuild from pins   15/31  blocked 16
+  rules constitution rules  40/41  blocked 1
+blocked by: compile records 1 · prior-art clones 1 · source tree bzip2 1 · source tree cpython 1 · source tree freetype 1 · source tree harfbuzz 1 · source tree kiwisolver 1 · source tree libraqm 1 · source tree matplotlib 1 · source tree numpy 1 · source tree pandas 1 · source tree pillow 1 · source tree qhull 1 · source tree sheenbidi 1 · source tree sqlite 1 · source tree xz 1 · source tree zlib 1 · three systems 1 · wheel 1
+next: context/research/2026-10-16-reproducible-builds-on-linux.md (unblocks 15, closes 0)
+ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 · unrun locally 17 · gained 0 · grew 0 · upstream unrun 31 · not selected 32
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+================= 1574 passed, 27 skipped in 279.04s (0:04:39) =================

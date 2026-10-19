@@ -1,0 +1,6 @@
+snapshot exit 0 path_open    0 fd_close    0 fd_renumber 0  | pass
+snapshot exit 0 path_open    0 fd_close    0 fd_renumber 0  | import json, csv, decimal, pathlib
+snapshot exit 0 path_open    3 fd_close    3 fd_renumber 0  | import pandas as pd; print(pd.read_csv('/data/sales.csv').groupby('reg
+plain    exit 0 path_open    7 fd_close    7 fd_renumber 0  | pass
+plain    exit 0 path_open   57 fd_close   57 fd_renumber 0  | import json, csv, decimal, pathlib
+plain    exit 0 path_open  919 fd_close  919 fd_renumber 0  | import pandas as pd; print(pd.read_csv('/data/sales.csv').groupby('reg
