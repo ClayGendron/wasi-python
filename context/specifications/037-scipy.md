@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** built 2026-10-19, judged green on macOS (0 fail, lost 0). Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done), and it is built: the macOS and linux/arm64 sets from empty at `e8573ae` pass `scripts/compare_sets.py`; the implementation review's I1 to I3 are fixed. **G7 and "three systems" key on `python.wasm`'s hash, which the exception lets vary**: a canonical-digest amendment to Decision 17 is written and awaits question 105 (option (a); option (b) moves the toolchain, 086, first). The build review is next. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** **Depends on spec 086** (the owner's answer to question 105, option (b), 2026-10-19): the move to wasi-sdk 34 lands first, and Decision 17's same-bytes exception is withdrawn when it does (Decision 17's amendment of that date). Before that: built 2026-10-19, judged green on macOS (0 fail, lost 0). Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done), and it is built: the macOS and linux/arm64 sets from empty at `e8573ae` pass `scripts/compare_sets.py`; the implementation review's I1 to I3 are fixed. **G7 and "three systems" key on `python.wasm`'s hash, which the exception lets vary**: a canonical-digest amendment to Decision 17 is written and awaits question 105 (option (a); option (b) moves the toolchain, 086, first). The build review is next. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -732,7 +732,23 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       `make_stdlib_zip.py` (023, 033, 039), `scripts/wasi-cc` (023), step 10 and
       `scripts/line.conf` (040). Each is rebased onto main as it is when 037's builder starts.
 
-17. **The same-bytes exception for ducc0's FFT** (amended 2026-10-19 by the owner's answer to
+17. **Withdrawn once spec 086 lands** (amended 2026-10-19 by the owner's answer to question 105,
+    option (b)). The owner chose to move the toolchain first: spec 086 pins wasi-sdk 34, whose
+    LLVM carries the fix for the `try_table` order (`fd76c9bd`), and lands before this
+    specification. So 037 depends on 086. At 037's rebase onto main with 086:
+    - the exception is removed: `recipes/same_bytes_exceptions.toml`, the exception paths of
+      `scripts/same_bytes.py` and `scripts/compare_sets.py` (with the implementation review's I1
+      to I3, which matter only while the exception stands), `MANIFEST`'s `x-same-bytes-exception`
+      line, the gate's `compare_sets.py` rule (byte-for-byte comparison is restored), the
+      still-needed check, this decision's sections below and the README and CHANGELOG lines;
+    - criterion 3 holds as first written: the cross-host comparison (macOS and linux/arm64) is
+      shown byte for byte equal, the same `SHA256SUMS` on every line;
+    - the canonical-digest amendment below (option (a)) is not built.
+    What follows records the exception as it was designed, reviewed and built, until that
+    rebase removes it.
+
+    *As designed and built before question 105:* **The same-bytes exception for ducc0's FFT**
+    (amended 2026-10-19 by the owner's answer to
     question 104, "Exception now, fix in parallel", `../decisions.md`; designed before it was
     built, reviewed in `../reviews/037-the-same-bytes-exception-design-2026-10-19.md` (the lane copies it from the reviewer's scratchpad), whose
     F1 to F5 are written in below and F6 to F9 built with it). The pinned clang (wasi-sdk 33,
@@ -882,9 +898,9 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       The normal end is the toolchain move to wasi-sdk 34 (reserved by the lane): it deletes the
       recipe file, `same_bytes.py`'s exception path and this check, restores byte-for-byte
       comparison in the gate, and amends the README lines back.
-    - **Amendment (2026-10-19), pending question 105: a canonical digest for the judge's
-      bindings.** *Not built; it is built only if the owner picks option (a) of question 105;
-      option (b) moves the toolchain (086) before this specification instead.* The finding
+    - **Amendment (2026-10-19), not taken: a canonical digest for the judge's bindings.** *The
+      owner answered question 105 with option (b) on 2026-10-19 (086 first, the exception
+      withdrawn), so this is not built; kept as the record of option (a).* The finding
       (spec 085's draft, confirmed by the lane in `tests/harness/gather.py`): the gather's G7
       requires the newest acceptance's `artifact` (the `python.wasm` the lane judged) to equal
       the SHA-256 of the `python.wasm` the release's build job made. Under this exception every
