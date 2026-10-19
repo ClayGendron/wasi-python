@@ -1,6 +1,6 @@
 # 068 — A cap on files open at once
 
-- **Status:** built 2026-10-18 on `spec/068-a-cap-on-open-files` from `24bc10d` (`ef0882f`; the
+- **Status:** **landed 2026-10-19** (accepted on `75f03ab` as `debb56d`, history line 67; the build review, `../reviews/068-a-cap-on-open-files-build-2026-10-18.md`, confirmed it; see the Landing notes' last part). Before landing: built 2026-10-18 on `spec/068-a-cap-on-open-files` from `24bc10d` (`ef0882f`; the
   Landing notes); awaiting its build review; it lands after the 0.1.0a6 tag. Before that: confirmed
   for build 2026-10-18 (the review's addendum, "Confirmation of 068's revision": "Confirmed for
   build", notes N1 to N3 optional, all three taken). Drafted 2026-10-18 (`dbf8aad`, rebased onto
@@ -984,3 +984,20 @@ note. Both were taken, with the lane's rebase:
   6), spec 048's guard units changed to the five shadows (Decision 8), and tests/public_api.txt's
   five lines"`. No growth.
 - After it lands, tell 055's branch the names (Decision 9).
+
+**Landed 2026-10-19** through the lane, after spec 070. The lane rebased the branch onto main
+`7307f6f`. Two conflicts: `context/questions-for-the-owner.md` (main already carried question 100,
+copied from this branch, so main's file was kept) and `CHANGELOG.md`'s 0.1.0a7 section (both
+entries kept). Otherwise the diff equals the reviewed diff at `624cc62` line for line (EXECUTED,
+`build/lane-068/delta.txt`: question 100 and the placeholder line only). The pre-build review and
+the build review, each with its confirmation (`../reviews/068-a-cap-on-open-files-spec-2026-10-18.md`,
+`../reviews/068-a-cap-on-open-files-build-2026-10-18.md`), were committed on the detached HEAD as
+`75f03ab`. No build: 068 changes `src/`, the judge and documents only, so main's set
+`s-ff5246a2c2f1a52b` stands. The full judge there, serial: `wasi_python v1: 426/442 pass · 14 gap
+· 2 blocked · 0 fail (unit suite 1257/1259, 2 skipped)`, `1683 passed, 4 skipped, 14 xfailed in
+938.06s`, accepted with `--accept-judge` (criteria 1 to 6, Decision 8's guard units, the API
+snapshot's five lines) as `debb56d`, history line 67; nothing grew (EXECUTED,
+`build/lane-068-accept.log`). The rules tier passed (40/40, unpiped); main fast-forwarded. Spec
+055, building now, takes `max_open_files=` and `Defaults.open_files` as its Decision 5 and
+criterion 40 say. Spec 072 (a bound on path depth) and question 100 stay open.
+
