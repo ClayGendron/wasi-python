@@ -1,8 +1,11 @@
 # 069 — The snapshot pre-imports no package
 
-- **Status:** **built 2026-10-19; awaiting its build review** (the Landing notes; branch
-  `spec/069-the-snapshot-pre-imports-no-package`, rebased onto main `b413192`; built from an empty
-  `build/`, `SHA256SUMS` `4530b6ce…`). Before that: confirmed for build 2026-10-18 at `68062f3`
+- **Status:** **built 2026-10-19; revised against its build review** (the build review,
+  `../reviews/069-the-snapshot-pre-imports-no-package-build-2026-10-19.md`, written in a
+  scratchpad and copied by the lane: "lands once F1 is written in"; F1 to F4 are written in, the
+  Landing notes' last part). Built on `spec/069-the-snapshot-pre-imports-no-package`, rebased onto
+  main `b413192`, from an empty `build/` (`SHA256SUMS` `4530b6ce…`; after F4's comment wrap,
+  steps 60 to 90 again: `1889459e…`, the binaries unchanged). Before that: confirmed for build 2026-10-18 at `68062f3`
   with nits N1 to N4 (the confirmation,
   `../reviews/069-the-snapshot-pre-imports-no-package-spec-2026-10-18-confirmation.md`, written in
   the lane's evidence folder and copied by the lane; "confirmed for build"); the nits are taken
@@ -953,7 +956,7 @@ RED: 1 accepted check(s) absent (retire them with --retire); 38 metric(s) grew
   main's 14 and this one).
 - **Every upstream group keeps its `passes`, and every class check its status.**
 - **Grew 38**, each with its cause (fuel; main's accepted value to this build's):
-  - **pandas imported in the run, +4.49 G to +4.53 G (10):**
+  - **pandas imported in the run, +4.49 G to +4.52 G (10):**
     `test_dotted_builtins_keep_their_import_names[snapshot]`,
     `test_gb18030_is_never_silently_wrong[snapshot]`,
     `test_packages_carry_their_metadata[snapshot]`,
@@ -981,9 +984,11 @@ RED: 1 accepted check(s) absent (retire them with --retire); 38 metric(s) grew
     `test_metadata_answers_from_the_zips_directory[snapshot]` +25 M;
     `test_regex_features_job_matches_native[snapshot]` +12 M;
     `test_patched_callbacks_run[snapshot]` +8 M.
-  - **the upstream groups, one import each (11):** pandas-frame +4.54 G, pandas-groupby
-    +4.69 G, pandas-internals +4.73 G, pandas-io-formats +4.83 G, pandas-io-parser +4.90 G,
-    pandas-libs +4.84 G, pandas-reshape +4.68 G, pandas-tslibs +4.80 G; numpy-core +1.02 G,
+  - **the upstream groups (11):** each pandas group pays pandas' import once: pandas-frame
+    +4.54 G, pandas-groupby +4.69 G, pandas-internals +4.73 G, pandas-io-formats +4.83 G,
+    pandas-io-parser +4.90 G, pandas-libs +4.84 G, pandas-reshape +4.68 G, pandas-tslibs
+    +4.80 G. Each numpy group pays numpy's import (about 0.69 G) and the collector's work over
+    its unfrozen heap (0.20 to 0.37 G, measured by the build review): numpy-core +1.02 G,
     numpy-lib +0.70 G, numpy-others +1.33 G.
 - **Shrank 32:**
   - 26 snapshot or `bytes` metrics: the snapshot's 75,083,688 to 44,633,705 bytes; about
@@ -1000,8 +1005,8 @@ RED: 1 accepted check(s) absent (retire them with --retire); 38 metric(s) grew
 
 ```
 uv run pytest --accept "spec 069: the snapshot pre-imports no package (decision 34)" \
-  --accept-judge "spec 069: (a) test_the_snapshot_pre_imports_no_package and (b) test_the_snapshot_starts_cheaper_than_plain replace test_snapshot_preimports_the_stack; (c) test_the_pre_import_list_is_the_stdlib_bootstrap; (e) test_manifest_names_the_pre_imports; (h) test_run_keeps_an_unclosed_files_bytes and its gap entry in tests/known_gaps.toml (the frozen heap loses an unclosed file's bytes on run; closer spec 073 via the roadmap); (i) test_the_pre_import_list_is_read_from_the_recipe; (f) test_runner_runs_the_plain_reactor tells the binaries apart by csv; (g) test_the_import_path_comes_after_the_runtime counts HIT pytz 2 on both binaries (spec 054's numbers restated); tests/harness/paths.py: PREIMPORT, REACTOR_MODULES, CPython's unlisted names" \
-  --accept-growth "decision 34 (the owner, 2026-10-18): the default snapshot pre-imports no package (spec 069). Every snapshot run that imports pandas pays it in the run (+4.49 to +4.53 G, 10 checks), numpy +0.92 G, matplotlib +1.22 G; lxml's runs and the debugging-tools, resources, zone, traceback, metadata, regex and kiwisolver runs import the stdlib modules pandas used to load (+8 to +391 M); each upstream group pays its package's import once (pandas groups +4.54 to +4.90 G, numpy groups +0.70 to +1.33 G). The snapshot is 30.4 MB smaller and a bare run 5.3 times cheaper." \
+  --accept-judge "spec 069: (a) test_the_snapshot_pre_imports_no_package (the stdlib rule, through paths.is_stdlib_or_reactor, naming a refused module that the zip carries as a package in the zip) and (b) test_the_snapshot_starts_cheaper_than_plain replace test_snapshot_preimports_the_stack; (c) test_the_pre_import_list_is_the_stdlib_bootstrap; (e) test_manifest_names_the_pre_imports; (h) test_run_keeps_an_unclosed_files_bytes and its gap entry in tests/known_gaps.toml (the frozen heap loses an unclosed file's bytes on run; closer spec 073 via the roadmap); (i) test_the_pre_import_list_is_read_from_the_recipe; (f) test_runner_runs_the_plain_reactor tells the binaries apart by csv; (g) test_the_import_path_comes_after_the_runtime counts HIT pytz 2 on both binaries (spec 054's numbers restated); tests/harness/paths.py: PREIMPORT, REACTOR_MODULES, CPython's unlisted names and prefix, is_stdlib_or_reactor" \
+  --accept-growth "decision 34 (the owner, 2026-10-18): the default snapshot pre-imports no package (spec 069). Every snapshot run that imports pandas pays it in the run (+4.49 to +4.52 G, 10 checks), numpy +0.92 G, matplotlib +1.22 G; lxml's runs and the debugging-tools, resources, zone, traceback, metadata, regex and kiwisolver runs import the stdlib modules pandas used to load (+8 to +391 M); each pandas upstream group pays pandas' import once (+4.54 to +4.90 G); each numpy group pays numpy's import and the collector's work over its unfrozen heap (+0.70 to +1.33 G). The snapshot is 30.4 MB smaller and a bare run 5.3 times cheaper." \
   --retire tests/checks/test_v1_3_data_stack.py::test_snapshot_preimports_the_stack
 ```
 
@@ -1025,13 +1030,14 @@ uv run pytest --accept "spec 069: the snapshot pre-imports no package (decision 
    same layout shift; only its sign differs on the rebased base.
 2. **The growth list is 38 metrics, not 56.** Same kinds, rebased: the 29 plain metrics are gone
    (1), and lxml's (046) and regex's (047) checks join, since their runs now import what pandas
-   used to load. The snapshot pandas jobs agree with the draft's within 1% (+4.49 to +4.53 G,
+   used to load. The snapshot pandas jobs agree with the draft's within 1% (+4.49 to +4.52 G,
    against +4.49 to +4.53 G). The upstream groups do not, and that is explained here, as criterion
    6 asks. The pandas groups grow by +4.54 to +4.90 G against the draft's +4.45 to +4.97 G, within
    6%. The numpy groups grow less: numpy-core +1.02 G against +1.57 G, numpy-lib +0.70 against
-   +0.83, numpy-others +1.33 against +1.43. The base moved under them (046, 047, 055's bootstrap).
-   A numpy group's growth is its import of numpy plus the collector's work over a heap no longer
-   frozen with pandas in it (INFERRED). That second part depends on what else the base holds.
+   +0.83, numpy-others +1.33 against +1.43. A numpy group pays numpy's import (about 0.69 G) and
+   the collector's work over its unfrozen heap (0.20 to 0.37 G, measured by the build review,
+   which froze numpy's heap after its import). The gap from the draft is the accepted baseline,
+   which moved with 046, 047 and 055 (the build review, F1).
 3. **Criterion 3's hashes and sizes are new**, as criterion 3 allowed: the base moved. The
    snapshot is 44,633,705 bytes, not 40,509,812; lxml and regex are in it.
 4. **N1 and N3** (above): (i)'s file, and the constants' names.
@@ -1039,12 +1045,42 @@ uv run pytest --accept "spec 069: the snapshot pre-imports no package (decision 
    was Decision 8's condition.
 6. **The README's session-close figures are re-measured** (the lane's request). Decision 8 did
    not list them, because 055 had not landed when 069 was drafted.
-7. **Check (a) reports the stdlib rule first.** A package pre-imported is therefore named by the
-   rule's message ("modules at start that are not the stdlib's: six") rather than by the zip's
-   names. The zip-derived assertion still runs, and its guard still runs, when the rule passes.
-   Its failure is shown by S9.
+7. **Check (a) has one rule and names its packages in it** (the build review, F2). The stdlib
+   rule refuses any other top-level name. The zip's non-stdlib names no longer have an assertion
+   of their own, which could never fail after the rule. Instead they label the rule's message: a
+   refused name the zip carries is written "six (a package in the zip)". Their guard (numpy,
+   pandas and host must be among them) runs first, and S9 shows it failing. Re-run on the
+   stand-ins (`standins/f2_message.txt`):
+   - S1: "numpy (a package in the zip)".
+   - S2 and S8: "six (a package in the zip)".
+   - Main's set: "_cython_3_3_0, _cyutility, cython_runtime, dateutil (a package in the zip),
+     numpy (a package in the zip), …".
+   - S7: the list did not run.
 
 ### For the build review
 
 The diff is `b413192..HEAD`. The fast tier and the full judge above are this worktree's. The
 stand-ins can be re-run from `069-build/standins/` against this worktree's `build/`.
+
+### Revised against the build review (2026-10-19)
+
+The build review: "lands once F1 is written in"; the lane asked for F2 to F4 too.
+- **F1, written in:** a numpy group's growth is numpy's import (about 0.69 G) and the
+  collector's work over its unfrozen heap (0.20 to 0.37 G, the review's measurement). The gap
+  from the draft is the accepted baseline moving with 046, 047 and 055. This is now in departure
+  2, in the upstream line of "Grew 38" and in `--accept-growth`. The pandas-heap wording is gone.
+- **F2, written in:** check (a) has no assertion that cannot fail. The separate `held`
+  assertion is removed. The zip's non-stdlib names now label the stdlib rule's own message, as
+  "six (a package in the zip)", and their guard runs first (departure 7, with the stand-ins'
+  messages). `--accept-judge` says so.
+- **F3, written in:** the pandas runs grow by +4.49 to +4.52 G (the largest is +4,524,377,786).
+- **F4, written in:** `recipes/reactor_main.c`'s pinned-block comment is wrapped to the file's
+  width. The new lines are at most 99 columns; the two old lines at 100 and 102 are main's.
+  - It changes the recipe's hash in MANIFEST, so steps 60 to 90 ran again
+    (`build-069-f4.log`).
+  - `python.wasm` (`5ab6bc5d…`), the snapshot (`1a7242a7…`) and the zip are byte for byte the
+    same; only MANIFEST moved (`8de36679…`).
+  - **`SHA256SUMS` is now `1889459ead8b9b93bfd3ee7e1caa3ef8efe535c2f7abbd6489b9902feae216b7`.**
+    The lane rebuilds at landing anyway.
+- **Re-run:** check (a) on the built set (passes), on S1, S2, S7 and S8 and on main's set
+  (above), and the fast tier with `-n 3` (`fast-2.log`): 1704 passed, 10 skipped, 1 xfailed; ratchet lost 0, absent 1 (the retired check), gained 5, grew 20 (the fast tier's share of the 38), as before the revision.

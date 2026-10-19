@@ -195,19 +195,22 @@ def zip_non_stdlib_names(zip_path: Path, stdlib: set[str]) -> set[str]:
 def test_the_snapshot_pre_imports_no_package(guest, artifacts) -> None:
     """Decision 34 (spec 069): the snapshot starts with the stdlib's bootstrap and no package,
     for every package now and later. The rule needs no list of packages: a module is the stdlib's
-    or the reactor's, or it is refused; the zip's own non-stdlib names make the message name it."""
+    or the reactor's, or it is refused; the zip's own non-stdlib names say which of the refused
+    ones is a package from the zip."""
     r = guest("snapshot", ["-c", START_PROBE])
     assert r.exit_code == 0, r.describe()
     got = json.loads(r.text.strip().splitlines()[-1])
     stdlib = set(got["stdlib"])
-    tops = {m.split(".", 1)[0] for m in got["modules"]}
-    foreign = sorted(t for t in tops if not paths.is_stdlib_or_reactor(t, stdlib))
-    assert not foreign, _named(foreign, "modules at start that are not the stdlib's")
     packages = zip_non_stdlib_names(artifacts.path("python-stdlib.zip"), stdlib)
     missing_guard = [n for n in GUARD_NAMES if n not in packages]
     assert not missing_guard, f"the zip's non-stdlib names lack {missing_guard}: derivation broken"
-    held = sorted(tops & packages)
-    assert not held, _named(held, "the snapshot pre-imports the zip's non-stdlib names")
+    tops = {m.split(".", 1)[0] for m in got["modules"]}
+    foreign = [
+        f"{t} (a package in the zip)" if t in packages else t
+        for t in sorted(tops)
+        if not paths.is_stdlib_or_reactor(t, stdlib)
+    ]
+    assert not foreign, _named(foreign, "modules at start that are not the stdlib's")
     absent = [n for n in paths.PREIMPORT if n not in tops]
     assert not absent, f"the pre-import list did not run: {absent} not in sys.modules at start"
 

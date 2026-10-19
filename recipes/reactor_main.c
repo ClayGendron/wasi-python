@@ -60,10 +60,10 @@ static const struct _frozen recipe_modules[] = {
  * constants, so everything captured during initialization is the same bytes on every build:
  * mimalloc's and wasi-libc's load-time state (they run as constructors, before any entry point),
  * the times, inodes and devices of the files that importing stats (and anything a pre-imported
- * module reads from the clock or entropy at import), and a directory's size and link count, which each build host's file system
- * answers its own way. The reactor's link wraps the four WASI calls (scripts/steps/60_link.sh,
- * --wrap); run() unpins before Python starts, and wizer.initialize unpins once the imports are
- * done, so a program only ever sees real values. */
+ * module reads from the clock or entropy at import), and a directory's size and link count,
+ * which each build host's file system answers its own way. The reactor's link wraps the four
+ * WASI calls (scripts/steps/60_link.sh, --wrap); run() unpins before Python starts, and
+ * wizer.initialize unpins once the imports are done, so a program only ever sees real values. */
 static int pinned = 1;
 #define PINNED_REALTIME_NS ((__wasi_timestamp_t)1767225600 * 1000000000u) /* SOURCE_DATE_EPOCH */
 
