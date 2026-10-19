@@ -1,26 +1,32 @@
 # 076 — The grant checks agree on Windows
 
 - **Status:** drafted 2026-10-18 on `spec/076-the-grant-checks-agree-on-windows` from main
-  `7307f6f`; not built. It changes neither the guest's imports nor its exports, the artifact set
+  `7307f6f`; **revised 2026-10-19 against its pre-build review** (written in the lane's
+  scratchpad, `076-review/076-the-grant-checks-agree-on-windows-spec-2026-10-19.md`, with its
+  probes, and copied to `../reviews/` by the lane; verdict: "ready once F1 to F4"; the lane's
+  rulings on F1 and F4 written in; every finding answered in "Disposition of the pre-build
+  review") and rebased onto main `6fd89e0` (specs 068 and 070); awaiting the reviewer's
+  confirmation; not built. It changes neither the guest's imports nor its exports, the artifact set
   nor the build recipe, so §5.6 asks no review before build. A different agent reviews the build.
   **It lands before spec 063 and before 0.1.0** (Decision 8).
-- **Date:** 2026-10-18
+- **Date:** 2026-10-18; revised 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** the runner, the judge and docs; **parallel-safe**, not build-class.
   `src/wasi_python/runner.py` (`_walk_windows` only); judge changes in
   `tests/checks/test_v1_2_hostile_guest.py` (two checks), `tests/unit/test_runner_mounts.py`
-  (one check) and `tests/unit/test_runner_grants.py` (two cases extended, one added);
-  `README.md`, `CHANGELOG.md`; `context/upstream/` (fact 5 in facts sheet 12, a new facts sheet
-  20 and its row in the folder's README). Its landed diff touches no `scripts/`, `recipes/`,
-  `downloads/SHA256SUMS` or workflow. One temporary commit that adds four node ids to the
-  release workflow's `verify` step exists only for the Windows dry run and is dropped before
-  review (Decision 7). **It changes no line of `tests/public_api.txt`.**
+  (one check), `tests/unit/test_runner_grants.py` (one case extended, two added) and
+  `tests/harness/files.py` (one per-system table); `README.md`, `CHANGELOG.md`;
+  `context/upstream/` (fact 5 in facts sheet 12, a new facts sheet 20 and its row in the
+  folder's README). Its landed diff touches no `scripts/`, `recipes/`, `downloads/SHA256SUMS` or
+  workflow. One temporary commit that adds three node ids and `-rA` to the release workflow's
+  `verify` step lives only on a throwaway branch, `spec/076-verify`, deleted after the Windows
+  dry run; this spec's branch never carries it and is never rewritten (Decision 7). **It changes
+  no line of `tests/public_api.txt`.**
 - **Depends on:** 017 (typed grants: the walk, its rules and its `..` choice), 048 (the rename
   guard, carrying wasmtime 49.0.3's rule), 058 (the Windows grant precedent), all landed. Spec
   063 (the release judges in parallel shards, built, in review) found the failures; it does not
   depend on this spec's code, but its Windows judge cannot pass without it. Spec 068 (a cap on
-  open files, confirmed, landing next) touches `mounts.py` and `runner.py` elsewhere; whichever
-  lands second rebases, with no shared hunk expected.
+  open files) landed in `6fd89e0`; this spec is rebased onto it, with no shared hunk.
 - **Research it stands on:**
   - Spec 063's three branch dry runs, job "judge (windows-2025, own-guest)": runs 39182550825,
     39184807592 and 39186533835 (EXECUTED there). Their logs are in the main tree, git-ignored:
@@ -34,8 +40,17 @@
     (main, `2d9c19b`) is cited once.
   - CPython's `Lib/ntpath.py` and `Modules/_io/fileio.c` (`context/prior_art/cpython`, branch
     3.14, `7c04882`, READ).
-  - The runner and the guard on main `7307f6f` (READ): `src/wasi_python/runner.py` and
-    `src/wasi_python/mounts.py`.
+  - The runner and the guard on main `6fd89e0` (READ): `src/wasi_python/runner.py` and
+    `src/wasi_python/mounts.py`. Line numbers below are at `6fd89e0`.
+  - Microsoft, "File path formats on Windows systems" (learn.microsoft.com; READ by the pre-build
+    review, 2026-10-19): Win32 evaluates `.` and `..` by text before any open; it trims trailing
+    spaces and periods from the last segment, and a single trailing period from any segment.
+  - The pre-build review's probes (beside it in the scratchpad; EXECUTED there on macOS):
+    `probe_ntpath.py` (`ntpath.join("C:\\b", "D:x")` is `D:x`), `probe_walk_chain.py` (today's
+    `_walk_windows` and `_judge`, with a stand-in `_win_open` modelling Win32's documented
+    normalisation: two spellings whose chain misses a true ancestor, F1), `probe_read_twin.py`
+    (preview1 on macOS: a write through a read descriptor and a read through a write-only one
+    both answer 8).
   - Spec 017's "Choices the specification left to the build" (`..` after a missing component),
     spec 048's Decisions 1 to 3, spec 058's Decision 1.
   - Spec 063's build review, F4 (written in the lane's scratchpad, `063-buildreview/`; a copy is
@@ -52,6 +67,17 @@ granted (cause 3, below, READ here line by line; spec 063's build review, F4, re
 conclusion as INFERRED). It is a parity defect: POSIX refuses the same spelling before any
 work, and spec 017 decided it should. It is fixed here, in the product, so every system refuses
 it.
+
+**Two older Windows spellings could skip a rule, and are fixed here too** (the pre-build
+review, F1; cause 5). That argument holds for `..`. It does not hold for a component that holds
+a drive letter (`C:\b\D:sub`) or ends in a space or a period (`C:\b\a \x`): there the walk's
+chain of identities, which every rule reads, can miss a true ancestor of the folder granted.
+The identity check after wasmtime opens covers only the final folder, so it does not catch
+this. Neither is a guest escape: the spelling is the embedder's, and the first needs a process
+whose current folder on another drive sits inside a protected folder. But an embedder's
+spelling could put a writable grant inside a runtime folder that later calls trust, or a
+read-only grant inside a writable one, on Windows only. Both come from the loop this spec
+rewrites, so the judged Windows walk now refuses those names (Decision 1).
 
 ## The problem
 
@@ -100,25 +126,26 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
 
 3. **The bad grant: Python collapses `..` by text before the Windows walk sees it** (READ and
    EXECUTED). With `judge`, `_walk_windows` begins with `full = os.path.abspath(path)`
-   (`runner.py:1609`). On Windows that is `ntpath.abspath`, which is
+   (`runner.py:1641`). On Windows that is `ntpath.abspath`, which is
    `_getfullpathname(normpath(path))` (`Lib/ntpath.py:531-534`); `normpath` drops each `..` with
-   the name before it, in pure Python. `ntpath.normpath(r"D:\a\bad\new\..\x")` is
-   `D:\a\bad\x` (EXECUTED on macOS; `ntpath` is the same pure-Python code on every host). The
+   the name before it. `ntpath.normpath(r"D:\a\bad\new\..\x")` is `D:\a\bad\x` (EXECUTED on
+   macOS, where `normpath` is pure Python; on Windows it is the C function `nt._path_normpath`,
+   `ntpath.py:474`, so the Windows result is INFERRED there and READ in the 063 log's outcome). The
    walk then opens `D:\a\bad`, finds `x` missing, and returns it to be made, because a root may
    be made. The POSIX walk keeps the `..`: it joins the path to the current folder without
    normalising, takes `..` on the folders it walked, and refuses a missing component followed by
-   `..` as "does not exist" (`runner.py:1435-1491`, the test at 1457), which is spec 017's
+   `..` as "does not exist" (`runner.py:1467-1523`, the test at 1489), which is spec 017's
    recorded choice.
 
-   **Why it is not a hole** (READ, with one INFERRED step). Win32's own path parsing also drops
-   `..` by text before the file system sees a path (INFERRED from Microsoft's documented path
-   normalisation; Python's `abspath` reproduces it). So the folder the Windows walk judges is the
+   **Why it is not a hole, for `..`** (READ). Win32's own path parsing also drops `..` by text
+   before the file system sees a path (Microsoft's "Evaluate relative components", READ by the
+   pre-build review; Python's `abspath` reproduces it). So the folder the Windows walk judges is the
    folder the spelling means on Windows. The walk holds a handle on each component, without
-   `FILE_SHARE_DELETE`, refusing any reparse point (`runner.py:1608-1641`). wasmtime is given the
+   `FILE_SHARE_DELETE`, refusing any reparse point (`runner.py:1640-1674`). wasmtime is given the
    walked path, not the caller's spelling (`wasi.preopen_dir(p.walked.path, …)`,
-   `runner.py:2455`). Every rule compares identities on the walked chain (`_judge`), and a root
+   `runner.py:2487`). Every rule compares identities on the walked chain (`_judge`), and a root
    still to be made is judged on its deepest existing ancestor's chain. Before the guest runs,
-   `_check_preopens` compares the folder wasmtime opened with the walked one (`runner.py:2054`).
+   `_check_preopens` compares the folder wasmtime opened with the walked one (`runner.py:2086`).
    So `root=<module cache>\new\..\made` is still refused, as inside the module cache: the
    collapse changes which spelling is accepted, never which folder is judged. What is wrong is
    the parity: Linux and macOS refuse the spelling, Windows grants the folder, and the guest ran
@@ -128,7 +155,7 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    guard does not** (READ, and EXECUTED there). The loop's third rename is `f/` to `e`, where `f`
    is a file. On a call without mounts the guard shadows `path_rename` (spec 048): a path ending
    in `/` needs a folder source, judged by `path_filestat_get` without following, else `ENOTDIR`
-   (`mounts.py:1938-1985`). That is wasmtime 49.0.3's rule, which checks on every system but
+   (`mounts.py:1982-2029`). That is wasmtime 49.0.3's rule, which checks on every system but
    Linux (49.0.3: `crates/wasi/src/filesystem/primitives/via_parent/rename.rs:25-27, 55-60`).
    wasmtime 49.0.0, which today's native linker runs, strips the slash and re-appends it only
    under `#[cfg(unix)]` (49.0.0: the same file, lines 22-26 and 33-42; `strip_dir_suffix`,
@@ -144,10 +171,39 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    The product is right on Windows: it answers `ENOTDIR`, as Linux, macOS and wasmtime 49.0.3
    do. The check's reference, wasmtime 49.0.0 on Windows, is the one that differs.
 
+5. **Two spellings make the Windows walk's chain miss a true ancestor** (the pre-build review,
+   F1; READ, and EXECUTED there with a stand-in for `_win_open`). The rules in `_judge` read the
+   walk's **chain**: the identities of each prefix of the path, which on Windows are opened as
+   path strings that Win32 re-reads one at a time. The identity check after wasmtime opens
+   (`_check_preopens`) compares only the **final** folder. Two spellings make the chain record
+   other folders than the ones the granted path passes through:
+   - *A component with a drive letter.* The walk builds each prefix with `os.path.join(here,
+     part)`, and `ntpath.join("C:\\b", "D:x")` is `D:x`: a part whose second character is `:`
+     resets the join (`Lib/ntpath.py:99-140`; the review's `probe_ntpath.out`). So `C:\b\D:sub`
+     is walked as `C:\`, `C:\b`, then `D:sub`, which Win32 resolves against drive D's current
+     folder. That folder and its ancestors are missing from the chain. In the review's stand-in,
+     with a runtime folder at `D:\work` and D's current folder `D:\work\proj`, the spelling
+     `D:\work\proj\sub` is refused as inside wasmtime-py's code and `C:\b\D:sub`, the same
+     folder, is accepted. That `GetFullPathNameW` keeps `D:sub` inside a path as text is
+     INFERRED.
+   - *A name ending in spaces or periods.* Win32 trims trailing spaces and periods from the last
+     segment, and a single trailing period from any segment (Microsoft, READ by the review). The
+     walk opens `C:\b\a ` as a last segment, which Win32 trims to `C:\b\a`; but the full path
+     `C:\b\a \x` passes through the folder literally named `a `. In the stand-in, a writable
+     grant `\\?\C:\b\a ` (verbatim, the space-named folder) and a read-only grant `C:\b\a \x`
+     inside it are both accepted, where the plain spelling of the same pair is refused as
+     "read-only but inside". It needs both `a` and `a ` to exist.
+
+   Both are older than this spec. Neither is a guest escape: the spelling is the embedder's. But
+   the README says folders "are compared by identity (device and inode), never by spelling", and
+   on Windows these two spellings make that untrue. They live in the loop Decision 1 rewrites.
+
 ## Terms
 
 - **The walk.** The runner's check of a host path before any work (spec 017, Decision 4):
   `_walk_posix` or `_walk_windows`, one component at a time.
+- **The chain.** The identities of the walked folder and each of its ancestors, which every rule
+  in `_judge` compares.
 - **Per system.** A value chosen by `sys.platform` (`linux`, `darwin`, `win32`), as spec 058's
   `WRITE_BY_SYSTEM` does; a system the table does not name raises `KeyError`.
 - **Native, guarded.** In the rename check, the same store run on today's linker
@@ -157,41 +213,75 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
 
 ## Decisions
 
-1. **The Windows walk takes `..` on the folders it walked, as the POSIX walk does (a product
-   change).** With `judge`, `_walk_windows` no longer collapses the path by text. It walks the
-   caller's components in order: an empty or `.` component is skipped; `..` closes the handle of
-   the last folder walked and drops it from the chain, and at the drive's root it stays there,
-   as POSIX's `..` at `/` does; any other name is opened as today. A `..` after a component
-   that does not exist is refused, "does not exist", whether the path is a root or a grant,
-   exactly as `_walk_posix` refuses it (`runner.py:1457`). A file followed by `..` is refused,
-   "is not a folder", as on POSIX, because the file is opened before the `..` is taken.
-   - **Why this is exact.** A judged Windows walk refuses every reparse point (spec 017,
-     Decision 4). So a `..` can only follow a real folder that the walk opened and holds, and
-     taking it on the walk gives the same folder as dropping it by text. The two differ only
+1. **The Windows walk takes `..` on the folders it walked, as the POSIX walk does, and refuses
+   names Windows rewrites (a product change).** With `judge`, `_walk_windows` no longer
+   collapses the path by text. It walks the caller's components in order:
+   - an empty or `.` component is skipped;
+   - `..` closes the handle of the last folder walked and drops it from the chain; at the
+     drive's root it stays there, as POSIX's `..` at `/` does;
+   - a component that holds `:`, or ends in a space or a period (other than `.` and `..`), is
+     refused before anything is opened for it: "`{where}`: `{path!r}` has a name Windows
+     rewrites (`{name!r}`); name the folder plainly" (cause 5; the lane's ruling on F1). A `:`
+     there is a drive letter or a stream; a trailing space or period is trimmed by Win32 in some
+     positions and not others. Either makes the opened path and the chain disagree;
+   - any other name is opened as today, and each prefix is built by concatenation,
+     `here.rstrip("\\") + "\\" + name`, never `ntpath.join`, which resets on a drive (cause 5);
+   - a `..` after a component that does not exist is refused, "does not exist", whether the
+     path is a root or a grant, exactly as `_walk_posix` refuses it (`runner.py:1489`);
+   - a file followed by `..` is refused, "is not a folder", as on POSIX, because the file is
+     opened before the `..` is taken.
+
+   - **Why this is exact, for `..`.** A judged Windows walk refuses every reparse point (spec
+     017, Decision 4). So a `..` can only follow a real folder that the walk opened and holds,
+     and taking it on the walk gives the same folder as dropping it by text. The two differ only
      where the name before `..` is missing, is a file, or is a link or junction: POSIX refuses
      the first two, and Windows' own rule refuses the third. After this change Windows refuses
-     all three. It never accepts a spelling Linux or macOS refuses, and it accepts every
-     spelling it accepted before that names only real folders.
+     all three. For `..`, it never accepts a spelling Linux or macOS refuses, and it accepts
+     every spelling it accepted before that names only real folders. (Other spellings, such as
+     a case swap or a backslash, still mean other things on POSIX; that is not `..`'s matter.)
+   - **Why refuse the rewritten names rather than follow Win32's rewrite.** Following it means
+     modelling Win32's trimming and drive-relative rules inside the walk, position by position,
+     and getting every case right. Refusing is a few lines and leaves no spelling whose chain is
+     not the opened folders'. The cost is small: a folder whose real name ends in a space or a
+     period, or holds `:`, cannot be granted on Windows by a path through it (Explorer cannot
+     make such names either; INFERRED). The README says so (Decision 6). On POSIX these are
+     ordinary names, and the POSIX walk is unchanged.
    - **Why not refuse every `..`.** The POSIX walk accepts `base/sub/../x` when `sub` is a real
      folder, and the README promises nothing else. Refusing every `..` would change Linux and
      macOS, and a Windows-only refusal would be a new difference. The rule here is spec 017's,
      on every system.
-   - **Where the start comes from.** The path is made absolute without dropping `..`: an
-     absolute tail starts at its drive's root (a letter or a UNC share, as today); a relative one
-     starts at the current folder of its drive, `ntpath.abspath(drive or ".")`, which holds no
-     `..`. Only that start is ever normalised.
+   - **Where the start comes from.** The path is made absolute without dropping `..`:
+     - a tail that starts with `\` or `/` and has a drive (a letter or a UNC share) starts at
+       that drive's root, as today;
+     - **a rooted path with no drive (`\b\x`) is qualified, not refused**: it starts at the root
+       of the drive of the process's current folder, so the walked path handed to wasmtime is
+       fully qualified, as the old walk's `abspath` made it (the review's F7, and the lane's
+       ruling: refuse or qualify, and say which). Qualifying keeps the meaning Windows gives it
+       and that the old walk gave it; refusing would break a spelling that works today and buy
+       no safety, since the folder judged and the folder handed on are the same;
+     - a relative path starts at the current folder of its drive.
+
+     Both current folders come from one module-level seam, `_drive_folder(drive)`, which
+     answers `ntpath.abspath(drive or ".")` (a path with no `..`, whose components are walked
+     from its drive's root like any other). Tests replace the seam, not `ntpath.abspath` (the
+     review's F7).
    - `_walk_windows` uses `ntpath` by name rather than `os.path` (on Windows they are the same
      module), so its parsing runs, with a stand-in for `_win_open`, on every system
-     (criterion 1).
+     (criterion 1). On Windows `ntpath`'s `splitdrive` and `normpath` are C functions
+     (`ntpath.py:172, 474`), so the Windows verify step's run of criterion 1 is the evidence for
+     Windows.
    - The walk without `judge` (the runtime's own folders, every link followed through
      `os.path.realpath`) is unchanged.
 
-2. **The bad grant is a parity defect, not a hole; it still blocks spec 063 and 0.1.0.** The
-   cause above says why no folder outside what the spelling names can be granted and no rule is
-   skipped. It still matters: an embedder's spelling is refused on two systems and granted on
+2. **The bad grant is a parity defect, not a hole; it still blocks spec 063 and 0.1.0.** Cause 3
+   says why no folder outside what the spelling names can be granted and no rule is skipped,
+   for `..`. It still matters: an embedder's spelling is refused on two systems and granted on
    the third, and a guest ran where the check promises none would. It is fixed in the product,
    not stated per system, because §6.3 asks for one behaviour on every host and spec 017 already
-   decided which.
+   decided which. The evidence that the old Windows walk still judged the right folder is
+   criterion 1's stand-in S1 at unit level (the old collapse, with the module cache in the
+   tree, refuses `cache\new\..\made` as inside the cache); the dry run runs after the fix, so it
+   cannot show the old message on Windows (the review's N4).
 
 3. **"through a link in the grant": the check's Windows branch goes; the row is 63 everywhere.**
    The product already answers `EPERM` on every host, for the reason cause 2 gives. The branch
@@ -201,21 +291,39 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    missing path in a read-only grant is `EPERM`. The assertion that the folder outside stays
    empty holds everywhere, as today.
 
-4. **"write a read descriptor": stated per system (c), not relabelled (b).** The table holds 8
-   on `linux` and `darwin` and 2 on `win32`, with the cited wasmtime fact beside it. The README
-   says it (Decision 6). The facts go to a new upstream facts sheet (Decision 6). Relabelling was
-   weighed first, since a guest's code should behave the same on every host, and refused:
-   - **It is exact but not cheap.** A relabel is exact: on an `EACCES` from a forwarded write,
-     ask `fd_fdstat_get`, and if the descriptor lacks `FD_WRITE` (wasmtime clears it for a file
-     opened without write, `p1.rs` `fd_fdstat_get`), answer `EBADF`. But it needs `fd_write` and
-     `fd_pwrite` shadowed on every call, so every write the guest makes crosses into Python
-     first; and its twin (a read through a write-only descriptor) needs `fd_read` and
-     `fd_pread` shadowed, the calls every import makes on the stdlib zip. That is a host
-     round trip on the guest's hottest calls to change one error number.
-   - **Python code does not reach it.** CPython's file objects refuse a write on a file opened
-     to read, and a read on one opened to write, with `io.UnsupportedOperation`, before any
-     call (`Modules/_io/fileio.c:878-880, 939-941`). Only `os.write` or `os.read` on a raw
-     descriptor of the wrong mode meets the host's number, and either way it is refused.
+4. **"write a read descriptor": stated per system (c), not relabelled (b)** (upheld by the
+   pre-build review and the lane). The value is 8 on `linux` and `darwin` and 2 on `win32`, in
+   one table in `tests/harness/files.py` that the check and the unit case both read (spec 058's
+   form; the review's N3), with the cited wasmtime fact beside it. The README says it, scoped
+   to grants (Decision 6). The facts go to a new upstream facts sheet (Decision 6). Relabelling
+   was weighed first, since a guest's code should behave the same on every host, and refused:
+   - **On a call without mounts it is exact but not cheap.** A relabel is exact: on an `EACCES`
+     from a forwarded write, ask `fd_fdstat_get`, and if the descriptor lacks `FD_WRITE`
+     (wasmtime clears it for a file opened without write, `p1.rs` `fd_fdstat_get`), answer
+     `EBADF`. But a call without mounts shadows only `fd_readdir`, `path_rename` and spec 068's
+     three counted calls, so this needs `fd_write` and `fd_pwrite` shadowed too, and every
+     write the guest makes crosses into Python first; and its twin (a read through a write-only
+     descriptor) needs `fd_read` and `fd_pread` shadowed, the calls every import makes on the
+     stdlib zip. That is a host round trip on the guest's hottest calls to change one error
+     number.
+   - **On a call with mounts it would be free, and is still not done** (the review's F5). There
+     the four calls are already shadowed and forwarded (`mounts.py:1305-1395`). A mount's own
+     file already answers `EBADF` on every host (`_reads`, `_writes`: "the host's EBADF", spec
+     034's Linux reference), so on Windows one call can answer 8 for a mount's file and 2 for a
+     grant's. That is spec 058's split: a mount answers as the runner does, a grant as the host
+     does. Relabelling only on calls with mounts would make a grant's answer depend on whether
+     the call has mounts. One answer per grant, with or without mounts.
+   - **A guest-side wrapper is the only exact route that costs nothing on success, and is
+     refused.** A wrapper of `write` and `read` in the guest's libc could, on `EACCES` only, ask
+     `fd_fdstat_get` and answer `EBADF`. It changes the artifact set and the build recipe
+     (build-class, a review before build under §5.6, a libc wrap carried as a recipe), for an
+     error number that Python's file objects opened by path never meet.
+   - **Python's file objects opened by path do not reach it.** CPython's `FileIO` refuses a
+     write on a file opened to read, and a read on one opened to write, with
+     `io.UnsupportedOperation`, before any call (`Modules/_io/fileio.c:878-880, 939-941`). Only
+     a raw descriptor of the wrong mode meets the host's number: `os.write` and `os.read`, or a
+     file object made on it with another mode, `os.fdopen(fd, "w")` (the review's F5). Either
+     way it is refused.
    - **The precedent.** Spec 058, Decision 1: a grant is the host's folder as the host keeps it;
      a Windows difference is documented, not shadowed. Here nothing on the host differs; only
      the host's error does, and it is wasmtime's own mapping, unchanged in 49.0.3 and on main.
@@ -231,6 +339,13 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    - at each cap the two runs are equal in fuel and ending, except that on `win32` a loop that
      completes ends with those two values.
 
+   **The Windows value depends on the runner image** (the review's F8). The native 44 exists
+   only because Windows allowed a folder renamed over a file, which spec 058 found depends on
+   the image. The 063 runs used `windows-2025-vs2026`, version `20261007.264.1` (EXECUTED
+   there, run 4's log, lines 17-18). The table's comment names that image, so a red run on
+   another image is read as a fact about the reference and decided by Decision 9, not taken
+   for a regression. No separate unit case tests the table (it would test a constant).
+
    The fact goes to facts sheet 12 as fact 5: wasmtime 49.0.0 renames a file named with a
    trailing slash on Windows; 49.0.3 refuses it with `ENOTDIR`; the guard carries 49.0.3's rule,
    so the runner already answers as 49.0.3 does. When `uv.lock` moves to a wasmtime-py on
@@ -238,45 +353,66 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    the `win32` value fails the check, which then loses it, with a reason.
 
 6. **Docs and facts sheets.**
-   - README, *Grants*: the walk paragraph says `..` is taken on the folders walked, so a `..`
-     after a missing folder or a file is refused on every system. *What grants do not do* gains:
-     a write through a descriptor opened only to read, or a read through one opened only to
+   - README, *Grants*, the walk paragraph: `..` is taken on the folders walked, so a `..` after
+     a missing folder or a file is refused on every system; on Windows a path with a name that
+     holds `:` or ends in a space or a period is refused, since Windows rewrites such names; a
+     rooted path with no drive takes the drive of the current folder. With that, "folders are
+     compared by identity, never by spelling" is true on Windows too, and stays as it is.
+   - README, *What grants do not do* (scoped to grants; the review's F5): a write through a
+     descriptor of a grant's file opened only to read, or a read through one opened only to
      write, is refused on every system; the error is `EBADF` on Linux and macOS and `EACCES` (a
-     `PermissionError`) on Windows, the host's own answer, which wasmtime passes on; Python's
-     file objects refuse both before the call. (If criterion 5 shows the read twin otherwise on
-     Windows, the README says what it showed.)
-   - CHANGELOG, under `0.1.0a7 — unreleased`: one entry, "On Windows, a grant or `root` with
-     `..` after a missing folder or a file is refused, as on Linux and macOS" and the documented
-     errno.
+     `PermissionError`) on Windows, the host's own answer, which wasmtime passes on; a mount's
+     file answers `EBADF` everywhere; Python's file objects opened by path refuse both before
+     the call. (If criterion 5 shows the read twin otherwise on Windows, the README says what it
+     showed.)
+   - CHANGELOG, under `0.1.0a7 — unreleased`: one entry. On Windows, a grant or `root` with
+     `..` after a missing folder or a file is refused, as on Linux and macOS; so is a path with
+     a name Windows rewrites; and the documented errno.
    - `context/upstream/12-wasmtime-py-on-wasmtime-49-0-3/facts.md`: fact 5, cause 4 with its
-     citations and the runs that showed it.
+     citations, the runs that showed it, and the runner image.
    - `context/upstream/20-wasmtime-preview1-write-on-a-read-descriptor/facts.md`, a new facts
      sheet in the house form (Project, Against, Status: drafted, Title, Files, why), and its row
-     in `context/upstream/README.md`: preview1's `fd_write` and `fd_read` check neither the
-     grant's permissions nor the open mode, so the host's error reaches the guest; `EBADF` on
-     Unix, `EACCES` on Windows; preview2 checks. The owner decides whether to ask wasmtime for
-     `EBADF` everywhere; Wasmtime's AI tool policy (facts sheet 12) keeps agents from posting.
+     in `context/upstream/README.md`. It says: preview1's `fd_write` and `fd_read` check neither
+     the grant's permissions nor the descriptor's open mode, so the host's error reaches the
+     guest, `EBADF` on Unix and `EACCES` on Windows; preview2's `write` checks the grant's
+     permissions only (`p2/host/filesystem.rs:141`), and `open_mode` feeds only `get_flags`
+     (`filesystem.rs:543-556`), so on a writable grant preview2 passes the host's error too
+     (the review's F5). It cites wasmtime's own precedent: it already ignores Windows'
+     `ERROR_ACCESS_DENIED` from `sync_data` for POSIX compatibility (49.0.0:
+     `filesystem.rs:510-520`). The owner decides whether to ask wasmtime for `EBADF`
+     everywhere; Wasmtime's AI tool policy (facts sheet 12) keeps agents from posting.
 
-7. **How it runs on Windows before review: one temporary commit on this branch.** Since spec 063
-   is not on main, main's verify step runs a fixed file list that leaves out
-   `tests/checks/test_v1_2_hostile_guest.py` and `tests/unit/test_runner_mounts.py`. The route:
+7. **How it runs on Windows before review: one temporary commit on a throwaway branch** (the
+   lane's ruling on F4, and the review's F3). Since spec 063 is not on main, main's verify step
+   runs a fixed file list that leaves out `tests/checks/test_v1_2_hostile_guest.py` and
+   `tests/unit/test_runner_mounts.py`. The route:
    - Criteria 1, 2 and 5 are in `tests/unit/test_runner_grants.py`, which the verify step already
-     runs on all three systems. They need nothing more.
-   - For the other checks, the builder adds one commit, last on the branch, that appends four
-     node ids to the verify step's list:
+     runs on all three systems. Each is a test with no POSIX skip (the review's F2).
+   - The builder makes a branch `spec/076-verify` from this spec's branch tip, and adds one
+     commit to it that changes only the verify step's command: it appends `-rA` (so pytest
+     prints one `PASSED <node id>` line per test, the review's F3) and three node ids:
      `tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write`,
      `tests/checks/test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work`,
-     `tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_neutral`, and
-     `tests/unit/test_runner_mounts.py::test_the_rename_ends_are_stated_per_system` (criterion
-     6's new unit case). Not whole files: on main, other rows of the hostile-guest file fail on
-     Windows for reasons spec 063 handles (its "descriptor limit" need), and they are not this
-     spec's.
-   - The builder pushes the branch (question 98's answer allows it) and runs `gh workflow run
-     release.yml --ref spec/076-the-grant-checks-agree-on-windows`, waits for every job, and
-     records the run id, the head commit and the per-system verdicts.
-   - Then, on a clean tree (`git status` empty), the builder drops the temporary commit (`git
-     reset --hard HEAD~1`, `git push --force-with-lease`). The landing notes record its hash and
-     its diff, a few lines of one step, so the reviewer can see exactly what ran.
+     and `tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_neutral`.
+     Whole check functions, so every row runs. Not whole files: on main, other rows of the
+     hostile-guest file fail on Windows for reasons spec 063 handles (its "descriptor limit"
+     need), and they are not this spec's.
+   - **Authority.** Question 98's answer ("We should push changes as a branch") covers pushing
+     a branch for a dry run. No branch is force-pushed and no pushed commit is rewritten; this
+     spec's branch is never rewritten at all.
+   - The builder pushes `spec/076-verify`, runs `gh workflow run release.yml --ref
+     spec/076-verify`, and waits for every job. It records the run id, its `headSha` (`gh run
+     view <id> --json headSha`), that commit's parent (which must be this spec's branch tip,
+     the commit under review), the temporary commit's diff text, and the per-system verdicts.
+     Then it deletes the throwaway branch, on GitHub (`git push origin --delete
+     spec/076-verify`) and locally.
+   - **Freshness.** Any change to `src/` or `tests/` after the dry run (a review fix, a rebase
+     that changes a file under them) needs a new dry run on the new tip, as AGENTS.md rule 6b
+     treats a tag; only `context/`, `CHANGELOG.md` and `README.md` may follow it. At landing,
+     if the lane's rebase changes anything under `src/` or `tests/` against the dry run's parent
+     (`git diff --stat <parent> <rebased tip> -- src tests` not empty), the lane runs a new dry
+     run the same way before it accepts; criterion 10 (063's next dry run) confirms the whole
+     files after both land, and does not replace that.
    - **Why this route.** The coordinator allows building on top of 063's branch, once 063 is
      rebased onto main, if that is simpler. It is not simpler here. The temporary commit runs
      exactly the failing checks, on the exact source the review will see, on main's own
@@ -284,11 +420,11 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
      review, under this spec's evidence, and its branch would carry 063's commits, which must
      land after 076 (Decision 8). If the temporary route cannot run a row honestly (for
      example, main's harness blocks it on Windows for a reason 063 fixes), the builder stacks
-     076 on 063's rebased branch for that one dry run instead, says so in the landing notes,
-     and 076 still lands first, from its own branch. A permanent change to the verify step was
-     refused: it makes this spec build-class, and 063 rewrites that job into shards
-     within days. A `workflow_dispatch` input does the same as the temporary commit with more
-     lines.
+     076 on 063's rebased branch for that one dry run instead, on a throwaway branch the same
+     way, says so in the landing notes, and 076 still lands first, from its own branch. A
+     permanent change to the verify step was refused: it makes this spec build-class, and 063
+     rewrites that job into shards within days. A `workflow_dispatch` input does the same as
+     the temporary commit with more lines.
 
 8. **The landing order.** 076 lands first, on its own. Then 063 rebases onto main and its next
    branch dry run is the full confirmation: its shards run every product-check file on Windows,
@@ -308,104 +444,147 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
    swapped, a row that exists for `win32`; and the final `calls == []`. The memo §7a link row is
    POSIX-only by design (on Windows a judged walk refuses every reparse point, whoever made it,
    which `test_a_junction_is_refused_on_windows` already checks in the verify step) and stays
-   so. The rename check's loop over caps, and
-   its `ENOTDIR` assertion, have never run on Windows either.
+   so. The rename check's loop over caps, and its `ENOTDIR` assertion, have never run on
+   Windows either.
 
    If the dry run shows one of them failing, the builder decides it here by the same order: a
    product change if a guest or an embedder would see a different outcome, above all if a
    refusal does not happen; a per-system value only with a cited wasmtime or Windows fact. It is
    fixed and run again, never skipped, marked, or moved to make the run green. A failure that
    needs a design of its own is written down (AGENTS.md rule 7), and this spec, and so 063, waits
-   for it.
+   for it. (The review's N2 names one such risk: if the host Python's `stdlib` were reached
+   through a uv junction, the judged walk would refuse it; `UV_PYTHON` is pinned to the patch
+   release, which most likely uses the real folder, INFERRED.)
 
 ## Intent
 
 Make the four Windows failures pass for the right reasons: the product refuses a bad grant
-spelling on every system, each check asserts one value where the product has one, and the two
-places where Windows answers with another number are stated per system, with wasmtime's own
-source as the reason and the README saying so.
+spelling on every system and no longer judges any Windows spelling by its text, each check
+asserts one value where the product has one, and the two places where Windows answers with
+another number are stated per system, with wasmtime's own source as the reason and the README
+saying so.
 
 ## Design
 
-- `src/wasi_python/runner.py`, `_walk_windows(where, path, judge, may_make)`, with `judge`:
-  - start: `drive, tail = ntpath.splitdrive(path)`; if `tail` starts with `\` or `/`, the start
-    is `drive + "\\"`; otherwise it is `ntpath.abspath(drive or ".")`, whose own components are
-    walked from its drive's root;
-  - components: `re.split(r"[\\/]", tail)`, walked in order with a list of held handles,
-    identities and names that `..` pops (never below the start's root);
-  - a missing component: if anything after it (empty and `.` skipped) is `..`, or `may_make` is
-    false, raise "does not exist"; else return it as `missing` with the rest, as today;
-  - every other line of the function (the reparse-point refusal, "is not a folder", the held
-    handles, `_Walked`) is unchanged. Without `judge`, `full = os.path.realpath(path)` as
-    today. `ntpath` by name throughout.
+- `src/wasi_python/runner.py`:
+  - **new** `_drive_folder(drive: str) -> str`, module level: the current folder of `drive`
+    (the process's own drive when `drive` is empty), `ntpath.abspath(drive or ".")`; the seam
+    tests replace.
+  - `_walk_windows(where, path, judge, may_make)`, with `judge`:
+    - start: `drive, tail = ntpath.splitdrive(path)`; if `tail` starts with `\` or `/`, the
+      start is `drive + "\\"`, where an empty `drive` is first taken from
+      `ntpath.splitdrive(_drive_folder(""))[0]`; otherwise the start is `_drive_folder(drive)`,
+      whose own components are walked from its drive's root;
+    - components: `re.split(r"[\\/]", tail)`, walked in order with a list of held handles,
+      identities and names that `..` pops (never below the start's root); each prefix is
+      `here.rstrip("\\") + "\\" + name`;
+    - a name with `:`, or ending in ` ` or `.` (but not `.` or `..`), raises Decision 1's
+      "a name Windows rewrites" before it is opened, existing or not;
+    - a missing component: if anything after it (empty and `.` skipped) is `..`, or `may_make` is
+      false, raise "does not exist"; else return it as `missing` with the rest, as today (the
+      rest is checked for rewritten names first, so a root to be made never holds one);
+    - every other line of the function (the reparse-point refusal, "is not a folder", the held
+      handles, `_Walked`) is unchanged. Without `judge`, `full = os.path.realpath(path)` as
+      today. `ntpath` by name throughout.
+- `tests/harness/files.py`: `READ_DESCRIPTOR_ERRNO = {"linux": 8, "darwin": 8, "win32": 2}` and
+  `read_descriptor_errno(system)` (raising `KeyError` for any other), with a comment citing
+  cause 1; spec 058's place for per-system values.
 - `tests/unit/test_runner_grants.py`:
   - **new** `test_the_windows_walk_takes_dot_dot_on_walked_folders`: on every system, with
     `runner._win_open` and `runner._close_held` replaced by a stand-in over a small in-memory
-    tree of Windows paths (folders, one file, one reparse point; identities `(1, n)`), and the
-    current folder fixed; rows in criterion 1. It asserts the handles held at the end, so a `..`
-    that leaks a handle fails.
-  - `test_the_walk_judges_links`: new rows on the real file system, every system: `new/../x` as
-    a root (`may_make`) and as a grant, "does not exist"; `file/../x`, "is not a folder";
-    `sub/../x` with `sub` and `x` real, walked to `x`'s identity.
+    tree of Windows paths (folders, one file, one reparse point, a folder `a` and a folder
+    `a `, a module cache folder; identities `(1, n)`), and `runner._drive_folder` replaced
+    (`C:` and empty → `C:\b`, `D:` → `D:\work\proj`); rows in criterion 1. It asserts the
+    handles held at the end, so a `..` that leaks a handle fails.
+  - **new** `test_the_walk_takes_dot_dot_on_the_real_file_system`, with **no** skip (it needs
+    no link; the review's F2): `new/../x` as a root (`may_make`) and as a grant, "does not
+    exist", and nothing made; `a-file/../x`, "is not a folder"; `sub/../x` with `sub` and `x`
+    real, walked to `x`'s identity. `test_the_walk_judges_links` is unchanged.
   - `test_a_read_only_grant_refuses_raw_writes`: `fd_write` through the read-only grant's
-    read descriptor, before the renumber, answers `{"linux": 8, "darwin": 8, "win32": 2}` per
-    system; `fd_read` through a descriptor of the writable grant opened write-only answers
-    `{"linux": 8, "darwin": 8, "win32": 2}`; the file is unchanged. The module `RAW` gains a
-    `read` export over `fd_read`.
+    read descriptor, before the renumber, answers `read_descriptor_errno(sys.platform)`;
+    `fd_read` through a descriptor of the writable grant opened write-only answers the same;
+    the file is unchanged. The module `RAW` gains a `read` export over `fd_read`.
 - `tests/checks/test_v1_2_hostile_guest.py`:
-  - `test_a_read_only_grant_refuses_every_write`: `want["write a read descriptor"]` per system
-    as above; the `os.name != "posix"` branch deleted; the docstring names both facts.
+  - `test_a_read_only_grant_refuses_every_write`: `want["write a read descriptor"] =
+    str(read_descriptor_errno(sys.platform))`; the `os.name != "posix"` branch deleted; the
+    docstring names both facts.
   - `test_a_bad_grant_is_refused_before_any_work`: after the root row, `assert not (base /
     "x").exists()`; a grant row `Grant(base / "new" / ".." / "shared", "/s")`, "does not
-    exist"; a root row `base / "shared" / "data" / "f.txt" / ".." / "y"` with a file made there,
-    "is not a folder"; and `root=cache / "new" / ".." / "made"`, "does not exist" (before the
-    fix on Windows this one is refused as inside the module cache, which is the evidence for
-    Decision 2; after it, "does not exist" on every system).
+    exist"; a root row through a file made outside `shared`, `base / "a-file" / ".." / "y"`,
+    "is not a folder" (not under `shared/data`, which the POSIX plant later removes with
+    `os.rmdir`; the review's F6); and `root=cache / "new" / ".." / "made"`, "does not exist" on
+    every system.
 - `tests/unit/test_runner_mounts.py`:
   - `NATIVE_RENAME_END = {"linux": f"returned {ENOTDIR}", "darwin": f"returned {ENOTDIR}",
-    "win32": f"returned {ENOENT}"}` with a comment citing cause 4;
+    "win32": f"returned {ENOENT}"}`, with a comment citing cause 4 and naming the runner image
+    (`windows-2025-vs2026`, `20261007.264.1`);
   - `test_the_rename_rule_forward_is_fuel_neutral`: the guarded loop at full fuel ends
     `returned {ENOTDIR}`; the native loop's ending is `NATIVE_RENAME_END[sys.platform]`; the
     fuel is equal; at each cap, fuel equal and endings equal, except a completed loop, whose two
-    endings are those values;
-  - **new** `test_the_rename_ends_are_stated_per_system`, parametrized over the three systems,
-    needing no wasmtime: the table names each, `freebsd` raises `KeyError`, and only `win32`
-    differs from the guard's ending.
+    endings are those values.
 - `README.md`, `CHANGELOG.md`, `context/upstream/` as Decision 6 says.
 
 ## Scope
 
-In: `_walk_windows`'s `..`; the three checks; three unit cases; the README, CHANGELOG and the two
-facts sheets; one Windows dry run with a temporary commit. Out: any shadow of `fd_write`,
-`fd_pwrite`, `fd_read` or `fd_pread` (Decision 4); the POSIX walk; a Windows link in the
-read-only check; Win32's other path rewrites (trailing dots and spaces, `\\?\` paths), which the
-identity check already covers and no check shows wrong; any change to the workflow that lands;
-063's own Windows rows (the descriptor limit and the rest it handles).
+In: `_walk_windows`'s `..`, its start, its prefixes and its refusal of names Windows rewrites;
+the three checks; two new unit cases and one extended; one per-system table; the README,
+CHANGELOG and the two facts sheets; one Windows dry run on a throwaway branch.
+
+Out:
+- any shadow of `fd_write`, `fd_pwrite`, `fd_read` or `fd_pread`, and a guest-side wrapper
+  (Decision 4);
+- the POSIX walk; a Windows link in the read-only check;
+- the other Windows spellings the review's N1 lists, each with its reason: 8.3 short names (Win32
+  resolves them in any position, and each prefix's identity is the folder it names, so the
+  chain is true); `\\?\` paths (the walk now takes `..` itself, and a rewritten name is refused
+  in them too, so the chain is the opened folders'); `\\.\` device paths (the walked string is
+  what wasmtime opens); case (identity); device names such as `CON` (not folders: "is not a
+  folder" or a failed attribute read, INFERRED). The identity check after wasmtime opens covers
+  only the final folder; the chain is made true by the walk itself, which is why the rewritten
+  names are in scope (the review's F1; the earlier draft's Scope line said otherwise and was
+  wrong);
+- ReFS's 128-bit file identifiers (the review's N5: a possible false refusal or match between two
+  folders on one ReFS volume, never a skipped rule for a spelling; a later Windows memo);
+- any change to the workflow that lands; 063's own Windows rows (the descriptor limit and the
+  rest it handles).
 
 ## Acceptance criteria
 
 Each check is seen failing first, before the code it guards, and against each stand-in named.
 Stand-ins are made in the worktree, run, and restored; their output goes to `build/076-*.log`.
 
-1. `test_the_windows_walk_takes_dot_dot_on_walked_folders` passes on macOS and Linux (and on
-   Windows in the verify step). Rows: root `C:\b\new\..\x` with `may_make`, "does not exist";
-   grant `C:\b\new\..\x`, "does not exist"; `C:\b\f.txt\..\x`, "is not a folder";
-   `C:\b\sub\..\x`, walked to `x`'s identity with handles held on `C:\`, `b` and `x` only;
-   `C:\..\b`, walked to `b`; `C:\b\link\..\x` with `link` a reparse point, "passes through a
-   link or junction"; `C:\b\new\deeper`, `missing == ("new", "deeper")`; a relative `sub\x`
-   from the fixed current folder `C:\b`, walked to `x`. Seen failing before the change (the
-   rows that collapse). **S1:** a `_walk_windows` that collapses the path with `ntpath.normpath`
-   first: fails, naming `new\..\x`. **S2:** a walk that refuses every `..`: fails on
-   `C:\b\sub\..\x`. **S3:** a `..` that does not close its handle: fails on the held handles.
-2. `test_the_walk_judges_links`' new rows pass on macOS and Linux (and on Windows in the verify
-   step). **S4:** `_walk_posix` that applies `os.path.normpath` to the joined path first: fails
-   on macOS, naming the `new/../x` row.
+1. `test_the_windows_walk_takes_dot_dot_on_walked_folders` passes on macOS and Linux, and on
+   Windows in the verify step. Rows:
+   - root `C:\b\new\..\x` with `may_make`, "does not exist"; grant `C:\b\new\..\x`, "does not
+     exist"; `C:\b\f.txt\..\x`, "is not a folder";
+   - `C:\b\sub\..\x`, walked to `x`'s identity with handles held on `C:\`, `b` and `x` only;
+     `C:\..\b`, walked to `b`; `C:\b\link\..\x` with `link` a reparse point, "passes through a
+     link or junction"; `C:\b\new\deeper`, `missing == ("new", "deeper")`;
+   - a relative `sub\x`, walked from `_drive_folder("")`'s `C:\b` to `x`; a rooted `\b\x` with no
+     drive, walked as `C:\b\x` and handed on as that fully qualified path;
+   - the review's two cases, each refused "a name Windows rewrites" with no handle opened for
+     the name: `C:\b\D:sub` (as a writable grant, with `D:\work\proj\sub` in the tree beside a
+     runtime folder `D:\work`), and the writable grant `\\?\C:\b\a ` with the read-only grant
+     `C:\b\a \x`; and also `C:\b\a.\x`, `C:\b\sub::$INDEX_ALLOCATION` and a root to be made
+     `C:\b\new.`, each refused the same way.
+
+   Seen failing before the change (the rows that collapse, and every rewritten-name row).
+   **S1:** a `_walk_windows` that collapses the path with `ntpath.normpath` first: fails, naming
+   `new\..\x` (and, with the module cache in the stand-in tree, shows `cache\new\..\made`
+   refused as inside the cache: Decision 2's evidence). **S2:** a walk that refuses every `..`:
+   fails on `C:\b\sub\..\x`. **S3:** a `..` that does not close its handle: fails on the held
+   handles. **S11:** the rewritten-name refusal removed: fails on `C:\b\D:sub` and on the `a `
+   pair. **S12:** prefixes built with `ntpath.join` and the `:` refusal removed: `C:\b\D:sub` is
+   accepted, and the row fails. **S13:** a rooted `\b\x` started at `"\\"`: the handed-on path
+   is not fully qualified, and the row fails.
+2. `test_the_walk_takes_dot_dot_on_the_real_file_system` passes on macOS and Linux, and on
+   Windows in the verify step, where its `PASSED` line is quoted (criterion 9). **S4:**
+   `_walk_posix` that applies `os.path.normpath` to the joined path first: fails on macOS,
+   naming the `new/../x` row.
 3. `test_a_bad_grant_is_refused_before_any_work` passes on macOS and Linux, and on Windows in
-   the dry run (criterion 9), **every row of it**: the dry run's log shows the check passed on
-   `verify (windows-2025)`, which means each refusal Decision 9
-   lists ran and refused there, and `calls == []` held. The `cache/new/../made` row is the one row whose message changes
-   on Windows with the fix. **S5:** S4's stand-in again: the root row fails on macOS ("DID NOT
-   RAISE"), and `base/x` is made.
+   the dry run, **every row of it**: its `PASSED` line on `verify (windows-2025)` means each
+   refusal Decision 9 lists ran and refused there, and `calls == []` held. **S5:** S4's
+   stand-in again: the root row fails on macOS ("DID NOT RAISE"), and `base/x` is made.
 4. `test_a_read_only_grant_refuses_every_write[plain]` and `[snapshot]` pass on macOS and Linux,
    and on Windows in the dry run. **S6:** a stand-in that selects the `win32` values on macOS:
    fails naming "write a read descriptor". **S7:** the deleted branch put back, unconditioned:
@@ -413,26 +592,68 @@ Stand-ins are made in the worktree, run, and restored; their output goes to `bui
 5. `test_a_read_only_grant_refuses_raw_writes` passes on macOS and Linux, and on Windows in the
    verify step, where it is the first observation of the read twin. **S8:** S6's selection
    again: fails on macOS naming the write row.
-6. `test_the_rename_rule_forward_is_fuel_neutral` and `test_the_rename_ends_are_stated_per_system`
-   pass on macOS and Linux, and on Windows in the dry run, with the loop over caps run whole
-   there (from 1 up to past the need). **S9:** a stand-in that selects the
-   `win32` native ending on macOS: fails. **S10:** a guard whose `_source_type` answers 0 for a
-   file, so `f/` is renamed: the guarded ending is not `returned 54` and the check fails on
-   macOS.
+6. `test_the_rename_rule_forward_is_fuel_neutral` passes on macOS and Linux, and on Windows in
+   the dry run, with the loop over caps run whole there (from 1 up to past the need). **S9:** a
+   stand-in that selects the `win32` native ending on macOS: fails. **S10:** a guard whose
+   `_source_type` answers 0 for a file, so `f/` is renamed: the guarded ending is not
+   `returned 54` and the check fails on macOS.
 7. The README, the CHANGELOG entry, facts sheet 12's fact 5, facts sheet 20 and its row, as
    Decision 6 says.
 8. In the worktree, without `--accept`: the fast tier while building, then the full judge with
    `-n 6` before "built": no pass lost, nothing grows, the judge change named
    (`tests/checks/test_v1_2_hostile_guest.py`, `tests/unit/test_runner_grants.py`,
-   `tests/unit/test_runner_mounts.py`); `ruff check` and `ruff format --check` green;
-   `tests/public_api.txt` unchanged.
-9. **On Windows:** one release dry run on this branch with Decision 7's temporary commit, every
-   job passed on all three systems; criteria 1 to 6's checks among the passes on
-   `verify (windows-2025)`. The run id, its head commit, the temporary commit's diff and its
-   removal are in the landing notes. A failure there is decided by Decision 9, fixed in this
-   spec, and run again; no check, row or cap is skipped, deselected or allowed to fail.
+   `tests/unit/test_runner_mounts.py`, `tests/harness/files.py`); `ruff check` and `ruff
+   format --check` green; `tests/public_api.txt` unchanged.
+9. **On Windows:** one release dry run on `spec/076-verify` (Decision 7), every job passed on
+   all three systems. The landing notes record the run id, its `headSha`, that commit's parent
+   (this spec's branch tip, as reviewed), the temporary commit's diff and the branch's deletion,
+   and **quote the `PASSED` line from `verify (windows-2025)` for each named node**:
+   `test_a_read_only_grant_refuses_every_write[plain]` and `[snapshot]`,
+   `test_a_bad_grant_is_refused_before_any_work`,
+   `test_the_rename_rule_forward_is_fuel_neutral`,
+   `test_the_windows_walk_takes_dot_dot_on_walked_folders`,
+   `test_the_walk_takes_dot_dot_on_the_real_file_system` and
+   `test_a_read_only_grant_refuses_raw_writes`. A node that is missing, `SKIPPED`, blocked or
+   deselected there fails this criterion, as a `FAILED` one does. A failure is decided by
+   Decision 9, fixed in this spec, and run again on a new throwaway branch; no check, row or cap
+   is skipped, deselected or allowed to fail. Any later change under `src/` or `tests/` needs a
+   new dry run (Decision 7, freshness).
 10. After landing (063's, not this spec's): 063's next branch dry run passes
     "judge (windows-2025, own-guest)" with these checks, on main with 076.
+
+## Disposition of the pre-build review
+
+The review (`076-review/076-the-grant-checks-agree-on-windows-spec-2026-10-19.md` in the lane's
+scratchpad, copied to `../reviews/` by the lane): "ready once F1 to F4". The lane ruled on F1 and
+F4 and upheld option (c) for the errno. Each finding:
+
+1. **F1 — fixed in this spec, not a gap** (the lane's ruling). Cause 5 states both spellings.
+   Decision 1 builds every prefix by concatenation, refuses any name with `:` or ending in a
+   space or a period with a clear reason, and qualifies a rooted path with no drive (F7's
+   case; the choice and its reason are in Decision 1). Criterion 1 gains the review's two cases
+   and three more, with stand-ins S11 to S13. The Scope line about the identity check is
+   corrected. The README's "never by spelling" is now true on Windows.
+2. **F2 — fixed.** The real-file-system rows are a new test,
+   `test_the_walk_takes_dot_dot_on_the_real_file_system`, with no POSIX skip.
+3. **F3 — fixed.** The temporary commit adds `-rA`; criterion 9 quotes each `PASSED` line and
+   counts a missing, skipped, blocked or deselected node as a failure.
+4. **F4 — fixed, the lane's route.** Rebased onto `6fd89e0`. The temporary commit lives only on
+   a throwaway branch, `spec/076-verify`, deleted after the run; nothing is force-pushed; the
+   authority is question 98's answer; the run's `headSha` and parent are recorded; freshness,
+   and the lane's rebase at landing, are in Decision 7.
+5. **F5 — written in.** Decision 4 covers calls with mounts and the guest-side wrapper, and says
+   "Python's file objects opened by path"; the README sentence is scoped to grants and names
+   the mount's `EBADF`; facts sheet 20 states preview2 exactly and cites the `sync_data`
+   precedent.
+6. **F6 — fixed.** The file row's file is `base / "a-file"`, outside `shared/data`.
+7. **F7 — written in.** The rooted path with no drive is qualified (Decision 1); the `ntpath`
+   claim is corrected in cause 3 and Decision 1; "never accepts" is scoped to `..`; the current
+   folder is a seam, `_drive_folder`.
+8. **F8 — written in.** Decision 5 and the table's comment name the image; the constant's own
+   unit case is dropped.
+9. **N1** — answered in Scope's "Out" list. **N2** — named in Decision 9. **N3** — taken: one
+   table in `tests/harness/files.py`. **N4** — taken: Decision 2 names S1 as the evidence.
+   **N5** — out of scope, noted there.
 
 ## Landing notes
 
