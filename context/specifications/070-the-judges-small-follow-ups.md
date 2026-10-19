@@ -232,3 +232,29 @@ is in the main tree under `build/reviews-evidence/070-build/`.
   local conflict in `test_scan.py`, and keeps both.
 - **Not done here:** no `--accept`, no push, no rebase. The review gets this specification and
   `git diff 4a94c14..` on this branch. The lane accepts with `--accept-judge`.
+
+**Revised against the build review, 2026-10-19.** Rebased onto main `a0de463` (the 0.1.0a6
+release and the 0.1.0a7 bump), with no conflict: the build is now `9020ba0`, the Design fix
+`635a28c`, the first landing notes `9a1515f`. The CHANGELOG entry moved from the released 0.1.0a6
+section to `0.1.0a7 — unreleased`. The revision is `6bdbe91` (the Disposition says what it
+changes); these notes are the commit after it. Same frozen set, `s-4eb5418a2b1bb553-c353b1d9`.
+
+- **Checks first.** F1's four spellings were added before the code: on the build, `4 failed, 7
+  passed`. With the fix, all 12 rule-16 cases pass. F2's case passes on the build (the rule was
+  already right). The review's M2 and M3 now fail it.
+- **Stand-ins** (EXECUTED, `standins.py` extended, `standins-revised.out`): S1 to S18 each exit
+  1. S1 to S12 as before, with S1 at 9 failed, S2 at 3 and S6 at 2, now that there are more
+  cases. S13 fails 3, S14 1, S15 5, S16 1, S17 1 and S18 1 (criteria 1 and 3).
+- **The fast tier** (`rev-fast-n3.log`, `-n 3`): `wasi_python v1: 353/418 pass · 0 gap · 19
+  blocked · 0 fail · 46 deselected (unit suite 1245/1253, 8 skipped)`, `ratchet vs 2ce08a592d:
+  lost 0 · absent 0 · unrun 0 · unrun locally 17 · gained 2 · grew 0 · upstream unrun 31 · not
+  selected 32 · judge changed: tests/checks/test_v1_4_embedding.py, tests/harness/history.py,
+  tests/harness/scan.py and 3 more`, `1598 passed, 27 skipped`, exit 0.
+- **The full judge** (`rev-full-n3.log`, `uv run pytest -n 3`, no `--accept`, on `6bdbe91`):
+  `wasi_python v1: 365/418 pass · 2 gap · 51 blocked · 0 fail (unit suite 1245/1253, 8
+  skipped)`, `ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 · unrun locally 37 · gained 2 ·
+  grew 0 · upstream unrun 31 · judge changed: (the same files)`, `1610 passed, 59 skipped, 2
+  xfailed`, exit 0. The blocks are as before, the worktree's.
+- `ruff check` and `ruff format --check` on `src tests recipes/guest`: clean.
+- **Not done here:** no `--accept`, no push. The delta review gets the Disposition, `git diff
+  9a1515f 6bdbe91`, stand-ins S13 to S18 and the fast tier.
