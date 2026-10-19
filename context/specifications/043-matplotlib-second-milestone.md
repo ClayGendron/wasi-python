@@ -1,6 +1,6 @@
 # 043 — matplotlib, the second milestone: triangles, contours, SVG and PDF
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
+- **Status:** built 2026-10-19 (Landing notes), awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
   amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
@@ -487,4 +487,185 @@ build moves it.
 
 ## Landing notes
 
-Not built.
+Built 2026-10-19 by an agent (Claude Opus 5.5) in the worktree `wasi_python-043`, branch
+`spec/043-matplotlib-second-milestone`, from main `08de0c8`, under **branch A** of Decision 6:
+spec 037 has not landed (it is being built in its own worktree), so this links step 37's qhull as
+it is, with no qhull patch and no `qhull_r.pc`; 037's builder then meets conditions a, b, d, e and
+f of 037's amended Decision 8. Every number below is EXECUTED on darwin-arm64 unless marked; fuel
+is the judge's driver's (fixed clock and entropy, exact). Scratch scripts and logs are in the
+session scratchpad (`043/`) and under the worktree's `build/`, not in git. The judge was run in the
+worktree on its own build, with `-n 3`, never with `--accept`.
+
+**Commits.** `0f9e28c` (the judge), `38a882b` (the recipe, the patch and its facts sheet, README,
+CHANGELOG, the release's tree count), and the commit carrying these notes.
+
+### What changed
+
+- **The pin:** contourpy 1.4.0's sdist in `downloads/SHA256SUMS` and a `get` line in
+  `scripts/00_download.sh` (023 had not pinned it; the oracle already locked 1.4.0).
+- **Carried patch 0002:** `recipes/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.patch`
+  is `../upstream/7-matplotlib-qhull-devnull/fix.patch` byte for byte (1,138 bytes, SHA-256
+  `8ea3cd41…7da20`, as Decision 3 says); its facts sheet moved unchanged by `git mv` to
+  `../upstream/patches/matplotlib-3.11.2/0002-qhull-without-devnull-on-wasi.md`; the index row and
+  `notes.md` say so. Carried patches: 7 → 8.
+- **The stand-in:** `recipes/meson-python-stand-in/meson_python-0.dist-info/METADATA`, the three
+  lines of Decision 4. The built `_build_config.py` says `mesonpy_version="0+stand.in"` (step 55
+  stops if it does not).
+- **Step 55** unpacks, patches (none) and builds contourpy with meson and matplotlib's cross file
+  (`--buildtype=release -Db_ndebug=if-release -Db_lto=false -Dwerror=false
+  -Dpython.bytecompile=-1`), the stand-in on `PYTHONPATH` for that configure alone (a subshell),
+  then `ninja` and `meson install --tags python-runtime`. The extension-placing script is written
+  once and run for matplotlib and for contourpy.
+- **Steps 60 and `gen_inittab.py`:** `_qhull` is no longer left out (`_tkagg` still is);
+  `contourpy._contourpy` is registered from its install path. `_qhull`'s `.deps` names
+  `-L…/plot-libs/lib -lqhull_r`, so step 37's `libqhull_r.a` is linked once. Inittab: 2 modules
+  more, no clash.
+- **Step 70 and `make_stdlib_zip.py`:** contourpy's tree and METADATA; `REWRITE` gains
+  `contourpy/util/_build_config.py`, whose `CONTOURPY_BUILD_KEYS` are read from the keywords of
+  the `dict(...)` call `build_config()` returns, by numpy's rule; the unused-`--replace` text
+  names the three members.
+- **`assemble_artifacts.py`:** `PACKAGES` gains contourpy 1.4.0 and qhull 8.0.2; `LICENSES/`
+  gains `contourpy.txt` (contourpy's `LICENSE`, then matplotlib's `LICENSE/LICENSE_YORICK`, GIST's
+  notice for its `mpl2005` code) and `qhull.txt` (qhull's `COPYING.txt`).
+- **The judge** (one judge change, for `--accept-judge`): the `plot_contour` job, its golden and
+  platform file; `test_plot_contour_job_matches_native[plain|snapshot]` (v1.3, the golden, the
+  SVG and normalized PDF files saved in a granted folder, and the raw PDF pin
+  `9f21cc48…4f32b990`); `test_contourpy_runs_one_thread` (v1.3);
+  `test_a_triangulation_leaves_every_writable_grant_as_it_was` (v1.2); 023's two gaps removed
+  (their checks pass); `SOURCE_PATTERNS` and `needs.SOURCE_COMPONENTS` gain contourpy (20 trees;
+  the release workflow's count is twenty); `scan.cpp_exception_errors` requires every `meson
+  setup` in step 55 to name matplotlib's cross file and one of them to be contourpy's;
+  `scan.MESON_BUILDS` gains `contourpy-build`; `HOST_FACT_MEMBERS` gains contourpy's member and
+  `host_fact_errors` applies bare `linux` to it; `paths.PACKAGES` and `LICENCE_COMPONENTS` gain
+  contourpy and qhull; `MORE_LICENCE` gains qhull's `COPYING.txt` and a new `BORROWED_LICENCE`
+  holds `LICENSE_YORICK` in `LICENSES/contourpy.txt` by name, read from matplotlib's pinned
+  tarball; `DISTRIBUTIONS` gains contourpy; `tests/upstream/packages.toml` gains contourpy
+  (spec 063, below); the unit tests that follow (below).
+- **README** (matplotlib's facts: triangulations, contours, reproducible SVG and PDF, the PDF's
+  tags, one thread, `fd_renumber`; the patch count 8; Scope) and **CHANGELOG** (one entry under
+  0.1.0a7, naming patch 0002).
+
+### Amendments made at build, each with its reason (for the review)
+
+1. **contourpy's `_build_config.py` is copied from its build folder.** meson installs a
+   `configure_file` with no install tag (EXECUTED: `intro-install_plan.json` gives it `tag:
+   None`), and meson-python installs every tag, so Decision 4's `meson install --tags
+   python-runtime` left it out (the first build stopped at step 55's own check). Step 55 now
+   checks that meson's install plan names `build/contourpy-build/lib/contourpy/util/_build_config.py`
+   and copies that file into the installed package. Installing without `--tags` would also
+   install the extension, whose `runtime` tag runs `install_name_tool` on a macOS host (023's
+   landing notes, item 5).
+2. **The zip gains 19 members, not 18.** contourpy's installed tree is 18 files, not 17 (ten in
+   `contourpy/` with `py.typed`, eight in `util/` with `_build_config.py`; EXECUTED, the zip's
+   new names), plus METADATA. 64,998 bytes more (Decision 4: about 63 KB). Within a tenth.
+3. **Step 55 is `55_matplotlib.sh`**, the name 023 landed (Design says `55_plot_packages.sh`).
+4. **`LICENSES/` is not a folder in git:** the notices are assembled by `assemble_artifacts.py`
+   into the set's `LICENSES/`, as 023's are. qhull's licence is `COPYING.txt`, which the judge's
+   top-level search does not match, so `MORE_LICENCE` names it.
+5. **Judge changes beyond Decision 9's list, each forced by an existing check:**
+   `tests/unit/test_runner_mounts.py::test_every_descriptor_import_is_shadowed` counted 28
+   descriptor imports; `fd_renumber` makes 29 (it is already shadowed and counted by the runner,
+   spec 068), and the stale comment in `src/wasi_python/mounts.py` that said no binary imports it
+   is corrected (comment only); `tests/unit/test_scan.py`'s compile-record test names the first
+   record in sorted order, now `contourpy-build`; `tests/unit/test_artifact_rules.py`'s fixtures
+   gain the contourpy and qhull pins and package lines; `tests/upstream/packages.toml` gains
+   `[package.contourpy]`, `kind = "later"`, `closes_with = "spec 066"` (spec 063's rule:
+   contourpy's sdist carries its tests; 066, reserved in the roadmap for the compiled packages'
+   own tests, should name contourpy beside matplotlib, Pillow, kiwisolver, lxml and regex when it
+   is drafted); `jobs.PLATFORM_BOUND` gains `plot_contour` (Decision 8's recording-platform rule).
+   Three unit tests for the `dict(...)` parse are new (`tests/unit/test_build_scripts.py`).
+6. **The PDF pin is an assertion of the job's check**, not a check of its own, as 023 pins the
+   PNG's bytes in `test_plot_line_job_matches_native`: a second guest run of an 11 G job for one
+   hash would double its cost.
+7. **The job's details** (Decision 8 leaves them open): the contour lines use `SeparateCode`
+   (EXECUTED: `mpl2014` refuses `Separate`), the level is 0.25 on `exp(-x²-y²) - 0.5·exp(-(x-1)²-(y-1)²)`
+   over [-3, 3]², and the sums are `math.fsum`, so no summation order is printed. The figure's
+   left axes hold `contourf` and `contour` (7 levels) and `clabel`, the right `tricontourf` and
+   `triplot` on the triangulation. The SVG salt is `wasi-python`. Delaunay's triangles hash to
+   `89432076058c35fd…` and its neighbours to `9339a93a6b6b6bff…`, as in the drafting run.
+8. **The no-host-file check uses one instance across two calls** (`guest_turns`, spec 055), so
+   the host lists the root and the font cache's grant after matplotlib's import and again after
+   the triangulations; on the snapshot binary. The threads check runs on the snapshot only.
+9. **On 023's set the job stops at its first line**, `import contourpy` (`ModuleNotFoundError`),
+   not at `_qhull`'s `ImportError` (criterion 1's wording): Decision 8 prints contourpy's version
+   first. `_qhull`'s `ImportError` on that set is seen by the no-host-file check instead.
+
+### Acceptance criteria against evidence
+
+1. **The checks exist and were seen failing first** (EXECUTED; logs under the worktree's `build/`):
+   - On 023's set (main's `build/artifacts`, copied; this worktree's own rebuild of main is byte
+     for byte the same, `SHA256SUMS` `c9dcb5b8…`): `test_plot_contour_job_matches_native[plain]`
+     and `[snapshot]` exit 1, `ModuleNotFoundError: No module named 'contourpy'` (the PDF pin is in
+     that check); `test_contourpy_runs_one_thread`, the same; the no-host-file check, `returned 1;
+     ImportError: cannot import name '_qhull' from 'matplotlib'`; the host-fact check once its
+     member was added, `contourpy/util/_build_config.pyc: not in the zip`; the C++ scan, `no meson
+     setup of contourpy-build`; the three `dict(...)` unit tests before the parse (5 failed).
+   - On a build without patch 0002 (steps 55, 60, 80): the job on both binaries, `RuntimeError:
+     Could not open devnull`. The no-host-file check also failed there, `a writable grant
+     changed: /: [('dev/null', 'file', 0)]`: released matplotlib's own `fopen` creates the file
+     when the root holds a `dev` folder (and raises only when it does not).
+   - On a build with the memo's fallback form (`fopen` first, the discard stream only if it
+     fails): the job passes on both binaries; the no-host-file check fails with `dev/null` under
+     the root, as the drafting run and the review found.
+   - With contourpy's member taken out of `REWRITE` (step 70 alone): the host-fact check names
+     `darwin`, `aarch64` and the checkout's path (3 findings). With `build_cpu_family` removed from
+     a copy of the installed member, `make_stdlib_zip.py` stops: `contourpy/util/_build_config.py:
+     no build_cpu_family to make host-neutral`.
+   - The threads program with `serial` at `chunk_count=4` against `threaded`'s 16: `1 1 14 940
+     False` (as written: `1 1 75 1001 True`).
+   After each variant the set was rebuilt from step 55 and its `SHA256SUMS` equalled the first
+   M2 build's.
+2. **A full build from pins in a clean clone** (EXECUTED: `git clone` of the branch at `38a882b`
+   into the scratchpad, the pins copied from `downloads/`, `scripts/build.sh --plain`, 16 steps in
+   14 min 28 s on the shared machine): both matplotlib patches applied (the applier refuses an
+   offset or a skip; `patch --dry-run` on the tarball, no offset), contourpy built, `_qhull` and
+   `_contourpy` linked, and `SHA256SUMS` equal to the worktree's. `MANIFEST` names `package
+   contourpy 1.4.0`, the contourpy pin, the stand-in's recipe line and patch 0002's.
+3. **The same bytes.** arm64 Linux (EXECUTED: the `linux/arm64` research container `wp040-arm64`,
+   Debian 13.7, a clone of the branch at `38a882b`, `scripts/00_download.sh` then
+   `scripts/build.sh --plain`, 16 steps in 18 min 52 s): `SHA256SUMS` equal to macOS's, byte for
+   byte. x86_64 Linux (EXECUTED: the `linux/amd64` research container `wp040-amd64` under Rosetta,
+   the same clone and commands, 16 steps in 1 h 15 min, emulated on the shared machine; the CI
+   rebuild runs natively, spec 059): `SHA256SUMS` equal too. No exception. Three hosts, one
+   `SHA256SUMS`: `697d8e4693314000375320b140b6047b5dad0a28c40a6d86db597ee79ee908d5`.
+
+   The three main artifacts: `python.wasm` 42,150,234 bytes,
+   `ceb870a8208df486b3f39dbaa97b435f2c7c75d49b14f64b7791aff00aa97852`; `python-snapshot.wasm`
+   45,687,008 bytes, `dd7f461745ee8a85f155521a6b5ef4075adfb9892589ff4b7b9f8a61e8e5457c`;
+   `python-stdlib.zip` 22,262,171 bytes,
+   `73062facba3f5e608e46cd62e3ed846b5045d8678a5a9e7ef587bba450e506e0`.
+4. **The judge.** `uv run pytest -n 3` on this set, with the upstream kit fetched: 543/559 pass,
+   13 gaps (all existing), 3 blocked (prior-art clones, three systems, wheel: this machine's
+   usual), **0 fail**; the ratchet against `9a446e03f6`: lost 0, absent 0, unrun 0, gained 7 (the
+   four new checks, contourpy's tree, and 023's two gap checks now passing), grew 148, judge
+   changed. RED only for growth, which the lane accepts with `--accept-growth`. Not run with
+   `--accept` (only the lane accepts). The record is `build/progress/latest.json` (a copy:
+   `latest-043-full.json`).
+5. **The numbers, against Decision 10** (EXECUTED; base = 023's set as rebuilt here):
+
+   | number | 023's set | this set | change | Decision 10 |
+   |---|---|---|---|---|
+   | `python.wasm` bytes | 41,099,661 | 42,150,234 | +1,050,573 (+2.56%) | +0.8 to +1.0 MB: 5% over the top, within a tenth |
+   | snapshot bytes | 44,633,983 | 45,687,008 | +1,053,025 (+2.36%) | the same: within a tenth |
+   | zip bytes | 22,197,173 | 22,262,171 | +64,998 | about +63 KB |
+   | zip members | 2,421 | 2,440 | +19 | +18 (amendment 2) |
+   | plain `-c pass` fuel | 167,481,449 | 167,929,331 | +447,882 (+0.27%) | spec 035's per-member cost applies: 19 × about 24,000 ≈ +0.46 M; the 1.4 M estimate predates 035 |
+   | snapshot `-c pass` fuel | 15,631,800 | 15,696,620 | +64,820 (+0.41%) | INFERRED +0.05% from 023's 83.5 M base; spec 069 cut the base to 15.6 M, and the absolute cost, about 3,400 a member, is 023's per-member order (2,440) |
+   | `import matplotlib.pyplot`, plain / snapshot | 8,176,669,189 / 7,866,113,188 | 8,177,597,994 / 7,866,801,340 | +0.011% / +0.009% | no change (the zip's directory only) |
+   | `plot_contour` job, plain / snapshot | — | 11,217,332,307 / 10,891,553,920 | new | about 11.2 G cold (the judge's root has no font cache) |
+   | constructors | 9 reviewed | 9 reviewed, none new | — | none expected |
+   | `target_features` | the line's 10 | the line's 10 | — | unchanged |
+   | WASI imports | 43 | 44 | `fd_renumber` | one more; `wall_errors` empty |
+
+   The other growth the ratchet lists is the zip's 19 more members, paid at every read of its
+   directory: about +65,000 fuel at each snapshot start (the v1.2 and v1.4 probes, +0.4 to
+   +0.9%), the zip-directory checks (+0.5 to +0.8%), and the upstream suites (+0.0 to +0.5%;
+   numpy-core +1,100,008,556, 0.54%, with the same 9,519 passes; run here on 023's set it gives
+   203,355,540,978, the accepted figure within 33,473, so the growth is this change's; INFERRED: the
+   suite reads the directory again at each `importlib.invalidate_caches()`, about 2,450 times at
+   the 448,000 that 19 members add to a plain start's read). Some lxml and pandas-tslibs checks fell by up to 0.29%. The
+   plot_line job grew 0.01% / 0.04%.
+6. **Branch B only:** not applicable (branch A).
+7. **A release dry run:** not run. Dispatching the release workflow needs the branch pushed,
+   which only the lane does (AGENTS.md, rule 6b). The x86_64 rebuild's time (spec 040) is the
+   dry run's to record.

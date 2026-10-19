@@ -226,7 +226,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   owner to send (matplotlib refuses AI-written pull requests). contourpy runs one thread
   (`max_threads()` is 1). The binary imports one more WASI preview1 call, `fd_renumber` (qhull's
   `freopen`), which the runner already shadows and counts. `python.wasm` grows by 1.05 MB and the
-  zip by 18 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
+  zip by 19 members; `import matplotlib.pyplot` costs what it did. The notices gain contourpy's
   licence with matplotlib's `LICENSE_YORICK` (GIST's notice, for contourpy's `mpl2005` code;
   question 81) and qhull's `COPYING.txt`.
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
