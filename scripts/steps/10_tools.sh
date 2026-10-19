@@ -23,6 +23,28 @@ for archive in "$SDK_TGZ" "$WASMTIME_TXZ" "$PYTHON_TGZ"; do
 done
 [ -x "$HOSTPY" ] || die "the host Python did not unpack to $HOSTPY"
 
+# The one host Python every step runs (spec 079, Decision 3). build/tools/host-python/ holds
+# python, python3 and python<major>.<minor>, each exec'ing $HOSTPY, and common.sh puts it first on
+# PATH, so meson's find_program, an `env python3` shebang (HarfBuzz's and matplotlib's generators)
+# and configure's probes (CPython's PYTHON_FOR_REGEN) all find the pinned interpreter. Behind it,
+# scripts/build.sh puts a refusing stand-in for every other Python name. The gate (Decision 5):
+# each name resolves to the shim, and the route a shebang takes reaches the pinned prefix.
+SHIM="$T/host-python"
+mkdir -p "$SHIM"
+for name in python python3 "python$PYTHON_MM"; do
+  printf '#!/bin/sh\nexec "%s" "$@"\n' "$HOSTPY" > "$SHIM/$name"
+  chmod 755 "$SHIM/$name"
+done
+for name in python python3 "python$PYTHON_MM"; do
+  found=$(command -v "$name" || echo nothing)
+  [ "$found" = "$SHIM/$name" ] || die "host python gate: $name is $found, not $SHIM/$name"
+done
+prefix=$(/usr/bin/env python3 -c 'import sys; print(sys.prefix)') \
+  || die "host python gate: /usr/bin/env python3 failed"
+[ "$prefix" = "$T/python" ] || die "host python gate: /usr/bin/env python3's prefix is $prefix, not $T/python"
+behind=$(command -v python2 || echo none)
+echo "host python: python3 is ${SHIM#"$HERE"/}/python3, Python $("$HOSTPY" -c 'import platform; print(platform.python_version())'), prefix ${prefix#"$HERE"/}; behind it python2 is ${behind#"$HERE"/}"
+
 # The wasm runtime every host links (spec 012, Decision 2): a host tarball keeps only its compiler.
 # Its own sysroot and its wasm32-wasip1 builtins are removed and replaced by wasi-sdk's host-neutral
 # ones, the same bytes on every host. The SDK is a downloaded binary toolchain, not a source tree.

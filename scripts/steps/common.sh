@@ -19,7 +19,8 @@ W="$CP/cross-build/wasm32-wasip1"
 OUT="$B/out"
 
 export WASI_SDK_PATH="$SDK"
-export PATH="$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"
+# Step 10's shim for the pinned host Python comes first (spec 079): every Python a step finds by name.
+export PATH="$T/host-python:$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"
 export PYTHONPATH="$T/pylib"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-$B/uv-cache}"
 # Build tools must not leave bytecode caches inside the upstream source trees (spec 003, Decision 4).
