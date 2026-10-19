@@ -4,6 +4,7 @@
  *   wizer.initialize  run once by Wizer at build time: a live interpreter with the stdlib's
  *                     bootstrap imported and no package (PREIMPORT; decision 34, spec 069)
  *   run               one program per instance: argv and the environment from WASI, then finalize
+ *                     (on the snapshot, after undoing the freeze, as shutdown does: spec 073)
  *   turn              one turn of a session: code from host_alloc'd memory, the interpreter kept
  *   shutdown          a session's end: Python's own shutdown (atexit, finalization), once
  *
@@ -140,7 +141,9 @@ static int in_turn = 0;
 static int shut = 0;
 static int session_set_up = 0;
 /* Strong references the C side calls through, so replacing _reactor.turn or gc.unfreeze, or
- * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). */
+ * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). On the
+ * snapshot, wizer.initialize takes unfreeze_function before any guest code exists, and run or
+ * shutdown (never both: they exclude each other per instance) calls it once (spec 073). */
 static PyObject *turn_function = NULL;
 static PyObject *unfreeze_function = NULL;
 
@@ -167,6 +170,7 @@ clear_unused_stack(void)
 }
 
 static void run_private(const char *source);
+static void show_and_drop(void);
 
 static void
 init_interpreter(int fixed_hash_seed)
@@ -284,11 +288,20 @@ wizer_initialize(void)
 {
     init_interpreter(1);
     run_private(PREIMPORT);
-    /* Then what the imports left behind is frozen out of the collector's way. With no package
-     * pre-imported that is little, but the freeze still pays: unfrozen, a bare run on the
-     * snapshot costs 43.8 M fuel instead of 15.6 M (spec 069, Decision 4; its check (b) is
-     * coupled to it). run() reseeds random and numpy.random from WASI entropy on every call,
-     * for whichever of them a program has imported. */
+    /* Then what the imports left behind is frozen out of the collector's way, so a program runs
+     * without the collector walking it; run() undoes the freeze before it finalizes, so the
+     * snapshot finalizes as CPython does (the owner's answer to question 103, spec 073), at about
+     * 28 M fuel a call; spec 069's check (b) is coupled to it. The reference is taken here,
+     * before the freeze and before any guest code, so a program cannot replace what run calls.
+     * run() reseeds random and numpy.random from WASI entropy on every call, for whichever of
+     * them a program has imported. */
+    PyObject *gc = PyImport_ImportModule("gc");
+    unfreeze_function = gc != NULL ? PyObject_GetAttrString(gc, "unfreeze") : NULL;
+    Py_XDECREF(gc);
+    if (unfreeze_function == NULL) {
+        PyErr_Print();
+        abort();
+    }
     run_private("import gc\ngc.collect()\ngc.freeze()\n");
     pinned = 0;
     /* Forget the preopens Wizer gave, so the table is rebuilt from the runtime's, by name and in
@@ -398,7 +411,18 @@ run(void)
     Py_XDECREF(reactor);
     Py_XDECREF(env);
     Py_XDECREF(argv);
-    Py_CLEAR(turn_function); /* run never turns: its finalization is as before sessions */
+    Py_CLEAR(turn_function); /* run never turns */
+    /* The snapshot's freeze undone before finalizing, as shutdown does (spec 073, Decision 4):
+     * the atexit handlers and the teardown see the whole heap, so what a program hung on it is
+     * finalized as in CPython. On the plain reactor nothing is frozen and nothing is taken. */
+    if (unfreeze_function != NULL) {
+        PyObject *done = PyObject_CallNoArgs(unfreeze_function);
+        if (done == NULL) {
+            show_and_drop();
+        }
+        Py_XDECREF(done);
+    }
+    Py_CLEAR(unfreeze_function);
     if (Py_FinalizeEx() < 0) {
         rc = 120;
     }
@@ -469,7 +493,8 @@ reactor_turn(int32_t ptr, int32_t len)
     }
     if (unfreeze_function == NULL) {
         /* The first turn, before any Python runs (the re-review's N1): not in init_interpreter,
-         * which would put gc in every plain run's sys.modules. */
+         * which would put gc in every plain run's sys.modules. The snapshot took it already, in
+         * wizer.initialize (spec 073). */
         PyObject *gc = PyImport_ImportModule("gc");
         unfreeze_function = gc != NULL ? PyObject_GetAttrString(gc, "unfreeze") : NULL;
         Py_XDECREF(gc);

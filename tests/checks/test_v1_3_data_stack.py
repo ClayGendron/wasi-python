@@ -172,7 +172,10 @@ START_PROBE = (
     "print(json.dumps({'modules': mods, 'stdlib': sorted(sys.stdlib_module_names)}))\n"
 )
 GUARD_NAMES = ("numpy", "pandas", "host")  # the zip's derivation is not vacuous
-START_FACTOR = 8  # the snapshot's start at least 8 times cheaper than the plain start (check b)
+# The snapshot's start at least 3 times cheaper than the plain start (spec 069, check b). Spec 073
+# restated it from 8: by the owner's answer to question 103, run on the snapshot undoes the freeze
+# before finalizing, as CPython finalizes, at about 28 M fuel a run (about 3.8 times, measured).
+START_FACTOR = 3
 
 
 def zip_non_stdlib_names(zip_path: Path, stdlib: set[str]) -> set[str]:
@@ -216,7 +219,9 @@ def test_the_snapshot_pre_imports_no_package(guest, artifacts) -> None:
 def test_the_snapshot_starts_cheaper_than_plain(guest) -> None:
     """The snapshot's reason to exist (spec 069, check b): its start, `-c pass`, is at least
     START_FACTOR times cheaper than the plain reactor's. A change to the plain start, the freeze
-    or the teardown restates the factor, with its numbers, as a judge change."""
+    or the teardown restates the factor, with its numbers, as a judge change: spec 073 restated it
+    from 8 to 3, when run on the snapshot began to undo the freeze before finalizing (question
+    103's answer)."""
     plain = guest("plain", ["-c", "pass"], record=False)
     snap = guest("snapshot", ["-c", "pass"])
     assert plain.exit_code == 0 and snap.exit_code == 0, f"{plain.describe()} / {snap.describe()}"

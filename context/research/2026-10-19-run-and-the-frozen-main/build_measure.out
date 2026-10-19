@@ -1,0 +1,8 @@
+bare           snapshot  main      15,631,800 (kept   -)  built      43,745,970 (kept   -)  rise +28,114,170 (+179.85%)
+bare           plain     main     167,481,449 (kept   -)  built     167,579,289 (kept   -)  rise +97,840 (+0.06%)
+gap            snapshot  main      16,185,307 (kept   0)  built      44,300,717 (kept 100)  rise +28,115,410 (+173.71%)
+gap            plain     main     168,035,395 (kept 100)  built     168,166,974 (kept 100)  rise +131,579 (+0.08%)
+import pandas  snapshot  main   4,600,244,415 (kept   -)  built   4,646,526,699 (kept   -)  rise +46,282,284 (+1.01%)
+import pandas  plain     main   4,917,428,463 (kept   -)  built   4,919,402,445 (kept   -)  rise +1,973,982 (+0.04%)
+check (b) on main: plain 167,481,449 / snapshot 15,631,800 = 10.714
+check (b) on built: plain 167,579,289 / snapshot 43,745,970 = 3.831

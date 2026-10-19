@@ -1,0 +1,2 @@
+snapshot -c pass: median 16.1 ms over 15 (min 15.6, max 16.5)
+main set: snapshot -c pass: median 10.8 ms over 15 (min 9.8, max 22.2)

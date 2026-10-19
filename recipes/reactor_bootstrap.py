@@ -5,6 +5,11 @@ once per turn of a session (spec 055, Decision 3). Step 60 compiles this file wi
 the pinned host Python (the guest's own version) and links the marshalled code into the reactor, so no
 start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which `_report`
 strips from tracebacks.
+
+Every program runs in a fresh `__main__` made at run time (spec 073): the snapshot's own was made
+before `gc.freeze()`, and a file left open beside a function defined in it was never finalized.
+A script and `-m` run in that `__main__` itself, as CPython's own entry points run them, not in
+runpy's temporary module, which lost such a file on both binaries.
 """
 
 import os
@@ -16,6 +21,38 @@ VERSION = (
     "compute about 1.3 to 2.3 times slower than native)"
 )
 IGNORED = {"-I", "-E", "-s", "-B"}
+# The names the interpreter gave its own __main__ (Python/pylifecycle.c, add_main_module, and the
+# module type): captured once, before any program, so a nested run (spec 054's prelude) cannot
+# carry a program's names into the next __main__ (spec 073, Decision 1).
+_MAIN_NAMES = dict(sys.modules["__main__"].__dict__)
+
+
+def _fresh_main():
+    # A __main__ made after the snapshot's freeze, so the collector frees it at finalization as
+    # it frees the plain binary's; the frozen one is dropped (spec 073, Decision 1).
+    main = type(sys)("__main__")
+    main.__dict__.update(_MAIN_NAMES)
+    sys.modules["__main__"] = main
+    return main
+
+
+def _run_file(target, main):
+    # A script file as CPython's _PyRun_SimpleFile runs it (Python/pythonrun.c): __file__ and a
+    # file loader set in __main__ (SourcelessFileLoader for a .pyc, as set_main_loader), the code
+    # run there, and __file__ removed again on every path (spec 073, Decision 2). The code is read
+    # as runpy.run_path reads it, so an OSError still rises from runpy's frame (_only_runpy).
+    import runpy
+    from importlib.machinery import SourceFileLoader, SourcelessFileLoader
+
+    code = runpy._get_code_from_file(target, "__main__")
+    loader = SourcelessFileLoader if target.endswith(".pyc") else SourceFileLoader
+    g = main.__dict__
+    g["__file__"] = target
+    g["__loader__"] = loader("__main__", target)
+    try:
+        exec(code, g)
+    finally:
+        g.pop("__file__", None)
 
 
 def _refresh(unbuffered):
@@ -86,6 +123,8 @@ def _only_runpy(tb):
     # The script could not be opened: every frame below the reactor's is runpy's own.
     runpy = sys.modules.get("runpy")
     name = runpy.run_path.__code__.co_filename if runpy is not None else None
+    while tb is not None and tb.tb_frame.f_code.co_filename == "<reactor>":
+        tb = tb.tb_next  # run's own helpers (spec 073: _run_file reads the script)
     while tb is not None:
         if tb.tb_frame.f_code.co_filename != name:
             return False
@@ -130,8 +169,8 @@ def run(argv, environ):
         mode, target, rest = "script", a, args[i + 1 :]
         break
     _refresh(unbuffered)
-    main = sys.modules["__main__"]
     try:
+        main = _fresh_main()
         if mode == "-c":
             sys.argv = ["-c", *rest]
             code = compile(target, "<string>", "exec")
@@ -143,12 +182,18 @@ def run(argv, environ):
             import runpy
 
             sys.argv = [target, *rest]
-            runpy.run_module(target, run_name="__main__", alter_sys=True)
+            runpy._run_module_as_main(target)  # CPython's own -m (spec 073, Decision 3)
         elif mode == "script":
-            import runpy
+            import pkgutil
 
             sys.argv = [target, *rest]
-            runpy.run_path(target, run_name="__main__")
+            if pkgutil.get_importer(target) is None:  # a file, as runpy.run_path tells it
+                _run_file(target, main)
+            else:  # a directory or a zip, as CPython runs one (Modules/main.c)
+                import runpy
+
+                sys.path.insert(0, target)
+                runpy._run_module_as_main("__main__", alter_argv=False)
         else:
             sys.argv = [target or "", *rest]
             exec(compile(sys.stdin.read(), "<stdin>", "exec"), main.__dict__)

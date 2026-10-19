@@ -132,6 +132,26 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   wheel's byte for byte, but for `networkx/conftest.py`, pytest's configuration, which the zip no
   longer holds. `make_stdlib_zip.py --entry-points` packs an sdist's `entry_points.txt` beside
   its `METADATA`.
+- **Fixed: a file a program leaves open keeps its buffered bytes, in every mode** (spec 073).
+  On the snapshot, `run` lost them when `__main__` defined a function, or when the program hung
+  the file on a pre-imported stdlib module or class (`json.JSONEncoder.default = …`); a script, a
+  directory and `-m` lost them on both binaries. Now every program runs in a fresh `__main__`, a
+  script and `-m` run in it as CPython's own entry points run them, and `run` on the snapshot
+  undoes the snapshot's frozen heap before it finalizes, as a session's close does (the owner's
+  answer to question 103), so the snapshot finalizes as CPython does: a `ZipFile` left open gets
+  its directory written too. The price is the finalization: a bare snapshot call costs about
+  43.7M guest instructions instead of 15.6M, most of it after the program has ended. So a
+  `fuel=` cap on a snapshot call must cover about 28M more (about 46M after `import
+  pandas`), or the call ends `"out of fuel"`, with `exit_code` `None`, after its output was
+  written.
+- **Changed: a script's, a directory's and `-m`'s `__main__` are CPython's own** (spec 073). A
+  script's `__package__` is `None` and its `__loader__` a `SourceFileLoader` (a
+  `SourcelessFileLoader` for a `.pyc`), and its `__file__` is removed when it ends, as CPython
+  does; `__builtins__` is the builtins module in every mode; an `atexit` handler finds the
+  program's `__main__`, its classes and functions; `-m` of a missing module prints
+  `…/python.wasm: No module named …`, a directory without `__main__.py` prints `can't find
+  '__main__' module in …`, and an `-m` traceback shows runpy's `_run_module_as_main` and
+  `_run_code` frames, each as CPython does. No public name, signature or default changes.
 
 ## 0.1.0a7 — 2026-10-19
 

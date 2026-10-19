@@ -42,9 +42,9 @@ promises.
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 45.4 MB / 38.7 MB (3.15 line, with matplotlib, lxml, regex and tier A's thirty pure-Python packages, no package pre-imported; spec 039's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| one call, snapshot, `-c pass` | 14 ms (a benchmark fact from spec 069's research), most of it finalizing the interpreter; 20.4M guest instructions with tier A in the zip (15.6M before, spec 039; 83.5M while numpy and pandas were pre-imported, before spec 069) |
+| one call, snapshot, `-c pass` | 16 ms (a benchmark fact from spec 073's landing notes; 11 ms before it on the same machine), most of it finalizing the interpreter, which now first undoes the snapshot's frozen heap so that it finalizes as CPython does (question 103); 43.7M guest instructions (15.6M before spec 073); with tier A in the zip, 20.4M without spec 073 (spec 039) and about 28M more with it; 83.5M while numpy and pandas were pre-imported, before spec 069 |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms (before spec 069); 0.97M guest instructions |
-| `import pandas` / `import numpy`, snapshot | 4.60G / 0.78G guest instructions (spec 069's landing notes; 0.81 s for the research's small pandas job, a benchmark fact): the snapshot pre-imports no package (decision 34), so a call pays its own imports |
+| `import pandas` / `import numpy`, snapshot | 4.65G / 0.78G guest instructions (pandas from spec 073's landing notes, with the finalization's unfreeze; numpy from spec 069's, before it; 0.81 s for the research's small pandas job, a benchmark fact): the snapshot pre-imports no package (decision 34), so a call pays its own imports |
 | one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); `-c pass` 218M guest instructions with tier A's 2,014 members in the zip (167M before, spec 039; 151M before matplotlib's, spec 023); `import pandas` 4.92G with matplotlib's members |
 | a line plot saved as PNG, snapshot, no package pre-imported | 8.78G guest instructions with a fresh font cache (a fresh `HOME`), 6.79G with a kept `MPLCONFIGDIR` (spec 069's landing notes; 7.56G and 5.57G while numpy and pandas were pre-imported) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
@@ -120,7 +120,12 @@ offsets are part of the snapshot.
 value is the exit status, masked to 0 to 255 as a POSIX process's is. Output is
 buffered as CPython's is without `-u`, so a program that ends in `os._exit` or
 is stopped by fuel loses what it printed since its last flush; run it with
-`-u`, or flush first. The snapshot adds three facts of its own:
+`-u`, or flush first. Every program runs in a fresh `__main__`, and a script
+(a file, a directory or a zip) and `-m` run in it as CPython's own entry
+points run them, so a file a program leaves open is flushed when `run`
+finalizes, in every mode, as in CPython (a file held only in a reference
+cycle the program has already dropped may not be, as in CPython). The
+snapshot adds four facts of its own:
 
 - its string hash secret is fixed (`sys.flags.hash_randomization == 0`), so
   every snapshot instance hashes strings alike;
@@ -133,7 +138,12 @@ is stopped by fuel loses what it printed since its last flush; run it with
   `PYTHONTZPATH`);
 - it is the same bytes on every build, from any supported build host: while
   it initializes, the clocks, entropy and file metadata (a directory's size
-  and link count included) answer constants, and no program ever sees them.
+  and link count included) answer constants, and no program ever sees them;
+- it starts with the bootstrap's heap frozen out of the collector's way, and
+  `run` undoes that freeze before it finalizes, so the snapshot finalizes as
+  CPython does, files a program hung on a stdlib module or class included
+  (spec 073, the owner's answer to question 103); that costs about 28M
+  guest instructions a call, after the program has ended.
 
 ### sqlite3 in the guest
 
@@ -688,6 +698,12 @@ whether the module was compiled or loaded from the `.cwasm` cache (measured
 on macOS; Linux maps the memory image itself and never charged for it, and
 Windows, which always copies it, is expected to match)
 (`context/research/2026-10-17-fuel-depends-on-how-the-module-was-made.md`).
+`fuel` also counts the interpreter's finalization, after the program's last
+line: on the snapshot about 28M instructions more than the program's own
+(about 46M after `import pandas`). A cap that runs out there ends
+`"out of fuel"`, with `exit_code` `None`, after the program's own output was
+written, so size a metered call's `fuel` to cover it, as for a session's
+shutdown.
 
 **Calls that use pandas.** The snapshot pre-imports no package (decision 34),
 so each call that imports pandas pays its import: about 4.6 G guest
