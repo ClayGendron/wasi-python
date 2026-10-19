@@ -385,3 +385,17 @@ lands next (4).
 
 **One line:** the rebase is clean and every changed trap entry is measured; fix three wrongly moved
 closers, point the trap closers at 078's reservation, and land 083 right after.
+
+---
+
+# Addendum: 5294520, the ninth trap entry (READ; the dry run's result read with `gh`)
+
+`c-stack-itertools-tee` is Decision 1's any-host rule applied as written. It is a full id, unique
+and not inherited (`test_itertools.py:1633, 1842`). It is deselected on every host; it is a trap
+entry, not a host entry (Decision 21). Its gap holds the constant finding, and its closer is the
+roadmap's 078 line, per this review's item 5. The budget becomes 2.21×10¹² + 5×10¹⁰ = 2.26×10¹²,
+under 2.5×10¹². The count goes 8 → 9 and 28,108 passes. The new dry run, 39265738300 on `5294520`,
+is green, gather included.
+
+This is a second Linux-x86-64-only trap (F5 of the pre-build review, again), so spec 078 must
+prove its 8 MiB stack on x86-64 and Windows, not only darwin. **Lands.**

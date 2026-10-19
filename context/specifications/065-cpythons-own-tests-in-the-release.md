@@ -1,6 +1,6 @@
 # 065 — CPython's own tests in the release
 
-- **Status:** **built 2026-10-19; build review passed once F1 to F3 were fixed; rebased onto main
+- **Status:** **landed 2026-10-19** (accepted on `b91e0ea` as `a4b46de`, history line 79; the build review, `../reviews/065-cpythons-own-tests-in-the-release-build-2026-10-19.md`, said it lands once F1 to F3, the rebases' delta look once G1 and the closers, and its last addendum "lands" on the ninth trap entry). Before landing: **built 2026-10-19; build review passed once F1 to F3 were fixed; rebased onto main
   `08de0c8` (063 landed) and re-judged on its set** (Landing notes, last section). Confirmed for
   build at `75823c9`; built first on spec 063's branch head `1488377`. Before that: drafted 2026-10-18; revised the same day against its pre-build review
   (`065-cpythons-own-tests-in-the-release-spec-2026-10-18.md`, held in the session's scratchpad
@@ -1586,3 +1586,23 @@ entries closing with spec 078 (spec 071 closed four, added two), a deselection, 
 entries and 26 host entries; question-101 entries close with spec 088; the judge states each guest
 clock's resolution, guarded by a v1.2 check; the hostile-guest helper blocks on manifest; the 25
 Windows host entries close with the README; facts sheets renumbered 21 and 22 after spec 076's 20".
+
+**Landed 2026-10-19** through the lane, after spec 081. The lane applied the reviewed diff
+(`2737b29`..`503fa3b`) onto main `a6dfc17` as one commit, `4553810`: its fifteen commits carried
+conflict markers from two rebases, so only the whole is green on its own (AGENTS.md rule 9; the list
+is in the main tree's git-ignored `build/lane-065/commits.txt`), and the tree equals the reviewed
+tip's but for CHANGELOG's 0.1.0a8 heading, which main's version bump had written (EXECUTED,
+`build/lane-065/delta.txt`). Its branch dry run, 39260247695, was red in one shard, ubuntu-24.04
+upstream-numpy-a (x86-64): cpython-a trapped at `test_itertools`'
+`TestPurePythonRoughEquivalents.test_tee_recipe`, so the group did not finish. The builder
+reproduced it in a `linux/amd64` container and added `5294520`: a ninth trap entry,
+`c-stack-itertools-tee`, Linux x86-64 only, an entry on every host by Decision 1, closing with spec
+078 (28,108 passes, 62 CPython gaps). The build reviewer's addendum said it lands, and the dry run
+39265738300 on `5294520` passed every job on all three systems, gather included. No `scripts/` or
+`recipes/` file changed, so the artifact set is main's (`SHA256SUMS` `c9dcb5b8`; the main tree's
+copy restored fresh, one link to its zip). The reviews were committed as `b91e0ea`, and the lane's
+serial `uv run pytest` there accepted it with `--accept-judge` at history line 79: 544/623 pass,
+77 gap, 0 fail, ratchet lost 0, grew 0. Sameness (rule 6a): the builder's full record on `5294520`
+and the lane's serial record differ only where the worktree lacks the main tree's source trees,
+oracle and prior-art clones, and in the unit suite's skip count; no check's fuel, bytes or passes
+differ (`build/lane-065/sameness.txt`). The branch on GitHub is deleted.
