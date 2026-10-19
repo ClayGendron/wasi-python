@@ -4660,3 +4660,101 @@ def test_a_call_chain_of_any_depth_hides_bound_keywords() -> None:
     Loop.__call__ = loop  # type: ignore[assignment]
     with pytest.raises(TypeError, match="nest deeper"):
         tool(loop, name="loop")
+
+
+# Spec 068: a cap on files open at once.
+
+OPEN_FILES = r"""
+import errno, os
+
+def fill(where, limit):
+    held = []
+    try:
+        while len(held) < limit:
+            held.append(os.open(where % (len(held) % 20), os.O_RDONLY))
+    except OSError as e:
+        return held, e.errno == errno.EMFILE
+    return held, None
+
+def refused(path):
+    try:
+        os.close(os.open(path, os.O_RDONLY))
+        return "opened"
+    except OSError as e:
+        return "EMFILE" if e.errno == errno.EMFILE else e.errno
+
+held, why = fill("/w/f%d", 20)
+seen = [len(held), why]
+os.close(held.pop())
+held.append(os.open("/w/f0", os.O_RDONLY))
+seen.append(refused("/w/f1"))
+for fd in held:
+    os.close(fd)
+mount = [os.open("/m/f%d" % i, os.O_RDONLY) for i in range(4)]
+grant = [os.open("/w/f%d" % i, os.O_RDONLY) for i in range(4)]
+seen += [refused("/m/f9"), refused("/w/f9")]
+os.close(mount.pop())
+grant.append(os.open("/w/f5", os.O_RDONLY))
+seen.append(len(mount) + len(grant))
+print(*seen)
+"""
+
+
+class _TwentyFiles:
+    """A provider of twenty one-byte files, /f0 to /f19, counting its reads."""
+
+    def __init__(self) -> None:
+        self.reads = 0
+
+    def stat(self, path):
+        from wasi_python import Errno, Stat
+
+        if path == "/":
+            return Stat("dir")
+        return Stat("file", 1) if path[2:].isdigit() else Errno.ENOENT
+
+    def list(self, path):
+        return [(f"f{i}", "file") for i in range(20)]
+
+    def read(self, path):
+        from wasi_python import Errno
+
+        if path == "/":
+            return Errno.EISDIR
+        self.reads += 1
+        return b"x"
+
+
+def test_the_open_file_cap_holds(guest_workdir) -> None:
+    """Spec 068, criterion 4: under `max_open_files=8` the guest opens exactly 8 files, then gets
+    EMFILE and runs on; a close frees one slot; mount files count with grant files, and a
+    refused mount open makes no provider call. The default does not meet 20 files; `run_async`
+    passes its own cap. The guest imports everything first: an import from the zip at the cap
+    would meet the cap too."""
+    import asyncio
+
+    import wasi_python
+    from wasi_python import Grant, Mount
+
+    run = _runner()
+    folder = _root(guest_workdir)
+    for i in range(20):
+        (folder / f"f{i}").write_bytes(b"x")
+    grants = [Grant(folder, "/w")]
+
+    provider = _TwentyFiles()
+    done = run(["-c", OPEN_FILES], grants=grants, mounts=[Mount(provider, "/m")], max_open_files=8)
+    assert (done.exit_code, done.trapped) == (0, None), done
+    assert done.stdout == b"8 True EMFILE EMFILE EMFILE 8\n", done
+    assert done.files.calls["read"] == 4 == provider.reads
+
+    first = "import os\nprint(len([os.open('/w/f%d' % i, os.O_RDONLY) for i in range(20)]))\n"
+    done = run(["-c", first], grants=grants)
+    assert (done.exit_code, done.stdout) == (0, b"20\n"), done
+
+    code = (
+        OPEN_FILES.split("def refused")[0]
+        + "held, why = fill('/w/f%d', 20)\nprint(len(held), why)\n"
+    )
+    done = asyncio.run(wasi_python.run_async(["-c", code], grants=grants, max_open_files=2))
+    assert (done.exit_code, done.stdout) == (0, b"2 True\n"), done

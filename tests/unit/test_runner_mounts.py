@@ -475,7 +475,8 @@ def test_a_folder_stat_comes_from_the_mount(placeholder) -> None:
 
 def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
     """A call without mounts uses the guard linker (spec 048, Decision 7), whose only shadows are
-    fd_readdir and path_rename, and reports no file record; a call with one uses the mount
+    the two guarded calls (fd_readdir, path_rename) and the three counted ones (path_open,
+    fd_close, fd_renumber; spec 068), and reports no file record; a call with one uses the mount
     linker. Concurrent calls with and without mounts on two threads each get their own results,
     and each provider sees only its own call's paths (spec 011's pattern)."""
     needs.need("runner", "artifact dir")
@@ -498,7 +499,7 @@ def test_a_call_without_mounts_is_unchanged(monkeypatch) -> None:
     assert (done.exit_code, done.stdout, done.files) == (0, b"[1]\n", None)
     engine = runner._engine(False)
     assert used == [runner._guard_linker(wt, engine)]
-    assert set(served) <= {"fd_readdir", "path_rename"}, served
+    assert set(served) <= set(mounts_module.GUARDED + mounts_module.COUNTED), served
     served.clear()
     a, b = MemoryProvider({"/x": b"from a\n"}), MemoryProvider({"/x": b"from b\n"})
     results: dict[str, object] = {}
@@ -977,9 +978,10 @@ def test_the_rename_rule_forward_is_fuel_neutral(tmp_path) -> None:
 
 
 def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:
-    """Criterion 5: the guard linker shadows exactly fd_readdir and path_rename; every other
-    descriptor call (path_open, fd_read, fd_write, fd_seek and the rest) reaches wasmtime
-    without passing the guard table, and the table makes no provider call."""
+    """Criterion 5: the guard linker shadows exactly fd_readdir and path_rename, and the three
+    calls spec 068 counts (path_open, fd_close, fd_renumber); every other descriptor call
+    (fd_read, fd_write, fd_seek and the rest) reaches wasmtime without passing the guard table,
+    and the table makes no provider call."""
     seen = []
     g = files.Guarded([(tmp_path, "/w", False)])
     real = g.table.__class__.__call__
@@ -997,7 +999,13 @@ def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:
                 pass
     finally:
         g.table.__class__.__call__ = real  # type: ignore[method-assign]
-    assert sorted(set(seen)) == ["fd_readdir", "path_rename"]
+    assert sorted(set(seen)) == [
+        "fd_close",
+        "fd_readdir",
+        "fd_renumber",
+        "path_open",
+        "path_rename",
+    ]
     assert g.table.record().calls == dict.fromkeys(
         ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename"), 0
     )  # spec 034's eight keys (Decision 11)
@@ -1740,3 +1748,127 @@ def test_the_host_errno_table_is_by_name() -> None:
         [sys.executable, "-I", "-c", code], capture_output=True, text=True, check=False
     )
     assert (child.returncode, child.stdout.strip()) == (0, "False"), child.stderr[-500:]
+
+
+# Spec 068: a cap on files open at once. The call's table counts the descriptors the guest holds
+# (wasmtime's numbers it opened, and its open mount files), and answers EMFILE at the cap before
+# wasmtime or the provider is asked. Forwards and provider calls are counted, nothing is timed.
+
+EMFILE = 33  # ENOENT (44) is bound above
+
+
+def _forwards(table) -> list[str]:
+    """Each call the table forwards to wasmtime, by name, from now on."""
+    seen: list[str] = []
+    real = table.forward
+
+    def forward(caller, name, args, stat=False):
+        seen.append(name)
+        return real(caller, name, args, stat)
+
+    table.forward = forward
+    return seen
+
+
+def _folder(tmp_path: Path) -> Path:
+    folder = tmp_path / "w"
+    (folder / "sub").mkdir(parents=True)
+    for i in range(5):
+        (folder / f"f{i}").write_bytes(b"x")
+    return folder
+
+
+def test_open_files_are_counted_on_a_call_without_mounts(tmp_path) -> None:
+    """Spec 068, criterion 1: under a cap of 3, exactly three opens succeed and the fourth is
+    EMFILE without reaching wasmtime; a close frees one slot; a failed open holds nothing;
+    closing what the guest did not open frees nothing; fd_renumber moves and frees as wasmtime
+    does, a number onto itself included; with no cap, nothing is refused; and below the cap the
+    three counted calls answer as plain wasmtime does."""
+    folder = _folder(tmp_path)
+    g = files.Guarded([(folder, "/w", False)])
+    g.table.open_files = 3
+    forwarded = _forwards(g.table)
+    r = g.raw
+    opened = [r.open(3, "f0"), r.open(3, "f1"), r.open(3, "sub", files.O_DIRECTORY)]
+    assert [e for e, _ in opened] == [0, 0, 0], opened
+    a, b, c = (n for _, n in opened)
+    assert len({a, b, c}) == 3
+    assert r.open(3, "f2") == (EMFILE, None)
+    assert forwarded.count("path_open") == 3
+    assert r.open(3, "missing") == (EMFILE, None)  # at the cap, before the path is walked
+    assert forwarded.count("path_open") == 3
+    assert r("fd_close", a) == 0
+    a = r.open(3, "f2")[1]
+    assert a is not None and r.open(3, "f3")[0] == EMFILE
+    assert r("fd_close", b) == 0
+    assert r.open(3, "missing")[0] == ENOENT  # forwarded, and holds nothing
+    b = r.open(3, "f3")[1]
+    assert b is not None
+    assert r("fd_close", 2**20) == EBADF
+    assert r.open(3, "f4")[0] == EMFILE
+    assert r("fd_close", 0) == 0  # stdin: not the guest's to count
+    assert r.open(3, "f4")[0] == EMFILE
+    assert r("fd_renumber", a, b) == 0  # b closed, a moved there: one slot free
+    a = r.open(3, "f0")[1]
+    assert a is not None and r.open(3, "f1")[0] == EMFILE
+    assert r("fd_renumber", a, 1) == 0  # a held number onto stdout: still held, as 1
+    assert r.open(3, "f1")[0] == EMFILE
+    assert r("fd_close", 1) == 0
+    a = r.open(3, "f1")[1]
+    assert a is not None
+    # (t) a held number onto itself: wasmtime keeps it, and so does the count.
+    assert r("fd_renumber", a, a) == 0
+    assert r.open(3, "f2")[0] == EMFILE
+    # (u) stderr onto a held number: that number is closed, and its slot freed.
+    assert r("fd_renumber", 2, a) == 0
+    assert r.open(3, "f2")[0] == 0
+    assert r.open(3, "f3")[0] == EMFILE
+
+    free = files.Guarded([(folder, "/w", False)])
+    free.table.open_files = None
+    assert {free.raw.open(3, f"f{i % 5}")[0] for i in range(50)} == {0}
+
+    def rows(r) -> list[object]:
+        out: list[object] = []
+        a, b = r.open(3, "f0"), r.open(3, "f1")
+        out += [a, b, r.open(3, "sub", files.O_DIRECTORY), r.open(3, "missing")]
+        out += [_answer(r.open, 99, "f0"), _answer(r.open, 3, "f2", 0x10)]
+        out += [r("fd_renumber", a[1], a[1]), r("fd_renumber", a[1], b[1])]
+        out += [r("fd_renumber", 2**31 - 1, 2**31 - 1)]
+        out += [r("fd_close", b[1]), r("fd_close", 2**20), r("fd_close", 0), r.open(3, "f3")]
+        return out
+
+    plain = rows(files.grant_raw([(folder, "/w", False)]))
+    guarded = rows(files.Guarded([(folder, "/w", False)]).raw)
+    assert guarded == plain
+
+
+def test_mount_files_count_toward_the_open_file_cap(placeholder, tmp_path) -> None:
+    """Spec 068, criterion 2: mount files count with wasmtime's under one cap; a refused open in
+    a mount makes no provider call and spends no file call; a close of either kind frees a slot
+    for either kind."""
+    folder = _folder(tmp_path)
+    provider = MemoryProvider()
+    m = Mounted(provider, placeholder, folders=[(folder, "/w", False)])
+    m.table.open_files = 4
+    forwarded = _forwards(m.table)
+    r = m.raw
+    mount = [r.open(3, "a.txt")[1], r.open(3, "b.txt")[1]]
+    grant = [r.open(4, "f0")[1], r.open(4, "f1")[1]]
+    assert None not in mount + grant
+    assert forwarded.count("path_open") == 2
+    assert r.open(4, "f2") == (EMFILE, None)
+    assert forwarded.count("path_open") == 2
+    assert r.open(3, "a.txt") == (EMFILE, None)
+    assert m.table.record().calls["read"] == 2
+    assert r("fd_close", mount[0]) == 0
+    assert r.open(4, "f2")[0] == 0
+    assert r("fd_close", grant[0]) == 0
+    assert r.open(3, "a.txt")[0] == 0
+    assert r.open(3, "b.txt")[0] == EMFILE and r.open(4, "f3")[0] == EMFILE
+
+    m = Mounted(provider, placeholder, file_calls=3)
+    m.table.open_files = 2
+    r = m.raw
+    assert [r.open(3, "a.txt")[0] for _ in range(4)] == [0, 0, EMFILE, EMFILE]
+    assert m.table.total == 2 and m.call.ended is None

@@ -3,6 +3,9 @@ one out of range with ValueError, before any work, and passes on plain values.""
 
 from __future__ import annotations
 
+import asyncio
+import concurrent.futures
+import dataclasses
 import math
 from fractions import Fraction
 
@@ -87,3 +90,62 @@ def test_the_defaults_pass_and_a_bad_default_is_refused() -> None:
         runner.Defaults(memory_bytes=-1, deadline_s=60.0, output_bytes=1)
     with pytest.raises(TypeError, match="deadline_s"):
         runner.Defaults(memory_bytes=1, deadline_s=True, output_bytes=1)
+
+
+class _Refusing(concurrent.futures.Executor):
+    """An executor that records any submit: a call refused before any work never reaches it."""
+
+    def __init__(self) -> None:
+        self.submitted: list[object] = []
+
+    def submit(self, fn, /, *args, **kwargs):
+        self.submitted.append(fn)
+        raise AssertionError("submit must not be reached")
+
+
+def test_the_open_file_cap_is_a_limit_with_a_default(monkeypatch) -> None:
+    """Spec 068, criterion 3: `max_open_files=` and `Defaults.open_files`, default 1,024, by
+    `_integer_limit`'s rules, read from the call's one read of the defaults, for every call
+    (no grant, mount or root needed), and a bad value refused before any work."""
+    import wasi_python
+
+    assert runner.Defaults(1 << 30, 60.0, 16 << 20).open_files == 1024
+    assert wasi_python.defaults().open_files == 1024
+    assert runner.Defaults(1 << 30, 60.0, 16 << 20, open_files=None).open_files is None
+    for bad, error in ((-1, ValueError), (2**63, ValueError), (True, TypeError)):
+        with pytest.raises(error, match="open_files"):
+            runner.Defaults(1 << 30, 60.0, 16 << 20, open_files=bad)
+
+    unset = runner._UNSET
+
+    def checked(**kw) -> dict:
+        return runner._checked(["-c", "pass"], None, None, None, unset, unset, unset, None, **kw)
+
+    assert checked()["open_files"] == 1024
+    assert checked(max_open_files=5)["open_files"] == 5
+    assert checked(max_open_files=None)["open_files"] is None
+    assert checked(max_open_files=Index(7))["open_files"] == 7
+    for bad, error in ((True, TypeError), (-1, ValueError), ("1", TypeError)):
+        with pytest.raises(error, match="max_open_files"):
+            checked(max_open_files=bad)
+
+    lookups: list[int] = []
+
+    def found():
+        lookups.append(1)
+        raise AssertionError("the artifacts must not be looked up")
+
+    monkeypatch.setattr(runner, "find_artifacts", found)
+    ex = _Refusing()
+    with pytest.raises(ValueError, match="max_open_files"):
+        runner.run(["-c", "pass"], max_open_files=-1)
+    with pytest.raises(ValueError, match="max_open_files"):
+        asyncio.run(runner.run_async(["-c", "pass"], executor=ex, max_open_files=-1))
+    assert (lookups, ex.submitted) == ([], [])
+
+    before = wasi_python.defaults()
+    wasi_python.set_defaults(dataclasses.replace(before, open_files=7))
+    try:
+        assert checked()["open_files"] == 7
+    finally:
+        wasi_python.set_defaults(before)

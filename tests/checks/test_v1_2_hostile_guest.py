@@ -1970,3 +1970,73 @@ def test_a_writable_place_never_serves_the_import_path(guest_workdir, snapshot) 
     except Exception as e:
         wrong.append(("A5", f"{type(e).__name__}: {e}"))
     assert wrong == [], f"{len(wrong)} wrong: {[n for n, _ in wrong]}\n{wrong}"
+
+
+# Spec 068: a cap on files open at once. In a child, as the descriptor checks above, so the
+# judge's own process is never starved.
+
+CAP_CHILD = r"""
+import json, os, sys
+if sys.platform != "win32":
+    import resource
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if hard != resource.RLIM_INFINITY and hard < 2048:
+        print("skip", hard)
+        raise SystemExit(0)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (2048, hard))
+import wasi_python
+from wasi_python import Grant
+
+folder = sys.argv[1]
+mine = os.path.join(folder, "f")
+open(mine, "wb").close()
+
+
+def host(frame):
+    try:
+        open(mine, "rb").close()
+        return b"ok"
+    except OSError as e:
+        return str(e.errno).encode()
+
+
+fill = (
+    "import _host, os\nheld = []\nwhy = None\n"
+    "try:\n    while len(held) < 3000:\n        held.append(os.open('/w/f', os.O_RDONLY))\n"
+    "except OSError as e:\n    why = e.errno\n"
+    "print(len(held), why, _host.call(b'x').decode())\n"
+)
+capped = wasi_python.run(["-c", fill], grants=[Grant(folder, "/w")], host=host)
+print(json.dumps([capped.exit_code, capped.stdout.decode()]), flush=True)
+free = (
+    "import os\nheld = [os.open('/w/f', os.O_RDONLY) for _ in range(1500)]\n"
+    "[os.close(fd) for fd in held]\nprint(len(held))\n"
+)
+uncapped = wasi_python.run(["-c", free], grants=[Grant(folder, "/w")], max_open_files=None)
+print(json.dumps([uncapped.exit_code, uncapped.stdout.decode()]))
+"""
+
+
+def test_a_guest_at_the_open_file_cap_leaves_the_host_descriptors(guest_workdir) -> None:
+    """Spec 068, criterion 5: at the default cap, in a child whose soft descriptor limit is 2,048,
+    the guest opens exactly 1,024 files and gets EMFILE (33), and the door's host can still open
+    a file: the guest no longer takes the descriptors the process needs. With no cap the guest
+    opens 1,500. On Windows, which has no RLIMIT_NOFILE, the child sets nothing and the same
+    rows run, the guest's loop bounded at 3,000 opens. A host whose hard limit is below 2,048
+    skips, saying so."""
+    import json
+
+    _run()
+    folder = Path(tempfile.mkdtemp(prefix="open-cap-", dir=guest_workdir))
+    out = subprocess.run(
+        [sys.executable, "-c", CAP_CHILD, str(folder)],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if out.stdout.startswith("skip "):
+        pytest.skip(f"the hard descriptor limit is {out.stdout.split()[1]}, below 2,048")
+    lines = out.stdout.strip().splitlines()
+    assert json.loads(lines[0]) == [0, "1024 33 ok\n"], (lines, out.stderr[-1500:])
+    assert out.returncode == 0, out.stderr[-1500:]
+    assert json.loads(lines[1]) == [0, "1500\n"], lines

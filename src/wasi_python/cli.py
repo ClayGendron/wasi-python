@@ -9,6 +9,10 @@ arguments, and without an option the argument is `run`'s default.
 Exit codes say whether there is a result, not how the program ended: 0, the call returned (the
 JSON says how the program ended); 1, `run` raised (one JSON object with `error` and `kind`);
 2, a usage error (argparse's message on standard error); 130, interrupted by Ctrl-C.
+
+Run as its own process, the command raises its soft descriptor limit to its hard one first, so
+the cap on open files guards it (spec 068, Decision 7); the library never changes a process's
+limits.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ VALUED = {
     "--memory-bytes",
     "--output-bytes",
     "--fuel",
+    "--max-open-files",
     "--grant",
     "--grant-writable",
     "--root",
@@ -74,6 +79,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--memory-bytes", type=_limit(int), metavar="BYTES", default=unset)
     p.add_argument("--output-bytes", type=_limit(int), metavar="BYTES", default=unset)
     p.add_argument("--fuel", type=_limit(int), metavar="N", default=unset)
+    p.add_argument(
+        "--max-open-files", type=_limit(int), metavar="N", default=unset,
+        help="the most files and folders the guest holds open at once; none for no limit",
+    )  # fmt: skip
     p.add_argument("--no-snapshot", action="store_true")
     # Both grant options write to one list, each value tagged with its mode, so the order typed
     # is the order `run` numbers them in (spec 022).
@@ -164,9 +173,46 @@ def _write(obj: dict[str, Any]) -> None:
     sys.stdout.buffer.flush()
 
 
-def main(argv: list[str] | None = None) -> int:
-    """The command; Ctrl-C at any point is exit 130 with nothing on standard output."""
+OPEN_MAX = 10240  # macOS's OPEN_MAX: the soft limit its setrlimit(2) has long accepted
+
+
+def _raise_descriptor_limit() -> None:
+    """The soft RLIMIT_NOFILE raised to the hard one, where the `resource` module exists (not on
+    Windows); if that is refused, once more to min(hard, OPEN_MAX); a refusal leaves the limit as
+    it was. The command owns its process, so its default cap on open files then guards it under
+    macOS's 256 and Linux's usual 1,024 (spec 068, Decision 7)."""
     try:
+        import resource
+    except ImportError:
+        return
+    if resource is None:  # a module blocked in sys.modules
+        return
+    try:
+        which, infinity = resource.RLIMIT_NOFILE, resource.RLIM_INFINITY
+        soft, hard = resource.getrlimit(which)
+        if soft == hard or soft == infinity:
+            return
+        targets = [hard]
+        fallback = OPEN_MAX if hard == infinity else min(hard, OPEN_MAX)
+        if fallback != hard and fallback > soft:
+            targets.append(fallback)
+        for target in targets:
+            try:
+                resource.setrlimit(which, (target, hard))
+                return
+            except (ValueError, OSError):
+                continue
+    except (ValueError, OSError, AttributeError):
+        return
+
+
+def main(argv: list[str] | None = None) -> int:
+    """The command; Ctrl-C at any point is exit 130 with nothing on standard output. Called with
+    no argument, as `wasi-python` and `python -m wasi_python` call it, it is its own process and
+    raises its soft descriptor limit first; called with arguments, it leaves the process alone."""
+    try:
+        if argv is None:
+            _raise_descriptor_limit()
         return _main(list(sys.argv[1:] if argv is None else argv))
     except KeyboardInterrupt:
         return 130
@@ -188,7 +234,7 @@ def _main(args: list[str]) -> int:
     except SystemExit as e:  # usage errors exit 2; --help exits 0
         return int(e.code or 0)
     given: dict[str, Any] = {"cancel": threading.Event()}  # set by no one: lets Ctrl-C stop it
-    for name in ("deadline_s", "memory_bytes", "output_bytes", "fuel"):
+    for name in ("deadline_s", "memory_bytes", "output_bytes", "fuel", "max_open_files"):
         if hasattr(ns, name):
             given[name] = getattr(ns, name)
     if env is not None:

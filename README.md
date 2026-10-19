@@ -584,7 +584,9 @@ default; `False` runs the plain reactor), `fuel` (a cap on executed
 instructions), `deadline_s`, `memory_bytes`, `output_bytes`, `cache_dir`,
 `artifacts`, `cancel` (a `threading.Event`: once it is set, the guest
 stops, `trapped` is `"cancelled"`; see *From async code* for how soon), and
-`tools`, `gate`, `max_tool_calls` and `max_tool_request_bytes` (see *Tools*). It
+`tools`, `gate`, `max_tool_calls` and `max_tool_request_bytes` (see *Tools*), and
+`max_open_files` (the files and folders a guest holds open at once, 1,024 by default;
+see *Safety*). It
 returns `exit_code`, `stdout`, `stderr`, `trapped` (`"out of fuel"`,
 `"deadline"`, `"cancelled"`, a trap's kind such as `"stack overflow"`,
 `"unreachable"` or `"memory out of bounds"`, or, for an error with no trap
@@ -871,9 +873,10 @@ A path a more specific preopen owns, spelled past the guest's C library
   `defaults().file_calls`, 10,000). Every provider call counts, whatever it
   answers. The call that would pass the limit is not made; the run stops and
   `trapped` is `"out of file calls"`, with `exit_code` and `fuel_used` `None`;
-- **open files:** at most 1,024 open files and folders per call; the next open
-  answers `EMFILE` without calling the provider. They cost no host
-  descriptor;
+- **open files:** at most `max_open_files` open files and folders per call
+  (1,024 by default), counted with those in grants and the root, and at most
+  1,024 in mounts whatever the cap; the next open answers `EMFILE` without
+  calling the provider. They cost no host descriptor;
 - **staged bytes:** the bytes of every open file plus every kept listing are
   at most `memory_bytes` (4 GiB with `memory_bytes=None`); a `read` that would
   pass it answers `EFBIG` and is dropped. A listing counts as the bytes the
@@ -1178,8 +1181,9 @@ async def run_code(code: str):
   affinity, from Python 3.13), at most 8. Further calls wait for a worker.
   At the defaults each running guest may hold 1 GiB of memory, up to
   32 MiB of output and a copy of its `stdin`, so 8 workers bound one
-  process at about 8.3 GiB, plus the disk a guest writes and the file
-  descriptors it opens. A new size applies to calls submitted afterwards; calls
+  process at about 8.3 GiB, plus the disk a guest writes and up to
+  `max_open_files` file descriptors each (1,024 by default), within the
+  process's own soft limit (see *Safety*). A new size applies to calls submitted afterwards; calls
   already running or queued on the old pool still run there, so for a while
   both pools' workers may run guests (after 8 to 4, up to 12 at once). Four server worker processes have four pools: four
   times that. A container's CPU quota is not seen; set the size with
@@ -1746,6 +1750,7 @@ class Defaults:
     file_calls: int | None = 10000
     tool_calls: int | None = 1000
     tool_request_bytes: int | None = 16777216
+    open_files: int | None = 1024
 ```
 
 The limits a call has when it names none: `defaults()` returns the ones in force, and `set_defaults()` replaces them.
@@ -1759,6 +1764,7 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `file_calls`: The most provider calls a call with mounts makes; then it ends "out of file calls".
 - `tool_calls`: The most tool-protocol frames a call with tools answers; past it the guest gets `ToolBudgetExceeded`.
 - `tool_request_bytes`: The most bytes of tool-protocol requests a call with tools reads, counted from each frame's length before it is read; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded`.
+- `open_files`: The most files and folders a guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on.
 
 #### `wasi_python.Errno`
 
@@ -2019,6 +2025,7 @@ def run(
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
+    max_open_files: int | None = <default>,
 ) -> Completed
 ```
 
@@ -2047,6 +2054,7 @@ Run one program in a fresh instance of the runtime and return how it ended.
 - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
 - `max_tool_calls`: The most tool-protocol frames a call answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
 - `max_tool_request_bytes`: The most bytes of tool-protocol requests a call reads, counted from each frame's length before it is read, whatever its answer; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
+- `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
 
 **Raises:**
 
@@ -2086,6 +2094,7 @@ async def run_async(
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = <default>,
     max_tool_request_bytes: int | None = <default>,
+    max_open_files: int | None = <default>,
 ) -> Completed
 ```
 
@@ -2373,6 +2382,7 @@ Describe a function as a tool: `@tool`, `@tool(...)` with arguments, or `tool(fn
 | `--memory-bytes` | `BYTES` | store |
 | `--output-bytes` | `BYTES` | store |
 | `--fuel` | `N` | store |
+| `--max-open-files` | `N` | store |
 | `--no-snapshot` |  | store_true |
 | `--grant` | `GUEST=HOST` | append |
 | `--grant-writable` | `GUEST=HOST` | append |
@@ -2422,7 +2432,8 @@ has one.
   2,047 descriptors with its default mask);
 - **defaults** (`wasi_python.defaults()`): 1 GiB of memory, a 60 s
   deadline, 16 MiB of output per stream (the rest dropped and named in
-  `truncated`); pass `None` for no limit. A limit of the wrong type or out
+  `truncated`), and 1,024 files open at once (`max_open_files`; past it an
+  open answers `EMFILE` and the guest runs on); pass `None` for no limit. A limit of the wrong type or out
   of range (a negative cap, `True`, a deadline of 0) raises `TypeError` or
   `ValueError` before any work, so no value can quietly remove a limit;
   integer limits take any integer type (numpy's included) from 0 to
@@ -2433,6 +2444,17 @@ has one.
   a `HOME` made fresh and empty for each call in the folder the guest sees at
   `/tmp` and removed after it (no `HOME` where there is none); `env=` is laid
   over them;
+- **the cap needs room in your process's own limit:** a guest's descriptors
+  share your process's table. The cap keeps a guest from starving your
+  process only when the process's soft descriptor limit is above the cap
+  plus what the process holds, for every call and session open at once.
+  macOS starts a process at 256 and many Linux setups at 1,024, where a
+  guest still runs your process out before it meets the cap. Raise the soft
+  limit at start (`soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)`,
+  then `resource.setrlimit(resource.RLIMIT_NOFILE, (hard, hard))`, as the Go
+  runtime does for every Go program), or set `max_open_files` below it. The
+  library never changes your process's limits; `wasi-python run` raises its
+  own soft limit to its hard limit, since it owns its process;
 - **grants** are read-only unless they say otherwise, checked before any
   work, and checked again after wasmtime opens them (see *Grants*); the stdlib
   zip is a read-only grant on every call;
@@ -2445,7 +2467,11 @@ has one.
   runner owns, inside the call's private folder, and every write is served
   from the runner's buffer or your provider, so nothing a guest writes
   reaches a host file through a mount; a call without mounts runs on
-  wasmtime's own calls but for the two the runner guards (next item). Nothing
+  wasmtime's own calls but for the two the runner guards (next item) and the
+  three it counts (`path_open`, `fd_close`, `fd_renumber`), which it forwards
+  to wasmtime. Counting costs no fuel and about 50 µs of host CPU per open and
+  close on an arm64 Mac: one open and one close per module the interpreter
+  imports from the zip, and per file the program opens. Nothing
   a provider raises or answers makes `run` raise (a `BaseException` that is
   not an `Exception` is raised, as a door host's is); provider calls, open
   files and staged bytes each have a default limit;
@@ -2502,11 +2528,19 @@ the default 60 s; point `tempfile.tempdir`, or `root`, at a size-limited
 volume if that matters); links a guest leaves in a granted root that point
 outside it (host code that reads or writes the root after a call must not
 follow links: open with `O_NOFOLLOW`, or check `os.lstat` first);
-the host's file
-descriptors (a guest can hold thousands of open files, which the embedder's
-process shares; wasmtime-py offers no lower limit; while one guest holds them
-all, the embedder's own code and other calls' `run` can fail with `OSError`,
-though that guest's own call ends cleanly); data planted in a
+the host's file descriptors beyond each call's cap (a call or session holds at
+most `max_open_files` files and folders open, 1,024 by default, plus its
+preopens and stdin, and that protects your process only within its soft
+limit, see above; N calls and sessions at once hold up to N times that, so
+size the soft limit for them; with `max_open_files=None` a guest can hold
+descriptors until the process runs out, and then the embedder's own code and
+other calls' `run` can fail with `OSError`, though that guest's own call ends
+cleanly; the cap counts what the guest holds open, not the descriptors
+wasmtime holds inside one call while it resolves a path: on macOS, and on
+Linux without `openat2`, a path call holds one descriptor per folder in the
+path for as long as it runs, so a guest with a writable grant can build a
+deep folder and bring your process to its limit for the length of its call;
+a bound on path depth is planned); data planted in a
 reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts

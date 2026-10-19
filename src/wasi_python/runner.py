@@ -224,6 +224,8 @@ class Defaults:
         tool_request_bytes: The most bytes of tool-protocol requests a call with tools reads,
             counted from each frame's length before it is read; a frame that would pass it is
             refused unread, and the guest gets `ToolBudgetExceeded`.
+        open_files: The most files and folders a guest holds open at once, in grants, the root
+            and mounts alike; past it an open answers `EMFILE` and the guest runs on.
     """
 
     # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
@@ -234,6 +236,7 @@ class Defaults:
     file_calls: int | None = 10_000
     tool_calls: int | None = 1000
     tool_request_bytes: int | None = 16 << 20  # spec 060
+    open_files: int | None = 1024  # spec 068
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
@@ -241,6 +244,7 @@ class Defaults:
         _integer_limit("file_calls", self.file_calls)
         _integer_limit("tool_calls", self.tool_calls)
         _integer_limit("tool_request_bytes", self.tool_request_bytes)
+        _integer_limit("open_files", self.open_files)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -334,6 +338,7 @@ def run(
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
+    max_open_files: int | None = _UNSET,
 ) -> Completed:
     """Run one program in a fresh instance of the runtime and return how it ended.
 
@@ -403,6 +408,11 @@ def run(
             pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
             Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs
             `tools`.
+        max_open_files: The most files and folders the guest holds open at once, in grants,
+            the root and mounts alike; past it an open answers `EMFILE` and the guest runs on.
+            0 refuses every open, the stdlib's included. It protects your process only within
+            the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
+            `None` means no limit.
 
     Returns:
         How the program ended.
@@ -445,6 +455,7 @@ def run(
         mounts=mounts,
         max_file_calls=max_file_calls,
         import_path=import_path,
+        max_open_files=max_open_files,
     )
     return _run_checked(wt, checked, host, snapshot, cache_dir, artifacts)
 
@@ -472,6 +483,7 @@ async def run_async(
     gate: Callable[[ToolCall], Any] | None = None,
     max_tool_calls: int | None = _UNSET,
     max_tool_request_bytes: int | None = _UNSET,
+    max_open_files: int | None = _UNSET,
 ) -> Completed:
     """`run` from async code, on a worker thread, so the event loop is never blocked.
 
@@ -540,6 +552,11 @@ async def run_async(
             pass it is refused unread, and the guest gets `ToolBudgetExceeded` and runs on.
             Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs
             `tools`.
+        max_open_files: The most files and folders the guest holds open at once, in grants,
+            the root and mounts alike; past it an open answers `EMFILE` and the guest runs on.
+            0 refuses every open, the stdlib's included. It protects your process only within
+            the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024.
+            `None` means no limit.
 
     Returns:
         How the program ended.
@@ -584,6 +601,7 @@ async def run_async(
         mounts=mounts,
         max_file_calls=max_file_calls,
         import_path=import_path,
+        max_open_files=max_open_files,
     )
     _check_executor(executor)
     checked["tool_loop"] = asyncio.get_running_loop()  # async tools await here (spec 053)
@@ -1034,6 +1052,7 @@ def _checked(
     mounts: Any = (),
     max_file_calls: Any = _UNSET,
     import_path: Any = (),
+    max_open_files: Any = _UNSET,
 ) -> dict[str, Any]:
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
     and 036 for the tools). The defaults are read once, here, and every check that takes one
@@ -1057,7 +1076,15 @@ def _checked(
     checked["cancel"] = cancel
     checked.update(tool_args)
     checked.update(
-        _check_places(root, grants, mounts, max_file_calls, limits, import_path=import_path)
+        _check_places(
+            root,
+            grants,
+            mounts,
+            max_file_calls,
+            limits,
+            import_path=import_path,
+            max_open_files=max_open_files,
+        )
     )
     return checked
 
@@ -1247,16 +1274,20 @@ def _check_places(
     limits: Defaults,
     *,
     import_path: Any = (),
+    max_open_files: Any = _UNSET,
 ) -> dict[str, Any]:
-    """root, grants, mounts, the import path and the file-call limit, checked together before
-    any work: a mount may share no guest path with a grant, and a mount at / comes with no root
-    (spec 032); each import-path entry is served by a read-only grant (spec 054)."""
+    """root, grants, mounts, the import path, the file-call limit and the cap on open files,
+    checked together before any work: a mount may share no guest path with a grant, and a mount
+    at / comes with no root (spec 032); each import-path entry is served by a read-only grant
+    (spec 054); the cap applies to every call, with or without places (spec 068)."""
     checked_root = _check_root(root)
     checked_grants = _check_grants(grants)
     checked_mounts = _check_mounts(mounts, checked_grants, checked_root)
     entries, serving = _check_import_path(import_path, checked_grants, checked_mounts, checked_root)
     if max_file_calls is _UNSET:
         max_file_calls = limits.file_calls
+    if max_open_files is _UNSET:
+        max_open_files = limits.open_files
     return {
         "root": checked_root,
         "grants": checked_grants,
@@ -1264,6 +1295,7 @@ def _check_places(
         "import_path": entries,
         "import_serving": serving,
         "file_calls": _integer_limit("max_file_calls", max_file_calls),
+        "open_files": _integer_limit("max_open_files", max_open_files),
     }
 
 
@@ -2472,7 +2504,15 @@ def _instance(
             # 49.0.2's and 49.0.3's fixes (spec 048, Decision 7).
             guest_linker = _guard_linker(wt, engine)
             numbers = []
-        table = _Files(numbers, others, c["file_calls"], staging, fuel is not None, engine)
+        table = _Files(
+            numbers,
+            others,
+            c["file_calls"],
+            staging,
+            fuel is not None,
+            engine,
+            open_files=c["open_files"],  # spec 068: strict, as file_calls
+        )
         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit)
         if cancel is not None:
             _watch(store)
@@ -2880,17 +2920,19 @@ def _mount_linker(wt: Any, engine: wasmtime.Engine) -> Any:
 
 def _guard_linker(wt: Any, engine: wasmtime.Engine) -> Any:
     """The engine's third linker, used by every call without mounts (spec 048, Decision 7):
-    today's, plus a shadow over the two calls in `mounts.GUARDED` only (fd_readdir and
-    path_rename), in the shared form, as the mount linker's. Every other call stays wasmtime's
-    own. Defined once per engine, like the others."""
-    from .mounts import GUARDED, SIGNATURES
+    today's, plus a shadow over the two calls in `mounts.GUARDED` (fd_readdir and path_rename)
+    and the three in `mounts.COUNTED` (path_open, fd_close and fd_renumber, which the table
+    forwards and counts against the call's cap on open files; spec 068), in the shared form, as
+    the mount linker's. Every other call stays wasmtime's own. Defined once per engine, like the
+    others."""
+    from .mounts import COUNTED, GUARDED, SIGNATURES
 
     with _lock:
         linker = _guard_linkers.get(engine)
         if linker is None:
             linker = _runner_linker(wt, engine)
             kinds = {"i32": wt.ValType.i32(), "i64": wt.ValType.i64()}
-            for name in GUARDED:
+            for name in GUARDED + COUNTED:
                 ty = wt.FuncType([kinds[p] for p in SIGNATURES[name]], [kinds["i32"]])
                 shadow = _shared("files", EBADF, EIO, name)
                 linker.define_func("wasi_snapshot_preview1", name, ty, shadow, True)

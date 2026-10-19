@@ -22,6 +22,7 @@ dataclass Defaults: frozen
   field file_calls: int | None = 10000
   field tool_calls: int | None = 1000
   field tool_request_bytes: int | None = 16777216
+  field open_files: int | None = 1024
 enum Errno(IntEnum)
   member EACCES = 2
   member EBUSY = 10
@@ -117,6 +118,7 @@ def run -> Completed
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
+  param max_open_files: int | None = <default>  keyword-only
 async def run_async -> Completed
   param argv: Iterable[str]  positional
   param root: str | os.PathLike[str] | bool | None = False  keyword-only
@@ -139,6 +141,7 @@ async def run_async -> Completed
   param gate: Callable[[ToolCall], Any] | None = None  keyword-only
   param max_tool_calls: int | None = <default>  keyword-only
   param max_tool_request_bytes: int | None = <default>  keyword-only
+  param max_open_files: int | None = <default>  keyword-only
 def set_defaults -> Defaults
   param new: Defaults  positional
 def stats -> dict[str, int]
@@ -149,6 +152,7 @@ default async_workers = <factory>
 default file_calls = 10000
 default tool_calls = 1000
 default tool_request_bytes = 16777216
+default open_files = 1024
 stats keys: compiled loaded tool_threads_running written
 environment WASI_PYTHON_ARTIFACTS
 environment WASI_PYTHON_CACHE
@@ -235,6 +239,7 @@ command wasi-python = wasi_python.cli:main
   option --memory-bytes BYTES  store
   option --output-bytes BYTES  store
   option --fuel N  store
+  option --max-open-files N  store
   option --no-snapshot  store_true
   option --grant GUEST=HOST  append
   option --grant-writable GUEST=HOST  append

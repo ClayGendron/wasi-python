@@ -677,9 +677,11 @@ class Mounted(_OnStack):
 class Guarded(_OnStack):
     """The raw module on the runner's guard linker (spec 048), with its call on the thread's
     stack around every export: what a call without mounts answers. Each (host folder, guest
-    path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the two
-    calls the guard shadows (`fd_readdir`, `path_rename`), which a guard table (no mounts)
-    forwards with the fixes of wasmtime 49.0.2 and 49.0.3."""
+    path, writable) in `folders` is preopened from 3 up and served by wasmtime, but for the five
+    calls the guard linker shadows: the two guarded ones (`fd_readdir`, `path_rename`), which a
+    guard table (no mounts) forwards with the fixes of wasmtime 49.0.2 and 49.0.3, and the three
+    counted ones (`path_open`, `fd_close`, `fd_renumber`; spec 068), which it forwards and
+    counts against `table.open_files` (no cap unless a check sets one)."""
 
     def __init__(
         self,

@@ -21,9 +21,14 @@ to wasmtime's own WASI through a small trampoline instantiated on the guest's me
 read-only placeholder folder the runner owns, so wasi-libc's preopen scan finds it; a file or
 folder opened in a mount gets a number from 2**30 up, which wasmtime never reaches.
 
-A call without mounts shadows only the two calls in `GUARDED` (spec 048), through a table with no
-mounts, so both are forwarded, and every forward of them carries wasmtime 49.0.2's and 49.0.3's
-fixes, which wasmtime 49.0.0, the newest wasmtime-py, lacks.
+A call without mounts shadows only the two calls in `GUARDED` (spec 048) and the three in
+`COUNTED` (spec 068), through a table with no mounts, so all five are forwarded: every forward of
+the first two carries wasmtime 49.0.2's and 49.0.3's fixes, which wasmtime 49.0.0, the newest
+wasmtime-py, lacks, and the last three let the table count the files the guest holds open.
+
+Every table, with mounts or without, keeps the call's cap on files open at once (spec 068): the
+wasmtime numbers the guest opened and still holds, plus its open mount files, and answers EMFILE
+to an open at the cap before wasmtime or a provider is asked.
 
 wasmtime-py is imported only inside functions, so the package imports without the `run` extra.
 """
@@ -377,10 +382,15 @@ FORWARD_SAFE = (
 #   back before renameat, and macOS and FreeBSD then follow a symbolic link out of the sandbox.
 #   A forwarded rename with a trailing slash on either path needs a source that is a folder,
 #   judged without following its own link, and is forwarded by the plain names.
-# A call without mounts shadows these two only; a call with mounts forwards them the same way.
+# A call without mounts shadows these two and the three in `COUNTED`; a call with mounts forwards
+# them the same way.
 # Each guard goes when the published floor admits only patched versions (tests/checks/
 # test_rules.py, test_the_rename_and_readdir_guard_match_the_floor).
 GUARDED = ("fd_readdir", "path_rename")
+# The calls that make or free a descriptor the guest holds (spec 068): in wasmtime 49's preview1
+# only path_open adds one, fd_close frees one, and fd_renumber frees `to` and moves `from` there.
+# Shadowed on calls without mounts too, permanently, so the table counts against the call's cap.
+COUNTED = ("path_open", "fd_close", "fd_renumber")
 # What the guard asks wasmtime on its own page, never in the guest's memory: the rename's source
 # type, and a listing again when the guest's `used` pointer lies over its own listing.
 PRIVATE = ("path_filestat_get", "fd_readdir")
@@ -614,6 +624,8 @@ class _Files:
         staging: int,
         metered: bool,
         engine: Any = None,
+        *,
+        open_files: int | None = None,
     ) -> None:
         from . import runner
 
@@ -654,6 +666,18 @@ class _Files:
         # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
         self.stop_fuel: tuple[BaseException, int] | None = None
         self.call: _Call | None = None
+        # The cap on files open at once (spec 068), and the wasmtime numbers the guest opened and
+        # still holds. None: no cap (a table built by hand); a call's table gets the call's value.
+        self.open_files = open_files
+        self.held: set[int] = set()
+
+    def open_now(self) -> int:
+        """The files and folders the guest holds open (spec 068): the wasmtime numbers it opened,
+        and its open mount files; an owed buffer is a number the guest has closed."""
+        return len(self.held) + self.opened - len(self.owed)
+
+    def _at_cap(self) -> bool:
+        return self.open_files is not None and self.open_now() >= self.open_files
 
     def record(self) -> FileRecord:
         return FileRecord(
@@ -1124,7 +1148,10 @@ class _Files:
     def _fd_close(self, caller: Any, fd: int) -> int:
         entry = self._entry(fd)
         if entry is None:
-            return self.forward(caller, "fd_close", (fd,))
+            errno = self.forward(caller, "fd_close", (fd,))
+            if errno == 0:
+                self.held.discard(fd & MASK32)  # a number the guest held frees its slot
+            return errno
         number = fd & MASK32
         if entry.preopen:
             errno = self.forward(caller, "fd_close", (fd,))
@@ -1492,12 +1519,23 @@ class _Files:
         return 0
 
     def _fd_renumber(self, caller: Any, fd: int, to: int) -> int:
-        """Never onto or from a number in the table, or at or above 2**30: wasmtime would
-        silently replace the target (the review's raw_answers.txt)."""
+        """With mounts, never onto or from a number in the table, or at or above 2**30: wasmtime
+        would silently replace the target (the review's raw_answers.txt). A guard table has no
+        provider numbers, so it forwards whatever the numbers (spec 068, Decision 8). A renumber
+        wasmtime makes closes `to` and moves `from` there; the held set follows it, and a number
+        renumbered onto itself stays held."""
         a, b = fd & MASK32, to & MASK32
-        if a in self.table or b in self.table or a >= PROVIDER_BASE or b >= PROVIDER_BASE:
+        if self.mounts and (
+            a in self.table or b in self.table or a >= PROVIDER_BASE or b >= PROVIDER_BASE
+        ):
             return ENOTSUP
-        return self.forward(caller, "fd_renumber", (fd, to))
+        errno = self.forward(caller, "fd_renumber", (fd, to))
+        if errno == 0 and a != b:
+            self.held.discard(b)
+            if a in self.held:
+                self.held.discard(a)
+                self.held.add(b)
+        return errno
 
     # The path calls.
 
@@ -1517,7 +1555,13 @@ class _Files:
         entry = self._entry(fd)
         args = (fd, dirflags, ptr, length, oflags, base_rights, inheriting, fdflags, out)
         if entry is None:
-            return self.forward(caller, "path_open", args)
+            if self._at_cap():
+                return EMFILE  # at the cap (spec 068): nothing forwarded, nothing opened
+            errno = self.forward(caller, "path_open", args)
+            if errno == 0:  # wasmtime wrote the new number at `out`, so it is in memory
+                (number,) = struct.unpack("<I", _Memory(caller).read(out & MASK32, 4))
+                self.held.add(number)
+            return errno
         _lookup(dirflags)
         oflags = _flags(oflags, 0xF, 0xFFFF, "Oflags")
         base_rights = _rights(base_rights)
@@ -1546,7 +1590,7 @@ class _Files:
         if isinstance(resolved, int):
             return resolved
         path, folder_only = resolved
-        if self.opened >= MAX_MOUNT_FILES:
+        if self.opened >= MAX_MOUNT_FILES or self._at_cap():
             return EMFILE  # before the provider: no call, none counted
         if writes:
             opened = self._open_writing(caller, mount, path, folder_only, oflags, base_rights)

@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -275,3 +277,99 @@ def test_an_import_path_without_a_value_is_a_usage_error(fake, capsysbinary) -> 
     code, out, err = _main(capsysbinary, "run", "--import-path")
     assert (code, out) == (2, b"") and b"--import-path" in err, err
     assert fake[0] == []
+
+
+# The cap on open files on the command line (spec 068).
+
+
+def test_max_open_files_reaches_run(fake, capsysbinary) -> None:
+    """Spec 068, criterion 6: `--max-open-files N|none` is `run`'s `max_open_files`, passed only
+    when given; anything else is a usage error."""
+    calls, _ = fake
+    assert _main(capsysbinary, "run", "--max-open-files", "5", "--", "-c", "1")[0] == 0
+    assert calls[-1][1]["max_open_files"] == 5
+    assert _main(capsysbinary, "run", "--max-open-files", "none", "--", "-c", "1")[0] == 0
+    assert calls[-1][1]["max_open_files"] is None
+    assert _main(capsysbinary, "run", "--max-open-files=7", "x.py")[0] == 0
+    assert calls[-1][0] == ["x.py"] and calls[-1][1]["max_open_files"] == 7
+    assert _main(capsysbinary, "run", "--", "-c", "1")[0] == 0
+    assert "max_open_files" not in calls[-1][1]
+    before = len(calls)
+    code, out, err = _main(capsysbinary, "run", "--max-open-files", "x", "--", "-c", "1")
+    assert (code, out, len(calls)) == (2, b"", before), err
+
+
+class FakeLimits:
+    """A stand-in for the `resource` module: its descriptor limits, and every `setrlimit`."""
+
+    RLIMIT_NOFILE = 8
+    RLIM_INFINITY = 2**63 - 1
+
+    def __init__(self, soft: int, hard: int, refuse: int = 0) -> None:
+        self.limits, self.refuse = (soft, hard), refuse
+        self.calls: list[tuple[int, tuple[int, int]]] = []
+
+    def getrlimit(self, which: int) -> tuple[int, int]:
+        assert which == self.RLIMIT_NOFILE
+        return self.limits
+
+    def setrlimit(self, which: int, limits: tuple[int, int]) -> None:
+        self.calls.append((which, limits))
+        if len(self.calls) <= self.refuse:
+            raise ValueError("not allowed")
+        self.limits = limits
+
+
+def test_the_command_raises_its_own_descriptor_limit(fake, capsysbinary, monkeypatch) -> None:
+    """Spec 068, criterion 6 (Decision 7): the command, run as its own process (`main()` with no
+    argument, as `wasi-python` and `python -m wasi_python` call it), raises its soft descriptor
+    limit to its hard one before it calls `run`; a refused raise is tried once more at
+    min(hard, 10240), then let be; without `resource` (Windows) nothing is tried. The library
+    never changes the process's limits."""
+    calls, _ = fake
+    seen_at_run: list[int] = []
+    real_run = runner.run
+
+    def run(argv, **kw):
+        seen_at_run.append(len(limits.calls))
+        return real_run(argv, **kw)
+
+    monkeypatch.setattr(runner, "run", run)
+    monkeypatch.setattr(sys, "argv", ["wasi-python", "run", "--", "-c", "1"])
+
+    def command(limits_: FakeLimits | None) -> tuple[int, bytes]:
+        monkeypatch.setitem(sys.modules, "resource", limits_)
+        code = cli.main()
+        return code, capsysbinary.readouterr()[0]
+
+    limits = FakeLimits(256, 4096)
+    assert command(limits)[0] == 0
+    assert limits.calls == [(8, (4096, 4096))] and seen_at_run[-1] == 1
+
+    limits = FakeLimits(4096, 4096)
+    assert command(limits)[0] == 0 and limits.calls == []
+
+    inf = FakeLimits.RLIM_INFINITY
+    limits = FakeLimits(256, inf, refuse=1)
+    assert command(limits)[0] == 0
+    assert limits.calls == [(8, (inf, inf)), (8, (10240, inf))]
+
+    limits = FakeLimits(256, inf, refuse=2)
+    code, out = command(limits)
+    assert (code, len(limits.calls)) == (0, 2) and out.startswith(b'{"exit_code": 0')
+
+    limits = FakeLimits(256, 4096, refuse=1)
+    assert command(limits)[0] == 0
+    assert limits.calls == [(8, (4096, 4096))]  # min(hard, 10240) is the hard limit: no retry
+
+    before = len(calls)
+    assert command(None)[0] == 0 and len(calls) == before + 1  # no resource module: it runs
+
+    limits = FakeLimits(256, 4096)
+    monkeypatch.setitem(sys.modules, "resource", limits)
+    assert cli.main(["run", "--", "-c", "1"]) == 0  # called with its arguments: not its process
+    assert limits.calls == []
+
+    package = Path(cli.__file__).parent
+    named = sorted(p.name for p in package.rglob("*.py") if "setrlimit" in p.read_text())
+    assert named == ["cli.py"], named
