@@ -1,7 +1,11 @@
 # 085 — `gather` checks what it trusts
 
 - **Status:** **built 2026-10-19** on `spec/085-gather-checks-what-it-trusts` over main `9d89535`
-  (the Landing notes), after the confirmation of its pre-build review (`6523595`, "confirmed for
+  (the Landing notes), and **revised against its build review** the same day (in the lane's
+  scratchpad, `085-review/085-gather-checks-what-it-trusts-build-2026-10-19.md`: "lands once B1
+  is fixed"; B1 fixed, B2 and B3 taken, each seen failing first; *Revised against the build
+  review*). The owner answered question 105 with (b), spec 086 before 037 and no same-bytes
+  exception, and declined Decision 9's fuel band for now; both are written in. Built after the confirmation of its pre-build review (`6523595`, "confirmed for
   build", with builder notes c1 and c2, both taken). Before that: drafted 2026-10-19 from main `a6dfc17`
   (`31a8713`); **rebased onto main `9d89535`** (spec 065 landed, history line 79) and **revised
   the same day against its pre-build review** (in the lane's scratchpad,
@@ -11,8 +15,8 @@
   review*). Not built. It changes neither the guest's imports nor its exports, the artifact set
   nor the build recipe, so §5.6 does not require a review before build; the lane held one anyway,
   since 085 changes what gates a release. A different agent reviews the build. Its branch dry
-  run's gather is red on one expected G7 line until the lane accepts it (criterion 6). **It lands
-  before 037** (*Coordination*).
+  run's gather is red on one expected G7 line until the lane accepts it (criterion 6). Spec 086
+  lands before 037 (question 105, answered (b)), so G7 stays exact (*Coordination*).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7; AGENTS.md rule 2): it changes `.github/workflows/release.yml`.
@@ -146,21 +150,26 @@ one file where it could tie all of them.
    - **Found before a dry run.** A fast-tier unit test holds that `gather.hidden_ci_needs(repo)`
      returns nothing. It flags (the pre-build review's F5):
      - any string constant equal to a CI need under `tests/checks/` (conftest files included) and
-       in `tests/conftest.py`, outside the body of a `test_` function;
+       in `tests/conftest.py`, outside the statements of a `test_` function's body: a literal in
+       its decorators (a `parametrize` list) or its default arguments is flagged (the build
+       review's B2);
      - under `tests/harness/`, any such string used as a call argument, a container element (a
-       dict, list, tuple or set member), a keyword value, or a module constant set by plain
-       assignment (`X = "three systems"`; the confirmation's c1), outside `needs.py` and
+       dict, list, tuple or set member), a keyword value, or a constant set by plain assignment
+       at module or class level, directly or through a conditional expression
+       (`X = "three systems"`, `NEED = "oracle" if a else ""`; the confirmation's c1, the build
+       review's B2), outside `needs.py` and
        `gather.py`, the two files that define the vocabulary, which the scan skips before parsing
        them (c2); a path piece such as `JOB_DIR / "oracle"` in `jobs.py` is not flagged;
      - any string beginning `"needs: "` anywhere in that scope, test bodies included, outside
        `needs.py`.
      Seven call sites today pass `need()` a non-literal (the review's count: `NEED_OF[which]`
      lookups and f-strings); none names a CI need, and the widened scan would flag one that
-     came to (`hidden_wide.out`: nothing in the repository; each planted spelling flagged). Two
+     came to (`hidden_wide.out`: nothing in the repository; each planted spelling flagged). Three
      spellings stay unseen until a dry run, where they are red: a need computed at run time from
-     pieces, and a CI need passed from inside a `test_` body to a helper that skips with it
+     pieces; a CI need passed from inside a `test_` body to a helper that skips with it
      (`helper("descriptor limit")`; the confirmation's c1), since a string inside a check's body
-     is not flagged and `needs_called` reads only `need(…)` calls.
+     is not flagged and `needs_called` reads only `need(…)` calls; and a CI need held in a local
+     variable of a harness function.
    - **Where it fails open** (narrow, and written down here; the review's F8):
      - the rows of a parametrized check share one body, so a row whose own path never calls the
        need may still be reported blocked by it (today only the descriptor check's two rows, both
@@ -193,8 +202,13 @@ one file where it could tie all of them.
    - G5 is red when a record shows a check `pass` without a metric name that `accepted.json` holds
      for that check on darwin-arm64 (`wasmtime` aside): `G5 <system>/<shard>: <node> records no
      <metric> (accepted.json has it)`. It is red too when a passing check's metric value is not a
-     number (`int` or `float`, not `bool`): `G5 <system>/<shard>: <node> metric <name> is not a
-     number`.
+     finite number (an `int`, or a `float` that is neither `NaN` nor infinite; never a `bool`):
+     `G5 <system>/<shard>: <node> metric <name> is not a number`. *Why finite* (the build
+     review's B1): `json` reads `NaN` and `Infinity`, and the ratchet's `value > old × (1 +
+     tolerance)` is false for `NaN`, so a darwin record whose fuel is all `NaN` was green. A
+     check's `metrics` that is not a mapping is red the same way (`… metrics is not a mapping`),
+     and a `need` that is not a string is G4's `blocked by …` line (B3): malformed shapes give a
+     reason line, never a raise.
    - **Names on every system; values where they are compared today.** Fuel stays compared only in
      darwin records (the ratchet, to one part in ten thousand), and an upstream group's `passes`
      on every system (G5, as today). Fuel is not comparable across systems: on the a7 tag run,
@@ -302,35 +316,27 @@ one file where it could tie all of them.
      can push, the rulesets let it bypass, and no status check is required (spec 064 has not
      landed). Signing acceptances is out of scope.
    - In one line: **the gather checks consistency, not authenticity.**
-8. **G7 stays exact, and spec 037's exception needs an answer that covers the whole set** (the
-   pre-build review's F2).
-   - 085 compares both hashes exactly, as 057's rule asks. It neither creates nor fixes the
-     interaction with 037 (*Coordination*; question 105).
-   - **Under 037's exception the snapshot varies too.** 037's Decision 17 names two artifacts it
-     touches, `python.wasm` and `python-snapshot.wasm`. So under it the set's `SHA256SUMS` differs
-     from the lane's on every build, in those two lines, and 085's `set_sums` clause would be red
-     on every release, like today's `artifact` clause.
-   - **So question 105's option (a) must also define a canonical set digest**, not only a
-     canonical digest of `python.wasm`: for example the set's `SHA256SUMS` with the two binaries'
-     lines replaced by their canonical digests. The lane records it at acceptance, the build job
-     hands it on, and G7's set clause compares it while the exception holds (exact hashes
-     otherwise). Or, if option (a) does not define one, G7's set clause gives way while the
-     exception holds, and the spec that builds option (a) says so in writing. Under option (b)
-     (086 first) nothing here changes. Either way, the change to G7's set clause is made by the
-     spec that builds the owner's answer, not by 085. The lane adds this to question 105's text.
-9. **No cross-system fuel band in 085** (the pre-build review's N1; a decision, with its
-   recommendation).
+8. **G7 stays exact: an exact `python.wasm` hash and an exact `SHA256SUMS` hash** (the
+   pre-build review's F2; question 105, answered).
+   - 085 compares both hashes exactly, as 057's rule asks.
+   - The pinned clang (wasi-sdk 33) compiles one scipy file to different bytes on every run, so a
+     set with scipy built on it would differ from the lane's on every build, in `python.wasm`'s
+     and the snapshot's lines, and both G7 clauses would be red on every release.
+   - **The owner answered question 105 with (b), 2026-10-19:** spec 086 (wasi-sdk 34, whose clang
+     is fixed) lands before spec 037 (scipy), and 037's same-bytes exception is dropped. So every
+     build of a set makes the same bytes, and both clauses stay exact hashes. No canonical digest
+     and no exception enters the gather.
+9. **No cross-system fuel band, declined by the owner for now** (the pre-build review's N1; the
+   owner, 2026-10-19: "not now"). It may come back as a later specification.
    - A coarse band, say 1%, on Linux and Windows fuel against the lane's darwin value would catch
      two lies Decision 3 leaves open: fuel swapped between two checks (5.6% apart on the pair the
      review swapped) and a Linux-only fuel regression. The worst honest gap on the a7 tag run was
      0.197% (`fuel_across_systems.out`), so a 1% band has five times that margin today.
-   - **085 leaves it out.** The band would be a new rule about how fuel may differ by host, and
+   - **Why it is left out.** The band would be a new rule about how fuel may differ by host, and
      a future host-dependent check (a file-system path, an encoding) could exceed it honestly; it
-     catches forgeries that a compromised leg can avoid anyway (Decision 7). Its cost and value
-     are the owner's to weigh.
-   - **Recommendation:** leave it out unless the owner asks; if asked, it is a small follow-up
-     (one G5 clause, one constant, rows in the mutation table), and 085's data above is its
-     evidence.
+     catches forgeries that a compromised leg can avoid anyway (Decision 7).
+   - **A later specification** would be small (one G5 clause, one constant, rows in the mutation
+     table), and 085's data above is its evidence.
 
 ## Intent
 
@@ -380,7 +386,8 @@ can still forge a consistent record (Decision 7).
     (Decisions 3 and 9).
   - The release environments' protection (the review's N1) and required status checks (spec 064).
   - Any change to what the shards run, to the plan, or to the judge's own run outside `--shard`.
-  - The 037-to-086 window, and any canonical digest (Decision 8; question 105).
+  - Any canonical digest or same-bytes exception in the gather: none is needed, since spec 086
+    lands before 037 (Decision 8).
 
 ## The checks first
 
@@ -420,6 +427,10 @@ now `three systems: darwin linux win32 on <W> · set <S>`.
 | F7 | Linux record drops `SUITE`'s `fuel` | `G5 linux/up-l: <SUITE> records no fuel` | green |
 | F7 | Windows record drops `PROBE`'s `fuel` | `G5 windows/own-a: <PROBE> records no fuel` | green |
 | F7 | Linux record's `PROBE` fuel is `"7"` | `G5 linux/own-a: <PROBE> metric fuel is not a number` | green |
+| F7 | macOS record's `PROBE` fuel is `NaN` (the build review's B1) | `G5 macos/own-a: <PROBE> metric fuel is not a number` | green before B1's fix |
+| F7 | macOS record's `PROBE` fuel is `Infinity` (B1) | `G5 macos/own-a: <PROBE> metric fuel is not a number` | red only through the ratchet before |
+| F6 | a `need` given as a list (B3) | `G4 linux/own-a <DESC>: blocked by ['descriptor limit']` | raised `TypeError` |
+| F7 | a check's `metrics` given as a list (B3) | `G5 linux/own-a: <PROBE> metrics is not a mapping` | raised |
 | F7 | macOS record's `PROBE` fuel ×10, `meta.wasmtime` `"48.0.0"` | `G2 macos/own-a: wasmtime '48.0.0' is not uv.lock's 49.0.0` | green |
 | F7 | the same, `meta.wasmtime` null | `G2 macos/own-a: wasmtime None is not uv.lock's 49.0.0` | green |
 | F7 | `suite` `{passed: 4, skipped: -2, total: 2}` (a negative skip) | `G4 macos/own-rest: suite` | green (the review ran it on real records) |
@@ -492,12 +503,9 @@ The existing mutation "blocked by the kit" (`upstream kit`) keeps its line. "a f
    (AGENTS.md rule 6b's dry run before the next tag). If it does not, the lane stops there.
    *Why not soften G7 for a line without the key:* only 085's branch ever runs this gather with
    such a newest line, and a soft clause would stay in the judge for good.
-   **This criterion assumes the order 065 (landed), 085, 037** (the pre-build review's F3).
-6b. **If the lane lands 037 before 085 anyway.** Then main's set varies by build (Decision 8), and
-   the branch dry run's gather is red on two G7 lines, `artifact` and `set_sums`, and no other;
-   the landing notes quote both. Criterion 6's fully green dry run of main after acceptance cannot
-   be met until question 105 is answered and built (or 086 lands). The lane then tags nothing
-   until it is, as question 105 already holds for 037.
+   It holds whatever lands between 085 and 037, since 086 lands before 037 and no build varies
+   (Decision 8). The pre-build review's F3 asked for the order or a second criterion; the owner's
+   answer to question 105 settled it.
 7. **N5.** Both rebuild jobs' logs in the dry run show the runner's `python3 --version` line.
 8. **The judge.** The fast tier and the full judge (`-n 3`) are green in the worktree, with no
    lost pass and no growth. The lane accepts with `--accept-judge "<reason>"`. No golden output,
@@ -528,27 +536,22 @@ This spec changes the judge, on purpose, and says so here so the review sees the
 
 ## Coordination
 
-- **The order is 065, 085, 037.** 065 has landed (`9d89535`, history line 79). 085 lands next
-  among these. 037 waits on question 105 in any case. Criterion 6b covers the other order.
+- **The order.** 065 has landed (`9d89535`, history line 79). 086 lands before 037 (question 105,
+  answered (b)); 085 does not depend on either.
 - **Spec 065** (landed) added `no_trap_anywhere` to `gather.py`, upstream check kinds to
   `plugin.py`, a scoreboard line to `scoreboard.py`, `group_systems` to `shards.py`, and CPython
   groups to the plan. Its `gather.py` change is additive and touches no G rule (the review, READ).
   This draft is rebased onto it. 065's own dry run's records meet the new G4 and G5 rules
   (`records_065.out`, `prototype.out`).
-- **Spec 037** (scipy, built) rewrites the same-bytes job and `scan.rebuild_gate_errors`. N5's
-  line sits in that function's facts tuple, beside 037's hunks. Whichever lands second merges the
-  two by hand; neither changes the other's rule.
-- **Spec 037 and G7: question 105, for the owner.** 037's
-  same-bytes exception exists because the pinned clang compiles ducc0's FFT to a different object
-  on every run (32 compiles, 32 objects; 037's Decision 17). So each fresh build makes a new
-  variant of `python.wasm` and the snapshot, and so a new set `SHA256SUMS`. The lane accepts the
-  variant it built; the release's build job makes another. **G7 as it stands today
-  (`python.wasm` alone) then fails on every release and every dry run of main**, until spec 086
-  (wasi-sdk 34) removes the variance. 037 does not mention G7 or the gather (READ, its spec at
-  `ad937dc`). The lane has written this as question 105 (option (a), a canonical digest; (b),
-  086 first; (c), rejected). 085's `set_sums` clause inherits the same fact; it neither creates
-  nor fixes it. Option (a) must cover the whole set, not only `python.wasm` (Decision 8). Which
-  option holds is not this spec's to choose.
+- **Spec 037** (scipy, built) rewrote the same-bytes job and `scan.rebuild_gate_errors` for its
+  exception, which the owner's answer drops; whatever of that remains when 037 lands sits beside
+  N5's line in that function's facts tuple. Whichever lands second merges the two by hand;
+  neither changes the other's rule.
+- **Spec 037, spec 086 and G7: question 105, answered (b).** The pinned clang compiles ducc0's FFT
+  to a different object on every run, so a set with scipy built on wasi-sdk 33 would be a new
+  variant at every build, and both G7 clauses would fail on every release. The owner chose (b):
+  spec 086 (wasi-sdk 34) lands before 037, and 037's same-bytes exception is dropped. So the
+  gather's G7 keeps exact hashes of `python.wasm` and of the set's `SHA256SUMS` (Decision 8).
 - **Specs 039 and 043** change the build job's zero-patch step (its tree count, 19 to 20 or 21).
   085's new build step is a separate step below the build shard. Their hunks are near, not shared.
 - **Spec 064** (required status checks) would make the rulesets enforce what Decision 7 says only
@@ -569,10 +572,13 @@ F8 written in or answered". Every finding is written in; none changes the design
 - **F2 (Medium), question 105's option (a) does not cover the set clause.** Written in: Decision
   8 says the snapshot varies under 037 too, so option (a) must define a canonical set digest, or
   the set clause gives way while the exception holds, by the spec that builds the answer;
-  *Coordination* points to it. The lane adds it to question 105's text.
+  *Coordination* points to it. The lane adds it to question 105's text. *Superseded the same
+  day:* the owner answered question 105 with (b), so no canonical digest is needed (Decision 8).
 - **F3 (Medium), criterion 6 assumed 085 before 037.** Written in: the order 065, 085, 037 is
   stated (status, criterion 6, *Coordination*); criterion 6b gives the other order its two
   expected G7 lines and holds tags until question 105 is built; line 78 is now line 79.
+  *Superseded the same day:* with question 105 answered (b), 086 lands before 037, and criterion
+  6b is gone.
 - **F4 (Low-Medium), criteria 2 and 3 could pass with nothing proved.** Written in: criterion 2
   runs the honest baseline and every real forgery on the branch dry run's own records (red only on
   the expected G7 line; each forgery adds exactly its own line); criterion 3 keeps the a7 and 065
@@ -675,6 +681,30 @@ Against a private copy of main's set, `build/085/set` (a clone of
   in `tests/harness/` is flagged; a need passed to a helper from inside a check's body is named
   in Decision 1 as found only at a dry run; `VOCABULARY_FILES` are skipped before parsing.
 
+### Revised against the build review (2026-10-19)
+
+The review: `085-review/085-gather-checks-what-it-trusts-build-2026-10-19.md` in the lane's
+scratchpad, "lands once B1 is fixed". Each fix was seen failing first (`seen_failing_build_review.out`: the four new forgery rows and the scan's spellings test failed against the
+built code; 74 others passed).
+
+- **B1 (Medium), `NaN` fuel passed the darwin ratchet.** Fixed: `_number` accepts an `int` or a
+  finite `float` (`math.isfinite`). Forgery rows for `NaN` and `Infinity` on a macOS record. On
+  the real records, every fuel `NaN` in macos/own-guest now adds exactly its 124 G5 lines, on
+  both runs (`built_on_real.out`).
+- **B2 (Low), decorators and defaults counted as the body; harness class attributes and
+  conditional expressions unseen.** Fixed: only a `test_` function's body statements are inside;
+  in `tests/harness/`, a CI need assigned at module or class level, directly or through an `if …
+  else`, is flagged. A local variable of a harness function stays unseen, and Decision 1 says
+  so. Four new spellings in the scan's unit test.
+- **B3 (Low), a list `need` or `metrics` raised.** Fixed: a `need` that is not a string is G4's
+  `blocked by …` line (and `allowed` refuses it; the merged record carries its `repr`); `metrics`
+  that is not a mapping is G5's `… metrics is not a mapping`, checked before the ratchet, whose
+  `AttributeError` is now caught as "not comparable". Two forgery rows.
+- **The owner's answers.** Question 105 (b): Decision 8, *Scope*, criterion 6 and *Coordination*
+  now say spec 086 lands before 037 and the gather keeps exact hashes; criterion 6b is gone.
+  Decision 9: declined for now, a possible later specification.
+- **The judge after the fixes:** see the fast-tier line below.
+
 ### For the lane
 
 - **Criterion 2's branch-dry-run part, criteria 4 to 7.** Push the branch and dispatch the
@@ -688,8 +718,9 @@ Against a private copy of main's set, `build/085/set` (a clone of
   rebuild logs show `python3 --version`.
 - **After acceptance** (`--accept-judge`), the first dry run of main must pass every job, the
   gather included (criterion 6).
-- **Textual merges.** 037 rewrites the same-bytes job and `scan.rebuild_gate_errors` beside the
-  `python3 --version` fact; 039 and 043 change the zero-patch step's tree count, a few lines
+- **Textual merges.** 037's branch edits the same-bytes job and `scan.rebuild_gate_errors` beside
+  the `python3 --version` fact (its exception is dropped by question 105's answer, so those hunks
+  may shrink); 039 and 043 change the zero-patch step's tree count, a few lines
   above the build job's new step. Each is near, none shared.
 
 ## One line

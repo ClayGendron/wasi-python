@@ -91,6 +91,12 @@ def fuel_x10_other_wasmtime(records):
     r["meta"]["wasmtime"] = "48.0.0"
 
 
+def fuel_nan(records):  # the build review's B1
+    for c in records[("macos", "own-guest")]["checks"].values():
+        if "fuel" in c.get("metrics", {}):
+            c["metrics"]["fuel"] = float("nan")
+
+
 def suite(key, value):
     def edit(records):
         records[key]["suite"] = value
@@ -98,7 +104,7 @@ def suite(key, value):
 
 
 NEW = ("which its check does not call", "which does not block on", ": suite ", "records no ",
-       "is not a number", "is not uv.lock's")
+       "is not a number", "is not uv.lock's", "is not a mapping")
 base = run(lambda r: None, "honest")
 print(f"honest records: {len(base)} red lines; by rule:",
       {k: sum(x.startswith(k) for x in base) for k in ("G1", "G2", "G3", "G4", "G5", "G6", "G7")})
@@ -115,6 +121,7 @@ for name, edit in [
     ("windows/own-runner suite zeros", suite(("windows", "own-runner"), {"passed": 0, "skipped": 0, "total": 0})),
     ("windows/own-guest drops one check's fuel", drop_fuel),
     ("macos/own-guest fuel x10 under wasmtime 48.0.0", fuel_x10_other_wasmtime),
+    ("macos/own-guest every fuel NaN", fuel_nan),
 ]:
     added = sorted(run(edit, name.replace(" ", "_").replace("'", "")[:40]) - base)
     print(f"- {name}: adds {len(added)}")

@@ -1,0 +1,9 @@
+        # G4: nothing failed, the unit tests included (the build review, F6); the tally is the share
+                [suite.get(k) for k in ("passed", "skipped", "total")]
+                red.append(f"G4 {system}/{shard}: {tally[2] - tally[0] - tally[1]} unit test(s) failed")
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a macOS record's fuel is NaN]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a macOS record's fuel is Infinity]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[a need given as a list]
+FAILED tests/unit/test_gather.py::test_each_forgery_is_red[metrics given as a list]
+FAILED tests/unit/test_gather.py::test_hidden_ci_needs_flags_each_spelling - ...
+5 failed, 74 passed in 1.32s

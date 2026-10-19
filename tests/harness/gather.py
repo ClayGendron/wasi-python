@@ -16,6 +16,7 @@ from __future__ import annotations
 import ast
 import inspect
 import json
+import math
 import os
 import re
 import subprocess
@@ -91,6 +92,8 @@ class Verdict:
 
 def allowed(node: str, need, system: str, may_block: dict[str, frozenset[str]]) -> bool:
     """May this check be reported blocked by this need in this system's record (Decision 1)?"""
+    if not isinstance(need, str):  # a list cannot be looked up (the build review, B3)
+        return False
     return need in may_block.get(node, ()) and system in CI_NEEDS.get(need, ())
 
 
@@ -99,7 +102,9 @@ def _whole(x) -> bool:
 
 
 def _number(x) -> bool:
-    return type(x) in (int, float)
+    """A metric value: an int, or a finite float. json reads NaN and Infinity, and the ratchet's
+    `>` is false for NaN (the build review, B1)."""
+    return type(x) is int or (type(x) is float and math.isfinite(x))
 
 
 def _files(folder: Path) -> list[Path]:
@@ -230,7 +235,9 @@ def gather(i: Inputs) -> Verdict:
                 red.append(f"{where}: {status} {str(c.get('reason', ''))[:120]}")
             elif status == "gap" and node not in i.gaps:
                 red.append(f"{where}: a gap tests/known_gaps.toml does not hold")
-            elif status == "blocked" and c.get("need") not in CI_NEEDS:
+            elif status == "blocked" and (
+                not isinstance(c.get("need"), str) or c.get("need") not in CI_NEEDS
+            ):
                 red.append(f"{where}: blocked by {c.get('need')!r}")
             elif status == "blocked" and c.get("need") not in i.may_block.get(node, ()):
                 red.append(f"{where}: blocked by {c.get('need')!r}, which its check does not call")
@@ -238,11 +245,28 @@ def gather(i: Inputs) -> Verdict:
                 red.append(
                     f"{where}: blocked by {c.get('need')!r}, which does not block on {system}"
                 )
-    # G5: the lane's acceptance holds.
+    # G5: the lane's acceptance holds. First, every metric the lane accepted for a passing check,
+    # on every system, each a finite number (spec 085, Decision 3; the build review, B1 and B3).
+    # Values off darwin are not compared (Decision 9).
+    for (system, shard), r in v.records.items():
+        for node, c in sorted(r.get("checks", {}).items()):
+            if c.get("status") != "pass":
+                continue
+            have = c.get("metrics", {})
+            if not isinstance(have, dict):
+                red.append(f"G5 {system}/{shard}: {node} metrics is not a mapping")
+                continue
+            acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
+            want = set(acc.get("darwin-arm64", {})) - {"wasmtime"}
+            for name in sorted(want - set(have)):
+                red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
+            for name, value in sorted(have.items()):
+                if not _number(value):
+                    red.append(f"G5 {system}/{shard}: {node} metric {name} is not a number")
     for (system, shard), r in v.records.items():
         try:
             rt = scoreboard.compare(r, i.accepted, i.repo)
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError, AttributeError) as e:
             red.append(f"G5 {system}/{shard}: not comparable with accepted.json ({e})")
             continue
         for what, nodes in (
@@ -253,19 +277,6 @@ def gather(i: Inputs) -> Verdict:
             ("blocked, protected", rt.unrun),
         ):
             red += [f"G5 {system}/{shard}: {what} {n}" for n in nodes[:5]]
-        # Every metric the lane accepted for a passing check, on every system; each a number
-        # (spec 085, Decision 3). Values off darwin are not compared (Decision 9).
-        for node, c in sorted(r.get("checks", {}).items()):
-            if c.get("status") != "pass":
-                continue
-            acc = i.accepted.get("checks", {}).get(node, {}).get("metrics", {})
-            want = set(acc.get("darwin-arm64", {})) - {"wasmtime"}
-            have = c.get("metrics") if isinstance(c.get("metrics"), dict) else {}
-            for name in sorted(want - set(have)):
-                red.append(f"G5 {system}/{shard}: {node} records no {name} (accepted.json has it)")
-            for name, value in sorted(have.items()):
-                if not _number(value):
-                    red.append(f"G5 {system}/{shard}: {node} metric {name} is not a number")
     for node, acc in sorted(i.accepted.get("checks", {}).items()):
         if acc.get("status") not in ("pass", "gap"):
             continue
@@ -374,6 +385,9 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
         ran = [(p, c) for p, c in found if c.get("status") != "deselected"]
         source = min(ran, key=lambda pc: pref.get(pc[0], 9))[1] if ran else worst
         checks[node] = {**worst, "metrics": source.get("metrics", {})}
+        need = checks[node].get("need")
+        if need is not None and not isinstance(need, str):  # already red at G4 (B3)
+            checks[node]["need"] = repr(need)
     suite: dict[str, dict] = {}
     for (system, _), r in records.items():
         s = suite.setdefault(shards.PLATFORM[system] if system != "build" else "build", {})
@@ -457,7 +471,8 @@ def hidden_ci_needs(repo: Path = paths.REPO) -> list[str]:
                 if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith(
                     "test_"
                 ):
-                    inside |= {id(m) for m in ast.walk(n)}
+                    # Its body only: decorators and default arguments are not inside (B2).
+                    inside |= {id(m) for stmt in n.body for m in ast.walk(stmt)}
         parent = {id(c): n for n in ast.walk(tree) for c in ast.iter_child_nodes(n)}
         for n in ast.walk(tree):
             if not (isinstance(n, ast.Constant) and isinstance(n.value, str)):
@@ -467,10 +482,14 @@ def hidden_ci_needs(repo: Path = paths.REPO) -> list[str]:
             elif n.value in CI_NEEDS and id(n) not in inside:
                 up = parent.get(id(n))
                 plain = (ast.Call, ast.Dict, ast.List, ast.Tuple, ast.Set, ast.keyword)
-                module_constant = (
-                    isinstance(up, (ast.Assign, ast.AnnAssign)) and parent.get(id(up)) is tree
+                # A module constant or a class attribute, or either through a conditional
+                # expression (the confirmation's c1; the build review's B2).
+                if isinstance(up, ast.IfExp):
+                    up = parent.get(id(up))
+                constant = isinstance(up, (ast.Assign, ast.AnnAssign)) and isinstance(
+                    parent.get(id(up)), (ast.Module, ast.ClassDef)
                 )
-                if not harness or isinstance(up, plain) or module_constant:
+                if not harness or isinstance(up, plain) or constant:
                     found.append(f"{rel}:{n.lineno}: {n.value!r}")
     return found
 

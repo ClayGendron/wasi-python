@@ -378,6 +378,28 @@ FORGERIES = [
         _metrics(("linux", "own-a"), PROBE, {"fuel": "7"}),
         f"G5 linux/own-a: {PROBE} metric fuel is not a number",
     ),
+    # The build review's B1: json reads NaN and Infinity, and the ratchet's `>` is false for NaN.
+    (
+        "a macOS record's fuel is NaN",
+        _metrics(MAC_A, PROBE, {"fuel": float("nan")}),
+        f"G5 macos/own-a: {PROBE} metric fuel is not a number",
+    ),
+    (
+        "a macOS record's fuel is Infinity",
+        _metrics(MAC_A, PROBE, {"fuel": float("inf")}),
+        f"G5 macos/own-a: {PROBE} metric fuel is not a number",
+    ),
+    # The build review's B3: malformed shapes give a reason line, never a raise.
+    (
+        "a need given as a list",
+        _blocked([("linux", "own-a")], DESC, ["descriptor limit"]),
+        f"G4 linux/own-a {DESC}: blocked by ['descriptor limit']",
+    ),
+    (
+        "metrics given as a list",
+        _metrics(("linux", "own-a"), PROBE, [7]),
+        f"G5 linux/own-a: {PROBE} metrics is not a mapping",
+    ),
     (
         "ten times the fuel on macOS, under another wasmtime",
         _fuel_unchecked("48.0.0"),
@@ -524,6 +546,12 @@ HIDDEN = {
     "tests/harness/h.py": 'X = {"k": "descriptor limit"}\n',
     "tests/harness/k.py": 'X = "prior-art clones"\n',
     "tests/conftest.py": 'ALL = ["three systems"]\n',
+    # The build review's B2: a check's decorator and defaults are not its body.
+    "tests/checks/test_p.py": '@pytest.mark.parametrize("n", ["oracle"])\ndef test_p(n):\n'
+    "    needs.need(n)\n",
+    "tests/checks/test_d.py": 'def test_d(n="three systems"):\n    needs.need(n)\n',
+    "tests/harness/c.py": 'class K:\n    NEED = "prior-art clones"\n',
+    "tests/harness/e.py": 'X = "three systems" if y else ""\n',
 }
 NOT_HIDDEN = {
     "tests/checks/test_y.py": 'def test_y():\n    needs.need("oracle")\n',

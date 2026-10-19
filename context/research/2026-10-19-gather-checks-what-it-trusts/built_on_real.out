@@ -20,6 +20,13 @@ honest records: 120 red lines; by rule: {'G1': 0, 'G2': 19, 'G3': 99, 'G4': 0, '
      G5 windows/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] records no fuel (accepted.json has it)
 - macos/own-guest fuel x10 under wasmtime 48.0.0: adds 1
      G2 macos/own-guest: wasmtime '48.0.0' is not uv.lock's 49.0.0
+- macos/own-guest every fuel NaN: adds 124
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[plain] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[snapshot] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_no_cpython_test_module_is_built_in metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[plain] metric fuel is not a number
 
 == spec 065's dry run's records (39265738300), accepted.json at 9d89535
 honest records: 23 red lines; by rule: {'G1': 0, 'G2': 19, 'G3': 2, 'G4': 0, 'G5': 0, 'G6': 0, 'G7': 2}
@@ -43,3 +50,10 @@ honest records: 23 red lines; by rule: {'G1': 0, 'G2': 19, 'G3': 2, 'G4': 0, 'G5
      G5 windows/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] records no fuel (accepted.json has it)
 - macos/own-guest fuel x10 under wasmtime 48.0.0: adds 1
      G2 macos/own-guest: wasmtime '48.0.0' is not uv.lock's 49.0.0
+- macos/own-guest every fuel NaN: adds 124
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[plain] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[snapshot] metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_no_cpython_test_module_is_built_in metric fuel is not a number
+     G5 macos/own-guest: tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[plain] metric fuel is not a number
