@@ -1,8 +1,9 @@
 # 047 — regex, built in
 
-- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
-  confirmation** (landing notes below; branch `spec/047-regex`, built from main `3e949a1`,
-  rebased onto main `4a94c14` and rebuilt; the review is
+- **Status:** **built 2026-10-18; revised against its build review; confirmed; rebased onto
+  spec 046 (main `7d377dd`) and rebuilt; awaiting the reviewer's delta look** (landing notes
+  below; branch `spec/047-regex`, built from main `3e949a1`, rebased onto `4a94c14` and then
+  `7d377dd`; the review is
   `build/reviews-evidence/047-buildreview/047-regex-2026-10-18.md` in the main tree, to be
   copied under `context/reviews/` by the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): Decision 9's rule binds — the name check is green over every scipy builtin in whichever of 047 and 037/038 lands second, never by an exemption; the builder confirms the package-context wrappers on the snapshot binary. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): the findings that concern it (3, 7,
@@ -620,3 +621,140 @@ The 78 grown metrics are the same rows with the same causes as before the rebase
 within 22,219 fuel of its first value); the name check takes 6,281,364,302 plain and 1,427,908,431 snapshot. Spec
 069 (no package pre-imported in the snapshot, decision 34) has not landed; if it lands first, the
 snapshot's figures here move.
+
+### Rebased onto 046
+
+Spec 046 (lxml) landed as main `7d377dd` (accepted as `41dffc2`, frozen set
+`s-ff5246a2c2f1a52b`). `git rebase 7d377dd` stopped on the build commit with conflicts in ten
+files, each resolved so both packages are present (EXECUTED):
+
+- `scripts/build.sh`: `… 50_pandas 53_regex 54_lxml 55_matplotlib …`, **sixteen steps**; the
+  build progress checks count them (`53_regex` before `54_lxml` in `STEPS`, `n = 16`, `40_numpy`
+  at **[8/16]**, `[16/16] 90_artifacts`, `[1/16]`, `lines[17:]`, `done: 16 steps`). The old
+  progress commit `26c1d22` became empty (its edits were taken into the build commit) and was
+  dropped.
+- `scripts/steps/60_link.sh`: the header names both; the `gen_inittab.py` call and the package
+  loop take `regex=` / `regex:` and then `lxml=` / `lxml:`. `scripts/steps/70_zip.sh`: both
+  trees, both `PKG-INFO`s, both directory checks. `scripts/assemble_artifacts.py`: lxml's
+  notices and regex's `MODIFIED` and `modified_notice`, side by side; `MODIFIED` needs no line for
+  libxml2's patch (`modified_notice` reads only regex's folder).
+- `.github/workflows/release.yml`: **nineteen** trees. `README.md`: both packages in the profile
+  rows, **"upstream patches carried: 7"**, seven patches named, sixteen steps, both build
+  steps described; main's sizes and build-time rows kept. `context/upstream/README.md`: rows 8
+  and 9 both "carried". `tests/harness/jobs.py`: `lxml_xml` and `regex_features`.
+- `tests/jobs/oracle/pyproject.toml`: both pins. `uv.lock` was made with `uv lock` (as before,
+  through the oracle's own interpreter and cache); I regenerated it from the merged
+  `pyproject.toml` and it equals git's text merge byte for byte. Both goldens reproduce under the
+  synced oracle (`lxml_xml`, `regex_features`: no diff).
+- `CHANGELOG.md`: regex's entry moved into **"0.1.0a7 — unreleased"**, after lxml's (0.1.0a6 was
+  released on 2026-10-19). The README's and CHANGELOG's builtin count is now **71** (69 plus lxml's
+  two).
+- The review's **C1**: the rebase section's `00_download.sh` hash pair now reads in order,
+  `3b408469…` to `4a3c2b4d…` (the first build's `MANIFEST` held `3b408469…`).
+
+**The rebuild.** From an empty `build/` at `c297791`, from the pins in the worktree
+(`on-046/build-046base.log`): sixteen steps in 9 min 53 s; step 53 ok, step 54 ok, step 60 links
+with no clash. The set's `SHA256SUMS` (SHA-256 `0923cd6e14f3c984…`; `on-046/SHA256SUMS`) against
+046's frozen set: `LICENSES/regex.txt` added, and the three artifacts and `MANIFEST` changed; the
+other 28 licence lines are 046's.
+
+```
+d3777e281eddd30b3128a19c263e5a428cfec613e0f8f37d9bec451f3e673e8e  LICENSES/regex.txt
+d2943c284f53ad8dd21855cafe9a70d7c8365fef28be498b5ec885aef1153725  MANIFEST
+a8221564acc6afc3e12bdee3321a120ba8dc044567c8a72174a0348634b24fa3  python-snapshot.wasm
+02026895917b7e22923db1bad99a02ee1d22f7382ff63715271e39fb9032d1fe  python-stdlib.zip
+feb7fc0729dd7e4bf275f9a8c29ca5f2073c8619760618f09598eaee578d0fe0  python.wasm
+```
+
+**The numbers against 046's set** (seeded guest; `on-046/numbers.txt`, `on-046/fuel-cross.txt`):
+
+| | 046 (`s-ff5246a2c2f1a52b`) | this set |
+|---|---|---|
+| `python.wasm` | 40,374,948 `308118d1…` | 41,092,208 `feb7fc07…` (+717,260, +1.78%) |
+| `python-snapshot.wasm` | 74,364,935 `ff5246a2…` | 75,071,675 `a8221564…` (+706,740, +0.95%) |
+| `python-stdlib.zip` | 22,098,558, 2,417 members | 22,197,173 `02026895…`, 2,421 members (+98,615) |
+| wheel (the release's command, each from its own commit and set) | 54,342,031 | 54,777,796 (+435,765, +0.80%) |
+| plain `-c pass` | 167,180,268 | 167,230,744 (+50,476, +0.030%) |
+| snapshot `-c pass` | 83,425,451 | 83,491,413 (+65,962, +0.079%) |
+| plain / snapshot `import regex` | — | 395,928,886 / 195,429,820 |
+| the name check (71 dotted builtins), plain / snapshot | — | 6,333,244,223 / 1,474,244,263 |
+
+Plain `-c pass` split by binary and zip: this binary with 046's zip costs 40,850 **less**
+(167,139,418), and 046's binary with this zip 83,162 more (167,263,430). The binary's part is
+negative here, where it was +19,328 against `4a94c14`'s set: INFERRED, the memory layout moves
+with every link (below). The name check is green over all **71** dotted builtins on both
+binaries, each under half its budget. Spec 051's scan: 3,604 method-array entries, 2,313 single
+definitions, 1,325 getset entries, 451 member entries, no finding.
+
+**No existing module moved** (the build review's fingerprint probe, `modfp_host.py` and
+`modfp_guest.py` copied unchanged, run on 046's set and this set, both binaries;
+`on-046/modfp.json`, `on-046/modfp-compare.txt`): 69 of 046's 70 dotted builtins have identical
+fingerprints; `regex._regex` is new and named in full; no module's `__name__` differs from its
+import name; the modules present at start are the same (70 plain, 594 snapshot, the same
+digest). The one difference is `lxml.objectify`'s `attr_modules`, which holds the `repr` of an
+`_ObjectifyElementMakerCaller` instance, `<… object at 0x1c33eb8>` against `0x1cb2158`: a heap
+address in the probe's own output, not a change to the module.
+
+**The judge** at `c297791` against this set, with the wheel built from it and the upstream kit
+copied by hash: the fast tier (`-n 3`) 1622 passed, 9 skipped, 0 failed. The full `uv run
+pytest`, serially, once (`on-046/full-046base.txt`, `on-046/latest-046base.json`):
+
+```
+wasi_python v1: 433/449 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1226/1233, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs 5475925677: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 12 · grew 89 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_regex.py and 11 more
+RED: 89 metric(s) grew
+1659 passed, 9 skipped, 14 xfailed in 951.58s (0:15:51)
+```
+
+No `Segmentation` line in either run. **The growth against 046's acceptance**
+(`on-046/growth.txt`: 100 rows, 89 past the ratchet's tolerance):
+
+- **Bytes:** `python.wasm` +717,260, the snapshot +706,740, the zip +98,615 (four members).
+- **Every guest start:** +0.04 M to +0.13 M (plain), +0.04 M to +0.07 M (snapshot), on the v1.1,
+  v1.2, v1.4, lxml, matplotlib and zip-directory checks.
+- **`test_packages_carry_their_metadata`:** +28.3 M plain (+0.53%), +28.0 M snapshot (+5.61%):
+  regex's METADATA parsed twice, as before.
+- **`test_resources_read_as_zipfile_reads_them`:** +15.2 M plain, +9.2 M snapshot (four more
+  members walked).
+- **`test_extra_preopens_work_on_the_snapshot`** (both orders): +3.04 M (+0.36%). The probe walks
+  every live object (`gc.get_objects()`). Its figure moves both ways with the set: 850,787,596 at
+  `4a94c14`'s acceptance, 849,218,103 with 047 on that base (lower), 848,648,184 at 046's
+  acceptance (046 lowered it by 2.1 M), 851,684,695 here. INFERRED: the heap's layout.
+- **The upstream suites:** the review's metadata walks (about 14.5 M each) explain rows of tens of
+  millions, but not `numpy-core`'s **+1,284,358,477 (+0.635%)**. That figure is deterministic and
+  is this set's (EXECUTED: `numpy-core` alone, three runs: 203,634,070,415 and 203,634,092,974 on
+  this set, 202,349,694,921 on 046's, which equals 046's accepted 202,349,737,812 to 43 K;
+  identical pass digest `df21e78e7032`, 9,519 passes). The groups move both ways with any change
+  to the set, by hundreds of millions:
+
+  | group | 046 against `4a94c14` | 047 against `4a94c14` | 047 against 046 |
+  |---|---|---|---|
+  | numpy-core | +113,579,111 | +49,653,702 | **+1,284,358,477** |
+  | numpy-lib | +61,529,901 | +22,780,343 | +6,070,331 |
+  | numpy-others | +234,418,884 | +70,006,740 | −190,890,497 |
+  | pandas-frame | −131,180,293 | −109,650,302 | −194,790,196 |
+  | pandas-groupby | +10,094,187 | −262,607,401 | −182,981,881 |
+  | pandas-internals | −15,308,403 | +9,490,995 | +35,360,723 |
+  | pandas-io-formats | −3,219,970 | +6,819,851 | +14,865,832 |
+  | pandas-io-parser | −66,007,325 | −22,752,512 | +33,847,832 |
+  | pandas-libs | −58,389 | +25,732,209 | +22,412,494 |
+  | pandas-reshape | −97,536,540 | −58,944,940 | +28,203,284 |
+  | pandas-tslibs | −23,198,695 | +78,524,563 | +57,278,942 |
+
+  Against 046 the eleven groups' net is +913,735,341 (046's own net against `4a94c14`:
+  +83,112,468). INFERRED, not proved: the snapshot's heap layout. Objects hashed by address
+  (sets and dicts of types and functions) and the collector's timing change with every link,
+  and a long suite magnifies that. Even so, `numpy-core`'s +0.635% is the largest single move
+  in this table, and it is a finding for the delta look, not a cause I have measured. The two
+  causes in hand are far too small for it: a metadata walk costs about 14.5 M, and a start under
+  0.2 M. I did not split it further; a per-test fuel split of `numpy-core` on both sets would
+  decide it.
+
+**The `--accept-growth` reason against 046**, word for word, if the delta look accepts the
+upstream rows as layout:
+
+```
+spec 047 adds regex on 046: python.wasm +717,260 and the snapshot +706,740 bytes (regex's module and its Unicode tables); the zip +98,615 bytes, four members; guest starts +0.04 M to +0.13 M fuel (four more zip members, one more builtin); test_packages_carry_their_metadata +28 M (regex's 40,564-byte METADATA, parsed at 14.1 M and read twice); test_resources_read_as_zipfile_reads_them walks four more members; test_extra_preopens_work_on_the_snapshot +3.0 M and the upstream groups (-195 M to +1,284 M; numpy-core +0.635%, deterministic) move both ways with the snapshot's heap layout, as 046's own landing moved them (-131 M to +234 M) (inferred, not split per test)
+```
+
