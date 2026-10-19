@@ -4207,6 +4207,8 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     left = _ending_seconds(state, _session_clock())
     if left <= 0:
         return "skipped", None
+    if _trap_handlers_ready() is not None:  # a trap in the shutdown could end this process
+        return "skipped", None  # (spec 071, Decision 9)
     ticks = max(1, math.ceil(left / TICK_S))
     fuel = state.c["fuel"] if state.metered else None
     call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None)
@@ -4386,7 +4388,12 @@ def _drive_turn(
     state: _State, call: _Call, data: bytes
 ) -> tuple[int | None, int | None, str | None, bool]:
     """(the export's value, an exit code, a trap's name, whether guest code ran), on this
-    thread's stack, by `_drive`'s rules (Decision 7, steps 3 and 4)."""
+    thread's stack, by `_drive`'s rules (Decision 7, steps 3 and 4). Before any guest code, as in
+    `_drive`, a turn is refused when wasmtime's trap handlers were replaced (spec 071, Decision
+    9): the session then ends as on an error, without Python's shutdown."""
+    not_ready = _trap_handlers_ready()
+    if not_ready is not None:
+        raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
     wt, store, exports = state.wt, state.store, state.exports
     value = exit_code = None
     trapped: str | None = None
@@ -4674,6 +4681,9 @@ def _open_session(
         table.session = True
         store.set_epoch_deadline(NO_DEADLINE)  # no guest code runs before the first turn
         _watch(store)  # every turn can be stopped by a close (Decision 6)
+        not_ready = _trap_handlers_ready()  # spec 071, Decision 9: before any wasm runs
+        if not_ready is not None:
+            raise RuntimeError(_TRAP_HANDLERS_REPLACED.format(signal=not_ready))
         check = _check_module(wt, engine, metered)
         _check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once
         instance = guest_linker.instantiate(store, module)
@@ -4826,8 +4836,9 @@ class Session:
             ImportError: wasmtime-py cannot load; its own error is chained as the cause.
             OSError: A host filesystem call failed while the root, the private folders, the
                 zip's copy or the cache was prepared.
-            RuntimeError: This process was forked after it ran a guest; or a folder or the zip's
-                copy changed between the runner's check and its use.
+            RuntimeError: This process was forked after it ran a guest; a folder or the zip's
+                copy changed between the runner's check and its use; or, on Linux, wasmtime's
+                trap handlers were replaced after the first run (as `run`).
             wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
                 wasmtime's own open. The type is wasmtime-py's and is not promised.
         """
@@ -5017,7 +5028,9 @@ class Session:
                 in that case the session's ending runs here first, so `run` may block for up
                 to `shutdown_s` (plus any call of your own code it makes) before it raises.
             RuntimeError: A turn is already running in this session; this process was forked
-                after it ran a guest; or the runner lost track of the turn.
+                after it ran a guest; the runner lost track of the turn; or, on Linux,
+                wasmtime's trap handlers were replaced after the first run (as `run`; the turn
+                runs no guest code and the session ends, without Python's shutdown).
             KeyboardInterrupt: Ctrl-C.
             BaseException: One that is not an `Exception`, raised by your own host, provider,
                 tool or gate, propagates.
@@ -5061,8 +5074,8 @@ class Session:
             ValueError: An argument is out of range; the session stays open.
             SessionEnded: The session has ended, or its idle bound or lifetime has passed.
             RuntimeError: A turn is already running in this session; this process was forked
-                after it ran a guest; the interpreter is shutting down; or the runner lost
-                track of the turn.
+                after it ran a guest; the interpreter is shutting down; the runner lost track
+                of the turn; or, on Linux, wasmtime's trap handlers were replaced (as `run`).
             asyncio.CancelledError: The awaiting task was cancelled.
             BaseException: One that is not an `Exception`, raised by your own host, provider,
                 tool or gate, propagates.

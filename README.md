@@ -2817,7 +2817,8 @@ has one.
   128 KiB, sized for the runner's 512 KiB wasm stack (see *Deep recursion* for what still
   traps);
 - **a guest trap cannot end or hang your process through a replaced signal handler** (Linux):
-  each entry into the guest is refused with `RuntimeError`, before guest code runs, when
+  each entry into the guest (each `run`, each session's opening and turn) is refused with
+  `RuntimeError`, before guest code runs, and a session's ending skips Python's shutdown, when
   wasmtime's trap handlers have been replaced since the first call (by faulthandler,
   `signal.signal` or a native crash reporter installed or removed after it), since a guest trap
   would then end or hang the process; install faulthandler and crash reporters before the first
