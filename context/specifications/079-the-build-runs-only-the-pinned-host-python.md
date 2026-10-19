@@ -5,8 +5,10 @@
   scratchpad, `079-review/079-the-build-runs-only-the-pinned-host-python-spec-2026-10-19.md`, with
   its probes beside it, to be copied to `../reviews/` by the lane; verdict: "ready once F1 to
   F3"). All six findings are taken; "Disposition of the pre-build review" says where each went.
-  Awaiting the reviewer's confirmation. Not built. Main's tip is still `23f1c4f`, so the rebase
-  before this revision was empty.
+  Main's tip was still `23f1c4f`, so the rebase before this revision was empty. **Confirmed for
+  build 2026-10-19** on `558a3fe` (the confirmation is appended to the same review file, probes p4
+  to p6); its corrections C1 to C3 are written into Decisions 4 and 6 as the build begins, for the
+  build review to check. Building on this branch.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** build-class: the build driver and two steps. It changes `scripts/build.sh` (a
@@ -236,12 +238,22 @@ broken all the same, and the build depends on a tool nobody pinned, printed, or 
    things.
    - **It makes `build/no-host-python/` afresh** and fills it with one symbolic link to
      `scripts/refuse-python` for each of these names (the review's F2):
-     - every name, on any folder of the caller's `PATH`, of an executable file matching
-       `python*`, `pypy*`, `pip*`, `pydoc*` or `idle*`. The `PATH` is split on `:` alone, so a
-       folder holding spaces is read whole. Folders under the repository's own `build/` are
-       skipped;
+     - every name, on any folder of the caller's `PATH`, of a file that is both a regular file
+       and executable (`-f` and `-x`, so a folder is never taken) matching `python*`, `pypy*`,
+       `pip*`, `pydoc*` or `idle*`. The `PATH` is split on `:` alone, so a folder holding spaces
+       is read whole. Only `build/no-host-python` itself, the folder being remade, is skipped: a
+       name shadowed in any other folder, under `build/` or not, is harmless because the shim
+       comes first, and an activated `build/oracle/venv/bin` holds `pip` scripts that run that
+       venv's interpreter, not `$HOSTPY` (the confirmation's C2);
      - the fixed list besides, for names the host lacks: `python`, `python2`, `python2.7`,
        `python3` and `python3.0` to `python3.20`.
+
+     **The first link of a name wins**; a later folder's file of the same name, or a fixed-list
+     name already swept, is skipped, never an error (the confirmation's C2: two folders on this
+     machine both hold `python3.10`).
+   - **It drops empty and relative entries from the `PATH` it hands the steps** (the
+     confirmation's C2). Such an entry (this machine's `PATH` holds a literal `~/.dotnet/tools`)
+     resolves against each step's own current folder, so no sweep can see what it holds.
 
      So shadowing follows what the host has, not a guess. On the drafting machine that adds
      `python3-intel64`, `python3.7m`, `python3-config`, `python3.10-config`, `python3.13-config`,
@@ -314,9 +326,14 @@ broken all the same, and the build depends on a tool nobody pinned, printed, or 
 
      A *Python name* is a basename matching one of the five globs. Every command is read by its
      **program word**, found this way (the review's F3):
-     - Start at the first word. While it is `env`, skip it, its flags and its `NAME=value` words,
-       and read the next. `env` with `-i`, `-S`, `-u PATH` or a `PATH=` word is a breach, because
-       the program would not search the step's `PATH`.
+     - Start at the first word. While it is `env`, read its words by `env`'s grammar (the
+       confirmation's C1): `-u`, `-C`, `-P` and `-S` consume the next word; a `NAME=value` word is
+       skipped; the first other word is the program word. These are breaches, because the program
+       would not search the step's `PATH`: `-i`, `-`, `-P`, `-S`, `--ignore-environment`, any
+       `--split-string…`, `-u PATH`, `--unset=PATH` and a `PATH=` word. Any other option is a hit
+       (fail closed).
+     - A program word that is a shell (`sh`, `bash`, `dash`, `zsh`) with `-c` is a hit: its string
+       is not read.
      - A program word that is meson with `--internal exe` is read on: `--unpickle` is a hit, since
        the command is hidden in a file; otherwise the word after `--` is the program word. Today
        none of the eight meson builds, and none of scipy's, uses either (READ, p1).
@@ -337,13 +354,17 @@ broken all the same, and the build depends on a tool nobody pinned, printed, or 
      - **Every `config.log` under `build/`** (the review's F4): every `configure:NNN: found <path>`
        line whose basename is a Python name must name an allowed interpreter. That reads CPython's
        two, and xz's, libxml2's and libxslt's, and any a later build adds. The folders the
-       harness and the lane keep under `build/` (`uv-cache/`, `reviews-evidence/`, `harness*/`,
-       `lane-*/`) are skipped; today none holds a `config.log` (READ, the main tree).
+       harness and the lane keep as direct children of `build/` (`build/uv-cache/`,
+       `build/reviews-evidence/`, `build/harness/`, `build/harness-tmp/`, `build/lane-*/`) are
+       skipped; a folder of one of those names deeper down is read (the confirmation's C2).
+       Today none holds a `config.log` (READ, the main tree).
      - Every folder a step script puts on `PATH` ahead of the stand-in (parsed from each
-       `PATH=…:$PATH` assignment in `scripts/steps/*.sh`, `$B` and `$T` read as `build/` and
-       `build/tools/`), present on disk, holds no file with a Python name unless it is the shim
-       folder. Today that is `pylib/bin` and wasmtime's folder; 037 adds `scipy-tools/bin`
-       (Decision 9, the review's F6).
+       `PATH=…:$PATH` assignment in `scripts/steps/*.sh`), present on disk, holds no file with a
+       Python name unless it is the shim folder. Variables are resolved from `common.sh`'s and the
+       step's own simple assignments (`HERE`, `B`, `T`, `TOOLS="$B/scipy-tools"` and the like) and
+       from the host's `line.conf` values (`WASMTIME_DIR`); a folder the rule cannot resolve is a
+       hit, never a skip (the confirmation's C3). Today that is `pylib/bin` and wasmtime's folder;
+       037 adds `scipy-tools/bin` (Decision 9, the review's F6).
      - `build/logs/10_tools.log` holds the gate line, and its `behind it` part names
        `build/no-host-python/python2`. That proves the build ran under the stand-in.
      - `build/logs/unpinned-python.log` does not exist.
@@ -354,6 +375,9 @@ broken all the same, and the build depends on a tool nobody pinned, printed, or 
      - a meson log line `Program python3 found: YES (/opt/x/bin/py)` (the requested name);
      - a `build.ninja` command `/opt/homebrew/bin/python3 x.py`;
      - a `build.ninja` command `env PYTHONPATH=x /usr/bin/python3 y.py` (read past `env`);
+     - `env -u FOO /usr/bin/python3 y.py` (`-u` consumes `FOO`; the confirmation's C1);
+     - `env -P /usr/local/bin python3 y.py` (a breach: `-P` searches another path; C1);
+     - `sh -c '/usr/bin/python3 y.py'` (a shell with `-c`; C1);
      - a `build.ninja` command `…/meson --internal exe --unpickle x.dat`;
      - a script named as a command's program word whose shebang is `#!/usr/bin/python3`;
      - one whose shebang is `#!/usr/bin/env -i python3`;
