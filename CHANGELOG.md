@@ -112,7 +112,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   (`DependencyError`). joblib runs serially. tqdm warns once that it cannot start its monitor
   thread (`tqdm.tqdm.monitor_interval = 0` silences it). Two known gaps until spec 041: pandas'
   Styler (`df.style`, `df.to_latex()`) raises `TemplateNotFound`, and networkx's graph atlas
-  raises `TypeError`, each reading its files by path from the zip. `pd.read_html` of a GB18030
+  raises `TypeError`, each reading its files by path from the zip. With jinja2 present, `.style`
+  raises `TemplateNotFound` (a `LookupError`) instead of `AttributeError`, so
+  `hasattr(df, "style")`, `getattr(df, "style", None)` and `inspect.getmembers(df)` now raise
+  until spec 041. `yaml.unsafe_load`, `sympy.sympify` on a string, plain jinja2 templates and
+  pickle run code from their input inside the guest, as natively; the safe forms refuse. `pd.read_html` of a GB18030
   page whose tables lxml cannot read now falls back to bs4 and raises `UnicodeDecodeError`
   (`ImportError` before).
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6

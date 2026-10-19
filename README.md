@@ -2073,7 +2073,17 @@ writable stays the default (decision 46).
 - **Two known gaps until spec 041,** each a package reading its own files by path from the zip:
   pandas' Styler (`df.style`, and so `df.to_latex()`) raises `jinja2.TemplateNotFound`, and
   networkx's graph atlas (`nx.graph_atlas`, `nx.graph_atlas_g`) raises `TypeError`.
-  `df.to_html()` and `df.to_markdown()` work.
+  `df.to_html()` and `df.to_markdown()` work. With jinja2 present, `.style` raises
+  `TemplateNotFound`, which is a `LookupError`, not the `AttributeError` pandas raises without
+  jinja2, so probing for it raises too: `hasattr(df, "style")`, `getattr(df, "style", None)` and
+  `inspect.getmembers(df)` raise `TemplateNotFound` until spec 041 (`"style" in dir(df)` is
+  `True`).
+- Some calls run code that comes in their input, as they do natively: `yaml.unsafe_load` (and
+  `yaml.load` with an unsafe loader), `sympy.sympify` on a string, a plain jinja2 `Environment`'s
+  templates, and `pickle`, `cloudpickle.loads` and `joblib.load`. Inside the guest that code has
+  the call's grants and nothing more; nothing reaches outside the guest. For untrusted data use
+  `yaml.safe_load`, jinja2's `SandboxedEnvironment` (which refuses with `SecurityError`) and only
+  pickles you trust.
 - pytz is not carried (decision 47): use `zoneinfo`, which reads the zip's tzdata.
 - Not carried, so each raises its `ImportError` as natively without it: antlr4 or lark for
   sympy's `parse_latex`, odfpy for pandas' `engine="odf"`, pyxlsb for `.xlsb`.

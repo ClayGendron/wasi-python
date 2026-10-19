@@ -1,6 +1,6 @@
 # 039 — Tier A: the pure-Python packages
 
-- **Status:** **built** 2026-10-19 on `spec/039-tier-a-packages` (Landing notes); awaiting its build review. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **built** 2026-10-19 on `spec/039-tier-a-packages` (Landing notes); build-reviewed 2026-10-19 (lands once F1; F1, F2, F3 and F4 written in, below and in 041). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/039-tier-a-packages-spec-2026-10-17.md`): all ten findings are fixed here, and
   its Disposition says where. **Confirmed for build with conditions, written in:** the
   confirmation's condition C1 (the `df.to_latex()` finding) is in Decision 12, and its two
@@ -856,7 +856,10 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    node id with its gap (`build/evidence/upstream-findings*.json`, `upstream_findings.py`).
    **One accepted pass falls:** `pandas-frame` 10,852 → 10,851. `test_inspect_getmembers` passed
    because the `.style` accessor raised `AttributeError` without jinja2, which
-   `inspect.getmembers` skips; it now raises `TemplateNotFound`. The lane needs
+   `inspect.getmembers` skips; it now raises `TemplateNotFound`, a `LookupError`, so
+   `inspect.getmembers(df)`, `hasattr(df, "style")` and `getattr(df, "style", None)` raise (the
+   build review's F1, EXECUTED there on both binaries). The README's gap bullet and the CHANGELOG
+   say so. The lane needs
    `--accept-fewer-passes` for it (criterion 4 did not foresee it); spec 041 brings it back.
    `pandas-io-formats` passes 20 more tests.
 5. **The threadpoolctl check reads `dllist()` last**, after threadpoolctl's calls, so on a zip
@@ -931,8 +934,20 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    `uv sync -v --frozen` has no `Building` or `Built` line, `build/oracle-sync.log`; pyyaml is
    staged from the pinned sdist). The seven jobs pass `ruff check` and `ruff format --check`. Spec 051's callback scan,
    `test_callbacks_have_the_types_cpython_calls`, passes (pure Python adds nothing it reads).
-   The lane accepts with `--accept-judge` (the reasons above and in Decisions 12 and 13),
-   `--accept-growth` (the account below) and `--accept-fewer-passes` (amendment 4).
+   The lane accepts with three flags, each with its reason:
+   - `--accept-judge "the new checks, jobs and goldens (test_v1_3_default_profile.py, the Excel,
+     tqdm-notice, litter and dllist checks); the thirty in the package, licence, metadata and
+     suite lists and pyyaml's and markupsafe's source trees; jobs.run_in_guest moved and
+     oracle_pure; 035's check 6 snapshot bound re-based on the zip's members (Decision 13); 046's
+     GB18030 check restated now that read_html falls back to bs4 (amendment 3); pandas' Styler
+     tests set aside or classed with their gaps until 041 (amendment 4); four gaps closed by 041"`;
+   - `--accept-growth "tier A adds 2,014 members and 30 distributions: every row of Decision 13's
+     account is inside its cap; the upstream groups' growth is one to three entry-point scans per
+     session at +205 M each (the build review's F4); 035's member-walking checks grow with the zip
+     by design; pandas-io-formats runs the Styler tests; the GB18030 check imports bs4"`;
+   - `--accept-fewer-passes "pandas-frame 10,852 -> 10,851: test_inspect_getmembers meets the
+     Styler gap (.style raises TemplateNotFound, a LookupError, where it raised AttributeError
+     without jinja2); spec 041 restores it"`.
 
    **The growth account** (`build/evidence/growth.py` → `growth.txt`, the record against
    `accepted.json`; 2,014 members and 30 distributions added, none by 023 or 037 since):
@@ -941,7 +956,7 @@ Commits: `3195e02` (the build), `7d1a705` (pandas' own Styler tests), and this o
    |---|---|---|---|
    | plain `-c pass` | +50,591,589 (25,120 a member; 167,481,449 → 218,073,038) | +54.2 M | +60.4 M |
    | other plain checks | at most +67.4 M (the `lxml_xml` job, 0.28%); the rest +50.6 M to +60.6 M | +54.2 M + timing | +60.4 M + 0.2% |
-   | plain checks that query metadata | the upstream groups, whose pytest scans every distribution's entry points (INFERRED): +0.23 G to +0.64 G, 0.10% to 0.33% | +64.0 M | within the per-read row below, 0.75 G |
+   | plain checks that query metadata | the upstream groups: +0.23 G to +0.64 G, 0.10% to 0.33%. One `entry_points(group=…)` scan reads every distribution's `METADATA` and costs +205 M more on the snapshot (321,136,198 → 525,761,594; the build review's F4, EXECUTED); one to three scans per pytest session (pytest, pluggy, hypothesis; INFERRED for the count) give the growth | +64.0 M | within the per-read row below, 0.75 G |
    | snapshot checks | +4,719,693 on `pass` (2,343 a member; 15,631,800 → 20,351,493); a `json` call +4,696,636 | 2,399 a member | 3,500 a member, +7.0 M |
    | snapshot checks that query metadata | the metadata miss +11,445,467 (5,683 a member); the stand-in check +13.5 M (INFERRED: a metadata query on its path) | +4,844 a member more | +19.1 M |
    | checks that read every distribution's metadata | 033's check +444 M plain, +389 M snapshot; 035's comparison within its +16.1 M snapshot growth | 18.9 M a distribution | +0.75 G; +1.5 G |

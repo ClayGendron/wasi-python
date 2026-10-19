@@ -11,6 +11,14 @@
   `recipes/patches/`, `downloads/SHA256SUMS` and the release workflow (§5.7). It carries two
   upstream patches (§4.1), so the review reads both patches and both drafts (spec 020,
   Decision 8).
+- **Amended 2026-10-19 (spec 039's build review, F2):** spec 039 sets eleven Styler test files
+  aside in `tests/upstream/pandas.toml` (`[[not_selected]]` under `pandas/tests/io/formats/style/`,
+  closing with 041), adds the class `styler-templates` to `pandas-frame` (2 tests) and to
+  `pandas-io-formats` (221 tests) with their lists under `tests/upstream/expected/`, and four gaps
+  in `tests/known_gaps.toml` (the two classes and its two gap checks,
+  `test_pandas_styler_renders_from_the_zip[plain]` and `test_networkx_atlas_reads_from_the_zip[plain]`).
+  When 041 lands it re-selects the eleven files, removes the two classes, their lists and the four
+  gaps, and expects `pandas-frame` back at 10,852 passes (039's lost `test_inspect_getmembers`).
 - **Owner:** Clay Gendron
 - **Kind:** two carried patches (`recipes/patches/pandas-3.0.6/`, `recipes/patches/networkx-3.7/`)
   with their upstream facts sheets; the build recipe (networkx's pin moves from its wheel to its
