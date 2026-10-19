@@ -1,7 +1,11 @@
 # 069 — The snapshot pre-imports no package
 
-- **Status:** drafted 2026-10-18; awaiting its pre-build review. Drafted on
-  `spec/069-the-snapshot-pre-imports-no-package` from main `4a94c14`. It changes the artifact set
+- **Status:** drafted 2026-10-18; revised against its pre-build review; awaiting the reviewer's
+  confirmation. The review (`../reviews/069-the-snapshot-pre-imports-no-package-spec-2026-10-18.md`, written in a scratchpad and copied by the lane) said "ready
+  once F1 to F3 are written in"; F1 to F9 are written in as the lane ruled, and the section
+  "Disposition of the pre-build review" says where. Drafted on
+  `spec/069-the-snapshot-pre-imports-no-package` from main `4a94c14`, rebased onto `ef1441b`
+  (specs 065 and 071 on the roadmap). It changes the artifact set
   and the build recipe, so it is reviewed once before it is built (constitution §5.6). The
   draft's evidence (variants A and B rebuilt from the frozen set's objects, A's module list, and
   the full judge run against an artifact set holding A) is in the main tree, git-ignored, under
@@ -11,7 +15,8 @@
 - **Kind:** **build-class** (§5.7): it changes `recipes/reactor_main.c` (the `PREIMPORT`
   default and two comments), `scripts/assemble_artifacts.py` (the `x-preimport` line read from
   the recipe) and one comment in `scripts/steps/80_snapshot.sh`. It is also a judge change
-  (Decision 5: one check removed, four added, two edited, two harness constants), and it
+  (Decision 5: one check removed, five added, two edited, two harness constants, one gap
+  entry in `tests/known_gaps.toml`, one unit test of Decision 3's reader), and it
   changes `src/wasi_python/` docstrings (four sentences), `README.md` (the facts, the advice, the
   import path's text, the generated reference) and `CHANGELOG.md`. It changes no public name,
   signature, field, default or option: **`tests/public_api.txt` does not change** (Decision 9).
@@ -20,7 +25,8 @@
 - **Depends on:** 003 (the reactor, `wizer.initialize`, step 80), 005 (3.15: `_colorize` in the
   list), 008 (start is unmetered), 049 (the public API frozen; what is promised), 054 (the import
   path; its pinned `HIT pytz` numbers, which this specification restates as 054 requires); all
-  landed. It interacts with 046, 047, 055 and 063, which are in flight (Decision 11).
+  landed. It interacts with 046, 047, 055, 063, 065 and 071, which are in flight or on the
+  roadmap (Decision 11), and names a follow-up, 073 (Decision 4).
 - **Research it stands on:** `../research/2026-10-18-one-pre-import-rule-for-every-package.md`
   ("the memo") and its folder of probes and results. The owner's decision 34
   (`../decisions.md`, "34, answered", 2026-10-18): "None pre-imported": the default snapshot
@@ -90,7 +96,9 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
    069)" where 023, 046 and 047 said "not pre-imported (question 34)". The stdlib list itself
    changes only by a specification of its own that measures the change as the memo did and
    changes the judge's copy of the list (Decision 5d), visibly, with `--accept-judge`. No
-   specification may pre-import a package even with a judge change: the module check
+   specification may pre-import a package in the default profile, even with a judge change (a
+   `full` profile, if the owner ever asks for one, is its own artifact set and brings its own
+   check): the module check
    (Decision 5a) refuses any non-stdlib top-level name, and changing that rule needs the owner
    to reverse decision 34. *Reason:* the decision is "for every package now and later"; a rule
    that a checklist states and nothing enforces is broken by the first package that wants its
@@ -101,14 +109,42 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
    (`PREIMPORT = "encodings, …, numpy, pandas"`, line 89): it reads the `#define`'s string from
    the recipe with one regular expression, drops the leading `import `, and writes
    `x-preimport encodings, io, os, sys, json, csv, re, _colorize` to MANIFEST exactly as today's
-   format. It fails the build (`SystemExit` naming the file) when the line is missing or
-   matches more than once. *Reason:* today the two copies agree only by care; no check reads
-   `x-preimport` (`paths.parse_manifest` skips every `x-` line), so a drift would ship a
-   MANIFEST that misstates the snapshot.
+   format. The reader is one function, `preimport_list(text: str) -> str`, which raises
+   `SystemExit` naming `recipes/reactor_main.c` when the `#define PREIMPORT` line is missing or
+   appears more than once; a unit test (`tests/unit/test_artifact_rules.py`, check i) feeds it
+   no line, one line and two lines (the review, F7). *Reason:* today the two copies agree only
+   by care; no check reads `x-preimport` (`paths.parse_manifest` skips every `x-` line), so a
+   drift would ship a MANIFEST that misstates the snapshot.
+   - *The `#define` is the effective value.* `#ifndef PREIMPORT` stays in the recipe (it is how
+     the stand-ins are made), but no build step passes `-DPREIMPORT` (check c), and the README
+     tells a self-builder to edit the `#define`, not to pass the flag (Decision 8; the review,
+     F8). So the recipe's hash in MANIFEST, `x-preimport` and the binary agree.
 
 4. **The rest of the recipe stays.**
    - `wizer.initialize` keeps `gc.collect(); gc.freeze()` after the imports, the pinned clocks
-     and entropy, and `__wasilibc_reset_preopens`. Two comments change: the file's header
+     and entropy, and `__wasilibc_reset_preopens`.
+   - **Why the freeze stays** (the review, F1). Most of what the imports left behind is gone,
+     but the freeze still pays: on A's snapshot, `-c pass` is 15,593,597 fuel, and the same run
+     with `gc.unfreeze()` first is 43,773,463 (EXECUTED, the review's R2; on today's snapshot
+     the pair is 83.4 M against 308.2 M). Unfreezing would make a bare run 2.8 times dearer, and
+     only 3.8 times cheaper than the plain binary, which check (b) refuses (it asks 8 times).
+     So the freeze and check (b) are coupled: whoever changes one restates the other.
+   - **A defect this specification keeps, and who closes it.** `run` on the snapshot loses the
+     buffered bytes of a file left open when `__main__` defines a function: a `-c` program that
+     opens `/out.txt`, writes 100 bytes, defines a function and exits keeps 0 bytes on A's
+     snapshot and on today's, and 100 on the plain binary; without the `def`, every binary keeps
+     all 100 (EXECUTED, the review's R1, `flush_probe.py`; spec 055's addendum found it first,
+     P10b). 069 neither causes nor fixes it. 055 fixes it for sessions only, by unfreezing at
+     close. **The closer for `run` is a follow-up specification, 073, "run keeps an unclosed
+     file's buffered bytes"**, which this specification adds to the roadmap (Decision 10). Until
+     073 lands, the defect is on the scoreboard as a gap (check h). If 073's fix unfreezes the
+     heap, 073 restates check (b)'s factor with its numbers, as a judge change; a fix that keeps
+     the heap frozen (for example a `__main__` made per run; INFERRED, not measured) need not.
+   - **For 055's builder** (no change to 055 here): on A, undoing the freeze adds about 28.2 M to
+     a bare run (15.6 M to 43.8 M), against about 225 M on today's snapshot (83.4 M to 308.2 M;
+     the review's R2). 055's closing cost, which unfreezes, therefore falls with 069 to about
+     44 M rather than about 310 M (INFERRED: a run is not a session close).
+   - Two comments change: the file's header
      ("a live interpreter with the stack imported" becomes "with the stdlib bootstrap imported;
      no package (spec 069)") and the pinned block's list of what is captured (numpy's
      SeedSequence is no longer captured; `random`'s seed is not either, since `random` is not
@@ -126,11 +162,18 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
    - **The plain reactor's fuel moves too, by about +0.011%.** Its `-c pass` is 166,530,527
      against the frozen binary's 166,511,583 (+18,944), and B's relinked binary gives the
      frozen figure exactly, so the shorter constant alone moves it (EXECUTED, `plain_fuel.txt`).
-     The constant is read only by `wizer.initialize`; the cause is the data segment's layout
-     after it, which shifts every later static address (INFERRED; the builder may name a more
-     exact cause if it finds one, but need not). It is above the judge's fuel tolerance of 0.01%
-     (`scoreboard.FUEL_TOLERANCE`), so 29 plain-binary metrics show as grown in the run below,
-     each by 0.011% to 0.017%, and Decision 7's growth reason names them. *Reason for accepting
+     The constant is read only by `wizer.initialize`. What moves is about 84 KB of read-only
+     data (EXECUTED, the review's R4: A's and B's link maps differ in one hunk): the merged
+     C-string section shrinks by 25 bytes, the `.rodata` after it, from `0x10fc3b4` to
+     `0x1110e80` (the recipe's frozen modules, docstrings, `object.c`'s `static_types`), moves
+     by 16 to 24 bytes, and the alignment at `_mi_page_empty` absorbs the shift, so the file
+     keeps its size; `.data` and `.bss` do not move. The growth is not a fixed cost per run:
+     +18,944 on `-c pass`, +149,263 on `test_npy_files_round_trip[plain]`, 0.011% to 0.017%
+     throughout, which fits string and memory routines whose cost depends on alignment working
+     over literals that moved, some by an odd number of bytes (INFERRED). It is above the
+     judge's fuel tolerance of 0.01% (`scoreboard.FUEL_TOLERANCE`), so 29 plain-binary metrics
+     show as grown in the run below, the largest `test_uncaught_errors_print_as_native[plain]`
+     at +0.0166%, and Decision 7's growth reason names them. *Reason for accepting
      it rather than padding the string:* the figure is exact and deterministic, it is a hundredth
      of a percent, and holding a constant's length to keep fuel equal would be a recipe that
      guards nothing.
@@ -141,20 +184,30 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      v1.3; it replaces `test_snapshot_preimports_the_stack`). One snapshot run of a probe whose
      first statement reads `sys.modules` and prints, as JSON, its keys and
      `sorted(sys.stdlib_module_names)`. Host-side:
-     - every top-level name of a key is in the printed stdlib names or in
-       `paths.REACTOR_MODULES` (`"__main__", "_reactor", "_zip_directory", "_zip_resources"`);
-       the message names each other name;
-     - the **package names** are computed from the artifact set's own zip: the top-level names
-       of its members (a folder's first part, or a module file's stem at the root), minus the
-       stdlib names, minus `REACTOR_MODULES`. The check asserts that this set holds `numpy`,
-       `pandas` and `host` (so the derivation is not vacuous), and that no top-level name in
-       `sys.modules` is in it, naming each;
+     - every top-level name of a key is the stdlib's or the reactor's; the message names each
+       other name. *The stdlib's* means: in the printed `sys.stdlib_module_names`, or one of the
+       three names CPython ships outside that set, which `paths.CPYTHON_UNLISTED` holds and
+       labels: `__hello__` and `__phello__` (CPython's frozen test modules) and any name
+       beginning `_sysconfigdata_` (CPython's generated build data; the review, F6, EXECUTED
+       R3). *The reactor's* means `paths.REACTOR_MODULES`: `"__main__", "_reactor",
+       "_zip_directory", "_zip_resources", "_host"` (`_host` is the door module,
+       `recipes/hostmodule.c`, not a package);
+     - **the zip's non-stdlib names** (so the message calls them) are computed from the
+       artifact set's own zip: the top-level names of its members (a folder's first part, or a
+       module file's stem at the root), minus the stdlib's and the reactor's names as above. The
+       check asserts that this set holds `numpy`, `pandas` and `host` (so the derivation is not
+       vacuous; seen failing against S9), and that no top-level name in `sys.modules` is in it,
+       naming each;
      - every name of `paths.PREIMPORT` is in `sys.modules` (the list really ran).
 
      It records the probe's fuel. *Reason:* the stdlib rule needs no list of packages, so it
      holds for every package a later specification adds, pure or compiled in, without anyone
      remembering to extend it; the zip-derived names make the failure message name the package,
-     and cross-check the rule against the set actually shipped. `tests/upstream/packages.toml`
+     and cross-check the rule against the set actually shipped. A package cannot hide behind a
+     stdlib name: to do so it would have to replace the stdlib module in the one zip every module
+     comes from, which is the build's own content (the project's stand-ins under stdlib names,
+     `ctypes` and `mmap`, are project code, and allowing them is right).
+     `tests/upstream/packages.toml`
      (spec 063) and `paths.PACKAGES` are not used: both name distributions (`python-dateutil`,
      `pillow`, `sqlite-autoconf`, header-only `pybind11`), not import names, and the first
      does not exist on main.
@@ -167,6 +220,15 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      about 25% margin for growth while still refusing even one pre-imported package of numpy's
      size; this is the snapshot's reason to exist (the memo, finding 5), stated as a ratio of
      counts, never a time.
+     - Its message prints both counts and the ratio, and says that a failure means either a
+       package was pre-imported (see check a) or the snapshot's reason to exist must be
+       restated (the review, F5).
+     - The factor is stable as packages land (the plain start grows with zip members, spec
+       039's 30 K per member; the snapshot's does not, its zip directory being captured at
+       build time), but not as the plain start gets cheaper or the snapshot's dearer. **A
+       specification that changes the plain start, the freeze or the teardown restates (b)'s
+       factor as a judge change, with its numbers**: a faster directory read, the teardown skip
+       of Scope, and 073 if its fix unfreezes (Decision 4).
    - **c. `test_the_pre_import_list_is_the_stdlib_bootstrap`** (`tests/checks/test_rules.py`,
      fast tier, no artifact needed). The `#define PREIMPORT` line of `recipes/reactor_main.c`,
      parsed, equals `"import " + ", ".join(paths.PREIMPORT)`; no tracked file under `scripts/`,
@@ -180,6 +242,33 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
    - **e. `test_manifest_names_the_pre_imports`** (`tests/checks/test_v1_1_artifact_set.py`,
      v1.1, needs the manifest). MANIFEST has exactly one `x-preimport` line and it equals
      `", ".join(paths.PREIMPORT)`.
+   - **h. `test_run_keeps_an_unclosed_files_bytes`** (`tests/checks/test_v1_4_embedding.py`,
+     v1.4, parametrised `[plain]` and `[snapshot]`, through the judge's driver). The review's
+     `flush_probe.py` program: open `/out.txt`, write 100 bytes, define a function, exit without
+     closing. It asserts the file holds 100 bytes, and reports a shortfall as one finding
+     through `scan.report(findings, "unclosed file")`, the finding written as
+     `"<binary>: a file left open kept <n> of 100 bytes"`. `[plain]` passes. `[snapshot]` fails
+     today and after 069 with `unclosed file: 1 finding(s), digest 7da6e52329c1: snapshot: a
+     file left open kept 0 of 100 bytes` (the digest computed with `scan.report` for that
+     finding). **A gap entry** in `tests/known_gaps.toml` allows exactly that:
+     ```toml
+     [[gap]]
+     check = "tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[snapshot]"
+     match = "1 finding(s), digest 7da6e52329c1"
+     reason = "run on the snapshot loses an unclosed file's buffered bytes when __main__ defines a function (the frozen heap; found by spec 055's addendum, P10b; restated by spec 069's review, F1)"
+     closes_with = "context/roadmap.md (spec 073, run keeps an unclosed file's buffered bytes)"
+     ```
+     *Reason* (AGENTS.md rule 3: a failure mode once seen becomes a check or a gap entry): the
+     defect has been seen twice and nothing owned it for `run`; the gap puts it on the
+     scoreboard with its closer, and turns red the day 073 fixes it (a gap whose check passes
+     fails the run) or the day it gets worse. *The judge-hash note:* the new check and the
+     edit to `tests/known_gaps.toml` are judge files, so they change the judge hash and are
+     named in the `--accept-judge` reason (Decision 7). A 073 that lands first makes the check
+     a plain pass and needs no gap; 073's own specification then owns the check.
+   - **i. The reader's unit test** (`tests/unit/test_artifact_rules.py`):
+     `preimport_list` returns the list for a recipe text with one `#define PREIMPORT "import
+     …"`, and raises `SystemExit` naming `recipes/reactor_main.c` for a text with none and for
+     one with two (Decision 3).
    - **f. `test_runner_runs_the_plain_reactor`** (`tests/checks/test_v1_4_embedding.py`) tells
      the binaries apart by `'csv' in sys.modules` instead of `'numpy'`: `False` on the plain
      reactor, `True` on the snapshot (csv is pre-imported and not loaded by the plain start;
@@ -215,21 +304,34 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      non-stdlib names); (b) fails (2.0 times); (e) fails (the line names numpy and pandas);
      (g) fails (`HIT pytz` 0 times on the snapshot). (f) passes here, since `csv` is in both
      lists; it is a new discriminator, not a new behaviour, so S7 is its stand-in.
-   - **S7, the snapshot replaced by the plain reactor** (a scratch set whose
-     `python-snapshot.wasm` is a copy of `python.wasm`): (f) fails (both print `False`); (a)
-     fails (`csv`, a name of `paths.PREIMPORT`, is missing); (b) fails (1.0 times).
    - **S4, a stdlib module added** ("… _colorize, random"): (a) and (b) pass, (c) fails. This
      shows that even a stdlib change to the list is a judge change, as Decision 2 says.
    - **S5, a second copy:** `scripts/assemble_artifacts.py` with a literal `PREIMPORT = "…"`
      restored: (c) fails.
    - **S6, a step passing `-DPREIMPORT`** (a line added to `scripts/steps/60_link.sh`): (c)
      fails.
+   - **S7, the snapshot replaced by the plain reactor** (a scratch set whose
+     `python-snapshot.wasm` is a copy of `python.wasm`): (f) fails (both print `False`); (a)
+     fails (`csv`, a name of `paths.PREIMPORT`, is missing); (b) fails (1.0 times).
+   - **S8, a package imported outside the `#define`** (the review, F7): a second
+     `run_private("import six");` in `wizer_initialize` after the `PREIMPORT` line, relinked
+     and snapshotted as S1. Expected: (a) fails naming `six`; (c) and (e) pass. It shows that
+     (a) does not lean on the recipe's text.
+   - **S9, a zip without the guard's names:** check (a)'s derivation run on a scratch zip that
+     holds no `numpy`, `pandas` or `host` (a unit-level call of the check's derivation helper,
+     no guest run): the non-vacuity assertion fails, naming the three.
+   - **Decision 3's reader** is seen failing by its unit test (check i): a recipe text with no
+     `#define PREIMPORT` and one with two each exit naming the file.
 
 7. **The fuel and bytes that move.** Measured by the full judge run against an artifact set
    holding A's two binaries ("The judge run against A", below; EXECUTED; the built set differs
    from it only in MANIFEST and SHA256SUMS, which no metric reads). The lane's acceptance is
    `uv run pytest --accept "spec 069: the snapshot pre-imports no package" --accept-judge
-   "<the judge files of Decision 5>" --accept-growth "<the reason below>"`.
+   "<the judge files of Decision 5, the new gap check and tests/known_gaps.toml>"
+   --accept-growth "<the reason below>" --retire
+   tests/checks/test_v1_3_data_stack.py::test_snapshot_preimports_the_stack`. The `--retire` is
+   needed: the removed check's node is absent, and `scoreboard.accept` refuses absent checks
+   that are not retired (the review, F2).
    - **Grows, 45 metrics on main's checks** (the run's `grew 45`), in four kinds:
      - *pandas on the snapshot, about +4.5 G each (7):* every snapshot check whose measured run
        imports pandas, 83 to 526 M becoming 4.60 to 5.02 G;
@@ -264,9 +366,14 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      it in the run (about +4.5 G each), numpy about +0.9 G, matplotlib about +1.2 G, and stdlib
      modules pandas used to load (inspect, zipfile, zoneinfo, traceback) up to +0.4 G; each
      upstream group pays its package's import once (pandas groups +4.4 to 5.0 G, numpy groups
-     +0.8 to 1.6 G). The plain reactor grows by 0.011% because
-     the shorter PREIMPORT constant moves its data layout. The snapshot is 30.4 MB smaller and a
-     bare run 5.3 times cheaper." The judge reason names Decision 5's files.
+     +0.8 to 1.6 G). The plain reactor grows by 0.011% to 0.017% because the shorter PREIMPORT
+     constant moves about 84 KB of read-only data by 16 to 24 bytes. The snapshot is 30.4 MB
+     smaller and a bare run 5.3 times cheaper." The judge reason names Decision 5's files, the
+     new check (h), its gap entry and the unit test (i).
+   - *Which numpy figure is which* (the review, F9): "+0.9 G" here is
+     `test_npy_files_round_trip[snapshot]`'s growth; the CHANGELOG's "about 0.7 G" is what the
+     pre-import saved a small numpy job (the memo, B − A: 0.70 G); the README's "about 0.8 G" is
+     that job's whole cost on A (the memo: 788 M). Each sentence names its figure's kind.
    - **Outside the judge** (recorded in the landing notes, not checks): the wheel shrinks by
      about 11.06 MB (the snapshot deflates to 10,375,343 bytes at zlib level 6 against
      21,435,051; the memo), from 52,091,103 to about 41.0 MB; the snapshot's memory minimum
@@ -282,8 +389,11 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      notes); the `-c pass` row becomes "14 ms (the memo's benchmark fact), most of it finalizing
      the interpreter; 15.6M guest instructions (83.4M with numpy and pandas pre-imported, before
      spec 069)"; the `os._exit(0)` row keeps its time and gains 0.97M instructions; a new row:
-     "`import pandas`, snapshot: 4.63G guest instructions (0.81 s, benchmark fact); the
-     snapshot pre-imports no package (decision 34)". The plot row's "matplotlib not
+     "`import pandas`, snapshot: 4.63G guest instructions for the memo's pandas job (0.81 s,
+     benchmark fact; the memo), 4.60G for the judge's
+     `test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]`; the snapshot
+     pre-imports no package (decision 34)". With the old check gone, the row cites both (the
+     review, F9). The plot row's "matplotlib not
      pre-imported" becomes "no package pre-imported" with the built set's fresh and kept
      figures.
    - *The snapshot's facts* (after "The snapshot adds three facts of its own"): the second
@@ -298,8 +408,11 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
      sentence names the spec and is written only as "planned" until then); and a `full` profile,
      its own artifact set that pre-imports the stack, which the roadmap records and which is
      built only if an embedder asks (constitution §2: profiles stay few). It also says what an
-     embedder who builds its own set can do: `PREIMPORT` is one `-D` flag on step 60's compile
-     (the memo, option 6); that is not a product promise.
+     embedder who builds its own set can do: edit the `#define PREIMPORT` in
+     `recipes/reactor_main.c` and rebuild, so that the recipe's hash and MANIFEST's
+     `x-preimport` line follow it; that is not a product promise. It does not suggest a `-D`
+     flag, which would leave MANIFEST naming the default list (the review, F8). The numpy
+     figure is written as "a small numpy job costs about 0.8 G in all" (Decision 7).
    - *The import path* (spec 054's text): "On the plain binary that also happens for packages
      the snapshot imported when it was built: an entry's `pytz.py` is imported by `import
      pandas` on the plain binary, not on the snapshot." becomes "This holds on both binaries
@@ -322,7 +435,7 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
    spec 069): it starts with the interpreter and the stdlib's bootstrap modules (`encodings`,
    `io`, `os`, `sys`, `json`, `csv`, `re`, `_colorize`). A bare call costs 15.6M guest
    instructions instead of 83.4M; a call that imports pandas pays it, about 4.5G more than
-   before (numpy about 0.7G), so a `fuel=` cap set for a pandas job on the snapshot needs that
+   before (numpy about 0.7G more for a small job), so a `fuel=` cap set for a pandas job on the snapshot needs that
    much more. The snapshot is 30 MB smaller and the wheel about 11 MB. numpy and pandas now
    import with the call's environment. `snapshot=True` is unchanged as an argument."
    - *Classification under spec 049:* it is a change of what `snapshot=True` costs and of what
@@ -339,7 +452,10 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
     ("whether the snapshot pre-imports it is decided from M1's measurements, question 34")
     becomes "the snapshot pre-imports no package (decision 34, spec 069)"; the default-profile
     part records "a `full` profile (its own artifact set, the stack pre-imported) only if an
-    embedder asks". Amendment lines, one each, dated, in the landed specifications that stated
+    embedder asks"; the follow-ups gain "spec 073: `run` keeps an unclosed file's buffered
+    bytes (a defect of the frozen heap, found by 055's addendum and 069's review; a gap until
+    then; it restates check (b) of spec 069 if its fix unfreezes)", which is the closer the gap
+    entry of check (h) names. Amendment lines, one each, dated, in the landed specifications that stated
     the old snapshot: 023 (its "Numbers for the owner (34)" are history; decision 34 answered
     it; spec 069 changed the snapshot), 054 (Decision 6's "on the plain binary also packages
     the snapshot pre-imported" is moot since 069; its `HIT pytz` numbers are restated there).
@@ -374,10 +490,29 @@ numpy script 9 times; a plot 16% more. That is the price, accepted by decision 3
       pre-import (the session starts from the snapshot and keeps what turn one imported), and
       its claim that `ast` and `linecache` are in the snapshot stays true (Decision 1). Its
       first-turn fuel figures measured with pandas pre-imported (`import pandas as pd` in a turn
-      cost nothing then) are restated by 055's builder on 069's snapshot if 069 lands first; its
-      E5b resident figure (37 MiB after a pandas turn) does not change in kind. The README's
+      cost nothing then) are restated by 055's builder on 069's snapshot if 069 lands first,
+      and so is its closing cost, which unfreezes: about 28 M on A against about 225 M today
+      (Decision 4's note); its E5b resident figure (37 MiB after a pandas turn) does not change in kind. The README's
       advice (Decision 8) names sessions as "planned" until 055 lands; 055's builder turns the
       word into a present-tense sentence.
+    - **065 (CPython's own tests gate 0.1.0), on the roadmap, not yet drafted** (the research
+      `../research/2026-10-18-cpythons-own-tests-under-the-runtime.md`, measured on today's
+      snapshot). Its adaptation A1 (a no-op `_reset_cache` given to the `ctypes` stand-in)
+      exists because "the snapshot pre-imports numpy, which imports the stand-in", which
+      regrtest's `clear_caches()` then calls; with 069 the stand-in is not imported at start, so
+      A1 goes away unless a test imports numpy first. Its fixed start ("about 1.14 G before its
+      first test") and possibly its 27,503 passes and failure classes restate on 069's
+      snapshot. If 069 lands first, 065's drafter re-checks A1 and the fixed start on it; if 065
+      lands first, 069's builder rebases and the lane re-judges, and any moved number of 065's
+      is restated in 069's landing notes with its cause.
+    - **071 (C-level recursion raises `RecursionError`), build-class, on the roadmap:** it may
+      touch `recipes/reactor_main.c` or the link step (INFERRED from the research's section
+      4.1: a guard and the stack size). The two can collide as text in the recipe and in
+      `python.wasm`'s and the snapshot's bytes, so in criterion 3's hashes. They land one at a
+      time (§5.7); **whichever lands second rebases, rebuilds, and restates criterion 3's sizes
+      and hashes** (and its own), and re-measures the metrics that moved.
+    - **073 (`run` keeps an unclosed file's buffered bytes), named here** (Decision 4): it closes
+      check (h)'s gap; if its fix unfreezes the heap it restates check (b).
     - **068 (a cap on open files):** no interaction.
 
 12. **The upstream suites.** Each group's session now imports its package in the call. The
@@ -404,11 +539,14 @@ recipes/reactor_main.c          #define PREIMPORT "import encodings, io, os, sys
                                 two comments (Decision 4)
 scripts/assemble_artifacts.py   PREIMPORT read from the recipe's #define (Decision 3)
 scripts/steps/80_snapshot.sh    the header comment only
-tests/harness/paths.py          PREIMPORT, REACTOR_MODULES (Decision 5d, 5a)
+                                preimport_list(text) -> str; SystemExit naming the file
+tests/harness/paths.py          PREIMPORT, REACTOR_MODULES (with _host), CPYTHON_UNLISTED
 tests/checks/test_v1_3_data_stack.py   (a) replaces test_snapshot_preimports_the_stack; (b)
 tests/checks/test_rules.py             (c)
 tests/checks/test_v1_1_artifact_set.py (e)
-tests/checks/test_v1_4_embedding.py    (f), (g)
+tests/checks/test_v1_4_embedding.py    (f), (g), (h)
+tests/known_gaps.toml                  (h)'s gap, closed by 073
+tests/unit/test_artifact_rules.py      (i)
 src/wasi_python/__init__.py, runner.py four docstring sentences (Decision 8)
 README.md                       Decision 8; the reference regenerated
 CHANGELOG.md                    Decision 9
@@ -444,6 +582,10 @@ Out, each with its reason:
   embedders who compute in every run and have the memory (the memo, option 5). Constitution §2
   makes a profile its own set, built, judged and published; it is built only if an embedder
   asks (decision 34). The roadmap records it (Decision 10).
+- **Fixing `run`'s lost bytes of an unclosed file** (Decision 4): spec 073's, which this
+  specification names, puts on the roadmap and makes visible as a gap (check h). It is a
+  defect of the frozen heap that 069 neither causes nor fixes, and its fix may need to restate
+  check (b).
 - **A documented `PREIMPORT` knob for people who build their own set** beyond the README's one
   sentence (Decision 8): no product promise, no check.
 - **Bounded sessions** (spec 055): already specified; Decision 11 says how the two meet.
@@ -457,14 +599,17 @@ Out, each with its reason:
    set (`build/sets/s-4eb5418a2b1bb553-c353b1d9`): (a) fails naming numpy, pandas and the
    other non-stdlib names of S3; (b) fails (about 2.0 times); (c) fails on main's recipe; (e)
    fails on main's MANIFEST; (g) fails at its snapshot case; (f) passes (S3) and is seen
-   failing against S7. The landing notes quote each failure's one line.
-2. **The stand-ins (Decision 6).** S1, S2, S4, S5, S6 and S7 each give exactly the outcomes Decision
-   6 lists; the landing notes give each check's line per stand-in.
+   failing against S7. (h)'s `[snapshot]` case fails with exactly its gap's finding set and is
+   allowed by the gap entry; its `[plain]` case passes. The landing notes quote each failure's
+   one line.
+2. **The stand-ins (Decision 6).** S1, S2, S4, S5, S6, S7, S8 and S9, and the reader's unit
+   test (i), each give exactly the outcomes Decision 6 lists; the landing notes give each
+   check's line per stand-in.
 3. **The build from empty.** `scripts/build.sh` from an empty `build/` with the downloads
    present produces the set; step 80 prints the snapshot's size and hash; the snapshot is
    40,509,812 bytes and its SHA-256 begins `bf89b904f9760f94` (this draft's EXECUTED
-   rebuild, if no other change to the recipe or the zip lands first; otherwise the landing notes
-   state the new figures and why). `python.wasm` is 36,916,497 bytes, SHA-256 beginning
+   rebuild, if no other change to the recipe or the zip lands first, such as 046, 047 or 071;
+   otherwise the landing notes state the new figures and why, Decision 11). `python.wasm` is 36,916,497 bytes, SHA-256 beginning
    `92f181984102215e` on the same condition. MANIFEST's `x-preimport` line is
    `encodings, io, os, sys, json, csv, re, _colorize`.
 4. **The same bytes from a second host.** Steps 60 to 90 on the second supported host (a
@@ -484,8 +629,46 @@ Out, each with its reason:
    `uv run pytest -m "not slow"`, are green; then the full `uv run pytest` once, at the end of
    the build (AGENTS.md, rule 3a).
 9. **After landing:** the lane's acceptance names decision 34 in `--accept-growth` with the text
-   of Decision 7, and the release dry run (rule 6b) passes on all three systems before the next
-   tag.
+   of Decision 7, names the judge files (with check h, its gap entry and the unit test i) in
+   `--accept-judge`, and passes `--retire
+   tests/checks/test_v1_3_data_stack.py::test_snapshot_preimports_the_stack`; the history line
+   shows the retirement. The release dry run (rule 6b) passes on all three systems before the
+   next tag.
+
+## Disposition of the pre-build review
+
+The review: `../reviews/069-the-snapshot-pre-imports-no-package-spec-2026-10-18.md` (written in a
+scratchpad, copied by the lane), on `21dd92e`; verdict "ready once F1 to F3 are written in". Every
+finding is written in, as the lane ruled; this revision is rebased onto main `ef1441b`.
+
+- **F1 (medium), the freeze and the lost bytes:** written into Decision 4 (why the freeze stays:
+  15.6 M against 43.8 M unfrozen; its coupling with check b; the defect, its evidence, its closer
+  spec 073; the note for 055's builder: about 28 M against about 225 M), Decision 5 (check h, a
+  gap entry with closer `context/roadmap.md (spec 073 …)`, its reason and the judge-hash note;
+  check b's restatement rule names 073), Decision 10 (the roadmap line), Decision 11 (073), Scope
+  and criterion 1.
+- **F2 (low), `--retire`:** Decision 7's command and criterion 9.
+- **F3 (low), 065 and 071:** Decision 11 (065's A1 goes away and its fixed start restates; 071 may
+  collide in `recipes/reactor_main.c` and criterion 3's hashes, and whichever lands second
+  rebases and restates them); criterion 3 names them.
+- **F4 (low), the plain binary's cause:** Decision 4 states the link maps' measured difference
+  (about 84 KB of `.rodata` moved by 16 to 24 bytes) and the 0.011% to 0.017% spread; Decision
+  7's growth reason says the same.
+- **F5 (low), check b's brittleness:** its message prints both counts and the ratio and names
+  the two causes; a specification that changes the plain start, the freeze or the teardown
+  restates the factor (Decision 5b).
+- **F6 (low), check a's names:** `_host` joins `REACTOR_MODULES`; `paths.CPYTHON_UNLISTED` labels
+  `__hello__`, `__phello__` and `_sysconfigdata_*` as CPython's and counts them as stdlib; the
+  derived set is called "the zip's non-stdlib names"; the sentence on the one shared zip is
+  added (Decision 5a).
+- **F7 (low), stand-ins:** S8 (a package imported outside the `#define`) and S9 (the
+  non-vacuity guard) added; Decision 3's reader is one function that exits when the `#define`
+  is missing or appears twice, with a unit test (check i); S7 moved after S6.
+- **F8 (low), the `-D` sentence:** dropped from the README's advice; a self-builder edits the
+  `#define`, so MANIFEST stays true (Decisions 3 and 8).
+- **F9 (nit), numbers and sources:** the README's pandas row cites the memo and the nearest
+  recorded check; each numpy figure says what it measures (Decision 7); Decision 2 says "in the
+  default profile".
 
 ## Evidence (EXECUTED for this draft, 2026-10-18)
 
