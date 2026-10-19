@@ -170,7 +170,7 @@ package is in the zip, so `import regex` gives fuzzy matching, full Unicode prop
 regex's own tables, never the host's), graphemes, variable-length lookbehind, `captures()` and
 the rest, with native regex's answers at the same pin (the judge's golden job
 `regex_features`). A compiled pattern pickles and loads back, as natively: the init function of
-each of the 69 cross-built builtins runs inside CPython's package context, so `regex._regex`
+each of the 71 cross-built builtins runs inside CPython's package context, so `regex._regex`
 keeps its import name. Five of
 regex's callbacks are defined with one parameter where CPython passes two, which WebAssembly
 traps on; a carried patch (`recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`)

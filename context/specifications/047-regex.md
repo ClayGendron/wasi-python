@@ -590,7 +590,7 @@ landing notes), then `63376c5` (findings 1 and 3) and this revision. Rebuilt fro
 worktree, from an empty `build/` (`rebased/build-rebased.log`, fourteen steps in 11 min 05 s,
 057's unpinned-name check in step 00 passing): `python.wasm` `b232655f…`, the snapshot
 `449f4029…` and the zip `276b4dcf…` are unchanged, byte for byte. `MANIFEST` differs from the
-first build in one line, `scripts/00_download.sh`'s recipe hash (`4a3c2b4d…` to `3b408469…`,
+first build in one line, `scripts/00_download.sh`'s recipe hash (`3b408469…` to `4a3c2b4d…`,
 057's edit), so the set's `SHA256SUMS` (SHA-256 `6322071c…`) differs from the first build's
 in the `MANIFEST` line only:
 
