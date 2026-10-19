@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** built 2026-10-19 and judged green on macOS. Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); **its design awaits a fresh review before it is built**. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** built 2026-10-19 and judged green on macOS. Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done) and is being built. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -733,101 +733,142 @@ in `develop` but has not released it. The owner decided to carry such fixes as p
       `scripts/line.conf` (040). Each is rebased onto main as it is when 037's builder starts.
 
 17. **The same-bytes exception for ducc0's FFT** (amended 2026-10-19 by the owner's answer to
-    question 104, "Exception now, fix in parallel", `../decisions.md`; designed before it is built,
-    for a fresh review). The pinned clang (wasi-sdk 33, LLVM `4434dabb`) compiles
-    `scipy/fft/_duccfft/pyduccfft.cxx` to a different object on every run: the WebAssembly backend
-    places the `try_table` blocks of a few functions in a different order, while the optimized IR
-    is the same every time (`../research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`).
-    Criterion 3 then cannot hold byte for byte. This decision says exactly what may differ, how
-    "the same bytes" is decided for the two binaries, where, and how the exception ends.
-    - **What may differ: exactly the code of named functions from that one object, and only
-      where their `try_table` blocks open and close.** The list is a recipe file,
-      `recipes/same_bytes_exceptions.toml`: one entry naming the object, the toolchain it holds
-      for (`WASI_SDK_VERSION = 33`, `LLVM_COMMIT = 4434dabb`, compared with `scripts/line.conf`),
-      the two artifacts it touches (`python.wasm`, `python-snapshot.wasm`), and the functions,
-      each by its exact name in the binaries' `name` section. The names are the union of the
-      functions that differed among 32 compiles of the file on one host, read from the objects'
-      disassembly (the builder's evidence; eight compiles today gave nine: `cfftpass<T>::make_pass`
-      and `rfftpass<T>::make_pass` for `float`, `double` and `long double`, and three
-      `make_shared<cfftpg<T>>` instantiations). Nothing else may differ: no other function, no
-      other section, no other file of the set.
-    - **How "the same bytes" is decided for `python.wasm` and the snapshot.** A new script of
-      ours, `scripts/same_bytes.py` (standard library only, run with `uv run python`), compares
-      two binaries and passes in one of two ways:
-      1. the files are byte for byte equal (the exception unused: it says so); or
+    question 104, "Exception now, fix in parallel", `../decisions.md`; designed before it was
+    built, reviewed in `../reviews/037-the-same-bytes-exception-design-2026-10-19.md` (the lane copies it from the reviewer's scratchpad), whose
+    F1 to F5 are written in below and F6 to F9 built with it). The pinned clang (wasi-sdk 33,
+    LLVM `4434dabb`) compiles `scipy/fft/_duccfft/pyduccfft.cxx` to a different object on every
+    run: the WebAssembly backend places the `try_table` blocks of a few functions differently,
+    while the optimized IR is the same every time
+    (`../research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`). The cause is
+    known since: a `DenseMap` keyed by block pointers in `WebAssemblyCFGStackify.cpp`
+    (`fixCallUnwindMismatches`, line 1829, and three more like it), whose iteration order follows
+    the heap's addresses; LLVM fixed it upstream in `fd76c9bd` (pull request #205184, issue
+    #204883) with a `MapVector`. The fix is in wasi-sdk 34 (LLVM 23.1.0), in no 22.x release, and
+    wasi-sdk 34 compiled the file to one object in 16 runs (the parallel research). Criterion 3
+    cannot hold byte for byte on wasi-sdk 33. This decision says exactly what may differ, how "the
+    same bytes" is decided for the two binaries, where, and how the exception ends.
+    - **What may differ: only where named functions of that one object open their `try_table`
+      blocks.** The list is a recipe file, `recipes/same_bytes_exceptions.toml`, with one entry
+      naming: the object; the toolchain it holds for (`WASI_SDK_VERSION = 33`,
+      `LLVM_COMMIT = 4434dabb`); the scipy tarball's SHA-256 and the SHA-256 of the object's
+      compile command (the `compile_commands.json` entry, with the checkout's path written as
+      `@ROOT@`), so a source or flag change under the same toolchain ends it too (F8); the two
+      artifacts it touches (`python.wasm`, `python-snapshot.wasm`); and the functions, each by its
+      exact name in the binaries' `name` section, each of which must match **exactly one**
+      function there (F3: 1,243 names occur more than once in that section). The names are the
+      union of the functions that differed among 32 compiles of the file on one host (eight
+      compiles gave nine, the reviewer's eleven the same nine). Nothing else may differ: no other
+      function, no other section, no other file of the set.
+    - **How "the same bytes" is decided for `python.wasm` and the snapshot.** A script of ours,
+      `scripts/same_bytes.py` (standard library only, run with `uv run python`), compares two
+      binaries. It passes when they are byte for byte equal, or when all of these hold:
+      1. the toolchain, scipy and compile-command values in the recipe are `scripts/line.conf`'s
+         and the pins' (F4: the gate does not rely on the lane's check for this);
       2. every section but the code section is byte for byte equal (types, imports, functions,
          tables, memory, globals, exports, elements, data, `name`, `producers`,
-         `target_features`, every custom section); the code section holds the same number of
-         bodies; every body is byte for byte equal except bodies of functions the recipe names;
-         and each named body that differs passes the **structural rule**:
-         - the same length and the same local declarations;
-         - decoded into instructions by the script's own decoder, which refuses (fails closed on)
-           any opcode outside the table it knows;
-         - with every `try_table` and the `end` that closes it deleted, and every branch and catch
-           label (`br`, `br_if`, `br_table`, each catch clause) rewritten from its relative depth
-           to the absolute block it names among the blocks that remain, the two instruction
-           sequences are equal, instruction for instruction and immediate for immediate;
-         - the two bodies hold the same number of `try_table` blocks, and the same multiset of
-           catch-clause lists (each clause's kind and absolute target).
-      So the same instructions run in the same order with the same branch targets and the same
-      handlers; only the placement of the `try` regions may differ. The script names the
-      functions that differed (zero to nine) and why any check failed. It does **not** prove that
-      every instruction is covered by the same handler: that is a not-machine-checked line
-      (below), argued in the research memo (every `try_table` in these functions is a
-      `catch_all_ref` cleanup, and each variant's code is judged). The snapshot is compared the
-      same way: Wizer copies the reactor's code section unchanged and adds the initialized memory
-      as data, which must be byte for byte equal (the snapshot pre-imports no package, so ducc0
-      never runs before the snapshot is taken).
+         `target_features`, every custom section), so function indices and names agree;
+      3. the code sections hold the same number of bodies, and every body is byte for byte equal
+         except bodies of the recipe's named functions;
+      4. for each named body that differs, the two decode with the script's own decoder, which
+         fails closed (F6) on an opcode outside its table, a LEB longer than 5 (u32) or 10 (s64)
+         bytes, a read past the body, a control stack not empty exactly at the last byte, a
+         multi-memory memarg, the `0xFE` (atomics) prefix and the legacy EH opcodes (`try`,
+         `catch`, `catch_all`, `delegate`, `rethrow`) (F1);
+      5. every `try_table` in either body has the empty block type, and no branch (`br`,
+         `br_if`, `br_table`) and no catch label targets a `try_table`'s own label (F1);
+      6. **the bytes** (F2): the local declarations are byte for byte equal, and with only the
+         `try_table` instructions deleted (every `end` kept) the two bodies' remaining bytes are
+         identical;
+      7. **the targets** (F2): with every `try_table` and the `end` that closes it deleted and
+         every branch and catch label rewritten to the absolute block it names among the blocks
+         that remain, the two instruction sequences are equal;
+      8. **the handlers** (F1): at every remaining instruction the **effective handler chain** is
+         the same in both bodies: the chain of `try_table`s around it, innermost first, each
+         clause's kind, tag and absolute target, cut after the first `catch_all` or
+         `catch_all_ref` (a clause that catches everything, so outer blocks can never see that
+         instruction's exception).
+
+      So the same instructions, in the same bytes and order, branch to the same places and hand
+      every exception to the same handler; only where a `try_table` opens may differ. The real
+      variants meet every rule: all 384 differing object bodies among eleven compiles and the 8
+      differing bodies of two linked reactors (the review, EXECUTED). The reviewer's mutant, a
+      `try_table` moved past a `call` so that the call loses its cleanup, which wasmtime accepts,
+      fails rule 8 and is a unit case. The script names the functions that differed (zero to
+      nine) and, on a failure, the rule and the instruction. The snapshot is compared the same
+      way: Wizer copies the reactor's code section and adds the initialized memory as data, which
+      rule 2 holds byte for byte (the snapshot pre-imports no package, so ducc0 never runs before
+      it is taken). There is no not-machine-checked line: rule 8 checks the handlers.
+    - **Fuel** (F7): every moved opening crosses only `i32.const; call; local.set`, with no branch,
+      block or `end` between (the review, EXECUTED), so each `try_table` runs as often on every
+      path in both variants: the variants' fuel is identical (INFERRED from that; measured fuel of
+      one binary varies about 0.1% from run to run, which hides any difference). A sameness or
+      ratchet difference between two sets is not the exception's without evidence.
     - **Where it is checked.**
-      - The release workflow's "the same bytes from every host" job. The rebuild jobs also upload
-        their `python.wasm` and `python-snapshot.wasm` beside their `SHA256SUMS` (by artifact id,
-        as spec 057 asks). The job checks out the repository (no credentials) for the script and
-        the recipe, then: every line of each rebuild's `SHA256SUMS` equals the set's, byte for
-        byte, but the lines of the two binaries; each rebuilt binary passes `same_bytes.py`
-        against the set's; the rebuilt wheels equal the release wheel entry for entry, but the
-        two binaries' entries (each compared by the script), `SHA256SUMS`, and `RECORD`'s lines
-        for those three. `scan.rebuild_gate_errors` holds the job to this shape (a judge change).
-      - Locally: `scripts/compare_sets.py <set A> <set B>` applies the same rules to two
-        artifact folders (every file byte for byte, the two binaries through `same_bytes.py`).
-        The builder's macOS and linux/arm64 comparison and the lane's comparison of its main-tree
-        rebuild with the builder's set (§5.7) run it.
-      - A unit check, `tests/unit/test_same_bytes.py`, with fixtures taken from two differing
-        objects of this build (the bodies of two of the named functions from two compiles, as
-        base64 in a JSON file under `tests/unit/fixtures/`; no `.wasm` in git): the two variants
-        pass; byte-identical bodies pass; and each of these fails, naming its rule: one
-        immediate changed, a call target changed, an instruction added or removed, a catch target
-        changed, a body of another length, a differing body of a function the recipe does not
-        name, a differing non-code section. The decoder's refusal of an unknown opcode is a case
-        too.
+      - `scripts/compare_sets.py <set> <rebuilt set> [--wheels <release wheel> <rebuilt wheel>]`
+        holds the whole comparison (F4): every line of the rebuild's `SHA256SUMS` equals the
+        set's but the two binaries' lines; each rebuilt binary hashes to its own line in the
+        rebuild's `SHA256SUMS` (so a stale or mixed-up file proves nothing); each rebuilt binary
+        passes `same_bytes.py` against the set's; and the two wheels are equal entry for entry
+        (name, mode, size, CRC, date, bytes) but the two binaries' entries, which must be the
+        compared binaries themselves, `SHA256SUMS`, and `RECORD`'s lines for those three.
+      - The release workflow's "the same bytes from every host" job calls it once per runner in a
+        `for runner in ubuntu-24.04-arm ubuntu-24.04` loop, one operand under `rebuilds/`, the
+        other the set; the rebuilt binaries are taken from the rebuilt wheel the job already
+        downloads by id (F4: no new uploads). The job gains a checkout of the run's commit
+        (`persist-credentials: false`) and `astral-sh/setup-uv` at the pinned versions, for the
+        scripts and the recipe, and `permissions: contents: read` in place of `{}` (the checkout
+        needs it on a private repository; `scan.JOB_PERMISSIONS["same-bytes"]` changes with it).
+        `scan.rebuild_gate_errors` requires that call with both runners, no `||` or `set +e`, and
+        `attest` and `publish` still needing `same-bytes`; today's `cmp` rule is replaced, not
+        kept beside it.
+      - Locally: the builder's macOS and linux/arm64 comparison and the lane's comparison of its
+        main-tree rebuild with the builder's set (§5.7) run `compare_sets.py`.
+      - `tests/unit/test_same_bytes.py`, with fixtures from two differing compiles: the bodies of
+        two named functions from `python.wasm`s built today, as base64 in a JSON file under
+        `tests/unit/fixtures/` with the instruction offsets the pinned `llvm-objdump` printed for
+        them (no `.wasm` in git). The two variants pass; byte-identical bodies pass; the decoder's
+        boundaries equal `llvm-objdump`'s (F6); and each of these fails, naming its rule: the
+        reviewer's mutant (rule 8), one immediate changed, a call target changed, an instruction
+        added or removed, a catch target changed, a `try_table` with a block type, a branch to a
+        `try_table`, a legacy EH opcode, an overlong LEB, a truncated body, an unbalanced `end`,
+        a body of another length, a differing body of an unnamed function, a name that matches
+        twice, a differing non-code section, and a recipe whose toolchain is not the line's.
     - **Everything else is still byte for byte.** The zip, `MANIFEST`, `SHA256SUMS`' other lines,
       every licence file and the wheel's other entries are compared exactly, as before; so are
       every function body not named, and every byte of both binaries outside the code section.
-    - **`SHA256SUMS` and the signed bytes stay coherent** (spec 057). The release still ships one
+    - **`SHA256SUMS` and the signed bytes stay coherent** (spec 057). The release ships one
       host's bytes: the build job's set, which the judge jobs judge by its `SHA256SUMS` hash, and
-      which attest signs; nothing about that changes. `SHA256SUMS` lists the build job's own
-      binaries' hashes. A rebuild host's `SHA256SUMS` may differ from it in the two binaries'
-      lines only, and only when those binaries pass the structural rule against the set's; any
-      other difference fails the gate as today. The lane's accepted record and the frozen set name
-      the binaries the lane built and judged.
-    - **What records the exception.** The recipe file (hashed in `MANIFEST` like every recipe);
-      a `MANIFEST` line, `x-same-bytes-exception <object> <n> functions`, written by step 90
-      from the recipe; the CHANGELOG; the README's reproducibility claim ("the same bytes from
-      every build host, but where ducc0's eight or nine functions open their exception blocks:
-      `recipes/same_bytes_exceptions.toml`"); and a not-machine-checked line in the scoreboard
-      ("the same-bytes exception's functions: handler coverage under the moved `try` regions").
-      It is no `[[gap]]`: no check fails because of it.
-    - **How it ends.** It holds only for the toolchain it names. A v1.5 check in the build shard,
+      which attest signs. `SHA256SUMS` lists the build job's own binaries. A rebuild host's
+      `SHA256SUMS` may differ from it in the two binaries' lines only, and only when those
+      binaries pass the rules against the set's. A rebuild's binaries are evidence, never shipped.
+      A re-run of the build job makes another variant, so other `SHA256SUMS` and other signed
+      bytes, each set coherent in itself.
+    - **"Three systems"** (F9): the need matches accepted runs by `python.wasm`'s SHA-256. Each
+      host's own build now has its own hash, so the need is met only by one set judged on three
+      systems (the release's judge jobs, which all judge the build job's set), never by each
+      host's own build. Nothing changes today (only darwin records exist).
+    - **What records the exception.** The recipe file (hashed in `MANIFEST` like every recipe); a
+      `MANIFEST` line, `x-same-bytes-exception <object> <n> functions`, written by step 90 from the
+      recipe (the same on every host); the CHANGELOG; and the README in every place it says "the
+      same bytes" (F5): its reproducibility facts, the snapshot's third fact, the build hosts'
+      "same artifact set, byte for byte", and the release's "re-run all jobs", each saying where
+      the bytes differ; plus one line telling a third party to verify a rebuild with
+      `uv run python scripts/compare_sets.py <release set> <their build>`, since a plain
+      `shasum -c` of their own build fails. It is no `[[gap]]` (no check fails because of it).
+    - **How it ends: the toolchain move to wasi-sdk 34 (reserved).** The exception holds only for
+      the toolchain, scipy tarball and compile command it names. A v1.5 check in the build shard,
       `test_the_same_bytes_exception_is_still_needed`, turns red when:
-      - `scripts/line.conf`'s `WASI_SDK_VERSION` or `LLVM_COMMIT` is not the recipe's (the pin
-        moved: the specification that moves it removes the exception, or renews it with new
-        evidence, as its own reviewed decision);
-      - three compiles of `pyduccfft.cxx`, with its own command from `compile_commands.json`,
-        give the same object (the clang no longer varies: remove the exception);
-      - a name in the recipe is not in the built `python.wasm` (the list went stale).
-      The first is the normal end: the research task under question 104 looks for a deterministic
-      clang, and the specification that moves the pin to it deletes the recipe file, the script's
-      exception path, this check's exception half and the README line, and criterion 3 is byte for
-      byte again.
+      - `scripts/line.conf`'s `WASI_SDK_VERSION` or `LLVM_COMMIT`, the scipy pin, or the file's
+        compile command is not the recipe's (the specification that moves any of them removes the
+        exception or renews it with new evidence, as its own reviewed decision);
+      - three compiles of `pyduccfft.cxx`, with its own command, give the same object (the clang
+        no longer varies: remove the exception; the message names the host, since a host with
+        address-space randomization off could make a clang repeat itself);
+      - a recipe name does not match exactly one function in the built `python.wasm`;
+      - the decoder's instruction boundaries on those three objects differ from `llvm-objdump`'s.
+      The normal end is the toolchain move to wasi-sdk 34 (reserved by the lane): it deletes the
+      recipe file, `same_bytes.py`'s exception path and this check, restores byte-for-byte
+      comparison in the gate, and amends the README lines back.
 
 ## Intent
 
@@ -864,7 +905,7 @@ temporary changes to OpenBLAS.
 | `tests/checks/test_v1_1_artifact_set.py` (or 023's file), `tests/harness/pins.py`, `tests/harness/needs.py`, `tests/harness/scan.py`, `tests/known_gaps.toml` | the other judge changes (Decision 15) |
 | `tests/unit/…` | the unit checks (Decision 15) |
 | `.github/workflows/…` | the tree count, two more |
-| `recipes/same_bytes_exceptions.toml`, `scripts/same_bytes.py`, `scripts/compare_sets.py`, the release workflow's same-bytes and rebuild jobs, `scripts/assemble_artifacts.py` (the `MANIFEST` line), `tests/unit/test_same_bytes.py` and its fixtures, `test_the_same_bytes_exception_is_still_needed`, `scan.rebuild_gate_errors`, the scoreboard's not-machine-checked line | the same-bytes exception for ducc0 (Decision 17, amended 2026-10-19) |
+| `recipes/same_bytes_exceptions.toml`, `scripts/same_bytes.py`, `scripts/compare_sets.py`, the release workflow's same-bytes and rebuild jobs, `scripts/assemble_artifacts.py` (the `MANIFEST` line), `tests/unit/test_same_bytes.py` and its fixtures, `test_the_same_bytes_exception_is_still_needed`, `scan.rebuild_gate_errors` and `scan.JOB_PERMISSIONS` | the same-bytes exception for ducc0 (Decision 17, amended 2026-10-19) |
 | `README.md`, `CHANGELOG.md` | scipy in the profile; the absences, the `workers` facts and the gaps; `OPENBLAS_*` on the snapshot; SIMD as a host requirement; the patches by path |
 
 ## Scope
@@ -894,8 +935,8 @@ In: Decisions 1 to 16. Out:
    checks. `MANIFEST` names every new pin, recipe, script and patch.
 3. **Amended 2026-10-19 (Decision 17):** the arm64 Linux rebuild (and the x86_64 Linux one in the
    release) gives the set's files byte for byte, but `python.wasm` and the snapshot, which pass
-   `scripts/same_bytes.py` against the set's: only the recipe's named ducc0 functions may differ,
-   and only in where their `try_table` blocks open and close. As first written: the same-bytes rebuild on arm64 Linux gives the same `SHA256SUMS` as macOS, with no
+   `scripts/compare_sets.py` against the set's: only the recipe's named ducc0 functions may
+   differ, and only in where their `try_table` blocks open. As first written: the same-bytes rebuild on arm64 Linux gives the same `SHA256SUMS` as macOS, with no
    exception (spec 012). **Once 040 has landed,** the x86_64 Linux rebuild gives them too, with
    no exception; **before,** it is run once and reported (Decision 12). If a difference cannot be
    fixed after two attempts, the build stops and a memo records it (AGENTS.md rule 7); it does
