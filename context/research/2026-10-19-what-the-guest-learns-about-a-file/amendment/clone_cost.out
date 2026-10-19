@@ -1,0 +1,2 @@
+clonefile   0.13 ms a run; nlink of a result 1; same inode as the source False
+copyfile    8.29 ms a run; nlink of a result 1; same inode as the source False

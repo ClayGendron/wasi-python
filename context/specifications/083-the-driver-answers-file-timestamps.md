@@ -467,12 +467,24 @@ every probe removes its work folder).**
   10 to 16 ms, on this machine's APFS.
 
 **Decision 10. The driver copies the stdlib into each run, and removes the copy when the run ends.**
-- `_place` copies a file (`shutil.copyfile`) where it hard-linked it; a stdlib folder is copied as
-  before (`copytree`). So the run's zip has exactly one name, the guest sees `nlink` 1 for it, and
-  no other run, probe or agent can change that, before the run or during it.
-- `run()` removes the run's `lib` folder in a `finally` once the guest has ended, and `Turns`
-  removes its own at `close()`; so the disk holds one copy per live run, never one per run of a
-  session. A check reads `Result.root`, never `lib`.
+- `_place` gives a file its own inode where it hard-linked it: on darwin an APFS clone
+  (`clonefile(2)` by `ctypes`, what `cp -c` makes), and wherever that fails, or elsewhere, a copy
+  (`shutil.copyfile`); a stdlib folder is copied as before (`copytree`). So the run's zip has
+  exactly one name, the guest sees `nlink` 1 for it, and no other run, probe or agent can change
+  that, before the run or during it.
+  - **The clone** (the review's optional point, adopted): 0.13 ms a run against 8 to 16 ms for a
+    copy, with `nlink` 1 and an inode of its own (EXECUTED, `amendment/clone_cost.py` and `.out`).
+    It is about ten lines with its fallback. It changes nothing the guest sees: a clone and a copy
+    both give one name and the same bytes, so the fuel compared on darwin is the fuel of a copy.
+- `run()` removes the run's `lib` folder once the guest has ended, in a `finally`, in this order
+  (the review's A1): it reads the run's outputs and fuel, **closes the store** (`store.close()`, as
+  `Turns.close` does), and only then removes the folder with
+  `shutil.rmtree(lib, ignore_errors=True)`. On Windows wasmtime's open handles (the read-only
+  preopen of `lib`, a zip the guest kept open) go with the store, so the removal can succeed; and
+  since its errors are ignored, a removal can never fail or change a run. `Turns` removes its own
+  `lib` the same way at `close()`, after its store. So the disk holds one copy per live run, never
+  one per run of a session. A check reads `Result.root`, never `lib`. A killed run leaves its copy
+  behind; that costs disk only, since no other run links or reads it.
 - **Why a copy, not an answered `nlink`.**
   - The shared zip's count moves during a run (531 to 532 above), so no answer computed from the
     host's count of that file is stable; only a file no one else links is.
@@ -490,10 +502,19 @@ every probe removes its work folder).**
 
 **Its check, written first.** `test_fuel_does_not_follow_the_stdlib_zips_link_count`, in
 `tests/checks/test_v1_4_embedding.py`, both binaries (it needs the artifacts): a private copy of the set's zip, granted with `stdlib=`; one program (`import json`, a stat of the
-zip, its `st_nlink` printed) runs with the copy at 1 link and again with 1,100 more links to it,
-made under the check's own temp folder and removed in a `finally`. Both runs print `nlink` 1 and
-spend the same fuel. On main's driver it fails (`nlink` 2 against 1,104; +521 fuel). It never links
-the set's own zip, so it perturbs no other run on the machine.
+zip, its `st_nlink` printed) runs with the copy at 1 link and again with more links to it, made
+under the check's own temp folder and removed in a `finally`. Both runs print `nlink` 1 and the
+same output; on darwin they spend the same fuel too (Decision 6). On main's driver it fails
+(`nlink` 2 against 1,104; +521 fuel). It never links the set's own zip, so it perturbs no other run
+on the machine.
+- **How many links (the review's A2).** NTFS allows at most 1,024 links to one file, and the
+  release's `verify` job runs this file on `windows-2025`. So the check makes **1,101** extra links
+  on darwin and Linux (ext4 allows 65,000) and **1,021** on Windows. Both stay past 081's bisected
+  flip (one set of values up to 1,017 links, another from 1,023): a driver that regressed to
+  linking would show its two runs `nlink` 2 and then 1,104, or on Windows 2 and then 1,024 (the
+  copy, 1,021 extra links and the two runs' own), so each comparison crosses the flip, and
+  Windows' total stays within 1,024 even then. With the build the copy holds 1 + 1,021 = 1,022
+  links on Windows, two below the limit.
 
 **Criteria added.**
 8. **The link count.** `test_fuel_does_not_follow_the_stdlib_zips_link_count` fails on main's driver
