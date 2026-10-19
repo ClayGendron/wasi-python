@@ -1,0 +1,3 @@
+# The review's probes/atime_grant.py (083-review scratchpad) on the prototype with prototype_revised.diff applied
+first: host atime moved True; guest sees 1767225600000001000 1767225600000001000 1767225600000002000; fuel 16613343
+second: host atime moved False; guest sees 1767225600000001000 1767225600000001000 1767225600000002000; fuel 16613343

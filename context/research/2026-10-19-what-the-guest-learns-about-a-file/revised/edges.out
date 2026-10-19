@@ -1,0 +1,22 @@
+# The review's probes/edges.py (083-review scratchpad) on the prototype with prototype_revised.diff applied
+stat fd 3, result at 65530 (out of bounds)     exit None trapped 'error while executing at wasm backtrace:' cause None fuel 4
+stat fd 3, result at 0                         exit 0 trapped None cause None fuel 5
+stat fd 99 (bad descriptor)                    exit 8 trapped None cause None fuel 5
+path stat, path out of bounds                  exit None trapped 'error while executing at wasm backtrace:' cause None fuel 7
+path stat '.', result out of bounds            exit None trapped 'error while executing at wasm backtrace:' cause None fuel 7
+loop of 50 stats, full budget                  exit 0 trapped None cause None fuel 455
+  budget = full - 1                            exit 0 trapped None cause None fuel 454
+  budget = full - 2                            exit 0 trapped None cause None fuel 453
+  budget = full - 3                            exit 0 trapped None cause None fuel 452
+  budget = full - 4                            exit 0 trapped None cause None fuel 451
+  budget = full - 5                            exit 0 trapped None cause None fuel 450
+  budget = full - 6                            exit 0 trapped None cause None fuel 449
+  budget = full - 7                            exit 0 trapped None cause None fuel 448
+  budget = full - 8                            exit 0 trapped None cause None fuel 447
+  budget = full - 9                            exit 0 trapped None cause None fuel 446
+  budget = full - 10                           exit 0 trapped None cause None fuel 445
+  budget = full - 11                           exit None trapped 'out of fuel' cause None fuel 444
+  budget = full - 12                           exit None trapped 'out of fuel' cause None fuel 443
+  budget = full - 13                           exit None trapped 'out of fuel' cause None fuel 442
+  budget = full - 14                           exit None trapped 'out of fuel' cause None fuel 441
+  budget = full - 15                           exit None trapped 'out of fuel' cause None fuel 440

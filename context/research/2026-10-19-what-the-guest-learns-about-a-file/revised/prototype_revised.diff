@@ -1,0 +1,43 @@
+--- a/tests/harness/guest.py (prototype.diff applied)
++++ b/tests/harness/guest.py (the review's F1, F2, F4, F8)
+@@ -223,13 +223,19 @@
+         self.times: dict[int, list[tuple[int, int]]] = {}
+ 
+     def ino(self, real: int) -> int:
++        if real == 0:  # wasmtime's stdio streams: no host value, so nothing to answer (F4)
++            return 0
+         return self.inos.setdefault(real, len(self.inos) + 1)
+ 
+     def stamp(self, real_ino: int, real: tuple[int, int, int]) -> tuple[int, int, int]:
++        if real_ino == 0 and not any(real):
++            return (0, 0, 0)  # a stream's zeros pass through, with no step (F4)
+         old = self.times.get(real_ino)
+         fresh = [old is None or old[i][0] != real[i] for i in range(3)]
++        fresh[0] = old is None or fresh[1] or fresh[2]  # noatime: a read alone moves nothing (F1)
+         now = self.now() if any(fresh) else 0
+-        kept = [(real[i], now) if fresh[i] or old is None else old[i] for i in range(3)]
++        kept = [(real[i], now) if fresh[i] or old is None else (real[i], old[i][1]) for i in range(3)]
++        kept = [(r, 0) if r == 0 else (r, f) for r, f in kept]
+         self.times[real_ino] = kept
+         return (kept[0][1], kept[1][1], kept[2][1])
+ 
+@@ -254,7 +260,9 @@
+         while at < len(data):
+             head = data[at : at + DIRENT.size]
+             if len(head) < DIRENT.size:
+-                data[at + 8 : at + DIRENT.size] = bytes(max(0, len(head) - 8))
++                for lo, hi in ((8, 16), (21, 24)):  # d_ino and padding, as far as present (F8)
++                    span = data[at + lo : at + min(hi, len(head))]
++                    data[at + lo : at + lo + len(span)] = bytes(len(span))
+                 break
+             d_next, ino, namlen, kind = DIRENT.unpack(head)
+             data[at : at + DIRENT.size] = DIRENT.pack(d_next, self.ino(ino), namlen, kind)
+@@ -289,6 +297,8 @@
+         instructions are the driver's, not the guest's."""
+         before = wt.Store.get_fuel(caller) if self.counted else None  # type: ignore[arg-type]
+         try:
++            if before is not None:
++                wt.Store.set_fuel(caller, min(before + (1 << 20), UNMETERED))  # type: ignore[arg-type]
+             return func(caller, *args)
+         finally:
+             if before is not None:

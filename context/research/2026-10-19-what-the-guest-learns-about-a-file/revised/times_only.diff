@@ -1,0 +1,13 @@
+--- a/tests/harness/guest.py (the build)
++++ b/tests/harness/guest.py (times only, for the growth list)
+@@ -223,9 +223,7 @@
+         self.times: dict[int, list[tuple[int, int]]] = {}
+ 
+     def ino(self, real: int) -> int:
+-        if real == 0:  # wasmtime's stdio streams: no host value, so nothing to answer (F4)
+-            return 0
+-        return self.inos.setdefault(real, len(self.inos) + 1)
++        return real  # times only: wasmtime's inode number passes through (measurement, not the judge)
+ 
+     def stamp(self, real_ino: int, real: tuple[int, int, int]) -> tuple[int, int, int]:
+         if real_ino == 0 and not any(real):

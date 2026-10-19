@@ -1,0 +1,13 @@
+# The review's probes/semantics.py (083-review scratchpad) on the prototype with prototype_revised.diff applied
+stdio                                      0 0 0 0 0o0 | 1 0 0 0 0o0 | 2 0 0 0 0o0
+hard link                                  True True
+rename keeps ino                           True
+unlinked open file                         True True
+scandir inode = stat ino                   True [1, 2, 3]
+dot entries                                1 1 2
+utime now, ctime                           True False True 2000
+utime exact then write                     1767225600000003000 True
+utime exact atime only via follow=False    FAILED exit 1; stderr: PermissionError: [Errno 63] Operation not permitted: '/f' -> '/l'
+dir mtime after create                     True
+pyc mtime second                           1767225600
+listdir big (cut buffers)                  300 300 True
