@@ -703,7 +703,13 @@ built code; 74 others passed).
 - **The owner's answers.** Question 105 (b): Decision 8, *Scope*, criterion 6 and *Coordination*
   now say spec 086 lands before 037 and the gather keeps exact hashes; criterion 6b is gone.
   Decision 9: declined for now, a possible later specification.
-- **The judge after the fixes:** see the fast-tier line below.
+- **The judge after the fixes:** the affected unit tests and the rules (453 passed, 2 skipped),
+  then the fast tier, `uv run pytest -m "not slow" -n 3` on `c378ba2`, a clean tree, against
+  `build/085/set` (`build/085/fast-2.log`): `wasi_python v1: 478/623 pass · 1 gap · 25 blocked ·
+  0 fail · 119 deselected (unit suite 1626/1634, 8 skipped)`; `ratchet vs b91e0eaa4e: lost 0 ·
+  absent 0 · unrun 0 · unrun locally 23 · gained 0 · grew 0 · upstream unrun 99 · not selected 43
+  · judge changed: …`; `2104 passed, 33 skipped, 1 xfailed`. The fixes touch only `gather.py`
+  and its unit test, and no goal check, so the full judge was not run again.
 
 ### For the lane
 
