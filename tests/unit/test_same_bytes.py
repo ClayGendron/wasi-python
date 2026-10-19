@@ -210,18 +210,33 @@ def _name(s: str) -> bytes:
     return _uleb(len(s.encode())) + s.encode()
 
 
-def module(bodies: list[bytes], names: list[str], producers: bytes = b"x") -> bytes:
+def _padded(n: int) -> bytes:
+    """`n` as a LEB one byte longer than it needs: the same value, other bytes."""
+    plain = bytearray(_uleb(n))
+    plain[-1] |= 0x80
+    return bytes(plain) + b"\x00"
+
+
+def module(
+    bodies: list[bytes],
+    names: list[str],
+    producers: bytes = b"x",
+    pad_body: int | None = None,
+    pad_code: bool = False,
+) -> bytes:
     """A module of functions of type () -> () with these bodies and names, beside a custom section;
     the decoder never checks types, so the fixture bodies stand in it as they are."""
     functions = _vec([b"\x00"] * len(bodies))
-    code = _vec([_uleb(len(b)) + b for b in bodies])
+    sizes = [_padded(len(b)) if k == pad_body else _uleb(len(b)) for k, b in enumerate(bodies)]
+    code = _vec([size + b for size, b in zip(sizes, bodies, strict=True)])
+    code_section = bytes([10]) + _padded(len(code)) + code if pad_code else _section(10, code)
     name_map = _vec([_uleb(i) + _name(n) for i, n in enumerate(names)])
     names_section = _name("name") + bytes([1]) + _uleb(len(name_map)) + name_map
     return (
         b"\0asm\x01\0\0\0"
         + _section(1, _vec([b"\x60\x00\x00"]))
         + _section(3, functions)
-        + _section(10, code)
+        + code_section
         + _section(0, names_section)
         + _section(0, _name("producers") + producers)
     )
@@ -252,6 +267,29 @@ def test_a_name_that_matches_twice_is_refused() -> None:
     b = module([b1, a1], [n1, n1])
     assert "2 functions are named" in _refused(3, sb.compare, a, b, (n1,))
     assert "0 functions are named" in _refused(3, sb.compare, a, b, ("absent",))
+
+
+@pytest.mark.parametrize(
+    "padding", [{"pad_body": 0}, {"pad_code": True}], ids=["a body size", "the code size"]
+)
+def test_a_padded_size_leb_with_no_named_body_differing_is_refused(padding) -> None:
+    """The implementation review's I1: the same bodies under other size bytes are other bytes."""
+    (n1, a1, _), _ = PAIRS
+    a = module([PLAIN, a1], ["plain", n1])
+    b = module([PLAIN, a1], ["plain", n1], **padding)
+    assert a != b
+    assert "outside every function body" in _refused(3, sb.compare, a, b, (n1,))
+
+
+@pytest.mark.parametrize(
+    "padding", [{"pad_body": 0}, {"pad_code": True}], ids=["a body size", "the code size"]
+)
+def test_a_padded_size_leb_beside_a_differing_named_body_is_refused(padding) -> None:
+    """I1 again: B must be A with B's differing named bodies spliced in, nothing more."""
+    (n1, a1, b1), _ = PAIRS
+    a = module([PLAIN, a1], ["plain", n1])
+    b = module([PLAIN, b1], ["plain", n1], **padding)
+    assert "outside the named bodies" in _refused(3, sb.compare, a, b, (n1,))
 
 
 def test_a_differing_non_code_section_is_refused() -> None:
@@ -366,6 +404,22 @@ def test_a_rebuild_whose_binary_is_not_its_own_line_fails(tmp_path) -> None:
     b = _set(tmp_path / "b", stale)
     (b / "python.wasm").write_bytes(_files(0)["python.wasm"][:-1] + b"z")
     with pytest.raises(compare_sets.Differs, match="not its own SHA256SUMS line"):
+        compare_sets.compare_sets(a, b)
+
+
+@pytest.mark.parametrize("variant", [0, 1], ids=["no binary differs", "the binaries differ"])
+@pytest.mark.parametrize(
+    "reformat",
+    [lambda t: t.replace(b"\n", b"\r\n"), lambda t: t[:-1]],
+    ids=["CRLF", "no last newline"],
+)
+def test_a_rebuilds_sha256sums_in_other_bytes_fails(tmp_path, variant, reformat) -> None:
+    """The implementation review's I2: SHA256SUMS is compared as bytes, with only the exception
+    lines' digests replaced."""
+    a = _set(tmp_path / "a", _files(0))
+    b = _set(tmp_path / "b", _files(variant))
+    (b / "SHA256SUMS").write_bytes(reformat((b / "SHA256SUMS").read_bytes()))
+    with pytest.raises(compare_sets.Differs, match="SHA256SUMS"):
         compare_sets.compare_sets(a, b)
 
 

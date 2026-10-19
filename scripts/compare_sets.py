@@ -9,8 +9,8 @@ REBUILT is a folder holding the rebuild's SHA256SUMS, and either the rebuilt fil
 
 They are the same bytes when:
 - every file of SET hashes to its line of SET's SHA256SUMS;
-- the rebuild's SHA256SUMS has the same lines, in order, but the lines of the artifacts that
-  recipes/same_bytes_exceptions.toml names, which may differ;
+- the rebuild's SHA256SUMS is the set's, byte for byte, but the digests on the lines of the
+  artifacts that recipes/same_bytes_exceptions.toml names, which may differ;
 - each rebuilt file whose line differs hashes to that line (a stale or mixed-up file proves
   nothing) and passes scripts/same_bytes.py against SET's file;
 - given --wheels, the two wheels hold the same entries in the same order with the same metadata
@@ -161,6 +161,20 @@ def compare_sets(
             f"{name}: the same bytes but where {len(named)} named functions open a try_table"
         )
         own[ARTIFACTS + name] = ((set_dir / name).read_bytes(), data)
+    # The rebuild's SHA256SUMS as bytes: the set's, with only the exception lines' digests
+    # replaced (the implementation review's I2: line ends and the last newline count).
+    expected = set_text
+    for (want, name), (have, _) in zip(set_sums, rebuilt_sums, strict=True):
+        if want != have:
+            line = f"{want}  {name}\n".encode()
+            if expected.count(line) != 1:
+                raise Differs(f"the set's SHA256SUMS has no single line for {name}")
+            expected = expected.replace(line, f"{have}  {name}\n".encode())
+    if rebuilt_text != expected:
+        raise Differs(
+            "the rebuild's SHA256SUMS is not the set's bytes with only the exception lines' "
+            "digests replaced"
+        )
     if own:
         own[ARTIFACTS + "SHA256SUMS"] = (set_text, rebuilt_text)
     if zips:

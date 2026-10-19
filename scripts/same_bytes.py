@@ -555,6 +555,19 @@ def compare(a: bytes, b: bytes, functions: tuple[str, ...]) -> list[str]:
         except Refused as e:
             raise Refused(e.rule, f"{name}: {e}") from None
         named.append(name)
+    # Everything outside the named bodies' contents must be byte for byte the same too: the code
+    # section's own size, each body's size LEB and the section's place (the implementation
+    # review's I1). So A with B's differing named bodies spliced in must be B, and two files that
+    # differ where no named body does are refused.
+    if not named:
+        raise Refused(3, "the files differ outside every function body (sizes or framing)")
+    spliced = bytearray(a)
+    for k in range(len(ma.bodies)):
+        if ma.body(k) != mb.body(k):
+            start, end = ma.bodies[k]
+            spliced[start:end] = mb.body(k)
+    if bytes(spliced) != b:
+        raise Refused(3, "bytes outside the named bodies differ (a size LEB or the framing)")
     return named
 
 

@@ -1254,6 +1254,13 @@ def rebuild_gate_errors(text: str) -> list[str]:
         errors.append("same-bytes does not check out the run's commit without credentials")
     if not any(f.get("uses", "").startswith("astral-sh/setup-uv@") for f in fields):
         errors.append("same-bytes does not set up uv for compare_sets.py")
+    # No step of the job may be switched off (the implementation review's I3): the whole
+    # comparison is one step, and a step-level if: would skip it and still pass.
+    errors += [
+        f"same-bytes has a step-level if: ({f.get('name') or f.get('uses') or 'a step'})"
+        for f in fields
+        if "if" in f
+    ]
     # Each job's id into its own runner's folder, pairing artifact-ids with the path: of the same
     # with: block; one job's id in the other's folder fails (spec 057's Confirmation, M5).
     fetched = {

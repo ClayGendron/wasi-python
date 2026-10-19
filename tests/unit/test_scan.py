@@ -1046,6 +1046,15 @@ BAD_REBUILDS = [
         ("same-bytes", "      - uses: astral-sh/setup-uv@", "      - uses: astral-sh/other@"),
         "same-bytes does not set up uv",
     ),
+    # The implementation review's I3: a step-level if: switching the comparison off.
+    (
+        (
+            "same-bytes",
+            "      - name: Every rebuild is the set and its wheel the wheel\n",
+            "      - name: Every rebuild is the set and its wheel the wheel\n        if: false\n",
+        ),
+        "same-bytes has a step-level if:",
+    ),
     # The Confirmation's M5: the x86_64 job's id downloaded into the arm64 job's folder.
     (
         ("same-bytes", ARM_SUMS, ARM_SUMS.replace("arm64", "x86-64")),
