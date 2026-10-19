@@ -240,18 +240,22 @@ def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
 # current folder; a rooted `\x` against the current drive; a single trailing period trimmed from
 # each segment and trailing spaces and periods from the last; a reserved device name in the last
 # segment is the device. A verbatim `\\?\` path is taken literally. Identities are `(1, n)`.
+# Spec 077: the reserved names are Microsoft's and CPython's `ntpath` together, matched
+# upper-cased as CPython matches them, and a segment that holds a reserved character names
+# nothing (Win32's ERROR_INVALID_NAME).
 _WIN_FOLDERS = [
     "c:\\", "c:\\b", "c:\\b\\a", "c:\\b\\a ", "c:\\b\\a \\x", "c:\\b\\sub", "c:\\b\\sub\\x",
     "c:\\b\\x", "c:\\b\\a.", "c:\\b\\a.\\x", "c:\\b\\nul", "c:\\b\\nul\\x", "c:\\b\\.hidden",
     "c:\\b\\v1.2", "c:\\b\\cache", "c:\\b\\cache\\made", "d:\\", "d:\\work", "d:\\work\\proj",
-    "d:\\work\\proj\\sub", "\\\\srv\\share", "\\\\srv\\share\\x",
+    "d:\\work\\proj\\sub", "\\\\srv\\share", "\\\\srv\\share\\x", "c:\\b\\com0",
 ]  # fmt: skip
 _WIN_TREE = {path: (1, n) for n, path in enumerate(_WIN_FOLDERS, 1)}
 _WIN_FILES = {"c:\\b\\f.txt": (1, 100)}
 _WIN_LINKS = {"c:\\b\\link": (1, 200)}
 _WIN_CWD = {"C:": "C:\\b", "D:": "D:\\work\\proj"}
-_WIN_DEVICES = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10))}
-_WIN_DEVICES |= {f"lpt{i}" for i in range(1, 10)}
+_WIN_DEVICES = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+_WIN_DEVICES |= {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
+_WIN_CHARS = set('"*<>?|' + "".join(map(chr, range(32))))
 
 
 def _win_resolve(s: str) -> str | None:
@@ -284,8 +288,10 @@ def _win_resolve(s: str) -> str | None:
             out.append(seg[:-1] if seg.endswith(".") else seg)
     if out and last_kept:
         out[-1] = out[-1].rstrip(" .")
-        if out[-1].split(".")[0].rstrip(" ").lower() in _WIN_DEVICES:
+        if out[-1].split(".")[0].rstrip(" ").upper() in _WIN_DEVICES:
             return None
+    if any(_WIN_CHARS.intersection(seg) for seg in out):
+        return None
     if not out:
         return (drive if drive.startswith("\\\\") else drive + "\\").lower()
     return (drive + "\\" + "\\".join(out)).lower()
@@ -349,7 +355,8 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
     Win32 model above. `..` is taken on the folders walked (refused after a missing folder or a
     file); a name Windows rewrites (a `:`, a trailing space or period, a reserved device name) is
     refused before it is opened; a rooted path takes the current drive; a drive's root keeps its
-    separator; and no `..` leaks a handle."""
+    separator; and no `..` leaks a handle. Spec 077, criterion 1: the superscript device names,
+    the console names and the reserved characters are refused the same way, and `COM0` is not."""
     fake = _WinFake()
     fake.install(monkeypatch)
 
@@ -394,6 +401,7 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
     walked_to("C:/b/sub/x/", r"C:\b\sub\x")
     walked_to(r"C:\b\.hidden", r"C:\b\.hidden")  # a period inside a name is no rewrite
     walked_to(r"C:\b\v1.2", r"C:\b\v1.2")
+    walked_to(r"C:\b\COM0", r"C:\b\COM0")  # spec 077: no source reserves COM0
     # The pre-build review's two cases (F1), and the rest of the names Windows rewrites: each is
     # refused before anything is opened for it.
     before = len(fake.opened)
@@ -411,9 +419,22 @@ def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
         (r"C:\b\Com1.log", True),
         (r"C:\b\LPT9", True),
         (r"C:\b\aux .x", True),
+        # Spec 077: Microsoft's superscript names, CPython's console names and reserved
+        # characters; the three roots still to be made are refused before anything is made.
+        ("C:\\b\\new\\COM\u00b9", True),
+        (r"C:\b\new\CONIN$", True),
+        (r"C:\b\new\a*b", True),
+        ("C:\\b\\com\u00b2\\x", False),
+        ("C:\\b\\Com\u00b3.log", False),
+        ("C:\\b\\LPT\u00b9", False),
+        ("C:\\b\\lpt\u00b2 .x", True),
+        ("C:\\b\\lpt\u00b3.txt", True),
+        (r"C:\b\conout$.log", False),
     ]:
         refused(path, rewrites, may_make)
     rewritten = ("D:sub", "a ", "a.", "...", "::", "new.", "NUL", "nul", "Com1", "LPT9", "aux")
+    rewritten += ("COM\u00b9", "CONIN$", "a*b", "com\u00b2", "Com\u00b3", "LPT\u00b9")
+    rewritten += ("lpt\u00b2", "lpt\u00b3", "conout$")
     assert not [p for p in fake.opened[before:] if p.rsplit("\\", 1)[-1].startswith(rewritten)]
 
 
@@ -448,6 +469,25 @@ def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
     assert accepted + refused == 16_653 and accepted > 600 and refused > 15_000, (accepted, refused)
 
 
+@pytest.mark.skipif(sys.version_info < (3, 13), reason="ntpath.isreserved is new in Python 3.13")
+def test_a_rewritten_name_is_one_ntpath_refuses() -> None:
+    """Spec 077, Decision 4: the Windows walk refuses exactly the names Python's own
+    `ntpath.isreserved` refuses, for one path component, over every name of one to three pieces
+    (a leading `x\\` keeps `ntpath` from reading `D:` as a drive)."""
+    import itertools
+    import ntpath
+
+    pieces = ["", ".", "..", " ", "a", "nul", "NUL", "com\u00b9", "LPT\u00b3", "conin$"]
+    pieces += ["CONOUT$", "com0", "com10", "x*y", "a\x01", "D:", "?", "|", "<", '"', ".txt"]
+    pieces += [" .x", "con\u0131n$", "\u0131", "K", "s"]
+    names = ["".join(c) for k in (1, 2, 3) for c in itertools.product(pieces, repeat=k)]
+    names = [n for n in names if n]  # 18,275 spellings (16,175 distinct)
+    differ = [n for n in names if runner._rewritten(n) != ntpath.isreserved("x\\" + n)]
+    assert not differ, sorted(map(ascii, set(differ)))[:8]
+    refused = sum(map(runner._rewritten, names))
+    assert len(names) == 18_275 and 0 < refused < len(names), (len(names), refused)
+
+
 RAW = r"""(module
   (import "wasi_snapshot_preview1" "path_open"
     (func $po (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
@@ -467,7 +507,7 @@ RAW = r"""(module
   (func (export "write") (param i32) (result i32)
     (call $fw (local.get 0) (i32.const 200) (i32.const 1) (i32.const 208)))
   (func (export "read") (param i32) (result i32)
-    (call $fd (local.get 0) (i32.const 400) (i32.const 1) (i32.const 408))))"""
+    (call $fd (local.get 0) (i32.const 200) (i32.const 1) (i32.const 208))))"""
 EPERM, ENOTSUP = 63, 58
 READ, WRITE, ALL = 1 << 1, 1 << 6, (1 << 29) - 1
 TRUNC = 8
@@ -478,7 +518,8 @@ def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
     makes a read-only grant (`fs_mutable=False`); fd 4 is a writable control. A descriptor used
     in a mode it was not opened for is refused with the host's errno, per system (spec 076,
     Decision 4): a write through the grant's read descriptor, and a read through a write-only
-    descriptor of the writable grant."""
+    descriptor of the writable grant. The read asks for two real bytes, and a control read through
+    the same export, its count and buffer zeroed first, shows it does (spec 077, Decision 1)."""
     ro, rw = tmp_path / "ro", tmp_path / "rw"
     ro.mkdir()
     rw.mkdir()
@@ -518,6 +559,14 @@ def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
     assert ex["write"](store, ro_fd) == 0
     assert (ro / "f.txt").read_text() == "original" and (rw / "w.txt").read_text() == "XX"
     assert sorted(p.name for p in ro.iterdir()) == ["f.txt"]
+    # The control: the same `read` export through a descriptor that may read reads two bytes.
+    memory.write(store, bytes(4), 208)
+    memory.write(store, bytes(2), 300)
+    errno, r_fd = open_(3, "f.txt", 0, READ)
+    assert errno == 0
+    assert ex["read"](store, r_fd) == 0
+    assert struct.unpack("<I", bytes(memory.read(store, 208, 212)))[0] == 2
+    assert bytes(memory.read(store, 300, 302)) == b"or"
 
 
 @pytest.mark.skipif(not POSIX, reason="POSIX permission bits")

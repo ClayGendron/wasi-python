@@ -732,9 +732,12 @@ cache, so that it is judged as it will be):
   missing folder or after a file is refused, on every system (`new/../x`
   "does not exist"). On Windows a name that holds `:` or ends in a space or
   a period, or a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to
-  `COM9`, `LPT1` to `LPT9`, with or without an extension), is refused
-  anywhere in the path, since Windows rewrites such names; a folder so named
-  cannot be granted on Windows. A path rooted with no drive (`\data`) takes
+  `COM9`, `COM¹` to `COM³`, `LPT1` to `LPT9`, `LPT¹` to `LPT³`, with or
+  without an extension), is refused anywhere in the path, since Windows
+  rewrites such names; so is a name that holds `<`, `>`, `"`, `|`, `?`, `*`
+  or a control character, which Windows rejects, and, out of caution,
+  `CONIN$` and `CONOUT$`, as Python's `ntpath.isreserved` refuses them. A
+  folder so named cannot be granted on Windows. A path rooted with no drive (`\data`) takes
   the drive of the current folder;
 - a read-only grant inside a writable one, or `root`, is refused: the guest
   could change it through the other;

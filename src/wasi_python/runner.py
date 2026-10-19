@@ -1696,25 +1696,26 @@ def _win_open(path: str, follow: bool, access: int = _WALK_ACCESS) -> tuple[int,
 # miss a true ancestor (the pre-build review's F1). A `:` is a drive letter (`C:\\b\\D:x` is
 # drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
 # and not others; a reserved device name, with or without an extension, is the device, and a
-# root still to be made through one would fail after the folders before it were made.
+# root still to be made through one would fail after the folders before it were made. The set is
+# exactly Python's own `ntpath.isreserved` for one component (spec 077), which the runner cannot
+# call on 3.11 and 3.12: Microsoft's reserved names ("Naming Files, Paths, and Namespaces"), with
+# the superscript `COM¹` to `LPT³` it reserves "in every directory"; `CONIN$` and `CONOUT$`,
+# which CPython refuses "on the side of caution"; and the characters Windows rejects in a name.
 _WIN_DEVICES = frozenset(
-    [
-        "con",
-        "prn",
-        "aux",
-        "nul",
-        *(f"com{i}" for i in range(1, 10)),
-        *(f"lpt{i}" for i in range(1, 10)),
-    ]
+    {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
+    | {f"{p}{c}" for p in ("COM", "LPT") for c in "123456789\u00b9\u00b2\u00b3"}
 )
+_WIN_RESERVED_CHARS = frozenset('"*<>?|' + "".join(map(chr, range(32))))
 
 
 def _rewritten(name: str) -> bool:
-    """Whether Windows rewrites this one path component (never `.` or `..`)."""
+    """Whether Windows rewrites or rejects this one path component (never `.` or `..`): the same
+    answer as `ntpath.isreserved` gives for it (spec 077, Decision 3)."""
     if name in (".", ".."):
         return False
-    stem = name.split(".", 1)[0].rstrip(" ").lower()
-    return ":" in name or name.endswith((" ", ".")) or stem in _WIN_DEVICES
+    if ":" in name or _WIN_RESERVED_CHARS.intersection(name) or name.endswith((" ", ".")):
+        return True
+    return name.split(".", 1)[0].rstrip(" ").upper() in _WIN_DEVICES
 
 
 def _drive_folder(drive: str) -> str:
