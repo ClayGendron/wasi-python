@@ -1196,3 +1196,28 @@ def test_the_cap_on_open_files_in_a_session(guest_workdir) -> None:
         )
         assert s.ended is None
     assert s.shutdown_outcome == "finished"
+
+
+def test_a_closer_sees_the_openings_context(fake_clock) -> None:
+    """The re-review's F7: an ending on a closer thread runs the embedder's code in a copy of the
+    context taken when the session was opened."""
+    import contextvars
+
+    wp = _wp()
+    from wasi_python import runner
+
+    request = contextvars.ContextVar("request", default="none")
+    seen: list[str] = []
+
+    def host(frame: bytes) -> bytes:
+        seen.append(request.get())
+        return b""
+
+    token = request.set("opening")
+    s = wp.Session(host=host, shutdown_s=60)
+    request.reset(token)
+    s.run("import atexit, _host\natexit.register(_host.call, b'x')")
+    fake_clock[0] = 900.0
+    runner._reap(900.0)
+    s.close()
+    assert (s.ended, s.shutdown_outcome, seen) == ("idle", "finished", ["opening"])

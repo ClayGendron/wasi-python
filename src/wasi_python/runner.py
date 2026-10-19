@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import atexit
 import collections
+import contextvars
 import ctypes
 import errno
+import functools
 import hashlib
 import io
 import itertools
@@ -3771,6 +3773,7 @@ class _State:
         self.walked: list[_Walked] = []
         self.home: tuple[str, Path | None, int | None] | None = None
         self.counted = False
+        self.context: Any = None  # a copy taken at the opening, for a closer (the re-review's F7)
 
 
 _sessions_lock = threading.Lock()
@@ -3837,8 +3840,10 @@ def _mark(state: _State, reason: str) -> bool:
 
 def _start_closer(state: _State) -> None:
     """Run an ending the runner starts itself on a closer thread of its own (Decision 8)."""
+    context = state.context.copy() if state.context is not None else None
+    target = _end_quietly if context is None else functools.partial(context.run, _end_quietly)
     thread = threading.Thread(
-        target=_end_quietly, args=(state,), name="wasi-python-session-closer", daemon=True
+        target=target, args=(state,), name="wasi-python-session-closer", daemon=True
     )
     with _closers_lock:
         _closers.add(thread)
@@ -3847,7 +3852,7 @@ def _start_closer(state: _State) -> None:
 
 def _end_quietly(state: _State) -> None:
     try:
-        _end_session(state)
+        _end_session(state, _CLOSER)
     except BaseException:
         pass  # a closer has no caller: the outcome records the stop
     finally:
@@ -3874,7 +3879,7 @@ def _reap(now: float) -> float | None:
             if state.ended is not None or state.busy or due is None:
                 continue
             if now >= due[0]:
-                start = _mark(state, due[1])
+                start = _mark(state, due[1]) and _claim_ending(state, _CLOSER)
             else:
                 left = due[0] - now
                 wait = left if wait is None else min(wait, left)
@@ -3916,7 +3921,7 @@ def _reaper_loop(
 
 def _end_dropped(state: _State) -> None:
     with state.lock:
-        start = not state.busy and _mark(state, "closed")
+        start = not state.busy and _mark(state, "closed") and _claim_ending(state, _CLOSER)
     if start:
         _start_ending(state)
 
@@ -3947,7 +3952,8 @@ def _sessions_at_exit() -> None:
         states += [s for s in _sessions if s not in states]
     for state in states:
         with state.lock:
-            start = _mark(state, "closed") and not state.busy
+            _mark(state, "closed")
+            start = not state.busy and _claim_ending(state, _CLOSER)
         if start:
             _start_closer(state)
     for state in states:
@@ -3958,15 +3964,33 @@ def _sessions_at_exit() -> None:
         closer.join()
 
 
-def _end_session(state: _State) -> BaseException | None:
+_CLOSER = -1  # `ending_thread` while a closer thread is being started for the ending
+
+
+def _claim_ending(state: _State, owner: int) -> bool:
+    """Under the state's lock: name who runs the ending, if no one does yet (Decision 8: a turn's
+    thread, `close()`'s caller, or a closer)."""
+    if state.ending_thread is not None or state.done.is_set():
+        return False
+    state.ending_thread = owner
+    return True
+
+
+def _end_session(state: _State, owner: int | None = None) -> BaseException | None:
     """The ending (Decision 8), on this thread, once: Python's shutdown if it applies, then
-    everything released. Returns what the embedder's code raised during it (a Ctrl-C, a
-    `BaseException`), for a caller to raise; another thread's ending returns None at once."""
+    everything released. `owner` is the claim the caller holds (`_claim_ending`); with none, it
+    claims the ending if no one has. Returns what the embedder's code raised during it (a
+    Ctrl-C, a `BaseException`), for a caller to raise; another's ending returns None at once."""
     me = threading.get_ident()
     with state.lock:
-        if state.ending_thread is not None or state.done.is_set():
+        if state.done.is_set():
             return None
-        state.ending_thread = me
+        if state.ending_thread is None:
+            state.ending_thread = me
+        elif owner is not None and state.ending_thread == owner:
+            state.ending_thread = me
+        else:
+            return None
     outcome, raised = "skipped", None
     try:
         try:
@@ -4055,8 +4079,8 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
             state.table.walk()  # spec 034's walk, its Ctrl-C check included (the re-review's F4)
         return outcome, raised
     finally:
-        if tool_host is not None and state.c.get("tool_loop_given") is not None:
-            tool_host.close()
+        if tool_host is not None and state.private_loop is not None:
+            state.private_loop.cancel_tasks()  # the loop itself closes with the session's release
 
 
 def _release_session(state: _State) -> None:
@@ -4331,14 +4355,10 @@ def _session_turn(
                 _mark(state, "error")
             elif done is not None:
                 if done.returned:
-                    state.sound = True
-                elif done.completed.fuel_used is not None or done.cause is not None:
-                    state.sound = False
-                if done.cause in ("exit", "quit") or done.completed.trapped is not None:
-                    if done.completed.trapped is not None and done.cause is None:
-                        pass  # a cancel set before any guest code: the session is untouched
-                    else:
-                        state.sound = done.returned
+                    state.sound = True  # the export returned: the interpreter is sound
+                elif done.cause is not None:
+                    state.sound = False  # a trap, an exit or a stop unwound it
+                # else a cancel set before any guest code: the session is untouched
                 if done.cause is not None:
                     _mark(state, done.cause)
                 elif (
@@ -4349,9 +4369,10 @@ def _session_turn(
             state.busy = False
             state.turn_thread = None
             state.last_end = _session_clock()
-            ended = state.ended is not None
+            me = threading.get_ident()
+            ended = state.ended is not None and _claim_ending(state, me)  # the turn's thread (F3)
         if ended:
-            raised = _end_with_ctrl_c(state)
+            raised = _end_with_ctrl_c(state, me)
             if error is None and raised is not None:
                 error = raised
     finally:
@@ -4362,11 +4383,11 @@ def _session_turn(
     return done.completed
 
 
-def _end_with_ctrl_c(state: _State) -> BaseException | None:
+def _end_with_ctrl_c(state: _State, owner: int | None = None) -> BaseException | None:
     """The ending on this thread, with Ctrl-C deferred as for a turn; what it raised, if any."""
     try:
         with _deferred_ctrl_c():
-            raised = _end_session(state)
+            raised = _end_session(state, owner)
     except BaseException as e:
         return e
     return raised
@@ -4673,6 +4694,7 @@ class Session:
         if not isinstance(snapshot, bool):
             raise TypeError(f"snapshot must be a bool; got {type(snapshot).__name__}")
         state.c, state.host = c, host
+        state.context = contextvars.copy_context()
         self._state = state
         _open_session(wt, c, host, snapshot, cache_dir, artifacts, state)
         state.opened = state.last_end = _session_clock()
@@ -4752,12 +4774,13 @@ class Session:
         first: its ending runs here, or on a closer thread) or RuntimeError (a turn running)."""
         state = self._state
         now = _session_clock()
+        me = threading.get_ident()
         with state.lock:
             expired = False
             if state.ended is None:
                 due = _due(state)
                 if due is not None and now >= due[0] and not state.busy:
-                    expired = _mark(state, due[1])
+                    expired = _mark(state, due[1]) and _claim_ending(state, me if here else _CLOSER)
             ended = state.ended
             if ended is None:
                 if state.busy:
@@ -4767,7 +4790,7 @@ class Session:
                 return
         if expired:
             if here:
-                raised = _end_with_ctrl_c(state)
+                raised = _end_with_ctrl_c(state, me)
                 if raised is not None:
                     raise raised
             else:
@@ -4933,12 +4956,13 @@ class Session:
             return
         me = threading.get_ident()
         with state.lock:
-            here = _mark(state, "closed") and not state.busy
+            _mark(state, "closed")
             if state.turn_thread == me or state.ending_thread == me:
-                return
-        if here or not state.busy:
+                return  # inside the session's own turn or ending: it ends as that returns
+            here = not state.busy and _claim_ending(state, me)
+        if here:
             self._finalizer.detach()
-            raised = _end_with_ctrl_c(state)
+            raised = _end_with_ctrl_c(state, me)
             if raised is not None:
                 raise raised
         state.done.wait()
