@@ -2050,3 +2050,488 @@ def test_a_guest_at_the_open_file_cap_leaves_the_host_descriptors(guest_workdir)
     assert json.loads(lines[0]) == [0, "1024 33 ok\n"], (lines, out.stderr[-1500:])
     assert out.returncode == 0, out.stderr[-1500:]
     assert json.loads(lines[1]) == [0, "1500\n"], lines
+
+
+# Deep recursion (spec 071). The guest narrows CPython's C-stack guard to 128 KiB of linear memory,
+# so recursion that runs through Python code raises RecursionError while wasmtime's 512 KiB native
+# stack still has room. Each program recurses until it is stopped and prints its exception's class,
+# the depth it reached and the message.
+COUNTED = """
+n = 0
+def mark():
+    global n
+    n += 1
+{body}
+try:
+    go()
+    print("none", n)
+except RecursionError as e:
+    print("RecursionError", n, e)
+except MemoryError as e:
+    print("MemoryError", n, e)
+"""
+STACK_OVERFLOW = r"Stack overflow \(used 11[23] kB\)"  # the window less CPython's 16 KiB guard
+PARSER = r"Parser stack overflowed"
+
+# id: (the recursive body, its class, the message's pattern, the depth floor, runs on plain too)
+RECURSIONS = {
+    "repr": (
+        "class A:\n    def __repr__(self):\n        mark(); return repr(self)\ndef go(): repr(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        190,
+        True,
+    ),
+    "getattr": (
+        "class A:\n    def __getattr__(self, k):\n        mark(); return getattr(self, k)\n"
+        "def go(): A().x",
+        "RecursionError",
+        STACK_OVERFLOW,
+        190,
+        False,
+    ),
+    "eq": (
+        "class A:\n    def __eq__(self, o):\n        mark(); return self == o\ndef go(): A() == 1",
+        "RecursionError",
+        STACK_OVERFLOW,
+        215,
+        False,
+    ),
+    "hash": (
+        "class A:\n    def __hash__(self):\n        mark(); return hash(self)\ndef go(): hash(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        195,
+        False,
+    ),
+    "str": (
+        "class A:\n    def __str__(self):\n        mark(); return str(self)\ndef go(): str(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        210,
+        False,
+    ),
+    "format": (
+        "class A:\n    def __format__(self, s):\n        mark(); return format(self, s)\n"
+        "def go(): format(A(), '')",
+        "RecursionError",
+        STACK_OVERFLOW,
+        155,
+        False,
+    ),
+    "iter": (
+        "class A:\n    def __iter__(self):\n        mark(); return iter(self)\ndef go(): iter(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        190,
+        False,
+    ),
+    "len": (
+        "class A:\n    def __len__(self):\n        mark(); return len(self)\ndef go(): len(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        205,
+        False,
+    ),
+    "map": (
+        "def go():\n    f = lambda x: (mark(), list(map(f, [x])))\n    f(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        195,
+        False,
+    ),
+    "sorted-key": (
+        "def k(x):\n    mark(); return sorted([1], key=k)\ndef go(): k(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        45,
+        False,
+    ),
+    "cmp-to-key": (
+        "import functools\ndef c(a, b):\n    mark(); sorted([1, 2], key=functools.cmp_to_key(c))"
+        "\n    return 0\ndef go(): c(1, 2)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        45,
+        False,
+    ),
+    "min-key": (
+        "def k(x):\n    mark(); return min([1, 2], key=k)\ndef go(): k(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        165,
+        False,
+    ),
+    "reduce": (
+        "import functools\ndef f(a, b):\n    mark(); return functools.reduce(f, [1, 2])\n"
+        "def go(): f(0, 0)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        220,
+        False,
+    ),
+    "lru-cache": (
+        "import functools\n@functools.lru_cache(None)\ndef f(k):\n    mark(); return f(k + 1)\n"
+        "def go(): f(0)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        185,
+        True,
+    ),
+    "heapq": (  # the thinnest margin measured: 1.12 on x86_64 (spec 071, Decision 1)
+        "import heapq\nclass A:\n    def __lt__(self, o):\n        mark(); h = [A(), A()]; "
+        "heapq.heapify(h); return True\ndef go(): heapq.heapify([A(), A()])",
+        "RecursionError",
+        STACK_OVERFLOW,
+        215,
+        True,
+    ),
+    "repr-list-of-self": (
+        "class M:\n    def __repr__(s):\n        mark(); return repr([s])\ndef go(): repr(M())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        180,
+        False,
+    ),
+    "pickle-reduce": (
+        "import pickle\nclass A:\n    def __reduce__(self):\n        mark(); return (A, (A(),))\n"
+        "def go(): pickle.dumps(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        145,
+        False,
+    ),
+    "pickle-partial": (  # spec 065's test_recursive_pickle
+        "import functools, pickle\ndef go():\n    f = functools.partial(min)\n"
+        "    f.__setstate__((f, (), {}, {}))\n    pickle.dumps(f)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        0,
+        True,
+    ),
+    "re-sub": (
+        "import re\ndef r(m):\n    mark(); return re.sub('a', r, 'a')\ndef go(): r(None)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        130,
+        False,
+    ),
+    "np-vectorize": (
+        "import numpy as np\ndef f(x):\n    mark(); return np.vectorize(f)(np.array([x]))[0]\n"
+        "def go(): f(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        85,
+        False,
+    ),
+    "np-frompyfunc": (
+        "import numpy as np\ndef f(x):\n    mark(); return u(x)\nu = np.frompyfunc(f, 1, 1)\n"
+        "def go(): f(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        45,
+        False,
+    ),
+    "np-apply-along-axis": (
+        "import numpy as np\ndef f(a):\n    mark(); return np.apply_along_axis(f, 0, a)\n"
+        "def go(): f(np.zeros(1))",
+        "RecursionError",
+        STACK_OVERFLOW,
+        90,
+        False,
+    ),
+    "pd-map": (
+        "import pandas as pd\ndef f(x):\n    mark(); return pd.Series([x]).map(f).iloc[0]\n"
+        "def go(): f(1)",
+        "RecursionError",
+        STACK_OVERFLOW,
+        140,
+        False,
+    ),
+    "eval": (
+        "def f():\n    mark(); return eval('f()')\ndef go(): f()",
+        "MemoryError",
+        PARSER,
+        160,
+        False,
+    ),
+    "exec": (
+        "def f():\n    mark(); exec('f()')\ndef go(): f()",
+        "MemoryError",
+        PARSER,
+        140,
+        False,
+    ),
+    "setrecursionlimit": (
+        "import sys\nsys.setrecursionlimit(100000)\nclass A:\n    def __repr__(self):\n"
+        "        mark(); return repr(self)\ndef go(): repr(A())",
+        "RecursionError",
+        STACK_OVERFLOW,
+        190,
+        True,
+    ),
+}
+RECURSION_CASES = [
+    pytest.param(name, snap, id=f"{name}-{'snapshot' if snap else 'plain'}")
+    for name, (_, _, _, _, plain) in RECURSIONS.items()
+    for snap in ([True, False] if plain else [True])
+]
+PICKLE_DEEP = """import os, pickle
+l = []
+for i in range(100000): l = [l]
+try:
+    pickle.dumps(l)
+    print("none", flush=True)
+except RecursionError as e:
+    print("RecursionError", 0, e, flush=True)
+os._exit(0)
+"""
+
+
+def _recursed(done) -> tuple[str, int, str]:
+    assert (done.exit_code, done.trapped) == (0, None), (done.trapped, done.stderr[-600:])
+    kind, depth, message = (done.stdout.decode().strip().splitlines()[-1].split(" ", 2) + [""])[:3]
+    return kind, int(depth), message
+
+
+@pytest.mark.parametrize(("name", "snapshot"), RECURSION_CASES)
+def test_recursion_through_python_raises(name: str, snapshot: bool, metric) -> None:
+    """Spec 071, criterion 1: recursion that runs through Python code raises (RecursionError, or
+    the parser's MemoryError for eval and exec) instead of trapping, at no less than the measured
+    depth less a tenth; the depths are set by linear bytes, so they hold on every host."""
+    import re
+
+    body, kind, pattern, floor, _ = RECURSIONS[name]
+    done = _run()(["-c", COUNTED.format(body=body)], snapshot=snapshot, fuel=10**11)
+    metric("fuel", done.fuel_used)
+    got, depth, message = _recursed(done)
+    assert got == kind and re.match(pattern, message), (got, depth, message)
+    assert depth >= floor, (depth, floor)
+
+
+def test_pickling_a_deep_list_raises(metric) -> None:
+    """Spec 071, criterion 1: pickle.dumps of a 100,000-deep nested list raises RecursionError
+    (ratio 2.7, inside the window's reach); the structure is never freed (os._exit)."""
+    done = _run()(["-c", PICKLE_DEEP], fuel=10**11)
+    metric("fuel", done.fuel_used)
+    assert (done.exit_code, done.trapped) == (0, None), (done.trapped, done.stderr[-600:])
+    assert done.stdout.decode().startswith("RecursionError 0 Stack overflow"), done.stdout
+
+
+@BOTH
+def test_the_c_stack_window_is_128_kib(snapshot: bool) -> None:
+    """Spec 071, criterion 2: the guard fires 112 kB in, the 128 KiB window less CPython's
+    16 KiB; on the snapshot this also shows the window survived Wizer."""
+    done = _run()(["-c", COUNTED.format(body=RECURSIONS["repr"][0])], snapshot=snapshot)
+    got, depth, message = _recursed(done)
+    assert (got, message) == ("RecursionError", "Stack overflow (used 112 kB)"), (got, message)
+
+
+def test_recursion_raises_on_wasmtimes_default_engine(guest_workdir) -> None:
+    """Spec 071, criterion 3: on an engine left at wasmtime's defaults (no fuel, no epochs, no
+    stack set), as another embedder's would be, the window still makes recursion raise. Its own
+    engine and module; the driver's cached engine is never swapped."""
+    needs.need("artifact dir", "snapshot binary", "stdlib zip", "manifest", "wasmtime-py")
+    import wasmtime as wt
+
+    from harness import guest as driver
+
+    d = paths.artifact_dir()
+    assert d is not None
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    engine = wt.Engine(wt.Config())
+    module = wt.Module.from_file(engine, str(d / "python-snapshot.wasm"))
+    for name in ("repr", "lru-cache", "np-frompyfunc"):
+        r = driver.run(
+            d / "python-snapshot.wasm",
+            ["-c", COUNTED.format(body=RECURSIONS[name][0])],
+            workdir=guest_workdir,
+            python_version=m.python,
+            stdlib=d / "python-stdlib.zip",
+            own=(engine, module),
+        )
+        assert (r.exit_code, r.trapped) == (0, None), (name, r.describe())
+        assert r.text.split()[0] == "RecursionError", (name, r.text)
+
+
+def test_recursion_raises_under_the_wasmtime_cli(guest_workdir) -> None:
+    """Spec 071, criterion 3: the pinned wasmtime CLI, at its own default stack, runs the plain
+    binary's __repr__ recursion to a RecursionError (it used to exit 134 on the trap)."""
+    needs.need("artifact dir", "plain binary", "stdlib zip", "manifest", "wasmtime cli")
+    d = paths.artifact_dir()
+    assert d is not None
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    major, minor = m.python.split(".")[:2]
+    lib = Path(tempfile.mkdtemp(prefix="cli-lib-", dir=guest_workdir))
+    root = Path(tempfile.mkdtemp(prefix="cli-root-", dir=guest_workdir))
+    (lib / f"python{major}{minor}.zip").write_bytes((d / "python-stdlib.zip").read_bytes())
+    out = subprocess.run(
+        [
+            str(paths.wasmtime_cli()),
+            "run",
+            "-W",
+            "exceptions=y,unknown-imports-trap=y",
+            "-C",
+            "cache=n",
+            "--dir",
+            f"{lib}::/usr/local/lib",
+            "--dir",
+            f"{root}::/",
+            "--invoke",
+            "run",
+            str(d / "python.wasm"),
+            "-c",
+            COUNTED.format(body=RECURSIONS["repr"][0]),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    assert out.returncode == 0, (out.returncode, out.stderr[-800:])
+    assert "RecursionError" in out.stdout, out.stdout[-400:]
+
+
+# Spec 071, criterion 4: what still traps at 512 KiB, with the lower host's numbers. Each kind has a
+# depth that completes on both hosts with a quarter of room, and one (or an unbounded recursion)
+# well past both edges that ends in the named trap. The structure is built, acted on, and either
+# freed (`del`) or left (os._exit) so freeing is not what is measured.
+LIMIT_FREE = (
+    "import os\nN = {n}\nx = []\nfor i in range(N): x = [x]\ndel x\nprint('ok', flush=True)"
+)
+LIMIT_LOADS = (
+    "import json, os\nN = {n}\nx = json.loads('[' * N + ']' * N)\nprint('ok', flush=True)\n"
+    "os._exit(0)"
+)
+LIMIT_PARENS = (
+    "import os\nN = {n}\neval('(' * N + '1' + ')' * N)\nprint('ok', flush=True)\nos._exit(0)"
+)
+LIMIT_EXPAT = """import os
+import xml.parsers.expat as E
+N, d = {n}, 0
+def h(name, attrs):
+    global d
+    d += 1
+    if d < N:
+        p = E.ParserCreate(); p.StartElementHandler = h; p.Parse('<a/>', True)
+h(None, None)
+print('ok', d, flush=True)
+os._exit(0)
+"""
+LIMIT_SAX = """import os, xml.sax
+N, d = {n}, 0
+class H(xml.sax.ContentHandler):
+    def startElement(self, n, a):
+        global d
+        d += 1
+        if d < N: xml.sax.parseString(b'<a/>', H())
+try:
+    xml.sax.parseString(b'<a/>', H())
+    print('ok', d, flush=True)
+except RecursionError:
+    print('RecursionError', d, flush=True)
+os._exit(0)
+"""
+LIMIT_ETREE = """import os, xml.etree.ElementTree as ET
+N, d = {n}, 0
+class T(ET.TreeBuilder):
+    def start(self, tag, attrs):
+        global d
+        d += 1
+        if d < N: ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))
+        return super().start(tag, attrs)
+try:
+    ET.fromstring('<a/>', parser=ET.XMLParser(target=T()))
+    print('ok', d, flush=True)
+except RecursionError:
+    print('RecursionError', d, flush=True)
+os._exit(0)
+"""
+UNBOUNDED = 10**6
+# kind: (program, completes at, traps at, a RecursionError may stand for the trap on some hosts)
+LIMITS = {
+    "free-list": (LIMIT_FREE, 1500, 3300, False),
+    "json-loads": (LIMIT_LOADS, 800, 2000, False),
+    "eval-parens": (LIMIT_PARENS, 100, 199, False),
+    "expat-handler": (LIMIT_EXPAT, 60, UNBOUNDED, False),
+    "sax-handler": (LIMIT_SAX, 60, UNBOUNDED, True),
+    "etree-target": (LIMIT_ETREE, 60, UNBOUNDED, True),
+}
+
+
+@pytest.mark.parametrize("kind", list(LIMITS))
+def test_deep_data_limits(kind: str) -> None:
+    """Spec 071, criterion 4: the README's limits hold. The completing depth completes; the deep
+    one ends in the trap "stack overflow" (or, for SAX and ElementTree targets, a RecursionError
+    on hosts with smaller frames), the host survives, and the next call works."""
+    run = _run()
+    program, good, deep, either = LIMITS[kind]
+    ok = run(["-c", program.format(n=good)])
+    assert (ok.exit_code, ok.trapped) == (0, None), (ok.trapped, ok.stderr[-600:])
+    assert ok.stdout.decode().startswith("ok"), ok.stdout
+    bad = run(["-c", program.format(n=deep)])
+    if either and bad.trapped is None:
+        assert bad.stdout.decode().startswith("RecursionError"), bad.stdout
+    else:
+        assert (bad.exit_code, bad.trapped) == (None, "stack overflow"), (bad, bad.stdout)
+    after = run(["-c", "print('ok')"])
+    assert (after.exit_code, after.stdout) == (0, b"ok\n"), after
+
+
+# Spec 071, criterion 11: on Linux, a faulthandler change after the first engine used to turn any
+# guest trap into the host's death (SIGILL), and a late Python signal handler for SIGILL into a
+# hang; the runner now refuses such a call before the guest runs. Each order in a fresh process.
+FAULTHANDLER_CHILD = r"""
+import faulthandler, signal, sys
+import wasi_python
+order = sys.argv[1]
+if order in ("before", "before-then-disable"):
+    faulthandler.enable()
+warm = wasi_python.run(["-c", "print(1)"])
+assert warm.exit_code == 0, warm
+if order == "after":
+    faulthandler.enable()
+elif order == "before-then-disable":
+    faulthandler.disable()
+elif order == "after-then-disable":
+    faulthandler.enable()
+    faulthandler.disable()
+elif order == "signal-after":
+    signal.signal(signal.SIGILL, lambda *a: None)
+deep = "import json\njson.loads('[' * 200000 + ']' * 200000)"
+try:
+    done = wasi_python.run(["-c", deep])
+    print("trapped", done.trapped, flush=True)
+except RuntimeError as e:
+    print("refused", e, flush=True)
+"""
+REFUSED_ON_LINUX = {"after", "before-then-disable", "signal-after"}
+
+
+@pytest.mark.parametrize(
+    "order",
+    ["none", "before", "after", "before-then-disable", "after-then-disable", "signal-after"],
+)
+def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
+    """Spec 071, criterion 11 (and spec 063's build review, F3): whatever the order of the host's
+    faulthandler (or a Python signal handler) and the first run, the host survives: on Linux a call
+    after a late change is refused with RuntimeError naming the remedy, on macOS and Windows the
+    trap is returned. The "after" row is also a second entry into the guest in one process."""
+    _run()
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONFAULTHANDLER"}
+    try:
+        out = subprocess.run(
+            [sys.executable, "-c", FAULTHANDLER_CHILD, order],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"{order}: the host hung on the guest's trap")
+    assert out.returncode == 0, (order, out.returncode, out.stderr[-800:])
+    line = out.stdout.strip().splitlines()[-1]
+    if sys.platform.startswith("linux") and order in REFUSED_ON_LINUX:
+        assert line.startswith("refused wasmtime's handler for SIG"), line
+        assert "faulthandler.disable() undoes it" in line, line
+    else:
+        assert line == "trapped stack overflow", line

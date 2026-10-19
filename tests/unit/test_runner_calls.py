@@ -228,3 +228,80 @@ def test_a_handler_a_host_sets_during_a_call_is_kept(default_ctrl_c) -> None:
     with runner._deferred_ctrl_c():
         signal.signal(signal.SIGINT, hosts)
     assert signal.getsignal(signal.SIGINT) is hosts
+
+
+class RecordingConfig:
+    """A wasmtime.Config stand-in that keeps what is set on it."""
+
+    def __init__(self) -> None:
+        self.set: dict[str, object] = {}
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if name == "set":
+            object.__setattr__(self, name, value)
+        else:
+            self.set[name] = value
+
+
+def test_the_runner_states_its_wasm_stack(monkeypatch) -> None:
+    """Spec 071, criterion 5: the runner's engines are made with a 512 KiB wasm stack, stated,
+    beside fuel (for the metered one) and epoch interruption."""
+    made: list[RecordingConfig] = []
+    monkeypatch.setattr(wt, "Config", RecordingConfig)
+    monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
+    monkeypatch.setattr(runner, "_engines", {})
+    monkeypatch.setitem(runner._fork, "used", runner._fork["used"])
+    runner._engine(True)
+    runner._engine(False)
+    assert runner._WASM_STACK == 512 * 1024
+    assert [c.set for c in made] == [
+        {"consume_fuel": True, "epoch_interruption": True, "max_wasm_stack": 512 * 1024},
+        {"consume_fuel": False, "epoch_interruption": True, "max_wasm_stack": 512 * 1024},
+    ]
+
+
+def test_the_guest_driver_makes_the_runners_engine(monkeypatch) -> None:
+    """Spec 071, criterion 5 (Decision 3): the judge's driver makes the runner's engine: fuel,
+    epoch interruption and the same 512 KiB stack, so checks see the frames `run` gives."""
+    from harness import guest
+
+    made: list[RecordingConfig] = []
+    monkeypatch.setattr(wt, "Config", RecordingConfig)
+    monkeypatch.setattr(wt, "Engine", lambda cfg: made.append(cfg) or object())
+    monkeypatch.setattr(guest, "_engine", None)
+    guest.engine()
+    assert made[0].set == {
+        "consume_fuel": True,
+        "epoch_interruption": True,
+        "max_wasm_stack": 512 * 1024,
+    }
+
+
+def test_trap_handlers_ready_reads_each_signal_by_load_base() -> None:
+    """Spec 071, criterion 11's unit: on Linux the check names the first signal whose handler
+    lies outside wasmtime's library (compared by load base), counts SIGFPE on x86_64 only, treats
+    any failure as not ready, and reads nothing on macOS or Windows."""
+    import signal
+
+    ours = 0x7000
+
+    def bases(**by_name: int | None):
+        table = {int(getattr(signal, k)): v for k, v in by_name.items()}
+        return lambda signum: table.get(signum, ours)
+
+    def ready(machine="x86_64", platform="linux", handler_base=None, wasmtime_base=lambda: ours):
+        return runner._trap_handlers_ready(platform, machine, handler_base, wasmtime_base)
+
+    assert ready(handler_base=bases()) is None
+    assert ready(handler_base=bases(SIGILL=0x9000)) == "SIGILL"
+    assert ready(handler_base=bases(SIGSEGV=None, SIGILL=0x9000)) == "SIGSEGV"
+    assert ready(handler_base=bases(SIGFPE=None)) == "SIGFPE"
+    assert ready("aarch64", handler_base=bases(SIGFPE=None)) is None
+    assert ready(handler_base=bases(), wasmtime_base=lambda: None) == "SIGSEGV"
+
+    def broken(signum: int) -> int | None:
+        raise OSError("dladdr failed")
+
+    assert ready(handler_base=broken) == "SIGSEGV"
+    for platform in ("darwin", "win32"):
+        assert ready(platform=platform, handler_base=broken) is None

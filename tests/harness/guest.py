@@ -29,6 +29,8 @@ from typing import Any
 import wasmtime as wt
 
 DEFAULT_FUEL = 2 * 10**11
+WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
+EPOCH_FAR_OFF = 2**40  # epochs are on, as in the runner, but no check is ever interrupted
 UNMETERED = 2**63 - 1  # instantiation's own memory fill is not the guest's work (spec 008)
 NO_HOST = -1
 HOST_FAULT = -2
@@ -44,10 +46,15 @@ MPL_DATA_MEMBER = "matplotlib/mpl-data.zip"
 
 
 def engine() -> wt.Engine:
+    """The runner's engine (spec 071, Decision 3): fuel, epoch interruption and the runner's
+    512 KiB wasm stack, so a check sees the native frames and the stack `run` gives. Epoch checks
+    make Cranelift's frames larger; a driver without them measured more room than users get."""
     global _engine
     if _engine is None:
         cfg = wt.Config()
         cfg.consume_fuel = True
+        cfg.epoch_interruption = True
+        cfg.max_wasm_stack = WASM_STACK
         _engine = wt.Engine(cfg)
     return _engine
 
@@ -161,10 +168,15 @@ def run(
     preopens: list[tuple[str, Path, bool]] | None = None,
     preopens_first: bool = False,
     mpl_data: bool = False,
+    own: tuple[wt.Engine, wt.Module] | None = None,
 ) -> Result:
     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
-    matplotlib's data is granted read-only beside the stdlib zip."""
-    mod = module(wasm)
+    matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
+    made at wasmtime's defaults (no fuel, no epochs) and the module compiled on it, as another
+    embedder's would be (spec 071, criterion 3); the driver's cached engine is never swapped, and
+    such a run counts no fuel."""
+    eng, mod = own if own is not None else (engine(), module(wasm))
+    counted = own is None
     how = kind(mod)
     base = workdir / f"run-{next(_run_ids)}"
     root, io = base / "root", base / "io"
@@ -184,8 +196,10 @@ def run(
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(content.encode() if isinstance(content, str) else content)
 
-    store = wt.Store(engine())
-    store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation (spec 008)
+    store = wt.Store(eng)
+    if counted:
+        store.set_fuel(UNMETERED)  # fuel is metered from the end of instantiation (spec 008)
+        store.set_epoch_deadline(EPOCH_FAR_OFF)
     wasi = wt.WasiConfig()
     wasi.argv = [ARGV0, *argv]
     wasi.env = sorted((env or {}).items())
@@ -211,7 +225,7 @@ def run(
     wasi.stderr_file = str(io / "stderr")
     store.set_wasi(wasi)
 
-    linker = wt.Linker(engine())
+    linker = wt.Linker(eng)
     linker.define_wasi()
     linker.allow_shadowing = True
     i32, i64 = wt.ValType.i32(), wt.ValType.i64()
@@ -268,8 +282,9 @@ def run(
     metered = False  # the budget is set only once instantiation has succeeded
     try:
         inst = linker.instantiate(store, mod)
-        store.set_fuel(fuel)
-        metered = True
+        if counted:
+            store.set_fuel(fuel)
+            metered = True
         exports = inst.exports(store)
         if how == "command":
             exports["_start"](store)

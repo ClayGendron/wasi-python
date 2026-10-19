@@ -126,6 +126,7 @@ SPEC_002 = "context/specifications/002-the-progress-harness.md"
 SPEC_004 = "context/specifications/004-alpha-releases.md"  # the release workflow builds both
 SPEC_050 = "context/specifications/050-numpy-and-pandas-own-tests-under-the-runtime.md"
 SPEC_059 = "context/specifications/059-the-x86-64-rebuild-runs-natively.md"
+SPEC_071 = "context/specifications/071-deep-recursion-raises-recursionerror.md"
 
 SOURCE_COMPONENTS = (
     "cpython",
@@ -168,6 +169,7 @@ VOCABULARY: dict[str, Need] = {
         Need("git history", _git_history, "-"),
         Need("upstream kit", _upstream_kit, SPEC_050),  # tests/upstream/fetch.py fetches it
         Need("compile records", _compile_records, SPEC_059),
+        Need("wasmtime cli", lambda: paths.wasmtime_cli() is not None, SPEC_071),
         *[Need(f"source tree {c}", _source_tree(c), REPRO_MEMO) for c in SOURCE_COMPONENTS],
     ]
 }

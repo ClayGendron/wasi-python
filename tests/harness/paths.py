@@ -158,6 +158,12 @@ def artifact_dir() -> Path | None:
     return d if (d / "MANIFEST").is_file() else None
 
 
+def wasmtime_cli() -> Path | None:
+    """The pinned wasmtime CLI step 10 unpacked under build/tools (spec 071, criterion 3)."""
+    found = sorted((BUILD / "tools").glob("wasmtime-v*/wasmtime"))
+    return found[0] if found else None
+
+
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
