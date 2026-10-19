@@ -1,0 +1,258 @@
+bringing up nodes...
+bringing up nodes...
+
+FFFFF.FF.x                                                               [100%]
+=================================== FAILURES ===================================
+______________ test_every_program_runs_in_an_unfrozen_main[plain] ______________
+[gw2] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-ainmwh7i')
+which = 'plain'
+
+    @BINARY
+    def test_every_program_runs_in_an_unfrozen_main(guest_workdir, which) -> None:
+        """Spec 073, check C: in every mode the program's globals are __main__'s, in a collector
+        generation (gc.get_objects() never lists the frozen one), with native CPython's names and
+        values; and an atexit handler finds the program's __main__ (its class pickles), with
+        `__file__` gone after a script, as CPython removes it, and kept for a directory and -m."""
+        import ast
+    
+        for mode in RUN_MODES:
+            done, _ = _in_mode(guest_workdir, mode, MAIN_PROBE, which)
+            assert done.exit_code == 0, (mode, done)
+            lines = done.stdout.decode().splitlines()
+            assert len(lines) == 2, (mode, done)
+            unfrozen, is_main, names, values = ast.literal_eval(lines[0])
+            names_want, values_want, file_at_exit = MAIN_WANT[mode]
+            got = (unfrozen, is_main, names, values, ast.literal_eval(lines[1]))
+            want = (True, True, names_want, values_want, ("atexit", True, True, file_at_exit))
+>           assert got == want, (mode, got, want)
+E           AssertionError: ('script', (True, True, ['__builtins__', '__doc__', '__file__', '__loader__', '__name__', '__package__', ...], ('__mai...'__package__', ...], ('__main__', '/prog.py', None, None, 'SourceFileLoader', 'module'), ('atexit', True, True, None)))
+E           assert (True, True, ...Error', None)) == (True, True, ..., True, None))
+E             
+E             At index 3 diff: ('__main__', '/prog.py', '', None, 'NoneType', 'dict') != ('__main__', '/prog.py', None, None, 'SourceFileLoader', 'module')
+E             Use -v to get more diff
+
+tests/checks/test_v1_4_embedding.py:256: AssertionError
+____________ test_run_keeps_unclosed_files_in_every_mode[snapshot] _____________
+[gw1] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-27t1c4sp')
+which = 'snapshot'
+
+    @BINARY
+    def test_run_keeps_unclosed_files_in_every_mode(guest_workdir, which) -> None:
+        """Spec 073, check A: in every mode run has, a file left open beside a function keeps its
+        bytes, and a ZipFile left open is finalized (its directory written), as native CPython's
+        `python -c`, `python prog.py`, `python dir` and `python -m` keep them. A script and -m ran in
+        runpy's temporary module and lost them on both binaries; -c and stdin lost them on the
+        snapshot. Records no fuel: run answers entropy and clocks from the host."""
+        import zipfile
+    
+        findings = []
+        for mode in RUN_MODES:
+            done, root = _in_mode(guest_workdir, mode, UNCLOSED, which)
+            assert done.exit_code == 0, (mode, done)
+            out = root / "out.txt"
+            kept = out.stat().st_size if out.exists() else 0
+            if kept != 100:
+                findings.append(f"{mode}: a file left open kept {kept} of 100 bytes")
+            done, root = _in_mode(guest_workdir, mode, ZIP_LEFT_OPEN, which)
+            assert done.exit_code == 0, (mode, done)
+            try:
+                with zipfile.ZipFile(root / "out.zip") as z:
+                    ok = z.read("a.txt") == b"x" * 100
+            except (OSError, zipfile.BadZipFile):
+                ok = False
+            if not ok:
+                findings.append(f"{mode}: a zip left open is unreadable")
+>       assert not findings, scan.report(findings, "unclosed file")
+E       AssertionError: unclosed file: 7 finding(s), digest 98d69ac9128b: -c: a file left open kept 0 of 100 bytes; -c: a zip left open is unreadable; stdin: a file left open kept 0 of 100 bytes; stdin: a zip left open is unreadable; script: a file left open kept 0 of 100 bytes; +2 more
+E       assert not ['-c: a file left open kept 0 of 100 bytes', '-c: a zip left open is unreadable', 'stdin: a file left open kept 0 of 1...is unreadable', 'script: a file left open kept 0 of 100 bytes', 'directory: a file left open kept 0 of 100 bytes', ...]
+
+tests/checks/test_v1_4_embedding.py:192: AssertionError
+______________ test_run_keeps_unclosed_files_in_every_mode[plain] ______________
+[gw0] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-o_ijv5pw')
+which = 'plain'
+
+    @BINARY
+    def test_run_keeps_unclosed_files_in_every_mode(guest_workdir, which) -> None:
+        """Spec 073, check A: in every mode run has, a file left open beside a function keeps its
+        bytes, and a ZipFile left open is finalized (its directory written), as native CPython's
+        `python -c`, `python prog.py`, `python dir` and `python -m` keep them. A script and -m ran in
+        runpy's temporary module and lost them on both binaries; -c and stdin lost them on the
+        snapshot. Records no fuel: run answers entropy and clocks from the host."""
+        import zipfile
+    
+        findings = []
+        for mode in RUN_MODES:
+            done, root = _in_mode(guest_workdir, mode, UNCLOSED, which)
+            assert done.exit_code == 0, (mode, done)
+            out = root / "out.txt"
+            kept = out.stat().st_size if out.exists() else 0
+            if kept != 100:
+                findings.append(f"{mode}: a file left open kept {kept} of 100 bytes")
+            done, root = _in_mode(guest_workdir, mode, ZIP_LEFT_OPEN, which)
+            assert done.exit_code == 0, (mode, done)
+            try:
+                with zipfile.ZipFile(root / "out.zip") as z:
+                    ok = z.read("a.txt") == b"x" * 100
+            except (OSError, zipfile.BadZipFile):
+                ok = False
+            if not ok:
+                findings.append(f"{mode}: a zip left open is unreadable")
+>       assert not findings, scan.report(findings, "unclosed file")
+E       AssertionError: unclosed file: 3 finding(s), digest e6d5609d06d8: script: a file left open kept 0 of 100 bytes; directory: a file left open kept 0 of 100 bytes; -m: a file left open kept 0 of 100 bytes
+E       assert not ['script: a file left open kept 0 of 100 bytes', 'directory: a file left open kept 0 of 100 bytes', '-m: a file left open kept 0 of 100 bytes']
+
+tests/checks/test_v1_4_embedding.py:192: AssertionError
+____________ test_every_program_runs_in_an_unfrozen_main[snapshot] _____________
+[gw0] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-o_ijv5pw')
+which = 'snapshot'
+
+    @BINARY
+    def test_every_program_runs_in_an_unfrozen_main(guest_workdir, which) -> None:
+        """Spec 073, check C: in every mode the program's globals are __main__'s, in a collector
+        generation (gc.get_objects() never lists the frozen one), with native CPython's names and
+        values; and an atexit handler finds the program's __main__ (its class pickles), with
+        `__file__` gone after a script, as CPython removes it, and kept for a directory and -m."""
+        import ast
+    
+        for mode in RUN_MODES:
+            done, _ = _in_mode(guest_workdir, mode, MAIN_PROBE, which)
+            assert done.exit_code == 0, (mode, done)
+            lines = done.stdout.decode().splitlines()
+            assert len(lines) == 2, (mode, done)
+            unfrozen, is_main, names, values = ast.literal_eval(lines[0])
+            names_want, values_want, file_at_exit = MAIN_WANT[mode]
+            got = (unfrozen, is_main, names, values, ast.literal_eval(lines[1]))
+            want = (True, True, names_want, values_want, ("atexit", True, True, file_at_exit))
+>           assert got == want, (mode, got, want)
+E           AssertionError: ('-c', (False, True, ['__builtins__', '__doc__', '__loader__', '__name__', '__package__', '__spec__'], ('__main__', No...__name__', '__package__', '__spec__'], ('__main__', None, None, None, 'type', 'module'), ('atexit', True, True, None)))
+E           assert (False, True,..., True, None)) == (True, True, ..., True, None))
+E             
+E             At index 0 diff: False != True
+E             Use -v to get more diff
+
+tests/checks/test_v1_4_embedding.py:256: AssertionError
+______________ test_run_keeps_a_file_the_stdlib_reaches[snapshot] ______________
+[gw2] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest = <function guest.<locals>.run at 0x10a40c720>, which = 'snapshot'
+
+    @BINARY
+    def test_run_keeps_a_file_the_stdlib_reaches(guest, which) -> None:
+        """Spec 073, check D: a file a program hangs on a pre-imported stdlib class or module keeps
+        its bytes. On the snapshot those are frozen; run undoes the freeze before it finalizes, as a
+        session's close does (the owner's answer to question 103), through a reference taken at build
+        time, so a program that replaces gc.unfreeze cannot stop it."""
+        findings = []
+        for case, program in FROZEN_HEAP.items():
+            r = guest(which, ["-c", program])
+            assert r.exit_code == 0, (case, r.describe())
+            out = r.root / "out.txt"
+            kept = out.stat().st_size if out.exists() else 0
+            if kept != 100:
+                findings.append(f"{which}: {FROZEN_HEAP_FINDING[case]} kept {kept} of 100 bytes")
+>       assert not findings, scan.report(findings, "frozen heap")
+E       AssertionError: frozen heap: 3 finding(s), digest cfb1afda1a48: snapshot: a file reached from a patched stdlib class kept 0 of 100 bytes; snapshot: a file stored on a stdlib module kept 0 of 100 bytes; snapshot: a file reached after gc.unfreeze was replaced kept 0 of 100 bytes
+E       assert not ['snapshot: a file reached from a patched stdlib class kept 0 of 100 bytes', 'snapshot: a file stored on a stdlib module kept 0 of 100 bytes', 'snapshot: a file reached after gc.unfreeze was replaced kept 0 of 100 bytes']
+
+tests/checks/test_v1_4_embedding.py:303: AssertionError
+__________ test_module_and_directory_errors_read_as_native[snapshot] ___________
+[gw1] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-27t1c4sp')
+which = 'snapshot'
+
+    @BINARY
+    def test_module_and_directory_errors_read_as_native(guest_workdir, which) -> None:
+        """Spec 073, check E: -m of a missing module and a directory without __main__.py print
+        CPython's own lines, and an -m traceback shows CPython's runpy frames, now that -m runs as
+        runpy._run_module_as_main and a directory as CPython runs it."""
+        from wasi_python import Grant
+    
+        run = _runner()
+        snapshot = which == "snapshot"
+        code = _folder(guest_workdir, {"boom.py": "def f():\n    return 1 / 0\n\n\nf()\n"})
+        grants = [Grant(code, "/code")]
+        done = run(["-m", "nope"], grants=grants, import_path=["/code"], snapshot=snapshot)
+>       assert (done.exit_code, done.stderr) == (
+            1,
+            b"/usr/local/bin/python.wasm: No module named nope\n",
+        ), done
+E       AssertionError: Completed(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):
+E           File "<frozen runpy>", line 225, in ...dule_details
+E         ImportError: No module named nope
+E         ', trapped=None, fuel_used=None, truncated=(), files=None, tools=None)
+E       assert (1, b'Traceba...named nope\n') == (1, b'/usr/lo...named nope\n')
+E         
+E         At index 1 diff: b'Traceback (most recent call last):\n  File "<frozen runpy>", line 225, in run_module\n  File "<frozen runpy>", line 144, in _get_module_details\nImportError: No module named nope\n' != b'/usr/local/bin/python.wasm: No module named nope\n'
+E         Use -v to get more diff
+
+tests/checks/test_v1_4_embedding.py:326: AssertionError
+____________ test_module_and_directory_errors_read_as_native[plain] ____________
+[gw2] darwin -- Python 3.14.2 /Users/claygendron/Git/Repos/wasi_python-073/.venv/bin/python
+
+guest_workdir = PosixPath('/Users/claygendron/Git/Repos/wasi_python-073/build/harness/guest-ainmwh7i')
+which = 'plain'
+
+    @BINARY
+    def test_module_and_directory_errors_read_as_native(guest_workdir, which) -> None:
+        """Spec 073, check E: -m of a missing module and a directory without __main__.py print
+        CPython's own lines, and an -m traceback shows CPython's runpy frames, now that -m runs as
+        runpy._run_module_as_main and a directory as CPython runs it."""
+        from wasi_python import Grant
+    
+        run = _runner()
+        snapshot = which == "snapshot"
+        code = _folder(guest_workdir, {"boom.py": "def f():\n    return 1 / 0\n\n\nf()\n"})
+        grants = [Grant(code, "/code")]
+        done = run(["-m", "nope"], grants=grants, import_path=["/code"], snapshot=snapshot)
+>       assert (done.exit_code, done.stderr) == (
+            1,
+            b"/usr/local/bin/python.wasm: No module named nope\n",
+        ), done
+E       AssertionError: Completed(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):
+E           File "<frozen runpy>", line 225, in ...dule_details
+E         ImportError: No module named nope
+E         ', trapped=None, fuel_used=None, truncated=(), files=None, tools=None)
+E       assert (1, b'Traceba...named nope\n') == (1, b'/usr/lo...named nope\n')
+E         
+E         At index 1 diff: b'Traceback (most recent call last):\n  File "<frozen runpy>", line 225, in run_module\n  File "<frozen runpy>", line 144, in _get_module_details\nImportError: No module named nope\n' != b'/usr/local/bin/python.wasm: No module named nope\n'
+E         Use -v to get more diff
+
+tests/checks/test_v1_4_embedding.py:326: AssertionError
+=================================== progress ===================================
+wasi_python v1: 2/10 pass · 1 gap · 0 blocked · 7 fail   (unit suite 0/0)
+  v1.1  artifact set         0/0   
+  v1.2  portable, sealed     0/0   
+  v1.3  data stack           0/0   
+  v1.4  embedding            2/10  gap 1 fail 7
+  v1.5  rebuild from pins    0/0   
+  rules constitution rules   0/0   
+gaps close with: roadmap 1
+next: context/roadmap.md (spec 073, run keeps an unclosed file's buffered bytes) (unblocks 0, closes 1)
+FAIL tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main[plain] — AssertionError: ('script', (True, True, ['__builtins__', '__doc__', '__file__', '__loader__', '__name__', '__package__', ...], ('__mai...'__package__', ...], ('
+FAIL tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main[snapshot] — AssertionError: ('-c', (False, True, ['__builtins__', '__doc__', '__loader__', '__name__', '__package__', '__spec__'], ('__main__', No...__name__', '__package__
+FAIL tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native[plain] — AssertionError: Completed(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):
+FAIL tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native[snapshot] — AssertionError: Completed(exit_code=1, stdout=b'', stderr=b'Traceback (most recent call last):
+FAIL tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_the_stdlib_reaches[snapshot] — AssertionError: frozen heap: 3 finding(s), digest cfb1afda1a48: snapshot: a file reached from a patched stdlib class kept 0 of 100 bytes; snapshot: a file store
+FAIL tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode[plain] — AssertionError: unclosed file: 3 finding(s), digest e6d5609d06d8: script: a file left open kept 0 of 100 bytes; directory: a file left open kept 0 of 100 bytes;
+FAIL tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode[snapshot] — AssertionError: unclosed file: 7 finding(s), digest 98d69ac9128b: -c: a file left open kept 0 of 100 bytes; -c: a zip left open is unreadable; stdin: a file lef
+ratchet vs dfbf8e044f: lost 0 · absent 0 · unrun 0 · gained 1 · grew 0 · upstream unrun 32 · not selected 536 · judge changed: tests/checks/test_v1_4_embedding.py
+not machine-checked: publication · copying from prior art · numpy's 25 files that need its C test modules (number 89) · pandas beyond eight groups
+  licence content of wasi-libc, llvm-runtimes and unpinned components (presence only) · bundled sub-licences · files a build adds inside a source tree · source pragmas and compiler options outside the scanned records (same-bytes is the backstop)
+=========================== short test summary info ============================
+FAILED tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main[plain]
+FAILED tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode[snapshot]
+FAILED tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode[plain]
+FAILED tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main[snapshot]
+FAILED tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_the_stdlib_reaches[snapshot]
+FAILED tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native[snapshot]
+FAILED tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native[plain]
+7 failed, 2 passed, 1 xfailed in 40.99s

@@ -116,14 +116,233 @@ UNCLOSED = "f = open('/out.txt', 'w')\nf.write('x' * 100)\ndef g():\n    pass\n"
 @BINARY
 def test_run_keeps_an_unclosed_files_bytes(guest, which) -> None:
     """A file a program leaves open is flushed when the interpreter finalizes, as in native
-    CPython. On the snapshot the bytes are lost when __main__ defines a function (the frozen
-    heap; spec 055's addendum, P10b; spec 069's review, F1): a known gap until spec 073."""
+    CPython. The snapshot lost the bytes when __main__ defined a function, its frozen __main__
+    never freed (spec 055's addendum, P10b; spec 069's review, F1); spec 073 runs every program
+    in a fresh __main__ and unfreezes the heap before finalizing."""
     r = guest(which, ["-c", UNCLOSED])
     assert r.exit_code == 0, r.describe()
     out = r.root / "out.txt"
     kept = out.stat().st_size if out.exists() else 0
     findings = [] if kept == 100 else [f"{which}: a file left open kept {kept} of 100 bytes"]
     assert not findings, scan.report(findings, "unclosed file")
+
+
+ZIP_LEFT_OPEN = (
+    "import zipfile\n"
+    "z = zipfile.ZipFile('/out.zip', 'w')\n"
+    "z.writestr('a.txt', 'x' * 100)\n"
+    "def g():\n"
+    "    pass\n"
+)
+RUN_MODES = ("-c", "stdin", "script", "directory", "-m")
+
+
+def _in_mode(workdir: Path, mode: str, program: str, which: str, **kw):
+    """`program` through `wasi_python.run` in one of run's modes (spec 073): -c, stdin, a script
+    file, a directory holding it as __main__.py, or -m from a read-only grant on the import path.
+    Returns the result and the call's root."""
+    from wasi_python import Grant
+
+    run = _runner()
+    root = _root(workdir)
+    if mode == "-c":
+        argv = ["-c", program]
+    elif mode == "stdin":
+        argv, kw = [], {**kw, "stdin": program.encode()}
+    elif mode == "script":
+        (root / "prog.py").write_text(program)
+        argv = ["/prog.py"]
+    elif mode == "directory":
+        (root / "app").mkdir()
+        (root / "app" / "__main__.py").write_text(program)
+        argv = ["/app"]
+    else:
+        code = _folder(workdir, {"prog.py": program}, prefix="mode-")
+        argv = ["-m", "prog"]
+        kw = {**kw, "grants": [Grant(code, "/code")], "import_path": ["/code"]}
+    return run(argv, root=root, snapshot=which == "snapshot", **kw), root
+
+
+@BINARY
+def test_run_keeps_unclosed_files_in_every_mode(guest_workdir, which) -> None:
+    """Spec 073, check A: in every mode run has, a file left open beside a function keeps its
+    bytes, and a ZipFile left open is finalized (its directory written), as native CPython's
+    `python -c`, `python prog.py`, `python dir` and `python -m` keep them. A script and -m ran in
+    runpy's temporary module and lost them on both binaries; -c and stdin lost them on the
+    snapshot. Records no fuel: run answers entropy and clocks from the host."""
+    import zipfile
+
+    findings = []
+    for mode in RUN_MODES:
+        done, root = _in_mode(guest_workdir, mode, UNCLOSED, which)
+        assert done.exit_code == 0, (mode, done)
+        out = root / "out.txt"
+        kept = out.stat().st_size if out.exists() else 0
+        if kept != 100:
+            findings.append(f"{mode}: a file left open kept {kept} of 100 bytes")
+        done, root = _in_mode(guest_workdir, mode, ZIP_LEFT_OPEN, which)
+        assert done.exit_code == 0, (mode, done)
+        try:
+            with zipfile.ZipFile(root / "out.zip") as z:
+                ok = z.read("a.txt") == b"x" * 100
+        except (OSError, zipfile.BadZipFile):
+            ok = False
+        if not ok:
+            findings.append(f"{mode}: a zip left open is unreadable")
+    assert not findings, scan.report(findings, "unclosed file")
+
+
+MAIN_PROBE = """\
+import atexit, gc, pickle, sys
+class C:
+    pass
+g = globals()
+print(repr((
+    any(o is g for o in gc.get_objects()),
+    g is sys.modules['__main__'].__dict__,
+    sorted(k for k in g if k.startswith('__')),
+    (__name__, g.get('__file__'), __package__, getattr(__spec__, 'name', None),
+     type(__loader__).__name__, type(__builtins__).__name__),
+)))
+def at():
+    m = sys.modules['__main__']
+    try:
+        ok = type(pickle.loads(pickle.dumps(m.C()))).__name__ == 'C'
+    except Exception as e:
+        ok = type(e).__name__
+    print(repr(('atexit', hasattr(m, 'C'), ok, getattr(m, '__file__', None))))
+atexit.register(at)
+"""
+SIX = ["__builtins__", "__doc__", "__loader__", "__name__", "__package__", "__spec__"]
+SEVEN = sorted([*SIX, "__file__"])
+MAIN_WANT = {  # native CPython 3.15's __main__ in each mode (spec 073, Decision 2)
+    "-c": (SIX, ("__main__", None, None, None, "type", "module"), None),
+    "stdin": (SIX, ("__main__", None, None, None, "type", "module"), None),
+    "script": (
+        SEVEN,
+        ("__main__", "/prog.py", None, None, "SourceFileLoader", "module"),
+        None,
+    ),
+    "directory": (
+        SEVEN,
+        ("__main__", "/app/__main__.py", "", "__main__", "SourceFileLoader", "module"),
+        "/app/__main__.py",
+    ),
+    "-m": (
+        SEVEN,
+        ("__main__", "/code/prog.py", "", "prog", "SourceFileLoader", "module"),
+        "/code/prog.py",
+    ),
+}
+
+
+@BINARY
+def test_every_program_runs_in_an_unfrozen_main(guest_workdir, which) -> None:
+    """Spec 073, check C: in every mode the program's globals are __main__'s, in a collector
+    generation (gc.get_objects() never lists the frozen one), with native CPython's names and
+    values; and an atexit handler finds the program's __main__ (its class pickles), with
+    `__file__` gone after a script, as CPython removes it, and kept for a directory and -m."""
+    import ast
+
+    for mode in RUN_MODES:
+        done, _ = _in_mode(guest_workdir, mode, MAIN_PROBE, which)
+        assert done.exit_code == 0, (mode, done)
+        lines = done.stdout.decode().splitlines()
+        assert len(lines) == 2, (mode, done)
+        unfrozen, is_main, names, values = ast.literal_eval(lines[0])
+        names_want, values_want, file_at_exit = MAIN_WANT[mode]
+        got = (unfrozen, is_main, names, values, ast.literal_eval(lines[1]))
+        want = (True, True, names_want, values_want, ("atexit", True, True, file_at_exit))
+        assert got == want, (mode, got, want)
+
+
+FROZEN_HEAP = {  # spec 073, check D: what a program hangs on the stdlib the snapshot pre-imports
+    "a patched stdlib class": (
+        "import json\n"
+        "f = open('/out.txt', 'w')\n"
+        "f.write('x' * 100)\n"
+        "def default(self, o):\n"
+        "    return str(o)\n"
+        "json.JSONEncoder.default = default\n"
+    ),
+    "a stdlib module": (
+        "import json\njson.log = open('/out.txt', 'w')\njson.log.write('x' * 100)\n"
+    ),
+    "after gc.unfreeze was replaced": (
+        "import gc\n"
+        "gc.unfreeze = lambda: None\n"
+        "import json\n"
+        "f = open('/out.txt', 'w')\n"
+        "f.write('x' * 100)\n"
+        "def default(self, o):\n"
+        "    return str(o)\n"
+        "json.JSONEncoder.default = default\n"
+    ),
+}
+FROZEN_HEAP_FINDING = {
+    "a patched stdlib class": "a file reached from a patched stdlib class",
+    "a stdlib module": "a file stored on a stdlib module",
+    "after gc.unfreeze was replaced": "a file reached after gc.unfreeze was replaced",
+}
+
+
+@BINARY
+def test_run_keeps_a_file_the_stdlib_reaches(guest, which) -> None:
+    """Spec 073, check D: a file a program hangs on a pre-imported stdlib class or module keeps
+    its bytes. On the snapshot those are frozen; run undoes the freeze before it finalizes, as a
+    session's close does (the owner's answer to question 103), through a reference taken at build
+    time, so a program that replaces gc.unfreeze cannot stop it."""
+    findings = []
+    for case, program in FROZEN_HEAP.items():
+        r = guest(which, ["-c", program])
+        assert r.exit_code == 0, (case, r.describe())
+        out = r.root / "out.txt"
+        kept = out.stat().st_size if out.exists() else 0
+        if kept != 100:
+            findings.append(f"{which}: {FROZEN_HEAP_FINDING[case]} kept {kept} of 100 bytes")
+    assert not findings, scan.report(findings, "frozen heap")
+
+
+def _frame_names(stderr: bytes) -> list[tuple[str, str]]:
+    """The (file, function) of each frame of a traceback, in order."""
+    import re
+
+    text = stderr.decode(errors="replace")
+    return re.findall(r'^  File "([^"]+)", line \d+, in (\S+)$', text, re.M)
+
+
+@BINARY
+def test_module_and_directory_errors_read_as_native(guest_workdir, which) -> None:
+    """Spec 073, check E: -m of a missing module and a directory without __main__.py print
+    CPython's own lines, and an -m traceback shows CPython's runpy frames, now that -m runs as
+    runpy._run_module_as_main and a directory as CPython runs it."""
+    from wasi_python import Grant
+
+    run = _runner()
+    snapshot = which == "snapshot"
+    code = _folder(guest_workdir, {"boom.py": "def f():\n    return 1 / 0\n\n\nf()\n"})
+    grants = [Grant(code, "/code")]
+    done = run(["-m", "nope"], grants=grants, import_path=["/code"], snapshot=snapshot)
+    assert (done.exit_code, done.stderr) == (
+        1,
+        b"/usr/local/bin/python.wasm: No module named nope\n",
+    ), done
+    root = _root(guest_workdir)
+    (root / "empty").mkdir()
+    done = run(["/empty"], root=root, snapshot=snapshot)
+    assert (done.exit_code, done.stderr) == (
+        1,
+        b"/usr/local/bin/python.wasm: can't find '__main__' module in '/empty'\n",
+    ), done
+    done = run(["-m", "boom"], grants=grants, import_path=["/code"], snapshot=snapshot)
+    assert done.exit_code == 1, done
+    frames = _frame_names(done.stderr)
+    assert frames == [
+        ("<frozen runpy>", "_run_module_as_main"),
+        ("<frozen runpy>", "_run_code"),
+        ("/code/boom.py", "<module>"),
+        ("/code/boom.py", "f"),
+    ], (frames, done.stderr)
 
 
 @BINARY
