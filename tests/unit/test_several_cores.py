@@ -470,6 +470,16 @@ def test_the_upstream_scopes_are_exact() -> None:
             by_hand[f"{plugin.UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"] = (
                 f"upstream {k.group}"
             )
+        # CPython's named entries read their group's run (spec 065, Decision 21)
+        for kind, entries in (
+            ("deselected", c.deselected),
+            ("environment", c.environment),
+            ("host", c.host_dependent),
+        ):
+            for e in entries:
+                by_hand[f"{plugin.UPSTREAM_FILE}::test_upstream_{kind}[{e.group}-{e.id}]"] = (
+                    f"upstream {e.group}"
+                )
     assert scopes == by_hand
     groups = {g for c in configs.values() for g in c.groups}
     assert set(scopes.values()) == {f"upstream {g}" for g in groups}
@@ -485,7 +495,10 @@ def test_the_collected_upstream_ids_fall_in_their_groups(pytester) -> None:
     scopes = plugin.upstream_scopes(configs)
     groups = {g for c in configs.values() for g in c.groups}
     classes = sum(len(c.expected) for c in configs.values())
-    assert len(scopes) == len(groups) + classes
+    entries = sum(
+        len(c.deselected) + len(c.environment) + len(c.host_dependent) for c in configs.values()
+    )
+    assert len(scopes) == len(groups) + classes + entries
     for c in configs.values():
         for k in c.expected:
             node = f"{plugin.UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"

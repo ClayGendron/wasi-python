@@ -19,9 +19,8 @@ kind = "suite"
 kind = "suite"
 
 [package.python]
-kind = "later"
-reason = "CPython's own suite (python -m test) gates 0.1.0 (the owner, question 99); it is not run yet"
-closes_with = "spec 065"
+# CPython's own suite (regrtest), five groups in tests/upstream/python.toml (spec 065).
+kind = "suite"
 
 [package.wasi-libc]
 kind = "via"

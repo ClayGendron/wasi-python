@@ -31,7 +31,8 @@ STATES = ("pass", "fail", "gap", "blocked", "deselected", "unrun")
 FUEL_TOLERANCE = 1e-4  # 0.01%: the clock-and-random memo
 NOT_MACHINE_CHECKED = (
     "publication · copying from prior art · numpy's 25 files that need its C test modules "
-    "(number 89) · pandas beyond eight groups",
+    "(number 89) · pandas beyond eight groups · CPython's tests that need its C test modules "
+    "(number 101) · CPython under -bb",
     "licence content of wasi-libc, llvm-runtimes and unpinned components "
     "(presence only) · "
     "bundled sub-licences · files a build adds inside a source tree · "
@@ -310,6 +311,18 @@ def area_counts(checks: dict) -> dict[str, tuple[int, int]]:
     return out
 
 
+def no_trap_here(checks: dict) -> list[str]:
+    """The open trap entries (spec 065, Decision 1) whose check ran here and recorded no trap: a
+    fixed trap asks to be seen, never red (the confirmation's C4)."""
+    out = []
+    for node, c in sorted(checks.items()):
+        if "::test_upstream_trap[" in node and (c.get("facts") or {}).get("trap") == (
+            "no trap on this host"
+        ):
+            out.append(node.rsplit("[", 1)[1].rstrip("]"))
+    return out
+
+
 def render(
     run: dict, ratchet: Ratchet | None, providers: dict[str, str], red: list[str]
 ) -> list[str]:
@@ -359,6 +372,9 @@ def render(
     if work:
         doc, _ = sorted(work.items(), key=_desc)[0]
         lines.append(f"next: {doc} (unblocks {unblocks[doc]}, closes {closers.get(doc, 0)})")
+    quiet = no_trap_here(checks)
+    if quiet:
+        lines.append("trap entries with no trap here: " + " · ".join(quiet))
     # The ratchet line, every FEWER line (spec 050, Decision 12), the verdict and the "not
     # machine-checked" lines are never cut. LOST, ABSENT and GREW lines give way first, then the
     # FAIL lines, then the lines above the tail (the build review's F3).

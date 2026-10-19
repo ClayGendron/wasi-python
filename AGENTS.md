@@ -96,7 +96,8 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    commit it accepts.
 4. **Never weaken the judge to get a pass.** Do not edit a check, a
    golden output, `tests/known_gaps.toml`, the upstream suites'
-   allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`)
+   allowances (`tests/upstream/*.toml`, `tests/upstream/expected/`, CPython's plan
+   `tests/upstream/python/`)
    or `context/progress/` to turn a run green. Changing the judge is its own change, with a
    reason, and the review sees the judge-hash line.
 5. **No pass is lost quietly.** A run that loses an accepted pass or

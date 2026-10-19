@@ -107,3 +107,373 @@ check = "tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_b
 match = "1 finding(s), digest 7da6e52329c1"
 reason = "run on the snapshot loses an unclosed file's buffered bytes when __main__ defines a function (the frozen heap; found by spec 055's addendum, P10b; restated by spec 069's review, F1)"
 closes_with = "context/roadmap.md (spec 073, run keeps an unclosed file's buffered bytes)"
+
+# CPython's own tests (spec 065): each class of known failures, listed by test id in
+# tests/upstream/expected/cpython-*/<class>.txt; each open trap entry (one constant finding on
+# every host, Decision 1); the deselection and the environment entries (Decision 21).
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-ctypes]"
+match = "14 finding(s), digest e5305896a0bd"
+reason = "no ctypes calls: the stand-in imports, so the tests run, and every call raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-mmap]"
+match = "31 finding(s), digest afbce22c68fd"
+reason = "no mmap: pandas imports mmap unconditionally, so the stand-in imports, and every map raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-mmap-stand-in-surface]"
+match = "4 finding(s), digest a3076c8f4fc9"
+reason = "the mmap stand-in lacks mmap.error and ACCESS_DEFAULT, and its class takes no arguments (spec 074)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-sqlite-lock]"
+match = "7 finding(s), digest 74d4534c4da7"
+reason = "SQLite's lock directory gives a second connection 'database is locked' (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-no-file-modes]"
+match = "1 finding(s), digest 01e36a39fff2"
+reason = "WASI has no permission bits: os.chmod succeeds and changes nothing (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stdlib-zip]"
+match = "4 finding(s), digest 37525fa585e5"
+reason = "the stdlib is bytecode in a zip: linecache has no source for it (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stdlib-zip-error]"
+match = "2 finding(s), digest 0ffb2138513d"
+reason = "the stdlib is bytecode in a zip: importlib.resources' compiled-package test finds no source package (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stepped-clock]"
+match = "3 finding(s), digest 7e3a6520f67e"
+reason = "the judge's stepped clock (spec 002, Decision 9): file times are the host's, time.time() starts at 2026-01-01"
+closes_with = "context/specifications/002-the-progress-harness.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-ctypes]"
+match = "1 finding(s), digest 079c2cde2551"
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-test-modules]"
+match = "1 finding(s), digest e9ee1c0bf344"
+reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
+closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-read-only-eperm]"
+match = "1 finding(s), digest 81d5aff98496"
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-stdlib-zip]"
+match = "4 finding(s), digest 2cce9388750f"
+reason = "the stdlib is bytecode in a zip: tracebacks into it have no source lines (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-stdlib-zip-error]"
+match = "1 finding(s), digest 4e1870ead74a"
+reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-a-no-executable-file]"
+match = "1 finding(s), digest 1bca36a4f0bc"
+reason = "sys.executable names a file the guest does not have, so platform.libc_ver() raises (spec 074, follow-up A)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-no-ctypes]"
+match = "1 finding(s), digest a8c8a399a33c"
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-no-test-modules]"
+match = "2 finding(s), digest 51d24eda9aea"
+reason = "CPython's C test modules are not built; test_c_cleandoc returns unittest.skip instead of raising it, an error under -W error (question 101 answered: spec 088, the judge-only binary)"
+closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-read-only-eperm]"
+match = "2 finding(s), digest 6bc64aa30cb2"
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-stdlib-zip]"
+match = "4 finding(s), digest 16571b632b27"
+reason = "the stdlib is bytecode in a zip: tracebacks and inspect's CLI have no source for it (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-b-stdlib-zip-error]"
+match = "2 finding(s), digest 064d87490e5a"
+reason = "the stdlib is bytecode in a zip: inspect.getsource has no source for it (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-no-ctypes]"
+match = "5 finding(s), digest dac66b95c6d4"
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-ctypes-stand-in-surface]"
+match = "1 finding(s), digest 513ba080db86"
+reason = "the ctypes stand-in has no pythonapi (spec 074)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-read-only-eperm]"
+match = "18 finding(s), digest 7c6902e2791a"
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-stdlib-zip]"
+match = "5 finding(s), digest da46aa233df7"
+reason = "the stdlib is bytecode in a zip: pdb and pydoc have no source for it (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-c-stdlib-zip-error]"
+match = "3 finding(s), digest 0978e2289c82"
+reason = "the stdlib is bytecode in a zip: pydoc's sourceless paths are not folders (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_deselected[cpython-b-capi-event-generation]"
+match = "5 finding(s), digest 9be583a8a7c6"
+reason = "needs _testcapi; its setUp leaves three monitoring tools registered when it skips, which fails every later MonitoringTestBase test (question 101 answered: spec 088, the judge-only binary)"
+closes_with = "context/roadmap.md (spec 088, the judge-only binary)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_environment[cpython-b-sys-path-doctest]"
+match = "1 finding(s), digest 8c5fbf6cf976"
+reason = "sys.path was modified: test.support's forget() meets PermissionError under the read-only grant before the test restores sys.path (read-only-eperm)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_environment[cpython-c-sys-path-bdb]"
+match = "1 finding(s), digest fcfbadba8979"
+reason = "sys.path was modified: test.support's forget() meets PermissionError under the read-only grant before test_bdb restores sys.path (read-only-eperm)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-trailing-slash]"
+match = "1 finding(s), digest 915cdf55455e"
+reason = "open('<dir>/missing/', 'wb'): EINVAL on a darwin host, ENOENT (the test's expectation) on Linux, ENOTDIR on Windows (the branch dry run 39192207869)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-archives-unpack-archive-zip-badpaths]"
+match = "1 finding(s), digest 7ae15a1f7741"
+reason = "a name with a colon (E:abspath) cannot be made on a Windows host (the branch dry run 39194284100)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-copy-copyfile-copy-dir]"
+match = "1 finding(s), digest 2d010d1302e2"
+reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-bound-methods]"
+match = "1 finding(s), digest 8a3df4ad74be"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/oue5b76l')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-context-manager-after-rollover]"
+match = "1 finding(s), digest fc2789f8a4d4"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpgmr7pzr4')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-context-manager-during-rollover]"
+match = "1 finding(s), digest 066eb4b99968"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp6bf4_6fg')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-del-on-close]"
+match = "1 finding(s), digest 0dcee3587495"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: OSError: [Errno 55] Directory not empty: '/tmp/tmp7l8om7v_')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-del-rolled-file]"
+match = "1 finding(s), digest 0e299c286852"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/lh637mqu')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-fileno]"
+match = "1 finding(s), digest a73e0bbf6ad3"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/g6vd57m0')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-multiple-close-after-rollover]"
+match = "1 finding(s), digest 25537bd1e950"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp7u1c7f72')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-properties]"
+match = "1 finding(s), digest c90dd44362be"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp39yiz35h')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-sparse]"
+match = "1 finding(s), digest 24a5d3226175"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/6ueog67p')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-text-mode]"
+match = "1 finding(s), digest 5702cc318358"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp_aa0h8p_')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-text-newline-and-encoding]"
+match = "1 finding(s), digest bbd0172af835"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp8qrds_7u')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-truncate-with-size-parameter]"
+match = "1 finding(s), digest 0908b84e0ebc"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp__aiv4j_')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-write-sequential]"
+match = "1 finding(s), digest 4d9d2aeda8bf"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/inwat6g_')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-fast-path]"
+match = "1 finding(s), digest 7dcccde87eb2"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/235dm5z6')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-rollover]"
+match = "1 finding(s), digest 1ea89b6df0e4"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/kac503sg')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-spooledtemporaryfile-writelines-sequential]"
+match = "1 finding(s), digest ff9579648bb2"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/va_2yxov')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporarydirectory-del-on-collection-ignore-errors]"
+match = "1 finding(s), digest acc541c92f2d"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpbnr_pimg)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporarydirectory-explicit-cleanup-ignore-errors]"
+match = "1 finding(s), digest 925b22b776dd"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpg5frae1o)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-bad-encoding]"
+match = "1 finding(s), digest e91a87d40541"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmps02v_l5g/tmpjt13i26r')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-basic]"
+match = "1 finding(s), digest b55d98a05cfa"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpmrbb3nbh')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-has-no-name]"
+match = "1 finding(s), digest c02cbedc5078"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp08rtbuwh/tmp4ld_6k_r')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-mode-and-encoding]"
+match = "1 finding(s), digest 30a93b9813fc"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpexgygbqq')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-win-temporaryfile-multiple-close]"
+match = "1 finding(s), digest d884ec604262"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-doctest]"
+match = "1 finding(s), digest 0179a8ef4404"
+reason = "freeing a 1,000-long chain of _Call objects recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-exceptions]"
+match = "1 finding(s), digest d7065e308e6e"
+reason = "freeing what the handlers chained recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-syntax]"
+match = "1 finding(s), digest 60a8627832df"
+reason = "the parser's MAXSTACK (4,000 on WASI) needs more than wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-syntax-lazy-import]"
+match = "1 finding(s), digest 8ef3e2c3044d"
+reason = "the same, inherited (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-py]"
+match = "1 finding(s), digest 0236d05bdcf9"
+reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine (spec 071, Decision 8, EXECUTED there by id; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-py-subclass]"
+match = "1 finding(s), digest 76d6a0b2ccde"
+reason = "the same, the pure-Python subclass (spec 071, Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-ordered-dict-subclass]"
+match = "1 finding(s), digest bcad0e9d8ecb"
+reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine; seen first on Linux x86-64 (dry run 39192207869), on every host since spec 071 (its Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_trap[c-stack-traceback]"
+match = "1 finding(s), digest 6750702ec38f"
+reason = "printing and freeing deep exception groups; one trap is no test's (it fires after test_comparison whichever test follows), so the whole module (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md (spec 078, the runner runs each guest on a stack of its own)"

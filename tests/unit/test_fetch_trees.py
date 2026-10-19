@@ -150,3 +150,48 @@ def test_a_tree_already_there_is_refused(tmp_path, monkeypatch) -> None:
     errors = w.go(monkeypatch)
     assert errors and "is already there" in errors[0], errors
     assert not w.applied
+
+
+# ---------------------------------------------------------------------------------------------
+# CPython's tests have their own stage (spec 065, Decision 7, criterion 7)
+
+
+def _xz(top: str, members: dict[str, bytes]) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:xz") as t:
+        for name, data in members.items():
+            info = tarfile.TarInfo(f"{top}/{name}")
+            info.size = len(data)
+            t.addfile(info, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def test_a_shard_with_a_cpython_group_fetches_the_cpython_tarball_and_its_family() -> None:
+    assert fetch.shard_packages("upstream-numpy-a") == ["numpy", "pandas", "cpython"]
+    assert fetch.shard_packages("upstream-windows") == ["numpy", "pandas", "cpython"]
+    assert fetch.shard_packages("upstream-groupby") == ["numpy", "pandas"]
+
+
+def test_the_kit_is_fetched_only_for_a_pytest_group() -> None:
+    assert fetch.needs_kit(["numpy", "pandas", "cpython"])
+    assert not fetch.needs_kit(["cpython"])
+
+
+def test_the_cpython_tree_is_fetched_verified_unpacked_and_patched(tmp_path, monkeypatch) -> None:
+    tar = {"Python-3.15.0.tar.xz": _xz("Python-3.15.0", {"Lib/test/test_a.py": b"z"})}
+    w = World(tmp_path, tar)
+    assert w.go(monkeypatch, packages=("cpython",)) == []
+    assert w.fetched == ["Python-3.15.0.tar.xz"]
+    assert (w.build / "Python-3.15.0" / "Lib" / "test" / "test_a.py").read_bytes() == b"z"
+    assert w.applied == [
+        ["sh", "apply.sh", str(w.build / "Python-3.15.0"), str(w.patches / "Python-3.15.0")]
+    ]
+
+
+def test_a_cpython_hash_mismatch_deletes_the_part_file(tmp_path, monkeypatch) -> None:
+    tar = {"Python-3.15.0.tar.xz": _xz("Python-3.15.0", {"Lib/test/test_a.py": b"z"})}
+    w = World(tmp_path, tar)
+    w.served["Python-3.15.0.tar.xz"] = _xz("Python-3.15.0", {"Lib/test/test_a.py": b"changed"})
+    errors = w.go(monkeypatch, packages=("cpython",))
+    assert errors and "Python-3.15.0.tar.xz" in errors[0]
+    assert not list(w.downloads.glob("*.part"))

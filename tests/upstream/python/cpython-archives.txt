@@ -1,0 +1,9 @@
+test_bz2
+test_gzip
+test_lzma
+test_tarfile
+test_zipapp
+test_zipfile
+test_zipfile64
+test_zipimport
+test_zipimport_support

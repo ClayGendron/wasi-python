@@ -28,9 +28,10 @@ def _run():
 
 
 def _version() -> tuple[str, str]:
-    """('3.15', '315') from MANIFEST's python line."""
+    """('3.15', '315') from MANIFEST's python line. Without an artifact set the need blocks the
+    check, as every other check is blocked (spec 065, Decision 22)."""
+    needs.need("artifact dir", "manifest")
     directory = paths.artifact_dir()
-    assert directory is not None
     major, minor = paths.parse_manifest((directory / "MANIFEST").read_text()).python.split(".")[:2]
     return f"{major}.{minor}", f"{major}{minor}"
 

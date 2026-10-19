@@ -1,0 +1,4 @@
+test.test_contextlib.TestExitStack.test_exit_exception_traceback
+test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_frozen_module
+test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_module
+test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_source_package

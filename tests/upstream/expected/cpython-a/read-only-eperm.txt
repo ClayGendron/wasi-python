@@ -1,0 +1,1 @@
+test.test_trace.TestCoverageCommandLineOutput.test_cover_files_written_no_highlight

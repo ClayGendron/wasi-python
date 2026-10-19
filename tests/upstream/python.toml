@@ -1,0 +1,633 @@
+# CPython's own tests in the guest (spec 065). A judge file: every edit is a judge change.
+#
+# runner        regrtest: CPython's own runner, run in one guest process per group (Decision 9)
+# component     the source component whose pinned tarball holds Lib/test (the need and the tie)
+# grant         the stage's own read-only grant, apart from numpy's and pandas' (Decision 15)
+# resources     -u for regrtest: CPython's own `make test` less largefile (Decision 15)
+# options       --fail-env-changed, as CPython's CI (Decision 5)
+# warnings      "error": the warnings half of CI's `-W error -bb` (Decision 8)
+# [groups.*]    one guest session and one check each: `list` names the plan file (one module per
+#               line, in run order) and `fuel` the cap (Decision 10)
+# not_selected  modules that fail to load, listed nowhere, each with its reason and closer (11)
+# trap          tests that end the guest in a trap: deselected from their group on every host by
+#               full id, each run alone by its own check (Decision 1)
+# expected      classes of known failures, listed by test id under expected/<group>/ (Decision 12)
+# deselected    tests that must not run, by full id, each a gap (Decision 21)
+# environment   modules allowed to leave the environment altered, by kind of change (Decision 21)
+# host_dependent results that differ by host, recorded per system (Decision 21; none today)
+#
+# The driver's adaptations, with their reasons, are in tests/upstream/regrtest_drive.py: A2 (make
+# /tmp), A1 (single.clear_caches gives the ctypes stand-in a no-op _reset_cache, until spec 074),
+# and -W error.
+
+package = "python"
+runner = "regrtest"
+component = "cpython"
+grant = "/cpython"
+resources = "all,-cpu,-gui,-largefile"
+options = ["--fail-env-changed"]
+warnings = "error"
+
+[groups.cpython-fs]
+list = "python/cpython-fs.txt"
+fuel = 100_000_000_000
+
+[groups.cpython-archives]
+list = "python/cpython-archives.txt"
+fuel = 250_000_000_000
+
+[groups.cpython-a]
+list = "python/cpython-a.txt"
+fuel = 410_000_000_000
+
+[groups.cpython-b]
+list = "python/cpython-b.txt"
+fuel = 490_000_000_000
+
+[groups.cpython-c]
+list = "python/cpython-c.txt"
+fuel = 560_000_000_000
+
+[[not_selected]]
+modules = ["test_ctypes"]
+reason = "the ctypes stand-in imports, then every use raises OSError (README: no ctypes)"
+closes_with = "README.md"
+
+[[not_selected]]
+modules = ["test_code", "test_genericalias"]
+reason = "they name ctypes.pythonapi, py_object and Array at import, which the stand-in lacks (spec 074, follow-up A)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[not_selected]]
+modules = ["test_class", "test_with", "test_getpath"]
+reason = "an unguarded import of _testinternalcapi, which --disable-test-modules leaves out (question 101 answered: spec 088, the judge-only binary)"
+closes_with = "context/roadmap.md"
+
+[[not_selected]]
+modules = ["test_ensurepip", "test_venv", "test_sysconfig"]
+reason = "ensurepip and venv are not in the zip (no pip, no venv: constitution section 3); test_sysconfig imports test.support.venv"
+closes_with = "README.md"
+
+[[not_selected]]
+modules = ["test_ast"]
+reason = "one module-level line lists the stdlib's folder (test_ast/test_ast.py:41), which is a zip"
+closes_with = "README.md"
+
+[[not_selected]]
+modules = ["test_time", "test_calendar", "test_strptime", "test_os.test_posix"]
+reason = "platform.libc_ver() at import opens sys.executable, a file the guest does not have (spec 074, follow-up A: sys.executable empty)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+# The trap entries (Decision 1). Spec 071's C-stack window closed the four test_recursive_pickle
+# entries (no trap on its set, on both hosts; removed at the rebase onto it). The eight below trap
+# at the runner's 512 KiB stack and close with spec 078 (question 102 answered: the runner runs each
+# guest on a stack of its own, 8 MiB), reserved in the roadmap.
+
+[[trap]]
+id = "c-stack-doctest"
+group = "cpython-b"
+test = "test.test_doctest.test_doctest.TestDocTestFinder.test_issue35753"
+reason = "freeing a 1,000-long chain of _Call objects recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-exceptions"
+group = "cpython-b"
+test = "test.test_exceptions.ExceptionTests.test_recursion_in_except_handler"
+reason = "freeing what the handlers chained recurses in C past wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-syntax"
+group = "cpython-c"
+test = "test.test_syntax.SyntaxErrorTestCase.test_error_on_parser_stack_overflow"
+reason = "the parser's MAXSTACK (4,000 on WASI) needs more than wasmtime's stack (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-syntax-lazy-import"
+group = "cpython-c"
+test = "test.test_syntax.LazyImportRestrictionTestCase.test_error_on_parser_stack_overflow"
+reason = "the same, inherited (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-ordered-dict-py"
+group = "cpython-c"
+test = "test.test_ordered_dict.PurePythonOrderedDictTests.test_highly_nested"
+reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine (spec 071, Decision 8, EXECUTED there by id; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-ordered-dict-py-subclass"
+group = "cpython-c"
+test = "test.test_ordered_dict.PurePythonOrderedDictSubclassTests.test_highly_nested"
+reason = "the same, the pure-Python subclass (spec 071, Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-ordered-dict-subclass"
+group = "cpython-c"
+test = "test.test_ordered_dict.CPythonOrderedDictSubclassTests.test_highly_nested"
+reason = "freeing a 1,000-deep OrderedDict needs more than 512 KiB on the runner's engine; seen first on Linux x86-64 (dry run 39192207869), on every host since spec 071 (its Decision 8; question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[trap]]
+id = "c-stack-traceback"
+group = "cpython-a"
+module = "test_traceback"
+reason = "printing and freeing deep exception groups; one trap is no test's (it fires after test_comparison whichever test follows), so the whole module (question 102 answered: spec 078, the runner-owned 8 MiB stack)"
+closes_with = "context/roadmap.md"
+
+[[host_dependent]]
+id = "trailing-slash"
+group = "cpython-fs"
+test = "test.test_shutil.TestCopy.test_copyfile_nonexistent_dir"
+darwin = "error"
+linux = "passed"
+win32 = "error"
+reason = "open('<dir>/missing/', 'wb'): EINVAL on a darwin host, ENOENT (the test's expectation) on Linux, ENOTDIR on Windows (the branch dry run 39192207869)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+# Windows (the branch dry run 39194284100, upstream-windows): each test whose outcome there differs.
+[[host_dependent]]
+id = "win-archives-unpack-archive-zip-badpaths"
+group = "cpython-fs"
+test = "test.test_shutil.TestArchives.test_unpack_archive_zip_badpaths"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a name with a colon (E:abspath) cannot be made on a Windows host (the branch dry run 39194284100)"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-copy-copyfile-copy-dir"
+group = "cpython-fs"
+test = "test.test_shutil.TestCopy.test_copyfile_copy_dir"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "opening a folder for reading gives EINVAL on a Windows host, IsADirectoryError elsewhere (the branch dry run 39194284100)"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-bound-methods"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_bound_methods"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/oue5b76l')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-context-manager-after-rollover"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_context_manager_after_rollover"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpgmr7pzr4')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-context-manager-during-rollover"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_context_manager_during_rollover"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp6bf4_6fg')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-del-on-close"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_del_on_close"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: OSError: [Errno 55] Directory not empty: '/tmp/tmp7l8om7v_')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-del-rolled-file"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_del_rolled_file"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/lh637mqu')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-fileno"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_fileno"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/g6vd57m0')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-multiple-close-after-rollover"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_multiple_close_after_rollover"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp7u1c7f72')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-properties"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_properties"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp39yiz35h')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-sparse"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_sparse"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/6ueog67p')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-text-mode"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_text_mode"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp_aa0h8p_')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-text-newline-and-encoding"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_text_newline_and_encoding"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp8qrds_7u')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-truncate-with-size-parameter"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_truncate_with_size_parameter"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp__aiv4j_')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-write-sequential"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_write_sequential"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/inwat6g_')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-writelines-fast-path"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_writelines_fast_path"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/235dm5z6')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-writelines-rollover"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_writelines_rollover"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/kac503sg')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-spooledtemporaryfile-writelines-sequential"
+group = "cpython-fs"
+test = "test.test_tempfile.TestSpooledTemporaryFile.test_writelines_sequential"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/va_2yxov')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporarydirectory-del-on-collection-ignore-errors"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryDirectory.test_del_on_collection_ignore_errors"
+darwin = "passed"
+linux = "passed"
+win32 = "failed"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpbnr_pimg)"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporarydirectory-explicit-cleanup-ignore-errors"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryDirectory.test_explicit_cleanup_ignore_errors"
+darwin = "passed"
+linux = "passed"
+win32 = "failed"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: AssertionError: 1 != 0 : Unexpected number of files in TemporaryDirectory /tmp/tmpg5frae1o)"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporaryfile-bad-encoding"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryFile.test_bad_encoding"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmps02v_l5g/tmpjt13i26r')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporaryfile-basic"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryFile.test_basic"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpmrbb3nbh')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporaryfile-has-no-name"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryFile.test_has_no_name"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp08rtbuwh/tmp4ld_6k_r')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporaryfile-mode-and-encoding"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryFile.test_mode_and_encoding"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmpexgygbqq')"
+closes_with = "README.md"
+
+[[host_dependent]]
+id = "win-temporaryfile-multiple-close"
+group = "cpython-fs"
+test = "test.test_tempfile.TestTemporaryFile.test_multiple_close"
+darwin = "passed"
+linux = "passed"
+win32 = "error"
+reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
+closes_with = "README.md"
+
+[[deselected]]
+id = "capi-event-generation"
+group = "cpython-b"
+tests = [
+    "test.test_monitoring.TestCApiEventGeneration.test_disable_event",
+    "test.test_monitoring.TestCApiEventGeneration.test_enter_scope_two_events",
+    "test.test_monitoring.TestCApiEventGeneration.test_fire_event",
+    "test.test_monitoring.TestCApiEventGeneration.test_fire_event_failing_callback",
+    "test.test_monitoring.TestCApiEventGeneration.test_missing_exception",
+]
+reason = "needs _testcapi; its setUp leaves three monitoring tools registered when it skips, which fails every later MonitoringTestBase test (question 101 answered: spec 088, the judge-only binary)"
+closes_with = "context/roadmap.md"
+
+[[environment]]
+id = "sys-path-doctest"
+group = "cpython-b"
+modules = ["test_doctest"]
+changes = ["sys.path"]
+reason = "sys.path was modified: test.support's forget() meets PermissionError under the read-only grant before the test restores sys.path (read-only-eperm)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[environment]]
+id = "sys-path-bdb"
+group = "cpython-c"
+modules = ["test_bdb"]
+changes = ["sys.path"]
+reason = "sys.path was modified: test.support's forget() meets PermissionError under the read-only grant before test_bdb restores sys.path (read-only-eperm)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+# The classes of known failures (Decision 12): a failed or errored test goes to the first class of
+# its group whose outcome and `match` (a regular expression searched in the one-line reason) fit.
+
+[[expected]]
+id = "no-ctypes"
+group = "cpython-fs"
+outcome = "error"
+match = 'ctypes is unavailable'
+reason = "no ctypes calls: the stand-in imports, so the tests run, and every call raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-mmap"
+group = "cpython-fs"
+outcome = "error"
+match = "mmap is unavailable|cannot access local variable 'm'"
+reason = "no mmap: pandas imports mmap unconditionally, so the stand-in imports, and every map raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "mmap-stand-in-surface"
+group = "cpython-fs"
+outcome = "error"
+match = "module 'mmap' has no attribute|object\\.__new__\\(\\) takes exactly one"
+reason = "the mmap stand-in lacks mmap.error and ACCESS_DEFAULT, and its class takes no arguments (spec 074)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[expected]]
+id = "sqlite-lock"
+group = "cpython-fs"
+outcome = "error"
+match = 'database is locked'
+reason = "SQLite's lock directory gives a second connection 'database is locked' (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-file-modes"
+group = "cpython-fs"
+outcome = "failed"
+match = 'error not raised'
+reason = "WASI has no permission bits: os.chmod succeeds and changes nothing (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip"
+group = "cpython-fs"
+outcome = "failed"
+match = "Lists differ: \\['/usr/local/lib/python315\\.zip/|0 not greater than 0|TypeError not raised by getline|\\[\\] is not true"
+reason = "the stdlib is bytecode in a zip: linecache has no source for it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip-error"
+group = "cpython-fs"
+outcome = "error"
+match = "No module named 'c_resources'"
+reason = "the stdlib is bytecode in a zip: importlib.resources' compiled-package test finds no source package (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stepped-clock"
+group = "cpython-fs"
+outcome = "failed"
+match = 'No rotated files found|within 0\.05 delta'
+reason = "the judge's stepped clock (spec 002, Decision 9): file times are the host's, time.time() starts at 2026-01-01"
+closes_with = "context/specifications/002-the-progress-harness.md"
+
+[[expected]]
+id = "trailing-slash-einval"
+group = "cpython-fs"
+outcome = "error"
+match = "\\[Errno 28\\] Invalid argument: .*/'$"
+reason = "opening a missing path with a trailing slash gives EINVAL, not ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "cpython-a"
+outcome = "error"
+match = 'ctypes is unavailable'
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-test-modules"
+group = "cpython-a"
+outcome = "error"
+match = 'get_stack_pointer'
+reason = "CPython's C test modules are not built (--disable-test-modules; question 101)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "read-only-eperm"
+group = "cpython-a"
+outcome = "error"
+match = '^PermissionError: '
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[expected]]
+id = "stdlib-zip"
+group = "cpython-a"
+outcome = "failed"
+match = "Lists differ: \\[\\('te|pyc'>\" != |raise self\\.failureException\\(msg\\)' not found"
+reason = "the stdlib is bytecode in a zip: tracebacks into it have no source lines (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip-error"
+group = "cpython-a"
+outcome = "error"
+match = '_path_normpath: path should be string'
+reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is false, so test_stdlib_dir expects None (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-executable-file"
+group = "cpython-a"
+outcome = "error"
+match = "No such file or directory: '/usr/local/bin/python\\.wasm'"
+reason = "sys.executable names a file the guest does not have, so platform.libc_ver() raises (spec 074, follow-up A)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "cpython-b"
+outcome = "error"
+match = 'ctypes is unavailable'
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-test-modules"
+group = "cpython-b"
+outcome = "error"
+match = "No module named '_testcapi'|deprecated to return a value that is not None from a test case"
+reason = "CPython's C test modules are not built; test_c_cleandoc returns unittest.skip instead of raising it, an error under -W error (question 101 answered: spec 088, the judge-only binary)"
+closes_with = "context/roadmap.md"
+
+[[expected]]
+id = "read-only-eperm"
+group = "cpython-b"
+outcome = "error"
+match = '^PermissionError: '
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[expected]]
+id = "stdlib-zip"
+group = "cpython-b"
+outcome = "failed"
+match = "Lists differ: \\[\\('te|Items in the first set but not the second"
+reason = "the stdlib is bytecode in a zip: tracebacks and inspect's CLI have no source for it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip-error"
+group = "cpython-b"
+outcome = "error"
+match = 'could not get source code'
+reason = "the stdlib is bytecode in a zip: inspect.getsource has no source for it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "no-ctypes"
+group = "cpython-c"
+outcome = "error"
+match = 'ctypes is unavailable'
+reason = "no ctypes calls: the stand-in raises OSError (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "ctypes-stand-in-surface"
+group = "cpython-c"
+outcome = "error"
+match = "module 'ctypes' has no attribute 'pythonapi'"
+reason = "the ctypes stand-in has no pythonapi (spec 074)"
+closes_with = "context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md"
+
+[[expected]]
+id = "read-only-eperm"
+group = "cpython-c"
+outcome = "error"
+match = '^PermissionError: '
+reason = "under a read-only grant, removing a missing path gives EPERM before ENOENT (wasmtime's answer)"
+closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
+
+[[expected]]
+id = "stdlib-zip"
+group = "cpython-c"
+outcome = "failed"
+match = 'Failed example:|Pydoc: Error|^AssertionError: 1 != 0$'
+reason = "the stdlib is bytecode in a zip: pdb and pydoc have no source for it (README)"
+closes_with = "README.md"
+
+[[expected]]
+id = "stdlib-zip-error"
+group = "cpython-c"
+outcome = "error"
+match = "NotADirectoryError: \\[Errno 54\\]|argument of type 'NoneType' is not a container"
+reason = "the stdlib is bytecode in a zip: pydoc's sourceless paths are not folders (README)"
+closes_with = "README.md"

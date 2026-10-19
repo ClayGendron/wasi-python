@@ -399,3 +399,48 @@ def test_a_node_whose_file_defines_no_such_check_is_named() -> None:
     errors = shards.plan_errors({**plan, "build": gone}, files, groups)
     file = "tests/checks/test_v1_2_hostile_guest.py"
     assert f"(h) {file}::test_gone: {file} defines no test_gone" in errors
+
+
+# ---------------------------------------------------------------------------------------------
+# CPython's groups in the plan (spec 065, Decision 7, criterion 6)
+
+
+def test_a_cpython_trap_goes_with_its_named_group() -> None:
+    from harness import upstream
+
+    groups = shards.group_of()
+    assert groups[upstream.trap_node("c-stack-ordered-dict-py")] == "cpython-c"
+    assert groups[upstream.trap_node("c-stack-traceback")] == "cpython-a"
+    assert groups[upstream.trap_node("c-stack-doctest")] == "cpython-b"
+
+
+def test_cpython_fs_runs_on_three_systems_and_the_archives_on_linux_only() -> None:
+    plan = shards.load()
+    holders = {
+        g: sorted(n for n, s in plan.items() if g in s.groups)
+        for g in ("cpython-fs", "cpython-archives")
+    }
+    assert holders["cpython-fs"] == ["upstream-macos", "upstream-numpy-a", "upstream-windows"]
+    assert holders["cpython-archives"] == ["upstream-numpy-b"]
+    systems = shards.group_systems(plan)
+    assert systems["cpython-fs"] == {"darwin", "linux", "win32"}
+    assert systems["cpython-archives"] == {"darwin", "linux"}
+
+
+def test_cpython_entry_checks_go_with_their_group() -> None:
+    groups = shards.group_of()
+    f = "tests/checks/test_v1_3_upstream_suites.py"
+    assert groups[f"{f}::test_upstream_deselected[cpython-b-capi-event-generation]"] == "cpython-b"
+    assert groups[f"{f}::test_upstream_environment[cpython-c-sys-path-bdb]"] == "cpython-c"
+
+
+def test_stand_in_a_cpython_trap_placed_by_the_path_rule_finds_no_group() -> None:
+    """Criterion 6's stand-in: 063's path rule alone gives a regrtest trap (no file) no group, so
+    it would fall into `rest`."""
+    from harness import upstream
+
+    cfg = upstream.load_all()["python"]
+    t = next(t for t in cfg.traps if t.id == "c-stack-ordered-dict-py")
+    assert not any(
+        t.file and t.file.startswith(p + "/") for g in cfg.groups.values() for p in g.paths
+    )

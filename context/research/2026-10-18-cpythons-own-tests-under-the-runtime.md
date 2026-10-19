@@ -438,6 +438,41 @@ These are proposals for the specification to decide, in spec 050's style.
    one process; the deep-recursion tests that skip on Emscripten but not on WASI. And for
    wasmtime: `EPERM` before `ENOENT`, and `EINVAL` on a trailing slash.
 
+## Addendum, 2026-10-18: runs made while drafting spec 065 (EXECUTED)
+
+Made by spec 065's drafting agent on the same frozen set, one guest at a time, through the same
+runner (`run_one.py`, adapted as `probe_run.py`) and a driver with two switches
+(`probe_drive.py`); they ran from the main tree's `build/reviews-evidence/065-spec/`, beside a
+copy of the memo's stage. Records: `evidence/spec-065-drafting/` (`sessions.jsonl`; the raw runs in the
+main tree's `build/reviews-evidence/065-spec/runs/`). Spec 065's Decisions 2, 8, 10 and 12 rest on
+them.
+
+- **`sys.executable` empty.** With `sys.executable` and `sys._base_executable` set to `""` before
+  regrtest imports anything, `test_time`, `test_calendar`, `test_strptime`, `test_os.test_posix`,
+  `test_platform` and `test_sys` in one session (4.90 G fuel) give 44/68/56/37/33/43 passed, the
+  same as A3, with `test_monotonic`, `test_posix_fadvise` and `test_stdlib_dir` the only failures.
+- **`-W error`.** Seven modules (`test_json`, `test_datetime`, `test_tempfile`, `test_pathlib`,
+  `test_zipimport`, `test_codecs`, `test_unittest`) in one session, with and without the driver
+  setting the warnings filter to `error`: 3,236 passed, 935 skipped and the same 2 failures both
+  ways; 47.11 G and 47.15 G fuel. `-bb` cannot be set: `sys.flags.bytes_warning` is 0 and fixed,
+  and the bootstrap refuses `-b`.
+- **The guest's answers** (`probe_c.py`, both binaries): `sys._stdlib_dir` is
+  `/usr/local/lib/python315.zip`; `platform.libc_ver()` raises `FileNotFoundError`;
+  `os.chmod(f, S_IREAD)` succeeds, `st_mode` is `0o100000`, and a write after it succeeds;
+  `open("/tmp/nope/", "wb")` raises `OSError` `[Errno 28]`; `os.unlink` of a missing path under
+  the read-only `/usr/local/lib` raises `PermissionError` `[Errno 63]`.
+- **The failing tests by the ids a stream names** (`verbose_ids.py` over `runs-verbose/`): 162 ids,
+  plus `test_doctest`'s one error from the hunt, 163 in all. The XML's nameless subtest entries are
+  eight `test_io`, two `test_mmap` and three `test_bdb` subtests, and three `test_pdb` doctest
+  examples that the XML did not record at all. `test_dbm_sqlite3`'s one failure is the missing
+  permission bits above, not the SQLite lock. `allowances.py` sorts them into spec 065's groups
+  and classes (`allowances.tsv`).
+- **A plan in four groups** (`plan065.py`, `plan/`): the file-system modules in `cpython-fs` (50
+  modules, 223 G before the composition effect), the rest balanced by fuel against spec 063's Linux
+  upstream shards into `cpython-a` (209, 219 G), `cpython-b` (141, 279 G) and `cpython-c` (142,
+  338 G); `test_monitoring` last in its group and apart from `test_profiling`. Not run as groups:
+  the builder's first run sets their numbers.
+
 ## What it decides
 
 - CPython's own suite runs in the guest through regrtest's own `main()`, with four small

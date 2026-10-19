@@ -6,7 +6,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
-- (what changed)
+- **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
+  regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
+  known failure a class by test id with its closer, each test it does not run named, each result
+  that differs by host recorded per system (26, most of them Windows file rules), and the eight
+  tests where freeing or parsing deep structures still traps the guest (spec 078) each a gap. The
+  judge states each guest clock's resolution instead of passing the host's through. The release
+  runs the five groups on Linux in its existing upstream shards, and the file-system group on
+  macOS and Windows too. `python` now names its suite in `tests/upstream/packages.toml`. The
+  hostile-guest checks that read MANIFEST are blocked, not failed, without an artifact set.
 
 ## 0.1.0a7 — 2026-10-19
 
@@ -74,6 +82,7 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   on every step's `PATH`. Behind it, `scripts/build.sh` puts a stand-in for every other Python
   name the host has, which fails the step if it is run. A build host needs no Python of its
   own. The artifacts are the same bytes; `MANIFEST`'s recipe lines change.
+
 - **The release judges in parallel shards** (spec 063). The release runs numpy's and pandas' own
   test suites (eleven groups, 63,718 passing tests) on Linux, one group of them on macOS and on
   Windows, every product check and the runner's own tests on all three systems, and the rules and

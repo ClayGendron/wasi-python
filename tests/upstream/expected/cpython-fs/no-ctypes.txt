@@ -1,0 +1,14 @@
+test.test_io.test_bufferedio.CBufferedRWPairTest.test_readinto [readinto1]
+test.test_io.test_bufferedio.CBufferedRWPairTest.test_readinto [readinto]
+test.test_io.test_bufferedio.PyBufferedRWPairTest.test_readinto [readinto1]
+test.test_io.test_bufferedio.PyBufferedRWPairTest.test_readinto [readinto]
+test.test_io.test_general.CIOTest.test_buffered_file_io
+test.test_io.test_general.CIOTest.test_buffered_readinto_mixin [readinto1]
+test.test_io.test_general.CIOTest.test_buffered_readinto_mixin [readinto]
+test.test_io.test_general.CIOTest.test_raw_bytes_io
+test.test_io.test_general.CIOTest.test_raw_file_io
+test.test_io.test_general.PyIOTest.test_buffered_file_io
+test.test_io.test_general.PyIOTest.test_buffered_readinto_mixin [readinto1]
+test.test_io.test_general.PyIOTest.test_buffered_readinto_mixin [readinto]
+test.test_io.test_general.PyIOTest.test_raw_bytes_io
+test.test_io.test_general.PyIOTest.test_raw_file_io

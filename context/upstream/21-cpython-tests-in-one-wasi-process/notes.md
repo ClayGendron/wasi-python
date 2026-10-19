@@ -1,0 +1,42 @@
+# CPython's own tests in one WASI process: what upstream's suite assumes
+
+- **Found** by spec 065's research (`context/research/2026-10-18-cpythons-own-tests-under-the-runtime.md`)
+  and its pre-build review, running CPython 3.15.0's regrtest inside wasm32-wasip1 (the snapshot
+  binary of this project's artifact set, under wasmtime 49), one process per group, with
+  `--disable-test-modules`. Each item is a place where CPython's own test suite assumes what a
+  build without the C test modules, or a run in one process, takes away. None is a defect of this
+  project's build. Nothing is posted: the owner reviews the facts and decides whether to report.
+- **The facts** (each READ in the pinned `Python-3.15.0.tar.xz`; EXECUTED in the guest where said):
+  1. **Unguarded C test module imports.** `cpython_only` tests import `_testcapi` or
+     `_testinternalcapi` without `import_helper.import_module`, so they error instead of skipping
+     where the modules are not built: `test_class`, `test_with` and `test_getpath` fail to load;
+     `test_call.TestRecursion.test_margin_is_sufficient` and `test_inspect`'s
+     `TestModuleCLI.test_get_cli_details_for_extension_module` error;
+     `test_traceback.CExcReportingTests.get_report` errors 90 times (EXECUTED at a 2 MiB stack).
+  2. **`TestCApiEventGeneration` leaves monitoring tools registered.** `MonitoringTestBase.setUp`
+     registers three tool ids and only `tearDown` frees them (`test_monitoring.py:122–139`).
+     `TestCApiEventGeneration.setUp` calls `super().setUp()` and then imports `_testcapi`, which
+     raises `SkipTest` (`:2598–2601`). A skip in `setUp` runs no `tearDown`, so the tools stay
+     registered, and every later `MonitoringTestBase` test fails its own `setUp` assertion
+     (`'test TestCApiEventGeneration' is not None`): 45 failures in the module, and a later
+     `test_profiling` fails 6 tests in the same process with `ValueError: tool 2 is already in
+     use` (EXECUTED: 98 run, 45 failures; with the five tests deselected, 93 run, 0 failures).
+     A fix: free the tools before the skip, or import `_testcapi` before `super().setUp()`.
+  3. **`test_c_cleandoc` returns a skip instead of raising it.** `test_inspect.py:785–789` does
+     `return unittest.skip("requires _testinternalcapi")`. The test then passes having tested
+     nothing; under `-W error` (CPython's own CI) unittest's `DeprecationWarning: It is deprecated
+     to return a value that is not None from a test case` makes it an error (EXECUTED).
+  4. **`test_ast` lists the stdlib's folder at import.** `test_ast/test_ast.py:41`,
+     `STDLIB_FILES = [fn for fn in os.listdir(STDLIB) …]`, fails where the stdlib is a zip, so
+     all 220 test methods are lost to one module-level line.
+  5. **`--junit-xml` in one process.** When `test_xml_etree` and `test_xml_etree_c` run in the
+     same process, they swap ElementTree's C and Python classes, and regrtest's XML writer then
+     fails (`append() argument 1 must be xml.etree.ElementTree.Element, not
+     xml.etree.ElementTree.Element`), losing the whole record (EXECUTED). Workers in fresh
+     processes never meet it.
+  6. **Deep-recursion tests skip on Emscripten, not on WASI.** For example
+     `test_exception_group_deep_recursion_traceback` (`test_traceback.py:2256`) is marked
+     `skip_emscripten_stack_overflow` only; WASI, whose wasm stack is set by the host, traps there
+     at wasmtime's default stack (EXECUTED).
+- **What spec 065 does meanwhile:** each is a class, a deselection or a not-selected module in
+  `tests/upstream/python.toml`, closed by question 101 (the C test modules) or the README.

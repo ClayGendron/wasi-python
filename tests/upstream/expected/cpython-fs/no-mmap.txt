@@ -1,0 +1,31 @@
+test.test_mmap.LargeMmapTests.test_large_filesize
+test.test_mmap.LargeMmapTests.test_large_offset
+test.test_mmap.MmapTests.test_access_parameter
+test.test_mmap.MmapTests.test_anonymous
+test.test_mmap.MmapTests.test_basic
+test.test_mmap.MmapTests.test_concat_repeat_exception
+test.test_mmap.MmapTests.test_context_manager
+test.test_mmap.MmapTests.test_context_manager_exception
+test.test_mmap.MmapTests.test_double_close
+test.test_mmap.MmapTests.test_empty_file
+test.test_mmap.MmapTests.test_entire_file
+test.test_mmap.MmapTests.test_extended_getslice
+test.test_mmap.MmapTests.test_extended_set_del_slice
+test.test_mmap.MmapTests.test_find_end
+test.test_mmap.MmapTests.test_flush_parameters
+test.test_mmap.MmapTests.test_flush_return_value
+test.test_mmap.MmapTests.test_io_methods
+test.test_mmap.MmapTests.test_length_0_large_offset
+test.test_mmap.MmapTests.test_length_0_offset
+test.test_mmap.MmapTests.test_move
+test.test_mmap.MmapTests.test_non_ascii_byte
+test.test_mmap.MmapTests.test_offset
+test.test_mmap.MmapTests.test_read_all
+test.test_mmap.MmapTests.test_read_invalid_arg
+test.test_mmap.MmapTests.test_rfind
+test.test_mmap.MmapTests.test_tougher_find
+test.test_mmap.MmapTests.test_trackfd_neg1
+test.test_mmap.MmapTests.test_trackfd_parameter (close_original_fd=False)
+test.test_mmap.MmapTests.test_trackfd_parameter (close_original_fd=True)
+test.test_mmap.MmapTests.test_weakref
+test.test_mmap.MmapTests.test_write_returning_the_number_of_bytes_written

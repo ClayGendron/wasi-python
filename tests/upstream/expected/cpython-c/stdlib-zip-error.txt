@@ -1,0 +1,3 @@
+test.test_pydoc.test_pydoc.PydocDocTest.test_mixed_case_module_names_are_lower_cased
+test.test_pydoc.test_pydoc.PydocDocTest.test_synopsis_sourceless
+test.test_pydoc.test_pydoc.PydocImportTest.test_importfile

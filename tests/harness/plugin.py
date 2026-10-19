@@ -585,6 +585,16 @@ def upstream_scopes(configs: dict | None = None) -> dict[str, str]:
             scopes[f"{UPSTREAM_FILE}::test_upstream_class[{k.group}-{k.id}]"] = (
                 f"upstream {k.group}"
             )
+        # CPython's named entries read their group's run, as a class does (spec 065)
+        for kind, entries in (
+            ("deselected", c.deselected),
+            ("environment", c.environment),
+            ("host", c.host_dependent),
+        ):
+            for e in entries:
+                scopes[f"{UPSTREAM_FILE}::test_upstream_{kind}[{e.group}-{e.id}]"] = (
+                    f"upstream {e.group}"
+                )
     return scopes
 
 

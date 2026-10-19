@@ -10,8 +10,10 @@ groups. For one with groups it fetches the kit, then every upstream package's so
 `downloads/<name>`: the URL from its `get` line in `scripts/00_download.sh`, the hash from
 `downloads/SHA256SUMS`, renamed only after the match. It unpacks each into `build/` with tarfile's
 `data` filter and applies the tree's carried patches with `scripts/steps/apply_patches.sh`, the
-applier the build runs. Every tree, not only the shard's: the guest's fuel depends on the whole
-stage (spec 063, Decision 5).
+applier the build runs. Every tree of each family whose group the shard runs, not only the
+group's own: the guest's fuel depends on the whole stage (spec 063, Decision 5). numpy and pandas
+share the `/upstream` stage, so a shard with either fetches both and the kit; CPython's tests have
+their own stage, so a shard with a CPython group fetches the CPython tarball (spec 065, Decision 7).
 """
 
 from __future__ import annotations
@@ -160,15 +162,24 @@ def fetch_trees(
 
 
 def shard_packages(name: str) -> list[str] | None:
-    """Every upstream package when the shard runs upstream groups, [] when it runs none, None when
-    the plan holds no such shard."""
+    """The source components a shard needs, [] when it runs no upstream group, None when the plan
+    holds no such shard: every package of each grant family whose group the shard runs (numpy and
+    pandas together; CPython alone), named as `harness.pins.SOURCE_PATTERNS` names them."""
     sys.path.insert(0, str(HERE.parent))  # the harness package, when run as a script
     from harness import shards, upstream
 
     plan = shards.load()
     if name not in plan:
         return None
-    return list(upstream.PACKAGES) if plan[name].groups else []
+    configs = upstream.load_all()
+    wanted = set(plan[name].groups)
+    families = {c.grant for c in configs.values() if wanted & set(c.groups)}
+    return [c.component or p for p, c in configs.items() if c.grant in families]
+
+
+def needs_kit(packages: list[str]) -> bool:
+    """The pytest kit serves numpy's and pandas' groups only; CPython's regrtest is in Lib/test."""
+    return any(p != "cpython" for p in packages)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -186,11 +197,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"nothing to fetch: shard {argv[1]} runs no upstream group")
             return 0
         packages = got
-    errors = fetch_kit()
-    if not errors:
-        print(f"the kit is in {WHEELS}")
-        if packages:
-            errors = fetch_trees(packages)
+    errors: list[str] = []
+    if not packages or needs_kit(packages):
+        errors = fetch_kit()
+        if not errors:
+            print(f"the kit is in {WHEELS}")
+    if not errors and packages:
+        errors = fetch_trees(packages)
     for e in errors:
         print(e, file=sys.stderr)
     return 1 if errors else 0

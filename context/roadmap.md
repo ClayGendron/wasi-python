@@ -159,6 +159,12 @@ LLVM 23, and wasi-sdk 34 compiled that file to one object in 16 runs (research
 host and removes spec 037's same-bytes exception (question 104). Clang 23 adds `-Wunused-template`
 warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check.
 
+Reserved: 074 (what CPython's suite asks of the product; spec 065's follow-up A, build-class;
+before 0.1.0, since it closes classes in the gate the owner set): `sys.executable` empty;
+`_reset_cache` in the `ctypes` stand-in, so the judge's driver drops it; and whether the `ctypes`
+and `mmap` stand-ins name what CPython's tests name at import (`pythonapi`, `py_object`, `Array`,
+`mmap.error`, `ACCESS_DEFAULT`).
+
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).

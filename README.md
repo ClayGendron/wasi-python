@@ -51,6 +51,7 @@ promises.
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
 | numpy, pandas, bz2, lzma and sqlite3 results vs native, same pins | byte-identical on six golden jobs |
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
+| CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
 The platform's facts, documented rather than patched (with seven carried patches,
 below and under *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
@@ -73,7 +74,16 @@ numpy's C callbacks the signatures CPython calls them with, so `copy.copy` of a 
 for that class of mistake. Tracebacks and warnings name a module in the zip by its full zip path,
 `/usr/local/lib/python315.zip/pandas/core/frame.py`, as native zip imports do, so pandas'
 warnings point at the caller's line. There is no `/dev/null`: `os.devnull` names a path that
-does not exist, so opening it raises `FileNotFoundError`. The stdlib zip carries no package's
+does not exist, so opening it raises `FileNotFoundError`. WASI has no permission bits:
+`os.chmod` succeeds and changes nothing, and `st_mode` carries none. Under a read-only grant,
+removing a path raises `PermissionError` even when the path does not exist (wasmtime's answer;
+`context/upstream/22-wasmtime-read-only-errnos/`). Opening a missing path with a trailing slash
+raises `OSError` `EINVAL` on a macOS host, `FileNotFoundError` on Linux, as natively, and
+`NotADirectoryError` (`ENOTDIR`) on Windows. The standard library is bytecode in a
+zip: tracebacks into it show no source line; `inspect.getsource`, `linecache`, `pdb` and `pydoc`
+have no source for it; `os.path.exists` of a stdlib module's `__file__` is false, and the zip's
+path cannot be listed. `sys.executable` names `/usr/local/bin/python.wasm`, which the guest does
+not have, so `platform.libc_ver()` raises `FileNotFoundError`. The stdlib zip carries no package's
 `tests` folders and no `conftest.py`, so `numpy.conftest`, which numpy's own module list names,
 does not import. `importlib.metadata` gives each package's name, version and entry
 points; `files()` gives `None`, because the zip keeps no `RECORD`. The zip's directory is read
@@ -559,7 +569,8 @@ uv run python release/version.py release --push  # date the section, tag v0.1.0a
 Pushing the tag starts `.github/workflows/release.yml`. It builds from the pins on arm64 macOS,
 checks that the source trees are their tarballs plus the recorded patches, and judges the build
 host's own checks; then the rest of the judge runs in shards on macOS, Linux and Windows at once,
-with numpy's and pandas' own test suites on Linux and one group of them on macOS and on Windows
+with numpy's, pandas' and CPython's own test suites on Linux, and one group of numpy's and
+pandas', and CPython's file-system group, on macOS and on Windows
 (`tests/release_shards.toml`; `uv run pytest --shard=<name>` runs one). A job named `gather` reads
 every shard's record by its id and hash, and nothing is signed or published unless every shard ran
 exactly its share on the release's bytes, nothing failed, the probe passed on all three systems,
@@ -1162,7 +1173,11 @@ does on every host:
   mount never does, and answers `ENOTDIR`, as a Linux or macOS grant does;
 - a Windows grant cannot remove or rename a file the guest holds open, so
   `tempfile.TemporaryFile` and an `os.replace` inside a `NamedTemporaryFile`'s
-  `with` fail there and leave their `tmp…` file; a mount allows both.
+  `with` fail there and leave their `tmp…` file; a mount allows both;
+- a Windows grant cannot make a name with a colon (`E:abspath`: `FileNotFoundError`), and
+  opening a folder for reading there gives `OSError` `EINVAL` where other hosts give
+  `IsADirectoryError` (spec 065 records these, with the open-file rule, as 25 of CPython's tests
+  that differ on a Windows host).
 
 **Cost.** Every write-half call, every create at open and every write-back
 counts toward `max_file_calls`. Each close or `fsync` of a changed file hands

@@ -1,0 +1,5 @@
+test.test_pdb.test_pdb_breakpoints_preserved_across_interactive_sessions [1]
+test.test_pdb.test_pdb_breakpoints_preserved_across_interactive_sessions [2]
+test.test_pdb.test_pdb_return_to_different_file [3]
+test.test_pydoc.test_pydoc.PydocUrlHandlerTest.test_url_requests
+test.test_pydoc.test_pydoc.TestInternalUtilities.test__get_version

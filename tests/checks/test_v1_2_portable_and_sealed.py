@@ -75,3 +75,23 @@ def test_same_bytes_passed_on_three_systems() -> None:
 
     systems = history.systems_that_passed(paths.PROGRESS, paths.sha256_file(d / "python.wasm"))
     assert systems >= {"linux", "darwin", "win32"}, sorted(systems)
+
+
+def test_the_guest_clocks_resolution_is_the_judges(guest, monkeypatch) -> None:
+    """Guards a change (spec 065, its build review's F1): the judge answers `clock_res_get`
+    itself, so every host shows the guest the same resolutions. Distinct values prove the judge
+    answered, not the host (a Linux host answers 1 ns, which turned CPython's timing tests from
+    skips into failures there)."""
+    from harness import guest as driver
+
+    monkeypatch.setattr(driver, "CLOCK_RESOLUTION_NS", {0: 7_000, 1: 11_000, 2: 13, 3: 17})
+    code = (
+        "import time\n"
+        "for c in ('time', 'monotonic', 'perf_counter'):\n"
+        "    print(round(time.get_clock_info(c).resolution * 1e9))\n"
+    )
+    r = guest("snapshot", ["-c", code], record=False)
+    assert r.exit_code == 0, r.describe()
+    # process_time's resolution never reaches clock_res_get in this guest (it reads 1 ns either
+    # way, EXECUTED), so only the clocks that ask are checked.
+    assert r.text.split() == ["7000", "11000", "11000"], r.text

@@ -258,7 +258,28 @@ def gather(i: Inputs) -> Verdict:
             (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
         )
         v.lines.insert(at, f"three systems: darwin linux win32 on {i.wasm_sha256}")
+    quiet = no_trap_anywhere(v.records)
+    if quiet:  # never red: a fixed trap asks the change that closes it to go ahead (spec 065, C4)
+        at = next(
+            (n for n, line in enumerate(v.lines) if line.startswith("not machine-checked")), -1
+        )
+        v.lines.insert(at, "trap entries with no trap on any system: " + " · ".join(quiet))
     return v
+
+
+def no_trap_anywhere(records: dict[tuple[str, str], dict]) -> list[str]:
+    """The open trap entries (spec 065, Decision 1) that ran in at least one record and recorded
+    "no trap on this host" in every record that ran them."""
+    seen: dict[str, set[str]] = {}
+    for r in records.values():
+        for node, c in r.get("checks", {}).items():
+            if "::test_upstream_trap[" in node and c.get("status") not in ("deselected", None):
+                seen.setdefault(node, set()).add((c.get("facts") or {}).get("trap", ""))
+    return [
+        node.rsplit("[", 1)[1].rstrip("]")
+        for node, facts in sorted(seen.items())
+        if facts == {"no trap on this host"}
+    ]
 
 
 def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:

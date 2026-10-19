@@ -1,0 +1,4 @@
+test.test_linecache.LineCacheTests.test_clearcache
+test.test_linecache.LineCacheTests.test_frozen
+test.test_linecache.LineCacheTests.test_getline
+test.test_linecache.LineCacheTests.test_memoryerror

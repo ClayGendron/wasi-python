@@ -73,27 +73,32 @@ groups = ["pandas-groupby"]
 systems = ["linux"]
 
 [shard.upstream-frame]
-groups = ["pandas-frame"]
+# CPython: spec 065, Decision 7 (shards chosen by the job times of 063's dry run 39182550825).
+groups = ["pandas-frame", "cpython-b"]
 systems = ["linux"]
 
 [shard.upstream-numpy-a]
-groups = ["numpy-core", "numpy-lib"]
+groups = ["numpy-core", "numpy-lib", "cpython-a", "cpython-fs"]
 systems = ["linux"]
 
 [shard.upstream-numpy-b]
-groups = ["numpy-others", "pandas-reshape"]
+# cpython-archives runs on Linux only in the release: its cost is the host's file I/O.
+groups = ["numpy-others", "pandas-reshape", "cpython-archives"]
 systems = ["linux"]
 
 [shard.upstream-pandas-small]
-groups = ["pandas-io-parser", "pandas-io-formats", "pandas-tslibs", "pandas-libs", "pandas-internals"]
+groups = [
+  "pandas-io-parser", "pandas-io-formats", "pandas-tslibs", "pandas-libs", "pandas-internals",
+  "cpython-c",
+]
 systems = ["linux"]
 
 [shard.upstream-macos]
 # Where the lane accepts: its fuel is compared with the lane's to 1e-4.
-groups = ["numpy-lib"]
+groups = ["numpy-lib", "cpython-fs"]
 systems = ["macos"]
 
 [shard.upstream-windows]
 # Where the host's file system differs most (spec 058): files, compressed files, encodings.
-groups = ["pandas-io-parser"]
+groups = ["pandas-io-parser", "cpython-fs"]
 systems = ["windows"]

@@ -183,6 +183,15 @@
    meters fuel and caps it at 2×10¹¹ by default, a deterministic
    deadline. It is also the evidence that the bare contract (preopen,
    bind one function, call one export) runs the artifact.
+   Amended 2026-10-19 by spec 065 (Decision 9, the clock): the driver also answers `clock_res_get`
+   itself, so the guest sees each clock's resolution from the judge, not the host: realtime and
+   monotonic 1 µs (the step), the CPU-time clocks 1 ns, though every clock steps 1 µs. These are
+   the values a darwin host answered, so no accepted darwin result moved; a Linux host answered
+   1 ns for all of them. One consequence: CPython's four `test_int` denial-of-service tests skip
+   on every host (a 1 µs conversion is below twice the resolution), so the judge does not exercise
+   the integer-to-string limit. Guarded by
+   `tests/checks/test_v1_2_portable_and_sealed.py::test_the_guest_clocks_resolution_is_the_judges`.
+
 10. **wasmtime-py joins the dev group** (`wasmtime>=49,<50`; the exact
     version is in `uv.lock`). Reason: the checks need an engine with a
     fuel meter, custom imports and import shadowing, and wasmtime-py is

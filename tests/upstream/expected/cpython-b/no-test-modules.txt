@@ -1,0 +1,2 @@
+test.test_inspect.test_inspect.TestModuleCLI.test_get_cli_details_for_extension_module
+test.test_inspect.test_inspect.TestRetrievingSourceCode.test_c_cleandoc

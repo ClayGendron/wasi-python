@@ -1,0 +1,2 @@
+test.test_importlib.resources.test_files.ImplicitContextFilesDiskTests.test_implicit_files_with_compiled_importlib
+test.test_importlib.resources.test_files.ImplicitContextFilesZipTests.test_implicit_files_with_compiled_importlib

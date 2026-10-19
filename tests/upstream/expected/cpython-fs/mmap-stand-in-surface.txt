@@ -1,0 +1,4 @@
+test.test_mmap.MmapTests.test_error
+test.test_mmap.MmapTests.test_mmap_closed_by_int_scenarios
+test.test_mmap.MmapTests.test_repr
+test.test_mmap.MmapTests.test_subclass

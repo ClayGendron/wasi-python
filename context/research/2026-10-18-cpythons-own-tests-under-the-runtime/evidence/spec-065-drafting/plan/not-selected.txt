@@ -1,0 +1,14 @@
+test_ast
+test_calendar
+test_class
+test_code
+test_ctypes
+test_ensurepip
+test_genericalias
+test_getpath
+test_os.test_posix
+test_strptime
+test_sysconfig
+test_time
+test_venv
+test_with

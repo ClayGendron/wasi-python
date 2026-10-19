@@ -1,4 +1,5 @@
-"""numpy's and pandas' own tests, run inside the guest (spec 050).
+"""numpy's and pandas' own tests, run inside the guest (spec 050), and the configuration of every
+upstream suite, CPython's included (spec 065: its runner is `harness.regrtest`).
 
 The judge stages the tests of the artifact's own pinned source trees (tarball members, and files a
 recorded patch creates, only) with the pinned test kit into one read-only grant, `/upstream`, and
@@ -28,7 +29,7 @@ KIT = HERE / "kit.txt"
 EXPECTED = HERE / "expected"
 WHEELS = paths.BUILD / "upstream" / "wheels"
 CHECKS_FILE = "tests/checks/test_v1_3_upstream_suites.py"
-PACKAGES = ("numpy", "pandas")
+PACKAGES = ("numpy", "pandas", "python")
 GRANT = "/upstream"
 STREAM = "tmp/upstream/outcomes.txt"  # in the guest's root
 TRAP_FUEL = 5 * 10**10
@@ -46,6 +47,8 @@ class Group:
     name: str
     paths: tuple[str, ...]
     fuel: int
+    modules: tuple[str, ...] = ()  # a regrtest group's plan, in run order (spec 065)
+    list_file: str = ""
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,7 @@ class NotSelected:
     files: tuple[str, ...]
     reason: str
     closes_with: str
+    modules: tuple[str, ...] = ()  # regrtest modules listed nowhere (spec 065)
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,9 @@ class Trap:
     node: str  # a node id, a node-id prefix or a file
     reason: str
     closes_with: str
+    group: str = ""  # a regrtest trap names its group (spec 065)
+    test: str = ""  # a regrtest trap's full test id, or
+    module: str = ""  # its whole module
 
     @property
     def file(self) -> str:
@@ -89,6 +96,15 @@ class Config:
     not_selected: list[NotSelected]
     traps: list[Trap]
     expected: list[Klass]
+    runner: str = "pytest"
+    component: str = ""
+    grant: str = GRANT
+    resources: str = ""
+    options: tuple[str, ...] = ()
+    warnings: str = ""
+    deselected: list = field(default_factory=list)
+    environment: list = field(default_factory=list)
+    host_dependent: list = field(default_factory=list)
 
     def classes(self, group: str) -> list[Klass]:
         return [k for k in self.expected if k.group == group]
@@ -96,6 +112,8 @@ class Config:
 
 def load(package: str, directory: Path = HERE) -> Config:
     raw = tomllib.loads((directory / f"{package}.toml").read_text())
+    if raw.get("runner", "pytest") == "regrtest":
+        return _load_regrtest(raw, directory)
     return Config(
         package=raw["package"],
         marker=raw["marker"],
@@ -118,6 +136,55 @@ def load(package: str, directory: Path = HERE) -> Config:
             Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
             for e in raw.get("expected", [])
         ],
+    )
+
+
+def _load_regrtest(raw: dict, directory: Path) -> Config:
+    from harness import regrtest
+
+    deselected, environment, hosts = regrtest.entries_from(raw)
+    return Config(
+        package=raw["package"],
+        marker="",
+        args=[],
+        path_packages=[],
+        markers=[],
+        support=[],
+        groups={
+            name: Group(
+                name, (), int(g["fuel"]), regrtest.read_plan(directory, g["list"]), g["list"]
+            )
+            for name, g in raw.get("groups", {}).items()
+        },
+        not_selected=[
+            NotSelected((), n["reason"], n["closes_with"], tuple(n["modules"]))
+            for n in raw.get("not_selected", [])
+        ],
+        traps=[
+            Trap(
+                t["id"],
+                "",
+                t["reason"],
+                t["closes_with"],
+                t["group"],
+                t.get("test", ""),
+                t.get("module", ""),
+            )
+            for t in raw.get("trap", [])
+        ],
+        expected=[
+            Klass(e["id"], e["group"], e["outcome"], e["match"], e["reason"], e["closes_with"])
+            for e in raw.get("expected", [])
+        ],
+        runner="regrtest",
+        component=raw["component"],
+        grant=raw["grant"],
+        resources=raw["resources"],
+        options=tuple(raw.get("options", [])),
+        warnings=raw.get("warnings", ""),
+        deselected=deselected,
+        environment=environment,
+        host_dependent=hosts,
     )
 
 
@@ -218,7 +285,13 @@ def safe_unzip(wheel: Path, dest: Path) -> None:
 TARBALL = {
     "numpy": re.compile(r"numpy-[\w.]+\.tar\.gz"),
     "pandas": re.compile(r"pandas-[\w.]+\.tar\.gz"),
+    "python": re.compile(r"Python-\d+\.\d+\.\d+\.tar\.xz"),
 }
+
+
+def tree_top(tarball: Path) -> str:
+    """The folder a source tarball unpacks to: its name less `.tar.gz` or `.tar.xz`."""
+    return tarball.name.removesuffix(".tar.gz").removesuffix(".tar.xz")
 
 
 def repo_patches(top: str, repo: Path = paths.REPO) -> dict[str, str]:
@@ -249,7 +322,7 @@ def tie_errors(
             f"tests from {tarball.name} SHA-256 {sha[:12]}, artifact built from "
             f"{tarball.name} SHA-256 {built[tarball.name][:12]}"
         )
-    top = tarball.name.removesuffix(".tar.gz")
+    top = tree_top(tarball)
     prefix = f"recipes/patches/{top}/"
     recorded = {
         p: s for p, s in manifest.recipes.items() if p.startswith(prefix) and p.endswith(".patch")
@@ -545,6 +618,15 @@ def caps(configs: dict[str, Config]) -> int:
     )
 
 
+def families(configs: dict[str, Config]) -> dict[str, dict[str, Config]]:
+    """The configs by grant: each family shares one stage, one grant and one fuel budget (spec
+    065, Decisions 15 and 16)."""
+    out: dict[str, dict[str, Config]] = {}
+    for p, c in configs.items():
+        out.setdefault(c.grant, {})[p] = c
+    return out
+
+
 def rule_errors(
     configs: dict[str, Config],
     gap_checks: set[str],
@@ -552,6 +634,8 @@ def rule_errors(
     expected_dir: Path = EXPECTED,
     repo: Path = paths.REPO,
     members: dict[str, set[str]] | None = None,
+    sources: dict[str, dict[str, str]] | None = None,
+    systems_of: dict[str, set[str]] | None = None,
 ) -> list[str]:
     errors = kit_errors(KIT.read_text()) if KIT.is_file() else ["tests/upstream/kit.txt is missing"]
     groups: set[str] = set()
@@ -600,6 +684,17 @@ def rule_errors(
                 errors.append(f"{pkg}: class {k.group}-{k.id} has members but no gap")
             if not listed and has_gap:
                 errors.append(f"{pkg}: class {k.group}-{k.id} is empty but still has a gap")
+        if cfg.runner == "regrtest":
+            from harness import regrtest
+
+            errors += regrtest.rule_errors(
+                cfg,
+                gap_checks,
+                systems_of=systems_of,
+                members=(members or {}).get(pkg),
+                sources=(sources or {}).get(pkg),
+            )
+            continue
         if members is not None and pkg in members:
             have = members[pkg]
             for g in cfg.groups.values():
@@ -615,9 +710,15 @@ def rule_errors(
         for f in sorted(expected_dir.rglob("*.txt")):
             if f not in lists:
                 errors.append(f"expected/{f.relative_to(expected_dir).as_posix()} names no class")
-    total = caps(configs)
-    if total > CAP_BUDGET:
-        errors.append(f"the fuel caps sum to {total:.3g}, over the {CAP_BUDGET:.0e} budget")
+    from harness import regrtest
+
+    budgets = {GRANT: CAP_BUDGET, regrtest.GRANT: regrtest.CAP_BUDGET}
+    for grant, family in sorted(families(configs).items()):
+        total, budget = caps(family), budgets.get(grant, CAP_BUDGET)
+        if total > budget:
+            errors.append(
+                f"the {grant} family's fuel caps sum to {total:.3g}, over the {budget:.2g} budget"
+            )
     return errors
 
 
@@ -673,8 +774,8 @@ class Session:
             # allocations move the collector's timing), so the stage is the same in every run.
             from harness import pins
 
-            for p in self.configs:
-                if pins.source_pair(p) is not None:
+            for p, c in self.configs.items():
+                if c.runner == "pytest" and pins.source_pair(p) is not None:
                     self.prepared[p] = self._prepare(p)
         got = self.prepared.get(package, f"no source tree for {package}")
         if isinstance(got, str):

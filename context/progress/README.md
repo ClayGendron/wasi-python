@@ -89,7 +89,10 @@ Known failures are classes, each its own check and an ordinary gap. Their allowa
 files, like `tests/known_gaps.toml`: `tests/upstream/*.toml` (the classes' expressions, the
 traps, the files not selected) and `tests/upstream/expected/<group>/<class>.txt` (each class's
 node ids). An edit to any of them is a judge change, and `git diff` names each test admitted or
-released.
+released. CPython's own tests (spec 065) are upstream checks like numpy's, with the same
+`passes` metric, flag and refusal; their plan, `tests/upstream/python/<group>.txt`, is judged too,
+and `tests/upstream/python.toml` adds three kinds of entry, each a gap: tests deselected by id,
+modules allowed one named kind of environment change, and results recorded per host.
 
 A class or trap that is fixed: its check passes and its gap says "remove the gap". A fixed class
 stays, with an empty list file, as a passing check. A fixed trap's `[[trap]]` entry is removed in

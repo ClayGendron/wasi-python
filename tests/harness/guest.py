@@ -41,6 +41,11 @@ HOST_FAULT = -2
 ARGV0 = "/usr/local/bin/python.wasm"
 REALTIME_START_NS = 1_767_225_600_000_000_000  # 2026-01-01T00:00:00Z, a fixed start
 CLOCK_STEP_NS = 1_000
+# Each clock's resolution, stated by the judge, not read from the host (spec 065): realtime and
+# monotonic at the step, the CPU-time clocks at a nanosecond. The values are the ones a darwin host
+# answered before this was stated, so no darwin result moves; a Linux host answered 1 ns for the
+# first two, which turned CPython's timing tests from skips into failures there.
+CLOCK_RESOLUTION_NS = {0: CLOCK_STEP_NS, 1: CLOCK_STEP_NS, 2: 1, 3: 1}
 
 _engine: wt.Engine | None = None
 _modules: dict[tuple[str, int, int], wt.Module] = {}
@@ -315,6 +320,14 @@ def run(
         caller.get("memory").write(caller, struct.pack("<Q", value), out)
         return 0
 
+    def clock_res_get(caller: wt.Caller, clock_id: int, out: int) -> int:
+        if clock_id not in CLOCK_RESOLUTION_NS:
+            return 28  # EINVAL: an unknown clock, as WASI answers
+        caller.get("memory").write(
+            caller, struct.pack("<Q", CLOCK_RESOLUTION_NS[clock_id]), out & 0xFFFFFFFF
+        )
+        return 0
+
     def door(caller: wt.Caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
         if host is None:
             return NO_HOST
@@ -347,6 +360,7 @@ def run(
     linker.define_func(
         p1, "clock_time_get", wt.FuncType([i32, i64, i32], [i32]), clock_time_get, True
     )
+    linker.define_func(p1, "clock_res_get", wt.FuncType([i32, i32], [i32]), clock_res_get, True)
     linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
 
     exit_code: int | None = None

@@ -70,11 +70,26 @@ def group_of(configs: dict | None = None) -> dict[str, str]:
     }
     for cfg in configs.values():
         for t in cfg.traps:
+            if t.group:  # a regrtest trap names its group (spec 065)
+                out[upstream.trap_node(t.id)] = t.group
+                continue
             for g in cfg.groups.values():
                 if any(t.file.startswith(p + "/") for p in g.paths):
                     out[upstream.trap_node(t.id)] = g.name
                     break
     return out
+
+
+def group_systems(plan: dict[str, Shard] | None = None) -> dict[str, set[str]]:
+    """Each upstream group's systems in the release: the union of its shards' (spec 065: what a
+    host entry must record a result for)."""
+    plan = load() if plan is None else plan
+    out: dict[str, set[str]] = {}
+    for s in plan.values():
+        for g in s.groups:
+            out.setdefault(g, set()).update(x for x in s.systems if x != "build")
+    names = {"macos": "darwin", "linux": "linux", "windows": "win32"}
+    return {g: {names[x] for x in xs} | {"darwin"} for g, xs in out.items()}
 
 
 def select(
