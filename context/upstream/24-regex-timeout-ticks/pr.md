@@ -17,7 +17,7 @@ When spec 087 is built, this file moves unchanged to
 for byte to `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`. The evidence stays in
 `context/upstream/24-regex-timeout-ticks/evidence/`, so every link below is a path from the
 repository's top. (The folder's number is the next one free across the open branches on
-2026-10-19: 21 to 23 are taken by specs 037, 065 and 078.)
+2026-10-19: 21 to 23 are taken by specs 037, 065, 078 and 085.)
 
 **Checked for you** (2026-10-19): regex 2026.9.29 is still the newest release on PyPI;
 `src/_regex.c` on the default branch `hg` (head `0e8cb0596b`, 2026-09-28, "Updated to Unicode
@@ -77,10 +77,14 @@ happens depends on the target's instruction:
   whose ticks reach `LLONG_MAX` (new), and converts only values that fit.
 
 It keeps the API, the pickled form and every result. It widens nothing that was already 64
-bits. `long long` rather than `clock_t`, because `clock_t` is 32 bits on Windows (`long`, with
-1,000 ticks per second) and on 32-bit glibc, where it would narrow today's 64-bit `Py_ssize_t`
-on Win64 and fix nothing on 32-bit Linux. A 32-bit `clock_t`'s own wrap (about 72 minutes of CPU
-time on 32-bit glibc) is unchanged and out of scope.
+bits. `long long` rather than `clock_t`, because `clock_t` is a 32-bit `long` on Windows (with
+1,000 ticks per second), where it would narrow today's 64-bit `Py_ssize_t` on Win64.
+
+**What it does not fix: 32-bit glibc.** There `clock_t` is a 32-bit `long` too, at 10**6 ticks a
+second. So `clock() - start_time` itself wraps past 2**31 ticks, about 2,147 s (36 minutes), with
+or without this change. A timeout above that still cannot fire there: with the change it never
+fires, where on 32-bit x86 it used to fire at once (INFERRED, not run). Fixing that needs a clock
+wider than `clock()`'s, a larger change than this one.
 
 **How it was tested** (EXECUTED 2026-10-19, in a scratch folder: regex 2026.9.29 built for
 `wasm32-wasip1` with wasi-sdk 33's clang and linked into this project's CPython 3.15 reactor,

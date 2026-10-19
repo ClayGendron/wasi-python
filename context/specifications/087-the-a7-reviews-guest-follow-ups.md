@@ -1,10 +1,15 @@
 # 087 — the 0.1.0a7 review's guest follow-ups
 
 - **Status:** drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
-  with its research. Nothing is built. It carries an upstream patch (§4.1) and changes the build
-  recipe and the artifact set, so it is reviewed before it is built (constitution §5.6), and the
-  review reads the patch and its facts sheet (spec 020, Decision 8). A different agent reviews the
-  build.
+  with its research; reviewed before build the same day
+  (`scratchpad/087-review/087-the-a7-reviews-guest-follow-ups-spec-2026-10-19.md`, for the lane to
+  copy to `../reviews/`; verdict: "ready once F1 to F5 are written in, and the spec is rebased on
+  main per F6", F7 to F11 as wording); **revised against all eleven findings** and rebased onto
+  main `932bc00` (spec 065 landed; the README's two recursion corrections landed). The section
+  "Disposition of the pre-build review" says where each went. Nothing is built. It carries an
+  upstream patch (§4.1) and changes the build recipe and the artifact set, so it was reviewed
+  before it is built (constitution §5.6), and the review read the patch and its facts sheet
+  (spec 020, Decision 8). A different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7). It adds a carried patch under `recipes/patches/` and a line to
@@ -89,9 +94,13 @@ A source change: no recipe can change a C type inside `_regex.c`. It is a patch 
   - `decode_timeout` returns `RE_NO_TIMEOUT` for a negative value or NaN (as today) and for one
     whose ticks reach `LLONG_MAX` (new). It converts only a value that fits.
 - **Why `long long` and not `clock_t`**, as the review and the roadmap put it. On wasm32 the two
-  are the same type. Upstream they are not. `clock_t` is a 32-bit `long` on Windows and on 32-bit
-  glibc. There it would narrow today's 64-bit `Py_ssize_t` on Win64 and fix nothing on 32-bit
-  Linux. `long long` is 64 bits everywhere. Same idea, safer type.
+  are the same type. Upstream they are not. `clock_t` is a 32-bit `long` on Windows, where it
+  would narrow today's 64-bit `Py_ssize_t` on Win64. `long long` is 64 bits everywhere. Same idea,
+  safer type.
+- **What neither type fixes: 32-bit glibc** (the pre-build review's F10). There `clock_t` is a
+  32-bit `long` at 10**6 ticks a second, so `clock() - start_time` itself wraps past 2**31 ticks,
+  about 2,147 s. A timeout above that still cannot fire there: with the patch it never fires,
+  where 32-bit x86 fired at once (INFERRED). The facts sheet says so plainly.
 - **Why the clamp.** Without it, a huge timeout is undefined behaviour in C (C11 6.3.1.4). With
   it, `inf` and `1e30` mean "no timeout" on every target. That fixes x86-64's immediate
   `TimeoutError` too, so the upstream pull request fixes a native bug, not only ours.
@@ -117,8 +126,8 @@ A source change: no recipe can change a C type inside `_regex.c`. It is a patch 
   80's recommendation, as 0001's does: the owner writes and sends it. At build time it moves
   unchanged (`git mv`) to `../upstream/patches/regex-2026.9.29/0002-timeout-ticks.md`, and
   `fix.patch` is copied byte for byte into `recipes/patches/`. The number 24 is the next folder
-  free across the open branches (21 to 23 are taken by 037, 065 and 078); if one of them lands
-  with 24 first, the builder renumbers.
+  free across main and the open branches (21 to 23 are taken by 037, 065, 078 and 085; the
+  pre-build review checked it); if one of them lands with 24 first, the builder renumbers.
 - **The licence line.** `MODIFIED` in `scripts/assemble_artifacts.py` gains
   `"recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch": "clock ticks kept in 64 bits, so
   timeout= fires past 2.147 s"`. `modified_notice` then writes a second line into
@@ -135,6 +144,18 @@ times nothing (AGENTS.md: tests count operations).
 - **The driver gains one keyword**, `run(…, clock_step_ns: int = CLOCK_STEP_NS)`, read by its
   `clock_time_get`. The default keeps every other check's fuel. The `guest` fixture already
   passes keywords through.
+- **The stated resolution follows the step** (the pre-build review's F9). Today `clock_res_get`
+  answers `CLOCK_RESOLUTION_NS`, 1 µs for the realtime and monotonic clocks, fixed at import.
+  With the keyword, those two clocks answer the run's step, so `time.get_clock_info` tells the
+  truth. At the default nothing changes; `test_regrtest.py`'s comparison of the two constants
+  still holds. The docstring says so.
+- **The guest reads its clock with `time.clock_gettime_ns(time.CLOCK_MONOTONIC)`**, not
+  `time.monotonic_ns()` (the pre-build review's F3). The rules check `test_no_test_reads_a_clock`
+  flags `time.monotonic(_ns)` in any line under `tests/checks` and `tests/unit`, strings included,
+  and editing it would weaken the judge. The other spelling reads the same clock: the review ran
+  check 1 with it and measured the same 2 ms step and the same verdicts (EXECUTED by the review,
+  `check1.out`). The research program `evidence/f3_check.py` keeps the first spelling: it lives
+  under `context/`, which the scanner does not read.
 - **The check runs at 2 ms per read**, so 3 s of guest clock is 1,500 reads, about 384,000
   backtracking steps. The program (EXECUTED as written, `evidence/f3_check.py`,
   `evidence/f3_check.out`) searches `(a|aa)+$` in `"a" * 20 + "!"`, which takes 4.658 s of guest
@@ -165,13 +186,15 @@ template:
 | `href="/ro/ent.xsl"` with `base_url="/ro/main.xsl"`, `DENY_ALL` | the same |
 | `file:///ro/ent.xsl`, `XSLTAccessControl(read_file=False, read_network=False)` | the same |
 | `file:///ro/none.xsl` (absent), `DENY_ALL` | `XSLTParseError`, "Cannot resolve URI file:///ro/none.xsl": compiling tells whether a granted file exists |
-| `href="/ro/ent.xsl"` with no base URL | `XSLTParseError` (the base is `string://__STRING__XSLT__`); so the review's `x04b` had a base URL or a `file:` href (INFERRED) |
-| the stylesheet parsed with a parser whose `etree.Resolver` raises on every URL, then compiled under `DENY_ALL` (absolute, `file:` and relative hrefs) | **both loads raise**, with the resolver's own exception and its URL; nothing of `data.txt` appears |
+| `href="/ro/ent.xsl"` with no base URL | `XSLTParseError` (the base is `string://__STRING__XSLT__`), with or without a resolver; so the review's `x04b` had a base URL or a `file:` href (INFERRED). No check uses this form: refusing a load that cannot happen proves nothing (the pre-build review's F5) |
+| the stylesheet parsed from its bytes with a parser whose `etree.Resolver` raises on every URL, then compiled under `DENY_ALL`, in the three forms that otherwise load | **both loads raise**, with the resolver's own exception naming the URL: `file:///ro/ent.xsl` for the `file:` href, `file:///ro/ent.xsl` for `ent.xsl` with `base_url="file:///ro/main.xsl"`, `/ro/ent.xsl` for `/ro/ent.xsl` with `base_url="/ro/main.xsl"`; nothing of `data.txt` appears |
+| the same parser, but the stylesheet parsed by path (`etree.parse("/ro/main.xsl", p)`) | the resolver refuses the stylesheet itself: fails closed, but gives no stylesheet (EXECUTED by the review, `f2_file_parse.out`); from an open file object or from bytes it compiles and refuses the import |
 
 Both binaries give the same answers (EXECUTED: plain 511,271,219 fuel, snapshot 211,000,190 for
-the first form of the probe).
+the first form of the probe). Native lxml 6.1.3 prints the granted file under `DENY_ALL` too
+(EXECUTED by the review, `native_f2.out`).
 
-### 5. F4: what traps, measured three ways, and two README rows that are wrong
+### 5. F4: what traps, measured three ways, and two README rows corrected
 
 Each row was bisected to its exact edge (EXECUTED; the programs are `f4_edges.py`'s kinds). The
 edge is the first depth that ends in the trap "stack overflow". Every trap was clean, and the next
@@ -191,21 +214,24 @@ engines, because the edge moves with Cranelift's frames:
 | XPath, nested parentheses | about 375 | 373 | 357 | 500 | 5,000 (`XPATH_MAX_RECURSION_DEPTH`) |
 | XPath, chained predicates (`a[1][1]…`) | about 4,600 | 4,637 | 4,056 | 4,644 | 5,000 |
 | XSLT, nested `call-template` | about 480 | 483 | 462 | 523 | `xsltMaxDepth` 3,000 |
-| XSLT, `apply-templates` with `xsl:copy` over a tree built in Python | about 670 | **471** | 451 | 509 | 3,000 |
-| XSLT, a bare `apply-templates` over the same tree | (the review's shape) | 677 | 663 | 740 | 3,000 |
+| XSLT, `apply-templates` with `xsl:copy` over a tree built in Python | about 670 (now about 470) | **471** | 451 | 509 | 3,000 |
+| XSLT, a bare `apply-templates` over the same tree | (now about 670) | 677 | 663 | 740 | 3,000 |
 | C14N of a tree built in Python | about 1,500 | 1,479 | 1,479 | 1,629 | none |
 | RelaxNG validation of a tree built in Python | about 430 | 433 | 396 | 516 | none |
 | an exception freed after unwinding N Python frames | (see below) | 2,712 | 2,958 | 3,259 | the recursion limit |
-| `RecursionError` at a raised limit N | "between 1,000 and 3,000" | 2,715 | 2,961 | 3,262 | the limit |
+| `RecursionError` at a raised limit N | "between 1,000 and 3,000" (now: the traceback, about 2,700) | 2,715 | 2,961 | 3,262 | the limit |
 
 Sources: `f4_runner_unmetered.jsonl`, `f4_runner_metered.jsonl`, `f4_runner_apply_bare.jsonl`,
 `f4_defaults_engine.jsonl`.
 
-**Two rows are wrong in the README today.**
+**Two rows were wrong in the README; both corrections have landed** (main `932bc00`, from this
+draft's bisection, before this specification is built). The README column above is
+`c53c05c`'s; "now" gives `932bc00`'s words.
 
 1. **`apply-templates`.** "A tree deeper than about 670" holds only for a template that does
    nothing but apply templates (the review's shape: 677). A template that copies each element,
-   the common identity shape, traps from 471. The row should say about 470.
+   the common identity shape, traps from 471. Main now says "about 470 with a template that
+   copies (about 670 with one that only applies templates)".
 2. **"Plain Python recursion between about 1,000 and 3,000 levels once a program raises
    `sys.setrecursionlimit` to 3,000 or more."** Plain recursion does not trap. With the limit at
    10**6, a function that recurses 99,950 deep and returns completes (`f4_rec.out`). What traps is
@@ -218,11 +244,19 @@ Sources: `f4_runner_unmetered.jsonl`, `f4_runner_metered.jsonl`, `f4_runner_appl
      only above 3,000. INFERRED: freeing a traceback recurses in C once per frame, and the
      trashcan's guard watches the linear-memory stack, not wasm's own (spec 071's window).
 
-   The row should say: "an exception that unwinds through more than about 2,700 Python frames
-   (which needs a raised `sys.setrecursionlimit`) traps when its traceback is freed".
+   Main now says "freeing a traceback longer than about 2,700 frames (deep recursion is itself
+   fine, but once a program raises `sys.setrecursionlimit` past that, the `RecursionError`'s
+   traceback traps when it is freed)".
 
 A fuel cap moves every edge, by up to an eighth (XPath predicates: 4,637 to 4,056). The README
-says so in one clause.
+says so in one clause (Decision 8).
+
+**Which engine the README's numbers describe** (the pre-build review's F7). They are the
+runner's: 512 KiB with epoch interruption on, no fuel cap. Check 4 holds a different engine,
+wasmtime's defaults, whose edges are 4% to 35% higher (parens 500 against 373), because it has no
+epoch checks. The two agree in direction, and check 4's depths hold both (Decision 6). Once 078
+moves the list into step 4, for an embedder at 512 KiB, the list keeps the runner's numbers and
+gains one clause saying so (Decision 8).
 
 ### 6. F4's checks state their depths against one engine: wasmtime's defaults
 
@@ -248,6 +282,7 @@ engines, metered and not, as long as `run` has 512 KiB:
 | XPath, chained predicates | 3,000 | 4,950 | below libxml2's 5,000 (which raises `XPathEvalError`); 6.6% past 4,644 |
 | XSLT, nested `call-template` | 340 | 700 | 134% of 523 |
 | XSLT, `apply-templates` with `xsl:copy` | 330 | 680 | 134% of 509 |
+| XSLT, a bare `apply-templates` | 490 | 930 | 126% of 740 (74% of 663 to complete) |
 | C14N | 1,100 | 2,100 | 129% of 1,629 |
 | RelaxNG validation | 290 | 660 | 128% of 516 |
 | an exception freed after N frames | 2,000 | 4,200 | 129% of 3,259 |
@@ -256,16 +291,34 @@ engines, metered and not, as long as `run` has 512 KiB:
   returns completes (the README's corrected sentence). And with
   `etree.XSLT.set_global_max_depth(250)`, `call-template` 2,000 deep and `apply-templates` over a
   2,000-deep tree raise `XSLTApplyError`, not a trap (Decision 7).
-- **On the snapshot binary only**, with one module compiled per judge run and shared by the
-  rows: every edge is the same on both binaries (EXECUTED), and compiling 45 MB on a second engine
-  costs seconds and a gigabyte. Spec 071's default-engine check does the same.
+- **What a trap looks like on this path** (the pre-build review's F1). The driver's `own` path
+  does not name traps as the runner does. A stack overflow there gives `trapped == "error while
+  executing at wasm backtrace:"` (wasmtime's heading) and `trap_cause == "wasm trap: call stack
+  exhausted"` (EXECUTED by the review, `f4_cause.out`). So check 4 asserts `(r.exit_code,
+  r.trap_cause) == (None, "wasm trap: call stack exhausted")`. Teaching the driver to name traps
+  would be a judge change of its own, for no gain here; it is not done.
+- **On the snapshot binary only, one test, one module** (the pre-build review's F8). Every edge is
+  the same on both binaries (EXECUTED), and compiling 45 MB on a second engine costs seconds and
+  a gigabyte. So check 4 is one test that compiles the module once and loops over the rows,
+  collecting every row's failure, as spec 071's default-engine check does. Under `-n 6` it then
+  compiles once, on whichever worker runs it, not once per worker. It is in the fast tier: about
+  thirty short guests on one compiled module.
 - **Hosts.** The edges above are arm64 macOS's. The builder measures the same table on
   linux/amd64 (the research image, as 078 did) before fixing the numbers, and moves a number only
-  to keep the two rules. If any host's predicates edge passes 4,800, that row cannot sit below
-  5,000 with room: it then asserts "traps or raises `XPathEvalError`", and the README says "near
-  libxml2's own limit of 5,000". Windows is judged by the release dry run.
+  to keep the two rules. Windows is judged by the release dry run.
+- **The predicates row's fallback** (the pre-build review's F4). With room, libxml2 completes
+  5,000 chained predicates and raises `XPathEvalError` from 5,001 (EXECUTED by the review on a
+  2 MiB engine, `f4_xpath_limit.out`). So 4,950 traps only where the stack edge is below it. Its
+  margin, 6.6% past 4,644, is the only one under the 25% rule. If any host's edge passes 4,800
+  (the builder's linux/amd64 run, or 086's re-measure), the row's deep depth becomes 5,500 and it
+  asserts "traps or raises `XPathEvalError`", and the README says "near libxml2's own limit of
+  5,000".
 - **Spec 086** (wasi-sdk 34) recompiles the guest, so its frames move. It re-measures this table
-  with its other edges; the margins are there for it.
+  with its other edges; the margins are there for it, but for predicates (above).
+- **x86-64's frames** (INFERRED from 071's measured 0 to 29% larger x86-64 frames, the review's
+  reading). Larger frames lower every edge, so the "traps at" depths only get safer. The thinnest
+  "completes at" is predicates (4,644 / 1.29 ≈ 3,600 against 3,000), then C14N (1,263 against
+  1,100) and call-template (405 against 340). The builder's linux/amd64 run is the gate.
 
 ### 7. libxslt's depth: no recipe constructor; the README names lxml's own call
 
@@ -286,7 +339,9 @@ recipe constructor, so deep XSLT raises `XSLTApplyError` instead of trapping. It
   runs before the snapshot, and makes lxml differ from native lxml's default.
 
 So the README's deep-recursion text gains one sentence naming `set_global_max_depth`, and
-Decision 6's table holds it. The owner may overrule (*The owner's choices*).
+Decision 6's table holds it. It says "templates like these", not "deep templates": three shapes
+were measured, and a template with much heavier C frames per level could still trap before 250
+(INFERRED; the review's wording point). The owner may overrule (*The owner's choices*).
 
 ### 8. The README and the CHANGELOG
 
@@ -298,15 +353,17 @@ Decision 6's table holds it. The owner may overrule (*The owner's choices*).
   releases the change, and makes `timeout=float('inf')` mean no timeout." "Five of regex's
   callbacks … a carried patch" becomes "two carried patches" where it counts them.
 - **The patches row**: "upstream patches carried: 8", the eighth named.
-- ***Deep recursion***, the rows Decision 5 corrects: "an exception that unwinds through more than
-  about 2,700 Python frames (which needs a raised `sys.setrecursionlimit`) traps when its traceback
-  is freed; plain recursion that returns does not"; "XSLT `call-template` nested past about 480
-  levels, or `apply-templates` over a tree deeper than about 470 (670 for a template that only
-  applies templates)". Then one clause: "a fuel cap moves these by up to an eighth". Then one
-  sentence: "For untrusted XSLT, `etree.XSLT.set_global_max_depth(250)` makes deep templates raise
-  `XSLTApplyError` instead." The other rows stand: the measured edges agree with them.
+- ***Deep recursion***: Decision 5's two corrections are already on main (`932bc00`), so this
+  specification does not write them. It adds, after the list: "These are the runner's depths, with
+  epoch interruption on; a fuel cap moves them by up to an eighth, and an engine without epoch
+  checks (wasmtime's defaults) has up to a third more room." Then: "For untrusted XSLT,
+  `etree.XSLT.set_global_max_depth(250)` makes templates like these raise `XSLTApplyError`
+  instead." The other rows stand: the measured edges agree with them.
+- ***lxml in the guest***, the remedy sentence gains: "parse it from its bytes or an open file;
+  parsed by path through that parser, the stylesheet itself is refused" (the review's F5 note).
 - **Where those words go depends on 078** (Decision 9). If 078 has landed, the 512 KiB rows live in
-  step 4, and the corrections go there. And 078's *Deep recursion* row "recursion that reaches a
+  step 4, and the added sentences go there, the first saying the numbers are the runner's at
+  512 KiB (the pre-build review's F7). And 078's *Deep recursion* row "recursion that reaches a
   `sys.setrecursionlimit` above about 43,000" becomes "an exception that unwinds through more than
   about 43,000 Python frames", keeping 078's number. INFERRED: the same traceback free; the builder
   confirms it with one 8 MiB run of each (`traceback-freed` at 50,000 traps; plain recursion
@@ -315,9 +372,8 @@ Decision 6's table holds it. The owner may overrule (*The owner's choices*).
   the 0.1.0a7 security review's F3): a second carried patch,
   `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`, keeps regex's clock ticks in 64 bits
   (wasm32's `Py_ssize_t` is 32 bits, and wasi-libc counts 10**9 ticks a second); `timeout=inf` now
-  means no timeout. The README's deep-recursion list corrected: a deep traceback, not deep
-  recursion, is what traps, and `apply-templates` traps from about 470. Checks now hold the
-  README's lxml `DENY_ALL` sentences and each recursion row."
+  means no timeout. Checks now hold the README's lxml `DENY_ALL` sentences and each 512 KiB
+  recursion row, on an engine at wasmtime's defaults."
 
 ### 9. Where this meets other specifications
 
@@ -328,10 +384,11 @@ Decision 6's table holds it. The owner may overrule (*The owner's choices*).
   (INFERRED from 078's Decision 1; the builder runs the table once on 078's driver if 078 has
   landed). Both edit `tests/harness/guest.py` (078 the engine and `run()`'s thread; 087 one keyword)
   and `test_v1_2_hostile_guest.py` (078 restates `test_deep_data_limits`; 087 adds a separate
-  check): textual merges. The README follows Decision 8. **Expected order:** 078 first. It is
+  check): textual merges. **083** (the driver answers file timestamps) edits `guest.py` too; also
+  textual. The README follows Decision 8. **Expected order:** 078 first. It is
   parallel-safe and ready; 087 is build-class and waits for a build slot. Either order works.
 - **086** (wasi-sdk 34, reserved): re-measures Decision 6's table; Decision 6 leaves the margin.
-- **065** (in the lane): no overlap. 087 adds no upstream suite group (`tests/upstream/` is
+- **065** (landed, `a4b46de`): no overlap. 087 adds no upstream suite group (`tests/upstream/` is
   untouched; regex's own suite is spec 063's matter).
 - **085** (build-class, drafted) and **037** (build-class): no shared file but `CHANGELOG.md` and
   `context/upstream/README.md`; one build-class landing at a time (§5.7).
@@ -349,9 +406,9 @@ stated against an engine that does not move when the runner's stack does.
 | `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch` | new, `fix.patch` byte for byte (Decision 2) |
 | `context/upstream/24-regex-timeout-ticks/pr.md` → `context/upstream/patches/regex-2026.9.29/0002-timeout-ticks.md`; `context/upstream/README.md` | the facts sheet moves at build time; its row says it is carried |
 | `scripts/assemble_artifacts.py` | `MODIFIED` gains 0002's line (Decision 2) |
-| `tests/harness/guest.py`, `tests/unit/test_guest.py` | the `clock_step_ns` keyword and its unit check (Decision 3) |
+| `tests/harness/guest.py`, `tests/harness/wat.py`, `tests/unit/test_guest.py` | the `clock_step_ns` keyword, the resolution that follows it, a WAT probe and their unit checks (Decision 3) |
 | `tests/checks/test_v1_3_regex.py` | check 1 |
-| `tests/checks/test_v1_3_lxml.py` | checks 2 and 3; `ent.xsl` in `_grants` |
+| `tests/checks/test_v1_3_lxml.py` | checks 2 and 3, with a grant of their own |
 | `tests/checks/test_v1_2_hostile_guest.py` | check 4 and its table (Decision 6) |
 | `README.md`, `CHANGELOG.md` | Decision 8 |
 
@@ -365,11 +422,15 @@ Each is written before the change it judges. Each was, or will be, seen failing 
    - `timeout=3` raises `TimeoutError`, and the guest's clock moved between 3.0 and 3.1 s;
    - `timeout=2.0` and `timeout=0` raise `TimeoutError`;
    - `timeout=1e9`, `1e13` and `inf` complete with `None`, the search's own answer.
+   The guest reads its clock with `time.clock_gettime_ns(time.CLOCK_MONOTONIC)` (Decision 3).
    Seen failing first: on the released set, `timeout=3` completes after 4.658 s
    (EXECUTED, `evidence/f3_check.out`). It records fuel (about 1.04 G on the plain binary).
 2. **v1.3, `test_deny_all_leaves_a_stylesheets_imports_to_its_parser[which]`**
-   (`tests/checks/test_v1_3_lxml.py`, both binaries). A read-only `/ro` holding `ent.xsl` (an
-   external entity on `/ro/secret.txt`) and `secret.txt`, from the existing `_grants`. Guest paths
+   (`tests/checks/test_v1_3_lxml.py`, both binaries). **A grant of its own** (the pre-build
+   review's F2): a fresh read-only folder at `/ro` holding only `ent.xsl` (an external entity on
+   `/ro/secret.txt`) and `secret.txt`, made by a helper beside `_grants`, never by `_grants`
+   itself, whose `/ro` listing `test_files_by_path_in_grants` prints and whose files that check's
+   last assertion names. So no expectation (`FILES_WANT`) and no recorded fuel moves. Guest paths
    only (spec 081). For `xsl:import` and `xsl:include` each, under `DENY_ALL`: the output holds
    `SECRET` for a `file:` href and for a relative href with a base URL; under
    `XSLTAccessControl(read_file=False)` too; an absent file raises `XSLTParseError` naming its URL.
@@ -377,22 +438,29 @@ Each is written before the change it judges. Each was, or will be, seen failing 
    the entity; an href to the absent file in the "present" row).
 3. **v1.3, `test_a_refusing_resolver_stops_a_stylesheets_imports[which]`** (same file). The same
    stylesheets parsed with an `etree.XMLParser` whose `resolvers` hold one `etree.Resolver` that
-   raises its own exception class on every URL, then compiled under `DENY_ALL`: for `xsl:import`
-   and `xsl:include`, and for absolute, `file:` and relative hrefs, `etree.XSLT(…)` raises that
-   exception, carrying the URL, and nothing of `SECRET` is printed. Seen failing first: with a
+   raises its own exception class on every URL, the stylesheet parsed from its bytes, then
+   compiled under `DENY_ALL`: for `xsl:import` and `xsl:include`, in the three forms that load
+   without the resolver, `etree.XSLT(…)` raises that exception naming the URL, and nothing of
+   `SECRET` is printed. The forms and their URLs (the pre-build review's F5): a `file:` href,
+   `file:///ro/ent.xsl`; `ent.xsl` with `base_url="file:///ro/main.xsl"`, `file:///ro/ent.xsl`;
+   `/ro/ent.xsl` with `base_url="/ro/main.xsl"`, `/ro/ent.xsl`. Its own grant, as check 2's. Seen failing first: with a
    resolver that returns `None` (does not refuse), the loads succeed and the check fails.
-4. **v1.2, `test_what_traps_on_wasmtimes_default_engine[kind]`**
-   (`tests/checks/test_v1_2_hostile_guest.py`, the snapshot binary, one module compiled on an
-   engine at wasmtime's defaults and shared by the rows; through `driver.run(…, own=…)`, which
-   records no fuel). For each trap row of Decision 6: the completing depth prints `ok`; the deep
-   one ends with `trapped == "stack overflow"` and no exit code; then `print('ok')` on the same
-   engine prints `ok`. The two must-not-trap rows end with exit 0 and their expected line
+4. **v1.2, `test_what_traps_on_wasmtimes_default_engine`** (`tests/checks/test_v1_2_hostile_guest.py`,
+   fast tier; one test, not parametrized: the snapshot binary compiled once on an engine at
+   wasmtime's defaults, the rows looped and every failing row reported together; through
+   `driver.run(…, own=…)`, which records no fuel; Decision 6). For each of the eight trap rows:
+   the completing depth prints `ok`; the deep one ends with `(r.exit_code, r.trap_cause) == (None,
+   "wasm trap: call stack exhausted")`, the driver's words for a stack overflow (the pre-build
+   review's F1); then `print('ok')` on the same engine prints `ok`. The two must-not-trap rows end with exit 0 and their expected line
    (`ok`, or `XSLTApplyError` twice). The programs are `f4_edges.py`'s kinds, moved into the check.
    Seen failing first: on an engine with `max_wasm_stack` at 1 MiB, every trap row completes or
    raises instead (the builder records it).
-5. **Unit, `tests/unit/test_guest.py`**: a guest that reads `time.monotonic_ns()` twice sees the
-   difference equal to the step given, for the default and for `clock_step_ns=2_000_000`. Seen
-   failing first: the keyword does not exist.
+5. **Unit, `tests/unit/test_guest.py`, with WAT probes** (the pre-build review's F3; no
+   artifact needed). `CLOCK_STEP_PROBE`, beside `CLOCK_PROBE` in `tests/harness/wat.py`, calls
+   `clock_time_get` on the monotonic clock twice and returns the difference in microseconds;
+   `CLOCK_RES_PROBE` calls `clock_res_get` on it and returns the resolution in microseconds. At the
+   default each returns 1; with `clock_step_ns=2_000_000` each returns 2,000. Seen failing first:
+   the keyword does not exist.
 6. **The patch rules and trees** (existing): `test_carried_patches_follow_the_rules` (README's count
    8, CHANGELOG names the patch, the sheet's six header lines and `Files: src/_regex.c`) and
    `test_source_tree_matches_its_tarball[regex]` cover 0002 by construction. Seen failing first:
@@ -439,38 +507,82 @@ In: Decisions 1 to 9. Out:
 ## The judge's changes
 
 - `tests/harness/guest.py`: `run()` gains `clock_step_ns: int = CLOCK_STEP_NS`, read by its
-  `clock_time_get`. Its docstring says so. No other check's fuel moves (the default is today's
-  step).
-- `tests/unit/test_guest.py`: check 5.
+  `clock_time_get`, and its `clock_res_get` answers that step for the realtime and monotonic
+  clocks. Its docstring says both. No other check's fuel moves (the default is today's step).
+- `tests/harness/wat.py`, `tests/unit/test_guest.py`: check 5's two probes and its unit check.
 - `tests/checks/test_v1_3_regex.py`: check 1.
-- `tests/checks/test_v1_3_lxml.py`: checks 2 and 3, with `ent.xsl` added to `_grants`' files.
-  The existing measured check's fuel does not move: it does not read the new file, and `_grants`'
-  folder listing is not part of its program (the builder confirms).
+- `tests/checks/test_v1_3_lxml.py`: checks 2 and 3, on a grant of their own. `_grants`,
+  `FILES_WANT` and every existing check's fuel are unchanged (the pre-build review's F2).
 - `tests/checks/test_v1_2_hostile_guest.py`: check 4, with its programs and its table.
 - No golden output, gap, allowance or progress file is edited. No check is weakened.
 
 The accepting reasons, for the lane:
 
 ```
---accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read, a new clock_step_ns keyword), and the README's 512 KiB recursion rows on an engine at wasmtime's defaults"
---accept-growth "spec 087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm and the snapshot about +200 bytes each; LICENSES/regex.txt one line; MANIFEST one recipe line"
+--accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it, two WAT probes), and the README's 512 KiB recursion rows on an engine at wasmtime's defaults"
+--accept-growth "spec 087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +<bytes> and the snapshot +<bytes> (the builder's measured numbers); LICENSES/regex.txt one line; MANIFEST one recipe line"
 ```
+
+The builder writes the two byte counts it measured in place of `<bytes>` (the pre-build review's
+F11: the scratch build measured only `python.wasm`, +202; the snapshot was not rebuilt). No
+existing expectation is edited; if the build had to edit one (`FILES_WANT` or another), the
+`--accept-judge` reason would name it.
 
 ## The owner's choices
 
-None blocks the build. Decided until answered:
+None blocks the build. The two README corrections this draft found are already on main
+(`932bc00`), so that choice is gone. Decided until answered:
 
 1. **The `xsltMaxDepth` recipe:** not carried (Decision 7). The README names lxml's own
    `etree.XSLT.set_global_max_depth`. If you want the lower default anyway, it is a recipe
    constructor, a reviewed-constructor entry and a check, and it changes lxml's default from
-   native's.
-2. **Landing the README's two corrections early.** Decision 5's two wrong rows (`apply-templates`,
-   and "plain recursion") are in the shipped README now. A README-only commit can follow a dry run
-   if the fast tier passes on it (question 95). Decided until answered: they wait for this
-   specification, which holds them with checks. Say if you want them sooner.
-3. **The upstream sheet.** Whether and how to send it, as with 0001 (question 80). It also fixes
+   native's. The pre-build review agrees with declining it.
+2. **The upstream sheet.** Whether and how to send it, as with 0001 (question 80). It also fixes
    x86-64's immediate `TimeoutError` for `timeout=float("inf")`, a native bug, which may make it
    easier to send.
+
+## Disposition of the pre-build review
+
+The review (`scratchpad/087-review/087-the-a7-reviews-guest-follow-ups-spec-2026-10-19.md`, for
+the lane to copy to `../reviews/`) reproduced the patch byte for byte (202 bytes, no new warning
+under the strictest flags), found the timeout check and F2's facts sound, held every F4 depth on
+its engine, and agreed with declining the `xsltMaxDepth` recipe. Every finding is written in; no
+decision changed.
+
+- **F1, check 4's trap name: written in.** Check 4 asserts `(exit_code, trap_cause) == (None,
+  "wasm trap: call stack exhausted")`, the `own` path's words; the driver is not changed to name
+  traps (Decision 6, check 4).
+- **F2, `_grants` would move an existing check: written in.** Checks 2 and 3 get a grant of their
+  own; `_grants`, `FILES_WANT` and every recorded fuel stay as they are (check 2, *The judge's
+  changes*).
+- **F3, the clock scanner: written in.** Check 1's guest reads
+  `time.clock_gettime_ns(time.CLOCK_MONOTONIC)`; check 5 is two WAT probes beside `CLOCK_PROBE`,
+  with no artifact; the scanner is untouched (Decision 3, checks 1 and 5).
+- **F4, the predicates fallback: written in.** The fallback's deep depth is 5,500, above
+  libxml2's 5,000, and 086's re-measure triggers it as the builder's linux/amd64 run does
+  (Decision 6).
+- **F5, check 3's absolute case: written in.** It carries `base_url="/ro/main.xsl"`, each of the
+  three cases names the URL its exception carries, and the no-base form is used by no check; the
+  README's remedy gains "parse it from its bytes or an open file" (Decisions 4 and 8, check 3).
+- **F6, the rebase: done.** Rebased onto main `932bc00` (065 landed). Decision 5's two corrections
+  are restated as landed there; Decision 8 no longer writes them; the owner's choice about them is
+  gone. Check 4 gains the bare `apply-templates` row, 490 to complete and 930 to trap, holding
+  main's "about 670" (Decisions 5, 6 and 8).
+- **F7, which engine the README describes: written in.** The README's numbers are the runner's
+  (epochs on); check 4's engine has up to a third more room; the README gains one clause saying
+  so, in step 4 once 078 has landed (Decisions 5 and 8).
+- **F8, the shared module and the tier: written in.** Check 4 is one fast-tier test that compiles
+  once and loops the rows, as 071's default-engine check does, so `-n 6` compiles it once
+  (Decision 6, check 4).
+- **F9, the stated resolution: written in.** `clock_res_get` answers the run's step for the
+  realtime and monotonic clocks, and check 5's second probe holds it (Decision 3).
+- **F10, 32-bit glibc: written in.** The facts sheet and Decision 2 say plainly that `clock_t`'s
+  own 32-bit wrap at about 2,147 s remains there; the case for `long long` rests on Win64.
+- **F11, the accepting lines: written in.** `--accept-growth` carries the builder's measured byte
+  counts for both binaries, not "about +200"; `--accept-judge` names any edited expectation, and
+  none is edited.
+- **The optional wording points: taken.** The README says "templates like these" for
+  `set_global_max_depth` (Decision 7); 083's textual merge in `guest.py` is named (Decision 9).
 
 ## One line
 
