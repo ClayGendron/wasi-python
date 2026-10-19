@@ -698,7 +698,7 @@ class _Files:
             self.refused_total,
         )
 
-    def walk(self) -> None:
+    def walk(self, *, ending: bool = False) -> None:
         """The ending's write-backs (spec 034, Decision 8), made after the guest has stopped by
         any ending that returns a result, on the call's thread, outside every host function:
         one `write` for each dirty buffer of a writable mount that is not unlinked, owed buffers
@@ -711,13 +711,17 @@ class _Files:
 
         In a session (spec 055, Decision 11) the walk runs at every turn's ending: a write-back
         the limit refuses is recorded and stays dirty, to be offered again at the next ending
-        (the review's F7), and an owed buffer is dropped once its write-back is made."""
+        (the review's F7), and an owed buffer is dropped once its write-back is made. A session's
+        ending (`ending=True`) runs on purpose at exit, so it ignores the exiting flag that
+        run_async's exit hook sets; a pending Ctrl-C still stops it (the build review's F1)."""
         r = self._runner
         for number in sorted([*self.table, *self.owed]):
             entry = self.table[number] if number in self.table else self.owed[number]
             if entry.kind != "file" or not entry.dirty or entry.unlinked:
                 continue
-            if r._hook["exiting"] or (r._ctrl_c_watched() and r._ctrl_c["pending"]):
+            if (r._hook["exiting"] and not ending) or (
+                r._ctrl_c_watched() and r._ctrl_c["pending"]
+            ):
                 return
             paths = (entry.path,)
             if self.limit is not None and self.total >= self.limit:

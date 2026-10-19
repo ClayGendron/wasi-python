@@ -753,6 +753,61 @@ print("exiting")
 """
 
 
+EXIT_MOUNT = r"""
+import asyncio, sys
+import wasi_python
+from wasi_python import Errno, Mount, Session, Stat
+
+log = sys.argv[1]
+
+
+class Provider:
+    "A writable provider that logs every write to a file the parent reads."
+
+    def __init__(self):
+        self.files = {}
+
+    def stat(self, path):
+        if path == "/":
+            return Stat("dir", 0)
+        return Stat("file", len(self.files[path])) if path in self.files else Errno.ENOENT
+
+    def list(self, path):
+        return [(p[1:], "file") for p in self.files] if path == "/" else Errno.ENOTDIR
+
+    def read(self, path):
+        return self.files.get(path, Errno.ENOENT)
+
+    def write(self, path, data):
+        self.files[path] = bytes(data)
+        with open(log, "a") as f:
+            f.write(f"{path} {bytes(data)!r}\n")
+
+    def mkdir(self, path):
+        return Errno.EPERM
+
+    def remove(self, path):
+        self.files.pop(path, None)
+
+    def rmdir(self, path):
+        return Errno.EPERM
+
+    def rename(self, src, dst):
+        self.files[dst] = self.files.pop(src)
+
+
+asyncio.run(wasi_python.run_async(["-c", "pass"]))  # registers run_async's exit hook first
+s = Session(mounts=[Mount(Provider(), "/m", writable=True)], shutdown_s=60)
+s.run(
+    "import os, atexit\n"
+    "def h():\n    late = os.open('/m/late.txt', os.O_WRONLY | os.O_CREAT)\n"
+    "    os.write(late, b'late')\n"
+    "atexit.register(h)\n"
+)
+print("exiting")
+"""
+
+
 def test_fork_exit_and_the_collector(guest_workdir) -> None:
     """Criterion 24."""
     if hasattr(os, "fork"):
@@ -774,6 +829,12 @@ def test_fork_exit_and_the_collector(guest_workdir) -> None:
             assert after == before - 1, lines
         if want is not None:
             assert lines == want
+    # The build review's F1: at exit, after run_async has run once in the process (its exit
+    # hook sets the interpreter's "exiting" flag first), the ending's write-back still reaches
+    # a mount: the handler's descriptor, written and never closed, is handed over by the walk.
+    log = Path(tempfile.mkdtemp(prefix="mount-", dir=guest_workdir)) / "writes.log"
+    assert _child(EXIT_MOUNT, str(log)) == ["exiting"]
+    assert "/late.txt b'late'" in log.read_text().splitlines(), log.read_text()
 
 
 def test_a_session_on_the_plain_reactor() -> None:
@@ -1140,9 +1201,14 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
     from wasi_python import runner
 
     host = Path(tempfile.mkdtemp(prefix="race-", dir=guest_workdir))
-    s = wp.Session(grants=[wp.Grant(host, "/w", writable=True)], shutdown_s=60)
-    s.run(_handler_writing("/w/h.txt"))
-    order: list[str] = []
+    order: list[str] = []  # one list: the shutdown's handler, and close()'s return (F3)
+
+    def door(frame: bytes) -> bytes:
+        order.append("shutdown ran its handler")
+        return b""
+
+    s = wp.Session(grants=[wp.Grant(host, "/w", writable=True)], host=door, shutdown_s=60)
+    s.run(_handler_writing("/w/h.txt") + "import _host\natexit.register(_host.call, b'x')\n")
 
     def closing() -> None:
         monkeypatch.setattr(runner, "_after_export", None)
@@ -1162,7 +1228,8 @@ def test_a_turn_that_returns_after_close_runs_the_shutdown(
     assert (s.ended, s.shutdown_outcome) == ("closed", "finished")
     shutdowns = [ident for n, ident in exports_called if n == "shutdown"]
     assert shutdowns == [threading.get_ident()], exports_called
-    assert order == ["turn returned", "close returned"] or order[0] == "close returned"
+    assert order.index("shutdown ran its handler") < order.index("close returned"), order
+    assert order.index("shutdown ran its handler") < order.index("turn returned"), order
     assert _child(ERROR_ROW) == ["KeyboardInterrupt error skipped 0"]
 
 

@@ -1730,7 +1730,11 @@ What is per session and what is per turn:
 | `cancel` | per turn only |
 
 `Session(fuel=N)` opens a metered session, whose turns each get `N`;
-`Session()` is unmetered, and its turns report `fuel_used=None`. A session
+`Session()` is unmetered, and its turns report `fuel_used=None`. A turn's fuel
+depends on the turns before it. The same turns repeat their fuel exactly
+across sessions only on the snapshot; on the plain reactor they vary by a few
+thousand instructions, with the random hash secret each session starts with,
+as `run` varies there. A session
 has no argv and no stdin: a turn's input is its code, and `sys.stdin.read()`
 returns `""`. Async tools that cache an object bound to an event loop need
 all of a session's turns on one loop: all through `run` (the session's own

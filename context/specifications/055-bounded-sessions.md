@@ -1,6 +1,7 @@
 # 055 — Bounded sessions
 
-- **Status:** built 2026-10-18 (landing notes, near the end), awaiting its build review;
+- **Status:** built 2026-10-18 (landing notes, near the end); its build review's F1 fixed and F2
+  to F4 answered, for the lane;
   confirmed for build 2026-10-18; revised for the owner's decision (close and exit() as
   Jupyter does); its re-review confirmed (F3's error row and C1 written in, checked by the
   lane). The re-review (`../reviews/055-bounded-sessions-close-revision-2026-10-18.md`,
@@ -982,6 +983,13 @@ variables, DataFrames, functions, classes, lambdas.
     Linux, and records it in the landing notes. Criterion 16 allows 1,000 instructions; if the
     measured spread exceeds 10 (a hundredth of the band), that is a finding for the review, not
     a reason to widen the check.
+    **Measured at build (the build review's F2, the lane's ruling):** a turn's fuel repeats
+    exactly across sessions only on the snapshot (spread 0 over five sessions, darwin-arm64).
+    On the plain reactor turns 2 to 6 vary by 2,401 to 4,628 instructions, because its first
+    turn initializes the interpreter with a random hash secret, as `run` does there, and that
+    moves dict and set work in every later turn. Criterion 16 runs on the snapshot; the band is
+    not widened. The README says so. Linux's spread is the lane's or the release dry run's to
+    record.
 
 17. **The public API under spec 049.** This specification changes the surface 049 freezes.
     Every line of `tests/public_api.txt` it adds or changes, and the rule of 049's Decision 8
@@ -1337,9 +1345,10 @@ which drives `turn` on one instance without the runner and is itself checked in
     `max_tool_calls=2`; turn A imports `host.tools` and makes one call (record: `list ok`,
     `call ok`); turn B makes three calls (two `ok`, one `budget_exceeded`); turn C makes two
     (both `ok`, and no `list` frame).
-16. `test_turn_fuel_repeats`: two metered sessions given the same six turns (the first a
-    `pass`, then five of criterion 9's): turns 2 to 6 have `fuel_used` equal within 1,000
-    between the two (Decision 16).
+16. `test_turn_fuel_repeats`: two metered sessions **on the snapshot** given the same six turns
+    (the first a `pass`, then five of criterion 9's): turns 2 to 6 have `fuel_used` equal
+    within 1,000 between the two (Decision 16; the plain reactor's turns vary with its random
+    hash secret).
 17. `test_memory_is_per_session_and_not_a_trap`: `memory_bytes=256 * 2**20`:
     `np.zeros(300_000_000, np.int8)` returns 1 with `_ArrayMemoryError` on stderr; a turn that
     appends 64 KiB `bytearray`s until `MemoryError`, catches it and keeps the list returns 0; a
@@ -1939,13 +1948,20 @@ C functions and a larger frozen bootstrap).
   from its random hash secret (the first turn initializes the interpreter with one, as `run`
   does); criterion 16's check runs on the snapshot, the default, and holds. A finding for the
   review by Decision 16's rule, for the plain reactor only.
-- **`run`'s fuel**: the plain reactor's `run(["-c", "pass"])` costs 167,491,975 against main's
-  167,031,267 (+0.28%); with a stub bootstrap and the reference released, 167,267,999. Of the
-  rest, about 196,000 is loading the larger bootstrap (measured in the guest: 437,053 per load and
-  execution of main's bootstrap, 633,290 of this one), and the remainder is code layout
-  (INFERRED). On the snapshot a trivial job grew by about 43,000 (+0.05%) and the largest by
-  0.16%; INFERRED: the snapshot's heap layout after a larger bootstrap, the cause Decision 19
-  foresaw.
+- **`run`'s fuel, measured by the build review** (its `g3` to `g5`, through the judge's own
+  driver, whose seeded clock and random make fuel repeat exactly; replacing this build's single
+  noisy `run()` figure, the build review's F4):
+  - plain reactor: +197,710 on `-c pass`, of which +119,275 at start (unmarshalling and running
+    the larger bootstrap, whose code grew from 9,047 to 13,772 marshalled bytes) and +78,435 in
+    finalization (tearing the larger `_reactor` down). Departure 3 is in place and saves about
+    0.6 M;
+  - snapshot, trivial jobs: start unchanged (−2,303); +47,165 in the finalization of the frozen
+    heap, address-dependent work in its teardown (the bootstrap adds five frozen objects, and
+    the teardown after `gc.unfreeze()` grows by only 7,708);
+  - the largest, `test_extra_preopens_work_on_the_snapshot`, +1,389,264 (+0.16%): its
+    `isinstance(o, io.IOBase)` walk over the heap does the same work on both sets (62,317
+    against 62,322 objects, 343 types, 1,695 classes) at a cost that moves with object
+    addresses, which the larger bootstrap shifts (+2.23 M for the walk alone).
 - **The README's two session recipes ran once as written** (criterion 28): the groupby printed
   `APAC 4, EMEA 8`, and the pickled frame read back gave `b'6\n'`.
 
@@ -1954,8 +1970,9 @@ C functions and a larger frozen bootstrap).
 `wasi_python v1: 444/481 pass · 2 gap · 35 blocked · 0 fail`; v1.4 204/204. Ratchet against
 `75f03ab77e`: lost 0, absent 0, unrun 0, unrun locally 21, gained 39, grew 66, upstream unrun 31;
 judge changed. The 35 blocked are this worktree's: the upstream kit (31) and the oracle (1) are
-not set up here, and the prior-art clones, the three systems and the wheel as on main. The
-fast tier, `-m "not slow"`, earlier: 1,656 passed, lost 0.
+not set up here, and the prior-art clones, the three systems and the wheel as on main. After the build review's fixes the
+fast tier (`-m "not slow" -n 3`) gave 1,689 passed, lost 0, and the full `-n 3` the same line
+as above (444/481, lost 0, gained 39, grew 66).
 
 **For the lane:**
 - `--accept-judge`: "spec 055: the session checks (tests/checks/test_v1_4_sessions.py,
@@ -1963,10 +1980,36 @@ fast tier, `-m "not slow"`, earlier: 1,656 passed, lost 0.
   fixture, the API render of a plain class's __init__ and context methods, TOP gains Session and
   SessionEnded, stats() gains sessions_open in the cache checks' expected counts".
 - `--accept-growth`: "spec 055: both binaries gain the turn and shutdown exports and a larger
-  frozen bootstrap (+7,169 and +11,824 bytes); run's fuel grows by at most 0.14% on the plain
-  reactor (the bootstrap's load at each start, and code layout) and at most 0.16% on the
-  snapshot (its heap's layout), measured and stated in the landing notes".
+  frozen bootstrap (+7,169 and +11,824 bytes); measured by the build review: the plain
+  reactor's run grows by about +120 k at start (unmarshalling the larger bootstrap) and +80 k in
+  finalization; the snapshot's trivial jobs by about +45 k in finalization, address-dependent;
+  the largest, test_extra_preopens_work_on_the_snapshot, by +1.39 M (+0.16%), an isinstance
+  walk whose work is unchanged and whose cost moves with object addresses".
 
 78 metrics grew: the two binaries' bytes and 76 jobs' fuel. The largest is 0.16%
 (`test_extra_preopens_work_on_the_snapshot`); plain-reactor jobs grew by at most 0.14%; the full
 list is `build/055/growth.txt`.
+
+### The build review
+
+`../reviews/055-bounded-sessions-build-2026-10-19.md` (copied there by the lane from its
+scratchpad, with its probes): lands once F1 is fixed; F2 to F4 answered in writing or by small
+fixes. All are taken, by the lane's rulings.
+
+- **F1 (medium), the ending's write-back lost at exit once `run_async` had run.** `_Files.walk`
+  takes `ending=True` from `_shutdown`, which ignores the exiting flag run_async's exit hook sets
+  and keeps the deferred-Ctrl-C check. Criterion 24(b) gains the case (a writable mount, a
+  handler that leaves a raw descriptor written, one `run_async` call earlier in the child),
+  seen failing first: the provider logged only the create's empty write, as the review's
+  `s1_exit_mount` probe found; it now logs `b'late'`.
+- **F2 (low), the plain reactor's turn fuel varies.** Decision 16, criterion 16 and the README
+  say that turns repeat their fuel exactly only on the snapshot, and why; the band is unchanged.
+- **F3 (low), criterion 42's order was vacuous.** The shutdown's handler (through the door) and
+  `close()`'s return are recorded in one list, and the check asserts the handler came first.
+- **F4 (low), the growth reasons.** The measurements above and the `--accept-growth` reason use
+  the review's measured split.
+- **N1**, a `run_async` turn queued past the lifetime runs up to one tick: left as it is, within
+  the promise's own one-tick precision; a refusal there is a possible later tightening.
+- **N2** taken: `Session.run`'s `Raises:` says that on an expired session it may block for up to
+  `shutdown_s` before raising `SessionEnded`.
+

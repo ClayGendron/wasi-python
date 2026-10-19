@@ -4076,7 +4076,9 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
         else:
             outcome = "stopped"  # a runner fault: quiet here (the re-review's N3)
         if raised is None and not lost:
-            state.table.walk()  # spec 034's walk, its Ctrl-C check included (the re-review's F4)
+            # spec 034's walk, its Ctrl-C check included (the re-review's F4), and made at exit
+            # too, whatever run_async's exit hook set (the build review's F1)
+            state.table.walk(ending=True)
         return outcome, raised
     finally:
         if tool_host is not None and state.private_loop is not None:
@@ -4838,7 +4840,9 @@ class Session:
         Raises:
             TypeError: An argument has the wrong type; the session stays open.
             ValueError: An argument is out of range; the session stays open.
-            SessionEnded: The session has ended, or its idle bound or lifetime has passed.
+            SessionEnded: The session has ended, or its idle bound or lifetime has passed;
+                in that case the session's ending runs here first, so `run` may block for up
+                to `shutdown_s` (plus any call of your own code it makes) before it raises.
             RuntimeError: A turn is already running in this session; this process was forked
                 after it ran a guest; or the runner lost track of the turn.
             KeyboardInterrupt: Ctrl-C.
