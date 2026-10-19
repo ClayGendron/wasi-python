@@ -51,6 +51,16 @@ def string_fuel(c):  # not compared on Linux, so never parsed as a number
     c.records[("linux", "own-a")]["checks"][T.PROBE]["metrics"] = {"fuel": "7"}
 
 
+def fuel_unchecked(wasmtime):  # the review's F1: one meta field turns off the darwin ratchet
+    def edit(c):
+        c.accepted["checks"][T.PROBE]["metrics"] = {"darwin-arm64": {"fuel": 7, "wasmtime": "49.0.0"}}
+        for k in OWN:
+            c.records[k]["checks"][T.PROBE]["metrics"] = {"fuel": 7}
+        c.records[("macos", "own-a")]["checks"][T.PROBE]["metrics"] = {"fuel": 70}
+        c.records[("macos", "own-a")]["meta"]["wasmtime"] = wasmtime
+    return edit
+
+
 def newest(**fields):
     def edit(c):
         c.newest.update(fields)
@@ -85,6 +95,9 @@ FORGERIES = [
      drop_probe_fuel),
     ("F7", "a Linux record's product-check fuel is a string (accepted on darwin-arm64)",
      string_fuel),
+    ("F7", "a macOS record's fuel x10, its meta.wasmtime 49.0.0 (the control)", fuel_unchecked("49.0.0")),
+    ("F7", "a macOS record's fuel x10, its meta.wasmtime 48.0.0", fuel_unchecked("48.0.0")),
+    ("F7", "a macOS record's fuel x10, its meta.wasmtime null", fuel_unchecked(None)),
     ("F5", "the newest acceptance is on python.wasm but another set's SHA256SUMS",
      newest(set_sums=OTHER_SUMS)),
     ("F5", "the newest acceptance records no set at all (a line from before 085)",

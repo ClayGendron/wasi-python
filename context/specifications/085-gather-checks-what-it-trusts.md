@@ -1,17 +1,24 @@
 # 085 — `gather` checks what it trusts
 
-- **Status:** drafted 2026-10-19 on `spec/085-gather-checks-what-it-trusts` from main `a6dfc17`.
-  Not built. It changes neither the guest's imports nor its exports, the artifact set nor the
-  build recipe, so §5.6 asks no review before build; the lane may ask for one. A different agent
-  reviews the build. Its branch dry run's gather is red on one expected G7 line until the lane
-  accepts it (criterion 6).
+- **Status:** drafted 2026-10-19 on `spec/085-gather-checks-what-it-trusts` from main `a6dfc17`
+  (`31a8713`); **rebased onto main `9d89535`** (spec 065 landed, history line 79) and **revised
+  the same day against its pre-build review** (in the lane's scratchpad,
+  `085-review/085-gather-checks-what-it-trusts-spec-2026-10-19.md`, with its probes in `work/`;
+  to be copied to `../reviews/` by the lane). Its verdict: "ready once F1 to F4 are written in;
+  F5 to F8 written in or answered". All eight are written in (*Disposition of the pre-build
+  review*). Not built. It changes neither the guest's imports nor its exports, the artifact set
+  nor the build recipe, so §5.6 does not require a review before build; the lane held one anyway,
+  since 085 changes what gates a release. A different agent reviews the build. Its branch dry
+  run's gather is red on one expected G7 line until the lane accepts it (criterion 6). **It lands
+  before 037** (*Coordination*).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (§5.7; AGENTS.md rule 2): it changes `.github/workflows/release.yml`.
   It is also a judge change.
   - The workflow: the build job hands on one more hash, `set-sums-sha256`; the gather job guards
     and binds it; both rebuild jobs print `python3 --version` (N5).
-  - The judge: `tests/harness/gather.py` (G1, G2, G4, G5, G7 and the merged record),
+  - The judge: `tests/harness/gather.py` (G1, G2 with `meta.wasmtime` bound, G4, G5, G7, the
+    merged record and the hidden-needs scan),
     `tests/harness/plugin.py` (`run_meta` records `set_sums`), `tests/harness/scoreboard.py` (the
     history line carries `set_sums`), `tests/harness/scan.py` (release rules 6, 7 and 10, and the
     rebuild gate's printed facts), and their unit tests: `tests/unit/test_gather.py`,
@@ -20,17 +27,22 @@
     release", one sentence), `CHANGELOG.md` (0.1.0a8), and one amendment line in spec 063.
   - It changes no `src/`, `scripts/`, `recipes/` or `downloads/SHA256SUMS`, no artifact, no pin,
     no golden output, no gap, no upstream allowance, and nothing under `context/progress/`.
-- **Depends on:** 063 (the gather, landed) and 057 (the release ties what it signs to what it
-  built, landed). **Spec 065 lands first:** it edits `gather.py`, `plugin.py`, `scoreboard.py`,
-  `shards.py` and `tests/release_shards.toml`; 085 builds on main after it. See *Coordination*
-  for 037, 039 and 043.
+- **Depends on:** 063 (the gather) and 057 (the release ties what it signs to what it built),
+  both landed; and 065, landed on main `9d89535` (accepted as history line 79). 065 edited
+  `gather.py`, `plugin.py`, `scoreboard.py`, `shards.py` and `tests/release_shards.toml`; this
+  draft is rebased onto it. See *Coordination* for 037, 039 and 043.
 - **Source:** the 0.1.0a7 security review
   (`../reviews/0.1.0a7-security-review-2026-10-19.md`): findings **F5**, **F6**, **F7** and note
   **N5**; the roadmap's 085 paragraph.
 - **Research it stands on** (`../research/2026-10-19-gather-checks-what-it-trusts/`, all
-  EXECUTED on 2026-10-19 in this worktree at `a6dfc17`):
-  - `forge_synthetic.py` and `.out`: fourteen forged records on the unit test's synthetic set.
-    Thirteen leave today's gather green; one makes it raise.
+  EXECUTED on 2026-10-19 in this worktree at `a6dfc17`; `forge_synthetic` and `hidden_wide` again
+  at `9d89535` after the rebase):
+  - `forge_synthetic.py` and `.out`: sixteen forged records and one control on the unit test's
+    synthetic set. Fifteen forgeries leave today's gather green and one makes it raise; the
+    control (ten times the fuel on macOS, with an honest `meta.wasmtime`) is red, as it should be.
+  - `hidden_wide.py` and `.out`: a prototype of the widened hidden-needs scan (Decision 1, the
+    review's F5). It finds nothing in the repository at `9d89535` and flags each of three planted
+    spellings in a fake tree.
   - `forge_real.py` and `.out`: six forgeries on the a7 tag run's own 19 records (run
     `39255794160`), each re-hashed after the edit. Today's gather is green on the honest records
     and on all six forgeries.
@@ -78,6 +90,11 @@ each one, and this spec reproduced each one (EXECUTED).
    values for the record's own platform. The lane accepts only on darwin-arm64. So a Linux or
    Windows record that drops a check's `fuel` is never compared, and the gather stays green
    (`forge_synthetic.out`; on the real records, one Windows check's fuel dropped).
+   - Worse, in darwin records too (the pre-build review's F1, EXECUTED there and here): the
+     ratchet compares fuel only when the record's `meta.wasmtime` equals the version
+     `accepted.json` was measured on, and files the check under `fuel_not_compared` otherwise,
+     which is never red. G2 does not check `meta.wasmtime`. So a macOS record with ten times the
+     fuel and `meta.wasmtime` `"48.0.0"` or null is green (`forge_synthetic.out`).
 4. **The lane's acceptance names only `python.wasm` (F5).** G7 requires the newest history line
    to be on the release's `python.wasm`. The snapshot, the stdlib zip, `MANIFEST` and the licences
    are outside that tie. They are still judged by the shards on the release's own bytes. But the
@@ -106,11 +123,12 @@ one file where it could tie all of them.
      needs are the ones the check may be blocked by. A parametrized check's rows share one body,
      so they share its needs.
    - **The systems come from the need.** `CI_NEEDS` in `gather.py` becomes a map from need to the
-     systems that lack it:
-     `oracle`, `prior-art clones` and `three systems` → every system (local tooling CI never has;
-     G6 proves three systems instead); `descriptor limit` → `windows` only (Windows has no
-     `RLIMIT_NOFILE`; macOS and Linux do). This map is the only hand-kept part. It is about four
-     needs, not about checks, and it is hand-kept today as a set.
+     systems that lack it, named as `expected_keys` names them:
+     `oracle`, `prior-art clones` and `three systems` → `build`, `macos`, `linux` and `windows`
+     (local tooling CI never has; G6 proves three systems instead); `descriptor limit` →
+     `windows` only (Windows has no `RLIMIT_NOFILE`; macOS and Linux do). The build record's
+     system is `build`, and G4 runs over it like the others. This map is the only hand-kept
+     part. It is about four needs, not about checks, and it is hand-kept today as a set.
    - **G4** is red for a `blocked` check whose need its body does not name, or whose need does not
      block on that record's system: `G4 <system>/<shard> <node>: blocked by '<need>', which its
      check does not call` or `…, which does not block on <system>`. A block by any other need
@@ -119,12 +137,34 @@ one file where it could tie all of them.
      blocked by a CI need") uses the same rule.
    - **What the derivation finds today.** Exactly the five checks the CI blocks, each on the
      systems it is blocked on (`prototype.out`). No other check names a CI need.
-   - **It fails closed.** A need named through a helper, a fixture or a variable is not seen. A
-     check blocked that way is red in the gather, not hidden. So that this is found before a dry
-     run, a fast-tier unit test holds that every call naming a CI need under `tests/checks/`
-     (conftest included) lies in the body of a `test_` function (`gather.hidden_ci_needs(repo)`
-     returns none). Today the four call sites are each in a check's own body (READ).
-   - **Why not a pinned list.** The review suggested pinning the pairs in `release_shards.toml`
+   - **Where it fails closed** (red in the gather, nothing hidden): a need named through a helper
+     or a fixture; through a variable, a lookup such as `NEED_OF[which]`, an f-string or `*args`;
+     a direct `pytest.skip("needs: oracle")`, which the plugin also records as `blocked`; a source
+     `inspect` cannot read.
+   - **Found before a dry run.** A fast-tier unit test holds that `gather.hidden_ci_needs(repo)`
+     returns nothing. It flags (the pre-build review's F5):
+     - any string constant equal to a CI need under `tests/checks/` (conftest files included) and
+       in `tests/conftest.py`, outside the body of a `test_` function;
+     - under `tests/harness/`, any such string used as a call argument or a container element (a
+       dict, list, tuple or set member, a keyword value), outside `needs.py` and `gather.py`, the
+       two files that define the vocabulary; a path piece such as `JOB_DIR / "oracle"` in
+       `jobs.py` is not flagged;
+     - any string beginning `"needs: "` anywhere in that scope, test bodies included, outside
+       `needs.py`.
+     Seven call sites today pass `need()` a non-literal (the review's count: `NEED_OF[which]`
+     lookups and f-strings); none names a CI need, and the widened scan would flag one that
+     came to (`hidden_wide.out`: nothing in the repository; each planted spelling flagged). Only a
+     need computed at run time from pieces stays unseen until a dry run, where it is red.
+   - **Where it fails open** (narrow, and written down here; the review's F8):
+     - the rows of a parametrized check share one body, so a row whose own path never calls the
+       need may still be reported blocked by it (today only the descriptor check's two rows, both
+       rightly blocked on Windows);
+     - the rule asks whether the body *names* the need, not whether the call can be reached: a
+       call in dead code or behind a condition allows the block on every system the map allows;
+     - any call spelled `.need("…")` counts, whatever the object before the dot.
+     Each of these needs a change to a check's own body, which is a judge change the review
+     sees.
+   - **Why not a pinned list.** The security review suggested pinning the pairs in `release_shards.toml`
      or `gather.py`. A list is a second copy of what the check's body says. It drifts unless it is
      checked against the body, and that check is the derivation itself. Adding a need to a check
      is already a judge change: the diff shows `needs.need("oracle")` added to a check, and the
@@ -159,12 +199,24 @@ one file where it could tie all of them.
      that is a judge change with its own reason; this spec adds no exception list.
    - A darwin record that drops a metric is already red through the ratchet ("is no longer
      recorded"). It may now be named twice. That is accepted.
+   - **G2 binds `meta.wasmtime`** (the pre-build review's F1). Every record's `meta.wasmtime` must
+     equal the `wasmtime` version locked in the gather's own `uv.lock` (`49.0.0` today), read with
+     `tomllib` (`G2 <system>/<shard>: wasmtime <value> is not uv.lock's <version>`). Without it,
+     one field in a darwin record turns off that record's fuel ratchet (*Why*, item 3). It also
+     catches an honest fault: a leg that resolved another wasmtime. *Why not make
+     `fuel_not_compared` red instead:* a branch that bumps wasmtime would then be red at every dry
+     run until its acceptance, while the lock binds what that branch runs.
+   - **What stays open.** Off darwin, metric values are still not compared: a Linux or Windows
+     record may carry any number for fuel, as long as it is a number. Decision 9 says why 085 adds
+     no band.
 4. **The lane's acceptance names the whole set: its own `SHA256SUMS` (F5).**
    - **What is hashed.** The set's own `SHA256SUMS`: the file in the artifact folder that lists
      every other file of the set (`python.wasm`, the snapshot, the zip, `MANIFEST`, each licence).
      Not the release assets' `SHA256SUMS` (the *Why*). The set check `test_v1_1_artifact_set`'s
      `sums_errors` holds that every file matches it and none is missing or extra, and that check
-     is an accepted pass. So one hash names every byte a run judged.
+     is an accepted pass. So one hash names every file of the artifact set a run judged. (The run
+     judges other things too, each bound its own way: the wheel by `sums-sha256`, the runner's
+     source by the commit through G2, the upstream kit and source trees by their pins.)
    - **The run records it.** `plugin.run_meta` adds `set_sums`: the SHA-256 of
      `artifact_dir()/SHA256SUMS`, or null when there is none.
    - **The lane's line carries it.** `scoreboard.accept` writes `set_sums` into the history line,
@@ -192,7 +244,7 @@ one file where it could tie all of them.
      (`history._step`) and the intact check (`history.errors`) read only `n`, `prev`, `schema`,
      the passed fields and `accepted`; they ignore other keys (READ). The chain hashes the line's
      whole text, so the new key is chained like every other. The sealed volume is untouched.
-   - **Lines 1 to 78** have no `set_sums`. Every reader takes it with `.get`, so it reads as null.
+   - **Lines 1 to 79** have no `set_sums`. Every reader takes it with `.get`, so it reads as null.
      G7 treats null or missing as a mismatch. So the first release after 085 needs an acceptance
      made by 085's judge. 085's own landing writes one (`--accept-judge`), so a release of main
      after 085 meets G7 if its build makes the lane's set.
@@ -232,24 +284,54 @@ one file where it could tie all of them.
    - **What 085 catches.** Honest faults and careless edits: a check that comes to name a CI need
      through a helper; a plugin or pytest change that miscounts or drops unit tests; a harness
      change that stops recording a metric on one system; a record from a run cut short; a shard
-     that judged another set than the build's. It also closes the cheapest lies, a one-field
-     `blocked` that looks like an expected CI condition and a missing count, so a forger must
-     now write a consistent pass. That raises the bar a little and no more.
+     that judged another set than the build's; a leg that resolved another wasmtime. It also
+     closes some cheap lies: a one-field `blocked` that looks like an expected CI condition, a
+     missing count, a dropped metric, and a darwin record's `meta.wasmtime` that turns off its own
+     fuel ratchet. It leaves one cheap lie open: off darwin, a metric value may be any number
+     (Decision 9). A forger must now write a consistent pass. That raises the bar a little and no
+     more.
    - **What 085 does not change.** The history is an unsigned file in the repository, and its
      chain can be recomputed by anyone who can push. G7 ties the release to what the repository
      says the lane accepted, not to an authenticated acceptance. Today only the owner's account
      can push, the rulesets let it bypass, and no status check is required (spec 064 has not
      landed). Signing acceptances is out of scope.
    - In one line: **the gather checks consistency, not authenticity.**
-8. **G7 stays exact, whatever spec 037 does.** 085 compares both hashes exactly, as 057's rule
-   asks. It neither creates nor fixes the interaction in *Coordination* below.
+8. **G7 stays exact, and spec 037's exception needs an answer that covers the whole set** (the
+   pre-build review's F2).
+   - 085 compares both hashes exactly, as 057's rule asks. It neither creates nor fixes the
+     interaction with 037 (*Coordination*; question 105).
+   - **Under 037's exception the snapshot varies too.** 037's Decision 17 names two artifacts it
+     touches, `python.wasm` and `python-snapshot.wasm`. So under it the set's `SHA256SUMS` differs
+     from the lane's on every build, in those two lines, and 085's `set_sums` clause would be red
+     on every release, like today's `artifact` clause.
+   - **So question 105's option (a) must also define a canonical set digest**, not only a
+     canonical digest of `python.wasm`: for example the set's `SHA256SUMS` with the two binaries'
+     lines replaced by their canonical digests. The lane records it at acceptance, the build job
+     hands it on, and G7's set clause compares it while the exception holds (exact hashes
+     otherwise). Or, if option (a) does not define one, G7's set clause gives way while the
+     exception holds, and the spec that builds option (a) says so in writing. Under option (b)
+     (086 first) nothing here changes. Either way, the change to G7's set clause is made by the
+     spec that builds the owner's answer, not by 085. The lane adds this to question 105's text.
+9. **No cross-system fuel band in 085** (the pre-build review's N1; a decision, with its
+   recommendation).
+   - A coarse band, say 1%, on Linux and Windows fuel against the lane's darwin value would catch
+     two lies Decision 3 leaves open: fuel swapped between two checks (5.6% apart on the pair the
+     review swapped) and a Linux-only fuel regression. The worst honest gap on the a7 tag run was
+     0.197% (`fuel_across_systems.out`), so a 1% band has five times that margin today.
+   - **085 leaves it out.** The band would be a new rule about how fuel may differ by host, and
+     a future host-dependent check (a file-system path, an encoding) could exceed it honestly; it
+     catches forgeries that a compromised leg can avoid anyway (Decision 7). Its cost and value
+     are the owner's to weigh.
+   - **Recommendation:** leave it out unless the owner asks; if asked, it is a small follow-up
+     (one G5 clause, one constant, rows in the mutation table), and 085's data above is its
+     evidence.
 
 ## Intent
 
 A release record says only what its code allows. A check is blocked only where its own body asks
 for a need CI lacks. A record's unit tally is its share. A passing check carries the metrics the
-lane accepted for it. And the lane's acceptance names the whole set, by its `SHA256SUMS`, not
-only `python.wasm`. These are consistency checks against honest faults; a compromised judge leg
+lane accepted for it, measured on the wasmtime the lock names. And the lane's acceptance names
+the whole set, by its `SHA256SUMS`, not only `python.wasm`. These are consistency checks against honest faults; a compromised judge leg
 can still forge a consistent record (Decision 7).
 
 ## Design
@@ -259,14 +341,15 @@ can still forge a consistent record (Decision 7).
   - `needs_called(func) -> set[str]`: the literal needs a function's own source names in
     `need(…)` calls (an `ast.Call` whose function is the name `need` or an attribute `.need`,
     each `str` constant argument). Unreadable source gives the empty set.
-  - `hidden_ci_needs(repo) -> list[str]`: every call under `tests/checks/*.py` naming a CI need
-    outside a `test_` function's body, as `file:line`.
+  - `hidden_ci_needs(repo) -> list[str]`: Decision 1's scan, as `file:line: <string>`.
+  - `locked_version(name, lock=paths.REPO / "uv.lock") -> str`: a package's version in `uv.lock`
+    (`tomllib`); G2 compares each record's `meta.wasmtime` with `locked_version("wasmtime")`.
   - `collect()` returns a third value, `may_block: dict[str, frozenset[str]]`, for goal checks
-    whose body names a CI need; `Inputs` gains `may_block` and `set_sums_sha256`; `main` reads
-    `SET_SUMS_SHA256`.
+    whose body names a CI need; `Inputs` gains `may_block`, `set_sums_sha256` and `wasmtime`;
+    `main` reads `SET_SUMS_SHA256` and the locked wasmtime.
   - `allowed(node, need, system, may_block)`: `need in may_block.get(node, ()) and system in
     CI_NEEDS.get(need, ())`, used by G4 and G5.
-  - G1, G2, G4, G5, G7 and `merge` as Decisions 1 to 4 say.
+  - G1, G2, G4, G5, G7 and `merge` as Decisions 1 to 4 say (G2's `meta.wasmtime`, Decision 3).
 - **`plugin.py`.** `run_meta` adds `"set_sums"`.
 - **`scoreboard.py`.** `accept` adds `"set_sums": meta.get("set_sums")` to the line.
 - **`release.yml`.** The build job: the `set-sums` step and the `set-sums-sha256` output. The
@@ -287,17 +370,20 @@ can still forge a consistent record (Decision 7).
   progress README that names what G7 ties; the CHANGELOG line; spec 063's amendment line.
 - **Out:**
   - Signing acceptances, or requiring signed commits (Decision 7). The owner's to raise.
-  - Comparing fuel values across systems (Decision 3 says why it cannot hold today).
+  - Comparing fuel values across systems, at the ratchet's tolerance or in a coarse band
+    (Decisions 3 and 9).
   - The release environments' protection (the review's N1) and required status checks (spec 064).
   - Any change to what the shards run, to the plan, or to the judge's own run outside `--shard`.
-  - The 037-to-086 window (*Coordination*).
+  - The 037-to-086 window, and any canonical digest (Decision 8; question 105).
 
 ## The checks first
 
 Each check below is written, and **seen failing on main first**, before any code changes. "Fails
 today" means the gather stays green (or raises) on the forgery, so the test that expects a red
-line fails. `forge_synthetic.out` holds today's verdict on fourteen forgeries; the rest need inputs
-that do not exist yet (`set_sums_sha256`, `may_block`, `DESC`) and fail today for that reason.
+line fails. `forge_synthetic.out` holds today's verdict on sixteen forgeries and a control; the
+rest need inputs that do not exist yet (`set_sums_sha256`, `may_block`, `wasmtime`, `DESC`) and
+fail today for that reason. The good set's records carry `meta.wasmtime` `"49.0.0"`, and
+`Inputs.wasmtime` is `"49.0.0"`.
 
 **The synthetic good set** (`tests/unit/test_gather.py`) gains, so that honest blocks stay green:
 - a goal check `DESC = "tests/checks/test_v1_2_portable_and_sealed.py::test_descriptors"` in
@@ -328,6 +414,10 @@ now `three systems: darwin linux win32 on <W> · set <S>`.
 | F7 | Linux record drops `SUITE`'s `fuel` | `G5 linux/up-l: <SUITE> records no fuel` | green |
 | F7 | Windows record drops `PROBE`'s `fuel` | `G5 windows/own-a: <PROBE> records no fuel` | green |
 | F7 | Linux record's `PROBE` fuel is `"7"` | `G5 linux/own-a: <PROBE> metric fuel is not a number` | green |
+| F7 | macOS record's `PROBE` fuel ×10, `meta.wasmtime` `"48.0.0"` | `G2 macos/own-a: wasmtime '48.0.0' is not uv.lock's 49.0.0` | green |
+| F7 | the same, `meta.wasmtime` null | `G2 macos/own-a: wasmtime None is not uv.lock's 49.0.0` | green |
+| F7 | `suite` `{passed: 4, skipped: -2, total: 2}` (a negative skip) | `G4 macos/own-rest: suite` | green (the review ran it on real records) |
+| F7 | `suite.passed` is `2.0` | `G4 macos/own-rest: suite` | green (the review ran it on real records) |
 | F5 | newest line's `set_sums` is another hash | `G7 the newest acceptance is not on the release's set` | green |
 | F5 | newest line has no `set_sums` (a line from before 085) | `G7 the newest acceptance is not on the release's set` | green |
 | F5 | `linux/own-a`'s `meta.set_sums` is another hash | `G2 linux/own-a: set_sums is not the build's SHA256SUMS` | green |
@@ -341,8 +431,13 @@ The existing mutation "blocked by the kit" (`upstream kit`) keeps its line. "a f
   nested block; a call through a helper (not seen); a variable argument (not seen); a function
   whose source cannot be read (empty).
 - `test_gather.py`: `hidden_ci_needs` is empty on the real repository, and names `file:line` on a
-  synthetic tree whose conftest fixture calls `needs.need("oracle")`. (Fast tier; the real-repo
+  synthetic tree for each of: a conftest fixture calling `needs.need("oracle")`; a `NEED_OF` map
+  in a conftest holding `"oracle"`; a harness dict holding `"descriptor limit"`; a direct
+  `pytest.skip("needs: three systems")` inside a `test_` body; a CI need in `tests/conftest.py`.
+  A path piece (`JOB_DIR / "oracle"`) in a harness file is not flagged. (Fast tier; the real-repo
   case fails today only because the function does not exist.)
+- `test_gather.py`: `locked_version("wasmtime")` reads a synthetic `uv.lock`, and the real one
+  gives the version the judge runs (`importlib.metadata.version("wasmtime")`).
 - `test_plugin.py`: `run_meta` gives `set_sums` as the SHA-256 of the artifact folder's
   `SHA256SUMS`, and null without one.
 - `test_scoreboard.py`: the line `accept` writes carries `set_sums` from the run's meta.
@@ -360,13 +455,21 @@ The existing mutation "blocked by the kit" (`upstream kit`) keeps its line. "a f
 1. **Seen failing first.** Every check in *The checks first* is run on main before the code
    changes, and fails there. The landing notes cite the run (the builder's equivalent of
    `forge_synthetic.out`).
-2. **Every forgery is red, each with its own line**, on the synthetic set (the table) and on the
-   a7 tag run's real records (`forge_real.py`, re-run against the built gather: six red verdicts,
-   each naming its rule).
-3. **Honest records stay green.** The synthetic good set passes. The a7 tag run's 19 records and
-   spec 065's dry run's 19 records give no red line under the new G4 and G5 rules (as
-   `prototype.out` shows for the prototype); their G2 and G7 lines about `set_sums` are expected,
-   since those records predate the field.
+2. **Every forgery is red, each with its own line, on the branch dry run's own records** (the
+   pre-build review's F4). The a7 and 065 records can no longer prove this: since 065 landed, the
+   gather is red at G3 on the a7 records (their collection predates 065's), and 085's own unit
+   tests and judge change move `own-rest`'s unit share and the judge hash. So the builder
+   downloads the 19 records of the branch dry run (criterion 6) and runs `forge_real.py`'s six
+   forgeries on them, plus the wasmtime forgery (a macOS record's fuel ×10 with `meta.wasmtime`
+   `"48.0.0"`), against the built gather at the branch's commit:
+   - the honest records are red on exactly one line, the expected G7 `set_sums` line;
+   - each forgery adds exactly its own rule's line or lines to that one, and nothing else.
+   The synthetic set's table holds the rest.
+3. **Honest records stay green under the new rules.** The synthetic good set passes. Run as
+   functions (G4's block and tally rules, G5's metric rules, G2's wasmtime rule) on the a7 tag
+   run's 19 records and on spec 065's dry run's 19 records, the new rules give no red line (as
+   `prototype.out` shows for the prototype). Only those rules, since the records' collection,
+   judge and `set_sums` predate the branch.
 4. **The derivation is the CI's reality.** On the real repository, `collect()`'s `may_block`
    names exactly the checks that the branch dry run reports `blocked`, each blocked only on the
    systems `CI_NEEDS` allows. The landing notes list them (today: five). `hidden_ci_needs` is
@@ -375,7 +478,7 @@ The existing mutation "blocked by the kit" (`upstream kit`) keeps its line. "a f
    `meta.set_sums` equals the build job's `set-sums-sha256`; that hash equals the SHA-256 of the
    `SHA256SUMS` inside the release tarball; and it differs from `sums-sha256`.
 6. **G7, before and after the acceptance.** On the branch, no history line carries `set_sums`
-   yet: line 78, main's newest, predates the field. So the branch dry run's gather is red by
+   yet: line 79, main's newest, predates the field. So the branch dry run's gather is red by
    design, on exactly one line, `G7 the newest acceptance is not on the release's set
    (SHA256SUMS)`. Every other job passes on all three systems, and the gather prints no other red
    line. The landing notes quote both facts. After the lane accepts 085, the newest line carries
@@ -383,6 +486,12 @@ The existing mutation "blocked by the kit" (`upstream kit`) keeps its line. "a f
    (AGENTS.md rule 6b's dry run before the next tag). If it does not, the lane stops there.
    *Why not soften G7 for a line without the key:* only 085's branch ever runs this gather with
    such a newest line, and a soft clause would stay in the judge for good.
+   **This criterion assumes the order 065 (landed), 085, 037** (the pre-build review's F3).
+6b. **If the lane lands 037 before 085 anyway.** Then main's set varies by build (Decision 8), and
+   the branch dry run's gather is red on two G7 lines, `artifact` and `set_sums`, and no other;
+   the landing notes quote both. Criterion 6's fully green dry run of main after acceptance cannot
+   be met until question 105 is answered and built (or 086 lands). The lane then tags nothing
+   until it is, as question 105 already holds for 037.
 7. **N5.** Both rebuild jobs' logs in the dry run show the runner's `python3 --version` line.
 8. **The judge.** The fast tier and the full judge (`-n 3`) are green in the worktree, with no
    lost pass and no growth. The lane accepts with `--accept-judge "<reason>"`. No golden output,
@@ -413,34 +522,80 @@ This spec changes the judge, on purpose, and says so here so the review sees the
 
 ## Coordination
 
-- **Spec 065** (landing now) adds `no_trap_anywhere` to `gather.py`, upstream check kinds to
+- **The order is 065, 085, 037.** 065 has landed (`9d89535`, history line 79). 085 lands next
+  among these. 037 waits on question 105 in any case. Criterion 6b covers the other order.
+- **Spec 065** (landed) added `no_trap_anywhere` to `gather.py`, upstream check kinds to
   `plugin.py`, a scoreboard line to `scoreboard.py`, `group_systems` to `shards.py`, and CPython
-  groups to the plan. 085 builds after it lands. 065's own dry run's records meet the new G4 and
-  G5 rules (`records_065.out`, `prototype.out`).
+  groups to the plan. Its `gather.py` change is additive and touches no G rule (the review, READ).
+  This draft is rebased onto it. 065's own dry run's records meet the new G4 and G5 rules
+  (`records_065.out`, `prototype.out`).
 - **Spec 037** (scipy, built) rewrites the same-bytes job and `scan.rebuild_gate_errors`. N5's
   line sits in that function's facts tuple, beside 037's hunks. Whichever lands second merges the
   two by hand; neither changes the other's rule.
-- **Spec 037 and G7: a decision for the owner, raised by the lane before 037 lands.** 037's
+- **Spec 037 and G7: question 105, for the owner.** 037's
   same-bytes exception exists because the pinned clang compiles ducc0's FFT to a different object
   on every run (32 compiles, 32 objects; 037's Decision 17). So each fresh build makes a new
   variant of `python.wasm` and the snapshot, and so a new set `SHA256SUMS`. The lane accepts the
   variant it built; the release's build job makes another. **G7 as it stands today
   (`python.wasm` alone) then fails on every release and every dry run of main**, until spec 086
   (wasi-sdk 34) removes the variance. 037 does not mention G7 or the gather (READ, its spec at
-  `ad937dc`). 085's `set_sums` clause inherits the same fact; it neither creates nor fixes it
-  (Decision 8). What holds in that window (wait for 086; or a G7 that accepts a variant under
-  037's rules, which would need the gather to hold both binaries, against spec 063's Decision 9;
-  or a release that ships an accepted set instead of rebuilding, against spec 057) is not this
-  spec's to choose.
+  `ad937dc`). The lane has written this as question 105 (option (a), a canonical digest; (b),
+  086 first; (c), rejected). 085's `set_sums` clause inherits the same fact; it neither creates
+  nor fixes it. Option (a) must cover the whole set, not only `python.wasm` (Decision 8). Which
+  option holds is not this spec's to choose.
 - **Specs 039 and 043** change the build job's zero-patch step (its tree count, 19 to 20 or 21).
   085's new build step is a separate step below the build shard. Their hunks are near, not shared.
 - **Spec 064** (required status checks) would make the rulesets enforce what Decision 7 says only
   the owner's account protects today. Not a dependency.
 
+## Disposition of the pre-build review (2026-10-19)
+
+The review: `085-review/085-gather-checks-what-it-trusts-spec-2026-10-19.md` in the lane's
+scratchpad (probes in `work/`, records in `dl-a7/` and `dl-065/`), on `31a8713` over `a6dfc17`,
+re-checked by its reviewer against `9d89535`. Verdict: "ready once F1 to F4 are written in; F5 to
+F8 written in or answered". Every finding is written in; none changes the design.
+
+- **F1 (Medium), one field switches off the darwin fuel ratchet.** Written in: G2 binds every
+  record's `meta.wasmtime` to `uv.lock`'s locked version (Decision 3; *Why*, item 3; *Design*,
+  `locked_version`). Reproduced here on the synthetic set, with a control (`forge_synthetic.out`:
+  ×10 fuel is red with `49.0.0`, green with `48.0.0` and with null). Two rows added to the table.
+  `fuel_not_compared` stays not red, for the review's reason.
+- **F2 (Medium), question 105's option (a) does not cover the set clause.** Written in: Decision
+  8 says the snapshot varies under 037 too, so option (a) must define a canonical set digest, or
+  the set clause gives way while the exception holds, by the spec that builds the answer;
+  *Coordination* points to it. The lane adds it to question 105's text.
+- **F3 (Medium), criterion 6 assumed 085 before 037.** Written in: the order 065, 085, 037 is
+  stated (status, criterion 6, *Coordination*); criterion 6b gives the other order its two
+  expected G7 lines and holds tags until question 105 is built; line 78 is now line 79.
+- **F4 (Low-Medium), criteria 2 and 3 could pass with nothing proved.** Written in: criterion 2
+  runs the honest baseline and every real forgery on the branch dry run's own records (red only on
+  the expected G7 line; each forgery adds exactly its own line); criterion 3 keeps the a7 and 065
+  records for the new rules alone, run as functions.
+- **F5 (Low), `hidden_ci_needs` missed non-literal arguments.** Written in: the scan flags any CI
+  need string in `tests/checks/` and `tests/conftest.py` outside a test body, CI need strings used
+  as arguments or container members in `tests/harness/` (the vocabulary's two files aside), and
+  any `"needs: "` literal (Decision 1). Prototyped (`hidden_wide.out`): nothing in the repository,
+  each planted spelling flagged. Path pieces in `jobs.py` (`JOB_DIR / "oracle"`) are why harness
+  strings count only as arguments or members.
+- **F6 (Low), `CI_NEEDS` should name `build`.** Written in: the map names `build`, `macos`,
+  `linux` and `windows` (Decision 1).
+- **F7 (Low), two over-claims.** Written in: Decision 4 says one hash names every file of the
+  artifact set, and how the rest a run judges is bound; Decision 7 names the cheap lie left open
+  (off-darwin metric values) beside those closed (with F1's).
+- **F8 (Low), the open edges of the derivation.** Written in: Decision 1 lists where it fails
+  open (shared parametrized rows, unreachable or conditional calls, any `.need` attribute) beside
+  where it fails closed.
+- **N1 (owner's call), a coarse cross-system fuel band.** Written as Decision 9: left out, with
+  the reasons and the recommendation (leave it out unless the owner asks; a small follow-up if
+  asked).
+- **N2 and N3.** No action: N5's line runs before step 10's shim and breaks no scan rule; no
+  schema bump is needed (Decision 5).
+
 ## One line
 
 The gather stops believing what a record says about itself on three points it can check (a
 blocked check must be blocked by a need its own body calls, on a system that lacks it; a unit
-tally must be its share; a passing check must carry the metrics the lane accepted), and ties the
+tally must be its share; a passing check must carry the metrics the lane accepted, on the locked
+wasmtime), and ties the
 lane's acceptance to the whole set by its own `SHA256SUMS`, not only `python.wasm`; it checks
 consistency, not authenticity.

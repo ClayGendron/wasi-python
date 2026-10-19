@@ -10,7 +10,10 @@ F7 GREEN a record's suite counts a bool as a whole number
 F7 GREEN a Linux record drops an upstream suite's fuel (accepted on darwin-arm64)
 F7 GREEN a Windows record drops a product check's fuel (accepted on darwin-arm64)
 F7 GREEN a Linux record's product-check fuel is a string (accepted on darwin-arm64)
+F7 RED   a macOS record's fuel x10, its meta.wasmtime 49.0.0 (the control): ['G5 macos/own-a: grew tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]: fuel 7 -> 70']
+F7 GREEN a macOS record's fuel x10, its meta.wasmtime 48.0.0
+F7 GREEN a macOS record's fuel x10, its meta.wasmtime null
 F5 GREEN the newest acceptance is on python.wasm but another set's SHA256SUMS
 F5 GREEN the newest acceptance records no set at all (a line from before 085)
 F5 GREEN a record judged another set (meta.set_sums) with the same python.wasm
-13 of 14 forgeries leave gather green
+15 of 17 forgeries leave gather green

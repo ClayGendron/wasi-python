@@ -1,0 +1,5 @@
+== the repository at 9d89535 + 085's draft (expect nothing):
+== a fake tree: a NEED_OF map in a conftest, a direct skip in a test body, a harness dict:
+tests/checks/conftest.py:1: 'oracle'
+tests/checks/test_y.py:2: 'needs: three systems' (a 'needs: ' literal)
+tests/harness/h.py:1: 'descriptor limit'
