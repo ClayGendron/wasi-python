@@ -1,6 +1,8 @@
 # 084 — A private root never outlives its call
 
-- **Status:** drafted 2026-10-19 on `spec/084-a-private-root-never-outlives-its-call` from main
+- **Status:** **built 2026-10-19** on `spec/084-a-private-root-never-outlives-its-call`, rebased
+  onto main `9d89535` (the Landing notes): the full judge has 0 fail, lost 0, grew 0, gained 6;
+  awaiting its build review and the lane's Windows dry run (criterion 17). Before that: drafted 2026-10-19 on `spec/084-a-private-root-never-outlives-its-call` from main
   `a6dfc17` (`d203d78`); **revised 2026-10-19 against its pre-build review** (written in the
   lane's scratchpad, `084-review/084-a-private-root-never-outlives-its-call-spec-2026-10-19.md`,
   with its probes and logs, to be copied to `../reviews/` by the lane; verdict: "ready once F1
@@ -796,4 +798,131 @@ draft's 7 to 11 are 10, 11, 12, 13 and 15; 14 (F6) and 16 (F8) are new; the draf
 
 ## Landing notes
 
-Not built yet.
+### What was built
+
+On `spec/084-a-private-root-never-outlives-its-call`, rebased onto main `9d89535` (065 landed):
+the draft and its two revisions (`cf23d50`, `c2f5ee7`, `2a9708d`), then `0cefbc0` (the checks
+and the code), `e4d418f` (README, CHANGELOG, and the retry check strengthened), then these notes.
+Every guest run used a private `cp -Rp` copy of `build/sets/s-c50ca51fae5eb55b-c9dcb5b8`
+(`SHA256SUMS` identical, the zip's link count 1).
+
+- `src/wasi_python/runner.py`: `_remove_tree` and its two walks (`_remove_at` by descriptors,
+  `_remove_by_path` by extended-length paths), `_Removal` (the count, the budget, the first
+  error), `_enter`, `_listing`, `_is_folder`, `_long_path`; `_Private.remove` (guarded, the drop
+  in a `finally`, then the queued warning and the re-arm); `_sweep_once` (re-arms after its loop)
+  and `_sweep_entry` (the walk, the per-name count, the bound `_SWEEP_TRIES = 3`);
+  `_remove_fresh_home` (budgeted) used by `_call_deferred` and `_remove_home`; `_warn_later` and
+  `_flush_warnings`; `_run_checked_flushed`; the two comments on Windows links.
+- `tests/unit/test_runner_sweep.py`: criteria 4 to 15 (the fixture `temp` also resets the new
+  state); `tests/checks/test_v1_4_embedding.py`: criteria 1 to 3.
+
+### Seen failing first (EXECUTED, `build/084-checks-on-main.log` in the worktree)
+
+The new checks against main's code: 23 failed, 26 passed (the passes are the file's existing
+cases). By behaviour: criterion 1 (both rows: the root and its lock file left), criterion 2
+(both rows: `.home-…` left), criterion 3 (both rows: the file kept, but no warning), criterion
+11 (`swept` 0 under three free descriptors), the restated check (did not warn). The rest by
+`AttributeError` on `_remove_tree` or `_flush_warnings`.
+
+### The stand-ins (EXECUTED, `build/084-standins.log`, `build/084-standins-c10.log`)
+
+Each mutant applied to `runner.py`, its checks run, the file restored from the saved text:
+
+| stand-in | checks that failed |
+|---|---|
+| `_remove_tree` replaced by `shutil.rmtree` (criterion 1 (a)) | criteria 1 (2 rows), 2 (2 rows), 4, 11 |
+| a descriptor kept per level (criterion 1 (b)) | criteria 1 (2 rows), 4 |
+| the `HOME` in `_call_deferred` on `rmtree` | criterion 2 `[run]` |
+| `_remove_home` on `rmtree` | criterion 2 `[session]` |
+| the permission repair (`fchmod` on `PermissionError`) | criteria 3 (both rows), 8 |
+| no `rmdir` before recording an unopenable folder (N1) | criterion 8 |
+| `is_dir()` that follows links | criteria 5, 6 |
+| the identity check removed | criterion 7 (all three rows) |
+| no budget on the `HOME` | criterion 9 |
+| the budget on private folders too | criterion 9 |
+| no re-arm | criterion 10 (two functions) |
+| no bound (`_SWEEP_TRIES` = 10**9) | criterion 10 (the bound) |
+| the re-arm before the drop | criterion 10 (the drop order) |
+| the re-arm inside the sweep's loop | criterion 10 (the bound) |
+| the guard in `remove` dropped | criterion 12 |
+| the flush unguarded | criterion 13 |
+| the warning given inside `remove` | criterion 14 |
+| the lock file unlinked while the folder exists | criterion 15 |
+
+The first run of the stand-ins found two that did not bite: "no re-arm" passed criterion 10's
+first function, since the fixture leaves the sweep unclaimed (the function now claims it first,
+`e4d418f`); and the first "re-arm before the drop" mutant kept the later re-arm too (the
+mutant was wrong, not the check). Both are fixed in the logs above.
+
+### The counted calls (EXECUTED, `b_counts.out`)
+
+| tree | entries | counted calls (open, listing, unlink, rmdir) | per entry | peak descriptors |
+|---|---|---|---|---|
+| 1,000 levels, a file at each (criteria 4 and 11) | 2,000 | 7,003 (2,001 opens, 3,001 listings, 1,000 unlinks, 1,001 `rmdir`s) | 3.50 | 2 |
+| 5,000 files and 300 folders in one folder | 5,300 | 6,504 | 1.23 | 2 |
+
+No `chmod`, `fchmod`, `mkdir` or `rename` in either. Criterion 4's bound is 5 per entry plus 5
+(10,005 for its tree). The same tree is removed in a child left exactly three free descriptors.
+
+### Criterion 16: CPython 3.11 (EXECUTED, `build/084-py311.log`)
+
+In a scratch environment (`UV_PROJECT_ENVIRONMENT` in the scratchpad, `uv run --frozen --python
+3.11`, CPython 3.11.14), against the same set: criteria 1 (both rows) and 4 passed, 3 of 3.
+`p311.py` at a soft limit of 8,192 and 1,500 levels, which made main's `run` raise
+`RecursionError`, now returns exit 0 and leaves no root.
+
+### The judge
+
+Against the private copy of main's set, in the worktree (no build; the upstream groups and the
+rebuild checks need source trees a build makes, so they are blocked here):
+- fast tier (`uv run pytest -m "not slow" -n 3`, on `e4d418f`'s code with the docs then
+  uncommitted, `build/fast-084-build.log`): `484/629 pass · 1 gap · 25 blocked · 0 fail · 119 deselected (unit suite
+  1595/1603, 8 skipped)`; `2079 passed, 33 skipped, 1 xfailed`; `ratchet vs b91e0eaa4e: lost 0 ·
+  absent 0 · unrun 0 · unrun locally 23 · gained 6 · grew 0 · upstream unrun 99 · not selected 43
+  · judge changed: tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_sweep.py`;
+- full (`uv run pytest -n 3`, on `e4d418f`, `build/full-084-build.log`): `501/629 pass · 3 gap · 125 blocked · 0 fail (unit suite 1595/1603, 8
+  skipped)`; `2096 passed, 133 skipped, 3 xfailed`; `ratchet vs b91e0eaa4e: lost 0 · absent 0 ·
+  unrun 0 · unrun locally 49 · gained 6 · grew 0 · upstream unrun 99 · judge changed:
+  tests/checks/test_v1_4_embedding.py, tests/unit/test_runner_sweep.py`. The 6 gained are the six
+  new embedding nodes; the 125 blocked are the upstream groups and rebuild checks this worktree
+  has no source trees for.
+
+`build/progress/latest.json` is kept in the worktree for the lane.
+
+### Departures from the specification
+
+- **Criterion 14** holds `runner._zip_lock` around `remove()` itself, as `_zip_folder` does,
+  rather than driving `_zip_folder`'s re-make path and a `run`: the same lock, the same queue,
+  with no artifacts. The flush as `run` returns is covered by criterion 3, whose child records
+  the warning around `run` without flushing itself.
+- **The flush points.** `run` and `run_async` (both through `_run_checked_flushed`), the
+  `Session` constructor (around `_open_session`), the end of `_end_session` (close, idle,
+  lifetime, a turn that ends the session, the exit hook's ending) and the exit hook `_release`.
+  Not `Session.run` itself: a turn that does not end its session removes nothing and runs no
+  sweep, so it queues nothing; one that ends it flushes in `_end_session`.
+- **`_remove_tree` takes `errors=`**, a list it appends its first error to, for the warning's
+  text: beyond the spec's form, private.
+- **Criteria 6 and 10 are several functions.** Criterion 6: `test_the_removal_never_follows_a_link`
+  (static) and `test_a_folder_swapped_for_a_link_mid_walk_is_left` (the swap, POSIX). Criterion
+  10: `test_what_a_removal_leaves_is_retried_by_the_next_calls_sweep`,
+  `test_the_name_is_dropped_before_the_sweep_is_re_armed` and
+  `test_a_folder_is_retried_by_at_most_three_sweeps` (which also asserts the re-arm after the
+  loop). The judge counts 16 new unit nodes and 6 new embedding nodes.
+- **Criterion 4's stand-in (c)** (the rename design) was not written as a mutant: the check's
+  `os.rename` count of 0 is what it would fail.
+- **Criterion 9's `HOME` rows** call `_remove_home` on a caller-style folder with a handle, as a
+  session's release does, not through a `run`.
+- **The path walk's top** is also treated as a link when `lstat` shows a reparse point
+  (Windows), so a junction in a folder's place is unlinked, never entered.
+- **Windows is not run here.** Criteria 1 to 4, 6, 8 and 9 to 15 have Windows legs; criterion
+  17 is the lane's dry run. C2 (whether a Windows guest deletes a read-only file itself) is
+  settled there: criterion 3's Windows rows skip with that reason if it does.
+
+### For the lane
+
+- `--accept-judge "spec 084: a private root and a fresh HOME are removed by a walk that holds
+  two descriptors, changes no mode, and (for a HOME) has a budget; new checks for deep, linked,
+  moved and read-only trees, a writer, the sweep's retry and the warning; one sweep check
+  restated to fail the removal through _remove_tree"`. No `--accept-growth`: nothing grew.
+- The Windows dry run (criterion 17), with the named nodes `PASSED` on `windows-2025`.
+- The pre-build review is in the lane's scratchpad, to be copied to `../reviews/`.
