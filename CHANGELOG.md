@@ -6,6 +6,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — unreleased
 
+- **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
+  security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
+  object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the
+  call, and the tool ran; an async tool that raised it was answered `ok` with `None`. Now the
+  gate's call is `denied` and the tool's `tool_error`, each with the fault in the record, as a
+  sync gate's and a sync tool's already were. The result of an awaitable counts only if it
+  returned. Also (spec 060's build review, N1): a tool list over the 16 MiB answer cap is refused
+  from its length on each `list` frame, without its answer being built. No public name, default
+  or answer on the wire changes.
 - **Changed: the snapshot pre-imports no package** (decision 34, spec 069). It starts with the
   interpreter and the stdlib's bootstrap modules (`encodings`, `io`, `os`, `sys`, `json`, `csv`,
   `re`, `_colorize`), for every package now and later; the judge refuses a snapshot that holds

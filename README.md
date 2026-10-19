@@ -1530,11 +1530,15 @@ done.stdout                                    # b'Ada\n'
     coroutine that catches `CancelledError` and goes on runs on, holds one
     of the run's 4 abandoned slots, and keeps its thread alive, like a sync
     tool.
-  - **Faults stay in the call.** A `KeyboardInterrupt`, `SystemExit` or
-    `CancelledError` the tool raises, or a loop that has closed or stopped,
-    is a "(internal error)" fault in the record, never an exception in
-    your loop. A `CancelledError` met while the run is being cancelled is
-    answered `cancelled`.
+  - **Faults stay in the call.** A `KeyboardInterrupt`, `SystemExit`,
+    `GeneratorExit` or `CancelledError` the tool raises, or a loop that has
+    closed or stopped, is a "(internal error)" fault in the record, never an
+    exception in your loop. Raised by an async gate, any of them refuses the
+    call (`denied`), as from a sync gate. A `CancelledError` met while the
+    run is being cancelled is answered `cancelled`. On a loop you run
+    yourself on the main thread without `asyncio.run`, a Ctrl-C that lands
+    inside a gate's or a tool's own code ends that call as a fault (a
+    gate's call is refused) and is not raised again; `asyncio.run` turns Ctrl-C into a cancel of the call.
     Tasks the tool spawns are yours: under `run_async` their exceptions
     reach your loop as asyncio delivers them, so a `KeyboardInterrupt` from
     one reaches your `asyncio.run`.

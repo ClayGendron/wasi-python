@@ -1585,9 +1585,20 @@ class _NotStarted(Exception):
 
 class _Post:
     """One awaitable posted to the tool loop: whether its wrapper started it, under the bound's
-    lock, and how it ended. `ended` is set by the wrapper's `finally`, the task's real end."""
+    lock, and how it ended. `ended` is set by the wrapper's `finally`, the task's real end;
+    `returned` only once the awaitable returned, so nothing else reads as a value (spec 075)."""
 
-    __slots__ = ("awaitable", "ended", "error", "loop", "skipped", "started", "task", "value")
+    __slots__ = (
+        "awaitable",
+        "ended",
+        "error",
+        "loop",
+        "returned",
+        "skipped",
+        "started",
+        "task",
+        "value",
+    )
 
     def __init__(self, awaitable: Any) -> None:
         self.awaitable = awaitable
@@ -1597,6 +1608,7 @@ class _Post:
         self.task: Any = None
         self.loop: Any = None
         self.value: Any = None
+        self.returned = False  # the awaitable returned `value` (spec 075, Decision 1)
         self.error: BaseException | None = None
 
 
@@ -1728,6 +1740,8 @@ class _ToolLoop:
             raise _NotStarted
         if post.error is not None:
             raise post.error
+        if not post.returned:  # the wrapper ended with neither a return nor an error (spec 075)
+            raise RuntimeError("the awaitable ended without a result")
         return post.value
 
     async def _wrapper(self, post: _Post, ops: _Ops | None) -> None:
@@ -1751,7 +1765,9 @@ class _ToolLoop:
                 self._tasks.add(task)
             try:
                 post.value = await post.awaitable
-            except GeneratorExit:
+                post.returned = True
+            except GeneratorExit as e:  # kept, so the record names it (spec 075, Decision 2);
+                post.error = e  # re-raised, so the wrapper's own close path is unchanged
                 raise
             except BaseException as e:  # KeyboardInterrupt and SystemExit stay in the call
                 post.error = e
@@ -2138,20 +2154,27 @@ class _ToolHost:
         """`_encode` of the list answer, byte for byte, with the descriptors encoded once, at the
         first `list` frame, and the id spliced in (spec 060, Decision 12): a guest that lists
         again and again no longer makes the host encode the list again."""
+        return b"".join((*self._list_head(frame_id), self._tools_array(), b"}"))
+
+    def _tools_array(self) -> bytes:
+        """The descriptors array as `_encode` writes it, encoded at the first need and kept."""
         if self._tools_json is None:
             whole = _encode({"tools": self._descriptors})
             self._tools_json = whole[len(b'{"tools":') : -1]
+        return self._tools_json
+
+    @staticmethod
+    def _list_head(frame_id: int | None) -> tuple[bytes, ...]:
+        """The list answer's parts before its array: one source for its bytes and its length."""
         shown = b"null" if frame_id is None else str(frame_id).encode("ascii")
         version = str(PROTOCOL).encode("ascii")
-        return (
-            b'{"v":'
-            + version
-            + b',"id":'
-            + shown
-            + b',"ok":true,"tools":'
-            + self._tools_json
-            + b"}"
-        )
+        return (b'{"v":', version, b',"id":', shown, b',"ok":true,"tools":')
+
+    def _list_length(self, frame_id: int | None) -> int:
+        """The exact length of `_list_answer(frame_id)`, from its parts, without building it, so
+        a list over the answer cap is refused before it is copied (spec 075, Decision 6)."""
+        head = sum(len(part) for part in self._list_head(frame_id))
+        return head + len(self._tools_array()) + len(b"}")
 
     def _answer(self, seq: int, frame: bytes) -> bytes:
         size = len(frame)
@@ -2181,9 +2204,9 @@ class _ToolHost:
         raw_op = request.get("op")
         if raw_op == "list":
             op = "list"
-            answer = self._list_answer(frame_id)
-            if len(answer) > _TOOL_RESPONSE_BYTES:
+            if self._list_length(frame_id) > _TOOL_RESPONSE_BYTES:  # refused before it is built
                 return failed("too_large", "the tool list is over the 16 MiB cap", frame_id)
+            answer = self._list_answer(frame_id)
             self._note(ToolOutcome(seq, op, None, "ok", None, size, len(answer)))
             return answer
         if raw_op != "call":
