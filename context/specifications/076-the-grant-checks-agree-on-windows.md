@@ -5,8 +5,10 @@
   scratchpad, `076-review/076-the-grant-checks-agree-on-windows-spec-2026-10-19.md`, with its
   probes, and copied to `../reviews/` by the lane; verdict: "ready once F1 to F4"; the lane's
   rulings on F1 and F4 written in; every finding answered in "Disposition of the pre-build
-  review") and rebased onto main `6fd89e0` (specs 068 and 070); awaiting the reviewer's
-  confirmation; not built. It changes neither the guest's imports nor its exports, the artifact set
+  review") and rebased onto main `6fd89e0` (specs 068 and 070); confirmed for build at
+  `c0c5698` (the confirmation is appended to the same review); **built 2026-10-19** (`cb1d8be`,
+  `d0d1dd7`; the Landing notes): the full judge green on macOS, and the Windows dry run 39196291455
+  green on all three systems with every named node passed; awaiting its build review. It changes neither the guest's imports nor its exports, the artifact set
   nor the build recipe, so §5.6 asks no review before build. A different agent reviews the build.
   **It lands before spec 063 and before 0.1.0** (Decision 8).
 - **Date:** 2026-10-18; revised 2026-10-19
@@ -774,7 +776,35 @@ README has held UTF-8 Chinese text since spec 046's `d453591` (after the 0.1.0a6
 own next release dry run fails there too (READ: `git log -S`, and the README decodes as UTF-8
 but not as cp1252 at byte 20429). Fixed here (departure 6), and run again.
 
-WINDOWS-RUN-2
+**Dry run 2: run 39196291455, every job passed on all three systems.** Dispatched on a new
+`spec/076-verify` whose one commit, `1cfeff67676f061ece76ce9d7cb5f9044613c304` (the run's
+`headSha`, from `gh run list --json headSha`), has the parent `d0d1dd7` (this branch with the
+UTF-8 fix; its `src/` and `tests/` are the ones that land, since only `context/` follows it), and
+the same diff as before (`build/076/verify-commit-2.diff`, equal to `verify-commit.diff`). The
+throwaway branch was then deleted on GitHub (`git ls-remote` shows no `spec/076-verify`); no
+local branch was ever made. Verdicts: `rebuild from the pins` (ubuntu-24.04 and
+ubuntu-24.04-arm), `build and judge (arm64 macOS)`, `the same bytes from every host`,
+`verify (ubuntu-24.04)`, `verify (macos-15)` and **`verify (windows-2025)`: success**; attest
+and the two publish jobs skipped, as on every dry run. The Windows step's scoreboard:
+`wasi_python v1: 219/222 pass · 0 gap · 3 blocked · 0 fail (unit suite 95/102, 7 skipped)`,
+`blocked by: oracle 1 · three systems 1 · wheel 1` (the three the next step allows), `314
+passed, 10 skipped`. The `PASSED` lines from `verify (windows-2025)`
+(`build/076/dryrun2-windows-verify.log`, `build/076/dryrun2-windows-passed.txt`); none of these
+nodes is skipped, blocked, deselected or missing:
+
+```
+PASSED tests/checks/test_v1_3_data_stack.py::test_default_integer_width_is_documented
+PASSED tests/unit/test_runner_grants.py::test_the_walk_takes_dot_dot_on_the_real_file_system
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_takes_dot_dot_on_walked_folders
+PASSED tests/unit/test_runner_grants.py::test_the_windows_walk_records_the_true_chain
+PASSED tests/unit/test_runner_grants.py::test_a_read_only_grant_refuses_raw_writes
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[plain]
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_read_only_grant_refuses_every_write[snapshot]
+PASSED tests/checks/test_v1_2_hostile_guest.py::test_a_bad_grant_is_refused_before_any_work
+PASSED tests/unit/test_runner_mounts.py::test_the_rename_rule_forward_is_fuel_neutral
+```
+
+**Criterion 10** is 063's: its next branch dry run, after it rebases onto main with 076.
 
 ### Departures from the specification, each with its reason
 
