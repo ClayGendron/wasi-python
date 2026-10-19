@@ -83,8 +83,7 @@ release is `e7727db9…4b4b` (43,751,127 bytes), the tarball `fc59b977…291d`, 
 `ab78e893…`, snapshot `c50ca51f…`, zip `02026895…`; `SHA256SUMS` `c9dcb5b8…`), and every file
 passes `shasum -c`.
 
-In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages
-come first). **083 lands next, ahead of every built package**: the judge's CPython groups see real
+In flight (decision 91, widened 2026-10-19: up to six build-class at once, the owner). **083 lands next, ahead of every built package**: the judge's CPython groups see real
 file times, inode numbers and the zip's link count, so their fuel differs between the lane's machine
 and the release runners, and every dry run, main's included, goes red on `cpython-fs` until 083
 lands (039's dry run on its acceptance, run 39291580648, +0.04%; 065's build review, section 4,
@@ -102,8 +101,7 @@ object's address at every build-class landing, so it leaves the ratchet as a rec
 the group's passes stay ratcheted). The whole-surface security review for 0.1.0 starts now on
 main, with an addendum per package that lands after it.
 
-Confirmed for build, in the build-class queue (up to four built at once while the packages come
-first, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
+Confirmed for build, in the build-class queue (up to six built at once, the owner, 2026-10-19, each landing alone, §5.7 as amended 2026-10-19). The packages come first (the owner,
 2026-10-19: "I want them done soon"): a free slot goes to the next package whose dependencies have
 landed, and the lane lands a built package before any other built specification but 065. The two
 chains: 037, 038 (scipy), then 044 (scikit-learn), then 045 (statsmodels); 039 (tier A), then 041

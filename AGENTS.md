@@ -72,8 +72,8 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    prerequisite that blocks the most checks. Work on the
    specification that provides it. One specification per builder; at
    most three parallel-safe and three build-class specifications in
-   flight (four build-class while the packages come first, the owner,
-   2026-10-19); one landing at a time (constitution §5.7; a build-class
+   flight (six build-class from 2026-10-19, the owner; four earlier that
+   day); one landing at a time (constitution §5.7; a build-class
    specification lands after a rebase, a full rebuild in the main tree
    and a delta review if its recipe hunks or numbers moved; build-class means
    it touches `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the

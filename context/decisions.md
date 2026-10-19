@@ -37,6 +37,9 @@ Fri 2026-10-23) and the proposals (P1 to P12, ranked; likely ready Thu 2026-10-2
   for the runner's code, optional for judge-only or context-only specifications; a Low finding or
   a note needs no further review round when answered in writing or in `context/` only.
   Constitution §5.6; AGENTS.md rule 8.
+- **Six build slots, later the same day:** "lets make 6 build slots". Up to six build-class
+  specifications may be built at once (four before); each still lands alone. Constitution §5.7;
+  AGENTS.md rule 2.
 - **Not adopted:** dropping the lane's local rebuild in favour of CI's, and a 1e-3 fuel band for
   CI against local (085's Decision 9 stays "not now").
 - **The lane's own changes, the owner told:** 086 lands right after 083, then 039 and 043, with
