@@ -2336,25 +2336,27 @@ def _recursed(done) -> tuple[str, int, str]:
 
 
 @pytest.mark.parametrize(("name", "snapshot"), RECURSION_CASES)
-def test_recursion_through_python_raises(name: str, snapshot: bool, metric) -> None:
+def test_recursion_through_python_raises(name: str, snapshot: bool, guest) -> None:
     """Spec 071, criterion 1: recursion that runs through Python code raises (RecursionError, or
     the parser's MemoryError for eval and exec) instead of trapping, at no less than the measured
-    depth less a tenth; the depths are set by linear bytes, so they hold on every host."""
+    depth less a tenth; the depths are set by linear bytes, so they hold on every host. Through
+    the judge's driver (spec 080): the runner's engine, with the seeded random and the stepped
+    clock, so the plain binary's hash secret, and so the fuel the check records, are the same on
+    every run."""
     import re
 
     body, kind, pattern, floor, _ = RECURSIONS[name]
-    done = _run()(["-c", COUNTED.format(body=body)], snapshot=snapshot, fuel=10**11)
-    metric("fuel", done.fuel_used)
+    done = guest("snapshot" if snapshot else "plain", ["-c", COUNTED.format(body=body)])
     got, depth, message = _recursed(done)
     assert got == kind and re.match(pattern, message), (got, depth, message)
     assert depth >= floor, (depth, floor)
 
 
-def test_pickling_a_deep_list_raises(metric) -> None:
+def test_pickling_a_deep_list_raises(guest) -> None:
     """Spec 071, criterion 1: pickle.dumps of a 100,000-deep nested list raises RecursionError
-    (ratio 2.7, inside the window's reach); the structure is never freed (os._exit)."""
-    done = _run()(["-c", PICKLE_DEEP], fuel=10**11)
-    metric("fuel", done.fuel_used)
+    (ratio 2.7, inside the window's reach); the structure is never freed (os._exit). Through the
+    judge's driver, so its fuel is the same on every run (spec 080)."""
+    done = guest("snapshot", ["-c", PICKLE_DEEP])
     assert (done.exit_code, done.trapped) == (0, None), (done.trapped, done.stderr[-600:])
     assert done.stdout.decode().startswith("RecursionError 0 Stack overflow"), done.stdout
 
