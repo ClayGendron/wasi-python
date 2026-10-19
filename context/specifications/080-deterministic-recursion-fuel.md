@@ -1,6 +1,6 @@
 # 080 — 071's recursion checks count deterministic fuel, and its guard's unit tests stand alone
 
-- **Status:** drafted and built 2026-10-19 (two items: deterministic fuel, and the guard's unit tests on Linux) on `spec/080-deterministic-recursion-fuel` from main
+- **Status:** **landed 2026-10-19** (accepted on `7f150e3` as `fae6615`, history line 73; its review, `../reviews/080-deterministic-recursion-fuel-2026-10-19.md`, said it lands once F1 was answered, and F1 and F2 were taken). Before landing: drafted and built 2026-10-19 (two items: deterministic fuel, and the guard's unit tests on Linux) on `spec/080-deterministic-recursion-fuel` from main
   `23f1c4f` (the Landing notes). It changes neither the guest's imports nor its exports, the
   artifact set nor the build recipe, so §5.6 asks no review before build. A different agent
   reviews the build.
@@ -188,3 +188,15 @@ F1 is answered in writing"; both items sound.
 - `--accept-growth "spec 080: test_recursion_through_python_raises[np-frompyfunc-snapshot] is now
   measured through the judge's driver, whose environment differs from run's defaults: +265,026
   fuel (+0.034%), deterministic over five runs"`.
+
+**Landed 2026-10-19** through the lane, after spec 071. The branch was on main `23f1c4f`, so no
+rebase was needed. The lane checked the post-review commit `66bbe5a` (F1: the Intent scoped, the open
+case named, 081 and 082 reserved in the roadmap; F2: the window check runs `run` metered, recording no
+fuel). The review was committed on the detached HEAD as `7f150e3`. No build: 080 changes `tests/`
+and documents only, so main's set `s-c50ca51fae5eb55b` stands. The full judge, serial: `wasi_python
+v1: 533/550 pass · 15 gap · 2 blocked · 0 fail (unit suite 1273/1275, 2 skipped)`, `1806 passed, 4
+skipped, 15 xfailed in 883.92s`, accepted with `--accept-judge` and `--accept-growth`
+(`np-frompyfunc-snapshot` +265,026 fuel through the driver's environment) as `fae6615`, history line
+73; with the noise gone, no other row grew (EXECUTED, `build/lane-080-accept.log`). The rules tier
+passed (40/40, unpiped); main fast-forwarded. Release dry runs no longer go red on 071's plain rows.
+
