@@ -52,6 +52,11 @@ export PKG_CONFIG_PATH="$PCDIRS" PKG_CONFIG_LIBDIR="$PCDIRS"
 sed "s#@ROOT@#$HERE#g" "$HERE/recipes/scipy_file_includes.txt" > "$BUILD/file-includes.txt"
 export WASI_CC_FILE_INCLUDES="$BUILD/file-includes.txt" WASI_CC_FILE_INCLUDES_LOG="$BUILD/file-includes.log"
 : > "$WASI_CC_FILE_INCLUDES_LOG"
+# git finds no repository above build/: HiGHS's meson stamps `git describe` into HIGHS_GITHASH
+# (vcs_tag), which from a checkout of this repository named its commit and dirty state, so the
+# binary depended on where it was built (seen: v0.1.0a6-88-g662ec7f in a clean clone). With the
+# ceiling the tag is meson's fallback, "unknown", on every host.
+export GIT_CEILING_DIRECTORIES="$B"
 # The target Python (scripts/python-wasi-cross) and Cython find the numpy stand-in here: step 40's,
 # copied, with numpy.random's .pxd files from step 40's install beside it, because scipy's
 # stats._unuran cimports numpy.random (pandas cimports numpy alone, so step 40's
