@@ -8,6 +8,27 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 104, answered: scipy lands with a narrow same-bytes exception for ducc0, fixed in parallel (2026-10-19)
+
+- **Asked:** 2026-10-19 (question 104, from spec 037's build: its research memo
+  `research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`). The pinned clang
+  (wasi-sdk 33, LLVM `4434dabb`) compiles one scipy file, ducc0's FFT (`pyduccfft.cxx`), to
+  different bytes on every run; the optimized IR is the same, and the objects differ only in the
+  nesting order of `try_table` blocks in eight functions (the WebAssembly backend). Every other
+  compile is reproducible, and every set built passed the judge. `-O1`, `-O2` and backend switches
+  did not help; `-Os` was reproducible but crashed at import. Spec 037's criterion 3 (the same
+  `SHA256SUMS` from every host) allowed no exception, and 038, 044 and 045 wait on 037. The agent
+  offered: a narrow, recorded exception now with the fix researched in parallel; waiting for a
+  fixed clang; or building ducc0 another way.
+- **The owner, 2026-10-19:** "Exception now, fix in parallel."
+- **What follows:** spec 037 is amended at build. The same-bytes gate lets exactly that one
+  object's difference through, and a check proves the difference is only the `try_table` order in
+  the named functions: nothing else may differ, on any host. The exception is recorded (spec 037,
+  the CHANGELOG, the README's reproducibility claim) and its design is reviewed before it is built.
+  A research task runs at the same time: reduce the case, read the backend at `4434dabb`, check
+  newer wasi-sdk and LLVM releases, and draft the upstream issue for the owner to send. The
+  exception is removed by the specification that moves the toolchain pin to a fixed clang.
+
 ### The packages come first, with four build slots (2026-10-19)
 
 - **Asked:** 2026-10-19, in the session. The owner, that morning: "Can we bring scipy and other
