@@ -2,7 +2,7 @@
 utime "current" pair, test_logging's timed rotation), run in the snapshot through a driver, with
 CPython's Lib/test granted read-only at /cpython. Usage:
 uv run python -I probe_cpython_tests.py <tests dir> <work> <Python-3.15.0 tree>"""
-import sys, tempfile
+import atexit, shutil, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from harness import guest  # noqa: E402
@@ -22,7 +22,9 @@ print('ran', r.testsRun, 'failures', len(r.failures), 'errors', len(r.errors), '
 for t, tb in r.failures + r.errors:
     print('FAIL', t.id(), tb.strip().splitlines()[-1][:160])
 """
-r = guest.run(SET / "python-snapshot.wasm", ["-c", code], workdir=Path(tempfile.mkdtemp(dir=sys.argv[2])),
+work = Path(tempfile.mkdtemp(dir=sys.argv[2]))
+atexit.register(shutil.rmtree, work, True)  # its run folders hold links to the set's zip
+r = guest.run(SET / "python-snapshot.wasm", ["-c", code], workdir=work,
               python_version="3.15", stdlib=SET / "python-stdlib.zip", env={"TMPDIR": "/tmp", "HOME": "/tmp"},
               preopens=[("/cpython", tree / "Lib", False)], fuel=10**12)
 print(r.describe())

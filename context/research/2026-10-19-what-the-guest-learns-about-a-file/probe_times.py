@@ -4,7 +4,7 @@ smallest) and the distinct outputs. Usage: uv run python -I probe_times.py <test
 import collections
 import os
 import shutil
-import sys
+import atexit, shutil, sys
 import tempfile
 from pathlib import Path
 
@@ -29,6 +29,7 @@ PROGRAMS = {
     "embedding check's program": "import os\nos.mkdir('/w')\nopen('/w/f', 'wb').write(b'x')\nst = os.stat('/w/f')\nprint(st.st_ino != 0, st.st_mtime != 1767225600)",
 }
 work = Path(tempfile.mkdtemp(prefix="p083-", dir=os.environ.get("P083_WORK", "/tmp")))
+atexit.register(shutil.rmtree, work, True)  # its run folders hold links to the set's zip
 for label, code in PROGRAMS.items():
     fuels, outs = [], collections.Counter()
     for _ in range(N):

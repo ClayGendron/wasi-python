@@ -1,6 +1,7 @@
 # 083 — the judge's driver answers a file's times and inode number itself
 
-- **Status:** **drafted 2026-10-19** on `spec/083-the-driver-answers-file-timestamps` from main
+- **Status:** **amended 2026-10-19** (the stdlib zip's link count: the section "Amendment of
+  2026-10-19", for the confirming reviewer). **Drafted 2026-10-19** on `spec/083-the-driver-answers-file-timestamps` from main
   `59b90b6`; rebased onto main `08de0c8` (specs 063 and 077 landed) and **revised against its
   pre-build review** the same day ("ready once F1 to F5 are written in": the section
   "Disposition of the pre-build review"). It changes neither the guest's imports nor its exports,
@@ -194,7 +195,8 @@ written in (`revised/prototype_revised.diff`), run through the review's own prob
 
 4. **What the driver does not answer.**
    - `dev` (wasmtime's answer is always 1, READ in the typed-grants memo), `nlink`, `size` and the
-     file type: the host's, the same on every run on one machine.
+     file type: the host's, the same on every run on one machine. `nlink` holds that only because
+     the driver no longer shares the stdlib zip by hard link (the amendment of 2026-10-19, below).
    - `clock_res_get`: spec 065 answers it.
    - `Turns`, the session driver: it records no fuel.
    - A run on the caller's own engine (`own=`): it is shadowed too, so every guest of the driver
@@ -392,7 +394,8 @@ costs the same on every run; and a file the guest writes is never dated after th
 
 ## Scope
 
-In: the five shadows, the two trampolines, `FileFacts`, the unit rows, the check, the docstrings,
+In: the five shadows, the two trampolines, `FileFacts`, the stdlib copied into each run (the
+amendment), the unit rows, the checks, the docstrings,
 the restated values, and Decision 8's class change. Out: the product runner;
 `clock_res_get` (065); `Turns`; `dev`, `nlink` and `size`; spec 081's path rows.
 
@@ -435,6 +438,71 @@ the restated values, and Decision 8's class change. Out: the product runner;
    ratchet's moves are the restated rows, the new check's rows as gained, and `judge changed`. The
    landing notes give `--accept-growth` its list: each row with its accepted, times-only and full
    values (Decision 7).
+
+## Amendment of 2026-10-19: the stdlib zip's link count
+
+**Why.** Spec 081's delta look found a fourth host value that reaches a measured guest: a file's
+link count (`nlink`). The driver hard-links the set's stdlib zip into every run folder (`_place`,
+`os.link`), so the zip's count is the number of run folders that hold it, in every judge, probe and
+agent on the machine, alive or left behind. My own draft probes left over 2,000 links in the shared
+scratch folder (the count reached 2,576; they are deleted, and every probe now removes its run
+folders). 081's reviewer bisected the effect on a copy: up to 1,017 links gives one set of fuel
+values, 1,023 or more another, and about 21 rows change across that point, three of them rows that
+already grew. So a judge's fuel against one set depended on how many links other work had left on
+its zip.
+
+**The measurement (EXECUTED, `../research/2026-10-19-what-the-guest-learns-about-a-file/amendment/`;
+every probe removes its work folder).**
+- `nlink_fuel.py`, a private copy of the zip granted as the stdlib (the `guest` fixture's
+  `stdlib=`), at 1 link and then with 1,100 more: on main's driver the guest sees `nlink` 2 and
+  1,104, and fuel moves +300 (a stat of the zip) and +521 (`import json` and a stat); the revised
+  prototype moves the same. With the zip copied into each run, the guest sees 1 both times and the
+  fuel does not move.
+- `link_during_run.py`: another run links the shared zip while this guest runs (through the door).
+  The guest's two stats of the zip see 531 and then 532: the count moves *during* a run, from
+  outside it. wasmtime's `ctim` and `mtim` of the zip did not move.
+- `runner_links.py`: a guest can make hard links, through the product runner too: in a writable
+  grant `os.link` gives two names with `nlink` 2 each, `samefile` true, and the host agrees.
+- `copy_cost.py` (a benchmark fact, not a test): a hard link costs 0.33 ms, a copy of the 22 MB zip
+  10 to 16 ms, on this machine's APFS.
+
+**Decision 10. The driver copies the stdlib into each run, and removes the copy when the run ends.**
+- `_place` copies a file (`shutil.copyfile`) where it hard-linked it; a stdlib folder is copied as
+  before (`copytree`). So the run's zip has exactly one name, the guest sees `nlink` 1 for it, and
+  no other run, probe or agent can change that, before the run or during it.
+- `run()` removes the run's `lib` folder in a `finally` once the guest has ended, and `Turns`
+  removes its own at `close()`; so the disk holds one copy per live run, never one per run of a
+  session. A check reads `Result.root`, never `lib`.
+- **Why a copy, not an answered `nlink`.**
+  - The shared zip's count moves during a run (531 to 532 above), so no answer computed from the
+    host's count of that file is stable; only a file no one else links is.
+  - A guest makes hard links of its own (`runner_links.py`; the review's `semantics.out` through
+    the driver), and their counts must stay true: 2 for two names. A fixed `nlink` would need three
+    more shadows (`path_link`, `path_unlink_file`, `path_rename`) to keep each file's count by
+    hand, inventing behaviour the copy gets from the host for nothing.
+  - With the copy, every `nlink` the guest sees is the host's true count of a file only this run
+    can link. The driver answers no `nlink`, and Decision 4 stands.
+- **The cost.** 10 to 16 ms a run on APFS, and one live copy per running guest. Judged worth it:
+  it removes a hidden input from every row, the price of determinism this spec pays everywhere.
+- **What it does not cover.** A file a check itself shares by hard link with another process.
+  None does (READ: the driver's `_place` is the only `os.link` of a guest-visible file in
+  `tests/harness/` and `tests/checks/`; the build greps again).
+
+**Its check, written first.** `test_fuel_does_not_follow_the_stdlib_zips_link_count`, in
+`tests/checks/test_v1_4_embedding.py`, both binaries (it needs the artifacts): a private copy of the set's zip, granted with `stdlib=`; one program (`import json`, a stat of the
+zip, its `st_nlink` printed) runs with the copy at 1 link and again with 1,100 more links to it,
+made under the check's own temp folder and removed in a `finally`. Both runs print `nlink` 1 and
+spend the same fuel. On main's driver it fails (`nlink` 2 against 1,104; +521 fuel). It never links
+the set's own zip, so it perturbs no other run on the machine.
+
+**Criteria added.**
+8. **The link count.** `test_fuel_does_not_follow_the_stdlib_zips_link_count` fails on main's driver
+   and passes with the build. With the build, no file under the worktree shares the set zip's inode
+   during or after the full judge (`find … -inum`; the driver no longer links it), and
+   `nlink_fuel.py` gives `difference +0` on both programs.
+9. **The probes clean up.** Every probe in the evidence folder removes its work folder at exit; after
+   the build's measurements, no file under the scratch folder or the worktree shares the set zip's
+   inode (`find … -inum`).
 
 ## Disposition of the pre-build review
 

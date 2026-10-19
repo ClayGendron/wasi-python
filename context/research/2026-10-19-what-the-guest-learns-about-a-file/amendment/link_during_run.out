@@ -1,0 +1,4 @@
+# link_during_run.py, one run each
+main's driver: nlink 531 532 ctime same True mtime same True | fuel 16823558
+revised prototype: nlink 531 532 ctime same True mtime same True | fuel 16822697
+revised prototype, zip copied: nlink 1 1 ctime same True mtime same True | fuel 16822575

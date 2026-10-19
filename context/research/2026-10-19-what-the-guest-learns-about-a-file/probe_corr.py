@@ -1,5 +1,5 @@
 """Spec 083 probe: correlate fuel with each filestat answer's fields (prototype driver)."""
-import struct, sys, tempfile
+import atexit, shutil, struct, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 from harness import guest  # noqa: E402
@@ -14,6 +14,7 @@ def rewrite(self, caller, memory, at):
 guest._Stats._rewrite = rewrite
 code = "import os\nopen('/f', 'w').write('x')\nos.stat('/f')"
 work = Path(tempfile.mkdtemp(dir=sys.argv[2]))
+atexit.register(shutil.rmtree, work, True)  # its run folders hold links to the set's zip
 rows = []
 for _ in range(int(sys.argv[3])):
     seen.clear()
