@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import struct
+import sys
 import threading
 from pathlib import Path
 
@@ -964,17 +965,43 @@ def _rename_loop(base: Path, guarded: bool, cap: int, n: int = 40) -> tuple[str,
     return end, cap - g.store.get_fuel()
 
 
+# How today's native linker (wasmtime 49.0.0 alone) ends the rename loop, per system (spec 076,
+# Decision 5). The guard ends `returned ENOTDIR` on every system: it carries wasmtime 49.0.3's
+# rule, a path ending in `/` needs a folder source (spec 048). On Linux and macOS 49.0.0 puts the
+# source's slash back and the kernel answers ENOTDIR too. On Windows 49.0.0 strips the slash and
+# renames the file `f` to `e` with no kind check (its `via_parent/rename.rs` re-appends the slash
+# under `#[cfg(unix)]` only; READ); the next turn renames the folder `d` over the file `e`, which
+# Windows allowed on GitHub's `windows-2025-vs2026` image, version 20261007.264.1 (spec 058's
+# cause); from then on `f/` is missing, ENOENT. Seen there: `returned 44` against the guard's
+# `returned 54`, with equal fuel (spec 063's dry runs, EXECUTED). Another image may differ: a red
+# run there is a fact about the reference, decided by spec 076's Decision 9.
+NATIVE_RENAME_END = {
+    "linux": f"returned {ENOTDIR}",
+    "darwin": f"returned {ENOTDIR}",
+    "win32": f"returned {ENOENT}",
+}
+
+
 def test_the_rename_rule_forward_is_fuel_neutral(tmp_path) -> None:
     """Criterion 4: a metered guard call whose shadow forwards a path_filestat_get (on the stat
     trampoline) and then a path_rename, and a fd_readdir, spends exactly the guest fuel today's
     native calls spend, and ends the same way with the same fuel at every cap from 1 up to past
-    its need: each forward's allowance is set back."""
+    its need: each forward's allowance is set back. The guard's loop ends ENOTDIR on every
+    system; today's native loop ends as `NATIVE_RENAME_END` says for this system (spec 076,
+    Decision 5), so on Windows a loop that completes ends differently on the two sides."""
+    native_end = NATIVE_RENAME_END[sys.platform]
+    guarded_end = f"returned {ENOTDIR}"  # the renames of d succeed; f/ is refused
+
+    def native_as_guarded(end: tuple[str, int]) -> tuple[str, int]:
+        return (guarded_end, end[1]) if end[0] == native_end else end
+
     full = _rename_loop(tmp_path, False, 10**9)
-    assert full == _rename_loop(tmp_path, True, 10**9)
-    assert full[0] == f"returned {ENOTDIR}"  # the renames of d succeed; f/ is refused
+    assert full[0] == native_end, full
+    assert _rename_loop(tmp_path, True, 10**9) == (guarded_end, full[1])
     need = full[1]
     for cap in [*range(1, 40, 3), *range(need - 30, need + 3)]:
-        assert _rename_loop(tmp_path, True, cap) == _rename_loop(tmp_path, False, cap), cap
+        native = native_as_guarded(_rename_loop(tmp_path, False, cap))
+        assert _rename_loop(tmp_path, True, cap) == native, cap
 
 
 def test_a_guard_call_leaves_the_other_calls_native(tmp_path) -> None:

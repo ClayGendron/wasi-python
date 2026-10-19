@@ -36,6 +36,22 @@ posted, and no agent will post anything.
    (INFERRED from wasmtime's versioning).
    When `uv.lock` moves to such a release, `tests/harness/files.py`'s `DIRENT_MASKED` drops
    the padding bytes, so the parity compares them again.
+5. **On Windows, wasmtime 49.0.0 renames a file named with a trailing slash; 49.0.3 refuses it**
+   (spec 076, cause 4). 49.0.0's `crates/wasi/src/filesystem/primitives/via_parent/rename.rs`
+   strips a trailing slash from both paths and puts the source's back only under
+   `#[cfg(unix)]` (lines 22-26 and 33-42, READ, the crate from the cargo registry); on Windows
+   it renames by `std::fs::rename` of the two full paths with no kind check
+   (`primitives/windows/fs/rename_unchecked.rs`, READ). So `path_rename("f/", "e")` of a file
+   `f` renames it. 49.0.3 checks, on every system but Linux, that the source is a folder when
+   either path ends in `/`, without following, and answers `ENOTDIR` (the same file, lines
+   25-27 and 55-60, READ). The runner's guard carries 49.0.3's rule (spec 048), so a guest of
+   the runner already gets `ENOTDIR`. Seen on GitHub's `windows-2025-vs2026` image, version
+   20261007.264.1, in spec 063's branch dry runs 39182550825, 39184807592 and 39186533835: a
+   loop of such renames on wasmtime-py 49.0.0 alone ended `ENOENT` (the file renamed, then a
+   folder renamed over it, then the source missing), where the guard's ended `ENOTDIR`
+   (EXECUTED there). A wasmtime-py on 49.0.3 would end the difference; the check that states
+   it per system (`NATIVE_RENAME_END` in `tests/unit/test_runner_mounts.py`) then fails and
+   loses its Windows value, with a reason.
 
 ## What the owner might ask
 

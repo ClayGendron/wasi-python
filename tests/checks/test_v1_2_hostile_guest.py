@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import needs, paths
+from harness import files, needs, paths
 
 pytestmark = pytest.mark.goal("v1.2")
 
@@ -523,9 +523,12 @@ def _tree(folder: Path) -> list[tuple[str, int, bytes]]:
 
 @BOTH
 def test_a_read_only_grant_refuses_every_write(guest_workdir, snapshot) -> None:
-    """Guards a change (spec 017): a read-only grant refuses every write-type call with EPERM,
-    and a write through a read descriptor with EBADF; the host files, their modes and times, and
-    the folder a link inside the grant points at are unchanged."""
+    """Guards a change (spec 017): a read-only grant refuses every write-type call with EPERM, on
+    every system (wasmtime refuses a write open before the host sees the path, so the row
+    through a link answers EPERM where no link was made too; spec 076, Decision 3), and a write
+    through a read descriptor with the host's errno, EBADF on Linux and macOS and EACCES on
+    Windows (spec 076, Decision 4); the host files, their modes and times, and the folder a link
+    inside the grant points at are unchanged."""
     from wasi_python import Grant
 
     run = _run()
@@ -545,9 +548,7 @@ def test_a_read_only_grant_refuses_every_write(guest_workdir, snapshot) -> None:
     lines = dict(line.rsplit(" ", 1) for line in done.stdout.decode().splitlines())
     assert lines.pop("control") == "written"
     want = {name: "63" for name in lines}
-    want["write a read descriptor"] = "8"  # EBADF: the descriptor has no write right
-    if os.name != "posix":
-        want["through a link in the grant"] = "44"  # ENOENT: no link was made on Windows
+    want["write a read descriptor"] = str(files.wrong_mode_errno(sys.platform))
     assert lines == want, done.stdout.decode()
     assert _tree(ro) == before and os.stat(ro / "f.txt").st_mtime_ns == times
     assert list(outside.iterdir()) == []
@@ -683,6 +684,15 @@ def test_a_bad_grant_is_refused_before_any_work(guest_workdir, tmp_path) -> None
     # The runner makes the cache before it judges, so a root above it is refused.
     refused(ValueError, "holds the module cache", root=base.parent)
     refused(ValueError, "does not exist", root=base / "new" / ".." / "x")
+    assert not (base / "x").exists() and not (base / "new").exists()
+    # The same rule on every system (spec 076, Decision 1): `..` is taken on the folders walked,
+    # so after a missing folder it is refused for a grant too, and after a file it is not a
+    # folder; a root to be made inside the module cache by way of `..` is refused before anything.
+    refused(ValueError, "does not exist", grants=[Grant(base / "new" / ".." / "shared", "/s")])
+    (base / "a-file").write_text("x")
+    refused(ValueError, "is not a folder", root=base / "a-file" / ".." / "y")
+    refused(ValueError, "does not exist", root=cache / "new" / ".." / "made")
+    assert not (cache / "made").exists() and not (base / "y").exists()
     refused(ValueError, "holds the module cache", grants=[Grant(base, "/b", writable=True)])
     refused(ValueError, "holds the artifact set", root=paths.artifact_dir().parent)
     # The zip folder, or before this process made one, the temporary folder that will hold it.

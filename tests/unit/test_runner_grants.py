@@ -212,12 +212,249 @@ def test_the_walk_judges_links(tmp_path) -> None:
         runner._walk("g", str(tmp_path / "file"), judge=True)
 
 
+def test_the_walk_takes_dot_dot_on_the_real_file_system(tmp_path) -> None:
+    """Spec 076, Decision 1, on every system and its real file system (no link, so no skip): a
+    `..` is taken on the folders walked. After a missing folder it is refused for a root and a
+    grant alike, and nothing is made; after a file it is "is not a folder"; after a real folder
+    it is that folder's parent."""
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "x").mkdir()
+    (tmp_path / "a-file").write_text("x")
+    for may_make in (True, False):
+        with pytest.raises(ValueError, match="does not exist"):
+            runner._walk("root", str(tmp_path / "new" / ".." / "y"), judge=True, may_make=may_make)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["a-file", "sub", "x"]
+    with pytest.raises(ValueError, match="is not a folder"):
+        runner._walk("g", str(tmp_path / "a-file" / ".." / "x"), judge=True)
+    walked = runner._walk("g", str(tmp_path / "sub" / ".." / "x"), judge=True)
+    try:
+        assert walked.identity == runner._identity_of(tmp_path / "x")
+        assert walked.chain[1] == runner._identity_of(tmp_path)
+    finally:
+        walked.close()
+
+
+# Spec 076: a model of the Win32 path rules the Windows walk meets, as Microsoft's "File path
+# formats on Windows systems" states them (the pre-build review READ it; the model is INFERRED
+# from it): `.` and `..` evaluated by text; a drive-relative `D:x` resolved against drive D's
+# current folder; a rooted `\x` against the current drive; a single trailing period trimmed from
+# each segment and trailing spaces and periods from the last; a reserved device name in the last
+# segment is the device. A verbatim `\\?\` path is taken literally. Identities are `(1, n)`.
+_WIN_FOLDERS = [
+    "c:\\", "c:\\b", "c:\\b\\a", "c:\\b\\a ", "c:\\b\\a \\x", "c:\\b\\sub", "c:\\b\\sub\\x",
+    "c:\\b\\x", "c:\\b\\a.", "c:\\b\\a.\\x", "c:\\b\\nul", "c:\\b\\nul\\x", "c:\\b\\.hidden",
+    "c:\\b\\v1.2", "c:\\b\\cache", "c:\\b\\cache\\made", "d:\\", "d:\\work", "d:\\work\\proj",
+    "d:\\work\\proj\\sub", "\\\\srv\\share", "\\\\srv\\share\\x",
+]  # fmt: skip
+_WIN_TREE = {path: (1, n) for n, path in enumerate(_WIN_FOLDERS, 1)}
+_WIN_FILES = {"c:\\b\\f.txt": (1, 100)}
+_WIN_LINKS = {"c:\\b\\link": (1, 200)}
+_WIN_CWD = {"C:": "C:\\b", "D:": "D:\\work\\proj"}
+_WIN_DEVICES = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10))}
+_WIN_DEVICES |= {f"lpt{i}" for i in range(1, 10)}
+
+
+def _win_resolve(s: str) -> str | None:
+    """The folder a Win32 path names, as a lower-case key; None for a device."""
+    import ntpath
+
+    if s.startswith("\\\\?\\"):
+        drive, _, tail = ntpath.splitroot(s)
+        return (drive[4:] + "\\" + tail).rstrip("\\").lower() if tail else drive[4:].lower() + "\\"
+    last_kept = not s.endswith(("\\", "/"))
+    s = s.replace("/", "\\")
+    if s.startswith("\\\\"):
+        drive, _, rest = ntpath.splitroot(s)
+    elif s[1:2] == ":" and s[2:3] != "\\":
+        s = _WIN_CWD[s[:2].upper()] + "\\" + s[2:]
+        drive, rest = s[:2], s[3:]
+    elif s.startswith("\\"):
+        drive, rest = "C:", s[1:]
+    elif s[1:2] == ":":
+        drive, rest = s[:2], s[3:]
+    else:
+        s = _WIN_CWD["C:"] + "\\" + s
+        drive, rest = s[:2], s[3:]
+    out: list[str] = []
+    for seg in rest.split("\\"):
+        if seg == "..":
+            if out:
+                out.pop()
+        elif seg not in ("", "."):
+            out.append(seg[:-1] if seg.endswith(".") else seg)
+    if out and last_kept:
+        out[-1] = out[-1].rstrip(" .")
+        if out[-1].split(".")[0].rstrip(" ").lower() in _WIN_DEVICES:
+            return None
+    if not out:
+        return (drive if drive.startswith("\\\\") else drive + "\\").lower()
+    return (drive + "\\" + "\\".join(out)).lower()
+
+
+class _WinFake:
+    """A stand-in for `_win_open`, `_close_held` and `_drive_folder` over the model: it records
+    every path opened and every handle still held."""
+
+    def __init__(self) -> None:
+        self.opened: list[str] = []
+        self.held: dict[int, str] = {}
+        self.next = 1
+
+    def open(self, path: str, follow: bool, access: int = 0) -> tuple[int, int, tuple]:
+        self.opened.append(path)
+        key = _win_resolve(path)
+        if key is None:
+            raise OSError(1, "Incorrect function", path)
+        if key in _WIN_TREE:
+            found = (0x10, _WIN_TREE[key])
+        elif key in _WIN_FILES:
+            found = (0x20, _WIN_FILES[key])
+        elif key in _WIN_LINKS:
+            found = (0x10 | 0x400, _WIN_LINKS[key])
+        else:
+            raise FileNotFoundError(2, "The system cannot find the file specified", path)
+        h, self.next = self.next, self.next + 1
+        self.held[h] = key
+        return h, found[0], found[1]
+
+    def close(self, h: int) -> None:
+        del self.held[h]
+
+    def install(self, monkeypatch) -> None:
+        monkeypatch.setattr(runner, "_win_open", self.open)
+        monkeypatch.setattr(runner, "_close_held", self.close)
+        monkeypatch.setattr(
+            runner, "_drive_folder", lambda drive: _WIN_CWD[(drive or "C:").upper()]
+        )
+
+
+def _win_chain(walked_path: str) -> tuple:
+    """The true chain of the folder a walked path names: its identity and each ancestor's."""
+    key = _win_resolve(walked_path)
+    assert key is not None and key in _WIN_TREE, walked_path
+    if key.startswith("\\\\"):
+        parts = key.split("\\")
+        root, rest = "\\\\" + parts[2] + "\\" + parts[3], [p for p in parts[4:] if p]
+        prefixes = [root] + [root + "\\" + "\\".join(rest[:k]) for k in range(1, len(rest) + 1)]
+    else:
+        parts = [p for p in key.split("\\") if p]
+        prefixes = [parts[0] + "\\"] + [
+            parts[0] + "\\" + "\\".join(parts[1:k]) for k in range(2, len(parts) + 1)
+        ]
+    return tuple(_WIN_TREE[p] for p in reversed(prefixes))
+
+
+def test_the_windows_walk_takes_dot_dot_on_walked_folders(monkeypatch) -> None:
+    """Spec 076, Decision 1 and criterion 1, on every system: the judged Windows walk over the
+    Win32 model above. `..` is taken on the folders walked (refused after a missing folder or a
+    file); a name Windows rewrites (a `:`, a trailing space or period, a reserved device name) is
+    refused before it is opened; a rooted path takes the current drive; a drive's root keeps its
+    separator; and no `..` leaks a handle."""
+    fake = _WinFake()
+    fake.install(monkeypatch)
+
+    def walk(path: str, may_make: bool = False) -> runner._Walked:
+        return runner._walk_windows("g", path, True, may_make)
+
+    def refused(path: str, match: str, may_make: bool = False) -> None:
+        with pytest.raises(ValueError, match=match):
+            walk(path, may_make)
+        assert fake.held == {}, (path, fake.held)
+
+    def walked_to(path: str, want: str, held: set[str] | None = None) -> None:
+        w = walk(path)
+        try:
+            assert w.path == want, (path, w.path)
+            assert w.chain == _win_chain(want), path
+            assert w.missing == ()
+            if held is not None:  # the folders still held: the ones on the way, none popped
+                assert set(fake.held.values()) == held, (path, fake.held)
+        finally:
+            w.close()
+        assert fake.held == {}, (path, fake.held)
+
+    rewrites = "a name Windows rewrites"
+    refused(r"C:\b\new\..\x", "does not exist", may_make=True)
+    refused(r"C:\b\new\..\x", "does not exist")
+    refused(r"C:\b\f.txt\..\x", "is not a folder")
+    walked_to(r"C:\b\sub\..\x", r"C:\b\x", held={"c:\\", "c:\\b", "c:\\b\\x"})
+    walked_to(r"C:\..\b", r"C:\b")
+    refused(r"C:\b\link\..\x", "link or junction")
+    missing = walk(r"C:\b\new\deeper", may_make=True)
+    assert missing.missing == ("new", "deeper") and missing.chain == _win_chain(r"C:\b")
+    missing.close()
+    refused(r"C:\b\cache\new\..\made", "does not exist", may_make=True)
+    walked_to("sub\\x", r"C:\b\sub\x")  # relative: the current folder of the current drive
+    walked_to(r"\b\x", r"C:\b\x")  # rooted with no drive: qualified with the current drive
+    walked_to("D:sub", r"D:\work\proj\sub")  # drive-relative: that drive's current folder
+    walked_to(r"C:\b\..", "C:\\")  # a drive's root keeps its separator (the review's N6)
+    walked_to(r"\\srv\share\x\..", "\\\\srv\\share\\")
+    walked_to(r"\\srv\share\x\..\..\x", r"\\srv\share\x")
+    walked_to(r"\\?\C:\b\sub\..\x", r"\\?\C:\b\x")
+    walked_to("C:/b/sub/x/", r"C:\b\sub\x")
+    walked_to(r"C:\b\.hidden", r"C:\b\.hidden")  # a period inside a name is no rewrite
+    walked_to(r"C:\b\v1.2", r"C:\b\v1.2")
+    # The pre-build review's two cases (F1), and the rest of the names Windows rewrites: each is
+    # refused before anything is opened for it.
+    before = len(fake.opened)
+    for path, may_make in [
+        (r"C:\b\D:sub", False),
+        (r"\\?\C:\b\a ", False),
+        (r"C:\b\a \x", False),
+        (r"C:\b\a.\x", False),
+        (r"C:\b\...", False),
+        (r"C:\b\sub::$INDEX_ALLOCATION", False),
+        (r"C:\b\new.", True),
+        (r"C:\b\new\NUL", True),  # a reserved name in a root still to be made: nothing is made
+        (r"C:\b\nul\x", False),
+        (r"C:\b\nul.txt", False),
+        (r"C:\b\Com1.log", True),
+        (r"C:\b\LPT9", True),
+        (r"C:\b\aux .x", True),
+    ]:
+        refused(path, rewrites, may_make)
+    rewritten = ("D:sub", "a ", "a.", "...", "::", "new.", "NUL", "nul", "Com1", "LPT9", "aux")
+    assert not [p for p in fake.opened[before:] if p.rsplit("\\", 1)[-1].startswith(rewritten)]
+
+
+def test_the_windows_walk_records_the_true_chain(monkeypatch) -> None:
+    """Spec 076, cause 5 (the pre-build review's F1 and its fuzz): over every spelling of up to
+    three components from a small alphabet, under seven heads, whenever the judged Windows walk
+    accepts a path, the chain it records is the true chain of the folder its walked path names,
+    and no handle is left held."""
+    import itertools
+
+    fake = _WinFake()
+    fake.install(monkeypatch)
+    alphabet = ["b", "sub", "x", "a", "a ", "a.", "..", ".", "", "D:sub", "nul", "f.txt", "work"]
+    heads = ["C:\\", "D:\\", "\\", "", "\\\\?\\C:\\", "D:", "\\\\srv\\share\\"]
+    accepted = refused = 0
+    for head in heads:
+        for k in (1, 2, 3):
+            for combo in itertools.product(alphabet, repeat=k):
+                path = head + "\\".join(combo)
+                try:
+                    w = runner._walk_windows("g", path, True, False)
+                except ValueError:
+                    refused += 1
+                else:
+                    try:
+                        assert w.chain == _win_chain(w.path), (path, w.path)
+                    finally:
+                        w.close()
+                    accepted += 1
+                assert fake.held == {}, path
+    # 642 accepted and 16,011 refused on macOS: the fuzz is not vacuous on either side.
+    assert accepted + refused == 16_653 and accepted > 600 and refused > 15_000, (accepted, refused)
+
+
 RAW = r"""(module
   (import "wasi_snapshot_preview1" "path_open"
     (func $po (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_allocate" (func $fa (param i32 i64 i64) (result i32)))
   (import "wasi_snapshot_preview1" "fd_renumber" (func $fr (param i32 i32) (result i32)))
   (import "wasi_snapshot_preview1" "fd_write" (func $fw (param i32 i32 i32 i32) (result i32)))
+  (import "wasi_snapshot_preview1" "fd_read" (func $fd (param i32 i32 i32 i32) (result i32)))
   (memory (export "memory") 1)
   (data (i32.const 200) "\2c\01\00\00\02\00\00\00")
   (data (i32.const 300) "XX")
@@ -228,7 +465,9 @@ RAW = r"""(module
     (call $fa (local.get 0) (i64.const 0) (i64.const 10)))
   (func (export "renumber") (param i32 i32) (result i32) (call $fr (local.get 0) (local.get 1)))
   (func (export "write") (param i32) (result i32)
-    (call $fw (local.get 0) (i32.const 200) (i32.const 1) (i32.const 208))))"""
+    (call $fw (local.get 0) (i32.const 200) (i32.const 1) (i32.const 208)))
+  (func (export "read") (param i32) (result i32)
+    (call $fd (local.get 0) (i32.const 400) (i32.const 1) (i32.const 408))))"""
 EPERM, ENOTSUP = 63, 58
 READ, WRITE, ALL = 1 << 1, 1 << 6, (1 << 29) - 1
 TRUNC = 8
@@ -236,7 +475,10 @@ TRUNC = 8
 
 def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
     """The raw preview1 rows of memo §1 and the review's extras, on a preopen made as the runner
-    makes a read-only grant (`fs_mutable=False`); fd 4 is a writable control."""
+    makes a read-only grant (`fs_mutable=False`); fd 4 is a writable control. A descriptor used
+    in a mode it was not opened for is refused with the host's errno, per system (spec 076,
+    Decision 4): a write through the grant's read descriptor, and a read through a write-only
+    descriptor of the writable grant."""
     ro, rw = tmp_path / "ro", tmp_path / "rw"
     ro.mkdir()
     rw.mkdir()
@@ -264,6 +506,11 @@ def test_a_read_only_grant_refuses_raw_writes(tmp_path) -> None:
     errno, ro_fd = open_(3, "f.txt", 0, READ)
     assert errno == 0
     assert ex["allocate"](store, ro_fd) == ENOTSUP
+    wrong_mode = files.wrong_mode_errno(sys.platform)
+    assert ex["write"](store, ro_fd) == wrong_mode  # EBADF on POSIX, EACCES on Windows
+    errno, wo_fd = open_(4, "w.txt", 0, WRITE)
+    assert errno == 0
+    assert ex["read"](store, wo_fd) == wrong_mode  # the read twin
     errno, rw_fd = open_(4, "w.txt", 0, READ | WRITE)
     assert errno == 0
     # fd_renumber onto the grant's file only moves the writable descriptor to that number.

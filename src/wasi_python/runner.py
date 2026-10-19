@@ -28,6 +28,7 @@ import hashlib
 import io
 import itertools
 import math
+import ntpath
 import numbers
 import operator
 import os
@@ -1685,36 +1686,101 @@ def _win_open(path: str, follow: bool, access: int = _WALK_ACCESS) -> tuple[int,
     return h, info.attributes, (info.volume_serial, index)
 
 
+# Names a judged Windows walk refuses (spec 076, Decision 1): Win32 rewrites them, so the path
+# opened and the chain of folders walked could disagree, and a rule that reads the chain could
+# miss a true ancestor (the pre-build review's F1). A `:` is a drive letter (`C:\\b\\D:x` is
+# drive D's current folder) or a stream; a trailing space or period is trimmed in some positions
+# and not others; a reserved device name, with or without an extension, is the device, and a
+# root still to be made through one would fail after the folders before it were made.
+_WIN_DEVICES = frozenset(
+    [
+        "con",
+        "prn",
+        "aux",
+        "nul",
+        *(f"com{i}" for i in range(1, 10)),
+        *(f"lpt{i}" for i in range(1, 10)),
+    ]
+)
+
+
+def _rewritten(name: str) -> bool:
+    """Whether Windows rewrites this one path component (never `.` or `..`)."""
+    if name in (".", ".."):
+        return False
+    stem = name.split(".", 1)[0].rstrip(" ").lower()
+    return ":" in name or name.endswith((" ", ".")) or stem in _WIN_DEVICES
+
+
+def _drive_folder(drive: str) -> str:
+    """The current folder of `drive` (the process's own drive when empty), holding no `..`: where
+    a relative Windows path starts, and whose drive a rooted one takes (spec 076, Decision 1). A
+    seam the tests replace."""
+    return ntpath.abspath(drive or ".")
+
+
 def _walk_windows(where: str, path: str, judge: bool, may_make: bool) -> _Walked:
-    full = os.path.abspath(path) if judge else os.path.realpath(path)
-    drive, rest = os.path.splitdrive(full)
-    anchor = drive + "\\"
-    parts = [p for p in re.split(r"[\\/]", rest) if p]
+    if judge:
+        # Made absolute without dropping `..` (spec 076): only the start is ever normalised, and
+        # `..` is taken on the folders walked, as `_walk_posix` takes it.
+        drive, tail = ntpath.splitdrive(path)
+        if tail[:1] in ("\\", "/") or drive[1:2] not in ("", ":"):  # rooted, or a share
+            if not drive:  # rooted with no drive: the current folder's drive, fully qualified
+                drive = ntpath.splitdrive(_drive_folder(""))[0]
+            names = re.split(r"[\\/]", tail)
+        else:
+            drive, start = ntpath.splitdrive(_drive_folder(drive))
+            names = re.split(r"[\\/]", start) + re.split(r"[\\/]", tail)
+    else:
+        drive, rest = ntpath.splitdrive(ntpath.realpath(path))
+        names = re.split(r"[\\/]", rest)
+    names = [n for n in names if n not in ("", ".")]
+    if judge:
+        for name in names:
+            if _rewritten(name):
+                raise ValueError(
+                    f"{where}: {path!r} has a name Windows rewrites ({name!r}); name the folder "
+                    "plainly"
+                )
     held: list[int] = []
     chain: list[Identity] = []
+    heres: list[str] = []
+
+    def enter(here: str) -> None:
+        h, attributes, identity = _win_open(here, follow=not judge)
+        held.append(h)
+        if judge and attributes & _ATTRIBUTE_REPARSE_POINT:
+            raise ValueError(
+                f"{where}: {path!r} passes through a link or junction; on Windows every one is "
+                "refused"
+            )
+        if not attributes & _ATTRIBUTE_DIRECTORY:
+            raise ValueError(f"{where}: {path!r} is not a folder")
+        chain.append(identity)
+        heres.append(here)
+
     try:
-        here = anchor
-        for i in range(len(parts) + 1):
-            if i:
-                here = os.path.join(here, parts[i - 1])
+        try:
+            enter(drive + "\\")  # a drive's root keeps its separator: `C:` alone is relative
+        except FileNotFoundError:
+            raise ValueError(f"{where}: {path!r} does not exist") from None
+        for i, name in enumerate(names):
+            if name == "..":
+                if len(heres) > 1:  # at the drive's root `..` stays, as POSIX's does at `/`
+                    _close_held(held.pop())
+                    chain.pop()
+                    heres.pop()
+                continue
             try:
-                h, attributes, identity = _win_open(here, follow=not judge)
+                enter(heres[-1].rstrip("\\") + "\\" + name)  # never ntpath.join (a drive resets it)
             except FileNotFoundError:
-                if not may_make or i == 0:
+                rest = tuple(names[i + 1 :])
+                if not may_make or ".." in rest:
                     raise ValueError(f"{where}: {path!r} does not exist") from None
-                walked = _Walked(os.path.dirname(here), tuple(reversed(chain)), held)
-                walked.missing = tuple(parts[i - 1 :])
+                walked = _Walked(heres[-1], tuple(reversed(chain)), held)
+                walked.missing = (name, *rest)
                 return walked
-            held.append(h)
-            if judge and attributes & _ATTRIBUTE_REPARSE_POINT:
-                raise ValueError(
-                    f"{where}: {path!r} passes through a link or junction; on Windows every one is "
-                    "refused"
-                )
-            if not attributes & _ATTRIBUTE_DIRECTORY:
-                raise ValueError(f"{where}: {path!r} is not a folder")
-            chain.append(identity)
-        return _Walked(here, tuple(reversed(chain)), held)
+        return _Walked(heres[-1], tuple(reversed(chain)), held)
     except BaseException:
         for h in held:
             _close_held(h)

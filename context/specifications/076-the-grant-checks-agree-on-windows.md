@@ -223,7 +223,11 @@ Each was found by reading the code and wasmtime's sources; no Windows machine wa
      refused before anything is opened for it: "`{where}`: `{path!r}` has a name Windows
      rewrites (`{name!r}`); name the folder plainly" (cause 5; the lane's ruling on F1). A `:`
      there is a drive letter or a stream; a trailing space or period is trimmed by Win32 in some
-     positions and not others. Either makes the opened path and the chain disagree;
+     positions and not others. Either makes the opened path and the chain disagree. **A
+     reserved device name** (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`,
+     with or without an extension or trailing spaces) is refused the same way, so a root still
+     to be made such as `C:\b\new\NUL` is refused before any folder is made (the
+     confirmation's note on reserved names, taken at build by the lane's ruling);
    - any other name is opened as today, and each prefix is built by concatenation,
      `here.rstrip("\\") + "\\" + name`, never `ntpath.join`, which resets on a drive (cause 5);
    - a `..` after a component that does not exist is refused, "does not exist", whether the
@@ -478,8 +482,11 @@ saying so.
     - components: `re.split(r"[\\/]", tail)`, walked in order with a list of held handles,
       identities and names that `..` pops (never below the start's root); each prefix is
       `here.rstrip("\\") + "\\" + name`;
-    - a name with `:`, or ending in ` ` or `.` (but not `.` or `..`), raises Decision 1's
+    - a name with `:`, or ending in ` ` or `.` (but not `.` or `..`), or whose stem (before
+      the first period, trailing spaces dropped) is a reserved device name, raises Decision 1's
       "a name Windows rewrites" before it is opened, existing or not;
+    - the drive's root is entered as `drive + "\\"`, so a walk that ends there hands on `C:\`
+      or `\\srv\share\`, never the drive-relative `C:` (the confirmation's N6);
     - a missing component: if anything after it (empty and `.` skipped) is `..`, or `may_make` is
       false, raise "does not exist"; else return it as `missing` with the rest, as today (the
       rest is checked for rewritten names first, so a root to be made never holds one);
@@ -566,7 +573,12 @@ Stand-ins are made in the worktree, run, and restored; their output goes to `bui
      the name: `C:\b\D:sub` (as a writable grant, with `D:\work\proj\sub` in the tree beside a
      runtime folder `D:\work`), and the writable grant `\\?\C:\b\a ` with the read-only grant
      `C:\b\a \x`; and also `C:\b\a.\x`, `C:\b\sub::$INDEX_ALLOCATION` and a root to be made
-     `C:\b\new.`, each refused the same way.
+     `C:\b\new.`, each refused the same way;
+   - reserved names: a root to be made `C:\b\new\NUL`, and `C:\b\nul\x`, `C:\b\nul.txt`,
+     `C:\b\Com1.log`, `C:\b\LPT9` and `C:\b\aux .x`, each refused the same way, with nothing
+     opened for the name;
+   - a drive's root: `C:\b\..` walked to and handed on as `C:\`, and `\\srv\share\x\..` as
+     `\\srv\share\` (the confirmation's N6).
 
    Seen failing before the change (the rows that collapse, and every rewritten-name row).
    **S1:** a `_walk_windows` that collapses the path with `ntpath.normpath` first: fails, naming
@@ -576,7 +588,9 @@ Stand-ins are made in the worktree, run, and restored; their output goes to `bui
    handles. **S11:** the rewritten-name refusal removed: fails on `C:\b\D:sub` and on the `a `
    pair. **S12:** prefixes built with `ntpath.join` and the `:` refusal removed: `C:\b\D:sub` is
    accepted, and the row fails. **S13:** a rooted `\b\x` started at `"\\"`: the handed-on path
-   is not fully qualified, and the row fails.
+   is not fully qualified, and the row fails. **S14:** reserved names not refused: the
+   `C:\b\new\NUL` row fails. **S15:** a drive's root entered as `C:` without its separator:
+   the chain is wrong and the row fails.
 2. `test_the_walk_takes_dot_dot_on_the_real_file_system` passes on macOS and Linux, and on
    Windows in the verify step, where its `PASSED` line is quoted (criterion 9). **S4:**
    `_walk_posix` that applies `os.path.normpath` to the joined path first: fails on macOS,

@@ -103,6 +103,16 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `fd_renumber` through the runner, which forwards them to wasmtime; fuel does not change.
 - **Changed:** a new, tighter default (spec 068; spec 049, Decision 8, exception 1): a program
   that holds more than 1,024 files open at once passes a larger `max_open_files`, or `None`.
+- **Windows judges a grant's path as Linux and macOS do** (spec 076). A grant or `root` with
+  `..` after a missing folder or a file (`new\..\x`) is now refused on Windows too, before any
+  work; before, Windows dropped the `..` by its text, made `x` and ran the guest. On Windows a
+  host path with a name that holds `:`, ends in a space or a period, or is a reserved device
+  name (`NUL`, `COM1` and the rest) is refused, since Windows rewrites such names and the
+  runner's checks could then judge other folders than the ones granted (a spelling the embedder
+  gives, never the guest). A path rooted with no drive takes the current folder's drive. The
+  README states the one errno that differs by system on a grant: a write through a descriptor
+  opened only to read (or the reverse) is `EBADF` on Linux and macOS and `EACCES` on Windows,
+  wasmtime's own mapping of the host's error.
 
 ## 0.1.0a6 — 2026-10-19
 

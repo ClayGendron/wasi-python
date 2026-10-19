@@ -679,6 +679,14 @@ cache, so that it is judged as it will be):
   folder must exist, and a missing `root` is made. Run as the superuser,
   every folder counts as writable, so every link on the way is refused
   (macOS's `/tmp` and `/var` included): name the real path;
+- `..` in a host path is taken on the folders walked, so a `..` after a
+  missing folder or after a file is refused, on every system (`new/../x`
+  "does not exist"). On Windows a name that holds `:` or ends in a space or
+  a period, or a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to
+  `COM9`, `LPT1` to `LPT9`, with or without an extension), is refused
+  anywhere in the path, since Windows rewrites such names; a folder so named
+  cannot be granted on Windows. A path rooted with no drive (`\data`) takes
+  the drive of the current folder;
 - a read-only grant inside a writable one, or `root`, is refused: the guest
   could change it through the other;
 - a writable grant or `root` at, inside or above the runtime's own folders
@@ -708,6 +716,12 @@ What grants do not do:
   elsewhere, by another call or another program;
 - a writable grant answers as the host's file system does: on Windows see
   *On Windows* under *Writable mounts*;
+- a write through a descriptor of a grant's file opened only to read, or a
+  read through one opened only to write, is refused on every system with the
+  host's own error, which wasmtime passes on: `EBADF` on Linux and macOS,
+  `EACCES` (a `PermissionError`) on Windows. A mount's file answers `EBADF`
+  everywhere. Python's file objects opened by path refuse both before any
+  call (`io.UnsupportedOperation`); only a raw descriptor meets the error;
 - a SQLite database in a read-only grant opens only through a URI that takes
   no lock (`file:/data/db.sqlite?immutable=1`);
 - a folder reachable by two routes (a bind mount, a share mounted twice) is

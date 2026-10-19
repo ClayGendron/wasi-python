@@ -385,6 +385,21 @@ def answer_matches(want: object, got: object) -> bool:
     return want == got
 
 
+# A write through a grant's descriptor opened only to read, or a read through one opened only to
+# write (spec 076, Decision 4): refused on every host, with the host's own errno. wasmtime 49's
+# preview1 `fd_write` and `fd_read` check neither the grant's permissions nor the open mode, so
+# the host answers: `write(2)` and `read(2)` give EBADF (8) on Linux and macOS (EXECUTED);
+# Windows gives ERROR_ACCESS_DENIED, which wasmtime maps to EACCES (2) (READ, wasmtime-wasi
+# 49.0.0 `p1.rs:626-695`, `filesystem.rs:434`; seen on windows-2025 in spec 063's dry runs).
+WRONG_MODE_ERRNO: dict[str, int] = {"linux": 8, "darwin": 8, "win32": 2}
+
+
+def wrong_mode_errno(system: str) -> int:
+    """The guest's errno for a grant's descriptor used in a mode it was not opened for, on
+    `system` (a `sys.platform`): a KeyError for a system the table does not name."""
+    return WRONG_MODE_ERRNO[system]
+
+
 METHODS = ("stat", "list", "read", "write", "mkdir", "remove", "rmdir", "rename")
 _UNSET = object()
 
