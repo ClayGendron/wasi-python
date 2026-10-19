@@ -171,6 +171,8 @@ SOURCE_COMPONENTS = (
     "pyyaml",
     "markupsafe",
     "networkx",
+    "openblas",
+    "scipy",
 )
 
 VOCABULARY: dict[str, Need] = {

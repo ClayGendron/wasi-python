@@ -1,0 +1,18 @@
+versions python=3.15 scipy=1.18.1
+BFGS -> success=True x=1 1 fun<1e-12=True
+Nelder-Mead -> success=True x=1 1 fun<1e-12=True
+L-BFGS-B -> success=True x=1 1 fun<1e-12=True
+SLSQP -> success=True x=1.4 1.7 fun=0.8
+root hybr -> success=True x=0.841164 0.158836
+least_squares -> success=True x=2.51096 1.30082 0.498564 cost=0.00133019
+curve_fit -> p=2.51096 1.30082 0.498564 sd=0.00854328 0.00991224 0.0040186
+brentq -> 2.09455
+linprog -> status=0 x=10 -3 fun=-22
+milp -> status=0 x=2 2 fun=-6
+linear_sum_assignment -> [[0, 1, 2], [1, 0, 2]]
+quad -> 0.0934076
+dblquad -> 0.176415
+solve_ivp RK45 -> success=True y(5)=-0.421909 0.492816
+solve_ivp BDF -> success=True y(5)=-0.421909 0.492816
+odeint -> 0.135887 1.32721 -0.421909 0.492816
+simpson -> 2

@@ -51,6 +51,9 @@ SOURCE_PATTERNS = {
     "markupsafe": re.compile(r"markupsafe-[\w.]+\.tar\.gz"),
     # spec 041, Decision 4: networkx from its sdist, so its carried patch has a tree
     "networkx": re.compile(r"networkx-[\w.]+\.tar\.gz"),
+    # scipy (spec 037): OpenBLAS, whose C LAPACK is the LAPACK, and the package
+    "openblas": re.compile(r"OpenBLAS-[\w.]+\.tar\.gz"),
+    "scipy": re.compile(r"scipy-[\w.]+\.tar\.gz"),
 }
 
 

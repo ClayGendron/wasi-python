@@ -210,7 +210,11 @@ def test_stdlib_c_modules_are_builtin(guest, which) -> None:
 
 DOTTED_NAMES = """
 import importlib, json, sys
-dotted = sorted(n for n in sys.builtin_module_names if "." in n)
+scipy_only = sys.argv[1] == "scipy"
+dotted = sorted(
+    n for n in sys.builtin_module_names
+    if "." in n and (n.split(".")[0] == "scipy") == scipy_only
+)
 wrong = []
 for n in dotted:
     try:
@@ -225,8 +229,17 @@ print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
 # fuel on the plain reactor and 0.1 G on the snapshot before regex (its pre-build review's
 # finding 10). One program per binary, each with a budget; a figure above half its budget is a
 # finding for the build review, and a plain run past its budget is split per top-level package,
-# never narrowed to fewer modules.
+# never narrowed to fewer modules. scipy's 95 modules are their own run (spec 037).
 DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
+SCIPY_DOTTED_FUEL = 40_000_000_000
+# What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle, spec
+# 037's landing notes): `_uarray`'s module definition names it `uarray._uarray`, and
+# `_matfuncs_sqrtm_triu` imported before `_matfuncs_sqrtm` is a circular import natively too.
+# Each equals the native answer; nothing of this build is excused.
+SCIPY_NATIVE = {
+    "scipy._lib._uarray._uarray": "uarray._uarray",
+    "scipy.linalg._matfuncs_sqrtm_triu": "import ImportError",
+}
 # matplotlib's package needs its data folder and a writable cache folder to import, as in its
 # own checks (spec 023): granted here, so its builtins are named like every other.
 MPL_ENV = {"MPLCONFIGDIR": "/mplconfig"}
@@ -240,11 +253,27 @@ def test_dotted_builtins_keep_their_import_names(guest, which) -> None:
     its short `m_name` unless the inittab's wrapper sets the context around its init function;
     pickle then looks for a top-level module that does not exist. General: a later single-phase
     package is caught the same way, and fixed by a recipe, never by an exemption here."""
-    r = guest(which, ["-c", DOTTED_NAMES], env=MPL_ENV, mpl_data=True, fuel=DOTTED_FUEL[which])
+    r = guest(
+        which, ["-c", DOTTED_NAMES, "rest"], env=MPL_ENV, mpl_data=True, fuel=DOTTED_FUEL[which]
+    )
     assert (r.exit_code, r.trapped) == (0, None), r.describe()
     got = json.loads(r.text)
     assert got["dotted"] > 0, r.text
     assert got["wrong"] == [], f"{got['wrong']} (of {got['dotted']} dotted builtins)"
+
+
+@BINARY
+def test_scipys_dotted_builtins_keep_their_import_names(guest, which) -> None:
+    """The same for scipy's 95 builtins, in their own run (spec 037): each imports as a module
+    named by its dotted name, or as native scipy imports it where native differs (SCIPY_NATIVE)."""
+    r = guest(which, ["-c", DOTTED_NAMES, "scipy"], fuel=SCIPY_DOTTED_FUEL)
+    assert (r.exit_code, r.trapped) == (0, None), r.describe()
+    got = json.loads(r.text)
+    assert got["dotted"] > 0, r.text
+    wrong = [w for w in got["wrong"] if SCIPY_NATIVE.get(w[0]) != w[1]]
+    assert wrong == [], f"{wrong} (of {got['dotted']} dotted builtins)"
+    left = sorted(set(SCIPY_NATIVE) - {w[0] for w in got["wrong"]})
+    assert not left, f"SCIPY_NATIVE names {left}, which now import under their own names"
 
 
 REGEX = """

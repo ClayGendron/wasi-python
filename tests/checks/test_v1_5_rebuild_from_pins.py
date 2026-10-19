@@ -144,6 +144,53 @@ def test_source_tree_matches_its_tarball(component) -> None:
     assert not drift, scan.report(drift)
 
 
+OPENBLAS_PATCHES = (
+    "0001-c-lapack-subroutines-return-void-1-of-2.patch",
+    "0002-c-lapack-subroutines-return-void-2-of-2.patch",
+    "0003-ilaver-returns-void.patch",
+)
+
+
+def test_the_openblas_patches_are_what_their_script_makes() -> None:
+    """OpenBLAS's three carried patches are byte for byte what their script makes from the pinned
+    tarball (scripts/make_openblas_void_patch.sh, git run with no caller configuration), each
+    draft's `Files:` line is the script's, and the audit pairs every changed line of the
+    convention's two with one of its rules (spec 037, Decision 5)."""
+    import sys
+
+    needs.need("source tree openblas")
+    out = paths.HARNESS_TMP / "openblas-void"
+    shutil.rmtree(out, ignore_errors=True)
+    env = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "PYTHON": sys.executable}
+    made = subprocess.run(
+        ["sh", str(SCRIPTS / "make_openblas_void_patch.sh"), str(out)],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert made.returncode == 0, made.stderr[-1500:]
+    carried = paths.REPO / "recipes" / "patches" / "OpenBLAS-0.3.34"
+    drafts = paths.REPO / "context" / "upstream" / "patches" / "OpenBLAS-0.3.34"
+    assert sorted(p.name for p in carried.glob("*.patch")) == list(OPENBLAS_PATCHES)
+    errors = []
+    for name in OPENBLAS_PATCHES:
+        if (out / name).read_bytes() != (carried / name).read_bytes():
+            errors.append(f"{name}: the carried patch is not what the script makes")
+        files = ", ".join((out / f"{name}.files").read_text().split())
+        draft = (drafts / name.replace(".patch", ".md")).read_text()
+        if f"- **Files:** {files}\n" not in draft:
+            errors.append(f"{name}: its draft's Files: line is not the script's")
+    assert not errors, scan.report(errors)
+    audit = subprocess.run(
+        [sys.executable, "-I", str(SCRIPTS / "audit_openblas_void.py")]
+        + [str(carried / n) for n in OPENBLAS_PATCHES],
+        capture_output=True,
+        text=True,
+    )
+    assert audit.returncode == 0, audit.stdout[-1500:]
+    shutil.rmtree(out, ignore_errors=True)
+
+
 def test_release_workflow_runs_the_zero_patch_check() -> None:
     workflows = sorted((paths.REPO / ".github" / "workflows").glob("*.y*ml"))
     good = [

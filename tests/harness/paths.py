@@ -109,6 +109,9 @@ LICENCE_COMPONENTS = (
     "cloudpickle",
     "threadpoolctl",
     "narwhals",
+    # scipy (spec 037, Decision 13)
+    "scipy",
+    "openblas",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -170,6 +173,8 @@ PACKAGES = (
     "cloudpickle",
     "threadpoolctl",
     "narwhals",
+    "scipy",
+    "openblas",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no
@@ -630,7 +635,12 @@ def licence_source(component: str, m: Manifest | None) -> Path | None:
     else:
         package = "sqlite-autoconf" if component == "sqlite" else component  # as its pin names it
         version = m.packages.get(package)
-        names = [f for f in sorted(pinned) if version and is_version_of(f, package, version)]
+        # A source tarball before a wheel of the same version: numpy's host wheel (f2py's, spec
+        # 037) is a build tool, and numpy's notices are its sdist's.
+        names = sorted(
+            (f for f in pinned if version and is_version_of(f, package, version)),
+            key=lambda f: (".tar." not in f, f),
+        )
     for name in names:
         f = DOWNLOADS / name
         if name in pinned and f.is_file():

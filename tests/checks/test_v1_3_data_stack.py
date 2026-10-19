@@ -392,6 +392,7 @@ DISTRIBUTIONS = (
     "python-dateutil",
     "pyyaml",
     "regex",
+    "scipy",
     "six",
     "soupsieve",
     "sympy",
@@ -406,7 +407,7 @@ DISTRIBUTIONS = (
     "xlrd",
     "xlsxwriter",
     "xmltodict",
-)  # specs: matplotlib and its distributions 023; lxml 046; tier A 039; contourpy 043
+)  # specs: matplotlib and its distributions 023; lxml 046; tier A 039; contourpy 043; scipy 037
 
 METADATA = """
 import json, re

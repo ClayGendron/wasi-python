@@ -266,6 +266,7 @@ CPP_CROSS_FILES = (
     "recipes/wasi-pandas.cross",
     "recipes/wasi-plot-libs.cross",
     "recipes/wasi-matplotlib.cross",
+    "recipes/wasi-scipy.cross",  # spec 037
 )
 # kiwisolver's C++ is compiled by step 55 itself: its flags variable, and the compile that uses it.
 CPP_DIRECT = "scripts/steps/55_matplotlib.sh"
@@ -777,6 +778,7 @@ MESON_BUILDS = (
     "libraqm-build",
     "matplotlib-build",
     "contourpy-build",  # spec 043
+    "scipy-build",  # spec 037
 )
 # The Makefiles autoconf generates for the C libraries (libxml2's and libxslt's: spec 046), and
 # step 60's two command files.

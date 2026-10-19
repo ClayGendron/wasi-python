@@ -79,6 +79,8 @@ PIN_FILES = {
     "cloudpickle-3.1.2-py3-none-any.whl": b"cloudpickle pin",
     "threadpoolctl-3.7.0-py3-none-any.whl": b"threadpoolctl pin",
     "narwhals-2.27.1-py3-none-any.whl": b"narwhals pin",
+    "scipy-1.18.1.tar.gz": b"scipy pin",
+    "OpenBLAS-0.3.34.tar.gz": b"openblas pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -142,6 +144,8 @@ PACKAGES = {
     "cloudpickle": "3.1.2",
     "threadpoolctl": "3.7.0",
     "narwhals": "2.27.1",
+    "scipy": "1.18.1",
+    "openblas": "0.3.34",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 

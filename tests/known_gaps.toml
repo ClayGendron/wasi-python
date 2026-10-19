@@ -403,3 +403,42 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-f
 match = "1 finding(s), digest d884ec604262"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
 closes_with = "README.md"
+
+# scipy's first milestone (spec 037, Decision 9): three edges of the sandbox scipy meets, each
+# checked on both binaries with nothing writable, each closed by spec 038.
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory[plain]"
+match = "2 finding(s), digest 4ea6e755e09e"
+reason = "mmread and mmwrite: fast_matrix_market's default parallelism (0) starts a thread pool, and a std::thread cannot start on WASI"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory[snapshot]"
+match = "2 finding(s), digest 4ea6e755e09e"
+reason = "mmread and mmwrite: fast_matrix_market's default parallelism (0) starts a thread pool, and a std::thread cannot start on WASI"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_sobol_needs_nothing_writable[plain]"
+match = "1 finding(s), digest accb7992f785"
+reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and every point is 0 (README)"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_sobol_needs_nothing_writable[snapshot]"
+match = "1 finding(s), digest accb7992f785"
+reason = "qmc.Sobol with nothing writable: importlib.resources.as_file needs a temporary folder; the error is swallowed by a noexcept Cython function and every point is 0 (README)"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_ctypes_values_scipy_makes[plain]"
+match = "4 finding(s), digest b1dc10df2320"
+reason = "geninvgauss, genhyperbolic and studentized_range pass parameters as a ctypes.c_void_p and loadarff computes ctypes.c_ulong(-1).value; the stand-in refuses instances of C types"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_scipy.py::test_ctypes_values_scipy_makes[snapshot]"
+match = "4 finding(s), digest b1dc10df2320"
+reason = "geninvgauss, genhyperbolic and studentized_range pass parameters as a ctypes.c_void_p and loadarff computes ctypes.c_ulong(-1).value; the stand-in refuses instances of C types"
+closes_with = "context/specifications/038-scipy-second-milestone.md"

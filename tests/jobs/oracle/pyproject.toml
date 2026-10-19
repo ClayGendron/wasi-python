@@ -61,6 +61,11 @@ dependencies = [
     "cloudpickle==3.1.2",
     "threadpoolctl==3.7.0",
     "narwhals==2.27.1",
+    # scipy at the guest's pin (spec 037, Decision 15), on one LAPACK: on macOS arm64 the
+    # macosx_12_0 wheel, which bundles scipy-openblas (left to itself uv would take the macosx_14_0
+    # wheel there, which links Apple's Accelerate); elsewhere the wheels bundle scipy-openblas.
+    "scipy @ https://files.pythonhosted.org/packages/8c/c5/ba929d7feb9b2332f96827c12e0e924b61973b59b4dea383b603372c65ce/scipy-1.18.1-cp315-cp315-macosx_12_0_arm64.whl ; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "scipy==1.18.1 ; sys_platform != 'darwin' or platform_machine != 'arm64'",
 ]
 
 [tool.uv.sources]

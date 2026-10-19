@@ -53,13 +53,19 @@ JOBS = (
     "utilities",
     # The files two packages read by path, from the zip (spec 041, Decision 7)
     "files_from_the_zip",
+    # scipy's first milestone (spec 037, Decision 15)
+    "scipy_numeric",
+    "scipy_solvers",
+    "scipy_lapack",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
 # guest's never do. Each records its platform in tests/jobs/<job>.platform; the oracle reproduces
 # it only there, and the guest must match it everywhere. plot_contour (spec 043, Decision 8) prints
 # a figure's RGBA buffer and its SVG and PDF bytes, so it is bound in the same way.
-PLATFORM_BOUND = ("plot_line", "plot_contour")
+# The scipy jobs too (spec 037, Decision 15): the oracle's scipy is pinned to scipy-openblas on
+# macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ.
+PLATFORM_BOUND = ("plot_line", "plot_contour", "scipy_numeric", "scipy_solvers", "scipy_lapack")
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
 # guest does (spec 039, Decision 11): nothing is built on the host.
@@ -204,6 +210,9 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
     # matplotlib uses its own fonts only, as the guest does (spec 023, Decision 8): natively it
     # would otherwise list every font of the machine.
     env["MPL_IGNORE_SYSTEM_FONTS"] = "1"
+    # One BLAS thread, so the oracle's sums are taken in one order (spec 037, Decision 15).
+    env["OPENBLAS_NUM_THREADS"] = "1"
+    env["VECLIB_MAXIMUM_THREADS"] = "1"
     if seed is not None:
         env["PYTHONHASHSEED"] = str(seed)
     return env
