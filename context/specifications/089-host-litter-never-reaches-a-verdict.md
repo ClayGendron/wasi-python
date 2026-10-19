@@ -12,16 +12,20 @@
   `tests/harness/litter.py`, `tests/unit/test_host_litter.py`; edits to `tests/harness/guest.py`
   (`run`, `mpl_data_dir`), `tests/harness/regrtest.py` and `tests/harness/upstream.py` (each
   `Session`, its `_run` and its stage writer; `upstream.safe_unzip`), `tests/checks/conftest.py`
-  (the `guest_workdir` fixture), `tests/unit/conftest.py` (the `work` fixture), and one new check in
+  (the `guest_workdir` fixture), `tests/unit/conftest.py` (the `work` fixture),
+  `tests/harness/plugin.py` (one session-start line), and one new check in
   `tests/checks/test_v1_4_embedding.py`. No `src/`, `scripts/`, `recipes/`, `downloads/`, workflow
   or README. It moves no accepted fuel (criterion 4): the lane accepts it with `--accept-judge`.
 - **Depends on:** nothing unlanded. **It lands before spec 083** (the lane's order, with the
   owner's agreement, 2026-10-19): main's serial judge cannot run cleanly while a desktop process
   writes into the stages, and 083's landing waits on exactly that. **083 then rebases onto it**;
   their only shared file is `tests/harness/guest.py`, where 089 adds a few lines around the
-  preopens and before `run()` returns, and 083 adds its call shadows. One ordering is not textual
-  (F7): in 083's rebase, `watch.after()` runs **before** 083's `_release(store, lib)`, inside a
-  `try`/`finally` that still releases (the memo's trial r2 failed the other way round).
+  preopens and before `run()` returns, and 083 adds its call shadows. The merge (build review F2,
+  EXECUTED there with `git merge-tree`): **one textual conflict**, in `guest.py`'s tail, 089's
+  `try: watch.after() finally: litter.unseal(lib)` and `return Result(` against 083's
+  `result = Result(` and `_release(store, lib)`; and **one semantic conflict**: 083's `_release`
+  does `shutil.rmtree(lib, ignore_errors=True)`, which on a folder 089 sealed removes nothing and
+  says nothing. The resolved shape is in "For the lane"; the lane checks it in 083's delta review.
 - **Research it stands on:** `../research/2026-10-19-ds-store-in-the-judges-stages.md` (EXECUTED:
   the writer, the probe, the six trials, `prototype.diff`). Spec 083's build review, last addendum
   (the `.DS_Store` files in `build/harness/cpython/run-*` mid-run).
@@ -89,10 +93,16 @@ filtered from what the guest sees.
    anything is left after the last try, it is left unsealed and named on stderr, never in silence.
    `regrtest.Session.close` and `_run`, `upstream.Session.close` and `_run`, the `guest_workdir`
    fixture and the unit `work` fixture call it.
-   - **A killed judge** (SIGKILL, a worker crash) leaves its stages sealed, and `rm -rf` cannot
-     empty a sealed folder (the review's `rm_sealed.out`). They are never read again: every stage
-     has a fresh name. The recovery is named in `litter.py`'s docstring and in every `HostLitter`
-     message: `chmod -R u+w build/harness`, then `rm -rf`.
+   - **A killed judge** (SIGKILL, SIGTERM, a worker crash: no teardown runs) leaves sealed: its
+     stages, its mpl-data folders, and the stdlib folder of each run still live at the kill (at
+     most one per worker). Every other run's stdlib folder is unsealed when its run ends
+     (`guest.run`'s `finally`, build review F1: before that fix, a kill 75 s into two check files
+     left 27). `rm -rf` cannot empty a sealed folder, so `rm -rf build` and `git worktree remove`
+     fail on what is left (the reviews' `rm_sealed.out`, `kill-n2.out`). It is never read again:
+     every stage and run folder has a fresh name. The recovery, `chmod -R u+w build/harness` then
+     `rm -rf`, is named in `litter.py`'s docstring, in every `HostLitter` message, and in one line
+     the controller writes at session start when any sealed folder is left under
+     `build/harness` (`litter.sealed_leftovers`; named, never unsealed).
    - **No sweep of stale stages.** A stage's owner may be a live judge in another process of the
      same worktree (an xdist worker, a second pytest); telling a dead owner from a live one needs a
      pid marker, and pid reuse makes that unsafe. Leftovers are inert, so a named recovery is
@@ -125,9 +135,11 @@ filtered from what the guest sees.
 
 ## Intent
 
-No file a host process drops into a folder the guest sees changes a verdict or a fuel value
-silently, whichever process writes it: a read-only stage refuses it, and any grant that changes
-anyway fails its run, naming the file.
+No file a host process drops into a grant of the judge's own driver (`guest.run`) changes a
+verdict or a fuel value silently, whichever process writes it: a stage, an mpl-data folder or a
+run's stdlib folder refuses it (sealed), and any of its grants that changes anyway, a check's own
+read-only folder or a writable root included (watched, not sealed), fails its run, naming the
+file. `Turns` and the product runner's runs are neither sealed nor watched (N2).
 
 ## Design
 
@@ -197,18 +209,69 @@ the files; the product runner's grants.
 
 - **Accept with** `--accept-judge "spec 089: the judge seals its read-only stages (the CPython and
   upstream stages, matplotlib's data, each run's stdlib folder) and watches every guest run's
-  grants (tests/harness/litter.py; guest.py, regrtest.py, upstream.py, tests/checks/conftest.py,
-  tests/unit/conftest.py); one new check, test_a_file_dropped_into_a_stage_changes_nothing (both
+  grants (tests/harness/litter.py; guest.py, regrtest.py, upstream.py, plugin.py,
+  tests/checks/conftest.py, tests/unit/conftest.py); one new check, test_a_file_dropped_into_a_stage_changes_nothing (both
   binaries), and tests/unit/test_host_litter.py; no existing check, golden, gap or allowance
-  edited"`. No `--accept-growth`: nothing grows.
-- **The expected record:** gained, the new check's two rows; `judge changed`; lost 0; grew 0.
+  edited"`.
+- **The expected record:** gained, the new check's two rows; `judge changed`; lost 0; grew 0,
+  except the CPython groups on this base's own noise (below).
+- **089 and 083 land as one batch** (constitution §5.7 as amended 2026-10-19; build review F3).
+  On this base real inode numbers and times reach the guest, so `cpython-a`, `-b`, `-c`, `-fs` and
+  `-archives` spread run to run: up to 8.5e-5 on main `3866f56` alone in three runs, and the build
+  reviewer's full judge put `cpython-c` at +1.21e-4. 083 removes those host file facts; 089 removes
+  the litter. Together they make the CPython rows exact.
+  - **The batch's flags:** 089's `--accept-judge` text above, together with 083's own `--accept`,
+    `--accept-judge` and `--accept-growth` texts (083's "For the lane").
+  - **A sameness difference** between a reviewer's record and the lane's that is confined to rows
+    083 changes is explained by 083 (`context/progress/README.md`, step 3a's batch rule); any other
+    difference splits the batch.
+  - **If they ever land apart,** 089 first: a CPython row past 1e-4 whose move is covered by main
+    `3866f56`'s measured spread on the same private set is accepted with `--accept-growth
+    "<row>: this base's own noise before 083 (spec 089, F8), main 3866f56 gave <values> on the same
+    set"`, and the main runs are recorded in the landing notes. A row main's spread does not cover
+    is 089's to explain.
+- **083's rebase onto 089, resolved** (build review F2). `_release` removes `lib` through
+  `litter.remove` after the store is closed, and the watch runs before it, in a `try`/`finally`
+  that still releases; 089's `litter.unseal(lib)` folds into it:
+  ```python
+  def _release(store: wt.Store, lib: Path | None) -> None:
+      """After a guest: its store closed first (on Windows, wasmtime's handles in `lib` go with it),
+      then its own stdlib folder, which spec 089 sealed, unsealed and removed; `litter.remove`
+      never raises, so it can never fail a run, and names on stderr anything it could not remove."""
+      store.close()
+      if lib is not None:
+          litter.remove(lib)
+  ```
+  and the tail of `run()`:
+  ```python
+      except BaseException:
+          _release(store, lib)
+          raise
+      spent = fuel - store.get_fuel() if metered else 0
+      result = Result(
+          exit_code=exit_code,
+          stdout=(io / "stdout").read_bytes(),
+          stderr=(io / "stderr").read_bytes(),
+          trapped=trapped,
+          fuel=spent,
+          root=root,
+          trap_cause=cause,
+      )
+      try:
+          watch.after()  # before the release: the watch must see the run's own stdlib copy
+      finally:
+          _release(store, lib)
+      return result
+  ```
 - **A run that fails with `HostLitter` is void,** not a verdict on the change. The lane removes the
   cause (closes System Settings' Storage pane and Finder windows on the checkout; for a stage a
   killed judge left, `chmod -R u+w build/harness`), runs again, and records the void run and the
-  files it named in the landing notes. This is not the re-run AGENTS rule 6a forbids: rule 6a
-  forbids re-running to make a *sameness difference* go away, where the difference is the judge's
-  own finding; a `HostLitter` failure is the judge saying its own inputs were changed by the host,
-  so the run measured nothing. A sameness difference without `HostLitter` keeps rule 6a.
+  files it named in the landing notes. The re-run is a whole fresh judge, never the failed checks
+  alone. This is not the re-run AGENTS rule 6a forbids, and needs no further agreement: rule 6a
+  forbids re-running a *measured* run to make a sameness difference go away; the void-run rule
+  re-runs nothing measured, it discards a run that measured nothing, since `HostLitter` records no
+  fuel and says the host changed the judge's own inputs (N3). A sameness difference without
+  `HostLitter` keeps rule 6a.
 - **If a fuel row moves** past its tolerance in the lane's run, compare it with a run of main
   `3866f56` on the same private set before calling it 089's (F8): on this base real inode numbers
   and times still reach the guest until 083 lands.
@@ -247,6 +310,35 @@ and in the build.
   seals uses `tmp_path` (pytest's own removal chmods) or `litter.remove`; Decision 1 lists
   `ehthumbs.db`; Decision 2 says `seal` still removes staging litter on Windows; the Intent says
   "silently".
+
+## Disposition of the build review
+
+The review (`../reviews/089-host-litter-never-reaches-a-verdict-build-2026-10-19.md`, on
+`6f525a0`): "lands once F1 to F3".
+
+- **F1 (a kill leaves every run's stdlib folder sealed): fixed.** `guest.run` unseals `lib` in a
+  `finally` after the run and `watch.after()` (not removed: on this base the zip's link count
+  reaches fuel; 083's `_release` removes it). A unit row, `test_a_runs_stdlib_folder_is_unsealed_after_a_voided_run`,
+  fails without the `finally` (EXECUTED: `['…/run-0/lib']` left sealed) and passes with it.
+  Decision 3 names what a kill leaves. The controller writes one line at session start naming any
+  sealed leftovers and the recovery (`litter.sealed_leftovers`, with a unit row); no sweep, as
+  Decision 3 argues (a lock-keyed sweep, the review's alternative, is left for later if needed).
+- **F2 (083's `_release` on a sealed lib): fixed in writing.** The Depends-on line states the merge
+  exactly; "For the lane" gives the resolved `_release` and `run()` tail.
+- **F3 (a CPython row past 1e-4 on main's own noise): fixed in writing.** "For the lane": 089 and
+  083 land as one batch, with the batch's flags and the sameness rule; and the rule if they ever
+  land apart.
+- **N1 (two writers without `refuse`): applied.** `mpl_data_dir` refuses each inner member before
+  `extractall`. `_place`'s `copytree` of a stdlib folder skips litter names instead of refusing
+  them: its source is a host folder (the reference build) a desktop writes into, where a refusal
+  would fail checks for a file that is no input; skipping is the collecting-walk rule spec 090
+  states.
+- **N2 (what is sealed, watched, neither): applied** in the Intent.
+- **N3 (the void-run rule): applied.** "For the lane" says the re-run is a whole fresh judge, and
+  why the rule needs no further agreement: it discards an unmeasured run, it re-runs no measured
+  one.
+- **N4 (a partial upstream stage stays unsealed): noted.** A refused member fails `_prepare`
+  loudly; later checks fail on "no source tree"; nothing is measured on that stage.
 
 ## Landing notes
 
