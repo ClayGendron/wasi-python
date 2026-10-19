@@ -442,6 +442,58 @@ def test_xz_and_sqlite_notices_must_hold_their_whole_licence(good, work, monkeyp
     )
 
 
+# A cut of GIST's notice as matplotlib ships it in LICENSE/LICENSE_YORICK (the build review's F6).
+YORICK = (
+    b"BSD-style license for gist/yorick packages.\n"
+    b"Copyright (c) 1996.  The Regents of the University of California.\n"
+    b"All rights reserved.\n"
+    b"Permission is hereby granted, without written agreement and without license or royalty\n"
+    b"fees, to use, copy, modify, and distribute this software and its documentation for any\n"
+    b"purpose, provided that this entire notice is included in all copies of any software\n"
+    b"which is or includes a copy or modification of this software\n"
+)
+
+
+def test_contourpys_notice_holds_gists_and_qhulls_its_copying(good, work, monkeypatch) -> None:
+    """contourpy's notice must hold GIST's, which matplotlib's pinned tarball ships as
+    LICENSE/LICENSE_YORICK (BORROWED_LICENCE), and qhull's must hold its COPYING.txt, which the
+    top-level search does not match (MORE_LICENCE; spec 043, Decision 11)."""
+    downloads = work / "downloads"
+    downloads.mkdir()
+    _tar(downloads / "contourpy-1.4.0.tar.gz", "contourpy-1.4.0", {"LICENSE": b"contourpy BSD\n"})
+    mpl = {"LICENSE/LICENSE": b"matplotlib's licence\n", "LICENSE/LICENSE_YORICK": YORICK}
+    _tar(downloads / "matplotlib-3.11.2.tar.gz", "matplotlib-3.11.2", mpl)
+    _tar(downloads / "qhull-8.0.2.tar.gz", "qhull-8.0.2", {"COPYING.txt": b"Qhull licence\n"})
+
+    def pin() -> None:
+        sums = "".join(
+            f"{paths.sha256_file(f)}  {f.name}\n" for f in sorted(downloads.glob("*.tar.gz"))
+        )
+        (downloads / "SHA256SUMS").write_text(sums)
+
+    pin()
+    monkeypatch.setattr(paths, "DOWNLOADS", downloads)
+    m = paths.parse_manifest(manifest_text())
+    errors, content, _ = paths.licence_errors(good, m)
+    assert {"contourpy", "qhull"} <= set(content), content
+    assert "LICENSES/contourpy.txt does not contain matplotlib's LICENSE/LICENSE_YORICK" in errors
+    assert "LICENSES/qhull.txt does not contain the licence of qhull-8.0.2.tar.gz" in errors
+    (good / "LICENSES" / "contourpy.txt").write_bytes(b"contourpy BSD\n")  # GIST's notice left out
+    errors = paths.licence_errors(good, m)[0]
+    assert "LICENSES/contourpy.txt does not contain matplotlib's LICENSE/LICENSE_YORICK" in errors
+    (good / "LICENSES" / "contourpy.txt").write_bytes(b"contourpy BSD\n" + YORICK)
+    (good / "LICENSES" / "qhull.txt").write_bytes(b"Qhull licence\n")
+    errors = paths.licence_errors(good, m)[0]
+    assert not [e for e in errors if "contourpy" in e or "qhull" in e], errors
+    mpl.pop("LICENSE/LICENSE_YORICK")  # a matplotlib without the notice
+    _tar(downloads / "matplotlib-3.11.2.tar.gz", "matplotlib-3.11.2", mpl)
+    pin()
+    errors = paths.licence_errors(good, m)[0]
+    assert (
+        "LICENSES/contourpy.txt: matplotlib-3.11.2.tar.gz holds no LICENSE/LICENSE_YORICK" in errors
+    ), errors
+
+
 def test_an_empty_licence_file_fails(good, work, monkeypatch) -> None:
     monkeypatch.setattr(paths, "DOWNLOADS", work / "no-downloads")
     (good / "LICENSES" / "numpy.txt").write_text("")

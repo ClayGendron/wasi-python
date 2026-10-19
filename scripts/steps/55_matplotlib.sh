@@ -160,7 +160,8 @@ EOF_MPL
 # numpy's C API at import). Its meson.build asks the target Python for meson-python's version only
 # to write it into _build_config.py; the stand-in on PYTHONPATH for this configure alone answers
 # 0+stand.in, for meson-python never ran. meson installs that file with no tag (meson-python
-# installs every tag), so it is copied from meson's install plan's own source, the build folder.
+# installs every tag), so scripts/meson_plan.py copies it from the build folder to the place
+# meson's install plan gives it, and stops unless that place is util/_build_config.py.
 C="$B/contourpy-1.4.0"
 (
   cd "$C"
@@ -172,11 +173,8 @@ ninja -C "$B/contourpy-build"
 meson install -C "$B/contourpy-build" --destdir "$B/contourpy-install" --tags python-runtime --quiet
 SITE=$(find "$B/contourpy-install" -type d -name contourpy -path '*site-packages*' | head -n 1)
 [ -n "$SITE" ] && [ -f "$SITE/__init__.py" ] || die "no installed contourpy package under build/contourpy-install"
-CONFIG="$B/contourpy-build/lib/contourpy/util/_build_config.py"
-grep -qF "\"$CONFIG\": {" "$B/contourpy-build/meson-info/intro-install_plan.json" \
-  || die "meson's install plan for contourpy no longer names $CONFIG"
-[ -f "$CONFIG" ] || die "contourpy's build has no lib/contourpy/util/_build_config.py"
-cp "$CONFIG" "$SITE/util/_build_config.py"
+"$HOSTPY" "$HERE/scripts/meson_plan.py" "$B/contourpy-build" "$(dirname "$SITE")" \
+  contourpy/util/_build_config.py || die "contourpy's untagged files could not be placed"
 grep -q '^        mesonpy_version="0+stand.in",$' "$SITE/util/_build_config.py" \
   || die "contourpy's _build_config.py does not name the meson-python stand-in"
 mkdir -p "$INST/contourpy"

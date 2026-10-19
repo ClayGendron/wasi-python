@@ -6,6 +6,7 @@ The zip's package metadata and the `ctypes` stand-in (spec 033) are checked here
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import pydoc
 import shutil
@@ -25,6 +26,7 @@ import assemble_artifacts  # noqa: E402
 import freeze_bootstrap  # noqa: E402
 import litter  # noqa: E402
 import make_stdlib_zip  # noqa: E402
+import meson_plan  # noqa: E402
 
 REMOVE = paths.REPO / "scripts" / "steps" / "remove.sh"
 SH = shutil.which("sh")
@@ -685,3 +687,60 @@ def test_contourpys_config_without_a_build_key_stops(key) -> None:
 def test_contourpys_config_without_its_dict_call_stops() -> None:
     with pytest.raises(SystemExit, match="no dict"):
         make_stdlib_zip.host_neutral("def build_config():\n    return {}\n", CONTOURPY_MEMBER)
+
+
+def _plan(build, entries: dict) -> None:
+    """A meson-info/intro-install_plan.json holding `entries` ({group: {source: (dest, tag)}})."""
+    plan = {
+        group: {
+            str(build / src): {"destination": dest, "tag": tag}
+            for src, (dest, tag) in items.items()
+        }
+        for group, items in entries.items()
+    }
+    (build / "meson-info").mkdir(parents=True)
+    (build / "meson-info" / "intro-install_plan.json").write_text(json.dumps(plan))
+    for items in entries.values():
+        for src in items:
+            (build / src).parent.mkdir(parents=True, exist_ok=True)
+            (build / src).write_text(f"# {src}\n")
+
+
+CONFIG_DEST = "{py_platlib}/contourpy/util/_build_config.py"
+
+
+def test_untagged_files_go_where_meson_s_plan_says(tmp_path) -> None:
+    """Step 55 places contourpy's _build_config.py, which meson installs with no tag, at the
+    destination meson's install plan gives it, and stops unless that is exactly the expected
+    path (spec 043's build review, F5)."""
+    build, site = tmp_path / "build", tmp_path / "site"
+    _plan(
+        build,
+        {
+            "configure": {"lib/contourpy/util/_build_config.py": (CONFIG_DEST, None)},
+            "targets": {"src/_contourpy.so": ("{py_platlib}/contourpy/_contourpy.so", "runtime")},
+            "python": {
+                "lib/contourpy/__init__.py": (
+                    "{py_purelib}/contourpy/__init__.py",
+                    "python-runtime",
+                )
+            },
+        },
+    )
+    meson_plan.place_untagged(build, site, ["contourpy/util/_build_config.py"])
+    assert sorted(p.relative_to(site).as_posix() for p in site.rglob("*") if p.is_file()) == [
+        "contourpy/util/_build_config.py"
+    ]
+    with pytest.raises(SystemExit, match="with no tag, not"):
+        meson_plan.place_untagged(build, site, ["contourpy/_build_config.py"])
+
+
+def test_a_moved_or_stray_untagged_file_stops(tmp_path) -> None:
+    moved = tmp_path / "moved"
+    _plan(moved, {"configure": {"lib/c.py": ("{py_platlib}/contourpy/_build_config.py", None)}})
+    with pytest.raises(SystemExit, match="with no tag, not"):
+        meson_plan.place_untagged(moved, tmp_path / "s1", ["contourpy/util/_build_config.py"])
+    outside = tmp_path / "outside"
+    _plan(outside, {"configure": {"lib/c.py": ("{prefix}/share/c.py", None)}})
+    with pytest.raises(SystemExit, match="outside site-packages"):
+        meson_plan.place_untagged(outside, tmp_path / "s2", ["contourpy/util/_build_config.py"])

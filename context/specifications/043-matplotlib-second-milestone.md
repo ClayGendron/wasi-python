@@ -650,22 +650,78 @@ CHANGELOG, the release's tree count), and the commit carrying these notes.
    | zip bytes | 22,197,173 | 22,262,171 | +64,998 | about +63 KB |
    | zip members | 2,421 | 2,440 | +19 | +18 (amendment 2) |
    | plain `-c pass` fuel | 167,481,449 | 167,929,331 | +447,882 (+0.27%) | spec 035's per-member cost applies: 19 × about 24,000 ≈ +0.46 M; the 1.4 M estimate predates 035 |
-   | snapshot `-c pass` fuel | 15,631,800 | 15,696,620 | +64,820 (+0.41%) | INFERRED +0.05% from 023's 83.5 M base; spec 069 cut the base to 15.6 M, and the absolute cost, about 3,400 a member, is 023's per-member order (2,440) |
+   | snapshot `-c pass` fuel | 15,631,800 | 15,696,620 | +64,820 (+0.41%) | INFERRED +0.05% (from 023's members); the growth is the **binary's**, not the zip's (the build review's F1, EXECUTED: each snapshot gives the same fuel with either zip) |
    | `import matplotlib.pyplot`, plain / snapshot | 8,176,669,189 / 7,866,113,188 | 8,177,597,994 / 7,866,801,340 | +0.011% / +0.009% | no change (the zip's directory only) |
    | `plot_contour` job, plain / snapshot | — | 11,217,332,307 / 10,891,553,920 | new | about 11.2 G cold (the judge's root has no font cache) |
    | constructors | 9 reviewed | 9 reviewed, none new | — | none expected |
    | `target_features` | the line's 10 | the line's 10 | — | unchanged |
    | WASI imports | 43 | 44 | `fd_renumber` | one more; `wall_errors` empty |
 
-   The other growth the ratchet lists is the zip's 19 more members, paid at every read of its
-   directory: about +65,000 fuel at each snapshot start (the v1.2 and v1.4 probes, +0.4 to
-   +0.9%), the zip-directory checks (+0.5 to +0.8%), and the upstream suites (+0.0 to +0.5%;
-   numpy-core +1,100,008,556, 0.54%, with the same 9,519 passes; run here on 023's set it gives
-   203,355,540,978, the accepted figure within 33,473, so the growth is this change's; INFERRED: the
-   suite reads the directory again at each `importlib.invalidate_caches()`, about 2,450 times at
-   the 448,000 that 19 members add to a plain start's read). Some lxml and pandas-tslibs checks fell by up to 0.29%. The
-   plot_line job grew 0.01% / 0.04%.
+   **Where the other growth comes from** (corrected after the build review's F1, whose 2 × 2 runs
+   mixed the two binaries and the two zips with the judge's driver; their numbers, EXECUTED there):
+   - **The plain start's +447,882 is the zip's 19 members** (MEASURED): the new zip adds +437,656
+     on the base binary and +456,047 on the new one, about 23,000 to 24,000 a member, spec 035's
+     plain-start read; the binary alone moves it by −8,165 or +10,226.
+   - **The snapshot start's +64,820 is the binary's, not the zip's** (MEASURED): each snapshot
+     binary gives the same fuel with either zip (15,631,800 and 15,696,620); the snapshot holds the
+     zip's directory from snapshot time, and the run imports nothing. The same goes for the v1.2
+     and v1.4 snapshot probes' +65,000 or so (+0.4 to +0.9%). My first notes gave this to the
+     zip's members; that was wrong.
+   - **numpy-core's +1,100,008,556 (+0.54%, the same 9,519 passes) is the binary's** (MEASURED):
+     on the plain binary, the 19 members change the suite by −157 M (−0.08%) and the new binary
+     alone adds +921 M (+0.45%). Run here on 023's set the suite gives 203,355,540,978, the
+     accepted figure within 33,473, so the growth is this change's. My first notes suggested the
+     suite re-read the zip's directory at each `importlib.invalidate_caches()`; an instrumented
+     run counted no directory read and no `invalidate_caches()` call, so that never happens. The
+     other upstream suites' growth (+0.0 to +0.2%) is, by the same reasoning, INFERRED to be the
+     binary's too.
+   - **What in the binary** (MEASURED, the review): static data ends 108,944 bytes later
+     (23,433,948 → 23,542,892), so every heap address moves; the inittab's two more entries make
+     `_imp.is_builtin` cost 411 more a call, which explains about 240,000 of numpy-core's growth,
+     not 1.1 G, and nothing of `-c pass`. INFERRED, not measured: the moved heap changes
+     pointer-derived hashing and allocation (the type method cache keys on name addresses;
+     obmalloc's arenas sit differently), so the same Python work costs a little more or less
+     (`import importlib.util` +1.5%, the plain start −8,165 on the binary alone). The review made
+     two attempts to find one call site and stopped there (AGENTS.md, rule 7).
+   - The zip-directory checks (+0.5 to +0.8%) read the zip's directory, which has 19 more
+     entries (INFERRED: the zip's; not measured apart). Some lxml and pandas-tslibs checks fell by
+     up to 0.29%, and the plot_line job grew 0.01% / 0.04% (the binary, INFERRED as above).
+
+   **The reason for `--accept-growth`, as the lane may write it:** "spec 043, Decision 10: the
+   binary +1.05 MB with contourpy, `_qhull` and qhull linked (code and data; static data ends
+   108,944 bytes later, which moves every heap address and, INFERRED, the cost of pointer-keyed
+   Python work: the snapshot start +64,820, the snapshot probes, numpy-core +0.45% and the other
+   upstream suites, all with their passes unchanged); the zip's 19 more members (the plain start
+   +447,882 and the zip-directory checks); the new job and checks are new passes." 
 6. **Branch B only:** not applicable (branch A).
 7. **A release dry run:** not run. Dispatching the release workflow needs the branch pushed,
    which only the lane does (AGENTS.md, rule 6b). The x86_64 rebuild's time (spec 040) is the
    dry run's to record.
+
+### After the build review (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`)
+
+The review says 043 lands once F1 is fixed in these notes and in the `--accept-growth` reason.
+Fixed on the branch, before the rebase:
+
+- **F1 (the growth's causes).** Criterion 5's snapshot row and "Where the other growth comes
+  from" now give the review's measured causes: the plain start's growth is the zip's 19 members;
+  the snapshot start's, the snapshot probes' and numpy-core's are the binary's (static data ends
+  108,944 bytes later; how that costs fuel is INFERRED, and the review stopped after two
+  attempts); no zip-directory re-read happens. The `--accept-growth` reason above says the same.
+- **F4.** `../roadmap.md`'s reserved line for spec 066 names contourpy.
+- **F5.** Step 55 no longer copies `_build_config.py` to a fixed path: `scripts/meson_plan.py`
+  copies each file meson installs with no tag to the destination meson's install plan gives it,
+  and stops unless those destinations are exactly `contourpy/util/_build_config.py`. On this
+  build's plan it places the same bytes (EXECUTED, `cmp`), and it stops when asked for another
+  path. Two unit tests in `tests/unit/test_build_scripts.py` (a moved file, a file outside
+  site-packages, the right one) failed first on import, then passed. A recipe file is new, so the
+  set is rebuilt at the rebase.
+- **F6.** `tests/unit/test_artifact_rules.py::test_contourpys_notice_holds_gists_and_qhulls_its_copying`,
+  with a cut of GIST's notice as its fixture. Seen failing first (EXECUTED): with
+  `BORROWED_LICENCE` emptied it fails (no `LICENSE_YORICK` error); with qhull's `MORE_LICENCE`
+  row removed it fails (qhull judged for presence only). With both rules it passes.
+
+At the rebase onto main, after 039 lands (the coordinator's order): F2 (the CHANGELOG entry
+moves under 0.1.0a8), F3 (the README's size row, on the rebased set), the zero-patch count 22,
+a rebuild from empty and the full judge.
+
