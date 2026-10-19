@@ -1,0 +1,16 @@
+DIFF -17 (-0.000000%) tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain] 6,334,211,312 -> 6,334,211,295
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[plain] 4,936,717,198 -> 4,936,717,164
+DIFF +17 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[plain] 1,417,403,448 -> 1,417,403,465
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native 4,945,482,714 -> 4,945,482,748
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native 5,054,761,784 -> 5,054,761,818
+DIFF -34 (-0.000085%) tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes 40,220,081 -> 40,220,047
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[snapshot] 4,717,950,131 -> 4,717,950,097
+DIFF -34 (-0.000000%) tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native 23,963,555,994 -> 23,963,555,960
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[plain] 5,006,283,116 -> 5,006,283,082
+DIFF -34 (-0.000015%) tests/checks/test_v1_3_matplotlib.py::test_patched_callbacks_run[snapshot] 223,957,209 -> 223,957,175
+DIFF -102 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain] 9,107,997,916 -> 9,107,997,814
+DIFF -187 (-0.000002%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,536,077 -> 8,783,535,890
+DIFF -17 (-0.000006%) tests/checks/test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[snapshot] 295,698,840 -> 295,698,823
+DIFF +17 (+0.000103%) tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot] 16,524,228 -> 16,524,245
+DIFF +17 (+0.000000%) tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[snapshot] 4,613,261,652 -> 4,613,261,669
+same 133 differ 15 rows 148

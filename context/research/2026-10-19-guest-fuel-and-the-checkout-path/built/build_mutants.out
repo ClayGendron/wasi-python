@@ -1,0 +1,11 @@
+== m1: 2 failed 
+E       assert not ["entity outside grants: ok '<r>SECRET\\n</r>', want ok with ('<r/>',)", "entity outside grants: the host's secret was read"]
+E       AssertionError: entity outside grants: ok '<r>SECRET\n</r>', want ok with ('<r/>',); entity outside grants: the host's secret was read
+== m2: 2 failed 
+E       assert not ["entity by guest path, outside run: ok '<r/>', want ok with ('<r>SECRET\\n</r>',)"]
+E       AssertionError: entity by guest path, outside run: ok '<r/>', want ok with ('<r>SECRET\n</r>',)
+== m3: 2 failed 
+E       FileNotFoundError: [Errno 2] No such file or directory: '/nonexistent/secret.txt'
+== m4: 2 failed 
+E       assert ({'entity by g...tside grants'} == {'entity by g...tside grants'}
+E       AssertionError: ({'entity by guest path, outside run': ['ok', '<r>SECRET

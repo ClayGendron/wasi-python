@@ -1,0 +1,4 @@
+FAILED tests/unit/test_guest.py::test_a_root_is_found_in_its_file_uri - Asser...
+FAILED tests/unit/test_guest.py::test_a_windows_root_is_found_escaped_and_in_any_case
+FAILED tests/unit/test_guest.py::test_the_system_temp_folder_is_a_root_unless_it_is_slash_tmp
+3 failed, 21 passed, 4 skipped in 0.44s

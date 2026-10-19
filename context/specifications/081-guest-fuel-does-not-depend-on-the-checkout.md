@@ -295,7 +295,7 @@ failure.
 On `spec/081-guest-fuel-does-not-depend-on-the-checkout`, rebased onto main `3f69654` (075's
 landing) with no conflict: the draft and its revision, then `b760a6e` (the checks, written first),
 `fa5321e` (the guard), `767404d` (the lxml check), then these notes. Evidence:
-`../research/2026-10-19-guest-fuel-and-the-checkout-path/build/`. All runs against
+`../research/2026-10-19-guest-fuel-and-the-checkout-path/built/`. All runs against
 `build/sets/s-c50ca51fae5eb55b` in the main tree, read only; `-n 3`.
 
 The confirmation's two points are taken. c1: `_forms` makes a `file:` URI only for an absolute
@@ -357,7 +357,7 @@ In the long clone, each mutant fails both rows:
 
 Spec 063 landed as `19427b5` (squashed) and `08de0c8`. The rebase conflicted only in
 `test_stylesheets_and_entities_reach_only_grants`, in two hunks; the roadmap and everything else
-merged cleanly. The merge, by hand (`build/merge_with_063.diff`, against the pre-rebase tip
+merged cleanly. The merge, by hand (`built/merge_with_063.diff`, against the pre-rebase tip
 `e194f46`):
 - 063's `import sys` is kept at the module's top;
 - the docstring keeps both sentences: 063's (on Windows the drive and backslashes are refused by
@@ -387,7 +387,7 @@ snapshot 215,014,922 in the merged full run.
   scripts/refuse-python is not in MANIFEST; stale artifact: scripts/build.sh changed` (digest
   `0e68988ea311`). Spec 079 changed `scripts/` after `s-c50ca51fae5eb55b` was built, so that
   set's `MANIFEST` no longer matches main's recipes. Main `08de0c8` itself fails the same check
-  against that set, with the same digest (EXECUTED in a clean clone, `build/main_manifest_check.out`).
+  against that set, with the same digest (EXECUTED in a clean clone, `built/main_manifest_check.out`).
   Against the lane's newer set `s-c50ca51fae5eb55b-c9dcb5b8`, whose two binaries are
   byte-identical to `s-c50ca51fae5eb55b`'s and whose `MANIFEST` differs only in the recipe lines,
   the check passes in this worktree. The lane judges against that set, so it should see no

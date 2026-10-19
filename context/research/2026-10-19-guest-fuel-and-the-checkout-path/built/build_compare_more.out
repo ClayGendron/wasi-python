@@ -1,0 +1,7 @@
+== build-all-short vs build-all-short2
+same 132 differ 16 rows 148
+== build-all-long vs build-all-long2
+DIFF +170 (+0.000002%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,535,890 -> 8,783,536,060
+same 133 differ 15 rows 148
+== build-all-short2 vs build-all-long2
+same 135 differ 13 rows 148

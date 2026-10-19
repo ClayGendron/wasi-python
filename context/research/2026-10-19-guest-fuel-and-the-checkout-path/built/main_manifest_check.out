@@ -1,0 +1,2 @@
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 4 finding(s), digest 0e68988ea311: stale artifact: scripts/refuse-python is not in MANIFEST; stale artifact: scripts/build.sh changed 
+1 failed in 0.56s

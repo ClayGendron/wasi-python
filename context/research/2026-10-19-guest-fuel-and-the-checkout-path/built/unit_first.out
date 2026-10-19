@@ -1,0 +1,7 @@
+FAILED tests/unit/test_guest.py::test_host_paths_are_found_in_every_input_the_guest_sees
+FAILED tests/unit/test_guest.py::test_a_root_is_found_in_its_file_uri - Attri...
+FAILED tests/unit/test_guest.py::test_a_windows_root_is_found_escaped_and_in_any_case
+FAILED tests/unit/test_guest.py::test_guest_paths_and_other_folders_are_not_host_paths
+FAILED tests/unit/test_guest.py::test_the_system_temp_folder_is_a_root_unless_it_is_slash_tmp
+FAILED tests/unit/test_guest.py::test_a_measured_run_with_a_host_path_is_refused_before_it_runs
+6 failed, 18 passed, 4 skipped in 0.47s

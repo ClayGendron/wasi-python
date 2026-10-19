@@ -1,0 +1,6 @@
+wasi_python v1: 493/554 pass · 3 gap · 57 blocked · 1 fail   (unit suite 1503/1511, 8 skipped)
+FAIL tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree — AssertionError: findings: 4 finding(s), digest 0e68988ea311: stale artifact: scripts/refuse-python is not in MANIFEST; stale artifact: scripts/build.sh changed 
+ratchet vs 9a446e03f6: lost 1 · absent 0 · unrun 0 · unrun locally 43 · gained 0 · grew 0 · upstream unrun 31 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_3_lxml.py, tests/harness/guest.py and 1 more
+FAILED tests/checks/test_v1_1_artifact_set.py::test_manifest_recipes_match_the_tree
+====== 1 failed, 1996 passed, 65 skipped, 3 xfailed in 395.77s (0:06:35) =======
+full exit 1

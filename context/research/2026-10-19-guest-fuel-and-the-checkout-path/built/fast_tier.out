@@ -1,0 +1,4 @@
+wasi_python v1: 474/550 pass · 1 gap · 24 blocked · 0 fail · 51 deselected   (unit suite 1366/1374, 8 skipped)
+ratchet vs 35f76d3b3d: lost 0 · absent 0 · unrun 0 · unrun locally 22 · gained 0 · grew 0 · upstream unrun 31 · not selected 37 · judge changed: tests/checks/conftest.py, tests/checks/test_v1_3_lxml.py, tests/harness/guest.py and 1 more
+=========== 1840 passed, 32 skipped, 1 xfailed in 256.19s (0:04:16) ============
+fast exit 0
