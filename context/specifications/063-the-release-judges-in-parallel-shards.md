@@ -1,6 +1,6 @@
 # 063 — The release judges in parallel shards
 
-- **Status:** built 2026-10-18; revised against its build review; the final branch dry run
+- **Status:** **landed 2026-10-19** (accepted on `9a446e0` as `4f89510`, history line 77; the build review, `../reviews/063-the-release-judges-in-parallel-shards-build-2026-10-18.md`, said it lands once F1 to F4 and F8, and its final branch dry run `39234703116` passed every job on all three systems, `gather` included). Before landing: built 2026-10-18; revised against its build review; the final branch dry run
   (the build review's F2) passed every job on all three systems, `gather` included, on
   2026-10-19 (run `39205611721`, the Landing notes); ready for the lane. The build review
   (in the session's scratchpad `063-buildreview/`; copied to `../reviews/` by the lane) said "lands
@@ -1127,3 +1127,21 @@ three systems: darwin linux win32 on ab78e8931e76aaf996d74d3b7766fcdf0249119faab
 - The scratch clones and stand-ins are under the session's scratchpad; their logs are copied into
   `build/reviews-evidence/063-build/`.
 - The branch on GitHub is left for the lane to delete after landing.
+
+**Landed 2026-10-19** through the lane, after spec 077. The lane rebased the branch onto main
+`f19fdf0` with no conflict; its diff equals the reviewed diff at `cb505e4` line for line (EXECUTED,
+`build/lane-063/delta.txt`, empty). The lane then squashed the branch's nineteen reviewed commits
+into one, `19427b5`, whose tree is identical to the reviewed tip's: the intermediate commits carried
+a stale zero-patch count and a rebase's conflict repair, so only the whole is green on its own
+(AGENTS.md rule 9). The nineteen commits are listed in the main tree's git-ignored
+`build/lane-063/commits.txt`. No `scripts/` or `recipes/` file changed, so the artifact set is
+main's (`s-c50ca51fae5eb55b`, unchanged) and no rebuild was needed; the release workflow the spec
+changes was run whole by the branch dry run `39234703116` on `b450aae`, whose code is this tree's.
+The reviews were committed as `9a446e0`, and the lane's serial `uv run pytest` there accepted it
+(`--accept-judge`, the judge changed) at history line 77: 537/554 pass, 0 fail, ratchet lost 0,
+grew 0. The sameness step (rule 6a) compared statuses only: the reviewer's full record
+(`063-buildreview/full-n3-latest.json`, 419 checks) agrees with the accepted record on every
+check both hold except the prior-art licence check, blocked in the worktree, which has no
+git-ignored clones. The lane's own `latest.json` was overwritten by the rules check before
+`sameness.py` ran, so the full-record comparison was not made; the lane now copies `latest.json`
+aside before the rules check. The branch on GitHub is deleted.

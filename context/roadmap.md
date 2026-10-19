@@ -59,7 +59,7 @@ Landed (each reviewed and accepted by the lane): 027, 028, 029 (milestone 1); 03
 032, 033, 048; 040 (x86_64 rebuilds the same bytes); 051 (what the upstream tests found); 034
 (writable mounts); 050 (numpy's and pandas' own tests in the guest); 035 (the zip's directory
 is read once); 056 (the 0.1.0a4 security review's findings); 049 (the public API frozen); 054
-(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag); 070 (the judge's small follow-ups); 068 (a cap on files open at once, default 1,024); 047 (regex); 055 (bounded sessions, closed as Jupyter closes them); 076 (the grant checks agree on Windows); 069 (the snapshot pre-imports no package, decision 34); 071 (deep recursion raises RecursionError, and a host guard against late signal handlers); 080 (071's recursion checks count deterministic fuel); 075 (tools.py small fixes: the a6 review's F1 and 060's N1); 079 (the build runs only the pinned host Python: the a6 review's F2); 077 (the grant follow-ups).
+(read-only code on the import path); 058 (a Windows grant renames a folder over a file); 053 (async host functions, after the a5 tag); 052 (the judge on several cores); 023 (matplotlib M1); 062 (the progress history in volumes); 060 (a per-run budget of request bytes, and N8); 061 (a provider's `OSError` carries its errno); 059 (the x86_64 rebuild runs natively; its dry run passed with the x86_64 rebuild in 16 min); 057 (the release ties what it signs to what it built); 046 (lxml, with libxml2 and libxslt; after the a6 tag); 070 (the judge's small follow-ups); 068 (a cap on files open at once, default 1,024); 047 (regex); 055 (bounded sessions, closed as Jupyter closes them); 076 (the grant checks agree on Windows); 069 (the snapshot pre-imports no package, decision 34); 071 (deep recursion raises RecursionError, and a host guard against late signal handlers); 080 (071's recursion checks count deterministic fuel); 075 (tools.py small fixes: the a6 review's F1 and 060's N1); 079 (the build runs only the pinned host Python: the a6 review's F2); 077 (the grant follow-ups); 063 (the release judges in parallel shards: twelve shards and a gather, about 23 minutes a dry run).
 
 Releases: the 0.1.0a4 tag run failed on Windows (fixed by 058) and nothing was published;
 0.1.0a5 was tagged 2026-10-18 after its dry run passed on all three systems (AGENTS.md rule 6b;
@@ -75,19 +75,17 @@ the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed 
 inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
 `16ee747c…`; `SHA256SUMS` `c353b1d9…`).
 
-In flight (decision 91: up to three build-class at once). Confirmed, its final branch dry run green, landing next: 063 (the release judges in parallel shards); then 065 (CPython's own tests in the release, confirmed, built on 063). Building: 037 (scipy, first milestone; build-class). Drafted, in pre-build review: 075 (tools.py small fixes), 077 (the grant follow-ups).
+In flight (decision 91: up to three build-class at once). Built, landing next: 081 (guest fuel
+does not depend on where the repo is checked out; after its merge with 063's lxml check and a delta
+look). Confirmed and built on 063, rebasing onto main: 065 (CPython's own tests in the release).
+Building: 037 (scipy, first milestone; build-class). Drafted, in pre-build review: 083 (the judge
+fixes the file times and inode numbers a guest sees, so fuel does not wobble; before 0.1.0).
 
-Reserved: 077 (076's build review's two low findings: the raw read row's zero-length iovec, and the superscript COM and LPT device names). Built, in review: 063 (its Windows own-guest job fails four grant checks newly run there; spec 076, the grant checks agree on Windows, is being drafted to fix them before 063 lands). Confirmed for build: 055 (bounded sessions;
-build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
-before the release after a5). Confirmed for build, building next: 059 (the x86_64 rebuild runs natively: `-ffp-contract=off` on
-every compile; the owner's decision of 2026-10-18).
-
-Confirmed for build, in the build-class queue (up to three built at once, each landing alone, §5.7 as amended 2026-10-18), in this order: 059, then 057,
-then 046 and 047
-(lxml, regex; question 82 lets them take a slot before scipy), 037 and 038 (scipy), 043
-(matplotlib M2; question 81 answered), 039 (tier A), 041 (files read by path from the zip), 042
-(seaborn and reportlab; question 73 adds the barcode folder, written in before its build), 044
-and 045 (scikit-learn, statsmodels; question 83 answered), then 055.
+Confirmed for build, in the build-class queue (up to three built at once, each landing alone, §5.7
+as amended 2026-10-18), in this order: 037 and 038 (scipy), 043 (matplotlib M2; question 81
+answered), 039 (tier A), 041 (files read by path from the zip), 042 (seaborn and reportlab;
+question 73 adds the barcode folder, written in before its build), 044 and 045 (scikit-learn,
+statsmodels; question 83 answered).
 
 Added by the owner 2026-10-18, evening (`decisions.md`): CPython's own test suite gates 0.1.0
 (question 99; its research is running, its specification follows spec 063); a per-sandbox cap on
@@ -107,11 +105,6 @@ packages' own tests in the release). Spec 063's `tests/upstream/packages.toml` n
 closers. Spec 071 is widened to own the Linux host crash spec 063's build review reproduced (a
 guest trap after the host enabled faulthandler past the runner's first engine); 063's gap for it
 names 071 here.
-
-Reserved: 075, "tools.py small fixes", a small follow-up in `src/wasi_python/tools.py`: spec
-060's build review N1 (an oversized tool list is built whole on every `list` frame, only to be
-measured and refused; refuse it from the lengths first; spec 070, Decision 6) and the 0.1.0a6
-security review's F1 (an async gate that raises `GeneratorExit` lets the call through).
 
 Reserved: 078, "the runner's own threads have room for the wasm stack" (spec 071's build review,
 F1): `run_async`'s own pool is made by the runner, so it could give its threads a stack that holds
