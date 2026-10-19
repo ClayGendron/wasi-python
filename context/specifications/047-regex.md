@@ -1,7 +1,10 @@
 # 047 — regex, built in
 
-- **Status:** **built 2026-10-18; awaiting its build review** (landing notes below; branch
-  `spec/047-regex`, from main `3e949a1`, spec 059 in). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): Decision 9's rule binds — the name check is green over every scipy builtin in whichever of 047 and 037/038 lands second, never by an exemption; the builder confirms the package-context wrappers on the snapshot binary. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **built 2026-10-18; revised against its build review; awaiting the reviewer's
+  confirmation** (landing notes below; branch `spec/047-regex`, built from main `3e949a1`,
+  rebased onto main `4a94c14` and rebuilt; the review is
+  `build/reviews-evidence/047-buildreview/047-regex-2026-10-18.md` in the main tree, to be
+  copied under `context/reviews/` by the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build 2026-10-18 with conditions (the review's Confirmation): Decision 9's rule binds — the name check is green over every scipy builtin in whichever of 047 and 037/038 lands second, never by an exemption; the builder confirms the package-context wrappers on the snapshot binary. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/046-lxml-and-047-regex-spec-2026-10-18.md`): the findings that concern it (3, 7,
   9, 10) are written in, and the review's Disposition says where. Finding 3 replaced the
   draft's forced-include header with a general fix in `scripts/gen_inittab.py`. Awaiting the
@@ -502,17 +505,28 @@ is new to the record and blocked. **Each growth, with its cause** (`growth-full.
 - **Every guest start, about +0.13 M to +0.15 M fuel** (most rows: v1.2, v1.4, the zip's directory
   checks, the `-c` checks of v1.1 and v1.3): the four members' per-member cost and the binary's
   one more builtin, split above.
-- **Programs that start many guests or import much** grow by the same per-start cost many times:
-  the upstream suites (+6.8 M to +78.5 M, 0.013% to 0.235%), the golden jobs and matplotlib's
-  checks (+0.3 M to +2.6 M).
+- **The upstream suites** (+6.8 M to +78.5 M, 0.013% to 0.235%): each group runs in one guest,
+  so the per-start cost explains about 0.14 M of each. The rest is regex's `METADATA` in the zip,
+  read by every `importlib.metadata` walk: pytest, pluggy and hypothesis walk the distributions
+  at start-up, and a full walk costs 14.6 M more on this set (13.7 M on the snapshot), an
+  `entry_points(group='pytest11')` 14.4 M more (EXECUTED by the build review). How many walks
+  each group makes is INFERRED from the totals, not counted.
+- **The golden jobs and matplotlib's checks** (+0.3 M to +2.6 M, at most 0.05%): the per-start
+  cost and more; not split (INFERRED: lookups among the zip's four more members).
 - **`test_packages_carry_their_metadata`**, +28.4 M plain (+0.53%) and +27.8 M snapshot (+5.65%):
-  the check now reads regex's 40,564-byte `METADATA` too (`DISTRIBUTIONS` gained regex, spec 033's
-  rule), a judge change.
+  regex's 40,564-byte `METADATA` in the zip. Parsing it costs 14.1 M on either binary, and the
+  check's guest program reads each distribution's metadata twice, its `Name` and then its
+  `version` (EXECUTED by the build review). It is not a judge change: the guest program did not
+  change, and `DISTRIBUTIONS` is read on the host.
 - **`test_resources_read_as_zipfile_reads_them`**, +9.4 M plain and +17.8 M snapshot (0.15%,
   0.31%): it walks every member of the zip, four more.
 
 The accepting run needs `--accept`, `--accept-judge` (the judge changed: the checks above, the
-oracle and its lock, the lists) and `--accept-growth` with these causes.
+oracle and its lock, the lists) and `--accept-growth`. The growth reason, word for word:
+
+```
+spec 047 adds regex: python.wasm +717,283 and the snapshot +700,265 bytes (regex's module and its Unicode tables); the zip +98,615 bytes, four members; every guest start about +0.14 M fuel (the four members' per-member cost and one more builtin); regex's 40,564-byte METADATA in the zip, parsed by every importlib.metadata walk (14.1 M each, measured): test_packages_carry_their_metadata reads it twice, and the upstream suites make a few such walks per group through pytest, pluggy and hypothesis (inferred, not counted); test_resources_read_as_zipfile_reads_them walks four more members
+```
 
 ### Stand-ins and departures
 
@@ -535,3 +549,74 @@ oracle and its lock, the lists) and `--accept-growth` with these causes.
   conflicts; step 60's loop and `gen_inittab.py` call, step 70's two lines, `build.sh`'s `ALL`,
   the progress checks' counts, the README's counts and the release's tree count will conflict
   by a word each.
+
+### Revised against the build review
+
+The build review (`047-regex-2026-10-18.md`, in the main tree's
+`build/reviews-evidence/047-buildreview/`) found the wrappers correct, no existing module changed
+(68 fingerprinted on both binaries) and the snapshot's pre-import identical. Its verdict: lands
+once findings 1 and 2 are fixed; both are text.
+
+**Disposition.**
+
+1. **Finding 1, the set B sentence: fixed.** Criterion 1 now says set B's six failures are the
+   name check, the pickle check and the golden job, each on both binaries, and that the
+   five-calls check passes there (`B-checks.txt`; the patch is in, and `p._pickled_data` returns
+   a tuple without pickling anything).
+2. **Finding 2, two growth causes: fixed.** `test_packages_carry_their_metadata` grows from
+   regex's 40,564-byte `METADATA` in the zip, parsed at 14.1 M and read twice by the check; it is
+   not a judge change. The upstream suites grow from the metadata walks of pytest, pluggy and
+   hypothesis, each about 14.5 M more; the number of walks per suite is INFERRED, not counted. The
+   figures are the review's (EXECUTED by the review). *The judge* above gives the
+   `--accept-growth` reason word for word.
+3. **Finding 3, "every builtin": fixed in the README and the CHANGELOG.** Both now say the init
+   function of each of the 69 cross-built builtins runs inside the package context (CPython's
+   own builtins are not wrapped, and need not be: their names have no dot), and the CHANGELOG says
+   numpy's, pandas' and matplotlib's modules are multi-phase "or already named in full"
+   (`pandas._libs.json` is single-phase with its full name). Decision 4's own text is left as
+   reviewed before the build.
+- **Notes N1 to N3** are left for the owner and the lane: the facts sheet moved unchanged, as
+  Decision 3 asked (its tense and "bad signature" are the owner's to update before sending); the
+  README's sizes row stays spec 023's, as it says; step 60's guard message is unchanged.
+- **N4, the build-progress segfault:** never seen in this builder's runs. No `Segmentation` line
+  in the two fast-tier runs (`-n 3`), the two full serial runs or the unit runs, before or after
+  the rebase; `test_build_progress.py` passed whole each time.
+
+### Rebased onto main
+
+`git rebase 4a94c14` (main with 057, 059, 060, 061, 062 and decision 34) applied all three
+commits with no conflict: `d75da15` (the build), `26c1d22` (the progress checks), `3dcf0d9` (the
+landing notes), then `63376c5` (findings 1 and 3) and this revision. Rebuilt from the pins in the
+worktree, from an empty `build/` (`rebased/build-rebased.log`, fourteen steps in 11 min 05 s,
+057's unpinned-name check in step 00 passing): `python.wasm` `b232655f…`, the snapshot
+`449f4029…` and the zip `276b4dcf…` are unchanged, byte for byte. `MANIFEST` differs from the
+first build in one line, `scripts/00_download.sh`'s recipe hash (`4a3c2b4d…` to `3b408469…`,
+057's edit), so the set's `SHA256SUMS` (SHA-256 `6322071c…`) differs from the first build's
+in the `MANIFEST` line only:
+
+```
+d3777e281eddd30b3128a19c263e5a428cfec613e0f8f37d9bec451f3e673e8e  LICENSES/regex.txt
+13456dd9b890b5f3121960ba77c5b56418e2599de9345451846b0eed34f0e88a  MANIFEST
+449f4029b758768ebed58ff462ca57486ab518d8997f20c9ab015af53935d437  python-snapshot.wasm
+276b4dcfbfd4a314a63bdc4a87c678ebcd5a02f5830121efe7190a6238f72dda  python-stdlib.zip
+b232655f0396463412dc4e376ecb63d72032d858eab3f371c8602a2b816e727d  python.wasm
+```
+
+The 26 other licence lines are main's, unchanged. The wheel from this set is 52,502,412 bytes
+(the README's revised wording). The judge against this rebuilt set, at `63376c5` (evidence under
+`rebased/`): the fast tier, `uv run pytest -m "not slow" -n 3`, 1602 passed, 9 skipped, 0 fail;
+the full `uv run pytest`, serially, once:
+
+```
+wasi_python v1: 411/427 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1225/1232, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 12 · grew 78 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_regex.py and 11 more
+RED: 78 metric(s) grew
+1636 passed, 9 skipped, 14 xfailed in 842.34s (0:14:02)
+```
+
+The 78 grown metrics are the same rows with the same causes as before the rebase
+(`rebased/growth-rebased.txt`: the same 81 rows against the new `accepted.json`, each delta
+within 22,219 fuel of its first value); the name check takes 6,281,364,302 plain and 1,427,908,431 snapshot. Spec
+069 (no package pre-imported in the snapshot, decision 34) has not landed; if it lands first, the
+snapshot's figures here move.
