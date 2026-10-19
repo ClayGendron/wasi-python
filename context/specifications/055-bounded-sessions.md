@@ -1,8 +1,9 @@
 # 055 — Bounded sessions
 
-- **Status:** confirmed for build 2026-10-18; revised for the owner's decision (close and
-  exit() as Jupyter does); its re-review confirmed (F3's error row and C1 written in, checked
-  by the lane). The re-review (`../reviews/055-bounded-sessions-close-revision-2026-10-18.md`,
+- **Status:** built 2026-10-18 (landing notes, near the end), awaiting its build review;
+  confirmed for build 2026-10-18; revised for the owner's decision (close and exit() as
+  Jupyter does); its re-review confirmed (F3's error row and C1 written in, checked by the
+  lane). The re-review (`../reviews/055-bounded-sessions-close-revision-2026-10-18.md`,
   copied there by the lane; verdict: ready once F1 to F3 are written in) and where each of its
   findings went: "Disposition of the re-review", near the end. The owner answered question 92
   on the evening of 2026-10-18 (`../decisions.md`, "The owner's answers of 2026-10-18,
@@ -1837,3 +1838,135 @@ revision is ready for build with no further round, and the lane checks them.
   case.
 
 ## Landing notes
+
+Built 2026-10-18 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-055`, branch
+`spec/055-bounded-sessions`, from main `7d377dd`, then rebased onto main `6fd89e0` (spec 068
+landed: `max_open_files=`, `Defaults.open_files`), whose names this build takes as Decision 5's
+bullet and criterion 40 describe. The artifact set was built from an empty `build/` with
+`scripts/build.sh --plain`, after the last recipe change. The machine: Apple arm64, macOS, 10
+cores. Every claim is EXECUTED unless labelled. Not yet reviewed: the build review is next, then
+the lane.
+
+### What changed
+
+- Commits `3e662d6` (the build), `0247cd2` (068's cap per session, the closer's
+  context, the ending's claim) and `c7b2621` (the table's session flag after the rebase), then
+  these notes.
+- **The guest** (`recipes/reactor_main.c`, `recipes/reactor_bootstrap.py`): the exports `turn`
+  (Decision 2, with C1's reading: `PyTuple_CheckExact`, `PyTuple_GET_ITEM`, `PyLong_Check`,
+  `PyLong_AsUnsignedLongMask(...) & 0xFF`) and `shutdown` (`gc.unfreeze()` through a reference the
+  first turn takes, then `Py_FinalizeEx`, 0 or 120); the flags `turned`, `in_turn`, `shut`; `run`
+  refuses after a turn with the new message. The bootstrap's `turn(source, environ)`: the first
+  turn's setup, `<turn N>` in `linecache`, the echo, the interactive reporting, the quit flag the
+  rebound `exit()` and `quit()` set (Decision 3, F1).
+- **The runner** (`src/wasi_python/runner.py`): `Session`, `SessionEnded`, the three `Defaults`
+  fields, `stats()["sessions_open"]`, the state lock, the reaper (`_reap`, an injectable
+  `_reaper_loop`), closer threads, the ending (`_shutdown`, `_release_session`), the exit hook,
+  the collector's finalizer; `_preopens` factored out of `_run_checked` for both paths;
+  `_checked(limits=…)`. `mounts.py`: `_Files.new_turn()` and the session walk (a refused
+  write-back stays dirty; an owed buffer is dropped once written). `tools.py`:
+  `_Bounded.rearm()`, `_ToolLoop.cancel_tasks()`. `__init__.py`: the two names.
+- **The judge**: `tests/checks/test_v1_4_sessions.py` (new: criteria 1 to 3, 5, 6, 8 to 19, 21
+  to 25, 30 to 42, and the closer's context), `tests/unit/test_runner_sessions.py` (criteria 4,
+  7, 24(c)'s unit part, 31's unit part, F2's arithmetic), the raw driver `harness.guest.turns()`
+  and its unit test, the fixture `guest_turns`, `harness.wat` (`SESSION`, `BEFORE_SESSIONS`,
+  `TURN_ONLY`, `TURNS`), the export lists and `export_type_errors` (`harness/artifacts.py`,
+  `harness/wasm.py`'s `export_index`), `harness/api.py` (a plain class's `__init__`, `__enter__`,
+  `__exit__`), `tests/public_api.txt` regenerated, `TOP` in the public-API check,
+  `NO_TOOL_THREADS` gains `sessions_open: 0`.
+- `README.md` (*Sessions*, the embedder's `turn` and `shutdown` paragraph, *Not protected*, the
+  generated reference), `CHANGELOG.md` (0.1.0a7 — unreleased).
+
+### Checks first
+
+The raw checks (criteria 1 to 3 and 34) were written first and run against main's frozen set
+`s-ff5246a2c2f1a52b`: all seven failed (`KeyError: 'turn'`), then passed on this build. Every
+runner check fails on main's code, which has no `Session`. Stand-ins are named in the checks'
+docstrings where the spec names them; the failing-first runs are those two.
+
+### Departures from the text, each with its reason
+
+1. **The session checks are a file of their own**, `tests/checks/test_v1_4_sessions.py`, not
+   appended to `test_v1_4_embedding.py` (4,627 lines); the goal mark is the same, v1.4.
+2. **An expiry found by a synchronous `run` ends the session on the caller's thread** before
+   `SessionEnded` is raised (criterion 13 reads `sessions_open` back at once); one found by
+   `run_async` ends on a closer thread, so the event loop is not blocked. The reaper's, the
+   collector's and the exit hook's endings run on closers, as Decision 8 says.
+3. **`run` releases the C side's reference to the turn function before it finalizes.** Holding
+   it kept `_reactor`'s globals alive through `Py_FinalizeEx` and cost every plain-reactor `run`
+   about 0.6 M instructions (measured: 167.90 M with the reference held, 167.27 M without, main
+   167.03 M, a stub bootstrap in both); the spec did not ask for it, and Decision 19 asks that
+   `run`'s fuel not move without a stated cause.
+4. **`Session`'s shared arguments are described by `run`'s text where the meaning is the same**,
+   and by per-turn text where Decision 5's table changes the scope (`fuel`, `deadline_s`,
+   `output_bytes`, `max_*`); no judge rule compares them, and `Session.run`'s `Raises:` list is
+   checked by the review, not by a rule.
+5. **Criterion 16's spread was measured on darwin-arm64 only** (below); this machine has no Linux
+   run of the export. The lane's or the review's Linux run of the judge carries criterion 16.
+6. **The ending's output streams have a cap of 0**, so wasmtime's writes are counted as written
+   and dropped (Decision 8 says nothing is kept).
+7. **Who runs an ending is claimed under the state lock** (`_claim_ending`): the turn's thread
+   when the session was marked during a turn, `close()`'s caller at rest, or a closer. Without
+   it a `close()` from another thread could take the ending in the instant after a turn
+   returned, against Decision 8's rule (F3). Not a change of meaning; recorded because the spec
+   does not name the mechanism.
+
+### The artifact set
+
+From an empty `build/`, 15 steps in 11 m 55 s, byte-identical to the set built from step 60
+before it (`diff` of the two `SHA256SUMS`: none). `SHA256SUMS` itself `ee4d00a3…`.
+
+| file | bytes | SHA-256 |
+|---|---:|---|
+| `python.wasm` | 40,382,117 | `df0514c384ca0255ef07b6da66f6f05cae0136e119e44828a8feca285c44bb48` |
+| `python-snapshot.wasm` | 74,376,759 | `8b905f2972d19261b0e83219573e83ea8414f94afe6030750a57f5ee3abb0dae` |
+| `python-stdlib.zip` | 22,098,558 | `b5633ecc06ef7b804d74313674118d9746dc553d3a7d75158da5db2e4928a5f8` (main's) |
+| `MANIFEST` | | `aa5f148d2132611f43e19350ff8240b31fde477bbaa4585008579b55d7e47721` |
+
+Only the two recipe lines of `MANIFEST` change. The binaries grow by 7,169 and 11,824 bytes (two
+C functions and a larger frozen bootstrap).
+
+### Measurements (EXECUTED, darwin-arm64; evidence in the worktree's git-ignored `build/055/`)
+
+- **The ending's fuel**, `shutdown()` after one turn, through the judge's raw driver, minimum of
+  three: snapshot 305,630,702 (after `pass`) and 305,635,250 (after `import pandas`); plain
+  reactor 29,484,689 and 303,899,988. The README states them. They are today's snapshot's, with
+  numpy and pandas pre-imported and frozen: spec 069's review measured that on its variant A
+  undoing the freeze costs about 28 M against about 225 M today, so after 069 the snapshot's
+  figure falls; the README's numbers are to be re-measured then.
+- **Criterion 16's spread**, five metered sessions of the same six turns: on the snapshot, turns
+  2 to 6 agree exactly (spread 0 for each). On the plain reactor the spread is 2,401 to 4,628,
+  from its random hash secret (the first turn initializes the interpreter with one, as `run`
+  does); criterion 16's check runs on the snapshot, the default, and holds. A finding for the
+  review by Decision 16's rule, for the plain reactor only.
+- **`run`'s fuel**: the plain reactor's `run(["-c", "pass"])` costs 167,491,975 against main's
+  167,031,267 (+0.28%); with a stub bootstrap and the reference released, 167,267,999. Of the
+  rest, about 196,000 is loading the larger bootstrap (measured in the guest: 437,053 per load and
+  execution of main's bootstrap, 633,290 of this one), and the remainder is code layout
+  (INFERRED). On the snapshot a trivial job grew by about 43,000 (+0.05%) and the largest by
+  0.16%; INFERRED: the snapshot's heap layout after a larger bootstrap, the cause Decision 19
+  foresaw.
+- **The README's two session recipes ran once as written** (criterion 28): the groupby printed
+  `APAC 4, EMEA 8`, and the pickled frame read back gave `b'6\n'`.
+
+### The judge (full, `uv run pytest -n 3`, no `--accept`, `build/progress/latest.json` kept)
+
+`wasi_python v1: 444/481 pass · 2 gap · 35 blocked · 0 fail`; v1.4 204/204. Ratchet against
+`75f03ab77e`: lost 0, absent 0, unrun 0, unrun locally 21, gained 39, grew 66, upstream unrun 31;
+judge changed. The 35 blocked are this worktree's: the upstream kit (31) and the oracle (1) are
+not set up here, and the prior-art clones, the three systems and the wheel as on main. The
+fast tier, `-m "not slow"`, earlier: 1,656 passed, lost 0.
+
+**For the lane:**
+- `--accept-judge`: "spec 055: the session checks (tests/checks/test_v1_4_sessions.py,
+  tests/unit/test_runner_sessions.py), the export lists and types, the raw turn driver and its
+  fixture, the API render of a plain class's __init__ and context methods, TOP gains Session and
+  SessionEnded, stats() gains sessions_open in the cache checks' expected counts".
+- `--accept-growth`: "spec 055: both binaries gain the turn and shutdown exports and a larger
+  frozen bootstrap (+7,169 and +11,824 bytes); run's fuel grows by at most 0.14% on the plain
+  reactor (the bootstrap's load at each start, and code layout) and at most 0.16% on the
+  snapshot (its heap's layout), measured and stated in the landing notes".
+
+78 metrics grew: the two binaries' bytes and 76 jobs' fuel. The largest is 0.16%
+(`test_extra_preopens_work_on_the_snapshot`); plain-reactor jobs grew by at most 0.14%; the full
+list is `build/055/growth.txt`.
