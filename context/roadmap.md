@@ -203,7 +203,7 @@ snapshot, `run` loses the buffered bytes of a file left open when `__main__` def
 `__main__`'s dict is frozen, so once its module dies at finalization nothing frees it (the frozen
 heap; found by spec 055's addendum, P10b). Its draft found that a script and `-m` lose them on
 both binaries too, in runpy's temporary module. It gives every program a fresh, unfrozen
-`__main__` and runs a script and `-m` in it, as CPython does (about 0.5 M fuel; the freeze and
+`__main__` and runs a script and `-m` in it, as CPython does (about 11 K fuel on a bare run; the freeze and
 spec 069's check (b) stay). It closes the gap `test_run_keeps_an_unclosed_files_bytes[snapshot]`
 and adds one for the corner it leaves (a program's object hung on the frozen heap), which
 question 103 asks the owner about (unfreezing would close it for 28.2 M a call, restating check

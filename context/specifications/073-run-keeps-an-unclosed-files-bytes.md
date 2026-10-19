@@ -1,7 +1,12 @@
 # 073 — `run` keeps an unclosed file's buffered bytes
 
 - **Status:** **drafted 2026-10-19** on `spec/073-run-keeps-unclosed-files-bytes` from main
-  `08de0c8`. It changes the build recipe (`recipes/reactor_bootstrap.py`, compiled into both
+  `08de0c8` (`ede53a7`); **revised 2026-10-19 against its pre-build review**
+  (`../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md`, written in the lane's scratchpad with its probes, to be copied
+  by the lane; verdict "ready once F1 to F4 are written in"; F1 to F8 are written in, and
+  "Disposition of the pre-build review" says where), rebased onto main `2968512`. It is
+  scheduled behind the packages (the owner, 2026-10-19): it builds when a build slot has no
+  package ready. It changes the build recipe (`recipes/reactor_bootstrap.py`, compiled into both
   binaries at step 60), so it is reviewed once before it is built (constitution §5.6). It changes
   neither the guest's imports nor its exports. A different agent reviews the build.
 - **Date:** 2026-10-19
@@ -9,10 +14,11 @@
 - **Kind:** **build-class** (§5.7): it changes `recipes/reactor_bootstrap.py` (the module
   `_reactor`: `run` gives every program a fresh `__main__`, and runs a script and `-m` in it). It
   touches no `scripts/`, no `downloads/SHA256SUMS`, no patch, no pin and no workflow. It is also a
-  judge change: three checks added and one docstring edited in
+  judge change: four checks added and one docstring edited in
   `tests/checks/test_v1_4_embedding.py`; one gap entry removed and one added in
   `tests/known_gaps.toml` (Decision 7). It changes `README.md` (the snapshot's facts) and
-  `CHANGELOG.md` (0.1.0a7). It changes no public name, signature, field, default or option:
+  `CHANGELOG.md` (0.1.0a7), and adds dated amendment lines to specs 003 and 069. It changes no
+  public name, signature, field, default or option:
   **`tests/public_api.txt` does not change.** It changes nothing in `src/`. **The lane accepts it
   with `--accept-judge` and `--accept-growth`** (Decision 8).
 - **Depends on:** 003 (the reactor and `_reactor.run`), 054 (the import path's prelude, which
@@ -25,7 +31,10 @@
   `../research/2026-10-19-run-and-the-frozen-main/`, the section below). CPython 3.15.0's
   `Python/pylifecycle.c` (`finalize_modules`, `add_main_module`), `Python/gc.c`
   (`_PyGC_Freeze`, `_PyGC_GetObjects`), `Modules/main.c` (`pymain_run_python`) and
-  `Lib/runpy.py`, from the pinned tarball in the main tree's `build/Python-3.15.0` (READ).
+  `Lib/runpy.py`, from the pinned tarball in the main tree's `build/Python-3.15.0` (READ); and
+  `Python/pythonrun.c` (`_PyRun_SimpleFile`, `set_main_loader`), read for the review's F1.
+  The pre-build review's own probes (EXECUTED there, beside the review): `cases1.out` to
+  `cases7.out` and `native.out`.
 
 ## The problem
 
@@ -129,11 +138,17 @@ code appended to, or wrapped around, the program, so it runs inside `_reactor.ru
 | 1. `gc.unfreeze()` before finalizing, as a session's close does | 43,851,798 (+28.2 M, ×2.81) | 44,409,524 (100) | 4,644,580,241 (+44.5 M) | 167,989,079 (+0.5 M) | **3.82: fails 8** |
 | 2. flush every live file object at the end (a walk of `gc.get_objects()`) | 17,518,685 (+1.9 M) | 18,230,216 (100) | 5,072,276,241 (+472 M) | 444,220,984 (+276.7 M) | 25.4 |
 | 3. Python's shutdown under its own budget, as spec 055's close | as option 1 | as option 1 | as option 1 | as option 1 | as option 1 |
-| 4. a fresh, unfrozen `__main__` per program | ≤ 16,164,934 (≤ +0.53 M) | ≤ 16,762,639 (100) | ≤ +0.42 M | ≤ +0.54 M | ≥ 10.36 |
+| 4. a fresh, unfrozen `__main__` per program | +10,904 | +62,918 (100) | +1,288,886 | +29,676 | 10.71 |
 
-Sources: `probe.out` (options 1 and 2, and option 4's whole wrapper), `probe_fresh_cost.out`
-(option 4's own cost, against a control running the same wrapper in the frozen `__main__`; it is
-an upper bound, since the wrapper compiles four more lines than the bootstrap will run).
+Sources: `probe.out` (options 1 and 2). Option 4's row is the pre-build review's like-for-like
+measurement (`cases5.out`: today's `run` against a prototype of Decisions 1 to 3, both exec'd
+into `_reactor` and called through the same `-c` wrapper, so the wrapper's compile is the same on
+both sides). The same pair gives a script `pass` −117,389 (snapshot) and −1,035,053 (plain), and
+`-m` −8,386 and −73,283: those rows fall, because runpy's temporary module is gone. The plain
+binary's `import pandas` row rises +17,327 and its gap row falls −20,085. This draft's own first
+figure, about +0.53 M (`probe_fresh_cost.out`), was an upper bound: most of it was the compile of
+the wrapper's extra lines, which the precompiled bootstrap never pays (one extra line that only
+makes a module cost +196 K, the review's `cases1.out`).
 
 What each covers, and what it restates:
 
@@ -158,10 +173,10 @@ What each covers, and what it restates:
    nothing option 1 does not.
 4. **A fresh `__main__` per program.** The namespace is made at run time, after the freeze, so the
    collector tracks it as it tracks the plain binary's. It keeps every row of the cause's table,
-   on both binaries, for about half a million instructions. It **does not restate (b)**: the
-   factor stays above 10. Run a script and `-m` in that same `__main__`, as CPython's own entry
-   points do, and they keep their bytes too (`probe_in_main.out`: 100 on both binaries, for
-   +2.1 M and +0.5 M with the wrapper's compile included).
+   on both binaries, for about eleven thousand instructions on a bare snapshot run. It **does not
+   restate (b)**: the factor stays at 10.7. Run a script and `-m` in that same `__main__`, as
+   CPython's own entry points do, and they keep their bytes too (`probe_in_main.out`: 100 on
+   both binaries), for fewer instructions than today.
 
 **The residual, which option 4 leaves.** A program can hang its own objects on the frozen heap
 itself. Then the frozen heap reaches them, and on the snapshot they are never finalized. Two
@@ -195,10 +210,11 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      then runs in it.
    - It is made in `run`'s own frame, before the program's `exec`, so a program's stack is as deep
      as today (spec 054's check pins `traceback.extract_stack()` at 2 frames, and 4 under the
-     import path's prelude).
+     import path's prelude). The builder may make it inside `run`'s `try`, so a `MemoryError`
+     there is reported as any other (the review's note).
    - **Both binaries.** The plain binary's `__main__` is not frozen, but one code path is simpler
-     to state and to check, and a fresh module costs it the same half million
-     (`probe_fresh_cost.out`).
+     to state and to check, and a fresh module costs it about 30 thousand instructions (the
+     review's `cases5.out`).
    - **The prelude.** Under an import path, the runner's prelude (`_import_prelude`) is a `-c`
      program that calls `_reactor.run` again. The outer call makes a fresh `__main__`, the prelude
      binds no name in it, and the inner call makes another for the caller's program. The names
@@ -208,25 +224,48 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      `__main__`. The old, frozen `__main__` is dropped from `sys.modules`; nothing else holds it, so
      reference counting frees it.
 
-2. **A script runs in `__main__`, with the globals runpy gives it today.**
-   - For a target that is a file (`pkgutil.get_importer(target)` is `None`, runpy's own test):
-     `code = runpy._get_code_from_file(target, "__main__")`, then
-     `runpy._run_code(code, main.__dict__, None, "__main__", None, "", target)`. These are the two
-     calls `runpy.run_path` makes, with `__main__`'s dict in place of a temporary module's.
-   - For a directory or a zip: `sys.path.insert(0, target)`, then
+2. **A script runs in `__main__` itself, with native CPython's globals** (the review's F1).
+   - **A file** (`pkgutil.get_importer(target)` is `None`, runpy's own test): `code =
+     runpy._get_code_from_file(target, "__main__")`, which reads a `.pyc` or compiles source as
+     `run_path` does. Then `run` does what CPython's `_PyRun_SimpleFile` does for a script
+     (`Python/pythonrun.c`): it sets `__file__` to the target, sets `__loader__` to
+     `importlib.machinery.SourceFileLoader("__main__", target)`, or `SourcelessFileLoader` when
+     the target ends in `.pyc` (`set_main_loader`; CPython's `maybe_pyc_file` also takes a
+     `.pyc` by its magic number under another name, which `run` does not, a corner recorded
+     here), runs `exec(code, main.__dict__)`, and removes `__file__` again in a `finally`, as
+     CPython does on every path. `__package__` and `__spec__` stay the fresh `__main__`'s `None`.
+   - **A directory or a zip:** `sys.path.insert(0, target)`, then
      `runpy._run_module_as_main("__main__", alter_argv=False)`. This is CPython's own path for
      such a target (`Modules/main.c`: `pymain_sys_path_add_path0`, then
      `pymain_run_module(L"__main__", 0)`).
-   - The program's globals are what `run_path` gives it today: for a file (`probe_globals.out`),
-     `__name__` `"__main__"`, `__file__` the target, `__package__` `""`, `__spec__` and
-     `__loader__` `None`; for a directory (`probe_dir.out`), `__file__` its `__main__.py`,
-     `__spec__` named `__main__`, `__loader__` a `SourceFileLoader`, since `run_path` and
-     `_run_module_as_main` both find it with `_get_main_module_details`.
-     One value changes: `__builtins__` becomes the builtins module, as in `-c` and as native
-     CPython gives `__main__`, where today `exec` into a temporary module inserts its dict.
-   - The "can't open file" message is unchanged: the `OSError` still rises from runpy's frames
-     (`_get_code_from_file`), which `_only_runpy` checks. Tracebacks are unchanged: `_report`
-     still strips runpy's frames for a script.
+   - **The globals, now native's** (`native_atexit.out`, and the review's `native.out`):
+
+     | mode | `__file__` during the run | `__package__` | `__spec__` | `__loader__` | `__file__` in an `atexit` handler |
+     |---|---|---|---|---|---|
+     | a file | the target | `None` (today `''`) | `None` | `SourceFileLoader` (today `None`) | absent (today the handler sees an empty module) |
+     | a `.pyc` file | the target | `None` | `None` | `SourcelessFileLoader` | absent |
+     | a directory or zip | its `__main__.py` | `''` | named `__main__` | `SourceFileLoader` | its `__main__.py` |
+     | `-m` | the module's file | its parent, `''` at top level | the module's | its loader | the module's file |
+
+     In every mode `__builtins__` becomes the builtins module, as in `-c` and as native CPython
+     gives `__main__`, where today `exec` into a temporary module inserts the builtins' dict.
+   - **Three changes a user can see, all toward native** (the review's F3, EXECUTED there,
+     `cases3.out`), each held by a check row (check C and check E, Decision 7):
+     - an `atexit` handler in a script, a directory or `-m` finds the program's `__main__`: its
+       classes and functions (so pickling a `__main__` class there works), and `__file__` for a
+       directory or `-m`. Today it finds the restored, empty `__main__`, and pickling raises
+       `AttributeError`;
+     - a directory or zip without `__main__.py` prints CPython's line,
+       `/usr/local/bin/python.wasm: can't find '__main__' module in '/empty'`, and returns 1.
+       Today it prints an `ImportError` traceback (exit 1);
+     - `-m`'s change is Decision 3's.
+   - The "can't open file" message is unchanged: the `OSError` still rises from runpy's frame
+     (`_get_code_from_file`), which `_only_runpy` checks. A script's traceback is unchanged byte
+     for byte (the review's `cases3.out`): `_report` strips runpy's frames, and a file script now
+     has none above its own.
+   - *Why native, not runpy's values:* the spec's promise is "as CPython's own entry points";
+     nothing in `tests/` pins `''` or a `None` loader (the review's grep); and the change costs
+     two assignments. Check C pins native's values, so a later drift is caught.
    - *Why runpy's private helpers:* the pinned stdlib zip carries a fixed `runpy`, and CPython's
      own `-m` calls `runpy._run_module_as_main`, so these helpers are what the interpreter itself
      relies on. Check C pins the globals, so a CPython upgrade that changes them is caught.
@@ -236,16 +275,23 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      `run_module(..., alter_sys=True)` did during the call (spec 054's check:
      `['/code/pkg/__main__.py', 'x', 'y']`).
    - Its globals are today's (`__spec__` the module's spec, `__loader__` its loader, `__file__` its
-     origin), except `__builtins__`, as for a script.
+     origin), except `__builtins__`, as for a script; they match native's (`native_atexit.out`).
+   - **Its traceback shows CPython's frames** (the review's F3). `_report` strips runpy's frames
+     only for a script, so an `-m` traceback shows them, as native does. Today it shows
+     `run_module`, `_run_module_code` and `_run_code`; after, `_run_module_as_main` and
+     `_run_code`, both `"<frozen runpy>"`, byte for byte native's (the review's `cases3.out`,
+     `native.out`). Check E holds the frame names.
    - A module that cannot be found now ends as native's does: `_run_module_as_main` calls
      `sys.exit(f"{sys.executable}: No module named prog")` (READ, `Lib/runpy.py`), and the guest's
      `sys.executable` is `/usr/local/bin/python.wasm` (`probe_runner.out`), so `run` prints that
      line and returns 1 (`_exit_code`). Today it prints an `ImportError` traceback. No check pins
-     today's form (`grep` of `tests/`); the builder records the new line in the Landing notes.
+     today's form (`grep` of `tests/`); check E pins the new line (the review's `cases3.out` saw
+     it from the prototype).
 
 4. **The freeze stays, and check (b) is not restated.** `wizer.initialize` keeps
    `gc.collect(); gc.freeze()`, and `START_FACTOR` stays 8. The builder records (b)'s factor on the
-   built set; it must be at least 10 (today 10.71; 10.36 with option 4's measured upper bound).
+   built set; it must be at least 10 (today 10.71, and 10.71 with option 4's like-for-like cost:
+   (167,476,282 + 29,676) ÷ (15,631,800 + 10,904)).
 
 5. **Sessions are unchanged.** A session's turns run in the `__main__` they find, and its close
    keeps 055's `gc.unfreeze()` before `Py_FinalizeEx`, which also covers the residual. A fresh
@@ -256,7 +302,8 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
    - Check D holds the patched-class shape on both binaries. `[plain]` passes. `[snapshot]` fails,
      and a gap entry allows exactly that failure, naming question 103 as its closer (Decision 7).
    - The README's snapshot facts gain one: an object a program hangs on a module or class the
-     snapshot pre-imported is never finalized, so close files with `with`.
+     snapshot pre-imported may never be finalized, so close files with `with` (the review's
+     note: "may", since most such hooks are measured fine, `cases2.out`).
    - Question 103 asks the owner whether to pay option 1's 28.2 M per snapshot call to close it.
      The agent's recommendation is no. If the owner says yes, a later specification adds the
      unfreeze to `run`, restates (b), and removes the gap.
@@ -285,10 +332,15 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      `gc.get_objects()` never lists the frozen generation, `_PyGC_GetObjects`); whether they are
      `sys.modules["__main__"].__dict__`; their dunder names; and `__name__`, `__file__`,
      `__package__`, `__spec__`'s name, `__loader__`'s type name and `__builtins__`' type name. It
-     asserts `True`, `True`, today's names and values per mode (`probe_globals.out`,
-     `probe_dir.out`), with `__builtins__` a `module` in every mode. Today it fails on the
-     snapshot's `-c` and stdin (frozen) and on both binaries' script, directory and `-m`
-     (`__builtins__` a `dict`).
+     also registers an `atexit` handler that prints whether `sys.modules["__main__"]` holds the
+     program's class `C`, whether pickling `C()` round-trips, and its `__file__` (or none). It
+     asserts `True`, `True`, today's names, and native's values (Decision 2's table; `-c` and
+     stdin as `test_main_starts_as_native`'s six names, with `__loader__` a `type` and
+     `__builtins__` a `module`); in the handler, `C` present and the pickle round-trips in every
+     mode, with `__file__` absent for `-c`, stdin and a file, and kept for a directory and `-m`.
+     Today it fails on the snapshot's `-c` and stdin (frozen), on both binaries' script
+     (`__package__` `''`, `__loader__` `None`), and on both binaries' script, directory and `-m`
+     (`__builtins__` a `dict`; the handler finds no `C`).
    - **D, new: `test_run_keeps_a_file_a_patched_stdlib_class_reaches`** (`@BINARY`, through the
      `guest` fixture, recording fuel). The program: `import json`, open `/out.txt`, write 100
      bytes, define `default(self, o)`, set `json.JSONEncoder.default = default`. It asserts 100
@@ -297,20 +349,32 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
      after. `[snapshot]` fails today and after with `frozen heap: 1 finding(s), digest
      049b78ef7b5a: snapshot: a file reached from a patched stdlib class kept 0 of 100 bytes`
      (computed with `scan.report`).
+   - **E, new: `test_module_and_directory_errors_read_as_native`** (`@BINARY`, through
+     `wasi_python.run`, no fuel; the review's F3). Three rows: `-m nope` (no such module) prints
+     exactly `/usr/local/bin/python.wasm: No module named nope` and a newline on stderr and
+     returns 1; a directory `/empty` without `__main__.py` prints exactly
+     `/usr/local/bin/python.wasm: can't find '__main__' module in '/empty'` and a newline and
+     returns 1; `-m boom`, a module whose function divides by zero, returns 1 and its traceback's
+     frames are named, in order, `_run_module_as_main`, `_run_code`, `<module>` and `f`, the first
+     two in `"<frozen runpy>"`. It pins names and order, not runpy's line numbers, so a patch
+     release of CPython does not fail it. Today every row fails on both binaries.
    - **The gap entry for D`[snapshot]`, new:**
      ```toml
      [[gap]]
      check = "tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_a_patched_stdlib_class_reaches[snapshot]"
      match = "1 finding(s), digest 049b78ef7b5a"
-     reason = "on the snapshot, an object a program hangs on a pre-imported module or class is reached from the frozen heap and never finalized, so a file it reaches loses its buffered bytes (spec 073, Decision 6)"
+     reason = "on the snapshot, an object a program hangs on a pre-imported module or class is reached from the frozen heap and never finalized, so a file it reaches loses its buffered bytes (spec 073, Decision 6; question 103)"
      closes_with = "context/questions-for-the-owner.md"
      ```
-   - No golden output, upstream allowance or harness constant changes. `START_FACTOR` stays 8.
+   - No golden output or harness constant changes, and no upstream allowance change is expected
+     (Decision 10 says what the builder does if an upstream outcome moves). `START_FACTOR` stays
+     8.
 
 8. **The fuel moves, and how the lane accepts it.** Every check that runs a program on either
-   binary pays the fresh `__main__`, about 0.1 M to 0.6 M (the build measures it), so most fuel
-   rows grow past the tolerance of one part in ten thousand. Script and `-m` rows also lose
-   runpy's temporary module, and may fall. The builder lists the rows that moved, their largest
+   binary pays the fresh `__main__`: about +11 K on a bare snapshot run and +30 K on a bare plain
+   one, up to +1.3 M after `import pandas` on the snapshot (the review's `cases5.out`). Script and
+   `-m` rows fall, by up to −1.0 M (a plain script), since runpy's temporary module is gone. So
+   many rows move past the tolerance of one part in ten thousand, in both directions. The builder lists the rows that moved, their largest
    rise in instructions and in percent, and the bare row's rise, in the Landing notes. The lane
    accepts with `--accept-judge` (Decision 7's changes) and `--accept-growth` naming the fresh
    `__main__`.
@@ -323,9 +387,11 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
    CPython frees it first.
 
 10. **How it meets the specifications in flight.**
-    - **083** (drafted in `../wasi_python-083`; the judge's driver answers file times and inode
-      numbers): both add checks to `tests/checks/test_v1_4_embedding.py`, at different places, so
-      the merge is textual. Both restate fuel; whichever lands second takes main's progress files
+    - **083** (the judge's driver answers file times and inode numbers; confirmed for build, and
+      it builds after 065 lands): both add checks to `tests/checks/test_v1_4_embedding.py`, at
+      different places, and both edit `tests/known_gaps.toml` (083 narrows 065's stepped-clock
+      gap; 073 removes (h)'s and adds D's), so they meet in two files, each merge textual. The
+      order in flight is 081, then 065, then 083. Both restate fuel; whichever lands second takes main's progress files
       and accepts again, as AGENTS.md rule 6a says. Check D and (h) write a file through the
       driver, so their fuel depends on the file's time and inode number until 083 lands (083
       measured that spread at 102 instructions at most, within every row's tolerance); after 083,
@@ -334,10 +400,17 @@ freeze was kept, so it is the owner's. It is question 103; this specification do
       inputs name a host path): check D and (h) pass guest paths only (`/out.txt`), and A and C
       record no fuel. No textual overlap: 081 edits `tests/harness/guest.py`,
       `tests/checks/conftest.py` and the lxml check.
-    - **065** (CPython's own tests in the release): it runs its tests through the guest; a
-      script's and `-m`'s namespace move from a temporary module to `__main__`, as natively. If
-      065 lands first, 073's build runs its groups in the full judge, and any change in them is
-      named in the Landing notes.
+    - **The upstream suites are consumers** (the review's F5). numpy's and pandas' suites run
+      the judge's `drive.py` as a script (`tests/harness/upstream.py`, `guest_argv`), and spec
+      065's CPython groups run `regrtest_drive.py` as a script too. So every upstream group moves
+      from runpy's temporary module to `__main__`, with native's script globals. During the run
+      what they see differs only in `__builtins__`, `__package__` and `__loader__`: today's
+      temporary module is also `sys.modules["__main__"]` and carries the same `__file__`, which
+      their `M` lines read. So no outcome is expected to move (INFERRED). **If any upstream
+      outcome moves**, the builder stops, names the group, the test and the cause, and treats it
+      as a further judge change, reviewed as a delta before the build is called built; nothing in
+      `tests/upstream/*.toml` or `tests/upstream/expected/` is edited to absorb it (AGENTS.md
+      rule 4). If 065 lands first, its groups run in 073's full judge like the others.
     - **069**'s check (b) is not restated (Decision 4).
     - **Build-class order.** At most three build-class specifications are built at once (§5.7);
       this one edits only `recipes/reactor_bootstrap.py`, so a rebase meets another recipe change
@@ -360,10 +433,12 @@ checked, documented and put to the owner.
     cause above, Decision 1);
   - `run`: `main = _fresh_main()` replaces `main = sys.modules["__main__"]`; the `-m` branch calls
     `runpy._run_module_as_main(target)` after `sys.argv = [target, *rest]`; the script branch
-    tests `pkgutil.get_importer(target)` and takes Decision 2's two paths. The module docstring
+    tests `pkgutil.get_importer(target)` and takes Decision 2's two paths (for a file: the code
+    from `runpy._get_code_from_file`, `__file__` and the loader set, `exec`, and `__file__`
+    removed in a `finally`). The module docstring
     gains one sentence on the fresh `__main__`.
-- `tests/checks/test_v1_4_embedding.py`: (h)'s docstring; checks A, C and D (Decision 7), beside
-  (h).
+- `tests/checks/test_v1_4_embedding.py`: (h)'s docstring; checks A, C, D and E (Decision 7),
+  beside (h).
 - `tests/known_gaps.toml`: (h)'s entry and its comment removed; D's entry added with a comment
   naming this specification and question 103.
 - `README.md`, the snapshot's facts after "`run` treats its arguments as CPython's command line
@@ -371,9 +446,15 @@ checked, documented and put to the owner.
   own entry points run them; a fourth snapshot fact, the residual and its advice ("close files
   with `with`").
 - `CHANGELOG.md`, 0.1.0a7: one **Fixed** bullet (the snapshot's unclosed files, and a script's
-  and `-m`'s on both binaries; `-m`'s not-found message is CPython's; `__builtins__` a module);
+  and `-m`'s on both binaries) and one **Changed** bullet naming what moves toward native: a
+  script's `__package__` and `__loader__`, `__builtins__` a module, an `atexit` handler that
+  finds the program's `__main__`, `-m`'s not-found line and traceback frames, and a directory's
+  "can't find '__main__' module" line;
   and spec 069's bullet loses "Known and unchanged: `run` on the snapshot loses …".
 - `context/roadmap.md`: 073's paragraph says drafted, then built, then landed, as it goes.
+- Specs 003 (its `run` paragraph) and 069 (Decision 4): one dated amendment line each, written in
+  with this revision (the review's F6). Spec 055's addendum is a research memo, which is never
+  edited after the fact (`context/README.md`), so it gets no line; this specification cites it.
 
 ## Scope
 
@@ -399,27 +480,35 @@ to `build/073/*.log`.
 1. **The checks fail first, as Decision 7 says.** On main's set: A fails with 3 findings on the
    plain binary (digest `e6d5609d06d8`) and 7 on the snapshot (digest `98d69ac9128b`;
    `probe_check_a.out` ran its logic); C fails on the snapshot's `-c` and stdin and on both
-   binaries' script, directory and `-m`; D`[plain]` passes and D`[snapshot]` fails with digest
+   binaries' script, directory and `-m`; E fails on all three rows on both binaries; D`[plain]` passes and D`[snapshot]` fails with digest
    `049b78ef7b5a`; (h)`[snapshot]` fails with digest `7da6e52329c1`.
 2. **After the build, the gap closes.** (h)`[snapshot]` passes, its gap entry is gone, and the
-   scoreboard shows one gap fewer from it. A and C pass on both binaries. D`[plain]` passes;
+   scoreboard shows one gap fewer from it. A, C and E pass on both binaries. D`[plain]` passes;
    D`[snapshot]` fails with exactly its gap entry's digest.
-3. **What must not move.** `test_main_starts_as_native` (both binaries) and
+3. **What must not move.** `test_main_starts_as_native` (both binaries; it pins the six names
+   only, and check C pins their values, the review's F2) and
    `test_the_import_path_reaches_every_mode` (both binaries; its stack depths 2 and 4, its `-m`
    argv, its script's exit code 3) pass unchanged. Check (b) passes with `START_FACTOR` 8, and its
    factor on the built set is at least 10; the Landing notes record both counts.
 4. **The fresh `__main__`'s cost, counted.** The snapshot's `-c pass` fuel on the built set
-   against main's accepted row for check (b): the rise is at most 0.6 M instructions. The Landing
+   against main's accepted row for check (b): the rise is at most 0.1 M instructions (measured
+   like for like at +10,904; an eager import of `runpy`, about 20 M, would fail it). The Landing
    notes give the number and the command.
 5. **Stand-ins.** Each fails what it names:
    - **S1**, the fresh `__main__` made but `-c` and stdin still `exec` in the old one: A (the
      snapshot's `-c` and stdin rows), C and (h)`[snapshot]` fail.
    - **S2**, the script branch left on `runpy.run_path`: A's and C's script and directory rows
-     fail.
-   - **S3**, the `-m` branch left on `runpy.run_module`: A's and C's `-m` rows fail.
-   - **S4**, the fresh `__main__` without `__builtins__` and `__loader__`:
-     `test_main_starts_as_native` fails.
-   - **S5**, the script branch's `__package__` given as `None`: C's script row fails.
+     fail, and E's directory row.
+   - **S3**, the `-m` branch left on `runpy.run_module`: A's and C's `-m` rows fail, and E's two
+     `-m` rows.
+   - **S4**, the fresh `__main__` a bare `type(sys)("__main__")`, without the captured names: C's
+     `-c` and stdin rows fail (`__builtins__` a `dict`, `__loader__` `None`). It does not fail
+     `test_main_starts_as_native`, whose six names the module type and `exec` still give (the
+     review's F2, `cases4.out`).
+   - **S5**, the file-script branch giving runpy's `__package__` `''` and `__loader__` `None`:
+     C's script row fails.
+   - **S7**, the file-script branch without the `finally` that removes `__file__`: C's script
+     row fails in its `atexit` part.
    - **S6**, `gc.unfreeze()` added before `Py_FinalizeEx` in `run` (option 1): D`[snapshot]` passes,
      which the judge reports as a failure ("passes, but tests/known_gaps.toml still lists it"),
      and check (b) fails at about 3.8. This is the evidence that option 1's numbers hold on a real
@@ -456,6 +545,9 @@ command in its docstring.
   values).
 - `probe_check_a.py` → `probe_check_a.out`: check A's logic on main's set, with its findings.
 - `probe_dir.py` → `probe_dir.out`: a directory target today (its bytes and its namespace).
+- `native_atexit.sh` → `native_atexit.out` (added for the revision): native CPython 3.15.0's
+  `__main__` globals for a script, a `.pyc`, a directory and `-m`, during the run and in an
+  `atexit` handler (Decision 2's table).
 - `probe_modules.py` → `probe_modules.out`: the residual's module shape, 15 of 70 modules.
 - `probe_patch.py` → `probe_patch.out`: the residual's patched-class shape, and that only
   option 1 closes it.
@@ -469,5 +561,45 @@ command in its docstring.
 
 Not built. The builder fills this in: the commits; the checks seen failing first and each
 stand-in's failure; the rebuilt set's hashes; check (b)'s two counts and factor; the bare row's
-rise (criterion 4); the rows that moved (Decision 8); `-m`'s new not-found line; the fast tier and
-the full judge's last lines; and the lines for the lane (`--accept-judge`, `--accept-growth`).
+rise (criterion 4); the rows that moved, up and down (Decision 8); the user-visible changes of
+Decisions 2 and 3 as check C and E saw them (the `atexit` handler, `-m`'s not-found line and
+traceback frames, the directory's "can't find '__main__' module" line, a script's `__package__`
+and `__loader__`); any upstream outcome that moved (Decision 10); the fast tier and the full
+judge's last lines; and the lines for the lane (`--accept-judge`, `--accept-growth`).
+
+## Disposition of the pre-build review
+
+The review: `../reviews/073-run-keeps-an-unclosed-files-bytes-spec-2026-10-19.md` (verdict "ready once F1 to F4 are written in";
+written in the lane's scratchpad, to be copied by the lane).
+
+1. **F1 (Medium) — fixed: native's script globals.** Decision 2 now gives a file script
+   `__package__` `None` and a `SourceFileLoader` (`SourcelessFileLoader` for a `.pyc`), and
+   removes `__file__` after the run, as `_PyRun_SimpleFile` does; check C pins native's values
+   and S5 is runpy's values; S7 is new. No measured reason was found to keep runpy's: a native
+   probe added for the revision (`native_atexit.out`) confirms the values, including that an
+   `atexit` handler sees no `__file__` after a native script.
+2. **F2 (Low-Medium) — fixed.** S4 names check C's `-c` and stdin rows; criterion 3 says
+   `test_main_starts_as_native` pins names only and C pins their values.
+3. **F3 (Low-Medium) — fixed.** Decision 2 names the `atexit` change and the "can't find
+   '__main__' module" line; Decision 3 names the `-m` traceback frames; check C gains its
+   `atexit` part and new check E holds the three error-path rows; the CHANGELOG's **Changed**
+   bullet and the Landing notes list them. "Tracebacks are unchanged" now says a script's.
+4. **F4 (Low) — fixed.** Option 4's row is the review's like-for-like measurement (+10,904
+   snapshot, +29,676 plain on `-c pass`; script and `-m` rows fall, by up to −1,035,053);
+   Decision 1's and option 4's prose, Decision 4's factor (10.71), Decision 8's band and
+   criterion 4's bound (0.1 M) follow; the first figure is kept as the upper bound it was, with
+   why. Question 103's "about 0.5 M" and the roadmap's become "about 11 thousand".
+5. **F5 (Low) — fixed.** Decision 10 names the upstream suites as consumers and says the
+   builder stops and treats a moved outcome as a further judge change, reviewed as a delta;
+   Decision 7 says "no upstream allowance change is expected".
+6. **F6 (Low) — fixed.** Dated amendment lines in spec 003's `run` paragraph and spec 069's
+   Decision 4. Not in spec 055's addendum, a research memo, which is not edited after the fact.
+7. **F7 (Low) — fixed.** D's gap reason ends "(spec 073, Decision 6; question 103)".
+8. **F8 (Low) — fixed.** Decision 10: 083 confirmed, building after 065, and meeting 073 in
+   `tests/known_gaps.toml` as well as the check file, both merges textual; the order 081, 065,
+   083.
+
+The review's notes, taken: the README says "may never be finalized"; the builder may make the
+fresh `__main__` inside `run`'s `try`. Its note on a relative script target (native makes
+`__file__` absolute) and the script's directory not on `sys.path` are older than this
+specification and stay out of scope.

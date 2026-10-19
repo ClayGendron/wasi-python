@@ -237,6 +237,13 @@
      (constitution §3): the cost of finalizing some 600 modules is
      measured as fuel and as a benchmark fact in the landing notes, and
      the README's start-up figure is updated to what is measured.
+     Amended 2026-10-19 by spec 073: every program now runs in a fresh
+     `__main__` made at run time (the snapshot's own is frozen, and a
+     file left open beside a function lost its bytes); `-m` runs as
+     `runpy._run_module_as_main(name)`, CPython's own `-m`, and a
+     script in `__main__` itself, as CPython's `pymain_run_file` and
+     its directory and zip path do, no longer in runpy's temporary
+     module.
    - **Runaway and memory** are the embedder's: fuel or epochs, store
      limits.
 7. **The stdlib zip is bytecode-only, deflated and deterministic.**

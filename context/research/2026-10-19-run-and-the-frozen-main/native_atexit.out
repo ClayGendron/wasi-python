@@ -1,0 +1,12 @@
+== script
+run: __file__ <work>/atx.py loader SourceFileLoader package None spec None
+atexit: __file__ None C True loader SourceFileLoader package None
+== script.pyc
+run: __file__ <work>/atxc.pyc loader SourcelessFileLoader package None spec None
+atexit: __file__ None C True loader SourcelessFileLoader package None
+== directory
+run: __file__ <work>/app/__main__.py loader SourceFileLoader package '' spec __main__
+atexit: __file__ <work>/app/__main__.py C True loader SourceFileLoader package ''
+== -m
+run: __file__ <work>/code/atx.py loader SourceFileLoader package '' spec atx
+atexit: __file__ <work>/code/atx.py C True loader SourceFileLoader package ''
