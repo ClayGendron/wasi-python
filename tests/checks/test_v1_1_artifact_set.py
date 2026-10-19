@@ -66,6 +66,7 @@ def test_no_start_section(artifacts, which) -> None:
 
 def test_plain_reactor_exports(artifacts) -> None:
     errors = rules.export_errors(_binary(artifacts, "plain"), rules.PLAIN_EXPORTS)
+    errors += rules.export_type_errors(_binary(artifacts, "plain"))  # spec 055
     assert not errors, scan.report(errors)
 
 
@@ -73,6 +74,7 @@ def test_snapshot_exports(artifacts) -> None:
     errors = rules.export_errors(
         _binary(artifacts, "snapshot"), rules.SNAPSHOT_EXPORTS, rules.SNAPSHOT_FORBIDDEN
     )
+    errors += rules.export_type_errors(_binary(artifacts, "snapshot"))  # spec 055
     assert not errors, scan.report(errors)
 
 

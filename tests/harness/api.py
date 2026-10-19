@@ -200,11 +200,19 @@ def _function(name: str, fn: Any, *, method: bool = False) -> dict[str, Any]:
     return item
 
 
+# The dunders a plain class's render records: its constructor and the context-manager pair
+# (spec 055, Decision 17: `Session`), beside `__call__`, which every class's records.
+_PLAIN_DUNDERS = ("__init__", "__enter__", "__exit__")
+
+
 def _members(cls: type) -> list[dict[str, Any]]:
-    """Public methods and properties defined on the class itself, and `__call__`."""
+    """Public methods and properties defined on the class itself, and `__call__`; for a plain
+    class (not a dataclass, enum, protocol or exception), also `__init__` and the
+    context-manager methods."""
+    plain = _kind(cls) == "class"
     out = []
     for name, value in vars(cls).items():
-        if name.startswith("_") and name != "__call__":
+        if name.startswith("_") and name != "__call__" and not (plain and name in _PLAIN_DUNDERS):
             continue
         if isinstance(value, property):
             out.append(

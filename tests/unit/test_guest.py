@@ -182,3 +182,25 @@ def test_the_cause_is_the_line_after_caused_by() -> None:
     )
     assert guest.trap_cause(text) == "wasm trap: x"
     assert guest.trap_cause("no cause here") is None
+
+
+def test_turns_drives_one_instance_across_calls(work) -> None:
+    """Spec 055: the raw turn driver writes each turn's code through host_alloc into one kept
+    instance, and calls the exports as they are."""
+    stdlib = work / "stdlib.zip"
+    stdlib.write_bytes(b"")
+    t = guest.turns(
+        wat.build(work, "turns.wasm", wat.TURNS),
+        workdir=work,
+        python_version="3.15.0",
+        stdlib=stdlib,
+    )
+    try:
+        assert t.turn("ab").value == 2 + ord("a")
+        assert t.turn(b"z").value == 1 + ord("z")
+        assert t.turn("").value == 0  # an empty turn passes (0, 0)
+        assert t.turn_raw(0, 0).value == 0
+        assert t.shutdown().value == 4  # one instance: four turns counted
+        assert t.run().value == 0
+    finally:
+        t.close()

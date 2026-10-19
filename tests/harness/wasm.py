@@ -54,6 +54,7 @@ class Module:
     types: list[FuncType] = field(default_factory=list)
     imports: list[Import] = field(default_factory=list)
     exports: dict[str, str] = field(default_factory=dict)  # name -> kind
+    export_index: dict[str, int] = field(default_factory=dict)  # name -> its index (spec 055)
     sections: set[int] = field(default_factory=set)  # the ids of the sections present
     funcs: list[int] = field(default_factory=list)  # each defined function's type index
     elements: dict[int, int] = field(default_factory=dict)  # table index -> function index
@@ -265,7 +266,7 @@ def parse(data: bytes) -> Module:
         elif section == 7:
             for _ in range(s.u32()):
                 name, kind = s.name(), s.byte()
-                s.u32()
+                mod.export_index[name] = s.u32()
                 mod.exports[name] = KINDS.get(kind, f"kind{kind}")
         elif section == 9:
             _elements(s, mod)

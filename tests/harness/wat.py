@@ -31,6 +31,12 @@ DOOR_RUN = """
     (i32.const 0))
 """
 
+# A session's two exports (spec 055): a turn that runs nothing, and a shutdown that does nothing.
+SESSION = """
+  (func (export "turn") (param i32 i32) (result i32) (i32.const 0))
+  (func (export "shutdown") (result i32) (i32.const 0))
+"""
+
 HOST_ALLOC = """
   (global $next (mut i32) (i32.const 1024))
   (func (export "host_alloc") (param $n i32) (result i32) (local $p i32)
@@ -49,6 +55,7 @@ PLAIN_REACTOR = f"""
   (func (export "_initialize") (global.set $ready (i32.const 1)))
   (func (export "wizer.initialize"))
   {DOOR_RUN}
+  {SESSION}
 )
 """
 
@@ -58,6 +65,28 @@ SNAPSHOT = f"""
   (memory (export "memory") 1)
   {HOST_ALLOC}
   {DOOR_RUN}
+  {SESSION}
+)
+"""
+
+# A snapshot as sets before spec 055 were: no `turn` and no `shutdown`.
+BEFORE_SESSIONS = f"""
+(module
+  {DOOR_IMPORT}
+  (memory (export "memory") 1)
+  {HOST_ALLOC}
+  {DOOR_RUN}
+)
+"""
+
+# A snapshot with `turn` and without `shutdown` (spec 055, criterion 6).
+TURN_ONLY = f"""
+(module
+  {DOOR_IMPORT}
+  (memory (export "memory") 1)
+  {HOST_ALLOC}
+  {DOOR_RUN}
+  (func (export "turn") (param i32 i32) (result i32) (i32.const 0))
 )
 """
 
@@ -192,4 +221,24 @@ def reactor_with_init(iterations: int) -> str:
       (local.set $i (i32.add (local.get $i) (i32.const 1)))
       (br $next))))
   (func (export "run") (result i32) (i32.const 0)))
+"""
+
+
+# A stand-in for the judge's raw turn driver (spec 055): `turn` returns the length of the code
+# written at its pointer plus the first byte there, and counts its calls; `shutdown` returns the
+# count of turns. Each call that runs nothing else lets the driver's bookkeeping be checked.
+TURNS = f"""
+(module
+  {DOOR_IMPORT}
+  (memory (export "memory") 1)
+  (global $turns (mut i32) (i32.const 0))
+  {HOST_ALLOC}
+  (func (export "turn") (param $p i32) (param $n i32) (result i32)
+    (global.set $turns (i32.add (global.get $turns) (i32.const 1)))
+    (if (result i32) (i32.eqz (local.get $n))
+      (then (i32.const 0))
+      (else (i32.add (local.get $n) (i32.load8_u (local.get $p))))))
+  (func (export "shutdown") (result i32) (global.get $turns))
+  (func (export "run") (result i32) (i32.const 0))
+)
 """

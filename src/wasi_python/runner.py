@@ -19,6 +19,7 @@ host function does makes `run` raise.
 from __future__ import annotations
 
 import atexit
+import collections
 import ctypes
 import errno
 import hashlib
@@ -28,6 +29,7 @@ import math
 import numbers
 import operator
 import os
+import queue
 import re
 import secrets
 import shutil
@@ -38,6 +40,7 @@ import tempfile
 import threading
 import time
 import warnings
+import weakref
 import zipfile
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -101,17 +104,39 @@ def _integer_limit(name: str, value: Any) -> int | None:
 
 
 def _deadline_limit(value: Any) -> float | None:
+    return _seconds_limit("deadline_s", value)
+
+
+def _seconds_limit(name: str, value: Any) -> float | None:
+    """`deadline_s`'s rule, named for its argument (spec 055, Decision 9: idle_s, lifetime_s)."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, numbers.Real):
-        raise TypeError(f"deadline_s must be a number of seconds, or None; got {value!r}")
-    rule = "deadline_s must be finite and above 0, and at most about 4.6e16 s, or None"
+        raise TypeError(f"{name} must be a number of seconds, or None; got {value!r}")
+    rule = f"{name} must be finite and above 0, and at most about 4.6e16 s, or None"
     try:
         seconds = float(value)
         ticks = math.ceil(seconds / TICK_S) if seconds > 0 else 0
     except (OverflowError, ValueError):
         raise ValueError(f"{rule}; got {_shown(value)}") from None
     if not math.isfinite(seconds) or seconds <= 0 or not 0 < ticks < NO_DEADLINE:
+        raise ValueError(f"{rule}; got {_shown(value)}")
+    return seconds
+
+
+def _shutdown_limit(name: str, value: Any) -> float:
+    """A session's shutdown budget in seconds: finite and at least 0; 0 skips the shutdown, and
+    `None` is refused, since the runner itself starts endings and must bound them (spec 055,
+    Decision 8)."""
+    if value is None or isinstance(value, bool) or not isinstance(value, numbers.Real):
+        raise TypeError(f"{name} must be a number of seconds, 0 or more; got {value!r}")
+    rule = f"{name} must be finite and 0 or more, and at most about 4.6e16 s"
+    try:
+        seconds = float(value)
+        ticks = math.ceil(seconds / TICK_S) if seconds > 0 else 0
+    except (OverflowError, ValueError):
+        raise ValueError(f"{rule}; got {_shown(value)}") from None
+    if not math.isfinite(seconds) or seconds < 0 or not 0 <= ticks < NO_DEADLINE:
         raise ValueError(f"{rule}; got {_shown(value)}")
     return seconds
 
@@ -226,6 +251,12 @@ class Defaults:
             refused unread, and the guest gets `ToolBudgetExceeded`.
         open_files: The most files and folders a guest holds open at once, in grants, the root
             and mounts alike; past it an open answers `EMFILE` and the guest runs on.
+        session_idle_s: The longest a `Session` may rest between turns before it ends "idle".
+        session_lifetime_s: How long after its opening a `Session`'s turns may run; then it
+            ends "lifetime".
+        session_shutdown_s: The seconds a `Session`'s ending has to run Python's shutdown
+            (`atexit` handlers, then finalization); past them the session is simply stopped.
+            0 skips the shutdown; it cannot be `None`.
     """
 
     # Checked by run's rules (spec 013); async_workers sizes run_async's pool (spec 015).
@@ -237,6 +268,9 @@ class Defaults:
     tool_calls: int | None = 1000
     tool_request_bytes: int | None = 16 << 20  # spec 060
     open_files: int | None = 1024  # spec 068
+    session_idle_s: float | None = 900.0  # spec 055, the owner's decision 20
+    session_lifetime_s: float | None = 3600.0
+    session_shutdown_s: float = 5.0  # jupyter_client's shutdown_wait_time (spec 055, Decision 8)
 
     def __post_init__(self) -> None:
         _check_limits(None, self.deadline_s, self.memory_bytes, self.output_bytes)
@@ -245,6 +279,9 @@ class Defaults:
         _integer_limit("tool_calls", self.tool_calls)
         _integer_limit("tool_request_bytes", self.tool_request_bytes)
         _integer_limit("open_files", self.open_files)
+        _seconds_limit("session_idle_s", self.session_idle_s)
+        _seconds_limit("session_lifetime_s", self.session_lifetime_s)
+        _shutdown_limit("session_shutdown_s", self.session_shutdown_s)
 
 
 DEFAULTS = Defaults(memory_bytes=1 << 30, deadline_s=60.0, output_bytes=16 << 20)
@@ -994,6 +1031,7 @@ def _after_fork_in_child() -> None:
     every lock the runner takes is made anew (spec 015's build review, F8)."""
     global _pool_lock, _live_lock, _lock, _epoch_callback_lock, _outputs_lock, _compiling
     global _held_lock, _zip_lock, _zips, _tool_threads_lock
+    global _sessions_lock, _sessions, _reaper_queue, _closers_lock
     _pool_lock, _live_lock, _held_lock = threading.Lock(), threading.Lock(), threading.Lock()
     # A child has none of its parent's tool threads (spec 036, Decision 8).
     _tool_threads_lock, _tool_threads["running"] = threading.Lock(), 0
@@ -1009,6 +1047,13 @@ def _after_fork_in_child() -> None:
     _live.clear()
     _epoch_ticker._thread, _epoch_ticker._active = None, 0
     _epoch_ticker._cond = threading.Condition()
+    # A child has no reaper, no sessions and none open (spec 055, Decision 13).
+    _sessions_lock, _sessions = threading.Lock(), weakref.WeakSet()
+    _reaper_queue, _closers_lock = queue.SimpleQueue(), threading.Lock()
+    _closers.clear()
+    _dropped.clear()
+    _reaper.update(thread=None, stop=False, hooked=_reaper["hooked"])
+    _counts["sessions_open"] = 0
     if _fork["used"]:
         _fork["forked"] = True
 
@@ -1053,13 +1098,14 @@ def _checked(
     max_file_calls: Any = _UNSET,
     import_path: Any = (),
     max_open_files: Any = _UNSET,
+    limits: Defaults | None = None,
 ) -> dict[str, Any]:
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
     and 036 for the tools). The defaults are read once, here, and every check that takes one
     takes it from this read, so a `set_defaults` on another thread never gives a call a mix of
     the old and new limits (spec 049, Decision 2). `async_workers` is not a call's limit:
-    `_submit` reads it under the pool's lock."""
-    limits = _current_defaults()
+    `_submit` reads it under the pool's lock. A session passes the `limits` it read (spec 055)."""
+    limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
     )
@@ -2255,36 +2301,7 @@ def _run_checked(
         binary = found.snapshot if snapshot else found.plain
         engine = _engine(c["fuel"] is not None)
         module = _module(engine, c["fuel"] is not None, binary, cache)
-        _sweep_once()
-        folder = _zip_folder(found)
-        preopens.append(
-            _Preopen("the stdlib folder", _walk("", str(folder.lib), judge=False), ZIP_GUEST, False)
-        )
-        if folder.data is not None:  # after the zip's grant (spec 023, Decision 5)
-            guest = f"{ZIP_GUEST}/{folder.name}/{MPL_DATA_GUEST}"
-            walked_data = _walk("", str(folder.data), judge=False)
-            preopens.append(_Preopen("matplotlib's data", walked_data, guest, False))
-        root_path = None
-        if root is None:
-            private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
-            (private.path / "usr" / "local" / "lib").mkdir(parents=True)
-            root_path = private.path
-            preopens.append(
-                _Preopen("the private root", _walk("", str(root_path), judge=False), "/", True)
-            )
-        elif walked_root is not None:
-            root_path = Path(walked_root.path)
-            # Real folders, never a guest's link: without them /usr would vanish from a fresh
-            # root's listing, and the zip's path could resolve into a file a guest wrote. Made
-            # through the walked folder, never its path, which another guest may have swapped
-            # since the walk (spec 024).
-            if walked_root.fd is not None and _dir_fd_ok():
-                os.close(_real_dir_at(walked_root.fd, ("usr", "local", "lib")))
-            else:
-                _real_dir(root_path, ("usr", "local", "lib"))
-            preopens.append(_Preopen("root", walked_root, "/", True))
-        for where, grant, w in walked:
-            preopens.append(_Preopen(where, w, grant.guest, grant.writable))
+        root_path, private = _preopens(found, root, walked_root, walked, preopens)
         return _call(wt, engine, module, root_path, preopens, c, host)
     finally:
         # Windows holds every walked folder until here; a private root can be removed only after.
@@ -2293,6 +2310,53 @@ def _run_checked(
                 w.close()
         if private is not None:
             private.remove()
+
+
+def _preopens(
+    found: Artifacts,
+    root: str | bool | None,
+    walked_root: _Walked | None,
+    walked: list[tuple[str, Grant, _Walked]],
+    preopens: list[_Preopen],
+) -> tuple[Path | None, _Private | None]:
+    """The zip's folder, matplotlib's data, the root and the grants, appended to `preopens` in
+    the order wasmtime opens them; (the root's path, a private root to remove or None). Shared by
+    a call and a session's opening (spec 055)."""
+    _sweep_once()
+    folder = _zip_folder(found)
+    preopens.append(
+        _Preopen("the stdlib folder", _walk("", str(folder.lib), judge=False), ZIP_GUEST, False)
+    )
+    if folder.data is not None:  # after the zip's grant (spec 023, Decision 5)
+        guest = f"{ZIP_GUEST}/{folder.name}/{MPL_DATA_GUEST}"
+        walked_data = _walk("", str(folder.data), judge=False)
+        preopens.append(_Preopen("matplotlib's data", walked_data, guest, False))
+    root_path = None
+    private = None
+    if root is None:
+        private = _Private("wasi-python-root-")  # 0700, this user's own, locked (spec 016)
+        try:
+            (private.path / "usr" / "local" / "lib").mkdir(parents=True)
+            root_path = private.path
+            walked_private = _walk("", str(root_path), judge=False)
+        except BaseException:
+            private.remove()
+            raise
+        preopens.append(_Preopen("the private root", walked_private, "/", True))
+    elif walked_root is not None:
+        root_path = Path(walked_root.path)
+        # Real folders, never a guest's link: without them /usr would vanish from a fresh
+        # root's listing, and the zip's path could resolve into a file a guest wrote. Made
+        # through the walked folder, never its path, which another guest may have swapped
+        # since the walk (spec 024).
+        if walked_root.fd is not None and _dir_fd_ok():
+            os.close(_real_dir_at(walked_root.fd, ("usr", "local", "lib")))
+        else:
+            _real_dir(root_path, ("usr", "local", "lib"))
+        preopens.append(_Preopen("root", walked_root, "/", True))
+    for where, grant, w in walked:
+        preopens.append(_Preopen(where, w, grant.guest, grant.writable))
+    return root_path, private
 
 
 def _call(
@@ -2670,6 +2734,7 @@ class _Call:
         admit: Callable[[int], bytes | None] | None = None,
     ) -> None:
         self.context = _context_address(store)
+        self.origin_ns = origin_ns  # its waits count from here (spec 055, the review's F6)
         self.door = _door(host, admit)  # admit: the frame host's, under tools= (spec 036)
         self.poll = _poll_oneoff(origin_ns, waits)
         self.stopped: BaseException | None = None
@@ -3373,16 +3438,17 @@ _lock = threading.Lock()
 _engines: dict[bool, wasmtime.Engine] = {}
 _modules: dict[tuple[bool, str], wasmtime.Module] = {}
 _digests: dict[tuple[str, int, int], str] = {}
-_counts = {"compiled": 0, "loaded": 0, "written": 0}
+_counts = {"compiled": 0, "loaded": 0, "written": 0, "sessions_open": 0}
 
 
 def stats() -> dict[str, int]:
     """Counts kept by this process, a diagnostic.
 
     `tool_threads_running` counts the tool threads alive in this process, abandoned ones
-    included. `compiled`, `loaded` and `written` count how this process got its compiled
-    modules: compiled from the binary, loaded from a .cwasm file, and .cwasm files written; what
-    they count may change with the cache. A later release may add keys.
+    included. `sessions_open` counts the `Session`s opened and not yet ended. `compiled`,
+    `loaded` and `written` count how this process got its compiled modules: compiled from the
+    binary, loaded from a .cwasm file, and .cwasm files written; what they count may change with
+    the cache. A later release may add keys.
     """
     # spec 036, Decision 5; the judge reads it.
     with _lock:
@@ -3621,3 +3687,1258 @@ class _epoch_ticker:
                     cls._count += 1
                 done = due
                 time.sleep(TICK_S / 4)
+
+
+# ---------------------------------------------------------------------------------------------
+# Sessions (spec 055): one instance of the guest kept across turns, with an idle bound and a
+# lifetime, ended by Python's own shutdown inside a small budget, as a Jupyter kernel is.
+
+MAX_TURN_BYTES = 0x7FFFFFFF  # the `turn` export's length is an i32
+SESSION_EXPORTS = ("turn", "shutdown")
+
+# Injected so the judge never sleeps (Decision 9): the one clock the bounds read.
+_session_clock: Callable[[], float] = time.monotonic
+# Test hooks: told each arming ("turn" or "ending", its epoch ticks); told each export called
+# on a session's instance ("turn" or "shutdown", the thread's ident); called after a turn's
+# export returned, before its ending is decided (criterion 42).
+_on_arm: Callable[[str, int], None] | None = None
+_on_export: Callable[[str, int], None] | None = None
+_after_export: Callable[[], None] | None = None
+_on_call: Callable[[str, Any], None] | None = None  # told each call built: (kind, its _Call)
+
+
+class SessionEnded(RuntimeError):
+    """A session has ended, so it runs no more turns.
+
+    Attributes:
+        reason: Why it ended, the value of `Session.ended`: "closed", "idle", "lifetime",
+            "quit", "exit" or "error", one of `Completed.trapped`'s four fixed strings, or
+            wasmtime's words for a trap.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(f"the session has ended: {reason}")
+        self.reason = reason
+
+
+class _Either:
+    """A stop that is set when either event is: a turn's `cancel`, or its session's closing."""
+
+    __slots__ = ("first", "second")
+
+    def __init__(self, first: threading.Event | None, second: threading.Event) -> None:
+        self.first, self.second = first, second
+
+    def is_set(self) -> bool:
+        return (self.first is not None and self.first.is_set()) or self.second.is_set()
+
+
+class _State:
+    """Everything a session holds: its store and folders, its limits and its flags. It never
+    refers to its `Session`, so the collector can finalize a dropped one (Decision 13)."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.ended: str | None = None
+        self.outcome: str | None = None
+        self.busy = False
+        self.closing = threading.Event()  # set with `ended`: stops a running turn
+        self.done = threading.Event()  # the ending has finished; everything is released
+        self.turn_thread: int | None = None
+        self.ending_thread: int | None = None
+        self.called = False  # a turn's export was called
+        self.sound = False  # the last turn's export returned: the interpreter is safe to enter
+        self.needs_initialize = False
+        self.opened = 0.0
+        self.last_end = 0.0
+        self.idle_s: float | None = None
+        self.lifetime_s: float | None = None
+        self.shutdown_s = 0.0
+        self.c: dict[str, Any] = {}
+        self.wt: Any = None
+        self.engine: Any = None
+        self.store: Any = None
+        self.exports: Any = None
+        self.keys: tuple[int, int] = (0, 0)
+        self.table: Any = None
+        self.host: Host | None = None
+        self.metered = False
+        self.origin_ns = 0
+        self.bounded: Any = None
+        self.private_loop: Any = None
+        self.scratch: _Private | None = None
+        self.private: _Private | None = None
+        self.walked: list[_Walked] = []
+        self.home: tuple[str, Path | None, int | None] | None = None
+        self.counted = False
+
+
+_sessions_lock = threading.Lock()
+_sessions: weakref.WeakSet[_State] = weakref.WeakSet()
+# enabled: the judge may open sessions without the thread; paused: it may drive `_reap` alone.
+_reaper: dict[str, Any] = {
+    "thread": None,
+    "stop": False,
+    "enabled": True,
+    "paused": False,
+    "hooked": False,
+}
+_reaper_queue: queue.SimpleQueue[Any] = queue.SimpleQueue()
+_WAKE = object()
+_dropped: collections.deque[_State] = collections.deque()  # taken from the queue, not yet ended
+_closers_lock = threading.Lock()
+_closers: set[threading.Thread] = set()
+
+
+def _wake_reaper() -> None:
+    _reaper_queue.put(_WAKE)
+
+
+def _take_dropped() -> list[_State]:
+    """Every dropped session the reaper has been told of and not yet ended, in order."""
+    out = []
+    while True:
+        try:
+            item = _reaper_queue.get_nowait()
+        except queue.Empty:
+            break
+        if isinstance(item, _State):
+            _dropped.append(item)
+    while _dropped:
+        out.append(_dropped.popleft())
+    return out
+
+
+def _collected(state: _State) -> None:
+    """The collector's finalizer for a dropped session: no lock, nothing closed; the state goes
+    to the reaper, which ends it on its own thread (the review's F9, the Confirmation's N2)."""
+    if not _fork["forked"]:
+        _reaper_queue.put(state)
+
+
+def _due(state: _State) -> tuple[float, str] | None:
+    """The first moment one of the session's bounds passes, and which; None for no bound."""
+    due = []
+    if state.idle_s is not None:
+        due.append((state.last_end + state.idle_s, "idle"))
+    if state.lifetime_s is not None:
+        due.append((state.opened + state.lifetime_s, "lifetime"))
+    return min(due) if due else None
+
+
+def _mark(state: _State, reason: str) -> bool:
+    """Under the state's lock: set `ended` once, by the first cause; True if this call set it."""
+    if state.ended is not None:
+        return False
+    state.ended = reason
+    state.closing.set()
+    return True
+
+
+def _start_closer(state: _State) -> None:
+    """Run an ending the runner starts itself on a closer thread of its own (Decision 8)."""
+    thread = threading.Thread(
+        target=_end_quietly, args=(state,), name="wasi-python-session-closer", daemon=True
+    )
+    with _closers_lock:
+        _closers.add(thread)
+    thread.start()
+
+
+def _end_quietly(state: _State) -> None:
+    try:
+        _end_session(state)
+    except BaseException:
+        pass  # a closer has no caller: the outcome records the stop
+    finally:
+        with _closers_lock:
+            _closers.discard(threading.current_thread())
+
+
+_start_ending: Callable[[_State], None] = _start_closer  # injected by the judge (criterion 7)
+
+
+def _reap(now: float) -> float | None:
+    """The reaper's one step: end every session whose bound has passed at `now` and that has no
+    turn running, each ending handed to `_start_ending`; the seconds until the next is due, or
+    None when none is (Decision 9)."""
+    for item in _take_dropped():  # the collector's finalizer queued them (Decision 13)
+        _end_dropped(item)
+    with _sessions_lock:
+        states = list(_sessions)
+    wait: float | None = None
+    for state in states:
+        start = False
+        with state.lock:
+            due = _due(state)
+            if state.ended is not None or state.busy or due is None:
+                continue
+            if now >= due[0]:
+                start = _mark(state, due[1])
+            else:
+                left = due[0] - now
+                wait = left if wait is None else min(wait, left)
+        if start:
+            _start_ending(state)
+    return wait
+
+
+def _reaper_loop(
+    get: Callable[[float | None], Any] | None = None,
+    clock: Callable[[], float] | None = None,
+    rounds: int | None = None,
+) -> None:
+    """The reaper: wait on the queue until the next bound is due or a session is dropped or
+    changes, then take one step. `get` and `clock` are injected by the judge, with a number of
+    `rounds`, so it never sleeps (Decision 9)."""
+    wait: float | None = None
+    done = 0
+    while rounds is None or done < rounds:
+        done += 1
+        try:
+            item = (get or (lambda w: _reaper_queue.get(timeout=w)))(wait)
+        except queue.Empty:
+            item = _WAKE
+        if _reaper["stop"]:
+            if item is not _WAKE:
+                _reaper_queue.put(item)  # for the exit hook to drain
+            return
+        if isinstance(item, _State):
+            _dropped.append(item)  # `_reap` takes it, in order
+        if _reaper["paused"]:
+            wait = None
+            continue
+        try:
+            wait = _reap((clock or _session_clock)())
+        except BaseException:
+            wait = TICK_S  # never dies: try again soon
+
+
+def _end_dropped(state: _State) -> None:
+    with state.lock:
+        start = not state.busy and _mark(state, "closed")
+    if start:
+        _start_ending(state)
+
+
+def _ensure_reaper() -> None:
+    """The reaper thread, a daemon started with the first session, and the exit hook."""
+    with _sessions_lock:
+        if not _reaper["hooked"]:
+            atexit.register(_sessions_at_exit)  # after _release's: so it runs first
+            _reaper["hooked"] = True
+        if _reaper["enabled"] and _reaper["thread"] is None and not _reaper["stop"]:
+            thread = threading.Thread(target=_reaper_loop, name="wasi-python-reaper", daemon=True)
+            _reaper["thread"] = thread
+            thread.start()
+
+
+def _sessions_at_exit() -> None:
+    """Stop the reaper and wait for its step; end the sessions on the collector's queue and
+    every session at rest, each on its own closer, side by side; mark those whose turn still
+    runs; then wait for every ending in progress (Decision 13; the re-review's F8)."""
+    _reaper["stop"] = True
+    thread = _reaper["thread"]
+    _reaper_queue.put(_WAKE)
+    if thread is not None and thread is not threading.current_thread():
+        thread.join()
+    states: list[_State] = _take_dropped()
+    with _sessions_lock:
+        states += [s for s in _sessions if s not in states]
+    for state in states:
+        with state.lock:
+            start = _mark(state, "closed") and not state.busy
+        if start:
+            _start_closer(state)
+    for state in states:
+        state.done.wait()
+    with _closers_lock:
+        closers = list(_closers)
+    for closer in closers:
+        closer.join()
+
+
+def _end_session(state: _State) -> BaseException | None:
+    """The ending (Decision 8), on this thread, once: Python's shutdown if it applies, then
+    everything released. Returns what the embedder's code raised during it (a Ctrl-C, a
+    `BaseException`), for a caller to raise; another thread's ending returns None at once."""
+    me = threading.get_ident()
+    with state.lock:
+        if state.ending_thread is not None or state.done.is_set():
+            return None
+        state.ending_thread = me
+    outcome, raised = "skipped", None
+    try:
+        try:
+            if _shutdown_applies(state):
+                outcome, raised = _shutdown(state)
+        except BaseException as e:
+            outcome, raised = "stopped", e
+        finally:
+            _release_session(state)
+    finally:
+        with state.lock:
+            state.outcome = outcome
+        state.done.set()
+        _wake_reaper()
+    return raised
+
+
+def _shutdown_applies(state: _State) -> bool:
+    return (
+        state.called
+        and state.sound
+        and not state.busy
+        and state.shutdown_s > 0
+        and not _fork["forked"]
+        and state.store is not None
+    )
+
+
+def _ending_seconds(state: _State, now: float) -> float:
+    """The seconds the ending may run guest code: its budget, capped so it ends by the opening
+    plus the lifetime plus the budget (the re-review's F2)."""
+    end = now + state.shutdown_s
+    if state.lifetime_s is not None:
+        end = min(end, state.opened + state.lifetime_s + state.shutdown_s)
+    return end - now
+
+
+def _shutdown(state: _State) -> tuple[str, BaseException | None]:
+    """Python's shutdown through the `shutdown` export, inside the budget: ("finished" or
+    "stopped" or "skipped", what the embedder's code raised)."""
+    left = _ending_seconds(state, _session_clock())
+    if left <= 0:
+        return "skipped", None
+    ticks = max(1, math.ceil(left / TICK_S))
+    fuel = state.c["fuel"] if state.metered else None
+    call, _out, _err, tool_host = _arm(state, "ending", fuel, ticks, None, 0, None)
+    wt, store = state.wt, state.store
+    value = exited = None
+    trapped: str | None = None
+    stack = _stack()
+    stack.append(call)
+    _calls.lost = False
+    try:
+        with _epoch_ticker(state.engine, True):
+            try:
+                if _on_export is not None:
+                    _on_export("shutdown", threading.get_ident())
+                value = state.exports["shutdown"](store)
+            except wt.ExitTrap as e:
+                exited = e.code
+            except wt.Trap as e:
+                trapped = _trap_name(e)
+                e.__traceback__ = None
+            except wt.WasmtimeError as e:
+                trapped = _first_line(str(e))
+                e.__traceback__ = None
+            finally:
+                stack.pop()
+                lost, _calls.lost = getattr(_calls, "lost", False), False
+        raised: BaseException | None = None
+        cause = call.stopped
+        if lost:
+            outcome = "stopped"
+        elif cause is not None:
+            outcome = "finished" if isinstance(cause, wt.ExitTrap) else "stopped"
+            if not isinstance(cause, (wt.Trap, wt.WasmtimeError)):
+                raised = cause  # a Ctrl-C, or the embedder's own BaseException
+            cause.__traceback__ = None
+        elif call.ended is not None or trapped is not None:
+            outcome = "stopped"
+        elif exited is not None or value in (0, 120):
+            outcome = "finished"
+        else:
+            outcome = "stopped"  # a runner fault: quiet here (the re-review's N3)
+        if raised is None and not lost:
+            state.table.walk()  # spec 034's walk, its Ctrl-C check included (the re-review's F4)
+        return outcome, raised
+    finally:
+        if tool_host is not None and state.c.get("tool_loop_given") is not None:
+            tool_host.close()
+
+
+def _release_session(state: _State) -> None:
+    """Close the store and free everything the session held; never raises."""
+    steps: list[Callable[[], Any]] = []
+    if state.private_loop is not None:
+        steps.append(state.private_loop.close)
+    if state.store is not None:
+        steps.append(state.store.close)
+    steps.append(lambda: _drop_keys(state.keys))
+    if state.table is not None:
+        steps.append(state.table.release)
+    for w in state.walked:
+        steps.append(w.close)
+    if state.scratch is not None:
+        steps.append(state.scratch.remove)
+    if state.home is not None:
+        steps.append(lambda: _remove_home(state.home))
+    if state.private is not None:
+        steps.append(state.private.remove)
+    for step in steps:
+        try:
+            step()
+        except BaseException:
+            pass
+    state.store = state.exports = state.table = None
+    with _lock:
+        if state.counted:
+            _counts["sessions_open"] -= 1
+            state.counted = False
+    with _sessions_lock:
+        _sessions.discard(state)
+
+
+def _drop_keys(keys: tuple[int, int]) -> None:
+    with _outputs_lock:
+        for key in keys:
+            _outputs.pop(key, None)
+
+
+def _remove_home(home: tuple[str, Path | None, int | None]) -> None:
+    name, tmp, tmp_fd = home
+    try:
+        if tmp_fd is not None:
+            shutil.rmtree(name, ignore_errors=True, dir_fd=tmp_fd)
+        elif tmp is not None:
+            shutil.rmtree(tmp / name, ignore_errors=True)
+    finally:
+        _close(tmp_fd)
+
+
+def _arm(
+    state: _State,
+    kind: str,
+    fuel: int | None,
+    ticks: int,
+    stop: Any,
+    output_bytes: int | None,
+    loop: Any,
+) -> tuple[_Call, _Stream, _Stream, Any]:
+    """One call into the session's instance: its fuel and epoch deadline re-armed, its waits on
+    the session's clock base, fresh output streams, a frame host and mount counters of its own
+    (Decision 7, step 2)."""
+    store = state.store
+    if state.metered:
+        store.set_fuel(UNMETERED if fuel is None else fuel)
+    store.set_epoch_deadline(min(CANCEL_TICKS, ticks))  # the session's callback checks the rest
+    if _on_arm is not None:
+        _on_arm(kind, ticks)
+    stop_at = None if ticks >= NO_DEADLINE else _stop_at(_epoch_ticker.count(), ticks)
+    checks: list[Callable[[], bool]] = []
+    if stop_at is not None:
+        checks.append(lambda: _epoch_ticker.count() >= stop_at)
+    if stop is not None:
+        checks.append(stop.is_set)
+    if _ctrl_c_watched():
+        checks.append(lambda: _ctrl_c["pending"])
+    waits = _Waits(
+        lambda: time.perf_counter(),
+        time.sleep,
+        (lambda: any(check() for check in checks)) if checks else None,
+    )
+    out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
+    with _outputs_lock:
+        _outputs[state.keys[0]], _outputs[state.keys[1]] = out, err
+    host, admit, tool_host = state.host, None, None
+    if state.c.get("tools") is not None:
+        tool_host = _session_tool_host(state, stop_at, stop, loop)
+        host, admit = tool_host, tool_host.admit
+    state.table.new_turn()
+    call = _Call(store, host, waits, state.origin_ns, stop, stop_at, state.table, admit)
+    if _on_call is not None:
+        _on_call(kind, call)
+    return call, out, err, tool_host
+
+
+def _session_tool_host(state: _State, stop_at: int | None, stop: Any, loop: Any) -> Any:
+    """A frame host per turn; one bound per session, so abandoned tool threads are counted
+    across its turns; one private tool loop per session for its synchronous turns, or the
+    caller's loop for a turn by run_async (Decision 5, Decision 11)."""
+    from .tools import _ToolHost, _ToolLoop
+
+    c = state.c
+    state.bounded.rearm(stop_at, stop)
+    if loop is not None:
+        tool_loop = _ToolLoop(loop, count=_count_tool_threads)
+    else:
+        if state.private_loop is None:
+            state.private_loop = _ToolLoop(None, count=_count_tool_threads)
+        tool_loop = state.private_loop
+    return _ToolHost(
+        c["tools"],
+        gate=c["gate"],
+        max_calls=c["tool_calls"],
+        invoke=state.bounded,
+        tool_loop=tool_loop,
+        max_bytes=c.get("tool_request_bytes"),
+    )
+
+
+class _TurnDone(NamedTuple):
+    completed: Completed
+    cause: str | None  # what ends the session, if the turn does
+    returned: bool  # the export returned a status: the interpreter is sound
+
+
+def _drive_turn(
+    state: _State, call: _Call, data: bytes
+) -> tuple[int | None, int | None, str | None, bool]:
+    """(the export's value, an exit code, a trap's name, whether guest code ran), on this
+    thread's stack, by `_drive`'s rules (Decision 7, steps 3 and 4)."""
+    wt, store, exports = state.wt, state.store, state.exports
+    value = exit_code = None
+    trapped: str | None = None
+    stack = _stack()
+    stack.append(call)
+    _calls.lost = False
+    try:
+        if call.cancel is not None and call.cancel.is_set():  # before any guest code
+            return None, None, "cancelled", False
+        state.called = True
+        if state.needs_initialize:
+            state.needs_initialize = False
+            exports["_initialize"](store)
+        p = 0
+        if data:
+            p = exports["host_alloc"](store, len(data)) & MASK32
+            memory = exports["memory"]
+            if p and p + len(data) <= memory.data_len(store):
+                memory.write(store, data, p)
+            else:
+                p = 0  # the guest raises MemoryError for its code
+        if _on_export is not None:
+            _on_export("turn", threading.get_ident())
+        value = exports["turn"](store, p, len(data))
+    except wt.ExitTrap as e:
+        exit_code = e.code
+    except wt.Trap as e:
+        trapped = _trap_name(e)
+        e.__traceback__ = None
+    except wt.WasmtimeError as e:
+        trapped = _first_line(str(e))
+        e.__traceback__ = None
+    finally:
+        stack.pop()
+        lost, _calls.lost = getattr(_calls, "lost", False), False
+    if lost:
+        raise RuntimeError("wasi_python lost track of a call")
+    cause = call.stopped
+    if cause is not None:
+        value = exit_code = trapped = None
+        if isinstance(cause, wt.ExitTrap):
+            exit_code = cause.code
+        elif isinstance(cause, wt.Trap):
+            trapped = _trap_name(cause)
+        elif isinstance(cause, wt.WasmtimeError):
+            trapped = _first_line(str(cause))
+        else:
+            raise cause
+        cause.__traceback__ = None
+    elif call.ended is not None:
+        value, exit_code, trapped = None, None, call.ended
+    return value, exit_code, trapped, True
+
+
+def _turn_inside(
+    state: _State,
+    data: bytes,
+    fuel: int | None,
+    deadline_s: float | None,
+    output_bytes: int | None,
+    cancel: threading.Event | None,
+    loop: Any,
+) -> _TurnDone:
+    own = NO_DEADLINE if deadline_s is None else max(1, math.ceil(deadline_s / TICK_S))
+    ticks, capped = own, False
+    if state.lifetime_s is not None:  # the lifetime caps the turn's deadline (the review's F4)
+        left = state.opened + state.lifetime_s - _session_clock()
+        cap = max(1, math.ceil(left / TICK_S))
+        if cap < own:
+            ticks, capped = cap, True
+    stop = _Either(cancel, state.closing)
+    call, out, err, tool_host = _arm(state, "turn", fuel, ticks, stop, output_bytes, loop)
+    try:
+        with _epoch_ticker(state.engine, True):
+            value, exit_code, trapped, ran = _drive_turn(state, call, data)
+        if _after_export is not None:
+            _after_export()
+        returned = value is not None
+        cause: str | None = None
+        if returned:
+            if not -1 < value <= 511:  # the C side owns the range (Decision 2)
+                raise RuntimeError("wasi_python lost track of a session")
+            exit_code = value & 0xFF
+            if value >= 256:
+                cause = "quit"
+        elif exit_code is not None:
+            cause = "exit"
+        elif trapped is not None and ran:
+            cause = "lifetime" if trapped == "deadline" and capped else trapped
+        fuel_used = None
+        if ran and state.metered:
+            budget = UNMETERED if fuel is None else fuel
+            done = _Driven(exit_code, trapped, True, None)
+            fuel_used = _fuel_used(budget, done, call, state.store.get_fuel)
+        if ran:
+            state.table.walk()  # spec 034, Decision 8, after the fuel is read
+        files = state.table.record() if state.c.get("mounts") else None
+        record = None if tool_host is None else tool_host.record
+        truncated = tuple(s.name for s in (out, err) if s.dropped)
+        completed = Completed(
+            exit_code,
+            bytes(out.data),
+            bytes(err.data),
+            trapped,
+            fuel_used,
+            truncated,
+            files,
+            record,
+        )
+        return _TurnDone(completed, cause, returned)
+    finally:
+        if tool_host is not None:
+            if loop is not None:
+                tool_host.close()  # the caller's loop: the runner's tasks asked to cancel
+            elif state.private_loop is not None:
+                state.private_loop.cancel_tasks()  # the session's loop lives on (spec 053)
+
+
+def _session_turn(
+    state: _State,
+    data: bytes,
+    fuel: int | None,
+    deadline_s: float | None,
+    output_bytes: int | None,
+    cancel: threading.Event | None,
+    loop: Any,
+) -> Completed:
+    """A claimed turn, on this thread: run it, decide whether it ended the session, and if the
+    session has ended by its return, run the ending here (Decision 7, step 6)."""
+    done: _TurnDone | None = None
+    error: BaseException | None = None
+    try:
+        try:
+            with _deferred_ctrl_c():
+                done = _turn_inside(state, data, fuel, deadline_s, output_bytes, cancel, loop)
+        except BaseException as e:
+            error = e
+        with state.lock:
+            if error is not None:
+                state.sound = False  # whatever the export returned: no shutdown (F3's error row)
+                _mark(state, "error")
+            elif done is not None:
+                if done.returned:
+                    state.sound = True
+                elif done.completed.fuel_used is not None or done.cause is not None:
+                    state.sound = False
+                if done.cause in ("exit", "quit") or done.completed.trapped is not None:
+                    if done.completed.trapped is not None and done.cause is None:
+                        pass  # a cancel set before any guest code: the session is untouched
+                    else:
+                        state.sound = done.returned
+                if done.cause is not None:
+                    _mark(state, done.cause)
+                elif (
+                    state.lifetime_s is not None
+                    and _session_clock() >= state.opened + state.lifetime_s
+                ):
+                    _mark(state, "lifetime")
+            state.busy = False
+            state.turn_thread = None
+            state.last_end = _session_clock()
+            ended = state.ended is not None
+        if ended:
+            raised = _end_with_ctrl_c(state)
+            if error is None and raised is not None:
+                error = raised
+    finally:
+        _wake_reaper()
+    if error is not None:
+        raise error
+    assert done is not None
+    return done.completed
+
+
+def _end_with_ctrl_c(state: _State) -> BaseException | None:
+    """The ending on this thread, with Ctrl-C deferred as for a turn; what it raised, if any."""
+    try:
+        with _deferred_ctrl_c():
+            raised = _end_session(state)
+    except BaseException as e:
+        return e
+    return raised
+
+
+def _open_session(
+    wt: Any,
+    c: dict[str, Any],
+    host: Host | None,
+    snapshot: bool,
+    cache_dir: Any,
+    artifacts: Artifacts | None,
+    state: _State,
+) -> None:
+    """Decision 6: find the set and refuse one without the session exports, walk and judge the
+    folders, make the store and instantiate it; no guest code runs."""
+    found = artifacts if artifacts is not None else find_artifacts()
+    from . import ArtifactsMissing
+
+    if c.get("tools") is not None and not _has_guest_package(found.manifest):
+        raise ArtifactsMissing(
+            f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
+            "predates the tool protocol (spec 031), so its guest cannot `from host import "
+            "tools`; tools= needs a set built with the guest package"
+        )
+    cache = _cache_dir(cache_dir)
+    binary = found.snapshot if snapshot else found.plain
+    metered = c["fuel"] is not None
+    engine = _engine(metered)
+    module = _module(engine, metered, binary, cache)
+    names = {e.name for e in module.exports}
+    missing = [n for n in SESSION_EXPORTS if n not in names]
+    if missing:
+        raise ArtifactsMissing(
+            f"{binary} does not export {' or '.join(missing)}: this artifact set predates "
+            "sessions (spec 055); a Session needs a set built with them"
+        )
+    root = c["root"]
+    entries, serving = c.get("import_path", ()), c.get("import_serving", ())
+    walked_root, walked = _walk_grants(root, c["grants"], found, cache, entries, serving)
+    state.walked = [w for w in [walked_root, *(w for _, _, w in walked)] if w is not None]
+    preopens: list[_Preopen] = []
+    try:
+        root_path, state.private = _preopens(found, root, walked_root, walked, preopens)
+        state.walked += [p.walked for p in preopens]
+        mounts: tuple[Mount, ...] = c.get("mounts", ())
+        tmp, tmp_fd = _home_folder(root_path, preopens, tuple(m.guest for m in mounts))
+        home_guest = None
+        if tmp is not None:
+            name = f".home-{secrets.token_hex(16)}"
+            try:
+                if tmp_fd is not None:
+                    os.mkdir(name, dir_fd=tmp_fd)
+                else:
+                    (tmp / name).mkdir()
+            except BaseException:
+                _close(tmp_fd)
+                raise
+            state.home = (name, tmp, tmp_fd)
+            home_guest = f"/tmp/{name}"
+        store = state.store = wt.Store(engine)
+        if metered:
+            store.set_fuel(UNMETERED)  # instantiation's own memory fill (spec 008)
+        if c["memory_bytes"] is not None:
+            store.set_limits(memory_size=c["memory_bytes"])
+        wasi = wt.WasiConfig()
+        state.origin_ns = time.perf_counter_ns()  # the session's clock base (the review's F6)
+        wasi.argv = [ARGV0, *entries]
+        fresh = {} if home_guest is None else {"HOME": home_guest}
+        wasi.env = sorted({**BASE_ENV, **fresh, **(c["env"] or {})}.items())
+        state.keys = _send_outputs(wasi, _Stream("stdout", 0), _Stream("stderr", 0))
+        scratch = state.scratch = _Private("wasi-python-")
+        mounted: list[_Preopen] = []
+        if mounts:
+            placeholder = scratch.path / "mount"
+            placeholder.mkdir()
+            for i, mount in enumerate(mounts):
+                w = _walk("", str(placeholder), judge=False)
+                state.walked.append(w)
+                mounted.append(_Preopen(f"mounts[{i}] at {mount.guest}", w, mount.guest, False))
+        every = [*preopens, *mounted]
+        for p in every:
+            wasi.preopen_dir(p.walked.path, p.guest, p.writable)
+        stdin_path = scratch.path / "stdin"
+        stdin_path.write_bytes(b"")
+        wasi.stdin_file = str(stdin_path)
+        store.set_wasi(wasi)
+        linker = _linker(wt, engine)
+        from .mounts import _Files
+
+        staging = STAGING_CEILING if c["memory_bytes"] is None else c["memory_bytes"]
+        others = [p.guest for p in preopens]
+        if mounts:
+            guest_linker = _mount_linker(wt, engine)
+            first = 3 + len(preopens)
+            numbers = [(mount, first + i) for i, mount in enumerate(mounts)]
+        else:
+            guest_linker = _guard_linker(wt, engine)
+            numbers = []
+        table = state.table = _Files(
+            numbers,
+            others,
+            c["file_calls"],
+            staging,
+            metered,
+            engine,
+            open_files=c["open_files"],  # spec 068, per session: the store keeps them (Decision 5)
+        )
+        table.session = True
+        store.set_epoch_deadline(NO_DEADLINE)  # no guest code runs before the first turn
+        _watch(store)  # every turn can be stopped by a close (Decision 6)
+        check = _check_module(wt, engine, metered)
+        _check_preopens(wt, linker, store, check, every)  # spec 017, Decision 5; once
+        instance = guest_linker.instantiate(store, module)
+        table.bind(wt, store, linker, instance)
+        state.exports = instance.exports(store)
+        state.needs_initialize = "_initialize" in state.exports
+        state.wt, state.engine, state.metered = wt, engine, metered
+        if c.get("tools") is not None:
+            from .tools import _Bounded
+
+            state.bounded = _Bounded(
+                tick_s=TICK_S,
+                ticks=lambda: _epoch_ticker.count(),
+                ctrl_c=_ctrl_c_now,
+                count=_count_tool_threads,
+            )
+    except BaseException:
+        _release_session(state)
+        raise
+
+
+class Session:
+    """One instance of the runtime kept across several calls, each a turn: variables, functions
+    and imports made in one turn are there in the next.
+
+    A session is opened by the constructor and ended by `close()`, by leaving a `with` block, by
+    its idle bound or lifetime, by a turn that traps, calls `os._exit` or calls `exit()` or
+    `quit()`, or by a turn the runner stops. A turn's exception, its `sys.exit()` and a full heap
+    do not end it. When a session closed or expired at rest ends, it runs Python's shutdown, as a
+    Jupyter kernel does: `atexit` handlers, then the interpreter's finalization, which flushes the
+    files it closes, inside `shutdown_s` seconds and, in a metered session, its `fuel`; past
+    them it is simply stopped. A session stopped mid-turn runs no shutdown. Either way its store
+    and folders are released once its ending finishes.
+
+    A session is one trust domain: a turn's output and exit status are only as trustworthy as
+    the least trusted turn before it. Write and close files within a turn.
+
+    Use it as a context manager::
+
+        with Session(grants=[Grant("data", "/data")]) as session:
+            session.run("import pandas as pd; df = pd.read_csv('/data/sales.csv')")
+            done = session.run("df.groupby('region').total.sum()")
+    """
+
+    def __init__(
+        self,
+        *,
+        root: str | os.PathLike[str] | bool | None = False,
+        grants: Iterable[Grant] = (),
+        mounts: Iterable[Mount] = (),
+        import_path: Iterable[str] = (),
+        env: Mapping[str, str] | None = None,
+        host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+        snapshot: bool = True,
+        fuel: int | None = None,
+        deadline_s: float | None = _UNSET,
+        memory_bytes: int | None = _UNSET,
+        output_bytes: int | None = _UNSET,
+        cache_dir: str | os.PathLike[str] | None | bool = None,
+        artifacts: Artifacts | None = None,
+        max_file_calls: int | None = _UNSET,
+        tools: Iterable[Tool | Callable[..., Any]] | None = None,
+        gate: Callable[[ToolCall], Any] | None = None,
+        max_tool_calls: int | None = _UNSET,
+        max_tool_request_bytes: int | None = _UNSET,
+        max_open_files: int | None = _UNSET,
+        idle_s: float | None = _UNSET,
+        lifetime_s: float | None = _UNSET,
+        shutdown_s: float = _UNSET,
+    ) -> None:
+        """Open a session: check every argument, find the artifact set, make the folders and
+        the store, and instantiate the guest. No guest code runs until the first turn.
+
+        Args:
+            root: The host folder the guest sees as /, writable, made if missing. `False` or
+                `None` (the default) gives no / and nothing writable; `True` gives a fresh
+                private folder, removed when the session ends.
+            grants: Host folders the guest sees at their guest paths, each a `Grant`, read-only
+                unless it says `writable=True`. The stdlib zip is always granted, read-only, at
+                /usr/local/lib.
+            mounts: Providers whose files the guest sees at their guest paths, each a `Mount`,
+                served from your code, read-only unless it says `writable=True`.
+            import_path: Guest paths put on the guest's `sys.path` after the stdlib zip, in order:
+                each a folder or a zip file inside a read-only grant. The root, a writable grant or
+                a mount may not serve one, no writable grant or mount may lie under one, and no
+                writable grant or root may lie inside the grant serving one.
+            env: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH=
+                empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session
+                where /tmp is writable.
+            host: The door's host function: called with each request's bytes, it returns the
+                response's. It must answer synchronously: an async one raises `TypeError`.
+                Excludes `tools`.
+            snapshot: `True` runs the snapshot binary, with the stack pre-imported; `False`
+                the plain reactor.
+            fuel: Each turn's cap on the guest's executed instructions, unless the turn passes
+                its own; past it the turn ends "out of fuel", which ends the session. A session
+                given a number is metered; `None` (the default) is unmetered, and its turns
+                report no fuel.
+            deadline_s: Each turn's wall-clock seconds, unless the turn passes its own; past
+                them the turn ends "deadline". Default: `defaults().deadline_s`, 60. `None`
+                means no limit but the lifetime's.
+            memory_bytes: The most linear memory the guest may hold, in bytes, for the whole
+                session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
+            output_bytes: The most bytes kept per stream in each turn, unless the turn passes
+                its own; the rest are dropped and the stream named in `truncated`. Default:
+                `defaults().output_bytes`, 16 MiB. `None` means no limit.
+            cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
+                write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
+                `False` keeps them in this process only, never on disk.
+            artifacts: The artifact set to run; `None` finds it with `artifacts()`.
+            max_file_calls: The most provider calls each turn with mounts makes; then it ends
+                "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no
+                limit.
+            tools: Host functions offered to the guest through the tool protocol (`from host
+                import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes
+                through `tool()`. A tool may be async: under `run` it is awaited on one loop of
+                the session's own for all its turns, under `run_async` on the event loop that
+                awaits it. Fixed for the session. Excludes `host`.
+            gate: Called with a `ToolCall` before each tool runs. It allows by returning `None`
+                or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be
+                async, as a tool may. Needs `tools`.
+            max_tool_calls: The most tool-protocol frames each turn answers; the guest gets
+                `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000.
+                `None` means no limit. Needs `tools`.
+            max_tool_request_bytes: The most bytes of tool-protocol requests each turn reads,
+                counted from each frame's length before it is read; a frame that would pass it
+                is refused unread. Default: `defaults().tool_request_bytes`, 16 MiB. `None`
+                means no limit. Needs `tools`.
+            max_open_files: The most files and folders the guest holds open at once, in grants,
+                the root and mounts alike, counted across the session's turns and its ending,
+                since its store keeps them; past it an open answers `EMFILE` and the guest runs
+                on. 0 refuses every open, the stdlib's included. It protects your process only
+                within the process's own soft descriptor limit. Default:
+                `defaults().open_files`, 1,024. `None` means no limit.
+            idle_s: The longest the session may rest between turns; then it ends "idle".
+                Default: `defaults().session_idle_s`, 900. `None` means no bound.
+            lifetime_s: How long after the opening the session's turns may run: no turn starts
+                at or after it, and each turn's deadline is capped at what is left; then it ends
+                "lifetime". Default: `defaults().session_lifetime_s`, 3,600. `None` means no
+                bound.
+            shutdown_s: The seconds the session's ending has to run Python's shutdown, capped
+                so it ends by the opening plus the lifetime plus this; past it the session is
+                stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown;
+                `None` is refused.
+
+        Raises:
+            TypeError: An argument has the wrong type; raised before any work.
+            ValueError: An argument is out of range; raised before any work.
+            ArtifactsMissing: There is no usable artifact set, or it predates sessions.
+            ImportError: wasmtime-py cannot load; its own error is chained as the cause.
+            OSError: A host filesystem call failed while the root, the private folders, the
+                zip's copy or the cache was prepared.
+            RuntimeError: This process was forked after it ran a guest; or a folder or the zip's
+                copy changed between the runner's check and its use.
+            wasmtime.WasmtimeError: Today, for a folder removed between the runner's check and
+                wasmtime's own open. The type is wasmtime-py's and is not promised.
+        """
+        _refuse_forked()
+        wt = _wasmtime()
+        limits = _current_defaults()
+        c = _checked(
+            [],
+            env,
+            None,
+            fuel,
+            deadline_s,
+            memory_bytes,
+            output_bytes,
+            None,
+            host=host,
+            tools=tools,
+            gate=gate,
+            max_tool_calls=max_tool_calls,
+            max_tool_request_bytes=max_tool_request_bytes,
+            root=root,
+            grants=grants,
+            mounts=mounts,
+            max_file_calls=max_file_calls,
+            import_path=import_path,
+            max_open_files=max_open_files,
+            limits=limits,
+        )
+        state = _State()
+        state.idle_s = _seconds_limit(
+            "idle_s", limits.session_idle_s if idle_s is _UNSET else idle_s
+        )
+        state.lifetime_s = _seconds_limit(
+            "lifetime_s", limits.session_lifetime_s if lifetime_s is _UNSET else lifetime_s
+        )
+        state.shutdown_s = _shutdown_limit(
+            "shutdown_s", limits.session_shutdown_s if shutdown_s is _UNSET else shutdown_s
+        )
+        if not isinstance(snapshot, bool):
+            raise TypeError(f"snapshot must be a bool; got {type(snapshot).__name__}")
+        state.c, state.host = c, host
+        self._state = state
+        _open_session(wt, c, host, snapshot, cache_dir, artifacts, state)
+        state.opened = state.last_end = _session_clock()
+        with _lock:
+            _counts["sessions_open"] += 1
+            state.counted = True
+        with _sessions_lock:
+            _sessions.add(state)
+        self._finalizer = weakref.finalize(self, _collected, state)
+        self._finalizer.atexit = False  # the exit hook ends sessions (Decision 13)
+        _ensure_reaper()
+        _wake_reaper()
+
+    def __enter__(self) -> Session:
+        """Enter a `with` block; the session is closed when the block is left.
+
+        Returns:
+            This session.
+        """
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        """Close the session as the `with` block is left, however it is left.
+
+        Args:
+            exc: The exception leaving the block, if any; it is never suppressed.
+        """
+        self.close()
+
+    @property
+    def ended(self) -> str | None:
+        """`None` while the session can run turns; once it cannot, why: "closed", "idle",
+        "lifetime", "quit" (a turn called `exit()` or `quit()`), "exit" (a turn called
+        `os._exit`), "error" (a turn raised in your process), or the stopped turn's `trapped`.
+        Set once, and never changed."""
+        return self._state.ended
+
+    @property
+    def shutdown_outcome(self) -> str | None:
+        """`None` until the session's ending has finished; then "finished" (Python's shutdown
+        ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no
+        shutdown ran: the session was stopped mid-turn, no turn ever ran, or `shutdown_s` was
+        0). `close()` waits for the ending."""
+        return self._state.outcome
+
+    def _turn_args(
+        self, code: Any, fuel: Any, deadline_s: Any, output_bytes: Any, cancel: Any
+    ) -> tuple[bytes, int | None, float | None, int | None]:
+        text = _text("code", code)
+        data = str.encode(text, "utf-8")
+        if len(data) > MAX_TURN_BYTES:
+            raise ValueError(f"code must be at most {MAX_TURN_BYTES} bytes as UTF-8")
+        c = self._state.c
+        if fuel is _UNSET:
+            fuel = c["fuel"]
+        elif fuel is not None and c["fuel"] is None:
+            _integer_limit("fuel", fuel)
+            raise ValueError(
+                "fuel= needs a metered session: open the Session with fuel= to cap its turns"
+            )
+        else:
+            fuel = _integer_limit("fuel", fuel)
+        deadline = c["deadline_s"] if deadline_s is _UNSET else _deadline_limit(deadline_s)
+        output = (
+            c["output_bytes"]
+            if output_bytes is _UNSET
+            else _integer_limit("output_bytes", output_bytes)
+        )
+        if cancel is not None and not isinstance(cancel, threading.Event):
+            raise TypeError(
+                f"cancel must be a threading.Event, or None; got {type(cancel).__name__}"
+            )
+        return data, fuel, deadline, output
+
+    def _claim(self, *, here: bool) -> None:
+        """Claim the session for one turn, or raise SessionEnded (a bound that has passed ends it
+        first: its ending runs here, or on a closer thread) or RuntimeError (a turn running)."""
+        state = self._state
+        now = _session_clock()
+        with state.lock:
+            expired = False
+            if state.ended is None:
+                due = _due(state)
+                if due is not None and now >= due[0] and not state.busy:
+                    expired = _mark(state, due[1])
+            ended = state.ended
+            if ended is None:
+                if state.busy:
+                    raise RuntimeError("a turn is already running in this session")
+                state.busy = True
+                state.turn_thread = threading.get_ident()
+                return
+        if expired:
+            if here:
+                raised = _end_with_ctrl_c(state)
+                if raised is not None:
+                    raise raised
+            else:
+                _start_closer(state)
+        raise SessionEnded(ended)
+
+    def _release_claim(self) -> None:
+        state = self._state
+        with state.lock:
+            state.busy = False
+            state.turn_thread = None
+        _wake_reaper()
+
+    def run(
+        self,
+        code: str,
+        *,
+        fuel: int | None = _UNSET,
+        deadline_s: float | None = _UNSET,
+        output_bytes: int | None = _UNSET,
+        cancel: threading.Event | None = None,
+    ) -> Completed:
+        """Run one turn of code in the session and return how it ended.
+
+        The code runs in `__main__`, as the interactive interpreter runs it: a final expression's
+        value is printed, `sys.exit()` is reported as the turn's exit status and the session
+        goes on, and `exit()` or `quit()` make the turn return their status and then end the
+        session. Nothing a guest does makes `run` raise.
+
+        Args:
+            code: The turn's source, a str.
+            fuel: This turn's cap on executed instructions in a metered session; `None` sets no
+                cap. Default: the session's.
+            deadline_s: This turn's wall-clock seconds; `None` means no limit but the
+                lifetime's. Default: the session's.
+            output_bytes: The most bytes kept per stream in this turn. Default: the session's.
+            cancel: A `threading.Event`. Once it is set and the guest runs, the turn stops
+                within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the
+                session; set before the guest runs, the turn runs nothing and the session goes
+                on.
+
+        Returns:
+            How the turn ended.
+
+        Raises:
+            TypeError: An argument has the wrong type; the session stays open.
+            ValueError: An argument is out of range; the session stays open.
+            SessionEnded: The session has ended, or its idle bound or lifetime has passed.
+            RuntimeError: A turn is already running in this session; this process was forked
+                after it ran a guest; or the runner lost track of the turn.
+            KeyboardInterrupt: Ctrl-C.
+            BaseException: One that is not an `Exception`, raised by your own host, provider,
+                tool or gate, propagates.
+        """
+        _refuse_forked()
+        data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, cancel)
+        self._claim(here=True)
+        return _session_turn(self._state, data, fuel, deadline, output, cancel, None)
+
+    async def run_async(
+        self,
+        code: str,
+        *,
+        fuel: int | None = _UNSET,
+        deadline_s: float | None = _UNSET,
+        output_bytes: int | None = _UNSET,
+        executor: concurrent.futures.Executor | None = None,
+    ) -> Completed:
+        """`run` from async code, on a worker thread, so the event loop is never blocked.
+
+        The turn is claimed before it is queued, so a second turn at once raises
+        `RuntimeError`. If the awaiting task is cancelled while the turn runs, the turn is
+        stopped, which ends the session, before `asyncio.CancelledError` is raised; a turn still
+        queued never starts, and the session is untouched.
+
+        Args:
+            code: The turn's source, a str.
+            fuel: This turn's cap on executed instructions in a metered session; `None` sets no
+                cap. Default: the session's.
+            deadline_s: This turn's wall-clock seconds; `None` means no limit but the
+                lifetime's. Default: the session's.
+            output_bytes: The most bytes kept per stream in this turn. Default: the session's.
+            executor: Where the turn runs: a `concurrent.futures.Executor` that runs callables
+                on threads of this process. `None` uses the runner's own pool.
+
+        Returns:
+            How the turn ended.
+
+        Raises:
+            TypeError: An argument has the wrong type; the session stays open.
+            ValueError: An argument is out of range; the session stays open.
+            SessionEnded: The session has ended, or its idle bound or lifetime has passed.
+            RuntimeError: A turn is already running in this session; this process was forked
+                after it ran a guest; the interpreter is shutting down; or the runner lost
+                track of the turn.
+            asyncio.CancelledError: The awaiting task was cancelled.
+            BaseException: One that is not an `Exception`, raised by your own host, provider,
+                tool or gate, propagates.
+        """
+        import asyncio
+        import contextvars
+
+        _refuse_forked()
+        data, fuel, deadline, output = self._turn_args(code, fuel, deadline_s, output_bytes, None)
+        _check_executor(executor)
+        loop = asyncio.get_running_loop()
+        _register_exit_hook()
+        self._claim(here=False)
+        event = threading.Event()
+        state = self._state
+        try:
+            with _live_lock:
+                if _hook["exiting"]:
+                    raise RuntimeError("cannot schedule new futures after interpreter shutdown")
+                _live.add(event)
+            work = contextvars.copy_context().run
+            args = (_session_turn, state, data, fuel, deadline, output, event, loop)
+            future = _submit(executor, work, *args)
+        except BaseException:
+            with _live_lock:
+                _live.discard(event)
+            self._release_claim()
+            raise
+        try:
+            try:
+                return await asyncio.wrap_future(future)
+            except asyncio.CancelledError:
+                if future.cancel():  # still queued: it never starts, the session is untouched
+                    self._release_claim()
+                    raise
+                event.set()
+                while not future.done():
+                    try:
+                        await asyncio.wrap_future(future)
+                    except BaseException:
+                        pass
+                raise
+        finally:
+            with _live_lock:
+                _live.discard(event)
+
+    def close(self) -> None:
+        """End the session, run its ending, and return once its store is closed.
+
+        A turn running on another thread is stopped first, and `close()` waits for it, and for
+        the ending, which runs Python's shutdown when the session was at rest (at most its
+        `shutdown_s` of guest code, plus any call of your own code it makes). It blocks, so
+        from a coroutine it blocks the event loop. Called from inside the session's own turn or
+        ending (a host function or a provider), it marks the session and returns at once.
+        Calling it again does nothing.
+
+        Raises:
+            KeyboardInterrupt: Ctrl-C during the ending, raised once the session is closed.
+            BaseException: One that is not an `Exception`, raised by your own host, provider,
+                tool or gate during the ending, raised once the session is closed.
+        """
+        state = self._state
+        if _fork["forked"]:  # the store and folders are the parent's: touch nothing (lock-free)
+            if state.ended is None:
+                state.ended = "closed"
+            if state.outcome is None:
+                state.outcome = "skipped"
+            return
+        me = threading.get_ident()
+        with state.lock:
+            here = _mark(state, "closed") and not state.busy
+            if state.turn_thread == me or state.ending_thread == me:
+                return
+        if here or not state.busy:
+            self._finalizer.detach()
+            raised = _end_with_ctrl_c(state)
+            if raised is not None:
+                raise raised
+        state.done.wait()

@@ -678,6 +678,17 @@ class _Files:
 
     def _at_cap(self) -> bool:
         return self.open_files is not None and self.open_now() >= self.open_files
+        self.session = False  # a session's table lives across turns (spec 055, Decision 11)
+
+    def new_turn(self) -> None:
+        """A session's turn starts its counters at zero, so each turn's record and limit are its
+        own; the open files, their buffers and the owed write-backs carry over (spec 055)."""
+        self.calls = dict.fromkeys(METHODS, 0)
+        self.total = 0
+        self.faults = []
+        self.refused = []
+        self.refused_total = 0
+        self.stop_fuel = None
 
     def record(self) -> FileRecord:
         return FileRecord(
@@ -696,7 +707,11 @@ class _Files:
         fuel. Bounded by construction: at most MAX_MOUNT_FILES buffers, the staging bound in
         bytes, and the file calls left; a write-back past the limit is recorded, not made. It
         makes no call once the interpreter is exiting or a Ctrl-C is pending: no result will
-        carry a record then, and provider code must not run."""
+        carry a record then, and provider code must not run.
+
+        In a session (spec 055, Decision 11) the walk runs at every turn's ending: a write-back
+        the limit refuses is recorded and stays dirty, to be offered again at the next ending
+        (the review's F7), and an owed buffer is dropped once its write-back is made."""
         r = self._runner
         for number in sorted([*self.table, *self.owed]):
             entry = self.table[number] if number in self.table else self.owed[number]
@@ -707,9 +722,16 @@ class _Files:
             paths = (entry.path,)
             if self.limit is not None and self.total >= self.limit:
                 self._refuse(entry.mount, "write", paths, Errno.EIO, "exit", "limit")
+                if self.session:
+                    continue  # owed stays owed
             else:
                 self._made(entry.mount, "write", "exit", paths, (bytes(entry.data),))
             entry.dirty = False
+            if self.session and number in self.owed:
+                del self.owed[number]
+                self.opened -= 1
+                heapq.heappush(self.free, number)
+                self.staged -= entry.held
 
     def release(self) -> None:
         """Drop what the call held once it has ended (the build review, F3): the staged files

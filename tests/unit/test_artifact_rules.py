@@ -116,6 +116,22 @@ def good(work) -> Path:
     return good_set(work / "set")
 
 
+def test_the_session_exports_have_their_types(good, work) -> None:
+    """Spec 055, criterion 26: `turn` is (i32, i32) -> i32 and `shutdown` () -> i32; a set from
+    before sessions names both as missing."""
+    for b in ("python.wasm", "python-snapshot.wasm"):
+        assert rules.export_type_errors(good / b) == []
+    old = wat.build(work / "old", "python-snapshot.wasm", wat.BEFORE_SESSIONS)
+    assert rules.export_type_errors(old) == [
+        "python-snapshot.wasm: no function export shutdown",
+        "python-snapshot.wasm: no function export turn",
+    ]
+    assert rules.export_errors(old, rules.SNAPSHOT_EXPORTS) == [
+        "python-snapshot.wasm: no export shutdown",
+        "python-snapshot.wasm: no export turn",
+    ]
+
+
 def test_a_good_set_passes_every_rule(good) -> None:
     m = paths.parse_manifest((good / "MANIFEST").read_text())
     assert rules.complete_errors(good) == []

@@ -3,7 +3,11 @@
  *   _initialize       the reactor runtime's constructor pass (registers the builtin modules)
  *   wizer.initialize  run once by Wizer at build time: a live interpreter with the stack imported
  *   run               one program per instance: argv and the environment from WASI, then finalize
+ *   turn              one turn of a session: code from host_alloc'd memory, the interpreter kept
+ *   shutdown          a session's end: Python's own shutdown (atexit, finalization), once
  *
+ * run and turn exclude each other in one instance (spec 055, Decision 2). A turn never finalizes;
+ * only shutdown does, and after it every export refuses.
  * The argument handling is Python (recipes/reactor_bootstrap.py), compiled at build time into
  * reactor_bootstrap.h (scripts/freeze_bootstrap.py, step 60) and loaded as the module `_reactor`
  * when the interpreter starts, so no start compiles source and a snapshot carries it ready to call.
@@ -122,6 +126,17 @@ __wrap___wasi_fd_filestat_get(__wasi_fd_t fd, __wasi_filestat_t *st)
 
 static int initialized = 0;
 static int run_called = 0;
+/* Spec 055, Decision 2: a turn was called; a turn is running, or did not return (a trap or
+ * proc_exit unwinds without running C, so the flag stays set and every later turn is refused);
+ * shutdown was called. */
+static int turned = 0;
+static int in_turn = 0;
+static int shut = 0;
+static int session_set_up = 0;
+/* Strong references the C side calls through, so replacing _reactor.turn or gc.unfreeze, or
+ * deleting the module, changes nothing (spec 055, the review's F1 and the re-review's N1). */
+static PyObject *turn_function = NULL;
+static PyObject *unfreeze_function = NULL;
 
 extern unsigned char __stack_low;
 
@@ -211,6 +226,11 @@ init_interpreter(int fixed_hash_seed)
     PyObject *module = code ? PyImport_ExecCodeModule("_reactor", code) : NULL;
     Py_XDECREF(code);
     if (module == NULL) {
+        PyErr_Print();
+        abort();
+    }
+    turn_function = PyObject_GetAttrString(module, "turn");
+    if (turn_function == NULL) {
         PyErr_Print();
         abort();
     }
@@ -324,8 +344,9 @@ int
 run(void)
 {
     pinned = 0;
-    if (run_called) {
-        fputs("python.wasm: run() may be called once per instance\n", stderr);
+    if (run_called || turned) {
+        fputs("python.wasm: run() may be called once per instance, and not after turn()\n",
+              stderr);
         return 70;
     }
     run_called = 1;
@@ -354,9 +375,151 @@ run(void)
     Py_XDECREF(reactor);
     Py_XDECREF(env);
     Py_XDECREF(argv);
+    Py_CLEAR(turn_function); /* run never turns: its finalization is as before sessions */
     if (Py_FinalizeEx() < 0) {
         rc = 120;
     }
+    fflush(stdout);
+    fflush(stderr);
+    return rc;
+}
+
+/* Show a failed call's exception and drop it, never through PyErr_Print, whose handling of a
+ * pending SystemExit finalizes and exits (spec 055, the Confirmation's N1). */
+static void
+show_and_drop(void)
+{
+    PyObject *exc = PyErr_GetRaisedException();
+    if (exc != NULL) {
+        PyErr_DisplayException(exc);
+        Py_DECREF(exc);
+    }
+    PyErr_Clear();
+}
+
+/* An int's low byte, with no overflow path: a huge or negative guest-made int leaves no exception
+ * pending (spec 055, the re-review's C1). The caller has checked PyLong_Check. */
+static int
+low_byte(PyObject *value)
+{
+    unsigned long bits = PyLong_AsUnsignedLongMask(value);
+    PyErr_Clear();
+    return (int)(bits & 0xFF);
+}
+
+/* The bootstrap's result read with no guest code run: an int is its low byte; an exact 2-tuple
+ * (status, quit) is the status's low byte, plus 256 when quit is True itself; anything else is 1
+ * (spec 055, Decision 2). */
+static int
+turn_status(PyObject *result)
+{
+    if (PyLong_Check(result)) {
+        return low_byte(result);
+    }
+    if (PyTuple_CheckExact(result) && PyTuple_GET_SIZE(result) == 2
+        && PyLong_Check(PyTuple_GET_ITEM(result, 0))) {
+        int status = low_byte(PyTuple_GET_ITEM(result, 0));
+        return PyTuple_GET_ITEM(result, 1) == Py_True ? status + 256 : status;
+    }
+    return 1;
+}
+
+/* One turn of a session (spec 055, Decision 2): the code is `len` bytes of UTF-8 at `ptr`, a
+ * buffer from host_alloc that this function frees on every path. Returns the turn's exit status
+ * (0 to 255), 256 plus it when the turn called exit() or quit(), or -1 for a refusal, which runs
+ * no Python. A NULL pointer with a length above 0 is the host's out-of-memory: a MemoryError in
+ * the guest. */
+__attribute__((export_name("turn")))
+int
+reactor_turn(int32_t ptr, int32_t len)
+{
+    pinned = 0;
+    char *code = (char *)(uintptr_t)(uint32_t)ptr;
+    if (run_called || in_turn || shut || len < 0) {
+        free(code);
+        return -1;
+    }
+    in_turn = 1;
+    turned = 1;
+    if (!initialized) {
+        init_interpreter(0); /* the plain reactor: a random hash secret, as CPython has */
+    }
+    if (unfreeze_function == NULL) {
+        /* The first turn, before any Python runs (the re-review's N1): not in init_interpreter,
+         * which would put gc in every plain run's sys.modules. */
+        PyObject *gc = PyImport_ImportModule("gc");
+        unfreeze_function = gc != NULL ? PyObject_GetAttrString(gc, "unfreeze") : NULL;
+        Py_XDECREF(gc);
+        PyErr_Clear();
+    }
+    PyObject *source = NULL;
+    if (code != NULL || len == 0) {
+        source = PyBytes_FromStringAndSize(code != NULL ? code : "", (Py_ssize_t)len);
+        PyErr_Clear(); /* no memory for the copy: the turn's MemoryError below */
+    }
+    free(code); /* copy, then free, before any Python runs */
+    if (source == NULL) {
+        source = Py_NewRef(Py_None);
+    }
+    PyObject *environ = NULL;
+    if (!session_set_up) {
+        session_set_up = 1;
+        PyObject *argv = read_argv();
+        PyObject *env = read_environ();
+        environ = (argv != NULL && env != NULL) ? PyTuple_Pack(2, argv, env) : NULL;
+        Py_XDECREF(argv);
+        Py_XDECREF(env);
+        if (environ == NULL) {
+            PyErr_Clear();
+            environ = PyTuple_Pack(2, Py_None, Py_None);
+        }
+    }
+    else {
+        environ = Py_NewRef(Py_None);
+    }
+    int rc = 1;
+    PyObject *result = NULL;
+    if (environ != NULL && turn_function != NULL) {
+        result = PyObject_CallFunctionObjArgs(turn_function, source, environ, NULL);
+    }
+    if (result != NULL) {
+        rc = turn_status(result);
+        Py_DECREF(result);
+    }
+    else {
+        show_and_drop();
+    }
+    Py_XDECREF(environ);
+    Py_DECREF(source);
+    fflush(stdout);
+    fflush(stderr);
+    in_turn = 0;
+    return rc;
+}
+
+/* A session's end (spec 055, Decisions 2 and 8): Python's normal shutdown, once, in an instance
+ * whose last turn returned. gc.unfreeze() first, so a snapshot's frozen heap is finalized as
+ * CPython's own (the memo's section 8, P10b and P12). Returns 0, or 120 when finalization
+ * reported an error, as run does; -1 for a refusal, which runs no Python. */
+__attribute__((export_name("shutdown")))
+int
+reactor_shutdown(void)
+{
+    pinned = 0;
+    if (!turned || in_turn || shut) {
+        return -1;
+    }
+    shut = 1;
+    if (unfreeze_function != NULL) {
+        PyObject *done = PyObject_CallNoArgs(unfreeze_function);
+        if (done == NULL) {
+            show_and_drop();
+        }
+        Py_XDECREF(done);
+    }
+    Py_CLEAR(unfreeze_function);
+    Py_CLEAR(turn_function);
+    int rc = Py_FinalizeEx() < 0 ? 120 : 0;
     fflush(stdout);
     fflush(stderr);
     return rc;

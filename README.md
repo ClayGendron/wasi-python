@@ -1246,6 +1246,24 @@ Any other embedder does the same three things:
    once per instance, with argv (`argv[0]` is `/usr/local/bin/python.wasm`)
    and the environment given through WASI. `run` returns the exit status.
 
+An embedder that keeps an instance across turns, as `Session` does, calls the
+export **`turn(ptr, len) -> i32`** instead of `run`, once per turn: it writes
+the turn's source as UTF-8 into a buffer from `host_alloc` (which `turn` frees
+on every path) and passes its address and length; a NULL address with a length
+above 0 means it had no memory for the code, which the guest raises as
+`MemoryError`. `turn` returns the exit status (0 to 255), 256 plus it when the
+turn called `exit()` or `quit()`, or −1 for a refusal, which runs no Python: a
+call after `run`, during a turn, after a turn that trapped or exited, or with a
+negative length. `run` and `turn` exclude each other in one instance. Re-arm
+fuel and the deadline before each turn; never call `turn` again after a trap
+or `proc_exit`. WASI argv after `argv[0]` may hold only absolute guest paths of
+read-only folders, which the first turn puts on `sys.path`. To end such an
+instance as Python ends, call **`shutdown() -> i32`** once, at rest, after a
+turn that returned, under a deadline: it runs `atexit` and finalizes, and
+returns 0, or 120 when finalization reported an error; then never call the
+instance again. It refuses (−1) in an instance where no turn ran, during a
+turn, after a turn that trapped, or a second time.
+
 The import path holds only the stdlib zip. A host that adds entries should add
 read-only ones only, after the zip; since it owns argv, it may do it as the
 runner does, with a `-c` prelude that extends `sys.path` and then calls
@@ -1666,6 +1684,147 @@ def search_mail(**args):
 `stubs(tools)` renders each tool as the `def` line and docstring the guest's
 function carries, under `from host import tools`, for a prompt.
 
+### Sessions
+
+A `Session` keeps one instance of the runtime across several calls, each a
+**turn**: variables, functions, classes and imports made in one turn are there
+in the next. A turn costs a small fraction of a fresh `run` (a trivial one
+about 175,000 instructions against about 82 million). A session is not a
+shell: it runs the code you send it, one turn at a time, and keeps nothing
+once it ends.
+
+```python
+from wasi_python import Grant, Session
+
+with Session(grants=[Grant("data", "/data")]) as session:
+    session.run("import pandas as pd; df = pd.read_csv('/data/sales.csv')")
+    done = session.run("df.groupby('region').total.sum()")
+    done.stdout          # the echoed Series
+    session.ended        # None: it can run more turns
+```
+
+A turn runs in `__main__` as the interactive interpreter runs it, and as a
+Jupyter kernel runs a cell:
+
+- **A final expression is echoed**: `df.head()` as a last line prints it.
+- **An exception is reported** with its traceback, which names `<turn N>` and
+  shows the turn's source lines; the turn's `exit_code` is 1.
+- **`sys.exit(n)` is reported** as the turn's `exit_code`, and the session goes
+  on, as in Jupyter.
+- **`exit(n)` and `quit()` end the session**, as in Jupyter: the turn stops at
+  that line and returns its status, then the session runs Python's shutdown
+  and ends with `ended == "quit"`. (Jupyter's own `exit` takes no status and
+  lets the rest of the cell run; a session keeps Python's `exit(n)`.)
+- **`os._exit(n)` ends the session at once**, with no shutdown, as in Python.
+
+What is per session and what is per turn:
+
+| argument | scope |
+|---|---|
+| `root`, `grants`, `mounts`, `import_path`, `env`, `host`, `tools`, `gate`, `snapshot`, `artifacts`, `cache_dir` | per session: fixed when it opens |
+| `memory_bytes` | per session: linear memory never shrinks, so a session holds its high-water mark |
+| `max_open_files` | per session: its store keeps what its turns open, so the cap counts across them and its shutdown |
+| `idle_s`, `lifetime_s`, `shutdown_s` | per session: they bound the session and its ending |
+| `fuel`, `deadline_s`, `output_bytes` | per turn: the session's value is each turn's default, and `session.run(code, fuel=…)` may pass its own |
+| `max_file_calls`, `max_tool_calls`, `max_tool_request_bytes` | per turn, set once on the session: each turn gets the full allowance |
+| `cancel` | per turn only |
+
+`Session(fuel=N)` opens a metered session, whose turns each get `N`;
+`Session()` is unmetered, and its turns report `fuel_used=None`. A session
+has no argv and no stdin: a turn's input is its code, and `sys.stdin.read()`
+returns `""`. Async tools that cache an object bound to an event loop need
+all of a session's turns on one loop: all through `run` (the session's own
+loop), or all from one event loop through `run_async`.
+
+**How a session ends.** At the first of these; `session.ended` then says
+which, and every later turn raises `SessionEnded`, whose `reason` is the same:
+
+| cause | `ended` |
+|---|---|
+| `close()`, or leaving the `with` block | `"closed"` |
+| it rested longer than `idle_s` (default 900 s, 15 minutes) | `"idle"` |
+| `lifetime_s` passed since it opened (default 3,600 s, 1 hour) | `"lifetime"` |
+| a turn called `exit()` or `quit()` | `"quit"` |
+| a turn called `os._exit` | `"exit"` |
+| a turn trapped or was stopped | the turn's `trapped`: `"out of fuel"`, `"deadline"`, `"cancelled"`, `"out of file calls"`, or wasmtime's name for the trap |
+| `run` raised in your process after the guest started (Ctrl-C; a `BaseException` from your own host, provider, tool or gate) | `"error"` |
+
+A turn's exception, its `sys.exit()`, a truncated output and a full heap (a
+`MemoryError`) do not end a session. No turn starts at or after the lifetime,
+and each turn's deadline is capped at the lifetime left, so no turn's
+instruction runs past it. The bounds are kept by the runner, not the guest:
+each call checks them, and one reaper thread per process ends sessions whose
+bound has passed while no turn runs. Sessions share nothing, and turns of one
+session run one at a time: a second turn while one runs raises
+`RuntimeError`.
+
+**Closing runs Python's shutdown, as Jupyter does.** When a session is
+closed, or its idle bound or lifetime passes while it is at rest, or a turn
+calls `exit()`, it runs Python's normal shutdown, as a Jupyter kernel does when
+it is shut down or culled: `atexit` handlers run, then the interpreter is
+finalized, which flushes the files it closes. The shutdown has `shutdown_s`
+seconds (default 5, jupyter_client's `shutdown_wait_time`; 0 skips it), capped
+so it ends by the opening plus the lifetime plus `shutdown_s`, and, in a
+metered session, the session's `fuel`; if either runs out the session is
+simply stopped. `session.shutdown_outcome` says which: `"finished"`,
+`"stopped"`, or `"skipped"` when no shutdown ran. `close()` waits for it.
+Nothing the shutdown prints is kept. A session that ends by a trap,
+`os._exit`, or a stop (a `close()` that stops a running turn included) runs no
+shutdown, because its interpreter was stopped mid-turn. So **write and close
+files within a turn**: the shutdown is a courtesy for a session closed at rest,
+not a guarantee. A file held only in a reference cycle may not be flushed, as
+in CPython. On today's snapshot (numpy and pandas pre-imported) the shutdown
+costs about 306 million instructions (about 80 million of them the
+finalization, the rest undoing the snapshot's frozen heap so that open files
+are flushed as CPython flushes them); on the plain reactor about 29 million,
+or about 304 million after importing pandas. Size a metered session's `fuel`
+to cover it.
+A session's shutdown may call your host functions, providers and tools after
+your own cleanup: when you drop a session without closing it, and at process
+exit, where it runs after the `atexit` handlers you registered later; close
+sessions first if that matters.
+
+**What a session holds on the host, for its whole life**: its store, with
+every host file descriptor its guest opened (at most `max_open_files`, 1,024
+by default, counted across its turns and its shutdown), up to `memory_bytes`
+of linear memory, and up to
+`memory_bytes` of mount staging, until it ends: up to `idle_s` after its last
+turn, at most `lifetime_s` and then its shutdown. For untrusted code, give a
+short `idle_s` and `close()` promptly. An abandoned tool thread (see *Tools*)
+may land its effect during a later turn of the same session, during its
+shutdown, or after `close()`; at most 4 are held across a session's turns.
+
+**A session is one trust domain.** Every turn runs inside whatever the
+earlier turns left: an earlier turn can hook `builtins`, `print`,
+`sys.displayhook` or the runtime's own module, and so read every later turn's
+source and data, rewrite what later turns print, or make them report exit 0.
+What any turn or tool put in the guest, a secret included, stays readable for
+the rest of the session. A turn's output and exit status are only as
+trustworthy as the least trusted turn before it: never send a more trusted
+turn (a check whose exit code you believe, a turn that holds a token) after
+less trusted code in the same session; open a new session for it.
+
+**State that outlives a process.** A session ends with its process at the
+latest. To keep state for a later session or `run`, write it as files to a
+writable grant, and read them back:
+
+```python
+import tempfile
+from wasi_python import Grant, Session
+
+keep = tempfile.mkdtemp()
+with Session(grants=[Grant(keep, "/keep", writable=True)]) as session:
+    session.run("import pandas as pd; df = pd.DataFrame({'a': [1, 2, 3]})")
+    session.run("df.to_pickle('/keep/df.pkl'); df.to_csv('/keep/df.csv', index=False)")
+with Session(grants=[Grant(keep, "/keep")]) as later:
+    done = later.run("import pandas as pd; int(pd.read_pickle('/keep/df.pkl').a.sum())")
+    done.stdout                                  # b'6\n'
+```
+
+`df.to_csv` and `json.dump` work the same way; Parquet does not, since pyarrow
+is not built. Only a guest may unpickle what a guest wrote: never unpickle a
+guest's file on the host.
+
 ## API reference
 
 The public API is the names below: what `wasi_python` and
@@ -1769,6 +1928,9 @@ class Defaults:
     tool_calls: int | None = 1000
     tool_request_bytes: int | None = 16777216
     open_files: int | None = 1024
+    session_idle_s: float | None = 900.0
+    session_lifetime_s: float | None = 3600.0
+    session_shutdown_s: float = 5.0
 ```
 
 The limits a call has when it names none: `defaults()` returns the ones in force, and `set_defaults()` replaces them.
@@ -1783,6 +1945,9 @@ The limits a call has when it names none: `defaults()` returns the ones in force
 - `tool_calls`: The most tool-protocol frames a call with tools answers; past it the guest gets `ToolBudgetExceeded`.
 - `tool_request_bytes`: The most bytes of tool-protocol requests a call with tools reads, counted from each frame's length before it is read; a frame that would pass it is refused unread, and the guest gets `ToolBudgetExceeded`.
 - `open_files`: The most files and folders a guest holds open at once, in grants, the root and mounts alike; past it an open answers `EMFILE` and the guest runs on.
+- `session_idle_s`: The longest a `Session` may rest between turns before it ends "idle".
+- `session_lifetime_s`: How long after its opening a `Session`'s turns may run; then it ends "lifetime".
+- `session_shutdown_s`: The seconds a `Session`'s ending has to run Python's shutdown (`atexit` handlers, then finalization); past them the session is simply stopped. 0 skips the shutdown; it cannot be `None`.
 
 #### `wasi_python.Errno`
 
@@ -1930,6 +2095,118 @@ One write-half call the provider did not accept, or a write-back the runner owed
 - `errno`: The provider's answer, or EIO for a fault or the limit.
 - `at`: When: "open", "call", "close", "sync" or "exit".
 - `cause`: Why: "refused", "fault" or "limit".
+
+#### `wasi_python.Session`
+
+```python
+class Session:
+    def __init__(
+        self,
+        *,
+        root: str | os.PathLike[str] | bool | None = False,
+        grants: Iterable[Grant] = (),
+        mounts: Iterable[Mount] = (),
+        import_path: Iterable[str] = (),
+        env: Mapping[str, str] | None = None,
+        host: Callable[[bytes], bytes | bytearray | memoryview] | None = None,
+        snapshot: bool = True,
+        fuel: int | None = None,
+        deadline_s: float | None = <default>,
+        memory_bytes: int | None = <default>,
+        output_bytes: int | None = <default>,
+        cache_dir: str | os.PathLike[str] | None | bool = None,
+        artifacts: Artifacts | None = None,
+        max_file_calls: int | None = <default>,
+        tools: Iterable[Tool | Callable[..., Any]] | None = None,
+        gate: Callable[[ToolCall], Any] | None = None,
+        max_tool_calls: int | None = <default>,
+        max_tool_request_bytes: int | None = <default>,
+        max_open_files: int | None = <default>,
+        idle_s: float | None = <default>,
+        lifetime_s: float | None = <default>,
+        shutdown_s: float = <default>,
+    ) -> None
+    def __enter__(self) -> Session
+    def __exit__(self, *exc: object) -> None
+    @property
+    def ended(self) -> str | None
+    @property
+    def shutdown_outcome(self) -> str | None
+    def run(
+        self,
+        code: str,
+        *,
+        fuel: int | None = <default>,
+        deadline_s: float | None = <default>,
+        output_bytes: int | None = <default>,
+        cancel: threading.Event | None = None,
+    ) -> Completed
+    async def run_async(
+        self,
+        code: str,
+        *,
+        fuel: int | None = <default>,
+        deadline_s: float | None = <default>,
+        output_bytes: int | None = <default>,
+        executor: concurrent.futures.Executor | None = None,
+    ) -> Completed
+    def close(self) -> None
+```
+
+One instance of the runtime kept across several calls, each a turn: variables, functions and imports made in one turn are there in the next.
+
+**Methods:**
+
+- `Session.__init__`: Open a session: check every argument, find the artifact set, make the folders and the store, and instantiate the guest. No guest code runs until the first turn.
+  - `root`: The host folder the guest sees as /, writable, made if missing. `False` or `None` (the default) gives no / and nothing writable; `True` gives a fresh private folder, removed when the session ends.
+  - `grants`: Host folders the guest sees at their guest paths, each a `Grant`, read-only unless it says `writable=True`. The stdlib zip is always granted, read-only, at /usr/local/lib.
+  - `mounts`: Providers whose files the guest sees at their guest paths, each a `Mount`, served from your code, read-only unless it says `writable=True`.
+  - `import_path`: Guest paths put on the guest's `sys.path` after the stdlib zip, in order: each a folder or a zip file inside a read-only grant. The root, a writable grant or a mount may not serve one, no writable grant or mount may lie under one, and no writable grant or root may lie inside the grant serving one.
+  - `env`: Environment variables laid over the guest's own: TMPDIR=/tmp, PYTHONTZPATH= empty (zoneinfo reads the zip's tzdata), and a HOME made fresh for the session where /tmp is writable.
+  - `host`: The door's host function: called with each request's bytes, it returns the response's. It must answer synchronously: an async one raises `TypeError`. Excludes `tools`.
+  - `snapshot`: `True` runs the snapshot binary, with the stack pre-imported; `False` the plain reactor.
+  - `fuel`: Each turn's cap on the guest's executed instructions, unless the turn passes its own; past it the turn ends "out of fuel", which ends the session. A session given a number is metered; `None` (the default) is unmetered, and its turns report no fuel.
+  - `deadline_s`: Each turn's wall-clock seconds, unless the turn passes its own; past them the turn ends "deadline". Default: `defaults().deadline_s`, 60. `None` means no limit but the lifetime's.
+  - `memory_bytes`: The most linear memory the guest may hold, in bytes, for the whole session. Default: `defaults().memory_bytes`, 1 GiB. `None` means no limit.
+  - `output_bytes`: The most bytes kept per stream in each turn, unless the turn passes its own; the rest are dropped and the stream named in `truncated`. Default: `defaults().output_bytes`, 16 MiB. `None` means no limit.
+  - `cache_dir`: Where compiled modules are kept as .cwasm files, a folder only you can write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder; `False` keeps them in this process only, never on disk.
+  - `artifacts`: The artifact set to run; `None` finds it with `artifacts()`.
+  - `max_file_calls`: The most provider calls each turn with mounts makes; then it ends "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no limit.
+  - `tools`: Host functions offered to the guest through the tool protocol (`from host import tools`), each a `wasi_python.tools.Tool` or a plain function, which goes through `tool()`. A tool may be async: under `run` it is awaited on one loop of the session's own for all its turns, under `run_async` on the event loop that awaits it. Fixed for the session. Excludes `host`.
+  - `gate`: Called with a `ToolCall` before each tool runs. It allows by returning `None` or `True`, and refuses by returning `False` or raising `ToolDenied`. It may be async, as a tool may. Needs `tools`.
+  - `max_tool_calls`: The most tool-protocol frames each turn answers; the guest gets `ToolBudgetExceeded` for the rest. Default: `defaults().tool_calls`, 1,000. `None` means no limit. Needs `tools`.
+  - `max_tool_request_bytes`: The most bytes of tool-protocol requests each turn reads, counted from each frame's length before it is read; a frame that would pass it is refused unread. Default: `defaults().tool_request_bytes`, 16 MiB. `None` means no limit. Needs `tools`.
+  - `max_open_files`: The most files and folders the guest holds open at once, in grants, the root and mounts alike, counted across the session's turns and its ending, since its store keeps them; past it an open answers `EMFILE` and the guest runs on. 0 refuses every open, the stdlib's included. It protects your process only within the process's own soft descriptor limit. Default: `defaults().open_files`, 1,024. `None` means no limit.
+  - `idle_s`: The longest the session may rest between turns; then it ends "idle". Default: `defaults().session_idle_s`, 900. `None` means no bound.
+  - `lifetime_s`: How long after the opening the session's turns may run: no turn starts at or after it, and each turn's deadline is capped at what is left; then it ends "lifetime". Default: `defaults().session_lifetime_s`, 3,600. `None` means no bound.
+  - `shutdown_s`: The seconds the session's ending has to run Python's shutdown, capped so it ends by the opening plus the lifetime plus this; past it the session is stopped. Default: `defaults().session_shutdown_s`, 5. 0 skips the shutdown; `None` is refused.
+- `Session.__enter__`: Enter a `with` block; the session is closed when the block is left.
+- `Session.__exit__`: Close the session as the `with` block is left, however it is left.
+  - `exc`: The exception leaving the block, if any; it is never suppressed.
+- `Session.ended`: `None` while the session can run turns; once it cannot, why: "closed", "idle", "lifetime", "quit" (a turn called `exit()` or `quit()`), "exit" (a turn called `os._exit`), "error" (a turn raised in your process), or the stopped turn's `trapped`. Set once, and never changed.
+- `Session.shutdown_outcome`: `None` until the session's ending has finished; then "finished" (Python's shutdown ran to its end), "stopped" (its budget ran out, or it trapped), or "skipped" (no shutdown ran: the session was stopped mid-turn, no turn ever ran, or `shutdown_s` was 0). `close()` waits for the ending.
+- `Session.run`: Run one turn of code in the session and return how it ended.
+  - `code`: The turn's source, a str.
+  - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
+  - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
+  - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
+  - `cancel`: A `threading.Event`. Once it is set and the guest runs, the turn stops within 5 ticks of 10 ms while it computes and ends "cancelled", which ends the session; set before the guest runs, the turn runs nothing and the session goes on.
+- `Session.run_async`: `run` from async code, on a worker thread, so the event loop is never blocked.
+  - `code`: The turn's source, a str.
+  - `fuel`: This turn's cap on executed instructions in a metered session; `None` sets no cap. Default: the session's.
+  - `deadline_s`: This turn's wall-clock seconds; `None` means no limit but the lifetime's. Default: the session's.
+  - `output_bytes`: The most bytes kept per stream in this turn. Default: the session's.
+  - `executor`: Where the turn runs: a `concurrent.futures.Executor` that runs callables on threads of this process. `None` uses the runner's own pool.
+- `Session.close`: End the session, run its ending, and return once its store is closed.
+
+#### `wasi_python.SessionEnded`
+
+```python
+class SessionEnded(RuntimeError):
+    ...
+```
+
+A session has ended, so it runs no more turns.
 
 #### `wasi_python.Stat`
 
@@ -2558,7 +2835,10 @@ wasmtime holds inside one call while it resolves a path: on macOS, and on
 Linux without `openat2`, a path call holds one descriptor per folder in the
 path for as long as it runs, so a guest with a writable grant can build a
 deep folder and bring your process to its limit for the length of its call;
-a bound on path depth is planned); data planted in a
+a bound on path depth is planned; a `Session` holds its files, and its memory, for its
+whole life: give untrusted code a short `idle_s`); everything a turn leaves in a
+session for the turns after it (a session is one trust domain: see *Sessions*);
+data planted in a
 reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`
 in the current directory, `/`, which pdb runs as code when a program starts

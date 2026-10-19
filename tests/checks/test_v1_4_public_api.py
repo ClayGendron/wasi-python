@@ -35,6 +35,8 @@ TOP = [
     "Grant",
     "Mount",
     "RefusedWrite",
+    "Session",  # spec 055
+    "SessionEnded",
     "Stat",
     "WritableFileProvider",
     "artifact_dir",

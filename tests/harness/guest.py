@@ -24,6 +24,7 @@ import zipfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import wasmtime as wt
 
@@ -295,3 +296,153 @@ def run(
         root=root,
         trap_cause=cause,
     )
+
+
+@dataclass(frozen=True)
+class Turn:
+    """One call into a `Turns` instance: the export's return value (None after a trap or an exit),
+    what it wrote, and how it ended."""
+
+    value: int | None
+    stdout: bytes
+    stderr: bytes
+    trapped: str | None
+    exit_code: int | None = None  # proc_exit's code, when the call exited
+
+    @property
+    def text(self) -> str:
+        return self.stdout.decode(errors="replace")
+
+    def describe(self) -> str:
+        tail = self.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
+        how = f"trapped ({self.trapped})" if self.trapped else f"returned {self.value}"
+        return f"{how}; stderr: {tail[0][:200]}"
+
+
+class Turns:
+    """One instance of the guest kept across calls, driven raw (spec 055, criteria 1 to 3 and
+    34): `turn(code)` writes the code through `host_alloc` and calls the `turn` export;
+    `turn_raw(ptr, length)`, `run()` and `shutdown()` call the exports as they are. Each call
+    gets `fuel` and reports only what it wrote. The door's host function, if any, is called with
+    this object and the request, so a check can call back into the instance from the door."""
+
+    def __init__(
+        self,
+        wasm: Path,
+        *,
+        workdir: Path,
+        python_version: str,
+        stdlib: Path,
+        host: Callable[[Turns, bytes], bytes] | None = None,
+        preopens: list[tuple[str, Path, bool]] | None = None,
+        argv: list[str] | None = None,
+        env: Mapping[str, str] | None = None,
+    ) -> None:
+        self.mod = module(wasm)
+        self.how = kind(self.mod)
+        base = workdir / f"turns-{next(_run_ids)}"
+        root, self._io = base / "root", base / "io"
+        (root / "usr/local/lib").mkdir(parents=True)
+        self._io.mkdir()
+        self.root = root
+        lib = base / "lib"
+        _place(stdlib, lib / stdlib_name(python_version, stdlib))
+        self.store = wt.Store(engine())
+        self.store.set_fuel(UNMETERED)
+        wasi = wt.WasiConfig()
+        wasi.argv = [ARGV0, *(argv or [])]
+        wasi.env = sorted((env or {}).items())
+        wasi.preopen_dir(str(lib), "/usr/local/lib", False)
+        wasi.preopen_dir(str(root), "/", True)
+        for guest_path, host_dir, writable in preopens or []:
+            wasi.preopen_dir(str(host_dir), guest_path, writable)
+        wasi.stdout_file = str(self._io / "stdout")
+        wasi.stderr_file = str(self._io / "stderr")
+        self.store.set_wasi(wasi)
+        linker = wt.Linker(engine())
+        linker.define_wasi()
+        linker.allow_shadowing = True
+        i32 = wt.ValType.i32()
+
+        def door(caller: wt.Caller, ptr: int, length: int, out_pp: int, out_lp: int) -> int:
+            if host is None:
+                return NO_HOST
+            memory = caller.get("memory")
+            ptr, length = ptr & 0xFFFFFFFF, length & 0xFFFFFFFF
+            request = bytes(memory.read(caller, ptr, ptr + length))
+            response = bytes(host(self, request))
+            p = caller.get("host_alloc")(caller, len(response)) & 0xFFFFFFFF
+            if not p:
+                return HOST_FAULT
+            memory.write(caller, response, p)
+            memory.write(caller, struct.pack("<I", p), out_pp & 0xFFFFFFFF)
+            memory.write(caller, struct.pack("<I", len(response)), out_lp & 0xFFFFFFFF)
+            return 0
+
+        linker.define_func("host", "call", wt.FuncType([i32] * 4, [i32]), door, True)
+        self.instance = linker.instantiate(self.store, self.mod)
+        self.exports = self.instance.exports(self.store)
+        self._read = {"stdout": 0, "stderr": 0}
+        self._initialized = False
+        self.inner: list[int] = []  # values of calls made from inside the door
+
+    def _new(self, name: str) -> bytes:
+        data = (self._io / name).read_bytes()
+        out, self._read[name] = data[self._read[name] :], len(data)
+        return out
+
+    def _call(self, fn: Callable[[], int], fuel: int) -> Turn:
+        self.store.set_fuel(fuel)
+        value: int | None = None
+        trapped: str | None = None
+        exit_code: int | None = None
+        try:
+            if self.how == "reactor" and not self._initialized:
+                self._initialized = True
+                self.exports["_initialize"](self.store)
+            value = fn()
+        except wt.ExitTrap as e:
+            exit_code = e.code
+        except wt.Trap as e:
+            trapped = "out of fuel" if e.trap_code == wt.TrapCode.OUT_OF_FUEL else "trap"
+        except wt.WasmtimeError as e:
+            trapped = str(e).strip().splitlines()[0]
+        return Turn(value, self._new("stdout"), self._new("stderr"), trapped, exit_code)
+
+    def write(self, code: bytes) -> int:
+        """`code` in a buffer from host_alloc: its address."""
+        p = self.exports["host_alloc"](self.store, len(code)) & 0xFFFFFFFF
+        self.exports["memory"].write(self.store, code, p)
+        return p
+
+    def turn(self, code: str | bytes, fuel: int = DEFAULT_FUEL) -> Turn:
+        data = code.encode() if isinstance(code, str) else code
+
+        def go() -> int:
+            p = self.write(data) if data else 0
+            return self.exports["turn"](self.store, p, len(data))
+
+        return self._call(go, fuel)
+
+    def turn_raw(self, ptr: int, length: int, fuel: int = DEFAULT_FUEL) -> Turn:
+        return self._call(lambda: self.exports["turn"](self.store, ptr, length), fuel)
+
+    def run(self, fuel: int = DEFAULT_FUEL) -> Turn:
+        return self._call(lambda: self.exports["run"](self.store), fuel)
+
+    def shutdown(self, fuel: int = DEFAULT_FUEL) -> Turn:
+        return self._call(lambda: self.exports["shutdown"](self.store), fuel)
+
+    def call_from_door(self, caller: str, *args: int) -> int:
+        """Call an export from inside a door call (the store is the caller's); its value."""
+        value = self.exports[caller](self.store, *args)
+        self.inner.append(value)
+        return value
+
+    def close(self) -> None:
+        self.store.close()
+
+
+def turns(wasm: Path, **kw: Any) -> Turns:
+    """A `Turns` instance of `wasm` (spec 055)."""
+    return Turns(wasm, **kw)

@@ -6,6 +6,23 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — unreleased
 
+- **Bounded sessions** (spec 055). `Session` keeps one instance of the runtime across turns:
+  `session.run(code)` and `await session.run_async(code)` each run one turn in `__main__`, and
+  variables, functions, classes and imports carry over. A turn echoes its final expression,
+  reports an exception with `<turn N>` in its traceback, and reports `sys.exit()` as its exit
+  status while the session goes on, as a Jupyter kernel does. Each turn has its own fuel,
+  deadline, output cap, cancel, file-call and tool-call allowance; the session has one memory
+  cap, an idle bound (`idle_s`, default 15 minutes) and a lifetime (`lifetime_s`, default 1
+  hour), which caps every turn's deadline; `max_open_files` counts across a session's turns and
+  its shutdown, since its store keeps what they open. A trap, `os._exit`, a bound, `close()` or a turn's
+  `exit()` or `quit()` ends it; `session.ended` says which, and later turns raise
+  `SessionEnded`. A session's close and expiry, and `exit()` or `quit()` in a turn, run
+  Python's shutdown (`atexit`, flushes) within `shutdown_s` seconds and the session's fuel, as a
+  Jupyter kernel's do; past that budget the session is stopped; `sys.exit()` keeps the session;
+  `session.shutdown_outcome` says whether the shutdown finished, was stopped or did not run. Added:
+  `Session`, `SessionEnded`, three `Defaults` fields (`session_idle_s`, `session_lifetime_s`,
+  `session_shutdown_s`), `stats()["sessions_open"]`, and two exports in both binaries, `turn` and
+  `shutdown`, whose contract the README gives for any embedder. `run` is unchanged.
 - **lxml, with libxml2 and libxslt built in** (spec 046). lxml 6.1.3's `lxml.etree` and
   `lxml.objectify` are builtins, over libxml2 2.15.4 and libxslt 1.1.45 with libexslt: XPath,
   XSLT, XInclude, C14N, DTD, XML Schema, RELAX NG and Schematron validation, the HTML parser,

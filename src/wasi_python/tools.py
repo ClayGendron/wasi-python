@@ -1763,6 +1763,21 @@ class _ToolLoop:
                 _close_awaitable(post.awaitable)
             post.ended.set()
 
+    def cancel_tasks(self) -> None:
+        """At a session's turn's end (spec 055, Decision 5): the runner's own tasks still pending
+        are asked to cancel, on the loop's thread; the loop itself lives on for the next turn.
+        Never waits, raises, logs or warns."""
+        try:
+            loop = self._loop
+            if loop is None or loop.is_closed():
+                return
+            with self._lock:
+                tasks = list(self._tasks)
+            for task in tasks:
+                loop.call_soon_threadsafe(task.cancel)
+        except BaseException:
+            pass
+
     def close(self) -> None:
         """At the call's end, never waiting: a private loop is asked to stop, and its thread
         runs it down and closes it; on the caller's loop only the runner's own tasks are asked
@@ -1860,6 +1875,12 @@ class _Bounded:
         self._start, self._clock = start, clock
         self._lock = threading.Lock()
         self._abandoned = 0  # this call's threads still running after their call was answered
+
+    def rearm(self, stop_at: int | None, cancel: Any) -> None:
+        """A session's next turn: its deadline and stop (spec 055, Decision 11). The count of
+        abandoned threads carries over, so it bounds the whole session, not each turn."""
+        with self._lock:
+            self._stop_at, self._cancel = stop_at, cancel
 
     def _ended(self) -> str | None:
         """'cancelled' or 'deadline' when the run is ending, else None."""

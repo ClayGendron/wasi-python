@@ -23,6 +23,9 @@ dataclass Defaults: frozen
   field tool_calls: int | None = 1000
   field tool_request_bytes: int | None = 16777216
   field open_files: int | None = 1024
+  field session_idle_s: float | None = 900.0
+  field session_lifetime_s: float | None = 3600.0
+  field session_shutdown_s: float = 5.0
 enum Errno(IntEnum)
   member EACCES = 2
   member EBUSY = 10
@@ -76,6 +79,49 @@ dataclass RefusedWrite: frozen
   field errno: Errno = required
   field at: str = required
   field cause: str = required
+class Session
+  def __init__ -> None
+    param root: str | os.PathLike[str] | bool | None = False  keyword-only
+    param grants: Iterable[Grant] = ()  keyword-only
+    param mounts: Iterable[Mount] = ()  keyword-only
+    param import_path: Iterable[str] = ()  keyword-only
+    param env: Mapping[str, str] | None = None  keyword-only
+    param host: Callable[[bytes], bytes | bytearray | memoryview] | None = None  keyword-only
+    param snapshot: bool = True  keyword-only
+    param fuel: int | None = None  keyword-only
+    param deadline_s: float | None = <default>  keyword-only
+    param memory_bytes: int | None = <default>  keyword-only
+    param output_bytes: int | None = <default>  keyword-only
+    param cache_dir: str | os.PathLike[str] | None | bool = None  keyword-only
+    param artifacts: Artifacts | None = None  keyword-only
+    param max_file_calls: int | None = <default>  keyword-only
+    param tools: Iterable[Tool | Callable[..., Any]] | None = None  keyword-only
+    param gate: Callable[[ToolCall], Any] | None = None  keyword-only
+    param max_tool_calls: int | None = <default>  keyword-only
+    param max_tool_request_bytes: int | None = <default>  keyword-only
+    param max_open_files: int | None = <default>  keyword-only
+    param idle_s: float | None = <default>  keyword-only
+    param lifetime_s: float | None = <default>  keyword-only
+    param shutdown_s: float = <default>  keyword-only
+  def __enter__ -> Session
+  def __exit__ -> None
+    param *exc: object  var-positional
+  property ended -> str | None
+  property shutdown_outcome -> str | None
+  def run -> Completed
+    param code: str  positional
+    param fuel: int | None = <default>  keyword-only
+    param deadline_s: float | None = <default>  keyword-only
+    param output_bytes: int | None = <default>  keyword-only
+    param cancel: threading.Event | None = None  keyword-only
+  async def run_async -> Completed
+    param code: str  positional
+    param fuel: int | None = <default>  keyword-only
+    param deadline_s: float | None = <default>  keyword-only
+    param output_bytes: int | None = <default>  keyword-only
+    param executor: concurrent.futures.Executor | None = None  keyword-only
+  def close -> None
+exception SessionEnded(RuntimeError)
 dataclass Stat: frozen
   field kind: str = required
   field size: int = 0
@@ -153,7 +199,10 @@ default file_calls = 10000
 default tool_calls = 1000
 default tool_request_bytes = 16777216
 default open_files = 1024
-stats keys: compiled loaded tool_threads_running written
+default session_idle_s = 900.0
+default session_lifetime_s = 3600.0
+default session_shutdown_s = 5.0
+stats keys: compiled loaded sessions_open tool_threads_running written
 environment WASI_PYTHON_ARTIFACTS
 environment WASI_PYTHON_CACHE
 module wasi_python.tools

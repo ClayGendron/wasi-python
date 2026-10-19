@@ -1,6 +1,7 @@
 """The reactor's argument handling: the module `_reactor` (spec 003, Decision 6).
 
-recipes/reactor_main.c calls `run(argv, environ)` once per instance. Step 60 compiles this file with
+recipes/reactor_main.c calls `run(argv, environ)` once per instance, or `turn(source, environ)`
+once per turn of a session (spec 055, Decision 3). Step 60 compiles this file with
 the pinned host Python (the guest's own version) and links the marshalled code into the reactor, so no
 start compiles it (scripts/freeze_bootstrap.py). Its frames are named `<reactor>`, which `_report`
 strips from tracebacks.
@@ -173,3 +174,86 @@ def run(argv, environ):
                 stream.flush()
             except Exception:
                 pass
+
+
+# Sessions (spec 055, Decision 3): one interpreter across turns.
+_turns = 0  # the turns run in this instance: each one's code is named <turn N>
+_quit = False  # set by the session's exit() and quit(), as ipykernel's exiter sets exit_now
+
+
+def _setup(environ):
+    """The first turn's setup, once and unnumbered: the environment, the import path from argv,
+    argv as the interactive interpreter has it, exit() and quit() rebound, and the reseed."""
+    argv, env = environ
+    if env is not None:
+        os.environ.clear()
+        os.environ.update(env)
+    argv = list(argv or [])
+    for entry in argv[1:]:
+        if entry.startswith("/"):  # absolute, read-only folders only; anything else is skipped
+            sys.path.append(entry)
+    sys.argv = [""]
+    sys.orig_argv = argv[:1]
+    import _sitebuiltins
+    import builtins
+
+    class _SessionQuitter(_sitebuiltins.Quitter):
+        # As site's Quitter, but it asks for the session to end and leaves stdin open.
+        def __call__(self, code=None):
+            global _quit
+            _quit = True
+            raise SystemExit(code)
+
+    for name in ("exit", "quit"):
+        old = getattr(builtins, name, None)
+        eof = getattr(old, "eof", "Ctrl-D (i.e. EOF)")
+        setattr(builtins, name, _SessionQuitter(name, eof))
+    _refresh(False)
+
+
+def _run_turn(text, name):
+    """Run a turn's source in __main__, echoing a final expression as the interactive
+    interpreter does."""
+    import ast
+    import linecache
+
+    tree = ast.parse(text, name, "exec")
+    last = None
+    if tree.body and isinstance(tree.body[-1], ast.Expr):
+        last = ast.Expression(tree.body.pop().value)
+    code = compile(tree, name, "exec")
+    linecache._register_code(code, text, name)
+    main = sys.modules["__main__"].__dict__
+    exec(code, main)
+    if last is not None:
+        expr = compile(last, name, "eval")
+        linecache._register_code(expr, text, name)
+        sys.displayhook(eval(expr, main))
+
+
+def turn(source, environ):
+    """One turn: (status, quit). `source` is the code's bytes, or None when the host had no
+    memory for them; `environ` is (argv, env) on the first turn, None after."""
+    global _turns
+    status = 0
+    try:
+        if environ is not None:
+            _setup(environ)
+        _turns += 1
+        if source is None:
+            raise MemoryError("no memory for this turn's code")
+        _run_turn(source.decode("utf-8"), f"<turn {_turns}>")
+    except SystemExit as exc:
+        status = _exit_code(exc)
+    except BaseException as exc:
+        _report(exc, False)  # strips the <reactor> frames from exc.__traceback__
+        sys.last_exc = exc
+        sys.last_type, sys.last_value, sys.last_traceback = type(exc), exc, exc.__traceback__
+        status = 1
+    finally:
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.flush()
+            except Exception:
+                pass
+    return (status, _quit)

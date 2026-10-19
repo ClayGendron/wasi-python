@@ -8,8 +8,18 @@ from pathlib import Path
 
 from harness import paths, wasm
 
-PLAIN_EXPORTS = {"memory", "_initialize", "wizer.initialize", "run", "host_alloc"}
-SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc"}
+PLAIN_EXPORTS = {
+    "memory",
+    "_initialize",
+    "wizer.initialize",
+    "run",
+    "host_alloc",
+    "turn",
+    "shutdown",
+}
+SNAPSHOT_EXPORTS = {"memory", "run", "host_alloc", "turn", "shutdown"}
+# The session exports' function types (spec 055, Decision 19).
+EXPORT_TYPES = {"turn": "(i32, i32) -> (i32)", "shutdown": "() -> (i32)"}
 SNAPSHOT_FORBIDDEN = {"_initialize", "wizer.initialize"}
 
 
@@ -74,6 +84,23 @@ def export_errors(binary: Path, required: set[str], forbidden: set[str] = frozen
         return [f"{binary.name}: {e}"]
     errors = [f"{binary.name}: no export {name}" for name in sorted(required - exports)]
     errors += [f"{binary.name}: exports {name}" for name in sorted(forbidden & exports)]
+    return errors
+
+
+def export_type_errors(binary: Path, types: dict[str, str] = EXPORT_TYPES) -> list[str]:
+    """Each named function export has the given type, as `FuncType` prints it (spec 055)."""
+    try:
+        mod = wasm.parse_file(binary)
+    except wasm.WasmError as e:
+        return [f"{binary.name}: {e}"]
+    errors = []
+    for name, want in sorted(types.items()):
+        if mod.exports.get(name) != "func":
+            errors.append(f"{binary.name}: no function export {name}")
+            continue
+        got = mod.func_type(mod.export_index[name])
+        if str(got) != want:
+            errors.append(f"{binary.name}: {name} has type {got}, not {want}")
     return errors
 
 

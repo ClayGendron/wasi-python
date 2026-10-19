@@ -209,7 +209,8 @@ CACHE_PROBE = (
     "done = run(['-c', 'pass'], root=sys.argv[1], cache_dir=sys.argv[2])\n"
     "print(json.dumps([done.exit_code, runner.stats()]))\n"
 )
-NO_TOOL_THREADS = {"tool_threads_running": 0}  # stats() also counts tool threads (spec 036)
+# stats() also counts tool threads (spec 036) and open sessions (spec 055): none here.
+NO_TOOL_THREADS = {"tool_threads_running": 0, "sessions_open": 0}
 
 
 def test_runner_caches_the_compiled_module(guest_workdir) -> None:

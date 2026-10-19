@@ -94,3 +94,31 @@ def guest(guest_workdir: Path, metric) -> Callable:
         return result
 
     return run
+
+
+@pytest.fixture
+def guest_turns(guest_workdir: Path) -> Callable:
+    """`guest_turns(which, host=…, preopens=…)` is one instance of the artifact kept across calls,
+    driven raw by the judge's own driver (spec 055, criteria 1 to 3 and 34). Closed at the end."""
+    made = []
+
+    def make(which: str, **kw):
+        needs.need("artifact dir", NEED_OF[which], "stdlib zip", "manifest", "wasmtime-py")
+        from harness import guest as driver
+
+        d = paths.artifact_dir()
+        m = paths.parse_manifest((d / "MANIFEST").read_text())
+        assert m.python, "MANIFEST has no python line"
+        t = driver.turns(
+            d / BINARIES[which],
+            workdir=guest_workdir,
+            python_version=m.python,
+            stdlib=d / "python-stdlib.zip",
+            **kw,
+        )
+        made.append(t)
+        return t
+
+    yield make
+    for t in made:
+        t.close()

@@ -119,7 +119,16 @@ from .mounts import (  # noqa: E402
     Stat,
     WritableFileProvider,
 )
-from .runner import Completed, Defaults, Grant, run, run_async, stats  # noqa: E402
+from .runner import (  # noqa: E402
+    Completed,
+    Defaults,
+    Grant,
+    Session,
+    SessionEnded,
+    run,
+    run_async,
+    stats,
+)
 
 # set_defaults swaps the binding `run` reads, and reads the old one, under this lock (spec 049).
 _defaults_lock = threading.Lock()
@@ -175,6 +184,8 @@ __all__ = [
     "Grant",
     "Mount",
     "RefusedWrite",
+    "Session",
+    "SessionEnded",
     "Stat",
     "WritableFileProvider",
     "artifact_dir",
