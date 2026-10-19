@@ -1,0 +1,4 @@
+E       assert not ["entity outside grants: ok '<r>SECRET\\n</r>', want ok with ('<r/>',)"]
+E       AssertionError: entity outside grants: ok '<r>SECRET\n</r>', want ok with ('<r/>',)
+FAIL tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[plain] — AssertionError: entity outside grants: ok '<r>SECRET\n</r>', want ok with ('<r/>',)
+FAIL tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot] — AssertionError: entity outside grants: ok '<r>SECRET\n</r>', want ok with ('<r/>',)

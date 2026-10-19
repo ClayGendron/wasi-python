@@ -1,0 +1,72 @@
+== short1 vs short2
+DIFF +119 (+0.000003%) tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native 3,918,679,370 -> 3,918,679,489
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[snapshot] 5,016,935,449 -> 5,016,935,415
+DIFF +17 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot] 1,142,967,840 -> 1,142,967,857
+DIFF -17 (-0.000000%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain] 4,917,358,672 -> 4,917,358,655
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[plain] 5,364,721,741 -> 5,364,721,775
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_data_stack.py::test_random_matches_native 4,927,403,042 -> 4,927,403,059
+DIFF -17 (-0.000042%) tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes 40,220,081 -> 40,220,064
+DIFF -34 (-0.000007%) tests/checks/test_v1_3_lxml.py::test_files_by_path_in_grants[plain] 493,206,148 -> 493,206,114
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[snapshot] 4,717,950,097 -> 4,717,950,131
+DIFF +57 (+0.000026%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot] 215,972,908 -> 215,972,965
+DIFF -85 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain] 9,107,997,933 -> 9,107,997,848
+DIFF -68 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,536,043 -> 8,783,535,975
+DIFF -85 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi 7,938,882,692 -> 7,938,882,607
+DIFF +34 (+0.000006%) tests/checks/test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[plain] 568,739,316 -> 568,739,350
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot] 4,654,449,686 -> 4,654,449,703
+same 133 differ 15 rows 148
+== long1 vs long2
+DIFF +17 (+0.000000%) tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot] 5,998,832,380 -> 5,998,832,397
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[snapshot] 4,615,854,567 -> 4,615,854,533
+DIFF -17 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot] 1,142,967,857 -> 1,142,967,840
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain] 4,917,358,638 -> 4,917,358,672
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot] 4,600,793,702 -> 4,600,793,736
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_data_stack.py::test_random_matches_native 4,927,403,042 -> 4,927,403,059
+DIFF -17 (-0.000042%) tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes 40,220,081 -> 40,220,064
+DIFF +34 (+0.000000%) tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native 23,963,555,960 -> 23,963,555,994
+DIFF +51 (+0.000001%) tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[snapshot] 4,686,895,358 -> 4,686,895,409
+DIFF +64 (+0.000030%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot] 216,086,430 -> 216,086,494
+DIFF +85 (+0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain] 9,107,997,831 -> 9,107,997,916
+DIFF -34 (-0.000000%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,536,060 -> 8,783,536,026
+DIFF -85 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi 7,938,882,675 -> 7,938,882,590
+DIFF +34 (+0.000009%) tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot] 373,308,015 -> 373,308,049
+DIFF -51 (-0.000018%) tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[explicit_dirs] 291,391,341 -> 291,391,290
+DIFF -17 (-0.000006%) tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[zip64] 291,222,105 -> 291,222,088
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot] 4,654,449,686 -> 4,654,449,703
+DIFF -34 (-0.000001%) tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[snapshot] 4,613,261,669 -> 4,613,261,635
+same 130 differ 18 rows 148
+== short2 vs long2
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[snapshot] 4,615,854,567 -> 4,615,854,533
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[snapshot] 5,016,935,415 -> 5,016,935,449
+DIFF -17 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot] 1,142,967,857 -> 1,142,967,840
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain] 4,917,358,655 -> 4,917,358,672
+DIFF +34 (+0.000007%) tests/checks/test_v1_3_lxml.py::test_files_by_path_in_grants[plain] 493,206,114 -> 493,206,148
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[plain] 5,037,234,068 -> 5,037,234,102
+DIFF +50,981 (+0.010052%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[plain] 507,148,191 -> 507,199,172
+DIFF +113,529 (+0.052566%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot] 215,972,965 -> 216,086,494
+DIFF +68 (+0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain] 9,107,997,848 -> 9,107,997,916
+DIFF +51 (+0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,535,975 -> 8,783,536,026
+DIFF -17 (-0.000000%) tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi 7,938,882,607 -> 7,938,882,590
+DIFF -51 (-0.000018%) tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[explicit_dirs] 291,391,341 -> 291,391,290
+DIFF -17 (-0.000006%) tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[zip64] 291,222,105 -> 291,222,088
+DIFF -34 (-0.000001%) tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[snapshot] 4,613,261,669 -> 4,613,261,635
+same 134 differ 14 rows 148
+== short1 vs long1
+DIFF -17 (-0.000000%) tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot] 5,998,832,397 -> 5,998,832,380
+DIFF +119 (+0.000003%) tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native 3,918,679,370 -> 3,918,679,489
+DIFF +17 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot] 1,142,967,840 -> 1,142,967,857
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain] 4,917,358,672 -> 4,917,358,638
+DIFF -34 (-0.000001%) tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot] 4,600,793,736 -> 4,600,793,702
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[plain] 5,364,721,741 -> 5,364,721,775
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[plain] 5,037,234,068 -> 5,037,234,102
+DIFF +34 (+0.000001%) tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[snapshot] 4,717,950,097 -> 4,717,950,131
+DIFF -34 (-0.000000%) tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native 23,963,555,994 -> 23,963,555,960
+DIFF -51 (-0.000001%) tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[snapshot] 4,686,895,409 -> 4,686,895,358
+DIFF +50,981 (+0.010052%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[plain] 507,148,191 -> 507,199,172
+DIFF +113,522 (+0.052563%) tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot] 215,972,908 -> 216,086,430
+DIFF -102 (-0.000001%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain] 9,107,997,933 -> 9,107,997,831
+DIFF +17 (+0.000000%) tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot] 8,783,536,043 -> 8,783,536,060
+DIFF -17 (-0.000000%) tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi 7,938,882,692 -> 7,938,882,675
+DIFF -34 (-0.000009%) tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot] 373,308,049 -> 373,308,015
+DIFF +34 (+0.000006%) tests/checks/test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[plain] 568,739,316 -> 568,739,350
+same 131 differ 17 rows 148

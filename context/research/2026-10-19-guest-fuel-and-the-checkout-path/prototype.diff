@@ -1,0 +1,242 @@
+diff --git a/tests/checks/conftest.py b/tests/checks/conftest.py
+index 0a1c88d..0ce05bf 100644
+--- a/tests/checks/conftest.py
++++ b/tests/checks/conftest.py
+@@ -66,13 +66,15 @@ def guest_workdir():
+ 
+ 
+ @pytest.fixture
+-def guest(guest_workdir: Path, metric) -> Callable:
++def guest(guest_workdir: Path, metric, tmp_path_factory: pytest.TempPathFactory) -> Callable:
+     """`guest(which, argv, files=…, env=…, host=…, fuel=…, stdlib=…)` runs the artifact once.
+ 
+     It names its needs before it runs anything, so a check that uses it is `blocked`, never
+     `fail`, when the artifact is absent. It records the run's fuel as the check's metric (the
+     last run wins, so a check runs its measured program last). `stdlib` names another zip to
+-    grant in the artifact zip's place (spec 035, Decision 11)."""
++    grant in the artifact zip's place (spec 035, Decision 11). A recorded run whose inputs name a
++    host path under the checkout or pytest's temp folder is refused (spec 081): its fuel would
++    depend on where they are; such a probe passes `record=False`."""
+ 
+     def run(which: str, argv: list[str], *, record: bool = True, stdlib: Path | None = None, **kw):
+         needs.need("artifact dir", NEED_OF[which], "stdlib zip", "manifest", "wasmtime-py")
+@@ -87,6 +89,8 @@ def guest(guest_workdir: Path, metric) -> Callable:
+             workdir=guest_workdir,
+             python_version=m.python,
+             stdlib=stdlib or d / "python-stdlib.zip",
++            measured=record,
++            host_roots=(tmp_path_factory.getbasetemp(),),
+             **kw,
+         )
+         if record:
+diff --git a/tests/checks/test_v1_3_lxml.py b/tests/checks/test_v1_3_lxml.py
+index 3163748..557bb6e 100644
+--- a/tests/checks/test_v1_3_lxml.py
++++ b/tests/checks/test_v1_3_lxml.py
+@@ -137,10 +137,9 @@ def test_files_by_path_in_grants(guest, guest_workdir, which) -> None:
+ 
+ 
+ SAFETY = """
+-import json, os, sys
++import json, os
+ from lxml import etree
+ 
+-host_secret = sys.argv[1]
+ out = {}
+ 
+ def case(label, run):
+@@ -176,7 +175,6 @@ def entity(url, **kw):
+     return etree.tostring(etree.fromstring(doc, etree.XMLParser(**kw) if kw else None)).decode()
+ case("entity default", lambda: entity("file:///ro/secret.txt"))
+ case("entity resolved", lambda: entity("file:///ro/secret.txt", resolve_entities=True))
+-case("entity outside grants", lambda: entity("file://" + host_secret, resolve_entities=True))
+ NET = "http://127.0.0.1:9/x"
+ case("entity network", lambda: entity(NET, resolve_entities=True, no_network=False))
+ LAUGHS = "<!DOCTYPE r [<!ENTITY a 'aaaaaaaaaa'>" + "".join(
+@@ -187,6 +185,21 @@ case("billion laughs", lambda: len(etree.tostring(etree.fromstring(
+ print(json.dumps(out))
+ """
+ 
++# A host path outside every grant, in a run of its own that records no fuel: the guest's work
++# moves with the path's length, and the path moves with the checkout (spec 081).
++OUTSIDE = """
++import json, sys
++from lxml import etree
++
++doc = f"<!DOCTYPE r [<!ENTITY e SYSTEM 'file://{sys.argv[1]}'>]><r>&e;</r>".encode()
++try:
++    root = etree.fromstring(doc, etree.XMLParser(resolve_entities=True))
++    got = ["ok", etree.tostring(root).decode()]
++except Exception as e:
++    got = [type(e).__name__, str(e)]
++print(json.dumps({"entity outside grants": got}))
++"""
++
+ 
+ @BINARY
+ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which) -> None:
+@@ -197,11 +210,14 @@ def test_stylesheets_and_entities_reach_only_grants(guest, guest_workdir, which)
+     writable grant it writes. lxml's default parser refuses an external entity; with
+     `resolve_entities=True` it reads a granted file, a host path outside every grant gives an
+     empty element (the guest has no such path), an `http:` entity gives an empty element (there
+-    is no network), and a billion-laughs document raises."""
++    is no network), and a billion-laughs document raises. The host path goes to its own run,
++    which records no fuel (spec 081); the measured run's inputs are guest paths only."""
+     ro, rw, preopens = _grants(guest_workdir)
+-    r = guest(which, ["-c", SAFETY, str(ro / "secret.txt")], preopens=preopens)
++    outside = guest(which, ["-c", OUTSIDE, str(ro / "secret.txt")], preopens=preopens, record=False)
++    assert outside.exit_code == 0, outside.describe()
++    r = guest(which, ["-c", SAFETY], preopens=preopens)
+     assert r.exit_code == 0, r.describe()
+-    got = json.loads(r.text)
++    got = {**json.loads(r.text), **json.loads(outside.text)}
+     bad = []
+ 
+     def expect(label: str, kind: str, *parts: str) -> None:
+diff --git a/tests/harness/guest.py b/tests/harness/guest.py
+index 8b09382..41105dc 100644
+--- a/tests/harness/guest.py
++++ b/tests/harness/guest.py
+@@ -21,13 +21,15 @@ import os
+ import shutil
+ import struct
+ import zipfile
+-from collections.abc import Callable, Mapping
++from collections.abc import Callable, Mapping, Sequence
+ from dataclasses import dataclass
+ from pathlib import Path
+ from typing import Any
+ 
+ import wasmtime as wt
+ 
++from harness import paths
++
+ DEFAULT_FUEL = 2 * 10**11
+ WASM_STACK = 512 * 1024  # the runner's stated wasm stack (spec 071, Decision 3)
+ EPOCH_FAR_OFF = 2**40  # epochs are on, as in the runner, but no check is ever interrupted
+@@ -154,6 +156,48 @@ def _random_stream() -> Callable[[int], bytes]:
+     return take
+ 
+ 
++def host_paths_in(
++    roots: Sequence[Path],
++    argv: Sequence[str],
++    env: Mapping[str, str] | None = None,
++    files: Mapping[str, bytes | str] | None = None,
++    preopens: list[tuple[str, Path, bool]] | None = None,
++) -> list[str]:
++    """Each input the guest can see that names a host path under one of `roots`: an argument,
++    an environment variable, a file's guest path or contents, or a grant's guest path (spec 081).
++    The guest's work moves with the length of any host path it is given, so a run whose fuel is
++    recorded must give it guest paths only. Each root is looked for as written, resolved, and in
++    forward slashes."""
++    needles = sorted(
++        {
++            form
++            for root in roots
++            for p in (Path(root), Path(root).resolve())
++            for form in (str(p), p.as_posix())
++        }
++    )
++    found: list[str] = []
++
++    def look(where: str, value: str | bytes) -> None:
++        if isinstance(value, bytes):
++            hit = any(n.encode() in value for n in needles)
++        else:
++            hit = any(n in value for n in needles)
++        if hit:
++            found.append(where)
++
++    for i, arg in enumerate(argv, 1):
++        look(f"argv[{i}]", arg)
++    for name, value in (env or {}).items():
++        look(f"env {name}", f"{name}={value}")
++    for guest_path, content in (files or {}).items():
++        look(f"file {guest_path}", guest_path)
++        look(f"the contents of {guest_path}", content)
++    for guest_path, _, _ in preopens or []:
++        look(f"grant {guest_path}", guest_path)
++    return found
++
++
+ def run(
+     wasm: Path,
+     argv: list[str],
+@@ -169,12 +213,25 @@ def run(
+     preopens_first: bool = False,
+     mpl_data: bool = False,
+     own: tuple[wt.Engine, wt.Module] | None = None,
++    measured: bool = True,
++    host_roots: Sequence[Path] = (),
+ ) -> Result:
+     """Run the guest once, in a fresh instance and a fresh root under `workdir`. With `mpl_data`,
+     matplotlib's data is granted read-only beside the stdlib zip. `own` is an engine the caller
+     made at wasmtime's defaults (no fuel, no epochs) and the module compiled on it, as another
+     embedder's would be (spec 071, criterion 3); the driver's cached engine is never swapped, and
+-    such a run counts no fuel."""
++    such a run counts no fuel. A `measured` run (the default; one whose fuel a check records) is
++    refused, before anything runs, when its inputs name a host path under the checkout or under
++    `host_roots` (spec 081): its fuel would depend on where the repository is checked out."""
++    if measured and own is None:
++        named = host_paths_in((paths.REPO, *host_roots), argv, env, files, preopens)
++        if named:
++            raise ValueError(
++                "a measured run gives the guest a host path in "
++                + ", ".join(named)
++                + ": its fuel would depend on where the checkout is; give it guest paths, or"
++                " record no fuel for this run (spec 081)"
++            )
+     eng, mod = own if own is not None else (engine(), module(wasm))
+     counted = own is None
+     how = kind(mod)
+diff --git a/tests/unit/test_guest.py b/tests/unit/test_guest.py
+index ccde10a..24ff6f4 100644
+--- a/tests/unit/test_guest.py
++++ b/tests/unit/test_guest.py
+@@ -204,3 +204,45 @@ def test_turns_drives_one_instance_across_calls(work) -> None:
+         assert t.run().value == 0
+     finally:
+         t.close()
++
++
++# Spec 081: a measured run's inputs name no host path, so its fuel does not depend on where the
++# checkout is.
++
++
++def test_host_paths_are_found_in_every_input_the_guest_sees(work) -> None:
++    """An argument, an environment variable, a file's guest path and contents, and a grant's
++    guest path that name the checkout, in its own form or in forward slashes, are each named."""
++    repo = paths.REPO
++    found = guest.host_paths_in(
++        [repo],
++        ["-c", "print(1)", str(repo / "build" / "x"), (repo / "y").as_posix()],
++        env={"HOME": "/home", "DATA": str(repo)},
++        files={"/plain.txt": "no path here", "/a.py": f"open({str(repo)!r})".encode()},
++        preopens=[("/ro", work, False), (str(work), work, False)],
++    )
++    assert found == [
++        "argv[3]",
++        "argv[4]",
++        "env DATA",
++        "the contents of /a.py",
++        f"grant {work}",
++    ]
++
++
++def test_guest_paths_and_other_folders_are_not_host_paths(work) -> None:
++    other = work / "elsewhere"
++    assert guest.host_paths_in([other], ["/ro/x", str(work)], env={"T": "/tmp"}) == []
++    assert guest.host_paths_in([other], [str(other / "f")]) == ["argv[1]"]
++
++
++def test_a_measured_run_with_a_host_path_is_refused_before_it_runs(work) -> None:
++    wasm = wat.build(work, "plain.wasm", wat.PLAIN_REACTOR)
++    with pytest.raises(ValueError, match=r"host path in argv\[1\]: its fuel would depend"):
++        guest.run(wasm, [str(work / "f")], workdir=work)
++    elsewhere = work / "elsewhere"
++    with pytest.raises(ValueError, match=r"host path in grant"):
++        guest.run(
++            wasm, [], workdir=work, preopens=[(str(elsewhere), work, False)], host_roots=[elsewhere]
++        )
++    assert guest.run(wasm, [str(work / "f")], workdir=work, measured=False).exit_code == 101
