@@ -206,12 +206,14 @@ instance with exit 5 (an exit trap) and the handlers after it do not run.
 
 **Open files are not reliably flushed on the snapshot (EXECUTED, P10, P10b).** A file opened
 for writing, written and left open, is flushed by the shutdown on the plain reactor in every
-variant tried. On the snapshot it is flushed unless a function is defined in `__main__`: with
+variant tried. On the snapshot it is flushed too, unless a function is defined in `__main__`: with
 any `def` in the program (two variants, two runs each), the file loses its 100 buffered bytes
 every time, and it keeps them in every variant without one. A file held only in a reference
-cycle (`f.me = f; del f`) loses its bytes on both binaries, which is CPython's own documented
-caveat ("Memory tied up in circular references between objects is not freed", the C API's
-`Py_FinalizeEx`). INFERRED cause of the snapshot's difference: step 80's initialiser ends with
+cycle (`f.me = f; del f`) loses its bytes on both binaries, as it does in native CPython (the
+spec's re-review EXECUTED native 3.12 and 3.14: a self-cycle file left at 0 bytes, a left-open
+file beside a `def` flushed). CPython documents the related caveat only for memory ("Memory
+tied up in circular references between objects is not freed", the C API's `Py_FinalizeEx`),
+so this rests on the probes, not on that sentence. INFERRED cause of the snapshot's difference: step 80's initialiser ends with
 `gc.collect(); gc.freeze()` (READ, `reactor_main.c`), so `__main__` and its dict sit in the
 permanent generation, and a `def` makes the cycle `__main__.__dict__` ↔ the function's
 `__globals__`, which the shutdown's collection then never breaks before the file would be
@@ -310,4 +312,5 @@ One instance answers many calls: fuel and the deadline re-arm per call, output i
 each return, a full heap is a `MemoryError` not a trap, a NULL `host_alloc` is clean, Wizer keeps
 a `turn` export, and idle and lifetime bounds are host arithmetic on an injectable clock. Python's
 shutdown runs in the guest as it does at `run`'s end, bounded by fuel and the deadline, and
-flushes open files on the snapshot only once its frozen generation is undone.
+on the snapshot keeps a left-open file's bytes beside a function defined in `__main__` only
+once its frozen generation is undone.
