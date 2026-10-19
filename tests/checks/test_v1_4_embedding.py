@@ -1333,6 +1333,162 @@ def test_a_live_calls_folders_are_never_swept(tmp_path) -> None:
     assert _entries(tmp_path) == []
 
 
+# A private root never outlives its call (spec 084). Each check runs its call in a child process
+# with a temporary folder of its own; on POSIX the child lowers its soft RLIMIT_NOFILE to 128, so
+# a tree of 256 levels is deeper than its free descriptors. Windows has no such limit, and its
+# removal never held a handle per level: there the tree's host path passes 1,300 characters.
+
+DEEP = r"""
+import json, os, sys, tempfile, warnings
+temp, kind, where, depth, name, soft = sys.argv[1:7]
+tempfile.tempdir = temp
+if int(soft):
+    import resource
+    hard = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+    resource.setrlimit(resource.RLIMIT_NOFILE, (int(soft), hard))
+import wasi_python
+
+start = 'os.environ["HOME"]' if where == "home" else '"/"'
+code = f'''
+import os
+fd = os.open({start}, os.O_RDONLY | os.O_DIRECTORY)
+for i in range({depth}):
+    os.mkdir({name!r}, dir_fd=fd)
+    n = os.open({name!r}, os.O_RDONLY | os.O_DIRECTORY, dir_fd=fd); os.close(fd); fd = n
+os.close(fd)
+print("built", {depth})
+'''
+root = True if where == "root" else sys.argv[7]
+with warnings.catch_warnings(record=True) as seen:
+    warnings.simplefilter("always")
+    if kind == "run":
+        done = wasi_python.run(["-c", code], root=root)
+    else:
+        with wasi_python.Session(root=root) as session:
+            done = session.run(code)
+left = sorted(n for n in os.listdir(temp) if n.startswith("wasi-python-root-"))
+homes = [] if where == "root" else sorted(os.listdir(os.path.join(sys.argv[7], "tmp")))
+out = done.stdout if isinstance(done.stdout, str) else done.stdout.decode()
+print(json.dumps([done.exit_code, out, [str(w.message) for w in seen], left, homes]))
+"""
+
+
+def _deep(tmp_path: Path, kind: str, where: str) -> list:
+    """Runs DEEP: [exit, stdout, warnings, roots left after the call, root/tmp's entries, and the
+    temporary folder's wasi-python entries after the child exits (its zip folder gone too)]."""
+    temp = tmp_path / "temp"
+    temp.mkdir()
+    args = [str(temp), kind, where]
+    args += ["120", "a" * 10, "0"] if os.name == "nt" else ["256", "a", "128"]
+    if where == "home":
+        (tmp_path / "root").mkdir()
+        args.append(str(tmp_path / "root"))
+    result = json.loads(_child(DEEP, *args)[-1])
+    return [*result, _entries(temp)]
+
+
+@pytest.mark.parametrize("kind", ["run", "session"])
+def test_a_deep_private_root_is_removed(tmp_path, kind) -> None:
+    """Guards a change: a guest given root=True built a tree deeper than the process's free
+    descriptors through dir_fd, and the runner's rmtree left the root and its lock file, silently
+    (the 0.1.0a7 security review, F1). The removal now holds two descriptors at any depth
+    (spec 084)."""
+    depth = "120" if os.name == "nt" else "256"
+    exit_code, out, seen, left, _, after = _deep(tmp_path, kind, "root")
+    assert (exit_code, out) == (0, f"built {depth}\n"), (exit_code, out)
+    assert seen == [], seen
+    assert left == [], left
+    assert after == [], after
+
+
+@pytest.mark.parametrize("kind", ["run", "session"])
+def test_a_deep_fresh_home_is_removed(tmp_path, kind) -> None:
+    """Guards a change: a guest given a caller's root built a deep tree in its fresh HOME, and
+    the HOME's rmtree left it in the caller's root (spec 084; the session row reaches
+    _remove_home)."""
+    depth = "120" if os.name == "nt" else "256"
+    exit_code, out, seen, _, homes, after = _deep(tmp_path, kind, "home")
+    assert (exit_code, out) == (0, f"built {depth}\n"), (exit_code, out)
+    assert seen == [], seen
+    assert homes == [], homes
+    assert after == [], after
+
+
+MOVED = r"""
+import json, os, sys, tempfile, warnings
+temp, case, host = sys.argv[1:4]
+tempfile.tempdir = temp
+import wasi_python
+from wasi_python import Grant
+
+data = "/data" if case == "home" else "/w/data"
+dest = 'os.environ["HOME"] + "/data"' if case == "home" else '"/data"'
+code = f'''
+import os
+try:
+    os.unlink("{data}/ro/secret")
+    print("unlinked")
+except OSError as e:
+    print("refused", type(e).__name__)
+os.rename("{data}", {dest})
+'''
+with warnings.catch_warnings(record=True) as seen:
+    warnings.simplefilter("always")
+    if case == "home":
+        done = wasi_python.run(["-c", code], root=host)
+    else:
+        done = wasi_python.run(["-c", code], root=True, grants=[Grant(host, "/w", writable=True)])
+out = done.stdout if isinstance(done.stdout, str) else done.stdout.decode()
+err = done.stderr if isinstance(done.stderr, str) else done.stderr.decode(errors="replace")
+mine = [str(w.message) for w in seen if issubclass(w.category, RuntimeWarning)]
+print(json.dumps([done.exit_code, out, err[-300:], mine]))
+"""
+
+
+def _read_only(path: Path, on: bool) -> None:
+    """The host's protection: a 0500 folder on POSIX; the read-only attribute on Windows."""
+    import stat
+
+    if os.name == "nt":
+        os.chmod(path / "secret", stat.S_IREAD if on else stat.S_IWRITE | stat.S_IREAD)
+    else:
+        os.chmod(path, 0o500 if on else 0o700)
+
+
+@pytest.mark.parametrize("case", ["home", "private"])
+def test_the_removal_never_deletes_what_the_guest_may_not(tmp_path, case) -> None:
+    """Guards a change: a removal that made folders writable deleted a file the host had made
+    read-only, once the guest moved its writable parent into its HOME or its private root (spec
+    084's pre-build review, F1). The removal changes no mode: the file is kept, and one warning
+    names the folder left."""
+    import shutil
+
+    if os.name == "posix" and os.geteuid() == 0:
+        pytest.skip("modes refuse nothing to root")
+    host, temp = tmp_path / "host", tmp_path / "temp"
+    (host / "data" / "ro").mkdir(parents=True)
+    (host / "data" / "ro" / "secret").write_bytes(b"precious")
+    temp.mkdir()
+    _read_only(host / "data" / "ro", True)
+    try:
+        exit_code, out, err, seen = json.loads(_child(MOVED, str(temp), case, str(host))[-1])
+        if os.name == "nt" and out.startswith("unlinked"):
+            pytest.skip("a Windows guest deletes a read-only file itself (spec 084, C2)")
+        assert exit_code == 0 and out.startswith("refused PermissionError"), (exit_code, out, err)
+        if case == "home":
+            found = list((host / "tmp").glob(".home-*/data/ro/secret"))
+        else:
+            found = list(temp.glob("wasi-python-root-*/data/ro/secret"))
+        assert [p.read_bytes() for p in found] == [b"precious"], found
+        folder = found[0].parents[2]
+        assert len(seen) == 1 and str(folder) in seen[0], seen
+    finally:
+        for ro in [*host.glob("tmp/.home-*/data/ro"), *temp.glob("wasi-python-root-*/data/ro")]:
+            _read_only(ro, False)
+        for left in [*host.glob("tmp/.home-*"), *temp.glob("wasi-python-root-*")]:
+            shutil.rmtree(left) if left.is_dir() else left.unlink()
+
+
 # Typed grants (spec 017).
 GRANTS_GUEST = r"""
 import os
