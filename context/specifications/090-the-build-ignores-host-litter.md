@@ -38,6 +38,11 @@ Litter is never an input, so a walk that collects inputs skips it. A consumer of
 set's list, not its folder. A check that compares a folder with its list ignores litter names, and
 only those: a real stray file still fails it.
 
+## Intent
+
+Nothing a desktop process writes into `build/` changes an artifact's bytes or a release asset, and
+every check that catches a real stray file today still catches it.
+
 ## Decisions
 
 1. **One litter definition.** `is_litter(name)`: `name in OS_LITTER or name.startswith("._")`, with
@@ -58,6 +63,13 @@ only those: a real stray file still fails it.
 7. **The README's Mac note** says what is left: nothing a desktop writes into `build/` changes an
    artifact; closing System Settings' Storage pane and Finder windows on the checkout stops the
    writers.
+
+## Design
+
+`scripts/litter.py` exports `OS_LITTER` and `is_litter`; `tests/harness/paths.py` keeps its own
+copy, held equal by the existing unit check. Each collecting walk replaces its `name in OS_LITTER`
+test with `is_litter(name)`. `write_assets` reads `SHA256SUMS` and packs those paths in its order.
+`sums_errors` and `wheel_errors` drop `is_litter` names from the unlisted set before reporting.
 
 ## Scope
 
@@ -80,6 +92,10 @@ no desktop writer, and they compare with a list).
    naming it.
 5. **The judge.** `ruff` green; the fast tier and one full run `-n 3` against a private copy of the
    reviewed set: no failure, no lost pass, no fuel moved.
+
+## Landing notes
+
+Not built yet.
 
 One line: the build skips one shared litter list, the release packs its list, and the artifact
 checks forgive litter names only, so a desktop's files never change an artifact and a real stray

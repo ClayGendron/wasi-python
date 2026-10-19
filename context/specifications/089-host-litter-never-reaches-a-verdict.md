@@ -94,7 +94,22 @@ filtered from what the guest sees.
    same fuel, and no `.DS_Store` in the stage. On main, it fails (there is no `litter` module, and without the
    seal the dropped files are listed and the fuel moves).
 
-## What the first attempt taught
+## Intent
+
+No file a host process drops into a folder the guest sees can change a verdict or a fuel value,
+whichever process writes it: a read-only stage refuses it, and any grant that changes anyway fails
+its run, naming the file.
+
+## Design
+
+`tests/harness/litter.py` holds the litter names, `seal`, `unseal`, `remove` and `Watch`. The two
+`Session`s seal their stages when staged and remove them through `litter.remove`; `mpl_data_dir`
+seals the data it extracts; the `guest_workdir` fixture removes through `litter.remove`. `guest.run`
+builds its `Watch` from the exact list it preopens, before the preopens, and calls `after()` once
+the run has ended, before it returns its `Result`. The new check stages two small folders the same
+way and compares them.
+
+### What the first attempt taught
 
 - **A mitigation is tried on the whole fast tier before it is called working.** The research
   proposed a symlinked `build/harness` outside the home folder for 083's rerun, from one CPython
@@ -141,6 +156,10 @@ the files; the product runner's grants.
 6. **The upstream groups** (CPython a, b, c, fs, archives; numpy's and pandas'), when their trees
    are present in the worktree, pass at their accepted fuel. If the build cannot run them (no
    trees), the landing notes say so and the lane's serial judge is their measurement.
+
+## Landing notes
+
+Not built yet.
 
 One line: the judge seals every stage it grants read-only and fails any run whose grants change,
 so a file a desktop process drops is refused or named, never measured.
