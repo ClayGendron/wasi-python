@@ -385,9 +385,11 @@ condition passes to 037's builder: the name check must be green over every scipy
      can import (below: 68 dotted builtins; 6,163,121,466 fuel plain, 1,313,272,023 snapshot).
    - On a build with regex and the patch but **without the wrappers** (main's `gen_inittab.py`
      put back for steps 53 to 90; `B-build.log`, `B-checks.txt`): the name check fails on both
-     binaries with exactly `[['regex._regex', '_regex']] (of 69 dotted builtins)`; the pickle,
-     the golden job and the five-calls check (its `_pickled_data` line) fail with `when
-     serializing _regex.Pattern object`.
+     binaries with exactly `[['regex._regex', '_regex']] (of 69 dotted builtins)`; the pickle
+     check and the golden job fail with `when serializing _regex.Pattern object`. Six failures
+     in all: those three checks, each on both binaries. The five-calls check passes there, as it
+     should: the patch is in, and `p._pickled_data` returns a tuple without pickling anything
+     (corrected against the build review's finding 1).
    - On a build **without the patch** (the patch folder moved aside for step 53, then put back,
      `cmp`-equal; `A-checks.txt`, `A-five-alone.txt`): each of the five calls alone traps on both
      binaries (`wasm trap: indirect call type mismatch`), as does `regex.sub` with a `\g<name>`

@@ -169,8 +169,9 @@ regex 2026.9.29 is built in (spec 047): `regex._regex` is a builtin module and r
 package is in the zip, so `import regex` gives fuzzy matching, full Unicode properties (from
 regex's own tables, never the host's), graphemes, variable-length lookbehind, `captures()` and
 the rest, with native regex's answers at the same pin (the judge's golden job
-`regex_features`). A compiled pattern pickles and loads back, as natively: every builtin's init
-function runs inside CPython's package context, so `regex._regex` keeps its import name. Five of
+`regex_features`). A compiled pattern pickles and loads back, as natively: the init function of
+each of the 69 cross-built builtins runs inside CPython's package context, so `regex._regex`
+keeps its import name. Five of
 regex's callbacks are defined with one parameter where CPython passes two, which WebAssembly
 traps on; a carried patch (`recipes/patches/regex-2026.9.29/0001-callback-signatures.patch`)
 gives them the second, until regex releases the change. One edge: `timeout=` counts the guest's

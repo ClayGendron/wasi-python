@@ -57,10 +57,11 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   parameter CPython passes (`Pattern.groupindex`, pickling a pattern, `Match.capturesdict()`,
   `allcaptures()` and `allspans()` each trapped the guest without it); its upstream facts sheet
   is `context/upstream/patches/regex-2026.9.29/0001-callback-signatures.md`, for the owner to
-  send. Every builtin's init function now runs inside CPython's package context, set to its
-  dotted name, as a native import from a shared library does, so a single-phase module keeps its
-  import name (`regex._regex`, and a compiled pattern pickles); numpy's, pandas' and
-  matplotlib's modules are multi-phase and do not change. The judge checks every dotted
+  send. The init function of each of the 69 cross-built builtins now runs inside CPython's
+  package context, set to its dotted name, as a native import from a shared library does, so a
+  single-phase module keeps its import name (`regex._regex`, and a compiled pattern pickles);
+  numpy's, pandas' and matplotlib's modules are multi-phase, or already named in full
+  (`pandas._libs.json`), and do not change. The judge checks every dotted
   builtin's `__name__` on both binaries. Licence: Apache-2.0 and CNRI-Python, in
   `LICENSES/regex.txt` with a line naming the patched file. `timeout=` counts the guest's clock;
   fuel and the deadline are the limits that hold.
