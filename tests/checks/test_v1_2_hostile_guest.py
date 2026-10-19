@@ -2539,23 +2539,39 @@ elif order == "signal-after":
     signal.signal(signal.SIGILL, lambda *a: None)
 deep = "import json\njson.loads('[' * 200000 + ']' * 200000)"
 try:
-    done = wasi_python.run(["-c", deep])
+    if order == "session-turn-after":  # spec 055's turn path: a turn after a late enable
+        with wasi_python.Session() as session:
+            assert session.run("print(1)").exit_code == 0
+            faulthandler.enable()
+            done = session.run(deep)
+    else:
+        done = wasi_python.run(["-c", deep])
     print("trapped", done.trapped, flush=True)
 except RuntimeError as e:
     print("refused", e, flush=True)
 """
-REFUSED_ON_LINUX = {"after", "before-then-disable", "signal-after"}
+REFUSED_ON_LINUX = {"after", "before-then-disable", "signal-after", "session-turn-after"}
 
 
 @pytest.mark.parametrize(
     "order",
-    ["none", "before", "after", "before-then-disable", "after-then-disable", "signal-after"],
+    [
+        "none",
+        "before",
+        "after",
+        "before-then-disable",
+        "after-then-disable",
+        "signal-after",
+        "session-turn-after",
+    ],
 )
 def test_a_faulthandler_change_cannot_kill_the_host(order: str) -> None:
     """Spec 071, criterion 11 (and spec 063's build review, F3): whatever the order of the host's
     faulthandler (or a Python signal handler) and the first run, the host survives: on Linux a call
     after a late change is refused with RuntimeError naming the remedy, on macOS and Windows the
-    trap is returned. The "after" row is also a second entry into the guest in one process."""
+    trap is returned. The "after" row is also a second entry into the guest in one process; the
+    "session-turn-after" row is a session's second turn after a late enable (spec 055's turn
+    path)."""
     _run()
     env = {k: v for k, v in os.environ.items() if k != "PYTHONFAULTHANDLER"}
     try:

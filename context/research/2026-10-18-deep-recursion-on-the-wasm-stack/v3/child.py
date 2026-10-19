@@ -17,7 +17,13 @@ elif order == "signal-after":
     signal.signal(signal.SIGILL, lambda *a: None)
 deep = "import json\njson.loads('[' * 200000 + ']' * 200000)"
 try:
-    done = wasi_python.run(["-c", deep])
+    if order == "session-turn-after":  # spec 055's turn path: a turn after a late enable
+        with wasi_python.Session() as session:
+            assert session.run("print(1)").exit_code == 0
+            faulthandler.enable()
+            done = session.run(deep)
+    else:
+        done = wasi_python.run(["-c", deep])
     print("trapped", done.trapped, flush=True)
 except RuntimeError as e:
     print("refused", e, flush=True)
