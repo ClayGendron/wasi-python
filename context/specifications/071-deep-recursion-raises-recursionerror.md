@@ -6,8 +6,10 @@
   lane to copy to `../reviews/`; verdict: "ready once F1 to F5 are answered, with F6 to F11
   written in"); revised against all eleven findings with the lane's rulings, and given new scope
   by the lane from spec 063's build review (its F3: Linux's faulthandler crash, Decision 9). The
-  section "Disposition of the pre-build review" says where each went. **Awaiting its reviewer's
-  confirmation**; not to be built before it. It changes the artifact set and the build recipe
+  section "Disposition of the pre-build review" says where each went (`8d9f74e`). **Confirmed for
+  build** by the same reviewer (the file's section "Confirmation of 071's revision": "confirmed
+  for build once C1 and C2 are written in"); C1 to C6 written in (the section "Disposition of the
+  confirmation"), for the lane to check. It changes the artifact set and the build recipe
   (`recipes/reactor_main.c`), so §5.6 asks for the review before build.
 - **Owner:** Clay Gendron
 - **Kind:** **build-class** (it touches `recipes/`): one call added to `recipes/reactor_main.c`,
@@ -259,51 +261,79 @@ trap (a stack overflow included) kills the host process with SIGILL instead of r
      055, a `RecursionError` inside a turn is an ordinary exception: it no longer ends the session,
      where today's trap does; 055's "a trap ends the session" loses this case.
 
-9. **On Linux, the runner refuses a call when wasmtime's trap handlers are not in place**
-   (new scope, from spec 063's build review, F3).
-   - **The defect** (EXECUTED, the memo's A3; 063's probes): on Linux, a `faulthandler.enable()`
-     after the first engine, or a `faulthandler.disable()` after the first engine when it was
-     enabled before, makes any guest trap kill the host with SIGILL (exit −4), on x86_64 and
-     aarch64. macOS is unaffected (wasmtime uses Mach ports there). pytest's own faulthandler
-     plugin enables at session start, before any engine, so a plain pytest run is safe; an inline
-     pytester session is not.
+9. **On Linux, the runner refuses each entry into the guest when wasmtime's trap handlers are not
+   in place** (new scope, from spec 063's build review, F3; the confirmation's C1 to C4).
+   - **The defect** (EXECUTED, the memo's A3; 063's probes; the confirmation's `confirm/d9-*.log`):
+     on Linux, a `faulthandler.enable()` after the first engine, or a `faulthandler.disable()`
+     after the first engine when it was enabled before, makes any guest trap kill the host with
+     SIGILL (exit −4), on x86_64 and aarch64, glibc and musl alike. A Python-level
+     `signal.signal(SIGSEGV, …)` after the first engine is worse: a trap hangs the host forever at
+     full CPU, since the handler returns and the faulting instruction runs again. macOS is
+     unaffected (wasmtime uses Mach ports there). pytest's own faulthandler plugin enables at
+     session start, before any engine, so a plain pytest run is safe; an inline pytester session
+     is not.
    - **The mechanism** (READ): wasmtime installs its handlers for `SIGSEGV`, `SIGILL` and, on
      x86_64, `SIGFPE` when the first engine is made, saving the previous ones. faulthandler's
      handler, installed later, runs first on a trap, restores wasmtime's and re-raises from
      inside `raise()`, outside wasm; wasmtime passes that signal to the default action. A later
      `disable()` restores what preceded faulthandler, the default, over wasmtime's.
-   - **The check.** Before each guest is instantiated (in `_drive`, before
-     `linker.instantiate`), on Linux only (`sys.platform.startswith("linux")`), a private
+   - **Where the check runs** (C2): at the top of `_drive`, before `_check_preopens` (which runs
+     wasm of its own) and before `linker.instantiate`: so before every entry into guest code,
+     each `run`, and each session turn under spec 055, which re-enters a living instance. 055 is
+     in its build review: whichever of 055 and this lands second puts the same call at the top of
+     055's turn path (its entry into the instance), so a faulthandler change between two turns is
+     refused at the second.
+   - **What it reads** (C3). On Linux only (`sys.platform.startswith("linux")`), a private
      function `_trap_handlers_ready()` reads, with `sigaction(sig, NULL, &old)` through `ctypes`,
      the handler of `SIGSEGV`, `SIGILL` and, on x86_64, `SIGFPE` (wasmtime 49's set, READ,
-     `sys/unix/signals.rs:72–92`), and asks `dladdr` which file holds it. Each must be the file
-     wasmtime-py loaded (`os.path.samefile` with `wasmtime._ffi.dll._name`). If one is not, the
-     call raises `RuntimeError` before any guest code runs, with a message that names the cause
-     and the remedy: "wasmtime's trap handlers were replaced after its first engine (faulthandler
-     enabled or disabled since?); a trap in the guest would end this process. Enable faulthandler
-     before the first run, or not at all." The handler is read as the first pointer of
-     `struct sigaction`, which glibc and musl both put first; a failed `sigaction` or `dladdr`
-     counts as "not in place".
-   - **Why this is exact** (EXECUTED, `sigdetect.py` and `sigpath.py`, x86_64 and aarch64 Linux):
-     in every order that returns the trap, those signals point into `_libwasmtime.so`, the same
-     file as `wasmtime._ffi.dll`; in every order that kills the host, at least one points
-     elsewhere (faulthandler's handler, in the `python` executable, or `SIG_DFL`). It costs three
-     `sigaction` and three `dladdr` calls per guest, through `ctypes`, and no fuel.
-   - **Why refuse, not repair.** wasmtime's saved handler is fixed at the first engine, so putting
-     its handler back on top would cut faulthandler out of the chain for the host's own crashes;
-     calling `faulthandler.disable()` repairs one order and is the fatal step in the other; and a
-     Python signal handler cannot run in a fault's context. Refusing turns a dead host into an
-     exception the host can see, before the guest runs.
+     `sys/unix/signals.rs:72–92`), and asks `dladdr` for the load base (`dli_fbase`) of the object
+     that holds it. Each must equal the load base of wasmtime-py's own library, read once with
+     `dladdr` of the address of `wasmtime._ffi.dll.wasm_engine_new`. No file is touched, so an
+     upgraded or replaced wheel on disk changes nothing (the confirmation: it agreed with a
+     path comparison in every case, at half the cost, 5 to 10 µs). The handler is read as the
+     first pointer of `struct sigaction`, which glibc and musl both put first. **Any exception,
+     and any failed `sigaction` or `dladdr`, counts as "not in place".**
+   - **What it says** (C1, C4). It raises `RuntimeError` before any guest code runs. The message
+     names the signal, the cause and the exact remedy: "wasmtime's handler for SIGILL was
+     replaced after the first run, by a handler installed or removed since (faulthandler,
+     signal.signal, or a native crash reporter); a trap in the guest would end or hang this
+     process, so the call was refused. If faulthandler.enable() was called after the first run,
+     faulthandler.disable() undoes it; otherwise restart the process, and install faulthandler or
+     any crash reporter before the first run." `faulthandler.disable()` after a late `enable()`
+     restores wasmtime's handlers (EXECUTED: the "enabled after, then disabled" order returns every
+     trap); the other cases have no Python-level undo.
+   - **Exact for faulthandler, conservative for any other late handler** (C1; EXECUTED, the memo's
+     A3 and the confirmation's `d9-*.log`, x86_64 and aarch64, glibc and musl). For every
+     faulthandler order the check agrees with the outcome: where the trap returns, those signals
+     point into wasmtime's library; where the host dies, at least one points elsewhere
+     (faulthandler's handler, in the `python` executable, or `SIG_DFL`). For any other handler
+     installed after the first engine it is conservative: a native handler that chains with the
+     fault's original context (as breakpad, crashpad and the JVM's libjsig do) lets the traps
+     return, yet it is refused, because from its address it cannot be told from one that does not
+     chain (which ends the host with its own exit code, EXECUTED). The README tells embedders to
+     install crash reporters before the first run, which the check accepts (EXECUTED: a native
+     handler installed before the first engine returns every trap). It costs three `sigaction`
+     and three `dladdr` calls per entry, through `ctypes`, and no fuel.
+   - **Why refuse, not warn or repair.** A warning would let the next trap end the process, and
+     every other guest it is running. wasmtime's saved handler is fixed at the first engine, so
+     putting its handler back on top would cut faulthandler out of the chain for the host's own
+     crashes; calling `faulthandler.disable()` repairs one order and is the fatal step in another;
+     and a Python callback cannot run in a fault's context. Refusing turns a dead or hung host into
+     an exception the host can see, before the guest runs.
    - **Why not `signals_based_traps = False`.** It removes the defect outright (EXECUTED: every
-     order returns the trap, fuel unchanged), but wasmtime then requires its heap and table
-     Spectre mitigations off (READ, `config.rs:3024–3035`), a loosening of the sandbox that is the
-     owner's to decide (§4.15), and it moves the native frames by host (the memo's A3). It is
-     recorded in the memo for a later decision, not taken here.
-   - **What it does not cover.** A `faulthandler` change on another thread while a guest is
-     already running; embedders that drive the artifacts with their own wasmtime (the README says
-     what to do). Windows is INFERRED unaffected (wasmtime uses a vectored handler that
-     faulthandler's continues to; the host may print a "Windows fatal exception" traceback): the
-     release's Windows job runs criterion 11 and is the evidence.
+     order returns the trap, fuel unchanged), but wasmtime then forces its heap and table Spectre
+     mitigations off, silently when unset, and refuses the engine when they are set on (READ,
+     `config.rs:3024–3043`): a loosening of the sandbox that is the owner's to decide (§4.15). It
+     also moves the native frames by host (the memo's A3). It is recorded in the memo for a later
+     decision, not taken here.
+   - **What it does not cover.** The check is point-in-time: a handler change made during a call,
+     by a host function on the calling thread (a provider, tool or door host that enables
+     faulthandler or imports a library that installs a handler) or by another thread, is not
+     caught for that call; the next entry refuses. Embedders that drive the artifacts with their
+     own wasmtime are outside the runner (the README says what to do). Windows is INFERRED
+     unaffected (wasmtime uses a vectored handler that faulthandler's continues to; the host may
+     print a "Windows fatal exception" traceback): the release's Windows job runs criterion 11 and
+     is the evidence.
    - No upstream change is needed. CPython's faulthandler could chain to a previous
      `SA_SIGINFO` handler with the fault's context instead of re-raising; the memo notes it and
      nothing here depends on it.
@@ -334,7 +364,7 @@ src/wasi_python/runner.py
   _WASM_STACK = 512 * 1024   # spec 071: wasmtime's default, stated; the window is sized for it
   _engine(): cfg.max_wasm_stack = _WASM_STACK
   _trap_handlers_ready() -> str | None    # Linux only; None when ready, else the signal's name
-  _drive(): before linker.instantiate:
+  _drive(): first, before _check_preopens and linker.instantiate (every entry into the guest):
       if (bad := _trap_handlers_ready()) is not None: raise RuntimeError(<the message>)
 
 tests/harness/guest.py
@@ -345,8 +375,10 @@ tests/harness/guest.py
 - The window's call sits after the core phase and before the main phase, so the zip's reader
   and the imports that follow already run under it. A two-line comment says why: the guard
   measures linear memory; wasmtime's native stack is separate and smaller.
-- `_trap_handlers_ready` resolves `sigaction` and `dladdr` from the C library once, lazily, the
-  first time it runs on Linux; it reads into a buffer larger than any `struct sigaction`. The
+- `_trap_handlers_ready` resolves `sigaction` and `dladdr` from the C library, and wasmtime-py's
+  load base, once, lazily, the first time it runs on Linux; it reads into a buffer larger than any
+  `struct sigaction`; any exception inside it answers "not ready" (the signal's name, or
+  `"unknown"`). The
   signal set is a module constant with a comment naming wasmtime 49's source; a re-pin of
   wasmtime re-reads it (criterion 11 runs on both Linux hosts in the release).
 - The checks' programs are the memo's and the review's case files, cut to what each criterion
@@ -440,11 +472,12 @@ one program. **Every number here holds on both arm64 and x86_64** (the lane's ru
    program builds its structure and acts on it; the free kind ends with `del`, the others with
    `os._exit(0)` so freeing is not what is measured. The completing depth sits at least a
    quarter below the lower host's edge; the trapping one at least 40% past the higher host's
-   (EXECUTED, the memo's A1):
+   (EXECUTED, the memo's A1; freeing traps at 3,300, 42% past arm64's 2,324, the confirmation's
+   C5):
 
    | kind | completes at | traps at | last good depth, arm64 / x86_64 |
    |---|---|---|---|
-   | freeing a nested list | 1,500 | 3,000 | 2,324 / 2,033 |
+   | freeing a nested list | 1,500 | 3,300 | 2,324 / 2,033 |
    | `json.loads` of nested arrays | 800 | 2,000 | 1,204 / 1,121 |
    | `eval` of nested parentheses | 100 | 199 (the most CPython's tokenizer accepts) | 141 / 132 |
    | a `pyexpat` start-element handler that parses again | 60 levels, bounded | unbounded | 130 / 101 |
@@ -513,12 +546,18 @@ one program. **Every number here holds on both arm64 and x86_64** (the lane's ru
     | enabled after the first call | `RuntimeError` naming faulthandler; host exit 0 | `trapped == "stack overflow"` |
     | enabled before, disabled after | the same `RuntimeError`; host exit 0 | `trapped == "stack overflow"` |
     | enabled after, then disabled | `trapped == "stack overflow"` | the same |
+    | `signal.signal(signal.SIGSEGV, h)` after the first call (a Python handler) | the same `RuntimeError`; host exit 0 | `trapped == "stack overflow"` |
 
-    The child's exit is 0 in every row. Seen failing first: on Linux today, rows 3 and 4 kill the
-    child with exit −4 (EXECUTED, 063's `product_probe.log` and the memo's `sigprobe-*.log`). A
+    The child's exit is 0 in every row; each child has a 120 s limit, so the hang the last row
+    causes today fails the row instead of the run. The message names the signal and, for the
+    late-enable row, `faulthandler.disable()` as the remedy. Seen failing first: on Linux today, rows 3 and 4 kill the
+    child with exit −4 and the last row hangs it at full CPU (EXECUTED, 063's `product_probe.log`,
+    the memo's `sigprobe-*.log`, the confirmation's `d9-*.log`). A second-entry row runs the
+    warm call, changes faulthandler, and makes a second call in the same process: refused, as a
+    session's second turn would be once 055 has landed (Decision 9, "Where the check runs"). A
     unit check (`tests/unit/test_runner_calls.py`) feeds `_trap_handlers_ready` a stand-in for
     `sigaction` and `dladdr` and shows it names the first signal whose handler lies outside
-    wasmtime's library, and treats a failed call as not ready. On macOS and Windows the function
+    wasmtime's library (by load base), and treats a failed call or any exception as not ready. On macOS and Windows the function
     returns `None` without reading anything.
 
 ## README
@@ -545,8 +584,9 @@ The fourth step of "Any other embedder does the same three things" (which become
 >    it, recursion through Python code raises `RecursionError`, except through expat's
 >    callbacks. More stack, on a thread that has it, lifts the limits above: 1 MiB covers nested
 >    `repr` and `json.dumps` and the parser; 8 MiB covers `json.loads`, `==`, and freeing
->    10,000-deep structures. On Linux, enable `faulthandler` before your first engine or not at
->    all: enabling or disabling it later makes any guest trap kill your process.
+>    10,000-deep structures. On Linux, install `faulthandler`, and any crash reporter or signal
+>    handler for `SIGSEGV`, `SIGILL` or `SIGFPE`, before your first engine, or not at all:
+>    enabling or disabling one later makes any guest trap kill or hang your process.
 
 Under *Running it*, beside the runner's defaults: "`run` runs the guest on the calling thread,
 with 512 KiB of wasm stack; call it from a thread with that much free above your own frames.
@@ -554,13 +594,15 @@ Python's threads have about 2 MB or more on every host, but an application that 
 `threading.stack_size`, or an executor with small threads passed to `run_async`, may not."
 
 *Safety*, "Enforced": "recursion through Python code raises `RecursionError`; the C-stack guard
-watches 128 KiB, sized for the runner's 512 KiB wasm stack"; "on Linux, a call is refused with
-`RuntimeError`, before the guest runs, when wasmtime's trap handlers have been replaced since
-the first call (a `faulthandler.enable()` or `disable()` after it), since a guest trap would then
-end the process". "Not protected": "recursion in C over very deep data, callbacks out of expat,
+watches 128 KiB, sized for the runner's 512 KiB wasm stack"; "on Linux, each entry into the guest
+is refused with `RuntimeError`, before guest code runs, when wasmtime's trap handlers have been
+replaced since the first call (by faulthandler, `signal.signal` or a native crash reporter
+installed or removed after it), since a guest trap would then end or hang the process; install
+faulthandler and crash reporters before the first call. The check is exact for faulthandler and
+refuses some crash reporters that would have worked". "Not protected": "recursion in C over very deep data, callbacks out of expat,
 and freeing very deep structures end the call with a stack-overflow trap (see the platform
-facts); the next call is unaffected"; "a `faulthandler` change on another thread while a guest
-runs, on Linux".
+facts); the next call is unaffected"; "on Linux, a handler change made during a call, by a host
+function on the calling thread or by another thread (the next call is refused)".
 
 ## CHANGELOG (0.1.0a7)
 
@@ -577,8 +619,9 @@ runs, on Linux".
 >   `MANIFEST` change; the zip does not.
 > - **On Linux, a host's faulthandler can no longer turn a guest trap into the host's death**
 >   (spec 071). If `faulthandler` was enabled or disabled after the runner's first call, a guest
->   trap used to kill the host with SIGILL; `run` now refuses such a call with `RuntimeError`
->   before the guest runs, and says why. Enable faulthandler before the first call, or not at
+>   trap used to kill the host with SIGILL (and after a late `signal.signal` for `SIGSEGV`, hang
+>   it); `run` now refuses such a call with `RuntimeError` before the guest runs, says why, and
+>   names the remedy. Install faulthandler and crash reporters before the first call, or not at
 >   all.
 
 ## For the owner
@@ -632,6 +675,26 @@ the measurements, should the owner want it weighed.
   and criterion 1 would see one as a failure.
 - **New scope (063's F3).** Decision 9, criterion 11, the memo's A3, the README and CHANGELOG
   lines.
+
+## Disposition of the confirmation
+
+The confirmation (the same file, section "Confirmation of 071's revision"; probes in
+`scratchpad/071-review/confirm/`): "confirmed for build once C1 and C2 are written in".
+
+- **C1.** Decision 9 says it is exact for faulthandler and conservative for any other late
+  handler; the message names any late handler (faulthandler, `signal.signal`, a native crash
+  reporter); the README asks for crash reporters before the first run; criterion 11 has the
+  `signal.signal` row, which hangs the host today.
+- **C2.** The check is the first thing `_drive` does, before `_check_preopens`, so it runs
+  before every entry into the guest; 055's turn path gets the same call from whichever of 055
+  and this lands second; *Not protected* names a change made during a call, on the calling
+  thread or another. Criterion 11 has a second-entry row.
+- **C3.** wasmtime's library is identified by load base (`dli_fbase` of `wasm_engine_new`); any
+  exception counts as not ready.
+- **C4.** The message's remedy is exact: `faulthandler.disable()` undoes a late enable; the other
+  cases need a restart.
+- **C5.** Freeing traps at 3,300.
+- **C6.** The memo's closing sections no longer overclaim.
 
 ## Landing notes
 

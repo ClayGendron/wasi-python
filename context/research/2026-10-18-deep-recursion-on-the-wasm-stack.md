@@ -96,7 +96,8 @@ binary was relinked from the main tree's build with CPython's own link command; 
 unchanged that relink reproduces the set's `python.wasm` byte for byte but for the module's name
 (`evidence/relink.txt`).
 
-- **The sweep** (the shapes of section 1 that trapped, runner's engine, 512 KiB;
+- **The sweep** (arm64 only; x86_64's margins are thinner, the addendum's A1) (the shapes of
+  section 1 that trapped, runner's engine, 512 KiB;
   `evidence/counted-L*.jsonl`):
 
   | window | Python-through-C shapes that raise | first to trap again |
@@ -106,7 +107,8 @@ unchanged that relink reproduces the set's `python.wasm` byte for byte but for t
   | 192 KiB | 22 | `lru_cache` traps at 306, as before |
 
   128 KiB is a quarter of the native stack and holds a margin of about a quarter over the worst
-  shape measured (`lru_cache`, ratio 3.1). The message is CPython's: "Stack overflow (used
+  shape measured here (`lru_cache`, ratio 3.1), on arm64; on x86_64, and with the review's shapes,
+  the margin is about a ninth (A1). The message is CPython's: "Stack overflow (used
   112 kB)", the window less the guard's 16 KiB.
 - **Depths under a 128 KiB window:** `__repr__` 214 levels, `__getattr__` 214, `__eq__` 244,
   `__len__` 228, `__hash__` 221, `__str__` 235, `__format__` 177, `lru_cache` 208, `map` 222,
@@ -315,7 +317,10 @@ make the runner's engine.
   runs again and the default action kills the process. `faulthandler.disable()` puts back
   whatever was there before its own `enable`; when that came before the engine, it is the
   default, and wasmtime's handler is gone.
-- **The order can be read, exactly** (`sigdetect.py`, `sigpath.py`): `sigaction` gives each
+- **The order can be read: exactly for faulthandler, conservatively for other handlers**
+  (`sigdetect.py`, `sigpath.py`; the confirmation's `confirm/d9-*.log` adds musl and native
+  handlers: one that chains with the fault's context lets traps return yet reads as "not
+  wasmtime's", so a check refuses it too): `sigaction` gives each
   signal's handler, and `dladdr` names the file that holds it. In every case that survives,
   `SIGSEGV`, `SIGILL` and (x86_64) `SIGFPE` point into wasmtime-py's `_libwasmtime.so`, the very
   file `wasmtime._ffi.dll` loaded (`os.path.samefile`); in every case that dies, at least one does
@@ -325,8 +330,8 @@ make the runner's engine.
   faulthandler out of the chain (wasmtime's saved handler is fixed at the first engine), and a
   Python-level signal handler cannot run in a fault's context. Calling `faulthandler.disable()`
   repairs the "enabled after" case but is the fatal step in the "enabled before" case. So the
-  exact answer inside the runner is to read the order before each guest runs and refuse the call
-  when a trap could not reach wasmtime.
+  answer inside the runner is to read the order before each entry into the guest and refuse the
+  call when a trap might not reach wasmtime.
 - **The alternative not taken: `signals_based_traps = False`.** With it wasmtime installs no
   handler and compiled code checks bounds and traps explicitly; every faulthandler order then
   returns the trap, on both Linux hosts (`sigprobe-nospectre-amd64.log`), with fuel unchanged
@@ -350,21 +355,24 @@ make the runner's engine.
 - The defect is two stacks: CPython guards a 16 MiB linear stack; wasmtime gives wasm 512 KiB of
   native stack, which every C level spends 1 to 25 times faster, and chains of frees without
   limit.
-- A 128 KiB window, set from the recipe through CPython's own API, makes every Python-through-C
-  shape measured raise at wasmtime's default stack, on both binaries, on any engine, for about
-  half the depth it reached before trapping. Ordinary work does not notice.
-- Callbacks out of expat (pyexpat, `xml.sax`, `ElementTree` parser targets) trap at 512 KiB
-  too, on x86_64 even under the window; x86_64 is the lower host for every data limit (the
-  addendum).
-- On Linux, a `faulthandler` change after the first engine turns any guest trap into a host crash;
-  the runner can read the signal handlers' order exactly and refuse a call that would end so (the
-  addendum, A3).
-- Data recursion in C, freeing deep structures, the parser and exception groups need a larger
-  native stack (2 MiB closes spec 065's five; 8 MiB the data shapes) or carried patches. A larger
-  stack in the runner needs a thread the runner owns.
+- A 128 KiB window, set from the recipe through CPython's own API, makes recursion through Python
+  code raise at wasmtime's default stack, on both binaries, on the runner's engine and on
+  wasmtime's default one, on arm64 and x86_64, for 64 of the 70 shapes the review measured, at
+  about half the depth it reached before trapping (x86_64's thinnest margin is about a ninth).
+  Ordinary work does not notice. Callbacks out of expat (pyexpat, `xml.sax`, `ElementTree`
+  parser targets) still trap, on x86_64 even with the window; x86_64 is the lower host for every
+  data limit (the addendum, A1).
+- On Linux, a `faulthandler` change after the first engine turns any guest trap into a host crash,
+  and a late Python `signal.signal` into a hang. The runner can read the handlers' order before
+  each entry into the guest and refuse the call: exactly for faulthandler, conservatively for any
+  other late handler (the addendum, A3).
+- Data recursion in C, deep frees, the parser, exception groups and the expat callbacks need a
+  larger native stack (2 MiB closes spec 065's original five entries; 8 MiB the data shapes on
+  arm64), carried patches, or a smaller window. A larger stack in the runner needs a thread the
+  runner owns.
 
 ## One line
 
 wasmtime runs out of native stack long before CPython's 16 MiB guard looks; a 128 KiB window
-fixes recursion through Python code for every embedder, and the rest needs more stack than a
-caller's thread can promise.
+fixes most recursion through Python code at wasmtime's default stack, and the rest needs more
+stack than a caller's thread can promise.
