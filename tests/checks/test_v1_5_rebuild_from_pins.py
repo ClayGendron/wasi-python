@@ -3,6 +3,7 @@ exactly the recorded patches (constitution §4.1, spec 020)."""
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -202,5 +203,31 @@ def test_every_compile_contracts_nothing() -> None:
     for clang in sorted((paths.BUILD / "tools").glob("wasi-sdk-*/bin/clang")):
         errors += scan.fp_compiler_errors(clang.parent)
         read.append(f"{clang.parent.parent.name}: clang and clang++ probed with -###")
+    print("\n".join(read))
+    assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)
+
+
+def _line_values() -> dict[str, str]:
+    """scripts/line.conf as the build reads it, through its own parser (spec 005)."""
+    spec = importlib.util.spec_from_file_location("wasi_python_line", SCRIPTS / "line.py")
+    assert spec is not None and spec.loader is not None
+    line = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(line)
+    return line.read(SCRIPTS / "line.conf")
+
+
+def test_every_build_python_is_pinned() -> None:
+    """Every Python a build step runs is the pinned host Python or one built from pins (spec 079):
+    step 10's shim comes first on every step's PATH, build.sh puts a refusing stand-in for every
+    other Python name behind it, and the build's records (each meson build's log and build.ninja,
+    every config.log, the folders steps put on PATH, step 10's gate line) name no other
+    interpreter. Without a build, the record part is blocked."""
+    errors = scan.host_python_recipe_errors(paths.REPO)
+    assert not errors, scan.report(errors)
+    needs.need("compile records")
+    steps = {
+        p.name: p.read_text(errors="replace") for p in sorted((SCRIPTS / "steps").glob("*.sh"))
+    }
+    errors, read = scan.host_python_record_errors(paths.REPO, _line_values(), steps)
     print("\n".join(read))
     assert not errors, scan.report(errors) + "\nread:\n" + "\n".join(read)

@@ -1460,3 +1460,198 @@ def test_fp_recipe_scan_reads_step_10_and_forbids_the_family_elsewhere() -> None
         "scripts/steps/35_stdlib_libs.sh:1: -ffast-math",
         "scripts/steps/55_matplotlib.sh:1: -ffp-model=precise",
     ], errors
+
+
+# Spec 079: the build runs only the pinned host Python.
+SHIMS = scan.shim_names("3.15.0")
+COMMON_079 = 'export PATH="$T/host-python:$T/pylib/bin:$T/$WASMTIME_DIR:$PATH"\n'
+STEP_10_079 = (
+    'printf \'#!/bin/sh\\nexec "%s" "$@"\\n\' "$HOSTPY" > "$T/host-python/python3"\n'
+    '[ "$(command -v python3)" = "$T/host-python/python3" ] || die x\n'
+    "/usr/bin/env python3 -c 'import sys; print(sys.prefix)'\n"
+    'echo "host python: python3 is $a, Python $v, prefix $p; behind it python2 is $b"\n'
+)
+BUILD_079 = (
+    "P_NOPY=$HERE/build/no-host-python\n"
+    "P_UNPINNED=$HERE/build/logs/unpinned-python.log\n"
+    'ln -s "$HERE/scripts/refuse-python" "$P_NOPY/$1"\n'
+    'for p_file in "$p_dir"/python* "$p_dir"/pypy* "$p_dir"/pip* "$p_dir"/pydoc* "$p_dir"/idle*;'
+    " do :; done\n"
+    "for p_name in python python2 python2.7 python3; do :; done\n"
+    'export PATH="$P_NOPY:$P_KEPT"\n'
+)
+REFUSER_079 = (
+    "#!/bin/sh\n"
+    'name=$(basename "$0")\n'
+    'dir=$(dirname "$0")\n'
+    'if [ "$(basename "$dir")" = no-host-python ]; then\n'
+    '  printf \'%s\\n\' "$0 $*" >> "$dir/../logs/unpinned-python.log"\n'
+    "fi\n"
+    'echo "ERROR: an unpinned $name was run" >&2\n'
+    "exit 1\n"
+)
+
+
+def _recipe_079(work: Path, **over: str) -> Path:
+    files = {
+        "scripts/steps/common.sh": COMMON_079,
+        "scripts/steps/10_tools.sh": STEP_10_079,
+        "scripts/build.sh": BUILD_079,
+        "scripts/refuse-python": REFUSER_079,
+        **over,
+    }
+    for rel, text in files.items():
+        if text is not None:
+            write(work, rel, text)
+    return work
+
+
+def test_host_python_recipe_holds_and_each_part_is_missed(work) -> None:
+    assert scan.host_python_recipe_errors(_recipe_079(work)) == []
+    errors = scan.host_python_recipe_errors(
+        _recipe_079(work, **{"scripts/steps/common.sh": 'export PATH="$T/pylib/bin:$PATH"\n'})
+    )
+    assert errors == ["common.sh does not put $T/host-python first on PATH"], errors
+    errors = scan.host_python_recipe_errors(
+        _recipe_079(work, **{"scripts/build.sh": BUILD_079.replace("no-host-python", "nopy")})
+    )
+    assert errors == ["build.sh does not name build/no-host-python"], errors
+    errors = scan.host_python_recipe_errors(
+        _recipe_079(work, **{"scripts/build.sh": BUILD_079.replace(' "$p_dir"/idle*', "")})
+    )
+    assert errors == ['build.sh does not name "$p_dir"/idle*'], errors
+    # The review's F1: a stand-in that takes its log from the environment is refused.
+    from_env = REFUSER_079.replace('"$dir/../logs/unpinned-python.log"', '"$UNPINNED_PYTHON_LOG"')
+    errors = scan.host_python_recipe_errors(
+        _recipe_079(work, **{"scripts/refuse-python": from_env + "# unpinned-python.log\n"})
+    )
+    assert any("reads UNPINNED_PYTHON_LOG" in e for e in errors), errors
+    errors = scan.host_python_recipe_errors(
+        _recipe_079(work, **{"scripts/steps/10_tools.sh": STEP_10_079.replace("behind it", "and")})
+    )
+    assert errors == ["10_tools.sh does not name behind it python2 is"], errors
+
+
+def test_program_word_reads_env_meson_shells_and_shebangs(work) -> None:
+    root = work.resolve()
+    pinned = f"{root}/build/tools/python/bin/python3"
+    shim = f"{root}/build/tools/host-python/python3"
+    cross = f"{root}/scripts/python-wasi-cross"
+    env_script = write(work, "src/gen.py", "#!/usr/bin/env python3\nprint(1)\n")
+    env_script.chmod(0o755)
+    abs_script = write(work, "src/old.py", "#!/usr/bin/python3\nprint(1)\n")
+    env_i_script = write(work, "src/clean.py", "#!/usr/bin/env -i python3\nprint(1)\n")
+    hostpy_script = write(work, "build/tools/pylib/bin/meson", f"#!{pinned}\n")
+
+    def problem(cmd: str) -> str | None:
+        return scan.program_problem(scan._tokens(cmd), root, SHIMS, root)
+
+    for good in (
+        f"{env_script} a b",
+        f"{shim} x.py",
+        f"{pinned} x.py",
+        f"{cross} --version",
+        f"env PYTHONPATH={root}/numpy/_core {cross} -m code_generators.generate_umath",
+        f"{hostpy_script} --internal regenerate",
+        "cython -3 x.pyx",
+        "python3 x.py",
+        "rm -f x",
+        "-x c -E -dM -",
+    ):
+        assert problem(good) is None, good
+    for bad, says in (
+        ("/opt/homebrew/bin/python3 x.py", "/opt/homebrew/bin/python3 is not a pinned"),
+        ("env PYTHONPATH=x /usr/bin/python3 y.py", "/usr/bin/python3 is not a pinned"),
+        # The confirmation's C1: env's options by their grammar.
+        ("env -u FOO /usr/bin/python3 y.py", "/usr/bin/python3 is not a pinned"),
+        ("env -P /usr/local/bin python3 y.py", "`env -P` does not search"),
+        ("env -i python3 y.py", "`env -i` does not search"),
+        ("env - python3 y.py", "`env -` does not search"),
+        ("env --unset=PATH python3", "`env --unset=PATH` does not search"),
+        ("env -u PATH python3", "`env -u PATH` does not search"),
+        ("env PATH=/usr/bin python3", "`env PATH=/usr/bin` does not search"),
+        ("env -v python3", "`env -v` is an option the judge does not read"),
+        ("sh -c '/usr/bin/python3 y.py'", "`sh -c` runs a string"),
+        (f"{hostpy_script} --internal exe --unpickle x.dat", "--unpickle` hides"),
+        (f"{hostpy_script} --internal exe -- /usr/bin/python3 y", "/usr/bin/python3 is not"),
+        (f"{abs_script} a", "old.py's shebang: /usr/bin/python3 is not a pinned"),
+        (f"{env_i_script} a", "clean.py's shebang: `env -i` does not search"),
+        ("python3.14 -V", "`python3.14` is no shim name"),
+    ):
+        got = problem(bad)
+        assert got is not None and says in got, (bad, got)
+
+
+def test_host_python_records_are_read_and_each_breach_named(work) -> None:
+    root = work.resolve()
+    line = {"PYTHON_VERSION": "3.15.0", "WASMTIME_DIR": "wasmtime-v49"}
+    shim = f"{root}/build/tools/host-python/python3"
+    steps = {
+        "common.sh": 'B="$HERE/build"\nT="$B/tools"\n' + COMMON_079,
+        "57_scipy.sh": 'TOOLS="$B/scipy-tools"\nexport PATH="$TOOLS/bin:$PATH"\n',
+    }
+    write(
+        work,
+        "build/freetype-build/meson-logs/meson-log.txt",
+        f"Program python3 found: YES ({shim})\nRunning command: {shim} x.py\n",
+    )
+    write(
+        work, "build/freetype-build/build.ninja", f" COMMAND = {shim} y.py\n command = $COMMAND\n"
+    )
+    write(
+        work,
+        "build/Python-3.15.0/cross-build/aarch64-apple-darwin/config.log",
+        f"configure:3876: found {root}/build/tools/host-python/python3.15\n",
+    )
+    write(work, "build/scipy-tools/bin/f2py", "#!/bin/sh\n")
+    write(work, "build/tools/wasmtime-v49/wasmtime", "")
+    gate = (
+        "host python: python3 is build/tools/host-python/python3, Python 3.15.0, prefix "
+        "build/tools/python; behind it python2 is build/no-host-python/python2\n"
+    )
+    write(work, "build/logs/10_tools.log", gate)
+    errors, read = scan.host_python_record_errors(root, line, steps)
+    assert errors == [], errors
+    assert "freetype-build/build.ninja: 1 commands" in read, read
+    # Each breach, named.
+    write(
+        work,
+        "build/freetype-build/meson-logs/meson-log.txt",
+        "Program python3 found: YES (/usr/bin/python3)\n"
+        "Program python3 found: YES (/opt/x/bin/py)\n",
+    )
+    write(work, "build/freetype-build/build.ninja", " COMMAND = /opt/homebrew/bin/python3 x.py\n")
+    write(
+        work,
+        "build/xz-build/config.log",
+        "configure:3876: found /Users/x/.local/bin/python3.14\n",
+    )
+    write(work, "build/lane-047/xz-build/config.log", "configure:1: found /usr/bin/python3\n")
+    write(work, "build/scipy-tools/bin/python3", "#!/bin/sh\n")
+    write(work, "build/logs/10_tools.log", gate.replace("build/no-host-python/python2", "none"))
+    write(work, "build/logs/unpinned-python.log", "x\n")
+    unresolved = {**steps, "58_x.sh": 'export PATH="$NOWHERE/bin:$PATH"\n'}
+    errors, _ = scan.host_python_record_errors(root, line, unresolved)
+    joined = "\n".join(errors)
+    for says in (
+        "meson-log.txt:1: Program python3: /usr/bin/python3 is not a pinned interpreter",
+        "meson-log.txt:2: Program python3 found /opt/x/bin/py, not a pinned interpreter",
+        "build.ninja:1: /opt/homebrew/bin/python3 is not a pinned interpreter",
+        "xz-build/config.log:1: found /Users/x/.local/bin/python3.14",
+        "57_scipy.sh: "
+        + f"{root}/build/scipy-tools/bin sits ahead of the stand-in and holds python3",
+        "58_x.sh: PATH folder $NOWHERE/bin cannot be resolved",
+        "behind the shim python2 is none, not the stand-in",
+        "build/logs/unpinned-python.log exists",
+    ):
+        assert says in joined, (says, errors)
+    assert "lane-047" not in joined, errors  # the lane's copies are skipped (direct children only)
+    assert len(errors) == 8, errors
+
+
+def test_config_log_skips_only_direct_children_of_build(work) -> None:
+    write(work, "build/harness/config.log", "")
+    write(work, "build/harness-tmp/a/config.log", "")
+    write(work, "build/xz-build/harness/config.log", "")
+    got = [str(p.relative_to(work)) for p in scan.config_logs(work / "build")]
+    assert got == ["build/xz-build/harness/config.log"], got

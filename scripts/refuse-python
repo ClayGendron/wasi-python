@@ -1,0 +1,15 @@
+#!/bin/sh
+# The stand-in for every Python a build step could find on PATH other than the pinned one (spec
+# 079, Decision 4). scripts/build.sh links each Python name the caller's PATH holds, and a fixed
+# list besides, to this file from build/no-host-python/, behind step 10's shim for the pinned host
+# Python (build/tools/host-python/). Run through such a link, it logs the call to
+# build/logs/unpinned-python.log, found from its own location and never from the environment
+# (steps 35 and 36 run configure under `env -i`), so build.sh fails the step even when the step
+# swallowed this refusal. It always refuses.
+name=$(basename "$0")
+dir=$(dirname "$0")
+if [ "$(basename "$dir")" = no-host-python ] && [ -d "$dir/../logs" ]; then
+  printf '%s\n' "$0 $*" >> "$dir/../logs/unpinned-python.log"
+fi
+echo "ERROR: an unpinned $name was run; a build step runs only build/tools/host-python's Python (spec 079)" >&2
+exit 1

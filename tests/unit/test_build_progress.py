@@ -48,6 +48,7 @@ STEPS = (
 REAL_TOOLS = (
     "sh", "sed", "awk", "tr", "cut", "tail", "head", "grep", "wc", "cat", "date", "sleep", "ls",
     "dirname", "basename", "mkdir", "rm", "mv", "env", "sort", "stty", "uname", "touch", "shasum",
+    "ln",
 )  # fmt: skip
 STUBS = ("cc", "make", "tar", "gzip", "xz", "uv", "git")  # the preflight's tools, as stand-ins
 FOUND = {t: shutil.which(t) for t in REAL_TOOLS}
@@ -100,6 +101,7 @@ class Tree:
             "steps/remove.sh",
             "line.sh",
             "line.conf",
+            "refuse-python",
         ):
             dst = self.root / "scripts" / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
@@ -608,7 +610,8 @@ def test_the_step_sees_the_same_in_every_mode(work) -> None:
         seen.append((tree.root / "record").read_text())
     alone = (
         'export SOURCE_DATE_EPOCH=1767225600 UV_CACHE_DIR="$0/build/uv-cache" '
-        'PYTHONHASHSEED=0 LC_ALL=C; sh "$0/scripts/steps/30_zlib.sh" '
+        'PYTHONHASHSEED=0 LC_ALL=C PATH="$0/build/no-host-python:$PATH"; '
+        'sh "$0/scripts/steps/30_zlib.sh" '
         '> "$0/build/logs/30_zlib.log" 2>&1'
     )
     code, _ = Pty([SH_OF_STEPS, "-c", alone, str(tree.root)], env, tree.root, 80).run()
@@ -1055,3 +1058,70 @@ def test_a_download_that_does_not_match_fails_the_step(work) -> None:
     assert out.returncode != 0
     assert "zlib-1.3.1.tar.gz: FAILED" in out.stdout
     assert not any(x.startswith("downloads: ") for x in out.stdout.splitlines())
+
+
+# --------------------------------------------------------------------------------------------
+# 8. Only the pinned host Python (spec 079, Decision 4): behind the shim, every other Python name
+# refuses, and a step that ran one fails even when it swallowed the refusal.
+
+
+def test_a_step_that_runs_an_unpinned_python_fails(work) -> None:
+    _needs_sh()
+    tree = Tree(work)
+    tree.step("40_numpy", "python3 -c 'print(1)'\n")
+    out = tree.plain("40")
+    assert out.returncode == 1, out.stdout
+    assert out.stdout.splitlines()[-1] == (
+        "ERROR 40_numpy: ERROR: an unpinned python3 was run; a build step runs only "
+        "build/tools/host-python's Python (spec 079) (log: build/logs/40_numpy.log)"
+    ), out.stdout
+    logged = (work / "build" / "logs" / "unpinned-python.log").read_text()
+    assert logged.endswith("/build/no-host-python/python3 -c print(1)\n"), logged
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "python3 -V 2> /dev/null || true\necho swallowed\n",
+        # The review's F1: configure under `env -i` keeps PATH and drops every other variable.
+        "env -i PATH=\"$PATH\" sh -c 'python3.14 -V 2> /dev/null || true'\necho swallowed\n",
+    ],
+    ids=["plain", "env-i"],
+)
+def test_a_swallowed_refusal_still_fails_the_step(work, body) -> None:
+    _needs_sh()
+    tree = Tree(work)
+    tree.step("40_numpy", body)
+    out = tree.plain("40")
+    assert out.returncode == 1, out.stdout
+    assert out.stdout.splitlines()[-1] == (
+        "ERROR 40_numpy: ERROR: 40_numpy ran an unpinned Python (build/logs/unpinned-python.log) "
+        "(log: build/logs/40_numpy.log)"
+    ), out.stdout
+    assert (work / "build" / "logs" / "40_numpy.log").read_text().startswith("swallowed\n")
+
+
+def test_every_python_name_on_the_callers_path_is_shadowed(work) -> None:
+    _needs_sh()
+    tree = Tree(work)
+    host = work / "host bin"  # a folder whose path holds a space
+    _script(host / "python3-intel64", "#!/bin/sh\necho reached the host\n")
+    _script(host / "python3.10", "#!/bin/sh\necho reached the host\n")
+    _script(work / "other" / "python3.10", "#!/bin/sh\necho reached the host\n")  # a duplicate
+    (host / "pip-folder").mkdir()  # not a file, so not swept
+    (host / "pydoc-data").write_text("")  # not executable, so not swept
+    tree.step("40_numpy", "python3-intel64\n")
+    env = tree.env(PATH=f"{tree.bin}:{host}:{work / 'other'}:relative/bin::")
+    out = tree.plain("40", env=env)
+    assert out.returncode == 1, out.stdout
+    assert "reached the host" not in out.stdout
+    assert "an unpinned python3-intel64 was run" in out.stdout.splitlines()[-1], out.stdout
+    nopy = work / "build" / "no-host-python"
+    names = sorted(p.name for p in nopy.iterdir())
+    assert {"python3-intel64", "python3.10", "python", "python2.7", "python3.20"} <= set(names)
+    assert "pip-folder" not in names and "pydoc-data" not in names
+    # The step's PATH: the stand-in first, then the caller's absolute entries only.
+    tree.step("40_numpy", 'echo "PATH=$PATH"\n')
+    out = tree.plain("40", env=env)
+    shown = (work / "build" / "logs" / "40_numpy.log").read_text().strip()
+    assert shown == f"PATH={nopy}:{tree.bin}:{host}:{work / 'other'}", shown

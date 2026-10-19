@@ -4,6 +4,7 @@ one line each; an empty list means the rule holds."""
 from __future__ import annotations
 
 import ast
+import fnmatch
 import json
 import posixpath
 import re
@@ -1852,3 +1853,336 @@ def merge_commit_errors(repo: Path) -> list[str]:
     if out is None:
         return ["git rev-list --merges HEAD failed"]
     return [f"{h[:12]} is a merge commit; main moves only by fast-forward" for h in out.split()]
+
+
+# Spec 079: every Python a build step runs is the pinned host Python, or one built from pins. Step
+# 10's shim (build/tools/host-python/) comes first on every step's PATH; scripts/build.sh puts a
+# refusing stand-in for every other Python name behind it; this part reads the recipe and what the
+# meson builds and configure recorded.
+
+PYTHON_GLOBS = ("python*", "pypy*", "pip*", "pydoc*", "idle*")
+SHIM_DIR = "build/tools/host-python"
+STAND_IN_DIR = "build/no-host-python"
+REFUSER = "scripts/refuse-python"
+UNPINNED_LOG = "build/logs/unpinned-python.log"
+SHELLS = {"sh", "bash", "dash", "zsh"}
+# env's options (macOS and GNU): these consume the next word; these clear or replace the PATH a
+# program is searched on, so a program behind them does not meet the shim.
+ENV_ARG_OPTIONS = {"-u", "-C", "-P", "-S"}
+ENV_BREACHES = {"-i", "-", "-P", "-S", "--ignore-environment", "--unset=PATH"}
+# Direct children of build/ the harness and the lane keep, never a step's records.
+CONFIG_LOG_SKIPS = ("uv-cache", "reviews-evidence", "harness", "harness-tmp")
+GATE_LINE = re.compile(
+    r"^host python: python3 is (\S+), Python (\S+), prefix (\S+); behind it python2 is (.*)$", re.M
+)
+# The words each recipe file must hold (code, not comments).
+STEP_10_HOST_PYTHON_WORDS = (
+    "host-python",
+    "command -v",
+    "/usr/bin/env python3",
+    "sys.prefix",
+    "host python: python3 is",
+    "behind it python2 is",
+)
+BUILD_SH_HOST_PYTHON_WORDS = (
+    STAND_IN_DIR,
+    REFUSER,
+    "ln -s",
+    "unpinned-python.log",
+    'export PATH="$P_NOPY:',
+    "python2.7",
+    *(f'"$p_dir"/{g}' for g in PYTHON_GLOBS),
+)
+_SHELL_VAR = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*|[0-9*@#?$!-])")
+_ASSIGNMENT_WORD = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
+
+def is_python_name(name: str) -> bool:
+    """A basename one of the five globs matches."""
+    return any(fnmatch.fnmatchcase(name, g) for g in PYTHON_GLOBS)
+
+
+def shim_names(python_version: str) -> tuple[str, ...]:
+    """The three names step 10's shim holds: python, python3 and python<major>.<minor>."""
+    major, minor = python_version.split(".")[:2]
+    return ("python", "python3", f"python{major}.{minor}")
+
+
+def allowed_interpreter(path: str, root: Path, shims: tuple[str, ...]) -> bool:
+    """Decision 1's interpreters, by absolute path: the shim's files, the pinned host Python, the
+    target-Python launcher, and the build-Python step 20 makes."""
+    p = posixpath.normpath(path)
+    r = str(root)
+    return (
+        any(p == f"{r}/{SHIM_DIR}/{n}" for n in shims)
+        or fnmatch.fnmatchcase(p, f"{r}/build/tools/python/bin/python3*")
+        or p == f"{r}/scripts/python-wasi-cross"
+        or fnmatch.fnmatchcase(p, f"{r}/build/Python-*/cross-build/*/python.exe")
+        or fnmatch.fnmatchcase(p, f"{r}/build/Python-*/cross-build/*/python")
+    )
+
+
+def env_program(words: list[str]) -> tuple[int | None, str | None]:
+    """(index of the program word, problem) for a command, read past any `env` by its grammar (the
+    confirmation's C1). The index is None when there is no program word."""
+    i = 0
+    while i < len(words) and posixpath.basename(words[i]) == "env":
+        i += 1
+        while i < len(words):
+            w = words[i]
+            if w in ENV_BREACHES or w.startswith("--split-string") or w.startswith("PATH="):
+                return None, f"`env {w}` does not search the step's PATH"
+            if w == "-u":
+                if i + 1 < len(words) and words[i + 1] == "PATH":
+                    return None, "`env -u PATH` does not search the step's PATH"
+                i += 2
+            elif w in ENV_ARG_OPTIONS:
+                i += 2
+            elif w.startswith("-"):
+                return None, f"`env {w}` is an option the judge does not read"
+            elif _ASSIGNMENT_WORD.match(w):
+                i += 1
+            else:
+                break
+    return (i if i < len(words) else None), None
+
+
+def _shebang(path: Path) -> list[str] | None:
+    try:
+        with path.open("rb") as f:
+            first = f.readline(512)
+    except OSError:
+        return None
+    if not first.startswith(b"#!"):
+        return None
+    return first[2:].decode(errors="replace").split()
+
+
+def program_problem(
+    words: list[str], root: Path, shims: tuple[str, ...], cwd: Path, depth: int = 0
+) -> str | None:
+    """Why a command's program would be a Python Decision 1 does not allow, or None. The program
+    word is found past `env` and meson's `--internal exe`; a shell with -c is not read; a bare
+    Python name must be a shim name; a path with a Python name must be an allowed interpreter; a
+    script is read by its shebang the same way."""
+    i, problem = env_program(words)
+    if problem or i is None:
+        return problem
+    word, rest = words[i], words[i + 1 :]
+    base = posixpath.basename(word)
+    if base == "meson" and rest[:2] == ["--internal", "exe"]:
+        if "--unpickle" in rest:
+            return "`meson --internal exe --unpickle` hides its command in a file"
+        if "--" not in rest:
+            return "`meson --internal exe` with no program after --"
+        return program_problem(rest[rest.index("--") + 1 :], root, shims, cwd, depth)
+    if base in SHELLS and "-c" in rest:
+        return f"`{base} -c` runs a string the judge does not read"
+    if "/" not in word:
+        if is_python_name(word) and word not in shims:
+            return f"`{word}` is no shim name, so it reaches the stand-in or the host"
+        return None
+    path = (cwd / word) if not word.startswith("/") else Path(word)
+    if is_python_name(base):
+        if allowed_interpreter(str(path), root, shims):
+            return None
+        return f"{posixpath.normpath(str(path))} is not a pinned interpreter"
+    if depth == 0 and path.is_file():
+        shebang = _shebang(path)
+        if shebang:
+            problem = program_problem(shebang, root, shims, cwd, depth + 1)
+            if problem:
+                return f"{word}'s shebang: {problem}"
+    return None
+
+
+_PROGRAM_FOUND = re.compile(r"^Program (.+?) found: YES \((.*)\)\s*$")
+_RUNNING = re.compile(r"^Running command: (.*)$")
+_NINJA_COMMAND = re.compile(r"^ (?:COMMAND|command) = (.*)$")
+_CONFIGURE_FOUND = re.compile(r"^configure:\d+: found (\S.*)$")
+
+
+def meson_log_hits(text: str, root: Path, shims: tuple[str, ...], cwd: Path) -> list[str]:
+    """`Running command:` and `Program … found: YES (…)` lines of one meson log; for the second,
+    a requested Python name must also have found an allowed interpreter."""
+    hits = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if m := _PROGRAM_FOUND.match(line):
+            words = _tokens(m[2])
+            if problem := program_problem(words, root, shims, cwd):
+                hits.append(f"{n}: Program {m[1]}: {problem}")
+            elif is_python_name(posixpath.basename(m[1])):
+                i, _ = env_program(words)
+                found = words[i] if i is not None else ""
+                if not allowed_interpreter(found, root, shims):
+                    hits.append(f"{n}: Program {m[1]} found {found}, not a pinned interpreter")
+        elif m := _RUNNING.match(line):
+            if problem := program_problem(_tokens(m[1]), root, shims, cwd):
+                hits.append(f"{n}: {problem}")
+    return hits
+
+
+def ninja_hits(text: str, root: Path, shims: tuple[str, ...], cwd: Path) -> tuple[list[str], int]:
+    """(hits, commands read) over one build.ninja's COMMAND and command lines; a ninja variable
+    ($COMMAND) is the rule's indirection, not a program."""
+    hits, read = [], 0
+    for n, line in enumerate(text.splitlines(), 1):
+        if not (m := _NINJA_COMMAND.match(line)) or m[1].startswith("$"):
+            continue
+        read += 1
+        if problem := program_problem(_tokens(m[1]), root, shims, cwd):
+            hits.append(f"{n}: {problem}")
+    return hits, read
+
+
+def config_log_hits(text: str, root: Path, shims: tuple[str, ...]) -> list[str]:
+    """Every `configure:NNN: found <path>` with a Python name names an allowed interpreter."""
+    hits = []
+    for n, line in enumerate(text.splitlines(), 1):
+        if (m := _CONFIGURE_FOUND.match(line)) and is_python_name(posixpath.basename(m[1])):
+            if not allowed_interpreter(m[1], root, shims):
+                hits.append(f"{n}: found {m[1]}, not a pinned interpreter")
+    return hits
+
+
+def config_logs(build: Path) -> list[Path]:
+    """Every config.log under build/, except under the direct children the harness and lane keep."""
+    logs = []
+    for child in sorted(build.iterdir()) if build.is_dir() else ():
+        if not child.is_dir() or child.name in CONFIG_LOG_SKIPS or child.name.startswith("lane-"):
+            continue
+        logs += sorted(p for p in child.rglob("config.log") if p.is_file())
+    return logs
+
+
+_PATH_ASSIGN = re.compile(r"""^\s*(?:export\s+)?PATH=["']?(.*?):\$\{?PATH\}?["']?\s*(?:#.*)?$""")
+_SIMPLE_ASSIGN = re.compile(
+    r"""^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=["']?([^"'`$(]*(?:\$\{?[A-Za-z_][A-Za-z0-9_]*\}?[^"'`$(]*)*)["']?\s*(?:#.*)?$"""
+)
+
+
+def _resolve(expr: str, values: dict[str, str]) -> str | None:
+    """A shell word's variables replaced from `values`; None if one is unknown."""
+    missing = []
+
+    def sub(m: re.Match[str]) -> str:
+        if m[1] in values:
+            return values[m[1]]
+        missing.append(m[1])
+        return ""
+
+    out = _SHELL_VAR.sub(sub, expr)
+    return None if missing else out
+
+
+def step_path_folders(
+    steps: dict[str, str], root: Path, line: dict[str, str]
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """((step, folder), unresolved) for every folder a step script puts on PATH ahead of the rest:
+    variables are read from common.sh's and the step's own simple assignments and from line.conf
+    (the confirmation's C3); a folder that cannot be resolved is returned as unresolved."""
+    base = {"HERE": str(root), **line}
+    common = steps.get("common.sh", "")
+    folders: list[tuple[str, str]] = []
+    unresolved: list[str] = []
+    for name, text in sorted(steps.items()):
+        values = dict(base)
+        lines = (common.splitlines() if name != "common.sh" else []) + text.splitlines()
+        for raw in lines:
+            if raw.lstrip().startswith("#"):
+                continue
+            if m := _PATH_ASSIGN.match(raw):
+                for part in m[1].split(":"):
+                    folder = _resolve(part, values)
+                    if folder is None:
+                        unresolved.append(f"{name}: PATH folder {part} cannot be resolved")
+                    else:
+                        folders.append((name, posixpath.normpath(folder)))
+            elif m := _SIMPLE_ASSIGN.match(raw):
+                if (v := _resolve(m[2], values)) is not None:
+                    values[m[1]] = v
+    return folders, unresolved
+
+
+def host_python_recipe_errors(root: Path) -> list[str]:
+    """The recipe holds Decisions 3 to 5: the shim first on common.sh's PATH, step 10 writes and
+    gates it, build.sh shadows the host's Python names with the stand-in and fails a step that ran
+    one, and the stand-in finds its log from its own location."""
+    errors = []
+    common = code_text(root / "scripts/steps/common.sh") or ""
+    if not re.search(r'^\s*export PATH="\$T/host-python:', common, re.M):
+        errors.append("common.sh does not put $T/host-python first on PATH")
+    step_10 = code_text(root / "scripts/steps/10_tools.sh") or ""
+    errors += [
+        f"10_tools.sh does not name {w}" for w in STEP_10_HOST_PYTHON_WORDS if w not in step_10
+    ]
+    build = code_text(root / "scripts/build.sh") or ""
+    errors += [f"build.sh does not name {w}" for w in BUILD_SH_HOST_PYTHON_WORDS if w not in build]
+    refuser = code_text(root / REFUSER)
+    if refuser is None:
+        return [*errors, f"{REFUSER} is missing"]
+    for w in ('dirname "$0"', "no-host-python", "unpinned-python.log", "exit 1"):
+        if w not in refuser:
+            errors.append(f"{REFUSER} does not name {w}")
+    own = {"0", "*", "name", "dir"}
+    if foreign := sorted({m[1] for m in _SHELL_VAR.finditer(refuser)} - own):
+        errors.append(f"{REFUSER} reads {', '.join(foreign)}: its log comes from its own location")
+    return errors
+
+
+def host_python_record_errors(
+    root: Path, line: dict[str, str], steps: dict[str, str]
+) -> tuple[list[str], list[str]]:
+    """(errors, what was read) over a build's records: the meson logs and build.ninja files of
+    MESON_BUILDS, every config.log under build/, the folders steps put on PATH, step 10's gate line
+    and the stand-in's log."""
+    build = root / "build"
+    shims = shim_names(line["PYTHON_VERSION"])
+    errors: list[str] = []
+    read: list[str] = []
+    for name in MESON_BUILDS:
+        folder = build / name
+        log = folder / "meson-logs" / "meson-log.txt"
+        if log.is_file():
+            hits = meson_log_hits(log.read_text(errors="replace"), root, shims, folder)
+            errors += [f"{name}/meson-logs/meson-log.txt:{h}" for h in hits]
+            read.append(f"{name}/meson-logs/meson-log.txt")
+        ninja = folder / "build.ninja"
+        if ninja.is_file():
+            hits, n = ninja_hits(ninja.read_text(errors="replace"), root, shims, folder)
+            errors += [f"{name}/build.ninja:{h}" for h in hits]
+            read.append(f"{name}/build.ninja: {n} commands")
+    for log in config_logs(build):
+        rel_log = log.relative_to(build)
+        errors += [
+            f"{rel_log}:{h}" for h in config_log_hits(log.read_text(errors="replace"), root, shims)
+        ]
+        read.append(f"{rel_log}")
+    folders, unresolved = step_path_folders(steps, root, line)
+    errors += unresolved
+    for step, folder in folders:
+        if folder == f"{root}/{SHIM_DIR}" or not Path(folder).is_dir():
+            continue
+        named = sorted(p.name for p in Path(folder).iterdir() if is_python_name(p.name))
+        if named:
+            errors.append(
+                f"{step}: {folder} sits ahead of the stand-in and holds {', '.join(named)}"
+            )
+        read.append(f"{step}: PATH folder {rel(Path(folder), root)}")
+    gate = build / "logs" / "10_tools.log"
+    m = GATE_LINE.search(gate.read_text(errors="replace")) if gate.is_file() else None
+    if m is None:
+        errors.append("build/logs/10_tools.log holds no `host python:` gate line")
+    else:
+        if (
+            m[1] != f"{SHIM_DIR}/python3"
+            or m[2] != line["PYTHON_VERSION"]
+            or m[3] != "build/tools/python"
+        ):
+            errors.append(f"10_tools.log's gate line names {m[1]}, {m[2]}, {m[3]}")
+        if m[4] != f"{STAND_IN_DIR}/python2":
+            errors.append(f"10_tools.log: behind the shim python2 is {m[4]}, not the stand-in")
+        read.append("build/logs/10_tools.log: the gate line")
+    if (root / UNPINNED_LOG).exists():
+        errors.append(f"{UNPINNED_LOG} exists: a step ran an unpinned Python")
+    return errors, read

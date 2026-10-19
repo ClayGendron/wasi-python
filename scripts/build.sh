@@ -173,6 +173,46 @@ if [ "$P_DO" = check ]; then
   exit 0
 fi
 
+# Every Python a step runs is the pinned one (spec 079, Decision 4). Step 10's shim for it,
+# build/tools/host-python/, comes first on each step's PATH (common.sh). Behind it this folder
+# shadows, with the refusing stand-in scripts/refuse-python, every python*, pypy*, pip*, pydoc*
+# and idle* file the caller's PATH holds, and a fixed list besides; the first link of a name wins.
+# Empty and relative PATH entries are dropped: they resolve against each step's own folder, where
+# no sweep can see. A step that ran a stand-in fails, even if it swallowed the refusal.
+P_NOPY=$HERE/build/no-host-python
+P_UNPINNED=$HERE/build/logs/unpinned-python.log
+remove "$P_NOPY"
+mkdir -p "$P_NOPY"
+shadow() { # a name: link it to the stand-in unless a link of that name is there already
+  [ -e "$P_NOPY/$1" ] || [ -L "$P_NOPY/$1" ] || ln -s "$HERE/scripts/refuse-python" "$P_NOPY/$1"
+}
+P_KEPT="" P_IFS=$IFS
+IFS=:
+set -f
+for p_dir in $PATH; do
+  set +f
+  case "$p_dir" in
+    "$P_NOPY") ;;
+    /*)
+      P_KEPT="${P_KEPT:+$P_KEPT:}$p_dir"
+      for p_file in "$p_dir"/python* "$p_dir"/pypy* "$p_dir"/pip* "$p_dir"/pydoc* "$p_dir"/idle*; do
+        if [ -f "$p_file" ] && [ -x "$p_file" ]; then
+          shadow "${p_file##*/}"
+        fi
+      done;;
+  esac
+  set -f
+done
+set +f
+IFS=$P_IFS
+for p_name in python python2 python2.7 python3; do shadow "$p_name"; done
+p_n=0
+while [ "$p_n" -le 20 ]; do
+  shadow "python3.$p_n"
+  p_n=$((p_n + 1))
+done
+export PATH="$P_NOPY:$P_KEPT"
+
 n=$(set -- $STEPS; echo "$#")
 P_T0=$(progress_clock)
 P_RUN="$P_T0-$$"
@@ -206,7 +246,12 @@ for step in $STEPS; do
   fi
   rc=0
   P_STEP=$step  # from here this run has written the step's log
+  remove "$P_UNPINNED"
   sh "$script" > "$log" 2>&1 || rc=$?
+  if [ "$rc" -eq 0 ] && [ -e "$P_UNPINNED" ]; then
+    echo "ERROR: $step ran an unpinned Python (build/logs/unpinned-python.log)" >> "$log"
+    rc=1
+  fi
   end=$(progress_clock)
   progress_stop
   seconds=$((end - start))
