@@ -75,7 +75,7 @@ the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed 
 inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
 `16ee747c…`; `SHA256SUMS` `c353b1d9…`).
 
-Building now (decision 91: up to three build-class at once): 047 (regex; confirmed, lands next after its rebase onto 046), 063 (the release judges in parallel shards). Built, its final branch dry run next: 063 (the release judges in parallel shards); then 065 (CPython's own tests in the release, confirmed, built on 063). Building: 037 (scipy, first milestone; build-class). Drafted, in pre-build review: 075 (tools.py small fixes), 077 (the grant follow-ups).
+In flight (decision 91: up to three build-class at once). Confirmed, its final branch dry run green, landing next: 063 (the release judges in parallel shards); then 065 (CPython's own tests in the release, confirmed, built on 063). Building: 037 (scipy, first milestone; build-class). Drafted, in pre-build review: 075 (tools.py small fixes), 077 (the grant follow-ups).
 
 Reserved: 077 (076's build review's two low findings: the raw read row's zero-length iovec, and the superscript COM and LPT device names). Built, in review: 063 (its Windows own-guest job fails four grant checks newly run there; spec 076, the grant checks agree on Windows, is being drafted to fix them before 063 lands). Confirmed for build: 055 (bounded sessions;
 build-class), 057 (the release ties what it signs to what it built; build-class; closes F4
