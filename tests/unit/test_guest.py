@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import struct
 from pathlib import Path
 
 import pytest
@@ -295,3 +298,152 @@ def test_a_measured_run_with_a_host_path_is_refused_before_it_runs(work) -> None
         )
     assert len(list(work.glob("run-*"))) == runs  # refused before its root was made
     assert guest.run(wasm, [str(work / "f")], workdir=work, measured=False).exit_code == 101
+
+
+# Spec 083: the driver answers a file's times and inode number itself, never the host's.
+
+STAT = struct.Struct("<QQB7xQQQQQ")  # dev, ino, filetype, nlink, size, atim, mtim, ctim
+DIRENT = struct.Struct("<QQIB3x")  # d_next, d_ino, d_namlen, d_type
+YEAR = 365 * 86400 * 10**9
+
+
+def _tick(n: int) -> int:
+    return guest.REALTIME_START_NS + n * guest.CLOCK_STEP_NS
+
+
+def _file_facts(work: Path, grant: Path, atime_ns: int) -> tuple[list[bytes], int]:
+    """FILE_FACTS once over `grant`, whose `f` is made afresh (a new host inode) with the given host
+    times; at its first frame the host appends to `f` and sets its times a year apart, and at its
+    third (after the guest's read) the host reads `f` too. The door frames and the fuel."""
+    shutil.rmtree(grant, ignore_errors=True)
+    grant.mkdir()
+    (grant / "f").write_bytes(b"0123456789abcdefghij")
+    os.utime(grant / "f", ns=(atime_ns, atime_ns + YEAR))
+    frames: list[bytes] = []
+
+    def host(frame: bytes) -> bytes:
+        frames.append(frame)
+        if len(frames) == 1:
+            with open(grant / "f", "ab") as f:
+                f.write(b"more")
+            os.utime(grant / "f", ns=(atime_ns + 2 * YEAR, atime_ns + 3 * YEAR))  # atime < mtime
+        elif len(frames) == 3:
+            (grant / "f").read_bytes()
+        return b""
+
+    wasm = wat.build(work, "facts.wasm", wat.FILE_FACTS)
+    r = guest.run(wasm, [], workdir=work, host=host, preopens=[("/g", grant, True)])
+    assert r.exit_code == 0, r.describe()
+    return frames, r.fuel
+
+
+def _no_ctim(stat: bytes) -> bytes:
+    return stat[:56]
+
+
+def _listing(data: bytes) -> dict[bytes, tuple[int, bytes]]:
+    """Each whole entry of a listing: its name, its d_ino and its three padding bytes."""
+    out, at = {}, 0
+    while at + DIRENT.size <= len(data):
+        _next, ino, namlen, _kind = DIRENT.unpack_from(data, at)
+        name = data[at + DIRENT.size : at + DIRENT.size + namlen]
+        out[bytes(name)] = (ino, bytes(data[at + 21 : at + 24]))
+        at += DIRENT.size + namlen
+    return out
+
+
+def test_a_files_times_and_inode_are_the_drivers(work) -> None:
+    """Spec 083, Decisions 2 and 3: two runs over a file made afresh with other host times send
+    the same answers (but `ctim`, which hosts move by their own rules) and spend the same fuel.
+    The inode is a count from 1, the times the clock's values, a time set exactly comes back as
+    set, a time set "now" is a later clock value, and a stream's zeros pass through (F4). A stat
+    writes only its inode and times: its padding keeps the guest's bytes (the review's N1)."""
+    grant = work / "grant"
+    first, fuel_1 = _file_facts(work, grant, 10 * YEAR)
+    second, fuel_2 = _file_facts(work, grant, 40 * YEAR)
+    assert len(first) == len(second) == 9, (len(first), len(second))
+    stats_1 = [f for i, f in enumerate(first) if i not in (2, 4)]
+    stats_2 = [f for i, f in enumerate(second) if i not in (2, 4)]
+    assert [_no_ctim(s) for s in stats_1] == [_no_ctim(s) for s in stats_2]
+    assert first[4] == second[4], "the listings differ"
+    assert fuel_1 == fuel_2, (fuel_1, fuel_2)
+    a, b, d, f, g, h, i = (STAT.unpack(s) for s in stats_1)
+    assert all(s[17:24] == b"\xaa" * 7 for s in stats_1), "a stat wrote its padding"
+    assert (a[1], a[5], a[6], a[7]) == (1, _tick(1), _tick(1), _tick(1)), a
+    assert (b[1], b[5], b[6]) == (1, _tick(2), _tick(2)), b
+    assert b[7] in (_tick(1), _tick(2)), b
+    assert (d[1], d[5], d[6], d[7]) == (b[1], b[5], b[6], b[7]), (b, d)  # reads moved nothing
+    entries = _listing(first[4])
+    assert entries[b"f"][0] == 1, entries
+    assert all(0 < ino < 2**30 for ino, _ in entries.values()), entries
+    assert all(pad == bytes(3) for _, pad in entries.values()), entries
+    assert (f[1], f[5], f[6]) == (1, 111, 222), f
+    assert (g[1], g[5], g[6]) == (1, 333, 444), g
+    assert h[5] == h[6] and _tick(2) < h[5] <= _tick(10), h
+    assert (i[1], i[5], i[6], i[7]) == (0, 0, 0, 0), i
+
+
+def test_a_read_alone_moves_no_answered_time(work) -> None:
+    """Spec 083, Decision 2 (the review's F1): a host moves a file's atime when it is read,
+    depending on the file's past, so an atime move alone never gives a new answer; a move of
+    mtim or ctim gives atim and the moved times one new clock value together."""
+    frames, _ = _file_facts(work, work / "grant", 10 * YEAR)
+    b, d = STAT.unpack(frames[1]), STAT.unpack(frames[3])
+    assert d[5:8] == b[5:8], (b, d)
+    ticks = iter(range(1, 100))
+    facts = guest.FileFacts(lambda: _tick(next(ticks)))
+    raw = STAT.pack(1, 77, 4, 1, 5, 100, 100, 100)
+    first = STAT.unpack(facts.filestat(raw))
+    read = STAT.unpack(facts.filestat(STAT.pack(1, 77, 4, 1, 5, 900, 100, 100)))
+    assert read[5:8] == first[5:8] == (_tick(1),) * 3
+    written = STAT.unpack(facts.filestat(STAT.pack(1, 77, 4, 1, 6, 900, 950, 100)))
+    assert written[5:8] == (_tick(2), _tick(2), _tick(1)), written
+
+
+def test_a_shadowed_file_call_costs_the_guest_only_its_own_instructions(work) -> None:
+    """Spec 083, Decision 1: the forward through the driver's trampoline is fuel-neutral, so a
+    loop over a shadowed call costs what the same loop over a call it leaves alone costs."""
+    shadowed = guest.run(
+        wat.build(work, "s.wasm", wat.stat_loop("fd_filestat_get", 50)), [], workdir=work
+    )
+    left = guest.run(
+        wat.build(work, "l.wasm", wat.stat_loop("fd_fdstat_get", 50)), [], workdir=work
+    )
+    assert (shadowed.exit_code, left.exit_code) == (0, 0)
+    assert shadowed.fuel == left.fuel > 0, (shadowed.fuel, left.fuel)
+
+
+def test_the_forward_never_runs_a_guest_out_of_fuel_early(work) -> None:
+    """Spec 083, Decision 1 (the review's F2): at the budget's edge a shadowed call ends a run
+    exactly as a call the driver leaves alone does, and an out-of-fuel run spends its cap."""
+    stat = wat.build(work, "s.wasm", wat.stat_loop("fd_filestat_get", 50))
+    plain = wat.build(work, "p.wasm", wat.stat_loop("fd_fdstat_get", 50))
+    full = guest.run(stat, [], workdir=work).fuel
+    for budget in range(full - 1, full - 16, -1):
+        a = guest.run(stat, [], workdir=work, fuel=budget)
+        b = guest.run(plain, [], workdir=work, fuel=budget)
+        assert (a.exit_code, a.trapped, a.fuel) == (b.exit_code, b.trapped, b.fuel), budget
+        if a.trapped == "out of fuel":
+            assert a.fuel == budget, (budget, a.fuel)
+
+
+def test_a_cut_listing_entry_keeps_no_host_byte(work) -> None:
+    """Spec 083, Decision 3 (the review's F8): whole entries get counted inode numbers and zero
+    padding; of an entry cut at the buffer's end, only the d_ino and padding bytes present are
+    zeroed, and every other byte is left as wasmtime wrote it."""
+    names = [b"alpha", b"be", b"gamma"]
+    data = b"".join(
+        DIRENT.pack(i + 1, 0xC000_0000_0000_0000 + i, len(n), 4)[:21] + b"\xee\xee\xee" + n
+        for i, n in enumerate(names)
+    )
+    third = 2 * DIRENT.size + len(names[0]) + len(names[1])
+    for cut in range(third + 1, third + DIRENT.size):
+        buf = bytearray(data[:cut])
+        guest.FileFacts(lambda: _tick(1)).listing(buf)
+        whole = _listing(bytes(buf))
+        assert [ino for ino, _ in whole.values()] == [1, 2], cut
+        assert all(pad == bytes(3) for _, pad in whole.values()), cut
+        for at in range(third, cut):
+            off = at - third
+            zeroed = 8 <= off < 16 or 21 <= off < 24
+            assert buf[at] == (0 if zeroed else data[at]), (cut, off)

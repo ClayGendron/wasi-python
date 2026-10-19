@@ -134,7 +134,9 @@ def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
     The directory's two are compared with the host's own answer for the same directory, not with
     fixed numbers. On a host whose real answer is the pinned one (size 0 and one link, as Windows
     may give), this part cannot tell pinned from real; the macOS and Linux runs are the ones that
-    tell."""
+    tell. The judge's driver answers a file's inode and times itself (spec 083), but never with the
+    pinned 0 and 1767225600 s: its count starts at 1 and its clock a microsecond past that second,
+    so a pinned value left in the snapshot's heap would still show here."""
     code = (
         "import os\n"
         "st = os.stat('/w/f')\n"
@@ -147,6 +149,92 @@ def test_a_program_sees_real_entropy_and_file_metadata(guest, which) -> None:
     host = os.stat(r.root / "w")
     expected = ["True", "True", "True", str(host.st_size), str(host.st_nlink)]
     assert r.text.split() == expected, (r.text, expected)
+
+
+FACTS = """
+import os, time
+facts = []
+for e in sorted(os.scandir('/g'), key=lambda e: e.name):
+    s = e.stat()
+    facts.append((e.name, str(s.st_ino), repr(s.st_mtime), s.st_mtime_ns,
+                  e.inode() == s.st_ino, time.time() >= s.st_mtime))
+os.mkdir('/d')
+open('/d/x', 'w').write('x')
+os.utime('/d/x', ns=(1, 2))
+open('/d/y', 'w').write('y')
+x, y = os.stat('/d/x'), os.stat('/d/y')
+print(facts)
+print(len({f[1] for f in facts}), max(int(f[1]) for f in facts) < 2**30, all(f[4] for f in facts),
+      all(f[5] for f in facts), time.time() >= y.st_mtime, x.st_atime_ns, x.st_mtime_ns)
+"""
+
+
+def _eight_files(folder: Path, year: int) -> None:
+    """Eight files made afresh (new host inodes) in `folder`, their times in the given year."""
+    import shutil
+
+    shutil.rmtree(folder, ignore_errors=True)
+    folder.mkdir()
+    base = (year - 1970) * 365 * 86400 * 10**9
+    for i in range(8):
+        (folder / f"f{i}").write_text("x" * i)
+        os.utime(folder / f"f{i}", ns=(base + i, base + 2 * i))
+
+
+@BINARY
+def test_file_facts_cost_the_same_on_every_run(guest, tmp_path, which) -> None:
+    """Spec 083: a program that reads files' inode numbers and times (by stat and by scandir),
+    sets one file's times and writes another, run twice over a granted folder made afresh with
+    other host times. On every host: eight distinct inode numbers below 2**30 (the driver's
+    count), each `DirEntry.inode()` its stat's, no file after the guest's clock, and the set times
+    back as set. On darwin the two runs also print the same and spend the same fuel: the ratchet's
+    host, whose file system stamps every change apart. A host with coarse file times can leave a
+    write unseen in one run and seen in the other, so there it promises no more (Decision 6)."""
+    grant = tmp_path / "g"
+    runs = []
+    for year, record in ((2019, False), (2024, True)):
+        _eight_files(grant, year)
+        r = guest(which, ["-c", FACTS], preopens=[("/g", grant, False)], record=record)
+        assert r.exit_code == 0, r.describe()
+        runs.append(r)
+    for r in runs:
+        assert r.text.splitlines()[-1] == "8 True True True True 1 2", r.text
+    if sys.platform == "darwin":
+        assert runs[0].text == runs[1].text, (runs[0].text, runs[1].text)
+        assert runs[0].fuel == runs[1].fuel, (runs[0].fuel, runs[1].fuel)
+
+
+NLINK = """
+import json, os, sys
+zip_path = next(p for p in sys.path if p.endswith('.zip'))
+print(json.dumps(os.stat(zip_path).st_nlink))
+"""
+
+
+@BINARY
+def test_fuel_does_not_follow_the_stdlib_zips_link_count(guest, artifacts, tmp_path, which) -> None:
+    """Spec 083, Decision 10 (the amendment): the driver gives each run its own copy of the
+    stdlib, so a guest sees one link to it whatever links the host holds, and its fuel cannot move
+    with them. A private copy of the set's zip runs at one link, then with more links than 081's
+    bisected flip (one set of fuel values up to 1,017 links, another from 1,023): 1,101, or 1,021
+    on Windows, where NTFS allows 1,024. The set's own zip is never linked. Fuel is compared on
+    darwin (Decision 6); the link count the guest sees everywhere."""
+    import shutil
+
+    mine = tmp_path / "stdlib.zip"
+    shutil.copyfile(artifacts.path("python-stdlib.zip"), mine)
+    links = tmp_path / "links"
+    links.mkdir()
+    runs = [guest(which, ["-c", NLINK], stdlib=mine, record=False)]
+    try:
+        for i in range(1021 if sys.platform == "win32" else 1101):
+            os.link(mine, links / f"{i}.zip")
+        runs.append(guest(which, ["-c", NLINK], stdlib=mine))
+    finally:
+        shutil.rmtree(links, ignore_errors=True)
+    assert [(r.exit_code, r.text) for r in runs] == [(0, "1\n")] * 2, [r.describe() for r in runs]
+    if sys.platform == "darwin":
+        assert runs[0].fuel == runs[1].fuel, (runs[0].fuel, runs[1].fuel)
 
 
 def _runner():

@@ -242,3 +242,118 @@ TURNS = f"""
   (func (export "run") (result i32) (i32.const 0))
 )
 """
+
+
+# Spec 083: what a guest learns about a file, through the judge's driver. `run` stats `f` in the
+# grant at fd 4 (after filling the result with 0xAA), stats it again after the host changes it
+# (the door call between), opens and reads it and stats it by descriptor after the host reads it
+# too, lists the grant, sets its times exactly by path and by descriptor, then "now", and stats
+# fd 1 (stdout). Each answer goes through the door. Then it spins once for every set bit of each
+# stat's inode, atim and mtim (never ctim, which hosts move by their own rules), so its fuel
+# follows those values. It returns 0, or 10 + the step whose call failed.
+FILE_FACTS_RESULT = 8192  # each stat's 64 bytes
+FILE_FACTS_LISTING = 12288  # 1,024 bytes of fd_readdir
+FILE_FACTS = f"""
+(module
+  {DOOR_IMPORT}
+  (import "{WASI}" "fd_filestat_get" (func $fstat (param i32 i32) (result i32)))
+  (import "{WASI}" "path_filestat_get" (func $pstat (param i32 i32 i32 i32 i32) (result i32)))
+  (import "{WASI}" "fd_filestat_set_times"
+    (func $fset (param i32 i64 i64 i32) (result i32)))
+  (import "{WASI}" "path_filestat_set_times"
+    (func $pset (param i32 i32 i32 i32 i64 i64 i32) (result i32)))
+  (import "{WASI}" "fd_readdir" (func $readdir (param i32 i32 i32 i64 i32) (result i32)))
+  (import "{WASI}" "path_open"
+    (func $open (param i32 i32 i32 i32 i32 i64 i64 i32 i32) (result i32)))
+  (import "{WASI}" "fd_read" (func $read (param i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 16) "f")
+  (global $acc (mut i64) (i64.const 0))
+  {HOST_ALLOC}
+  (func $send (param $p i32) (param $n i32)
+    (drop (call $door (local.get $p) (local.get $n) (i32.const 100) (i32.const 104))))
+  (func $stat_sent
+    (call $send (i32.const {FILE_FACTS_RESULT}) (i32.const 64))
+    (global.set $acc (i64.add (global.get $acc) (i64.add
+      (i64.popcnt (i64.load (i32.const {FILE_FACTS_RESULT + 8})))
+      (i64.add (i64.popcnt (i64.load (i32.const {FILE_FACTS_RESULT + 40})))
+               (i64.popcnt (i64.load (i32.const {FILE_FACTS_RESULT + 48}))))))))
+  (func (export "run") (result i32) (local $fd i32) (local $e i32) (local $i i64)
+    (memory.fill (i32.const {FILE_FACTS_RESULT}) (i32.const 0xAA) (i32.const 64))
+    ;; 1: the first stat; the host changes the file in this door call
+    (local.set $e (call $pstat (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1)
+      (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 11))))
+    (call $stat_sent)
+    ;; 2: after the host's change
+    (local.set $e (call $pstat (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1)
+      (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 12))))
+    (call $stat_sent)
+    ;; 3: open and read 16 bytes; the host reads it too in this door call
+    (local.set $e (call $open (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1)
+      (i32.const 0) (i64.const 0x3fffffff) (i64.const 0) (i32.const 0) (i32.const 300)))
+    (if (local.get $e) (then (return (i32.const 13))))
+    (local.set $fd (i32.load (i32.const 300)))
+    (i32.store (i32.const 320) (i32.const 400))
+    (i32.store (i32.const 324) (i32.const 16))
+    (local.set $e (call $read (local.get $fd) (i32.const 320) (i32.const 1) (i32.const 304)))
+    (if (local.get $e) (then (return (i32.const 13))))
+    (call $send (i32.const 304) (i32.const 4))
+    ;; 4: a stat by descriptor after both reads
+    (local.set $e (call $fstat (local.get $fd) (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 14))))
+    (call $stat_sent)
+    ;; 5: the grant's listing
+    (local.set $e (call $readdir (i32.const 4) (i32.const {FILE_FACTS_LISTING}) (i32.const 1024)
+      (i64.const 0) (i32.const 308)))
+    (if (local.get $e) (then (return (i32.const 15))))
+    (call $send (i32.const {FILE_FACTS_LISTING}) (i32.load (i32.const 308)))
+    ;; 6: exact times by path (atim and mtim: flags 1 | 4)
+    (local.set $e (call $pset (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1)
+      (i64.const 111) (i64.const 222) (i32.const 5)))
+    (if (local.get $e) (then (return (i32.const 16))))
+    (local.set $e (call $pstat (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1)
+      (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 16))))
+    (call $stat_sent)
+    ;; 7: exact times by descriptor
+    (local.set $e (call $fset (local.get $fd) (i64.const 333) (i64.const 444) (i32.const 5)))
+    (if (local.get $e) (then (return (i32.const 17))))
+    (local.set $e (call $fstat (local.get $fd) (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 17))))
+    (call $stat_sent)
+    ;; 8: "now" by descriptor (flags 2 | 8)
+    (local.set $e (call $fset (local.get $fd) (i64.const 0) (i64.const 0) (i32.const 10)))
+    (if (local.get $e) (then (return (i32.const 18))))
+    (local.set $e (call $fstat (local.get $fd) (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 18))))
+    (call $stat_sent)
+    ;; 9: stdout
+    (local.set $e (call $fstat (i32.const 1) (i32.const {FILE_FACTS_RESULT})))
+    (if (local.get $e) (then (return (i32.const 19))))
+    (call $stat_sent)
+    ;; the spin: its fuel follows the answers
+    (block $done (loop $next
+      (br_if $done (i64.ge_u (local.get $i) (global.get $acc)))
+      (local.set $i (i64.add (local.get $i) (i64.const 1)))
+      (br $next)))
+    (i32.const 0))
+)
+"""
+
+
+def stat_loop(call: str, n: int) -> str:
+    """A command that calls a two-argument preview1 call (`fd_filestat_get` or `fd_fdstat_get`)
+    on fd 3 `n` times, its answer at address 0: the same instructions whichever it is (spec 083)."""
+    return f"""
+(module
+  (import "{WASI}" "{call}" (func $call (param i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (func (export "_start") (local $i i32)
+    (block $done (loop $next
+      (br_if $done (i32.ge_u (local.get $i) (i32.const {n})))
+      (drop (call $call (i32.const 3) (i32.const 0)))
+      (local.set $i (i32.add (local.get $i) (i32.const 1)))
+      (br $next)))))
+"""
