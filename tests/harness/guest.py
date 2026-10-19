@@ -157,10 +157,11 @@ def _clone(src: Path, dest: Path) -> bool:
 
 def _release(store: wt.Store, lib: Path | None) -> None:
     """After a guest: its store closed first (on Windows, wasmtime's handles in `lib` go with it),
-    then its own stdlib removed; a removal's error is ignored, so it can never fail a run."""
+    then its own stdlib folder, which spec 089 sealed, unsealed and removed; `litter.remove`
+    never raises, so it can never fail a run, and names on stderr anything it could not remove."""
     store.close()
     if lib is not None:
-        shutil.rmtree(lib, ignore_errors=True)
+        litter.remove(lib)
 
 
 def mpl_data_dir(stdlib: Path, workdir: Path) -> Path:
