@@ -73,7 +73,15 @@ released", and published the same night (run 39184720868, every job green). Hand
 PyPI and on the GitHub release is `fe23e238…4c02` (52,096,520 bytes), the tarball `8126b2de…8f3a`,
 the `SHA256SUMS` asset `b7bd4a8b…cacb`, each equal to the build job's printed list; the artifacts
 inside both are byte for byte spec 057's set (`python.wasm` `16550143…`, snapshot `4eb5418a…`, zip
-`16ee747c…`; `SHA256SUMS` `c353b1d9…`).
+`16ee747c…`; `SHA256SUMS` `c353b1d9…`). 0.1.0a7 was tagged 2026-10-19 on `2737b29` after its dry run
+(39252500950) passed every job on all three systems on `e72ccf2` (only documents changed after it,
+and the fast tier passed on the tagged commit; question 95) and its security review's addendum said
+"a7 may be released"; it was published the same day (run 39255794160, all 29 jobs green), the first
+release through spec 063's shards and `gather`. Hand-checked: the wheel on PyPI and on the GitHub
+release is `e7727db9…4b4b` (43,751,127 bytes), the tarball `fc59b977…291d`, the `SHA256SUMS` asset
+`2c7e95ca…f722`; the artifacts inside both are byte for byte main's set (`python.wasm`
+`ab78e893…`, snapshot `c50ca51f…`, zip `02026895…`; `SHA256SUMS` `c9dcb5b8…`), and every file
+passes `shasum -c`.
 
 In flight (decision 91, widened 2026-10-19: up to four build-class at once while the packages
 come first). Built, landing next: 065 (CPython's own tests in the release; rebased, its full judge
