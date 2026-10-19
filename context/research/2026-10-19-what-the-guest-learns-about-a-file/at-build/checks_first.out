@@ -1,0 +1,29 @@
+E           AssertionError: [('f0', '9406759616686385335', '1545264000.0', 1545264000000000000, True, True), ('f1', '8507806949236479279', '1545264000.0', 1545264000000000002, True, True), ('f2', '17106658474522366579', 
+E             8 False True True False 1 2
+E             
+E           assert '8 False True True False 1 2' == '8 True True True True 1 2'
+E             
+E             - 8 True True True True 1 2
+E             + 8 False True True False 1 2
+E       AssertionError: ['exit 0; stderr: ', 'exit 0; stderr: ']
+E       assert [(0, '2\n'), (0, '1104\n')] == [(0, '1\n'), (0, '1\n')]
+E         
+E         At index 0 diff: (0, '2\n') != (0, '1\n')
+E         Use -v to get more diff
+E       AssertionError: ['exit 0; stderr: ', 'exit 0; stderr: ']
+E       assert [(0, '2\n'), (0, '1104\n')] == [(0, '1\n'), (0, '1\n')]
+E         
+E         At index 0 diff: (0, '2\n') != (0, '1\n')
+E         Use -v to get more diff
+E           AssertionError: [('f0', '1513180977852770044', '1545264000.0', 1545264000000000000, True, True), ('f1', '15425056033356481006', '1545264000.0', 1545264000000000002, True, True), ('f2', '16336274280074307669',
+E             8 False True True False 1 2
+E             
+E           assert '8 False True True False 1 2' == '8 True True True True 1 2'
+E             
+E             - 8 True True True True 1 2
+E             + 8 False True True False 1 2
+FAILED tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[plain]
+FAILED tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count[plain]
+FAILED tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count[snapshot]
+FAILED tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[snapshot]
+4 failed, 2 passed in 85.27s (0:01:25)

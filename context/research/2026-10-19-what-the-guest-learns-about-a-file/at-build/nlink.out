@@ -1,0 +1,9 @@
+# main's driver (9d89535)
+stat the zip                   host links 1+run: guest nlink 2, fuel 15,905,176 | 1,101+run: guest nlink 1104, fuel 15,905,476 | difference +300
+import json and stat the zip   host links 1+run: guest nlink 3, fuel 16,031,925 | 1,101+run: guest nlink 1105, fuel 16,032,446 | difference +521
+# the build
+stat the zip                   host links 1+run: guest nlink 1, fuel 15,905,001 | 1,101+run: guest nlink 1, fuel 15,905,001 | difference +0
+import json and stat the zip   host links 1+run: guest nlink 1, fuel 16,031,517 | 1,101+run: guest nlink 1, fuel 16,031,517 | difference +0
+# link_during_run, main then the build
+nlink 2 3 ctime same True mtime same True | fuel 16823436
+nlink 1 1 ctime same True mtime same True | fuel 16822575

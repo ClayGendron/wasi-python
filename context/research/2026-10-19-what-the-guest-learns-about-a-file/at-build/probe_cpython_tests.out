@@ -1,0 +1,10 @@
+# main (9d89535)
+exit 0; stderr: The only matching files are: ['test_logging-2-v5twpvdi.log']
+ran 27 failures 3 errors 0 skipped 5
+FAIL test.test_os.test_os.UtimeTests.test_utime_current AssertionError: 1792423918.79152 != 1767225600.000032 within 0.05 delta (25198318.79148817 difference) : st_time=1792423918.79152, current=17672
+FAIL test.test_os.test_os.UtimeTests.test_utime_current_old AssertionError: 1792423918.920273 != 1767225600.0000372 within 0.05 delta (25198318.920235872 difference) : st_time=1792423918.920273, curre
+FAIL test.test_logging.TimedRotatingFileHandlerTest.test_rollover AssertionError: False is not true : No rotated files found, went back 300 seconds
+# the build
+exit 0; stderr: The only matching files are: ['test_logging-2-v5twpvdi.log']
+ran 27 failures 1 errors 0 skipped 5
+FAIL test.test_logging.TimedRotatingFileHandlerTest.test_rollover AssertionError: False is not true : No rotated files found, went back 300 seconds

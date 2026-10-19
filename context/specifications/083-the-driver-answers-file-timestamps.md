@@ -1,7 +1,9 @@
 # 083 — the judge's driver answers a file's times and inode number itself
 
-- **Status:** **amended 2026-10-19** (the stdlib zip's link count: the section "Amendment of
-  2026-10-19", for the confirming reviewer). **Drafted 2026-10-19** on `spec/083-the-driver-answers-file-timestamps` from main
+- **Status:** **built 2026-10-19** on `spec/083-the-driver-answers-file-timestamps`, rebased onto
+  main `9d89535` (spec 065 landed; the Landing notes). **Amended 2026-10-19** (the stdlib zip's
+  link count: the section "Amendment of 2026-10-19"; confirmed with A1 and A2). **Drafted
+  2026-10-19** on `spec/083-the-driver-answers-file-timestamps` from main
   `59b90b6`; rebased onto main `08de0c8` (specs 063 and 077 landed) and **revised against its
   pre-build review** the same day ("ready once F1 to F5 are written in": the section
   "Disposition of the pre-build review"). It changes neither the guest's imports nor its exports,
@@ -575,4 +577,151 @@ written in". Each finding, and where it went:
 
 ## Landing notes
 
-Not built.
+### What was built
+
+On `spec/083-the-driver-answers-file-timestamps`, rebased onto main `9d89535` (065 landed; 081,
+063 and 077 before it) with no conflict: the draft, its revision, the amendment and A1/A2, then
+`0bc21ea` (the checks, written first), `29e6794` (the driver), `cb67e4b` (the file-facts check
+reads the guest's clock by `clock_gettime_ns`), `e511da2` (Decision 8), `c682177` (the probes take
+a private set), `51f3402` (the CHANGELOG entry, the Kind line, F8's sentence), then these notes.
+**Not build-class:** nothing under `scripts/`, `recipes/`, `downloads/SHA256SUMS` or the release
+workflow. Evidence: `../research/2026-10-19-what-the-guest-learns-about-a-file/at-build/`. Every run
+against a private clone of main's set (`cp -c -Rp build/sets/s-c50ca51fae5eb55b-c9dcb5b8
+build/set-083`, `SHA256SUMS` `c9dcb5b8`, every file checked against it after the owner's pause),
+never the shared set; `-n 3`. The upstream groups ran on clones of the main tree's CPython, numpy
+and pandas tarballs, trees and test kit, cloned into the worktree (read from main's `downloads/`
+and `build/`, never written).
+
+### The checks fail first (criterion 1, EXECUTED)
+
+- On main's driver (`unit_first.out`): `test_a_files_times_and_inode_are_the_drivers` (the two
+  runs' answers differ; the inode is a hash), `test_a_read_alone_moves_no_answered_time` (the
+  host's read moved atime) and `test_a_cut_listing_entry_keeps_no_host_byte` (`FileFacts` does not
+  exist) fail; the cost and edge rows pass, as guards.
+- `checks_first.out`: both new checks fail on both binaries on main's driver:
+  `test_file_facts_cost_the_same_on_every_run` prints `8 False True True False 1 2` (hashes above
+  2**30; a written file after the clock), and `test_fuel_does_not_follow_the_stdlib_zips_link_count`
+  sees `nlink` 2 and then 1,104.
+- With the build all five unit rows and all four check rows pass.
+
+### Zero spread (criterion 2, EXECUTED, `spread_build.out`, `fuels.tsv`, `runs.out`)
+
+Five passes of every fuel-recording function (`funcs.txt`: the 69 of the draft, 065's groups, and
+the two new checks): **168 rows, every one gives one value five times, largest spread 0**. That
+includes all 16 upstream groups (CPython's five, numpy's three, pandas' eight) and spec 081's two
+lxml rows, which 081 has made path-independent. Before 083, 35 of 148 rows varied (the draft's
+measurement); the spec's "2 of 148" was before 081 landed; it is 0 now.
+
+**`test_upstream_suite[cpython-fs]`** (the row 039's dry run 39291580648 saw grow on macos-15):
+**59,778,645,587** on the private set in each of the five passes and in the full judge, six runs,
+one value (`fuels.tsv`). Accepted at `9d89535`: 59,839,885,329.
+
+### The behaviours (criteria 3 to 5, 8 and N1, EXECUTED)
+
+- `probe_times.out`: twelve programs, eight runs each, one fuel value each; an unchanged file keeps
+  its time, a write moves it, both `utime` forms round-trip, `utime` "now" is within 0.05 s of
+  the guest's clock, a module written after a scan imports.
+- `probe_cpython_tests.out`: on main the two `test_utime_current` tests fail by 25,198,318 s and
+  `test_rollover` fails; with the build only `test_rollover` fails.
+- `cpython_fs_class.out`: with the build, the `cpython-fs` group passes, and its class
+  `stepped-clock` has one finding, digest `896f645c570d` (written into `tests/known_gaps.toml`).
+- `mutants.out` (criterion 4): a driver answering every inode 0, and one answering every time
+  1767225600 s, each fail `test_a_program_sees_real_entropy_and_file_metadata` on both binaries.
+- `neutral.out` (criterion 5): with the build's rewrite switched off, `probe_var.py`'s first
+  program spends 16,255,056, main's value to the instruction; with it on, one value (16,254,698)
+  over 20 runs where main gives two. The edge row passes.
+- `nlink.out` (criterion 8): `nlink_fuel.py` on main's driver: +300 and +521 between 2 and 1,104
+  links; on the build: `nlink` 1 at both counts, +0. The private set's zip kept one link through
+  every run (`stat`), and no file under the worktree shares its inode (`find -inum`).
+- `stat_padding.out` (N1): "0 of 7" padding bytes changed, on main and on the build.
+- Criterion 9: every probe removes its work folder at exit.
+
+### The judge (criterion 7, EXECUTED, `full_judge.out`)
+
+The log is `build/full-083.log` and the record `build/progress/latest.json` (a copy at
+`build/083/latest-full.json`), in the worktree.
+
+- `ruff check` and `ruff format --check` on `src/` and `tests/`: clean.
+- Fast tier (`-m "not slow" -n 3`, before the clock fix): one failure, `test_no_test_reads_a_clock`
+  (the check's guest program wrote `time.time()`, which the rule's textual scan reads as a host
+  clock); fixed by `cb67e4b`, the rule then passes.
+- Full (`uv run pytest -n 3`, on `51f3402`): `wasi_python v1: 527/627 pass · 77 gap · 23 blocked ·
+  0 fail (unit suite 1584/1592, 8 skipped)`; `2111 passed, 31 skipped, 77 xfailed in 548.34s`;
+  `ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 4 · grew 22 ·
+  more 1 · judge changed: …`. The 4 gained are the two new checks' rows; `more 1` is
+  `cpython-fs`'s passes, 3,710 to 3,712 (the two `test_utime_current` tests); the 22 grown are
+  the list below. The blocked rows need source trees, compile records, the oracle, the wheel, the
+  wasmtime CLI and prior-art clones, which a worktree without a build lacks.
+
+### The restated values and the growth list (Decision 7, F7; `growth.out`)
+
+Against `accepted.json` at `9d89535`, 164 rows: 48 rise, 78 fall, the rest unchanged; mean
+−0.0024%, median 0, sum −0.020% (most of it CPython's groups). **22 rise past the tolerance.**
+Each with its accepted value, its times-only value (one pass of a scratch copy with
+`times_only.diff`: wasmtime's inode numbers passed through, times answered) and the build's value
+(one value over five passes), with each in parts in ten thousand:
+
+| row | accepted | times only | full | times only, per 10^4 | full, per 10^4 |
+|---|---|---|---|---|---|
+| `test_upstream_suite[pandas-reshape]` | 102,664,111,646 | 102,664,115,398 | 102,767,163,170 | +0.00 | +10.04 |
+| `test_kiwisolver_raises_unsatisfiable_constraint[snapshot]` | 20,996,483 | 20,996,483 | 21,011,669 | +0.00 | +7.23 |
+| `test_upstream_suite[pandas-io-parser]` | 93,556,158,855 | 93,556,167,361 | 93,593,511,781 | +0.00 | +3.99 |
+| `test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]` | 4,917,358,672 | 4,917,358,638 | 4,919,200,297 | -0.00 | +3.75 |
+| `test_lxml_xml_job_matches_native` | 23,963,555,943 | 23,963,555,994 | 23,970,300,286 | +0.00 | +2.81 |
+| `test_upstream_suite[cpython-archives]` | 164,602,698,738 | 164,591,681,819 | 164,648,434,127 | -0.67 | +2.78 |
+| `test_recursion_through_python_raises[xslt-extension-snapshot]` | 226,779,285 | 226,779,285 | 226,836,367 | +0.00 | +2.52 |
+| `test_upstream_suite[numpy-lib]` | 132,021,562,863 | 132,021,581,027 | 132,051,825,072 | +0.00 | +2.29 |
+| `test_the_fast_reader_builds_zipimports_dict[truncated]` | 288,691,792 | 288,691,792 | 288,752,027 | +0.00 | +2.09 |
+| `test_the_fast_reader_builds_zipimports_dict[padded]` | 1,538,549,373 | 1,538,549,373 | 1,538,865,236 | +0.00 | +2.05 |
+| `test_lxml_is_builtin_at_manifest_versions[snapshot]` | 208,776,178 | 208,776,178 | 208,816,454 | +0.00 | +1.93 |
+| `test_recursion_through_python_raises[lxml-target-snapshot]` | 229,963,362 | 229,963,362 | 230,006,596 | +0.00 | +1.88 |
+| `test_the_fast_reader_builds_zipimports_dict[prepended]` | 289,662,951 | 289,662,934 | 289,714,976 | -0.00 | +1.80 |
+| `test_sqlite_job_matches_native` | 5,148,863,956 | 5,148,863,990 | 5,149,743,772 | +0.00 | +1.71 |
+| `test_libxml2_has_no_zlib[plain]` | 475,324,597 | 475,324,597 | 475,403,860 | +0.00 | +1.67 |
+| `test_gb18030_is_never_silently_wrong[plain]` | 5,037,234,102 | 5,037,234,102 | 5,037,972,944 | +0.00 | +1.47 |
+| `test_read_html_uses_lxml_by_default[plain]` | 5,006,283,082 | 5,006,283,116 | 5,007,007,755 | +0.00 | +1.45 |
+| `test_files_by_path_in_grants[snapshot]` | 219,244,114 | 219,244,114 | 219,275,491 | +0.00 | +1.43 |
+| `test_files_by_path_in_grants[plain]` | 493,206,148 | 493,206,148 | 493,266,086 | +0.00 | +1.22 |
+| `test_the_fast_reader_builds_zipimports_dict[explicit_dirs]` | 291,391,341 | 291,391,341 | 291,421,317 | +0.00 | +1.03 |
+| `test_lxml_is_builtin_at_manifest_versions[plain]` | 499,916,405 | 499,916,405 | 499,967,571 | +0.00 | +1.02 |
+| `test_regex_is_builtin_at_manifest_version[plain]` | 440,316,072 | 440,316,072 | 440,360,134 | +0.00 | +1.00 |
+
+- **The cause, per row.** On every row of the list the times-only part is 0.00 to 0.01 per 10^4
+  except `cpython-archives` (−0.67): the times alone barely move these rows on this base. The
+  rise is the inode number's size: one 30-bit digit (the count) where wasmtime's hashes took
+  three (two, one time in sixteen), and the work that follows from it (INFERRED inside CPython:
+  an int's digits, hashing, the allocations after). The times-only copy carries the amendment
+  too (each run's own stdlib, `nlink` 1), so its column already holds the times' and the link
+  count's share against accepted, and the step from it to the build's value is the inode count's
+  alone.
+- A times-only value is one draw: with wasmtime's hashes the times-only driver still varies by
+  17-instruction steps (and by more on the two new checks, which fail there by design:
+  `runs.out`).
+- The draft's list (21 rows, Decision 7's table) was on main `59b90b6`; this list replaces it.
+
+### Departures from the specification
+
+1. The file-facts check reads the guest's clock as `time.clock_gettime_ns(time.CLOCK_REALTIME)`
+   (the driver's stepped clock), not `time.time()`: the rule `test_no_test_reads_a_clock` scans
+   text and cannot tell a guest program's clock from the host's.
+2. `bind(store, engine, guest)` makes its own plain linker; `FileFacts.fields(raw)` is the name of
+   the spec's `filestat_fields`. There is no separate assertion after `bind`: a shadow called
+   before it finds no forwarder and raises `RuntimeError("a file call before the driver's
+   trampolines were bound")`, which ends the run, as Decision 1 says.
+3. `run()` releases the run's stdlib (store closed, then `rmtree` with errors ignored) when it
+   returns and on any exception out of the guest's calls; an exception before them (a preopen that
+   fails) leaves the copy to the session's teardown, costing disk only.
+4. A CHANGELOG entry under 0.1.0a8, at the lane's request; the Kind line says so.
+
+### For the lane
+
+- 083 lands ahead of 039, 073, 085 and 084 (the lane's order). 078 and 073 edit
+  `tests/harness/guest.py`'s `run()` and `tests/checks/test_v1_4_embedding.py`: textual merges.
+- `--accept-judge "spec 083: the judge's driver answers a file's times (its stepped clock) and inode
+  number (a count) itself and gives each run its own stdlib copy, so fuel no longer moves with host
+  file times, inode numbers or link counts; two new checks; 065's stepped-clock class narrows to
+  test_rollover"`.
+- `--accept-growth "spec 083: the guest now sees the driver's inode numbers (one 30-bit digit, a
+  count) where it saw wasmtime's 64-bit hashes, and clock times where it saw the host's; 22 rows
+  rise (+1.00 to +10.04 parts in 10^4), each one value over five runs, the times-only part ~0 but
+  for cpython-archives (growth.out)"`.

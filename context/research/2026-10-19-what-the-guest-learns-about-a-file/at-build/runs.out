@@ -1,0 +1,27 @@
+== run-build-1.log
+wasi_python v1: 168/169 pass · 1 gap · 0 blocked · 0 fail   (unit suite 0/0)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 4 · grew 22 · more 1 · upstream unrun 84 · not selected 380
+================== 168 passed, 1 xfailed in 632.36s (0:10:32) ==================
+== run-build-2.log
+wasi_python v1: 168/169 pass · 1 gap · 0 blocked · 0 fail   (unit suite 0/0)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 4 · grew 22 · more 1 · upstream unrun 84 · not selected 380
+================== 168 passed, 1 xfailed in 557.92s (0:09:17) ==================
+== run-build-3.log
+wasi_python v1: 168/169 pass · 1 gap · 0 blocked · 0 fail   (unit suite 0/0)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 4 · grew 22 · more 1 · upstream unrun 84 · not selected 380
+================== 168 passed, 1 xfailed in 682.36s (0:11:22) ==================
+== run-build-4.log
+wasi_python v1: 168/169 pass · 1 gap · 0 blocked · 0 fail   (unit suite 0/0)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 4 · grew 22 · more 1 · upstream unrun 84 · not selected 380
+================== 168 passed, 1 xfailed in 459.30s (0:07:39) ==================
+== run-build-5.log
+wasi_python v1: 168/169 pass · 1 gap · 0 blocked · 0 fail   (unit suite 0/0)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 4 · grew 22 · more 1 · upstream unrun 84 · not selected 380
+================== 168 passed, 1 xfailed in 408.07s (0:06:48) ==================
+== run-times-1.log
+wasi_python v1: 165/169 pass · 1 gap · 0 blocked · 3 fail   (unit suite 0/0)
+FAIL tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[plain] — AssertionError: [('f0', '2918109845199202598', '1767225600.000011', 1767225600000011000, True, True), ('f1
+FAIL tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[snapshot] — AssertionError: [('f0', '15194752969936636087', '1767225600.000001', 1767225600000001000, True, True), 
+FAIL tests/checks/test_v1_4_embedding.py::test_fuel_does_not_follow_the_stdlib_zips_link_count[plain] — AssertionError: (283718387, 283718302)
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · gained 1 · grew 0 · more 1 · upstream unrun 84 · not selected 380
+============= 3 failed, 165 passed, 1 xfailed in 639.25s (0:10:39) =============

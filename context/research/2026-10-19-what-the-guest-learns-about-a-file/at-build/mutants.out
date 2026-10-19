@@ -1,0 +1,6 @@
+m-ino0: E       assert ['True', 'Fal...e', '96', '3'] == ['True', 'Tru...e', '96', '3']
+m-ino0: E       assert ['True', 'Fal...e', '96', '3'] == ['True', 'Tru...e', '96', '3']
+m-ino0: 2 failed in 31.81s
+m-pinned: E       assert ['True', 'Tru...e', '96', '3'] == ['True', 'Tru...e', '96', '3']
+m-pinned: E       assert ['True', 'Tru...e', '96', '3'] == ['True', 'Tru...e', '96', '3']
+m-pinned: 2 failed in 59.76s

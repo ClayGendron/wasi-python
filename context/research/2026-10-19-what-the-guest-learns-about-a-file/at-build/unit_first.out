@@ -1,0 +1,11 @@
+E       assert [b'\x01\x00\x...xdf\x18", ...] == [b'\x01\x00\x...xdf\x18", ...]
+E         
+E         At index 0 diff: b'\x01\x00\x00\x00\x00\x00\x00\x00\xc5\xee\xb6\x83\x87\xa1\x08\x18\x04\xaa\xaa\xaa\xaa\xaa\xaa\xaa\x01\x00\x00\x00\x00\x00\x00\x00\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00^\x
+E         Use -v to get more diff
+E       AssertionError: ((1, 9395415181335595347, 4, 1, 24, 378432000000000000, ...), (1, 9395415181335595347, 4, 1, 24, 1792422478244913939, ...))
+E       assert (179242247824...6000000000000) == (378432000000...6000000000000)
+E         
+E         At index 0 diff: 1792422478244913939 != 378432000000000000
+E         Use -v to get more diff
+E           AttributeError: module 'harness.guest' has no attribute 'FileFacts'
+3 failed, 2 passed, 28 deselected in 2.60s

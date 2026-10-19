@@ -1,0 +1,3 @@
+fails differently from its gap (expected '3 finding(s), digest 7e3a6520f67e'): AssertionError: class cpython-fs-stepped-clock: 1 finding(s), digest 896f645c570d: test.test_logging.TimedRotatingFileHandlerTest.test_rollover
+FAIL tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[cpython-fs-stepped-clock] — fails differently from its gap (expected '3 finding(s), digest 7e3a6520f67e'): AssertionError: class cpython-fs-stepped-clock: 1 finding(s), digest 896f64
+=================== 1 failed, 1 passed in 241.05s (0:04:01) ====================

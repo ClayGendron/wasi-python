@@ -1,0 +1,191 @@
+rows 164; one value over 5 records: 164; rise past 1e-4: 22; rise 48; fall 78
+| row | accepted | times only | full | times only, per 10^4 | full, per 10^4 |
+|---|---|---|---|---|---|
+| `test_upstream_suite[pandas-reshape]` | 102,664,111,646 | 102,664,115,398 | 102,767,163,170 | +0.00 | +10.04 |
+| `test_kiwisolver_raises_unsatisfiable_constraint[snapshot]` | 20,996,483 | 20,996,483 | 21,011,669 | +0.00 | +7.23 |
+| `test_upstream_suite[pandas-io-parser]` | 93,556,158,855 | 93,556,167,361 | 93,593,511,781 | +0.00 | +3.99 |
+| `test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]` | 4,917,358,672 | 4,917,358,638 | 4,919,200,297 | -0.00 | +3.75 |
+| `test_lxml_xml_job_matches_native` | 23,963,555,943 | 23,963,555,994 | 23,970,300,286 | +0.00 | +2.81 |
+| `test_upstream_suite[cpython-archives]` | 164,602,698,738 | 164,591,681,819 | 164,648,434,127 | -0.67 | +2.78 |
+| `test_recursion_through_python_raises[xslt-extension-snapshot]` | 226,779,285 | 226,779,285 | 226,836,367 | +0.00 | +2.52 |
+| `test_upstream_suite[numpy-lib]` | 132,021,562,863 | 132,021,581,027 | 132,051,825,072 | +0.00 | +2.29 |
+| `test_the_fast_reader_builds_zipimports_dict[truncated]` | 288,691,792 | 288,691,792 | 288,752,027 | +0.00 | +2.09 |
+| `test_the_fast_reader_builds_zipimports_dict[padded]` | 1,538,549,373 | 1,538,549,373 | 1,538,865,236 | +0.00 | +2.05 |
+| `test_lxml_is_builtin_at_manifest_versions[snapshot]` | 208,776,178 | 208,776,178 | 208,816,454 | +0.00 | +1.93 |
+| `test_recursion_through_python_raises[lxml-target-snapshot]` | 229,963,362 | 229,963,362 | 230,006,596 | +0.00 | +1.88 |
+| `test_the_fast_reader_builds_zipimports_dict[prepended]` | 289,662,951 | 289,662,934 | 289,714,976 | -0.00 | +1.80 |
+| `test_sqlite_job_matches_native` | 5,148,863,956 | 5,148,863,990 | 5,149,743,772 | +0.00 | +1.71 |
+| `test_libxml2_has_no_zlib[plain]` | 475,324,597 | 475,324,597 | 475,403,860 | +0.00 | +1.67 |
+| `test_gb18030_is_never_silently_wrong[plain]` | 5,037,234,102 | 5,037,234,102 | 5,037,972,944 | +0.00 | +1.47 |
+| `test_read_html_uses_lxml_by_default[plain]` | 5,006,283,082 | 5,006,283,116 | 5,007,007,755 | +0.00 | +1.45 |
+| `test_files_by_path_in_grants[snapshot]` | 219,244,114 | 219,244,114 | 219,275,491 | +0.00 | +1.43 |
+| `test_files_by_path_in_grants[plain]` | 493,206,148 | 493,206,148 | 493,266,086 | +0.00 | +1.22 |
+| `test_the_fast_reader_builds_zipimports_dict[explicit_dirs]` | 291,391,341 | 291,391,341 | 291,421,317 | +0.00 | +1.03 |
+| `test_lxml_is_builtin_at_manifest_versions[plain]` | 499,916,405 | 499,916,405 | 499,967,571 | +0.00 | +1.02 |
+| `test_regex_is_builtin_at_manifest_version[plain]` | 440,316,072 | 440,316,072 | 440,360,134 | +0.00 | +1.00 |
+
+all rows (per 10^4 against accepted: times only, full):
+   -6.15   -10.23  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+   +0.00   +10.04  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-reshape]
+   +0.00    -7.55  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-tslibs]
+   +0.00    +7.23  tests/checks/test_v1_3_matplotlib.py::test_kiwisolver_raises_unsatisfiable_constraint[snapshot]
+   +0.00    -6.94  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-groupby]
+   -0.01    -5.96  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-libs]
+   +0.00    -5.01  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-others]
+   +0.00    -4.96  tests/checks/test_v1_2_portable_and_sealed.py::test_nothing_is_a_shared_library
+   +0.00    -4.15  tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[snapshot]
+   +0.00    +3.99  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-parser]
+   -0.00    +3.75  tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]
+   -0.00    -3.57  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-frompyfunc-snapshot]
+   +0.00    -3.12  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-b]
+   +0.00    -2.97  tests/checks/test_v1_3_lxml.py::test_libxml2_has_no_zlib[snapshot]
+   +0.00    +2.81  tests/checks/test_v1_3_lxml.py::test_lxml_xml_job_matches_native
+   -0.67    +2.78  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+   +0.00    -2.67  tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[plain]
+   +0.00    -2.56  tests/checks/test_v1_3_matplotlib.py::test_savefig_rejects_a_negative_dpi
+   +0.00    +2.52  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[xslt-extension-snapshot]
+   +0.00    -2.34  tests/checks/test_v1_3_the_zips_directory.py::test_resources_read_as_zipfile_reads_them[snapshot]
+   +0.00    +2.29  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-lib]
+   +0.00    +2.09  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[truncated]
+   +0.00    +2.05  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[padded]
+   -0.03    -1.98  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-c]
+   +0.00    -1.94  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-frame]
+   +0.00    -1.94  tests/checks/test_v1_3_regex.py::test_the_five_patched_callbacks_answer[plain]
+   +0.00    +1.93  tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[snapshot]
+   +0.00    +1.88  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lxml-target-snapshot]
+   +0.00    -1.85  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_has_no_network
+   +0.00    -1.83  tests/checks/test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[snapshot]
+   +0.00    -1.80  tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[snapshot]
+   -0.00    +1.80  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[prepended]
+   +0.00    +1.71  tests/checks/test_v1_3_data_stack.py::test_sqlite_job_matches_native
+   +0.00    +1.67  tests/checks/test_v1_3_lxml.py::test_libxml2_has_no_zlib[plain]
+   +0.00    -1.60  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pickle-partial-plain]
+   +0.00    -1.58  tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[snapshot]
+   -0.70    -1.50  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-a]
+   +0.00    +1.47  tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[plain]
+   +0.00    +1.45  tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[plain]
+   +0.00    +1.43  tests/checks/test_v1_3_lxml.py::test_files_by_path_in_grants[snapshot]
+   +0.00    -1.40  tests/checks/test_v1_3_lxml.py::test_gb18030_is_never_silently_wrong[snapshot]
+   +0.00    -1.33  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[plain]
+   +0.00    -1.27  tests/checks/test_v1_3_matplotlib.py::test_patched_callbacks_run[snapshot]
+   +0.00    -1.27  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+   +0.00    -1.24  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[plain]
+   +0.00    +1.22  tests/checks/test_v1_3_lxml.py::test_files_by_path_in_grants[plain]
+   +0.00    -1.21  tests/checks/test_v1_3_lxml.py::test_isoschematron_is_left_out_and_schematron_validates[plain]
+   +0.00    -1.20  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[plain]
+   +0.00    -1.17  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+   +0.00    -1.14  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pd-map-snapshot]
+   +0.00    +1.03  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[explicit_dirs]
+   +0.00    +1.02  tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[plain]
+   +0.00    +1.00  tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[plain]
+   +0.00    -0.95  tests/checks/test_v1_3_the_zips_directory.py::test_a_plain_start_grows_at_most_30k_fuel_per_member
+   +0.00    +0.92  tests/checks/test_v1_3_regex.py::test_a_pickled_pattern_loads_back_equal[plain]
+   +0.00    -0.90  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-vectorize-snapshot]
+   +0.00    -0.89  tests/checks/test_v1_3_data_stack.py::test_stdlib_debugging_tools_import
+   -0.00    -0.88  tests/checks/test_v1_3_lxml.py::test_the_readmes_encoding_workaround_reads_what_iconv_cannot
+   +0.00    +0.85  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[small]
+   +0.00    +0.81  tests/checks/test_v1_3_matplotlib.py::test_plot_line_job_matches_native[snapshot]
+   -0.00    -0.77  tests/checks/test_v1_3_data_stack.py::test_npy_files_round_trip[plain]
+   +0.00    +0.71  tests/checks/test_v1_3_matplotlib.py::test_patched_callbacks_run[plain]
+   +0.00    +0.71  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lxml-xpath-extension-snapshot]
+   +0.00    -0.71  tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[snapshot]
+   +0.00    -0.70  tests/checks/test_v1_3_the_zips_directory.py::test_the_zip_reader_is_ours_from_the_first_import[plain]
+   +0.00    +0.69  tests/checks/test_v1_3_lxml.py::test_isoschematron_is_left_out_and_schematron_validates[snapshot]
+   +0.00    -0.69  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]
+   +0.00    -0.68  tests/checks/test_v1_3_data_stack.py::test_a_pandas_warning_names_the_callers_line[plain]
+   +0.00    +0.65  tests/checks/test_v1_3_data_stack.py::test_packages_carry_their_metadata[plain]
+   +0.00    +0.64  tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[snapshot]
+   +0.00    -0.63  tests/checks/test_v1_3_regex.py::test_a_pickled_pattern_loads_back_equal[snapshot]
+   -0.00    +0.62  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-apply-along-axis-snapshot]
+   +0.00    -0.59  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-internals]
+   +0.00    -0.58  tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[plain]
+   +0.00    +0.52  tests/checks/test_v1_3_the_zips_directory.py::test_a_zone_load_does_not_grow_with_the_zip[plain]
+   +0.00    -0.48  tests/checks/test_v1_3_data_stack.py::test_default_integer_width_is_documented
+   +0.00    +0.47  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[plain]
+   +0.00    -0.47  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_sees_only_its_root
+   -0.00    +0.47  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lru-cache-plain]
+   +0.00    -0.45  tests/checks/test_v1_3_data_stack.py::test_sqlite_holds_a_lock_while_it_writes
+   +0.00    -0.42  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-plain]
+   +0.00    +0.41  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[setrecursionlimit-plain]
+   +0.00    +0.41  tests/checks/test_v1_3_matplotlib.py::test_kiwisolver_raises_unsatisfiable_constraint[plain]
+   +0.00    +0.41  tests/checks/test_v1_3_data_stack.py::test_pandas_csv_job_matches_native
+   +0.00    +0.40  tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]
+   +0.00    -0.39  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]
+   +0.00    -0.39  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]
+   +0.00    -0.39  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]
+   +0.00    +0.38  tests/checks/test_v1_3_the_zips_directory.py::test_resources_read_as_zipfile_reads_them[plain]
+   +0.00    -0.37  tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[snapshot]
+   +0.00    -0.34  tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[plain]
+   +0.00    -0.34  tests/checks/test_v1_3_lxml.py::test_read_html_uses_lxml_by_default[snapshot]
+   +0.00    -0.34  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]
+   +0.00    -0.34  tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[plain]
+   -0.00    -0.33  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lxml-resolver-snapshot]
+   +0.00    -0.33  tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[plain]
+   +0.00    +0.33  tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[snapshot]
+   +0.00    +0.32  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[zip64]
+   +0.00    -0.30  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]
+   +0.00    -0.29  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[plain]
+   +0.00    -0.28  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[heapq-plain]
+   +0.00    -0.28  tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[plain]
+   +0.00    +0.28  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[pandas-io-formats]
+   +0.00    -0.28  tests/checks/test_v1_3_data_stack.py::test_numpy_csv_job_matches_native
+   +0.00    +0.28  tests/checks/test_v1_3_the_zips_directory.py::test_a_reread_after_invalidate_caches_is_the_fast_read
+   +0.00    -0.24  tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[plain]
+   +0.00    -0.24  tests/checks/test_v1_3_regex.py::test_the_five_patched_callbacks_answer[snapshot]
+   +0.00    -0.23  tests/checks/test_v1_3_lxml.py::test_stylesheets_and_entities_reach_only_grants[plain]
+   -0.00    +0.23  tests/checks/test_v1_3_the_zips_directory.py::test_metadata_answers_from_the_zips_directory[plain]
+   +0.00    -0.21  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[cp437]
+   +0.00    -0.21  tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[plain]
+   +0.00    -0.20  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+   +0.00    -0.19  tests/checks/test_v1_3_data_stack.py::test_gzip_round_trips
+   +0.00    -0.16  tests/checks/test_v1_3_the_zips_directory.py::test_metadata_answers_from_the_zips_directory[snapshot]
+   +0.00    -0.16  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[plain]
+   +0.00    +0.16  tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import[plain]
+   +0.00    -0.15  tests/checks/test_v1_3_the_zips_directory.py::test_the_pandas_tz_job_matches_native[snapshot]
+   +0.00    -0.15  tests/checks/test_v1_1_artifact_set.py::test_dotted_builtins_keep_their_import_names[plain]
+   -0.00    -0.07  tests/checks/test_v1_3_data_stack.py::test_random_matches_native
+   +0.00    -0.05  tests/checks/test_v1_4_embedding.py::test_fuel_is_exact_across_async_tool_calls
+   +0.00    -0.05  tests/checks/test_v1_4_embedding.py::test_fuel_is_exact_across_tool_calls
+   +0.00    -0.04  tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[snapshot]
+   +0.00    +0.02  tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented
+   +0.00    -0.02  tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[snapshot]
+   +0.00    +0.02  tests/checks/test_v1_3_data_stack.py::test_longdouble_parses
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_the_guest_package_round_trips_through_the_door[plain]
+   +0.00    +0.00  tests/checks/test_v1_1_artifact_set.py::test_no_cpython_test_module_is_built_in
+   +0.00    +0.00  tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_pickling_a_deep_list_raises
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[cmp-to-key-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[eq-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[eval-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[exec-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[format-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[getattr-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[hash-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[heapq-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[iter-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[len-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[lru-cache-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[map-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[min-key-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pickle-partial-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pickle-reduce-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[re-sub-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[reduce-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-list-of-self-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[setrecursionlimit-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[sorted-key-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[str-snapshot]
+   +0.00    +0.00  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_3_data_stack.py::test_the_snapshot_pre_imports_no_package
+   +0.00    +0.00  tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain
+   +0.00    +0.00  tests/checks/test_v1_3_the_zips_directory.py::test_the_fast_reader_builds_zipimports_dict[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_3_the_zips_directory.py::test_the_zip_reader_is_ours_from_the_first_import[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_a_forged_frame_is_validated_first
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[snapshot]
+   +0.00    +0.00  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]

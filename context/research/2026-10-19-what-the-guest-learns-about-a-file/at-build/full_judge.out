@@ -1,0 +1,13 @@
+wasi_python v1: 527/627 pass · 77 gap · 23 blocked · 0 fail   (unit suite 1584/1592, 8 skipped)
+  v1.1  artifact set        36/37  blocked 1
+  v1.2  portable, sealed    119/121 blocked 2
+  v1.3  data stack          101/178 gap 76 blocked 1
+  v1.4  embedding           209/210 gap 1
+  v1.5  rebuild from pins   18/36  blocked 18
+blocked by: compile records 2 · oracle 1 · prior-art clones 1 · source tree bzip2 1 · source tree freetype 1 · source tree harfbuzz 1 · source tree kiwisolver 1 · source tree libraqm 1 · source tree libxml2 1 · source tr
+ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 4 · grew 22 · more 1
+GREW tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[plain]: fuel 499916405 -> 499967571
+GREW tests/checks/test_v1_1_artifact_set.py::test_lxml_is_builtin_at_manifest_versions[snapshot]: fuel 208776178 -> 208816454
+GREW tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[plain]: fuel 440316072 -> 440360134
+=========== 2111 passed, 31 skipped, 77 xfailed in 548.34s (0:09:08) ===========
+exit 1

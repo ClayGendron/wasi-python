@@ -1,0 +1,12 @@
+pure compute (control)                   distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'2666466670000': 8}
+mtime_ns into a dict                     distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'200': 8}
+localtime of mtime                       distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'2026': 8}
+fstat times                              distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'5 5 6': 8}
+times are the clock's                    distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'1000 False': 8}
+unchanged file keeps its time            distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'True': 8}
+a write moves mtime                      distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'True': 8}
+utime round trip                         distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'1000000123 2000000456': 8}
+utime by fd round trip                   distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'3000000789 4000000012': 8}
+utime now is the clock's                 distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'True': 8}
+a module written after a scan imports    distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'1 2': 8}
+embedding check's program                distinct fuel 1 steps {0: 8}  seq [0, 0, 0, 0, 0, 0, 0, 0]  outputs {'True True': 8}
