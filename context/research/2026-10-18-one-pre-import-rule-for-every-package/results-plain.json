@@ -1,0 +1,60 @@
+{
+ "label": "plain",
+ "wasm": "build/sets/s-4eb5418a2b1bb553/python.wasm",
+ "bytes": 36916497,
+ "deflated_level6": 8806081,
+ "data_section_bytes": 5581810,
+ "code_section_bytes": 28948595,
+ "memory_min_pages": 640,
+ "memory_min_mib": 40.0,
+ "jobs": {
+  "pass": {
+   "fuel": 166511583,
+   "ok": true,
+   "wall_s": 0.03,
+   "tail": ""
+  },
+  "hard_exit": {
+   "fuel": 138231359,
+   "ok": true,
+   "wall_s": 0.021,
+   "tail": ""
+  },
+  "pure": {
+   "fuel": 552698409,
+   "ok": true,
+   "wall_s": 0.074,
+   "tail": "2000 2738630.0 500"
+  },
+  "numpy": {
+   "fuel": 1069458472,
+   "ok": true,
+   "wall_s": 0.199,
+   "tail": "49995000.0 -3988.9999999999995 [4950.0, 4951.0, 4952.0]"
+  },
+  "pandas": {
+   "fuel": 4946583451,
+   "ok": true,
+   "wall_s": 1.08,
+   "tail": "west    16554.50  271.385     61"
+  },
+  "plot_fresh_cache": {
+   "fuel": 9104844554,
+   "ok": true,
+   "wall_s": 1.686,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  },
+  "plot_kept_cache_warmup": {
+   "fuel": 9103435111,
+   "ok": true,
+   "wall_s": 1.623,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  },
+  "plot_kept_cache": {
+   "fuel": 7116225420,
+   "ok": true,
+   "wall_s": 1.296,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  }
+ }
+}

@@ -8,6 +8,26 @@ line); this file is the record for the rest.
 The owner went through every open question on 2026-10-17. Decisions that change the
 constitution are recorded there (§3, §4.1, §4.4, §4.12, §4.15).
 
+### 34, answered: the snapshot pre-imports no package (2026-10-18)
+
+- **Asked:** 2026-10-17 (pre-import matplotlib?); reframed by the owner 2026-10-18: "make it true
+  for all packages whatever the decision is … if we can leave them all as not pre imported then
+  that makes the most sense … but if we must pre import some, we should import all."
+- **Measured** (`research/2026-10-18-one-pre-import-rule-for-every-package.md`, a Fable agent;
+  the frozen set's snapshot reproduced byte for byte by the method): with the stdlib only, a bare
+  snapshot run costs 15.6 M fuel instead of 83.4 M, a live instance 9.6 MiB instead of 41.3, the
+  wheel about 41 MB instead of 52; a pandas script costs 4.63 G instead of 110 M (42 times), numpy
+  9 times, a plot 16% more. Pre-importing every package breaks PyPI's limit within about three
+  specifications (the wheel 123 to 207 MB at the roadmap's end).
+- **The owner, 2026-10-18:** "None pre-imported": the default snapshot pre-imports the stdlib
+  bootstrap only, for every package now and later.
+- **What follows:** a build-class specification (069) changes `PREIMPORT` in
+  `recipes/reactor_main.c`, its checks, the README's start-cost facts and every fuel number that
+  moves (`--accept-growth` for the pandas and numpy jobs, with this decision as the reason).
+  Mitigations, each its own later choice: bounded sessions (spec 055) pay an import once per
+  session; a `run` that skips Python's teardown at exit (94 to 99% of a bare run's fuel is
+  teardown); a `full` profile, its own artifact set, if an embedder asks.
+
 ### The owner's answers of 2026-10-18, evening (questions 64, 90, 92 to 97, and pull requests)
 
 Asked one by one, with the agent's recommendation in each question.

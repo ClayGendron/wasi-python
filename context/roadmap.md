@@ -85,7 +85,8 @@ Added by the owner 2026-10-18, evening (`decisions.md`): CPython's own test suit
 (question 99; its research is running, its specification follows spec 063); a per-sandbox cap on
 open files before 0.1.0, default 1,024 (question 92); spec 055 closes sessions as Jupyter does,
 running Python's shutdown under a small budget (question 92); landing through pull requests that
-must pass their checks (spec 064, after 063). After 0.1.0: a Rust core shared at least partly by
+must pass their checks (spec 064, after 063). The default snapshot pre-imports no package (question 34;
+spec 069, build-class). After 0.1.0: a Rust core shared at least partly by
 Python and JavaScript (question 96); the tool protocol's `batch` (question 90).
 
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question

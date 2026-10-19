@@ -1,0 +1,60 @@
+{
+ "label": "A",
+ "wasm": "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/preimport/work/A/python-snapshot.wasm",
+ "bytes": 40509812,
+ "deflated_level6": 10375343,
+ "data_section_bytes": 9175158,
+ "code_section_bytes": 28948595,
+ "memory_min_pages": 640,
+ "memory_min_mib": 40.0,
+ "jobs": {
+  "pass": {
+   "fuel": 15593597,
+   "ok": true,
+   "wall_s": 0.014,
+   "tail": ""
+  },
+  "hard_exit": {
+   "fuel": 966826,
+   "ok": true,
+   "wall_s": 0.012,
+   "tail": ""
+  },
+  "pure": {
+   "fuel": 278458424,
+   "ok": true,
+   "wall_s": 0.06,
+   "tail": "2000 2738630.0 500"
+  },
+  "numpy": {
+   "fuel": 788454481,
+   "ok": true,
+   "wall_s": 0.143,
+   "tail": "49995000.0 -3988.9999999999995 [4950.0, 4951.0, 4952.0]"
+  },
+  "pandas": {
+   "fuel": 4627538215,
+   "ok": true,
+   "wall_s": 0.809,
+   "tail": "west    16554.50  271.385     61"
+  },
+  "plot_fresh_cache": {
+   "fuel": 8782824216,
+   "ok": true,
+   "wall_s": 1.281,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  },
+  "plot_kept_cache_warmup": {
+   "fuel": 8783803776,
+   "ok": true,
+   "wall_s": 1.243,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  },
+  "plot_kept_cache": {
+   "fuel": 6791331735,
+   "ok": true,
+   "wall_s": 1.004,
+   "tail": "rgba 300x400x4 eab6d61b37105e9822b2c2b5209138df8c4bcf5b96fda5681455f0713a0d3a73"
+  }
+ }
+}
