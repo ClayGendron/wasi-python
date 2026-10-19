@@ -62,3 +62,14 @@ One experiment, in this order, each step stopping when it answers:
    rule for this one object.
 
 Meanwhile the issue facts are drafted for the owner (`context/upstream/23-llvm-wasm-try-table-order/issue.md`).
+
+## Since (2026-10-19)
+
+The owner answered question 104: "Exception now, fix in parallel". Spec 037's Decision 17 is the
+exception, built and checked by `scripts/same_bytes.py`. The parallel research found the cause:
+a `DenseMap` keyed by block pointers in `WebAssemblyCFGStackify.cpp` (`fixCallUnwindMismatches`,
+line 1829, and three more like it), fixed upstream in LLVM `fd76c9bd` (pull request #205184,
+issue #204883) with a `MapVector`. The fix is in wasi-sdk 34 (LLVM 23.1.0) and in no 22.x
+release; wasi-sdk 34 compiled `pyduccfft.cxx` to one object in 16 runs
+(`2026-10-19-the-try-table-order-in-llvm.md`, on main). The toolchain move to wasi-sdk 34
+(reserved) removes the exception.

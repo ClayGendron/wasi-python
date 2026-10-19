@@ -1,6 +1,6 @@
 # 037 — scipy, the first milestone
 
-- **Status:** built 2026-10-19 and judged green on macOS. Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done) and is being built. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
+- **Status:** built 2026-10-19, judged green on macOS (0 fail, lost 0). Criterion 3 is amended by the owner's answer to question 104 (Decision 17, a narrow same-bytes exception for ducc0's FFT); its design was reviewed (build once F1 to F5 are written in: done), and it is built: the macOS and linux/arm64 sets from empty at `e8573ae` pass `scripts/compare_sets.py`. The build review is next. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build with conditions, written in. Drafted 2026-10-17; revised the
   same day against its pre-build review (`../reviews/037-scipy-spec-2026-10-17.md`): findings 1
   to 4 fixed in the text and the checks, 5 to 13 fixed or answered (the review's Disposition),
   and spec 040's asks written in, each conditional on 040 landing first. The review's
@@ -1096,7 +1096,7 @@ changed and why; each is small and none changes a decision's purpose. The review
     depended on where and when it was built. With the ceiling git finds no repository and the tag
     is meson's fallback, `unknown`, on every host (EXECUTED: `HConfig.h`). Decision 12's "f2py's
     output, Cython's, `__config__.py`" list of host-side inputs gains this one.
-19. **Not resolved: ducc0 does not compile to the same bytes twice.** After items 17 and 18 the
+19. **ducc0 does not compile to the same bytes twice** (resolved by Decision 17, built: the owner's exception; the cause, LLVM's `fd76c9bd`, ends with the toolchain move to wasi-sdk 34). After items 17 and 18 the
     macOS and linux/arm64 sets still differed in eight functions of ducc0
     (`scipy/fft/_duccfft/pyduccfft.cxx`). The pinned clang's WebAssembly backend orders their
     `try_table` blocks differently on every run, on one host (eight compiles, eight objects; the
@@ -1114,17 +1114,21 @@ changed and why; each is small and none changes a decision's purpose. The review
 ## Landing notes
 
 Built 2026-10-19 by a builder agent (Claude Opus 5.5) in the worktree `wasi_python-037`, branch
-`spec/037-scipy`, from main `d900dd9`, rebased onto main `23f1c4f` (071 landed) and rebuilt from an
-empty `build/`. The machine: Apple arm64, macOS 26.5, 10 cores; Docker with the research images
+`spec/037-scipy`, from main `d900dd9`, rebased onto main `23f1c4f` (071 landed), then onto main
+`2968512` (063 landed; Decision 17 designed, reviewed and built there), and rebuilt from an empty
+`build/` at `e8573ae`. The machine: Apple arm64, macOS 26.5, 10 cores; Docker with the research images
 `wp040-arm64` and `wp040-amd64`. Every claim is EXECUTED unless labelled. Evidence is under the
 worktree's git-ignored `build/037/`. Not yet reviewed: the build review is next, then the lane.
 
 ### Commits
 
-- `febbeff` the checks first; `3aa0d5b` the build; `662ec7f` step 38's two makes and `2687418`
-  step 57's git ceiling (Revised at build, items 17 and 18, each found by a linux/arm64 build
-  that differed from macOS's); `24fc4ab` ducc0 at `-Os`, undone by the next commit (item 19);
-  the commit carrying these notes, the README and the spec's revision.
+After the rebase onto `2968512` (the hashes before it, named below where a build ran on them, are
+the same commits): `377c86c` the checks first; `6e4d9ac` the build; `bb62c8e` step 38's two
+makes and `c156e85` step 57's git ceiling (Revised at build, items 17 and 18, each found by a
+linux/arm64 build that differed from macOS's); `febb1c2` ducc0 at `-Os`, undone by `78e7b74`
+(item 19); `4061b9f` the rebase's follow-ups (063's `packages.toml` and shard); `7d06242`
+Decision 17's design; `c098886` the design revised against its review (F1 to F9, the wasi-sdk 34
+end); `e8573ae` Decision 17 built; the commit carrying these notes.
 
 ### The four stages (Decision 1, criterion 2)
 
@@ -1195,11 +1199,52 @@ step 37, as in 046 and 069; `build/037/linux/`):
    (`fc894a37…` for both files), the only such run, but that set's scipy.fft module crashes
    (item 19), so it is not a set to land.
 
-At `2687418` (the recipe on this branch) the two hosts differ only in ducc0's eight functions,
-and two macOS builds differ from each other the same way. **Criterion 3 is not met.** No x86_64
-rebuild was run (the release dry run's), and none is meaningful until it is.
+At `2687418` the two hosts differed only in ducc0's eight functions, and two macOS builds
+differed from each other the same way: criterion 3 as first written could not hold (item 19).
+
+**Criterion 3 as amended (Decision 17), at `e8573ae`.** macOS from empty (20 min 11 s) and a
+fourth linux/arm64 build from empty, a clean clone of `e8573ae` in the same container (1 h 27 min
+beside the judge; `build/037/linux-e8573ae/`): `SHA256SUMS` equal on 34 of its 36 lines; the two
+binaries' lines differ (`python.wasm` `a25dd5bf…` and `fe432142…`, the snapshot `f3c4280a…` and
+`66bac803…`), and `uv run python scripts/compare_sets.py build/artifacts <linux set>` says each
+is "the same bytes but where 8 named functions open a try_table". Two wheels, one from each set
+(the linux one packed on macOS, as packing is spec 016's and host-free), pass `--wheels`, with
+the linux binaries taken from its wheel and only its `SHA256SUMS` beside it, as in the release
+job. `libopenblas.a` is `0a58aa19…` on both. The object's compile command hashes alike in both
+checkouts (`0dee636c…`, the recipe's). The new `python.wasm` also passes against both of the
+review's reactors (`mac.wasm`, `lin.wasm`), 8 functions each. No x86_64 rebuild was run: the
+release dry run's.
+
+### Decision 17, built
+
+- **The decoder** (F6). On a whole `python.wasm` it found exactly the 26,550,812 instruction
+  boundaries the pinned `llvm-objdump -d` printed, over all 75,323 bodies, with no refusal. The
+  fixture carries two named bodies from each of the review's reactors with their objdump
+  offsets; the still-needed check compares the decoder with `llvm-objdump` on its three fresh
+  objects. It fails closed on the cases F6 lists, each a unit row.
+- **The rules.** Both real fixture pairs pass, and each failure Decision 17 lists is a unit row
+  naming its rule (`tests/unit/test_same_bytes.py`, 44 rows): among them the review's mutant, a
+  `try_table` moved past a `call` and its `local.set`, built from the fixture at each of 12
+  sites, every one failing rule 8 with one call losing its handler, and every changed
+  catch-all target (more than ten) failing rules 4, 5 or 8. Rules 2 and 3 run on small modules
+  the test builds; rule 1 on a copy of the line with another toolchain or scipy pin.
+- **The list.** 32 compiles on darwin-arm64 gave 32 distinct objects
+  (`build/037/ducc0/32-compiles-sha256.txt`), and the same nine functions differed among them as
+  among the first eight and the review's eleven. The nine names are each once in `python.wasm`'s
+  name section; at most eight differ in any pair seen.
+- **The gate** (F4). `scan.rebuild_gate_errors` holds the one call per runner and its operands
+  (the M18 swap, `--wheels` moved, a fixed runner's wheel, a `cmp` of a rebuild kept beside it,
+  the checkout's credentials, setup-uv, a loop over one runner, `|| true`), each a mutation row
+  in `tests/unit/test_scan.py`; `JOB_PERMISSIONS["same-bytes"]` is `contents: read`.
+- **The still-needed check** is in the slow tier (32 s: three parallel compiles and three
+  disassemblies) and the build shard; it passed in the judge below.
+- **Not measured:** fuel across variants stays INFERRED (F7, the decision's reason); the snapshot
+  keeps a name section (40,620 names on main's), so rule 3 holds for it as for the reactor.
 
 ### The numbers (Decision 14, criterion 5)
+
+Measured at `2687418`. At `e8573ae` `python.wasm`, the snapshot and the zip are the same sizes;
+the wheel is 65,702,001 bytes.
 
 | | main `23f1c4f` (`s-c50ca51f`) | this set |
 |---|---:|---:|
@@ -1239,31 +1284,33 @@ rebuild was run (the release dry run's), and none is meaningful until it is.
 
 ### The judge
 
-The full `uv run pytest -n 3`, once, on `2687418` with the set built from empty there, no
-`--accept` (`build/037/full-judge.log`, `build/037/latest-full.json`; the upstream kit fetched by
-`tests/upstream/fetch.py`):
+The full `uv run pytest -n 3`, once, on `e8573ae` with the set built from empty there and its
+wheel in `dist/`, no `--accept` (`build/037/full-judge-4.log`, `build/037/latest-full-4.json`;
+the upstream kit fetched by `tests/upstream/fetch.py`, the oracle's wheels into the fresh uv
+cache; a first run before those, `full-judge-3.log`, blocked 34 on them and failed nothing):
 
 ```
-wasi_python v1: 556/580 pass · 21 gap · 3 blocked · 0 fail   (unit suite 1277/1284, 7 skipped)
-blocked by: prior-art clones 1 · three systems 1 · wheel 1
-ratchet vs 9dad163977: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 24 · grew 161 · more 2 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_scipy.py and 22 more
+wasi_python v1: 562/585 pass · 21 gap · 2 blocked · 0 fail   (unit suite 1556/1563, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs 9a446e03f6: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 26 · grew 161 · more 2 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_scipy.py and 27 more
 RED: 161 metric(s) grew
-1833 passed, 10 skipped, 21 xfailed in 888.05s (0:14:48)
+2118 passed, 9 skipped, 21 xfailed in 880.01s (0:14:40)
 ```
 
 - **0 fail, lost 0.** The 21 gaps are main's 15 and Decision 9's six (three checks, two binaries).
-  The 3 blocked need prior-art clones, the three-system release and a built wheel in `dist/`,
-  which this worktree has not (the wheel was built aside, above). `ruff check` and `ruff format
+  The 2 blocked need prior-art clones and the three-system release. `ruff check` and `ruff format
   --check` are clean.
-- **Gained 24**: the 19 passing checks of `test_v1_3_scipy.py`, the two scipy dotted-builtin
-  checks, the two new source trees and the patches-from-their-script check. **More 2**: pandas' own
+- **Gained 26**: the 19 passing checks of `test_v1_3_scipy.py`, the two scipy dotted-builtin
+  checks, the two new source trees, the patches-from-their-script check, the still-needed check
+  (Decision 17) and the wheel check (a wheel in `dist/` this time). **More 2**: pandas' own
   tests that skip without scipy (`importorskip("scipy")`) now run and pass: `pandas-frame` +73,
   `pandas-groupby` +1 (INFERRED from the import; the groups pass whole).
 - **The callback scan** (051) is green over the larger binary: 4,137 method-array entries, 3,425
   single definitions, 1,439 getset entries, 568 member entries, no mismatch after the uarray
   patch. The constructor list is the reviewed 155; the features are the line's 10 and `simd128`;
   the imports are main's (no `fd_renumber`, item 11).
-- **Grew 161**, each with its cause (`build/037/growth.txt`, every line):
+- **Grew 161**, each with its cause (`build/037/growth-4.txt`, every line against the accepted
+  state; the same 163 rows, the two `passes` included, as at `2687418`):
   - the binaries' bytes, +43,083,164 and +43,332,124, and the zip's, +5,657,768: scipy and
     OpenBLAS (the numbers above);
   - every plain-reactor start, +16.0 M to +17.7 M fuel (+6% to +11.7% of the smaller checks):
@@ -1280,7 +1327,10 @@ RED: 161 metric(s) grew
     wheel on macOS arm64, one BLAS thread), the three gaps closed by spec 038, the reviewed
     constructors and simd128, scipy and OpenBLAS in the judge's lists, scipy's own dotted-builtin
     check with native scipy's two names, the licence source's tarball-first rule, the step
-    count in the progress unit checks, the patches-from-their-script check"`;
+    count in the progress unit checks, the patches-from-their-script check; and Decision 17 (the
+    owner's answer to question 104): test_the_same_bytes_exception_is_still_needed,
+    tests/unit/test_same_bytes.py and its fixture, the same-bytes gate's compare_sets.py rule and
+    its mutations in place of the cmp rule, and same-bytes' contents: read"`;
   - `--accept-growth "spec 037: scipy and OpenBLAS are linked (python.wasm +43.1 MB, a finding
     for the build review under Decision 14) and their package is in the zip (+608 members, +5.7
     MB): every plain start pays about 16.5 M for the members and the constructors and every
@@ -1289,8 +1339,16 @@ RED: 161 metric(s) grew
 
 ### For the lane
 
-- **Not for landing** until question 104 is settled and criterion 3 holds (Revised at build item
-  19). What follows is for when it is.
+- **Main has moved** to `2737b29` (0.1.0a7 released, 081 landed) since the rebase onto
+  `2968512`: the rebase puts this CHANGELOG's two entries under the next version and takes 081's
+  `tests/harness/guest.py`.
+- **The same bytes in the lane** (Decision 17): the main-tree rebuild makes another ducc0 variant,
+  so compare it with this set by `uv run python scripts/compare_sets.py <this worktree's
+  build/artifacts> build/artifacts`, never by `cmp`; byte-for-byte equality of the two binaries
+  is not expected. A sameness difference between the reviewer's record and the lane's is not
+  the exception's without evidence (Decision 17, fuel).
+- The review's two reactors (`mac.wasm`, `lin.wasm`, the fixture's source) are kept in the
+  session scratchpad for the build review.
 - Build-class: it changes `scripts/`, `recipes/`, `downloads/SHA256SUMS` and the release workflow.
   Accept with `--accept-judge` (the judge files above), `--accept-growth` and `--accept`.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).

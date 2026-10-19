@@ -2,10 +2,13 @@
 
 - **Project:** LLVM (https://github.com/llvm/llvm-project), the WebAssembly backend, as wasi-sdk 33
   ships it (clang 22.1.0, LLVM `4434dabb`)
-- **State:** facts for the owner to write an issue from. Spec 037's landing waits on a fix or a
-  decision (`context/research/2026-10-19-ducc0-is-not-reproducible-with-the-pinned-clang.md`,
-  question 104). LLVM's AI Tool Use Policy keeps agents from posting and asks for a disclosure, so
-  the owner reviews and posts it (as for `4-llvm-wasm-isel-slot-order/`).
+- **State:** fixed upstream; nothing to send. LLVM `fd76c9bd` (pull request #205184, issue
+  #204883) replaced the `DenseMap` keyed by block pointers in `WebAssemblyCFGStackify.cpp`
+  (`fixCallUnwindMismatches`, line 1829, and three more) with a `MapVector`; the fix is in
+  wasi-sdk 34 (LLVM 23.1.0) and in no 22.x release (main's
+  `context/research/2026-10-19-the-try-table-order-in-llvm.md`). Spec 037 carries a narrow
+  exception until the toolchain move to wasi-sdk 34 (Decision 17). The facts below stay as
+  the record of what was seen.
 
 ## What happens
 
