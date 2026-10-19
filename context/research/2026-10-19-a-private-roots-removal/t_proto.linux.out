@@ -1,0 +1,8 @@
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+shutil.rmtree on 2,000 levels at soft 64: left ['OSError', 'OSError'] 58
+deep 2,000 + files: gone=True entries=4000 ops=13952 peak_fds=4 {'open': 2002, 'close': 2002, 'scandir': 4001, 'rename': 2000, 'unlink': 1944, 'rmdir': 2002, 'mkdir': 1, 'open_peak': 4}
+links: gone=True entries=5 ops=19 peak_fds=4 {'open': 3, 'close': 3, 'scandir': 4, 'rename': 1, 'unlink': 4, 'rmdir': 3, 'mkdir': 1, 'open_peak': 4}
+  canary intact: True ['keep']
+read-only: gone=True entries=6 ops=40 peak_fds=4 {'open': 7, 'close': 7, 'scandir': 9, 'rename': 3, 'unlink': 2, 'rmdir': 5, 'fchmod': 6, 'mkdir': 1, 'open_peak': 4}
+wide: gone=True entries=5300 ops=6514 peak_fds=4 {'open': 302, 'close': 302, 'scandir': 307, 'rename': 300, 'unlink': 5000, 'rmdir': 302, 'mkdir': 1, 'open_peak': 4}
+left in work: ['canary']

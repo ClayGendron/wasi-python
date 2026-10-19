@@ -1,0 +1,6 @@
+{"python": "3.12.12", "soft": 256, "depth": 400, "mode": "run", "open_fds_before_call": 3, "exit_code": 0, "stdout": "built 400\n", "raised": null, "rmtree_calls": 3, "open_fds_at_remove": [11, 10, 9], "rmtree_errors": {"scandir:OSError:24": 1, "rmdir:OSError:66": 247}, "left": ["wasi-python-root-907025bfb844dda2", "wasi-python-root-907025bfb844dda2.lock", "wasi-python-zip-f57469cf8af3c837", "wasi-python-zip-f57469cf8af3c837.lock"], "levels_left": {"wasi-python-root-907025bfb844dda2": 400}}
+wasi-python-root-907025bfb844dda2
+wasi-python-root-907025bfb844dda2.lock
+deleting wasi-python-root-907025bfb844dda2
+deleting wasi-python-root-907025bfb844dda2.lock
+{"python": "3.12.12", "soft": 8192, "depth": 1500, "mode": "run", "open_fds_before_call": 3, "exit_code": 0, "stdout": "built 1500\n", "raised": null, "rmtree_calls": 3, "open_fds_at_remove": [11, 10, 9], "rmtree_errors": {}, "left": ["wasi-python-zip-1af174243f4544ee", "wasi-python-zip-1af174243f4544ee.lock"], "levels_left": {}}

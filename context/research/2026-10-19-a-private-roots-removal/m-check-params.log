@@ -1,0 +1,6 @@
+3.14.2 run     soft=  128 depth=  256 exit=0 raised=None fds_at_remove=[11, 10, 9] errors={'scandir:OSError:24': 1, 'rmdir:OSError:66': 119} roots_left=1 levels=[256] | next process: swept=0 roots_left=1
+  deleting /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/temp/m-run-128-256/wasi-python-root-7b55ed5bc41799d1
+  deleting /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/temp/m-run-128-256/wasi-python-root-7b55ed5bc41799d1.lock
+3.14.2 session soft=  128 depth=  256 exit=0 raised=None fds_at_remove=[11, 10, 9] errors={'scandir:OSError:24': 1, 'rmdir:OSError:66': 119} roots_left=1 levels=[256] | next process: swept=0 roots_left=1
+  deleting /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/temp/m-session-128-256/wasi-python-root-bee6dc4940c0bead
+  deleting /private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/temp/m-session-128-256/wasi-python-root-bee6dc4940c0bead.lock

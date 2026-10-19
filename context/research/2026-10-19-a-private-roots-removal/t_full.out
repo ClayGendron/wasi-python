@@ -1,0 +1,16 @@
+fill stopped: 28
+mkdir stopped after 0 folders: 28
+free blocks: 5
+Traceback (most recent call last):
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/probes/t_full.py", line 26, in <module>
+    print(mod, "gone =", p.remove_tree("t", mfd), {k: v for k, v in p.ops.items() if v})
+                         ~~~~~~~~~~~~~^^^^^^^^^^
+  File "/private/tmp/claude-501/-Users-claygendron-Git-Repos-wasi-python/5c4a788f-6229-4fb4-8a87-05b4e7e5e695/scratchpad/084/probes/proto_remove.py", line 152, in remove_tree
+    os.mkdir(hold, 0o700, dir_fd=top)
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 28] No space left on device: '.wasi-python-rm-48443791e536eb9d'
+fill stopped: 28
+mkdir stopped after 19 folders: 28
+free blocks: 4
+proto_walk gone = True {'open': 639, 'close': 639, 'scandir': 640, 'unlink': 1, 'rmdir': 320, 'open_peak': 2}
+left: []

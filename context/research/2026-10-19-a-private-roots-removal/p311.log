@@ -1,0 +1,9 @@
+3.11.14 256 400 returned 0 b'built 400\n'
+  left: ['wasi-python-root-322107abe6a59e6f', 'wasi-python-root-322107abe6a59e6f.lock', 'wasi-python-zip-2b72559c23845219', 'wasi-python-zip-2b72559c23845219.lock']
+  deleting wasi-python-root-322107abe6a59e6f
+  deleting wasi-python-root-322107abe6a59e6f.lock
+3.11.14 8192 1500 raised RecursionError maximum recursion depth exceeded
+  frames: 1000 first: ['<module>:16', 'run:503', '_run_checked:2386', 'remove:918', 'rmtree:752', '_rmtree_safe_fd:672']
+  left: ['wasi-python-root-d270407800844d68', 'wasi-python-root-d270407800844d68.lock', 'wasi-python-zip-1b66b8f25189a531', 'wasi-python-zip-1b66b8f25189a531.lock']
+  deleting wasi-python-root-d270407800844d68
+  deleting wasi-python-root-d270407800844d68.lock
