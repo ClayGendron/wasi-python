@@ -42,6 +42,14 @@ JOBS = (
     "plot_callbacks",
     "lxml_xml",
     "regex_features",
+    # Tier A, one job per family (spec 039, Decision 11)
+    "excel",
+    "pdf",
+    "markup",
+    "text_formats",
+    "modelling",
+    "symbolic",
+    "utilities",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -49,6 +57,9 @@ JOBS = (
 # it only there, and the guest must match it everywhere.
 PLATFORM_BOUND = ("plot_line",)
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
+# pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
+# guest does (spec 039, Decision 11): nothing is built on the host.
+PURE_SDIST = "pyyaml-6.0.3.tar.gz"
 VERSIONS = re.compile(r"versions( [\w-]+=\S+)+")
 
 
@@ -140,6 +151,42 @@ def oracle_python() -> Path:
     return exe
 
 
+def oracle_pure() -> Path:
+    """pyyaml as the guest has it (spec 039, Decision 11): the pinned sdist, hash-checked, of which
+    only `lib/yaml/` and `PKG-INFO` are unpacked under build/oracle/pure/, `PKG-INFO` as
+    `pyyaml-<version>.dist-info/METADATA` beside `yaml/`. A stamp holding the archive's hash marks a
+    finished unpack. A missing or mismatched sdist raises RuntimeError, which oracle_available()
+    turns into the oracle need unmet."""
+    home = ORACLE_HOME / "pure"
+    stamp = home / ".sha256"
+    sha = paths.read_pin_list().get(PURE_SDIST)
+    if sha is None:
+        raise RuntimeError(f"{PURE_SDIST} is not pinned in downloads/SHA256SUMS")
+    if stamp.is_file() and stamp.read_text() == sha:
+        return home
+    archive = paths.DOWNLOADS / PURE_SDIST
+    if not archive.is_file():
+        raise RuntimeError(f"downloads/{PURE_SDIST} is missing: run scripts/00_download.sh")
+    if paths.sha256_file(archive) != sha:
+        raise RuntimeError(f"downloads/{PURE_SDIST} does not match its pin")
+    top = PURE_SDIST.removesuffix(".tar.gz")
+    shutil.rmtree(home, ignore_errors=True)
+    unpack = home / "unpack"
+    with tarfile.open(archive) as t:
+        wanted = [
+            m
+            for m in t.getmembers()
+            if m.name.startswith(f"{top}/lib/yaml/") or m.name == f"{top}/PKG-INFO"
+        ]
+        t.extractall(unpack, members=wanted, filter="data")
+    (unpack / top / "lib" / "yaml").rename(home / "yaml")
+    (home / f"{top}.dist-info").mkdir()
+    (unpack / top / "PKG-INFO").rename(home / f"{top}.dist-info" / "METADATA")
+    shutil.rmtree(unpack)
+    stamp.write_text(sha)
+    return home
+
+
 def oracle_env(seed: int | None = None) -> dict[str, str]:
     env = dict(os.environ)
     env.update(
@@ -149,6 +196,7 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
         UV_PYTHON_PREFERENCE="only-system",
     )
     env.pop("VIRTUAL_ENV", None)
+    env["PYTHONPATH"] = str(oracle_pure())  # pyyaml's pure tree, as the guest has it
     # matplotlib uses its own fonts only, as the guest does (spec 023, Decision 8): natively it
     # would otherwise list every font of the machine.
     env["MPL_IGNORE_SYSTEM_FONTS"] = "1"
@@ -203,3 +251,14 @@ def run_native(job: str, seed: int, workdir: Path, *, offline: bool = True) -> b
         tail = r.stderr.decode(errors="replace").strip().splitlines()[-1:] or [""]
         raise RuntimeError(f"{job}: the oracle exited {r.returncode}: {tail[0]}")
     return render(r.stdout, out)
+
+
+def run_in_guest(guest, job: str) -> bytes:
+    """One run of a job on the plain binary through the judge's guest; the rendered output."""
+    files = {f"/jobs/{job}.py": script(job).read_bytes()}
+    files.update({f"/data/{n}": src.read_bytes() for n, src in DATA.items()})
+    files["/out/.keep"] = b""
+    r = guest("plain", [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    assert r.exit_code == 0, f"{job}: {r.describe()}"
+    (r.root / "out" / ".keep").unlink()
+    return render(r.stdout, r.root / "out")

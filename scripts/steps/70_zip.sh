@@ -16,7 +16,11 @@
 # sphinxext folders, and every tests/ folder stay out; its mpl-data goes in as one member, an inner
 # archive the runner extracts and grants at the path matplotlib computes (Decision 5). lxml (spec
 # 046): its Python package from step 54 without isoschematron, whose stand-in takes its place
-# (Decision 8), and its METADATA from the pinned sdist.
+# (Decision 8), and its METADATA from the pinned sdist. Tier A (spec 039, Decision 4): twenty-eight
+# pure wheels, and the pure package folders of pyyaml's and markupsafe's sdists (they publish no
+# pure wheel), each unpacked from its pin, given its carried patches (none today), and staged under
+# build/pure-install/, since both sdists keep an .egg-info beside the package, which the zip refuses
+# at a tree's top; their METADATA is their PKG-INFO.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -41,6 +45,15 @@ for dir in "$CP"/cross-build/*; do
 done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
+remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/pure-install"
+for sdist in pyyaml-6.0.3 markupsafe-3.0.4; do
+  tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
+  [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
+  patch_tree "$B/$sdist"
+done
+mkdir -p "$B/pure-install"
+cp -R "$B/pyyaml-6.0.3/lib/yaml" "$B/pure-install/yaml"
+cp -R "$B/markupsafe-3.0.4/src/markupsafe" "$B/pure-install/markupsafe"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -53,6 +66,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/plot-install/matplotlib" \
   --tree "$B/lxml-install" \
   --tree "$B/regex-install" \
+  --tree "$B/pure-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -60,6 +74,34 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned pyparsing-3.3.3-py3-none-any.whl)" \
   --wheel "$(pinned packaging-26.3-py3-none-any.whl)" \
   --wheel "$(pinned fonttools-4.67.0-py3-none-any.whl)" \
+  --wheel "$(pinned openpyxl-3.1.5-py2.py3-none-any.whl)" \
+  --wheel "$(pinned et_xmlfile-2.0.0-py3-none-any.whl)" \
+  --wheel "$(pinned xlsxwriter-3.2.9-py3-none-any.whl)" \
+  --wheel "$(pinned xlrd-2.0.2-py2.py3-none-any.whl)" \
+  --wheel "$(pinned pypdf-6.21.1-py3-none-any.whl)" \
+  --wheel "$(pinned defusedxml-0.7.1-py2.py3-none-any.whl)" \
+  --wheel "$(pinned beautifulsoup4-4.15.0-py3-none-any.whl)" \
+  --wheel "$(pinned soupsieve-3.0.3-py3-none-any.whl)" \
+  --wheel "$(pinned html5lib-1.1-py2.py3-none-any.whl)" \
+  --wheel "$(pinned webencodings-0.6.1-py3-none-any.whl)" \
+  --wheel "$(pinned tomli_w-1.2.0-py3-none-any.whl)" \
+  --wheel "$(pinned jinja2-3.1.6-py3-none-any.whl)" \
+  --wheel "$(pinned tabulate-0.10.0-py3-none-any.whl)" \
+  --wheel "$(pinned charset_normalizer-3.5.2-py3-none-any.whl)" \
+  --wheel "$(pinned xmltodict-1.0.4-py3-none-any.whl)" \
+  --wheel "$(pinned networkx-3.7-py3-none-any.whl)" \
+  --wheel "$(pinned sympy-1.14.0-py3-none-any.whl)" \
+  --wheel "$(pinned mpmath-1.3.0-py3-none-any.whl)" \
+  --wheel "$(pinned patsy-1.0.3-py2.py3-none-any.whl)" \
+  --wheel "$(pinned attrs-26.1.0-py3-none-any.whl)" \
+  --wheel "$(pinned more_itertools-11.2.1-py3-none-any.whl)" \
+  --wheel "$(pinned toolz-1.2.0-py3-none-any.whl)" \
+  --wheel "$(pinned tqdm-4.70.1-py3-none-any.whl)" \
+  --wheel "$(pinned typing_extensions-4.16.0-py3-none-any.whl)" \
+  --wheel "$(pinned joblib-1.6.0-py3-none-any.whl)" \
+  --wheel "$(pinned cloudpickle-3.1.2-py3-none-any.whl)" \
+  --wheel "$(pinned threadpoolctl-3.7.0-py3-none-any.whl)" \
+  --wheel "$(pinned narwhals-2.27.1-py3-none-any.whl)" \
   --metadata "$B/numpy-2.5.2/PKG-INFO" \
   --metadata "$B/pandas-3.0.6/PKG-INFO" \
   --metadata "$B/pillow-13.0.0/PKG-INFO" \
@@ -67,6 +109,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/matplotlib-3.11.2/PKG-INFO" \
   --metadata "$B/lxml-6.1.3/PKG-INFO" \
   --metadata "$B/regex-2026.9.29/PKG-INFO" \
+  --metadata "$B/pyyaml-6.0.3/PKG-INFO" \
+  --metadata "$B/markupsafe-3.0.4/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

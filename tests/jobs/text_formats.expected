@@ -1,0 +1,36 @@
+versions pyyaml=6.0.3 jinja2=3.1.6 markupsafe=3.0.4 tabulate=0.10.0 tomli-w=1.2.0 charset-normalizer=3.5.2 pandas=3.0.6
+name: job
+steps:
+- run: a
+  n: 2
+- run: b
+  ok: true
+when: null
+ratio: 0.5
+True
+[{'a': 1}, {'b': ['x', 'y']}]
+yaml refuses: could not determine a constructor for the tag 'tag:yaml.org,2002:python/object/apply:os.system'
+[tool]
+name = "x"
+deps = [
+    "a",
+    "b",
+]
+n = 3
+{'tool': {'name': 'x', 'deps': ['a', 'b'], 'n': 3}}
+<li>North: 2.2</li><li>South: 1.0</li>&lt;b&gt;&amp;&lt;/b&gt;
+&lt;a href=&#39;x&#39;&gt;&amp;&lt;/a&gt; <i>&lt;x&gt;</i>
+| region   |   units |   price |
+|:---------|--------:|--------:|
+| north    |       3 |    2.5  |
+| south    |       5 |    1.25 |
++----------+---------+---------+
+| region   |   units |   price |
++==========+=========+=========+
+| north    |       3 |    2.5  |
++----------+---------+---------+
+| south    |       5 |    1.25 |
++----------+---------+---------+
+utf_8 -> utf_8 True
+cp1252 -> cp1250 True
+utf_16 -> utf_16 True

@@ -84,6 +84,37 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — 2026-10-19
 
+- **Added: tier A of the default profile, thirty pure-Python packages** (spec 039; the owner's
+  decisions 43 to 47). By family: Excel (openpyxl 3.1.5, et-xmlfile 2.0.0, xlsxwriter 3.2.9,
+  xlrd 2.0.2); PDF (pypdf 6.21.1); HTML and XML (beautifulsoup4 4.15.0, soupsieve 3.0.3,
+  html5lib 1.1, webencodings 0.6.1, defusedxml 0.7.1, xmltodict 1.0.4); text formats (pyyaml
+  6.0.3, tomli-w 1.2.0, jinja2 3.1.6, markupsafe 3.0.4, tabulate 0.10.0, charset-normalizer
+  3.5.2); modelling (networkx 3.7, patsy 1.0.3); symbolic (sympy 1.14.0, mpmath 1.3.0);
+  utilities (attrs 26.1.0, more-itertools 11.2.1, toolz 1.2.0, tqdm 4.70.1, typing-extensions
+  4.16.0, joblib 1.6.0, cloudpickle 3.1.2, threadpoolctl 3.7.0, narwhals 2.27.1). Each is pinned
+  by URL and SHA-256; 28 are pure wheels (charset-normalizer's pure wheel, not its mypyc ones),
+  and pyyaml and markupsafe, which publish no pure wheel, come from their sdists' pure package
+  folders, so pyyaml runs without libyaml (`yaml.__with_libyaml__` is `False`, no `CLoader`) and
+  markupsafe through `_native`. Each family's golden job equals native Python's output. The zip
+  grows by 2,014 members and 16.5 MB (38.7 MB); the plain binary is unchanged; a plain `-c pass`
+  costs 50.6M more guest instructions (218M) and a snapshot call 4.7M more (20.4M). No package is
+  pre-imported. Their licence notices are in `LICENSES/`; tqdm (MPL-2.0 AND MIT) ships with the
+  full MPL-2.0 text and its source, the pinned wheel unchanged, as
+  `LICENSES/tqdm-4.70.1-source.whl`, and sympy's notice carries the MIT notice of its LaTeX
+  grammar.
+- **Changed: the `ctypes` stand-in's `ctypes.util.dllist()` answers `[]`** (spec 039): the guest
+  is one statically linked module and loads no shared library, so threadpoolctl finds no native
+  thread pools (`threadpool_info()` is `[]`) instead of raising `OSError`.
+- **The default profile's edges, documented** (spec 039; the README's *What the default profile
+  carries*): with nothing writable, `.xlsx` is written only through xlsxwriter in memory
+  (`engine_kwargs={"options": {"in_memory": True}}`); a writable `/tmp` grant makes every
+  writer work (decision 46). pypdf's AES needs `cryptography`, which is not carried
+  (`DependencyError`). joblib runs serially. tqdm warns once that it cannot start its monitor
+  thread (`tqdm.tqdm.monitor_interval = 0` silences it). Two known gaps until spec 041: pandas'
+  Styler (`df.style`, `df.to_latex()`) raises `TemplateNotFound`, and networkx's graph atlas
+  raises `TypeError`, each reading its files by path from the zip. `pd.read_html` of a GB18030
+  page whose tables lxml cannot read now falls back to bs4 and raises `UnicodeDecodeError`
+  (`ImportError` before).
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the

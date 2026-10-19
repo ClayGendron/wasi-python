@@ -52,6 +52,37 @@ PACKAGES = {
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
     "lxml": "6.1.3",
+    # tier A (spec 039): thirty pure-Python distributions, in its Decision 1's order
+    "openpyxl": "3.1.5",
+    "et-xmlfile": "2.0.0",
+    "xlsxwriter": "3.2.9",
+    "xlrd": "2.0.2",
+    "pypdf": "6.21.1",
+    "beautifulsoup4": "4.15.0",
+    "soupsieve": "3.0.3",
+    "html5lib": "1.1",
+    "webencodings": "0.6.1",
+    "defusedxml": "0.7.1",
+    "xmltodict": "1.0.4",
+    "pyyaml": "6.0.3",
+    "tomli-w": "1.2.0",
+    "jinja2": "3.1.6",
+    "markupsafe": "3.0.4",
+    "tabulate": "0.10.0",
+    "charset-normalizer": "3.5.2",
+    "networkx": "3.7",
+    "patsy": "1.0.3",
+    "sympy": "1.14.0",
+    "mpmath": "1.3.0",
+    "attrs": "26.1.0",
+    "more-itertools": "11.2.1",
+    "toolz": "1.2.0",
+    "tqdm": "4.70.1",
+    "typing-extensions": "4.16.0",
+    "joblib": "1.6.0",
+    "cloudpickle": "3.1.2",
+    "threadpoolctl": "3.7.0",
+    "narwhals": "2.27.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -63,6 +94,35 @@ WHEELS = {
     "pyparsing": "pyparsing-3.3.3-py3-none-any.whl",
     "packaging": "packaging-26.3-py3-none-any.whl",
     "fonttools": "fonttools-4.67.0-py3-none-any.whl",
+    # tier A (spec 039, Decision 8): the 28 wheels; pyyaml and markupsafe are sdists
+    "openpyxl": "openpyxl-3.1.5-py2.py3-none-any.whl",
+    "et-xmlfile": "et_xmlfile-2.0.0-py3-none-any.whl",
+    "xlsxwriter": "xlsxwriter-3.2.9-py3-none-any.whl",
+    "xlrd": "xlrd-2.0.2-py2.py3-none-any.whl",
+    "pypdf": "pypdf-6.21.1-py3-none-any.whl",
+    "beautifulsoup4": "beautifulsoup4-4.15.0-py3-none-any.whl",
+    "soupsieve": "soupsieve-3.0.3-py3-none-any.whl",
+    "html5lib": "html5lib-1.1-py2.py3-none-any.whl",
+    "webencodings": "webencodings-0.6.1-py3-none-any.whl",
+    "defusedxml": "defusedxml-0.7.1-py2.py3-none-any.whl",
+    "xmltodict": "xmltodict-1.0.4-py3-none-any.whl",
+    "tomli-w": "tomli_w-1.2.0-py3-none-any.whl",
+    "jinja2": "jinja2-3.1.6-py3-none-any.whl",
+    "tabulate": "tabulate-0.10.0-py3-none-any.whl",
+    "charset-normalizer": "charset_normalizer-3.5.2-py3-none-any.whl",
+    "networkx": "networkx-3.7-py3-none-any.whl",
+    "patsy": "patsy-1.0.3-py2.py3-none-any.whl",
+    "sympy": "sympy-1.14.0-py3-none-any.whl",
+    "mpmath": "mpmath-1.3.0-py3-none-any.whl",
+    "attrs": "attrs-26.1.0-py3-none-any.whl",
+    "more-itertools": "more_itertools-11.2.1-py3-none-any.whl",
+    "toolz": "toolz-1.2.0-py3-none-any.whl",
+    "tqdm": "tqdm-4.70.1-py3-none-any.whl",
+    "typing-extensions": "typing_extensions-4.16.0-py3-none-any.whl",
+    "joblib": "joblib-1.6.0-py3-none-any.whl",
+    "cloudpickle": "cloudpickle-3.1.2-py3-none-any.whl",
+    "threadpoolctl": "threadpoolctl-3.7.0-py3-none-any.whl",
+    "narwhals": "narwhals-2.27.1-py3-none-any.whl",
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file (spec 023, Decision 9).
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -122,6 +182,21 @@ MODIFIED = {
         "clock ticks kept in 64 bits, so timeout= fires past 2.147 s"
     ),
 }
+# tqdm is MPL-2.0 AND MIT, and the zip ships it as bytecode, MPL-2.0's Executable Form (spec 039,
+# Decision 8): the release carries its source, the pinned wheel unchanged (its SHA-256 is the
+# pin's), and its notice holds the full MPL-2.0 text, which the wheel's LICENCE only names.
+TQDM_WHEEL = "tqdm-4.70.1-py3-none-any.whl"
+TQDM_SOURCE = "tqdm-4.70.1-source.whl"
+TQDM_URL = (
+    "https://files.pythonhosted.org/packages/a7/03/"
+    "921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/" + TQDM_WHEEL
+)
+TQDM_TAG = "https://github.com/tqdm/tqdm/tree/v4.70.1"
+MPL_TEXT = "spdx-31ba1a50-MPL-2.0.txt"
+# sympy's LaTeX grammar and its generated parser carry their own MIT notice inside the package,
+# where wheel_licences does not look (spec 039, Decision 8).
+SYMPY_WHEEL = "sympy-1.14.0-py3-none-any.whl"
+SYMPY_NESTED = "sympy/parsing/latex/LICENSE.txt"
 # The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
@@ -194,6 +269,30 @@ def wheel_licences(wheel: Path) -> list[tuple[str, bytes]]:
             if ".dist-info/" in n and not n.endswith("/") and LICENCE_NAME.search(n)
         )
         return [(f"{wheel.name}: {n}", z.read(n)) for n in names]
+
+
+def pinned_bytes(d: Path, name: str) -> bytes:
+    """A pinned download's bytes, checked against its line in downloads/SHA256SUMS first."""
+    rows = (d / "SHA256SUMS").read_text().splitlines()
+    want = [row.split()[0] for row in rows if row.split()[1:] == [name]]
+    data = (d / name).read_bytes()
+    if len(want) != 1 or hashlib.sha256(data).hexdigest() != want[0]:
+        raise SystemExit(f"downloads/{name} does not match its pin")
+    return data
+
+
+def tqdm_source_part(source: bytes) -> bytes:
+    """Where tqdm's source is: first the copy this release carries, then, for convenience, PyPI
+    and the project's tag."""
+    return (
+        "tqdm is MPL-2.0 AND MIT. This release ships it as bytecode in python-stdlib.zip,\n"
+        "MPL-2.0's Executable Form. Its Source Code Form travels with the release, unchanged:\n"
+        f"  LICENSES/{TQDM_SOURCE}, the pinned wheel {TQDM_WHEEL}, which holds tqdm's .py files,\n"
+        f"  SHA-256 {hashlib.sha256(source).hexdigest()} (MANIFEST's pin line for {TQDM_WHEEL}).\n"
+        "The same file is on PyPI, and the source is in the project's repository at its tag:\n"
+        f"  {TQDM_URL}\n"
+        f"  {TQDM_TAG}\n"
+    ).encode()
 
 
 def hacl_notice(cp: Path) -> bytes:
@@ -332,9 +431,22 @@ def main() -> None:
             ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
         ],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
+        # spec 039, Decision 8: the two sdists' notices from their trees
+        "pyyaml": [("PyYAML LICENSE", (b / "pyyaml-6.0.3" / "LICENSE").read_bytes())],
+        "markupsafe": [
+            ("MarkupSafe LICENSE.txt", (b / "markupsafe-3.0.4" / "LICENSE.txt").read_bytes())
+        ],
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],
     }
+    tqdm_source = pinned_bytes(d, TQDM_WHEEL)
+    (new / "LICENSES" / TQDM_SOURCE).write_bytes(tqdm_source)
+    licences["tqdm"] += [
+        (f"Mozilla Public License 2.0, the full text ({MPL_TEXT})", pinned_bytes(d, MPL_TEXT)),
+        ("tqdm source", tqdm_source_part(tqdm_source)),
+    ]
+    with zipfile.ZipFile(d / SYMPY_WHEEL) as z:
+        licences["sympy"].append((f"{SYMPY_WHEEL}: {SYMPY_NESTED}", z.read(SYMPY_NESTED)))
     for component, parts in licences.items():
         if not parts:
             raise SystemExit(f"no licence text found for {component}")

@@ -584,8 +584,9 @@ def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     a character decoded wrongly: strict XML raises "Invalid bytes"; `recover=True` keeps no
     root; lxml's HTML parser ends the text there (an `ERR_INVALID_ENCODING` in its error log),
     where refusing the encoding made it read the page as windows-1252; `read_html` of a Chinese
-    table finds no table with lxml and raises (bs4 is not in the build), but a table that reaches
-    the first non-ASCII byte comes back cut there with no exception (the README's one silent
+    table finds no table with lxml, falls back to bs4 (spec 039), which reads the bytes as UTF-8,
+    and raises UnicodeDecodeError (ImportError before bs4 was in the build), but a table that
+    reaches the first non-ASCII byte comes back cut there with no exception (the README's one silent
     case, pinned as documented); asking for GB18030 by name, to read or to write, raises
     `LookupError`. Python's own codec, then lxml, reads every character."""
     r = guest(which, ["-c", GB18030])
@@ -595,7 +596,7 @@ def test_gb18030_is_never_silently_wrong(guest, which) -> None:
     assert got["xml"][0] == "XMLSyntaxError" and invalid in got["xml"][1], got["xml"]
     assert got["xml recover"] == ["ok", [None, ["ERR_INVALID_ENCODING"]]], got["xml recover"]
     assert got["lxml.html"] == ["ok", [[None], ["ERR_INVALID_ENCODING"]]], got["lxml.html"]
-    assert got["read_html"][0] == "ImportError", got["read_html"]
+    assert got["read_html"][0] == "UnicodeDecodeError", got["read_html"]
     # The silent case the README names (the review's R1): a table that reaches the first
     # non-ASCII byte comes back cut there, with no exception; its last row may be all NaN, a column
     # may turn float, and the rows and tables after it are missing. Pinned as documented.

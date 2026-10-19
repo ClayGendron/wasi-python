@@ -45,6 +45,9 @@ SOURCE_PATTERNS = {
     "libxml2": re.compile(r"libxml2-[\w.]+\.tar\.xz"),
     "libxslt": re.compile(r"libxslt-[\w.]+\.tar\.xz"),
     "lxml": re.compile(r"lxml-[\w.]+\.tar\.gz"),
+    # tier A (spec 039): the two sdists whose pure package folders step 70 takes
+    "pyyaml": re.compile(r"pyyaml-[\w.]+\.tar\.gz"),
+    "markupsafe": re.compile(r"markupsafe-[\w.]+\.tar\.gz"),
 }
 
 

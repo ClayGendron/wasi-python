@@ -142,3 +142,155 @@ closes_with = "spec 066"
 kind = "later"
 reason = "its own suite is not run yet (its sdist is pinned)"
 closes_with = "spec 066"
+
+# Tier A (spec 039): thirty pure-Python distributions. Their own suites run with spec 067.
+
+[package.openpyxl]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.et-xmlfile]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.xlsxwriter]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.xlrd]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.pypdf]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.beautifulsoup4]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.soupsieve]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.html5lib]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.webencodings]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.defusedxml]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.xmltodict]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.pyyaml]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned; the zip takes only its pure package)"
+closes_with = "spec 067"
+
+[package.tomli-w]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.jinja2]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.markupsafe]
+kind = "later"
+reason = "its own suite is not run yet (its sdist is pinned; the zip takes only its pure package)"
+closes_with = "spec 067"
+
+[package.tabulate]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.charset-normalizer]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.networkx]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.patsy]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.sympy]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.mpmath]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.attrs]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.more-itertools]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.toolz]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.tqdm]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.typing-extensions]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.joblib]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.cloudpickle]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.threadpoolctl]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"
+
+[package.narwhals]
+kind = "later"
+reason = "pinned as a wheel, which carries no tests; its sdist is to be pinned as data"
+closes_with = "spec 067"

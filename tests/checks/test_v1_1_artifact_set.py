@@ -113,6 +113,15 @@ def test_licence_notices_cover_every_component(artifacts) -> None:
     assert not errors, scan.report(errors, f"licence notices ({scope})")
 
 
+def test_tqdm_notice_carries_the_mpl_and_its_source(artifacts) -> None:
+    """tqdm ships as bytecode, MPL-2.0's Executable Form, so the set carries its source (the
+    pinned wheel, unchanged, as LICENSES/tqdm-<version>-source.whl) and its notice holds the
+    full MPL-2.0 text beside the wheel's LICENCE; sympy's notice holds the MIT notice nested in
+    its package (spec 039, Decision 8)."""
+    errors = rules.tier_a_notice_errors(artifacts.dir)
+    assert not errors, scan.report(errors)
+
+
 def test_cpython_notice_covers_hacl(artifacts) -> None:
     """HACL* is compiled into the binary and CPython's license.rst does not name it (review of
     spec 004, finding 1), so its MIT notice must be in LICENSES/cpython.txt."""

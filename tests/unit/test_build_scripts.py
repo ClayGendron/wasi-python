@@ -237,6 +237,28 @@ def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:
     assert [name for _, name in make_stdlib_zip.tree_members(deep)] == ["pkg/mod.py"]
 
 
+def test_a_staged_tree_ignores_litter(tmp_path) -> None:
+    """Spec 039, Decision 12: a tree staged as step 70 stages pyyaml's and markupsafe's pure
+    folders (a fresh folder holding a copied package) gives the same members, names and bytes,
+    with Finder litter at the tree's top and inside the package."""
+
+    def stage(where, litter: bool):
+        tree = where / "pure-install"
+        (tree / "pkg" / "sub").mkdir(parents=True)
+        (tree / "pkg" / "__init__.py").write_text("x = 1\n")
+        (tree / "pkg" / "sub" / "mod.py").write_text("y = 2\n")
+        (tree / "pkg" / "py.typed").write_text("")
+        if litter:
+            for folder in (tree, tree / "pkg", tree / "pkg" / "sub"):
+                (folder / ".DS_Store").write_bytes(b"\0Bud1")
+        return tree
+
+    clean = list(make_stdlib_zip.tree_members(stage(tmp_path / "clean", False)))
+    littered = list(make_stdlib_zip.tree_members(stage(tmp_path / "littered", True)))
+    assert [name for _, name in clean] == ["pkg/__init__.py", "pkg/py.typed", "pkg/sub/mod.py"]
+    assert littered == clean
+
+
 def _load_stand_in():
     """The recipe folder as a package under a private name, never as `ctypes`, so that its
     relative import of `._types` resolves and nothing on the host can import it as `ctypes`."""
@@ -369,7 +391,10 @@ def test_the_ctypes_stand_in_names_and_refuses() -> None:
         assert kind.__ctype_le__ is kind, kind
         twin = kind.__ctype_be__
         assert twin is kind if ct.sizeof(kind) == 1 else twin.__ctype_le__ is kind, kind
-    assert importlib.import_module(f"{ct.__name__}.util").find_library("c") is None
+    util = importlib.import_module(f"{ct.__name__}.util")
+    assert util.find_library("c") is None
+    # Spec 039, Decision 5: the loaded shared libraries, which threadpoolctl lists, are none
+    assert util.dllist() == []
 
 
 def test_the_ctypes_stand_in_documents_itself_with_numpy_loaded(monkeypatch) -> None:

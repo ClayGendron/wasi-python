@@ -47,6 +47,36 @@ PIN_FILES = {
     "libxml2-2.15.4.tar.xz": b"libxml2 pin",
     "libxslt-1.1.45.tar.xz": b"libxslt pin",
     "lxml-6.1.3.tar.gz": b"lxml pin",
+    "openpyxl-3.1.5-py2.py3-none-any.whl": b"openpyxl pin",
+    "et_xmlfile-2.0.0-py3-none-any.whl": b"et-xmlfile pin",
+    "xlsxwriter-3.2.9-py3-none-any.whl": b"xlsxwriter pin",
+    "xlrd-2.0.2-py2.py3-none-any.whl": b"xlrd pin",
+    "pypdf-6.21.1-py3-none-any.whl": b"pypdf pin",
+    "beautifulsoup4-4.15.0-py3-none-any.whl": b"beautifulsoup4 pin",
+    "soupsieve-3.0.3-py3-none-any.whl": b"soupsieve pin",
+    "html5lib-1.1-py2.py3-none-any.whl": b"html5lib pin",
+    "webencodings-0.6.1-py3-none-any.whl": b"webencodings pin",
+    "defusedxml-0.7.1-py2.py3-none-any.whl": b"defusedxml pin",
+    "xmltodict-1.0.4-py3-none-any.whl": b"xmltodict pin",
+    "pyyaml-6.0.3.tar.gz": b"pyyaml pin",
+    "tomli_w-1.2.0-py3-none-any.whl": b"tomli-w pin",
+    "jinja2-3.1.6-py3-none-any.whl": b"jinja2 pin",
+    "markupsafe-3.0.4.tar.gz": b"markupsafe pin",
+    "tabulate-0.10.0-py3-none-any.whl": b"tabulate pin",
+    "charset_normalizer-3.5.2-py3-none-any.whl": b"charset-normalizer pin",
+    "networkx-3.7-py3-none-any.whl": b"networkx pin",
+    "patsy-1.0.3-py2.py3-none-any.whl": b"patsy pin",
+    "sympy-1.14.0-py3-none-any.whl": b"sympy pin",
+    "mpmath-1.3.0-py3-none-any.whl": b"mpmath pin",
+    "attrs-26.1.0-py3-none-any.whl": b"attrs pin",
+    "more_itertools-11.2.1-py3-none-any.whl": b"more-itertools pin",
+    "toolz-1.2.0-py3-none-any.whl": b"toolz pin",
+    "tqdm-4.70.1-py3-none-any.whl": b"tqdm pin",
+    "typing_extensions-4.16.0-py3-none-any.whl": b"typing-extensions pin",
+    "joblib-1.6.0-py3-none-any.whl": b"joblib pin",
+    "cloudpickle-3.1.2-py3-none-any.whl": b"cloudpickle pin",
+    "threadpoolctl-3.7.0-py3-none-any.whl": b"threadpoolctl pin",
+    "narwhals-2.27.1-py3-none-any.whl": b"narwhals pin",
     "wasi-sdk-24.0-arm64-macos.tar.gz": b"sdk",
     "wasmtime-v49.0.3-aarch64-macos.tar.xz": b"wasmtime",
 }
@@ -78,6 +108,36 @@ PACKAGES = {
     "libxml2": "2.15.4",
     "libxslt": "1.1.45",
     "lxml": "6.1.3",
+    "openpyxl": "3.1.5",
+    "et-xmlfile": "2.0.0",
+    "xlsxwriter": "3.2.9",
+    "xlrd": "2.0.2",
+    "pypdf": "6.21.1",
+    "beautifulsoup4": "4.15.0",
+    "soupsieve": "3.0.3",
+    "html5lib": "1.1",
+    "webencodings": "0.6.1",
+    "defusedxml": "0.7.1",
+    "xmltodict": "1.0.4",
+    "pyyaml": "6.0.3",
+    "tomli-w": "1.2.0",
+    "jinja2": "3.1.6",
+    "markupsafe": "3.0.4",
+    "tabulate": "0.10.0",
+    "charset-normalizer": "3.5.2",
+    "networkx": "3.7",
+    "patsy": "1.0.3",
+    "sympy": "1.14.0",
+    "mpmath": "1.3.0",
+    "attrs": "26.1.0",
+    "more-itertools": "11.2.1",
+    "toolz": "1.2.0",
+    "tqdm": "4.70.1",
+    "typing-extensions": "4.16.0",
+    "joblib": "1.6.0",
+    "cloudpickle": "3.1.2",
+    "threadpoolctl": "3.7.0",
+    "narwhals": "2.27.1",
 }
 TREE = {"recipes/a.c": sha(b"a"), "scripts/b.sh": sha(b"b")}
 
@@ -457,3 +517,62 @@ def test_a_reactor_with_the_sdk_tarball_runtime_is_named(work) -> None:
     bad.write_bytes(b"\0asm/Users/runner/work/wasi-sdk/wasi-sdk/src/llvm-project/x.cpp")
     assert rules.sdk_builder_path_errors(good) == []
     assert rules.sdk_builder_path_errors(bad) == ["bad.wasm: holds /Users/runner/work/wasi-sdk"]
+
+
+def _tier_a_set(work: Path) -> tuple[Path, Path]:
+    """A set with tqdm's and sympy's notices as step 90 writes them, and its fake pins."""
+    downloads, d = work / "downloads", work / "tier-a-set"
+    downloads.mkdir()
+    (d / "LICENSES").mkdir(parents=True)
+    tqdm = downloads / "tqdm-4.70.1-py3-none-any.whl"
+    with zipfile.ZipFile(tqdm, "w") as z:
+        z.writestr("tqdm/__init__.py", "")
+        z.writestr("tqdm-4.70.1.dist-info/licenses/LICENCE", "MIT, and MPL-2.0 Exhibit A\n")
+    sympy = downloads / "sympy-1.14.0-py3-none-any.whl"
+    with zipfile.ZipFile(sympy, "w") as z:
+        z.writestr(rules.SYMPY_NESTED, "Copyright 2016, latex2sympy\n")
+    (downloads / rules.MPL_TEXT).write_text("Mozilla Public License Version 2.0\n")
+    pins = {p.name: paths.sha256_file(p) for p in sorted(downloads.iterdir())}
+    (downloads / "SHA256SUMS").write_text("".join(f"{s}  {n}\n" for n, s in pins.items()))
+    (d / "MANIFEST").write_text(
+        "python 3.15.0\npackage tqdm 4.70.1\npackage sympy 1.14.0\n"
+        f"pin {pins[tqdm.name]} {tqdm.name}\n"
+    )
+    (d / "LICENSES" / "tqdm-4.70.1-source.whl").write_bytes(tqdm.read_bytes())
+    (d / "LICENSES" / "tqdm.txt").write_text(
+        "==== tqdm LICENCE ====\nMIT, and MPL-2.0 Exhibit A\n\n"
+        "==== MPL ====\nMozilla Public License Version 2.0\n\n"
+        f"==== tqdm source ====\nLICENSES/tqdm-4.70.1-source.whl, SHA-256 {pins[tqdm.name]}\n"
+    )
+    (d / "LICENSES" / "sympy.txt").write_text("BSD\n\nCopyright 2016, latex2sympy\n")
+    return d, downloads
+
+
+def test_tqdm_notice_carries_the_mpl_and_its_source(work) -> None:
+    """Spec 039, criterion 1: the rule passes the set step 90 writes, and names each mutant: the
+    notice without the MPL text, the carried source missing or one byte changed, and sympy's
+    notice without its nested MIT notice."""
+    d, downloads = _tier_a_set(work)
+    assert rules.tier_a_notice_errors(d, downloads) == []
+    notice, carried = d / "LICENSES" / "tqdm.txt", d / "LICENSES" / "tqdm-4.70.1-source.whl"
+    good_notice, good_source = notice.read_bytes(), carried.read_bytes()
+
+    notice.write_bytes(good_notice.replace(b"Mozilla Public License Version 2.0\n", b""))
+    assert rules.tier_a_notice_errors(d, downloads) == [
+        f"LICENSES/tqdm.txt does not hold the MPL-2.0 text of {rules.MPL_TEXT}"
+    ]
+    notice.write_bytes(good_notice)
+    carried.unlink()
+    assert rules.tier_a_notice_errors(d, downloads) == [
+        "LICENSES/tqdm-4.70.1-source.whl is missing"
+    ]
+    carried.write_bytes(good_source[:-1] + bytes([good_source[-1] ^ 1]))
+    assert rules.tier_a_notice_errors(d, downloads) == [
+        "LICENSES/tqdm-4.70.1-source.whl is not the pinned tqdm-4.70.1-py3-none-any.whl "
+        "that MANIFEST names"
+    ]
+    carried.write_bytes(good_source)
+    (d / "LICENSES" / "sympy.txt").write_text("BSD\n")
+    assert rules.tier_a_notice_errors(d, downloads) == [
+        f"LICENSES/sympy.txt does not hold {rules.SYMPY_NESTED} from sympy-1.14.0-py3-none-any.whl"
+    ]

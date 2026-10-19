@@ -5084,3 +5084,53 @@ def test_a_file_dropped_into_a_stage_changes_nothing(guest, guest_workdir, which
     finally:
         litter.remove(clean)
         litter.remove(dropped)
+
+
+EXCEL = """
+import io, json
+import openpyxl, pandas as pd
+out = {}
+
+def attempt(label, call):
+    try:
+        call()
+        out[label] = "ok"
+    except Exception as e:
+        out[label] = [f"{type(e).__module__}.{type(e).__name__}", str(e)]
+
+attempt("openpyxl", lambda: openpyxl.Workbook().save(io.BytesIO()))
+df = pd.DataFrame({"a": [1, 2], "b": ["x", "y"]})
+attempt("to_excel", lambda: df.to_excel(io.BytesIO()))
+buf = io.BytesIO()
+with pd.ExcelWriter(buf, engine="xlsxwriter", engine_kwargs={"options": {"in_memory": True}}) as w:
+    df.to_excel(w, index=False)
+out["in_memory"] = pd.read_excel(io.BytesIO(buf.getvalue())).equals(df)
+print(json.dumps(out))
+"""
+
+
+@pytest.mark.parametrize("tmp", [False, True], ids=["nothing writable", "a writable /tmp"])
+def test_excel_output_needs_a_writable_folder_or_xlsxwriter_in_memory(guest_workdir, tmp) -> None:
+    """Through the runner's own defaults, which give nothing writable (spec 039, Decision 9; the
+    owner's decision 46): openpyxl's save and pandas' default .xlsx writer (xlsxwriter) need a
+    temporary folder, so with none they raise, while xlsxwriter in memory writes a workbook that
+    pandas reads back equal. A writable grant at /tmp makes both writers work. No deadline: the
+    check counts outcomes, not time."""
+    from wasi_python import Grant
+
+    run = _runner()
+    grants = []
+    if tmp:
+        folder = _root(guest_workdir)
+        grants = [Grant(folder, "/tmp", writable=True)]
+    done = run(["-c", EXCEL], grants=grants, deadline_s=None)
+    assert (done.exit_code, done.trapped) == (0, None), done
+    got = json.loads(done.stdout)
+    assert got.pop("in_memory") is True, got
+    if tmp:
+        assert got == {"openpyxl": "ok", "to_excel": "ok"}, got
+        return
+    kind, message = got["openpyxl"]
+    assert kind == "builtins.FileNotFoundError", got
+    assert "No usable temporary directory" in message, got
+    assert got["to_excel"][0] == "xlsxwriter.exceptions.FileCreateError", got

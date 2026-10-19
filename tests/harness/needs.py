@@ -157,6 +157,8 @@ SOURCE_COMPONENTS = (
     "libxml2",
     "libxslt",
     "lxml",
+    "pyyaml",
+    "markupsafe",
 )
 
 VOCABULARY: dict[str, Need] = {

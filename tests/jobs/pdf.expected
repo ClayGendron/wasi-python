@@ -1,0 +1,6 @@
+versions pypdf=6.21.1
+1 'Invoice 17\nTotal: 42.50 EUR'
+2 merged ['Invoice 17\nTotal: 42.50 EUR', 'Page two']
+written 1127 a96461cfb51741a3
+RC4-128 True OWNER_PASSWORD Invoice 17
+AES-128 DependencyError cryptography>=3.1 is required for AES algorithm

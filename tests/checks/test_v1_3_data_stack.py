@@ -15,16 +15,6 @@ from harness import jobs, needs, paths
 pytestmark = pytest.mark.goal("v1.3")
 
 
-def _run_job(guest, job: str):
-    files = {f"/jobs/{job}.py": jobs.script(job).read_bytes()}
-    files.update({f"/data/{n}": src.read_bytes() for n, src in jobs.DATA.items()})
-    files["/out/.keep"] = b""
-    r = guest("plain", [f"/jobs/{job}.py", "/data", "/out"], files=files)
-    assert r.exit_code == 0, f"{job}: {r.describe()}"
-    (r.root / "out" / ".keep").unlink()
-    return jobs.render(r.stdout, r.root / "out")
-
-
 @pytest.mark.parametrize("which", ["plain", "snapshot"])
 def test_numpy_and_pandas_are_builtin_at_manifest_versions(guest, which) -> None:
     code = (
@@ -40,19 +30,23 @@ def test_numpy_and_pandas_are_builtin_at_manifest_versions(guest, which) -> None
 
 @pytest.mark.slow
 def test_numpy_csv_job_matches_native(guest) -> None:
-    why = jobs.compare(jobs.expected_path("numpy_csv").read_bytes(), _run_job(guest, "numpy_csv"))
+    why = jobs.compare(
+        jobs.expected_path("numpy_csv").read_bytes(), jobs.run_in_guest(guest, "numpy_csv")
+    )
     assert why is None, why
 
 
 @pytest.mark.slow
 def test_pandas_csv_job_matches_native(guest) -> None:
-    why = jobs.compare(jobs.expected_path("pandas_csv").read_bytes(), _run_job(guest, "pandas_csv"))
+    why = jobs.compare(
+        jobs.expected_path("pandas_csv").read_bytes(), jobs.run_in_guest(guest, "pandas_csv")
+    )
     assert why is None, why
 
 
 @pytest.mark.slow
 def test_random_matches_native(guest) -> None:
-    out = _run_job(guest, "numpy_random")
+    out = jobs.run_in_guest(guest, "numpy_random")
     why = jobs.compare(jobs.expected_path("numpy_random").read_bytes(), out)
     assert why is None, why
 
@@ -60,7 +54,9 @@ def test_random_matches_native(guest) -> None:
 @pytest.mark.slow
 def test_compress_job_matches_native(guest) -> None:
     """bz2, lzma and tarfile write the same bytes as native (spec 007)."""
-    why = jobs.compare(jobs.expected_path("compress").read_bytes(), _run_job(guest, "compress"))
+    why = jobs.compare(
+        jobs.expected_path("compress").read_bytes(), jobs.run_in_guest(guest, "compress")
+    )
     assert why is None, why
 
 
@@ -68,7 +64,9 @@ def test_compress_job_matches_native(guest) -> None:
 def test_sqlite_job_matches_native(guest) -> None:
     """sqlite3 on a file, with a forced spill to temporary files, and pandas' to_sql and read_sql
     give native's results (spec 007)."""
-    why = jobs.compare(jobs.expected_path("sqlite").read_bytes(), _run_job(guest, "sqlite"))
+    why = jobs.compare(
+        jobs.expected_path("sqlite").read_bytes(), jobs.run_in_guest(guest, "sqlite")
+    )
     assert why is None, why
 
 
@@ -358,21 +356,51 @@ def test_npy_files_round_trip(guest, which) -> None:
 # Spec 033: the zip keeps each distribution's METADATA, so a package that asks for its own
 # version gets it. A later specification that adds a distribution adds it here.
 DISTRIBUTIONS = (
+    "attrs",
+    "beautifulsoup4",
+    "charset-normalizer",
+    "cloudpickle",
     "cycler",
+    "defusedxml",
+    "et-xmlfile",
     "fonttools",
+    "html5lib",
+    "jinja2",
+    "joblib",
     "kiwisolver",
     "lxml",
+    "markupsafe",
     "matplotlib",
+    "more-itertools",
+    "mpmath",
+    "narwhals",
+    "networkx",
     "numpy",
+    "openpyxl",
     "packaging",
     "pandas",
+    "patsy",
     "pillow",
     "pyparsing",
+    "pypdf",
     "python-dateutil",
+    "pyyaml",
     "regex",
     "six",
+    "soupsieve",
+    "sympy",
+    "tabulate",
+    "threadpoolctl",
+    "tomli-w",
+    "toolz",
+    "tqdm",
+    "typing-extensions",
     "tzdata",
-)  # matplotlib and its distributions: spec 023; lxml: spec 046
+    "webencodings",
+    "xlrd",
+    "xlsxwriter",
+    "xmltodict",
+)  # matplotlib and its distributions: spec 023; lxml: spec 046; tier A: spec 039
 
 METADATA = """
 import json, re

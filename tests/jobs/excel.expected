@@ -1,0 +1,27 @@
+versions openpyxl=3.1.5 et-xmlfile=2.0.0 xlsxwriter=3.2.9 xlrd=2.0.2 pandas=3.0.6
+xlsxwriter parts:
+  part [Content_Types].xml d922d7af45a35a56
+  part _rels/.rels 1285b20099c64699
+  part docProps/app.xml 0ce4fa739310948f
+  part docProps/core.xml 62e1d5ff3a6b338b
+  part xl/_rels/workbook.xml.rels 596e47c094f3062e
+  part xl/sharedStrings.xml 81a1e4eba7ba2ac7
+  part xl/styles.xml 2918df243c670fd2
+  part xl/theme/theme1.xml 75104b2164c20dab
+  part xl/workbook.xml 207e237dffe4f500
+  part xl/worksheets/sheet1.xml 404df0d531068e61
+  row ('region', 'units', 'price', 'day')
+  row ('north', 3, 2.5, datetime.datetime(2026, 3, 1, 0, 0))
+  row ('south', 5, 1.25, datetime.datetime(2026, 3, 2, 0, 0))
+  row (None, '=SUM(B2:B3)', None, None)
+  formula =SUM(B2:B3)
+  cached value 8
+region,units,price,day
+north,3,2.5,2026-03-01
+south,5,1.25,2026-03-02
+region,units
+north,3
+south,5
+openpyxl round trip [('a', 1), ('b', 2.5)]
+sales round trip True {'north': 1734.71, 'south': 1714.62, 'west': 1697.32}
+xlrd: Excel xlsx file; not supported

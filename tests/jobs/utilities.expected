@@ -1,0 +1,14 @@
+versions attrs=26.1.0 more-itertools=11.2.1 toolz=1.2.0 tqdm=4.70.1 typing-extensions=4.16.0 joblib=1.6.0 cloudpickle=3.1.2 narwhals=2.27.1 pandas=3.0.6
+P(x=1, y=0) [P(x=1, y=3), P(x=2, y=0)] {'x': 4, 'y': 5} P(x=1, y=9)
+attrs: ValueError
+[[0, 1, 2], [3, 4, 5], [6]] [('a', 'b'), ('b', 'c'), ('c', 'd')] none ['a', 'b', 'c']
+{1: ['a', 'd'], 2: ['bb', 'cc']} [0, 1, 4, 9, 16] {'a': 2, 'b': 1, 'c': 1}
+1225 50  25%|█████▌                | 25/100 [00:12<00:37,  2.00it/s]
+{'a': <class 'int'>, 'b': <class 'str'>} True typing.Literal['x']
+[0, 1, 4, 9, 16] [0, 1, 8, 27, 64]
+16 16 d6728d1a1a6ba57aa70ca5a0650628a7
+{'a': [1, 2]}
+7 P(x=2, y=1)
+g,v
+a,4
+b,2

@@ -22,7 +22,7 @@ directories and host functions you hand it.
 |---|---|
 | `python.wasm` | a WASI reactor: CPython plus numpy, pandas, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi and libraqm), Pillow's core, kiwisolver, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, matplotlib (its data as one inner archive), Pillow, kiwisolver, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -40,12 +40,12 @@ promises.
 |---|---|
 | upstream patches | upstream patches carried: 8, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
-| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 44.6 MB / 22.2 MB (3.15 line, with matplotlib, lxml and regex, no package pre-imported; spec 069's landing notes) |
+| `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 45.4 MB / 38.7 MB (3.15 line, with matplotlib, lxml, regex and tier A's thirty pure-Python packages, no package pre-imported; spec 039's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
-| one call, snapshot, `-c pass` | 14 ms (a benchmark fact from spec 069's research), most of it finalizing the interpreter; 15.6M guest instructions (83.5M while numpy and pandas were pre-imported, before spec 069) |
+| one call, snapshot, `-c pass` | 14 ms (a benchmark fact from spec 069's research), most of it finalizing the interpreter; 20.4M guest instructions with tier A in the zip (15.6M before, spec 039; 83.5M while numpy and pandas were pre-imported, before spec 069) |
 | one call, snapshot, skipping finalization (`os._exit(0)`; flush first) | 6 ms (before spec 069); 0.97M guest instructions |
 | `import pandas` / `import numpy`, snapshot | 4.60G / 0.78G guest instructions (spec 069's landing notes; 0.81 s for the research's small pandas job, a benchmark fact): the snapshot pre-imports no package (decision 34), so a call pays its own imports |
-| one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); 167M / 4.92G guest instructions with matplotlib's members in the zip (151M / 4.90G before; spec 023) |
+| one call, plain reactor, `-c pass` / `import pandas` | 21 ms / 620 ms (spec 035's landing notes, 2026-10-18: the zip's directory read once); `-c pass` 218M guest instructions with tier A's 2,014 members in the zip (167M before, spec 039; 151M before matplotlib's, spec 023); `import pandas` 4.92G with matplotlib's members |
 | a line plot saved as PNG, snapshot, no package pre-imported | 8.78G guest instructions with a fresh font cache (a fresh `HOME`), 6.79G with a kept `MPLCONFIGDIR` (spec 069's landing notes; 7.56G and 5.57G while numpy and pandas were pre-imported) |
 | numpy kernels vs native (the spike's measurement) | 1.6 to 2.3 times slower (no SIMD, no BLAS, no threads) |
 | pandas groupby, 1e6 rows, vs native (the spike's) | 1.3 to 1.4 times slower |
@@ -339,7 +339,8 @@ mode is a character read wrongly, but in HTML the document ends at that byte:
   page whose `<title>` is ASCII keeps its title; the body's text after the first non-ASCII byte
   is gone);
 - `pd.read_html` of a page whose tables hold Chinese from their first row finds no table with
-  lxml, then tries `bs4`, which is not in the build, and raises `ImportError`. **But a table that
+  lxml, then tries `bs4` (spec 039), which reads the bytes as UTF-8 and raises
+  `UnicodeDecodeError`. **But a table that
   reaches the first non-ASCII byte comes back cut there, and nothing is raised:** its last row
   may be all `NaN` (a row the page does not have), a column may turn float, and the rows and
   tables after it are missing. A table of ASCII codes and Chinese names
@@ -535,7 +536,9 @@ from that read; each hands anything odd to upstream's own code), the door
 module, a host-side numpy stand-in for pandas' build, a one-function stand-in for `mmap` that pandas
 imports unconditionally, and a stand-in `ctypes` package (`recipes/ctypes_stand_in/`), which numpy
 and pandas import too: it names and sizes wasm32's C types, gives numpy the dtype it gives a real
-one, and refuses every foreign call. The stdlib zip also carries each package's `METADATA` (and a
+one, and refuses every foreign call; its `ctypes.util` answers `find_library` with `None` and
+`dllist()` with `[]`, the truth for one statically linked module, so threadpoolctl finds no native
+thread pools instead of trying to load a library (spec 039). The stdlib zip also carries each package's `METADATA` (and a
 wheel's `entry_points.txt`): a wheel's own, and numpy's and pandas' from their pinned sdists'
 `PKG-INFO`.
 
@@ -1993,6 +1996,98 @@ with Session(grants=[Grant(keep, "/keep")]) as later:
 is not built. Only a guest may unpickle what a guest wrote: never unpickle a
 guest's file on the host.
 
+## What the default profile carries
+
+Besides the stdlib, numpy 2.5.2, pandas 3.0.6, matplotlib 3.11.2 (with Pillow, kiwisolver,
+fontTools, cycler, pyparsing and packaging), lxml 6.1.3 and regex, the zip carries thirty
+pure-Python packages (spec 039), in seven families. Each family has a golden job whose output
+equals native Python's at the same pins.
+
+| family | distribution and version | what an agent uses it for |
+|---|---|---|
+| Excel | openpyxl 3.1.5, et-xmlfile 2.0.0 | read and write `.xlsx`; pandas' `.xlsx` reader |
+| | xlsxwriter 3.2.9 | write `.xlsx` (pandas' default writer), in memory too |
+| | xlrd 2.0.2 | read old `.xls` files |
+| PDF | pypdf 6.21.1 | read, extract text, merge, split, encrypt (RC4) |
+| HTML and XML | beautifulsoup4 4.15.0, soupsieve 3.0.3 | parse messy HTML, CSS selectors |
+| | html5lib 1.1, webencodings 0.6.1 | a browser's HTML parsing; bs4's `html5lib` parser |
+| | defusedxml 0.7.1 | parse untrusted XML, refusing entity tricks |
+| | xmltodict 1.0.4 | XML to dicts and back |
+| text formats | pyyaml 6.0.3 | YAML |
+| | tomli-w 1.2.0 | write TOML (the stdlib's `tomllib` reads it) |
+| | jinja2 3.1.6, markupsafe 3.0.4 | templates, HTML escaping |
+| | tabulate 0.10.0 | text tables; `df.to_markdown()` |
+| | charset-normalizer 3.5.2 | guess a file's encoding |
+| modelling | networkx 3.7 | graphs and their algorithms |
+| | patsy 1.0.3 | model formulas (`y ~ x + C(g)`) to design matrices |
+| symbolic | sympy 1.14.0, mpmath 1.3.0 | symbolic maths; arbitrary precision |
+| utilities | attrs 26.1.0, typing-extensions 4.16.0 | classes without boilerplate; typing backports |
+| | more-itertools 11.2.1, toolz 1.2.0 | iteration and functional helpers |
+| | tqdm 4.70.1 | progress bars |
+| | joblib 1.6.0, cloudpickle 3.1.2 | caching, `Parallel`, pickling closures |
+| | threadpoolctl 3.7.0 | thread-pool limits (none to limit here) |
+| | narwhals 2.27.1 | dataframe-agnostic code over pandas |
+
+pyyaml and markupsafe come from their source releases, which carry their pure-Python code; the
+zip holds no native file from any of them. Each package's `importlib.metadata` answers (name,
+version, entry points) work, so `df.to_markdown()` finds tabulate.
+
+### Excel files
+
+Reading works everywhere: `pd.read_excel` and `openpyxl.load_workbook` read from a path in a
+grant or from bytes. Writing needs a temporary folder, because openpyxl always writes through
+`tempfile`, and xlsxwriter does too unless it is told to work in memory. A call with nothing
+writable (the default, §4.15 of the constitution) therefore writes `.xlsx` only through
+xlsxwriter in memory:
+
+```python
+pd.ExcelWriter(buf, engine="xlsxwriter", engine_kwargs={"options": {"in_memory": True}})
+xlsxwriter.Workbook(buf, {"in_memory": True})
+```
+
+Without that, `df.to_excel(…)` raises `xlsxwriter.exceptions.FileCreateError` and openpyxl's
+`save` raises `FileNotFoundError` ("No usable temporary directory"). Give the call a writable
+folder at `/tmp` (`Grant(folder, "/tmp", writable=True)`, or `root=True`), or point
+`tempfile.tempdir` at a writable grant inside the program, and every writer works. Nothing
+writable stays the default (decision 46).
+
+### The other edges
+
+- `pd.read_html` works with its default flavor (lxml) and with `flavor="bs4"`
+  (beautifulsoup4 and html5lib).
+- pypdf reads, writes and encrypts with RC4; AES (`encrypt(…, algorithm="AES-128")`, or an AES
+  file) needs `cryptography`, which is not carried, and raises
+  `pypdf.errors.DependencyError`.
+- joblib runs serially: `Parallel(n_jobs=2)` gives `n_jobs=1`'s result, with no thread and no
+  process. `joblib.Memory` needs a writable folder for its cache.
+- tqdm warns once on stderr that it cannot start its monitor thread (`TqdmMonitorWarning`); set
+  `tqdm.tqdm.monitor_interval = 0` first to silence it. Bars write to stderr, as natively.
+- threadpoolctl finds no native thread pools: `threadpool_info()` is `[]`, and
+  `threadpool_limits(…)` enters and leaves with nothing to limit.
+- pyyaml has no libyaml: `yaml.__with_libyaml__` is `False` and `yaml.CLoader`,
+  `yaml.CSafeLoader` and `yaml.CDumper` are absent, as in a native install without libyaml.
+  `getattr(yaml, "CSafeLoader", yaml.SafeLoader)` works, and `yaml.safe_*` never use libyaml.
+- networkx's algorithms that need scipy (`pagerank`, the spectral and linear-algebra ones)
+  raise `ModuleNotFoundError` for scipy until scipy is built in, as natively without it.
+  `import networkx` reads every distribution's entry points.
+- **Two known gaps until spec 041,** each a package reading its own files by path from the zip:
+  pandas' Styler (`df.style`, and so `df.to_latex()`) raises `jinja2.TemplateNotFound`, and
+  networkx's graph atlas (`nx.graph_atlas`, `nx.graph_atlas_g`) raises `TypeError`.
+  `df.to_html()` and `df.to_markdown()` work.
+- pytz is not carried (decision 47): use `zoneinfo`, which reads the zip's tzdata.
+- Not carried, so each raises its `ImportError` as natively without it: antlr4 or lark for
+  sympy's `parse_latex`, odfpy for pandas' `engine="odf"`, pyxlsb for `.xlsb`.
+
+### What it costs
+
+Every zip member costs a plain start a little: tier A's 2,014 members add about 50.6M guest
+instructions to a plain `-c pass` (218M against 167M, about 25,100 a member). A snapshot call
+pays about 2,300 a member (20.4M against 15.6M), since the snapshot holds the zip's directory
+already read. No package is pre-imported (decision 34): a call pays for what it imports, when it
+imports it, and nothing for the rest. On the snapshot, `import yaml, jinja2, tabulate` costs
+1.07G guest instructions, `import pypdf` 1.42G, `import openpyxl, xlsxwriter` 2.24G and
+`import sympy` 4.11G (spec 039's landing notes).
+
 ## API reference
 
 The public API is the names below: what `wasi_python` and
@@ -2981,7 +3076,7 @@ has one.
   `ValueError` before any work, and a wrong type `TypeError`; no message
   quotes a value;
 - each call's store is closed when it ends, trapped or not, so its memory
-  and open files are released at once; a process copies the 22 MB stdlib
+  and open files are released at once; a process copies the 38.7 MB stdlib
   zip once, into a folder of its own that its exit removes;
 - calls made through `run` share nothing with each other but the stdlib
   zip's folder, which each sees read-only: the host
@@ -3080,11 +3175,15 @@ tzdata, six, the host door, the snapshot. **Since then:** `sqlite3`, `bz2` and
 `lzma` (SQLite 3.54.1, bzip2 1.0.8, liblzma from xz 5.8.4); matplotlib 3.11.2's
 first milestone (spec 023: line plots and PNG, PDF, PS and SVG saves on Agg, with
 FreeType 2.14.3, HarfBuzz 14.1.0, SheenBidi 3.0.0, libraqm 0.10.5, Pillow 13.0.0's core
-with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packaging).
+with zlib only, kiwisolver 1.5.1, fontTools 4.67.0, cycler, pyparsing and packaging); lxml
+6.1.3 with libxml2 and libxslt (spec 046); regex (spec 047); tier A of the default profile,
+thirty pure-Python packages (spec 039; *What the default profile carries*).
 
 **Out, with the one fact that decides each:** matplotlib's Delaunay triangulation
 (`_qhull` needs a second carried patch, for a writable `/dev/null`) and `contour`
-(contourpy's own build), both its next milestone; pre-importing any package in the snapshot
+(contourpy's own build), both its next milestone; seaborn and reportlab (spec 042); pandas'
+Styler and networkx's graph atlas from the zip (spec 041); pytz (decision 47: `zoneinfo` on the
+zip's tzdata is the route); pre-importing any package in the snapshot
 (decision 34: the default snapshot pre-imports none; a `full` profile, its own artifact set,
 only if an embedder asks); scipy (Fortran: f2c as Pyodide does; months);
 threads; BLAS and SIMD; `_ctypes`, `mmap`, sockets, `_ssl`; `_zstd`
