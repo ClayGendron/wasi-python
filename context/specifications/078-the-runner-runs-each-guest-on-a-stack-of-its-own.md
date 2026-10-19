@@ -7,7 +7,10 @@
   for the lane to copy to `../reviews/`; verdict: "ready once F1 to F5 and F8 are fixed", F6 and
   F7 written in, F9 to F14 in the spec or the landing notes); **revised against all fourteen
   findings** and rebased onto main `a6dfc17` (0.1.0a7 released; no code moved). The section
-  "Disposition of the pre-build review" says where each went. It changes neither the guest's
+  "Disposition of the pre-build review" says where each went. **Confirmed for build** by the same
+  reviewer ("Confirmation of 078's revision": confirmed once C1 is written in); C1, C2 and the
+  builder note are written in. It builds after spec 065 lands (both touch the nine trap entries),
+  and probably after 083 (both edit `tests/harness/guest.py`'s `run()`). It changes neither the guest's
   imports nor its exports, the artifact set nor the build recipe. A different agent reviews the
   build.
 - **Date:** 2026-10-19
@@ -63,7 +66,10 @@ Three facts shape the design (the research):
      through `Config.async_stack_size` when wasmtime-py has that property (the upstream draft,
      `../upstream/21-wasmtime-py-async-stack-size/`), else through wasmtime-py's own declared
      binding, `wasmtime._ffi.wasmtime_config_async_stack_size_set(cfg.ptr(), _WASM_STACK)`
-     (`_bindings.py` gives it `[POINTER(wasm_config_t), c_size_t]`; EXECUTED, `p1b_binding.out`).
+     (`_bindings.py` gives it `[POINTER(wasm_config_t), c_size_t]`; EXECUTED, `p1b_binding.out`),
+     looked up with `getattr(_ffi, "wasmtime_config_async_stack_size_set", None)` and checked
+     callable, so no `AttributeError` escapes in place of the stated `RuntimeError` (the
+     confirmation's builder note).
      So the runner sets no `argtypes` or `restype` on any shared ctypes attribute (the review's
      F5); it already calls `_ffi` this way (`_epoch_now`, `_watch`, `_send_outputs`).
    - **Never an engine at 8 MiB without the async size.** If neither the property nor the binding
@@ -249,6 +255,16 @@ Three facts shape the design (the research):
      wasm. So the readers change nothing, and the unit checks that replace `_ctrl_c_watched` with
      a stand-in keep their meaning (the review's F3). The waits' checks, built on the home thread,
      keep reading the flag.
+   - **The runner's own waits stop on the home's exception too** (the confirmation's C1). A guest
+     can be blocked in a wait of the runner's, not in wasm, where the epoch callback cannot run:
+     `poll_oneoff`'s wait (`time.sleep`, `select`, even with `deadline_s=None`) and the tool
+     protocol's wait for a tool (`_Bounded`). Each such wait's checks gain
+     `lambda: home.raised is not None` beside the deadline, `cancel` and the Ctrl-C flag, and the
+     tool bound's stop reading gains the same, for runs and for session turns alike. So an
+     exception recorded on the home (an embedder's raising SIGINT handler, a
+     `PyThreadState_SetAsyncExc` on a worker home) ends the wait within a slice, the call stops,
+     and the home's join (Decision 14) ends; today the same exception stops such a call, so
+     without this it would hang (a regression).
    - **Every call is polled** (the review's F10). Every call gets the epoch callback, its deadline
      checked every `CANCEL_TICKS` ticks, and the ticker while it runs, as a call with `cancel` does
      today. So Ctrl-C stops a main-thread guest that computes without waiting or calling back,
@@ -384,8 +400,9 @@ Three facts shape the design (the research):
       `Store.close()` on one thread while another runs wasm in that store killed the process with
       SIGSEGV three times in three (`wasmtime_store_delete`, with no guard, READ). So a `run` that
       returned while its guest thread ran would kill the host in `_instance`'s `finally`.
-    - **The join is a loop that survives exceptions.** `_on_guest_thread` serves, then joins in a
-      `finally`: `while thread.is_alive(): try: thread.join(CANCEL_TICKS * TICK_S) except
+    - **The join is a loop that survives exceptions.** `_on_guest_thread` opens its `try` before
+      `thread.start()`, so no exception between the start and the wait can skip the join (the
+      confirmation's C2); it serves, then joins in the `finally`: `while thread.is_alive(): try: thread.join(CANCEL_TICKS * TICK_S) except
       BaseException as e: home.stop(e)`. `home.stop(e)` keeps the first exception as
       `home.raised`, which the epoch callback turns into the guest's stop (Decision 5). So
       `_on_guest_thread` returns or raises only after the guest thread has ended, and an exception
@@ -399,7 +416,8 @@ Three facts shape the design (the research):
       `busy` and marking the session ended "error"; for an ending, `_release_session` and `done`)
       is registered with the home as it is made and run through `home.finish()`. Under the home's
       lock, `finish()` runs the steps at once if the guest thread has ended, and otherwise marks
-      the home abandoned; the guest body, at its end and under the same lock, runs the steps of an
+      the home abandoned and stops it (`home.stop` with a private stop, so "abandoned" always
+      means "stopped": the epoch callback, the runner's waits and any hand-off end the guest; C2); the guest body, at its end and under the same lock, runs the steps of an
       abandoned home itself. They run once, and never while the guest runs. The guest thread
       holds the store while it runs, so the collector cannot close it early either.
     - So "`run` returned early" stays a Python limit (an exception inside the runner's own
@@ -479,14 +497,16 @@ src/wasi_python/runner.py
                                   #   DONE -> leave; else run it into its box; item = None.
                                   #   except BaseException as e: stop(e); answer item's box if
                                   #   unanswered. finally: serving = False
-      add(step); finish()         # teardown, run once, never while the guest runs (Decision 14)
+      add(step); finish()         # teardown, run once, never while the guest runs; abandoning
+                                  #   also stops the guest (Decision 14)
 
   _on_guest_thread(kind, home, fn, *args) -> result
-      under _stack_size_lock: old = threading.stack_size(_THREAD_STACK); start the thread
-          (name "wasi-python-guest"); current = threading.stack_size(old);
-          if current != _THREAD_STACK: threading.stack_size(current)        # Decision 2 (F6)
-      _stack().append(call)                                                 # Decision 16
-      try: home.serve()
+      try:                                                                  # before start (C2)
+          under _stack_size_lock: old = threading.stack_size(_THREAD_STACK); start the thread
+              (name "wasi-python-guest"); current = threading.stack_size(old);
+              if current != _THREAD_STACK: threading.stack_size(current)    # Decision 2 (F6)
+          _stack().append(call)                                             # Decision 16
+          home.serve()
       finally:
           while thread.is_alive(): try: thread.join(slice) except BaseException as e: home.stop(e)
           _stack().pop()
@@ -507,6 +527,7 @@ src/wasi_python/runner.py
   _instance, _arm: every call gets _watch, an epoch deadline of min(CANCEL_TICKS, ticks), the ticker
       done = _on_guest_thread("run", home, _drive, ...); teardown steps registered with home
   _tool_host / the frame host: each tool call's context copied on the home (one hand-off)
+  the waits' checks (_instance, _arm) and the tool bound: + lambda: home.raised is not None (C1)
   _open_session: the guard, _check_preopens, instantiate, bind -> _on_guest_thread("open", ...)
   _turn_inside: _on_guest_thread("turn", home, _drive_turn, ...); busy cleared after it ends
   _shutdown: the export -> _on_guest_thread("shutdown", ...); _on_export(name, home.ident)
@@ -629,10 +650,14 @@ unit checks go in `tests/unit/test_runner_threads.py`; behavioural ones in
    `test_an_embedders_raising_sigint_handler_stops_the_call`, in a child: a SIGINT handler that
    raises `KeyboardInterrupt`; the same guest with `cancel=threading.Event()` and
    `deadline_s=None`; the door host's thread waits the same ticks and then sends SIGINT to the
-   main thread (`signal.pthread_kill` on POSIX, `_thread.interrupt_main()` on Windows). Asserts: `run` raises
-   `KeyboardInterrupt`, the next call works, the child exits 0. Seen failing first: on main ctypes
-   drops the interrupt in `_on_epoch` and the call runs on (EXECUTED: to its 30 s deadline,
-   `"deadline"`; with `deadline_s=None`, to the child's limit).
+   main thread (`signal.pthread_kill` on POSIX, `_thread.interrupt_main()` on Windows). Two more
+   rows (the confirmation's C1): the guest, after the door call, sleeps (`time.sleep(10**6)`,
+   `deadline_s=None`) instead of computing; and the guest calls a tool that blocks on an event the
+   test never sets. In every row `run` raises `KeyboardInterrupt`, the next call works, and the
+   child exits 0. Seen failing first: on main ctypes drops the interrupt in `_on_epoch` and the
+   computing row runs on (EXECUTED: to its 30 s deadline, `"deadline"`; with `deadline_s=None`, to
+   the child's limit); the sleeping and tool rows hang until the child's limit against a build
+   whose waits do not read `home.raised` (the confirmation's C1).
 
 9. **The limits at 8 MiB hold, and what now raises raises.**
    - `test_deep_data_limits[<kind>]` (restated): through `run`, metered, each kind runs a depth that
@@ -906,6 +931,19 @@ F6 and F7 written in; F9 to F14 in the spec or the landing notes. All fourteen a
 - **F14 (low).** Decision 3 says what the check measures (the thread's whole reported stack, glibc's
   static TLS inside it), and the code says it at `_guest_stack`.
 - **The notes** need no change.
+
+### The confirmation (the same file, "Confirmation of 078's revision")
+
+"Confirmed once C1 is written into the specification"; F5's departure (wasmtime-py's own declared
+binding) accepted as better than the ask.
+
+- **C1 (medium).** Decision 5: `poll_oneoff`'s wait and the tool protocol's wait also stop on
+  `home.raised`, for runs and turns; the Design names it; criterion 8 gains a sleeping-guest row
+  and a blocked-tool row.
+- **C2 (low).** Decision 14 takes both fixes: the `try` opens before `thread.start()`, and
+  `finish()` stops the guest when it marks the home abandoned, so "abandoned" implies "stopped".
+- **The builder note.** Decision 1: the binding is looked up with `getattr(…, None)` and checked
+  callable.
 
 ## Landing notes
 
