@@ -1,11 +1,15 @@
 # 068 — A cap on files open at once
 
-- **Status:** drafted 2026-10-18 (`dbf8aad`, rebased onto main `ef1441b`); reviewed before build
+- **Status:** built 2026-10-18 on `spec/068-a-cap-on-open-files` from `24bc10d` (`ef0882f`; the
+  Landing notes); awaiting its build review; it lands after the 0.1.0a6 tag. Before that: confirmed
+  for build 2026-10-18 (the review's addendum, "Confirmation of 068's revision": "Confirmed for
+  build", notes N1 to N3 optional, all three taken). Drafted 2026-10-18 (`dbf8aad`, rebased onto
+  main `ef1441b`); reviewed before build
   the same day (the review, written in the coordinator's scratchpad for the lane to copy to
   `../reviews/068-a-cap-on-open-files-spec-2026-10-18.md`, with its probes; verdict: "ready to
   build once F1 to F6 are written in", F7 and F8 a sentence each, F9 wording); revised against
   all nine findings with the lane's rulings (the section "Disposition of the pre-build review",
-  near the end, says where each went); awaiting the reviewer's confirmation. It changes neither
+  near the end, says where each went). It changes neither
   the guest's imports nor its exports, the artifact set nor the build recipe, so §5.6 does not
   require a review before build; the lane asked one because it adds a limit and a public knob,
   and closes a documented hole.
@@ -794,4 +798,162 @@ lane's ruling, and where it went:
 
 ## Landing notes
 
-Not built.
+Built 2026-10-18 by the implementer (Claude Opus 5.5) in the worktree `../wasi_python-068`, from
+`24bc10d` (main `ef1441b` plus this specification). Every claim below was run (EXECUTED) on macOS
+arm64, CPython 3.14.2, wasmtime-py 49.0.0, against the frozen artifact set
+`build/sets/s-4eb5418a2b1bb553-c353b1d9` of the main tree, read only. Logs are in the worktree's
+git-ignored `build/068/`.
+
+### What was built
+
+- `ef0882f`: the code, the checks and the documents, in one commit so that it is green alone (the
+  snapshot and the README's reference change with the code).
+  - `src/wasi_python/mounts.py`: `COUNTED`; `_Files(..., *, open_files=None)`, the `held` set,
+    `open_now()` (`len(held) + opened − len(owed)`) and `_at_cap()`; `_path_open` answers `EMFILE`
+    at the cap before the forward (wasmtime's numbers) or beside `MAX_MOUNT_FILES`'s check (a
+    mount's), and adds the number wasmtime wrote after a forwarded 0; `_fd_close` and
+    `_fd_renumber` keep the set (a renumber onto itself keeps it); the `ENOTSUP` renumber rule
+    applies only to a table with mounts; the module docstring and `GUARDED`'s comment.
+  - `src/wasi_python/runner.py`: `Defaults.open_files = 1024` (checked, documented);
+    `max_open_files=` last on `run` and `run_async` (documented); `_checked` passes it to
+    `_check_places`, which reads an unset one from the call's one read of the defaults and returns
+    `"open_files"`; `_instance` passes `open_files=c["open_files"]`; `_guard_linker` shadows
+    `GUARDED + COUNTED`, its docstring.
+  - `src/wasi_python/cli.py`: `--max-open-files N|none`; `_raise_descriptor_limit()` and `OPEN_MAX`
+    (Decision 7, with N1).
+  - The checks of criteria 1 to 7; the three judge texts of Decision 8; `tests/public_api.txt`'s
+    five lines and the README's reference, by `uv run python tests/harness/api.py --write` (its
+    diff is exactly Decision 11's five lines); the README's and CHANGELOG's text of Decision 13.
+
+### Seen failing first (criteria 1 to 7)
+
+The new and changed checks against `24bc10d`'s `src/`, before any code changed
+(`build/068/seen-failing-main.log`): 9 failed.
+
+```
+test_open_files_are_counted_on_a_call_without_mounts   assert (0, 7) == (33, None)   (the 4th open)
+test_mount_files_count_toward_the_open_file_cap        the 5th open answers 0
+test_a_guard_call_leaves_the_other_calls_native        ['fd_readdir', 'path_rename'] == ['fd_close', …]
+test_a_call_without_mounts_is_unchanged                module 'wasi_python.mounts' has no attribute 'COUNTED'
+test_the_open_file_cap_is_a_limit_with_a_default       'Defaults' object has no attribute 'open_files'
+test_max_open_files_reaches_run                        assert 2 == 0 (unknown option)
+test_the_command_raises_its_own_descriptor_limit       [] == [(8, (4096, 4096))]
+test_the_open_file_cap_holds                           TypeError: … unexpected keyword argument 'max_open_files'
+test_a_guest_at_..._leaves_the_host_descriptors        first row [0, "2036 29 24\n"]: 2,036 opens, then EIO,
+                                                       and the door host's open() failed with errno 24
+```
+
+### The stand-ins
+
+Each mutant was applied to the built code by `build/068/standins.py`, its checks run, and the file
+restored from memory (`build/068/standins.log`); `git diff` of `src/` was the build's afterwards.
+Every one was caught.
+
+| stand-in | check | failing line |
+|---|---|---|
+| (a) `>` for `>=` | criterion 1 | `(0, 7) == (33, None)` |
+| (b) the cap checked after the forward | criterion 1 | `4 == 3` (forwards) |
+| (c) `fd_close` frees nothing | criterion 1 | the open after the close is `None` |
+| (d) every successful close frees one | criterion 1 | `0 == 33` (after closing stdin) |
+| (e) the attempt counted | criterion 1 | the open after the `ENOENT` is `None` |
+| (f) `fd_renumber` not tracked | criterion 1 | the open after `fd_close(1)` is `None` |
+| (g) the guard linker without `COUNTED` | criteria 1 and 7 | `(0, 7) == (33, None)`; `['fd_readdir', 'path_rename'] == [...]` |
+| (h) the `ENOTSUP` rule in a guard table | criterion 1 | the parity rows differ |
+| (t') the `from != to` test dropped | criterion 1 | `0 == 33` |
+| (u') `to` dropped only when `from` is held | criterion 1 | `33 == 0` |
+| (i) mount files not counted | criterion 2 | `(0, 7) == (33, None)` |
+| (j) the cap after the provider call | criterion 2 | `3 == 2` (reads) |
+| (k) the held set left out in a mount table | criterion 2 | `(0, 7) == (33, None)` |
+| (l) the field's default `None` | criterion 3 | `None == 1024` |
+| (m) a second read of the defaults | 049's `test_set_defaults_changes_what_run_reads` | "run reads the defaults once" |
+| (n) `_instance` passes no cap | criterion 4 | `20 None opened opened opened 8` |
+| (o) `EIO` for `EMFILE` | criterion 4 | `8 False 29 29 29 8` |
+| (p) the cap ends the run | criterion 4 | `exit_code=None`, `trapped='out of file calls'` |
+| (p') `run_async` drops the keyword | criterion 4 | `20 None` |
+| (q) no cap applied | criterion 5 | `2036 29 24` |
+| (r) `None` taken as the default | criterion 5 | the second guest stops at 1,024 |
+| (s) the option not passed | criterion 6 | `KeyError: 'max_open_files'` |
+| (v) the raise left out | criterion 6 | `[] == [(8, (4096, 4096))]` |
+| (w) a raise to a fixed 2,048 | criterion 6 | `[(8, (2048, 4096))] == [(8, (4096, 4096))]` |
+| (x) a refused raise propagated | criterion 6 | `ValueError: not allowed` |
+| (y) the raise made in `runner.run` | criterion 6 | `['cli.py', 'runner.py']` |
+| (z) no retry at `min(hard, 10240)` (N1) | criterion 6 | the calls lack `(10240, inf)` |
+
+### Criteria 8 to 11
+
+- **Criterion 8, the judge.** The fast tier while building, `uv run pytest -m "not slow" -n 3`, last
+  on `ef0882f`'s tree (`build/068/fast-built.log`):
+
+  ```
+  wasi_python v1: 353/418 pass · 0 gap · 19 blocked · 0 fail · 46 deselected   (unit suite 1228/1236, 8 skipped)
+    v1.2  portable, sealed    66/67  blocked 1
+    v1.4  embedding           163/163
+  ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 · unrun locally 17 · gained 2 · grew 0 · …
+  1581 passed, 27 skipped in 189.10s
+  ```
+
+  Against main's fast tier at the research (351/416, v1.2 65/66, v1.4 162/162, unit suite
+  1,223/1,231), v1.2 and v1.4 gain exactly criteria 5 and 4, and the unit suite five units
+  (criteria 1, 2, 3 and 6's two). The full judge, once, `uv run pytest -n 3`, without `--accept`,
+  on `ef0882f` (`build/068/full-built.log`; its record kept as `build/progress/latest.json`, and a
+  copy as `build/068/latest-full-ef0882f.json`):
+
+  ```
+  wasi_python v1: 365/418 pass · 2 gap · 51 blocked · 0 fail   (unit suite 1228/1236, 8 skipped)
+    v1.4  embedding           163/163
+  ratchet vs 2ce08a592d: lost 0 · absent 0 · unrun 0 · unrun locally 37 · gained 2 · grew 0 ·
+    upstream unrun 31 · judge changed: tests/checks/test_v1_2_hostile_guest.py,
+    tests/checks/test_v1_4_embedding.py, tests/harness/files.py and 4 more
+  1593 passed, 59 skipped, 2 xfailed in 161.36s
+  ```
+
+  The 51 blocked are the worktree's missing source trees and other artifacts, as at the research's
+  run; not this change. Nothing grew, so no `--accept-growth`. The judge files changed:
+  `tests/checks/test_v1_2_hostile_guest.py`, `tests/checks/test_v1_4_embedding.py`,
+  `tests/harness/files.py` (a docstring), `tests/public_api.txt`, `tests/unit/test_cli.py`,
+  `tests/unit/test_runner_limits.py`, `tests/unit/test_runner_mounts.py`: new checks, and of the
+  existing ones only Decision 8's two assertions and three docstrings. `ruff check` and `ruff format
+  --check` are green on `src/` and `tests/`; `tests/harness/api.py --check` exits 0.
+- **Criterion 9, benchmark facts** (not checks; this machine had other judges running):
+  - fuel, the research's `pe_fuel_exact.py` on the built tree (it switches `mounts.COUNTED` off and
+    on, as the prototype's did; `build/068/pe_fuel_exact_built.txt`): delta 0 in all four rows,
+    to the instruction (111,512,532; 113,321,812; 331,685,363; 333,493,998);
+  - host CPU, `pf_host_cpu.py` (`build/068/pf_host_cpu_built.txt`): open and close 43.3 µs off,
+    108.8 µs on, 65.5 µs added per pair (the research 52, the review 54.5); the plain reactor's
+    `import pandas` 738 ms off, 830 ms on (+12.5%);
+  - path depth, `build/068/path_depth_built.py` (`path_depth_built.txt`; adapted from the review's
+    `r8_path_depth.py`): with `max_open_files=8`, a guest that built a folder 300 deep and stat its
+    bottom 300 times took this process from 4 descriptors to a peak of 311. That is the stated
+    limit (Decision 1) spec 072 will close.
+- **Criterion 10.** The README and the CHANGELOG carry Decision 13's text, in the unreleased
+  section (today "0.1.0a6 — unreleased"; the review's N3). Decision 9 asks no 055 edit now: 068 is
+  landing first, so the lane tells 055's branch the names `max_open_files=` and
+  `Defaults.open_files`.
+- **Criterion 11** does not apply: 055 has not landed.
+
+### Departures from the specification
+
+- **The command raises its limit only when it is its own process** (Decision 7). The raise is in
+  `cli.main()` when it is called with no argument, which is how `wasi-python` (the console script)
+  and `python -m wasi_python` call it; `cli.main([...])` with arguments, as the judge's command
+  units and any embedder calling it in its own process do, leaves the process's limits alone. So no
+  existing unit's fake had to change, and the judge's own process is never raised by the command's
+  units. Criterion 6's unit checks both: `main()` raises, `main(["run", …])` does not.
+- **N1 taken:** a refused raise is tried once more at `min(hard, 10240)` (macOS's `OPEN_MAX`;
+  10,240 when the hard limit is unlimited), only when that differs from the hard limit and is above
+  the soft one; criterion 6 has its row and stand-in (z).
+- **N2 taken:** criterion 5's guest loop is bounded at 3,000 opens on every system, not only
+  Windows, so a regression fails at once with a count.
+- **Criterion 5's two rows print separately**, the capped row first, so the check shows the first
+  row's numbers even where the second raises (on main, the keyword's `TypeError`).
+- **Criterion 4's `run_async` row** reuses the main guest's fill loop and prints the count (`2
+  True`).
+- **Criterion 1's ENOENT** is the module's existing `ENOENT` (the rules check refuses a name bound
+  twice at module level).
+
+### For the lane
+
+- Accept with `--accept-judge "spec 068: a cap on files open at once; new checks (criteria 1 to
+  6), spec 048's guard units changed to the five shadows (Decision 8), and tests/public_api.txt's
+  five lines"`. No growth.
+- After it lands, tell 055's branch the names (Decision 9).
