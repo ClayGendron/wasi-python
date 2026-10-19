@@ -994,3 +994,51 @@ RED: 75 metric(s) grew
    cp932 example.
 3. **F3, fixed.** The README's facts table and the Status bullet.
 4. **F4, fixed.** The facts sheet's "What it does not cover" line.
+
+### Revised against the confirmation (R1, N1)
+
+The reviewer confirmed F1's fix, the triple wrap's reach and F2 to F4, and reopened one finding
+(R1) with a nit (N1) (`…/046-buildreview/046-lxml-2026-10-18.md`, "Confirmation"). Commit
+`334d2cb`.
+
+- **R1, fixed in text and a check.** A table that reaches the first non-ASCII byte of a GB18030
+  page comes back cut there, with no exception. The README's `read_html` bullet, the CHANGELOG
+  and Decision 9 now say it in those words: the last row may be all NaN, a column may turn
+  float, and the rows and tables after it are missing. They point to the parser's `error_log`
+  and to decoding with Python's `gb18030` codec first. `test_gb18030_is_never_silently_wrong`
+  pins two such tables as documented (EXECUTED, both binaries): the `k`/`v` table with a
+  Chinese cell and a second table after it reads as one table `{'k': ['a', 'b', None], 'v':
+  [1.0, 2.0, None]}` with dtypes `str` and `float64`; the `code`/`name` stock table reads as
+  `{'code': [600000], 'name': [None]}` with `int64` and `float64`. The guard is unchanged here:
+  no wrapper does better, since refusing the encoding brings back the windows-1252 reading.
+- **N1, taken.** The sentinel handle is a `static int`; its address is now `0x15da5d0`, even,
+  so no musl handle (odd integers or heap pointers) can equal it (`build/link/python.map`).
+
+**The set after N1** (steps 60 to 90 rebuilt; `python.wasm` the same size, 40,374,948 bytes;
+the snapshot 74,364,935; the zip unchanged; wheel 54,341,453 bytes):
+
+```
+3a48bfc7c9e0ef02567981765b5b6ed95f104d9ef68f21d1337a379a3638aac8  MANIFEST
+ff5246a2c2f1a52b59ba97d36c8ae3b46bf6c5c4fcb6183db91950af64a03a46  python-snapshot.wasm
+b5633ecc06ef7b804d74313674118d9746dc553d3a7d75158da5db2e4928a5f8  python-stdlib.zip
+308118d1fa719f4652fe3150ab4fc29feb367d50bfbc50a657353e43cfd7f025  python.wasm
+```
+
+- **Same bytes:** a clean clone of `334d2cb` in the `linux/arm64` container, 15 steps in 9 min 02
+  s: `SHA256SUMS` equal to macOS's on every line; the file's SHA-256 `a8bfa751…`
+  (`build/046/f1/linux-r1/`).
+- **The judge:** the fast tier with `-n 3`: 1559 passed, 9 skipped, red only for growth. Then the
+  full `uv run pytest` once, serially, on `334d2cb` (`build/046/f1/full-judge-r1.txt`):
+
+```
+wasi_python v1: 403/419 pass · 14 gap · 2 blocked · 0 fail   (unit suite 1191/1198, 7 skipped)
+blocked by: prior-art clones 1 · three systems 1
+ratchet vs fdb06c26f1: lost 0 · absent 0 · unrun 0 · unrun locally 1 · gained 23 · grew 75 · judge changed: tests/checks/test_v1_1_artifact_set.py, tests/checks/test_v1_3_data_stack.py, tests/checks/test_v1_3_lxml.py and 12 more
+RED: 75 metric(s) grew
+1594 passed, 9 skipped, 14 xfailed in 1311.58s (0:21:51)
+```
+
+  The growth list names the same 80 metrics with the same causes.
+
+**Disposition of the confirmation's findings.** R1: fixed (README, CHANGELOG, Decision 9, the
+check). N1: fixed (`static int`).
