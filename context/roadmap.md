@@ -124,6 +124,11 @@ inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's 
 16 guard refusals in `test_runner_calls.py` and `test_runner_mounts.py` after `test_landing_lane`
 and `test_plugin`, since 071).
 
+Reserved: 083, the judge's driver answers file timestamps from its fixed clock (spec 081's review,
+F1): wasmtime's `filestat` calls hand the guest the host's real modification times, so a program
+that uses them costs 17 instructions more on some runs (at most 119 seen; the smallest accepted
+row allows 121).
+
 Follow-ups decided by the owner: a provider's `OSError` carries its errno to the guest (question
 54; spec 061); a judge-only binary linked with numpy's test modules (question
 89; a later build-class specification).

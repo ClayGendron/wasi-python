@@ -2,17 +2,21 @@
 
 - **Status:** drafted 2026-10-19 on `spec/081-guest-fuel-does-not-depend-on-the-checkout` from
   main `8f8de73`; not built. It changes neither the guest's imports nor its exports, the artifact
-  set nor the build recipe, so §5.6 asks no review before build; it is sent for one anyway, at
-  the lane's request. A different agent reviews the build.
+  set nor the build recipe, so §5.6 asks no review before build. It was sent for one anyway, at
+  the lane's request, and revised against it the same day ("ready once F1 to F3 are written
+  in": `../reviews/081-guest-fuel-does-not-depend-on-the-checkout-spec-2026-10-19.md`, and the
+  section "Revised against the pre-build review"). A different agent reviews the build.
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** a judge change; **parallel-safe**, not build-class (§5.7). It edits the judge's guest
   driver (`tests/harness/guest.py`), the `guest` fixture (`tests/checks/conftest.py`), one check
-  (`tests/checks/test_v1_3_lxml.py`) and the driver's unit tests (`tests/unit/test_guest.py`),
-  and nothing else: no `src/`, `scripts/`, `recipes/`, `downloads/SHA256SUMS`, workflow, README
-  or CHANGELOG. No golden output, gap or allowance is edited. It restates the accepted fuel of
-  two rows, and both fall: **the lane accepts it with `--accept-judge` alone** (Decision 3).
-- **Depends on:** nothing unlanded.
+  (`tests/checks/test_v1_3_lxml.py`), the driver's unit tests (`tests/unit/test_guest.py`) and
+  one roadmap line (spec 083 reserved, Decision 4), and nothing else: no `src/`, `scripts/`,
+  `recipes/`, `downloads/SHA256SUMS`, workflow, README or CHANGELOG. No golden output, gap or
+  allowance is edited. It restates the accepted fuel of two rows, and both fall: **the lane
+  accepts it with `--accept-judge` alone** (Decision 3).
+- **Depends on:** spec 063, which lands first and edits the same assertion of the lxml check.
+  The build rebases onto main after 063 lands and merges that check by hand, as Decision 5 says.
 - **Research it stands on:** spec 075's build review, N2
   (`../reviews/075-tools-small-fixes-build-2026-10-19.md`: the lxml snapshot row +113.8 k in a
   clone 88 characters longer than the main tree); and this spec's measurement (EXECUTED,
@@ -59,8 +63,8 @@ their source trees exist only after a build).
 
 So **the two lxml rows are the only path-dependent rows**, by an argument the guest is READ and
 EXECUTED to receive. The long clone's run is red on its own: `GREW …[snapshot]: fuel 216000964
--> 216086430`. The other differences are run-to-run, not path: they appear as often between two
-runs at one path (Decision 4).
+-> 216086430`. The other differences are not the path's: they appear as often between two runs
+at one path, and they come from the host's file timestamps (Decision 4).
 
 **The upstream groups (READ).** Their argv is `["-u", "/upstream/judge/drive.py", package,
 group]`, their environment `{"TMPDIR": "/tmp", "HOME": "/tmp"}`, their one grant `/upstream`
@@ -106,21 +110,36 @@ the row red**; a different one can turn it green by chance. The plain row moves 
      `host_roots` entry raises `ValueError` before anything runs, naming each input. The inputs
      are what the guest sees: each argument, each environment variable, each file's guest path
      and contents (`files=`), and each grant's guest path.
-   - Each root is looked for as written, resolved, and in forward slashes, so Windows' two forms
-     and macOS' `/tmp` and `/private/tmp` are caught.
-   - The `guest` fixture passes `measured=record` and, as a root, pytest's base temp folder
-     (`tmp_path_factory.getbasetemp()`), where every `tmp_path` lives. The upstream checks keep
-     the default: measured, with the checkout as root.
+   - **The forms looked for.** Each root as written and resolved; each of those in forward
+     slashes; as a `file:` URI (`as_uri()`, percent-encoded, for an absolute root), so a root
+     with a space or a non-ASCII letter is still caught in a URI; and, for a form that holds a
+     backslash, the same with every backslash doubled, as `repr()` and JSON write a Windows path
+     inside code. On Windows the match ignores case (`fold_case`, default `sys.platform ==
+     "win32"`), so `c:\` matches `C:\`. The escaped form is made from the string, so a unit row
+     can give a Windows-shaped root on any system.
+   - **The roots.** The checkout (`paths.REPO`), always; the system's temp folder
+     (`tempfile.gettempdir()`) whenever it is not literally `/tmp` (macOS' `/var/folders/…`,
+     Windows' `%TEMP%`, a runner's own temp), so no guest path collides with it; and the
+     `host_roots` the caller gives. The `guest` fixture passes `measured=record` and, as a root,
+     pytest's base temp folder (`tmp_path_factory.getbasetemp()`), where every `tmp_path` lives,
+     wherever `--basetemp` puts it. The upstream checks keep the default: measured, with the
+     checkout and the system temp folder as roots. The build re-runs every fuel function with
+     these roots: a root that names a current check's input is a finding, not a reason to drop
+     the root.
    - **Not checked:** a run on the caller's own engine (`own=`, which counts no fuel), and
      `Turns` (which records no fuel).
    - **Why a guard, not a self-test from two checkouts.** A two-checkout run needs a clone, its
      own environment and minutes of guest runs, and it covers only the sample it runs. The guard
      costs nothing, runs on every measured run in every judge run, and names the input. It is
      what this measurement found: a host path in a guest's inputs.
-   - **What it does not catch.** A host path written by a check into a file in a grant, not
-     through `files=`; or a host path outside the checkout and pytest's temp folder. The
-     system's temp folder is not a root: on Linux it is `/tmp`, which the upstream groups pass as
-     a guest path. Today the measurement shows no row moves by any such channel.
+   - **What it does not catch.**
+     - A host path in a `host=` door's answer: the driver hands it to the guest after the run has
+       begun, and the guard looks only at what the run is given.
+     - A host path a check writes into a file in a grant, not through `files=`.
+     - A host path outside every root: `$HOME`, the uv cache, and the system temp folder when it
+       is `/tmp` (on Linux, where the upstream groups pass `/tmp` as a guest path).
+     - Another encoding of a path than the forms above (say, base64 of it).
+     Today the measurement shows no row moves by any of these.
 3. **The two rows' accepted fuel is restated, and both fall.** Measured with the prototype
    (`prototype.diff`, `fixed.out`) from both checkouts, twice each, one value every time:
 
@@ -132,12 +151,50 @@ the row red**; a different one can turn it green by chance. The plain row moves 
    They fall because the measured program no longer runs the outside-grants entity. No row
    rises, so the lane needs no `--accept-growth`. The build re-measures them; if they differ
    from these, the landing notes say by how much and why.
-4. **Out of scope: the 17-instruction steps.** Between two runs at one path, about fifteen of
-   the 148 rows differ by a multiple of 17 instructions, at most 119 (`compare.out`; at most
-   4.2 parts in ten million, 240 times below the tolerance). They are not the path's: they appear
-   as often at one path as between two. The driver's docstring already says fuel repeats "to a
-   few parts in ten million". A later specification may find their source; nothing here waits on
-   it.
+4. **Out of scope: the 17-instruction steps, which are the host's file timestamps.** Between two
+   runs at one path, about fifteen of the 148 rows differ by a multiple of 17 instructions, at
+   most 119 (`compare.out`). They are not the path's: they appear as often at one path as
+   between two.
+   - **Their source** (the pre-build review, EXECUTED, its `probes/r1_seventeen.py` and
+     `r2_timestamps.py`): the real modification times that wasmtime's `fd_filestat_get` and
+     `path_filestat_get` hand the guest. Eight small programs, twelve runs each: only those that
+     use a file's `st_mtime` give two values, 17 apart; the same programs give one value once
+     `os.utime` fixes the time. The driver answers `random_get` and `clock_time_get` itself,
+     but not the times inside a `filestat`. So the steps depend on when a check runs, not on
+     chance and not on the checkout.
+   - **Their bound.** The largest step seen is 119 instructions. The smallest accepted row,
+     `test_unbuffered_output_survives_a_hard_exit[snapshot]` at 1,213,059, allows 121, and it
+     reads no timestamps (it did not vary). So no row is at risk today; a future small check
+     that stats files, or one that reads many timestamps, could be.
+   - **Their owner.** Spec 083, reserved in `context/roadmap.md` by this spec: the driver
+     answers the `filestat` times from its fixed clock, as it answers `clock_time_get`. Nothing
+     here waits on it. The driver's docstring ("repeats to a few parts in ten million") is left
+     to 083.
+5. **The merge with spec 063.** 063 lands first and changes the same assertion: on Windows a host
+   path is refused by name, so "entity outside grants" is `XMLSyntaxError` there. At the rebase
+   the build merges the lxml check by hand, and the merged check:
+   1. runs `OUTSIDE` with the real host path and `record=False`, and asserts its exit code is 0;
+   2. runs `SAFETY` (measured) with guest paths only, and asserts its exit code is 0;
+   3. merges the two answers with **disjoint keys**: `OUTSIDE` answers exactly "entity outside
+      grants" and its control, "entity by guest path, outside run" (N1, below); `SAFETY`
+      answers neither; the check asserts both, so a later edit cannot leave a case in both runs
+      with one silently overriding the other;
+   4. for "entity outside grants": on `win32`, `XMLSyntaxError` with "failed to load" and
+      "Operation not permitted" (063); elsewhere `ok` with `<r/>` (046); and **on every
+      platform, no `SECRET` in its value**, whatever its kind (063 had that line on `win32`
+      only; it is the property itself);
+   5. keeps the other twelve `expect` lines and the closing assertion on `ro/out.xml` and
+      `rw/out.xml`;
+   6. keeps both docstring sentences (063's, Windows' refusal by name; 081's, the unrecorded run)
+      and 063's `import sys` at the module's top.
+   On Windows the measured run no longer holds the case that refuses differently; Windows' fuel
+   is not compared with `accepted.json` anyway (its values are darwin-arm64's).
+6. **A positive control inside `OUTSIDE`** (the review's N1). The unrecorded run also resolves
+   `file:///ro/secret.txt`, the same file by its guest path, and expects `ok <r>SECRET\n</r>`.
+   So the run shows on its own that the file is there and readable by its guest path, and that
+   the parser resolves entities, while its host path reads nothing. And before the run, the check
+   asserts on the host that the path it hands `OUTSIDE` is the granted file (it reads `SECRET`
+   there and is the same file as `ro / "secret.txt"`), so a made-up path cannot pass vacuously.
 
 ## Intent
 
@@ -148,30 +205,42 @@ path is refused at once, by name, before it runs.
 ## Design
 
 - **`tests/harness/guest.py`.** A pure function, `host_paths_in(roots, argv, env, files,
-  preopens) -> list[str]`, names each input that holds a root (`argv[3]`, `env DATA`, `file
-  /a.py`, `the contents of /a.py`, `grant /ro`). `run()` calls it first when `measured` and not
-  `own`, with `(paths.REPO, *host_roots)`, and raises `ValueError("a measured run gives the guest
-  a host path in argv[3]: its fuel would depend on where the checkout is; give it guest paths,
-  or record no fuel for this run (spec 081)")`.
+  preopens, fold_case=sys.platform == "win32") -> list[str]`, names each input that holds one of
+  a root's forms (Decision 2: as written, resolved, forward slashes, `as_uri()`, backslashes
+  doubled), as `argv[3]`, `env DATA`, `file /a.py`, `the contents of /a.py` or `grant /ro`.
+  `run()` calls it first when `measured` and not `own`, with `(paths.REPO, *system_temp,
+  *host_roots)`, where `system_temp` is `(Path(tempfile.gettempdir()),)` unless that is `/tmp`,
+  and raises `ValueError("a measured run gives the guest a host path in argv[3]: its fuel would
+  depend on where the checkout is; give it guest paths, or record no fuel for this run (spec
+  081)")`.
 - **`tests/checks/conftest.py`.** The `guest` fixture takes `tmp_path_factory` and passes
   `measured=record, host_roots=(tmp_path_factory.getbasetemp(),)`; its docstring says so.
 - **`tests/checks/test_v1_3_lxml.py`.** `SAFETY` loses `host_secret` and the case
-  `entity outside grants`. A new `OUTSIDE` program reads `sys.argv[1]`, parses the same entity
-  document with `resolve_entities=True`, and prints `{"entity outside grants": [kind, value]}`.
-  The check runs `OUTSIDE` with the host path and `record=False`, then `SAFETY` with no host
-  path, and merges the two answers before the same thirteen `expect` lines.
-- **`tests/unit/test_guest.py`.** Three rows: every input kind is found, in both forms of the
-  root; guest paths and paths under another folder are not; a measured `run` with a host path
-  in an argument or a grant is refused before it runs, and the same run with `measured=False`
-  runs.
+  `entity outside grants`. A new `OUTSIDE` program reads `sys.argv[1]` and, with the same
+  `entity()` document and `resolve_entities=True`, answers two cases: "entity by guest path,
+  outside run" (`file:///ro/secret.txt`) and "entity outside grants" (`file://` and the host
+  path). The check runs `OUTSIDE` with the host path and `record=False`, then `SAFETY` with no
+  host path, asserts on the host that the path is the granted file (Decision 6), asserts the
+  keys disjoint, merges the answers, and checks them as Decision 5 says:
+  the control `ok <r>SECRET\n</r>`, 063's platform branch, no `SECRET` outside on any platform,
+  and the twelve other `expect` lines.
+- **`tests/unit/test_guest.py`.** Rows: every input kind is found, in both forms of the root;
+  a root with a space is found in its `file:` URI; a Windows-shaped root (`C:\Users\runner\work`)
+  is found inside `json.dumps` and `repr` text, and, with `fold_case`, in another case; guest
+  paths and paths under another folder are not; the system temp folder is a root unless it is
+  `/tmp` (with `tempfile.gettempdir` patched each way); a measured `run` with a host path in an
+  argument or a grant is refused before it runs, and the same run with `measured=False` runs.
 
-The prototype is `prototype.diff` in the evidence folder: 129 lines added, 10 removed.
+The prototype is `prototype.diff` in the evidence folder: 129 lines added, 10 removed. It
+predates the review: it has neither the added forms, the system temp root, the control nor the
+merge with 063.
 
 ## Scope
 
-In: the driver's guard, the fixture's wiring, the lxml check's split, the three unit rows, and
-the two restated values. Out: the 17-instruction steps (Decision 4); checks that call
-`wasi_python.run` (they record no fuel); spec 082 (inline sessions and wasmtime's handlers).
+In: the driver's guard, the fixture's wiring, the lxml check's split and its merge with 063, the
+unit rows, the two restated values, and the roadmap line reserving 083. Out: the file
+timestamps (Decision 4, spec 083); checks that call `wasi_python.run` (they record no fuel);
+spec 082 (inline sessions and wasmtime's handlers).
 
 ## Acceptance criteria
 
@@ -184,16 +253,39 @@ the two restated values. Out: the 17-instruction steps (Decision 4); checks that
    (seen in the draft: `fixed.out`).
 3. **The probe still bites.** A mutant that grants the read-only folder at its own host path, in
    the `OUTSIDE` run only, fails the check on `entity outside grants` with `<r>SECRET\n</r>`
-   (seen in the draft: `mutant_outside.out`). The other twelve answers are asserted as before.
+   (seen in the draft: `mutant_outside.out`). Three more mutants each fail: the control naming a
+   file that is not there (`file:///ro/elsewhere.txt`) fails on the control; a made-up host path
+   (`/nonexistent/secret.txt`) fails the host-side assertion; "entity outside grants" answered in
+   `SAFETY` too fails on the disjoint keys. The other twelve
+   answers are asserted as before; on Windows the expectation is 063's.
 4. **No other row depends on the path.** With the build, all 69 functions (`measure.sh`) from
    both checkouts: no row differs between the two paths by more than the largest difference
-   between two runs at one path.
+   between two runs at one path (with Decision 4's timestamps, up to about 119 instructions);
+   and no measured run is refused by the added roots or forms.
+4a. **The guard's new forms.** The unit rows for the `file:` URI, the doubled backslashes, the
+   folded case and the system temp root each fail against the draft's prototype guard and pass
+   with the build's.
 5. **The judge.** `ruff check` and `ruff format --check` green; the fast tier and one full run
    (`-n 3`) against `build/sets/s-c50ca51fae5eb55b`: no failure, no lost pass; the ratchet's
    only moves are the two restated rows (both fall) and `judge changed`. The prototype's fast
    tier (`fast_tier_prototype.out`): `474/550 pass · 1 gap · 24 blocked · 0 fail` (the blocked
    are source trees, a wheel, the wasmtime CLI and the like, absent from a worktree), unit suite
    1270/1278, `1744 passed, 32 skipped, 1 xfailed`, `lost 0 · grew 0`.
+
+## Revised against the pre-build review (2026-10-19)
+
+The review (`scratchpad/081-review/081-guest-fuel-does-not-depend-on-the-checkout-spec-2026-10-19.md`,
+probes beside it; copied to `../reviews/` by the lane): "ready once F1, F2 and F3 are written in".
+It reproduced the restated values at a third path length (128 characters) and the mutant's
+failure.
+- **F1.** Decision 4 names the steps' source (the host's file timestamps through `filestat`),
+  their bound (119 against 121 on the smallest row) and their owner (spec 083, reserved in the
+  roadmap).
+- **F2.** Decision 2 adds the `file:` URI and doubled-backslash forms, case folding on Windows,
+  and the system temp folder as a root unless it is `/tmp`; the holes list names the `host=`
+  door's answer. The unit rows grow to match (Design; criterion 4a).
+- **F3.** Decision 5 writes out the merged lxml check; Depends on names 063.
+- **N1.** Decision 6: a positive control inside `OUTSIDE`; criterion 3 gains its mutant.
 
 ## Landing notes
 
