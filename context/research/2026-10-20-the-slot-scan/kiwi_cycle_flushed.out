@@ -1,0 +1,8 @@
+--- snapshot=False exit=None fuel=198270795
+Term Expression Constraint
+stderr tail: []
+trapped bad signature
+--- snapshot=True exit=None fuel=6805770
+Term Expression Constraint
+stderr tail: []
+trapped bad signature
