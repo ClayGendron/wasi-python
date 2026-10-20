@@ -1,6 +1,6 @@
 # 078 — The runner runs each guest on a stack of its own
 
-- **Status:** **built 2026-10-19** on main `3866f56`; its build review said "lands once F1 to F5 are fixed or answered", and all eleven findings are answered ("Disposition of the build review"; the final judge on `2a0a98d`). Before: drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
+- **Status:** **landed 2026-10-20** on main `97be88a` (accepted on `9c6ba6d`, history line 81; the dry run 39351481374 red on one Windows row, fixed forward by spec 093; see "Landed" below). Before: **built 2026-10-19** on main `3866f56`; its build review said "lands once F1 to F5 are fixed or answered", and all eleven findings are answered ("Disposition of the build review"; the final judge on `2a0a98d`). Before: drafted 2026-10-19 on `spec/078-the-runner-runs-each-guest-on-a-stack-of-its-own`
   from main `3561e55`, with its research
   (`../research/2026-10-19-the-runners-own-stack.md`); reviewed before build the same day at the
   lane's request (`scratchpad/078-review/078-the-runner-runs-each-guest-on-a-stack-of-its-own-spec-2026-10-19.md`,
@@ -1228,3 +1228,28 @@ Linux.
   cpython-c +0.12%); no other fuel moves"`.
 - The release workflow on all three systems before landing (criteria 15 and 19).
 - 083 rebases over the driver's two hunks named above.
+
+### Landed
+
+- **Accepted** by the lane on `9c6ba6d` (rebased onto the 089 and 083 batch, main `8c07ad4`) as
+  `97be88a`: 585/656 pass, 0 fail, 14 retired, `uv run pytest -n 3`, 17 min under load (history
+  line 81). The flags were the judge change, the 14 `--retire`s and the growth restated from the
+  lane's run (the delta review's R1).
+- **Sameness** against the rebased reviewer's record differed only where the reviewer's worktree
+  ran no upstream groups, and in the CPython groups' `left_out` lists: three stray
+  `Lib/test/__pycache__` files in the main tree's `build/Python-3.15.0` source copy, written at
+  14:02 UTC by some earlier run. No verdict, count or fuel differed. The files were saved under
+  `build/lane-078/stray-pycache/` and removed. Follow-up: the judge's `left_out` should ignore
+  `__pycache__`.
+- **The dry run** 39351481374 on `97be88a` was green on every job but one:
+  `judge (windows-2025, own-guest)` lost
+  `test_v1_2_hostile_guest.py::test_an_abandoned_turn_keeps_its_session_busy`. On Windows the
+  abandoned turn's session read "busy False" and refused the second turn with "the session has
+  ended: error", where the check expects "busy True" and "a turn is already running". Main was
+  fast-forwarded anyway under the owner's fix-forward rule (2026-10-19, `decisions.md`, "Waves,
+  judging on CI"). Spec 093, "an abandoned turn on Windows", enters wave 1 first. No tag is due
+  until a dry run on main is green (AGENTS.md rule 6b).
+- **Reviews:** the specification, the build and the delta (with its rebase delta) are under
+  `context/reviews/078-*` (commit `9c6ba6d`). The build reviewer's note on the "Turns" wording is
+  taken in the README as reviewed. The zip `_missing_stdlib_info` entry (the build review's F2)
+  rides with spec 086.
