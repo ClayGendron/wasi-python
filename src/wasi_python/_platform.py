@@ -347,7 +347,8 @@ def _wasmtime_base() -> int | None:
         from . import _wasmtime_ffi as ffi
 
         handlers["wasmtime"] = _load_base(ffi.engine_symbol_address())
-    return handlers["wasmtime"]
+    base: int | None = handlers["wasmtime"]
+    return base
 
 
 def _trap_handlers_ready(
@@ -365,7 +366,7 @@ def _trap_handlers_ready(
 
     if not (platform if platform is not None else sys.platform).startswith("linux"):
         return None
-    names = _TRAP_SIGNALS
+    names: tuple[str, ...] = _TRAP_SIGNALS
     if (machine if machine is not None else os.uname().machine) == "x86_64":
         names += _TRAP_SIGNALS_X86_64
     name = names[0]

@@ -198,7 +198,9 @@ def _holds(path: Path, info: zipfile.ZipInfo) -> bool:
     return len(body) == info.file_size and zlib.crc32(body) == info.CRC
 
 
-def _remove_extra(data: Path, files: dict, folders: set) -> None:
+def _remove_extra(
+    data: Path, files: dict[tuple[str, ...], zipfile.ZipInfo], folders: set[tuple[str, ...]]
+) -> None:
     """Every entry of the folder that the archive does not hold, removed without following a
     link."""
     for dirpath, dirnames, filenames in os.walk(data, topdown=True, followlinks=False):

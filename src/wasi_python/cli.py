@@ -23,6 +23,7 @@ import json
 import os
 import sys
 import threading
+from collections.abc import Sequence
 from typing import Any
 
 USAGE = "wasi-python run [OPTIONS] [--] ARG..."
@@ -44,7 +45,13 @@ VALUED = {
 class _Once(argparse.Action):
     """An option that may be given once: a second `--root` is a usage error, never last-wins."""
 
-    def __call__(self, parser, namespace, values, option_string=None):  # type: ignore[override]
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
+    ) -> None:
         if hasattr(namespace, self.dest):
             parser.error(f"argument {option_string}: given twice")
         setattr(namespace, self.dest, values)

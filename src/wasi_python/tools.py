@@ -58,6 +58,7 @@ _VALUE_NESTING = _TOOL_NESTING - 2  # inside a call's args, or a result's value
 _INT_CHARS = 64  # the longest integer literal a frame may hold
 _MESSAGE_CHARS = 4096  # the longest message the guest is told
 _ECHO_CHARS = 64  # the longest piece of guest text a message repeats
+_Json = dict[str, Any]  # a JSON object as json.loads gives it: a schema, a descriptor, a frame
 _FAULT_CHARS = 200  # a fault's type and first line, as spec 032's FileFault
 _RECORD_OUTCOMES = 1000  # the frames a record lists, whatever max_calls is
 _MAX_ID = 2**53 - 1
@@ -155,16 +156,16 @@ class Tool:
     name: str
     description: str
     fn: Callable[..., Any] = field(repr=False)
-    _input_schema: dict = field(repr=False)
-    _output_schema: dict | None = field(repr=False)
+    _input_schema: _Json = field(repr=False)
+    _output_schema: _Json | None = field(repr=False)
     validates_input: bool = False
     timeout_s: float | None = None
     read_only: bool = False
     destructive: bool = False
     idempotent: bool = False
     open_world: bool = False
-    _keysets: dict = field(default_factory=dict, repr=False)
-    _fixed: frozenset = field(default=frozenset(), repr=False)  # keywords a partial binds
+    _keysets: _KeySets = field(default_factory=dict, repr=False)
+    _fixed: frozenset[str] = field(default=frozenset(), repr=False)  # keywords a partial binds
 
     def __post_init__(self) -> None:
         # Only tool() makes one: not a direct call, and not dataclasses.replace (review F7).
@@ -172,16 +173,16 @@ class Tool:
             raise TypeError("a Tool is made by tool(), which describes and vets it")
 
     @property
-    def input_schema(self) -> dict:
+    def input_schema(self) -> dict:  # type: ignore[type-arg]  # the public API text says `dict`
         """A copy of the vetted input schema."""
         return copy.deepcopy(self._input_schema)
 
     @property
-    def output_schema(self) -> dict | None:
+    def output_schema(self) -> dict | None:  # type: ignore[type-arg]  # as the public API text
         """A copy of the output schema, or None. It is shown, never validated."""
         return copy.deepcopy(self._output_schema)
 
-    def descriptor(self) -> dict:
+    def descriptor(self) -> dict:  # type: ignore[type-arg]  # as the public API text
         """The tool in MCP's field names: name, description, inputSchema, and outputSchema and
         annotations when there are any. A fresh copy each time."""
         d: dict[str, Any] = {
@@ -580,8 +581,8 @@ def _derived(
     fn: Any,
     hints: dict[str, Any],
     args_doc: dict[str, str],
-    fixed: frozenset = frozenset(),
-) -> dict:
+    fixed: frozenset[str] = frozenset(),
+) -> _Json:
     try:
         sig = inspect.signature(fn)
     except (TypeError, ValueError) as e:
@@ -623,7 +624,7 @@ def _derived(
     }
 
 
-def _schema_of(hint: Any, where: str) -> dict:
+def _schema_of(hint: Any, where: str) -> _Json:
     """Decision 2's hints, mapped to JSON Schema."""
     if hint is Any:
         return {}
@@ -698,7 +699,7 @@ def _plain(value: Any, where: str, depth: int) -> Any:
 # Vetting a schema (Decision 3)
 
 
-def _vet(name: str, root: dict, validates_input: bool) -> list[Any]:
+def _vet(name: str, root: _Json, validates_input: bool) -> list[Any]:
     where = f"{name}: input schema"
     if root.get("type") != "object":
         raise ValueError(f'{where}: its root must be {{"type": "object", ...}}')
@@ -725,7 +726,7 @@ class _Vetting:
     validator knows (unless the tool validates its own input), with well-formed values; every
     `$ref` is local and resolves; and no `$ref` cycle stays on one value."""
 
-    def __init__(self, where: str, root: dict, validates_input: bool) -> None:
+    def __init__(self, where: str, root: _Json, validates_input: bool) -> None:
         self.where, self.root, self.lax = where, root, validates_input
 
     def fail(self, path: str, what: str) -> None:
@@ -835,7 +836,7 @@ class _Vetting:
         return out
 
 
-def _children(s: dict) -> list[tuple[str, Any, bool]]:
+def _children(s: _Json) -> list[tuple[str, Any, bool]]:
     """(keyword, subschema, whether it descends into the value) for each subschema the
     validator visits."""
     out: list[tuple[str, Any, bool]] = []
@@ -858,7 +859,7 @@ def _children(s: dict) -> list[tuple[str, Any, bool]]:
     return out
 
 
-def _resolve(root: dict, ref: Any) -> Any:
+def _resolve(root: _Json, ref: Any) -> Any:
     """A local `$ref` into $defs or definitions, or None."""
     if not isinstance(ref, str) or not ref.startswith(("#/$defs/", "#/definitions/")):
         return None
@@ -875,7 +876,7 @@ def _count(value: Any) -> bool:
     return type(value) is int and value >= 0
 
 
-def _number(value: Any) -> bool:
+def _number(value: Any) -> typing.TypeGuard[int | float]:
     return type(value) in (int, float)
 
 
@@ -945,7 +946,7 @@ class _Invalid(Exception):
     pass
 
 
-_EMPTY: dict = {}
+_EMPTY: _Json = {}
 _DELEGATES = ("$ref", "anyOf", "oneOf")
 _OBJECT_WORDS = frozenset(
     ("properties", "additionalProperties", "required", "minProperties", "maxProperties")
@@ -953,7 +954,7 @@ _OBJECT_WORDS = frozenset(
 _ARRAY_WORDS = frozenset(("items", "prefixItems", "minItems", "maxItems", "uniqueItems"))
 
 
-_KeySets = dict[tuple[int, str], tuple[dict, frozenset]]
+_KeySets = dict[tuple[int, str], tuple[_Json, frozenset[Any]]]
 
 
 def _keysets(nodes: Iterable[Any]) -> _KeySets:
@@ -1014,7 +1015,7 @@ class _Validator:
             raise _TooComplex
         self.steps += 1
 
-    def keyset(self, s: dict, word: str) -> frozenset:
+    def keyset(self, s: _Json, word: str) -> frozenset[Any]:
         entry = self.keysets.get((id(s), word))
         if entry is not None and entry[0] is s:
             return entry[1]
@@ -1090,7 +1091,7 @@ class _Validator:
                 why = f"none ({first})" if matched == 0 else f"{matched}"
                 raise _Invalid(f"{_where(at)}: must match exactly one of oneOf; it matches {why}")
 
-    def object(self, s: dict, value: dict, at: Any) -> None:
+    def object(self, s: _Json, value: _Json, at: Any) -> None:
         props = s.get("properties", _EMPTY)
         for name in s.get("required", ()):
             if name not in value:
@@ -1109,14 +1110,14 @@ class _Validator:
             else:
                 self.visit(extra, v, (at, "." + _echo(k)))
 
-    def array(self, s: dict, value: list, at: Any) -> None:
+    def array(self, s: _Json, value: list[Any], at: Any) -> None:
         n = len(value)
         if "minItems" in s and n < s["minItems"]:
             raise _Invalid(f"{_where(at)}: at least {s['minItems']} items, got {n}")
         if "maxItems" in s and n > s["maxItems"]:
             raise _Invalid(f"{_where(at)}: at most {s['maxItems']} items, got {n}")
         if s.get("uniqueItems"):
-            seen: set = set()
+            seen: set[Any] = set()
             for i, item in enumerate(value):
                 k = self.item_key(item)
                 if k in seen:
@@ -1132,21 +1133,21 @@ class _Validator:
         self.keys += 1
         return _key(item, self.step)
 
-    def length(self, s: dict, n: int, at: Any, unit: str) -> None:
+    def length(self, s: _Json, n: int, at: Any, unit: str) -> None:
         if "minLength" in s and n < s["minLength"]:
             raise _Invalid(f"{_where(at)}: at least {s['minLength']} {unit}, got {n}")
         if "maxLength" in s and n > s["maxLength"]:
             raise _Invalid(f"{_where(at)}: at most {s['maxLength']} {unit}, got {n}")
 
-    def number(self, s: dict, x: int | float, at: Any) -> None:
-        for key, ok, says in (
-            ("minimum", lambda b: x >= b, "at least"),
-            ("maximum", lambda b: x <= b, "at most"),
-            ("exclusiveMinimum", lambda b: x > b, "above"),
-            ("exclusiveMaximum", lambda b: x < b, "below"),
-        ):
-            if key in s and _number(s[key]) and not ok(s[key]):
-                raise _Invalid(f"{_where(at)}: must be {says} {s[key]}, got {_shown(x)}")
+    def number(self, s: _Json, x: int | float, at: Any) -> None:
+        if _number(b := s.get("minimum")) and not x >= b:
+            raise _Invalid(f"{_where(at)}: must be at least {b}, got {_shown(x)}")
+        if _number(b := s.get("maximum")) and not x <= b:
+            raise _Invalid(f"{_where(at)}: must be at most {b}, got {_shown(x)}")
+        if _number(b := s.get("exclusiveMinimum")) and not x > b:
+            raise _Invalid(f"{_where(at)}: must be above {b}, got {_shown(x)}")
+        if _number(b := s.get("exclusiveMaximum")) and not x < b:
+            raise _Invalid(f"{_where(at)}: must be below {b}, got {_shown(x)}")
         m = s.get("multipleOf")
         if type(m) is int and m > 0 and x % m != 0:
             raise _Invalid(f"{_where(at)}: must be a multiple of {m}, got {_shown(x)}")
@@ -1162,7 +1163,7 @@ def _where(at: Any) -> str:
     return f"argument {path}" if path else "the arguments"
 
 
-def _is_type(name: str, value: Any, s: dict) -> bool:
+def _is_type(name: str, value: Any, s: _Json) -> bool:
     if name == "string":
         if s.get("contentEncoding") == "base64":
             return isinstance(value, bytes)
@@ -1180,7 +1181,7 @@ def _is_type(name: str, value: Any, s: dict) -> bool:
     return isinstance(value, dict)  # "object"
 
 
-def _type_name(name: str, s: dict) -> str:
+def _type_name(name: str, s: _Json) -> str:
     if name == "string" and s.get("contentEncoding") == "base64":
         return "bytes"
     return name
@@ -1324,7 +1325,7 @@ def _unique_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return out
 
 
-def _parse(frame: bytes) -> dict:
+def _parse(frame: bytes) -> _Json:
     """Decision 4's rules 2 to 6, then the `$bytes` objects decoded."""
     try:
         text = frame.decode("utf-8")
@@ -1418,7 +1419,7 @@ def _to_json(value: Any, depth: int) -> Any:
     raise _NotJSON(f"a {type(value).__name__} has no JSON form")
 
 
-def _encode(answer: dict) -> bytes:
+def _encode(answer: _Json) -> bytes:
     return json.dumps(answer, ensure_ascii=True, allow_nan=False, separators=(",", ":")).encode(
         "ascii"
     )
@@ -1480,7 +1481,7 @@ class _Work:
     """The gate, then the tool, then the result's encoding, as one callable: what `invoke`
     runs. It touches no state of the frame host, so it may run, or finish late, elsewhere."""
 
-    def __init__(self, host: _ToolHost, seq: int, frame_id: Any, tool: Tool, args: dict) -> None:
+    def __init__(self, host: _ToolHost, seq: int, frame_id: Any, tool: Tool, args: _Json) -> None:
         self.tool, self.seq, self.frame_id = tool, seq, frame_id
         self._gate, self._args, self._size = host._gate, args, host._size
         self._loop = host._loop
@@ -1652,7 +1653,7 @@ class _ToolLoop:
         self._loop = loop
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
-        self._tasks: set = set()  # the runner's own tasks still running
+        self._tasks: set[asyncio.Task[Any]] = set()  # the runner's own tasks still running
         self._count, self._start = count, start
 
     def _get(self) -> asyncio.AbstractEventLoop:
@@ -1747,7 +1748,7 @@ class _ToolLoop:
     async def _wrapper(self, post: _Post, ops: _Ops | None) -> None:
         try:
             try:
-                task = asyncio.current_task()
+                task = typing.cast("asyncio.Task[Any]", asyncio.current_task())  # run as a task
                 if ops is None:
                     post.started, post.task = True, task
                     go = True
@@ -1996,9 +1997,8 @@ class _Bounded:
                 return False
             slot.abandoned = True
             self._abandoned += 1
-            post = slot.post
-            started = post is not None and post.started
-        if started:
+            started = (post := slot.post) is not None and post.started
+        if started and post is not None:
             _cancel_post(post)
         return True
 
@@ -2360,7 +2360,7 @@ def _default(value: Any) -> Any:
     return value
 
 
-def _signature(descriptor: dict) -> inspect.Signature:
+def _signature(descriptor: _Json) -> inspect.Signature:
     """The signature the guest's function carries: required parameters first, each by
     position or keyword; `(**kwargs)` when the property names cannot make one."""
     try:
@@ -2394,7 +2394,7 @@ def _signature(descriptor: dict) -> inspect.Signature:
         return inspect.Signature([inspect.Parameter("kwargs", inspect.Parameter.VAR_KEYWORD)])
 
 
-def _docstring(descriptor: dict) -> str:
+def _docstring(descriptor: _Json) -> str:
     """The description, then an `Args:` section naming each property."""
     description = descriptor.get("description")
     text = description.strip() if isinstance(description, str) else ""

@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 from . import _artifacts, _engines, _home, _places, _platform, _private_dirs, _zip
 from ._artifacts import GUEST_PACKAGE, Artifacts, ArtifactsMissing
@@ -31,9 +31,12 @@ from ._zip import MPL_DATA_GUEST
 from .mounts import STAGING_CEILING, FileRecord, Mount
 
 if TYPE_CHECKING:
+    import asyncio
+
     import wasmtime
 
-    from .tools import ToolRecord, _ToolHost
+    from .mounts import _Files
+    from .tools import Tool, ToolCall, ToolRecord, _ToolHost
 
 ARGV0 = "/usr/local/bin/python.wasm"
 NO_HOST = -1
@@ -46,7 +49,7 @@ MAX_RESPONSE = 0x7FFFFFFF  # the largest door response: its length must fit a si
 # (pdb's .pdbrc, for one) is read by the next (spec 006, Decision 2).
 BASE_ENV = {"TMPDIR": "/tmp", "PYTHONTZPATH": ""}
 
-Host = Callable[[bytes], bytes]
+Host = Callable[[bytes], "bytes | bytearray | memoryview"]  # the door's host function
 
 
 @dataclass(frozen=True)
@@ -81,42 +84,81 @@ class Completed:
     tools: ToolRecord | None = None  # spec 036
 
 
+@dataclass(frozen=True, slots=True)
+class _CheckedCall:
+    """Every argument a call's guest depends on, checked once before any work and never edited
+    on the way down: a default is read when the call is made, and a field spelled wrong is a
+    `TypeError` at the construction, not a `KeyError` under a guest. Every field is required.
+    The call's home thread and the loop its async tools await on are not fields: they are
+    bindings the runner makes while it runs the call, and travel as parameters."""
+
+    fuel: int | None
+    deadline_s: float | None
+    memory_bytes: int | None
+    output_bytes: int | None
+    argv: tuple[str, ...]
+    env: dict[str, str] | None  # never mutated after the check
+    stdin: bytes | None
+    cancel: threading.Event | None
+    tools: tuple[Tool, ...] | None
+    gate: Callable[[ToolCall], Any] | None  # may be async
+    tool_calls: int | None
+    tool_request_bytes: int | None
+    root: str | bool | None  # `False` none, `None` a private one, else a host path
+    grants: tuple[Grant, ...]
+    mounts: tuple[Mount, ...]
+    import_path: tuple[str, ...]
+    import_serving: tuple[int, ...]  # for each entry, the index of the grant serving it
+    file_calls: int | None
+    open_files: int | None
+
+
+class _Stop(Protocol):
+    """What stops a call's waits: a `threading.Event`, or a session's pair of them."""
+
+    def is_set(self) -> bool: ...
+
+
 def _run_checked(
     wt: Any,
-    c: dict[str, Any],
+    c: _CheckedCall,
     host: Host | None,
     snapshot: bool,
     cache_dir: str | os.PathLike[str] | None | bool,
     artifacts: Artifacts | None,
+    loop: asyncio.AbstractEventLoop | None,
 ) -> Completed:
+    """One call, checked: the artifact set found, the folders walked, the engine and module
+    made, the instance run on a guest thread while this thread, its home, serves it. `loop` is
+    the caller's event loop, which async tools await on, or None for a private loop."""
     found, checked = (
         (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
     )
-    if c.get("tools") is not None and not _artifacts._has_guest_package(found.manifest):
+    if c.tools is not None and not _artifacts._has_guest_package(found.manifest):
         raise ArtifactsMissing(
             f"{found.manifest} has no `recipe … {GUEST_PACKAGE}` line: this artifact set "
             "predates the tool protocol (spec 031), so its guest cannot `from host import "
             "tools`; tools= needs a set built with the guest package"
         )
     cache = _engines._cache_dir(cache_dir)
-    root = c["root"]
-    entries, serving = c.get("import_path", ()), c.get("import_serving", ())
-    walked_root, walked = _places._walk_grants(root, c["grants"], found, cache, entries, serving)
+    root = c.root
+    walked_root, walked = _places._walk_grants(
+        root, c.grants, found, cache, c.import_path, c.import_serving
+    )
     preopens: list[_Preopen] = []
     private = None
-    home = c.get("home") or _Home()  # this thread, while the guest runs on its own (spec 078)
-    c = {**c, "home": home}
+    home = _Home()  # this thread, while the guest runs on its own (spec 078)
     try:
         after_walk = process().observers.after_walk
         if after_walk is not None:
             after_walk()
         binary = found.snapshot if snapshot else found.plain
-        engine = _engines._engine(c["fuel"] is not None)
+        engine = _engines._engine(c.fuel is not None)
         want = None if checked is None else checked.binary
-        module = _engines._module(engine, c["fuel"] is not None, binary, cache, want)
+        module = _engines._module(engine, c.fuel is not None, binary, cache, want)
         zip_want = None if checked is None else checked.zip
         root_path, private = _preopens(found, root, walked_root, walked, preopens, zip_want)
-        return _call(wt, engine, module, root_path, preopens, c, host)
+        return _call(wt, engine, module, root_path, preopens, c, host, loop, home)
     finally:
 
         def release() -> None:
@@ -182,30 +224,23 @@ def _preopens(
     return root_path, private
 
 
-def _home_of(c: dict[str, Any]) -> _Home:
-    """The call's home thread (spec 078): the one `_run_checked` made, or one made here for a call
-    built by hand (the judge's stand-ins)."""
-    home = c.get("home")
-    if home is None:
-        home = c["home"] = _Home()
-    return home
-
-
 def _call(
     wt: Any,
     engine: wasmtime.Engine,
     module: wasmtime.Module,
     root: Path | None,
     preopens: list[_Preopen],
-    c: dict[str, Any],
+    c: _CheckedCall,
     host: Host | None,
+    loop: asyncio.AbstractEventLoop | None,
+    home: _Home,
 ) -> Completed:
     """One instance, one program. The store is closed before this returns, trapped or not, so the
     guest's memory and open files are released at once (a trapped store is otherwise kept alive by
     a reference cycle until Python's collector runs) and a private root can be removed afterwards
     (Windows refuses to remove an open directory). Ctrl-C is deferred while the guest runs."""
     with _home._deferred_ctrl_c():
-        return _call_deferred(wt, engine, module, root, preopens, c, host)
+        return _call_deferred(wt, engine, module, root, preopens, c, host, loop, home)
 
 
 def _call_deferred(
@@ -214,10 +249,14 @@ def _call_deferred(
     module: wasmtime.Module,
     root: Path | None,
     preopens: list[_Preopen],
-    c: dict[str, Any],
+    c: _CheckedCall,
     host: Host | None,
+    loop: asyncio.AbstractEventLoop | None,
+    ht: _Home,
 ) -> Completed:
-    tmp, tmp_fd = _home_folder(root, preopens, tuple(m.guest for m in c.get("mounts", ())))
+    """The call's fresh HOME folder and its store, released once the guest thread has ended.
+    `ht` is the home thread; `home` below is the guest's HOME."""
+    tmp, tmp_fd = _home_folder(root, preopens, tuple(m.guest for m in c.mounts))
     home = None
     if tmp is not None:
         # The fresh HOME is made, and removed, through a handle on /tmp opened without following a
@@ -237,7 +276,7 @@ def _call_deferred(
     store = wt.Store(engine)
     try:
         guest_home = None if home is None else home[1]
-        return _instance(wt, engine, module, store, preopens, guest_home, c, host)
+        return _instance(wt, engine, module, store, preopens, guest_home, c, host, loop, ht)
     finally:
 
         def release() -> None:
@@ -246,7 +285,7 @@ def _call_deferred(
                 _private_dirs._remove_fresh_home(home[0], tmp, tmp_fd)
             _platform._close(tmp_fd)
 
-        _home_of(c).finish(release)  # never while a guest thread runs (spec 078, Decision 14)
+        ht.finish(release)  # never while a guest thread runs (spec 078, Decision 14)
 
 
 def _home_folder(
@@ -303,12 +342,17 @@ def _instance(
     store: wasmtime.Store,
     preopens: list[_Preopen],
     home: str | None,
-    c: dict[str, Any],
+    c: _CheckedCall,
     host: Host | None,
+    loop: asyncio.AbstractEventLoop | None,
+    ht: _Home,
 ) -> Completed:
-    argv, env, stdin, cancel = c["argv"], c["env"], c["stdin"], c["cancel"]
-    fuel, deadline_s = c["fuel"], c["deadline_s"]
-    memory_bytes, output_bytes = c["memory_bytes"], c["output_bytes"]
+    """The instance: its limits, waits and host functions armed, the guest run on a thread of
+    its own with `ht`, this thread, as its home, and everything released once that thread has
+    ended. `home` is the guest's HOME."""
+    argv, env, stdin, cancel = c.argv, c.env, c.stdin, c.cancel
+    fuel, deadline_s = c.fuel, c.deadline_s
+    memory_bytes, output_bytes = c.memory_bytes, c.output_bytes
     if fuel is not None:
         # Fuel is metered from the end of instantiation (spec 008): instantiation runs only
         # wasmtime's own memory fill, which it charges per byte when it cannot map the image
@@ -322,11 +366,12 @@ def _instance(
     # Every call is polled every CANCEL_TICKS ticks (spec 078, Decision 5): so Ctrl-C, and an
     # exception raised into the home thread, reach a guest that never calls back.
     store.set_epoch_deadline(min(CANCEL_TICKS, ticks))
-    ht = _home_of(c)  # the home thread (spec 078); `home` is the guest's HOME
     # The ticker's count at which this store's deadline has passed, read after the deadline is set
     # (spec 010): a wait in poll_oneoff stops there, so it never outlives the deadline.
     stop_at = None if deadline_s is None else _stop_at(_epoch_ticker.count(), ticks)
-    checks = [] if stop_at is None else [lambda: _epoch_ticker.count() >= stop_at]
+    checks: list[Callable[[], bool]] = []
+    if stop_at is not None:
+        checks.append(lambda: _epoch_ticker.count() >= stop_at)
     if cancel is not None:
         checks.append(cancel.is_set)  # a wait ends at a cancel, deadline or not
     if _home._ctrl_c_watched():
@@ -339,7 +384,7 @@ def _instance(
     )
     # Under tools=, the runner is the door's host: the frame host, bound by the same deadline,
     # cancel and Ctrl-C, and asked to admit each frame by its length before it is read (036).
-    tool_host = _tool_host(c, stop_at, cancel, ht)
+    tool_host = _tool_host(c, stop_at, cancel, loop, ht)
     admit = None
     if tool_host is not None:
         host, admit = tool_host, tool_host.admit
@@ -347,13 +392,13 @@ def _instance(
     out, err = _Stream("stdout", output_bytes), _Stream("stderr", output_bytes)
     wasi = wt.WasiConfig()
     origin_ns = time.perf_counter_ns()  # wasmtime's monotonic clock counts from here (spec 010)
-    wasi.argv = [ARGV0, *_import_prelude(c.get("import_path", ())), *argv]
+    wasi.argv = [ARGV0, *_import_prelude(c.import_path), *argv]
     fresh = {} if home is None else {"HOME": home}  # no HOME where there is no /tmp to make it
     wasi.env = sorted({**BASE_ENV, **fresh, **(env or {})}.items())
     check = _engines._check_module(wt, engine, fuel is not None)
     keys = _send_outputs(wasi, out, err)
     scratch = None
-    mounts: tuple[Mount, ...] = c.get("mounts", ())
+    mounts = c.mounts
     mounted: list[_Preopen] = []  # each mount's preopen, on the call's empty placeholder
     table = None
     files = None
@@ -394,11 +439,11 @@ def _instance(
         table = _Files(
             numbers,
             others,
-            c["file_calls"],
+            c.file_calls,
             staging,
             fuel is not None,
             engine,
-            open_files=c["open_files"],  # spec 068: strict, as file_calls
+            open_files=c.open_files,  # spec 068: strict, as file_calls
         )
         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
         _watch(store)  # every call (spec 078, Decision 5)
@@ -456,7 +501,7 @@ def _fuel_used(
     stopped call ended on one (spec 011)."""
     if fuel is None or done.trapped == "deadline":
         return None
-    table = getattr(call, "table", None)
+    table = call.table
     held = None if table is None else table.stop_fuel
     if held is not None and call.ended is None and call.stopped is held[0]:
         # A forward's own trap or error, or an ABI error a served call raised (spec 032): the
@@ -561,14 +606,14 @@ class _Call:
         self,
         store: Any,
         host: Host | None,
-        waits: Any,
+        waits: _Waits,
         origin_ns: int,
-        cancel: threading.Event | None = None,
+        cancel: _Stop | None = None,
         stop_at: int | None = None,
-        table: Any = None,
+        table: _Files | None = None,
         admit: Callable[[int], bytes | None] | None = None,
         *,
-        home: Any = None,
+        home: _Home | None = None,
     ) -> None:
         from . import _wasmtime_ffi as ffi
 
@@ -632,7 +677,7 @@ def _shared(kind: str, refused: int, stopped: int, *bound: Any) -> Callable[...,
                 raise KeyboardInterrupt
             if call.stopped is not None or call.ended is not None:
                 return stopped  # no host function runs for a stopped or ended call (spec 030)
-            answer = getattr(call, kind)(caller, *bound, *args)
+            answer: int = getattr(call, kind)(caller, *bound, *args)  # door, poll or files
             if _home._ctrl_c_watched() and process().ctrl_c_pending:  # Ctrl-C during a wait
                 process().ctrl_c_pending = False
                 raise KeyboardInterrupt
@@ -861,10 +906,7 @@ def _trampoline_module(wt: Any, engine: wasmtime.Engine) -> Any:
 # custom outputs is not used, since it has no lock (spec 011).
 
 
-@ctypes.CFUNCTYPE(
-    ctypes.c_ssize_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t
-)
-def _output_write(key: int | None, data: Any, size: int) -> int:
+def _write_output(key: int | None, data: Any, size: int) -> int:
     try:
         with process().outputs_lock:
             stream = process().outputs.get(key or 0)
@@ -873,10 +915,16 @@ def _output_write(key: int | None, data: Any, size: int) -> int:
         return size  # never raises, never prints: the bytes are dropped and the write succeeds
 
 
-@ctypes.CFUNCTYPE(None, ctypes.c_void_p)
-def _output_free(key: int | None) -> None:
+def _free_output(key: int | None) -> None:
     with process().outputs_lock:
         process().outputs.pop(key or 0, None)
+
+
+# The two as C function pointers, made once and kept here for as long as wasmtime may call them.
+_output_write = ctypes.CFUNCTYPE(
+    ctypes.c_ssize_t, ctypes.c_void_p, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_size_t
+)(_write_output)
+_output_free = ctypes.CFUNCTYPE(None, ctypes.c_void_p)(_free_output)
 
 
 def _send_outputs(wasi: Any, out: _Stream, err: _Stream) -> tuple[int, int]:
@@ -985,7 +1033,7 @@ def _poll_oneoff(
     the guest traps at its next epoch check. A BaseException goes to the shared function, which
     records it and stops the guest (spec 011). The clocks are injectable for the judge."""
 
-    def call(caller, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
+    def call(caller: Any, in_ptr: int, out_ptr: int, n: int, nevents_ptr: int) -> int:
         try:
             memory = caller.get("memory")
             in_ptr, out_ptr, n, nevents_ptr = (
@@ -1045,7 +1093,7 @@ def _trap_name(e: wasmtime.Trap) -> str:
     return _first_line(e.message)
 
 
-def _trap_code_name(code: Any) -> str:
+def _trap_code_name(code: wasmtime.TrapCode) -> str:
     """`TrapCode.STACK_OVERFLOW` is "stack overflow"."""
     return code.name.lower().replace("_", " ")
 
@@ -1064,7 +1112,7 @@ def _door_answer(host: Host, request: bytes) -> bytes | None:
 def _door(
     host: Host | None,
     admit: Callable[[int], bytes | None] | None = None,
-    home: Any = None,
+    home: _Home | None = None,
 ) -> Callable[..., int]:
     """host::call(ptr, len, out_ptr_ptr, out_len_ptr) -> 0, -1 or -2 (spec 003, Decision 5).
 
@@ -1075,17 +1123,19 @@ def _door(
 
     import wasmtime as wt
 
-    def call(caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
+    def call(caller: Any, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
         if host is None:
             return NO_HOST
         try:
-            return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr)
+            return frame(caller, ptr, length, out_ptr_ptr, out_len_ptr, host)
         except (wt.Trap, wt.WasmtimeError):
             raise  # a trap or exit inside host_alloc: the shared function records it (spec 011)
         except Exception:
             return HOST_FAULT  # nothing a frame or a host does escapes run() (spec 006)
 
-    def frame(caller, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int) -> int:
+    def frame(
+        caller: Any, ptr: int, length: int, out_ptr_ptr: int, out_len_ptr: int, host: Host
+    ) -> int:
         memory, alloc = caller.get("memory"), caller.get("host_alloc")
         if memory is None or alloc is None:
             return HOST_FAULT
@@ -1103,7 +1153,8 @@ def _door(
                 else home.call(_door_answer, host, request)
             )
         else:
-            response = _door_answer(lambda _: response, b"")
+            admitted: bytes = response  # the frame host's own answer, as a host's would be read
+            response = _door_answer(lambda _: admitted, b"")
         if response is None:
             return HOST_FAULT
         p = alloc(caller, len(response)) & MASK32
@@ -1127,9 +1178,10 @@ def _count_tool_threads(delta: int) -> None:
         p.tool_threads_running += delta
 
 
-def _home_context(home: Any) -> Callable[[], contextvars.Context]:
+def _home_context(home: _Home | None) -> Callable[[], contextvars.Context]:
     """How a tool call copies its context: on the home thread, so it sees what a provider or the
-    door host set earlier in the call (spec 078, Decision 4, the review's F12)."""
+    door host set earlier in the call (spec 078, Decision 4, the review's F12); with no home
+    thread, where the call is made."""
     if home is None:
         return contextvars.copy_context
     return lambda: home.call(contextvars.copy_context)
@@ -1141,12 +1193,18 @@ def _ctrl_c_now() -> bool:
 
 
 def _tool_host(
-    c: dict[str, Any], stop_at: int | None, cancel: Any, home: Any = None
+    c: _CheckedCall,
+    stop_at: int | None,
+    cancel: threading.Event | None,
+    loop: asyncio.AbstractEventLoop | None,
+    home: _Home | None,
 ) -> _ToolHost | None:
     """The call's frame host, for a call with tools=, bound by the call's deadline, its cancel
     and Ctrl-C (spec 036, Decisions 2 to 5), and by an exception raised into its home thread,
-    where each tool call's context is copied (spec 078, Decision 4, C1); None otherwise."""
-    if c.get("tools") is None:
+    where each tool call's context is copied (spec 078, Decision 4, C1); None otherwise. With
+    no home thread (a host the judge drives itself), the embedder's code runs where the frame
+    is answered, as a `_Call` without a home runs its door."""
+    if c.tools is None:
         return None
     from .tools import _Bounded, _ToolHost, _ToolLoop
 
@@ -1160,12 +1218,12 @@ def _tool_host(
         context=_home_context(home),
     )
     # Under run_async, the caller's loop; otherwise a private loop of the call's own (spec 053).
-    tool_loop = _ToolLoop(c.get("tool_loop"), count=_count_tool_threads)
+    tool_loop = _ToolLoop(loop, count=_count_tool_threads)
     return _ToolHost(
-        c["tools"],
-        gate=c["gate"],
-        max_calls=c["tool_calls"],
+        c.tools,
+        gate=c.gate,
+        max_calls=c.tool_calls,
         invoke=bound,
         tool_loop=tool_loop,
-        max_bytes=c.get("tool_request_bytes"),  # spec 060; a hand-built c without it: no limit
+        max_bytes=c.tool_request_bytes,  # spec 060
     )

@@ -148,7 +148,7 @@ def _module_miss(
     held: bool = False,
 ) -> wasmtime.Module:
     flavor = "fuel" if metered else "plain"
-    mod = None
+    mod: wasmtime.Module | None = None
     cwasm = None
     if cache is not None and _private(cache, is_dir=True):
         from . import _wasmtime_ffi as ffi

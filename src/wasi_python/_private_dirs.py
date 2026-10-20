@@ -167,7 +167,7 @@ def _sweep_entry(temp: str, entry: str, identity: str) -> bool:
     lock_path, path = os.path.join(temp, entry), os.path.join(temp, name)
     named = os.lstat(lock_path)
     if not stat.S_ISREG(named.st_mode) or not _owned(named):
-        return
+        return False  # not a lock of ours: nothing to sweep, nothing to retry
     fd = os.open(
         lock_path, _platform._flags("O_RDWR", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "O_BINARY")
     )

@@ -25,18 +25,21 @@ import threading
 import weakref
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from . import _call, _engines, _limits, _places, _platform, _private_dirs, _sessions
 from ._artifacts import Artifacts
-from ._call import Completed
+from ._call import Completed as Completed  # re-exported: the public API names them here
+from ._call import _CheckedCall
 from ._limits import _UNSET
-from ._places import Grant
+from ._places import Grant as Grant
 from ._process import process
-from ._sessions import _CLOSER, MAX_TURN_BYTES, SessionEnded, _State
+from ._sessions import _CLOSER, MAX_TURN_BYTES, _Event, _Phase, _State
+from ._sessions import SessionEnded as SessionEnded
 from .mounts import Mount
 
 if TYPE_CHECKING:
+    import asyncio
     import concurrent.futures
 
     from .tools import Tool, ToolCall
@@ -260,13 +263,21 @@ def run(
         import_path=import_path,
         max_open_files=max_open_files,
     )
-    return _run_checked_flushed(wt, checked, host, snapshot, cache_dir, artifacts)
+    return _run_checked_flushed(wt, checked, host, snapshot, cache_dir, artifacts, None)
 
 
-def _run_checked_flushed(*args: Any) -> Completed:
+def _run_checked_flushed(
+    wt: Any,
+    checked: _CheckedCall,
+    host: Callable[[bytes], bytes | bytearray | memoryview] | None,
+    snapshot: bool,
+    cache_dir: str | os.PathLike[str] | None | bool,
+    artifacts: Artifacts | None,
+    loop: asyncio.AbstractEventLoop | None,
+) -> Completed:
     """`_run_checked`, then the warnings its removals queued, outside every lock (spec 084)."""
     try:
-        return _call._run_checked(*args)
+        return _call._run_checked(wt, checked, host, snapshot, cache_dir, artifacts, loop)
     finally:
         _private_dirs._flush_warnings()
 
@@ -398,6 +409,7 @@ async def run_async(
     import contextvars
 
     _platform._refuse_forked()
+    event = threading.Event()  # the call's cancel, set when the awaiting task is cancelled
     checked = _checked(
         argv,
         env,
@@ -406,7 +418,7 @@ async def run_async(
         deadline_s,
         memory_bytes,
         output_bytes,
-        None,
+        event,
         host=host,
         tools=tools,
         gate=gate,
@@ -420,11 +432,9 @@ async def run_async(
         max_open_files=max_open_files,
     )
     _check_executor(executor)
-    checked["tool_loop"] = asyncio.get_running_loop()  # async tools await here (spec 053)
+    loop = asyncio.get_running_loop()  # async tools await here (spec 053)
     wt = _engines._wasmtime()
     _register_exit_hook()
-    event = threading.Event()
-    checked["cancel"] = event
     p = process()
     with p.live_lock:  # the exit hook sets `exiting` before it reads `live` (the build review, N1)
         if p.exiting:
@@ -432,7 +442,7 @@ async def run_async(
         p.live.add(event)
     try:
         work = contextvars.copy_context().run  # a door host sees the request's context
-        args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts)
+        args = (_run_checked_flushed, wt, checked, host, snapshot, cache_dir, artifacts, loop)
         future = _submit(executor, work, *args)
         try:
             return await asyncio.wrap_future(future)
@@ -465,7 +475,9 @@ def _check_executor(executor: Any) -> None:
         raise TypeError(f"executor must be a concurrent.futures.Executor; got {executor!r}")
 
 
-def _submit(executor: Any, fn: Callable[..., Any], *args: Any) -> concurrent.futures.Future[Any]:
+def _submit(
+    executor: concurrent.futures.Executor | None, fn: Callable[..., Any], *args: Any
+) -> concurrent.futures.Future[Any]:
     """Submit to the caller's executor, or to the default pool, made anew when
     `async_workers` changed. The pool's size is process state, not a call's limit: it is read
     here, under the pool's lock, so the newest `set_defaults` always wins and a call that read
@@ -547,12 +559,13 @@ def _checked(
     import_path: Any = (),
     max_open_files: Any = _UNSET,
     limits: Defaults | None = None,
-) -> dict[str, Any]:
+) -> _CheckedCall:
     """Every argument a call's guest depends on, checked before any work (specs 013 to 015,
-    and 036 for the tools). The defaults are read once, here, and every check that takes one
-    takes it from this read, so a `set_defaults` on another thread never gives a call a mix of
-    the old and new limits (spec 049, Decision 2). `async_workers` is not a call's limit:
-    `_submit` reads it under the pool's lock. A session passes the `limits` it read (spec 055)."""
+    and 036 for the tools), as one frozen record built from its typed parts, each field named.
+    The defaults are read once, here, and every check that takes one takes it from this read,
+    so a `set_defaults` on another thread never gives a call a mix of the old and new limits
+    (spec 049, Decision 2). `async_workers` is not a call's limit: `_submit` reads it under the
+    pool's lock. A session passes the `limits` it read (spec 055)."""
     limits = limits if limits is not None else _current_defaults()
     tool_args = _check_tools(
         host, tools, gate, max_tool_calls, limits, max_tool_request_bytes=max_tool_request_bytes
@@ -565,22 +578,38 @@ def _checked(
         output_bytes = limits.output_bytes
     if cancel is not None and not isinstance(cancel, threading.Event):
         raise TypeError(f"cancel must be a threading.Event, or None; got {type(cancel).__name__}")
-    checked = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
-    checked.update(_limits._check_inputs(argv, env, stdin))
-    checked["cancel"] = cancel
-    checked.update(tool_args)
-    checked.update(
-        _places._check_places(
-            root,
-            grants,
-            mounts,
-            max_file_calls,
-            limits,
-            import_path=import_path,
-            max_open_files=max_open_files,
-        )
+    bounds = _limits._check_limits(fuel, deadline_s, memory_bytes, output_bytes)
+    inputs = _limits._check_inputs(argv, env, stdin)
+    places = _places._check_places(
+        root,
+        grants,
+        mounts,
+        max_file_calls,
+        limits,
+        import_path=import_path,
+        max_open_files=max_open_files,
     )
-    return checked
+    return _CheckedCall(
+        fuel=bounds.fuel,
+        deadline_s=bounds.deadline_s,
+        memory_bytes=bounds.memory_bytes,
+        output_bytes=bounds.output_bytes,
+        argv=inputs.argv,
+        env=inputs.env,
+        stdin=inputs.stdin,
+        cancel=cancel,
+        tools=tool_args.tools,
+        gate=tool_args.gate,
+        tool_calls=tool_args.tool_calls,
+        tool_request_bytes=tool_args.tool_request_bytes,
+        root=places.root,
+        grants=places.grants,
+        mounts=places.mounts,
+        import_path=places.import_path,
+        import_serving=places.import_serving,
+        file_calls=places.file_calls,
+        open_files=places.open_files,
+    )
 
 
 def _is_async_callable(fn: Any) -> bool:
@@ -603,6 +632,15 @@ def _is_async_callable(fn: Any) -> bool:
     return False
 
 
+class _ToolArgs(NamedTuple):
+    """A call's tool protocol arguments, checked: all `None` for a call without tools."""
+
+    tools: tuple[Tool, ...] | None
+    gate: Callable[[ToolCall], Any] | None
+    tool_calls: int | None
+    tool_request_bytes: int | None
+
+
 def _check_tools(
     host: Any,
     tools: Any,
@@ -611,10 +649,10 @@ def _check_tools(
     limits: Defaults | None = None,
     *,
     max_tool_request_bytes: Any = _UNSET,
-) -> dict[str, Any]:
+) -> _ToolArgs:
     """tools=, gate= and max_tool_calls= as plain values (spec 036, Decision 1): a tuple of
     `Tool`s with unique names, a gate that is not an async generator function, the frame limit,
-    and spec 060's byte budget (with tools= only: a call without tools keeps its three keys). A
+    and spec 060's byte budget (with tools= only: a call without tools has every field None). A
     plain function goes through `tool()`. `wasi_python.tools` is imported only when tools are
     given, so `import wasi_python` still does not import it. An async `host=` is
     refused (spec 053, Decision 9)."""
@@ -637,7 +675,7 @@ def _check_tools(
                 "max_tool_request_bytes= without tools= limits nothing: the raw door has no "
                 "limit; pass tools="
             )
-        return {"tools": None, "gate": None, "tool_calls": None}
+        return _ToolArgs(None, None, None, None)
     if host is not None:
         raise TypeError("pass host= for the raw door or tools= for the tool protocol, not both")
     from .tools import Tool, _is_async_generator, tool
@@ -668,19 +706,17 @@ def _check_tools(
     if gate is not None and _is_async_generator(gate):
         raise TypeError("gate is an async generator function; a gate answers each call once")
     if max_tool_calls is _UNSET or max_tool_request_bytes is _UNSET:
-        limits = limits or _current_defaults()  # one read, whichever is unset
-    if max_tool_calls is _UNSET:
-        max_tool_calls = limits.tool_calls
-    if max_tool_request_bytes is _UNSET:
-        max_tool_request_bytes = limits.tool_request_bytes
-    return {
-        "tools": tuple(checked),
-        "gate": gate,
-        "tool_calls": _limits._integer_limit("max_tool_calls", max_tool_calls),
-        "tool_request_bytes": _limits._integer_limit(
-            "max_tool_request_bytes", max_tool_request_bytes
-        ),
-    }
+        read = limits if limits is not None else _current_defaults()  # one read, whichever is unset
+        if max_tool_calls is _UNSET:
+            max_tool_calls = read.tool_calls
+        if max_tool_request_bytes is _UNSET:
+            max_tool_request_bytes = read.tool_request_bytes
+    return _ToolArgs(
+        tuple(checked),
+        gate,
+        _limits._integer_limit("max_tool_calls", max_tool_calls),
+        _limits._integer_limit("max_tool_request_bytes", max_tool_request_bytes),
+    )
 
 
 def stats() -> dict[str, int]:
@@ -864,7 +900,7 @@ class Session:
             max_open_files=max_open_files,
             limits=limits,
         )
-        state = _State()
+        state = _State(c, wt)
         state.idle_s = _limits._seconds_limit(
             "idle_s", limits.session_idle_s if idle_s is _UNSET else idle_s
         )
@@ -876,7 +912,7 @@ class Session:
         )
         if not isinstance(snapshot, bool):
             raise TypeError(f"snapshot must be a bool; got {type(snapshot).__name__}")
-        state.c, state.host = c, host
+        state.host = host
         state.context = contextvars.copy_context()
         self._state = state
         try:
@@ -887,11 +923,14 @@ class Session:
         state.opened = state.last_end = p.observers.clock()
         with p.cache_lock:
             p.counts["sessions_open"] += 1
-            state.counted = True
+        with state.lock:
+            _sessions._move(state, _Event.OPENED)  # counted from here until its release
         with p.sessions_lock:
             p.sessions.add(state)
         self._finalizer = weakref.finalize(self, _sessions._collected, state)
-        self._finalizer.atexit = False  # the exit hook ends sessions (Decision 13)
+        # The exit hook ends sessions (Decision 13); `atexit` is a property on a slotted class, so
+        # the write works where the checker sees only the slots.
+        self._finalizer.atexit = False  # type: ignore[misc]
         _sessions._ensure_reaper()
         _sessions._wake_reaper()
 
@@ -935,19 +974,19 @@ class Session:
         data = str.encode(text, "utf-8")
         if len(data) > MAX_TURN_BYTES:
             raise ValueError(f"code must be at most {MAX_TURN_BYTES} bytes as UTF-8")
-        c = self._state.c
+        c = self._state.checked
         if fuel is _UNSET:
-            fuel = c["fuel"]
-        elif fuel is not None and c["fuel"] is None:
+            fuel = c.fuel
+        elif fuel is not None and c.fuel is None:
             _limits._integer_limit("fuel", fuel)
             raise ValueError(
                 "fuel= needs a metered session: open the Session with fuel= to cap its turns"
             )
         else:
             fuel = _limits._integer_limit("fuel", fuel)
-        deadline = c["deadline_s"] if deadline_s is _UNSET else _limits._deadline_limit(deadline_s)
+        deadline = c.deadline_s if deadline_s is _UNSET else _limits._deadline_limit(deadline_s)
         output = (
-            c["output_bytes"]
+            c.output_bytes
             if output_bytes is _UNSET
             else _limits._integer_limit("output_bytes", output_bytes)
         )
@@ -965,18 +1004,17 @@ class Session:
         me = threading.get_ident()
         with state.lock:
             expired = False
-            if state.ended is None:
+            if state.phase is _Phase.OPEN:
                 due = _sessions._due(state)
-                if due is not None and now >= due[0] and not state.busy:
+                if due is not None and now >= due[0]:
                     expired = _sessions._mark(state, due[1]) and _sessions._claim_ending(
                         state, me if here else _CLOSER
                     )
             ended = state.ended
             if ended is None:
-                if state.busy:
+                if state.phase is _Phase.TURN:
                     raise RuntimeError("a turn is already running in this session")
-                state.busy = True
-                state.turn_thread = threading.get_ident()
+                _sessions._move(state, _Event.CLAIM, me)
                 return
         if expired:
             if here:
@@ -990,8 +1028,7 @@ class Session:
     def _release_claim(self) -> None:
         state = self._state
         with state.lock:
-            state.busy = False
-            state.turn_thread = None
+            _sessions._move(state, _Event.RELEASE)  # from TURN, or STOPPING after a close()
         _sessions._wake_reaper()
 
     def run(
@@ -1153,9 +1190,9 @@ class Session:
         me = threading.get_ident()
         with state.lock:
             _sessions._mark(state, "closed")
-            if state.turn_thread == me or state.ending_thread == me:
+            if state.holder == me:
                 return  # inside the session's own turn or ending: it ends as that returns
-            here = not state.busy and _sessions._claim_ending(state, me)
+            here = state.phase is _Phase.MARKED and _sessions._claim_ending(state, me)
         if here:
             self._finalizer.detach()
             raised = _sessions._end_with_ctrl_c(state, me)

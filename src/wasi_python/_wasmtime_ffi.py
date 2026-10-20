@@ -75,7 +75,7 @@ from __future__ import annotations
 
 import ctypes
 from importlib.metadata import version as _installed
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from wasmtime import (
     Caller,
@@ -230,7 +230,8 @@ class Storelike(Protocol):
 
 def context_of(storelike: Storelike) -> Context:  # type: ignore[valid-type]
     """The store's context pointer, from a `Store` or from the `Caller` of a host function."""
-    return storelike._context()
+    context: Context = storelike._context()  # type: ignore[valid-type]
+    return context
 
 
 def context_address(storelike: Storelike) -> int:
@@ -252,7 +253,7 @@ def get_fuel(storelike: Storelike) -> int:
     """The store's fuel; raises `WasmtimeError` on a store that does not meter."""
     public = getattr(storelike, "get_fuel", None)
     if public is not None:
-        return public()
+        return cast(int, public())
     fuel = ctypes.c_uint64()
     error = _ffi.wasmtime_context_get_fuel(storelike._context(), ctypes.byref(fuel))
     if error:
@@ -322,7 +323,7 @@ def set_async_stack(cfg: Config, size: int) -> None:
     Through `Config.async_stack_size` when wasmtime-py has it, else the binding; with neither, a
     RuntimeError before any engine is made."""
     if isinstance(getattr(type(cfg), "async_stack_size", None), property):
-        cfg.async_stack_size = size
+        cfg.async_stack_size = size  # type: ignore[attr-defined]  # the stubs lack the property
         return
     if not callable(ASYNC_STACK_SETTER):
         raise RuntimeError(
@@ -373,7 +374,7 @@ class PreparedCall:
         self.params = (_ffi.wasmtime_val_t * len(kinds))()
         for i, kind in enumerate(kinds):
             tag = _ffi.WASMTIME_I32 if kind == "i32" else _ffi.WASMTIME_I64
-            self.params[i].kind = tag.value
+            self.params[i].kind = ctypes.c_ubyte(tag.value)
         self.results = (_ffi.wasmtime_val_t * 1)()
 
     def call(self, context: Context, args: tuple[int, ...]) -> int:  # type: ignore[valid-type]
@@ -391,7 +392,7 @@ class PreparedCall:
             context, ctypes.byref(self.func), params, len(args), self.results, 1, ctypes.byref(trap)
         )
         if trap or error:
-            raised = WasmtimeError._from_ptr(error) if error else None
+            raised: BaseException | None = WasmtimeError._from_ptr(error) if error else None
             if trap:
                 raised = Trap._from_ptr(trap)  # owns and frees it; an error beside it is freed
             assert raised is not None

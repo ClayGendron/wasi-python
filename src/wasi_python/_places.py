@@ -124,6 +124,20 @@ def _check_grants(grants: Any) -> tuple[Grant, ...]:
     return tuple(checked)
 
 
+class _Places(NamedTuple):
+    """A call's places, checked together: the root (`False` none, `None` a private one, else a
+    host path), the grants, the mounts, the import path with the index of the read-only grant
+    serving each entry, and the two caps every call has."""
+
+    root: str | bool | None
+    grants: tuple[Grant, ...]
+    mounts: tuple[Mount, ...]
+    import_path: tuple[str, ...]
+    import_serving: tuple[int, ...]
+    file_calls: int | None
+    open_files: int | None
+
+
 def _check_places(
     root: Any,
     grants: Any,
@@ -133,7 +147,7 @@ def _check_places(
     *,
     import_path: Any = (),
     max_open_files: Any = _UNSET,
-) -> dict[str, Any]:
+) -> _Places:
     """root, grants, mounts, the import path, the file-call limit and the cap on open files,
     checked together before any work: a mount may share no guest path with a grant, and a mount
     at / comes with no root (spec 032); each import-path entry is served by a read-only grant
@@ -146,15 +160,15 @@ def _check_places(
         max_file_calls = limits.file_calls
     if max_open_files is _UNSET:
         max_open_files = limits.open_files
-    return {
-        "root": checked_root,
-        "grants": checked_grants,
-        "mounts": checked_mounts,
-        "import_path": entries,
-        "import_serving": serving,
-        "file_calls": _limits._integer_limit("max_file_calls", max_file_calls),
-        "open_files": _limits._integer_limit("max_open_files", max_open_files),
-    }
+    return _Places(
+        checked_root,
+        checked_grants,
+        checked_mounts,
+        entries,
+        serving,
+        _limits._integer_limit("max_file_calls", max_file_calls),
+        _limits._integer_limit("max_open_files", max_open_files),
+    )
 
 
 def _under(path: str, place: str) -> bool:
@@ -585,11 +599,11 @@ def _walk_windows(where: str, path: str, judge: bool, may_make: bool) -> _Walked
             try:
                 enter(heres[-1].rstrip("\\") + "\\" + name)  # never ntpath.join (a drive resets it)
             except FileNotFoundError:
-                rest = tuple(names[i + 1 :])
-                if not may_make or ".." in rest:
+                left = tuple(names[i + 1 :])
+                if not may_make or ".." in left:
                     raise ValueError(f"{where}: {path!r} does not exist") from None
                 walked = _Walked(heres[-1], tuple(reversed(chain)), held)
-                walked.missing = (name, *rest)
+                walked.missing = (name, *left)
                 return walked
         return _Walked(heres[-1], tuple(reversed(chain)), held)
     except BaseException:
@@ -637,7 +651,7 @@ def _identity_of(path: Path) -> Identity:
 def _judge(
     root: _Walked | None,
     grants: list[tuple[str, Grant, _Walked]],
-    runtime: list,
+    runtime: list[tuple[str, Any, Any]],
     shared: list[tuple[str, tuple[Identity, ...]]] = [],  # noqa: B006 (read only)
 ) -> None:
     """Decision 4's rules, by identity. `runtime` is (name, identity or None, chain) for each of
