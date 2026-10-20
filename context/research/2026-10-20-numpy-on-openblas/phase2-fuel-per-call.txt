@@ -1,0 +1,7 @@
+# from phase2-probes.txt: (op - none) / calls, plain binary
+np_matmul3: base (099) 18,850, built (100) 29,470 fuel per call, ratio 1.563
+np_inv3: base (099) 73,057, built (100) 79,618 fuel per call, ratio 1.090
+np_inv: base (099) 174,994,450, built (100) 105,118,682 fuel per call, ratio 0.601
+np_svd: base (099) 245,863,109, built (100) 188,676,402 fuel per call, ratio 0.767
+np_eigh: base (099) 418,099,071, built (100) 263,999,023 fuel per call, ratio 0.631
+np_matmul: base (099) 158,615,331, built (100) 71,151,675 fuel per call, ratio 0.449

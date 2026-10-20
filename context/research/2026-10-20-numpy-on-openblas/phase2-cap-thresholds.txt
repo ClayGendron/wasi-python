@@ -1,0 +1,11 @@
+# spec 100's built set SHA256SUMS 6f6ee0ef; cap_thresholds.sh
+62 MiB plain exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+60 MiB plain exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+58 MiB plain exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+56 MiB plain exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+54 MiB plain exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+62 MiB snapshot exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+60 MiB snapshot exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+58 MiB snapshot exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+56 MiB snapshot exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']
+54 MiB snapshot exit 1 trapped None | imported / numpy 64 MiB array MemoryError / calling numpy matmul | stderr: ['OpenBLAS error: Memory allocation still failed after 10 retries, giving up.']

@@ -1,0 +1,3 @@
+pandas-build: 90 archives and .deps files, 0 differ
+scipy-modules: 190 archives and .deps files, 0 differ
+scipy-shims: 1 archives and .deps files, 0 differ

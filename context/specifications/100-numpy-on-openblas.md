@@ -1,6 +1,6 @@
 # 100 — numpy's linear algebra, `dot` and `matmul` run on the set's OpenBLAS
 
-- **Status:** **build phase 1 done 2026-10-20**, stacked on 099's tip `b0e1593` (no conflict); **confirmed for build** by its pre-build reviewer (the review's *Confirmation*); phase 2 (the rebuild, the measured numbers, the release run) waits for the native slot after 099 (*Landing notes*). Before: **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
+- **Status:** **built 2026-10-20 from empty (phase 2), its release run and claim list pending**, stacked on 099's tip `b0e1593` (no conflict); **confirmed for build** by its pre-build reviewer (the review's *Confirmation*); two findings for the build review written in the landing notes (the bytes, small-call fuel) (*Landing notes*). Before: **drafted 2026-10-20** on `spec/100-numpy-on-openblas` from main `cf414a2`, with
   its drafting runs; **reviewed before build** the same day
   (`../reviews/100-numpy-on-openblas-spec-2026-10-20.md`, verdict "passes for build once M1 is
   answered in writing", nothing High); **revised against all of its findings** and rebased onto
@@ -834,13 +834,61 @@ three commits had no conflict (this branch then touched only `context/`). Writte
   files; both are expected on an old set and clear with phase 2's rebuild. Its 12 grown rows are
   099's own (the zip's 15 bytes and eleven fuel rows, as 099's notes claim).
 
-### Build phase 2 (waits for the native slot after 099)
+### Build phase 2 (2026-10-20, the native slot after 099's build)
 
-From an empty `build/` on this branch's tip: `scripts/build.sh`; criterion 2's evidence (meson's
-`Run-time dependency openblas found: YES 0.3.34`, the include log, no f2c object, no clash);
-criterion 5's step 50 and 57 archive hashes against 099's build; criterion 6's numbers (bytes,
-checks 1 to 3's fuel, every moved fuel row, the 3×3 `matmul` and `inv` per call against the base,
-the 300-matrix and `nan` probes on both binaries, the memory-cap probes `cap_probe.py` and
-`cap_keep.py` with numpy's `matmul`, the oracle's goldens on the new pin); the README sizes row and
-the CHANGELOG's measured size; the fast tier with `-n 3`; a `release.yml` dispatch on the exact
-commit, read back; the self-check list and *For the lane*'s measured flags.
+**Built from empty** (EXECUTED, `scripts/build.sh --plain`, 18 steps in 10 min 49 s, macOS arm64,
+on `8826d72`, stacked on 099's `b0e1593`; the native slot released when step 90 finished):
+`SHA256SUMS` `6f6ee0ef…`; `python.wasm` 83,553,745 bytes (`26348c59…`), the snapshot 88,215,177
+(`96e44936…`), the zip 44,446,090 (`a9ad6190…`). Against 099's built set: python.wasm
+**−1,240,268**, the snapshot **−1,252,711**, the zip **+130** (`numpy/__config__.py`).
+
+- **Criterion 2** (EXECUTED): numpy's meson log says `Run-time dependency scipy-openblas found:
+  NO`, then `Run-time dependency openblas found: YES 0.3.34` for BLAS and for LAPACK, and `BLAS
+  symbol suffix:` empty; the include log matched each entry its count (1, 1, 2, 1); no
+  `lapack_lite_f2c*` object exists; `_umath_linalg`'s, `lapack_lite`'s and `_multiarray_umath`'s
+  `.deps` name `build/openblas-wasi/lib/libopenblas.a` by path; step 60's `make.log` and
+  `reactor-link.log` have 0 `signature mismatch` and 0 `duplicate symbol`; no new constructor
+  (step 60's check passed).
+- **The bytes, explained** (EXECUTED, `map_compare.py`, `phase2-map-compare.txt`, 099's link map
+  against this one): the mapped sections fall by 1,880,685 bytes, `numpy__umath_linalg.a`
+  −1,920,912 (lapack_lite's f2c code), `numpy__multiarray_umath.a` +29,662 (matmul's and
+  cblasfuncs.c's BLAS paths), `libopenblas.a` +9,508 (the CBLAS wrappers), the shims +1,057.
+  Of lapack_lite's 1,915,393 mapped bytes, 654,338 are `.bss` (its f2c `static` locals), which
+  take memory but no file bytes; 1,259,877 are code. So the file shrinks by 1.24 MB, not by the
+  1.7 to 1.9 MB Decision 9 inferred from the whole map, and outside its stated 1.4 to 2.0 MB.
+  **A finding for the build review**: the inference counted `.bss`; the binaries also start with
+  about 640 KB less linear memory.
+- **Criterion 5** (EXECUTED, `archives_compare.py`, `phase2-archives-compare.txt`): step 50's 90
+  and step 57's 190 archives and `.deps` files, and scipy's shims, are byte-identical to 099's
+  build's (the `.deps` files' checkout paths normalized).
+- **The probes on the built set** (EXECUTED, `phase2_probes.sh`, `phase2-probes.txt`, both
+  binaries): the 300 matrices give numpy's `inv` letters equal to scipy's `dgesv` letters, 300
+  of 300; the `nan` probe's numpy lines are native numpy on OpenBLAS's, line for line.
+- **Fuel per call** (EXECUTED, `phase2-fuel-per-call.txt`, plain binary, against 099's built
+  set): 200×200 `inv` 175.0 M → 105.1 M (0.601), singular values 245.9 M → 188.7 M (0.767), `eigh`
+  418.1 M → 264.0 M (0.631), `matmul` 158.6 M → 71.2 M (0.449). **And small calls cost more**: a
+  3×3 `matmul` 18,850 → 29,470 per call (**1.563**), a 3×3 `inv` 73,057 → 79,618 (1.090).
+  Decision 6's "small calls should not cost more" was INFERRED from scipy's wrappers and is
+  wrong: numpy's own loop beats OpenBLAS's call for a 3×3 product. **A finding for the build
+  review**: rows with many small products grow (matplotlib's affine transforms among them).
+- **The memory cap** (EXECUTED, `phase2-probes.txt`, `phase2-cap-thresholds.txt`): numpy's `a @ a`
+  after `import numpy, scipy` returns under 64, 68 and 72 MiB on both binaries, and **exits 1 with
+  OpenBLAS's line under 62 MiB and below** (62 to 54 MiB tried), where the 64 MiB numpy array
+  raises `MemoryError` first; the threshold moved down about 2 MiB from scipy's on 099's set (the
+  smaller binary starts with less memory). `cap_keep_np.py` (256 MiB): without an early call the
+  matmul after memory is filled exits 1 with OpenBLAS's line; with one early 4×4 matmul it
+  returns 64.0, on both binaries. Decision 13 and the README hold as written.
+- **Check 4, fixed before acceptance** (EXECUTED): its first run on the build named `cdotc_`,
+  `cdotu_`, `zdotc_` and `zdotu_` as "linked 15 times" and "from scipy's PROPACK". They are
+  file-local `static` helpers that f2c gives each translated LAPACK file (`chetd2.o` and its
+  siblings in OpenBLAS, `lanbpro.c.o` in PROPACK, ARPACK's `arnaud`), `t` in `llvm-nm`, and 099's
+  map lists the same 15. `one_lapack_errors` now counts only global definitions (an `is_global`
+  argument; check 4 asks `llvm-nm -A -g --defined-only` per archive); one unit row holds it (ten
+  rows now). Check 4 then passes on the build (`build/100/check4-built.txt`).
+- **The fast tier** (`-n 3`, `build/lane.lock` absent, before check 4's fix): 2,462 passed, 1
+  failed (check 4, above), 10 skipped, 6 xfailed; 13 gained, 129 grew against main's acceptance.
+  Its per-row record was overwritten by a later single-node run; the run is repeated, against
+  099's own fast-tier record of its set, when the lane's lock clears, and the claim list is
+  written from that.
+- **README and CHANGELOG**: the sizes row (83.6 MB / 88.2 MB / 44.4 MB) and the measured bytes and
+  per-call fuel in the CHANGELOG entry.

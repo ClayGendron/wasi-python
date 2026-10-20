@@ -335,12 +335,30 @@ def test_one_lapack_is_linked(note) -> None:
         errors.append(f"{len(linalg)} of numpy's two linear-algebra objects found")
     if not errors:
         called = {n for n in _nm_names(nm, "-u", *map(str, linalg)) if n.startswith("wasi_numpy_")}
+        globals_by_archive: dict[str, set[tuple[str, str]]] = {}
+
+        def is_global(path: str, member: str, symbol: str) -> bool:
+            if path not in globals_by_archive:  # llvm-nm -A: "<archive>:<member>: <addr> T <name>"
+                out = subprocess.run(
+                    [str(nm), "-A", "-g", "--defined-only", path],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                ).stdout
+                globals_by_archive[path] = {
+                    (line.split(":")[-2], line.split()[-1])
+                    for line in out.splitlines()
+                    if line.count(":") >= 2
+                }
+            return (member, symbol) in globals_by_archive[path]
+
         with link_map.open(errors="replace") as f:
             errors += scan.one_lapack_errors(
                 f,
                 _nm_names(nm, "-g", "--defined-only", str(archive)),
                 _nm_names(nm, "-g", "--defined-only", str(shims)),
                 called,
+                is_global,
             )
         note(f"{len(called - {scan.ONE_LAPACK_XERBLA})} shims called and defined")
     assert not errors, scan.report(errors)

@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 import tokenize
 import warnings
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from harness import history, paths
@@ -3339,12 +3339,18 @@ def one_lapack_errors(
     openblas_defined: set[str],
     shims_defined: set[str],
     called: set[str],
+    is_global: Callable[[str, str, str], bool] = lambda archive, member, symbol: True,
 ) -> list[str]:
     """One OpenBLAS and no lapack_lite in python.wasm's link map (spec 100, check 4): every symbol
     libopenblas.a defines that the link takes comes from that archive, once; no lapack_lite f2c
     object and no numpy_lapack_lite_ symbol; every wasi_numpy_ shim once, from numpy's shims
     archive, and wasi_numpy_xerbla_ once, from numpy's python_xerbla; and the shims defined are
-    exactly the wasi_numpy_ names numpy's two linear-algebra objects call, less xerbla."""
+    exactly the wasi_numpy_ names numpy's two linear-algebra objects call, less xerbla.
+
+    Only global definitions count: `is_global(archive, member, symbol)` says whether that member
+    defines the name globally. f2c's LAPACK files, OpenBLAS's own among them, and scipy's PROPACK
+    and ARPACK each carry a file-local `static` complex dot wrapper named cdotc_ or zdotu_, which
+    the map lists like any function but which no other object can call (build phase 2)."""
     errors = []
     sources: dict[str, list[tuple[str, str]]] = {}
     for line in map_lines:
@@ -3357,7 +3363,8 @@ def one_lapack_errors(
         if symbol.startswith("numpy_lapack_lite_"):
             errors.append(f"the link takes {symbol}")
         if symbol in openblas_defined or symbol.startswith("wasi_numpy_"):
-            sources.setdefault(symbol, []).append((archive, member))
+            if is_global(archive, member, symbol):
+                sources.setdefault(symbol, []).append((archive, member))
     for symbol, where in sorted(sources.items()):
         if len(where) != 1:
             errors.append(f"{symbol} is linked {len(where)} times")

@@ -1,0 +1,21 @@
+total mapped: base 63,222,492, new 61,341,807, change -1,880,685
+archives that moved by more than 2 KB:
+    -1,920,912  numpy__umath_linalg.a
+        +9,508  libopenblas.a
+       +29,662  numpy__multiarray_umath.a
+objects that grew most:
+       +22,617  numpy__multiarray_umath.a(meson-generated_matmul.c.o)
+       +12,560  lib_fortranobject.a(lib_fortranobject.a.p/8bc7b847858084cb94a60c8ef617834090e211b8_.._.._f2py_src_fortranobject.c.o)
+        +5,837  numpy__multiarray_umath.a(src_common_cblasfuncs.c.o)
+        +1,057  libnumpy_lapack_shims.a(numpy_lapack_shims.o)
+          +842  libopenblas.a(cblas_zgemv.o)
+          +826  libopenblas.a(cblas_cgemv.o)
+          +732  libopenblas.a(cblas_dgemv.o)
+          +724  libopenblas.a(cblas_sgemv.o)
+          +679  libopenblas.a(cblas_zgemm.o)
+          +679  libopenblas.a(cblas_cgemm.o)
+          +670  libopenblas.a(cblas_sgemm.o)
+          +667  libopenblas.a(cblas_dgemm.o)
+          +593  libopenblas.a(cblas_ssyrk.o)
+          +590  libopenblas.a(cblas_dsyrk.o)
+          +563  libopenblas.a(cblas_zsyrk.o)

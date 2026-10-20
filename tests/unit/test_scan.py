@@ -2479,6 +2479,17 @@ def test_one_lapack_names_a_routine_linked_twice_or_from_elsewhere() -> None:
     assert _one_lapack(elsewhere) == ["dgesv_ comes from libother.a, not libopenblas.a"]
 
 
+def test_one_lapack_counts_only_global_definitions() -> None:
+    # f2c's file-local static cdotc_ wrappers (OpenBLAS's chetd2.o, scipy's PROPACK) are not copies
+    local = _map_line("/b/x/propack.a", "lanbpro.c.o", "cdotc_")
+    lines = [*_good_map(), _map_line(_OB, "cdotc.o", "cdotc_"), local]
+    defined = {*_OB_DEFINED, "cdotc_"}
+    shims, called = {"wasi_numpy_dgesv_"}, {"wasi_numpy_dgesv_", "wasi_numpy_xerbla_"}
+    assert scan.one_lapack_errors(lines, defined, shims, called) == ["cdotc_ is linked 2 times"]
+    not_local = lambda archive, member, symbol: member != "lanbpro.c.o"  # noqa: E731
+    assert scan.one_lapack_errors(lines, defined, shims, called, not_local) == []
+
+
 def test_one_lapack_names_lapack_lite() -> None:
     f2c = _map_line(_XERBLA, "lapack_lite_f2c_d_lapack.c.o", "numpy_lapack_lite_dgesv_")
     assert _one_lapack([*_good_map(), f2c]) == [
