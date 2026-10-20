@@ -396,6 +396,8 @@ def head_notice(path: Path, words: tuple[str, ...]) -> bytes:
             return (comment + "\n").encode()
         start = end + 2
     raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
+
+
 def hash_notice(path: Path, words: tuple[str, ...]) -> bytes:
     """A Python file's leading `#` comment, which must hold every one of `words`."""
     if not path.is_file():

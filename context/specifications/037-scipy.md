@@ -1349,8 +1349,11 @@ conflict markers (none). Then one rebase commit removes Decision 17's exception.
   reviewers' scratchpads, unchanged.
 
 **Checked on the trial tip** (no build tree, so the judge's guest and build checks did not run):
-`ruff check` and `ruff format --check` on `src/` and `tests/`; the unit files and
-`tests/checks/test_rules.py` (the result is in the builder's report to the lane).
+`ruff check` and `ruff format --check` on `src/` and `tests/` clean; `uv run pytest -n 3
+tests/unit tests/checks/test_rules.py` after `lane.lock` cleared: 1823 passed, 8 skipped, 0 fail
+(unit suite 1780/1787; rules 43/44, one blocked by the prior-art clones), log
+`build/037/trial-unit.log`. A second commit adds the two blank lines PEP 8 wants before
+`assemble_artifacts.hash_notice` (from the F7 commit; no behaviour).
 
 #### What 037 takes from 043 at the stacked rebase
 
