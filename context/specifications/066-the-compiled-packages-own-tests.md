@@ -807,8 +807,11 @@ Not chosen, each in one line:
 
 - **Built and rebuilt.** Built on main `21dff9d`; build-reviewed ("lands once M1, M2 and M3 are
   written in and the affected groups are re-measured"); rebuilt on main `2516875` (wave 07, set
-  `dc6ba3a5`) with every finding written in (the review's Disposition). The tip after the landing
-  notes is the one the lane reads; its branch run is named in the Landing notes.
+  `dc6ba3a5`) with every finding written in (the review's Disposition); run 124 (`39451333969`)
+  on that code; the confirming review: lands, its three Lows written in. **Rebased onto wave 08's
+  tip** `38be0b2` (042 on main `2516875`) with no conflict: `git range-diff` gives every one of
+  the twelve commits `=` (the Landing notes). Under the owner's rule of 2026-10-20 no new run is
+  dispatched: the wave's dry run is the check.
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
   `recipes/` or `downloads/` line). **Wave 08, after 042** (the roadmap: 042, 066, 099). It may
   ride as one of the two other build-class changes. **Dry-run needs:** the branch run passed; the
@@ -842,6 +845,14 @@ Not chosen, each in one line:
     (`README.md`, spec 046), contourpy 2 (`README.md` 1, `context/upstream/33-contourpy-text-baselines-freetype/notes.md` 1).
   - **Moved rows: none.** numpy's, pandas' and CPython's rows: lost 0, grew 0 (the fast tier's
     ratchet on this base).
+  - **Against 042's claims (the wave's rows).** Disjoint: 042 adds artifact, job and pin rows and
+    grows guest fuel rows by its 199 zip members; 066 adds only `test_upstream_suite` and
+    `test_upstream_class` rows for the six packages, none of which 042 claims. 066's numbers are
+    measured on `dc6ba3a5`, without 042's members; on the wave's set each of the 40 groups pays
+    042's start-up cost once more (042: plain start about +4.8 M), under 0.04 % of the smallest
+    group (`kiwisolver`, 13.0 G) and far inside every cap. They are new rows, so not growth.
+    `packages.toml`: 042 adds `seaborn` and `reportlab` as `later`, closing with spec 067, beside
+    066's six `suite` entries; no entry names spec 066.
   - **Retired: none. Passes moved: none** (every new row is new).
   - **The judge hash changes**: `judge changed` names the files of the accept-judge text.
   - **packages.toml:** six `later` become `suite`; scipy and scikit-learn close with spec 095
@@ -849,7 +860,7 @@ Not chosen, each in one line:
 - **The flags** (paste as is; each reason begins with "066"; no double quote inside):
 
   ```
-  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 40 groups, 17972 passes, 9.985 T of fuel, 23 classes, 0 traps"
+  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 40 groups, 17972 passes, 9.985 T of fuel on dc6ba3a5, 23 classes, 0 traps"
   --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection exactly test_suite()'s; [[split]] by constructed -k expressions, collected counts compared within one judge process and read by the lane across shards; each cap 1.5 times its recorded measurement, rounded up to two figures); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 23 gaps in known_gaps.toml; packages.toml (six suites); fourteen Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
   ```
 
@@ -1270,3 +1281,31 @@ own checks by node id, at most three guests, `build/lane.lock` absent at each st
   - **The cost of L2 and M1**: 1.45 T of fuel (946.6 G for the ten `--runslow` cases, 377.1 G for
     the `--runtext` comparisons of `test_config.py`, 115.6 G more in `contourpy-rest`, 2.0 G for
     Pillow's `checks/` and `selftest.py`), five more groups and two more shards.
+
+### Rebased onto wave 08's tip (2026-10-20)
+
+- **The rebase.** `git rebase origin/wave/08` onto `38be0b2` (spec 042, seaborn and reportlab, on
+  main `2516875`). **No conflict hunk.** `git range-diff 2516875..7382bf1 origin/wave/08..HEAD`
+  gives all twelve commits `=`: `b3174f5`, the code run 124 judged, is now `ec21769` with the same
+  patch. Four files both specifications touch merged by themselves, in separate places:
+  `.github/workflows/release.yml` (042's zero-patch count 27 near the build step; 066's two shard
+  names in the matrix and the gather's lists), `CHANGELOG.md` and `README.md` (separate entries
+  and paragraphs), `tests/upstream/packages.toml` (042 appends `seaborn` and `reportlab` as
+  `later`, closer spec 067; 066 turns its six entries into `suite`). Progress files: the wave's,
+  untouched by this branch.
+- **No new run** (the owner's rule, 2026-10-20: only a rebase, no hunk to name, the fast tier
+  green): run 124 stands for the code; the wave's dry run on three systems is the check.
+- **The fast tier** on the rebased tree, `build/lane.lock` absent at the start, three cores:
+  598/843 pass, 30 blocked, 13 fail (`build/066/fast-w08.txt`), on this worktree's set
+  `dc6ba3a5`, which does not hold 042's members. The 13 failures are all 042's checks of its
+  members, red on a set built before them: `test_artifact_set_is_complete`,
+  `test_manifest_is_well_formed`, `test_seaborn_notice_carries_its_vendored_licences`,
+  `test_reportlab_notice_carries_its_third_party_parts`, `test_licence_notices_cover_every_component`
+  (no `LICENSES/seaborn.txt`, no `seaborn` or `reportlab` line in `MANIFEST`),
+  `test_manifest_recipes_match_the_tree` (042's `scripts/` changed since this set's build),
+  `test_packages_carry_their_metadata[plain, snapshot]`, `test_reportlab_runs_its_pure_paths[plain,
+  snapshot]`, `test_seaborn_takes_its_scipy_paths[plain, snapshot]` and
+  `test_reportlab_writes_a_pdf_with_nothing_writable` (no `seaborn` or `reportlab` in the zip). The
+  ratchet against `e9a76ce`: lost 6 (six of those, passing on main's set with main's checks),
+  grew 0. No 066 row and no numpy, pandas or CPython row is among them. Only the wave's set, which
+  the lane builds, holds 042's members; 066 adds no check that reads them.
