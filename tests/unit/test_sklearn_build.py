@@ -245,6 +245,50 @@ def test_the_gate_reads_its_list_and_refuses_a_line_it_cannot_read(tmp_path) -> 
         weak_duplicates.parse_nm("garbage without a type\n")
 
 
+STD_LAMBDA = (
+    "_ZZNSt3__26vectorIiNS_9allocatorIiEEE12emplace_backB9nqe230100IJiEEEvDpOT_ENKUlvE0_cl"
+    "B9nqe230100Ev"
+)
+SCOPES = {
+    STD_LAMBDA: "std",  # a lambda inside a std function: a local entity, Z
+    "_ZNSt12length_errorC2B9nqe230100EPKc": "std",
+    "_ZNKR8pybind116handle7dec_refEv": "pybind11",  # const and & qualified
+    "_ZTIPFN8pybind113strENS_6handleEE": "pybind11",  # typeinfo for a function pointer type
+    "_ZGVZN8pybind116detail23get_local_internals_keyEvE3key": "pybind11",  # a guard variable
+    "_ZN10HighsBasisC2ERKS_": "HighsBasis",
+    "_Z20check_trailing_shapeIN8pybind117array_tIdLi16EEEEvT_PKcl": "check_trailing_shape",
+    "_ZTSA19_c": None,  # a built-in type's name: no scope
+    "pybind11_clear": None,  # C linkage
+}
+
+
+def test_the_outermost_scope_reads_each_form() -> None:
+    """A mangled name's outermost scope is read through a local entity, cv- and ref-qualifiers, a
+    guard variable and a typeinfo of a function pointer type; std:: by that scope is allowed by
+    rule, a lambda inside a std function included, and nothing else is."""
+    assert {n: weak_duplicates.scope(n) for n in SCOPES} == SCOPES
+    assert weak_duplicates.allowed_by_rule(STD_LAMBDA)
+    assert not weak_duplicates.allowed_by_rule("_ZNKR8pybind116handle7dec_refEv")
+    assert not weak_duplicates.allowed_by_rule("pybind11_clear")
+
+
+def test_a_scope_pattern_allows_its_scope_and_nothing_else() -> None:
+    """`scope:<pattern>` allows the names whose outermost scope matches; a function whose
+    arguments merely mention that scope stays named (fnmatch on the demangled form would have
+    let it through); a scope pattern that allows nothing is stale."""
+    trailing = "_Z20check_trailing_shapeIN8pybind117array_tIdLi16EEEEvT_PKcl"
+    demangled = {trailing: "void check_trailing_shape<pybind11::array_t<double, 16>>(...)"}
+    names = [trailing, "_ZNKR8pybind116handle7dec_refEv", "_ZN10HighsBasisC2ERKS_"]
+    defs = [(a, n, "W") for n in names for a in ("liba.a", "libb.a")]
+    bad, stale = weak_duplicates.findings(defs, demangled, ["scope:Highs*", "scope:pybind11"])
+    assert [b.split(": ")[1].split(" ")[0] for b in bad] == [trailing]
+    assert stale == []
+    # fnmatch on the demangled form lets the matplotlib function through, as a scope never does
+    bad, stale = weak_duplicates.findings(defs, demangled, ["scope:agg", "*pybind11::*"])
+    assert [b.split(": ")[1].split(" ")[0] for b in bad] == [names[2], names[1]]
+    assert stale == ["scope:agg"]
+
+
 def test_the_link_map_check_wants_whole_names() -> None:
     """A required name must appear as a whole symbol name, and a forbidden one must not; the
     original name inside a renamed one does not count, but a data segment named after it does."""

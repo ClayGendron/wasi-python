@@ -12,12 +12,15 @@ it, and wrong when two copies differ: scikit-learn's `bounded_rand_int` is `inli
 copy calls its own file's `mt_rand`; a missed rename would make one module draw from another's
 generator, silently. So this lists, with the SDK's llvm-nm, every global weak definition in the
 link's archives whose name another archive also defines, weak or strong, and stops on each one no
-review has allowed. Allowed by rule, not listed: the C++ standard library (a mangled name in
-`std::`, its vtables, type information and guard variables included), the C++ runtime's
+review has allowed. Allowed by rule, not listed: the C++ standard library (a mangled name whose
+outermost scope is `std::`: its vtables, type information, guard variables and the lambdas inside
+its functions included), the C++ runtime's
 `__cxa_*` and `__cxxabiv1::`, and clang's `__clang_call_terminate`. Allowed by review:
 recipes/weak-duplicates-allowed.txt, one fnmatch pattern per line, matched against the name and
-its demangled form, each with `# <reason>` on its line, or the build stops. A pattern that matches nothing is named too,
-so the list never outlives what it allows. One line per finding; exit 1 on any.
+its demangled form, or, written `scope:<pattern>`, against a C++ name's outermost scope (its
+namespace or class); each with `# <reason>` on its line, or the build stops. A pattern that
+matches nothing is named too, so the list never outlives what it allows. One line per finding;
+exit 1 on any.
 
 **link-map.** After the link, wasm-ld's map (`-Wl,--Map`, build/link/python.map) must name each
 `--require` name and none of the `--forbid` names, each as a whole symbol name (a name inside a
@@ -40,10 +43,11 @@ NM_LINE = re.compile(
     r"^(?P<file>.+?)(?:\[(?P<member>[^\]]+)\])?: (?P<name>\S+) (?P<type>\S)(?: |$)"
 )
 WEAK_TYPES = frozenset("WV")
-# The C++ standard library by its mangled name: `_Z`, an optional special name (vtable TV, VTT TT,
-# type information TI, its name TS, a guard variable GV), an optional nested-name N with its
-# qualifiers, then St, which is ::std.
-STD_MANGLED = re.compile(r"^_Z(?:TV|TT|TI|TS|GV)?N?[rVK]*St")
+# The outermost scope of a mangled name: `_Z`, an optional special name (vtable TV, VTT TT, type
+# information TI, its name TS, a guard variable GV), then any of a local entity's Z, a nested
+# name's N, cv- and ref-qualifiers (r V K R O), a pointer P, a function type F or void v, and then
+# St (::std) or the first source name, <length><identifier>.
+SCOPE = re.compile(r"^_Z(?:TV|TT|TI|TS|GV)?[ZPFNKVrROv]*(?:(St)|(\d+))")
 RUNTIME_NAMES = ("__clang_call_terminate",)
 RUNTIME_PREFIXES = ("__cxa_", "_ZN10__cxxabiv1", "_ZTIN10__cxxabiv1", "_ZTVN10__cxxabiv1")
 
@@ -61,12 +65,34 @@ def parse_nm(text: str) -> list[tuple[str, str, str]]:
     return out
 
 
+def scope(name: str) -> str | None:
+    """The outermost scope of a mangled C++ name (`std`, `pybind11`, `HighsLp`), or None for a
+    C name or one this cannot read."""
+    m = SCOPE.match(name)
+    if m is None:
+        return None
+    if m[1]:
+        return "std"
+    n = int(m[2])
+    ident = name[m.end() : m.end() + n]
+    return ident if len(ident) == n else None
+
+
 def allowed_by_rule(name: str) -> bool:
     return (
-        bool(STD_MANGLED.match(name))
+        scope(name) == "std"
         or name in RUNTIME_NAMES
         or any(name.startswith(p) for p in RUNTIME_PREFIXES)
     )
+
+
+def allows(pattern: str, name: str, demangled: str) -> bool:
+    """`scope:<pattern>` matches a mangled name's outermost scope; any other pattern matches the
+    name or its demangled form; fnmatch either way."""
+    if pattern.startswith("scope:"):
+        s = scope(name)
+        return s is not None and fnmatch.fnmatchcase(s, pattern[len("scope:") :])
+    return fnmatch.fnmatchcase(name, pattern) or fnmatch.fnmatchcase(demangled, pattern)
 
 
 def read_allowed(path: Path) -> list[str]:
@@ -101,8 +127,7 @@ def findings(
             continue
         if allowed_by_rule(name):
             continue
-        forms = (name, demangled.get(name, name))
-        hits = [p for p in allowed if any(fnmatch.fnmatchcase(f, p) for f in forms)]
+        hits = [p for p in allowed if allows(p, name, demangled.get(name, name))]
         if hits:
             used.update(hits)
             continue
