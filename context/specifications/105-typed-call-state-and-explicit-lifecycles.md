@@ -1,14 +1,14 @@
 # 105 — Typed call state, explicit lifecycles, and a type checker in the judge
 
-- **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's
-  commit `a9064a2` is on this branch; committed as `46fa9fc`); **reviewed before build** the same
-  day (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
-  not land yet": one High, two Mediums, four Lows); **revised against all seven findings** (see
-  *Disposition of the pre-build review*), awaiting the reviewer's confirmation (AGENTS.md rule 8:
-  it changes the runner's code). It is **stacked on 104's reviewed tip** (constitution §4.14), the fourth entry
-  of the chain 102 → 103 → 104 → 105 → 106 → 107; its base commit is written into this line when
-  104 is reviewed, and it rebases onto main, or the wave's tip, when 104 lands. A different agent
-  reviews the build.
+- **Status:** **built on `0944ead` (the code; the commit after it carries these notes) on `spec/105-typed-call-state-and-explicit-lifecycles`, stacked
+  on 104's `3133f18`, 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
+  `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's commit `a9064a2` is on this
+  branch; committed as `46fa9fc`); reviewed before build the same day
+  (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
+  not land yet": one High, two Mediums, four Lows); revised against all seven findings (see
+  *Disposition of the pre-build review*). It is **stacked on 104's built tip `3133f18`**
+  (constitution §4.14), the fourth entry of the chain 102 → 103 → 104 → 105 → 106 → 107, and
+  rebases onto main, or the wave's tip, when 104 lands. A different agent reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe** (§5.7): `src/wasi_python/` only, the unit checks and their stand-ins,
@@ -738,4 +738,319 @@ path is a red check and not a bug under a guest.
 
 ## Landing notes
 
-Filled in when it lands.
+Built 2026-10-20 in the worktree `/home/user/wt/105`, branch
+`spec/105-typed-call-state-and-explicit-lifecycles`, from the base `3133f18` (104's built tip on
+`spec/104-one-owner-for-the-process-state`, under build review: 103's reviewed tip `538e831`,
+102's, the memo and the chain's specifications and reviews). Every number here is EXECUTED on
+that base or on the built commit, with its command; the outputs are kept under `build/105/` in
+the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
+`mypy-base-config-linux.txt`, `seen-failing-mypy.txt`, `seen-failing-mypy-full.txt`,
+`seen-failing-units.txt`, `exhaustiveness-red.txt`, `measurements-after.txt`,
+`affected-after.log`, `fast.log`, `built.json`, `claims.toml`, `claims-chain.toml`,
+`sameness-104.txt`, `sameness-baseline-chain.txt`, `sameness-baseline.txt`.
+
+- **Commits, in the order built:** `7de0416` (the checks first: `mypy==1.19.1` in the dev group
+  with `[tool.mypy]` and the lock file's wheels; `test_src_type_checks_under_mypy_strict` with
+  `UNTYPED` in `tests/checks/test_rules.py`; `tests/harness/calls.py`;
+  `tests/unit/test_lifecycles.py`, 49 rows; the stand-ins of seven unit files and two check
+  files rewritten; the probe of the hostile-guest child; all seen failing on the base),
+  `0944ead` (`_CheckedCall`, `_Limits`, `_Inputs`, `_ToolArgs`, `_Places`; `home` and `loop` as
+  parameters and `_home_of` deleted; `_Phase`, `_Event`, `_move`, `_Guest`, `_GuestEvent`,
+  `_move_guest`, `_State` rebuilt; `_HomePhase`, `_HomeEvent`, `_Home._move`; every module but
+  `mounts.py` clean under `mypy --strict`), and the commit after it (this Status line and these notes).
+  `git diff --stat 3133f18`: 29 files, +1,431 −447 (`src/` 13 files +748 −379; the judge's
+  side 15 files +674 −59, `uv.lock` +184 among them). No model name in any repository file.
+- **CI: none of its own; the chain's one dispatch on the final tip** (criterion 8, the owner's
+  rule for the chain). The fast tier below is the build's judge.
+- **The type check on the base, re-measured (criterion 1; EXECUTED on `3133f18`):** `uv run
+  --with mypy==1.19.1 mypy --strict --no-error-summary src/wasi_python` → **83 errors in 13
+  files** (`build/105/mypy-base-linux.txt`; the spec's 78 in 4 files was `a9064a2`'s, before
+  102 to 104 split the runner and typed the engine seam): `tools.py` 36, `_call.py` 13,
+  `mounts.py` 8, `runner.py` 6, `_wasmtime_ffi.py` 5, `cli.py` 4, `__init__.py` 3, `_places.py`
+  2, `_platform.py` 2, `_zip.py` 2, `_engines.py` 1, `_private_dirs.py` 1, `_sessions.py` 1; by
+  code `type-arg` 37, `no-any-return` 14, `arg-type` 6, `attr-defined` 5, `assignment` 5,
+  `union-attr` 4, `no-untyped-def` 4, `untyped-decorator` 2, `return-value` 2,
+  `no-untyped-call` 2, `unused-ignore` 1, `misc` 1. The three lines The problem names, where
+  103 moved them: `_private_dirs.py:170` ("Return value expected"), `runner.py:894` (the
+  `weakref.finalize` slot) and `tools.py:2002` (the `_Post | None` argument). A bare `uv run
+  mypy` with the `[tool.mypy]` of Decision 5 gives the same 83 lines
+  (`build/105/mypy-base-config-linux.txt`, `diff` against the bare run: identical). Under
+  `--platform win32` the base gives **97** (`build/105/mypy-base-win32.txt`; the review's 92
+  was `a9064a2`'s): the 83, plus 6 `attr-defined` (`resource` in `cli.py`, `os.uname` in
+  `_platform.py`, `os.getuid` in `_engines.py`) and 8 `unused-ignore` (`_platform.py` 3,
+  `_places.py` 5).
+- **The checks were seen failing first (criterion 1):** the mypy check on the base
+  (`build/105/seen-failing-mypy-full.txt`): 75 findings, the 83 less `mounts.py`'s 8, the
+  first five named in the message. The new and rewritten unit and check rows on the base
+  (`build/105/seen-failing-units.txt`): `tests/unit/test_lifecycles.py`,
+  `test_runner_sessions.py`, `test_runner_tools.py` and `test_async_tools.py` fail at
+  collection (`module 'wasi_python._call' has no attribute '_CheckedCall'`);
+  `test_runner_inputs.py` 18 rows and `test_runner_limits.py` 8 rows fail on
+  `'dict' object has no attribute 'argv'` and its kin; `test_runner_threads.py`'s two home rows
+  on `_HomePhase`; `test_v1_4_public_api.py::test_set_defaults_changes_what_run_reads`,
+  `test_v1_4_embedding.py::test_fuel_is_exact_across_tool_calls` and
+  `::test_fuel_is_exact_across_async_tool_calls` on the dict, and
+  `test_v1_2_hostile_guest.py::test_an_abandoned_turn_keeps_its_session_busy` on
+  `'_State' object has no attribute 'phase'` in the child. **The exhaustiveness rows seen red
+  once more** (`build/105/exhaustiveness-red.txt`): one member (`LIMBO`) added to a copy of
+  `_Phase`, `_Guest` and `_HomePhase` with no row for it, and the three exhaustiveness and
+  three liveness rows fail, each naming `LIMBO` as the extra member; the sources restored.
+- **The type check after (criteria 1 and 6):** `uv run mypy` → **8 errors in 1 file**,
+  `mounts.py`, exactly the allowance; `test_src_type_checks_under_mypy_strict` passes. Under
+  `--platform win32`: **22** (the 8, plus the 14 platform lines above; the pinned platform makes
+  the judge's run the linux one on every host). Per file, before → after: `tools.py` 36 → 0,
+  `_call.py` 13 → 0, `mounts.py` 8 → 8, `runner.py` 6 → 0, `_wasmtime_ffi.py` 5 → 0, `cli.py`
+  4 → 0, `__init__.py` 3 → 0, the six others 1 or 2 → 0.
+- **The call is typed (criterion 2; EXECUTED on the built commit):** `_checked` returns a
+  `_CheckedCall` of 19 fields (`tests/unit/test_lifecycles.py::test_a_checked_call_is_frozen_with_every_field_required`:
+  each one required, a write refused, an unknown stand-in field refused); `home` and `loop` are
+  parameters of `_run_checked`, `_call`, `_call_deferred`, `_instance` and `_tool_host`;
+  `_home_of` is gone; `run_async` makes its event before `_checked` and passes it as `cancel`.
+  `grep -rn 'dataclasses.replace\|\breplace(' src/wasi_python` finds `os.replace` (3),
+  `str.replace` (3), a comment in `tools.py` and `__init__.py`'s `dataclasses.replace` on
+  `Defaults` in a docstring example: no replace of a call.
+- **No read of a call's field has a default, and no flag remains (criterion 3; EXECUTED):**
+  `grep -rnE '\.get\("(tools|mounts|import_path|import_serving|tool_request_bytes|home|tool_loop)"|checked\[' src/wasi_python`
+  → nothing (17 lines on the base). `grep -rnE '\.(busy|called|sound|needs_initialize|counted|turn_thread|ending_thread|serving|abandoned)\b' src/wasi_python`
+  → 8 lines, every one `tools.py`'s `abandoned`: `ToolOutcome.abandoned`, a public field, and
+  `_Slot.abandoned`, the tool bound's own flag, neither a session's nor a home's; over
+  `_sessions.py`, `_home.py`, `runner.py` and `_call.py` it finds nothing. `grep -rnE '\.state\b'
+  src/wasi_python/_home.py` → nothing. The tests' grep of criterion 3 finds
+  `tests/unit/test_tools.py:158` (`["tools"]` of a protocol answer) and
+  `tests/unit/test_plugin.py:231, 409` (`["fuel"]` of a metrics dict), neither a call; the
+  review's wider grep (`_tool_host\(\{|_checked\([^)]*\)\[|_check_(limits|inputs|tools|places)\([^)]*\)(\[|\s*==)`)
+  finds nothing. `grep -cE 'c: dict\[str, Any\]'`: 8 on the base (`_call.py` 6, `_sessions.py`
+  2), 0 after.
+- **Both machines are whole (criterion 4):** `tests/unit/test_lifecycles.py` has **49 rows**:
+  the session's 13 (the 12 of the Design's table, `CLAIM_ENDING` driven twice, by a thread and
+  by `_CLOSER`), the guest's 7, the home's 13, three exhaustiveness rows (every pair a row or a
+  `RuntimeError` naming both, and every member in some row), three liveness rows, the refused
+  pairs (`_claim_ending` in `OPEN`, `TURN` and `STOPPING`; `OPENING` under every event but
+  `OPENED` and `RELEASED`; `START` from `CANCELLED` through `_start_guest`, no thread made),
+  `_claim_ending`'s False in `ENDING` and `ENDED`, `_mark` as the one writer of `ended`, the
+  release's count-down in `ENDING` and never in `OPENING`, `_shutdown_applies` on each guest,
+  `finish` in each home phase, the join's backstop (`CANCEL` in `STARTING`, `LOST` in `RUNNING`
+  and `ABANDONED`), a body after its cancel, and the `_CheckedCall` row. The existing session
+  and home rows pass with the phase where they read a flag (`test_runner_sessions.py`'s
+  `_state()` takes `phase`; `test_runner_threads.py` reads `home.phase`).
+- **The numbers (criterion 7; EXECUTED, `build/105/measurements-after.txt`):** `Any` tokens
+  **432 → 424** (`grep -oE '\bAny\b' -r src/wasi_python --include='*.py' | wc -l`; the base's
+  count on `3133f18`, the spec's 424 being `a9064a2`'s) and annotations **317 → 287**
+  (`grep -oE '(: |-> )Any\b' …`): `_sessions.py` 37 → 12 tokens and 31 → 8 annotations,
+  `_call.py` 54 → 44 and 47 → 42, `runner.py` 45 → 43 and 34 → 33, `_home.py` 24 → 22 and 11
+  → 10, `_limits.py` 18 → 16 and 15 → 15, `cli.py` 6 → 7 and 2 → 2, `tools.py` 108 → 139 and
+  74 → 74 (its 30 `dict` and `frozenset` generics gained `[str, Any]` and `[Any]`, 31 tokens:
+  the `type-arg` fixes add `Any` where the code had an implicit one), the rest unchanged. The
+  spec's INFERRED 30 to 60 fewer tokens did not come true for the package as a whole: the
+  runner's modules lost 36, `tools.py` gained 31. `type: ignore` lines **14 → 19**
+  (`grep -rc 'type: ignore'`): gone, `cli.py`'s `[override]` (the action's `__call__` is
+  annotated instead); new, each with its code and reason on the line, `runner.py:933`
+  `[misc]` (`weakref.finalize.atexit` is a property on a slotted class),
+  `_wasmtime_ffi.py:233` `[valid-type]` (the ctypes pointer type, as the two the seam already
+  carried), `_wasmtime_ffi.py:326` `[attr-defined]` (wasmtime-py's stubs lack the
+  `async_stack_size` property the code tests for), and `tools.py:175, 180, 184` `[type-arg]`
+  (`Tool.input_schema`, `output_schema` and `descriptor` keep the bare `dict` that
+  `tests/public_api.txt` records; typing them is a public API change, not this
+  specification's). `_State` has **31 attributes** (35 on the base): `lock`, `phase`,
+  `holder`, `ended`, `outcome`, `closing`, `done`, `guest`, `opened`, `last_end`, `idle_s`,
+  `lifetime_s`, `shutdown_s`, `checked`, `wt`, `engine`, `store`, `exports`, `keys`, `table`,
+  `host`, `metered`, `origin_ns`, `bounded`, `private_loop`, `scratch`, `private`, `walked`,
+  `home`, `context`, `ending_home`; typed with wasmtime-py's own types where it has one
+  (`engine: wasmtime.Engine | None`, `store: wasmtime.Store | None`), the runner's own
+  (`table: _Files | None`, `bounded: _Bounded | None`, `private_loop: _ToolLoop | None`,
+  `ending_home: _Home | None`, `context: contextvars.Context | None`, `wt:
+  types.ModuleType`), and `Mapping[str, Any] | None` for `exports` (wasmtime-py types an
+  instance's exports as a mapping to `AsExtern`, a union the runner calls as functions). Unit
+  rows added: 49. Sizes: `mounts.py` 2,213 and `tools.py` 2,450, both as `ALLOWED` records
+  them; the package 12,509 lines (12,140 on the base). The mypy check's own wall time, a
+  benchmark fact: `test_src_type_checks_under_mypy_strict` alone by node id, `build/.mypy_cache` removed first, 3.74 s (4.0 s of wall for the pytest process); warm, with the cache, 0.28 s (0.6 s), `build/105/mypy-check-time.txt`; the fast tier's own wall time is below, with the check in it.
+- **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
+  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `0944ead`, the code of the
+  built tip, under the machine's `build/fast-tier.lock`): **85 failed, 2425 passed, 52 skipped in 356.29s (0:05:56)**; the failures are the chain's baseline's `failing-nodes.txt` (82 checks of an artifact set older than the tree, and `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user) **plus the two Ctrl-C rows of the bullet above, which the base fails the same way today** (below). The record is
+  `build/105/built.json`, copied from `build/progress/latest.json` as the run ended.
+- **A first run of the tier, and a load sensitivity that is not this build's.** The first
+  run, on the same commit (`build/105/fast-run1.log`, its record `build/105/built-run1.json`):
+  **85 failed, 2425 passed, 52 skipped in 371.87s (0:06:11)**, the baseline's 83 and two
+  more, `tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]`
+  and `[default-turn]`, each "the child did not end within its limit" (120 s). Both pass alone,
+  six runs in a row (1.3 to 1.5 s each), and both fail in every run of the hostile-guest file
+  on three cores (`uv run pytest tests/checks/test_v1_2_hostile_guest.py -m "not slow" -n 3`,
+  `build/105/stress-1.log` and `stress-2.log`: 6 failed, the four baseline rows and these two)
+  **and fail the same way on the base**, 104's tip in `/home/user/wt/104`, under the same
+  command (`build/105/stress-base.log`: the same 6 failed, 146 passed, 231 s): a sensitivity of
+  that child to this machine's load (the load average passes 7 while that file runs on three
+  cores), present before this specification and outside its code. The run below is the re-run,
+  which fails the same two rows again; so does **the full fast tier on the base itself**, run
+  the same way in `/home/user/wt/104` on 104's tip `3133f18` right after it
+  (`build/105/fast-base.log`): **85 failed, 2375 passed, 52 skipped in 344.51s (0:05:44)**, the
+  baseline's 83 plus exactly `test_ctrl_c_stops_a_computing_guest[default]` and
+  `[default-turn]`. 104's own tier passed them on this machine earlier the same day
+  (`/home/user/wt/104/build/104/built.json`, 83 failed), so the two rows' verdict moved with
+  the machine, between 104's run and these, and not with any line of this branch: the three
+  records that differ on them (this build's two runs, the base's one) were taken within the
+  hour, under the same command, and only the base's shares its code with 104's record. For
+  the lane: the two rows are not in the claim list (they are no change of this
+  specification's); the lane's own run on the wave's tip is the verdict, and a run on this
+  machine today will show them red on any tree.
+- **Sameness (criterion 5).** Against 104's built record
+  (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`:
+
+```
+note: explained by claims: 105 3
+tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default-turn]: status 'pass' != 'fail'
+tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]: status 'pass' != 'fail'
+sameness exit 1
+```
+
+  Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
+  the chain's claims (`build/105/claims-chain.toml`: 102's, 103's, 104's and this one's
+  concatenated):
+
+```
+note: explained by claims: 102 4 · 103 3 · 104 4 · 105 3
+tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default-turn]: status 'pass' != 'fail'
+tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]: status 'pass' != 'fail'
+sameness exit 1
+```
+
+  Both print, outside the claims, only the two Ctrl-C rows of the bullet above, which the
+  base fails today under the same command, and nothing else: no `need`, `bytes`, `passes` or
+  `fuel` differs. The claim: `new` the rules check and `tests/unit/test_lifecycles.py`;
+  `units = 49` (the unit suite 1,875 → 1,924 rows). No row grows, no pass of this
+  specification's moves; the hostile-guest probe's golden lines are unchanged (its check passes
+  in both runs). Without a claim list, against the chain's baseline
+  (`build/105/sameness-baseline.txt`), what prints is the chain's own work (102's, 103's,
+  104's and this one's rules checks and unit files, and the unit tally) and the two rows.
+- **Lint (criterion 6):** `uv run ruff check src tests recipes/guest` and `uv run ruff format
+  --check src tests recipes/guest` clean on every commit; `uv lock` adds `mypy==1.19.1` with
+  `mypy_extensions`, `pathspec`, `typing_extensions` and `librt` (its own dependencies), by
+  hash, and changes nothing else (`git show 7de0416 -- uv.lock`: 184 lines added, none
+  removed).
+- **The judge's files (the claim list's hash line):** `tests/checks/test_rules.py`,
+  `tests/harness/calls.py`, `tests/unit/test_lifecycles.py`, `tests/unit/test_async_tools.py`,
+  `test_runner_calls.py`, `test_runner_inputs.py`, `test_runner_limits.py`,
+  `test_runner_sessions.py`, `test_runner_threads.py`, `test_runner_tools.py`,
+  `tests/checks/test_v1_4_embedding.py`, `test_v1_4_public_api.py` and
+  `test_v1_2_hostile_guest.py`; `pyproject.toml` and `uv.lock`. `tests/public_api.txt` is
+  untouched (`git diff --stat 3133f18` does not list it).
+
+### For the lane, as built
+
+- **Kind:** parallel-safe; stacked, fourth in the chain; lands in the chain's wave.
+- **The claim list** (each line starts "105:"):
+  - 105: **new checks:** `tests/checks/test_rules.py::test_src_type_checks_under_mypy_strict`
+    (no fuel); `tests/unit/test_lifecycles.py` (49 rows).
+  - 105: **rows that change text and not verdict:** the stand-ins in `test_async_tools.py`,
+    `test_runner_calls.py` (the three stand-in calls of `_fuel_used` carry `table=None`),
+    `test_runner_inputs.py`, `test_runner_limits.py`, `test_runner_sessions.py`,
+    `test_runner_threads.py`, `test_runner_tools.py`, and in
+    `tests/checks/test_v1_4_embedding.py` (two `_tool_host` stand-ins) and
+    `test_v1_4_public_api.py` (one key read); the probe of spec 093's child program in
+    `test_v1_2_hostile_guest.py`.
+  - 105: **retired checks:** none. **Lost passes:** none of this specification's; the two
+    Ctrl-C rows red in this worktree's records are red on the base's tier today too (the
+    bullet above), a verdict of the machine, not of this branch. **Grown rows:** none.
+- **The flags** (paste-safe; the spec's, unchanged):
+
+  ```
+  --accept "105: a call's checked arguments are a frozen _CheckedCall with 19 required typed fields, home and loop are parameters, the session's lifecycle is a seven-phase table (_Phase) with a four-state guest (_Guest) and the home's a six-phase table (_HomePhase), each driven whole by the judge, and mypy --strict runs over src/wasi_python as a rules check with one allowance (mounts.py, spec 106); no public name, verdict or artifact byte moves"
+  --accept-judge "105: a rules check runs mypy --strict (1.19.1, pinned exactly; platform pinned to linux so three systems give one verdict) over src/wasi_python with a per-module allowlist that must shrink; unit rows drive the session's, the guest's and the home's transition tables whole with exhaustiveness and liveness; every stand-in in the unit files, test_v1_4_embedding.py and test_v1_4_public_api.py builds a _CheckedCall through tests/harness/calls.py instead of a dict or a key read; spec 093's child program reads the phase (TURN or STOPPING) where it read busy, its golden lines unchanged"
+  ```
+
+- **Dry-run needs:** none of its own; the chain's one dispatch on its final tip. The Windows
+  judge shards run the mypy check against the linux platform's narrowing (`platform =
+  "linux"`), so their count is the Linux shard's: 8, all in `mounts.py`.
+- **CHANGELOG line proposed** (not written: the file is the lane's): *The runner's checked
+  call is a frozen typed record, a session's and a home's life are transition tables the judge
+  drives whole, and `mypy --strict` runs over `src/wasi_python` in the judge (spec 105).*
+
+### The builder's self-check
+
+- rebased onto the named stacked base today: built on 104's `3133f18`, the base commit in the
+  Status line; no rebase since (104's tip has not moved).
+- CI run: none of its own, by the chain's rule (the owner, 2026-10-20); the Windows criterion
+  is named: the mypy check's count is the linux one on every host.
+- every number from a measured run on this base, labelled EXECUTED; no growth list (no
+  artifact byte, no guest fuel).
+- "For the lane": the claim list, the exact flags, each reason beginning with the spec number,
+  the wave kind (parallel-safe, stacked), dry-run needs.
+- every new check seen failing first; the Windows branch named (the type check's platform
+  pin; the Windows count recorded, 97 before and 22 after, for the record).
+- gaps: none; no reserved follow-up beyond what the spec's Scope hands to 106 and 107.
+- `packages.toml`: untouched (no package); README rows: none change.
+- CHANGELOG: proposed above, not written (the lane's); questions: none.
+- `ruff check`, `ruff format --check`, the fast tier: green but for the baseline's failures,
+  output in `build/105/`.
+
+### Differences from the specification's text, each with its reason
+
+1. **`UNTYPED`'s value is the reason in words**, not `"spec 106"`: a code file names no
+   specification (AGENTS.md, "Code speaks for itself", the owner, 2026-10-20, after the spec
+   was written); the key is `mounts.py`, as 106 expects, and its value says what empties it
+   ("typed once it sits behind the call-context protocol").
+2. **The base counts are this base's.** 83 errors in 13 files, not 78 in 4; 97 under win32,
+   not 92; the three named lines at `_private_dirs.py:170`, `runner.py:894` and
+   `tools.py:2002`; `Any` 432 and 317, not 424 and 314; `type: ignore` 14, not 12; `.get`
+   reads 17 lines; `c: dict[str, Any]` 8 (criterion 1's "or the base's own count, restated").
+3. **`_State(checked, wt)` takes the call and the wasmtime module at construction.** The
+   spec's `checked: _CheckedCall` has no sensible default and a bare attribute would leave a
+   state that is not fully made; `Session.__init__` has both before it makes the state. `wt`
+   is no longer written at the opening's end. The two unit helpers pass `calls.BASE_CALL` and
+   `_engines._wasmtime()`.
+4. **`_tool_host`'s `home` is `_Home | None`, with no default**, and the stand-ins pass
+   `None`, not `_Home()`. A `_Home()` made on the test's thread serves no one: when the
+   harness drives the host from its own guest thread, the tool bound's context copy
+   (`home.call(copy_context)`) is handed to a home that no thread serves and is refused with
+   `_Stopped`, and the guest sees a Python exception (EXECUTED: with `_Home()` the two
+   embedding fuel checks failed inside `host_call`; with `None` they pass). A host with no
+   home thread runs the embedder's code where the frame is answered, as a `_Call` without a
+   home runs its door and as `_Files._home` serves a provider; `_home_context(None)` keeps
+   returning `contextvars.copy_context`, and `test_runner_threads.py`'s row for it stays. The
+   session's `_arm`, `_session_tool_host` and `_turn_inside` take `home: _Home`, as the spec
+   says.
+5. **`tools.py` held at 2,450 lines, which 103's `ALLOWED` fixes exactly**, so "only the 36
+   lines change" could not hold to the letter: a `_Json = dict[str, Any]` alias (one line)
+   keeps `_Work.__init__` on one line; `number`'s four bounds are written out as `length`
+   above it writes its two (the lambdas' join is an untyped `function` to mypy, EXECUTED on
+   five shapes), with `_number` a `TypeGuard[int | float]`; `_Bounded.unlink` binds and
+   narrows `post` in one expression; the task a wrapper runs as is `typing.cast` to a task
+   (`current_task()` is `None` only outside a task, and the wrapper runs only as one). The
+   three public annotations of finding 1 above keep their bare `dict` with an ignore each.
+6. **Criterion 3's flag grep finds `tools.py`'s `abandoned`** (8 lines): `ToolOutcome.abandoned`
+   is a public field and `_Slot.abandoned` the tool bound's own flag, neither in the spec's
+   list of session and home flags; over the four runner modules the grep finds nothing.
+7. **Three stand-in sites the inventory missed:** `test_runner_limits.py:83` (the whole-dict
+   compare of `_check_limits`, now against `_Limits`), `test_runner_calls.py:130-134` (three
+   `SimpleNamespace` calls given to `_fuel_used`, which read `getattr(call, "table", None)`: the
+   stand-ins now carry `table=None` and the production read is `call.table`), and the local
+   `c` of `test_v1_4_embedding.py:3365`, renamed `checked` so criterion 3's grep is clean.
+   `test_runner_calls.py` joins the Scope, the claim list and the judge-hash list.
+8. **`_State.exports` is `Mapping[str, Any] | None`**, not wasmtime-py's `InstanceExports`:
+   that type maps names to `AsExtern`, a union of funcs, tables, memories and globals, which
+   the runner calls as functions; `InstanceExports` is a `Mapping[str, AsExtern]`, so the
+   assignment is sound and the calls are typed as what they are.
+9. **The inbox's end mark is a `_Done` instance**, not a bare `object()`, so the inbox is
+   `queue.SimpleQueue[_Box | _Done]` and `serve()` narrows with `isinstance`; `_DONE` keeps
+   its name.
+10. **The exhaustiveness rows also assert that every member has a row.** A member added with
+    no rows is refused by every pair, which a product-and-refusal row alone accepts; the
+    spec's "turns the check red" holds with the added assertion, and the liveness rows go red
+    too (`build/105/exhaustiveness-red.txt`).
+11. **`_output_write` and `_output_free` are plain functions wrapped once** by
+    `ctypes.CFUNCTYPE` at module level (the decorator form is untyped to mypy); their names
+    and types are unchanged (`test_wasmtime_ffi.py` checks the types).
+12. **`_start_closer` runs the ending through `_in_context`**, a two-line function, not
+    `functools.partial(context.run, _end_quietly)`: mypy checks a partial of
+    `Context.run` against its `ParamSpec` and refuses the missing `state`.
+13. **`Host` is `Callable[[bytes], bytes | bytearray | memoryview]`**, what `run` accepts and
+    `_door_answer` copies; the narrower alias was the cause of four errors.
+14. **The hostile-guest child programs' stand-in `serve`s still write `self.serving = True`**
+    (two child programs, `test_v1_2_hostile_guest.py`): a dead attribute now. The spec changes
+    one line of that file, the probe; the write is harmless (a `_Home` has no slots) and is
+    left for the cleanup of the tests. In `test_runner_threads.py`, in Scope, the two such
+    lines are deleted.
+15. **`tests/harness/calls.py` imports `wasi_python._call` at its top**, unlike the harness's
+    other modules (which import the package lazily), since its `BASE_CALL` is a `_CheckedCall`
+    made at import; only unit and check files import it.
+16. **`_check_tools` reads the defaults once as before**, with the two `_UNSET` reads nested
+    under the one `if`, so the local `read` is a `Defaults` to the checker and never `None`.
