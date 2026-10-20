@@ -642,7 +642,8 @@ None blocks the build.
     groups, cpython-a to c, -fs, -archives, on Linux, macOS and Windows; EXECUTED, the shards'
     records, `build/099/compare-upstream.sh`): note 8 moved nothing.
   - 099: **rows that grow, 22** (the dry run's only red job, `judge (macos-15, own-guest)`, `grew
-    22`, no G7 line): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
+    22`, no G7 line; its `gained 7` is 099's six guest nodes and `test_wheel_carries_the_artifact_set`,
+    blocked locally for want of a wheel, not 099's; check 4 passed in the build job): bytes `test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated`
     47,730,899 → 47,730,914; fuel, +0.0109% to +0.0846%: `test_lxml_xml_job_matches_native`
     (+0.0846%), `test_recursion_through_python_raises[np-frompyfunc-snapshot]` (+0.0518%),
     `test_savefig_rejects_a_negative_dpi` (+0.0473%), `test_packages_carry_their_metadata[snapshot]`
@@ -967,8 +968,9 @@ and 099's weak flag word, defined in 13 numpy archives, would stop it.
   (`test_recursion_through_python_raises[np-frompyfunc-snapshot]` the most).
 - **The release dry run on wave 07's base** (READ, run 39454475153 on `6866dd1`, dispatched when
   fewer than three runs were live): 24 jobs passed, 4 skipped, 1 red, `judge (macos-15,
-  own-guest)`: `406/776 pass · 0 gap · 2 blocked · 0 fail`, ratchet `lost 0 · gained 7 · grew 22`,
-  no G7 line. **Its only red lines are the 22 growth lines** in *For the lane* (the zip's 15 bytes
+  own-guest)`: `406/776 pass · 0 gap · 2 blocked · 0 fail`, ratchet `lost 0 · gained 7 · grew 22`
+  (the 7 gained there are 099's six guest nodes and `test_wheel_carries_the_artifact_set`, blocked
+  locally for want of a wheel, not 099's; check 4 passed in the build job), no G7 line. **Its only red lines are the 22 growth lines** in *For the lane* (the zip's 15 bytes
   and 21 fuel rows from +0.0109% to +0.0846%, slow goldens among them). Both Linux rebuilds, the
   same-bytes job, the three `verify` jobs and every Windows shard passed. Checks 1 to 3 passed in
   all three systems' `own-guest` records, check 4 in the build job; scikit-learn's goldens passed

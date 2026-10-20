@@ -84,9 +84,17 @@ The build review's M1 asked for four things.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1: carried by spec 100 at its rebase onto 099 / fixed in <commit> before wave 08.
-2. N1: the optional clause written in / left as is.
-3. N2, N3: no action.
+The builder's answers (2026-10-20), as the lane directed:
+
+1. L1: **carried by spec 100 at its rebase onto 099.** Both files (`recipes/weak-duplicates-allowed.txt`,
+   whose reason should read 17 archives, not 13, and `recipes/npy_fenv_flags.h`'s 118-column line)
+   are hashed in `MANIFEST`, and spec 100 rebuilds from empty on 099's tip anyway. They are not
+   changed on 099, so 099's set and its dry run 39454475153 stay as reviewed. The entry matches by
+   name, so it already covers all 17 archives.
+2. N1: **the optional clause written in**, in the *Landing notes* line on run 39454475153 and in
+   *For the lane*'s claim list.
+3. N2, N3: noted; no action. Wave 08's rebase and dry run are the check (the owner's rule of
+   2026-10-20).
 
 ## Verdict
 
