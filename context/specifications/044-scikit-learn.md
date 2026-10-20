@@ -1,6 +1,6 @@
 # 044 — scikit-learn
 
-- **Status:** **Built** (2026-10-20), a stacked build on 038's final tip `5cd171d` (on main `958a22b`; built and judged on `ecc2423`, whose build inputs equal it); release runs in *For the lane*; B1 approved by the owner (`../decisions.md`, 2026-10-20). Build review: `../reviews/044-scikit-learn-build-2026-10-20.md`, "lands once M1 is closed", M1 and L1 to L4 answered in its Disposition. Lands after 038 in one chain. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **landed 2026-10-20 in wave 07** (038, 044) on main `1cd25e2`: accepted on `e9a76ce`, history line 88, 704/769 pass, 0 fail, on the set rebuilt in the main tree (`SHA256SUMS` `dc6ba3a5`); the integration review `../reviews/wave-07-integration-2026-10-20.md` ("lands as merged at e9a76ce", all 221 grown rows inside its prediction); the dry run 39442080658 dispatched as main moved. Before: **Built** (2026-10-20), a stacked build on 038's final tip `5cd171d` (on main `958a22b`; built and judged on `ecc2423`, whose build inputs equal it); release runs in *For the lane*; B1 approved by the owner (`../decisions.md`, 2026-10-20). Build review: `../reviews/044-scikit-learn-build-2026-10-20.md`, "lands once M1 is closed", M1 and L1 to L4 answered in its Disposition. Lands after 038 in one chain. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings
   that concern it are fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -1080,3 +1080,9 @@ it again):
   scikit-learn's own tree code; `feature_extraction/_stop_words.py:4`, the Glasgow list, named in
   question 83; algorithm citations (`_samples_generator.py:213`, Guyon; `_robust_covariance.py`,
   Pison and Croux; the `.pyx` proxies "derived from" their formulas).
+
+### Landed in wave 07
+
+- Accepted with the integration review's M1 clause in `--accept-growth`: cpython-c grows +2.995% on darwin (pydoc's apropos imports every builtin, scikit-learn's 69 now among them, as scipy's 95 did in wave 06), and cpython-a, cpython-b, cpython-archives and three pandas groups rise by +0.02% to +0.14%. This clause is part of 044's claim list.
+- The integration review's L2: `test_goldens_reproduce_under_the_pinned_oracle` also reproduces the machine_learning golden now, a changed check this spec did not list. The lane synced the oracle venv with the scikit-learn 1.9.1 pin before the accept, and the check passed.
+- Reviews: `../reviews/044-*` and the wave's integration review.

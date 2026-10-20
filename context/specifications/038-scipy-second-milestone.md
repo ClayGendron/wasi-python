@@ -1,6 +1,6 @@
 # 038 — scipy, the second milestone: the sandbox's edges
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build. Drafted 2026-10-17; revised the same day against the
+- **Status:** **landed 2026-10-20 in wave 07** (038, 044) on main `1cd25e2`: accepted on `e9a76ce`, history line 88, 704/769 pass, 0 fail, on the set rebuilt in the main tree (`SHA256SUMS` `dc6ba3a5`); the integration review `../reviews/wave-07-integration-2026-10-20.md` ("lands as merged at e9a76ce", all 221 grown rows inside its prediction); the dry run 39442080658 dispatched as main moved. Before: **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. confirmed for build. Drafted 2026-10-17; revised the same day against the
   pre-build review of 037 and 038 (`../reviews/037-scipy-spec-2026-10-17.md`): its findings 2,
   14 and 15 fixed, 16 noted (the review's Disposition), and confirmed there with no condition on
   038. It changes the artifact set (two
@@ -473,3 +473,8 @@ written in by the reviewer. A delta review reads `git diff 1073d68..` and the ne
 ```
 
 No `--retire`, no `--accept-fewer-passes`, no `--partial`.
+
+### Landed in wave 07
+
+- Accepted with 044 as one stacked chain. Every grown row matched the integration review's prediction; cpython-b grew +0.044% on darwin, less than the +0.067% claimed (a row growing less than claimed ejects nothing). The ten groups first measured on darwin in this accept stayed within 038's stated ±0.1%, but cpython-archives grew +0.141%, inside the review's range for that noisy group. The first accept attempt died on a full disk (ENOSPC) and recorded nothing.
+- Reviews: `../reviews/038-*` and the wave's integration review.
