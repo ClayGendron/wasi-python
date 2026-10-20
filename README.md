@@ -132,9 +132,11 @@ snapshot adds four facts of its own:
   every snapshot instance hashes strings alike. Both binaries hash `str`,
   `bytes` and `memoryview` with SipHash-1-3, CPython's default
   (`sys.hash_info.algorithm == 'siphash13'`, kept in 32 bits on wasm32;
-  spec 086); the plain reactor draws a fresh key in every call. A fixed key
-  is public, so keys built to collide can make a snapshot program's dict and
-  set work quadratic until its deadline (see "Not protected");
+  spec 086); the plain reactor draws a fresh key in every plain call and
+  every plain session (a session keeps its key for its life, and a `Session`
+  is on the snapshot unless `snapshot=False`). A fixed key is public, so keys
+  built to collide can make a snapshot program's dict and set work quadratic
+  until its deadline (see "Not protected");
 - the stdlib modules it pre-imports (`encodings`, `io`, `os`, `sys`, `json`,
   `csv`, `re`, `_colorize`) were imported with an empty environment; it
   pre-imports no package (decision 34), so numpy, pandas and every other
@@ -3180,8 +3182,8 @@ a bound on path depth is planned; a `Session` holds its files, and its memory, f
 whole life: give untrusted code a short `idle_s`); everything a turn leaves in a
 session for the turns after it (a session is one trust domain: see *Sessions*);
 dict and set keys built to collide under the snapshot's fixed, public string hash key, which make
-that call's dict and set work quadratic until its deadline (load untrusted keys with
-`snapshot=False`, whose key is fresh in every call);
+that call's or session's dict and set work quadratic until its deadline (load untrusted keys with
+`snapshot=False`, whose key is fresh in every plain call and every plain session);
 data planted in a
 reused root (dateutil's zone files, `mimetypes`' tables, any user file, the
 plain reactor's `sys.prefix` after a planted `pyvenv.cfg`); pdb's `./.pdbrc`

@@ -488,6 +488,14 @@ reason = "the stdlib is bytecode in a zip: os.path.exists of os.__file__ is fals
 closes_with = "README.md"
 
 [[expected]]
+id = "no-missing-stdlib-info"
+group = "cpython-a"
+outcome = "failed"
+match = "Unsupported platform for Windows-only standard library module"
+reason = "closed by spec 086: the stdlib zip carries the build's generated _missing_stdlib_info.py, so traceback names a missing stdlib module as natively (it was 'not found' while scripts/steps/70_zip.sh copied only _sysconfigdata; test_traceback runs since spec 078)"
+closes_with = "context/specifications/086-the-toolchain-moves-to-wasi-sdk-34.md"
+
+[[expected]]
 id = "no-executable-file"
 group = "cpython-a"
 outcome = "error"
