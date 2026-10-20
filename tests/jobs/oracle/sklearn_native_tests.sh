@@ -100,12 +100,20 @@ for T in (KDTree, BallTree):
 print("7846: __annotate__ pickles; KDTree and BallTree round-trip")
 ' "$N/site"
 
-# The review's groups, one output file each; the counts are pytest's last line.
+# The review's groups, one output file each; the counts are pytest's last line. A group passes only
+# when pytest exits 0 and its last line counts passed tests: a group whose interpreter dies (a crash
+# in a native module, a kill) prints no summary, and counts as failed (the build review's L4).
+FAILED=""
 group() { # name modules...
   name=$1
   shift
-  PYTHONPATH="$N/site" "$VPY" -m pytest -p no:cacheprovider -q --pyargs "$@" > "$N/$name.txt" 2>&1 || :
-  echo "$name: $(tail -n 1 "$N/$name.txt")"
+  status=0
+  PYTHONPATH="$N/site" "$VPY" -m pytest -p no:cacheprovider -q --pyargs "$@" > "$N/$name.txt" 2>&1 \
+    || status=$?
+  echo "$name: $(tail -n 1 "$N/$name.txt") (exit $status)"
+  if [ "$status" -ne 0 ] || ! tail -n 1 "$N/$name.txt" | grep -Eq "[0-9]+ passed"; then
+    FAILED="$FAILED $name"
+  fi
 }
 group g1 sklearn.svm
 group g2 sklearn.tree
@@ -117,7 +125,5 @@ group g5 sklearn.linear_model.tests.test_sgd sklearn.linear_model.tests.test_coo
 group g6 sklearn.ensemble.tests.test_gradient_boosting
 group g7 sklearn.ensemble.tests.test_forest
 cd "$HERE"
-if grep -l -E "[0-9]+ (failed|error)" "$N"/g*.txt > /dev/null; then
-  die "a native test group failed (build/sklearn-native/g*.txt)"
-fi
+[ -z "$FAILED" ] || die "native test groups failed, or died without pytest's summary:$FAILED (build/sklearn-native/g*.txt)"
 echo "native tests: every group passed (build/sklearn-native/g*.txt)"

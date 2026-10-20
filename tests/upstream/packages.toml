@@ -161,10 +161,11 @@ via = "scipy"
 
 [package.scikit-learn]
 # Spec 044's Scope leaves its own suite out (roadmap milestone 6); the builder runs a subset of it
-# natively with the line's Cython, recorded in the landing notes, not in the guest.
+# natively with the line's Cython, recorded in the landing notes, not in the guest. Its closer is
+# spec 095, which the roadmap reserves for scipy's and scikit-learn's own tests in the release.
 kind = "later"
 reason = "its own suite is not run in the guest yet (its sdist is pinned)"
-closes_with = "spec 066"
+closes_with = "spec 095"
 
 # Tier A (spec 039): thirty pure-Python distributions. Their own suites run with spec 067.
 
