@@ -157,7 +157,7 @@ The WASI build writes it beside `_sysconfigdata__wasi_wasm32-wasi.py` in
 `cross-build/wasm32-wasip1/build/lib.wasi-wasm32-3.15/`, and `scripts/steps/70_zip.sh` copies only
 the latter, so `traceback` names a missing stdlib module only as "not found" (spec 078's build
 review, F2; the class `no-missing-stdlib-info` in `cpython-a` closes with it). A one-line
-build-class fix; it may ride with 086, which rebuilds anyway.
+build-class fix; it rides with 086 (built at 086's rebase onto 078, which closes the class).
 
 Reserved: 082, inline pytest sessions keep wasmtime's signal handlers: pass `-p no:faulthandler` to
 inline sessions, or run them as subprocesses (spec 080's review, F1: on Linux's serial unit tier,
@@ -187,7 +187,10 @@ host and removes spec 037's same-bytes exception (question 104). Question 105, a
 warnings and changes libc++'s ABI tag in mangled names; the memo lists what to check. Drafted
 2026-10-19: `specifications/086-the-toolchain-moves-to-wasi-sdk-34.md` (build-class; a trial of
 the move gave one `SHA256SUMS` from every host tried, and wasi-libc 34 changes `os.dup`'s errno,
-which a link-time refusal keeps at `ENOTSUP`); its pre-build review is next.
+which a link-time refusal keeps at `ENOTSUP`). Built, reviewed, then rebased onto 078 with the
+security review's S5 (`--with-hash-algorithm=siphash13`) and the zip's `_missing_stdlib_info`
+folded in, rebuilt (one `SHA256SUMS` from four builds on three hosts) and A/B-measured; its delta
+review is next.
 
 Reserved: 074 (what CPython's suite asks of the product; spec 065's follow-up A, build-class;
 before 0.1.0, since it closes classes in the gate the owner set): `sys.executable` empty;

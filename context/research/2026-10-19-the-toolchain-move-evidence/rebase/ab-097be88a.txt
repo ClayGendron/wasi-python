@@ -1,0 +1,106 @@
+# ab.py on four full judges (uv run pytest -n 3), one judge commit 3e3a6cfd3e on main 97be88a (078), darwin-arm64.
+# M = main's set (0.1.0a7's bytes, ab78e893; no build input changed since), T = wasi-sdk 34 (aac927dc), TZ = T + the zip's _missing_stdlib_info, F = TZ + siphash13 (4586ce2a). Rows: passing checks in both records.
+== M -> T
+fuel: 169 rows, 66 up and 100 down by >0.01%, median -0.097%, min -0.365%, max +2.706%, sum 2,829,751,335,195 -> 2,836,254,106,741 (+0.230%)
+  +2.706%  203,331,725,349 -> 208,833,545,393  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+  +1.430%  3,918,600,985 -> 3,974,654,769  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+  +0.621%  16,112,069 -> 16,212,147  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[snapshot]
+  +0.518%  1,213,059 -> 1,219,338  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+  +0.498%  164,648,434,127 -> 165,468,616,161  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-archives]
+  +0.487%  373,260,750 -> 375,077,478  tests/checks/test_v1_3_regex.py::test_regex_features_job_matches_native[snapshot]
+  +0.445%  59,778,645,587 -> 60,044,621,490  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[cpython-fs]
+  +0.377%  16,523,605 -> 16,585,901  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[snapshot]
+  -0.365%  20,057,200 -> 19,984,068  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[repr-list-of-self-snapshot]
+  -0.363%  30,712,199,754 -> 30,600,737,684  tests/checks/test_v1_3_lxml.py::test_encodings_are_wasi_libcs_as_documented
+  +0.355%  16,532,565 -> 16,591,181  tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[snapshot]
+  -0.351%  6,039,846,307 -> 6,018,669,311  tests/checks/test_v1_3_lxml.py::test_the_readmes_encoding_workaround_reads_what_iconv_cannot
+  +0.348%  21,210,781 -> 21,284,587  tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[snapshot]
+  -0.345%  4,919,200,297 -> 4,902,247,390  tests/checks/test_v1_3_data_stack.py::test_numpy_and_pandas_are_builtin_at_manifest_versions[plain]
+  -0.337%  788,501,325 -> 785,847,097  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-vectorize-snapshot]
+  -0.336%  927,894,455 -> 924,781,092  tests/checks/test_v1_3_data_stack.py::test_stdlib_debugging_tools_import
+  -0.335%  4,609,575,681 -> 4,594,124,293  tests/checks/test_v1_3_data_stack.py::test_callbacks_job_matches_native[snapshot]
+  -0.330%  779,711,749 -> 777,136,806  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-frompyfunc-snapshot]
+  -0.330%  785,452,110 -> 782,862,164  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[np-apply-along-axis-snapshot]
+  -0.328%  4,659,504,014 -> 4,644,202,582  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[pd-map-snapshot]
+bytes: 3 rows, 2 up and 0 down by >0.01%, median +0.139%, min -0.000%, max +0.164%, sum 107,930,817 -> 108,060,322 (+0.120%)
+  +0.164%  41,099,661 -> 41,167,259  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+  +0.139%  44,633,983 -> 44,695,908  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+  -0.000%  22,197,173 -> 22,197,155  tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated
+== T -> TZ
+fuel: 171 rows, 102 up and 22 down by >0.01%, median +0.015%, min -0.230%, max +1.094%, sum 2,836,485,875,042 -> 2,836,361,853,419 (-0.004%)
+  +1.094%  109,694,872 -> 110,894,651  tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[snapshot]
+  +0.397%  19,096,197 -> 19,172,045  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[eq-snapshot]
+  +0.377%  19,162,258 -> 19,234,524  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[getattr-snapshot]
+  +0.358%  16,359,027 -> 16,417,609  tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[snapshot]
+  +0.353%  292,834,696 -> 293,869,317  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[data first]
+  +0.353%  292,834,474 -> 293,869,087  tests/checks/test_v1_2_hostile_guest.py::test_extra_preopens_work_on_the_snapshot[root first]
+  +0.338%  17,253,637 -> 17,311,942  tests/checks/test_v1_3_the_zips_directory.py::test_the_zip_reader_is_ours_from_the_first_import[snapshot]
+  +0.331%  15,752,354 -> 15,804,474  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[snapshot]
+  +0.327%  15,753,484 -> 15,805,065  tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[snapshot]
+  +0.326%  15,662,601 -> 15,713,706  tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain
+  +0.326%  15,804,022 -> 15,855,489  tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[snapshot]
+  -0.230%  16,212,147 -> 16,174,900  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[snapshot]
+  +0.222%  19,074,302 -> 19,116,665  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[format-snapshot]
+  +0.210%  596,497,626 -> 597,749,899  tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[plain]
+  +0.204%  15,863,213 -> 15,895,561  tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[snapshot]
+  +0.201%  16,048,261 -> 16,080,484  tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[snapshot]
+  +0.200%  19,115,790 -> 19,153,960  tests/checks/test_v1_2_hostile_guest.py::test_recursion_through_python_raises[min-key-snapshot]
+  -0.168%  1,219,338 -> 1,217,285  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+  +0.166%  16,390,842 -> 16,418,120  tests/checks/test_v1_1_artifact_set.py::test_no_cpython_test_module_is_built_in
+  -0.162%  21,284,587 -> 21,250,045  tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[snapshot]
+bytes: 3 rows, 1 up and 0 down by >0.01%, median +0.007%, min +0.000%, max +0.033%, sum 108,060,322 -> 108,076,786 (+0.015%)
+  +0.033%  44,695,908 -> 44,710,875  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+  +0.007%  22,197,155 -> 22,198,652  tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated
+  +0.000%  41,167,259 -> 41,167,259  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+== TZ -> F
+fuel: 173 rows, 159 up and 12 down by >0.01%, median +0.737%, min -2.475%, max +1.836%, sum 3,111,696,122,216 -> 3,118,857,315,337 (+0.230%)
+  -2.475%  322,370,619 -> 314,390,851  tests/checks/test_v1_2_hostile_guest.py::test_pickling_a_deep_list_raises
+  +1.836%  168,010,254 -> 171,095,638  tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[snapshot]
+  +1.711%  194,636,079 -> 197,965,582  tests/checks/test_v1_3_regex.py::test_a_pickled_pattern_loads_back_equal[snapshot]
+  +1.703%  141,239,105 -> 143,644,539  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[plain]
+  +1.680%  172,885,284 -> 175,789,837  tests/checks/test_v1_3_regex.py::test_the_five_patched_callbacks_answer[snapshot]
+  +1.438%  167,687,568 -> 170,099,566  tests/checks/test_v1_3_the_zips_directory.py::test_a_plain_start_grows_at_most_30k_fuel_per_member
+  +1.430%  168,089,281 -> 170,492,778  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[plain]
+  +1.430%  167,636,130 -> 170,032,534  tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[plain]
+  +1.429%  167,715,669 -> 170,112,664  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]
+  +1.428%  167,744,134 -> 170,140,304  tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[plain]
+  +1.425%  168,512,022 -> 170,913,396  tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[plain]
+  +1.424%  168,324,739 -> 170,721,630  tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[plain]
+  +1.423%  168,169,520 -> 170,563,008  tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[plain]
+  +1.423%  167,829,964 -> 170,218,490  tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[plain]
+  +1.422%  168,442,398 -> 170,838,038  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]
+  +1.422%  168,282,675 -> 170,675,843  tests/checks/test_v1_4_embedding.py::test_a_file_dropped_into_a_stage_changes_nothing[plain]
+  +1.422%  168,590,284 -> 170,986,880  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_sees_only_its_root
+  +1.417%  167,997,064 -> 170,377,962  tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[plain]
+  +1.412%  173,028,479 -> 175,472,399  tests/checks/test_v1_3_matplotlib.py::test_kiwisolver_raises_unsatisfiable_constraint[plain]
+  +1.403%  173,228,981 -> 175,659,677  tests/checks/test_v1_4_embedding.py::test_file_facts_cost_the_same_on_every_run[plain]
+bytes: 3 rows, 1 up and 0 down by >0.01%, median +0.000%, min -0.001%, max +0.013%, sum 108,076,786 -> 108,082,389 (+0.005%)
+  +0.013%  44,710,875 -> 44,716,841  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+  -0.001%  41,167,259 -> 41,166,879  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+  +0.000%  22,198,652 -> 22,198,669  tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated
+== M -> F
+fuel: 169 rows, 164 up and 3 down by >0.01%, median +0.582%, min -2.519%, max +2.700%, sum 2,829,751,335,195 -> 2,842,765,145,801 (+0.460%)
+  +2.700%  203,331,725,349 -> 208,821,095,182  tests/checks/test_v1_3_upstream_suites.py::test_upstream_suite[numpy-core]
+  -2.519%  322,515,908 -> 314,390,851  tests/checks/test_v1_2_hostile_guest.py::test_pickling_a_deep_list_raises
+  +1.795%  141,111,996 -> 143,644,539  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[plain]
+  +1.704%  1,213,059 -> 1,233,735  tests/checks/test_v1_4_embedding.py::test_unbuffered_output_survives_a_hard_exit[snapshot]
+  +1.608%  109,943,792 -> 111,712,203  tests/checks/test_v1_4_embedding.py::test_uncaught_errors_print_as_native[snapshot]
+  +1.581%  168,432,314 -> 171,095,638  tests/checks/test_v1_1_artifact_set.py::test_regex_is_builtin_at_manifest_version[snapshot]
+  +1.564%  3,918,600,985 -> 3,979,904,168  tests/checks/test_v1_3_data_stack.py::test_compress_job_matches_native
+  +1.512%  168,132,918 -> 170,675,843  tests/checks/test_v1_4_embedding.py::test_a_file_dropped_into_a_stage_changes_nothing[plain]
+  +1.510%  167,956,615 -> 170,492,778  tests/checks/test_v1_4_embedding.py::test_door_round_trips_bytes_through_a_host[plain]
+  +1.510%  167,503,441 -> 170,032,534  tests/checks/test_v1_4_embedding.py::test_exit_status_is_a_process_status[plain]
+  +1.509%  167,610,339 -> 170,140,304  tests/checks/test_v1_4_embedding.py::test_run_returns_the_exit_code[plain]
+  +1.509%  168,183,693 -> 170,721,630  tests/checks/test_v1_1_artifact_set.py::test_stdlib_c_modules_are_builtin[plain]
+  +1.509%  168,372,675 -> 170,913,396  tests/checks/test_v1_4_embedding.py::test_door_without_a_host_says_so[plain]
+  +1.509%  167,584,146 -> 170,112,664  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_runs_here[plain]
+  +1.508%  167,572,846 -> 170,099,566  tests/checks/test_v1_3_the_zips_directory.py::test_a_plain_start_grows_at_most_30k_fuel_per_member
+  +1.508%  168,029,607 -> 170,563,008  tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[plain]
+  +1.506%  168,450,491 -> 170,986,880  tests/checks/test_v1_2_portable_and_sealed.py::test_guest_sees_only_its_root
+  +1.506%  168,303,941 -> 170,838,038  tests/checks/test_v1_4_embedding.py::test_a_program_sees_real_entropy_and_file_metadata[plain]
+  +1.503%  167,697,989 -> 170,218,490  tests/checks/test_v1_4_embedding.py::test_main_starts_as_native[plain]
+  +1.499%  167,862,412 -> 170,377,962  tests/checks/test_v1_4_embedding.py::test_run_reads_argv_and_environment_each_call[plain]
+bytes: 3 rows, 2 up and 0 down by >0.01%, median +0.164%, min +0.007%, max +0.186%, sum 107,930,817 -> 108,082,389 (+0.140%)
+  +0.186%  44,633,983 -> 44,716,841  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[snapshot]
+  +0.164%  41,099,661 -> 41,166,879  tests/checks/test_v1_1_artifact_set.py::test_binary_is_a_core_wasm_module[plain]
+  +0.007%  22,197,173 -> 22,198,669  tests/checks/test_v1_1_artifact_set.py::test_stdlib_zip_is_bytecode_only_and_deflated
