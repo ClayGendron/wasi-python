@@ -50,6 +50,16 @@ MUTANTS = [
         "for k, cap in maximums.items() if c[k] > cap]",
         "for k, cap in maximums.items() if False]",
     ),
+    # The build review's L1: five more rules, each with its own row.
+    (
+        "C: pointer fields in static memory",
+        "if w[off // 4] and not _static(image, w[off // 4])",
+        "if False",
+    ),
+    ("D: the size bounds", "if w[4] >= 1 << 20 or w[5] >= 1 << 16:", "if False:"),
+    ("F: does not read as a PyModuleDef", "if v and v not in mod.elements", "if False"),
+    ("G: the C string's 256-byte bound", r"[\x20-\x7e]{1,256}\0", r"[\x20-\x7e]+\0"),
+    ("J: an unknown module slot id", "(entry[0] and entry[0] not in MODULE_SLOT_IDS)", "False"),
 ]
 src = (repo / "tests" / "harness" / "callbacks.py").read_text()
 for label, old, new in MUTANTS:
