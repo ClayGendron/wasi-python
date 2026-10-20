@@ -1,16 +1,57 @@
 # Weak definitions that more than one archive of python.wasm's link defines, each read by a review
 # and allowed (spec 044, Decision 6; scripts/weak_duplicates.py, run by step 60 before the link).
 #
-# One fnmatch pattern per line, matched against the symbol's name and its demangled form, and on
-# the same line `# <reason>`: which archives define it, why their copies are the same code (one
-# header, one pinned version, no state of its own), and the specification that added it. A pattern
-# without a reason stops the build, and so does a pattern that matches no weak definition of the
-# link, so this list never outlives what it allows. A line that starts with `#` is a comment.
+# One pattern per line, and on the same line `# <reason>`: which pinned header the code comes from,
+# which archives compile it, and why their copies are the same code (one header, one pinned
+# version, one compiler and one set of flags, so one definition). A pattern is fnmatch, against the
+# symbol's name and its demangled form, or `scope:<pattern>`, against a C++ name's outermost scope
+# (its namespace or class). A pattern without a reason stops the build, and so does a pattern that
+# matches no weak definition of the link, so this list never outlives what it allows. A line that
+# starts with `#` is a comment.
 #
-# Allowed by rule, never listed here: the C++ standard library (mangled names in std::, with their
-# vtables, type information and guard variables), the C++ runtime's __cxa_* and __cxxabiv1::, and
-# clang's __clang_call_terminate.
+# Allowed by rule, never listed here: the C++ standard library (a mangled name whose outermost
+# scope is std::, with its vtables, type information, guard variables and the lambdas inside its
+# functions), the C++ runtime's __cxa_* and __cxxabiv1::, and clang's __clang_call_terminate.
 #
-# Never to be listed: a weak definition with C linkage that reads or writes state of its own file,
-# as scikit-learn's bounded_rand_int does (svm/src/newrand/newrand.h); such a name is renamed per
-# file instead (recipes/sklearn-renames/).
+# Never to be listed: a weak definition with C linkage whose copies differ, or that keeps state of
+# its own file, as scikit-learn's bounded_rand_int does (svm/src/newrand/newrand.h); such a name is
+# renamed per file instead (recipes/sklearn-renames/). Each C-linkage entry below says why it is
+# neither.
+#
+# The first link with this gate (spec 044's build, 2026-10-20) found 1,186 such names in 270
+# archives, all but one from packages already on main; scikit-learn's one, a lambda inside
+# std::vector<int>::emplace_back in _hashing_fast and _vector_sentinel, is the std:: rule's.
+
+# pybind11 3.1.0: header-only, from the pinned pybind11-3.1.0-py3-none-any.whl that steps 55 and 57
+# unpack, compiled into contourpy, seven matplotlib modules (_backend_agg, _c_internal_utils,
+# _image, _path, _qhull, _tri, ft2font) and six scipy modules (fft._duccfft.pyduccfft,
+# io._fast_matrix_market._fmm_core, optimize._highspy._core and _highs_options, optimize._pava_pybind,
+# spatial._distance_pybind).
+scope:pybind11  # pybind11 3.1.0's templates and inline functions (include/pybind11/*.h): the same header text, compiler and flags in every module, so the same code; their function-local statics (the internals instance and its key) become one copy for all modules, as pybind11's capsule in builtins already makes one internals for every module of one version
+scope:pybind11_meta_dealloc  # a lambda inside pybind11_meta_dealloc, which pybind11 3.1.0 defines `extern "C" inline` at include/pybind11/detail/class.h:209: one header, one definition, in the same fourteen modules
+pybind11_*  # C linkage, by pybind11's design: the thirteen `extern "C" inline` type slots of pybind11 3.1.0's include/pybind11/detail/class.h (pybind11_static_get at :50 to pybind11_releasebuffer at :726), the same inline code in each of the fourteen modules; each works on the objects it is passed and keeps no state of its own file
+
+# numpy's API table for f2py, made weak on purpose by spec 037.
+_npy_f2py_ARRAY_API  # C linkage, data: f2py's numpy API pointer, which recipes/scipy_f2py_weak_api.h makes weak in scipy.linalg._fblas and _flapack (spec 037, Decision 6) so the link keeps one; each module's import_array() writes the same numpy table into it, and fortranobject.c's strong reference still fails a link that has none
+_npy_f2py_ARRAY_APIPyArray_RUNTIME_VERSION  # C linkage, data: numpy 2.5.2's PyArray_RUNTIME_VERSION under the same f2py prefix (numpy/_core/include/numpy/__multiarray_api.h, declared with NPY_API_SYMBOL_ATTRIBUTE), weak by the same recipe in the same two modules; import_array() writes numpy's one runtime version into it
+
+# scipy 1.18.1's special functions: the xsf subproject's headers.
+scope:xsf  # scipy 1.18.1's subprojects/xsf/include/xsf/*.h, inline templates and functions in scipy.special's _gufuncs, _specfun, _special_ufuncs, _ufuncs, _ufuncs_cxx and cython_special; recipes/scipy_special_xsf.h makes the forty non-inline ones inline on purpose (spec 037), so the link keeps one definition and nothing computes differently
+scope:Faddeeva  # the Faddeeva functions of scipy 1.18.1's subprojects/xsf/include/xsf/faddeeva.h, in scipy.special's _special_ufuncs, _ufuncs and cython_special, inline under the same recipe header
+
+# HiGHS, from scipy 1.18.1's subprojects/highs: the library (libhighs.a) and its two binding modules
+# (scipy.optimize._highspy._core and _highs_options) include the same headers.
+scope:Highs*  # HiGHS classes (Highs, HighsLp, HighsLpMods, HighsOptions, HighsOptionsStruct, HighsInfo, HighsInfoStruct, HighsBasis, HighsModel, HighsSolution, HighsSparseMatrix and the rest) declared in subprojects/highs/highs/Highs.h and lp_data/*.h: in-class member functions and implicit constructors, destructors and assignments, emitted from one header in libhighs.a and the binding modules
+scope:InfoRecord*  # InfoRecord and its Int, Int64 and Double kinds, in subprojects/highs/highs/lp_data/HighsInfo.h: in-class constructors and virtual destructors, one header in libhighs.a and _highspy._core
+scope:OptionRecord*  # OptionRecord and its Bool, Int, Double and String kinds, in subprojects/highs/highs/lp_data/HighsOptions.h: in-class constructors and virtual destructors, one header in libhighs.a and both binding modules
+
+# matplotlib 3.11.2's own headers, included by several of its modules.
+scope:agg  # Agg 2.4 from matplotlib 3.11.2's extern/agg24-svn/include: rasterizer, scanline and image-filter templates, and agg_gamma_lut.h's sRGB_conv_base lut tables with their guards, filled by the reviewed __cxx_global_var_init constructors with the same pow() values; in _backend_agg, _image and _path
+scope:mpl  # mpl::PathIterator and its helpers, inline in matplotlib 3.11.2's src/py_adaptors.h, in _backend_agg and _path
+scope:PathClipper  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
+scope:PathNanRemover  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
+scope:PathSimplifier  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
+scope:PathSnapper  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
+scope:Sketch  # a class template of matplotlib 3.11.2's src/path_converters.h, instantiated alike in _backend_agg and _path
+scope:check_trailing_shape  # a function template of matplotlib 3.11.2's src/mplutils.h, instantiated for pybind11::array_t<double> in _backend_agg and _path
+_ZTSA19_c  # "typeinfo name for char [19]", in _backend_agg and ft2font: the compiler's name string for a built-in type, whose bytes are that type's mangled name, so every copy is equal
