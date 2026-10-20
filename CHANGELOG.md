@@ -50,8 +50,8 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   the 0.1.0 security review's S3). Only a source checkout of wasi-python (`src/wasi_python/`
   beside a `pyproject.toml` naming it) prefers its `build/artifacts/`; a copy installed with
   `pip install --target`, or vendored, inside a project uses its own set. `run` and `Session`
-  check the set they find against its `SHA256SUMS` before using it and raise `ArtifactsMissing`
-  on a difference; a set passed as `artifacts=` is the caller's own, as before. No public name,
+  check the set they find against its `SHA256SUMS` before using it, compile and grant only the
+  bytes they checked, and raise `ArtifactsMissing` on a difference; a set passed as `artifacts=` is the caller's own, as before. No public name,
   signature or default changes.
 
 ## 0.1.0a7 — 2026-10-19

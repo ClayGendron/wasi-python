@@ -709,9 +709,13 @@ beside a `pyproject.toml` that names it), that checkout's
 `build/artifacts/`, else the wheel's own copy; a copy installed with
 `pip install --target` or vendored never takes a neighbouring `build/`.
 `run` and `Session` check the set they find against its `SHA256SUMS`
-before using it. A folder named by `$WASI_PYTHON_ARTIFACTS`, and a set
-passed as `artifacts=`, are trusted input: keep them where only you can
-write.
+before using it, and compile and grant only the bytes they checked. The
+check catches a file changed or half-written since the build, not a set
+rewritten whole with its `SHA256SUMS`: where the set lives is what keeps
+it safe. So a folder named by `$WASI_PYTHON_ARTIFACTS`, a checkout's
+`build/`, and a set passed as `artifacts=` (even one from `artifacts()`,
+which skips the check) are trusted input: keep them where only you can
+write, and out of any writable grant.
 
 `run` runs each guest on a thread of its own, made for the call, with 10 MiB of stack, 8 MiB of
 it for wasm (spec 078), and checks that thread's stack before any wasm runs; the calling thread's

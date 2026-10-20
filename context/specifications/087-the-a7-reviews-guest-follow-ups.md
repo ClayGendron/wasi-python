@@ -1,6 +1,6 @@
 # 087 — the 0.1.0a7 review's guest follow-ups
 
-- **Status:** **built** 2026-10-19 on `2abcba0` (rebased onto main `91eb2c7`; full judge 0 fail, lost 0, grew 2 bytes; dry run 39346784823, its only red lines the two growth lines; see *Landing notes*). Drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
+- **Status:** **built** 2026-10-19 on `2abcba0`; rebased onto main `8c07ad4` and the build review's F1 to F3 and F8 answered (*After the build review*, at the end); the full judge on the rebased commit waits for the coordinator. Built (rebased onto main `91eb2c7`; full judge 0 fail, lost 0, grew 2 bytes; dry run 39346784823, its only red lines the two growth lines; see *Landing notes*). Drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
   with its research; reviewed before build the same day
   (`scratchpad/087-review/087-the-a7-reviews-guest-follow-ups-spec-2026-10-19.md`, for the lane to
   copy to `../reviews/`; verdict: "ready once F1 to F5 are written in, and the spec is rebased on
@@ -399,8 +399,13 @@ were measured, and a template with much heavier C frames per level could still t
   (INFERRED from 078's Decision 1; the builder runs the table once on 078's driver if 078 has
   landed). Both edit `tests/harness/guest.py` (078 the engine and `run()`'s thread; 087 one keyword)
   and `test_v1_2_hostile_guest.py` (078 restates `test_deep_data_limits`; 087 adds a separate
-  check): textual merges. **083** (the driver answers file timestamps) edits `guest.py` too; also
-  textual. The README follows Decision 8. **Expected order:** 078 first. It is
+  check): textual merges. **083** (the driver answers file timestamps) edits `guest.py` too; the
+  merge is textual, but not right as it falls (the build review's F3): 083's `FileFacts` draws a
+  file's times from the same `ticks` as the clocks, with `CLOCK_STEP_NS`. After the rebase onto
+  main `8c07ad4` it uses `clock_step_ns`, so a file's times follow a changed step as the clocks do;
+  `tests/unit/test_guest.py::test_a_files_times_follow_the_runs_clock_step` holds it with
+  `wat.FILE_TIME_PROBE` (seen failing on the merged driver: a file dated 3,997 µs behind the
+  clock at a 2 ms step). The README follows Decision 8. **Expected order:** 078 first. It is
   parallel-safe and ready; 087 is build-class and waits for a build slot. Either order works.
 - **086** (wasi-sdk 34, reserved): re-measures Decision 6's table; Decision 6 leaves the margin.
 - **065** (landed, `a4b46de`): no overlap. 087 adds no upstream suite group (`tests/upstream/` is
@@ -441,8 +446,16 @@ and then the wheel's own `artifacts/` are the only places, as before.
   each against the set's own `SHA256SUMS` (written by step 90; the wheel carries it, since the
   release copies the whole `build/artifacts/`). A file that differs, is not listed, or a set with
   no `SHA256SUMS`, raises `ArtifactsMissing` naming the file, before anything is compiled. The
-  digests are the ones `_module` and `_zip_folder` already take per file stamp, so the check costs
-  two small reads a call.
+  digests are kept per file stamp, so the check costs two small reads a call.
+- **The checked digests bind the bytes the call uses** (the build review's F1, taken). The check
+  hands its binary and zip digests on. `_module` compiles a found set's binary only from bytes read
+  once and hashed to the checked digest (`wasmtime.Module(engine, data)`), and writes the `.cwasm`
+  under that digest only from them; `_zip_folder` holds the guest's private copy of the zip to the
+  checked digest. So a file swapped after the check, by a writer of the set's folder during the
+  call, is refused (`ArtifactsMissing`, or the zip copy's `RuntimeError`), never run, and never
+  left in the module cache. Three unit rows in `tests/unit/test_runner_sets.py` hold the review's
+  cases a, b (with c: the set put right compiles anew) and z; each was seen failing on the
+  runner before it. A set the caller passes keeps today's path.
 - **What the check does and does not do.** It refuses a changed or half-written file. It does not
   stop a guest that writes a whole consistent set, `SHA256SUMS` included: the location rule does
   that. Both are needed; neither alone is the fix.
@@ -451,7 +464,9 @@ and then the wheel's own `artifacts/` are the only places, as before.
   beside the real `MANIFEST` this way (`test_the_door_bounds_every_frame`,
   `test_an_old_artifact_set_is_named`, `test_an_artifact_set_without_the_guest_package_is_refused`).
   Checking such a set would break the API and those checks, so it is not checked; the README says
-  that `$WASI_PYTHON_ARTIFACTS` and a passed set are trusted input. This is the one place S3's
+  that `$WASI_PYTHON_ARTIFACTS`, a checkout's `build/` and a passed set (even one from
+  `artifacts()`) are trusted input, and that the check catches a changed or half-written file, not
+  a set rewritten whole with its `SHA256SUMS` (the build review's F2). This is the one place S3's
   brief ("any set it does load") is narrowed, and why.
 - **No public signature changes**; `tests/public_api.txt` is unchanged. The docstrings of `run`,
   `run_async` and `Session` and of `artifact_dir` say it, and the README's reference is
@@ -794,7 +809,7 @@ The accepting texts, for the lane:
 
 ```
 --accept "spec 087: regex's timeout= fires past 2.147 s (carried patch 0002), checks for the README's lxml DENY_ALL sentences and 512 KiB recursion rows, and S3: an installed copy never takes a neighbouring artifact set, and a found set is checked against its SHA256SUMS"
---accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), the README's 512 KiB recursion rows on an engine at wasmtime's defaults, and S3's checks (tests/test_api.py's installed-copy layouts, tests/unit/test_runner_sets.py, added to the own-runner shard in tests/release_shards.toml); no existing expectation edited"
+--accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), the README's 512 KiB recursion rows on an engine at wasmtime's defaults, and S3's checks (tests/test_api.py's installed-copy layouts, tests/unit/test_runner_sets.py, with the build review's swap cases, added to the own-runner shard in tests/release_shards.toml); after the rebase onto 083, the driver's file times follow clock_step_ns, with a WAT probe and a unit row; no existing expectation edited"
 --accept-growth "spec 087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +202 bytes (41,099,661 -> 41,099,863) and the snapshot +202 bytes (44,633,983 -> 44,634,185); LICENSES/regex.txt one line; MANIFEST one recipe line"
 ```
 
@@ -829,3 +844,29 @@ rule 2. A dry run on main after acceptance is the lane's (rule 6b).
 6. **"In a clean clone"** (criterion 2): the local full build ran from an empty `build/` in the
    worktree; the dry run's two Linux rebuilds and the macOS build are the clean clones, and they
    agree.
+
+### After the build review (2026-10-19)
+
+The build review (`scratchpad/087-buildreview/087-the-a7-reviews-guest-follow-ups-build-2026-10-19.md`,
+for the lane to copy to `../reviews/`; verdict "lands once F2 and F3") is answered on the branch
+rebased onto main `8c07ad4` (089 and 083 landed; the only conflict was `CHANGELOG.md`, both
+entries kept). main changed no build input since `91eb2c7` (`scripts/`, `recipes/`, `downloads/`,
+`src/`, the workflow), so the set above stands and was not rebuilt.
+
+- **F3, fixed:** the merged driver's file times take `clock_step_ns` (Decision 9), with a unit row
+  seen failing first (−3,997 µs) and the driver's docstring saying so.
+- **F2, fixed:** the README's runner paragraph says what the check catches and what it does not,
+  and names a checkout's `build/` and `run(artifacts=artifacts())` as trusted input.
+- **F1, taken:** the checked digests bind the compiled bytes and the guest's zip (Decision 10),
+  with three unit rows seen failing first on the runner before it.
+- **F4, a follow-up:** `modified_notice` writes "the module is otherwise compiled as released"
+  after each patch line; with two patches it should say it once, after the last. It changes
+  `LICENSES/regex.txt` and so the set's name, so it waits for the next build-class specification
+  that reassembles the set (roadmap line for the lane).
+- **F8, fixed:** `Session`'s `artifacts` docstring continues at 16 spaces.
+- **F5 to F7, notes:** F5's `cpython-c` growth is the pre-083 base's noise, so the lane's records
+  are taken on the rebased commit; F6 (a zip literally named `src`) needs an embedder to make it,
+  never a guest; F7 is criterion 9 as the lane's own dry run on main settles it.
+
+These touch only `tests/`, `src/`, `README.md` and this file; no fuel row a check records moves
+by them, and the judge's full run waits for the coordinator's go (the machine is saturated).

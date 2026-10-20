@@ -73,3 +73,65 @@ def test_a_set_the_caller_passes_is_its_own(found) -> None:
     (found / "SHA256SUMS").unlink()
     given = wasi_python.artifacts()
     assert runner.run([], artifacts=given, cache_dir=False).exit_code == 101
+
+
+# Spec 087's build review, F1: a file swapped after the check, by a writer of the set's folder
+# during a call, is refused too; the checked digest binds the bytes the call compiles and the
+# zip the guest reads, and a .cwasm is written only from checked bytes.
+PLANTED = wat.SNAPSHOT.replace(wat.DOOR_RUN, '(func (export "run") (result i32) (i32.const 42))')
+
+
+@pytest.fixture
+def fresh(monkeypatch) -> None:
+    """No module or zip this process already holds, so each case compiles and copies anew."""
+    monkeypatch.setattr(runner, "_modules", {})
+    monkeypatch.setattr(runner, "_zips", {})
+
+
+def _swap_after_check(monkeypatch, swap) -> None:
+    real = runner._found_and_checked
+
+    def checked_then_swapped(snapshot):
+        out = real(snapshot)
+        swap()
+        return out
+
+    monkeypatch.setattr(runner, "_found_and_checked", checked_then_swapped)
+
+
+def test_a_binary_swapped_after_the_check_is_not_compiled(found, fresh, monkeypatch) -> None:
+    _swap_after_check(monkeypatch, lambda: wat.build(found, "python-snapshot.wasm", PLANTED))
+    before = runner.stats()["compiled"]
+    with pytest.raises(ArtifactsMissing, match="changed after it was checked"):
+        runner.run([], cache_dir=False)
+    assert runner.stats()["compiled"] == before
+
+
+def test_a_binary_swapped_before_its_compile_leaves_no_cwasm(found, fresh, work, monkeypatch):
+    cache = work / "cache"
+    cache.mkdir(mode=0o700)
+    good = (found / "python-snapshot.wasm").read_bytes()
+    real = runner._module_miss
+
+    def swapped_first(*args):
+        wat.build(found, "python-snapshot.wasm", PLANTED)
+        return real(*args)
+
+    monkeypatch.setattr(runner, "_module_miss", swapped_first)
+    with pytest.raises(ArtifactsMissing, match="changed after it was checked"):
+        runner.run([], cache_dir=cache)
+    assert list(cache.glob("*.cwasm")) == []
+    monkeypatch.setattr(runner, "_module_miss", real)
+    (found / "python-snapshot.wasm").write_bytes(good)  # the set put right
+    assert runner.run([], cache_dir=cache).exit_code == 101  # the checked module, cached anew
+    assert len(list(cache.glob("*.cwasm"))) == 1
+
+
+def test_a_zip_swapped_after_the_check_never_reaches_the_guest(found, fresh, monkeypatch) -> None:
+    def swap() -> None:
+        with zipfile.ZipFile(found / "python-stdlib.zip", "w") as z:
+            z.writestr("sitecustomize.py", "print('planted')\n")
+
+    _swap_after_check(monkeypatch, swap)
+    with pytest.raises(RuntimeError, match="is not the artifact set's"):
+        runner.run([], cache_dir=False)

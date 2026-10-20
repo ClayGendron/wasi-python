@@ -365,6 +365,19 @@ def _listing(data: bytes) -> dict[bytes, tuple[int, bytes]]:
     return out
 
 
+@pytest.mark.parametrize("step_ns", [guest.CLOCK_STEP_NS, 2_000_000])
+def test_a_files_times_follow_the_runs_clock_step(work, step_ns) -> None:
+    """Spec 087's build review, F3: a file first seen after two clock reads is dated one step
+    after the second, at the default step and at a changed one, since its times come from the
+    same stepped clock (spec 083)."""
+    grant = work / "grant"
+    grant.mkdir()
+    (grant / "f").write_bytes(b"x")
+    wasm = wat.build(work, "ftime.wasm", wat.FILE_TIME_PROBE)
+    r = guest.run(wasm, [], workdir=work, preopens=[("/g", grant, True)], clock_step_ns=step_ns)
+    assert r.exit_code == step_ns // 1000, r.describe()
+
+
 def test_a_files_times_and_inode_are_the_drivers(work) -> None:
     """Spec 083, Decisions 2 and 3: two runs over a file made afresh with other host times send
     the same answers (but `ctim`, which hosts move by their own rules) and spend the same fuel.

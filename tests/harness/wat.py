@@ -267,6 +267,26 @@ TURNS = f"""
 """
 
 
+# Spec 087 (its build review's F3): run() reads the realtime clock twice, then stats `f` in the
+# grant at fd 4, and returns (its mtim - the second read) in µs: one step when a file's times
+# follow the run's clock step, as 083's driver draws them from the same ticks.
+FILE_TIME_PROBE = f"""
+(module
+  (import "{WASI}" "clock_time_get" (func $clock (param i32 i64 i32) (result i32)))
+  (import "{WASI}" "path_filestat_get" (func $pstat (param i32 i32 i32 i32 i32) (result i32)))
+  (memory (export "memory") 1)
+  (data (i32.const 16) "f")
+  (func (export "run") (result i32)
+    (drop (call $clock (i32.const 0) (i64.const 0) (i32.const 304)))
+    (drop (call $clock (i32.const 0) (i64.const 0) (i32.const 312)))
+    (if (call $pstat (i32.const 4) (i32.const 0) (i32.const 16) (i32.const 1) (i32.const 8192))
+      (then (return (i32.const -1))))
+    (i32.wrap_i64 (i64.div_s
+      (i64.sub (i64.load (i32.const 8240)) (i64.load (i32.const 312)))
+      (i64.const 1000)))))
+"""
+
+
 # Spec 083: what a guest learns about a file, through the judge's driver. `run` stats `f` in the
 # grant at fd 4 (after filling the result with 0xAA), stats it again after the host changes it
 # (the door call between), opens and reads it and stats it by descriptor after the host reads it

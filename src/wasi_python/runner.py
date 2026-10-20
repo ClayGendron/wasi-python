@@ -1901,8 +1901,11 @@ class _ZipFolder:
     name: str  # the zip's name, python3XY.zip
 
 
-def _zip_folder(found: Artifacts) -> _ZipFolder:
-    want = _digest(found.stdlib_zip)
+def _zip_folder(found: Artifacts, want: str | None = None) -> _ZipFolder:
+    # A found set's zip comes with the digest its SHA256SUMS check took: the private copy, the
+    # only zip the guest reads, is held to it, so a zip changed after the check never reaches the
+    # guest (spec 087's build review, F1).
+    want = want if want is not None else _digest(found.stdlib_zip)
     name = f"python{_version_tag(found.manifest)}.zip"
     with _zip_lock:
         entry = _zips.get(want)
@@ -2369,7 +2372,7 @@ def _run_checked(
     cache_dir: str | os.PathLike[str] | None | bool,
     artifacts: Artifacts | None,
 ) -> Completed:
-    found = artifacts if artifacts is not None else _found_and_checked(snapshot)
+    found, checked = (artifacts, None) if artifacts is not None else _found_and_checked(snapshot)
     if c.get("tools") is not None and not _has_guest_package(found.manifest):
         from . import ArtifactsMissing
 
@@ -2391,8 +2394,10 @@ def _run_checked(
             _after_walk()
         binary = found.snapshot if snapshot else found.plain
         engine = _engine(c["fuel"] is not None)
-        module = _module(engine, c["fuel"] is not None, binary, cache)
-        root_path, private = _preopens(found, root, walked_root, walked, preopens)
+        want = None if checked is None else checked.binary
+        module = _module(engine, c["fuel"] is not None, binary, cache, want)
+        zip_want = None if checked is None else checked.zip
+        root_path, private = _preopens(found, root, walked_root, walked, preopens, zip_want)
         return _call(wt, engine, module, root_path, preopens, c, host)
     finally:
 
@@ -2414,12 +2419,14 @@ def _preopens(
     walked_root: _Walked | None,
     walked: list[tuple[str, Grant, _Walked]],
     preopens: list[_Preopen],
+    zip_want: str | None = None,
 ) -> tuple[Path | None, _Private | None]:
     """The zip's folder, matplotlib's data, the root and the grants, appended to `preopens` in
     the order wasmtime opens them; (the root's path, a private root to remove or None). Shared by
-    a call and a session's opening (spec 055)."""
+    a call and a session's opening (spec 055). `zip_want` is the zip's checked digest, for a set
+    the runner found (spec 087, Decision 10)."""
     _sweep_once()
-    folder = _zip_folder(found)
+    folder = _zip_folder(found, zip_want)
     preopens.append(
         _Preopen("the stdlib folder", _walk("", str(folder.lib), judge=False), ZIP_GUEST, False)
     )
@@ -4240,12 +4247,21 @@ def _trap_handlers_ready(
 SET_SUMS = "SHA256SUMS"  # beside MANIFEST in every set the build writes (spec 003, step 90)
 
 
-def _found_and_checked(snapshot: bool) -> Artifacts:
+class _Checked(NamedTuple):
+    """The digests a found set's check took, which the call then holds its bytes to."""
+
+    binary: str
+    zip: str
+
+
+def _found_and_checked(snapshot: bool) -> tuple[Artifacts, _Checked]:
     """The set `artifacts()` finds, its MANIFEST, the binary this call runs and the stdlib zip
     each checked against the set's own SHA256SUMS before any is used (spec 087, Decision 10, the
     0.1.0 security review's S3). A changed or half-written file is refused, not compiled. The
-    digests are the ones `_module` and `_zip_folder` take anyway, kept per file stamp, so a later
-    call reads only the two small files again. A set the caller passes is the caller's own."""
+    digests are kept per file stamp, so a later call reads only the two small files again. They
+    are handed on: `_module` compiles only bytes with the checked digest, and `_zip_folder` holds
+    the guest's private copy of the zip to it, so a file changed after the check is refused too,
+    and never reaches the guest or the .cwasm cache. A set the caller passes is the caller's own."""
     from . import ArtifactsMissing
 
     found = find_artifacts()
@@ -4263,6 +4279,7 @@ def _found_and_checked(snapshot: bool) -> Artifacts:
         if len(parts) == 2:
             sums[parts[1].lstrip("*")] = parts[0].lower()
     binary = found.snapshot if snapshot else found.plain
+    got_of: dict[Path, str] = {}
     for path in (found.manifest, binary, found.stdlib_zip):
         want = sums.get(path.name)
         if want is None or path.parent != found.manifest.parent:
@@ -4276,7 +4293,8 @@ def _found_and_checked(snapshot: bool) -> Artifacts:
                 f"{path} does not match {sums_path} (SHA-256 {got[:16]}…, listed {want[:16]}…): "
                 "the set changed after it was built; rebuild or reinstall it"
             )
-    return found
+        got_of[path] = got
+    return found, _Checked(got_of[binary], got_of[found.stdlib_zip])
 
 
 def _digest(path: Path) -> str:
@@ -4292,17 +4310,23 @@ def _digest(path: Path) -> str:
 
 
 def _module(
-    engine: wasmtime.Engine, metered: bool, binary: Path, cache: Path | None
+    engine: wasmtime.Engine,
+    metered: bool,
+    binary: Path,
+    cache: Path | None,
+    want: str | None = None,
 ) -> wasmtime.Module:
     """The compiled module: from this process, else the .cwasm cache, else compiled and cached.
 
     A .cwasm is native code that wasmtime runs as it finds it, so the cache is used only where no
     one else can write: on POSIX, a directory and files owned by this user and writable by no one
     else (the directory is made 0700, the files 0600). Anything else is ignored, with a warning,
-    and the module is compiled in this process."""
+    and the module is compiled in this process. `want` is a found set's checked digest (spec 087,
+    Decision 10): the module is then compiled from bytes read once and held to it, and the
+    .cwasm under that digest is written only from them."""
     import wasmtime as wt
 
-    digest = _digest(binary)
+    digest = want if want is not None else _digest(binary)
     with _lock:
         mod = _modules.get((metered, digest))
         guard = _compiling.setdefault((metered, digest), threading.Lock())
@@ -4315,14 +4339,20 @@ def _module(
             mod = _modules.get((metered, digest))
         if mod is not None:
             return mod
-        return _module_miss(wt, engine, metered, binary, cache, digest)
+        return _module_miss(wt, engine, metered, binary, cache, digest, want is not None)
 
 
 _compiling: dict[tuple[bool, str], threading.Lock] = {}
 
 
 def _module_miss(
-    wt: Any, engine: wasmtime.Engine, metered: bool, binary: Path, cache: Path | None, digest: str
+    wt: Any,
+    engine: wasmtime.Engine,
+    metered: bool,
+    binary: Path,
+    cache: Path | None,
+    digest: str,
+    held: bool = False,
 ) -> wasmtime.Module:
     flavor = "fuel" if metered else "plain"
     mod = None
@@ -4338,7 +4368,19 @@ def _module_miss(
             mod = None  # stale or foreign: compiled again below and replaced
             cwasm.unlink(missing_ok=True)
     if mod is None:
-        mod = wt.Module.from_file(engine, str(binary))
+        if held:
+            data = binary.read_bytes()
+            if hashlib.sha256(data).hexdigest() != digest:
+                from . import ArtifactsMissing
+
+                raise ArtifactsMissing(
+                    f"{binary} changed after it was checked against its set's SHA256SUMS; "
+                    "it is not compiled"
+                )
+            mod = wt.Module(engine, data)
+            del data
+        else:
+            mod = wt.Module.from_file(engine, str(binary))
         with _lock:
             _counts["compiled"] += 1
         if cwasm is not None and not cwasm.exists():
@@ -5215,7 +5257,7 @@ def _open_session(
 ) -> None:
     """Decision 6: find the set and refuse one without the session exports, walk and judge the
     folders, make the store and instantiate it; no guest code runs."""
-    found = artifacts if artifacts is not None else _found_and_checked(snapshot)
+    found, checked = (artifacts, None) if artifacts is not None else _found_and_checked(snapshot)
     from . import ArtifactsMissing
 
     if c.get("tools") is not None and not _has_guest_package(found.manifest):
@@ -5228,7 +5270,7 @@ def _open_session(
     binary = found.snapshot if snapshot else found.plain
     metered = c["fuel"] is not None
     engine = _engine(metered)
-    module = _module(engine, metered, binary, cache)
+    module = _module(engine, metered, binary, cache, None if checked is None else checked.binary)
     names = {e.name for e in module.exports}
     missing = [n for n in SESSION_EXPORTS if n not in names]
     if missing:
@@ -5243,7 +5285,8 @@ def _open_session(
     preopens: list[_Preopen] = []
     home = _Home()  # this thread, while the opening's wasm runs on a guest thread (spec 078)
     try:
-        root_path, state.private = _preopens(found, root, walked_root, walked, preopens)
+        zip_want = None if checked is None else checked.zip
+        root_path, state.private = _preopens(found, root, walked_root, walked, preopens, zip_want)
         state.walked += [p.walked for p in preopens]
         mounts: tuple[Mount, ...] = c.get("mounts", ())
         tmp, tmp_fd = _home_folder(root_path, preopens, tuple(m.guest for m in mounts))
@@ -5451,8 +5494,8 @@ class Session:
             cache_dir: Where compiled modules are kept as .cwasm files, a folder only you can
                 write. `None` or `True` uses `$WASI_PYTHON_CACHE`, else the user's cache folder;
                 `False` keeps them in this process only, never on disk.
-            artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks it
-            against its SHA256SUMS first. A set you pass is used as you give it.
+            artifacts: The artifact set to run; `None` finds it with `artifacts()` and checks
+                it against its SHA256SUMS first. A set you pass is used as you give it.
             max_file_calls: The most provider calls each turn with mounts makes; then it ends
                 "out of file calls". Default: `defaults().file_calls`, 10,000. `None` means no
                 limit.

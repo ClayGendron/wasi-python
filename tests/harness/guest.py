@@ -569,7 +569,8 @@ def run(
     refused before anything runs when its inputs name a host path under the checkout, the
     system's temp folder or `host_roots` (spec 081): its fuel would depend on where they are.
     Each clock read advances the guest's clocks by `clock_step_ns`, so a guest's elapsed time is a
-    count of its reads (spec 087, Decision 3). The default keeps every other check's fuel; at the
+    count of its reads (spec 087, Decision 3), and the file times the driver answers take the same
+    step (spec 083's ticks). The default keeps every other check's fuel; at the
     default, `clock_res_get` answers from `CLOCK_RESOLUTION_NS`, read at call time (spec 065), and
     with another step the realtime and monotonic clocks state that step as their resolution."""
     if measured and own is None:
@@ -639,7 +640,7 @@ def run(
     i32, i64 = wt.ValType.i32(), wt.ValType.i64()
     take_random = _random_stream()
     ticks = itertools.count(1)
-    files = _FileCalls(counted, FileFacts(lambda: REALTIME_START_NS + next(ticks) * CLOCK_STEP_NS))
+    files = _FileCalls(counted, FileFacts(lambda: REALTIME_START_NS + next(ticks) * clock_step_ns))
 
     def random_get(caller: wt.Caller, buf: int, n: int) -> int:
         caller.get("memory").write(caller, take_random(n), buf)
