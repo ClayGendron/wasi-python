@@ -916,3 +916,43 @@ by them, and the judge's full run waits for the coordinator's go (the machine is
   --accept-judge "087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), the README's 512 KiB recursion rows on an engine at wasmtime's defaults, and S3's checks (tests/test_api.py's installed-copy layouts, tests/unit/test_runner_sets.py with the build review's swap cases, added to the own-runner shard in tests/release_shards.toml); after the rebase onto 083, the driver's file times follow clock_step_ns, with a WAT probe and a unit row; no existing expectation edited"
   --accept-growth "087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +202 bytes (41,099,661 -> 41,099,863) and the snapshot +202 bytes (44,633,983 -> 44,634,185); LICENSES/regex.txt one line; MANIFEST one recipe line"
   ```
+
+#### Rebased onto wave/01 (`7d0649d`, 078 landed; 2026-10-19)
+
+`git rebase wave/01` replayed 087's seven commits. Four hunks conflicted, in three files; I resolved
+each one as 087's builder. Nothing else conflicted. `CHANGELOG.md` and `tests/harness/guest.py`
+merged cleanly.
+
+1. **The drafting commit, `context/upstream/README.md`**: one hunk, at the table's end. I kept both
+   rows, 078's `21-wasmtime-py-async-stack-size/` first, then 087's `24-regex-timeout-ticks/`.
+2. **The build commit, `context/upstream/README.md`**: one hunk. I kept 078's row 21 and gave
+   087's row 24 its carried wording ("carried as `recipes/patches/…/0002-timeout-ticks.patch`").
+3. **The build commit, `README.md`, *Deep recursion***: one hunk.
+   - I took 078's 8 MiB paragraph whole.
+   - Its 512 KiB list now lives in *From any language*, step 4. So 087's two sentences go there,
+     after that list, as Decision 8 says to do once 078 has landed. They are the depths' engine,
+     with its fuel and wasmtime's-defaults clause, and `etree.XSLT.set_global_max_depth(250)`.
+   - **One semantic change.** The first sentence now reads "These depths were measured at 512 KiB
+     with epoch interruption on, as the runner ran before spec 078". Since 078 the runner has
+     8 MiB, so "the runner's depths" would no longer be true.
+   - 078's row already says "freeing a traceback longer than about 43,000 frames". So Decision 8's
+     rewording of that row is not needed.
+4. **The build commit, `tests/checks/test_v1_2_hostile_guest.py`**: one hunk, at the file's end.
+   I kept both blocks, 078's runner-stack checks first, then check 4 and its tables. They share no
+   name (ruff is clean).
+
+**Checked after the rebase.**
+- **F3 holds on the merged driver.** `FileFacts` takes `clock_step_ns` (line 643), and so does
+  `clock_time_get`. `files.bind` and `on_own_stack(go)` are 078's.
+- **The merged runner.** Its only artifact loads are still the two call sites, `run` and the
+  session's opening. Each takes `_found_and_checked` and hands on its digests: `_module(…, want)`
+  and `_preopens(…, zip_want)`.
+- **What passed.** `tests/unit/test_runner_sets.py`, `tests/unit/test_guest.py` and
+  `tests/test_api.py` all pass (50 pass, 4 skipped). So do checks 1 to 4 and
+  `test_an_old_artifact_set_is_named`, run as single nodes on 087's set (8 passed).
+- **No rebuild.** Between `8c07ad4` and `wave/01`, main changed nothing under `scripts/`,
+  `recipes/`, `downloads/` or the workflow, so 087's set stands.
+- **The CHANGELOG lines** stay under `## 0.1.0a8 — unreleased`, after 083's.
+- **The claim list and the accept flags** above are unchanged. CI run 39351900172 grew only the two
+  byte rows, so the growth claim (python.wasm +202 bytes, the snapshot +202 bytes) covers
+  everything it grew.
