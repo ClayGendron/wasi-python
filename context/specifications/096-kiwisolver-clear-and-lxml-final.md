@@ -6,7 +6,9 @@
   findings 1 and 2 are written into Decision 3 and check 3, with their unit rows"); **revised
   against all of its findings** and rebased onto main `c091f3d` (roadmap only; the set is
   unchanged). *Disposition of the pre-build review* says where each went. **Confirmed for build** by
-  the same reviewer (its *Confirmation*), with one Low written in (option 1). It carries two upstream patches (§4.1) and changes the build
+  the same reviewer (its *Confirmation*), with one Low written in (option 1). **Built 2026-10-20**
+  on `0054f5b` (from an empty `build/`, base `c091f3d`); the dry run 39386471189's only red lines
+  are its three claimed growth lines (*Landing notes*). A different agent reviews the build. It carries two upstream patches (§4.1) and changes the build
   recipe and the artifact set, so it was reviewed before it is built (constitution §5.6). A
   different agent reviews the build.
 - **Date:** 2026-10-20
@@ -648,3 +650,16 @@ patches, and the callback scan now reads the type slots that hid the first.
 - The fast tier, `-n 3`, no lock (`build/096/fast.log`): `589/713 pass · 0 gap · 3 blocked · 0
   fail`, unit suite 1,802/1,809; ratchet `lost 0 · gained 5 · grew 3`, its only red the three
   byte rows above. No fuel row grew.
+
+### The release dry run (criteria 3 and 8; READ, run 39386471189 on `0054f5b`)
+
+- **25 jobs passed; one red, `judge (macos-15, own-guest)`, and its only red lines are the three
+  growth lines** claimed above (`wasi_python v1: 351/713 pass · 2 gap · 2 blocked · 0 fail`;
+  ratchet `lost 0 · gained 6 · grew 3`; the sixth gained row is
+  `test_wheel_carries_the_artifact_set`, blocked locally for want of a wheel, not 096's). No G7
+  line. `gather` and the release-only jobs were skipped, as a red judge makes them.
+- Both Linux rebuilds (x86_64 and arm64) and "the same bytes from every host" passed: the set is
+  the same on every host (criterion 3). The three `verify` jobs and every Windows shard passed,
+  checks 1 to 3 among them.
+- So 096 is **built**: every red line in its dry run is a growth line it claims.
+
