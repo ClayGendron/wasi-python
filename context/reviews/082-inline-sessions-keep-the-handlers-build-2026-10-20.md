@@ -166,8 +166,12 @@ No.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 — open.
-2. L2 — for the lane.
+1. L1 — fixed by the author: a third check, `test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler`,
+   seen failing with the flag dropped from the `parseconfig` wrapper alone (no bytecode cache),
+   passing with it (the specification's criterion 1a and landing notes). N2 — recorded in the
+   specification's Scope.
+2. L2 — the author rebased onto main `f7511b7`; only `CHANGELOG.md` conflicted, kept under
+   "0.1.0a8 — unreleased".
 3. Fast tier on `9d37abb` (reviewer, EXECUTED, `-n 3`, `WASI_PYTHON_ARTIFACTS` = the main
    tree's `build/artifacts`): 82/701 pass, 276 fail, 222 blocked; unit suite 1725/1740.
    - **This run cannot be compared with the builder's.** Main's tree is now at `a75e5d4`, with

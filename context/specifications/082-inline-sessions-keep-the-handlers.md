@@ -1,9 +1,11 @@
 # 082 — Inline pytest sessions keep wasmtime's signal handlers
 
 - **Status:** **built 2026-10-19** on `spec/082-inline-sessions-keep-the-handlers` from main
-  `e00d394` (see "Landing notes" for the tip and the release run). A judge-only specification
-  (no line of `src/` changes), so its pre-build review is optional (AGENTS rule 8); a different
-  agent reviews the build.
+  `e00d394`, rebased onto main `f7511b7` after its build review
+  (`../reviews/082-inline-sessions-keep-the-handlers-build-2026-10-20.md`), which says it lands;
+  its L1 and N2 are answered and L2 is the rebase (see "Landing notes"). It enters wave 05. A
+  judge-only specification (no line of `src/` changes), so its pre-build review is optional
+  (AGENTS rule 8).
 - **Date:** 2026-10-19
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**, not build-class (§5.7). Files: `tests/conftest.py`, a new unit file
@@ -224,3 +226,25 @@ If the lane's run has a growth line, it is the base's, not this change's: name i
     `tests/unit/test_inline_sessions.py ..` on both, so on Linux x86_64 the guard found
     wasmtime's handlers before and after the check's inline session. Lost 0, grew 0, gained 0,
     `judge changed: tests/conftest.py, tests/unit/test_inline_sessions.py`.
+- **The build review** (`../reviews/082-inline-sessions-keep-the-handlers-build-2026-10-20.md`):
+  lands. It reproduced the review's cross-file order on Linux arm64 in a container: 9 and 11
+  guard refusals with `e00d394`'s conftest, 0 with the fix. Its findings, answered:
+  - **L1, the `parseconfig` half had no check:** fixed. A third check,
+    `test_a_parseconfigure_keeps_a_handler_installed_after_faulthandler`, runs the stand-in around
+    `pytester.parseconfigure()` and `_ensure_unconfigure()`. EXECUTED on darwin-arm64 with the flag
+    dropped from the `parseconfig` wrapper alone, every `__pycache__` under `tests/` removed and
+    `PYTHONDONTWRITEBYTECODE=1`: 1 failed (that check, "the configured session replaced the
+    handler: 0x105fee7d8"), 2 passed. With the fix: 3 passed (criterion 1a).
+  - **N2, gather's in-process `pytest.main`:** recorded in the Scope.
+  - **L2, not on main's tip:** rebased onto `f7511b7`. The one conflict was `CHANGELOG.md`; the
+    entry stays under "0.1.0a8 — unreleased", after spec 092's. No other file the spec touches
+    moved on main.
+  - **N1:** the release run 39364504472 was on `6881242`, before the rebase and the third check.
+    The rebase brings main's wave 03 (judge changes only) and the third check is a unit test, so
+    no new release run was dispatched; the lane's run judges the rebased tip.
+- **On the rebased tip (EXECUTED, darwin-arm64, `build/lane.lock` absent):** the new file,
+  `test_plugin.py`, `test_landing_lane.py`, `test_upstream.py`, `test_several_cores.py`,
+  `test_checks_wiring.py` and `tests/checks/test_rules.py`, `-n 3`, against a private copy of the
+  main tree's artifact set: 252 passed, 1 skipped; ratchet vs `c0d2e7e` lost 0, grew 0, gained 0,
+  `judge changed: tests/conftest.py, tests/unit/test_inline_sessions.py`. `ruff check` and
+  `ruff format --check` green.
