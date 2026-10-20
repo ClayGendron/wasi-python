@@ -12,6 +12,10 @@
   scipy patches are numbered `0002-…` and `0003-…`; and the `ctypes` stand-in already gives a
   function type's instance from `cast(int, F)` (uncallable) and names `ctypes._CFuncPtr`, which
   Decision 3 keeps ("any other cast raises" reads: any other cast but those).
+  **Amended 2026-10-20 by spec 037's stacked rebuild:** 037 also carries
+  `recipes/patches/scipy-1.18.1/0002-sqrtm-triu-imports-its-error-where-it-raises.patch` (CPython's
+  `test_pydoc` found `scipy.linalg._matfuncs_sqrtm_triu` could not be imported first), so this
+  specification's two scipy patches are numbered `0003-…` and `0004-…`.
 - **Owner:** Clay Gendron
 - **Kind:** two carried patches to scipy with their pull request drafts, the `ctypes` stand-in
   (spec 033's `recipes/ctypes_stand_in/_types.py`), judge additions and changes (a golden job, a

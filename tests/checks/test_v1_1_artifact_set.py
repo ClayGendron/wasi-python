@@ -233,12 +233,12 @@ print(json.dumps({"dotted": len(dotted), "wrong": wrong}))
 DOTTED_FUEL = {"plain": 20_000_000_000, "snapshot": 10_000_000_000}
 SCIPY_DOTTED_FUEL = 40_000_000_000
 # What native scipy 1.18.1 itself gives, not this build's (EXECUTED under the pinned oracle, spec
-# 037's landing notes): `_uarray`'s module definition names it `uarray._uarray`, and
-# `_matfuncs_sqrtm_triu` imported before `_matfuncs_sqrtm` is a circular import natively too.
-# Each equals the native answer; nothing of this build is excused.
+# 037's landing notes): `_uarray`'s module definition names it `uarray._uarray`. It equals the
+# native answer; nothing of this build is excused. (`_matfuncs_sqrtm_triu` imported first was a
+# circular import natively too, until carried patch scipy-1.18.1/0002 moved its import: pydoc's
+# apropos imports every builtin.)
 SCIPY_NATIVE = {
     "scipy._lib._uarray._uarray": "uarray._uarray",
-    "scipy.linalg._matfuncs_sqrtm_triu": "import ImportError",
 }
 # matplotlib's package needs its data folder and a writable cache folder to import, as in its
 # own checks (spec 023): granted here, so its builtins are named like every other.

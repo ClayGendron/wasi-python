@@ -1,0 +1,18 @@
+diff --git a/scipy/linalg/_matfuncs_sqrtm_triu.pyx b/scipy/linalg/_matfuncs_sqrtm_triu.pyx
+index 237dc94..b2bee28 100644
+--- a/scipy/linalg/_matfuncs_sqrtm_triu.pyx
++++ b/scipy/linalg/_matfuncs_sqrtm_triu.pyx
+@@ -1,5 +1,4 @@
+ # cython: boundscheck=False, wraparound=False, cdivision=True
+-from ._matfuncs_sqrtm import SqrtmError
+ 
+ from numpy cimport complex128_t, float64_t, intp_t
+ 
+@@ -29,4 +28,7 @@ def within_block_loop(floating[:,::1] R, const floating[:,::1] T, start_stop_pai
+                 elif denom == 0 and num == 0:
+                     R[i, j] = 0
+                 else:
++                    # Imported here, not at the top: _matfuncs_sqrtm imports this module, so a
++                    # top-level import makes importing this module first a circular import.
++                    from ._matfuncs_sqrtm import SqrtmError
+                     raise SqrtmError('failed to find the matrix square root')

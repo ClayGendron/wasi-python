@@ -249,6 +249,12 @@ reason = "sys.path was modified: test.support's forget() meets PermissionError u
 closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 
 [[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_environment[cpython-c-pydoc-imports-scipy]"
+match = "1 finding(s), digest c1977f2d517b"
+reason = "os.environ and logging._handlerList were modified: pydoc's apropos imports every builtin, scipy's among them (spec 037), which bring in threadpoolctl (KMP_DUPLICATE_LIB_OK) and charset_normalizer (a StreamHandler and a NullHandler), as natively"
+closes_with = "context/specifications/037-scipy.md"
+
+[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-fs-trailing-slash]"
 match = "1 finding(s), digest 915cdf55455e"
 reason = "open('<dir>/missing/', 'wb'): EINVAL on a darwin host, ENOENT (the test's expectation) on Linux, ENOTDIR on Windows (the branch dry run 39192207869)"

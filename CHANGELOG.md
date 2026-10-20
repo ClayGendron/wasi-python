@@ -16,7 +16,10 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `recipes/patches/OpenBLAS-0.3.34/0002-c-lapack-subroutines-return-void-2-of-2.patch` (OpenBLAS
   `develop`'s convention, every C LAPACK subroutine `void`, made by our own script; merged
   upstream after 0.3.34), `recipes/patches/OpenBLAS-0.3.34/0003-ilaver-returns-void.patch`, and
-  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks).
+  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks) and
+  `recipes/patches/scipy-1.18.1/0002-sqrtm-triu-imports-its-error-where-it-raises.patch` (so
+  `scipy.linalg._matfuncs_sqrtm_triu` imports first, which pydoc's `apropos` and
+  `help('modules word')` do with every builtin).
   `scipy.spatial` links the one qhull matplotlib's `_qhull` links (step 37's 8.0.2, now with a
   `qhull_r.pc`), and scipy's own fix to its vendored copy is carried for both:
   `recipes/patches/qhull-8.0.2/0001-format-strings.patch` (upstream's merged pull request 143,

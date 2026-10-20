@@ -372,6 +372,14 @@ changes = ["sys.path"]
 reason = "sys.path was modified: test.support's forget() meets PermissionError under the read-only grant before test_bdb restores sys.path (read-only-eperm)"
 closes_with = "context/upstream/22-wasmtime-read-only-errnos/notes.md"
 
+[[environment]]
+id = "pydoc-imports-scipy"
+group = "cpython-c"
+modules = ["test_pydoc.test_pydoc"]
+changes = ["os.environ", "logging._handlerList"]
+reason = "pydoc's apropos imports every builtin, scipy's 95 among them (spec 037), and their imports bring in threadpoolctl, which sets KMP_DUPLICATE_LIB_OK in os.environ, and charset_normalizer, whose api module makes a logging StreamHandler and NullHandler, both as natively; a native run without scipy imports neither"
+closes_with = "context/specifications/037-scipy.md"
+
 # The classes of known failures (Decision 12): a failed or errored test goes to the first class of
 # its group whose outcome and `match` (a regular expression searched in the one-line reason) fit.
 

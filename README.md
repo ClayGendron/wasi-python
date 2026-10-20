@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 16, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings and two of OpenBLAS's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 17, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings and two of OpenBLAS's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 84.8 MB / 89.5 MB / 44.4 MB (3.15 line, with scipy and OpenBLAS (spec 037), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 037's landing notes; 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -53,7 +53,7 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with sixteen carried patches,
+The platform's facts, documented rather than patched (with seventeen carried patches,
 below and under *scipy in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
@@ -228,12 +228,13 @@ zip. Three golden jobs (`scipy_numeric`, `scipy_solvers`, `scipy_lapack`) print 
 answers at the same pin, to 9 significant digits for direct results and 6 for iterative ones.
 No Fortran compiler is involved: the LAPACK is OpenBLAS 0.3.34's own C translation, with three
 carried patches (`recipes/patches/OpenBLAS-0.3.34/`: every C LAPACK subroutine returns `void`, as
-OpenBLAS's `develop` branch already does, so no call traps on a mismatched signature), and one
-carried scipy patch gives five of uarray's callbacks the signatures CPython calls them with
-(`recipes/patches/scipy-1.18.1/`). `scipy.spatial` links the binary's one qhull, 8.0.2 as step 37
-builds it for matplotlib's `_qhull` too, with the format-string fix scipy applies to its own copy
-carried as a patch (`recipes/patches/qhull-8.0.2/`, upstream's merged change). What differs from
-native:
+OpenBLAS's `develop` branch already does, so no call traps on a mismatched signature), and two
+carried scipy patches (`recipes/patches/scipy-1.18.1/`): one gives five of uarray's callbacks the
+signatures CPython calls them with, and one lets `scipy.linalg._matfuncs_sqrtm_triu` be imported
+first (natively a circular import; pydoc's `apropos` imports every builtin, so it failed).
+`scipy.spatial` links the binary's one qhull, 8.0.2 as step 37 builds it for matplotlib's
+`_qhull` too, with the format-string fix scipy applies to its own copy carried as a patch
+(`recipes/patches/qhull-8.0.2/`, upstream's merged change). What differs from native:
 
 - **`scipy.odr` is not in the build**: it needs ODRPACK, which is Fortran, and scipy deprecated it
   for removal in 1.19. `import scipy.odr` raises `ImportError` saying so; `-V` names it.
@@ -478,9 +479,10 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: sixteen today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: seventeen today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
-Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, regex's timeout
+Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, scipy's
+import of one linalg module moved where it raises, regex's timeout
 ticks, libxml2's file input without `dup()`, pandas' Styler templates and networkx's graph atlas
 read from a zip, qhull's format strings from upstream, and OpenBLAS's three: its C LAPACK's
 subroutines all `void`, as its `develop` branch has them):
