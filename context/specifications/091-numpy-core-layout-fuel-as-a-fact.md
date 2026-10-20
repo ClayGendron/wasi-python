@@ -1,6 +1,7 @@
 # 091 — numpy-core's layout-dependent fuel as a fact
 
-- **Status:** **drafted 2026-10-19** on `spec/091-numpy-core-layout-fuel-as-a-fact`, from main
+- **Status:** **built 2026-10-19** on `spec/091-numpy-core-layout-fuel-as-a-fact`, on main
+  `b4d7c8e` (the Landing notes). Before that: **drafted 2026-10-19** on the same branch, from main
   `dc8988c` (the draft was written from `302df18`; the commits between them touch no file under
   `tests/`), rebased onto main `b4d7c8e`. **Revised 2026-10-19 against its pre-build review**
   ("build once F1", `../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`; the
@@ -421,4 +422,102 @@ The review (`../reviews/091-numpy-core-layout-fuel-as-a-fact-spec-2026-10-19.md`
 
 ## Landing notes
 
-(To be filled at build and landing.)
+Built 2026-10-19 in `../wasi_python-091`, on main `b4d7c8e`, by the agent that wrote the draft (a
+fresh agent reviews the build). Commits: `1b58feb` (the checks first), `4002467` (the build). The
+evidence is in the worktree's `build/091/` (not tracked): `first-fail.txt`, `mutants.txt`,
+`main-numpy-core.json`, `branch-main-set.json`, `branch-set-073.json`, `branch-set-086.json`,
+`fuel-vs-accepted.txt`, `fast.log`, `full.log`, and the full record `latest-full.json`.
+
+**The inputs.** Main's set is a private `cp -c -Rp` copy of `build/sets/s-c50ca51fae5eb55b-c9dcb5b8`
+at `build/artifacts` (`shasum -c` OK; no file with nlink above 1; `python.wasm` `ab78e893…`, the
+accepted artifact). 073's and 086's sets are private copies of their worktrees' `build/artifacts`
+(`shasum -c` OK; nlink 1 after the copy, where 073's zip had 201 links). The numpy, pandas and
+CPython 3.15.0 tarballs (each checked against `downloads/SHA256SUMS`), their trees and the kit's
+seven wheels are APFS clones of the main tree's, with their `.DS_Store` files deleted from the
+copies. Nothing in the main tree's `build/` was written.
+
+**A slip, recorded.** The narrowed run on main's set (criterion 4, below) started while
+`build/lane.lock` existed; it was one pytest process for about 70 s. Every later run waited for
+the lock to clear (the control and judge scripts poll it before each run).
+
+### What was built
+
+As the Design says, from the prototype, with the review's N2: the overlap rule is the exact one
+(`node[`), and the overlap row also checks that a trap on the sibling `test_x_empty` does not
+overlap. The progress README's paragraph carries Decision 4's review band and the cap's keeper.
+
+### Criteria 1 and 2: the checks fail first, and have power (EXECUTED)
+
+- On main's harness with only the rows added (`1b58feb`): **20 failed**, one by one (`AttributeError`
+  on `upstream.FuelFact` or `fact_spec`, and the sameness difference `p: facts {… 'f': 1000000} !=
+  {… 'f': 1000090}`); the two files' other **98 passed**.
+- With the build: the twenty rows pass; `test_upstream.py`, `test_several_cores.py` and
+  `test_scoreboard.py` in full, **167 passed**.
+- The four mutants, each caught: deselect removed, 2 rows fail; reason rule removed, 1; `owns` on
+  the bare prefix, 3; digest over the group's session only, 1.
+
+### Criterion 3: the rules (EXECUTED)
+
+`test_upstream_files_are_well_formed` passes with the tarballs present, so the member rule ran on
+the entry's file.
+
+### Criterion 4: numpy-core on main's set (EXECUTED)
+
+| | main's harness | this branch |
+|---|---|---|
+| `fuel` | 203,355,544,378 | **155,837,134,094** (−47,518,410,284, −23.37%) |
+| `fuel_facts.string-comparisons` | — | **59,054,444,847** |
+| `passes` | 9,519 | 9,519 |
+| `passed_digest` | `df21e78e7032` | `df21e78e7032` |
+| `counts` | error 3, failed 40, passed 9,519, skipped 439, xfailed 12 | the same |
+
+- The five class checks stay gaps with their lists unchanged (28, 3, 8, 3 and 1 findings, no `+` or
+  `-`). The digest and counts are equal, so F6's stop did not apply.
+- The group fell by 47.52 G, not the fact's 59.05 G: the fact's session carries about 11.5 G of
+  interpreter start, imports and the collection of `test_strings.py` (N1).
+- **The cap**: 140 G is 2.37 times the fact here and 2.17 times its value on 086's set, so no
+  raise was needed (Decision 5).
+
+### Criterion 5: the layout control (EXECUTED)
+
+| set | own fuel | the fact | r_own | r_fact |
+|---|---|---|---|---|
+| A, main's | 155,837,134,094 | 59,054,444,847 | | |
+| B, 073's (the stop pair) | 155,875,288,753 | 63,518,611,360 | **+0.0245%** | **+7.56%** |
+| 086's (information only) | 155,960,701,335 | 64,476,884,535 | +0.079% | +9.18% |
+
+- **The claim holds**: |r_own| = 0.0245% ≤ 0.5%, and it is 0.003 of |r_fact|, under a quarter.
+  On every set: 9,519 passes, digest `df21e78e7032`, the same counts.
+- **For 086** (information): the group's own move is +124 M, not the +1.2 G the review inferred
+  from 086's first measurement; the fact carries +5.42 G. 086 measures its A/B again on its own
+  landing base (Decision 10).
+- **The residual is still above the tolerance** ("What 091 does not fix"): +38 M on 073's set and
+  +124 M on 086's, against about 15.6 M. Both rows would still need a growth reason; it is now
+  tens of M, not G.
+
+### Criteria 6 and 7: nothing else moves (EXECUTED)
+
+- `ruff check` and `ruff format --check` on `src/` and `tests/`: green.
+- **The fast tier, `-n 3`** on `4002467`, clean: 481/623 pass · 1 gap · 22 blocked · 0 fail · 119
+  deselected (unit suite 1599/1607, 8 skipped); ratchet: lost 0 · absent 0 · unrun 0 · gained 0 ·
+  grew 0; judge changed.
+- **The full judge, `-n 3`, once**, 20:25 to 20:45, on `4002467`, clean:
+  `wasi_python v1: 523/623 pass · 77 gap · 23 blocked · 0 fail (unit suite 1599/1607, 8 skipped)`;
+  `ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 21 · gained 0 · grew 0 ·
+  judge changed: tests/checks/test_v1_3_upstream_suites.py, tests/harness/sameness.py,
+  tests/harness/scoreboard.py and 4 more` (the seven files; `fuel-vs-accepted.txt`). The record
+  is `build/091/latest-full.json`.
+- **Fuel against `accepted.json`**: 164 rows compared; **one past the tolerance, numpy-core's,
+  falling** (203,355,507,505 → 155,837,134,689, −23.37%); the largest other move 0.0085%. numpy-lib,
+  numpy-others and pandas' eight groups within 0.0001%. No `passes` value changed.
+- The fact in the full run: **59,054,444,490**, 357 instructions from the narrowed run's: the run
+  to run residual Decision 4's tolerance in `sameness.py` allows for.
+- The scoreboard ends with the "not machine-checked" line naming the fuel fact.
+
+### For the lane, confirmed
+
+- The flags as "For the lane" says: `--accept` and `--accept-judge` only. The expected record
+  holds on this base: lost 0, gained 0, grew 0, fewer 0; judge changed, seven files; numpy-core's
+  accepted fuel falls to about 155.84 G, passes 9,519.
+- The owner should hear the residual figures above: 091 turns numpy-core's swings from G into
+  tens of M, and the row will still be red, by those tens of M, at the next build-class landings.
