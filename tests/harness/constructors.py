@@ -73,6 +73,10 @@ REVIEWED_CONSTRUCTORS = (
     "__cxx_global_var_init.11",
     "__cxx_global_var_init.12",
     "_GLOBAL__sub_I__qmc_cy.cpp",
+    # scikit-learn (spec 044, Decision 8): sklearn.svm._newrand's copy of newrand.h's
+    # generator, `std::mt19937 mt_rand(std::mt19937::default_seed)` renamed sklearn_newrand_mt_rand:
+    # it seeds a Mersenne Twister and touches no Python.
+    "_GLOBAL__sub_I__newrand.cpp",
     "_GLOBAL__sub_I_unique.cpp",  # numpy's unique.cpp: its hash tables' statics
     # OpenBLAS's gotoblas_init (driver/others/memory.c, constructor(101)): it reads the OPENBLAS_*
     # environment variables (getenv, atoi) and sets its buffer's parameters; nothing of Python. On
@@ -204,6 +208,11 @@ REVIEWED_CONSTRUCTORS = (
     "_GLOBAL__sub_I_starting_basis.cc",
     "_GLOBAL__sub_I_symbolic_invert.cc",
     "_GLOBAL__sub_I_utils.cc",
+    # scikit-learn (spec 044, Decision 8): the same generator's copies in its two static libraries,
+    # liblinear's linear.cpp (sklearn_liblinear_mt_rand) and libsvm's libsvm_template.cpp
+    # (sklearn_libsvm_mt_rand), each seeding a Mersenne Twister; no Python.
+    "_GLOBAL__sub_I_linear.cpp",
+    "_GLOBAL__sub_I_libsvm_template.cpp",
 )
 
 # The features the build compiles for (spec 023, Decision 8): every host must support each.

@@ -2,7 +2,7 @@
 on CPython's inittab under its dotted import name, derived from the archive's path under its meson
 build directory (spec 003, step 60).
 
-    gen_inittab.py <out.c> <package>=<meson build dir> ...
+    gen_inittab.py [--against <CPython's Modules/config.c>] <out.c> <package>=<meson build dir> ...
 
 Builtin lookup compares the full dotted name (Python/import.c, is_builtin), so
 `numpy._core._multiarray_umath` resolves to a builtin from inside the numpy package. Test-only
@@ -18,6 +18,11 @@ recipes/sklearn-renames/, spec 044), and RENAMED names it here; the clash check 
 names (spec 037, Decision 8). scikit-learn's archives lie at their install paths
 (build/sklearn-modules), as scipy's do.
 
+`--against` names CPython's own Modules/config.c: an entry whose init function has the name of
+one of CPython's builtins (`PyInit__random`) stops the run. The static link would resolve the
+inittab's reference to CPython's function, never pull in the package's archive member, and say
+nothing, so the package's module would be CPython's (spec 044's build: sklearn.utils._random).
+
 Each entry is registered through a wrapper that calls its init function inside CPython's package
 context, set to the entry's dotted name, as `_PyImport_RunModInitFunction` does for a module loaded
 from a shared library (Python/importdl.c); a builtin gets no context otherwise, so a single-phase
@@ -27,6 +32,7 @@ one internal function is declared here, as Include/internal/pycore_import.h decl
 stops if the pinned header no longer does.
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -53,6 +59,9 @@ RENAMED = {
     ),
     "sklearn.cluster._hdbscan._tree": "sklearn_cluster__hdbscan__tree",
     "sklearn.manifold._utils": "sklearn_manifold__utils",
+    # sklearn.utils._random's PyInit__random is CPython's own `_random` (found at spec 044's build:
+    # the link kept CPython's and dropped scikit-learn's member without a word); --against stops it.
+    "sklearn.utils._random": "sklearn_utils__random",
 }
 # CPython's own declaration (Include/internal/pycore_import.h), less the parameter's name.
 SWAP = "const char *_PyImport_SwapPackageContext"
@@ -92,16 +101,29 @@ def modules(package: str, build_dir: Path) -> list[tuple[str, str]]:
     return found
 
 
+def builtin_inits(config_c: Path) -> set[str]:
+    """The names after PyInit_ of the builtins CPython's own config.c registers."""
+    return set(re.findall(r"\bPyInit_(\w+)\(", config_c.read_text()))
+
+
 def main() -> None:
-    out = Path(sys.argv[1])
+    args = sys.argv[1:]
+    against: set[str] = set()
+    if args[:1] == ["--against"]:
+        against = builtin_inits(Path(args[1]))
+        args = args[2:]
+    out = Path(args[0])
     entries = []
-    for arg in sys.argv[2:]:
+    for arg in args[1:]:
         package, _, build_dir = arg.partition("=")
         entries += modules(package, Path(build_dir))
     names = [name for _, name in entries]
     clashes = sorted({n for n in names if names.count(n) > 1})
     if clashes:
         raise SystemExit(f"two modules share an init function name: {clashes}")
+    taken = sorted(f"{dotted} (PyInit_{name})" for dotted, name in entries if name in against)
+    if taken:
+        raise SystemExit(f"init function names CPython's own builtins have: {taken}")
     unused = sorted(set(RENAMED) - {dotted for dotted, _ in entries})
     if unused and any(d.split(".")[0] in {e.split(".")[0] for e, _ in entries} for d in unused):
         raise SystemExit(f"RENAMED names modules this link has not: {unused}")

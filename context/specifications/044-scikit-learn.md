@@ -12,7 +12,7 @@
   used for a second package; `scripts/gen_inittab.py`'s rename table; `scripts/steps/60_link.sh`;
   `scripts/steps/70_zip.sh`; `scripts/assemble_artifacts.py`; `scripts/install_from_plan.py`; a new
   `scripts/stage_scipy_cimports.sh`), recipe files (a
-  cross file, eight small rename headers, a per-file include map), one carried patch to
+  cross file, nine small rename headers (eight drafted, one found at build, B11), a per-file include map), one carried patch to
   scikit-learn with its facts sheet, judge additions and changes (a golden job and the oracle's
   pins, a v1.3 check file, the constructor list, the package and licence lists, a source-tree
   pattern), the release workflow's tree count, `README.md`, `CHANGELOG.md`, `LICENSES/`.
@@ -596,7 +596,7 @@ lets scikit-learn read its own style sheets from the zip.
 | `scripts/steps/58_sklearn.sh` | new: unpack, patch, stage cimports, render the map, configure, the OpenMP gate, build, the include log, stage the package, the module list (Decision 5) |
 | `scripts/stage_scipy_cimports.sh` | new: `build/scipy-cimport/` (Decision 4) |
 | `recipes/wasi-sklearn.cross` | new (Decision 5) |
-| `recipes/sklearn_file_includes.txt`, `recipes/sklearn-renames/*.h` | new: nine entries (four init names; `_libsvm_sparse`, `_liblinear` with `linear.cpp`, `libsvm_template.cpp`, `_newrand`), eight headers (Decision 6) |
+| `recipes/sklearn_file_includes.txt`, `recipes/sklearn-renames/*.h` | new: ten entries (five init names, `sklearn.utils._random`'s found at build, B11; `_libsvm_sparse`, `_liblinear` with `linear.cpp`, `libsvm_template.cpp`, `_newrand`), nine headers (Decision 6) |
 | `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` | new: `../upstream/10-scikit-learn-html-repr-from-a-zip/fix.patch`, byte for byte (Decision 7) |
 | `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md` | moved from `../upstream/10-…/pr.md`, unchanged |
 | `context/upstream/README.md`, `context/upstream/10-…/notes.md` | the row says the patch is carried; `fix.patch` removed from the folder |
@@ -715,7 +715,7 @@ question 83 approved everything as decided here.
 - **B5 (Low): the include map's `@SO@`.** Two module pairs share a generated file name
   (`_gradient_boosting.c`, `_utils.c`), so those entries name the module's private folder,
   `<module>.cpython-<tag>-wasm32-wasi.so.p/`, written `@SO@` and rendered by step 58 beside
-  `@ROOT@`. Nine entries, eight headers, as Design says.
+  `@ROOT@`. Nine entries and eight headers as drafted; ten and nine with B11's.
 - **B6 (Low): judge changes the text did not list.** `scan.MESON_BUILDS` gains `sklearn-build`
   (spec 059's rule for a new meson build); `shards.COMPONENT_NAMES` maps the source component
   `scikit_learn` to the package `scikit-learn`; `tests/upstream/packages.toml` names
@@ -737,6 +737,41 @@ question 83 approved everything as decided here.
   al, PARVUS", whom UCI credits too.
 - **B10 (Note): the constructor list** grows at stage 3, when the build shows the names and their
   link order (Decision 8).
+
+**Found at build (2026-10-20, stacked on 038's `8cf320a`):**
+
+- **B11 (Medium, the link): `sklearn.utils._random`'s init name is CPython's own.** Its
+  `PyInit__random` is also `Modules/_randommodule.c`'s, CPython's builtin `_random`. In the static
+  link the inittab's reference resolved to CPython's function, so scikit-learn's archive member
+  was never pulled in and wasm-ld said nothing: `sklearn.utils._random` was the stdlib's
+  `_random`, and `import sklearn.ensemble` raised `ImportError: cannot import name
+  'sample_without_replacement'` (EXECUTED: the golden and the behaviour checks, run by node on
+  the first set). Decision 6 compared module names with the other packages' but not with
+  CPython's builtins. Fixed by a tenth map entry and a ninth header,
+  `recipes/sklearn-renames/utils_random.h` (`PyInit_sklearn_utils__random`), and the rename table.
+  The failure mode becomes a gate: `gen_inittab.py --against <CPython's config.c>`, which step 60
+  passes, stops on any entry whose init name a CPython builtin already has (a unit check holds it,
+  seen failing on the committed script). Against today's config.c, `_random` was the only one
+  (EXECUTED: the inittab's names against config.c's). `python.wasm` grew 96,934 bytes by it, the
+  module now linked.
+- **The weak-duplicate gate's first link** found 1,186 shared weak names in 270 archives, all but
+  one from packages already on main; the list holds 19 patterns, each with its reason, and the
+  gate's outermost-scope rule reads local entities and qualifiers (commit `df92776`; the build
+  review reads each pattern). The second link: 0 unreviewed, 0 stale.
+- **The link map:** 4 names required, 3 forbidden, 0 findings.
+- **The constructors:** exactly the three Decision 8 names, `_GLOBAL__sub_I__newrand.cpp` (after
+  scipy's `_qmc_cy`) and `_GLOBAL__sub_I_linear.cpp`, `_GLOBAL__sub_I_libsvm_template.cpp` (last),
+  each `newrand.h:22`'s `std::mt19937` under its renamed name, in link order.
+- **Stage 1's native subset** (`scripts/sklearn_native_tests.sh`, confined as N1 says): the 7846
+  probe passes (`__annotate__` pickles; KDTree and BallTree round-trip); `sklearn.svm` 308 passed,
+  `sklearn.tree` 804, `sklearn.neighbors` 1,515, the cython_blas, loss, hdbscan and k-means group
+  2,264, the sgd, coordinate-descent, pairwise-reduction and t-SNE group 763 (1 xfailed),
+  `test_gradient_boosting` 129, `test_forest` 332: **6,115 passed, none failed**, single-threaded,
+  with the line's Cython 3.3.0. The outputs were kept outside the tree and `build/sklearn-native`
+  removed.
+- **N2:** the compiled-objects unit case passed in the build tree (no skip).
+- **The golden** (`regen.py`, the pinned oracle, hash seeds 0 and 1): SHA-256 `c21ec297…`, the
+  drafting run's byte for byte; every other golden reproduced unchanged with `OMP_NUM_THREADS=1`.
 
 **The confirmation's items** (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`,
 "Confirmation (2026-10-20)": confirmed for build; B1 needs the owner's word before landing, and

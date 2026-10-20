@@ -243,6 +243,7 @@ SKLEARN_RENAMED = (  # recipes/sklearn-renames/, scripts/gen_inittab.py's RENAME
     "sklearn.ensemble._hist_gradient_boosting._gradient_boosting",
     "sklearn.cluster._hdbscan._tree",
     "sklearn.manifold._utils",
+    "sklearn.utils._random",
 )
 
 

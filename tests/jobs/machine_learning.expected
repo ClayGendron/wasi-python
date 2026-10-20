@@ -1,0 +1,23 @@
+versions scikit-learn=1.9.1 scipy=1.18.1 numpy=2.5.2 pandas=3.0.6 joblib=1.6.0 threadpoolctl=3.7.0 narwhals=2.27.1
+shapes (150, 4) (1797, 64) (442, 10) (569, 30) (178, 14)
+iris targets ['setosa', 'versicolor', 'virginica'] first row [5.1, 3.5, 1.4, 0.2]
+descr starts .. _iris_dataset:
+tree nodes 15 depth 4 importances [0.019047619, 0, 0.0311454311, 0.94980695]
+tree accuracy 0.977777778
+tree confusion [[15, 0, 0], [0, 15, 0], [0, 1, 14]]
+logreg accuracy 0.977777778 coef [-0.938946, 1.06215, -1.71385, -1.63631, 0.390039, -0.361687, -0.0427348, -0.736618, 0.548907, -0.70046, 1.75659, 2.37293]
+logreg proba row 0 [0.000303109, 0.0357635, 0.963933]
+forest accuracy 0.977777778 importances [0.133640156, 0.0362543437, 0.405561849, 0.424543652]
+forest n_jobs=2 equals n_jobs=1: True
+kmeans inertia 78.8514 sizes [38, 50, 62]
+pca explained ratio [0.924618723, 0.0530664831] |components| [0.361386592, 0.0845225141, 0.856670606, 0.358289197, 0.656588771, 0.730161435, 0.173372663, 0.0754810199]
+linear r2 0.359408804 coef [-43.2619887, -208.665899, 593.406548, 302.891005, -560.19094, 261.407535, -8.86674758, 135.931743, 703.183541, 28.3497718]
+ridge coef [21.2000037, -60.4764313, 302.876805, 179.410255, 8.90955986, -28.8076728, -149.307189, 112.672129, 250.535095, 99.5776939] intercept 152.447736
+svc accuracy 0.958041958 support vectors [56, 48]
+svc auc 0.992662
+linear svc accuracy 0.951048951
+knn digits cv [0.955555556, 0.958333333, 0.966573816, 0.983286908, 0.966573816]
+hist gradient boosting accuracy 0.977777778
+column transformer features ['city__city_a', 'city__city_b', 'city__city_c', 'x__x'] predictions [0, 1, 0, 1, 1, 1, 0, 1]
+tfidf vocabulary 10 nnz 16 row 0 [0.432291295, 0.340823422, 0.340823422, 0.340823422, 0.681646845]
+joblib round trip predicts the same: True
