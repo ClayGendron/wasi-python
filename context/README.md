@@ -22,6 +22,7 @@ context/
   progress/            # the harness's accepted state: accepted.json and an append-only history in volumes
   embedders.txt        # names no code may use (constitution §4.5); data the harness reads
   questions-for-the-owner.md  # decisions only the owner can make, asked while the owner is away
+  handoff.md           # the lane's state between sessions, replaced at each session's end
 ```
 
 Progress is measured, not reported: `uv run pytest` prints the v1
