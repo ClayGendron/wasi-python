@@ -1267,7 +1267,9 @@ on the branch at `2968512` (the rebase and F2 come after 043 lands):
   after the rebase, so the patch adds one carried patch and no extra cycle, and main then never
   carries a default that returns wrong numbers with exit 0, which a dry run or a user of main
   would meet. If the lane keeps it in 038, the roadmap must say no release tag carries 037
-  without 038's fix. The lane decides.
+  without 038's fix. The lane decides. *The lane's ruling (2026-10-20):* the patch stays in 038,
+  which follows 037 in the next wave; no release tag carries 037 without 038's Sobol fix; the
+  tag stays the owner's; the lane records it in the roadmap.
 - **F5, accepted, nothing cut:** the reviewer's numbers are in the numbers section.
 - **F6, fixed:** `recipes/freopen_refusal.c`, step 60's comment and item 11 give the true reason
   (spec 068 shadows and counts `fd_renumber`; the refusal keeps the import list and costs
@@ -1409,5 +1411,10 @@ claim list and flags; a delta review.
 - The main tree needs five new pins in `downloads/` (`scripts/00_download.sh` fetches them).
 - The same bytes in the lane are compared byte for byte again (`cmp`, or the `SHA256SUMS` lines),
   as for every other specification: no exception holds.
-- The build review's F4 stands for the lane: no release tag carries 037 without 038's Sobol fix,
-  or 038's Sobol patch comes forward into 037 (the builder's recommendation); the lane decides.
+- **The build review's F4, ruled by the lane (2026-10-20):** no release tag carries 037 without
+  038's Sobol fix. The patch is not brought forward: 038 follows 037 in the next wave, the tag
+  stays the owner's, and the lane records the rule in the roadmap.
+- **Main has moved** to `41bcc0f` (wave 05: 090's `scripts/litter.py`, `make_stdlib_zip.py`,
+  `assemble_artifacts.py`, step 20's `__pycache__` removal and the sums and wheel checks; 082's
+  `tests/conftest.py`). 037 takes it through 043's tip at the stacked rebase, and that rebase
+  names any hunk it meets in those files.
