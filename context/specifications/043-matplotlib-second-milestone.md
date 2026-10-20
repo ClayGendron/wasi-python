@@ -1,6 +1,6 @@
 # 043 — matplotlib, the second milestone: triangles, contours, SVG and PDF
 
-- **Status:** built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, then stacked on spec 086 and rebased onto main `ebd0449` (wave 04 landed); rebuilt under wasi-sdk 34, `SHA256SUMS` `4c7099a4…`; fast tier 0 fail; branch dry run `39369636353` red only for growth; enters wave 06 stacked with 037 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
+- **Status:** **landed 2026-10-20 in wave 06** (043, 037, 096) on main `c5fc7a4`: accepted on `d066695`, history line 87, 676/751 pass, 0 fail; the integration review `../reviews/wave-06-integration-2026-10-20.md` ("lands as merged", every grown row inside its prediction); the dry run 39398491514 dispatched as main moved. Before: built 2026-10-19 (Landing notes); build reviewed 2026-10-19 (`../reviews/043-matplotlib-second-milestone-build-2026-10-19.md`: lands once F1; F1, F4, F5 and F6 answered at `737cef6`, F2 at the rebase); rebased onto main `f7511b7`, then stacked on spec 086 and rebased onto main `ebd0449` (wave 04 landed); rebuilt under wasi-sdk 34, `SHA256SUMS` `4c7099a4…`; fast tier 0 fail; branch dry run `39369636353` red only for growth; enters wave 06 stacked with 037 (For the lane). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17; revised 2026-10-18 against its pre-build review
   (`../reviews/043-matplotlib-second-milestone-spec-2026-10-17.md`): all eight findings written in, and its Disposition says where. Finding 1 also
   amended spec 037 (its status line says so). Confirmed for build 2026-10-18 with no new conditions; it builds only after the owner answers question 81. It changes the build recipe and the artifact
   set, so it is reviewed once more before it is built (constitution §5.6). It is build-class: it
@@ -936,3 +936,8 @@ Not rebuilt, as the lane asked: 090 changes no artifact byte but `MANIFEST`'s re
 set the lane rebuilds differs from `4c7099a4` in `MANIFEST` and `SHA256SUMS` alone. On the rebased
 tree: `ruff check` and `ruff format --check` on `src/` and `tests/` green; `uv run pytest tests/unit
 tests/checks/test_rules.py -m "not slow" -n 3` (the lane's lock absent), 1831 passed, 8 skipped.
+
+### Landed in wave 06
+
+- The lane's rebuild of the wave tip (043, 037 and 096 in one set) is SHA256SUMS f12cd25c. 043's five new checks pass and its two gaps closed. The delta review's stop line (an upstream group over 1% or a pass moving) was judged on what is left after 037's measured share: only cpython-c, pandas-frame and pandas-groupby cross it, each 037's.
+- Reviews: `../reviews/043-*` and the wave's integration review.

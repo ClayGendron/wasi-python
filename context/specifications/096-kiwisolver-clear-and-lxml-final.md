@@ -1,6 +1,6 @@
 # 096 — kiwisolver's `tp_clear` returns `int`, `lxml.html.diff` imports, and the scan reads type slots
 
-- **Status:** **drafted 2026-10-20** on `spec/096-kiwisolver-clear-and-lxml-final` from main
+- **Status:** **landed 2026-10-20 in wave 06** (043, 037, 096) on main `c5fc7a4`: accepted on `d066695`, history line 87, 676/751 pass, 0 fail; the integration review `../reviews/wave-06-integration-2026-10-20.md` ("lands as merged", every grown row inside its prediction); the dry run 39398491514 dispatched as main moved. Before: **drafted 2026-10-20** on `spec/096-kiwisolver-clear-and-lxml-final` from main
   `1ce7381`, with its research; **reviewed before build** the same day
   (`../reviews/096-kiwisolver-clear-and-lxml-final-spec-2026-10-20.md`, verdict "ready once
   findings 1 and 2 are written into Decision 3 and check 3, with their unit rows"); **revised
@@ -719,3 +719,7 @@ Its context-only Lows (3, 4 and 5) are written in above, by the reviewer's commi
   passes. It is the set, not the tree; the wave's rebuild settles it.
 - Not rebuilt: the lane rebuilds the wave tip once in the main tree.
 
+### Landed in wave 06
+
+- Over 037's set: python.wasm +8 bytes, the snapshot +27 (wizer's segment-cap jitter), the zip +29, MANIFEST two recipe lines. Check 3 passes on the merged set (554 types, 461 specs, 246 module definitions, 5,893 functions, no finding); its 15 module slot arrays past the image are pybind11 modules that fill their slots at run time, imported by the dotted-builtins checks. Follow-up L2: the 240-character cut of check 3's coverage line in plugin.py.
+- Reviews: `../reviews/096-*` and the wave's integration review.
