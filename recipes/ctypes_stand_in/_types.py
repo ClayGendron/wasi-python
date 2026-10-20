@@ -6,14 +6,24 @@ The rule: a name exists so that an import succeeds. Declaring a type works (a si
 `Structure` or `Union` subclass with `_fields_`, `POINTER(t)`, `CFUNCTYPE(...)`, `t * n`), and
 `sizeof` answers where the answer is a true fact on wasm32. Anything that would load a library,
 touch memory or make an instance raises OSError with the message `import ctypes` raises today.
-One exception (spec 037, Revised at build): `cast(address, F)`, an int (or None) to a function type
-F, gives an F that holds the integer and cannot be called. scipy's `_lib._ccallback_c` makes three
-at import, of its own test callbacks, so `import scipy` needs it; calling one raises OSError.
+Two exceptions:
+- (spec 037, Revised at build) `cast(address, F)`, an int (or None) to a function type F, gives an
+  F that holds the integer and cannot be called. scipy's `_lib._ccallback_c` makes three at import,
+  of its own test callbacks, so `import scipy` needs it; calling one raises OSError.
+- (spec 038, Decision 3) The numeric simple types and `c_void_p` hold values: an instance's
+  `.value` is stored as wasm32 C stores it (an integer wraps to the type's width and signedness,
+  `c_float` rounds to single precision, `c_bool` is a bool, `c_void_p` an unsigned 32-bit integer
+  or None for NULL), and `cast(x, c_void_p)` of an int, None or a `c_void_p` is a new `c_void_p`.
+  Nothing has an address: `byref`, `pointer`, `addressof` and the `from_*` methods still refuse,
+  so numpy's `ndarray.ctypes.data_as(c_void_p)` and scipy's `LowLevelCallable` user data work and
+  no foreign call can be made.
 
 The aliases follow CPython's own rule (Lib/ctypes/__init__.py), from `struct.calcsize` in the
 guest, so on wasm32 `c_int is c_long`, `c_size_t is c_ulong` and `c_int32 is c_long`.
 """
 
+import math
+import operator
 import struct
 import sys
 
@@ -71,7 +81,33 @@ class _CData(metaclass=_CType):
 
 
 class _SimpleCData(_CData):
+    """A simple type. Those of spec 038's Decision 3 set `_store_`, which turns a value into what
+    wasm32 C would store, and so hold values; for the others it is None and an instance refuses."""
+
     __numpy_dtype__ = _NumpyDtype()
+    _store_ = None
+    _zero_ = 0  # the value of an instance made with none
+
+    def __new__(cls, *args, **kwargs):
+        if cls._store_ is None:
+            raise OSError(_MSG)
+        return object.__new__(cls)
+
+    def __init__(self, *value):
+        if len(value) > 1:
+            raise TypeError(f"{type(self).__name__}() takes at most one value")
+        self.value = value[0] if value else self._zero_
+
+    @property
+    def value(self):
+        return self._value_
+
+    @value.setter
+    def value(self, value):
+        self._value_ = type(self)._store_(value)
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self._value_!r})"
 
 
 class _NoLayout(_CData):
@@ -154,12 +190,56 @@ c_int32, c_uint32 = _widths[4]
 c_int64, c_uint64 = _widths[8]
 c_time_t = c_int64  # WASI's time_t is 8 bytes (SIZEOF_TIME_T in the build's _sysconfigdata)
 
+def _storer(code, bits):
+    """What wasm32 C stores for a value given to a numeric simple type (spec 038, Decision 3)."""
+    if code == "?":
+        return bool
+    if code == "f":
+        return _single
+    if code in "dg":
+        return _double
+    size, signed = 1 << bits, code.islower()
+
+    def wrap(value):
+        n = operator.index(value) % size  # TypeError for a float or a str, as CPython's ctypes
+        return n - size if signed and n >= size >> 1 else n
+
+    return wrap
+
+
+def _double(value):
+    if isinstance(value, (str, bytes, bytearray)):  # float() would parse them; ctypes refuses
+        raise TypeError(f"must be real number, not {type(value).__name__}")
+    return float(value)
+
+
+def _single(value):
+    value = _double(value)
+    try:
+        return struct.unpack("f", struct.pack("f", value))[0]
+    except OverflowError:  # beyond float's range: C's conversion gives the infinity of that sign
+        return math.copysign(math.inf, value)
+
+
+def _address(value):
+    """c_void_p's value: an unsigned pointer-width integer, or None for NULL (CPython's ctypes
+    reads a zero pointer as None)."""
+    if value is None:
+        return None
+    if isinstance(value, _CData) or not hasattr(type(value), "__index__"):
+        raise TypeError(f"cannot be converted to pointer: {type(value).__name__}")
+    return operator.index(value) % (1 << 8 * _POINTER_SIZE) or None
+
+
+c_void_p._store_, c_void_p._zero_ = staticmethod(_address), None
+
 # Byte order, as numpy's _from_ctypes_scalar and as_ctypes_type read it: on little-endian wasm32
 # each numeric type is its own __ctype_le__; its __ctype_be__ is itself when one byte wide, else a
 # big-endian twin.
 _numeric = (c_bool, c_byte, c_ubyte, c_short, c_ushort, c_int, c_uint, c_long, c_ulong,
             c_longlong, c_ulonglong, c_float, c_double, c_longdouble)  # fmt: skip
 for _t in dict.fromkeys(_numeric):  # an alias once
+    _t._store_ = staticmethod(_storer(_t._type_, 8 * _t._size_))
     _t.__ctype_le__ = _t
     if _t._size_ == 1:
         _t.__ctype_be__ = _t
@@ -253,11 +333,18 @@ class LibraryLoader:
 cdll = LibraryLoader(CDLL)
 pydll = LibraryLoader(PyDLL)
 
+
 def cast(*args, **kwargs):
     """An address (an int, or None for NULL) cast to a function type: an instance holding it,
-    which cannot be called. Any other cast, or call, raises OSError."""
+    which cannot be called (spec 037). An int, None or a `c_void_p` cast to `c_void_p`: a new
+    `c_void_p` with that value (spec 038). Any other cast, or call, raises OSError."""
     obj, typ = args if len(args) == 2 and not kwargs else (None, None)
-    if isinstance(typ, _CType) and issubclass(typ, _FunctionPointer):
+    if typ is c_void_p:
+        if isinstance(obj, c_void_p):
+            return c_void_p(obj.value)
+        if obj is None or (isinstance(obj, int) and not isinstance(obj, bool)):
+            return c_void_p(obj)
+    elif isinstance(typ, _CType) and issubclass(typ, _FunctionPointer):
         if obj is None or (isinstance(obj, int) and not isinstance(obj, bool)):
             made = object.__new__(typ)
             made._address_ = obj

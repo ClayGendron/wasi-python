@@ -48,6 +48,22 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   numpy computes as before. The set is the same bytes from every build host with no exception:
   wasi-sdk 34 (spec 086) compiles scipy's ducc0 FFT to one object, so the same-bytes exception
   this specification built on wasi-sdk 33 was withdrawn before it landed.
+- **scipy's sandbox edges work** (spec 038; spec 037's three known gaps closed). With nothing
+  writable and no thread: `scipy.io.mmread` and `mmwrite` read and write serially, since
+  Matrix Market's default parallelism is 1 on WASI
+  (`recipes/patches/scipy-1.18.1/0003-io-matrix-market-serial-without-threads.patch`);
+  `stats.qmc.Sobol`, `qmc_quad`, `sobol_indices` and the Sobol options of
+  `differential_evolution` and `shgo` read the direction numbers' bytes from the zip without a
+  temporary file, so they no longer give wrong numbers with exit 0
+  (`recipes/patches/scipy-1.18.1/0004-stats-sobol-without-a-temporary-file.patch`); and
+  `geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range`, `tukey_hsd` and `loadarff` work.
+  **Changed:** the `ctypes` stand-in holds values: an instance of a numeric type
+  (`c_int(5).value`, `c_ulong(-1).value == 4294967295`, `c_float` rounded to single precision)
+  or of `c_void_p` (a 32-bit integer, or None), and `cast(x, c_void_p)` of an integer, None or a
+  `c_void_p`, where each raised `OSError` before; numpy's `ndarray.ctypes.data` and
+  `data_as(ctypes.c_void_p)` give the array's address. Nothing has an address: `byref`,
+  `pointer`, `addressof`, typed pointers, strings, structures and every library load still raise
+  `OSError`, and `-V` still says "no ctypes".
 - **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec
   094). A Windows guest deletes a read-only file itself (084's C2, settled by wave 01's dry run),
   so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on

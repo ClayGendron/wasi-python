@@ -1,0 +1,27 @@
+diff --git a/scipy/io/_fast_matrix_market/__init__.py b/scipy/io/_fast_matrix_market/__init__.py
+index 10d67d4..3501343 100644
+--- a/scipy/io/_fast_matrix_market/__init__.py
++++ b/scipy/io/_fast_matrix_market/__init__.py
+@@ -11,6 +11,7 @@ for information about the Matrix Market format.
+ """
+ import io
+ import os
++import sys
+ 
+ from warnings import warn
+ 
+@@ -21,11 +22,13 @@ from scipy._lib.deprecation import _NoValue
+ 
+ __all__ = ['mminfo', 'mmread', 'mmwrite']
+ 
+-PARALLELISM = 0
++PARALLELISM = 1 if sys.platform in ("emscripten", "wasi") else 0
+ """
+ Number of threads that `mmread()` and `mmwrite()` use.
+ 0 means number of CPUs in the system.
+ Use `threadpoolctl` to set this value.
++The default is 1 on Emscripten and WASI, where a thread cannot be started:
++any other value takes the threaded path, whose pool starts a thread.
+ """
+ 
+ ALWAYS_FIND_SYMMETRY = False
