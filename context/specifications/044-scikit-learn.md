@@ -799,6 +799,61 @@ the lane asks it):
 - **N3, enforced:** each pattern in `recipes/weak-duplicates-allowed.txt` must carry `# <reason>`
   on its line or the build stops (a unit check holds it), and the build review reads each one.
 
+### For the lane
+
+**Where it stands (2026-10-20).** Built natively on 038's `8cf320a` (on 037's `28bd08a`, 043's
+`54022dd`, main `41bcc0f`): steps 00 to 57 from an empty `build/`, 58 to 90 again after B11's
+rename (no input of 00 to 57 changed). Branch tip `03a2311`, pushed. The fast tier `-n 3`: 622
+of 762 pass, 0 fail, 3 blocked (the prior-art clones, three systems, the wheel), 137 deselected;
+unit suite 1,816 of 1,823 (7 skipped); the ratchet loses nothing and grows 162 metrics. The
+release workflow on the branch, run **39399546778**: the two Linux rebuilds, macOS's build and
+judge, the same bytes from every host, the three verify jobs, every Windows judge and every
+Linux own-shard pass. Red: macOS own-guest, own-embedding and upstream-macos on growth lines
+only; and four Linux upstream shards on lines that are not 044's (below). **Landing waits for
+the owner's answer to B1.**
+
+**Re-derived after the rebase:** the README's carried patches 20 (038's 19 plus this one), its
+prose list and "nineteen steps"; the release tree count 26 (038's 25 plus `scikit_learn`; git
+had merged both branches' 24 to 25 silently); `JOBS` and `PLATFORM_BOUND` hold 038's
+`scipy_edges` and this `machine_learning`; step 60's lists hold 043's contourpy and this
+sklearn.
+
+**The claim list.**
+
+- **New checks:** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`,
+  `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`;
+  `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`;
+  `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`,
+  `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts`
+  (the build shard) and `::test_the_sample_images_are_not_in_the_zip`;
+  `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; the
+  unit suite's `tests/unit/test_sklearn_build.py` (nine rows, one needing step 10's SDK).
+- **Changed checks:** `test_packages_carry_their_metadata` (both binaries, one more
+  distribution); `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy);
+  `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and
+  meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit
+  fixtures (the step list, the synthetic set's package).
+- **Gaps:** none added, none closed by 044.
+- **Rows that grow** (measured on this set; the base is 038's set): `python.wasm` 93,793,847
+  bytes, the snapshot 98,620,285, the zip 47,730,084 (scikit-learn's 411 members, 3,219,354
+  bytes as stored); plain `-c pass` 251,787,400 fuel, snapshot `-c pass` 51,472,431; `import
+  sklearn` 13.85 G plain and 13.48 G snapshot (no package is pre-imported); every check that
+  starts the plain binary pays the 411 members' directory entries.
+- **Not 044's:** `test_upstream_class[cpython-a-no-ctypes]`, `[cpython-b-no-ctypes]`,
+  `[cpython-c-no-ctypes]` and `[numpy-others-no-ctypes]` pass while `tests/known_gaps.toml`
+  still lists them, and `test_upstream_suite[cpython-b]` meets an unexpected error in
+  `test.test_memoryview.OtherTest.test_ctypes_cast`. Each comes from 038's `8cf320a` ctypes
+  stand-in, which 044 does not touch; they belong to 038's build and fall away when 044 restacks
+  on 038's built tip or on main.
+
+**The flags.**
+
+```
+--accept "044: scikit-learn 1.9.1 built in: 69 modules as builtins, 411 zip members, the golden byte for byte native's on both binaries; the weak-duplicate gate and the link-map check for every package; sklearn.utils._random renamed off CPython's _random (B11). The owner's B1 answer is in decisions.md"
+--accept-judge "044: the machine_learning golden with the oracle's scikit-learn pin and OMP_NUM_THREADS=1; four scikit-learn behaviour checks; the notice check (build shard) and the sample-image check; the constructor list's three newrand constructors; scikit-learn in the package, licence, source-tree and metadata lists, MESON_BUILDS, CPP_CROSS_FILES, COMPONENT_NAMES and packages.toml; scikit-learn's own dotted-builtin run; the release tree count 26"
+--accept-growth "044: python.wasm and the snapshot by scikit-learn's 69 modules and its static libraries, the zip by 411 members (3.22 MB stored), and every plain start by those members' directory entries; no other row moves"
+```
+
 ## Landing notes
 
 Not built. Drafted before the build, to be completed with it:
