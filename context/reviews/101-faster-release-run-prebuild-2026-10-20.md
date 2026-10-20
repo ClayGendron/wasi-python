@@ -1,0 +1,313 @@
+# Review of 101 — a faster release run (pre-build)
+
+- **Date:** 2026-10-20
+- **Reviewer:** a fresh agent (Claude), not the author; the pre-build review constitution §5.6 asks
+  for, since the specification changes the release workflow.
+- **Reviewed:** the specification as drafted, `context/specifications/101-faster-release-run.md`
+  at `6ad2672` on `spec/101-faster-release-run`, read against main `30e9b41`'s
+  `.github/workflows/release.yml`, `tests/release_shards.toml`, `tests/harness/{gather,shards,scan,
+  sameness,plugin,paths,constructors,wasm}.py`, `scripts/` (build.sh, steps, assemble_artifacts.py,
+  line.conf, line.py, constructors.sh), `release/version.py`, specs 057 and 092, and branch
+  `spec/066-the-compiled-packages-own-tests` (`42850ee`).
+- **Run:** none dispatched (a pre-build review; read-only). Runs read: 39442080658 (wave 07) and
+  39451333969 (spec 066), `gh run view <id> --json jobs,createdAt,updatedAt,headSha,headBranch`;
+  `gh run list --workflow release.yml --limit 60`.
+- **Re-ran:** no judge tier. Three read-only probes in the reviewer's scratchpad: `timing.py` and
+  `steps.py` over the two runs' jobs (job and step minutes from the run's creation); `acc_probe.py`
+  over `context/progress/accepted.json` (the build shard's rows); `suite_probe.py`, calling
+  `harness.sameness.compare` on two synthetic records (bytecode off; the worktree stayed clean,
+  `git status --short` empty after).
+- **Time box:** 45 minutes (build-class). Overran by about 20 minutes on the width and hit-rate
+  counts.
+
+## The draft's key finding, checked
+
+**A cache hit cannot skip a from-source build: confirmed** (EXECUTED, read). The build shard reads
+the build tree, not the set: `test_source_tree_matches_its_tarball` needs the 26 unpacked trees,
+`test_every_compile_contracts_nothing` and `test_every_build_python_is_pinned` read the compile
+records and meson logs, `test_the_backend_orders_try_tables_alike` and `test_ducc0s_fft…` run the
+SDK's `clang` under `build/tools/`, `test_one_qhull_is_linked` reads `build/link/python.map` and
+`llvm-nm`, `test_the_guests_configure_results_are_recorded` reads the guest's `pyconfig.h`, and
+`test_recursion_raises_under_the_wasmtime_cli` runs `build/tools/wasmtime-v*/wasmtime`
+(`tests/checks/test_v1_5_rebuild_from_pins.py`; `paths.wasmtime_cli`). So "reuse with the build
+shard kept on macOS" does not exist on a reuse run. Moving the build shard to a job that always
+builds is the only way to keep every check on every run.
+
+**The build shard has no metrics or facts to lose: confirmed** (EXECUTED, `acc_probe.py`): 50 goal
+rows in `accepted.json` (the file plus the two named nodes), all `pass`, none with `metrics`,
+none with `facts`.
+
+**G2 is a real cross-host proof: confirmed** (EXECUTED, read). `plugin.py:700-714` hashes
+`python.wasm` and `SHA256SUMS` in `paths.artifact_dir()` when it writes the record. In a judge
+shard that is the unpacked `.tar.xz`. In `build-shard` it is the job's own `build/artifacts`, as
+long as the job sets no `WASI_PYTHON_ARTIFACTS` (L6). The gather compares both with the build
+job's `wasm-sha256` and `set-sums-sha256`, which the build job hashes from `build/artifacts`.
+Nothing is copied from an input.
+
+**Layer 3 is stronger than the draft says** (INFERRED from the scripts). On a reuse run, the two
+rebuilds and `build-shard` each run all of `scripts/build.sh`: the constructor gate (step 60),
+`apply_patches.sh`'s drift refusal, and step 10's host-Python gate. So an input that changes only
+a gate's verdict also turns a reuse run red. And `MANIFEST` already hashes every tracked file
+under `scripts/` and `recipes/` (except `bench_*`) and every pin (except the research pins)
+(`scripts/assemble_artifacts.py:686-698`). So most of the key is already bytes in the set. In
+short: a missing key input can cause a false red, never a false pass. The key decides speed and
+whether the set "is this commit's", not whether the verdict is right.
+
+## Acceptance criteria against the design (pre-build: can each be evidenced?)
+
+1. Checks seen failing first with mutants — evidenceable; the mutant lists need two additions (L5).
+2. The set does not change — evidenceable (no `scripts/`, `recipes/` or `downloads/` change).
+3. The traced build — evidenceable, but the trace as written misses reads by `stat` (L5).
+4. A source run — evidenceable.
+5. A reuse run — evidenceable; it does not check that `set-source` comes from evidence (L3).
+6. The numbers — evidenceable; the estimates to compare against need correcting (L1).
+7. The seed — evidenceable for the "found" path only; the build path waits for a push to main.
+8. The judge — **not reachable as drafted**: the lane's sameness line reports a suite difference
+   at 101's own landing (H1).
+9. The tail — evidenceable.
+
+## Findings, most severe first
+
+1. **High — H1. Moving the build record to Linux makes sameness report a false suite difference
+   at every landing** (`tests/harness/sameness.py:51` and `:144-151`; the Design table leaves
+   `sameness.py` out). Spec 092 has landed. Its `view()` adds up the unit suite from the release
+   record's runs whose platform starts with `darwin-`, and maps the system `build` to darwin in
+   `SYSTEMS`. Today the build record is `darwin-arm64`, so `tests/unit/test_pins.py`'s 10 unit
+   tests count on the darwin side. After 101 the record is `linux-aarch64`, so the release's darwin
+   suite is 10 tests short of the lane's local darwin record.
+   Failure: EXECUTED with `suite_probe.py`, using a release record whose build run has 10 units and
+   own-rest has 90, against a local record with 100. With the build run on `darwin-arm64` the
+   result is `[] []`. On `linux-aarch64` it is `["suite: {'total': 100, 'passed': 100} != {'total':
+   90, 'passed': 90}"]`. AGENTS.md rule 6a ejects an entry for any unexplained difference. So 101's
+   own wave, and every wave after it, gets a difference that only a claim can explain.
+   Fix (add to *Design* and *The checks*): "`tests/harness/sameness.py`: `view()` counts a run's
+   suite on the darwin side when its key is the build shard's (`build/build`) or its platform
+   starts with `darwin-`; `SYSTEMS` maps `build` to `linux` (`{"darwin": {"macos"}, "linux":
+   {"linux", "build"}, "win32": {"windows"}}`) so `_ci_block` reads a block in `build-shard` as
+   Linux's. Unit rows in `tests/unit/test_sameness.py`: a release record whose build run is
+   `linux-aarch64` and a local darwin record with the same units give no suite difference; a build
+   run missing one unit still gives one." Add `sameness.py` to the `--accept-judge` reason.
+
+2. **Medium — M1. A tag run no longer checks its published build's own records in CI. The draft
+   says "nothing the verdict means has changed" and "no check is retired".** (Decision 5; the
+   owner's choice 2.) Today a tag's build shard runs on the macOS tree that built the published
+   bytes. After 101 it runs only on `build-shard`'s Linux tree, on every run, tags included. These
+   checks no longer see the published build in CI:
+   - `test_every_compile_contracts_nothing`: the macOS compile records, and the macOS `clang -###`.
+   - `test_every_build_python_is_pinned`: the macOS meson logs, `config.log`s, PATH folders, and
+     the gate line.
+   - `test_the_backend_orders_try_tables_alike` and `test_ducc0s_fft_compiles_to_one_object`: the
+     macOS `clang`.
+   - `test_one_qhull_is_linked`: the macOS link map.
+   - `test_the_guests_configure_results_are_recorded`: the macOS `pyconfig.h`.
+   `same-bytes` and G2 still prove the bytes are equal. What is lost is the check of how the
+   published build was made, for example an unpinned host Python on the `macos-15` image that
+   happens to give equal bytes (§4.2). The lane's darwin run at landing still covers these checks,
+   but on the lane's machine, not on the runner image the tag builds on.
+   Failure: a `macos-15` image update puts a Python ahead of step 10's shim. The tag's bytes equal
+   the Linux rebuilds. The tag run passes, and no CI job reads the macOS records that would show it.
+   Fix: put choice 2 to the owner before the build (see "Owner's choices" below), with this text in
+   Decision 5: "On a tag, a dispatch on main and a `from-source` run, the build shard's checks see
+   only `build-shard`'s Linux tree in CI. The published macOS tree is checked by the zero-patch
+   step, by `same-bytes` and by G2 (equal bytes), and by the lane's darwin run at landing. The
+   seven record checks listed in Decision 5 no longer read the published build's records in CI."
+   Change *Intent*'s "nothing the verdict means has changed" to "the checks are the same; on a tag,
+   seven of them read a Linux tree that builds the same bytes, not the published macOS tree". If
+   the owner refuses, the fallback is: on source runs the build job keeps the build shard as a step
+   (`if: needs.inputs.outputs.reuse != 'true'`), handing on `record-id` as today; `build-shard`
+   runs only when `reuse == 'true'` (a job-level `if:` that rule 1 of spec 063 must allow for this
+   one job); and the gather reads the build record from whichever job `set-source` names. This
+   costs source runs their 2 to 3.5 minutes back.
+
+3. **Medium — M2. `set-cache.yml`, the one writer to the cache every branch reads, falls under no
+   workflow rule except the pin rule** (Decisions 7 and 12; `tests/checks/test_rules.py` runs
+   `release_binding_errors` and `rebuild_gate_errors` on `release.yml` alone; only
+   `test_every_action_is_pinned_by_commit` globs every workflow). Decision 12 says the `seed` job
+   is `contents: read`, but no check holds it there. The key's `env` lines are read from
+   `release.yml`. If `set-cache.yml`'s `env:` or its `setup-uv` version drifts, the seed builds
+   under other values and saves the result under `release.yml`'s key.
+   Failure: a later change bumps `UV_VERSION` in `release.yml` but not in `set-cache.yml`. Every
+   branch then reuses a seed built with the old uv. Layer 3 makes that a false red if bytes differ,
+   and nothing at all if they do not. Either way, the shared write path has no rule behind it.
+   Fix (add to *The checks*, check 2): "`scan.release_reuse_errors` also reads `set-cache.yml`: its
+   triggers are exactly `push: branches: [main]` and `workflow_dispatch`, with no `pull_request` and
+   no `pull_request_target`; its top-level `permissions: {}`; `seed`'s `permissions` exactly
+   `contents: read`; `setup-uv` with `version: ${{ env.UV_VERSION }}` and `enable-cache: false`; no
+   `${{` in a `run:`; its top-level `env:` equal, name for name and value for value, to the key's
+   `env` lines from `release.yml`; its build steps exactly `scripts/00_download.sh` and
+   `scripts/build.sh` with no arguments; and `actions/cache/save` comes after the step that runs
+   `release/set_key.py verify`. Mutants: a `pull_request` trigger; `UV_VERSION` changed in one
+   workflow only; a save before the verify."
+
+4. **Low — L1. The time estimates need correcting from the run data** (Decision 11). EXECUTED with
+   `timing.py`; the minutes below are from each run's creation.
+   - **Reuse run:** "about 25" holds on a typical day. `build-shard` takes 0.4 to download, 18.2 to
+     19.4 to compile and 2.1 to 3.5 for the shard, so it ends near +22 to +24. The x86-64 rebuild,
+     though, took 16.7, 22.0, 19.9, 34.0 and 19.6 in the five runs, and a run is not done before
+     `same-bytes`. Write "about 25; up to about 35 when the x86-64 rebuild runs long (34.0 minutes
+     in one of five runs)".
+   - **`inputs` job:** it sits in front of `build` on every run, source runs included. It costs
+     about 0.5 to 1 minute (runner pickup, checkout, uv, the key). Add it to the source estimate.
+   - **Source run:** "35 to 45" is low at the top. Wave 07's numbers give: build without its shard
+     30.6, then `inputs` 0.5 to 1, a macOS queue of 2.3 to 7.8 (two other runs were live), then the
+     longest split shard at about 10 to 14.5 (own-hostile's 9.0 test minutes, about 0.5 of setup,
+     and a tail of 0.85 to 5). That is about +44 to +54. Spec 066's run gives about +33 to +42.
+     Write "about 35 to 50 (wave 07's build and queue give 44 to 54)".
+   - **Width with 066:** the draft says "about 36 jobs of the plan's 40". Count again. Under 101
+     plus 066, the judge shards are 24 on Linux (066's 23, less own-runner, plus own-hostile and
+     own-embedding-b), 6 on macOS and 5 on Windows, plus 3 `verify` legs: 38 jobs. On a reuse run
+     they all start near +5, while `build-shard` and both rebuilds (from +0, 19 to 34 minutes) are
+     still running. That is 41 jobs live in one run, so one queues even with no other run live.
+     Write "41 at once on a reuse run; 38 to 39 on a source run".
+
+5. **Low — L2. The hit rate is not stated, so the owner cannot weigh the reuse machinery** (Intent;
+   Decision 11). Of the last 60 release runs (`gh run list`, EXECUTED), I sorted each branch by its
+   spec's `Kind` line (INFERRED: a parallel-safe or judge-only spec changes no key input). About 22
+   runs would have hit: 063, 092, 077, 066, 093, 065, 094, 083, 082, 078. About 28 changed the key
+   (044, 099, 039, 038, 100, 087, 086, 043, 042, 037, 096, 090, 041). The 7 wave runs (most of them
+   holding a package), the 2 main runs and the tag always build from source. So reuse helps about
+   one run in three. The owner's estimate of "about 60 minutes to about 30" holds for those runs.
+   The rest go to about 35 to 50, mostly thanks to the split and the move of the build shard.
+   Fix: add to Decision 11: "Of the last 60 runs, about 22 (37%) would have reused; package
+   specifications, waves holding one, main and tags build from source (35 to 50 minutes). The
+   split and the moved build shard give most runs their gain; reuse gives a further 10 to 20
+   minutes to about a third of runs."
+
+6. **Low — L3. Two of the "three" tag enforcements read the same `reuse` output** (Decisions 4 and
+   6). G7's new rule reads `set-source`, and the build job makes `set-source` from `needs.inputs.
+   outputs.reuse`. A wrong `reuse` on a tag would then report itself as `built`.
+   Fix (Decision 6): "`set-source` is made from evidence, not from the decision. The `scripts/
+   build.sh` step has `id: compile`, and the output is `${{ steps.compile.outcome == 'success' &&
+   'built' || format('reused {0}', needs.inputs.outputs.key) }}`. The rules check holds this text."
+   Also: the `inputs` condition names `github.event_name == 'workflow_dispatch' && github.ref_type ==
+   'branch' && github.ref != 'refs/heads/main' && inputs.from-source != true`, and every consumer
+   compares `== 'true'` exactly, so an empty or broken output falls back to building from source.
+   Add the mutants "`!= 'false'` in the build job's `runs-on`" and "a dispatch on a tag ref reuses"
+   to check 2.
+
+7. **Low — L4. Spec 057's rule 15 holds by its letter, not its intent** (Decision 8). EXECUTED,
+   read (`scan.py:1491-1503`). Rule 15 treats only `actions/download-artifact` steps, steps named
+   "These are the bytes the build job made", and steps holding the guard text as guards, checks or
+   downloads. None of Decision 8's conditional steps matches, so the rule passes. But the zero-patch
+   step is a check, and it is skipped on reuse runs. The new reused-set check is skipped on source
+   runs.
+   Fix (Decision 8): "The reused-set check runs on every run, with no `if:`. It checks whatever is
+   in `build/artifacts/`: every file against its `SHA256SUMS`, no other file, and `MANIFEST`'s `pin`
+   and `recipe` lines against this checkout. On a reuse run it also checks the key against the
+   `inputs` job's. `build-shard` runs the zero-patch step, text for text, with no `if:`. Only the
+   restore, the pins' download and `scripts/build.sh` carry `if:`, and none of them is a check."
+   The `MANIFEST` comparison must make the lines exactly as `assemble_artifacts.py` makes them
+   (research pins and `bench_*` left out), by calling or sharing that code, not copying it.
+
+8. **Low — L5. Gaps in proving the key complete** (Decision 3).
+   - (a) `constructors.sh` runs `PYTHONPATH="$HERE/tests" "$HOSTPY" -m harness.constructors` without
+     `-I`. So every top-level module under `tests/` is importable ahead of the stdlib, and a
+     `tests/sitecustomize.py` would run at startup. Neither is a static import, so the import rule
+     cannot see them. Fix: "the rules check also refuses a top-level `tests/*.py` named
+     `sitecustomize`, `usercustomize`, or the name of a stdlib module (`sys.stdlib_module_names`)."
+   - (b) "`release/set_key.py` itself" must bring its own local imports with it. Fix: "and every
+     local module it imports". Also run it as `uv run --no-project python -I release/set_key.py`,
+     stdlib only, so the `inputs` job does not sync the judge's environment.
+   - (c) Add a mutant: "`constructors.sh` names `harness.gate2`, a module outside the closure",
+     which shows the rule finds the module and not only its imports.
+   - (d) The trace `-e trace=open,openat,openat2,execve` misses reads by `stat`, `access` and
+     `readlink`, such as `[ -f x ]` and `test -d`. Fix: "`strace -f -y -e
+     trace=%file,%process,chdir,fchdir -o build/101/trace.txt scripts/build.sh`; relative paths
+     resolved against each process's working folder."
+
+9. **Low — L6. Proving no vacuous pass on Linux, and the build record's provenance** (Decision 5;
+   the self-check). I found no build-shard check that branches on darwin (EXECUTED: no `sys.platform`
+   or `darwin` in `test_v1_5_rebuild_from_pins.py` or `test_pins.py`, except the fake-`uname` table,
+   which covers all three hosts). Host names come through `line.py`'s `LINUX_AARCH64_*` keys. A
+   failure is possible: `make_openblas_void_patch.sh` runs `git diff` with Linux's git and
+   `/usr/bin` tools. A vacuous pass is also possible: `test_every_compile_contracts_nothing`'s
+   compiler loop and the meson-log reads skip quietly when nothing matches.
+   Fix (self-check): "The `read:` lines of `test_every_compile_contracts_nothing`,
+   `test_every_build_python_is_pinned`, `test_the_backend_orders_try_tables_alike` and
+   `test_one_qhull_is_linked` from `build-shard`, beside the lane's darwin lines, the same counts of
+   compile records, commands and meson logs, and one SDK probed." And add a rules row: "`build-shard`
+   sets no `WASI_PYTHON_ARTIFACTS`, downloads nothing, and builds before its shard. `scan.py`'s
+   `RECORD_ID_OUTPUT` (rule 8 of spec 063) also matches `needs.build-shard.outputs.record-id`."
+
+10. **Low — L7. §5.7 and wave reuse** (Decision 4). On a reuse wave, the lane compares its
+    main-tree rebuild "with the release workflow's build of the same tip". Fix: "On a reuse run that
+    build is `build-shard`'s fresh build, whose `SHA256SUMS` G2 ties to the set judged. The lane
+    names `build-shard`'s job id in its notes."
+
+11. **Note — N1. The gather now needs `same-bytes` on every run, source runs included.** A failed
+    or 120-minute x86-64 rebuild now hides the release record, which today still lets the builder
+    read the scoreboard. G2 on `build-shard` is already a fresh build in the same run, so it is the
+    staleness backstop for a reuse run by itself. The run is red on a `same-bytes` failure either
+    way. The draft's choice is defensible. Weigh it in one sentence.
+
+12. **Note — N2. A `macos-15` image drift that breaks the macOS build** cannot show on a reuse run.
+    It shows at main's dry run before a tag (rule 6b), which always builds from source. Say so in
+    Decision 4.
+
+## Probes answered
+
+- **Is the key complete?** For correctness, it does not have to be (layer 3). Missing or soft
+  today: the `tests/` names that `PYTHONPATH` exposes (L5a), `set_key.py`'s imports (L5b), and
+  `set-cache.yml`'s env (M2). Neither `uv.lock` nor `pyproject.toml` reaches the build: step 10's
+  `uv pip install` is `--offline --no-index --require-hashes` from the wheelhouse, and the repository
+  has no `[tool.uv]` or `uv.toml` (EXECUTED, grep). The only path the build names outside
+  `scripts/`, `recipes/`, `build/` and `downloads/` is `$HERE/tests` (EXECUTED, grep over
+  `scripts/`). Layer 1 passes vacuously only where its mutants do not reach (L5c). Layer 2 misses
+  reads by `stat` (L5d). Layer 3 is sound.
+- **Does it weaken a check?** Every check still runs on every run. On tags, seven record checks move
+  from the published macOS tree to a Linux tree (M1). No darwin-only path was found in the build
+  shard (L6).
+- **Attestation:** no path lets a reused set reach `attest`, `publish` or `pypi`. All three need
+  the gather (through `publish` for `pypi`) and run only on `push` of a tag. The `inputs` condition
+  and G7 make reuse impossible there, though both rest on one output today (L3).
+- **Spec 057:** the two rebuild jobs are untouched and stay alike. Rule 15 holds by its letter
+  (L4). Rule 8's regex needs `build-shard` (L6). The new holder `save-set` comes under rules 7 to 9
+  and 16, as drafted.
+- **Estimates:** re-derived in L1.
+- **Simpler alternatives** (INFERRED from the step times):
+  - The split alone brings wave 07 from 59.7 to about 49 to 51 and spec 066's run from 53 to about
+    43. Nothing moves and nothing new is added.
+  - The split plus the move of the build shard (no reuse) gives about 35 to 50 on every run, and
+    still carries M1.
+  - Reuse with the build shard kept on macOS is impossible (see the key finding).
+  - Reuse as drafted gives about 25 on hits, about one run in three (L2).
+  - The draft is right to do both of the owner's levers. The split and the move give most runs
+    their gain; reuse is the extra for parallel-safe work.
+- **Conflicts:** 066 (`42850ee`, based on `958a22bc`, behind main) rewrites `judge-linux`'s
+  one-line `shard: [...]` matrix, its `outputs:`, the gather's Linux id list and its env. 101
+  rewrites the same lines on all three systems, so there are certain textual conflicts. Rule 2 of
+  spec 063 lets them be resolved from the plan. The order "after 066" is right. 095 is only reserved
+  (roadmap line 133). Each Linux shard it adds raises a reuse run's peak above 41 jobs (L1).
+
+## Constitution checks
+
+- §4.1: the zero-patch check stays on every source build. L4 puts it on every run.
+- §4.2: no new pin or download. `actions/cache` is pinned by commit as drafted.
+- §4.6: no artifact goes into git. The cache is outside git.
+- §4.10: the draft labels its claims. Its estimates are marked INFERRED and need L1's numbers.
+- §5.6: this review. The build review must read the source run and the reuse run on the reviewed
+  commit.
+- §7: nothing tripped. No `if:` on a guard, a check or a download by rule 15's letter (L4).
+
+## The owner's choices (the draft lists five)
+
+- **Decide before the build:** choice 2, the build shard on Linux for tags too (M1). It changes
+  what a tag run checks about the bytes it publishes. Put it with the fallback in M1.
+- **Tell the owner before the build** (no decision needed unless they want to stage it): the hit
+  rate (L2). Their "60 to 30" holds for about a third of runs; the rest go to about 35 to 50.
+- **Defaults the lane can take:** choice 1 (waves reuse, with L7's wording); choice 3 (the seed
+  workflow, under M2's rules); choice 4 (the tail, a follow-up); choice 5 (width: the three-run rule
+  stays, and L1's count goes in the roadmap note).
+
+## Disposition (filled in by the author, then confirmed by the reviewer)
+
+1. H1 —
+2. M1 —
+3. M2 —
+4. L1 to L7, N1, N2 —
+
+## Verdict
+
+Build once H1 is in the Design (sameness reads the build run as darwin's suite, or by its shard),
+M1 is put to the owner with its corrected wording, and M2's rules for `set-cache.yml` are in *The
+checks*. The Lows are write-ins with their fix text.
