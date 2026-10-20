@@ -89,6 +89,29 @@ of 3.2.2, 30 to 56% less fuel on larger linear algebra and about 1.8 MB less `py
 owner's choice: "Yes, before 0.1.0". Exact singular-matrix parity is not a goal in wasm; the README
 says so.
 
+### Fewer CI runs per specification, and a faster run (2026-10-20)
+
+The owner asked whether the CI strategy was working, since work seemed stalled. The lane's
+answer: release runs took 21 to 27 minutes through wave 05 and take 46 to 64 now (105 when
+queued behind the three-run limit); wave 07's dry run spent 34 minutes on the native build on
+macOS and about 25 on the macOS shards, own-guest (21 min) and own-embedding (17 min), which
+started 3 to 8 minutes late waiting for a runner. Each specification ran CI three to five times
+(wave 07, two specifications, about eight runs): the builder's, the reviewer's own on the same
+commit (spec 100's two runs, 39439703872 and 39448839291, gave the same growth lines value for
+value), and another after each rebase onto a wave the dry run then checks again. Waves landed
+about five and a half hours apart. The owner chose all three of the lane's proposals:
+
+- **The reviewer reads the builder's run** when that run is on the exact commit reviewed, and
+  names it as its own; it dispatches its own only when the commit differs. Constitution §5.6 is
+  amended.
+- **No branch run after a rebase.** A builder that only rebased onto a wave's tip, with every
+  conflict named and the fast tier green, dispatches no new run; the wave's dry run on three
+  systems is the check. A rebase that changes code beyond its named conflict hunks is not "only
+  rebased" and runs again.
+- **Spec 101, a faster run, before 0.1.0** (build-class, the release workflow): reuse the
+  native build when the hash of its pins and recipes is unchanged, and split the macOS own-guest
+  and own-embedding shards. The lane's estimate, not measured: about 60 minutes to about 30.
+
 ### Every test of every package we build (2026-10-20)
 
 Spec 066's re-survey on wave 06's set (branch tip `ad3c065`) found the budget rule's price was

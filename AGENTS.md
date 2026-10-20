@@ -87,7 +87,10 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    specification is "built" only once its builder has dispatched the
    release workflow on its branch and read the run: every red line a
    growth line or G7, the run id in the landing notes; the build review
-   names its own run. Its CHANGELOG lines go under the one unreleased
+   names its run. A builder that only rebased onto a wave's tip (every
+   conflict named, the fast tier green) dispatches no new run: the
+   wave's dry run on three systems is the check (the owner, 2026-10-20).
+   Its CHANGELOG lines go under the one unreleased
    section, which becomes "0.1.0" (no more alphas, the owner, 2026-10-19).
 3. **Write the check before the code.** A new behaviour gets a check
    (or a gap entry naming its closer) first. A new failure mode, once
@@ -102,8 +105,9 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    on the machine. The full judge runs once per stage, at its end, and
    on GitHub Actions (the owner, 2026-10-19): the builder's dispatch of
    the release workflow before it writes "built", the reviewer's own
-   dispatch on the reviewed commit before its verdict (constitution
-   §5.6), each reading the run back (`gh run view <id> --json jobs`,
+   dispatch on the reviewed commit before its verdict, or the builder's
+   run when it is on that exact commit (constitution §5.6; the owner,
+   2026-10-20), each reading the run back (`gh run view <id> --json jobs`,
    `gh run download <id> -n release-record-1`). Locally, builders and
    reviewers run the fast tier and single node ids only. The one local
    full judge is the lane's `uv run pytest -n 3` on the wave's tip.
@@ -175,8 +179,9 @@ The judge is `uv run pytest`; its scoreboard is the progress signal
    the branch over; a code fix stays the builder's, and the lane reads
    it against the finding (the owner, 2026-10-19). Before asking for a
    review, the builder writes the self-check list
-   (`context/reviews/README.md`); the reviewer dispatches its own CI run
-   first, then works its checklist in its time box. A wave's
+   (`context/reviews/README.md`); the reviewer reads the builder's CI run
+   when it is on the exact commit reviewed, else dispatches its own
+   first (the owner, 2026-10-20), then works its checklist in its time box. A wave's
    integration gets its own fresh reviewer, one who reviewed none of
    its entries.
 9. **Commit only what you mean.** Before every commit, read `git diff --cached --stat`: a

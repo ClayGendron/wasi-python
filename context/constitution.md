@@ -49,6 +49,9 @@
   reviewer's re-run may be its own dispatch of the release workflow, and
   a reviewer may write in a Low finding that touches only `context/`
   (§5.6).
+  Amended 2026-10-20 by the owner, to cut duplicate CI runs: a reviewer
+  reads the builder's release workflow run when it is on the exact
+  commit reviewed, in place of its own dispatch (§5.6).
 - **Owner:** Clay Gendron
 - **Scope:** every document, script, recipe and line of code in this
   repository, and every agent or person working on it. The other
@@ -278,7 +281,9 @@ works.
    fresh agent or a person), who is given the specification and the
    change, not the author's summary. The reviewer re-runs the counted
    tests (locally, or as its own dispatch of the release workflow on
-   the reviewed commit, whose run it names; owner, 2026-10-19), checks
+   the reviewed commit, whose run it names; owner, 2026-10-19; or by
+   reading the builder's run when that run is on the exact commit
+   reviewed, which it names the same way; owner, 2026-10-20), checks
    each acceptance criterion against its evidence,
    checks the change against §4 and §7, and reports ranked findings.
    Each finding is fixed or answered in writing before the landing;
