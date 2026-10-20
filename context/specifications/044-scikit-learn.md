@@ -1,6 +1,6 @@
 # 044 — scikit-learn
 
-- **Status:** **Being built** (2026-10-20, stacked on 037 then 038; the builder's notes before the build, below, list what a reviewer confirms first). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **Built** (2026-10-20), a stacked build on 038's built tip `ecc2423` (on main `958a22b`); rebuilt from empty and judged there, release run in *For the lane*; B1 approved by the owner (`../decisions.md`, 2026-10-20). Waiting for its build review, then lands after 038 in one chain. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): all fourteen findings
   that concern it are fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -804,7 +804,7 @@ the lane asks it; the owner approved both on 2026-10-20, `../decisions.md`, "Thr
 - **N3, enforced:** each pattern in `recipes/weak-duplicates-allowed.txt` must carry `# <reason>`
   on its line or the build stops (a unit check holds it), and the build review reads each one.
 
-### For the lane
+### The first build's account (superseded by the restack below)
 
 **Where it stands (2026-10-20).** Built natively on 038's `8cf320a` (on 037's `28bd08a`, 043's
 `54022dd`, main `41bcc0f`): steps 00 to 57 from an empty `build/`, 58 to 90 again after B11's
@@ -851,17 +851,155 @@ sklearn.
   stand-in, which 044 does not touch; they belong to 038's build and fall away when 044 restacks
   on 038's built tip or on main.
 
-**The flags.**
+**The flags** of that build are withdrawn; the current ones are in *For the lane*, below.
+
+### For the lane
+
+**Where it stands (2026-10-20, the second builder).** Restacked onto 038's `ecc2423` (038's build
+review's fixes, on main `958a22b`), rebuilt from an empty `build/`, judged. The first build, on
+038's `8cf320a`, and its run 39399546778 are superseded; its numbers stay in the notes above as
+that build's. **B1 is answered:** the owner approved both components (`../decisions.md`, "Three
+answers for 0.1.0 (2026-10-20)"). The native build slot is released. Every number below is
+EXECUTED on this build unless marked.
+
+**The builder's self-check** (`../reviews/README.md`):
+
+- [x] rebased onto the named stacked base today: 038's `ecc2423` (main `958a22b`); the base is in
+  the Status line;
+- [x] CI run dispatched on this exact commit and read: run @RUN@ on `026ba56` (@RUNLINE@);
+- [x] every number from a measured run on this base, labelled EXECUTED; the growth list is this
+  build's (`build/044/growth-vs-038.txt`, against 038's own fast-tier record on `442493b`, whose
+  build inputs equal `ecc2423`'s);
+- [x] "For the lane" below: the claim list, the exact flags (each reason begins "044"), the wave
+  kind, the dry-run needs;
+- [x] every new check seen failing first (acceptance criterion 1, the notes above); the Windows and
+  Linux legs: the guest checks run on every system in the release workflow, none is excluded;
+- [x] no gap added or closed; no follow-up reserved;
+- [x] `tests/upstream/packages.toml` has scikit-learn's reason line (`later`, closes with spec
+  066); README rows changed: the carried-patch count (22) in the table, the prose and the build
+  section, the sizes row (93.8 / 98.6 / 47.7 MB, this build), *scikit-learn in the guest* (new),
+  the default profile's list;
+- [x] CHANGELOG under the one unreleased section (heading unchanged, 0.1.0a8); no new question;
+- [x] `ruff check`, `ruff format --check` (src, tests), the rules check and the fast tier: green
+  but for growth, outputs in `build/044/` (`ruff-2.log`, `rules-prepush-2.log`, `fast-tier-2.log`).
+
+**This build** (EXECUTED, darwin-arm64, 2026-10-20):
+
+- `scripts/build.sh --plain` from an empty `build/`: 19 steps in 15 min 40 s, at `1dba792` (038's
+  `442493b` plus 044). The restack onto `ecc2423` changed no build input: 038's two newer commits
+  touch only `tests/`, `README.md` and `context/`, none of which `MANIFEST` hashes, so this set
+  is `026ba56`'s too.
+- **The set:** `SHA256SUMS` hashes to `dc6ba3a5…2471`; `python.wasm` 93,793,855 bytes,
+  `python-snapshot.wasm` 98,620,293, `python-stdlib.zip` 47,730,899. Against 038's set on
+  `442493b` (`SHA256SUMS` `c3a849c0…cb4ac`): +9,002,368, +9,157,787 and +3,281,762 bytes. The zip
+  holds exactly 411 more members (scikit-learn's 410 and its `METADATA`; 3,219,354 bytes stored,
+  8,770,844 raw), and no other member differs; `SHA256SUMS` differs in the three binaries,
+  `MANIFEST` and the new `LICENSES/scikit-learn.txt`.
+- **Step 58:** 69 modules, none tagged `tests`; the OpenMP gate and the include log held.
+  **Step 60:** the weak-duplicate gate read 270 archives and 21,962 weak names, 0 unreviewed,
+  0 stale patterns; the link map, 4 names required and 3 forbidden, 0 findings; the constructor
+  check passed with the three reviewed names; the `--against` gate passed.
+- **Spec 096's slot scan, new since the first build, binds this one too:**
+  `test_type_slots_have_the_types_cpython_calls` passes, 746 types, 468 specs, 315 modules and
+  6,943 functions read (038's set: 554, 461, 246, 5,893), 0 unreferenced type candidates, 1 type
+  named at run time. `test_callbacks_have_the_types_cpython_calls` passes, 5,154 method-array
+  entries, 3,922 single definitions, 1,573 getset entries (038's: 4,140, 3,425, 1,439). So
+  scikit-learn's 69 modules add about 1,050 slot functions and 1,000 method entries, and none
+  has a type CPython would not call it with.
+- **The fast tier** `-n 3` on `026ba56`: 629 of 769 pass, 0 fail, 3 blocked (the prior-art
+  clones, three systems, the wheel), 137 deselected; unit suite 1,840 of 1,847 (7 skipped); the
+  ratchet against main's `d066695e15`: lost 0, gained 20, grew 180 (the RED is growth only). On
+  `1dba792` the same set failed only 038's `test_the_sobol_options_need_nothing_writable` (a numpy
+  bool in its JSON), which 038's `2f52e0b` fixes, hence the second restack.
+- **The golden by node id:** `test_machine_learning_job_matches_native[plain]` and `[snapshot]`
+  pass (fuel 22,927,115,127 and 22,441,474,007).
+- **Fuel** (`wasi-python run`, this set): `-c pass` 251,448,100 plain and 51,508,850 snapshot;
+  `import sklearn` 13,845,624,109 plain and 13,485,151,173 snapshot (no package is
+  pre-imported). The judge's rows: `test_guest_runs_here[plain]` 240,673,079 to 251,868,742
+  (+11,195,663, 27,240 per member, inside Decision 12's 30,000), `[snapshot]` 50,510,465 to
+  51,559,024 (+1,048,559, inside 1.44 M).
+
+**The claim list** (against 038's set; with 038 in the same chain, the lane's GREW lines against
+main hold 038's rows too, which 038's own list claims).
+
+- **New checks (12):** `test_v1_3_default_profile.py::test_machine_learning_job_matches_native[plain]`,
+  `[snapshot]` (slow); `::test_scikit_learn_runs_without_threads[plain]`, `[snapshot]`;
+  `::test_scikit_learn_reads_its_files_from_the_zip[plain]`, `[snapshot]`;
+  `::test_scikit_learn_says_what_it_lacks`; `::test_scikit_learn_modules_are_builtin[plain]`,
+  `[snapshot]`; `test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts`
+  (the build shard) and `::test_the_sample_images_are_not_in_the_zip`;
+  `test_v1_5_rebuild_from_pins.py::test_source_tree_matches_its_tarball[scikit_learn]`; and the
+  unit suite's `tests/unit/test_sklearn_build.py` (ten rows, one needing step 10's SDK).
+- **Changed checks:** `test_packages_carry_their_metadata` (one more distribution);
+  `test_dotted_builtins_keep_their_import_names` (sklearn runs apart, as scipy);
+  `test_static_constructors_are_reviewed` (three constructors); the rules' C++ cross-file and
+  meson-build lists; `test_every_package_names_its_own_suite`'s table and name map; two unit
+  fixtures (the step list, the synthetic set's package); the release workflow's tree count 26.
+- **Gaps:** none added, none closed. **Retired:** none. **Passes moved:** none lost; no group's
+  passes fall.
+- **Rows that grow** (`build/044/growth-vs-038.txt`): the three byte rows above; 185 fuel rows,
+  all up, none down, median +1.86%. The largest are the zip-directory checks (+6.2% to +7.8%: they
+  walk every member), then every check that starts the plain binary (+4.2% to +4.9%: the 411
+  members' directory entries) and its snapshot rows (+0.7% to +2.2%); rows that import scipy or a
+  package rise +0.14% to +1.1% by the same entries; the smallest is
+  `test_pickling_a_deep_list_raises` (+0.024%). Two rows stand out and are the same cause:
+  `test_unbuffered_output_survives_a_hard_exit[snapshot]`, 1,270,242 to 1,289,733 (+1.53%, a
+  small row that pays the snapshot's share of the entries), and
+  `test_metadata_answers_from_the_zips_directory[plain]`, +14.2 M (one more distribution read,
+  inside Decision 12's 25 M).
+- **Not 044's:** every row 038, 037 and 043 carry against main.
+
+**The wave:** a stacked chain of packages, 038 then 044 (§5.7: the one package or chain of a
+wave). 044 lands after 038, rebased onto the wave's tip, with a delta review of what that rebase
+changes. **Dry-run needs:** the wave's dry run on its tip on all three systems (AGENTS.md rule
+6b), its zero-patch job expecting 26 trees; the build review's own run (§5.6).
+
+**The flags** (paste-safe):
 
 ```
---accept "044: scikit-learn 1.9.1 built in: 69 modules as builtins, 411 zip members, the golden byte for byte native's on both binaries; the weak-duplicate gate and the link-map check for every package; sklearn.utils._random renamed off CPython's _random (B11). The owner's B1 answer is in decisions.md"
+--accept "044: scikit-learn 1.9.1 built in, stacked on 038: 69 modules as builtins, 411 zip members, the golden equal to native on both binaries; the weak-duplicate gate and the link-map check for every package; sklearn.utils._random renamed off CPython's _random (B11); both callback scans clean with its modules; the owner approved B1 (decisions.md, 2026-10-20)"
 --accept-judge "044: the machine_learning golden with the oracle's scikit-learn pin and OMP_NUM_THREADS=1; four scikit-learn behaviour checks; the notice check (build shard) and the sample-image check; the constructor list's three newrand constructors; scikit-learn in the package, licence, source-tree and metadata lists, MESON_BUILDS, CPP_CROSS_FILES, COMPONENT_NAMES and packages.toml; scikit-learn's own dotted-builtin run; the release tree count 26"
---accept-growth "044: python.wasm and the snapshot by scikit-learn's 69 modules and its static libraries, the zip by 411 members (3.22 MB stored), and every plain start by those members' directory entries; no other row moves"
+--accept-growth "044: python.wasm +9.00 MB and the snapshot +9.16 MB by scikit-learn's 69 modules and its static libraries; the zip +3.28 MB by 411 members; every plain start +11.2 M fuel (27,240 per member) and every snapshot start +1.05 M by those members' directory entries; the zip-directory checks walk them; one more distribution's metadata; no other row moves"
 ```
 
 ## Landing notes
 
-Not built. Drafted before the build, to be completed with it:
+**Restacked onto 038's built and reviewed tip (2026-10-20, the second builder).** The first
+build sat on 038's `8cf320a`. 038 was then restacked onto main `958a22b` (wave 06: 043, 037 and
+096) and its build review's fixes added. 044's six commits were rebased twice:
+
+1. `git rebase --onto 442493b 8cf320a`. **Conflicts, each named and how it was resolved** (all in
+   the first commit, phase 1; the other five applied cleanly, `git range-diff` shows them equal):
+   - `CHANGELOG.md`, one hunk under "0.1.0a8 — unreleased": the base had 096's entry (kiwisolver's
+     `tp_clear`, lxml's `fake_cython`, the slot scan) where 044 inserts its own. Both kept, 096's
+     first, then 044's; the heading unchanged.
+   - `README.md`, the facts table's "upstream patches" row: the base said 21 (038's 19 plus 096's
+     two), 044 said 20. Resolved to **22**, keeping the base's list of fixes already merged
+     upstream (kiwisolver's and lxml's added by 096).
+   - `README.md`, *How it is built*'s list of carried patches: the base said twenty-one, with
+     kiwisolver's `tp_clear` fix and lxml's line; 044 said twenty, with scikit-learn's style
+     sheets. Resolved to twenty-two, the union of both lists.
+   - Not a conflict, found by reading: the platform-facts sentence still said "twenty-one carried
+     patches" (the first build had left it at nineteen); now twenty-two, and it names *scikit-learn
+     in the guest* beside the other sections.
+2. `git rebase --onto ecc2423 442493b`, after the build: 038's two newer commits (its High 1's
+   judge fix, the Sobol check's JSON and its review answers) touch only `tests/`, `README.md` and
+   `context/`; no conflict. Commit `026ba56`'s subject still says `442493b`; its base is `ecc2423`.
+
+**Re-derived after the restack** (EXECUTED: `git ls-tree` of the base, the scripts read): the
+carried patches are 22, 038's 21 (OpenBLAS 3, kiwisolver 2, libxml2, lxml, matplotlib 2,
+networkx, numpy 2, pandas, Pillow, qhull, regex 2, scipy 0001 to 0004) plus
+`scikit_learn-1.9.1/0001`, which has its own folder, so no number moves; the release tree count is
+26 (the base's 25 plus `scikit_learn`; no new tree in 038); `build.sh` runs nineteen steps;
+`JOBS` and `PLATFORM_BOUND` hold 038's `scipy_edges` and this `machine_learning`; step 60's lists
+hold contourpy, scipy and sklearn. B1 is answered (the builder's notes, B1). The build, the run
+and the claim list are in *For the lane*, above.
+
+**Question 80** had the answer "a facts sheet the owner rewrites" when this was built; the sheet
+at `context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md` keeps that
+form (acceptance criterion 5).
+
+Drafted before the first build, and completed with it:
 
 **The notice sweep (Decision 11).** Every shipped `.py`, `.pyx`, `.pxd`, `.c`, `.cpp`, `.h` and
 `.tp` file outside `tests/` whose comments say "Copyright", "License" or "adapted / derived /
