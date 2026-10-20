@@ -1,0 +1,696 @@
+{
+ "matplotlib-axes": {
+  "fuel": 691513536570,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 874,
+   "failed": 6,
+   "skipped": 45
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [
+   "lxml.etree built-in",
+   "numpy.random._bounded_integers built-in",
+   "numpy.random._common built-in",
+   "numpy.random._generator built-in",
+   "numpy.random._mt19937 built-in",
+   "numpy.random._pcg64 built-in",
+   "numpy.random._philox built-in",
+   "numpy.random._sfc64 built-in",
+   "numpy.random.bit_generator built-in",
+   "numpy.random.mtrand built-in",
+   "pandas._libs._cyutility built-in",
+   "pandas._libs.algos built-in",
+   "pandas._libs.arrays built-in",
+   "pandas._libs.groupby built-in",
+   "pandas._libs.hashing built-in",
+   "pandas._libs.hashtable built-in",
+   "pandas._libs.index built-in",
+   "pandas._libs.indexing built-in",
+   "pandas._libs.internals built-in",
+   "pandas._libs.interval built-in",
+   "pandas._libs.join built-in",
+   "pandas._libs.lib built-in",
+   "pandas._libs.missing built-in",
+   "pandas._libs.ops built-in",
+   "pandas._libs.ops_dispatch built-in",
+   "pandas._libs.parsers built-in",
+   "pandas._libs.properties built-in",
+   "pandas._libs.reshape built-in",
+   "pandas._libs.sparse built-in",
+   "pandas._libs.testing built-in",
+   "pandas._libs.tslib built-in",
+   "pandas._libs.tslibs.base built-in",
+   "pandas._libs.tslibs.ccalendar built-in",
+   "pandas._libs.tslibs.conversion built-in",
+   "pandas._libs.tslibs.dtypes built-in",
+   "pandas._libs.tslibs.fields built-in",
+   "pandas._libs.tslibs.nattype built-in",
+   "pandas._libs.tslibs.np_datetime built-in",
+   "pandas._libs.tslibs.offsets built-in",
+   "pandas._libs.tslibs.parsing built-in",
+   "pandas._libs.tslibs.period built-in",
+   "pandas._libs.tslibs.strptime built-in",
+   "pandas._libs.tslibs.timedeltas built-in",
+   "pandas._libs.tslibs.timestamps built-in",
+   "pandas._libs.tslibs.timezones built-in",
+   "pandas._libs.tslibs.tzconversion built-in",
+   "pandas._libs.tslibs.vectorized built-in",
+   "pandas._libs.window.aggregations built-in",
+   "pandas._libs.window.indexers built-in",
+   "pandas._libs.writers built-in"
+  ],
+  "classes": {
+   "unclassified": 6
+  },
+  "unclassified_reasons": [
+   [
+    "ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you",
+    6
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "lib/matplotlib/tests/test_axes.py::test_contour_colorbar[png]",
+    "lib/matplotlib/tests/test_axes.py::test_contour_hatching[png]",
+    "lib/matplotlib/tests/test_axes.py::test_imshow_clip[png]",
+    "lib/matplotlib/tests/test_axes.py::test_shared_axes_autoscale",
+    "lib/matplotlib/tests/test_axes.py::test_sticky_tolerance_contourf[png]",
+    "lib/matplotlib/tests/test_axes.py::test_use_colorizer_keyword[png]"
+   ]
+  }
+ },
+ "matplotlib-mathtext": {
+  "fuel": 296150354041,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 985,
+   "skipped": 1004,
+   "failed": 2
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [
+   "lxml.etree built-in",
+   "numpy.random._bounded_integers built-in",
+   "numpy.random._common built-in",
+   "numpy.random._generator built-in",
+   "numpy.random._mt19937 built-in",
+   "numpy.random._pcg64 built-in",
+   "numpy.random._philox built-in",
+   "numpy.random._sfc64 built-in",
+   "numpy.random.bit_generator built-in",
+   "numpy.random.mtrand built-in"
+  ],
+  "classes": {
+   "no-processes": 2
+  },
+  "unclassified_reasons": [],
+  "members": {
+   "no-processes": [
+    "lib/matplotlib/tests/test_font_manager.py::test_fontcache_thread_safe",
+    "lib/matplotlib/tests/test_font_manager.py::test_lockfilefailure"
+   ]
+  }
+ },
+ "matplotlib-render": {
+  "fuel": 998125291971,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 984,
+   "skipped": 253,
+   "failed": 61
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "pillow-zlib-only": 3,
+   "unclassified": 56,
+   "no-threads": 2
+  },
+  "unclassified_reasons": [
+   [
+    "ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/m",
+    40
+   ],
+   [
+    "ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you",
+    15
+   ],
+   [
+    "Failed: DID NOT WARN. No warnings of type (<class 'UserWarning'>,) were emitted.",
+    1
+   ]
+  ],
+  "members": {
+   "pillow-zlib-only": [
+    "lib/matplotlib/tests/test_image.py::test_imsave[jpeg]",
+    "lib/matplotlib/tests/test_image.py::test_imsave[jpg]",
+    "lib/matplotlib/tests/test_image.py::test_jpeg_alpha"
+   ],
+   "unclassified": [
+    "lib/matplotlib/tests/test_colorbar.py::test_anchored_cbar_position_using_specgrid",
+    "lib/matplotlib/tests/test_colorbar.py::test_colorbar_contourf_extend_patches[png]",
+    "lib/matplotlib/tests/test_colorbar.py::test_colorbar_get_ticks",
+    "lib/matplotlib/tests/test_colorbar.py::test_colorbar_positioning[png-False]",
+    "lib/matplotlib/tests/test_colorbar.py::test_colorbar_positioning[png-True]",
+    "lib/matplotlib/tests/test_colorbar.py::test_colorbar_ticks",
+    "lib/matplotlib/tests/test_colorbar.py::test_contour_colorbar[png]",
+    "lib/matplotlib/tests/test_colorbar.py::test_gridspec_make_colorbar[png]",
+    "lib/matplotlib/tests/test_colorbar.py::test_proportional_colorbars[png]",
+    "lib/matplotlib/tests/test_constrainedlayout.py::test_submerged_with_colorbar[png]",
+    "lib/matplotlib/tests/test_lines.py::test_set_line_coll_dash",
+    "lib/matplotlib/tests/test_lines.py::test_set_line_coll_dash_image[png]",
+    "lib/matplotlib/tests/test_patheffects.py::test_collection[png]",
+    "lib/matplotlib/tests/test_patheffects.py::test_patheffect2[png]",
+    "lib/matplotlib/tests/test_patheffects.py::test_tickedstroke[png]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_duplicate_points",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x0-y0]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x1-y1]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x2-y2]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x3-y3]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x4-y4]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_insufficient_points[x5-y5]",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_points_in_line",
+    "lib/matplotlib/tests/test_triangulation.py::test_delaunay_robust",
+    "lib/matplotlib/tests/test_triangulation.py::test_no_modify",
+    "lib/matplotlib/tests/test_triangulation.py::test_qhull_large_offset",
+    "lib/matplotlib/tests/test_triangulation.py::test_qhull_triangle_orientation",
+    "lib/matplotlib/tests/test_triangulation.py::test_tri_smooth_contouring[png]",
+    "lib/matplotlib/tests/test_triangulation.py::test_tri_smooth_gradient[png]",
+    "lib/matplotlib/tests/test_triangulation.py::test_trianalyzer_mismatched_indices",
+    "lib/matplotlib/tests/test_triangulation.py::test_triangulation_init",
+    "lib/matplotlib/tests/test_triangulation.py::test_triangulation_set_mask",
+    "lib/matplotlib/tests/test_triangulation.py::test_tricontour_non_finite_z",
+    "lib/matplotlib/tests/test_triangulation.py::test_tricontour_path",
+    "lib/matplotlib/tests/test_triangulation.py::test_tricontourf_decreasing_levels",
+    "lib/matplotlib/tests/test_triangulation.py::test_tricontourf_path",
+    "lib/matplotlib/tests/test_triangulation.py::test_tricontourset_reuse",
+    "lib/matplotlib/tests/test_triangulation.py::test_trifinder",
+    "lib/matplotlib/tests/test_triangulation.py::test_triinterp",
+    "lib/matplotlib/tests/test_triangulation.py::test_triinterp_colinear",
+    "lib/matplotlib/tests/test_triangulation.py::test_triinterp_transformations",
+    "lib/matplotlib/tests/test_triangulation.py::test_triinterpcubic_C1_continuity",
+    "lib/matplotlib/tests/test_triangulation.py::test_triinterpcubic_geom_weights",
+    "lib/matplotlib/tests/test_triangulation.py::test_tripcolor[png]",
+    "lib/matplotlib/tests/test_triangulation.py::test_tripcolor_clim",
+    "lib/matplotlib/tests/test_triangulation.py::test_tripcolor_color",
+    "lib/matplotlib/tests/test_triangulation.py::test_tripcolor_warnings",
+    "lib/matplotlib/tests/test_triangulation.py::test_triplot_label",
+    "lib/matplotlib/tests/test_triangulation.py::test_triplot_return",
+    "lib/matplotlib/tests/test_triangulation.py::test_triplot_with_ls[png]",
+    "lib/matplotlib/tests/test_triangulation.py::test_trirefine",
+    "lib/matplotlib/tests/test_triangulation.py::test_trirefine_masked[cubic]",
+    "lib/matplotlib/tests/test_triangulation.py::test_trirefine_masked[linear]",
+    "lib/matplotlib/tests/test_triangulation.py::test_trirefiner_fortran_contiguous_triangles",
+    "lib/matplotlib/tests/test_triangulation.py::test_tritools"
+   ],
+   "no-threads": [
+    "lib/matplotlib/tests/test_figure.py::test_ginput",
+    "lib/matplotlib/tests/test_figure.py::test_waitforbuttonpress"
+   ]
+  }
+ },
+ "matplotlib-rest": {
+  "fuel": 956881157543,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "skipped": 193,
+   "passed": 5462,
+   "failed": 40,
+   "xfailed": 28
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [
+   "lxml.etree built-in",
+   "numpy.random._bounded_integers built-in",
+   "numpy.random._common built-in",
+   "numpy.random._generator built-in",
+   "numpy.random._mt19937 built-in",
+   "numpy.random._pcg64 built-in",
+   "numpy.random._philox built-in",
+   "numpy.random._sfc64 built-in",
+   "numpy.random.bit_generator built-in",
+   "numpy.random.mtrand built-in",
+   "pandas._libs._cyutility built-in",
+   "pandas._libs.algos built-in",
+   "pandas._libs.arrays built-in",
+   "pandas._libs.groupby built-in",
+   "pandas._libs.hashing built-in",
+   "pandas._libs.hashtable built-in",
+   "pandas._libs.index built-in",
+   "pandas._libs.indexing built-in",
+   "pandas._libs.internals built-in",
+   "pandas._libs.interval built-in",
+   "pandas._libs.join built-in",
+   "pandas._libs.lib built-in",
+   "pandas._libs.missing built-in",
+   "pandas._libs.ops built-in",
+   "pandas._libs.ops_dispatch built-in",
+   "pandas._libs.parsers built-in",
+   "pandas._libs.properties built-in",
+   "pandas._libs.reshape built-in",
+   "pandas._libs.sparse built-in",
+   "pandas._libs.testing built-in",
+   "pandas._libs.tslib built-in",
+   "pandas._libs.tslibs.base built-in",
+   "pandas._libs.tslibs.ccalendar built-in",
+   "pandas._libs.tslibs.conversion built-in",
+   "pandas._libs.tslibs.dtypes built-in",
+   "pandas._libs.tslibs.fields built-in",
+   "pandas._libs.tslibs.nattype built-in",
+   "pandas._libs.tslibs.np_datetime built-in",
+   "pandas._libs.tslibs.offsets built-in",
+   "pandas._libs.tslibs.parsing built-in",
+   "pandas._libs.tslibs.period built-in",
+   "pandas._libs.tslibs.strptime built-in",
+   "pandas._libs.tslibs.timedeltas built-in",
+   "pandas._libs.tslibs.timestamps built-in",
+   "pandas._libs.tslibs.timezones built-in",
+   "pandas._libs.tslibs.tzconversion built-in",
+   "pandas._libs.tslibs.vectorized built-in",
+   "pandas._libs.window.aggregations built-in",
+   "pandas._libs.window.indexers built-in",
+   "pandas._libs.writers built-in"
+  ],
+  "classes": {
+   "pillow-zlib-only": 5,
+   "unclassified": 22,
+   "no-processes": 13
+  },
+  "unclassified_reasons": [
+   [
+    "ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you",
+    16
+   ],
+   [
+    "Failed: DID NOT RAISE <class 'numpy.linalg.LinAlgError'>",
+    2
+   ],
+   [
+    "AssertionError: assert False",
+    1
+   ],
+   [
+    "AssertionError: Regex pattern did not match.",
+    1
+   ],
+   [
+    "AssertionError: assert not True",
+    1
+   ],
+   [
+    "AssertionError: /upstream-matplotlib/tree/lib/matplotlib/cm.pyi does not exist",
+    1
+   ]
+  ],
+  "members": {
+   "pillow-zlib-only": [
+    "lib/matplotlib/tests/test_agg.py::test_jpeg_dpi",
+    "lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-movie.html]",
+    "lib/matplotlib/tests/test_animation.py::test_grabframe[html-jpeg-output13]",
+    "lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-movie.html]",
+    "lib/matplotlib/tests/test_animation.py::test_save_animation_smoketest[anim0-html-jpeg-output13]"
+   ],
+   "unclassified": [
+    "lib/matplotlib/tests/test_animation.py::test_movie_writer_invalid_path",
+    "lib/matplotlib/tests/test_animation.py::test_movie_writer_registry",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-1-expected2-horizontal-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-1-expected2-vertical-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-3-expected3-horizontal-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[pan-3-expected3-vertical-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-1-expected0-horizontal-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-1-expected0-vertical-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-3-expected1-horizontal-contourf]",
+    "lib/matplotlib/tests/test_backend_bases.py::test_interactive_colorbar[zoom-3-expected1-vertical-contourf]",
+    "lib/matplotlib/tests/test_cbook.py::test_warn_external",
+    "lib/matplotlib/tests/test_colors.py::test_norm_abc[png]",
+    "lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_clabel",
+    "lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_contour",
+    "lib/matplotlib/tests/test_datetime.py::TestDatetimePlotting::test_contourf",
+    "lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_scott_multidim_dataset",
+    "lib/matplotlib/tests/test_mlab.py::TestGaussianKDECustom::test_silverman_multidim_dataset",
+    "lib/matplotlib/tests/test_pickle.py::test_complete[png]",
+    "lib/matplotlib/tests/test_pickle.py::test_pickle_load_from_subprocess[png]",
+    "lib/matplotlib/tests/test_transforms.py::test_contour_pre_transform_limits",
+    "lib/matplotlib/tests/test_transforms.py::test_pre_transform_plotting[png]",
+    "lib/matplotlib/tests/test_typing.py::test_cm_stub_matches_runtime_colormaps"
+   ],
+   "no-processes": [
+    "lib/matplotlib/tests/test_basic.py::test_lazy_imports",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_agg]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_mixed]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pdf]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_pgf]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_ps]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_svg]",
+    "lib/matplotlib/tests/test_getattr.py::test_backend_getattr[matplotlib.backends.backend_template]",
+    "lib/matplotlib/tests/test_matplotlib.py::test_importable_with__OO",
+    "lib/matplotlib/tests/test_matplotlib.py::test_importable_with_no_home",
+    "lib/matplotlib/tests/test_pickle.py::test_axeswidget_interactive",
+    "lib/matplotlib/tests/test_preprocess_data.py::test_data_parameter_replacement",
+    "lib/matplotlib/tests/test_ticker.py::test_locale_comma"
+   ]
+  }
+ },
+ "mpl-axes_grid1": {
+  "fuel": 72111772361,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 52
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ },
+ "mpl-axisartist": {
+  "fuel": 34729486000,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 49,
+   "failed": 1
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "unclassified": 1
+  },
+  "unclassified_reasons": [
+   [
+    "ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you",
+    1
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "lib/mpl_toolkits/axisartist/tests/test_axislines.py::test_ParasiteAxesAuxTrans[png]"
+   ]
+  }
+ },
+ "mpl-mplot3d": {
+  "fuel": 303314273133,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 229,
+   "failed": 15
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "unclassified": 15
+  },
+  "unclassified_reasons": [
+   [
+    "ModuleNotFoundError: No module named 'contourpy'. Site initialization is disabled, did you",
+    10
+   ],
+   [
+    "ImportError: cannot import name '_qhull' from 'matplotlib' (/usr/local/lib/python315.zip/m",
+    5
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_colorbar_pos",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d_1d_input",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contour3d_extend3d[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-both-levels0]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-max-levels2]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_extend[png-min-levels1]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_contourf3d_fill[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_scale3d_artists_log[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_tricontour[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_trisurf3d[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_axes3d.py::test_trisurf3d_shaded[png]",
+    "lib/mpl_toolkits/mplot3d/tests/test_legend3d.py::test_contour_legend_elements",
+    "lib/mpl_toolkits/mplot3d/tests/test_legend3d.py::test_contourf_legend_elements"
+   ]
+  }
+ },
+ "pillow-ro": {
+  "fuel": 430702427558,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "skipped": 1054,
+   "passed": 4587,
+   "failed": 78,
+   "xfailed": 3
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "unclassified": 10,
+   "pillow-zlib-only": 51,
+   "no-mmap": 17
+  },
+  "unclassified_reasons": [
+   [
+    "assert None is not None",
+    4
+   ],
+   [
+    "AttributeError: module 'PIL._imaging' has no attribute '__file__'. Did you mean '.__name__",
+    2
+   ],
+   [
+    "OSError: [Errno 48] Out of memory",
+    2
+   ],
+   [
+    "IsADirectoryError: [Errno 31] Is a directory: ''",
+    1
+   ],
+   [
+    "assert 0",
+    1
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "Tests/test_arrow.py::test_mapped_file[L-ppm]",
+    "Tests/test_arrow.py::test_mapped_file[L-tif]",
+    "Tests/test_arrow.py::test_mapped_file[RGBA-tif]",
+    "Tests/test_arrow.py::test_mapped_image_pgm",
+    "Tests/test_features.py::test_pilinfo[False]",
+    "Tests/test_features.py::test_pilinfo[True]",
+    "Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-52d106579505547091ef69b58341351a37c23e31.dds]",
+    "Tests/test_file_dds.py::test_not_enough_image_data[Tests/images/timeout-755a4d204f4208e3597ac3391edebee196462bd0.dds]",
+    "Tests/test_image.py::TestImage::test_empty_path",
+    "Tests/test_image.py::TestImage::test_save_without_changing_readonly"
+   ],
+   "pillow-zlib-only": [
+    "Tests/test_file_blp.py::test_load_blp1",
+    "Tests/test_file_bmp.py::test_save_bmp_with_dpi",
+    "Tests/test_file_gd.py::test_sanity",
+    "Tests/test_file_pdf.py::test_pdf_append_to_bytesio",
+    "Tests/test_file_png.py::TestFilePng::test_exif_from_jpg",
+    "Tests/test_file_tar.py::test_zero_length_member",
+    "Tests/test_file_tiff_metadata.py::test_empty_subifd",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-11]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4-31]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-11]",
+    "Tests/test_file_tiff_metadata.py::test_gps_rational_tag_type[4.5-31]",
+    "Tests/test_image.py::TestImage::test_close_graceful",
+    "Tests/test_image.py::TestImage::test_exif_jpeg",
+    "Tests/test_image.py::TestImage::test_fp_name",
+    "Tests/test_image.py::TestImage::test_load_on_nonexclusive_multiframe",
+    "Tests/test_image.py::TestImage::test_no_new_file_on_error",
+    "Tests/test_image.py::TestImage::test_no_resource_warning_on_save",
+    "Tests/test_image.py::TestImage::test_pathlib",
+    "Tests/test_image.py::TestImage::test_tempfile",
+    "Tests/test_image_convert.py::test_8bit",
+    "Tests/test_image_resample.py::TestCoreResampleBox::test_subsample",
+    "Tests/test_image_resample.py::TestCoreResampleBox::test_tiles",
+    "Tests/test_image_thumbnail.py::test_DCT_scaling_edges",
+    "Tests/test_image_thumbnail.py::test_load_first_unless_jpeg",
+    "Tests/test_image_thumbnail.py::test_no_resize",
+    "Tests/test_image_thumbnail.py::test_reducing_gap_for_DCT_scaling",
+    "Tests/test_imagefile.py::TestImageFile::test_extents_none",
+    "Tests/test_imageops.py::test_autocontrast_mask_real_input",
+    "Tests/test_imageops.py::test_exif_transpose",
+    "Tests/test_imageops.py::test_exif_transpose_in_place",
+    "Tests/test_imageops.py::test_pad",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[0-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[1-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[2-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[3-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[4-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-L]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-None]",
+    "Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-PA]",
+    "Tests/test_pickle.py::test_pickle_jpeg",
+    "Tests/test_pickle.py::test_pickle_la_mode_with_palette"
+   ],
+   "no-mmap": [
+    "Tests/test_file_pdf.py::test_dpi[params0]",
+    "Tests/test_file_pdf.py::test_dpi[params1]",
+    "Tests/test_file_pdf.py::test_monochrome",
+    "Tests/test_file_pdf.py::test_multiframe_normal_save",
+    "Tests/test_file_pdf.py::test_p_alpha",
+    "Tests/test_file_pdf.py::test_pdf_append",
+    "Tests/test_file_pdf.py::test_pdf_info",
+    "Tests/test_file_pdf.py::test_pdf_open",
+    "Tests/test_file_pdf.py::test_resolution",
+    "Tests/test_file_pdf.py::test_save[CMYK]",
+    "Tests/test_file_pdf.py::test_save[L]",
+    "Tests/test_file_pdf.py::test_save[P]",
+    "Tests/test_file_pdf.py::test_save[RGB]",
+    "Tests/test_file_pdf.py::test_save_all",
+    "Tests/test_file_pdf.py::test_unsupported_mode",
+    "Tests/test_pdfparser.py::test_duplicate_xref_entry",
+    "Tests/test_pdfparser.py::test_trailer_loop"
+   ]
+  }
+ },
+ "lxml": {
+  "fuel": 110782131992,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 2053,
+   "skipped": 58,
+   "failed": 5
+  },
+  "collect_errors": [
+   "src/lxml/html/tests/test_diff.py -- E   TypeError: 'str' object is not callable",
+   "src/lxml/html/tests/test_elementsoup.py -- E   ImportError: attempted relative import beyond top-level package",
+   "docstrings:lxml.html.diff -- TypeError: 'str' object is not callable",
+   "docstrings:lxml.cssselect -- ImportError: cssselect does not seem to be installed. See https://pypi.org/project/cssselect/"
+  ],
+  "deselected": 360,
+  "guard": [],
+  "classes": {
+   "unclassified": 5
+  },
+  "unclassified_reasons": [
+   [
+    "AssertionError: doctest failed: **********************************************************",
+    2
+   ],
+   [
+    "NotADirectoryError: [Errno 54] Not a directory: '/usr/local/lib/python315.zip/lxml/include",
+    1
+   ],
+   [
+    "AssertionError: doctest failed: 31, in lxml.etree._BaseParser._parseDocFromFile",
+    1
+   ],
+   [
+    "AssertionError: doctest failed: ile \"/upstream-lxml/tree/src/lxml/html/tests/test_diff.txt",
+    1
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "::docfile:doc/api.txt",
+    "::docfile:doc/parsing.txt",
+    "::docfile:doc/validation.txt",
+    "::docfile:src/lxml/html/tests/test_diff.txt",
+    "src/lxml/tests/test_etree.py::ETreeOnlyTestCase::test_include_paths"
+   ]
+  }
+ },
+ "regex": {
+  "fuel": 15993593023,
+  "trapped": null,
+  "trap_cause": null,
+  "exit": 0,
+  "ended": true,
+  "last_started": null,
+  "counts": {
+   "passed": 147,
+   "failed": 1
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {
+   "unclassified": 1
+  },
+  "unclassified_reasons": [
+   [
+    "SystemExit: 1",
+    1
+   ]
+  ],
+  "members": {
+   "unclassified": [
+    "regex/tests/test_regex.py::test_main"
+   ]
+  }
+ },
+ "kiwisolver": {
+  "fuel": 12458972804,
+  "trapped": "error while executing at wasm backtrace:",
+  "trap_cause": "wasm trap: indirect call type mismatch",
+  "exit": null,
+  "ended": false,
+  "last_started": "py/tests/test_variable.py::test_variable_rich_compare_operations",
+  "counts": {
+   "passed": 48
+  },
+  "collect_errors": [],
+  "deselected": 0,
+  "guard": [],
+  "classes": {},
+  "unclassified_reasons": [],
+  "members": {}
+ }
+}

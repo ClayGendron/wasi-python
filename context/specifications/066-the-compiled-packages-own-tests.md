@@ -4,7 +4,9 @@
   (wave 05 landed); **revised 2026-10-20 against its pre-build review**
   (`../reviews/066-the-compiled-packages-own-tests-spec-2026-10-20.md`: "ready once H1, H2 and M1
   to M3 are written in"; every finding is written in, and the Disposition section says where).
-  Next: the survey (Decision 1), then a confirmation round on its memo and delta. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  **Surveyed 2026-10-20** (`../research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`,
+  EXECUTED); its dated delta is the section "Delta from the survey", for the confirmation round.
+  Not built: building starts on that round's verdict. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
   pre-build review, as it did for 063 and 065: it changes what the release judges, and its numbers
@@ -650,6 +652,76 @@ Everything else is decided above.
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
   pass moves. If the lane's run has a growth line, it is the base's: name it in the base's words.
+
+## Delta from the survey (2026-10-20, for the confirmation round)
+
+The survey (`../research/2026-10-20-the-compiled-packages-own-tests-under-the-runtime.md`,
+EXECUTED on main's set, wave 05, darwin-arm64) replaces this specification's INFERRED numbers.
+What it changes, by decision; the confirmation round rules on each before anything is built:
+
+- **Two product defects, each needing its own fix first** (Decision 10's rule: a trap is a
+  defect, never a class).
+  - **kiwisolver's `*_clear` functions return `void`** where CPython calls `tp_clear` as
+    `int (*)(PyObject *)`: any garbage collection that clears a cycle holding a kiwisolver object
+    ends the guest in `indirect call type mismatch` (memo, finding 1). The kiwisolver group cannot
+    run until a carried patch (with its upstream pull request) gives the four functions `int` and
+    `return 0`. Proposed: a small build-class specification that lands before 066, or 066 waits on
+    it; in either case the `kiwisolver` group is built after that fix and is one trap entry until
+    then. matplotlib's constrained layout reaches the same functions.
+  - **`import lxml.html.diff` raises `TypeError`** in the product (memo, finding 2): lxml's
+    pure-Python fallback lacks `cython.final`. Proposed: a carried patch with its upstream pull
+    request, in the same small specification; until then the lxml group carries one class,
+    `lxml-html-diff`, of three members, closed by that specification.
+- **Decision 11 (groups, caps, budget).** Measured fuel, darwin: `matplotlib-axes` 691.5 G,
+  `matplotlib-mathtext` 296.2 G, `matplotlib-render` 998.1 G, `matplotlib-rest` 956.9 G,
+  `mpl-axes_grid1` 72.1 G, `mpl-axisartist` 34.7 G, `mpl-mplot3d` 303.3 G, `pillow` 430.7 G,
+  `lxml` 110.8 G, `regex` 16.0 G; contourpy unmeasured (043). Total 3,910 G, matplotlib 3,353 G.
+  - `matplotlib-render` and `matplotlib-rest` are split by file, in the sdist's order, into groups
+    under 480 G each (two each); `matplotlib-axes` stays one file and one group (Decision 11's
+    rule). `mpl-toolkits` becomes `mpl-axes_grid1`, `mpl-axisartist` and `mpl-mplot3d` (the L4
+    fallback, confirmed: one session over the three failed on two `tests.conftest`).
+  - **The budget of 3×10¹² is broken**: caps at 1.5 times the survey's fuel come to about
+    5.9×10¹². This is the owner's choice of Decision 1 and "The owner's choices": a budget of
+    6×10¹² for 066's families (and the lane's cost of about +3.9 T of darwin fuel per landing,
+    more than today's whole upstream 2.84 T), or a part of matplotlib's suite run on the lane only,
+    or fewer files. This specification proposes the first, with the shards below, and asks the
+    round to confirm or choose.
+- **Decision 12 (shards).** About 3.9 T on Linux at 0.16 to 0.31 s per G is 10 to 20 minutes of
+  guest time: six Linux shards of at most about 700 G each, not three, to keep each under the
+  360 s bound (INFERRED). The job count becomes 27 at once; macOS's five slots still bind.
+- **Decision 6 (Pillow's working folder).** The writable copy of `Tests/` in the guest's root was
+  voided twice by spec 089's guard (`/.DS_Store` written by the host after the copy). The run with
+  the read-only tree as the working folder completed, and at most one failure in it can come from
+  the folder (`test_save_without_changing_readonly`, unread). Proposed: Pillow's `cwd` is the
+  read-only tree root after all, and that one test, if the build confirms its cause, is a
+  deselection closed by a judge follow-up the lane reserves (never `README.md`, as the review's
+  M3 asked); the round may instead ask for the copy in a separate writable grant that the guard
+  watches as a grant.
+- **Decision 7 (lxml).** Confirmed: `keep_classes` deselects 360 items and keeps every listed
+  class. Changed: the 17 doctest files and the docstring doctests run as stdlib
+  `DocTestRunner` items, with lxml's own flags, not through pytest's doctest plugin, which breaks
+  `lxml.usedoctest` (9 files failed under it); and the lxml group's `cwd` holds a copy of
+  `samples/` (two files), which `selftest2` reads by a relative path.
+  `test_elementsoup.py` cannot import under importlib mode (`from ...tests.common_imports`) and is
+  not selected, with that reason and a judge follow-up as its closer.
+- **Decision 8 (not selected).** Added: `regex/tests/test_regex.py::test_main` (regex's own
+  `unittest.main()` entry point, collected by its name; its tests run as collected);
+  `lxml.cssselect`'s docstring doctests and `test_css.py` stay as Decision 8 has them (skips);
+  `test_elementsoup.py` (above). matplotlib's `test_typing.py::test_cm_stub_matches_runtime_colormaps`
+  needs `cm.pyi`, a product file, staged: `support_packages` does not cover it, so it is a member
+  of a class `stubs-not-in-zip` closed by `README.md` (the zip carries no `.pyi`).
+- **Decision 9 (classes, with members, EXECUTED).** `no-processes` (matplotlib 15), `no-threads`
+  (matplotlib 2), `pillow-zlib-only` (matplotlib 8, Pillow 51), `no-mmap` (Pillow 17, with the four
+  `test_arrow` mapped-file cases), `wasm32-memory` (Pillow 2, `Errno 48`; `python.wasm` declares
+  no maximum memory, so wasm32's 4 GiB bounds it), and new: `builtin-no-file` (Pillow 2:
+  `PIL._imaging` is a builtin module without `__file__`), `zip-code-names` (matplotlib 1),
+  `no-lapack-errors` (matplotlib 2), `no-ffmpeg-messages` (matplotlib 2), `open-empty-path`
+  (Pillow 1), `include-dir-in-zip` (lxml 1), and the lxml doc files' 3 (`validation.txt`:
+  isoschematron's stand-in; `api.txt`, `parsing.txt`: read in the build). `no-dup`,
+  `shallow-recursion` and `zip-no-source` had no member and are dropped. 93 matplotlib failures
+  are spec 043's (`contourpy`, `_qhull`) and vanish on 043's set, where the build re-surveys
+  matplotlib and contourpy.
+- **contourpy** is surveyed on 043's set before its group is built.
 
 ## Disposition of the pre-build review (2026-10-20)
 
