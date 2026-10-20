@@ -1,6 +1,10 @@
 # 045 — statsmodels, with formulaic, interface-meta and wrapt
 
-- **Status:** **Being built** (2026-10-20) on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 096's slot scan binds this build too** (the confirming review's L2): spec 096's slot scan is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
+- **Status:** **Built natively, not yet judged** (2026-10-20): rebased onto main `faa9c93` (wave
+  08), set `SHA256SUMS` `f2a3e87d`; the fast tier, the CI run and the hand-over wait for the lane
+  (*Landing notes*). The confirming pre-build review
+  (`../reviews/045-statsmodels-prebuild-confirm-2026-10-20.md`) said "build once M1 is answered";
+  its Disposition answers it. Begun on `spec/045-statsmodels` from main `5805af0`, revised against main in *The builder's revision against main* (R1 to R12, written before any code; Decisions 3, 9, 12 and 13 move there, and where a Decision's text below says otherwise, the revision governs); its confirmation round is R12. Questions 80 and 83 are answered (`../decisions.md`). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. **Spec 096's slot scan binds this build too** (the confirming review's L2): spec 096's slot scan is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-18; revised the same day against its pre-build review
   (`../reviews/044-scikit-learn-and-045-statsmodels-spec-2026-10-18.md`): every finding that
   concerns it is fixed here, and the review's Disposition says where. It changes the build
   recipe and the artifact set, so it is reviewed before it is built (constitution §5.6). It is build-class: it touches
@@ -751,4 +755,94 @@ revision, R2 to R6 above all, before the build. The lane arranges it.
 
 ## Landing notes
 
-Not built.
+**Built natively; not yet judged** (2026-10-20, darwin-arm64). The owner ran out of time for the
+day. On the lane's word the builder finished the one build that was running, wrote it down here,
+and stopped. No fast tier, no single node id against the new set, and no release workflow run
+were started. Those, the self-check, *For the lane* and the hand-over come next. The native slot
+is released. Every number below is EXECUTED unless marked.
+
+**The rebase onto main `faa9c93`** (wave 08: 042, 066, 099). Running `git rebase origin/main`
+stopped on phase 1 (`0b73a2d`) with 22 conflict hunks in 14 files; the two later commits, both
+`context/`-only, applied cleanly. Each hunk and how it was resolved:
+- **Wave 08's line and 045's line both kept, wave 08's first (a list, union):**
+  - `scripts/00_download.sh`: seaborn's and reportlab's pins beside the three wheels' pins.
+  - `scripts/steps/70_zip.sh`, four hunks: the header comment, the wheels, the `--metadata`
+    lines, and reportlab's two `--drop` lines beside 045's 13 `--keep` and 9 `--drop` lines.
+  - `tests/harness/needs.py` and `pins.py`: seaborn's entries beside statsmodels'.
+  - `tests/jobs/oracle/pyproject.toml`: seaborn's and reportlab's pins beside 045's.
+  - `tests/harness/paths.py`, two hunks: `LICENCE_COMPONENTS` and `PACKAGES`.
+  - `tests/harness/jobs.py`, three hunks: `JOBS`, the `PLATFORM_BOUND` comment and the list.
+  - `scripts/assemble_artifacts.py`, two hunks: `PACKAGES` and `WHEELS`.
+  - `tests/checks/test_v1_1_artifact_set.py`: 042's helper and its three checks beside 045's two.
+  - `tests/unit/test_artifact_rules.py`, two hunks: the synthetic pins and packages.
+  - `tests/harness/artifacts.py`: 042's reportlab and seaborn rules beside 045's statsmodels
+    rule.
+- **Merged by hand:**
+  - `.github/workflows/release.yml`: the tree count is **28**, seaborn's sdist the
+    twenty-seventh and statsmodels' the twenty-eighth (the confirming review's L1).
+  - `tests/upstream/packages.toml`: the entries for seaborn, reportlab, statsmodels, formulaic,
+    interface-meta and wrapt. The last three lines, shared by reportlab's and wrapt's entries,
+    went to both.
+  - `tests/checks/test_v1_3_data_stack.py` and `tests/harness/jobs.py`: the two comments joined
+    into one sentence each.
+- **Found by testing, not shown as a conflict:** git gave the final `return errors` line, common
+  to 042's `reportlab_notice_errors` and 045's `statsmodels_notice_errors`, to the statsmodels
+  function only. So reportlab's rule returned `None`, and its unit check failed. Restored in
+  `76e23ae`, and two files reformatted there.
+- **Not a conflict, done by reading:** 042's README line on seaborn's statsmodels-backed fits
+  now says they fit with statsmodels (Decision 11; R1). It is to be checked in the guest with the
+  judge's run.
+- `uv lock` on the merged oracle project changed nothing.
+- Then: ruff check and format clean; unit files and the rules check, 1,910 passed and 17 skipped;
+  042's `test_a_left_out_folder_is_not_packed` passes under the widened `--drop` (L1).
+
+**The build:** `scripts/build.sh --plain` from an empty `build/`, at `76e23ae`, with all 20 steps
+in 12 min 19 s on the first attempt (`build/045/build-1.txt`).
+- **Step 59, 19 s.** `meson setup` configured "Project version: 0.15.0" through the stand-in, so
+  the version gate held. "scipy cython_blas blas_int" was found. ninja printed 57 warnings. Each
+  of the four include-map entries matched exactly one compile. 26 extension modules were listed,
+  none tagged tests, and 26 archives laid out under `build/statsmodels-modules`.
+- **Step 60.**
+  - The weak-duplicate gate read 296 archives and 21,964 weak names, with 0 unreviewed and 0
+    stale patterns. That is 26 archives and 2 weak names more than 044's first link: statsmodels
+    adds no shared weak definition (the confirming review's N2).
+  - `gen_inittab.py --against` passed: no init name is a CPython builtin's (R7).
+  - The link map: 4 names required, 3 forbidden, 0 findings.
+  - Constructors: 158 reviewed, none new. Target features: the line's 11. No clash line from
+    wasm-ld.
+- **Step 70:** 5,382 `.pyc` and 878 data files.
+- **The set:** `SHA256SUMS` hashes to `f2a3e87d…aa49`.
+
+  | file | bytes | sha256 (first 16) |
+  |---|---|---|
+  | `python.wasm` | 100,661,758 | `380883f22d06bbab` |
+  | `python-snapshot.wasm` | 105,765,849 | `25a28831d97b8473` |
+  | `python-stdlib.zip` | 53,913,735 | `142d6043de861e1c` |
+
+- **Against wave 08's set**, as the main tree holds it (`SHA256SUMS` `b5a66245…23b9`, with
+  seaborn), read-only:
+  - `python.wasm` grows by 6,868,163 bytes and the snapshot by 7,082,873.
+  - The zip grows by 4,141,748 bytes. It gains exactly **588 members**: statsmodels' 501 and its
+    `METADATA`, formulaic's 58 and interface-meta's 11 and wrapt's 14, each with its `METADATA`.
+    That is 4,053,246 bytes as stored and 11,495,785 raw. No other member is added, removed or
+    changed. `LICENSES/statsmodels.txt` is 25,274 bytes.
+
+**A finding against Decision 14, for the build review:** `python.wasm`'s growth of +6.87 MB is
+past the table's bound of +2.5 to +5.5 MB. The table expected +3.9 MB (INFERRED from Pyodide's
+4.24 MB `.so` times 0.92). The zip's rows are inside their bounds: +588 members as expected, and
++4.14 MB against a bound of ≤ +4.5 MB. The cause is not yet measured. Candidates to read from the
+link map (INFERRED): the 26 Cython modules' own code, unstripped of what Pyodide's `-Os` and
+`wasm-opt` remove, and the BLAS and LAPACK wrappers of `cython_blas` and `cython_lapack` that
+the state-space modules now pull in. The build review gets the measured split by object.
+
+**Next, when the lane grants it:** the fast tier `-n 3` on this set, and the remaining
+checks by node id:
+- the golden on both binaries;
+- the behaviour checks, which record what `get_rdataset` gives with `cache=True` (no root, and a
+  root) and what `hdrboxplot` raises (L4);
+- the notice check, seen failing first on a notice without `_stl.pyx` lines 3-13 (L5);
+- seaborn's three statsmodels fits;
+- `regen.py --check`.
+
+Then the release workflow run on the commit handed over, the claim list against main's accepted
+rows with the paste-safe flags, and the self-check.
