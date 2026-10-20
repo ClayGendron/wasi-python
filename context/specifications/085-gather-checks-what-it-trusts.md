@@ -729,6 +729,45 @@ built code; 74 others passed).
   may shrink); 039 and 043 change the zero-patch step's tree count, a few lines
   above the build job's new step. Each is near, none shared.
 
+#### Claim list (wave 1)
+
+Taken from the builder's full judge on `9128176` (`-n 3`, `build/085/full-n3.log`: `495/623 pass ·
+3 gap · 125 blocked · 0 fail`, unit suite 1622/1630; `lost 0 · gained 0 · grew 0`), its fast tier
+after the build review's fixes on `c378ba2` (`build/085/fast-2.log`: 0 fail, unit suite
+1626/1634, `gained 0 · grew 0`), and the build review's full judge on `337ceb5` (`495/623 pass ·
+0 fail`, unit suite 1626/1634, `lost 0 · gained 0 · grew 0`). Own base: main `9d89535`.
+
+- **New checks:** none in the goal set. The unit suite gains its new rows in
+  `tests/unit/test_gather.py`, `test_scan.py`, `test_scoreboard.py`, `test_history.py` and
+  `test_plugin.py`; its total moves 1587 → 1634 (+47; 8 skipped) on the own base.
+- **Retired checks:** none. No `--retire`.
+- **Rows that grow:** none; nothing guest-side changes. No `--accept-growth`.
+- **Passes that move:** none. No `--accept-fewer-passes`.
+- **The judge hash changes**, in nine files: `tests/harness/gather.py`, `tests/harness/plugin.py`,
+  `tests/harness/scan.py`, `tests/harness/scoreboard.py`, `tests/unit/test_gather.py`,
+  `tests/unit/test_history.py`, `tests/unit/test_plugin.py`, `tests/unit/test_scan.py`,
+  `tests/unit/test_scoreboard.py`. Not judged but changed: `.github/workflows/release.yml` (the
+  build job's `set-sums-sha256` output and the rebuild logs' `python3 --version`), which makes
+  this entry build-class.
+- **What changes for the acceptance itself:** from this entry on, every run record carries
+  `meta.set_sums` (the artifact set's own `SHA256SUMS` hash), and `--accept` writes it into the
+  history line beside `artifact`. So the wave's acceptance line is the first with `set_sums`,
+  and the wave's dry run's gather compares it (G7): it is green only if the lane's local set and
+  the CI build job's set have the same `SHA256SUMS`, which the rebuild-from-pins compare already
+  asks (criterion 6).
+- **The flags** (paste-safe):
+  - `--accept-judge "085: gather checks what it trusts; a blocked check only by a need its own body names, on a system that lacks it; each unit tally equal to its share; every accepted metric name on every system, each a finite number; meta.wasmtime bound to uv.lock; the set SHA256SUMS hash in every record and in the history line, compared in G1, G2 and G7; the rebuild jobs print python3 --version; the hidden-needs scan"`
+  - no `--accept-growth`, no `--accept-fewer-passes`, no `--retire`.
+- **Sameness:** the reviewer's record is `085-review/build-review/full-n3-337ceb5-latest.json` in
+  the lane's scratchpad (on `337ceb5`, the tip before this list). The builder's
+  `build/progress/latest.json` was later overwritten by a unit-only run (411 tests, no goal
+  checks) and is not a comparison record. A difference against the reviewer's record is clean only
+  when it is a check blocked in that worktree (125, the upstream groups and the rebuild checks) or
+  a row another entry claims.
+- **Not yet read:** this branch has no CI run (the wave's entry criterion 2; build-class, so rule
+  2's "built" test asks for one). Criterion 2's branch dry run and criteria 4, 5 and 7 above are
+  first seen in a dry run.
+
 ## One line
 
 The gather stops believing what a record says about itself on three points it can check (a
