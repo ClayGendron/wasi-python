@@ -700,7 +700,7 @@ with its command; the outputs are kept under `build/107/` in the worktree (git-i
   specification numbers, 182 decision numbers, 76 finding IDs, 58 review words, 3 memo, 1
   constitution, 1 context path, 0 questions**; by file (tokens) `__main__` 1, `_artifacts` 13,
   `_call` 127, `_engines` 10, `_home` 31, `_limits` 8, `_places` 22, `_platform` 44,
-  `_private_dirs` 11, `_sessions` 70, `_wasmtime_ffi` 11, `_zip` 10, `cli` 6, `mounts` 120,
+  `_private_dirs` 11, `_sessions` 70, `_wasmtime_ffi` 12, `_zip` 10, `cli` 6, `mounts` 120,
   `runner` 49, `tools` 102. The spec's 446 lines were `b7a1250`'s; 104 to 106 moved and reworded
   text since.
 - **`mounts.py` imports nothing from the runner (criterion 2):** `grep -nE 'from \.|import
