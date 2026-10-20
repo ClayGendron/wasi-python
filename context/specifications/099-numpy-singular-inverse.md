@@ -4,7 +4,7 @@
   with its drafting runs; **reviewed before build** the same day
   (`../reviews/099-numpy-singular-inverse-spec-2026-10-20.md`, verdict "passes for build once
   finding 1 (Medium) is answered in the text"); **revised against every finding**, with the owner's
-  answer to question 106 (spec 100, stacked on this one), and rebased onto main `21dff9d` (context
+  answer to question 106 (spec 100, stacked on this one), and rebased onto main `3ff1871` (context
   only). *Disposition of the pre-build review* says where each went.
   **Confirmed for build** by the same reviewer (the review's *Confirmation*), no finding open.
   **Building: phase 1 done** (everything that needs no fresh artifact set; *Landing notes*); phase
@@ -694,6 +694,9 @@ what only the hardware signals stays silent and says so.
 ## Landing notes
 
 ### Phase 1: what needs no fresh artifact set (2026-10-20, base main `21dff9d`)
+
+(Built on `21dff9d`; rebased afterwards onto main `3ff1871`, whose two new commits touch only
+`context/`, so the set built on `21dff9d` is the set of the rebased tip.)
 
 - **The recipe:** `recipes/npy_fenv_flags.h`, as Decision 3 says, written fresh from the decision
   (the drafting prototype's form: guard, five bits, weak word, three inline functions, their names
