@@ -190,7 +190,11 @@ real extra or changed file still fails it.
    keeps them out of the facts either way).
 6. **The judge.** `ruff` green; the fast tier `-n 3` against a private copy of the reviewed set: no
    failure, no lost pass, no fuel moved, `judge changed` naming exactly the judging files above.
-   The release workflow on the branch: every red line is GREW, G7, or one main already carries.
+   The full judge is the release workflow on the branch (the wave rules: no local full run):
+   every red line is GREW, G7, or one main already carries; and in its records (`gh run download
+   <id> -D build/090/ci/`) every `cpython-*` and upstream `left_out` fact holds no `__pycache__`
+   or litter path. The `left_out` fact is written only by the slow `test_upstream_suite`, so the
+   fast tier never records it (the confirmation's Low).
 
 ## For the lane
 
@@ -200,7 +204,8 @@ Filled in at build (under the landing notes).
 
 The review: `../reviews/090-the-build-ignores-host-litter-spec-2026-10-20.md`, on main `e00d394`.
 Verdict: "ready once F1, F2 and F3"; the Lows are fix text the builder takes in writing. Every
-finding is taken.
+finding is taken. The reviewer's confirmation (in the same file): "Ready to build", with one Low,
+taken below.
 
 - **F1 (High), `left_out` would keep recording bytecode, and litter listed apart is still
   recorded.** Taken. Decision 5 rewritten: `left_out` records neither a litter path nor anything
@@ -238,6 +243,8 @@ finding is taken.
 - **F9 (Low), Decision 3's motivation and order.** Taken: it guards a local `version.py assets`;
   the member order is stated as unchanged; `test_release_version.py` gains planted litter and a
   missing listed file.
+- **The confirmation's Low (criterion 6 lacked a full run).** Taken: criterion 6 reads the
+  `left_out` facts in the branch's release run records, which are this build's full judge.
 - **F10 (Low), a stale Status and Files.** Taken: 089 is a landed dependency;
   `tests/harness/litter.py` is in Files and its copy goes, so there are two copies, not three; the
   Status names `e00d394`.

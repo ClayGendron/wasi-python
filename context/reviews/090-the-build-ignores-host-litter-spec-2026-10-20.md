@@ -242,3 +242,55 @@ Ready once F1 is fixed, by rewriting Decision 5 so that `left_out` records neith
 `__pycache__`, and F2 and F3 are fixed, by restating criterion 2 against MANIFEST's recipe lines
 and declaring the judge change with every reader of `paths.OS_LITTER` named. The Lows are fix text
 the builder takes in writing.
+
+## Confirmation (2026-10-20, the same reviewer)
+
+- **Read:** `spec/090-the-build-ignores-host-litter` at `9deecd9`, in
+  `/Users/claygendron/Git/Repos/wasi_python-090`. One commit on `e00d394`, touching only
+  `context/` (the spec and this review's copy). Time box: 15 minutes. `build/lane.lock` existed,
+  so I ran no pytest. Everything below is READ.
+- **F1 — fixed.**
+  - Decision 5 (`litter.unrecorded`) keeps every litter path and everything under `__pycache__`
+    out of `left_out`. Neither is recorded in any fact.
+  - Decision 6 has step 20 remove `$CP/Lib/**/__pycache__`. Criterion 5 checks that none is left
+    under `Lib/test`.
+  - I checked the cause against the main tree's build. `cross-build/aarch64-apple-darwin/Makefile:456`
+    sets `PYTHON_FOR_BUILD=./$(BUILDPYTHON) -E`. In `cross-build/wasm32-wasip1/Makefile:425`,
+    `HOSTRUNNER` is `wasmtime run … --dir <checkout>::/ --config …/wasmtime.toml` with no `--env`,
+    and `wasmtime.toml` sets only `max-wasm-stack`. So the guest's `make pythoninfo` never sees
+    `PYTHONDONTWRITEBYTECODE`, as the revised problem section says.
+  - The unit rows named in the disposition cover both stages.
+- **F2 — fixed.** Criterion 2 now holds the three binaries and every `LICENSES/*` file
+  byte-identical. MANIFEST may differ in exactly four `recipe` lines (the edited scripts, now
+  including step 20), and SHA256SUMS only in MANIFEST's line. The `bytes` metrics and the tarball
+  stay the same. The base is named, with 086's set as the alternative.
+- **F3 — fixed.** The Kind line declares the judge change and `--accept-judge`. The reader table
+  covers every reader I found (`judge_files`, `tree_drift`, `patch_shape_errors`, the drafts walk,
+  `test_scoreboard`) plus `tests/harness/litter.py` and `guest._place`. The Scope's 020 line is
+  rewritten.
+- **F6 — answered, and I accept the answer.** Moving the pinned-member guard into `tree_drift`
+  costs nothing, because that check already reads every member. Its row uses a synthetic tarball,
+  so it fails first. No real pin trips it today (75 archives, 0 hits).
+- **F4, F5, F7 to F10 — taken, as written.**
+
+### Left
+
+1. **Low — criterion 6 dropped the full judge run, and the changed fact is only seen there.** The
+   `left_out` fact is written by `test_upstream_suite`, which is marked `slow`
+   (`tests/checks/test_v1_3_upstream_suites.py:70-82`). The fast tier never records it. AGENTS.md
+   rule 3a also asks the builder for one full judge before writing "built".
+
+   Fix text, for criterion 6: "the fast tier `-n 3`, and one full run (`-n 6`, or `-n 3` while
+   another judge runs) against a private copy of the reviewed set: no failure, no lost pass, no
+   fuel moved; every `cpython-*` and upstream `left_out` fact holds no `__pycache__` or litter
+   path."
+
+   It touches only `context/`, so it needs no further round.
+2. **Note — the `.gitignore` CR line.** `Icon` followed by two CR bytes counts as trailing
+   whitespace, so an editor or a whitespace-stripping hook may remove it. The `git check-ignore`
+   row (Decision 7, F5) catches that. Nothing more is needed.
+
+### Verdict after revision
+
+Ready to build. F1, F2 and F3 are fixed, and the one remaining Low (restoring the full judge run in
+criterion 6) is context-only fix text the builder takes in writing.
