@@ -75,6 +75,20 @@ native raises `LinAlgError` (099's drafting probe). The lane asked (AskUserQuest
 - Spec 100 (reserved) links numpy's linear algebra to the set's OpenBLAS, so its results and errors
   match native numpy on OpenBLAS. It is build-class, stacked on 099, and lands before 0.1.0.
 
+**Correction and question 107 (2026-10-20, later the same day).** The "native" numpy in 099's
+review and drafting probes was the oracle's `macosx_14_0_arm64` wheel, which uses Apple's
+Accelerate, not OpenBLAS; the 150/130/12/8 table above compares against Accelerate. Spec 100's
+author measured against numpy's `macosx_11_0_arm64` wheel (OpenBLAS 0.3.34, the set's release): of
+300 exactly singular matrices, the guest agrees with native OpenBLAS on 249 with `lapack_lite` and
+099, and on 254 with the set's OpenBLAS. The other 46 are rounding-edge cases (a pivot of 1e-16 or
+less) that wasm does not reproduce, likely for want of fused multiply-add (INFERRED). Native
+Accelerate and native OpenBLAS agree on 243. The lane had told the owner the link would close the
+differences; it told the owner this was wrong and asked again (AskUserQuestion), recommending yes:
+spec 100 still gives native errors for `nan` matrices, numpy and scipy agreeing, LAPACK 3.12 in place
+of 3.2.2, 30 to 56% less fuel on larger linear algebra and about 1.8 MB less `python.wasm`. The
+owner's choice: "Yes, before 0.1.0". Exact singular-matrix parity is not a goal in wasm; the README
+says so.
+
 ### Every test of every package we build (2026-10-20)
 
 Spec 066's re-survey on wave 06's set (branch tip `ad3c065`) found the budget rule's price was
