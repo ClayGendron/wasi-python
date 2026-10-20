@@ -808,3 +808,29 @@ what only the hardware signals stays silent and says so.
   carried numpy patch to `python_xerbla`, which is spec 100's territory.
 - `lstsq` of `[[inf, 1], [1, 1]]` returns in the guest, before and after; natively it raises. A
   LAPACK difference or a hardware flag (Decision 6), not this specification's.
+
+### Phase 2: the fast tier (criterion 6; EXECUTED, `-n 3`, started 08:39 with no other judge running)
+
+- `build/099/fast.log`: **`616/758 pass · 6 gap · 3 blocked · 0 fail`**, unit suite 1,831/1,838
+  (7 skipped); 2,447 passed, 10 skipped, 6 xfailed in 8 m 14 s. Blocked: prior-art clones, three
+  systems, wheel (as on any worktree). The six gaps are spec 038's, as on main.
+- **Ratchet:** `lost 0 · gained 7 · grew 12`. The 7 gained are this specification's new nodes. No
+  pass is lost.
+- **Every metric that moved** (`build/099/moved.txt`, latest against accepted): 85 fuel rows up,
+  93 down, the largest +0.033% (`test_packages_carry_their_metadata[snapshot]`) and −0.028%
+  (`test_the_guest_package_round_trips_through_the_door[snapshot]`): numpy's status read is a few
+  instructions different per ufunc call, either way (Decision 5, note 7). Python-only rows move by
+  about +326 fuel each (the binary's layout). **The 12 red lines**, each above the ratchet's
+  tolerance:
+  - bytes: `test_stdlib_zip_is_bytecode_only_and_deflated` 44,445,945 → 44,445,960 (+15);
+  - fuel, +0.0103% to +0.0330%: `test_packages_carry_their_metadata[snapshot]`,
+    `test_a_pandas_warning_names_the_callers_line[plain]`,
+    `test_dotted_builtins_keep_their_import_names[snapshot]`, `test_npy_files_round_trip[snapshot]`
+    and `[plain]`, `test_recursion_through_python_raises[np-apply-along-axis-snapshot]` and
+    `[np-frompyfunc-snapshot]`, `test_a_python_callbacks_exception_comes_back_through_c[plain]`,
+    `test_pandas_styler_renders_from_the_zip[snapshot]`,
+    `test_numpy_and_pandas_are_builtin_at_manifest_versions[snapshot]`,
+    `test_scipy_odr_is_left_out_by_name[snapshot]`.
+  The binaries' byte rows went down (−260 and −256), which is not growth.
+- The upstream groups (slow) and the goldens did not run here; the dry run judges them on three
+  systems.
