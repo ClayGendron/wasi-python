@@ -443,12 +443,6 @@ reason = "no processes: subprocess is unavailable on WASI"
 closes_with = "README.md"
 
 [[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b1-no-fp-exceptions]"
-match = "2 finding(s), digest a027cd089aff"
-reason = "wasm32 has no floating-point exception flags: numpy.linalg raises no LinAlgError for a singular matrix (README; spec 099, reserved, fixes it)"
-closes_with = "context/roadmap.md"
-
-[[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[matplotlib-rest-b2-no-processes]"
 match = "1 finding(s), digest 4b96703f619d"
 reason = "no processes: subprocess is unavailable on WASI"
