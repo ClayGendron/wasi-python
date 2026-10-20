@@ -1,11 +1,12 @@
 # 104 — One owner for the process's state, and the test seams move off module globals
 
-- **Status:** **built on `591841b` (the code; the commit after it carries these notes) on `spec/104-one-owner-for-the-process-state`, stacked on 103's
-  `2a9546c`, 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
+- **Status:** **built on `1f959c2` (the code; the commits after it carry these notes) on `spec/104-one-owner-for-the-process-state`, stacked on 103's
+  reviewed tip `538e831` (rebased from its built tip `2a9546c` after 103's build review), 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's plan; the tree read is `a9064a2`,
   which adds only the memo). **Stacked on 103's reviewed tip** (constitution §4.14): the third
   entry of the chain 102 → 103 → 104 → 105 → 106 → 107 (the memo, section 8), built in its own
-  worktree on `spec/104-one-owner-for-the-process-state` from 103's built tip `2a9546c`.
+  worktree on `spec/104-one-owner-for-the-process-state` from 103's built tip `2a9546c`, then
+  rebased onto its reviewed tip `538e831` (the *Rebase* bullet of the landing notes).
   **Reviewed before build** the same day
   (`../reviews/104-one-owner-for-the-process-state-spec-2026-10-20.md`, verdict "may be built
   once Decision 6's lock order is restated from a corrected scan and Decision 2 names the
@@ -652,16 +653,40 @@ command; the outputs are kept under `build/104/` in the worktree (git-ignored):
 `sameness-baseline-chain.txt`. The writer's scratch `lock_order.py` and `rules_proto.py` are
 copied there from the main tree's `build/104/`.
 
-- **Commits, in the order built:** `e11c70a` (the checks first: `scan.module_lock_hits` and
+- **Commits, in the order built** (the hashes after the rebase onto 103's `538e831`; before it
+  `e11c70a`, `591841b` and `27682ab` on `2a9546c`): `a73b0fe` (the checks first: `scan.module_lock_hits` and
   `scan.module_mutable_hits`, the two rules checks, two scanner rows in
   `tests/unit/test_scan.py`, `tests/unit/test_process.py` with its six rows, the shard line;
-  all seen failing on the base), `591841b` (`_process.py`; every module-level lock, mutable,
+  all seen failing on the base), `1f959c2` (`_process.py`; every module-level lock, mutable,
   hook and seam of the twelve modules moved onto `_Process`; the fork hook and the exit release
   deleted from `runner.py` with their `global` statements; `mounts.py`'s three reads; the
   twenty-one test and harness files re-pointed at `process()`; 103's check 1 retired and its
   checks 2 and 3 taught `_process`, `process` and `mounts.py`'s late import of the owner;
-  `api.py`'s module table; `mounts.py`'s held count), and the commit after it, which carries
-  this Status line and these notes.
+  `api.py`'s module table; `mounts.py`'s held count), `e96f1b9` (this Status line and these
+  notes, as first written on `2a9546c`), and the commit after it (the rebase's record below).
+- **Rebase** (the coordinator, 2026-10-20): 103 gained two commits after this build's base (its
+  build review's three Lows in `tests/unit/test_runner_package.py`: `_patched` builds its module
+  map per file from `import wasi_python [as Z]` and `from wasi_python import X [as Y]`;
+  `FORK_WALK` imports `_wasmtime_ffi`, `cli` and `tools`; `_is_unchanging` recurses into a
+  tuple's and a frozenset's elements) and was rebased onto the PR branch, its tip `538e831`.
+  `git rebase --onto 538e831 2a9546c` replayed the three commits with **one conflict, in
+  `tests/unit/test_runner_package.py`**, on the code commit: 103's side (HEAD) carried the fork
+  tables (`LOCKS_RESET_BY_FORK`, `REBOUND_BY_FORK`, `NOT_RESET`, `TICKER_COND`), `FORK_WALK` with
+  its new import line, `_fork_walk`, `_hook_targets` and check 1 with its widened docstring; this
+  side replaced that whole region with the `SENTINELS` line that names `process`. **Kept: this
+  side's retirement** (check 1 and its tables gone, as Decision 3 says, `FORK_WALK`'s new import
+  line with them, since the walk no longer exists) **and both of 103's fixes outside the region**,
+  which merged without conflict and stay (`_patched`'s per-file alias map, which `_seam_errors`
+  reads, and `_is_unchanging`'s recursion into tuple and frozenset elements, which check 3
+  reads). `ORDER` (`_process` first), `LATE` (`mounts.py`'s binding of the owner) and
+  `RUNNER_MODULES` are this side's, unconflicted. On the rebased tree `ruff check --fix` also
+  reordered `tests/unit/test_process.py`'s two `wasi_python` imports (isort's order on the
+  rebased configuration; no other change), folded into the code commit. After the resolution:
+  `ruff check` and `ruff format --check` clean; `uv run pytest tests/unit/test_runner_package.py
+  tests/unit/test_process.py tests/unit/test_scan.py tests/checks/test_rules.py -q` → 1 failed,
+  265 passed, 3 skipped, the one failure `test_version_states_the_platform_semantics`, a
+  baseline failure of the older artifact set. The fast tier and the sameness lines below are
+  the rebased tip's; the run before the rebase is kept under them.
 - **CI: none of its own; the chain's one dispatch on the final tip** (criterion 9, the owner's
   rule for the chain). The fast tier below is the build's judge.
 - **The base re-measured (EXECUTED on `2a9546c`):** `uv run python -I build/104/rules_proto.py
@@ -793,11 +818,14 @@ stop
   (`close`, `stop`, `call`, `read`, `write`, `fail`, `remove`) that the scanner follows into
   every class: false paths, not nestings.
 - **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
-  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `591841b`, under the machine's
-  `build/fast-tier.lock`): **83 failed, 2377 passed, 52 skipped in 281.96s (0:04:41)**; the failures are the chain's baseline's
-  `failing-nodes.txt` exactly (82 checks of an artifact set older than the tree, and
+  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `e96f1b9`, the rebased tip (its code is
+  `1f959c2`'s), under the machine's `build/fast-tier.lock`): **83 failed, 2377 passed, 52
+  skipped in 281.64s (0:04:41)**; the failures are the chain's
+  baseline's `failing-nodes.txt` exactly (82 checks of an artifact set older than the tree, and
   `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The record
-  is `build/104/built.json`. A first run, on the move's earlier form (`1d68dc5`; its failure
+  is `build/104/built.json`. **Before the rebase**, on `591841b` (the same code on `2a9546c`;
+  `build/104/fast-591841b.log`, its record `build/104/built-591841b.json`): **83 failed, 2377
+  passed, 52 skipped in 281.96s (0:04:41)**, the same 83. A first run, on the move's earlier form (`1d68dc5`; its failure
   list `build/104/failed-1d68dc5.txt`), gave **85 failed, 2375 passed, 52 skipped in 1626.84 s
   (0:27:06)**, two beyond the baseline:
   `test_v1_4_public_api.py::test_private_names_carry_an_underscore` found
@@ -809,8 +837,8 @@ stop
   job's load (the load average fell from 1.83 to 0.27 as it ended), which passes alone by node
   id (2 passed, 2.75 s) and touches nothing this specification changes. The run above is the
   re-run on the final commit.
-- **Sameness (criterion 6).** Against 103's built record (`/home/user/wt/103/build/103/built.json`),
-  with `--claims build/104/claims.toml`:
+- **Sameness (criterion 6), on the rebased tip's record.** Against 103's built record
+  (`/home/user/wt/103/build/103/built.json`), with `--claims build/104/claims.toml`:
 
 ```
 note: explained by claims: 104 4
@@ -824,6 +852,10 @@ sameness exit 0
 note: explained by claims: 102 4 · 103 3 · 104 4
 sameness exit 0
 ```
+
+  Before the rebase (the record of `591841b`), both printed the same lines: `note: explained by
+  claims: 104 4` / `sameness exit 0`, and `note: explained by claims: 102 4 · 103 3 · 104 4` /
+  `sameness exit 0`.
 
   Without a claim list, against the chain's baseline, what prints is the chain's own work and
   nothing else (`build/104/sameness-baseline.txt`): 102's two rules checks and unit file, 103's
@@ -844,7 +876,7 @@ sameness exit 1
 
   The three records' `suite` lines: the baseline `{'passed': 1833, 'skipped': 13, 'total':
   1847}` (`a9064a2`), 103's `{'passed': 1854, 'skipped': 13, 'total': 1868}` (`ea08708`), this
-  one's `{'passed': 1861, 'skipped': 13, 'total': 1875}` (`591841b`): seven more rows, the one
+  one's `{'passed': 1861, 'skipped': 13, 'total': 1875}` (`e96f1b9`, and `591841b` before the rebase): seven more rows, the one
   failing row (`test_the_walk_judges_links`) the same.
 
   The claim: `new` the two rules checks and `tests/unit/test_process.py`; `units = 7` (six rows
