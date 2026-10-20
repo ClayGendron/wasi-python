@@ -152,3 +152,23 @@ Lands once M1 is closed (a README sentence saying a Windows guest deletes a file
 read-only attribute, or the owner's written answer that the present wording suffices) and run
 39361856604 finishes with no G4 line for the two rows and no red line other than GREW or G7; L1
 needs no further round.
+
+## Confirmation (2026-10-20, the same reviewer)
+
+Read `git diff e00d394..9b303ce -- README.md tests/` and `git range-diff e8ba20a..137c0a2
+e00d394..9b303ce`: the first two commits rebase unchanged (`=`); the third adds only the answers.
+
+- **M1 — closed.** The removal bullet now says that on Windows the removal keeps read-only
+  content from the removal only, not from the guest: a guest with a writable grant or a private
+  root deletes a file the host gave the read-only attribute (seen on wasmtime 49; spec 094).
+  *Not protected* lists the same case. Both say what Windows does and suggest no protection.
+- **L1 — closed.** `_read_only_files`'s docstring now names the folder's mode on POSIX and the
+  attribute's failure on Windows, as the fix text asked.
+- **L2 — stands** at `a454801` (the rebased `137c0a2`).
+- **The run.** Release run 39361856604 on `1d70261` finished `success`: 26 jobs passed, 3 publish
+  jobs skipped. `judge (windows-2025, own-embedding)` shows `blocked by: read-only files 2`,
+  `0 fail`. `gather the shards' records` passed, `593/669 pass · 0 fail`, with no G line. The
+  rebase onto `e00d394` adds only wave 02's code beneath an unchanged judge diff, and the lane
+  judges the rebased commit itself.
+
+**Confirmed: lands.**
