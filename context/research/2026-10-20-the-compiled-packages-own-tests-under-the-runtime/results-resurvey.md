@@ -21,12 +21,24 @@
 | `kiwisolver` | 13.0 G | 2.00e+10 | 50 | 0 | 0 |  |
 
 matplotlib: budget 5.044e+12
-contourpy-1: budget 3.300e+11
-contourpy-lines: budget 2.200e+12
-contourpy-filled: budget 3.600e+12
-contourpy-rest: budget 1.400e+11
+contourpy: budget 6.270e+12
 pillow: budget 6.500e+11
 lxml: budget 1.600e+11
 regex: budget 2.500e+10
 kiwisolver: budget 2.000e+10
 total caps 1.217e+13; total fuel 8.026 T
+
+matplotlib-mathtext was voided twice by host litter on this set; its provisional cap is 1.5 times
+wave 05's 296.2 G, 4.5e+11, which brings matplotlib's family to about 5.49e+12 and the total caps to
+about 1.262e+13 on about 8.32 T.
+
+## Four further runs (EXECUTED on the same set; the survey's bisection argv, `survey.py <group> <args>`)
+
+| run | argv | fuel | outcome |
+|---|---|---|---|
+| contourpy's whole suite, `cwd` `/tmp/work` | `survey.py contourpy` (before the split; its group then had `cwd="/tmp/work"`) | 1.5e+12, **out of fuel** (the survey's cap) | 1,247 passed, 201 failed (184 in `test_filled.py`, 17 in `test_config.py`, each `AssertionError` from `compare_images`, which opens `tests/baseline_images/…` relative to the working folder), 61 skipped, before running out in `test_filled_random_big` |
+| `test_filled.py` without random_big | `survey.py contourpy-filled tests/test_filled.py "-knot random_big"` | 543,983,988,154 | 422 passed, 54 skipped, 0 failed |
+| `test_lines.py` without random_big | `survey.py contourpy-lines tests/test_lines.py "-knot random_big"` | 470,231,479,818 | 345 passed, 38 skipped, 0 failed |
+| lxml, `cwd` the read-only tree root | `survey.py lxml` (its group then had `cwd="/upstream-lxml/tree"`) | 104,584,398,212 | 2,056 passed, 58 skipped, 4 failed: `test_include_paths`, `doc/validation.txt`, and two `ETreeC14NTestCase::test_python3_problem_filebased_*` with `PermissionError: [Errno 63] Operation not permitted: 'test.xml'` |
+
+So random_big costs (2,387.6 − 544.0) + (1,459.5 − 470.2) = 2,832.9 G.
