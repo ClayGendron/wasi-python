@@ -22,8 +22,6 @@ The aliases follow CPython's own rule (Lib/ctypes/__init__.py), from `struct.cal
 guest, so on wasm32 `c_int is c_long`, `c_size_t is c_ulong` and `c_int32 is c_long`.
 """
 
-import math
-import operator
 import struct
 import sys
 
@@ -190,6 +188,19 @@ c_int32, c_uint32 = _widths[4]
 c_int64, c_uint64 = _widths[8]
 c_time_t = c_int64  # WASI's time_t is 8 bytes (SIZEOF_TIME_T in the build's _sysconfigdata)
 
+def _index(value):
+    """`operator.index` without importing `operator` (spec 038, Decision 6: the first lookup
+    imports nothing a start has not): an object's `__index__`, or TypeError, as CPython says."""
+    try:
+        index = type(value).__index__
+    except AttributeError:
+        raise TypeError(f"an integer is required, not {type(value).__name__}") from None
+    result = index(value)
+    if not isinstance(result, int):
+        raise TypeError(f"__index__ returned non-int (type {type(result).__name__})")
+    return int(result)
+
+
 def _storer(code, bits):
     """What wasm32 C stores for a value given to a numeric simple type (spec 038, Decision 3)."""
     if code == "?":
@@ -201,7 +212,7 @@ def _storer(code, bits):
     size, signed = 1 << bits, code.islower()
 
     def wrap(value):
-        n = operator.index(value) % size  # TypeError for a float or a str, as CPython's ctypes
+        n = _index(value) % size  # TypeError for a float or a str, as CPython's ctypes
         return n - size if signed and n >= size >> 1 else n
 
     return wrap
@@ -218,7 +229,7 @@ def _single(value):
     try:
         return struct.unpack("f", struct.pack("f", value))[0]
     except OverflowError:  # beyond float's range: C's conversion gives the infinity of that sign
-        return math.copysign(math.inf, value)
+        return float("inf") if value > 0 else float("-inf")
 
 
 def _address(value):
@@ -228,7 +239,7 @@ def _address(value):
         return None
     if isinstance(value, _CData) or not hasattr(type(value), "__index__"):
         raise TypeError(f"cannot be converted to pointer: {type(value).__name__}")
-    return operator.index(value) % (1 << 8 * _POINTER_SIZE) or None
+    return _index(value) % (1 << 8 * _POINTER_SIZE) or None
 
 
 c_void_p._store_, c_void_p._zero_ = staticmethod(_address), None
