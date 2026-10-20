@@ -1,11 +1,13 @@
 # 103 — The runner becomes a package: one module per concern
 
-- **Status:** **drafted 2026-10-20** on `claude/gallant-ride-9nxxmn` (tree `a9064a2`) from main
-  `5feb7e9`, with its research; **awaiting its pre-build review** (AGENTS.md rule 8: required for
-  the runner's code). It is **stacked on 102's reviewed tip** (constitution §4.14); the build
-  names that base commit here when it starts. It is the second of the chain 102 → 103 → 104 →
-  105 → 106 → 107 (the memo's section 8): 104, 105 and 106 build on its module list, so the list
-  is the contract this file fixes. A different agent reviews the build.
+- **Status:** **built on `ea08708` on `spec/103-the-runner-becomes-a-package`, stacked on
+  102's `c15adf4`, 2026-10-20, awaiting the build review** (the landing notes below; the commit
+  after `ea08708` carries this Status line and the notes). Drafted 2026-10-20 on
+  `claude/gallant-ride-9nxxmn` (tree `a9064a2`) from main `5feb7e9`, with its research; its
+  pre-build review is `../reviews/103-the-runner-becomes-a-package-spec-2026-10-20.md`. It is
+  the second of the chain 102 → 103 → 104 → 105 → 106 → 107 (the memo's section 8): 104, 105 and
+  106 build on its module list, so the list is the contract this file fixes. A different agent
+  reviews the build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe** (§5.7). It changes `src/wasi_python/` only (the runner's text moved
@@ -818,4 +820,304 @@ proving it; nothing the embedder sees changes.
 
 ## Landing notes
 
-Filled in when it lands.
+Built 2026-10-20 in the worktree `/home/user/wt/103`, branch `spec/103-the-runner-becomes-a-package`,
+from the base `c15adf4` (102's built tip on `spec/102-the-engine-seam`, under build review: main
+`5feb7e9`, the memo `a9064a2`, the chain's specifications and reviews, 102's three commits).
+Every number here is EXECUTED on that base or on the built commit, with its command; the
+outputs are kept under `build/103/` in the worktree (git-ignored): `map-on-base.txt`,
+`sites-on-base.txt`, `count_globals-on-base.txt`, `dups-on-base.txt`, `seen-failing.txt`,
+`fast.log`, `built.json`, `claims.toml`, `sameness-102.txt`, `sameness-baseline.txt`,
+`verbatim.txt`, `unit-smoke.log`. The move's scripts and the residue script are committed as
+evidence under `../research/2026-10-20-the-runner-split/` (`split.py`, `wrap_comment.py`,
+`do-split.sh`, `retarget.py`, `verbatim.py`, `claims.toml`); `map.py`, `sites.py`, `table.py`,
+`count_globals.py` and `dups.py` stay scratch under `build/103/`, as the Research line says.
+
+- **Commits, in the order built:** `bbdafa3` (the checks first: `tests/unit/test_runner_package.py`,
+  the size-ceiling rules check, `api.py`'s module tables, the `DEFAULTS`-loads scan over every
+  module, the shard line), `b92aa5b` (the split: the ten new modules, `runner.py`, `__init__.py`,
+  `mounts.py`, and the 25 judge files re-pointed), `859dad1` (the new lines name no
+  specification: the owner's rule of 2026-10-20, "Code speaks for itself", `AGENTS.md` on the
+  PR branch at `b7a1250`; the moved text keeps what it carried), `ea08708` (fifteen child
+  interpreters the checks run from a string reach moved names, so each string's own import
+  line names the modules; three lines the mechanical update had put inside a string by mistake
+  are removed), and the commit after it, which carries this Status line and these notes.
+- **CI: none of its own; the chain's one dispatch on the final tip** (criterion 10, the owner's
+  rule for the chain). The fast tier below is the build's judge.
+- **The base re-measured (EXECUTED on `c15adf4`, the scripts copied from `build/103/` with the
+  three names 102 deleted struck from `map.py`):** `map.py`: 352 top-level names mapped, 0
+  missing, 0 extra, 6,220 of 6,220 lines; spans plus the gap above each: `_limits` 159,
+  `_platform` 374, `_artifacts` 117, `_engines` 255, `_private_dirs` 536, `_zip` 263, `_places`
+  892, `_home` 326, `_call` 1,200, `_sessions` 924, `runner` 1,174 (the draft's 375, 273 and
+  1,202 for `_platform`, `_engines` and `_call` are `a9064a2`'s, before 102 deleted
+  `_set_async_stack`, `_wasmtime_version` and `_context_address`); two upward edges, both
+  annotations (`_places -> runner: ['Defaults']`, `_home -> _call: ['_Call']`); `sites.py`: 244
+  qualified Name nodes on 226 lines; `count_globals.py`: locks 12, mutable 40, hooks 8, global
+  statements at 1426–1428 and 3443; `dups.py`: the ten names shared with `mounts.py` and
+  `tools.py`; `wc -l`: `runner.py` 6,220, `mounts.py` 2,208 (102 took it from 2,235), `tools.py`
+  2,450.
+- **Every name once (criterion 2):** a script over the base's `runner.py` (352 names) and
+  `__init__.py`'s eight finds 360 defined across the eleven modules, 0 missing, 0 twice; one
+  name is defined only after the move, `find_artifacts` (the alias line, Decision 3, item 5).
+  `uv run python -c "import wasi_python, sys; assert 'wasmtime' not in sys.modules"` exits 0
+  (criterion 3).
+- **Sizes after the move (`wc -l`, criterion 8):** `_limits` 171, `_platform` 389, `_artifacts`
+  222, `_engines` 275, `_private_dirs` 560, `_zip` 282, `_places` 917, `_home` 347, `_call`
+  1,178, `_sessions` 960, `runner` 1,225 (the largest, under 1,300), `__init__` 121,
+  `mounts.py` 2,212, `tools.py` 2,450. The check's `ALLOWED` reads `{"mounts.py": 2212,
+  "tools.py": 2450}`: 102 took `mounts.py` to 2,208 and the four lines that store the modules
+  on `_Files` (Design) take it to 2,212, both measured, not the draft's 2,235.
+- **The qualified lines (Decision 2's count):** `split.py` inserted 213 `_module.` prefixes on
+  202 lines outside the two hooks (`runner` 59, `_sessions` 58, `_call` 50, `_private_dirs`
+  15, `_zip` 9, `_places` 7, `_engines` 2, `_home` 2); the hooks' bodies hold 28 more qualified
+  lines, 230 in all against the draft's 226 lines and 244 references. The difference: `sites.py`
+  counted every `Name` node without resolving scope (a local that shadows a global, as
+  `_check_tools`'s own `import functools`, is not qualified), with a syntactic kind
+  classification where the build uses check 3's runtime rule (`HOST_FAULT` and `NO_HOST` are
+  `int`s, so by `from`; `BASE_ENV`, `_BUSY`, `_WAKE`, the eight hooks and the two ctypes
+  callbacks `_output_write`, `_output_free` are reached by attribute), and on `a9064a2`'s three
+  extra names. Every by-`from` name is a class, an alias, an `int`, `float`, `str`, `bytes`,
+  tuple, frozenset, regex or sentinel (check 3, EXECUTED by introspection).
+- **The checks were seen failing first (criterion 1; `build/103/seen-failing.txt`):**
+
+```
+== c15adf4 (102's tip, the base), 2026-10-20: the new checks before the split ==
+
+-- tests/unit/test_runner_package.py (checks 1 to 4) --
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 4, in <module>
+E             from wasi_python import _engines, runner
+E         ImportError: cannot import name '_engines' from 'wasi_python' (/home/user/wt/103/src/wasi_python/__init__.py)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/user/wt/103/.venv/bin/python', '-c', '\nimport json, sys, threading\nimport wasi_python\...\nImportError: cannot import name \'_engines\' from \'wasi_python\' (/home/user/wt/103/src/wasi_python/__init__.py)\n').returncode
+E       AssertionError: findings: 15 finding(s), digest 81718f3a471a: runner.py:55 (runner imports __init__, not before it in ORDER); runner.py:56 (runner imports __init__, not before it in ORDER); runner.py:2756 (_run_checked imports __init__ late, not in LATE); runner.py:3055 (_instance imports mounts late, not in LATE); +11 more
+(the check's first draft reported a sixteenth finding, `__main__.py:3 (__main__ imports cli, not before it in ORDER)`; ABOVE then named `__main__`, and the re-run on the base gave the 15 above)
+E       AssertionError: findings: 10 finding(s), digest d7b55a3a75a4: _limits.py does not exist; _platform.py does not exist; _artifacts.py does not exist; _engines.py does not exist; _private_dirs.py does not exist; +5 more
+E       assert not ['_limits.py does not exist', '_platform.py does not exist', '_artifacts.py does not exist', '_engines.py does not exist', '_private_dirs.py does not exist', '_zip.py does not exist', ...]
+FAILED tests/unit/test_runner_package.py::test_every_module_level_lock_is_remade_after_fork
+FAILED tests/unit/test_runner_package.py::test_the_runner_modules_import_in_the_written_order
+FAILED tests/unit/test_runner_package.py::test_every_runner_name_is_defined_in_one_module
+3 failed, 1 passed in 1.90s
+
+-- tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling (check 5) --
+E       AssertionError: findings: 1 finding(s), digest 285846d82b67: src/wasi_python/runner.py: 6,220 lines, over 1,500
+E       assert not ['src/wasi_python/runner.py: 6,220 lines, over 1,500']
+FAIL tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling — AssertionError: findings: 1 finding(s), digest 285846d82b67: src/wasi_python/runner.py: 6,220 lines, over 1,500
+FAILED tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling
+1 failed in 0.18s
+
+-- tests/checks/test_v1_4_public_api.py (api.py's DEFINING names files that do not exist yet) --
+E       FileNotFoundError: [Errno 2] No such file or directory: '/home/user/wt/103/src/wasi_python/_artifacts.py'
+FAIL tests/checks/test_v1_4_public_api.py::test_the_public_api_matches_its_snapshot — FileNotFoundError: [Errno 2] No such file or directory: '/home/user/wt/103/src/wasi_python/_artifacts.py'
+FAILED tests/checks/test_v1_4_public_api.py::test_the_public_api_matches_its_snapshot
+1 failed in 4.30s
+
+== after the split, the three drafts the spec names (each change reverted right after) ==
+
+-- check 1: a _spare_lock = threading.Lock() added to _zip.py, the hook untouched --
+E       AssertionError: locks in neither list: [('wasi_python._zip', '_spare_lock')]
+1 failed in 0.24s
+
+-- check 3: a from ._home import _ctrl_c_watched added to _call.py --
+1
+E       AssertionError: findings: 1 finding(s), digest 4d95eb327264: _call.py:26 imports _ctrl_c_watched from _home by from: function
+1 failed in 1.09s
+
+-- check 4: a _stamp left in _zip.py as well as _artifacts.py --
+E       AssertionError: findings: 1 finding(s), digest 45955d5d4093: _stamp is bound in _artifacts.py and _zip.py
+1 failed in 0.22s
+```
+
+  Check 3 passed on the base (no module from-imported a runner name there) and failed on the
+  draft above. `test_v1_4_public_api.py` failed on the base only because `api.py`'s `DEFINING`
+  named files that did not exist yet.
+- **The residue script (criterion 4; `uv run python build/103/verbatim.py c15adf4`):** two
+  steps, the base against the splitter's output (`build/103/preformat/`, before ruff sorted the
+  imports and formatted) and that output against the tree; the uncategorised residue is empty
+  on every side. The step-1 counts are Decision 8's categories: import lines 136 new and 13 old,
+  docstring lines 24, qualified lines 202 (each the source of an old line with one `_module.`
+  prefix stripped per name), hook lines 31 new and 32 old, the alias 1, the "Last:" comment 1.
+  Step 2 names the 19 lines ruff format changed, each listed under *Differences* below.
+
+```
+lines (blank lines stripped): base 5694, split 5840, tree 5873
+step 1, only in the split, by category:
+  import: 136
+  docstring: 24
+  qualified: 202
+  hook: 31
+  alias: 1
+  uncategorised: 0
+step 1, only in the base, by category:
+  import: 13
+  hook: 32
+  last: 1
+  qualified source: 202
+  uncategorised: 0
+step 2, only in the tree, by category:
+  import: 12
+  wrapped fragment: 53
+  uncategorised: 0
+step 2, only in the split, by category:
+  import: 13
+  wrapped: 19
+  uncategorised: 0
+the lines the formatter wrapped (each a qualified line past 100 columns, or the moved comment):
+  _platform._fork["used"] = True  # before the engine exists: a fork from here on is refused
+  create = _platform._flags("O_RDWR", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC", "O_BINARY")
+  owns = _platform._same_file(fd, lock_path)  # a sweeper may have removed it, still empty
+  with _engines._lock:  # after the drop, so a sweep that runs first cannot spend the retry
+  fd = os.open(lock_path, _platform._flags("O_RDWR", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "O_BINARY"))
+  _DIR = (_platform._flags("O_PATH") or _platform._flags("O_SEARCH") or os.O_RDONLY) | _platform._flags(
+  "O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"
+  found, checked = (artifacts, None) if artifacts is not None else _artifacts._found_and_checked(snapshot)
+  _Preopen("the stdlib folder", _places._walk("", str(folder.lib), judge=False), ZIP_GUEST, False)
+  return Path(p.walked.path), (os.dup(fd) if fd is not None and _platform._dir_fd_ok() else None)
+  not_ready = _platform._trap_handlers_ready()  # spec 071, Decision 9: before every entry into the guest
+  _private_dirs._flush_warnings()  # what the release's removals queued, outside every lock (spec 084)
+  if _platform._trap_handlers_ready() is not None:  # a trap in the shutdown could end this process
+  module = _engines._module(engine, metered, binary, cache, None if checked is None else checked.binary)
+  root_path, state.private = _call._preopens(found, root, walked_root, walked, preopens, zip_want)
+  "tool_request_bytes": _limits._integer_limit("max_tool_request_bytes", max_tool_request_bytes),
+  expired = _sessions._mark(state, due[1]) and _sessions._claim_ending(state, me if here else _CLOSER)
+  if _platform._fork["forked"]:  # the store and folders are the parent's: touch nothing (lock-free)
+uncategorised residue: none
+```
+
+- **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
+  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `ea08708`, under the machine's
+  `build/fast-tier.lock`): **83 failed, 2368 passed, 52 skipped in 324.41s (0:05:24)**; a first run on `859dad1` (its failure list, `build/103/failed-859dad1.txt`; its log was overwritten by the kept run)
+  showed 102 failures, the 19 beyond the baseline all child-script strings whose import line
+  lacked a module (`NameError` in the child, or in its ticker thread, so a deadline or Ctrl-C
+  never fired), fixed in `ea08708` and re-run by node id (19 passed, `build/103/rerun-19.log`); the 83 failures are the chain's baseline's
+  `failing-nodes.txt` exactly (82 checks of an artifact set older than the tree, and
+  `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The record
+  is `build/103/built.json`.
+- **Sameness (criterion 7).** Against 102's built record (`/home/user/wt/102/build/102/built.json`):
+
+```
+note: explained by claims: 103 3
+sameness exit 0
+```
+
+  Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`):
+
+```
+note: explained by claims: 103 2
+tests/checks/test_rules.py::test_only_the_engine_seam_touches_wasmtimes_private_api: only in the second record
+tests/checks/test_rules.py::test_the_private_api_debt_is_documented: only in the second record
+collected_files: tests/unit/test_wasmtime_ffi.py only in the second record
+suite: {'passed': 1833, 'skipped': 13, 'total': 1847} != {'passed': 1854, 'skipped': 13, 'total': 1868}
+sameness exit 1
+```
+
+  What the baseline comparison prints is 102's work, which the baseline predates (its two
+  rules checks, its unit file, its 17 unit rows); with 102's claim list beside 103's
+  (`build/103/claims-chain.toml`, the two files concatenated) it prints nothing:
+
+```
+note: explained by claims: 102 4 · 103 3
+sameness exit 0
+```
+
+  The three records' `suite` lines: the baseline `{'passed': 1833, 'skipped': 13, 'total':
+  1847}` (`a9064a2`), 102's `{'passed': 1850, 'skipped': 13, 'total': 1864}` (`d77425d`),
+  103's `{'passed': 1854, 'skipped': 13, 'total': 1868}` (`ea08708`): the unit tally grows by
+  exactly the new file's four rows.
+- **The judge's files (criterion 6):** 25, not 24: the 24 of Decision 5 and
+  `tests/unit/test_wasmtime_ffi.py`, 102's new file, which names `_wasmtime` (`_engines`),
+  `_output_write`, `_output_free` and `_stop_error` (`_call`). `rg 'runner\._' tests/` finds
+  `_checked`, `_check_tools`, `_current_defaults`, `_pool`, `_pool_lock`, `_stop_async_calls`
+  (the six that stay), `__file__`, and `_after_fork_in_child` in the new unit file (check 1
+  calls the hook where it lives). `tests/unit/test_cli.py` keeps `from wasi_python.runner import
+  Completed`; `test_v1_4_embedding.py` keeps its `from wasi_python.runner import DEFAULTS`.
+  `tests/public_api.txt` is untouched (`git diff --stat c15adf4` does not list it). `api.py`'s
+  tables gain the ten modules and 102's `_wasmtime_ffi.py` (102 added nothing for it: its
+  `INTERNAL_FILES`, `INTERNAL_MODULES` and `DEFINING` on `c15adf4` are the three original tuples,
+  EXECUTED).
+- **Lint (criterion 9):** `uv run ruff check src tests` and `uv run ruff format --check src
+  tests` clean on every commit; `test_no_module_level_name_is_bound_twice` passes.
+- **One stale comment left as it is (Decision 3):** `runner.py`'s module docstring still says
+  wasmtime-py "is imported only here, when a call is made"; the import is `_engines._wasmtime`'s
+  now. Spec 106's comment pass rewrites it.
+- **The mutable globals, by module after the move (`count_globals.py` on each file, EXECUTED;
+  spec 104 reads this):** `runner` locks 2 (`_pool_lock`, `_live_lock`), mutable 4; `_platform`
+  mutable 5; `_artifacts` mutable 3; `_engines` lock 1, mutable 5; `_private_dirs` locks 2,
+  mutable 4; `_zip` lock 1, mutable 1; `_places` mutable 1, hook 1; `_home` lock 1, mutable 3,
+  hook 1; `_call` locks 3, mutable 9 (`BASE_ENV` counted), hook 1; `_sessions` locks 2, mutable
+  5, hooks 5: 12 locks, 40 mutables, 8 hooks, as the Design's list.
+
+### Differences from the specification's text, each with its reason
+
+1. **The new lines name no specification** (commit `859dad1`): the ten module docstrings say
+   their concern in words, without the "one `# spec NNN` per concern" Decision 3 item 2 asked
+   for, and the unit file, the rules check and the harness comments name no decision or
+   specification; the owner's rule of 2026-10-20 ("Code speaks for itself", `AGENTS.md` at
+   `b7a1250`) binds every new line under `src/` and `tests/`. The moved text keeps its "spec
+   NNN" mentions; spec 106 removes them.
+2. **Nineteen lines the formatter changed** (Decision 3 allows a qualified line to differ by its
+   prefixes only; ruff's 100-column limit forces these): 18 qualified lines went past 100
+   columns and `ruff format` wrapped them, in its own way, so the move stays mechanical and
+   reproducible (`do-split.sh`); and one, `_private_dirs._flush_warnings()  # what the release's
+   removals queued, outside every lock (spec 084)` in `_sessions._end_session`, carries a
+   trailing comment the formatter cannot wrap, so the comment moved to the line above
+   (`wrap_comment.py`). The residue script's step 2 lists all nineteen and proves each tree line
+   is a fragment of one of them.
+3. **`mounts.py` stores the home module as `self._home_module`**, not `self._home`: `_Files._home`
+   is the home-thread dispatcher method. The other three are `self._call`, `self._engines`,
+   `self._places`, as Design says; the twelve sites read as Design lists them with that one
+   name.
+4. **`__init__.py` drops `os`, `dataclass` and `Path`** from its import block (unused after the
+   artifact block moved; ruff refuses an unused import), against "lines 29–34 ... stay".
+5. **Check 3 reads imports from the runner's eleven modules only**, not from `mounts` and
+   `tools`: the unchanged late imports Decision 2 keeps bring a function (`trampoline_wat`) and
+   a dict (`SIGNATURES`), which are those modules' own forms; and `__init__.py` is left out,
+   since it re-exports `run`, `artifacts` and the other public functions by name. Check 2's
+   `ABOVE` also names `__main__.py` (it imports `cli`).
+6. **`tests/unit/test_runner_tools.py` imports `_artifacts as artifacts_module`**: the file has a
+   helper named `_artifacts` (its stand-in artifact set), and a second module-level binding of
+   the name is what `test_no_module_level_name_is_bound_twice` refuses.
+7. **`tests/harness/paths.py`'s docstring** was reflowed by one line break where the new name
+   `wasi_python._artifacts._ARTIFACT_DIR` took it past 100 columns.
+8. **The residue script compares three texts, not two**: the base, the splitter's output and
+   the tree, so the formatter's wraps (item 2) are proved to be fragments and nothing else.
+9. **The draft's "244 references on 226 lines" is 213 on 202 plus the hooks' 28** (above).
+
+### For the lane
+
+- Kind: parallel-safe; second entry of the chain's wave, stacked on 102's `c15adf4`; conflicts
+  by construction with every chain entry in `src/wasi_python/` (the chain rebases in order).
+- The claim list (`build/103/claims.toml`, also under the research folder): one claim, `spec =
+  "103"`, `new = ["tests/checks/test_rules.py::test_no_module_under_src_is_over_the_line_ceiling",
+  "tests/unit/test_runner_package.py"]`, `units = 4`. No row grows, none is retired, no pass
+  moves; the judge hash changes in the 25 files above, `tests/checks/test_rules.py`,
+  `tests/unit/test_runner_package.py` and `tests/release_shards.toml`.
+- The flags (paste-safe):
+
+  ```
+  --accept "103: the runner is a package of eleven modules, one per concern, its text moved verbatim in a written acyclic import order; the fork hook names every lock by module and a check finds every lock by introspection; __init__ imports in order; no public name, message or fuel count changes"
+  --accept-judge "103: a rules check holds every module under src/ to 1,500 lines (mounts.py and tools.py held at today's 2,212 and 2,450); tests/unit/test_runner_package.py (the fork list by introspection, the import order, by-name imports only of what never changes, every runner name in one module); the 25 test and harness files that named runner privates now name the defining module; api.py's INTERNAL_FILES, INTERNAL_MODULES and DEFINING list the new modules and the engine seam; test_v1_4_public_api's DEFAULTS-loads scan reads every module; no existing expectation edited"
+  ```
+
+### The builder's self-check
+
+- rebased onto the named stacked base today (102's `c15adf4`); the base commit in the Status
+  line: checked.
+- CI run dispatched on this exact commit and read: **unchecked by the chain's rule** (one
+  dispatch on the chain's final tip; 103 dispatches none).
+- every number from a measured run on this base, labelled EXECUTED; the growth list is this
+  build's (empty): checked.
+- "For the lane": the claim list, the exact flags, each reason beginning with the spec number,
+  the wave kind, dry-run needs: checked.
+- every new check seen failing first: checked (five checks, above). A Windows and a Linux
+  branch: none added; the move changes no branch, and the Windows walk moved verbatim (check 1's
+  child interpreter runs on every platform: the hook is a plain function there).
+- every gap names its closer; every reserved follow-up has a roadmap line: checked (no new gap;
+  the roadmap line is 102's to write; `CHANGELOG.md` and `context/roadmap.md` untouched here by
+  the builder's brief, the lane adds the CHANGELOG entry of Design at the landing).
+- packages.toml has its reason line; README rows the spec changes listed: not applicable (no
+  package, no README row).
+- CHANGELOG under the one unreleased section: **unchecked** (the brief: do not touch
+  `CHANGELOG.md`; the entry's text is in Design).
+- ruff check, ruff format --check, the fast tier: green (the baseline's 83), output in
+  `build/103/`: checked.
