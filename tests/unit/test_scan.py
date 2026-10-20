@@ -1913,3 +1913,93 @@ def test_a_list_of_ids_from_two_jobs_or_with_one_unguarded_is_refused() -> None:
     unguarded = _in_job(REAL_WORKFLOW, "gather", ' "$MACOS_OWN_GUEST_ID"', "")
     errors = scan.release_binding_errors(unguarded)
     assert any(e.startswith("rule 10: gather") for e in errors), errors
+
+
+# Spec 099, check 5: numpy's compile records each force-include the fenv recipe header once.
+FENV_H = "/r/recipes/npy_fenv_flags.h"
+
+
+def _compile(compiler: str, src: str, *extra: str, include: int = 1) -> dict:
+    """A compile record shaped as meson writes numpy's: `command`, a shell string."""
+    flags = " ".join(["-include", "/r/recipes/npy_rename.h"] + ["-include", FENV_H] * include)
+    words = [f"/r/scripts/{compiler}", "-Inumpy/_core", flags, *extra, "-o", "x.o", "-c", src]
+    return {"file": src, "command": " ".join(words)}
+
+
+def test_npy_fenv_records_pass_when_every_compile_carries_the_header() -> None:
+    records = [
+        _compile("wasi-cc", "../numpy/_core/src/npymath/ieee754.c"),
+        _compile("wasi-cxx", "../numpy/_core/src/npymath/halffloat.cpp"),
+        {"file": "../numpy/random/mtrand.pyx", "command": "/r/build/tools/pylib/bin/cython a.pyx"},
+    ]
+    errors, counts = scan.npy_fenv_record_errors(records)
+    assert errors == [] and counts == {"compiles": 2, "c": 1, "c++": 1, "not compiles": 1}, counts
+
+
+def test_npy_fenv_records_name_a_missing_or_doubled_header() -> None:
+    records = [
+        _compile("wasi-cxx", "b.cpp", include=0),
+        _compile("wasi-cc", "c.c", include=2),
+        _compile("wasi-cc", "d.S", include=0),  # by compiler, not by extension (the review's L3)
+    ]
+    errors, _ = scan.npy_fenv_record_errors(records)
+    assert errors == [
+        "b.cpp: force-includes recipes/npy_fenv_flags.h 0 times, not once",
+        "c.c: force-includes recipes/npy_fenv_flags.h 2 times, not once",
+        "d.S: force-includes recipes/npy_fenv_flags.h 0 times, not once",
+    ], errors
+
+
+def test_npy_fenv_records_read_compiles_only_by_the_first_arguments_path() -> None:
+    link = {"file": "x", "command": "/r/scripts/wasi-cc a.o b.o -o lib.so"}  # no -c: a link
+    named = {"file": "y.c", "command": "/usr/bin/cc -DX=scripts/wasi-cc -c y.c"}  # name elsewhere
+    lookalike = {"file": "z.c", "command": "/r/scripts/not-wasi-cc -c z.c"}  # not a path ending
+    errors, counts = scan.npy_fenv_record_errors([link, named, lookalike])
+    assert counts["compiles"] == 0 and counts["not compiles"] == 3, counts
+    assert errors == [f"{scan.NPY_FENV_RECORDS} lists no wasi-cc or wasi-cxx compile"], errors
+
+
+def test_npy_fenv_records_read_both_record_shapes_and_refuse_none() -> None:
+    as_list = {
+        "file": "a.c",
+        "arguments": ["/r/scripts/wasi-cc", "-include", FENV_H, "-c", "a.c"],
+    }
+    assert scan.npy_fenv_record_errors([as_list, _compile("wasi-cc", "b.c")])[0] == []
+    as_list["arguments"] = ["/r/scripts/wasi-cc", "-c", "a.c"]
+    assert scan.npy_fenv_record_errors([as_list])[0] == [
+        "a.c: force-includes recipes/npy_fenv_flags.h 0 times, not once"
+    ]
+    errors, _ = scan.npy_fenv_record_errors([])
+    assert errors == [f"{scan.NPY_FENV_RECORDS} lists no entry (a build that compiled nothing)"]
+
+
+def test_npy_fenv_records_file_missing_is_a_finding(work) -> None:
+    errors, counts = scan.npy_fenv_records_file_errors(work)
+    assert errors == [f"{scan.NPY_FENV_RECORDS} is missing (numpy's compile records)"]
+    assert counts == {}
+    write(work, scan.NPY_FENV_RECORDS, '[{"file": "a.c", "command": "/r/scripts/wasi-cc -c a.c"}]')
+    errors, counts = scan.npy_fenv_records_file_errors(work)
+    assert counts["compiles"] == 1 and errors, errors
+
+
+def test_npy_fenv_recipe_names_what_the_cross_file_and_header_lack() -> None:
+    cross = (paths.REPO / scan.NPY_FENV_CROSS).read_text()
+    header = (paths.REPO / scan.NPY_FENV_HEADER).read_text()
+    assert scan.npy_fenv_recipe_errors(cross, header) == []
+    without = "\n".join(
+        t.replace(scan.NPY_FENV_INCLUDE + ", ", "") if t.startswith("cpp_args ") else t
+        for t in cross.splitlines()
+    )
+    assert scan.npy_fenv_recipe_errors(without, header) == [
+        "recipes/wasi-numpy.cross: cpp_args force-includes recipes/npy_fenv_flags.h 0 times,"
+        " not once"
+    ]
+    assert scan.npy_fenv_recipe_errors(cross, None) == ["recipes/npy_fenv_flags.h is missing"]
+    unguarded = header.replace("#error ", "#warning ")
+    weakless = header.replace("__attribute__((weak)) int", "int")
+    assert scan.npy_fenv_recipe_errors(cross, unguarded) == [
+        "recipes/npy_fenv_flags.h lacks the #error guard"
+    ]
+    assert scan.npy_fenv_recipe_errors(cross, weakless) == [
+        "recipes/npy_fenv_flags.h lacks the weak flag word"
+    ]

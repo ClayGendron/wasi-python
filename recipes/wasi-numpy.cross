@@ -30,7 +30,10 @@ skip_sanity_check = true
 # LAPACK and BLAS (lapack_lite), whose every name lapack_lite_names.h writes as BLAS_FUNC(name) so a
 # prefix can keep it apart; with scipy, OpenBLAS defines the same names with other signatures in
 # the same static link, so numpy's copy takes the prefix its own f2c runtime names already carry.
-c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-DBLAS_SYMBOL_PREFIX=numpy_lapack_lite_', '-include', '@ROOT@/recipes/npy_rename.h', '-include', '@ROOT@/recipes/npy_random_legacy_rename.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
+# npy_fenv_flags.h, in both lines (spec 099): wasm has no floating-point status flags, so it keeps the
+# signals numpy raises itself (a failed LAPACK call, integer division by zero, float16 overflow) in
+# one software flag word; C++ needs it for float_status.hpp's float16 raises.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-DBLAS_SYMBOL_PREFIX=numpy_lapack_lite_', '-include', '@ROOT@/recipes/npy_rename.h', '-include', '@ROOT@/recipes/npy_random_legacy_rename.h', '-include', '@ROOT@/recipes/npy_fenv_flags.h', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
 # C++ exceptions in their standard form (wasi-sdk's CppExceptions.md, 33 and 34; spec 005, Decision 3).
-cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-DBLAS_SYMBOL_PREFIX=numpy_lapack_lite_', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-DBLAS_SYMBOL_PREFIX=numpy_lapack_lite_', '-include', '@ROOT@/recipes/npy_fenv_flags.h', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
 # No link args: every extension module becomes an archive, and the one real link is python.wasm's own (Setup.local carries the libs).

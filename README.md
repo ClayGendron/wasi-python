@@ -361,11 +361,18 @@ sandbox:
 - **No threads**: starting one (a `threading.Timer`, say) raises `RuntimeError`; matplotlib's
   drawing and saving never start one. contourpy's `threaded` algorithm runs one thread:
   `contourpy.max_threads()` is 1, and any `thread_count` gives `serial`'s lines.
-- **No floating-point exception flags**: wasm32 has none, so numpy cannot detect a singular
-  matrix the way it does natively. Until spec 099 lands, `numpy.linalg.inv` and
-  `numpy.linalg.matrix_power(a, -1)` of a singular matrix return an array of `nan` instead of
-  raising `LinAlgError`; check the result (for example with `numpy.isfinite`) or the matrix's
-  rank first. numpy's own tests skip this case on wasm (spec 066's survey).
+- **No floating-point status flags in wasm**: arithmetic sets none, so what only the hardware
+  signals stays silent: `np.array([1.0]) / 0`, `np.log(0.0)`, `np.sqrt(-1.0)`, `np.exp(1000.0)`,
+  a `nan` cast to an integer and the same on numpy scalars give native's values with no
+  `RuntimeWarning`, and `np.errstate(all="raise")` does not raise for them; check with
+  `numpy.isfinite` where it matters. numpy's own signals are kept in software
+  (`recipes/npy_fenv_flags.h`, spec 099): integer division by zero, integer overflow in division
+  and float16 overflow warn, or raise under `np.errstate`, as natively, and `numpy.linalg`
+  raises `LinAlgError` when its LAPACK finds a matrix singular or not positive definite. That
+  LAPACK is numpy's own bundled `lapack_lite`, not native numpy's OpenBLAS, until spec 100: for
+  a matrix singular only in exact arithmetic the two can disagree either way (the guest may
+  return finite numbers where native raises, or raise where native returns), and a matrix of
+  `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`.
 - **Builtin modules have no `__file__`**: the packages' compiled modules (`PIL._imaging`,
   `lxml.etree`, numpy's) are builtin, so code that reads their `__file__` fails, and
   `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
@@ -684,7 +691,8 @@ machine therefore say `build`, not the host that built it. No compiler runs in
 a WASI guest, so nothing reads them.
 
 The recipe files under `recipes/`: two meson cross files, three rename headers
-for symbols that only collide in a static link, the reactor entry, two link-time refusals
+for symbols that only collide in a static link, a header that keeps numpy's own floating-point
+signals in a software flag word, since wasm has none (`npy_fenv_flags.h`), the reactor entry, two link-time refusals
 (`iconv_refusals.c`, GB18030; `fcntl_dup_refusal.c`, which answers `fcntl`'s two dup commands
 `ENOTSUP` as wasi-libc's own `dup` does, where wasi-libc 34 answers `EINVAL`), two frozen modules the reactor
 links in (`_zip_directory`, which reads the zip's directory with one read where zipimport makes a
