@@ -688,7 +688,8 @@ copied there from the main tree's `build/104/`.
   baseline failure of the older artifact set. The fast tier and the sameness lines below are
   the rebased tip's; the run before the rebase is kept under them.
 - **CI: none of its own; the chain's one dispatch on the final tip** (criterion 9, the owner's
-  rule for the chain). The fast tier below is the build's judge.
+  rule for the chain); its run id is the integrator's to write here when that dispatch is read.
+  The fast tier below is the build's judge.
 - **The base re-measured (EXECUTED on `2a9546c`):** `uv run python -I build/104/rules_proto.py
   src/wasi_python` (`build/104/rules_proto-on-base.txt`): **14 LOCK lines and 40 MUTABLE lines,
   38 without the two `_fields_`**, byte-for-byte the spec's `a9064a2` list with 103's module
@@ -897,19 +898,36 @@ sameness exit 1
 
 ### The allowance list for 106 and 107: the test seams that stay, as built
 
-Every name a unit or goal check still replaces by `monkeypatch.setattr(<module>, "_name", …)`,
-each a function that fakes a platform answer or forces an error path (Decision 4; EXECUTED on
-the built commit, the grep above): **nineteen in the unit files, 38 lines** (`_context_address`,
-the twentieth of the draft, was deleted by 102), and three in the checks.
+Every name a unit or goal check still replaces by `monkeypatch.setattr(<module>, "_name", …)`
+or by `m.setattr(…)` (the same fixture under a shorter name), or assigns by name as `<module>._name
+= …`, each a function that fakes a platform answer or forces an error path, a constant, or a
+class (Decision 4; EXECUTED on the built commit; the build review's finding 1 added the six lines
+the first grep did not read): **nineteen functions in the unit files on 39 lines**
+(`_context_address`, the twentieth of the draft, was deleted by 102), one constant and one class
+in the unit files, two functions assigned by name in the hostile-guest programs, and three
+functions in the checks. The tally reads both spellings of the fixture (`monkeypatch.` and `m.`)
+and the `<module>._name = …` form, as 107's check will.
 
 - Platform answers (106's `_platform.py` seam): `_guest_stack` (2 lines in the unit files, 2 in
   `test_v1_2_hostile_guest.py`), `_tell_interpreter`, `_trap_handlers_ready` (2), `_dir_fd_ok`
-  (2), `_win_open`, `_close_held`, `_try_lock` (2), `_unlock_close`, `_remove_tree` (5), `_drop`
-  (2), `_drive`, `_stack`.
+  (2), `_win_open`, `_close_held`, `_try_lock` (2), `_unlock_close`, `_remove_tree` (6 lines:
+  five as `monkeypatch.setattr`, one as `m.setattr`, `test_runner_sweep.py:340`), `_drop` (2),
+  `_drive` (assigned by name), `_stack`.
 - Engine and call paths (106's call-context protocol or 105's typed call): `_ctrl_c_watched`
   (8), `_stop_error` (2), `_epoch_now` (2), `_module_miss` (2), `_found_and_checked`,
-  `_join_guest`, `_walk_grants`.
+  `_join_guest` (assigned by name), `_walk_grants`.
+- Constants and classes the unit files replace, for 106's platform seam or 107's list:
+  `_REMOVE_BUDGET` (2 lines, `m.setattr(_private_dirs, "_REMOVE_BUDGET", 10_000,
+  raising=False)`, `test_runner_sweep.py:740, 759`), `_Box` (`_home._Box = LateBox` and its
+  restore, `test_runner_threads.py:215, 220`).
+- Assigned by name in the hostile-guest programs, for 105's typed call or 106's protocol:
+  `_drive_turn` (`_sessions._drive_turn, wasmtime.Store.close = drive_turn, close`,
+  `test_v1_2_hostile_guest.py:3133`), `_abandon_turn` (`_sessions._abandon_turn = abandon`,
+  `:3138`), beside `_drive` and `_join_guest` above.
 - In the checks, for the same closers: `_guest_stack`, `_check_preopens`, `_current_defaults`.
+
+None of these lines changes here: each is on the base as it is, and Decision 4 moves state and
+seams, not function stand-ins. 107 seeds its allowance from this list.
 
 Every seam the judge sets through the object, as built: `process().observers` fields
 `on_entry`, `after_walk`, `on_arm`, `on_export`, `after_export`, `on_call`, `clock`,
@@ -982,8 +1000,8 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
   ```
 
 - Dry-run needs: none of its own; the chain's one dispatch on its final tip (criterion 9).
-- **The CHANGELOG line** (not written by the builder, by its brief; the lane adds it under the
-  unreleased section at the landing): "**The runner's process state has one owner** (spec 104):
+- **The CHANGELOG line** (the integrator's, not the builder's: the brief kept `CHANGELOG.md`
+  for the lane, which adds this text under the unreleased section at the landing): "**The runner's process state has one owner** (spec 104):
   every lock, cache, counter and registry of the runner is an attribute of one `_Process`
   object, reset for a fork by introspection over its locks and released at exit by one method;
   the judge's seams are fields of that object, not module globals; two rules checks keep locks
@@ -994,7 +1012,9 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
 - rebased onto the named stacked base today (103's `2a9546c`); the base commit in the Status
   line: checked.
 - CI run dispatched on this exact commit and read: **unchecked by the chain's rule** (one
-  dispatch on the chain's final tip; 104 dispatches none).
+  dispatch on the chain's final tip; 104 dispatches none). The chain's run id is written into
+  these notes, under "CI", by the integrator when the final tip's dispatch is read (the build
+  review's finding 2).
 - every number from a measured run on this base, labelled EXECUTED; the growth list is this
   build's (empty): checked.
 - "For the lane": the claim list, the exact flags, each reason beginning with the spec number,
@@ -1008,6 +1028,7 @@ attributes of `process()`: `ticker_count`, `ctrl_c_pending`, `sweep_claimed`, `s
 - packages.toml has its reason line; README rows the spec changes listed: not applicable (no
   package, no README row).
 - CHANGELOG under the one unreleased section: **unchecked** (the brief: do not touch
-  `CHANGELOG.md`; the line is above).
+  `CHANGELOG.md`). The line is the integrator's: its text stands under "For the lane" above, and
+  the lane adds it under the unreleased section at the landing (the build review's finding 2).
 - ruff check, ruff format --check, the fast tier: green (the baseline's 83), output in
   `build/104/`: checked.
