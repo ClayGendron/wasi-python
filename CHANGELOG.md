@@ -6,6 +6,29 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a8 — unreleased
 
+- **scipy 1.18.1, with OpenBLAS 0.3.34 as its BLAS and LAPACK, built in** (spec 037). All of scipy
+  but `scipy.odr` (it needs Fortran; importing it says so): `linalg`, `sparse` (SuperLU, ARPACK,
+  PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`,
+  `signal`, `fft`, `special`, `stats`, `spatial` (qhull, `cKDTree`), `ndimage`, `cluster`, `io`
+  and the rest, with native scipy's answers on three golden jobs. No Fortran compiler is used:
+  OpenBLAS's own C translation of LAPACK is the LAPACK. Carried patches:
+  `recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void-1-of-2.patch` and
+  `recipes/patches/OpenBLAS-0.3.34/0002-c-lapack-subroutines-return-void-2-of-2.patch` (OpenBLAS
+  `develop`'s convention, every C LAPACK subroutine `void`, made by our own script; merged
+  upstream after 0.3.34), `recipes/patches/OpenBLAS-0.3.34/0003-ilaver-returns-void.patch`, and
+  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks).
+  OpenBLAS's kernels use wasm SIMD: hosts need `simd128` (every supported wasmtime has it).
+  Known gaps until spec 038: `mmread` and `mmwrite` raise (a thread pool); `qmc.Sobol` with nothing
+  writable gives wrong numbers with exit 0 and an "Exception ignored" message (unscrambled all
+  zeros, scrambled one point repeated; `differential_evolution(init='sobol')` and
+  `shgo(sampling_method='sobol')` with it; give a temporary folder);
+  `geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range` and `loadarff` raise `OSError`
+  from the `ctypes` stand-in. `fft`'s `workers=` runs serially; `differential_evolution` and
+  `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.
+  numpy's own LAPACK (`lapack_lite`) now carries a symbol prefix so it cannot meet OpenBLAS's;
+  numpy computes as before. The set is the same bytes from every build host with no exception:
+  wasi-sdk 34 (spec 086) compiles scipy's ducc0 FFT to one object, so the same-bytes exception
+  this specification built on wasi-sdk 33 was withdrawn before it landed.
 - **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec
   094). A Windows guest deletes a read-only file itself (084's C2, settled by wave 01's dry run),
   so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on
@@ -229,38 +252,6 @@ release` dates it and tags the release (context/specifications/004-alpha-release
 
 ## 0.1.0a7 — 2026-10-19
 
-- **scipy 1.18.1, with OpenBLAS 0.3.34 as its BLAS and LAPACK, built in** (spec 037). All of scipy
-  but `scipy.odr` (it needs Fortran; importing it says so): `linalg`, `sparse` (SuperLU, ARPACK,
-  PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`,
-  `signal`, `fft`, `special`, `stats`, `spatial` (qhull, `cKDTree`), `ndimage`, `cluster`, `io`
-  and the rest, with native scipy's answers on three golden jobs. No Fortran compiler is used:
-  OpenBLAS's own C translation of LAPACK is the LAPACK. Carried patches:
-  `recipes/patches/OpenBLAS-0.3.34/0001-c-lapack-subroutines-return-void-1-of-2.patch` and
-  `recipes/patches/OpenBLAS-0.3.34/0002-c-lapack-subroutines-return-void-2-of-2.patch` (OpenBLAS
-  `develop`'s convention, every C LAPACK subroutine `void`, made by our own script; merged
-  upstream after 0.3.34), `recipes/patches/OpenBLAS-0.3.34/0003-ilaver-returns-void.patch`, and
-  `recipes/patches/scipy-1.18.1/0001-uarray-callback-signatures.patch` (five uarray callbacks).
-  OpenBLAS's kernels use wasm SIMD: hosts need `simd128` (every supported wasmtime has it).
-  Known gaps until spec 038: `mmread` and `mmwrite` raise (a thread pool); `qmc.Sobol` with nothing
-  writable gives wrong numbers with exit 0 and an "Exception ignored" message (unscrambled all
-  zeros, scrambled one point repeated; `differential_evolution(init='sobol')` and
-  `shgo(sampling_method='sobol')` with it; give a temporary folder);
-  `geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range` and `loadarff` raise `OSError`
-  from the `ctypes` stand-in. `fft`'s `workers=` runs serially; `differential_evolution` and
-  `brute` with `workers` other than 1, and `cKDTree.query(workers=...)` other than 1, raise.
-  numpy's own LAPACK (`lapack_lite`) now carries a symbol prefix so it cannot meet OpenBLAS's;
-  numpy computes as before.
-- **Changed: one exception to "the same bytes from any build host"** (spec 037, Decision 17; the
-  owner's answer to question 104). The pinned clang (wasi-sdk 33) places the `try_table` blocks of
-  nine of ducc0's FFT functions (`scipy.fft`) by heap address, so `python.wasm` and the snapshot
-  differ from build to build in where those blocks open, and only there; every other byte and
-  every other file is the same. `scripts/same_bytes.py` decides it: every instruction keeps its
-  bytes, its branch targets and its exception handler. The release's `same-bytes` job compares
-  each rebuild through `scripts/compare_sets.py`, and `MANIFEST` names the exception
-  (`x-same-bytes-exception`). To check your own build against a release, run
-  `uv run python scripts/compare_sets.py <the release's set> build/artifacts`: a plain
-  `shasum -a 256 -c` of your build fails on those two lines. LLVM fixed the cause (`fd76c9bd`,
-  in wasi-sdk 34); the toolchain move to wasi-sdk 34 removes the exception.
 - **Fixed: an async gate that raises `GeneratorExit` refuses the call** (spec 075; the 0.1.0a6
   security review's F1). An async gate (an `async def`, a function returning an awaitable, or an
   object with an async `__call__`) that raised `GeneratorExit` or a subclass used to allow the

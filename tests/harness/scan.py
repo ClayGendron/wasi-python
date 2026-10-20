@@ -1136,20 +1136,12 @@ def _rebuild_shape(lines: list[str]) -> str:
     return body
 
 
-def _shell_words(text: str) -> list[str]:
-    try:
-        return shlex.split(text)
-    except ValueError:
-        return []
-
-
 def rebuild_gate_errors(text: str) -> list[str]:
     """Every rule of spec 012, Decision 7, as spec 040 and spec 057 (Decision 4) left it, one line
     per breach, on the workflow without its comments: a rebuild job on each gated runner beside the
     build, the two alike, each handing on its uploads' ids; a same-bytes job that downloads each by
-    id into that runner's folders and compares every rebuild and its wheel with the set's through
-    scripts/compare_sets.py (byte for byte but where spec 037's Decision 17 allows); and nothing
-    signed or published before it."""
+    id into that runner's folders and compares every rebuild's SHA256SUMS with the set's byte for
+    byte; and nothing signed or published before it."""
     text = without_comments(text)
     jobs = workflow_jobs(text)
     same = jobs.get("same-bytes")
@@ -1208,59 +1200,11 @@ def rebuild_gate_errors(text: str) -> list[str]:
     if not {"build", *REBUILD_JOBS} <= _needs(same):
         errors.append("same-bytes does not need build and both rebuild jobs")
     same_body = "\n".join(line for line in same if not line.startswith("    runs-on:"))
-    # Spec 037, Decision 17 (its design review's F4): the whole comparison is one call of
-    # scripts/compare_sets.py per runner, in a loop over both, with one operand a rebuild's download
-    # and the set not (comparing the set with itself, or one rebuild with another, proves nothing:
-    # spec 012's build review, mutation M18), and the rebuilt wheel beside the release's. The
-    # job checks out the run's commit for the script, without credentials, and sets up uv.
-    calls = [
-        (m[1], m[2], step)
-        for step in re.split(r"^      - ", same_body, flags=re.M)
-        for loop in re.finditer(r"\bfor\s+(\w+)\s+in\s+([^;\n]*);\s*do\b(.*?)\bdone\b", step, re.S)
-        for m in [loop]
-        if "uv run python scripts/compare_sets.py" in loop[3]
-    ]
-    good = [
-        (var, runners)
-        for var, runners, step in calls
-        for call in re.findall(r"scripts/compare_sets\.py((?:\\\n|[^\n])*)", step)
-        for operands in [_shell_words(call.replace("\\\n", " "))]
-        if len(operands) == 5
-        and operands[2] == "--wheels"
-        and "rebuilds/" not in operands[0]
-        and f"rebuilds/${var}" in operands[1]
-        and "rebuilt-wheels/" not in operands[3]
-        and f"rebuilt-wheels/${var}/" in operands[4]
-    ]
-    if not good:
-        errors.append(
-            "same-bytes does not compare each rebuild and its wheel with the set's "
-            "(compare_sets.py, once per runner)"
-        )
-    errors += [
-        f"same-bytes' compare_sets.py loop does not run over {r}"
-        for r in REBUILD_RUNNERS
-        if good and not any(r in runners.split() for _, runners in good)
-    ]
-    if any("rebuil" in a + b for a, b in re.findall(r"\bcmp\s+(?:-s\s+)?(\S+)\s+(\S+)", same_body)):
-        errors.append("same-bytes still compares a rebuild byte for byte beside compare_sets.py")
-    fields = [step_fields(s) for s in workflow_steps(same)]
-    if not any(
-        f.get("uses", "").startswith("actions/checkout@")
-        and f.get("with", {}).get("persist-credentials") == "false"
-        and not set(f.get("with", {})) - {"persist-credentials"}
-        for f in fields
-    ):
-        errors.append("same-bytes does not check out the run's commit without credentials")
-    if not any(f.get("uses", "").startswith("astral-sh/setup-uv@") for f in fields):
-        errors.append("same-bytes does not set up uv for compare_sets.py")
-    # No step of the job may be switched off (the implementation review's I3): the whole
-    # comparison is one step, and a step-level if: would skip it and still pass.
-    errors += [
-        f"same-bytes has a step-level if: ({f.get('name') or f.get('uses') or 'a step'})"
-        for f in fields
-        if "if" in f
-    ]
+    # One operand a rebuild's download, the other not: comparing the set's file with itself, or
+    # one rebuild with another, proves nothing (spec 012's build review, mutation M18).
+    pairs = re.findall(r"\bcmp\s+(\S+)\s+(\S+)", same_body)
+    if not any(("rebuilds/" in a) != ("rebuilds/" in b) for a, b in pairs):
+        errors.append("same-bytes does not compare a rebuild's SHA256SUMS with the set's (cmp)")
     # Each job's id into its own runner's folder, pairing artifact-ids with the path: of the same
     # with: block; one job's id in the other's folder fails (spec 057's Confirmation, M5).
     fetched = {
@@ -1278,6 +1222,20 @@ def rebuild_gate_errors(text: str) -> list[str]:
                 errors.append(
                     f"same-bytes does not download {job}'s {what} by id into {folder}/{runner}"
                 )
+    # Both of same-bytes' loops, the set's SHA256SUMS and spec 016's wheel, run over every runner.
+    for what, marker in (("SHA256SUMS", "rebuilds/$"), ("wheel", "rebuilt-wheels/$")):
+        looped = {
+            runner
+            for step in re.split(r"^      - ", same_body, flags=re.M)
+            if marker in step
+            for m in re.finditer(r"\bfor\s+\w+\s+in\s+([^;\n]*);\s*do\b", step)
+            for runner in m[1].split()
+        }
+        errors += [
+            f"same-bytes' {what} loop does not run over {r}"
+            for r in REBUILD_RUNNERS
+            if r not in looped
+        ]
     if re.search(r"\|\||set \+e", same_body):
         errors.append("a step of same-bytes swallows a failure (|| or set +e)")
     for name in ("attest", "publish"):
@@ -1312,8 +1270,7 @@ PYPI_IF = TAG_ONLY + " && vars.PYPI_PUBLISH == 'true'"
 JOB_PERMISSIONS = {
     "build": {"contents: read"},
     **{job: {"contents: read"} for job in REBUILD_JOBS},
-    # Spec 037, Decision 17: the job checks out the run's commit for compare_sets.py.
-    "same-bytes": {"contents: read"},
+    "same-bytes": set(),
     "verify": {"contents: read"},
     # Spec 063: the judge jobs check out and read the build's files; the gather checks out alone.
     **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},

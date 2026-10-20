@@ -331,6 +331,55 @@ def test_the_backend_orders_try_tables_alike(tmp_path) -> None:
     assert not errors, "\n".join(errors)
 
 
+# scipy's ducc0 FFT (spec 037, Decision 17 withdrawn by spec 086): wasi-sdk 33's clang compiled it
+# to another object on every run (32 compiles, 32 objects), the one file of scipy's 910 that did.
+DUCC0 = "scipy/fft/_duccfft/pyduccfft.cxx"
+DUCC0_RUNS = 3
+
+
+@pytest.mark.slow
+def test_ducc0s_fft_compiles_to_one_object(tmp_path) -> None:
+    """Spec 037 (Decision 17 withdrawn at its rebase onto spec 086): `pyduccfft.cxx`, compiled
+    three times at once with its own command from the build's compile_commands.json, gives one
+    object, so `python.wasm` is the same bytes from every build with no exception. It counts
+    distinct objects, never time. The opposite of the withdrawn still-needed check, which passed on
+    wasi-sdk 33 because three compiles gave three objects."""
+    import json
+    import shlex
+
+    needs.need("compile records")
+    build = paths.BUILD / "scipy-build"
+    (entry,) = [
+        e
+        for e in json.loads((build / "compile_commands.json").read_text())
+        if e["file"].endswith(DUCC0)
+    ]
+    keep, skip = [], 0
+    for word in shlex.split(entry["command"]):
+        if skip:
+            skip -= 1
+        elif word in ("-MQ", "-MF", "-o"):
+            skip = 1
+        elif word != "-MD":
+            keep.append(word)
+    sdk = paths.BUILD / "tools" / _line_values()["WASI_SDK_DIR"]
+    env = {"PATH": "/usr/bin:/bin", "WASI_SDK_PATH": str(sdk)}
+    if (build / "file-includes.txt").is_file():
+        env["WASI_CC_FILE_INCLUDES"] = str(build / "file-includes.txt")
+        env["WASI_CC_FILE_INCLUDES_LOG"] = str(tmp_path / "file-includes.log")
+    objects = [tmp_path / f"compile-{n}.o" for n in range(DUCC0_RUNS)]
+    runs = [
+        subprocess.Popen([*keep, "-o", str(o)], cwd=entry["directory"], env=env) for o in objects
+    ]
+    assert all(r.wait() == 0 for r in runs), f"a compile of {DUCC0} failed"
+    digests = sorted({hashlib.sha256(o.read_bytes()).hexdigest() for o in objects})
+    print(f"{DUCC0}: {len(digests)} object(s) in {DUCC0_RUNS} compiles")
+    assert len(digests) == 1, (
+        f"{DUCC0}: {len(digests)} objects in {DUCC0_RUNS} compiles "
+        f"({', '.join(d[:12] for d in digests)}): the clang varies again (spec 086, Decision 7)"
+    )
+
+
 CPYTHON_CONFIGURE = paths.REPO / "tests" / "cpython_configure.txt"
 PYCONFIG = Path("Python-3.15.0") / "cross-build" / "wasm32-wasip1" / "pyconfig.h"
 DEFINE = re.compile(r"^\s*#\s*define\s+(\S+)(?:\s+(.*?))?\s*$")
@@ -367,105 +416,3 @@ def test_the_guests_configure_results_are_recorded() -> None:
     if not errors and digest != digests[0]:
         errors.append(f"a line holding a reserved word moved: digest {digest}, not {digests[0]}")
     assert not errors, "\n".join(errors)
-
-
-def _objdump_boundaries(text: str) -> set[int]:
-    """The instruction offsets llvm-objdump -d printed, made relative to the code section's
-    payload (it prints file offsets for a linked module, section offsets for an object)."""
-    base = int(re.search(r"^([0-9a-f]+) <CODE>:$", text, re.M)[1], 16)
-    return {int(m[1], 16) - base for m in re.finditer(r"^\s+([0-9a-f]+):\s", text, re.M)}
-
-
-def _decoder_boundaries(same_bytes, data: bytes) -> set[int]:
-    mod = same_bytes.parse(data)
-    (code,) = [s for s in mod.sections if s[0] == same_bytes.CODE]
-    out = set()
-    for start, end in mod.bodies:
-        out |= {start - code[2] + i.start for i in same_bytes.decode(data[start:end])[1]}
-    return out
-
-
-@pytest.mark.slow
-def test_the_same_bytes_exception_is_still_needed(artifacts) -> None:
-    """The one place a build may make other bytes from the same inputs (spec 037, Decision 17)
-    holds only while it is needed and only for what it was measured on. Red when the recipe's
-    toolchain or scipy pin is not the line's, when the object's compile command is not the one it
-    names, when three compiles of the object with that command give the same object (the clang
-    no longer varies: remove the exception), when a named function is not exactly once in the
-    built python.wasm, or when the decoder's instruction boundaries on those three objects are
-    not the pinned llvm-objdump's. The toolchain move to wasi-sdk 34 (reserved) removes it."""
-    import hashlib
-    import json
-    import platform
-    import shlex
-    import sys
-
-    needs.need("compile records", "plain binary")
-    sys.path.insert(0, str(SCRIPTS))
-    import same_bytes
-
-    try:
-        (exception,) = same_bytes.load_recipe()
-    except same_bytes.Refused as e:
-        pytest.fail(f"{e}: remove the exception or renew it with new evidence (Decision 17)")
-    build = paths.BUILD / "scipy-build"
-    (entry,) = [
-        e
-        for e in json.loads((build / "compile_commands.json").read_text())
-        if e["file"].endswith(exception.obj)
-    ]
-    have = same_bytes.compile_command_sha256(entry["command"], paths.REPO)
-    assert have == exception.compile_command_sha256, (
-        f"{exception.obj}'s compile command hashes to {have}, the recipe's measure was "
-        f"{exception.compile_command_sha256}: renew or remove the exception (Decision 17)"
-    )
-    conf = same_bytes.line_conf(paths.REPO)
-    host = {"Darwin": "MACOS_ARM64", "Linux": "LINUX_AARCH64"}.get(platform.system(), "")
-    if platform.machine() == "x86_64":
-        host = "LINUX_X86_64"
-    sdk = paths.BUILD / "tools" / conf[f"{host}_WASI_SDK_DIR"]
-    out = paths.HARNESS_TMP / "same-bytes-still-needed"
-    shutil.rmtree(out, ignore_errors=True)
-    out.mkdir(parents=True)
-    words = shlex.split(entry["command"])
-    keep, skip = [], 0
-    for w in words:
-        if skip:
-            skip -= 1
-        elif w in ("-MQ", "-MF", "-o"):
-            skip = 1
-        elif w != "-MD":
-            keep.append(w)
-    env = {"PATH": "/usr/bin:/bin", "WASI_SDK_PATH": str(sdk)}
-    if (build / "file-includes.txt").is_file():
-        env["WASI_CC_FILE_INCLUDES"] = str(build / "file-includes.txt")
-        env["WASI_CC_FILE_INCLUDES_LOG"] = str(out / "file-includes.log")
-    objects = [out / f"compile-{n}.o" for n in range(3)]
-    runs = [
-        subprocess.Popen(keep + ["-o", str(o)], cwd=entry["directory"], env=env) for o in objects
-    ]
-    assert all(r.wait() == 0 for r in runs), f"a compile of {exception.obj} failed"
-    digests = {hashlib.sha256(o.read_bytes()).hexdigest() for o in objects}
-    assert len(digests) > 1, (
-        f"three compiles of {exception.obj} on {platform.system()}-{platform.machine()} gave one "
-        "object: the clang no longer varies, so remove the exception (Decision 17), unless this "
-        "host runs clang with address-space randomization off"
-    )
-    objdump = sdk / "bin" / "llvm-objdump"
-    for o in objects:
-        text = subprocess.run(
-            [str(objdump), "-d", "--no-show-raw-insn", str(o)],
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
-        mine = _decoder_boundaries(same_bytes, o.read_bytes())
-        assert mine == _objdump_boundaries(text), f"{o.name}: the decoder is not llvm-objdump"
-    names = same_bytes.parse(artifacts.path("python.wasm").read_bytes()).names
-    counts = {n: 0 for n in exception.functions}
-    for name in names.values():
-        if name in counts:
-            counts[name] += 1
-    wrong = [f"{c} functions named {n}" for n, c in counts.items() if c != 1]
-    assert not wrong, scan.report(wrong)
-    shutil.rmtree(out, ignore_errors=True)

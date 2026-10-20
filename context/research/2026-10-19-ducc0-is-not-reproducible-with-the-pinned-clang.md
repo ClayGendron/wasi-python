@@ -61,7 +61,10 @@ One experiment, in this order, each step stopping when it answers:
    (§4.1's patches are to sources, so a toolchain patch is new ground), waiting, or a narrower
    rule for this one object.
 
-Meanwhile the issue facts are drafted for the owner (`context/upstream/23-llvm-wasm-try-table-order/issue.md`).
+Meanwhile the issue facts are drafted for the owner (`context/upstream/23-llvm-wasm-try-table-order/issue.md`
+on spec 037's branch; removed at its rebase onto spec 086, since main's
+`2026-10-19-the-try-table-order-in-llvm/issue-draft.md` records the report and the fix, and there
+is nothing to send).
 
 ## Since (2026-10-19)
 
@@ -73,3 +76,8 @@ issue #204883) with a `MapVector`. The fix is in wasi-sdk 34 (LLVM 23.1.0) and i
 release; wasi-sdk 34 compiled `pyduccfft.cxx` to one object in 16 runs
 (`2026-10-19-the-try-table-order-in-llvm.md`, on main). The toolchain move to wasi-sdk 34
 (reserved) removes the exception.
+
+2026-10-20: the owner answered question 105 with (b), spec 086 moved the toolchain to wasi-sdk 34
+and landed first, and spec 037's rebase onto it removed the exception before it ever landed.
+`test_ducc0s_fft_compiles_to_one_object` (the build shard) now asks the opposite of the
+withdrawn still-needed check: three compiles of `pyduccfft.cxx`, one object.
