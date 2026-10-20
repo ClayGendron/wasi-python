@@ -518,13 +518,13 @@ closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-fli-overflow-native]"
 match = "1 finding(s), digest 7b3444c28a6f"
 reason = "checks/check_fli_overflow.py wants the crafted overflow file to load without raising; the repo's oracle, native Pillow 13.0.0, raises the same OSError (EXECUTED, the build), and Pillow's own test commands never run this check (testpaths = Tests): an upstream check that fails natively too, and does not crash in the guest"
-closes_with = "context/upstream/README.md"
+closes_with = "context/upstream/32-pillow-check-fli-overflow/notes.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourpy-config-1-text-rendering]"
 match = "17 finding(s), digest e45d420f14cb"
-reason = "contourpy's --runtext baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log, the build); contourpy's own CI runs --runtext on one pinned configuration"
-closes_with = "context/upstream/README.md"
+reason = "contourpy's --runtext baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log, the build); contourpy's own CI runs --runtext on one pinned configuration; native matplotlib at the same pins fails the same way (the confirming review, EXECUTED)"
+closes_with = "context/upstream/33-contourpy-text-baselines-freetype/notes.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourpy-rest-no-processes]"

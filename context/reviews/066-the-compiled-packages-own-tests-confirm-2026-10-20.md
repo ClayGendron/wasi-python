@@ -243,9 +243,35 @@ No High and no Medium. The three Mediums of the build review are closed.
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. L1 — 
-2. L2 — 
-3. L3 — 
+The builder, 2026-10-20, on `9db962a` (this review's copy), before the rebase onto wave 08:
+
+1. **L1 — written in, the review's text.** `tests/upstream/pillow.toml`'s reason for
+   `checks/check_fli_oob.py` and `checks/check_jp2_overflow.py` is now the review's fix text,
+   word for word: samples opened by a path relative to the folder the script is run from, so a
+   `FileNotFoundError` at import at the tree root, and every sample loaded by
+   `Tests/oss-fuzz/test_fuzzers.py::test_fuzz_images`, which passes. The same words replace the
+   false ones in spec 066's Decision 8 row and in the build review's Disposition, item 1. A judge
+   file's text only: no outcome, list, digest or fuel moves.
+2. **L2 — written in, as rows with notes, numbered 32 and 33.** 30 and 31 are taken on the
+   branches of 099 (`30-numpy-fp-status-without-fenv-flags/`) and 100
+   (`31-numpy-lapack-subroutines-declared-int/`), so the two rows are
+   `32-pillow-check-fli-overflow/` and `33-contourpy-text-baselines-freetype/` in
+   `context/upstream/README.md`, each with a `notes.md` of facts (facts only; the owner decides
+   whether to report). The two classes and their gaps now close with those `notes.md` files, not
+   the table. `text-rendering`'s reason gains "native matplotlib at the same pins fails the same
+   way (the confirming review, EXECUTED)", in `contourpy.toml`, `known_gaps.toml` and Decision 9.
+3. **L3 — written in.** Decision 11, the claim list and the accept-judge text say "collected
+   counts compared within one judge process"; across shards the lane reads the `collected` facts
+   (518, 419, 36 in run 124). No code change.
+- **Note 1 — written in.** The accept-judge text says "each cap 1.5 times its recorded
+  measurement, rounded up to two figures", the rule as `rule_cap` applies it.
+- **Note 2 — answered.** The lenient edge goes red, never silently green; lxml has no plain class
+  in a `"*"` module today. Left as is.
+- **Note 3 — left as is.** `check_icns_dos.py` shares its entry with `check_j2k_dos.py`, whose
+  JPEG 2000 is the zlib-only build's (spec 023); the reason is true for both.
+- **The run of the reviewed code** is run 124, `39451333969` on `b3174f5`. The commits after it
+  are `context/` only and the judge-file texts of L1 and L2 (a reason and two closers), with no
+  outcome, list or fuel change; the rebase onto wave 08's tip is named in the landing notes.
 
 ## Verdict
 

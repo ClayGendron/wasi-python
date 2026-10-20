@@ -362,7 +362,7 @@ numpy and pandas and spec 065 for CPython:
    | Pillow | `Tests/test_main.py` | every case runs `python -m PIL` in a subprocess | `README.md` |
    | Pillow | `checks/check_release_notes.py` | it reads `docs/releasenotes`, a release-time script over the source tree; `docs` is not staged (not a test of the package) | `README.md` |
    | Pillow | `checks/32bit_segfault_check.py`, `checks/check_icns_dos.py`, `checks/check_j2k_dos.py` | scripts, not pytest tests: each runs its reproduction at import and expects the exception (`MemoryError`, `UnidentifiedImageError`) at module level, so pytest collects it as a collection error and stops the session | `README.md` |
-   | Pillow | `checks/check_fli_oob.py`, `checks/check_jp2_overflow.py` | valgrind reproductions run as scripts; the second's `.jp2` inputs are not in the sdist | `README.md` |
+   | Pillow | `checks/check_fli_oob.py`, `checks/check_jp2_overflow.py` | valgrind reproductions run by hand, not tests: each opens its crash samples by a path relative to the folder it is run from (`images/fli_oob/…` from `Tests/`, `00r0_gray_l.jp2` and `00r1_graya_la.jp2` from `Tests/images/`), so at the tree root its first open raises `FileNotFoundError` at import, a collection error; every one of those samples is loaded by `Tests/oss-fuzz/test_fuzzers.py::test_fuzz_images`, which runs and passes (the confirming review, L1) | `README.md` |
    | lxml | `src/lxml/tests/test_threading.py` | every test starts threads | `README.md` |
    | lxml | `src/lxml/tests/test_isoschematron.py`, and `lxml.isoschematron`'s docstring doctests | `lxml.isoschematron` is the product's stand-in (spec 046, Decision 8) | `context/specifications/046-lxml.md` |
    | lxml | `src/lxml/html/tests/test_feedparser_data.py` | its `test_suite()` builds cases only when `lxml.html.clean` imports; `lxml_html_clean` is not shipped, so lxml's own runner runs none | `README.md` |
@@ -407,8 +407,8 @@ numpy and pandas and spec 065 for CPython:
    | `pillow` | `open-empty-path` | `Is a directory: ''` | 1 (`test_empty_path`) | in the guest `open('')` answers `IsADirectoryError` (`EISDIR`), where the test expects `FileNotFoundError` | `README.md` |
    | `pillow` | `no-resource-module` | `Unsupported platform for standard library module 'resource'` | 2 (build review; `checks/check_imaging_leaks.py`) | WASI has no `resource` module, which the leak checks measure memory with | `README.md` |
    | `pillow` | `not-pillows-wheel` | `^AssertionError: assert (\{\|set\(\) ==)` | 3 (build review; `checks/check_wheel.py`) | the check asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only | spec 023 |
-   | `pillow` | `fli-overflow-native` | `unrecognized data stream contents` | 1 (build review; `checks/check_fli_overflow.py`) | the check wants the crafted file to load; the repo's oracle, native Pillow 13.0.0, raises the same `OSError` (EXECUTED), and Pillow's own test commands never run it (`testpaths = Tests`); it does not crash in the guest | `context/upstream/README.md` |
-   | `contourpy-config-1` | `text-rendering` | `^AssertionError$` | 17 (build review; the `--runtext` cases of `test_config.py`) | contourpy's text baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log); contourpy's CI runs `--runtext` on one pinned configuration | `context/upstream/README.md` |
+   | `pillow` | `fli-overflow-native` | `unrecognized data stream contents` | 1 (build review; `checks/check_fli_overflow.py`) | the check wants the crafted file to load; the repo's oracle, native Pillow 13.0.0, raises the same `OSError` (EXECUTED), and Pillow's own test commands never run it (`testpaths = Tests`); it does not crash in the guest | `context/upstream/32-pillow-check-fli-overflow/notes.md` |
+   | `contourpy-config-1` | `text-rendering` | `^AssertionError$` | 17 (build review; the `--runtext` cases of `test_config.py`) | contourpy's text baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log); contourpy's CI runs `--runtext` on one pinned configuration; native matplotlib at the same pins fails the same way (the confirming review, EXECUTED) | `context/upstream/33-contourpy-text-baselines-freetype/notes.md` |
    | `contourpy-rest` | `no-processes` | `does not support processes` | 2 (build review; `test_cppcheck`, `test_mypy`) | no processes | `README.md` |
    | `lxml` | `include-dir-in-zip` | `Not a directory: '/usr/local/lib/python315.zip/lxml/includes'` | 1 (`test_include_paths`) | `lxml.get_include()` names folders inside the zip, which are not folders | `README.md` |
    | `lxml` | `isoschematron-stand-in` | `doctest failed` (by id: `doc/validation.txt`) | 1 | `validation.txt`'s ISO-Schematron part meets the product's stand-in | `context/specifications/046-lxml.md` |
@@ -516,8 +516,10 @@ numpy and pandas and spec 065 for CPython:
       - `test_lines.py`, eight groups: e₁ … e₆ as above, e₇ `random_big` (255.6 G); group 8 takes the
         rest (470.3 G, under the bound).
       Every split group of a file recorded the same collected count (518 for `test_filled.py`, 419
-      for `test_lines.py`, 36 for `test_config.py`), and the harness now compares them: a
-      difference across a split's groups is a finding (the build review, L1). No group is past
+      for `test_lines.py`, 36 for `test_config.py`), and the harness compares them within one
+      judge process: a difference across a split's groups judged there is a finding (the build
+      review, L1). Across shards, and across `-n` workers, the groups of a split do not meet, so
+      the lane reads the `collected` facts in the record (the confirming review, L3). No group is past
       480 G but `matplotlib-axes`. A group that grows
       past 480 G gets one more expression before it, by a reviewed judge change, never a test left
       out.
@@ -831,11 +833,13 @@ Not chosen, each in one line:
     with new metrics `fuel` and `passes` (17,972 passes, 9.985 T of fuel in all; per group in the
     Landing notes) and facts `counts`, `passed_digest`, `left_out`, and `collected` for the 22
     contourpy split groups (518 for `test_filled.py`, 419 for `test_lines.py`, 36 for
-    `test_config.py`); `test_upstream_class[<group>-<class>]` for the 23 classes with members,
+    `test_config.py`: collected counts compared within one judge process; across shards the lane
+    reads the `collected` facts, 518, 419 and 36 in every split group of run 124);
+    `test_upstream_class[<group>-<class>]` for the 23 classes with members,
     each a gap.
   - **Gaps added, 23:** matplotlib 10 (closers `README.md` 6, spec 023 2, `context/roadmap.md` 2
-    for 097 and 099), Pillow 9 (`README.md` 6, spec 023 2, `context/upstream/README.md` 1), lxml 2
-    (`README.md`, spec 046), contourpy 2 (`README.md` 1, `context/upstream/README.md` 1).
+    for 097 and 099), Pillow 9 (`README.md` 6, spec 023 2, `context/upstream/32-pillow-check-fli-overflow/notes.md` 1), lxml 2
+    (`README.md`, spec 046), contourpy 2 (`README.md` 1, `context/upstream/33-contourpy-text-baselines-freetype/notes.md` 1).
   - **Moved rows: none.** numpy's, pandas' and CPython's rows: lost 0, grew 0 (the fast tier's
     ratchet on this base).
   - **Retired: none. Passes moved: none** (every new row is new).
@@ -846,7 +850,7 @@ Not chosen, each in one line:
 
   ```
   --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 40 groups, 17972 passes, 9.985 T of fuel, 23 classes, 0 traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection exactly test_suite()'s; [[split]] by constructed -k expressions, collected counts compared; each cap at most 1.5 times its recorded measurement); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 23 gaps in known_gaps.toml; packages.toml (six suites); fourteen Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection exactly test_suite()'s; [[split]] by constructed -k expressions, collected counts compared within one judge process and read by the lane across shards; each cap 1.5 times its recorded measurement, rounded up to two figures); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 23 gaps in known_gaps.toml; packages.toml (six suites); fourteen Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
@@ -1201,7 +1205,13 @@ README's `resource` and 4 GiB facts.
 - `ruff check`, `ruff format --check` (on `src` and `tests`), the rules check and the unit checks
   green; the fast tier `build/066/fast2.txt`: 603/832 pass, 0 fail, ratchet vs `e9a76ce` lost 0,
   grew 0, judge changed;
-- CI dispatched on this exact commit and read: below.
+- CI dispatched on the reviewed code and read: run 124, `39451333969` on `b3174f5` (the rebuild):
+  43 jobs, 40 success and 3 publish jobs skipped, `gather` success; its record 739/832 pass,
+  86 gap, 0 fail, no red line; all 40 groups ran on Linux with darwin's passes; the fourteen
+  `upstream-plot-*` shards 118 to 246 s of job time each. The confirming review read this run on
+  this commit (constitution §5.6 as amended in main `30e9b41`). The commits after it are
+  `context/` only and the confirming review's L1 and L2 texts in the judge files (one reason, two
+  closers, one class reason), with no outcome, list or fuel change.
 
 **Measured** (EXECUTED, darwin-arm64, a private `cp -c` copy of main's set `dc6ba3a5`, the judge's
 own checks by node id, at most three guests, `build/lane.lock` absent at each start):
@@ -1249,7 +1259,8 @@ own checks by node id, at most three guests, `build/lane.lock` absent at each st
   | `pillow` | 432,950,151,677 | 4,593 |
   | `regex` | 16,001,941,028 | 147 |
   - Total 9,984.7 G, 17,972 passes; caps 1.517×10¹³ (Decision 11). Each split group recorded its
-    file's collected count (518, 419, 36), and the harness compared them.
+    file's collected count (518, 419, 36), the same in run 124's record; the harness compares them
+    within one judge process, and the lane reads the facts across shards (the confirming review, L3).
   - `matplotlib-mathtext` is wave 06's measurement: both runs on wave 07's set were voided by host
     litter (`.DS_Store` in the guest root), recorded as host failures, two strikes.
   - The other matplotlib groups, kiwisolver and regex moved at most 0.16 % from wave 06's set.
