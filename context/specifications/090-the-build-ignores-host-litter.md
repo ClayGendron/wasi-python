@@ -115,7 +115,10 @@ recorded fact, and every check that catches a real stray file today still catche
    followed by two literal CR bytes (git strips one trailing CR; `Icon[\r]` matches `Iconr`, the
    review's F5). EXECUTED in a scratch clone with this repo's `* text=auto eol=lf`: the line
    survives a commit and a clone, `git check-ignore` matches `Icon\r` and not `Iconr`, and git
-   still treats the file as text.
+   still treats the file as text. (For `git diff`, yes; for line-ending conversion, no: `git
+   ls-files --eol .gitignore` gives `i/-text w/-text attr/text=auto eol=lf`, since a lone CR
+   makes `text=auto` take it for not text. That is why the two CRs survive a commit and a Windows
+   checkout. The build review, finding 2.)
 8. **The README's Mac note** says what is left: nothing a desktop writes into `build/` changes an
    artifact or a fact; closing System Settings' Storage pane and Finder windows on the checkout
    stops the writers.
@@ -345,7 +348,11 @@ there yet).
   member has a litter name) are green.
 - **Criterion 6's facts.** The run's records (`gh run download 39366660896 -D build/090/ci/`, 19
   records): 20 `left_out` facts on 16 nodes, all five `cpython-*` groups among them; none holds a
-  `__pycache__` or litter path, and every one is `[]`.
+  `__pycache__` or litter path, and every one is `[]`. These records do not tell the fix apart:
+  087's release run, on a judge without 090, records the same 20 facts, also all `[]`, since
+  CI's trees hold none of the bytecode a local tree does. What shows the fix is the two stages'
+  unit rows, seen failing first and failing again when `unrecorded` lets `__pycache__` through
+  (the build review's mutation), and criterion 5. The build review, finding 1.
 
 One line: the build skips one shared litter list, the release packs its list, the artifact checks
 forgive litter names only, and `left_out` records neither litter nor bytecode, so a desktop's
