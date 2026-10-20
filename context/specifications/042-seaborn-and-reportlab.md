@@ -1017,6 +1017,42 @@ own run 39415728849 on `ecc2423`, which went red on the same three shards. The C
 `python.wasm` (`0b1b7373…`), snapshot (`cd38ffd4…`) and zip (`fe40e208…`) are the local build's
 bytes. **The wheel:** `wasi_python-0.1.0a8-py3-none-any.whl`, 84,660,765 bytes (question 64).
 
+### Rebased onto main `2516875` for wave 08 (the lane, 2026-10-20)
+
+Wave 07 (038 and 044) landed, so this branch's base `ecc2423` is inside main.
+`git rebase --onto origin/main ecc2423` replayed the four commits; only the first conflicted,
+in fourteen files, all where 044 added scikit-learn beside the same lines. Every hunk keeps both:
+- `.github/workflows/release.yml`: both sides moved the zero-patch count from 25 to 26 (044's
+  scikit-learn sdist, 042's seaborn's), so the merged count is **27** (`^27 passed`), and the
+  comment says seaborn's sdist is the twenty-seventh.
+- `README.md`, *What the default profile carries*: main's sentence (with scipy and scikit-learn)
+  with 042's "and seaborn and reportlab (spec 042)".
+- `scripts/assemble_artifacts.py` (`PACKAGES`), `tests/harness/paths.py` (`LICENCE_COMPONENTS`
+  and `PACKAGES`), `tests/harness/needs.py` (`SOURCE_COMPONENTS`), `tests/harness/pins.py`
+  (`SOURCE_PATTERNS`), `tests/unit/test_artifact_rules.py` (the synthetic set's pins and
+  packages), `tests/jobs/oracle/pyproject.toml`: scikit-learn's entry, then 042's.
+- `tests/checks/test_v1_3_data_stack.py`: the distributions in sorted order, `reportlab`,
+  `scikit-learn`, `scipy`, `seaborn`; the spec comment names both 044 and 042.
+- `scripts/steps/70_zip.sh`: the header comment holds 044's paragraph, then 042's; the arguments
+  hold scikit-learn's `--metadata`, then seaborn's, and the four `--drop` rules (matplotlib's
+  two, `sklearn/datasets/images`, then reportlab's two), with `--keep` once.
+- `tests/harness/jobs.py`: `JOBS` and `PLATFORM_BOUND` gain `machine_learning`, then 042's; the
+  platform comment holds both sentences.
+- `tests/checks/test_v1_1_artifact_set.py`: 044's two checks, then 042's helper and three checks.
+- `tests/harness/artifacts.py`: 044's `sklearn_notice_errors`, given back its closing
+  `return errors`, then 042's rules.
+- `tests/jobs/oracle/uv.lock`: not merged by hand. It was taken from main and regenerated with the
+  pinned uv (0.9.22) under the oracle's environment: "Added reportlab v5.0.1, Added seaborn
+  v0.13.2", the same 31 lines as before (`build/042/oracle-relock.txt`).
+
+The other three commits replayed cleanly, as did `CHANGELOG.md`, `downloads/SHA256SUMS`,
+`scripts/00_download.sh`, `tests/upstream/packages.toml` and the other check files. Not rebuilt
+(the lane). EXECUTED on the rebased tree: ruff check and ruff format --check pass; the rules
+check gives 43 passed, 1 skipped; the unit checks of the artifact rules, the build scripts and
+the pins give 86 passed (`build/042/*-w08.txt`); of the pin and fetch checks of v1.5, 47 pass and
+`test_every_compile_contracts_nothing` fails only because this worktree's `build/` predates 044
+(no `sklearn-build/compile_commands.json`), not by anything in this branch.
+
 ### The builder's self-check
 
 - Rebased today onto the named stacked base, 038's tip `ecc2423` (on main `958a22b`); the base is
