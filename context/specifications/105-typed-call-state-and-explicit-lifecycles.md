@@ -833,16 +833,19 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   and `ABANDONED`), a body after its cancel, and the `_CheckedCall` row. The existing session
   and home rows pass with the phase where they read a flag (`test_runner_sessions.py`'s
   `_state()` takes `phase`; `test_runner_threads.py` reads `home.phase`).
-- **The numbers (criterion 7; EXECUTED, `build/105/measurements-after.txt`):** `Any` tokens
-  **432 → 424** (`grep -oE '\bAny\b' -r src/wasi_python --include='*.py' | wc -l`; the base's
-  count on `3133f18`, the spec's 424 being `a9064a2`'s) and annotations **317 → 287**
-  (`grep -oE '(: |-> )Any\b' …`): `_sessions.py` 37 → 12 tokens and 31 → 8 annotations,
-  `_call.py` 54 → 44 and 47 → 42, `runner.py` 45 → 43 and 34 → 33, `_home.py` 24 → 22 and 11
-  → 10, `_limits.py` 18 → 16 and 15 → 15, `cli.py` 6 → 7 and 2 → 2, `tools.py` 108 → 139 and
-  74 → 74 (its 30 `dict` and `frozenset` generics gained `[str, Any]` and `[Any]`, 31 tokens:
-  the `type-arg` fixes add `Any` where the code had an implicit one), the rest unchanged. The
-  spec's INFERRED 30 to 60 fewer tokens did not come true for the package as a whole: the
-  runner's modules lost 36, `tools.py` gained 31. `type: ignore` lines **14 → 19**
+- **The numbers (criterion 7; EXECUTED, `build/105/measurements-after.txt`; the `Any` token
+  counts re-measured by the build review on `7618b48`, whose code is `0944ead`'s):** `Any` tokens
+  **432 → 400** (`grep -oE '\bAny\b' -r src/wasi_python --include='*.py' | wc -l`; the base's
+  count on `3133f18`, the spec's 424 being `a9064a2`'s; the builder's 424 was measured before
+  the `_Json` alias of difference 5 below replaced 23 `dict[str, Any]` spellings in `tools.py`)
+  and annotations **317 → 287** (`grep -oE '(: |-> )Any\b' …`): `_sessions.py` 37 → 12 tokens
+  and 31 → 8 annotations, `_call.py` 54 → 44 and 47 → 42, `runner.py` 45 → 43 and 34 → 33,
+  `_home.py` 24 → 22 and 11 → 10, `_limits.py` 18 → 16 and 15 → 15, `cli.py` 6 → 7 and 2 → 2,
+  `tools.py` 108 → 115 and 74 → 74 (its `dict` and `frozenset` generics gained `[str, Any]` and
+  `[Any]`, the `type-arg` fixes adding `Any` where the code had an implicit one, and the `_Json`
+  alias names `dict[str, Any]` once for 23 of them), the rest unchanged. The spec's INFERRED 30
+  to 60 fewer tokens came true for the package as a whole: 32 fewer, the runner's modules losing
+  36 and `tools.py` gaining 7. `type: ignore` lines **14 → 19**
   (`grep -rc 'type: ignore'`): gone, `cli.py`'s `[override]` (the action's `__call__` is
   annotated instead); new, each with its code and reason on the line, `runner.py:933`
   `[misc]` (`weakref.finalize.atexit` is a property on a slotted class),
