@@ -604,6 +604,50 @@ def test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them(monkeypa
             _refuses(kind.__ctype_be__)
 
 
+def test_the_ctypes_stand_in_values_have_no_memory(monkeypatch) -> None:
+    """038's build review, High 1: a value instance has no memory to read, so its buffer refuses
+    with spec 033's OSError (PEP 688's `__buffer__`), as `bytes()`, `memoryview()` and
+    `bytearray()` of it would touch memory; CPython's test_memoryview reads `bytes(c_double(0.6))`
+    and must meet "ctypes is unavailable", not a TypeError."""
+    ct = _load_stand_in_as_wasm32(monkeypatch)
+    for make in (lambda: ct.c_double(0.6), lambda: ct.c_int(1), lambda: ct.c_void_p(8)):
+        for read in (bytes, memoryview, bytearray):
+            _refuses(lambda make=make, read=read: read(make()))
+
+
+def test_the_ctypes_stand_in_values_are_true_and_typed_as_cpythons(monkeypatch) -> None:
+    """038's build review, Medium 2 and Low 3: an instance is false when its stored C bytes are
+    all zero, as CPython's (so -0.0 and NaN are true, and a NULL c_void_p is false); c_void_p takes
+    only an int, a floating type only what has `__float__` or `__index__` (never a str or a
+    buffer), and instances are unhashable, each as CPython's ctypes."""
+    from fractions import Fraction
+
+    ct = _load_stand_in_as_wasm32(monkeypatch)
+    false = (ct.c_int(0), ct.c_ulong(2**32), ct.c_bool(False), ct.c_void_p(), ct.c_void_p(0))
+    false += (ct.c_double(0.0), ct.c_float(0.0), ct.c_longdouble(0.0))
+    true = (ct.c_int(-1), ct.c_byte(1), ct.c_bool(True), ct.c_void_p(8), ct.c_double(-0.0))
+    true += (ct.c_float(-0.0), ct.c_double(float("nan")), ct.c_float(1e-45))
+    assert [bool(x) for x in false] == [False] * len(false), false
+    assert [bool(x) for x in true] == [True] * len(true), true
+
+    class Index:
+        def __index__(self):
+            return 16
+
+    for bad in (Index(), 1.0, "8"):
+        with pytest.raises(TypeError):
+            ct.c_void_p(bad)
+    assert ct.c_void_p(True).value == 1  # a bool is an int, as CPython reads it
+    for bad in (memoryview(b"2.5"), bytearray(b"1"), b"1", "1.0"):
+        with pytest.raises(TypeError):
+            ct.c_double(bad)
+    assert ct.c_double(Fraction(1, 2)).value == 0.5 and ct.c_double(Index()).value == 16.0
+    with pytest.raises(TypeError):
+        hash(ct.c_int(1))
+    with pytest.raises(TypeError):
+        hash(ct.c_void_p(8))
+
+
 def test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded() -> None:
     """Spec 038, Decision 6: the first type lookup imports nothing new. `ctypes._types` imports
     only `struct` and `sys`, which every start has loaded; `operator` and `math` cost a plain
