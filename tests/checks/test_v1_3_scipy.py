@@ -341,3 +341,33 @@ def test_ndarray_ctypes_gives_the_arrays_address(guest, which) -> None:
     does not fit the stand-in's 32 bits and numpy is not a development dependency)."""
     want = {"equal": True, "data": True, "kept": True, "fits": True}
     _compare(_run(guest, which, ADDRESS), want, "ndarray.ctypes's address")
+
+
+SOBOL_OPTIONS = """
+import json
+from scipy import optimize
+def sphere(x):
+    return float((x**2).sum())
+out = {}
+for name, call in (
+    ("differential_evolution", lambda: optimize.differential_evolution(
+        sphere, [(-1, 1)] * 2, init="sobol", rng=1, maxiter=50, popsize=16)),
+    ("shgo", lambda: optimize.shgo(sphere, [(-1, 1)] * 2, sampling_method="sobol", n=32)),
+):
+    try:
+        r = call()
+        out[name] = [bool(r.success), r.fun < 1e-8]
+    except Exception as e:
+        out[name] = f"RAISES {type(e).__name__}: {e}"
+print(json.dumps(out))
+"""
+
+
+@BINARY
+def test_the_sobol_options_need_nothing_writable(guest, which) -> None:
+    """`differential_evolution(init='sobol')` and `shgo(sampling_method='sobol')` find the
+    minimum of a two-dimensional sphere with nothing writable (spec 038; its build review's Low 7:
+    the README says they work). Before 038, the first started from Sobol's zero population and the
+    second raised QhullError (QH6421)."""
+    want = {"differential_evolution": [True, True], "shgo": [True, True]}
+    _compare(_run(guest, which, SOBOL_OPTIONS), want, "Sobol's options with nothing writable")
