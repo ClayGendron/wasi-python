@@ -908,3 +908,44 @@ what only the hardware signals stays silent and says so.
   fixed here.
 - **The correction of question 107**: the probes' "native" was Accelerate; the text says so
   throughout.
+
+### After the build review: rebased onto wave 07 and rebuilt (2026-10-20, EXECUTED)
+
+The build review (`../reviews/099-numpy-singular-inverse-build-2026-10-20.md`) said "lands once
+M1 is closed": main `2516875` (wave 07: 038, 044) added spec 044's weak-duplicate gate to step 60,
+and 099's weak flag word, defined in 13 numpy archives, would stop it.
+
+- **The rebase** onto main `2516875`: all eight commits replayed with **no conflict hunk**
+  (`build/099/rebase-07.log`). The CHANGELOG bullet stays first under `## 0.1.0a8 — unreleased`,
+  above 096's and wave 07's.
+- **M1 closed by the allow-list**, the lane's recommended form: `recipes/weak-duplicates-allowed.txt`
+  gains one line, `wasi_python_fe_flags`, with its reason (every copy the same zero-filled 4-byte
+  int; sharing one object across files is the point, not state of one file; `python.map` shows one
+  definition). It touches `recipes/` only, so step 60 and spec 100's change to it are untouched.
+  `recipes/npy_fenv_flags.h`'s comment names the entry. The list parses with the gate's own reader
+  (20 patterns); `tests/unit/test_sklearn_build.py` and `tests/unit/test_scan.py` pass (223).
+  Chosen over a single strong definition (an `extern` in the header and a recipe C file linked by
+  step 60) because it changes no script, and spec 100 also edits step 60.
+- **The rebuild from empty** on `4fac7e2` (the worktree's `build/` emptied, wave 07's new pins
+  cloned in; `df -h ~` 56 GiB free; `build/099/build-07.log`): 19 steps in 11 m 25 s, exit 0, ended
+  11:53. Step 60's gate: `weak duplicates: 270 archives, 21964 weak names, 0 unreviewed, 0 stale
+  patterns`. `python.map` names `wasi_python_fe_flags` once, 4 bytes of `.bss`, from one numpy
+  object (`dragon4.c.o`). Step 40: 189 compiles carry the header, 419 warnings as main's. Only
+  numpy's 19 archives differ from wave 07's; pandas' 45, scipy's 95, scikit-learn's 69, the plot
+  modules' 13, lxml's 2 and regex's 1 are equal by hash.
+- **The set**, `SHA256SUMS` `5f203242…`, against wave 07's `dc6ba3a5…`: `python.wasm` 93,793,855 →
+  93,793,595 (−260); the snapshot 98,620,293 → 98,620,033 (−260); the zip 47,730,899 → 47,730,914
+  (+15). `MANIFEST` differs in four lines: the header's new `recipe` line, the changed
+  `recipes/wasi-numpy.cross` and `recipes/weak-duplicates-allowed.txt` lines, and the snapshot's
+  `x-snapshot-zip`. `LICENSES/` is identical.
+- **The seven new nodes pass** (`build/099/new-nodes-07.log`): check 1 1,160,431,549 (plain) and
+  830,157,273 (snapshot); check 2 1,159,335,453 and 829,059,005; check 3 1,156,599,764 and
+  826,321,490; check 4 `compiles 189, c 166, c++ 23, not compiles 9`.
+- **The facts for spec 100 hold unchanged** on both binaries (`*-wave07-*.out`): the singular
+  probe's cross table equals the first build's byte for byte (130, 141, 20, 12 against native
+  Accelerate), and `lstsq` of `nan` still raises B1's `SystemError`.
+- **The fast tier** (`-n 3`, started 11:56 with no lane lock and no other judge; `build/099/fast-07.log`):
+  `636/776 pass · 0 gap · 3 blocked · 0 fail`, unit suite 1,846/1,853; ratchet `lost 0 · gained 7 ·
+  grew 12`. 33 fuel rows up and 161 down, from +0.0518% to −0.0303%. The 12 red lines: the zip
+  (+15 bytes) and eleven fuel rows from +0.0109% to +0.0518%
+  (`test_recursion_through_python_raises[np-frompyfunc-snapshot]` the most).
