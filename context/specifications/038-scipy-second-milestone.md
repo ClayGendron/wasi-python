@@ -259,6 +259,12 @@ decision's purpose; the reviewer checks each.
    `byref(c_int(1))` and `addressof(c_void_p(8))`. pandas' `from_dataframe` still raises: it
    casts to `POINTER(...)` (READ, pandas 3.0.6 `core/interchange/from_dataframe.py:520`).
 
+8. **The first type lookup imports nothing new** (Decision 6, measured at build): the value rules
+   first used `operator.index` and `math.copysign`, and importing those two modules cost a plain
+   start 5.9 M and 1.0 M fuel (0.9 M on the snapshot), so the first lookup grew 8.0 M plain and
+   2.1 M snapshot over 037's. `_types.py` now has its own `__index__` helper and
+   `float("inf")`, and a unit check holds its imports to `struct` and `sys`.
+
 ## Landing notes
 
 **Phase 1 (2026-10-20), no build.** Written by the builder (Claude Opus 5.5) in the worktree
@@ -287,53 +293,85 @@ has run. Evidence under the worktree's git-ignored `build/038/`.
   edges golden, 033's changed guest check), seen failing on 037's built set first; the build;
   the first-type-lookup fuel (Decision 6).
 
+**Phase 2 (2026-10-20): rebased, built, judged.**
+
+- **Rebased** onto 037's built tip `28bd08a` (043's `54022dd` beneath it, main `41bcc0f`) with
+  `git rebase --onto 28bd08a 50a3fe3`. Two conflicts, resolved by hand with no test dropped:
+  `tests/harness/jobs.py` (`PLATFORM_BOUND` takes 043's `plot_contour` and 038's `scipy_edges`)
+  and `README.md` (the table row, the prose count and the prose list: 037's seventeen plus two,
+  nineteen; the scipy paragraph names all four scipy patches beside 037's qhull text). 037 had
+  added a scipy `0002` (`_matfuncs_sqrtm_triu`), so 038's patches were renamed `0003` and `0004`
+  (`git mv`, contents unchanged), with the drafts, the CHANGELOG paths and this text.
+  `known_gaps.toml` keeps 037's `cpython-c-pydoc-imports-scipy` and loses the six scipy entries
+  (66 entries). No conflict markers remain.
+- **Seen failing first on 037's built set** (`SHA256SUMS` `40281c40`, copied from 037's worktree,
+  judged with `WASI_PYTHON_ARTIFACTS`; `build/038/logs/seen-failing-on-037-set.log`): all twelve
+  new and changed guest rows failed: Matrix Market `RuntimeError: thread constructor failed: Not
+  supported` (digest `4ea6e755e09e`, 037's recorded one), Sobol all-zero points, the four
+  `ctypes` values `OSError` (`b1dc10df2320`, recorded), the address check `OSError`, the edges
+  golden at its line 2 (`RAISES RuntimeError thread constructor failed`), and 033's guest check
+  at `ndarray.ctypes.data`, `c_int(1)` and `c_ulong(-1)`.
+- **Built from an empty `build/`** at `8cf320a` (macOS arm64, 10 cores; downloads verified, 84
+  pins): every step ok; step 57 applied scipy's `0001` to `0004` with no offset; step 57's
+  direct-call gate 621 routines, 0 mismatches. Then item 8 changed `_types.py` alone, and steps
+  70, 80 and 90 were re-run at `bcc1ac3` (each step removes and remakes its outputs; the release
+  workflow's same-bytes job rebuilds from empty). The set: `SHA256SUMS` `e472e198`;
+  `python.wasm` 84,791,479 bytes (-2,786 against 037's), the snapshot 89,462,521 (-5,596), the zip
+  44,448,678 (+2,762). Against 037's set the zip differs in exactly two members
+  (`ctypes/_types.pyc`, `scipy/io/_fast_matrix_market/__init__.pyc`) and gains none, and
+  `MANIFEST` differs in the stand-in's recipe hash, the two new patch lines and the zip's hash
+  (Decision 6).
+- **The fast tier** `uv run pytest -m "not slow" -n 3` on `bcc1ac3` with that set
+  (`build/038/logs/fast-tier-2.log`, record `build/038/latest-fast-2.json`): 612/750 pass, 0 gap,
+  3 blocked (prior-art clones, three systems, the wheel: no wheel in `dist/`), 0 fail; unit suite
+  1807/1814. Red only by growth against main's accepted state, which 043 and 037 carry. scipy's
+  slow file by itself (`-m slow`): the four goldens on both binaries pass, `scipy_edges` among them,
+  its Matrix Market SHA-256 equal to native's (`build/038/logs/slow-scipy.log`).
+- **Fuel against 037's own fast record** on its final set (037's `p3/latest-fast.json`, set
+  `40281c40`; `build/038/growth-vs-037-2.txt`): 176 rows move, 120 up and 56 down, median
+  +0.011%, -0.15% to +0.87%. The causes: the first type lookup (measured directly,
+  `build/038/fuel/`) costs 1.35 M more on the plain reactor and 1.30 M more on the snapshot, and
+  `import scipy` builds the types (`_lib._ccallback_c`), so `import scipy` grows 1.65 M and
+  `import scipy.optimize` 3.8 M (snapshot), which every scipy check pays (+0.05% to +0.18%);
+  threadpoolctl's check +0.87% / +0.34% (it looks up the types); 033's guest check +0.70% /
+  +0.73% (its program does more). The rest, ±0.15%, follow from the two changed members.
+- **The release workflow on the branch:** run 39393706506 on `bcc1ac3` (results below, under
+  For the lane).
+
 ### For the lane
 
-**Where it stands.** Phase 1 done on `50a3fe3`; waiting for 037's built tip and the native build
-slot. Then: rebase onto 037's built tip, rebuild from an empty `build/`, the fast tier `-n 3`,
-push, dispatch the release workflow on the branch, and fill in what follows.
+**Where it stands.** Built on `bcc1ac3`, stacked on 037's built tip `28bd08a`. Not yet reviewed:
+the build review is next (a fresh reviewer, this specification and `git diff 28bd08a`). The
+native build slot is released.
 
-#### What is re-derived after the rebase onto 037's built tip
+#### The claim list (rows 038 changes, against 037's)
 
-037's built tip is itself stacked on 043; each value below is read from that tip, not from
-`50a3fe3`.
-
-- **Patch numbers:** scipy's stay `0002` and `0003` unless 037's built tip carries another scipy
-  patch (then renumbered after it, with the drafts, CHANGELOG paths and README text).
-- **README's carried-patch count**, in the table row (`upstream patches carried: N`, read by
-  `patch_errors`), the prose ("sixteen carried patches") and the prose list: 037's built count
-  plus two (037's For the lane expects 16 on 043, so 18), naming 043's matplotlib `0002` and
-  qhull's format-strings fix if they are there.
-- **`tests/known_gaps.toml`:** the six scipy entries removed again from whatever 037's built tip
-  has (on 043 its count is 043's 65 plus 037's six; 038 leaves 65), checking the digests it
-  removes are 037's three checks only.
-- **Release tree count** (`release.yml`'s zero-patch line): 038 adds no source tree, so it stays
-  037's built value (25 expected); the patched-tree check now applies three scipy patches.
-- **Link lists, inittab, step 70, `make_stdlib_zip.py`:** 038 changes none (no module, no
-  member added); confirmed with `git diff` against 037's built tip.
-- **`jobs.JOBS` and `PLATFORM_BOUND`:** `scipy_edges` after 037's (and 043's `plot_contour`).
-- **README's scipy section and the stand-in paragraphs**, merged with 043's and 037's rebased
-  text; CHANGELOG under "## 0.1.0a8 — unreleased", after 037's entry.
-- **The golden**: re-recorded only if the oracle's pin moved (it does not, by 037's lock).
-
-#### The claim list (filled in at phase 2)
-
-- **New checks:** `tests/checks/test_v1_3_scipy.py::test_scipy_edges_job_matches_native[plain]`,
-  `[snapshot]` (slow); `::test_ndarray_ctypes_gives_the_arrays_address[plain]`, `[snapshot]`;
-  `tests/unit/test_build_scripts.py`'s two stand-in value checks (unit suite).
-- **Gaps that now pass (6):** `test_matrix_market_round_trips_in_memory`,
-  `test_sobol_needs_nothing_writable`, `test_ctypes_values_scipy_makes`, each `[plain]` and
+- **New checks (4 guest rows, 3 unit):**
+  `tests/checks/test_v1_3_scipy.py::test_scipy_edges_job_matches_native[plain]`, `[snapshot]`
+  (slow, fuel recorded); `::test_ndarray_ctypes_gives_the_arrays_address[plain]`, `[snapshot]`
+  (fuel recorded); in the unit suite,
+  `test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them`,
+  `test_the_ctypes_stand_in_types_import_only_what_a_start_has_loaded`,
+  `test_the_ctypes_stand_in_holds_void_pointers_and_casts_them`.
+- **Gaps that now pass (6):** `tests/checks/test_v1_3_scipy.py::test_matrix_market_round_trips_in_memory`,
+  `::test_sobol_needs_nothing_writable`, `::test_ctypes_values_scipy_makes`, each `[plain]` and
   `[snapshot]`; their six `[[gap]]` entries removed.
-- **Changed checks:** `test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`
-  (both binaries) and `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule).
-- **Rows that grow:** to be measured: `python.wasm` and the snapshot (`_sobol` only), the zip
-  (two members' bytes), the first type lookup's fuel; nothing else is expected to move.
-- **Not 038's:** (to be filled).
+- **Changed checks:** `tests/checks/test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`
+  `[plain]`, `[snapshot]` (fuel +0.70%, +0.73%: more steps), and the unit check
+  `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule).
+- **Retired:** none. No group's passes fall.
+- **Rows that grow:** the zip's bytes (+2,762); fuel rows that import scipy (+0.05% to +0.18%)
+  or look up a `ctypes` type (threadpoolctl's check +0.87% snapshot, +0.34% plain); every other
+  fuel row within ±0.15% of 037's. `python.wasm` and the snapshot shrink.
+- **Not 038's:** every row 037 and 043 carry against main.
 
-#### The flags (filled in at phase 2)
+#### The flags
 
 ```
---accept "038: …"
---accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable, the guest address check, the stand-in's value checks on the host (wasm32 sizes) and 033's guest and unit checks changed to Decision 3's rule, and spec 037's six scipy [[gap]] entries removed because their checks now pass"
---accept-growth "038: …"
+--accept "038: scipy's sandbox edges (spec 037's three gaps closed): carried scipy patches 0003 (Matrix Market's default parallelism 1 on WASI) and 0004 (Sobol's direction numbers read without a temporary file); the ctypes stand-in holds numeric and c_void_p values and casts to c_void_p, nothing with an address; on a set whose zip differs from 037's in exactly two members and whose MANIFEST differs in the stand-in's hash, the two patch lines and the zip's hash"
+--accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable; the guest address check; three host unit checks of the stand-in (its value rules at wasm32's sizes, and its imports held to struct and sys); 033's guest and unit stand-in checks changed to Decision 3's rule; spec 037's six scipy [[gap]] entries removed because their checks now pass"
+--accept-growth "038: the stand-in's types carry the value rules, so the first type lookup costs 1.35 M more fuel on the plain reactor and 1.30 M on the snapshot (operator and math are not imported: item 8), and import scipy, which builds them in _lib._ccallback_c, 1.65 M more (scipy.optimize 3.8 M): every check that imports scipy +0.05% to +0.18%, threadpoolctl's check +0.87% / +0.34%; 033's guest check +0.70% / +0.73% runs more steps; the zip +2,762 bytes in two members; python.wasm -2,786 and the snapshot -5,596 bytes; 176 rows move against 037's own record, median +0.011%"
 ```
+
+No `--retire`, no `--accept-fewer-passes`, no `--partial`. Accept with 037's and 043's flags in
+the same wave, after both.

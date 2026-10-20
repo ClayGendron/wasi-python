@@ -32,5 +32,7 @@ run). In this project's statically linked CPython for `wasm32-wasip1`, whose lib
 and whose default call grants nothing writable, `qmc.Sobol(d=2, scramble=False).random(4)` must
 give `[[0, 0], [0.5, 0.5], [0.75, 0.25], [0.25, 0.75]]`, and a seeded scrambled draw must equal
 native scipy's, on both of its binaries.
+**Result** (2026-10-20, the build of spec 038): both hold on both binaries; without the
+patch every point was 0.
 
 It is deleted, and the pin moved, when a scipy release carries the fix.
