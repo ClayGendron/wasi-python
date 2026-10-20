@@ -20,14 +20,17 @@ cwd = "/tmp/work"
 [groups.demo-1]
 paths = ["tests/test_big.py"]
 fuel = 10
+measured = 7
 
 [groups.demo-2]
 paths = ["tests/test_big.py"]
 fuel = 10
+measured = 7
 
 [groups.demo-3]
 paths = ["tests/test_big.py"]
 fuel = 10
+measured = 7
 
 [[split]]
 file = "tests/test_big.py"
@@ -51,7 +54,7 @@ def test_a_split_groups_argv_carries_its_keyword() -> None:
     cfg = _cfg()
     args = packages.group_args(cfg, cfg.groups["demo-2"])
     assert args[-1] == "-k(random_big) and not ((random_big and serial))"
-    assert "tests/test_big.py" in args
+    assert "/upstream-demo/tree/tests/test_big.py" in args  # absolute, made by the host
 
 
 def test_the_well_formed_split_has_no_error() -> None:
@@ -134,6 +137,12 @@ def test_the_guard_is_path_based() -> None:
     root = "/upstream-demo/tree/"
     ok = [("tests.test_big", root + "tests/test_big.py")]
     assert packages.guard_findings(cfg, ok) == []
+    support = packages.load(
+        tomllib.loads(
+            BASE.replace('cwd = "/tmp/work"', 'cwd = "/tmp/work"\nsupport_files = ["selftest.py"]')
+        )
+    )
+    assert packages.guard_findings(support, [("selftest", root + "selftest.py")]) == []
     from_tree = [("demo.core", root + "demo/core.py")]
     assert "outside the staged folders" in packages.guard_findings(cfg, from_tree)[0]
     from_kit = [("packaging", "/upstream-demo/kit/packaging/__init__.py")]
@@ -173,6 +182,51 @@ def test_lxml_selection_is_checked_both_ways() -> None:
     assert any("ran nothing" in f for f in packages.keep_findings(extra, lost, keep))
     wrong = packages.parse_extra("D tests/test_e.py::Kept::test_x\n")
     assert any("deselected a test" in f for f in packages.keep_findings(wrong, stream, keep))
+    # the third direction: every test that ran is one test_suite() adds (the build review, M2)
+    builder = upstream.parse_stream(
+        "R passed tests/test_e.py::Kept::test_x --\nR passed tests/test_e.py::test_suite --\n"
+    )
+    assert any("does not add" in f for f in packages.keep_findings(extra, builder, keep))
+    other = upstream.parse_stream(
+        "R passed tests/test_e.py::Kept::test_x --\nR passed tests/test_e.py::_Base::t --\n"
+    )
+    assert any("does not add" in f for f in packages.keep_findings(extra, other, keep))
+    dropped = packages.parse_extra("D tests/test_e.py::test_suite\n")
+    assert packages.keep_findings(dropped, stream, keep) == []
+    whole = {"tests/test_w.py": "*"}
+    ok = upstream.parse_stream("R passed tests/test_w.py::Any::test_x --\n")
+    assert packages.keep_findings(packages.Extra(), ok, whole) == []
+    fn = upstream.parse_stream(
+        "R passed tests/test_w.py::Any::test_x --\nR passed tests/test_w.py::test_suite --\n"
+    )
+    assert any("does not add" in f for f in packages.keep_findings(packages.Extra(), fn, whole))
+
+
+def test_the_rule_cap_is_one_and_a_half_times_rounded_up() -> None:
+    assert packages.rule_cap(439_781_534_980) == 660_000_000_000
+    assert packages.rule_cap(12_975_521_084) == 20_000_000_000
+    assert packages.rule_cap(100) == 150
+
+
+def test_a_cap_above_the_rule_or_without_a_measurement_is_refused() -> None:
+    high = BASE.replace("fuel = 10\nmeasured = 7", "fuel = 10\nmeasured = 6", 1)
+    assert any("above 1.5 times" in e for e in packages.rule_errors("demo", _cfg(high), None))
+    bare = BASE.replace("fuel = 10\nmeasured = 7", "fuel = 10", 1)
+    assert any("no measured fuel" in e for e in packages.rule_errors("demo", _cfg(bare), None))
+
+
+@pytest.mark.parametrize("key", ["path_packages = []", "support = []"])
+def test_numpys_keys_are_refused_in_a_package_toml(key) -> None:
+    text = BASE.replace('cwd = "/tmp/work"', f'cwd = "/tmp/work"\n{key}')
+    assert any("may not carry" in e for e in packages.rule_errors("demo", _cfg(text), None))
+
+
+def test_unequal_collected_counts_across_a_split_are_red(tmp_path) -> None:
+    cfg = _cfg()
+    s = packages.Session(tmp_path, {"demo": cfg})
+    s.groups["demo-1"] = packages.PackageRun(None, 1, [], 5)
+    assert s._split_findings(cfg, "demo-2", 5) == []
+    assert "collected 6 tests here, 5 in demo-1" in s._split_findings(cfg, "demo-2", 6)[0]
 
 
 def test_numpy_and_pandas_are_read_as_today() -> None:
@@ -184,3 +238,37 @@ def test_numpy_and_pandas_are_read_as_today() -> None:
     assert set(families[upstream.GRANT]) == {"numpy", "pandas"}
     for name in upstream.PACKAGE_SUITES:
         assert configs[name].grant == f"/upstream-{name}"
+
+
+def test_the_upstream_stage_never_takes_a_package_family(monkeypatch, tmp_path) -> None:
+    """Criterion 6's mechanism: numpy's and pandas' stage prepares only its own families' trees,
+    even when every package family's tree is on disk, so its file list is the base's."""
+    from harness import pins
+
+    configs = upstream.load_all()
+    asked: list[str] = []
+    monkeypatch.setattr(pins, "source_pair", lambda pkg, *a, **k: ("tarball", "tree"))
+    monkeypatch.setattr(upstream.Session, "_prepare", lambda self, p: asked.append(p) or [])
+    s = upstream.Session(tmp_path, configs)
+    s.prepare("numpy")
+    assert sorted(asked) == ["numpy", "pandas"]
+
+
+@pytest.mark.parametrize(
+    ("shard", "families"),
+    [
+        ("upstream-plot-l", ["matplotlib"]),
+        ("upstream-plot-g", ["contourpy", "pillow"]),
+        ("upstream-plot-a", ["contourpy"]),
+        ("upstream-numpy-a", ["cpython", "numpy", "pandas"]),
+    ],
+)
+def test_a_shard_fetches_only_its_families_trees(shard, families) -> None:
+    """Criterion 8's mechanism: `fetch.py --shard` fetches the trees of the families whose groups
+    the shard runs, and no other package family's (the plan as it stands)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("fetch", upstream.HERE / "fetch.py")
+    fetch = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fetch)
+    assert sorted(fetch.shard_packages(shard)) == families

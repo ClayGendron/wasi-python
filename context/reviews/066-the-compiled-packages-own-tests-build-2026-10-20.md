@@ -254,10 +254,76 @@ written with the code". A unit check written with its code was not seen failing 
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. M1 —
-2. M2 —
-3. M3 —
-4. L1 to L8 —
+The builder, 2026-10-20, rebuilt on main `2516875` (wave 07's set, `SHA256SUMS` `dc6ba3a5`);
+every number below is EXECUTED on darwin-arm64, a private `cp -c` copy of that set, the judge's
+own checks by node id, at most three guests, `build/lane.lock` absent at each start.
+
+1. **M1 — written in and measured.**
+   - contourpy: `tests/test_codebase.py` is selected in `contourpy-rest`. `test_version` passes;
+     `test_cppcheck` and `test_mypy` fail with `[Errno 58] wasi does not support processes` and
+     are the new `no-processes` class (2 members, a gap closing with `README.md`).
+   - Pillow: `selftest.py` runs as a docstring module (`support_files`, `docstring_modules =
+     ["selftest"]`): its 59 examples are one doctest item, `::docstrings:selftest.testimage`,
+     which passes. The guard admits a staged support file named as a docstring module (a unit
+     case).
+   - Pillow's `checks/` is staged and runs in the `pillow` group (`python_files` adds `check_*.py`
+     and `*_check.py`): 5 pass, 7 skip (counted), 10 fail into classes. Four are
+     `pillow-zlib-only` (`check_jpeg_leaks.py`, now 55 members); `no-resource-module` (2,
+     `check_imaging_leaks.py`: WASI has no `resource`; the README gains the fact);
+     `not-pillows-wheel` (3, `check_wheel.py` asserts the PyPI wheel's modules, codecs and
+     features; spec 023); `fli-overflow-native` (1, `check_fli_overflow.py`: the repo's oracle,
+     native Pillow 13.0.0, raises the same `OSError`, and Pillow's own test commands never run
+     it). Six files are named in `not_selected`, each with its reason: `check_release_notes.py`
+     reads `docs/releasenotes` (a release-time script over the source tree);
+     `32bit_segfault_check.py`, `check_icns_dos.py` and `check_j2k_dos.py` run their
+     reproduction at import and expect the exception at module level, so pytest records a
+     collection error and interrupts the session (seen in the rebuild's first run);
+     `check_fli_oob.py` and `check_jp2_overflow.py` are valgrind scripts, the second's inputs not
+     in the sdist.
+   - Measured: `pillow` 432,950,151,677 fuel, 4,593 passes (was 4,587); `contourpy-rest`
+     205,916,211,054, 277 passes (was 198, with L2's text cases and L3's file).
+2. **M2 — written in and measured.** `_keep` now keeps only `TestCase` items of a listed class
+   (any `TestCase` for `"*"`) in a module with `test_suite()`; every other item, the 34
+   `test_suite` builders included, is deselected with a `D` line. `keep_findings` checks three
+   directions: every listed class ran; every test outcome in a keep module is one `test_suite()`
+   adds; no `D` line is one it adds. Unit cases for each. `lxml`: 103,449,823,065 fuel, 2,024
+   passes (was 2,058), every passed node a listed class's. Totals, the accept text, the CHANGELOG
+   and the README are corrected (40 groups, 17,972 passes, 9.985 T).
+3. **M3 — written in.** Each group carries `measured = <fuel>` beside its cap. `rule_errors`
+   refuses a group without `measured` and a cap above `rule_cap(measured)` (1.5 times, rounded up
+   to two significant figures), and refuses `path_packages` and `support` in a package TOML, each
+   with its own line; unit cases for each. Every cap and budget was recomputed by the rule from
+   the rebuild's measurements. The stand-in `SPLIT_MAX` total is removed: the per-cap rule
+   replaces it, and no total is fixed (Decision 11).
+4. **L1 to L8.**
+   - **L1** — written in: `Session` compares the `K` line across a split's groups; a difference is
+     a finding (unit case).
+   - **L2** — written in under the owner's rule: `args = ["--runslow", "--runtext"]`. The ten
+     `test_filled_compare_slow` cases pass, about 91 G each, in three new split groups
+     (`contourpy-filled-9` to `-11`, 946.6 G in all). `test_config.py`'s `--runtext` cases made
+     its group 582 G, so it is split in two (`contourpy-config-1`, the 18 `True` cases, 377.1 G;
+     `-2`, 205.1 G). Seventeen of them fail as the `text-rendering` class: contourpy's own
+     image-difference log shows the same images without text match (max at most 52 of 255, mean
+     at most 0.0003) and with text differ (max 255, mean 3.5 to 8.4), past contourpy's thresholds
+     (max 100, mean 0.02); the text matplotlib 3.11.2 with FreeType 2.14.3 draws here differs from
+     contourpy's baselines. The image I read showed the same figure with different glyph shapes.
+     `test_renderer.py`'s text cases pass. `cwd` is now `/tmp/work` with the 52 baselines copied
+     in, so a differing image writes its `result_images` instead of `PermissionError`. Cost:
+     1.45 T of fuel in all with M1, five more groups (40), caps 1.517×10¹³, and two more Linux
+     shards (fourteen, at most 725 G each).
+   - **L3** — written in: `test_bokeh_renderer.py` is selected; one counted
+     `R skipped tests/test_bokeh_renderer.py` (no `bokeh`).
+   - **L4** — written in: the README's platform facts say `python.wasm` declares no maximum
+     memory, so wasm32's 4 GiB bounds an allocation, naming Pillow's DDS samples.
+   - **L5** — written in: `_abs()` is gone; `group_args` makes only paths (and `--ignore`
+     values) absolute on the host, and the driver passes every argument through unchanged.
+   - **L6** — written in "For the lane": 099's order both ways.
+   - **L7** — written in: the self-check says the unit checks were written with the code, not
+     seen failing first; their bad cases each fail with their own line.
+   - **L8** — written: `test_the_upstream_stage_never_takes_a_package_family` (criterion 6) and
+     `test_a_shard_fetches_only_its_families_trees` (criterion 8).
+   - **The Note** — recorded in "For the lane" as a reserved follow-up for the lane, not fixed
+     here.
 
 ## Verdict
 

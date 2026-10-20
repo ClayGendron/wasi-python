@@ -13,10 +13,16 @@
   (`../reviews/066-the-compiled-packages-own-tests-spec-delta-2026-10-20.md`: "passes for build
   with conditions"; the Disposition of the delta review answers each finding). **The owner chose
   option (b)** (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`): every test runs, contourpy's random_big
-  cases included; caps by the 1.5 times rule, about 1.26×10¹³; big files split into groups by
+  cases included; caps by the 1.5 times rule (1.517×10¹³ once the build review's `--runslow`,
+  `--runtext`, Pillow's `checks/` and `selftest.py` were added); big files split into groups by
   construction. **Built 2026-10-20** on main `21dff9d` (wave 06's set, `SHA256SUMS` `f12cd25c`):
   tip `f0144ca`, its branch release run `39424879820` passed every job on all three systems,
-  `gather` included, each new shard within 360 s (the Landing notes). Awaiting its build review. It builds after spec 043 (matplotlib M2, which pins contourpy)
+  `gather` included, each new shard within 360 s (the Landing notes). **Build-reviewed 2026-10-20**
+  (`../reviews/066-the-compiled-packages-own-tests-build-2026-10-20.md`: "lands once M1, M2 and M3
+  are written in and the affected groups are re-measured"); **rebuilt 2026-10-20** on main
+  `2516875` (wave 07's set, `SHA256SUMS` `dc6ba3a5`) with every finding written in (the review's
+  Disposition, and "Rebuilt after the build review" in the Landing notes): 40 groups, 17,972
+  passes, 9.985 T of fuel, caps 1.517×10¹³, fourteen Linux shards. It builds after spec 043 (matplotlib M2, which pins contourpy)
   lands, on 043's set. It touches the release workflow (new Linux shards, Decision 12), so it is
   build-class by AGENTS.md's definition, though no artifact byte changes. The lane asks for a
   pre-build review, as it did for 063 and 065: it changes what the release judges. Its numbers are
@@ -286,8 +292,18 @@ numpy and pandas and spec 065 for CPython:
      backend), which its `tests/conftest.py` imports. Used as is. The `.ini` holds only
      `minversion`.
    - **contourpy**: its `conftest.py` registers `slow`, `text`, `image` and `threads` and skips
-     `slow` and `text` unless asked (`--runslow`, `--runtext`): upstream's own default selection,
-     kept. The `.ini` registers `flaky` (pytest-rerunfailures' marker, which one test carries).
+     `slow` and `text` unless asked. Under the owner's rule (every test of every package we
+     build), the driver asks: `args = ["--runslow", "--runtext"]` (the build review, L2). The ten
+     `test_filled_compare_slow` cases pass (946.6 G, three groups); the seventeen `--runtext` image
+     comparisons in `test_config.py` fail as the `text-rendering` class (Decision 9); the text
+     cases in `test_renderer.py` pass. The `.ini` registers `flaky` (pytest-rerunfailures' marker,
+     which one test carries). `cwd` is `/tmp/work` with the 52 baseline images copied in
+     (`cwd_files`), so an image that differs writes contourpy's `result_images` there, as on a
+     developer's machine, instead of failing on the read-only tree.
+   - **Pillow's other two test sets** (the build review, M1): `checks/` runs in the `pillow` group
+     (the `.ini` adds `check_*.py` and `*_check.py` to `python_files`, and `checks` is staged), and
+     `selftest.py`'s docstrings run as a docstring module, as lxml's do (`support_files`,
+     `docstring_modules = ["selftest"]`; its 59 examples are one doctest item, which passes).
    - **Pillow**: `[tool.pytest]` holds `addopts = -ra --color=auto` and `testpaths`. The `.ini`
      registers the `timeout` marker (pytest-timeout's), which nine of Pillow's modules carry;
      without it they fail to collect under `--strict-markers` (the survey). Its `conftest.py` used
@@ -343,15 +359,19 @@ numpy and pandas and spec 065 for CPython:
    |---|---|---|---|
    | matplotlib | `test_backend_webagg.py` | it imports `backend_webagg_core`, which step 70 drops: it cannot load | `README.md` |
    | matplotlib | `test_backends_interactive.py`, `test_determinism.py` | every test starts a subprocess | `README.md` |
-   | contourpy | `tests/test_codebase.py` | every test runs tools over the repository through `subprocess` | `README.md` |
-   | contourpy | `tests/test_bokeh_renderer.py` | Bokeh and Selenium are not in the product (043's Scope) | `README.md` |
    | Pillow | `Tests/test_main.py` | every case runs `python -m PIL` in a subprocess | `README.md` |
+   | Pillow | `checks/check_release_notes.py` | it reads `docs/releasenotes`, a release-time script over the source tree; `docs` is not staged (not a test of the package) | `README.md` |
+   | Pillow | `checks/32bit_segfault_check.py`, `checks/check_icns_dos.py`, `checks/check_j2k_dos.py` | scripts, not pytest tests: each runs its reproduction at import and expects the exception (`MemoryError`, `UnidentifiedImageError`) at module level, so pytest collects it as a collection error and stops the session | `README.md` |
+   | Pillow | `checks/check_fli_oob.py`, `checks/check_jp2_overflow.py` | valgrind reproductions run as scripts; the second's `.jp2` inputs are not in the sdist | `README.md` |
    | lxml | `src/lxml/tests/test_threading.py` | every test starts threads | `README.md` |
    | lxml | `src/lxml/tests/test_isoschematron.py`, and `lxml.isoschematron`'s docstring doctests | `lxml.isoschematron` is the product's stand-in (spec 046, Decision 8) | `context/specifications/046-lxml.md` |
    | lxml | `src/lxml/html/tests/test_feedparser_data.py` | its `test_suite()` builds cases only when `lxml.html.clean` imports; `lxml_html_clean` is not shipped, so lxml's own runner runs none | `README.md` |
    | lxml | `src/lxml/html/tests/test_elementsoup.py`, and `lxml.cssselect`'s docstring doctests | the first imports `from ...tests.common_imports`, three levels up, beyond the `tests` package pytest's importlib mode makes of an unstaged `lxml.html` (the survey); the second needs `cssselect`, not shipped | the first: spec 097 (the judge's staging follow-ups, reserved by the lane on 2026-10-20); the second: `README.md` |
    | regex | `regex/tests/test_regex.py::test_main` (one test, by node id) | regex's own `unittest.main()` entry point, which pytest collects by its name; inside pytest it parses the driver's argv and exits 1; its tests run as collected | `README.md` (its testing paragraph names it as not run) |
 
+   contourpy's `tests/test_codebase.py` and `tests/test_bokeh_renderer.py` are selected (the build
+   review, M1 and L3): `test_version` passes; `test_cppcheck` and `test_mypy` start processes and
+   are the `no-processes` class; the bokeh file skips itself whole, one counted `R skipped`.
    Selected although they may skip whole (each confirmed by the survey): matplotlib's
    `test_backend_{nbagg,inline,gtk3,qt,macosx,tk,cairo}.py`, `test_sphinxext.py`, `test_doc.py`;
    Pillow's `Tests/oss-fuzz/test_fuzzers.py` (the review, H2: it imports only `fuzzers`,
@@ -379,12 +399,17 @@ numpy and pandas and spec 065 for CPython:
    | matplotlib's `rest` groups | `no-fp-exceptions` | `DID NOT RAISE <class 'numpy.linalg.LinAlgError'>` | 2 (`test_mlab`'s multidimensional KDE cases) | wasm32 has no floating-point exception flags: `numpy.linalg` cannot raise `LinAlgError` for a singular matrix; numpy's own suite skips these on wasm, matplotlib only on emscripten. EXECUTED: in the guest, `numpy.linalg.inv` and `matrix_power(a, -1)` of `[[1, 2], [2, 4]]` return all-`nan` arrays, no exception. The owner chose to fix it before 0.1.0 (spec 099, reserved); not 066's | `spec 099` (the README states the fact until then) |
    | matplotlib's `rest` groups | `wasi-errno-values` | `Regex pattern did not match` | 1 (`test_movie_writer_invalid_path`) | a WASI errno is WASI's number: a missing path is `[Errno 44]`, where the test expects Linux's `[Errno 2]` off emscripten | `README.md` |
    | matplotlib's `rest` groups | `stage-layout` | `^AssertionError: assert not True$` | 1 (`test_warn_external`) | the judge stages matplotlib's tests outside the product's package folder, so a warning is attributed to the test file, which lies under the stage's `lib/matplotlib`; natively the tests are inside the package and skipped by `skip_file_prefixes` | spec 097 (the judge's staging follow-ups, reserved by the lane on 2026-10-20) |
-   | `pillow` | `pillow-zlib-only` | `(en\|de)coder jpeg not available` | 51 | as above | spec 023 |
+   | `pillow` | `pillow-zlib-only` | `(en\|de)coder jpeg not available` | 55 (51, and `checks/check_jpeg_leaks.py`'s 4) | as above | spec 023 |
    | `pillow` | `no-mmap` | `mmap is unavailable` | 17 | the `mmap` stand-in raises | `README.md` |
    | `pillow` | `no-mmap-silent` | `^assert None is not None$\|^assert 0$` | 5 (four `test_arrow` mapped-file cases; `test_save_without_changing_readonly`) | Pillow falls back from `mmap` silently, so a test that checks for a mapped buffer or `readonly == 1` fails on the fallback (the confirmation, C1) | `README.md` |
    | `pillow` | `builtin-no-file` | `has no attribute '__file__'` | 2 (`test_pilinfo`) | `PIL._imaging` is a builtin module, without `__file__` | `README.md` |
    | `pillow` | `wasm32-memory` | `Out of memory\|MemoryError` | 2 (`test_file_dds` timeout samples, `Errno 48`) | `python.wasm` declares no maximum memory, so wasm32's 4 GiB bounds it | `README.md` |
    | `pillow` | `open-empty-path` | `Is a directory: ''` | 1 (`test_empty_path`) | in the guest `open('')` answers `IsADirectoryError` (`EISDIR`), where the test expects `FileNotFoundError` | `README.md` |
+   | `pillow` | `no-resource-module` | `Unsupported platform for standard library module 'resource'` | 2 (build review; `checks/check_imaging_leaks.py`) | WASI has no `resource` module, which the leak checks measure memory with | `README.md` |
+   | `pillow` | `not-pillows-wheel` | `^AssertionError: assert (\{\|set\(\) ==)` | 3 (build review; `checks/check_wheel.py`) | the check asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only | spec 023 |
+   | `pillow` | `fli-overflow-native` | `unrecognized data stream contents` | 1 (build review; `checks/check_fli_overflow.py`) | the check wants the crafted file to load; the repo's oracle, native Pillow 13.0.0, raises the same `OSError` (EXECUTED), and Pillow's own test commands never run it (`testpaths = Tests`); it does not crash in the guest | `context/upstream/README.md` |
+   | `contourpy-config-1` | `text-rendering` | `^AssertionError$` | 17 (build review; the `--runtext` cases of `test_config.py`) | contourpy's text baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log); contourpy's CI runs `--runtext` on one pinned configuration | `context/upstream/README.md` |
+   | `contourpy-rest` | `no-processes` | `does not support processes` | 2 (build review; `test_cppcheck`, `test_mypy`) | no processes | `README.md` |
    | `lxml` | `include-dir-in-zip` | `Not a directory: '/usr/local/lib/python315.zip/lxml/includes'` | 1 (`test_include_paths`) | `lxml.get_include()` names folders inside the zip, which are not folders | `README.md` |
    | `lxml` | `isoschematron-stand-in` | `doctest failed` (by id: `doc/validation.txt`) | 1 | `validation.txt`'s ISO-Schematron part meets the product's stand-in | `context/specifications/046-lxml.md` |
    | `lxml` | `lxml-html-diff` (only if 096 slips) | `'str' object is not callable` | 3 (`test_diff.txt`, `test_diff.py`, `lxml.html.diff`'s docstrings) | `fake_cython` lacks `final` | `spec 096` |
@@ -412,49 +437,58 @@ numpy and pandas and spec 065 for CPython:
     (pandas-groupby's 480.03 G); a group past it is split by file, in the sdist's order, before
     the caps are set; a single file past it stays one group and is named.
 
-    | group | paths (under the tree) | fuel (re-survey, 043's set with 096) | cap (the rule) |
+    | group | paths (under the tree) | fuel (the build, on main's set `dc6ba3a5`) | cap (the rule) |
     |---|---|---|---|
-    | `matplotlib-axes` | `lib/matplotlib/tests/test_axes.py` (one file, past the bound: named) | 699.3 G | 1.1×10¹² |
-    | `matplotlib-mathtext` | `test_mathtext`, `test_text`, `test_textpath`, `test_font_manager`, `test_ft2font`, `test_afm`, `test_type1font`, `test_dviread`, `test_usetex`, `test_texmanager` | 296.7 G (the build; the re-survey's two runs were voided by host litter) | 4.5×10¹¹ |
+    | `matplotlib-axes` | `lib/matplotlib/tests/test_axes.py` (one file, past the bound: named) | 699.0 G | 1.1×10¹² |
+    | `matplotlib-mathtext` | `test_mathtext`, `test_text`, `test_textpath`, `test_font_manager`, `test_ft2font`, `test_afm`, `test_type1font`, `test_dviread`, `test_usetex`, `test_texmanager` | 296.7 G (wave 06's set; both runs on wave 07's were voided by host litter) | 4.5×10¹¹ |
     | `matplotlib-render-1` | `test_arrow_patches` … `test_colorbar` (8 files) | 231.1 G | 3.5×10¹¹ |
     | `matplotlib-render-2a` | `test_constrainedlayout`, `test_contour`, `test_figure` | 304.5 G | 4.6×10¹¹ |
-    | `matplotlib-render-2b` | `test_image`, `test_legend`, `test_lines`, `test_patches` | 337.1 G | 5.1×10¹¹ |
-    | `matplotlib-render-3` | `test_patheffects` … `test_triangulation` (7 files) | 272.9 G | 4.1×10¹¹ |
-    | `matplotlib-rest-a` | the other files, `test__style_helpers` … `test_doc` (29) | 309.5 G | 4.7×10¹¹ |
+    | `matplotlib-render-2b` | `test_image`, `test_legend`, `test_lines`, `test_patches` | 336.9 G | 5.1×10¹¹ |
+    | `matplotlib-render-3` | `test_patheffects` … `test_triangulation` (7 files) | 272.8 G | 4.1×10¹¹ |
+    | `matplotlib-rest-a` | the other files, `test__style_helpers` … `test_doc` (29) | 309.6 G | 4.7×10¹¹ |
     | `matplotlib-rest-b1` | `test_fontconfig_pattern` … `test_pyplot` (14) | 323.5 G | 4.9×10¹¹ |
-    | `matplotlib-rest-b2` | `test_rcparams` … `test_widgets` (15) | 384.5 G | 5.8×10¹¹ |
-    | `mpl-axes_grid1`, `mpl-axisartist`, `mpl-mplot3d` | one toolkit's `tests` each | 72.0, 35.7, 336.8 G | 1.1×10¹¹, 5.4×10¹⁰, 5.1×10¹¹ |
-    | `contourpy-1` | `tests/test_{array,build_config,chunk,config,constructor,convert,dechunk,enum}.py` | 217.4 G | 3.3×10¹¹ |
-    | `contourpy-filled-1` | `-k` group 1 of the file | 242.2 G | 370 G |
-    | `contourpy-filled-2` | `-k` group 2 of the file | 262.9 G | 400 G |
-    | `contourpy-filled-3` | `-k` group 3 of the file | 244.7 G | 370 G |
-    | `contourpy-filled-4` | `-k` group 4 of the file | 242.3 G | 370 G |
-    | `contourpy-filled-5` | `-k` group 5 of the file | 263.0 G | 400 G |
-    | `contourpy-filled-6` | `-k` group 6 of the file | 244.7 G | 370 G |
-    | `contourpy-filled-7` | `-k` group 7 of the file | 439.8 G | 660 G |
-    | `contourpy-filled-8` | `-k` group 8 of the file | 242.6 G | 370 G |
-    | `contourpy-filled-9` | `-k` group 9 of the file | 322.1 G | 490 G |
-    | `contourpy-lines-1` | `-k` group 1 of the file | 131.9 G | 200 G |
-    | `contourpy-lines-2` | `-k` group 2 of the file | 145.3 G | 220 G |
-    | `contourpy-lines-3` | `-k` group 3 of the file | 136.8 G | 210 G |
-    | `contourpy-lines-4` | `-k` group 4 of the file | 132.0 G | 200 G |
-    | `contourpy-lines-5` | `-k` group 5 of the file | 145.3 G | 220 G |
-    | `contourpy-lines-6` | `-k` group 6 of the file | 136.8 G | 210 G |
-    | `contourpy-lines-7` | `-k` group 7 of the file | 255.6 G | 390 G |
-    | `contourpy-lines-8` | `-k` group 8 of the file | 470.3 G | 710 G |
-    | `contourpy-rest` | `tests/test_{internal,minimal,misc,renderer,static,typecheck,z_interp}.py` | 90.4 G | 1.4×10¹¹ |
-    | `pillow` | `Tests` | 431.0 G | 6.5×10¹¹ |
-    | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the doctest items | 104.5 G | 1.6×10¹¹ |
+    | `matplotlib-rest-b2` | `test_rcparams` … `test_widgets` (15) | 384.3 G | 5.8×10¹¹ |
+    | `mpl-axes_grid1`, `mpl-axisartist`, `mpl-mplot3d` | one toolkit's `tests` each | 71.9, 35.7, 336.4 G | 1.1×10¹¹, 5.4×10¹⁰, 5.1×10¹¹ |
+    | `contourpy-1` | `tests/test_{array,build_config,chunk,constructor,convert,dechunk,enum}.py` | 24.3 G | 3.7×10¹⁰ |
+    | `contourpy-config-1` | `tests/test_config.py`, `-k` group 1 (`True`: the `--runtext` cases) | 377.1 G | 5.7×10¹¹ |
+    | `contourpy-config-2` | `tests/test_config.py`, the rest | 205.1 G | 3.1×10¹¹ |
+    | `contourpy-filled-1` | `-k` group 1 of the file | 242.2 G | 3.7×10¹¹ |
+    | `contourpy-filled-2` | `-k` group 2 of the file | 262.9 G | 4.0×10¹¹ |
+    | `contourpy-filled-3` | `-k` group 3 of the file | 244.6 G | 3.7×10¹¹ |
+    | `contourpy-filled-4` | `-k` group 4 of the file | 242.3 G | 3.7×10¹¹ |
+    | `contourpy-filled-5` | `-k` group 5 of the file | 263.0 G | 4.0×10¹¹ |
+    | `contourpy-filled-6` | `-k` group 6 of the file | 244.7 G | 3.7×10¹¹ |
+    | `contourpy-filled-7` | `-k` group 7 of the file | 439.8 G | 6.6×10¹¹ |
+    | `contourpy-filled-8` | `-k` group 8 of the file | 242.5 G | 3.7×10¹¹ |
+    | `contourpy-filled-9` | `-k` group 9 of the file | 376.1 G | 5.7×10¹¹ |
+    | `contourpy-filled-10` | `-k` group 10 of the file | 285.4 G | 4.3×10¹¹ |
+    | `contourpy-filled-11` | `-k` group 11 of the file | 285.1 G | 4.3×10¹¹ |
+    | `contourpy-filled-12` | `-k` group 12 of the file | 322.1 G | 4.9×10¹¹ |
+    | `contourpy-lines-1` | `-k` group 1 of the file | 131.9 G | 2.0×10¹¹ |
+    | `contourpy-lines-2` | `-k` group 2 of the file | 145.2 G | 2.2×10¹¹ |
+    | `contourpy-lines-3` | `-k` group 3 of the file | 136.8 G | 2.1×10¹¹ |
+    | `contourpy-lines-4` | `-k` group 4 of the file | 132.0 G | 2.0×10¹¹ |
+    | `contourpy-lines-5` | `-k` group 5 of the file | 145.3 G | 2.2×10¹¹ |
+    | `contourpy-lines-6` | `-k` group 6 of the file | 136.8 G | 2.1×10¹¹ |
+    | `contourpy-lines-7` | `-k` group 7 of the file | 255.6 G | 3.9×10¹¹ |
+    | `contourpy-lines-8` | `-k` group 8 of the file | 470.3 G | 7.1×10¹¹ |
+    | `contourpy-rest` | `tests/test_{bokeh_renderer,codebase,internal,minimal,misc,renderer,static,typecheck,z_interp}.py` | 205.9 G | 3.1×10¹¹ |
+    | `pillow` | `Tests`, `checks`, `selftest.py`'s docstrings | 433.0 G | 6.5×10¹¹ |
+    | `lxml` | `src/lxml/tests`, `src/lxml/html/tests`, the doctest items | 103.4 G | 1.6×10¹¹ |
     | `regex` | `regex/tests` | 16.0 G | 2.5×10¹⁰ |
     | `kiwisolver` | `py/tests` | 13.0 G | 2.0×10¹⁰ |
 
-    The contourpy rows are the build's measurements (2026-10-20, darwin-arm64, main's set
-    `f12cd25c`); the other rows are the re-survey's, which the build repeated to within its rounding
-    (the landing notes). Families' budgets by the rule, written in each TOML: matplotlib
-    5.494×10¹², contourpy 6.63×10¹², Pillow 6.5×10¹¹, lxml 1.6×10¹¹, regex 2.4×10¹⁰, kiwisolver
-    2.0×10¹⁰: **1.298×10¹³** in all, on 8.534 T of measured fuel (the split groups each pay their
-    own pytest start, about 10 to 13 G, so contourpy measured 4.36 T in nineteen groups against
-    4.16 T in four); the owner accepted it (`decisions.md`, "Every test of every package we build (2026-10-20)", main `b0ee274`).
+    Every row is the build's measurement after the build review (2026-10-20, darwin-arm64, main's
+    set `dc6ba3a5`), mathtext's excepted. Families' budgets by the rule, written in each TOML:
+    matplotlib 5.494×10¹², contourpy 8.817×10¹², Pillow 6.5×10¹¹, lxml 1.6×10¹¹, regex 2.5×10¹⁰,
+    kiwisolver 2.0×10¹⁰: **1.517×10¹³** in all, on 9.985 T of measured fuel. Against the build's
+    1.298×10¹³ on 8.534 T, the build review's additions cost 1.45 T: contourpy's ten `--runslow`
+    cases 946.6 G (three groups), the `--runtext` image comparisons of `test_config.py` 377.1 G
+    (`contourpy-config-1`), `contourpy-rest`'s new files and text cases 115.6 G, and the split
+    groups' own pytest starts; Pillow's `checks/` and `selftest.py` 2.0 G; lxml lost 1.1 G with its
+    34 suite builders. The owner accepted the rule (`decisions.md`, "Every test of every package we
+    build (2026-10-20)", main `b0ee274`); no total is fixed (the build's stand-in, `SPLIT_MAX`,
+    is gone: the rules check now holds each cap to its own measurement, Decision 14).
 
     - **A file too big for one group is split by construction, never left out** (the owner's
       option (b); the delta review, M2). In its package's TOML, a `[[split]]` names one file, its
@@ -471,14 +505,20 @@ numpy and pandas and spec 065 for CPython:
       for one corner mask are 242 to 263 G in `test_filled.py` and 132 to 145 G in
       `test_lines.py`; mpl2005's and mpl2014's random_big cases, slower per case than the serial
       algorithms, are 439.8 G and 255.6 G:
-      - `test_filled.py`, nine groups: e₁ `random_big and serial and None`, e₂ `random_big and
+      - `test_filled.py`, twelve groups: e₁ `random_big and serial and None`, e₂ `random_big and
         serial and False`, e₃ `random_big and serial and True`, e₄ … e₆ the same for `threaded`, e₇
-        `random_big` (mpl2005's and mpl2014's cases, 439.8 G), e₈ `serial` (242.6 G of the rest);
-        group 9 takes the rest (322.1 G);
+        `random_big` (mpl2005's and mpl2014's cases, 439.8 G), e₈ `serial` (242.5 G of the rest),
+        e₉ `compare_slow and (seed0 or seed1 or seed2 or seed3)` (376.1 G), e₁₀ `compare_slow and
+        (seed4 or seed5 or seed6)` (285.4 G), e₁₁ `compare_slow` (285.1 G): the ten `--runslow`
+        cases, about 91 G each; group 12 takes the rest (322.1 G);
+      - `test_config.py`, two groups (its `--runtext` cases made it 582 G): e₁ `True` (the
+        `show_text=True` cases, 377.1 G); group 2 takes the rest (205.1 G);
       - `test_lines.py`, eight groups: e₁ … e₆ as above, e₇ `random_big` (255.6 G); group 8 takes the
         rest (470.3 G, under the bound).
       Every split group of a file recorded the same collected count (518 for `test_filled.py`, 419
-      for `test_lines.py`), and no group is past 480 G but `matplotlib-axes`. A group that grows
+      for `test_lines.py`, 36 for `test_config.py`), and the harness now compares them: a
+      difference across a split's groups is a finding (the build review, L1). No group is past
+      480 G but `matplotlib-axes`. A group that grows
       past 480 G gets one more expression before it, by a reviewed judge change, never a test left
       out.
 
@@ -493,35 +533,36 @@ numpy and pandas and spec 065 for CPython:
       class, any group over 480 G, and each family's budget.
     - **The plain binary is not run** (050, Decision 1).
 
-12. **The release: twelve new Linux shards; the lane runs everything at every landing.**
+12. **The release: fourteen new Linux shards; the lane runs everything at every landing.**
     - **What the last dry run shows** (`39371419248`, READ). The Linux upstream shards took 161 to
       225 s of job time each. The judge stage's longest leg was `own-guest` on macOS, 457 s. 22 jobs
       ran at once; the binding limit was macOS's five concurrent jobs (`own-rest` on macOS waited
       58 s for a macOS slot). Rate: 0.16 to 0.31 s per G of fuel past about 60 s of setup.
-    - **The layout**, packed from the build's measured fuel (at most 730 G a shard, so at most about
-      290 s of job time at the dry run's slowest rate; the delta review's confirmation asked that the
-      rows be laid out from measured numbers, and Decision 11 agree with them):
+    - **The layout**, packed from the measured fuel after the build review (at most 725 G a shard,
+      so at most about 290 s of job time at the dry run's slowest rate; the build's twelve shards,
+      at most 730 G, became fourteen when the review's additions brought 1.45 T):
 
       | shard | groups | fuel |
       |---|---|---|
-      | `upstream-plot-a` | `contourpy-filled-4`, `contourpy-filled-6`, `contourpy-filled-8` | 729.6 G |
-      | `upstream-plot-b` | `matplotlib-render-2a`, `contourpy-filled-5`, `contourpy-lines-2`, `regex` | 728.9 G |
-      | `upstream-plot-c` | `pillow`, `matplotlib-mathtext` | 727.6 G |
-      | `upstream-plot-d` | `contourpy-lines-8`, `contourpy-lines-7` | 725.9 G |
-      | `upstream-plot-e` | `contourpy-filled-7`, `matplotlib-render-3`, `kiwisolver` | 725.6 G |
-      | `upstream-plot-f` | `contourpy-filled-2`, `contourpy-filled-3`, `contourpy-1` | 725.0 G |
-      | `upstream-plot-g` | `contourpy-filled-1`, `matplotlib-render-1`, `contourpy-lines-5`, `lxml` | 723.5 G |
-      | `upstream-plot-h` | `contourpy-filled-9`, `matplotlib-rest-a`, `contourpy-rest` | 721.8 G |
-      | `upstream-plot-i` | `matplotlib-rest-b2`, `matplotlib-render-2b` | 721.6 G |
-      | `upstream-plot-j` | `matplotlib-axes` | 699.0 G |
-      | `upstream-plot-k` | `mpl-mplot3d`, `matplotlib-rest-b1`, `mpl-axisartist` | 695.8 G |
-      | `upstream-plot-l` | `contourpy-lines-1`, `contourpy-lines-3`, `contourpy-lines-4`, `contourpy-lines-6`, `mpl-axes_grid1` | 609.4 G |
+      | `upstream-plot-a` | `contourpy-filled-7`, `contourpy-filled-11` | 724.9 G |
+      | `upstream-plot-b` | `contourpy-filled-2`, `contourpy-lines-7`, `contourpy-rest` | 724.3 G |
+      | `upstream-plot-c` | `contourpy-filled-9`, `matplotlib-rest-b1`, `contourpy-1` | 723.9 G |
+      | `upstream-plot-d` | `matplotlib-rest-b2`, `matplotlib-render-2b` | 721.2 G |
+      | `upstream-plot-e` | `matplotlib-render-2a`, `matplotlib-mathtext`, `lxml`, `regex` | 720.7 G |
+      | `upstream-plot-f` | `contourpy-lines-1`, `-2`, `-3`, `-4`, `-6`, `mpl-axisartist` | 718.5 G |
+      | `upstream-plot-g` | `pillow`, `contourpy-filled-10` | 718.4 G |
+      | `upstream-plot-h` | `contourpy-filled-3`, `contourpy-filled-8`, `matplotlib-render-1` | 718.3 G |
+      | `upstream-plot-i` | `contourpy-filled-12`, `matplotlib-rest-a`, `mpl-axes_grid1`, `kiwisolver` | 716.6 G |
+      | `upstream-plot-j` | `contourpy-lines-8`, `contourpy-filled-6` | 715.0 G |
+      | `upstream-plot-k` | `contourpy-config-1`, `mpl-mplot3d` | 713.5 G |
+      | `upstream-plot-l` | `matplotlib-axes` | 699.0 G |
+      | `upstream-plot-m` | `contourpy-filled-1`, `contourpy-filled-4`, `contourpy-config-2` | 689.5 G |
+      | `upstream-plot-n` | `matplotlib-render-3`, `contourpy-filled-5`, `contourpy-lines-5` | 681.0 G |
 
-      Each within 360 s of job time in the branch dry run (criterion 12). The build re-packs the
-      table from its own measured fuel; past the bound, a group moves to the shard with room, or a
-      thirteenth shard is added, by a reviewed judge change. A system is never dropped from a shard
-      to get a pass.
-    - **The job count** (the delta review, L4). One release run starts 21 + 12 = 33 jobs, inside
+      Each within 360 s of job time in the branch dry run (criterion 12). Past the bound, a group
+      moves to the shard with room, or a fifteenth shard is added, by a reviewed judge change. A
+      system is never dropped from a shard to get a pass.
+    - **The job count** (the delta review, L4). One release run starts 21 + 14 = 35 jobs, inside
       Pro's 40 (the shards memo, 2026-10-18). What binds is macOS's five slots, unchanged, and a
       second release run live at the same time (AGENTS.md allows three): then jobs queue. The landing
       notes record the branch run's gather start against `39371419248`'s 05:08:22, as a benchmark.
@@ -562,8 +603,11 @@ numpy and pandas and spec 065 for CPython:
       only allowed with `cwd = "/tmp/work"`; numpy's and pandas'
       TOMLs pass today's rules unchanged;
     - every group path, `not_selected` file and support file is a tarball member or folder;
-    - each family's caps sum to at most its budget, and each cap is at most 1.5 times the fuel the
-      re-survey recorded for it, rounded up to two figures (Decision 11's rule);
+    - each family's caps sum to at most its budget, and each cap is at most 1.5 times the fuel
+      recorded for it, rounded up to two figures (Decision 11's rule): each group carries
+      `measured = <fuel>`, the build's measurement, beside its `fuel` cap, and a group without one
+      is refused (the build review, M3); `path_packages` and `support` in a package TOML are
+      refused, each with its own line, never ignored;
     - every `[[split]]` has the constructed form of Decision 11: one file, which is the only path of
       each of its groups; n groups and n − 1 expressions, each non-empty and compiling as a pytest
       keyword expression (pytest's own parser, on the host); no group in two splits;
@@ -576,7 +620,7 @@ numpy and pandas and spec 065 for CPython:
     - **Needs**: a group needs the artifact set, the kit and its family's tree; without the tree it
       is blocked, named (`upstream tree matplotlib`), as numpy's is. A tie mismatch fails.
     - **The scoreboard** counts the new groups under v1.3, as numpy's are.
-    - **README**: the testing section names the six suites, their groups, the twelve release
+    - **README**: the testing section names the six suites, their groups, the fourteen release
       shards, contourpy's split files, and what is not run
       (regex's `test_main` among them), in one paragraph. Every class closed by `README.md` has its
       fact there: "No floating-point exception flags" is written in (this revision); the build
@@ -655,7 +699,8 @@ kiwisolver, lxml and regex are `suite`s since spec 066, in twelve new Linux shar
 
 ## Scope
 
-**In:** the above.
+**In:** the above, contourpy's `--runslow` and `--runtext` cases and Pillow's `checks/` and
+`selftest.py` included (the owner's rule; the build review, M1 and L2).
 
 **Out, each with its reason:**
 - **scipy, scikit-learn and statsmodels.** Their own specifications (Decision 13).
@@ -664,7 +709,6 @@ kiwisolver, lxml and regex are `suite`s since spec 066, in twelve new Linux shar
 - **kiwisolver's C++ tests.** They need a C++ test binary built for the guest: a build output.
 - **matplotlib's PDF, EPS and SVG comparisons.** matplotlib skips them itself without Ghostscript
   and Inkscape, which the guest cannot run. They are counted skips.
-- **contourpy's `slow` and `text` tests.** contourpy's own default leaves them out (Decision 7).
 - **The plain binary, macOS and Windows release shards.** Decision 11 and 12.
 - **Upstream facts sheets.** None is drafted here; the survey may find one worth sending, and the
   memo says so.
@@ -712,7 +756,7 @@ applied in a scratch copy, never committed.
    numpy, pandas and CPython row lost 0, grew 0; their stages' file lists are byte-for-byte the
    base's (a unit check hashes the `/upstream` and `/cpython` stage manifests).
 7. **The shards.** 063's `test_release_shards_cover_the_judge` and the workflow scan pass with the
-   twelve new shards; each new group is in exactly one Linux shard; the scan fails, in
+   fourteen new shards; each new group is in exactly one Linux shard; the scan fails, in
    `tests/unit/test_scan.py`, when a new shard is in the plan but not in `release.yml`'s matrix,
    or the reverse.
 8. **The fetch.** `tests/unit/test_fetch_trees.py`, a fake `urlopen` and synthetic tarballs: a
@@ -729,7 +773,7 @@ applied in a scratch copy, never committed.
     green on the builder's worktree against 043's set, apart from the gaps this specification
     adds, each named.
 12. **The branch's dry run, before landing** (Decision 12; not a check). Every job passes on all
-    three systems, every red line a growth line or G7. The twelve new shards' job times are
+    three systems, every red line a growth line or G7. The fourteen new shards' job times are
     recorded in the landing notes, each within 360 s, or the move Decision 12 prescribes is made
     and recorded.
 13. **The lane's dry run after landing**, on main's exact commit, as 063's criterion 13.
@@ -759,40 +803,50 @@ Not chosen, each in one line:
 
 ## For the lane
 
-- **Built.** The owner chose (b); 043 and 096 landed (wave 06); 095, 097 and 099 are reserved on
-  main; the re-survey's delta was confirmed. Built on main `21dff9d`; branch tip after the
-  landing notes is the one the build review reads.
+- **Built and rebuilt.** Built on main `21dff9d`; build-reviewed ("lands once M1, M2 and M3 are
+  written in and the affected groups are re-measured"); rebuilt on main `2516875` (wave 07, set
+  `dc6ba3a5`) with every finding written in (the review's Disposition). The tip after the landing
+  notes is the one the lane reads; its branch run is named in the Landing notes.
 - **Wave kind: build-class** (the release workflow; no artifact byte changes, no `scripts/`,
-  `recipes/` or `downloads/` line). It may ride in a wave as one of the two other build-class
-  changes. **Dry-run needs:** the branch run `39424879820` passed; the wave's dry run carries it
-  again. Wave 07 (038, 044) lands first and changes the set: the builder rebases onto it, and
-  re-measures the matplotlib groups if they move past their 1.5 times headroom.
-- **A group stopped by a `HostLitter` line** (spec 089's named guard; Decision 6's residual, spec
-  097) at the lane's acceptance, a builder's run or a reviewer's is a host failure, not a measured
-  difference: it records no outcome and no fuel, and is re-run once the litter is gone. The
-  sameness rule's "never a re-run" applies to measured differences only (the delta review, L5).
-- **Order.** After wave 06 and wave 07. Before any later package specification whose suite stages
-  into a family 066 creates.
-- **The claim list** (EXECUTED, darwin-arm64, on wave 06's set; the lane re-reads it on its own
-  set):
-  - **Gained rows, 53:** `test_upstream_suite[<group>]` for the 35 groups of Decision 11, each with
-    new metrics `fuel` and `passes` (17,911 passes, 8.534 T of fuel in all; per group in the
-    Landing notes) and facts `counts`, `passed_digest`, `left_out`, and `collected` for the 17
-    contourpy split groups (518 for `test_filled.py`, 419 for `test_lines.py`);
-    `test_upstream_class[<group>-<class>]` for the 18 classes with members, each a gap.
-  - **Gaps added, 18:** matplotlib 10 (closers `README.md` 6, spec 023 2, `context/roadmap.md` 2
-    for 097 and 099), Pillow 6 (`README.md` 5, spec 023 1), lxml 2 (`README.md`, spec 046).
+  `recipes/` or `downloads/` line). **Wave 08, after 042** (the roadmap: 042, 066, 099). It may
+  ride as one of the two other build-class changes. **Dry-run needs:** the branch run passed; the
+  wave's dry run carries it again (fourteen `upstream-plot-*` shards, Linux only).
+- **099's order** (the build review, L6). 099 empties `matplotlib-rest-b1`'s `no-fp-exceptions`
+  class. If 099 lands first, 066 drops the class, its list, its gap and the README bullet, and
+  re-measures `matplotlib-rest-b1`. If 066 lands first (wave 08's order), 099 does, as its
+  Decision 7 says.
+- **A reserved follow-up for the lane** (the build review's Note, not fixed here):
+  `PIL.features.pilinfo()` raises `AttributeError` in the product, because `PIL._imaging` is a
+  builtin module without `__file__` (the `builtin-no-file` class). It is a user-visible function;
+  the owner may want it fixed beyond the README fact.
+- **A group stopped by a `HostLitter` line** (spec 089's named guard; spec 097) at the lane's
+  acceptance, a builder's run or a reviewer's is a host failure, not a measured difference: it
+  records no outcome and no fuel, and is re-run once the litter is gone. The sameness rule's
+  "never a re-run" applies to measured differences only (the delta review, L5).
+  `matplotlib-mathtext` was voided twice on wave 07's set in the rebuild (two strikes); its cap
+  stands on wave 06's 296.7 G, and the lane's run is its first on `dc6ba3a5`.
+- **The claim list** (EXECUTED, darwin-arm64, on wave 07's set `dc6ba3a5`; the lane re-reads it on
+  its own set):
+  - **Gained rows, 63:** `test_upstream_suite[<group>]` for the 40 groups of Decision 11, each
+    with new metrics `fuel` and `passes` (17,972 passes, 9.985 T of fuel in all; per group in the
+    Landing notes) and facts `counts`, `passed_digest`, `left_out`, and `collected` for the 22
+    contourpy split groups (518 for `test_filled.py`, 419 for `test_lines.py`, 36 for
+    `test_config.py`); `test_upstream_class[<group>-<class>]` for the 23 classes with members,
+    each a gap.
+  - **Gaps added, 23:** matplotlib 10 (closers `README.md` 6, spec 023 2, `context/roadmap.md` 2
+    for 097 and 099), Pillow 9 (`README.md` 6, spec 023 2, `context/upstream/README.md` 1), lxml 2
+    (`README.md`, spec 046), contourpy 2 (`README.md` 1, `context/upstream/README.md` 1).
   - **Moved rows: none.** numpy's, pandas' and CPython's rows: lost 0, grew 0 (the fast tier's
-    ratchet, and `numpy-lib` and `pandas-libs` measured equal to `accepted.json`, fuel and passes).
+    ratchet on this base).
   - **Retired: none. Passes moved: none** (every new row is new).
   - **The judge hash changes**: `judge changed` names the files of the accept-judge text.
-  - **packages.toml:** six `later` become `suite`; scipy's `closes_with` re-pointed from spec 066
-    to spec 095 (037 landed with it naming 066).
+  - **packages.toml:** six `later` become `suite`; scipy and scikit-learn close with spec 095
+    (as main has them).
 - **The flags** (paste as is; each reason begins with "066"; no double quote inside):
 
   ```
-  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 35 groups, 17911 passes, 8.534 T of fuel, 18 classes, 0 traps"
-  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection equal to test_suite()'s both ways; [[split]] by constructed -k expressions); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 18 gaps in known_gaps.toml; packages.toml (six suites, scipy closes with 095); twelve Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
+  --accept "066: the compiled packages' own tests in the release: matplotlib, contourpy, Pillow, kiwisolver, lxml and regex, 40 groups, 17972 passes, 9.985 T of fuel, 23 classes, 0 traps"
+  --accept-judge "066: tests/upstream/{matplotlib,contourpy,pillow,kiwisolver,lxml,regex}.toml and .ini and expected/ lists; tests/upstream/package_drive.py; tests/harness/packages.py (a family per package: grant, stage, kit copy, budget; package_paths, extra_sys_path, support_packages, support_files, cwd, cwd_files; the path-based guard; lxml's selection exactly test_suite()'s; [[split]] by constructed -k expressions, collected counts compared; each cap at most 1.5 times its recorded measurement); tests/harness/upstream.py (the package families wired in, numpy's and pandas' reading and stage unchanged); the upstream check file; 23 gaps in known_gaps.toml; packages.toml (six suites); fourteen Linux shards in release_shards.toml and release.yml; tests/unit/test_packages.py and one line of test_upstream.py"
   ```
 
   No `--accept-growth` and no `--accept-fewer-passes`: new rows are not growth, and no accepted
@@ -1031,10 +1085,11 @@ of every package we build (2026-10-20)", main `b0ee274`). Each finding, answered
   (066 adds no Windows leg: its groups are Linux-only in the release, Decision 12);
 - every number from a measured run on this base, EXECUTED (below); no growth;
 - "For the lane": the claim list, the flags, the wave kind, the dry-run needs (above);
-- every new check seen failing first: the 35 group checks ran before their classes existed and 8
-  failed with their findings (`build/066/run1.txt`); two contourpy groups ran out of their
-  provisional caps and were re-measured; the unit checks were written with the code, and each of
-  their bad cases fails with its own line; a Linux branch: the twelve shards; Windows excluded
+- every new group check seen failing first: the 35 group checks ran before their classes existed
+  and 8 failed with their findings (`build/066/run1.txt`); two contourpy groups ran out of their
+  provisional caps and were re-measured. The unit checks were written with the code, not seen
+  failing first; their bad cases each fail with their own line (the build review, L7). Criteria
+  6's and 8's unit checks were not written in the build; the rebuild writes them (L8); a Linux branch: the twelve shards; Windows excluded
   (Decision 12);
 - every gap names its closer; 097 and 099 have roadmap lines;
 - packages.toml: six `suite` entries, scipy's closer 095; README rows: the release sentence and
@@ -1114,3 +1169,93 @@ the judge stage was 18.5 minutes, held by `own-guest` on macOS (13:21:38 to 13:3
 against 457 s in `39371419248`) while three release runs were live (042's, 044's and 038's); no
 plot shard was on that path. As a benchmark: `gather` at 18.5 minutes after the build, against
 7.75 minutes in `39371419248`.
+
+### Rebuilt after the build review (2026-10-20)
+
+**The rebase.** Onto main `2516875` (wave 07 landed: 038 and 044, set `dc6ba3a5`). One conflict
+hunk, `tests/known_gaps.toml`: main (038) removed spec 037's six scipy gaps where 066's side
+carried them beside its own block; resolved by dropping the six and keeping 066's. `packages.toml`,
+`release_shards.toml`, `release.yml`, README and CHANGELOG merged without a conflict (scipy and
+scikit-learn already close with 095 on main).
+
+**What changed.** Every finding of the build review is written in (its Disposition): contourpy's
+`test_codebase.py` and `test_bokeh_renderer.py` selected, `--runslow` and `--runtext` on, the
+`no-processes` and `text-rendering` classes, `test_config.py` split in two and `test_filled.py`
+in twelve; Pillow's `checks/` and `selftest.py` run, three new classes and six named files; lxml's
+selection exactly `test_suite()`'s (the 34 builders deselected, the third direction checked); each
+group's `measured` fuel and the cap rule checked; `path_packages` and `support` refused; split
+counts compared; `_abs()` gone; criteria 6's and 8's unit checks written; fourteen shards; the
+README's `resource` and 4 GiB facts.
+
+**The builder's self-check, again** (`context/reviews/README.md`):
+- rebased onto main `2516875` today, the one conflict hunk named (above);
+- every number from a measured run on this base, EXECUTED (below), mathtext's excepted (two host
+  litter voids, two strikes: its cap stands on wave 06's 296.7 G);
+- "For the lane" rewritten: the claim list, the flags, the wave kind (wave 08 after 042), 099's
+  order, the pilinfo follow-up;
+- the new group and class checks seen failing first: `contourpy-1` failed with the 17 text
+  comparisons and `pillow` with its `checks/` findings and then a guard finding for
+  `selftest.py` (`build/066/run5.txt`, `run6.txt`), before their classes and the guard's support
+  file existed; the new unit checks were written with the code, their bad cases each failing with
+  their own line;
+- `ruff check`, `ruff format --check` (on `src` and `tests`), the rules check and the unit checks
+  green; the fast tier `build/066/fast2.txt`: 603/832 pass, 0 fail, ratchet vs `e9a76ce` lost 0,
+  grew 0, judge changed;
+- CI dispatched on this exact commit and read: below.
+
+**Measured** (EXECUTED, darwin-arm64, a private `cp -c` copy of main's set `dc6ba3a5`, the judge's
+own checks by node id, at most three guests, `build/lane.lock` absent at each start):
+
+  | group | fuel | passes |
+  |---|---|---|
+  | `contourpy-1` | 24,302,411,222 | 1,196 |
+  | `contourpy-config-1` | 377,115,648,313 | 0 |
+  | `contourpy-config-2` | 205,064,641,953 | 17 |
+  | `contourpy-filled-1` | 242,186,713,480 | 6 |
+  | `contourpy-filled-2` | 262,863,338,600 | 6 |
+  | `contourpy-filled-3` | 244,622,814,075 | 6 |
+  | `contourpy-filled-4` | 242,278,211,994 | 6 |
+  | `contourpy-filled-5` | 262,960,529,253 | 6 |
+  | `contourpy-filled-6` | 244,716,491,786 | 6 |
+  | `contourpy-filled-7` | 439,769,031,420 | 4 |
+  | `contourpy-filled-8` | 242,525,303,438 | 154 |
+  | `contourpy-filled-9` | 376,107,304,014 | 4 |
+  | `contourpy-filled-10` | 285,402,242,645 | 3 |
+  | `contourpy-filled-11` | 285,138,695,010 | 3 |
+  | `contourpy-filled-12` | 322,104,145,580 | 268 |
+  | `contourpy-lines-1` | 131,945,956,831 | 5 |
+  | `contourpy-lines-2` | 145,247,547,499 | 5 |
+  | `contourpy-lines-3` | 136,754,187,772 | 5 |
+  | `contourpy-lines-4` | 132,012,123,022 | 5 |
+  | `contourpy-lines-5` | 145,313,557,762 | 5 |
+  | `contourpy-lines-6` | 136,832,358,330 | 5 |
+  | `contourpy-lines-7` | 255,561,081,448 | 4 |
+  | `contourpy-lines-8` | 470,250,567,395 | 345 |
+  | `contourpy-rest` | 205,916,211,054 | 277 |
+  | `kiwisolver` | 12,972,521,061 | 50 |
+  | `lxml` | 103,449,823,065 | 2,024 |
+  | `matplotlib-axes` | 698,984,626,840 | 880 |
+  | `matplotlib-mathtext` | 296,720,104,560 | 985 |
+  | `matplotlib-render-1` | 231,111,927,177 | 248 |
+  | `matplotlib-render-3` | 272,774,079,280 | 197 |
+  | `matplotlib-render-2a` | 304,479,745,901 | 290 |
+  | `matplotlib-render-2b` | 336,918,406,268 | 392 |
+  | `matplotlib-rest-a` | 309,630,153,675 | 966 |
+  | `matplotlib-rest-b1` | 323,461,751,876 | 3,367 |
+  | `matplotlib-rest-b2` | 384,326,703,369 | 1,146 |
+  | `mpl-axes_grid1` | 71,909,759,047 | 52 |
+  | `mpl-axisartist` | 35,687,311,582 | 50 |
+  | `mpl-mplot3d` | 336,355,437,127 | 244 |
+  | `pillow` | 432,950,151,677 | 4,593 |
+  | `regex` | 16,001,941,028 | 147 |
+  - Total 9,984.7 G, 17,972 passes; caps 1.517×10¹³ (Decision 11). Each split group recorded its
+    file's collected count (518, 419, 36), and the harness compared them.
+  - `matplotlib-mathtext` is wave 06's measurement: both runs on wave 07's set were voided by host
+    litter (`.DS_Store` in the guest root), recorded as host failures, two strikes.
+  - The other matplotlib groups, kiwisolver and regex moved at most 0.16 % from wave 06's set.
+  - **Classes**: 22 of the 23 class checks matched their gaps on this set (`build/066/run6.txt` to
+    `run10.txt`); `matplotlib-mathtext`'s `no-processes` was voided with its group by host litter
+    and matched on wave 06's set (`build/066/run3.txt`).
+  - **The cost of L2 and M1**: 1.45 T of fuel (946.6 G for the ten `--runslow` cases, 377.1 G for
+    the `--runtext` comparisons of `test_config.py`, 115.6 G more in `contourpy-rest`, 2.0 G for
+    Pillow's `checks/` and `selftest.py`), five more groups and two more shards.

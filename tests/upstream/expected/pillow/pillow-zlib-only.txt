@@ -49,3 +49,7 @@ Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-None]
 Tests/test_pickle.py::test_pickle_image[5-Tests/images/hopper.jpg-PA]
 Tests/test_pickle.py::test_pickle_jpeg
 Tests/test_pickle.py::test_pickle_la_mode_with_palette
+checks/check_jpeg_leaks.py::test_base_save
+checks/check_jpeg_leaks.py::test_exif_leak
+checks/check_jpeg_leaks.py::test_qtables_leak[qtables0]
+checks/check_jpeg_leaks.py::test_qtables_leak[qtables1]

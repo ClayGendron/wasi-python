@@ -1,0 +1,2 @@
+tests/test_codebase.py::test_cppcheck
+tests/test_codebase.py::test_mypy

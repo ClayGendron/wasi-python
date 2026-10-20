@@ -7,27 +7,105 @@
 package = "contourpy"
 driver = "package"
 grant = "/upstream-contourpy"
-budget = 6_630_000_000_000
+budget = 8_817_000_000_000
 stage_folders = ["tests"]
 extra_sys_path = ["."]
-cwd = "tree"  # compare_images opens tests/baseline_images/... by a relative path (the re-survey)
+# compare_images opens tests/baseline_images/... by a relative path and, when an image differs,
+# writes result_images/ beside it: a writable folder holding a copy of the baselines (the build
+# review, L2: with the read-only tree root, a differing text image failed on the write instead)
+cwd = "/tmp/work"
+cwd_files = [
+    "tests/baseline_images/bokeh_renderer_filled.png",
+    "tests/baseline_images/bokeh_renderer_filled_no_text.png",
+    "tests/baseline_images/bokeh_renderer_lines.png",
+    "tests/baseline_images/bokeh_renderer_lines_no_text.png",
+    "tests/baseline_images/config_filled.png",
+    "tests/baseline_images/config_filled_corner.png",
+    "tests/baseline_images/config_filled_corner_no_text.png",
+    "tests/baseline_images/config_filled_no_text.png",
+    "tests/baseline_images/config_filled_quad_as_tri.png",
+    "tests/baseline_images/config_filled_quad_as_tri_no_text.png",
+    "tests/baseline_images/config_lines.png",
+    "tests/baseline_images/config_lines_corner.png",
+    "tests/baseline_images/config_lines_corner_no_text.png",
+    "tests/baseline_images/config_lines_no_text.png",
+    "tests/baseline_images/config_lines_quad_as_tri.png",
+    "tests/baseline_images/config_lines_quad_as_tri_no_text.png",
+    "tests/baseline_images/debug_renderer_filled.png",
+    "tests/baseline_images/debug_renderer_filled_no_text.png",
+    "tests/baseline_images/debug_renderer_lines.png",
+    "tests/baseline_images/debug_renderer_lines_no_text.png",
+    "tests/baseline_images/filled_random.png",
+    "tests/baseline_images/filled_random_chunk.png",
+    "tests/baseline_images/filled_random_corner_mask.png",
+    "tests/baseline_images/filled_random_corner_mask_chunk.png",
+    "tests/baseline_images/filled_random_no_corner_mask.png",
+    "tests/baseline_images/filled_random_no_corner_mask_chunk.png",
+    "tests/baseline_images/filled_random_quad_as_tri.png",
+    "tests/baseline_images/filled_simple.png",
+    "tests/baseline_images/filled_simple_chunk.png",
+    "tests/baseline_images/filled_simple_corner_mask.png",
+    "tests/baseline_images/filled_simple_corner_mask_chunk.png",
+    "tests/baseline_images/filled_simple_no_corner_mask.png",
+    "tests/baseline_images/filled_simple_no_corner_mask_chunk.png",
+    "tests/baseline_images/filled_simple_quad_as_tri.png",
+    "tests/baseline_images/lines_random.png",
+    "tests/baseline_images/lines_random_chunk.png",
+    "tests/baseline_images/lines_random_corner_mask.png",
+    "tests/baseline_images/lines_random_corner_mask_chunk.png",
+    "tests/baseline_images/lines_random_no_corner_mask.png",
+    "tests/baseline_images/lines_random_no_corner_mask_chunk.png",
+    "tests/baseline_images/lines_random_quad_as_tri.png",
+    "tests/baseline_images/lines_simple.png",
+    "tests/baseline_images/lines_simple_chunk.png",
+    "tests/baseline_images/lines_simple_corner_mask.png",
+    "tests/baseline_images/lines_simple_corner_mask_chunk.png",
+    "tests/baseline_images/lines_simple_no_corner_mask.png",
+    "tests/baseline_images/lines_simple_no_corner_mask_chunk.png",
+    "tests/baseline_images/lines_simple_quad_as_tri.png",
+    "tests/baseline_images/renderer_filled.png",
+    "tests/baseline_images/renderer_filled_no_text.png",
+    "tests/baseline_images/renderer_lines.png",
+    "tests/baseline_images/renderer_lines_no_text.png",
+]
 markers = []
+# Every test (the owner, "Every test of every package we build"): contourpy's own opt-in slow
+# and text cases run too (the build review, L2).
+args = ["--runslow", "--runtext"]
 
 [groups.contourpy-1]
 paths = [
     "tests/test_array.py",
     "tests/test_build_config.py",
     "tests/test_chunk.py",
-    "tests/test_config.py",
     "tests/test_constructor.py",
     "tests/test_convert.py",
     "tests/test_dechunk.py",
     "tests/test_enum.py",
 ]
-fuel = 330_000_000_000  # 1.5 times 217.4 G measured
+fuel = 37_000_000_000
+measured = 24_302_411_222
+
+[groups.contourpy-config-1]
+# test_config.py's text cases (show_text True, --runtext; the build review, L2)
+paths = ["tests/test_config.py"]
+fuel = 570_000_000_000
+measured = 377_115_648_313
+
+[groups.contourpy-config-2]
+paths = ["tests/test_config.py"]
+fuel = 310_000_000_000
+measured = 205_064_641_953
+
+[[split]]
+file = "tests/test_config.py"
+groups = ["contourpy-config-1", "contourpy-config-2"]
+keywords = ["True"]
 
 [groups.contourpy-rest]
 paths = [
+    "tests/test_bokeh_renderer.py",
+    "tests/test_codebase.py",
     "tests/test_internal.py",
     "tests/test_minimal.py",
     "tests/test_misc.py",
@@ -36,43 +114,68 @@ paths = [
     "tests/test_typecheck.py",
     "tests/test_z_interp.py",
 ]
-fuel = 140_000_000_000  # 1.5 times 90.3 G measured
+fuel = 310_000_000_000
+measured = 205_916_211_054
 
 [groups.contourpy-filled-1]
 paths = ["tests/test_filled.py"]
-fuel = 370_000_000_000  # 1.5 times 242.2 G measured
+fuel = 370_000_000_000
+measured = 242_186_713_480
 
 [groups.contourpy-filled-2]
 paths = ["tests/test_filled.py"]
-fuel = 400_000_000_000  # 1.5 times 262.9 G measured
+fuel = 400_000_000_000
+measured = 262_863_338_600
 
 [groups.contourpy-filled-3]
 paths = ["tests/test_filled.py"]
-fuel = 370_000_000_000  # 1.5 times 244.7 G measured
+fuel = 370_000_000_000
+measured = 244_622_814_075
 
 [groups.contourpy-filled-4]
 paths = ["tests/test_filled.py"]
-fuel = 370_000_000_000  # 1.5 times 242.3 G measured
+fuel = 370_000_000_000
+measured = 242_278_211_994
 
 [groups.contourpy-filled-5]
 paths = ["tests/test_filled.py"]
-fuel = 400_000_000_000  # 1.5 times 263.0 G measured
+fuel = 400_000_000_000
+measured = 262_960_529_253
 
 [groups.contourpy-filled-6]
 paths = ["tests/test_filled.py"]
-fuel = 370_000_000_000  # 1.5 times 244.7 G measured
+fuel = 370_000_000_000
+measured = 244_716_491_786
 
 [groups.contourpy-filled-7]
 paths = ["tests/test_filled.py"]
-fuel = 660_000_000_000  # 1.5 times 439.8 G measured
+fuel = 660_000_000_000
+measured = 439_769_031_420
 
 [groups.contourpy-filled-8]
 paths = ["tests/test_filled.py"]
-fuel = 370_000_000_000  # 1.5 times 242.6 G measured
+fuel = 370_000_000_000
+measured = 242_525_303_438
 
 [groups.contourpy-filled-9]
 paths = ["tests/test_filled.py"]
-fuel = 490_000_000_000  # 1.5 times 322.1 G measured
+fuel = 570_000_000_000
+measured = 376_107_304_014
+
+[groups.contourpy-filled-10]
+paths = ["tests/test_filled.py"]
+fuel = 430_000_000_000
+measured = 285_402_242_645
+
+[groups.contourpy-filled-11]
+paths = ["tests/test_filled.py"]
+fuel = 430_000_000_000
+measured = 285_138_695_010
+
+[groups.contourpy-filled-12]
+paths = ["tests/test_filled.py"]
+fuel = 490_000_000_000
+measured = 322_104_145_580
 
 [[split]]
 file = "tests/test_filled.py"
@@ -86,6 +189,9 @@ groups = [
     "contourpy-filled-7",
     "contourpy-filled-8",
     "contourpy-filled-9",
+    "contourpy-filled-10",
+    "contourpy-filled-11",
+    "contourpy-filled-12",
 ]
 keywords = [
     "random_big and serial and None",
@@ -96,39 +202,51 @@ keywords = [
     "random_big and threaded and True",
     "random_big",
     "serial",
+    # --runslow's ten 1000 by 1000 cases, about 91 G each (the build review, L2)
+    "compare_slow and (seed0 or seed1 or seed2 or seed3)",
+    "compare_slow and (seed4 or seed5 or seed6)",
+    "compare_slow",
 ]
 
 [groups.contourpy-lines-1]
 paths = ["tests/test_lines.py"]
-fuel = 200_000_000_000  # 1.5 times 131.9 G measured
+fuel = 200_000_000_000
+measured = 131_945_956_831
 
 [groups.contourpy-lines-2]
 paths = ["tests/test_lines.py"]
-fuel = 220_000_000_000  # 1.5 times 145.3 G measured
+fuel = 220_000_000_000
+measured = 145_247_547_499
 
 [groups.contourpy-lines-3]
 paths = ["tests/test_lines.py"]
-fuel = 210_000_000_000  # 1.5 times 136.8 G measured
+fuel = 210_000_000_000
+measured = 136_754_187_772
 
 [groups.contourpy-lines-4]
 paths = ["tests/test_lines.py"]
-fuel = 200_000_000_000  # 1.5 times 132.0 G measured
+fuel = 200_000_000_000
+measured = 132_012_123_022
 
 [groups.contourpy-lines-5]
 paths = ["tests/test_lines.py"]
-fuel = 220_000_000_000  # 1.5 times 145.3 G measured
+fuel = 220_000_000_000
+measured = 145_313_557_762
 
 [groups.contourpy-lines-6]
 paths = ["tests/test_lines.py"]
-fuel = 210_000_000_000  # 1.5 times 136.8 G measured
+fuel = 210_000_000_000
+measured = 136_832_358_330
 
 [groups.contourpy-lines-7]
 paths = ["tests/test_lines.py"]
-fuel = 390_000_000_000  # 1.5 times 255.6 G measured
+fuel = 390_000_000_000
+measured = 255_561_081_448
 
 [groups.contourpy-lines-8]
 paths = ["tests/test_lines.py"]
-fuel = 710_000_000_000  # 1.5 times 470.3 G measured
+fuel = 710_000_000_000
+measured = 470_250_567_395
 
 [[split]]
 file = "tests/test_lines.py"
@@ -152,12 +270,18 @@ keywords = [
     "random_big",
 ]
 
-[[not_selected]]
-files = ["tests/test_codebase.py"]
-reason = "every test runs tools over the source repository through subprocess (no processes on WASI)"
+[[expected]]
+id = "no-processes"
+group = "contourpy-rest"
+outcome = "failed"
+match = "does not support processes"
+reason = "no processes: test_cppcheck and test_mypy run their tools through subprocess, which WASI lacks (README)"
 closes_with = "README.md"
 
-[[not_selected]]
-files = ["tests/test_bokeh_renderer.py"]
-reason = "Bokeh and Selenium are not in the product (spec 043's Scope)"
-closes_with = "README.md"
+[[expected]]
+id = "text-rendering"
+group = "contourpy-config-1"
+outcome = "failed"
+match = "^AssertionError$"
+reason = "contourpy's --runtext baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log, the build); contourpy's own CI runs --runtext on one pinned configuration"
+closes_with = "context/upstream/README.md"

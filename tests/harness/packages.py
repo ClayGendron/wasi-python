@@ -24,8 +24,9 @@ from pathlib import Path, PurePosixPath
 from harness import litter, paths, upstream
 
 DRIVER = "package_drive.py"
+# numpy's and pandas' keys, with their meaning there: never in a package TOML (Decision 14)
+REFUSED = ("path_packages", "support")
 WORK = "/tmp/work"  # the writable working folder, in the guest's root
-SPLIT_MAX = 1_300 * 10**10  # every spec 066 family's caps together (about 1.26e13, the rule)
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,8 @@ class PackageKeys:
     doctest_preimport: tuple[str, ...] = ()
     docstring_modules: tuple[str, ...] = ()
     docstring_not_selected: tuple[str, ...] = ()  # e.g. lxml.cssselect: cssselect is not shipped
+    measured: dict[str, int] = field(default_factory=dict)  # each group's recorded fuel
+    refused: tuple[str, ...] = ()  # keys a package TOML may not carry (path_packages, support)
 
     def split_of(self, group: str) -> Split | None:
         return next((s for s in self.splits if group in s.groups), None)
@@ -85,6 +88,10 @@ def load(raw: dict) -> upstream.Config:
         doctest_preimport=tuple(raw.get("doctest_preimport", [])),
         docstring_modules=tuple(raw.get("docstring_modules", [])),
         docstring_not_selected=tuple(raw.get("docstring_not_selected", [])),
+        measured={
+            n: int(g["measured"]) for n, g in raw.get("groups", {}).items() if "measured" in g
+        },
+        refused=tuple(k for k in REFUSED if k in raw),
     )
     return upstream.Config(
         package=raw["package"],
@@ -220,7 +227,10 @@ def stage(cfg: upstream.Config, tree: Path, allowed: set[str], dest: Path) -> li
 
 
 def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
-    """pytest's selection for one group, relative to the tree (the driver makes paths absolute)."""
+    """pytest's selection for one group. The host makes every path absolute under the grant's tree
+    and leaves every other argument as it is: a marker or an option's value is never a path (spec
+    066's build review, L5). `--deselect` takes a node id, relative to the rootdir (the tree)."""
+    root = tree_root(cfg) + "/"
     inside = [p if p.endswith(".py") else p + "/" for p in group.paths]
     mine = lambda f: any(f == p or f.startswith(p) for p in inside)  # noqa: E731
     out = [f for n in cfg.not_selected for f in n.files if mine(f.split("::", 1)[0])]
@@ -228,8 +238,8 @@ def group_args(cfg: upstream.Config, group: upstream.Group) -> list[str]:
     deselects = [f for f in out if "::" in f]  # one test by node id (regex's test_main)
     deselects += [t.node for t in cfg.traps if "::" in t.node and mine(t.node)]
     args = ["-m", cfg.marker] if cfg.marker else []
-    args += [*cfg.args, *group.paths]
-    args += [f"--ignore={f}" for f in dict.fromkeys(ignores)]
+    args += [*cfg.args, *(root + p for p in group.paths)]
+    args += [f"--ignore={root}{f}" for f in dict.fromkeys(ignores)]
     args += [f"--deselect={d}" for d in deselects]
     split = cfg.keys.split_of(group.name)
     if split is not None:
@@ -290,34 +300,49 @@ def guard_findings(cfg: upstream.Config, modules: list[tuple[str, str]]) -> list
     folder; a module of the product's names reported from outside the zip is a finding."""
     root = tree_root(cfg) + "/"
     folders = [root + f.rstrip("/") + "/" for f in cfg.keys.stage_folders]
+    files = {
+        root + f for f in cfg.keys.support_files
+    }  # e.g. Pillow's selftest.py, run by docstring
     findings = []
     for name, f in modules:
         if f.startswith(root):
-            if not any(f.startswith(d) for d in folders):
+            if not any(f.startswith(d) for d in folders) and f not in files:
                 findings.append(f"a module came from outside the staged folders: {name} {f}")
         else:
             findings.append(f"a product module came from outside the zip: {name} {f}")
     return findings
 
 
+def _added(listed, node: str) -> bool:
+    """Whether a node of a module with a test_suite() is one it adds: a test of a class it names,
+    or of any class when it loads the whole module ("*"); never a module-level function."""
+    parts = node.split("::")
+    if len(parts) < 3:
+        return False
+    return listed == "*" or parts[1] in listed
+
+
 def keep_findings(extra: Extra, stream: upstream.Stream, keep: dict) -> list[str]:
-    """lxml, both ways: every class its test_suite() lists ran at least one test, and every item
-    deselected is of a class it does not list."""
+    """lxml, exactly test_suite()'s tests (spec 066, Decision 7; the build review, M2): every class
+    it names ran at least one test; every test that ran is one it adds; every item deselected is
+    one it does not add (its own `test_suite` builder among them)."""
     if not keep:
         return []
     findings = []
-    ran = [n for n in stream.started]
+    ran = list(stream.started)
     for f, classes in keep.items():
         if classes == "*":
             continue
         for c in classes:
             if not any(n.startswith(f"{f}::{c}::") for n in ran):
                 findings.append(f"a class lxml's test_suite() runs ran nothing: {f}::{c}")
+    for node in dict.fromkeys(n for _, n, _ in stream.outcomes):  # tests, not collectors
+        listed = keep.get(node.split("::", 1)[0])
+        if listed is not None and "::" in node and not _added(listed, node):
+            findings.append(f"ran a test lxml's test_suite() does not add: {node}")
     for node in extra.deselected:
-        f, _, rest = node.partition("::")
-        cls = rest.split("::", 1)[0]
-        listed = keep.get(f)
-        if listed == "*" or (isinstance(listed, list) and cls in listed):
+        listed = keep.get(node.split("::", 1)[0])
+        if listed is not None and _added(listed, node):
             findings.append(f"deselected a test lxml's test_suite() runs: {node}")
     return findings
 
@@ -455,8 +480,23 @@ class Session:
             cfg = self.configs[package]
             text, run = self._run(package, group, cfg.groups[group].fuel)
             outcome, extra = judge(cfg, group, text, run, keep)
+            outcome.findings += self._split_findings(cfg, group, extra.collected)
             self.groups[group] = PackageRun(outcome, run.fuel, left_out, extra.collected)
         return self.groups[group]
+
+    def _split_findings(self, cfg: upstream.Config, group: str, collected: int | None) -> list[str]:
+        """Every group of a split collected the same file: a count unequal to an earlier group's
+        of the same split in this judge run is red (spec 066's build review, L1)."""
+        split = cfg.keys.split_of(group)
+        if split is None or collected is None:
+            return []
+        for other in split.groups:
+            seen = self.groups.get(other)
+            if seen is not None and seen.collected is not None and seen.collected != collected:
+                return [
+                    f"{split.file}: collected {collected} tests here, {seen.collected} in {other}"
+                ]
+        return []
 
     def trap(self, package: str, trap_id: str) -> upstream.TrapRun:
         self.prepare(package)
@@ -507,9 +547,26 @@ def split_errors(pkg: str, cfg: upstream.Config) -> list[str]:
     return errors
 
 
+def rule_cap(measured: int) -> int:
+    """1.5 times a group's recorded fuel, rounded up to two significant figures: the owner's rule
+    (decisions.md, "Every test of every package we build", 2026-10-20)."""
+    x = 3 * measured // 2 + (3 * measured % 2 > 0)
+    step = 10 ** max(len(str(x)) - 2, 0)
+    return -(-x // step) * step
+
+
 def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> list[str]:
     k = cfg.keys
-    errors = []
+    errors = [f"{pkg}: a package TOML may not carry {key} (Decision 14)" for key in k.refused]
+    for g in cfg.groups.values():
+        m = k.measured.get(g.name)
+        if m is None:
+            errors.append(f"{pkg}: group {g.name} records no measured fuel")
+        elif g.fuel > rule_cap(m):
+            errors.append(
+                f"{pkg}: group {g.name}'s cap {g.fuel:,} is above 1.5 times its measured "
+                f"{m:,} ({rule_cap(m):,})"
+            )
     if cfg.grant != f"/upstream-{pkg}":
         errors.append(f"{pkg}: grant {cfg.grant} is not /upstream-{pkg}")
     if k.cwd not in (WORK, "tree"):
@@ -540,13 +597,6 @@ def rule_errors(pkg: str, cfg: upstream.Config, members: set[str] | None) -> lis
         files += [p for g in cfg.groups.values() for p in g.paths if p.endswith(".py")]
         errors += [f"{pkg}: {f} is not a tarball member" for f in files if f not in members]
     return errors
-
-
-def total_errors(configs: dict[str, upstream.Config]) -> list[str]:
-    total = sum(c.keys.budget for c in configs.values() if c.driver == "package")
-    if total > SPLIT_MAX:
-        return [f"spec 066's families' budgets sum to {total:.3g}, over {SPLIT_MAX:.3g}"]
-    return []
 
 
 def lxml_errors(configs: dict[str, upstream.Config], members: set[str] | None) -> list[str]:

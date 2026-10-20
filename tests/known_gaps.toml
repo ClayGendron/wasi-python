@@ -456,7 +456,7 @@ closes_with = "README.md"
 
 [[gap]]
 check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-pillow-zlib-only]"
-match = "51 finding(s), digest eafbc5871932"
+match = "55 finding(s), digest d2077a055dc7"
 reason = "Pillow is built with zlib only (spec 023): a test that opens JPEG without its own feature guard"
 closes_with = "context/specifications/023-matplotlib-first-milestone.md"
 
@@ -501,3 +501,33 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[lxml-iso
 match = "1 finding(s), digest 2118cbfdc9ba"
 reason = "validation.txt's ISO-Schematron part meets the product's stand-in (spec 046, Decision 8)"
 closes_with = "context/specifications/046-lxml.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-no-resource-module]"
+match = "2 finding(s), digest 7a1015f9b72e"
+reason = "WASI has no resource module (getrusage), which checks/check_imaging_leaks.py measures memory with (README)"
+closes_with = "README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-not-pillows-wheel]"
+match = "3 finding(s), digest 90629a5df21e"
+reason = "checks/check_wheel.py asserts the modules, codecs and features of Pillow's PyPI wheels; the product builds Pillow with zlib only (spec 023)"
+closes_with = "context/specifications/023-matplotlib-first-milestone.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pillow-fli-overflow-native]"
+match = "1 finding(s), digest 7b3444c28a6f"
+reason = "checks/check_fli_overflow.py wants the crafted overflow file to load without raising; the repo's oracle, native Pillow 13.0.0, raises the same OSError (EXECUTED, the build), and Pillow's own test commands never run this check (testpaths = Tests): an upstream check that fails natively too, and does not crash in the guest"
+closes_with = "context/upstream/README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourpy-config-1-text-rendering]"
+match = "17 finding(s), digest e45d420f14cb"
+reason = "contourpy's --runtext baselines differ from the text matplotlib 3.11.2 with FreeType 2.14.3 draws here, past contourpy's thresholds (max 100, mean 0.02): the same images without text match (max at most 52 of 255, mean at most 0.0003), with text max 255 and mean 3.5 to 8.4 (contourpy's own image-difference log, the build); contourpy's own CI runs --runtext on one pinned configuration"
+closes_with = "context/upstream/README.md"
+
+[[gap]]
+check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[contourpy-rest-no-processes]"
+match = "2 finding(s), digest 376c9949dc25"
+reason = "no processes: test_cppcheck and test_mypy run their tools through subprocess, which WASI lacks (README)"
+closes_with = "README.md"

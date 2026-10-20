@@ -94,21 +94,22 @@ class DoctestItem(pytest.Item):
 
 
 def _keep(items, config) -> None:
+    """In a module with a test_suite(), run exactly what it adds: the TestCase classes it names
+    (every TestCase class when it loads the whole module); everything else is deselected, the
+    test_suite() builder itself included (spec 066's build review, M2)."""
     keep = spec["keep_classes"]
     kept, dropped = [], []
     for it in items:
-        cls = getattr(it, "cls", None)
         listed = keep.get(it.nodeid.split("::", 1)[0])
-        if (
-            isinstance(cls, type)
-            and issubclass(cls, unittest.TestCase)
-            and listed is not None
-            and listed != "*"
-            and cls.__name__ not in listed
-        ):
-            dropped.append(it)
-        else:
+        if listed is None:
             kept.append(it)
+            continue
+        cls = getattr(it, "cls", None)
+        case = isinstance(cls, type) and issubclass(cls, unittest.TestCase)
+        if case and (listed == "*" or cls.__name__ in listed):
+            kept.append(it)
+        else:
+            dropped.append(it)
     for it in dropped:
         emit(f"D {it.nodeid}")
     if dropped:
@@ -197,13 +198,6 @@ def _last_line(longrepr) -> str:
     return lines[-1] if lines else ""
 
 
-def _abs(arg: str) -> str:
-    """A path under the tree, absolute; an option as it is (`--ignore=` gets the tree too)."""
-    if arg.startswith("--ignore="):
-        return "--ignore=" + TREE + arg[len("--ignore=") :]
-    return arg if arg.startswith("-") else TREE + arg
-
-
 code = pytest.main(
     [
         "-p",
@@ -225,7 +219,7 @@ code = pytest.main(
         "--tb=no",
         "--no-header",
         "-rN",
-        *[_abs(a) for a in spec["args"]],
+        *spec["args"],  # paths made absolute by the host (harness.packages.group_args)
     ],
     plugins=[Stream()],
 )

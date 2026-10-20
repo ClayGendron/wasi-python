@@ -528,7 +528,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l]
+        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -576,6 +576,10 @@ jobs:
       upstream-plot-k-sha256: ${{ steps.out.outputs.upstream-plot-k-sha256 }}
       upstream-plot-l-id: ${{ steps.out.outputs.upstream-plot-l-id }}
       upstream-plot-l-sha256: ${{ steps.out.outputs.upstream-plot-l-sha256 }}
+      upstream-plot-m-id: ${{ steps.out.outputs.upstream-plot-m-id }}
+      upstream-plot-m-sha256: ${{ steps.out.outputs.upstream-plot-m-sha256 }}
+      upstream-plot-n-id: ${{ steps.out.outputs.upstream-plot-n-id }}
+      upstream-plot-n-sha256: ${{ steps.out.outputs.upstream-plot-n-sha256 }}
     env:
       # The judge reads its repository's text as UTF-8 on every host, as Python 3.15 does by
       # default (PEP 686); Windows' locale codec is not UTF-8 (the branch dry run 39182550825).
@@ -842,6 +846,8 @@ jobs:
           LINUX_UPSTREAM_PLOT_J_ID: ${{ needs.judge-linux.outputs.upstream-plot-j-id }}
           LINUX_UPSTREAM_PLOT_K_ID: ${{ needs.judge-linux.outputs.upstream-plot-k-id }}
           LINUX_UPSTREAM_PLOT_L_ID: ${{ needs.judge-linux.outputs.upstream-plot-l-id }}
+          LINUX_UPSTREAM_PLOT_M_ID: ${{ needs.judge-linux.outputs.upstream-plot-m-id }}
+          LINUX_UPSTREAM_PLOT_N_ID: ${{ needs.judge-linux.outputs.upstream-plot-n-id }}
           WINDOWS_OWN_EMBEDDING_ID: ${{ needs.judge-windows.outputs.own-embedding-id }}
           WINDOWS_OWN_GUEST_ID: ${{ needs.judge-windows.outputs.own-guest-id }}
           WINDOWS_OWN_RUNNER_ID: ${{ needs.judge-windows.outputs.own-runner-id }}
@@ -861,7 +867,7 @@ jobs:
             echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
             exit 1
           fi
-          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$LINUX_UPSTREAM_PLOT_M_ID" "$LINUX_UPSTREAM_PLOT_N_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
             case "$id" in
               "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
             esac
@@ -878,7 +884,7 @@ jobs:
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }}
+          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }},${{ needs.judge-linux.outputs.upstream-plot-m-id }},${{ needs.judge-linux.outputs.upstream-plot-n-id }}
           path: records/judge-linux
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -919,6 +925,8 @@ jobs:
           RECORD_LINUX_UPSTREAM_PLOT_J: ${{ needs.judge-linux.outputs.upstream-plot-j-sha256 }}
           RECORD_LINUX_UPSTREAM_PLOT_K: ${{ needs.judge-linux.outputs.upstream-plot-k-sha256 }}
           RECORD_LINUX_UPSTREAM_PLOT_L: ${{ needs.judge-linux.outputs.upstream-plot-l-sha256 }}
+          RECORD_LINUX_UPSTREAM_PLOT_M: ${{ needs.judge-linux.outputs.upstream-plot-m-sha256 }}
+          RECORD_LINUX_UPSTREAM_PLOT_N: ${{ needs.judge-linux.outputs.upstream-plot-n-sha256 }}
           RECORD_WINDOWS_OWN_EMBEDDING: ${{ needs.judge-windows.outputs.own-embedding-sha256 }}
           RECORD_WINDOWS_OWN_GUEST: ${{ needs.judge-windows.outputs.own-guest-sha256 }}
           RECORD_WINDOWS_OWN_RUNNER: ${{ needs.judge-windows.outputs.own-runner-sha256 }}

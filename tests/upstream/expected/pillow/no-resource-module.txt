@@ -1,0 +1,2 @@
+checks/check_imaging_leaks.py::test_leak_getlist
+checks/check_imaging_leaks.py::test_leak_putdata
