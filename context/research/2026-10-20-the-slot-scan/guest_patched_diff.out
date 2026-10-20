@@ -1,0 +1,4 @@
+g-pristine plain 0 TypeError 'str' object is not callable 
+g-pristine snapshot 0 TypeError 'str' object is not callable 
+g-patched plain 0 <p>Hello <ins>there</ins> world</p> 
+g-patched snapshot 0 <p>Hello <ins>there</ins> world</p> 

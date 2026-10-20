@@ -1,0 +1,29 @@
+===== kiwi_cycle
+--- snapshot=False exit=None fuel=198513826
+
+stderr tail: []
+trapped bad signature
+--- snapshot=True exit=None fuel=6726026
+
+stderr tail: []
+trapped bad signature
+===== lxml_diff
+--- snapshot=False exit=0 fuel=699782110
+import raises TypeError: 'str' object is not callable
+stderr tail: []
+trapped None
+--- snapshot=True exit=0 fuel=398192033
+import raises TypeError: 'str' object is not callable
+stderr tail: []
+trapped None
+===== mpl_layout_gc
+--- snapshot=False exit=0 fuel=10179131480
+collected True
+ok
+stderr tail: []
+trapped None
+--- snapshot=True exit=0 fuel=9848495122
+collected True
+ok
+stderr tail: []
+trapped None

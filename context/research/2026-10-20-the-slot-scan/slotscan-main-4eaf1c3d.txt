@@ -1,0 +1,5 @@
+FINDING spec kiwisolver.Constraint.tp_clear: table index 16969 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Constraint_clear(kiwisolver::Constraint*))
+FINDING spec kiwisolver.Expression.tp_clear: table index 16979 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Expression_clear(kiwisolver::Expression*))
+FINDING spec kiwisolver.Term.tp_clear: table index 17034 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Term_clear(kiwisolver::Term*))
+FINDING spec kiwisolver.Variable.tp_clear: table index 17048 has (i32) -> (), called as (i32) -> (i32) (kiwisolver::(anonymous namespace)::Variable_clear(kiwisolver::Variable*))
+coverage {'metatypes': 10, 'static types': 478, 'type slots': 2669, 'tp_as_number': 40, 'tp_as_sequence': 42, 'tp_as_mapping': 46, 'tp_as_buffer': 14, 'tp_as_async': 6, 'slot entries': 3101, 'spec slots': 2374, 'specs': 454, 'module slots': 311, 'module slot arrays past the image': 7, 'module defs': 149}
