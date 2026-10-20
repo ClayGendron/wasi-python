@@ -1,0 +1,30 @@
+# main set SHA256SUMS f12cd25c, plain binary, wasi-python run --stdin nan_probe.py: exit 0, trapped None, stderr ''
+ ** On entry to DGELSD parameter number 12 had an illegal value
+numpy 2.5.2
+np svd                    returns all-nan,all-nan,all-nan
+np svd no uv              raises ValueError: On entry to DLASCL parameter number 5 had an illegal value
+np pinv                   returns all-nan
+np matrix_rank            raises ValueError: On entry to DLASCL parameter number 5 had an illegal value
+np norm 2                 raises ValueError: On entry to DLASCL parameter number 5 had an illegal value
+np cond                   raises ValueError: On entry to DLASCL parameter number 5 had an illegal value
+np lstsq                  raises ValueError: On entry to DLASCL parameter number 4 had an illegal value
+np eigh                   returns all-nan,all-nan
+np eigvalsh               returns all-nan
+np eig                    raises LinAlgError: Array must not contain infs or NaNs
+np inv                    returns all-nan
+np solve                  returns all-nan
+np cholesky               returns all-nan
+np qr                     returns all-nan,mixed
+np det                    returns all-nan
+lapack dgesdd jobz=A          info -4
+lapack dgesdd jobz=N          info -4
+lapack dgelsd                 info -12
+lapack dsyevd jobz=V          info 2
+lapack dsyevd jobz=N          info 2
+lapack dgesv                  info 0
+lapack dpotrf                 info 0
+lapack dgeqrf                 info 0
+lapack dgelsd (queried lwork) info 2
+lapack dgelsd regular control info 0
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DLASCL parameter number  4 had an illegal value

@@ -1,0 +1,13 @@
+variant A: link exit 0, 36 signature mismatches, 0 duplicate symbols
+   ccopy_ cgelsd_ cgesdd_ cgesv_ cgetrf_ cheevd_ cpotrf_ dcopy_ dgeev_ dgelsd_ dgeqrf_ dgesdd_ dgesv_ dgetrf_ dorgqr_ dpotrf_ dsyevd_ scopy_ sgeev_ sgelsd_ sgesdd_ sgesv_ sgetrf_ spotrf_ ssyevd_ xerbla_ zcopy_ zgeev_ zgelsd_ zgeqrf_ zgesdd_ zgesv_ zgetrf_ zheevd_ zpotrf_ zungqr_
+   xerbla_: 1 0006a59f T xerbla_
+   wasi_numpy_xerbla_: 0 
+   dgesv_: 1 0006bd03 T dgesv_
+   wasi_numpy_dgesv_: 0 
+   cblas_dgemm: 1 0006b658 T cblas_dgemm
+variant B: link exit 0, 0 signature mismatches, 0 duplicate symbols
+   xerbla_: 1 0007fbf5 T xerbla_
+   wasi_numpy_xerbla_: 1 0006bfe8 T wasi_numpy_xerbla_
+   dgesv_: 1 0006dba2 T dgesv_
+   wasi_numpy_dgesv_: 1 0006bc28 T wasi_numpy_dgesv_
+   cblas_dgemm: 1 0006d4f7 T cblas_dgemm

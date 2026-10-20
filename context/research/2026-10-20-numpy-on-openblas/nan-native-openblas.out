@@ -1,0 +1,31 @@
+numpy 2.5.2
+np svd                    raises LinAlgError: SVD did not converge
+np svd no uv              raises LinAlgError: SVD did not converge
+np pinv                   raises LinAlgError: SVD did not converge
+np matrix_rank            raises LinAlgError: SVD did not converge
+np norm 2                 raises LinAlgError: SVD did not converge
+np cond                   raises LinAlgError: SVD did not converge
+np lstsq                  raises LinAlgError: SVD did not converge in Linear Least Squares
+np eigh                   raises LinAlgError: Eigenvalues did not converge
+np eigvalsh               raises LinAlgError: Eigenvalues did not converge
+np eig                    raises LinAlgError: Array must not contain infs or NaNs
+np inv                    returns all-nan
+np solve                  returns all-nan
+np cholesky               returns mixed
+np qr                     returns all-nan,mixed
+np det                    returns all-nan
+lapack dgesdd jobz=A          info -4
+lapack dgesdd jobz=N          info -4
+lapack dgelsd                 info -12
+lapack dsyevd jobz=V          info 2
+lapack dsyevd jobz=N          info 2
+lapack dgesv                  info 0
+lapack dpotrf                 info 0
+lapack dgeqrf                 info 0
+lapack dgelsd (queried lwork) info 2
+lapack dgelsd regular control info 0
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DGELSD parameter number 12 had an illegal value
+ ** On entry to DLASCL parameter number  4 had an illegal value
+ ** On entry to DLASCL parameter number  4 had an illegal value

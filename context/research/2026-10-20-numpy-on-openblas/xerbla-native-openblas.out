@@ -1,0 +1,3 @@
+xerbla ValueError On entry to test parameter number -1 had an illegal value
+dorgqr returned {'dorgqr_': 0, 'info': -5}
+ ** On entry to DORGQR parameter number  5 had an illegal value

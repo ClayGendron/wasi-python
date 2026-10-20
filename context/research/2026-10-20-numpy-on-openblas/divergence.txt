@@ -1,0 +1,9 @@
+indices where they differ: 46
+2 10 17 24 26 29 53 55 57 60 64 66 75 81 86 89 94 101 120 122 148 153 156 162 166 169 171 172 179 181 185 192 200 205 206 219 227 229 237 247 249 261 268 271 273 275
+scaled by 0.1 among them: 19 of 46 ; among all 300: 148
+native letter / guest letter at those: ['FE']
+  2: n=5 rank=2 scaled=True native min|U_ii|=2.08e-18
+  10: n=4 rank=2 scaled=False native min|U_ii|=4.93e-32
+  17: n=3 rank=2 scaled=False native min|U_ii|=7.77e-16
+  24: n=7 rank=2 scaled=True native min|U_ii|=1.48e-17
+  26: n=4 rank=1 scaled=True native min|U_ii|=3.7e-18

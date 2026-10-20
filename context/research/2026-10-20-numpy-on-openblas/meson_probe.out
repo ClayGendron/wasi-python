@@ -1,0 +1,40 @@
+plain link exit 0
+wasm-ld: warning: function signature mismatch: cblas_dgemm
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-ed246a.o
+>>> defined as (i32, i32, i32, i32, i32, i32, f64, i32, i32, i32, i32, f64, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(cblas_dgemm.o)
+
+wasm-ld: warning: function signature mismatch: dgemm_
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-ed246a.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(dgemm.o)
+
+wasm-ld: warning: function signature mismatch: zungqr_
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-ed246a.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(zungqr.o)
+
+with mman exit 0
+wasm-ld: warning: function signature mismatch: cblas_dgemm
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-f9bfc8.o
+>>> defined as (i32, i32, i32, i32, i32, i32, f64, i32, i32, i32, i32, f64, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(cblas_dgemm.o)
+
+wasm-ld: warning: function signature mismatch: dgemm_
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-f9bfc8.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(dgemm.o)
+
+wasm-ld: warning: function signature mismatch: zungqr_
+>>> defined as () -> void in /var/folders/_c/n40__q_16zs0cbn45nb3c_nw0000gn/T/t-f9bfc8.o
+>>> defined as (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void in $REPO/build/openblas-wasi/lib/libopenblas.a(zungqr.o)
+
+== symbols
+   1 00000001 T cblas_dgemm
+   1 00000001 T cdotc_
+   1 00000001 T dgemm_
+   1 00000001 T dgesdd_
+   1 00000001 T dgesv_
+   1 00000001 T dgetrf_
+   1 00000001 T dlamch_
+   1 00000001 T lsame_
+   1 00000001 T openblas_set_num_threads
+   1 00000001 T scopy_
+   1 00000001 T sdot_
+   1 00000001 T zdotc_
+   1 000000b3 T xerbla_

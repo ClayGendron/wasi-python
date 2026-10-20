@@ -1,0 +1,4 @@
+# main set SHA256SUMS f12cd25c, plain binary, wasi-python run --stdin config_probe.py: exit 0, trapped None, stderr ''
+blas none None None None
+lapack none None None None
+ilp64 False

@@ -1,0 +1,14 @@
+('libopenblas.a', '*') 5267661 5788
+('numpy__umath_linalg.a', 'lapack_lite_f2c_z_lapack.c.o') 558623 916
+('numpy__umath_linalg.a', 'lapack_lite_f2c_d_lapack.c.o') 483017 1280
+('numpy__umath_linalg.a', 'lapack_lite_f2c_s_lapack.c.o') 396578 1288
+('numpy__umath_linalg.a', 'lapack_lite_f2c_c_lapack.c.o') 255855 550
+('numpy__umath_linalg.a', 'lapack_lite_f2c_blas.c.o') 201158 395
+('numpy__umath_linalg.a', 'umath_linalg.cpp.o') 110915 142
+('numpy__umath_linalg.a', 'lapack_lite_f2c_config.c.o') 9855 104
+('numpy__umath_linalg.a', 'lapack_lite_f2c_lapack.c.o') 7618 20
+('numpy_lapack_lite.a', 'lapack_litemodule.c.o') 5035 16
+('numpy__umath_linalg.a', 'lapack_lite_f2c.c.o') 2689 25
+('libscipy_lapack_shims.a', 'scipy_lapack_shims.o') 458 15
+('numpy__umath_linalg.a', 'lapack_lite_python_xerbla.c.o') 309 2
+numpy lapack_lite f2c objects, total bytes: 1915393

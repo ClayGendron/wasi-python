@@ -1,0 +1,34 @@
+nat_openblas_inv         E:107 F:193
+nat_openblas_armv8_inv   E:107 F:193
+nat_openblas_a57_inv     E:107 F:193
+nat_accel_inv            E:162 F:138
+guest_lite_inv           F:142 N:158
+guest_openblas_gesv      E:153 F:147
+guest_openblas_getrf     E:153 F:147
+nat_openblas_inv vs nat_openblas_armv8_inv: raise agrees on 300/300; EE:107, FF:193
+   differ at 
+nat_openblas_inv vs nat_openblas_a57_inv: raise agrees on 300/300; EE:107, FF:193
+   differ at 
+nat_openblas_inv vs nat_accel_inv: raise agrees on 243/300; EE:106, EF:1, FE:56, FF:137
+nat_openblas_inv vs guest_lite_inv: raise agrees on 193/300; EN:107, FF:142, FN:51
+nat_openblas_inv vs guest_openblas_gesv: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_openblas_inv vs guest_openblas_getrf: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_openblas_armv8_inv vs nat_openblas_a57_inv: raise agrees on 300/300; EE:107, FF:193
+   differ at 
+nat_openblas_armv8_inv vs nat_accel_inv: raise agrees on 243/300; EE:106, EF:1, FE:56, FF:137
+nat_openblas_armv8_inv vs guest_lite_inv: raise agrees on 193/300; EN:107, FF:142, FN:51
+nat_openblas_armv8_inv vs guest_openblas_gesv: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_openblas_armv8_inv vs guest_openblas_getrf: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_openblas_a57_inv vs nat_accel_inv: raise agrees on 243/300; EE:106, EF:1, FE:56, FF:137
+nat_openblas_a57_inv vs guest_lite_inv: raise agrees on 193/300; EN:107, FF:142, FN:51
+nat_openblas_a57_inv vs guest_openblas_gesv: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_openblas_a57_inv vs guest_openblas_getrf: raise agrees on 254/300; EE:107, FE:46, FF:147
+nat_accel_inv vs guest_lite_inv: raise agrees on 138/300; EF:12, EN:150, FF:130, FN:8
+nat_accel_inv vs guest_openblas_gesv: raise agrees on 279/300; EE:147, EF:15, FE:6, FF:132
+   differ at 28 45 49 69 73 82 91 94 108 110 165 173 185 200 213 219 225 236 261 266 284
+nat_accel_inv vs guest_openblas_getrf: raise agrees on 279/300; EE:147, EF:15, FE:6, FF:132
+   differ at 28 45 49 69 73 82 91 94 108 110 165 173 185 200 213 219 225 236 261 266 284
+guest_lite_inv vs guest_openblas_gesv: raise agrees on 147/300; FE:2, FF:140, NE:151, NF:7
+guest_lite_inv vs guest_openblas_getrf: raise agrees on 147/300; FE:2, FF:140, NE:151, NF:7
+guest_openblas_gesv vs guest_openblas_getrf: raise agrees on 300/300; EE:153, FF:147
+   differ at 

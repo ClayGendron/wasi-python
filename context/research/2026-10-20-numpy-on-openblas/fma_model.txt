@@ -1,0 +1,5 @@
+model without FMA vs guest OpenBLAS: 280 /300
+model with FMA    vs native OpenBLAS: 268 /300
+model without FMA vs native OpenBLAS: 244 /300
+model with FMA    vs guest OpenBLAS: 266 /300
+E counts: no-FMA 163 FMA 135 guest 153 native 107

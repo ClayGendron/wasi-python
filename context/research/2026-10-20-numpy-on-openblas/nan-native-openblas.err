@@ -1,0 +1,2 @@
+$WORK/venv-openblas/lib/python3.15/site-packages/numpy/linalg/_linalg.py:2406: RuntimeWarning: invalid value encountered in det
+  r = _umath_linalg.det(a, signature=signature)

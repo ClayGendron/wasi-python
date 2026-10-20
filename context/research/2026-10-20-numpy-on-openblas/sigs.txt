@@ -1,0 +1,57 @@
+link exit 0
+ccopy.o (i32, i32, i32, i32, i32) -> void
+cdotc.o (i32, i32, i32, i32, i32, i32) -> void
+cdotu.o (i32, i32, i32, i32, i32, i32) -> void
+cgeev.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cgelsd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cgemm.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cgesdd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cgesv.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cgetrf.o (i32, i32, i32, i32, i32, i32) -> void
+cheevd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+cpotrf.o (i32, i32, i32, i32, i32) -> void
+cpotri.o (i32, i32, i32, i32, i32) -> void
+cpotrs.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dcopy.o (i32, i32, i32, i32, i32) -> void
+ddot.o (i32, i32, i32, i32, i32) -> f64
+dgeev.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgelsd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgemm.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgeqrf.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgesdd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgesv.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dgetrf.o (i32, i32, i32, i32, i32, i32) -> void
+dorgqr.o (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dpotrf.o (i32, i32, i32, i32, i32) -> void
+dpotri.o (i32, i32, i32, i32, i32) -> void
+dpotrs.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+dsyevd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+scopy.o (i32, i32, i32, i32, i32) -> void
+sdot.o (i32, i32, i32, i32, i32) -> f32
+sgeev.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+sgelsd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+sgemm.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+sgesdd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+sgesv.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+sgetrf.o (i32, i32, i32, i32, i32, i32) -> void
+spotrf.o (i32, i32, i32, i32, i32) -> void
+spotri.o (i32, i32, i32, i32, i32) -> void
+spotrs.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+ssyevd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+xerbla.o (i32, i32, i32) -> void
+zcopy.o (i32, i32, i32, i32, i32) -> void
+zdotc.o (i32, i32, i32, i32, i32, i32) -> void
+zdotu.o (i32, i32, i32, i32, i32, i32) -> void
+zgeev.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgelsd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgemm.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgeqrf.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgesdd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgesv.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zgetrf.o (i32, i32, i32, i32, i32, i32) -> void
+zheevd.o (i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zpotrf.o (i32, i32, i32, i32, i32) -> void
+zpotri.o (i32, i32, i32, i32, i32) -> void
+zpotrs.o (i32, i32, i32, i32, i32, i32, i32, i32) -> void
+zungqr.o (i32, i32, i32, i32, i32, i32, i32, i32, i32) -> void
+== names with no definition in libopenblas.a

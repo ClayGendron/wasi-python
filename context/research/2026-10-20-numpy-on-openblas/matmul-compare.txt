@@ -1,0 +1,13 @@
+nat_ob_np vs nat_ob_dgemm: 4096/4096 bit-identical, largest difference 0 ulp
+nat_ob_np vs nat_accel_np: 4096/4096 bit-identical, largest difference 0 ulp
+nat_ob_np vs guest_np: 1250/4096 bit-identical, largest difference 8318 ulp
+nat_ob_np vs guest_ob_dgemm: 656/4096 bit-identical, largest difference 6018 ulp
+nat_ob_dgemm vs nat_accel_np: 4096/4096 bit-identical, largest difference 0 ulp
+nat_ob_dgemm vs guest_np: 1250/4096 bit-identical, largest difference 8318 ulp
+nat_ob_dgemm vs guest_ob_dgemm: 656/4096 bit-identical, largest difference 6018 ulp
+nat_accel_np vs guest_np: 1250/4096 bit-identical, largest difference 8318 ulp
+nat_accel_np vs guest_ob_dgemm: 656/4096 bit-identical, largest difference 6018 ulp
+guest_np vs guest_ob_dgemm: 682/4096 bit-identical, largest difference 14336 ulp
+nat_ob vs nat_accel: 1/1 bit-identical, largest difference 0 ulp
+nat_ob vs guest_np: 0/1 bit-identical, largest difference 1 ulp
+nat_accel vs guest_np: 0/1 bit-identical, largest difference 1 ulp
