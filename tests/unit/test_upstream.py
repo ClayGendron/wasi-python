@@ -179,14 +179,14 @@ def test_a_stray_file_is_not_staged_and_is_listed(work) -> None:
     (tree / "numpy/tests/conftest.py").write_text("raise SystemExit\n")  # a build left it here
     (tree / "numpy/tests/__pycache__").mkdir()
     (tree / "numpy/tests/__pycache__/test_a.pyc").write_bytes(b"x")
+    (tree / "numpy/tests/.DS_Store").write_bytes(b"Bud1")
+    (tree / "numpy/tests/data/._d.txt").write_bytes(b"")
     dest = work / "stage"
     members = upstream.tarball_members(tb) | {"numpy/tests/patched_in.py"}
     (tree / "numpy/tests/patched_in.py").write_text("")
     left_out = upstream.stage(_cfg(), tree, members, dest)
-    assert left_out == [
-        "numpy/tests/__pycache__/test_a.pyc",
-        "numpy/tests/conftest.py",
-    ]
+    # Spec 090, Decision 5: bytecode and litter are no fact; the conftest a build left is.
+    assert left_out == ["numpy/tests/conftest.py"]
     staged = sorted(p.relative_to(dest).as_posix() for p in dest.rglob("*") if p.is_file())
     assert staged == [
         "numpy/tests/__init__.py",

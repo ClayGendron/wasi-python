@@ -111,13 +111,27 @@ def test_remove_removes_every_path_it_is_given(tmp_path) -> None:
     assert not first.exists() and not second.exists()
 
 
+# Every litter name this host can create (a Windows file name cannot hold `Icon\r`'s CR), an
+# AppleDouble file, and a file inside a volume's litter folder (spec 090, Decisions 1 and 2).
+PLANTABLE = sorted(n for n in litter.OS_LITTER if sys.platform != "win32" or "\r" not in n)
+
+
+def _plant_litter(folder: Path) -> None:
+    for name in PLANTABLE:
+        if (folder / name).exists():
+            continue
+        (folder / name).write_bytes(b"litter")
+    (folder / "._mod.py").write_bytes(b"\0\5\26\7")  # AppleDouble: not Python
+    (folder / ".TemporaryItems").mkdir(exist_ok=True)
+    (folder / ".TemporaryItems" / "x.py").write_text("x = 1\n")
+
+
 def test_the_zip_walk_skips_litter(tmp_path) -> None:
     for tree in ("a", "b"):
         (tmp_path / tree / "pkg").mkdir(parents=True)
         (tmp_path / tree / "pkg" / f"mod_{tree}.py").write_text("x = 1\n")
-        for name in litter.OS_LITTER:
-            (tmp_path / tree / name).write_bytes(b"litter")
-            (tmp_path / tree / "pkg" / name).write_bytes(b"litter")
+        _plant_litter(tmp_path / tree)
+        _plant_litter(tmp_path / tree / "pkg")
     names = [n for tree in ("a", "b") for _, n in make_stdlib_zip.walk(tmp_path / tree)]
     assert sorted(names) == ["pkg/mod_a.py", "pkg/mod_b.py"]
 
@@ -126,8 +140,10 @@ def test_step_90_drops_litter_and_skips_it_in_licences(tmp_path) -> None:
     (tmp_path / "LICENSES").mkdir(parents=True)
     (tmp_path / "LICENSES" / "A_LICENSE").write_text("a")
     (tmp_path / "LICENSES" / ".DS_Store").write_bytes(b"x")
+    (tmp_path / "LICENSES" / "._A_LICENSE").write_bytes(b"x")
     (tmp_path / "Thumbs.db").write_bytes(b"x")
     (tmp_path / "python.wasm").write_bytes(b"\0asm")
+    _plant_litter(tmp_path)
     assert [p.name for p in assemble_artifacts.licence_files(tmp_path / "LICENSES")] == [
         "A_LICENSE"
     ]
@@ -139,6 +155,8 @@ def test_step_90_never_lists_litter(tmp_path) -> None:
     (tmp_path / "LICENSES").mkdir()
     for name in ("python.wasm", "LICENSES/zlib.txt", ".DS_Store", "LICENSES/Thumbs.db"):
         (tmp_path / name).write_bytes(b"x")
+    _plant_litter(tmp_path)
+    _plant_litter(tmp_path / "LICENSES")
     names = [p.relative_to(tmp_path).as_posix() for p in assemble_artifacts.listed_files(tmp_path)]
     assert names == ["LICENSES/zlib.txt", "python.wasm"]
 
@@ -156,7 +174,35 @@ def test_step_90_removes_or_says_why(tmp_path, monkeypatch) -> None:
 
 
 def test_the_scripts_litter_is_the_judges() -> None:
+    """Spec 090, Decision 1: one definition in two copies, the names and both rules."""
     assert set(litter.OS_LITTER) == set(paths.OS_LITTER)
+    assert all(litter.is_litter(n) for n in ("._x.py", "Icon\r", ".TemporaryItems", "ehthumbs.db"))
+    names = [*paths.OS_LITTER, "._x", "a.py", "Icon", "DS_Store", ".gitignore", "_x"]
+    assert [litter.is_litter(n) for n in names] == [paths.is_litter(n) for n in names]
+    rels = ["a/b.py", "a/.DS_Store", ".TemporaryItems/x.py", "a/._b.py", "LICENSES/x.txt"]
+    assert [litter.has_litter(r) for r in rels] == [False, True, True, True, False]
+    assert [paths.has_litter(r) for r in rels] == [False, True, True, True, False]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="a Windows file name cannot hold Icon\\r's CR")
+def test_the_repository_ignores_litter_itself() -> None:
+    """Spec 090, Decision 7: step 90's untracked check and `paths.dirty_path` must not stop on a
+    Finder file on a Mac without the owner's global ignore, so the user's excludes are off here."""
+    if shutil.which("git") is None:
+        pytest.skip("needs: git")
+
+    def ignored(name: str) -> bool:
+        r = subprocess.run(
+            ["git", "-C", str(paths.REPO), "-c", f"core.excludesFile={os.devnull}",
+             "check-ignore", "-q", "--no-index", "--", name],
+            capture_output=True,
+        )  # fmt: skip
+        return r.returncode == 0
+
+    for name in (".DS_Store", "scripts/.DS_Store", "recipes/._x.py", "Icon\r", "recipes/Icon\r"):
+        assert ignored(name), name
+    for name in ("Icon", "Iconr", "recipes/x.py", "scripts/litter.py"):
+        assert not ignored(name), name
 
 
 # Spec 033: the zip carries package metadata, and the ctypes stand-in names and refuses.

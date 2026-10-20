@@ -560,12 +560,16 @@ def test_the_stage_is_the_tarballs_bytes_and_lists_what_the_tree_adds(work) -> N
     tree = work / "Python-3.15.0"
     (tree / "Lib/test/__pycache__").mkdir(parents=True)
     (tree / "Lib/test/test_a.py").write_bytes(b"changed by a build\n")
-    (tree / "Lib/test/__pycache__/x.pyc").write_bytes(b"")
+    (tree / "Lib/test/__pycache__/x.cpython-315.pyc").write_bytes(b"")
+    (tree / "Lib/test/.DS_Store").write_bytes(b"Bud1")
+    (tree / "Lib/test/._test_a.py").write_bytes(b"")
+    (tree / "Lib/test/extra.py").write_bytes(b"left by a build\n")
     dest = work / "stage"
     left = regrtest.stage(tar, tree, dest)
     assert (dest / "lib/test/test_a.py").read_bytes() == b"good\n"
     assert not (dest / "lib/os.py").exists()
-    assert left == ["Lib/test/__pycache__/x.pyc"]
+    # Spec 090, Decision 5: neither a host Python's bytecode nor litter is a fact; a real extra is.
+    assert left == ["Lib/test/extra.py"]
 
 
 def test_stand_in_a_stage_copied_from_the_tree_carries_its_bytes(work) -> None:

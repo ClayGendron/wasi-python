@@ -90,11 +90,24 @@ def test_check_passes_a_good_tree_and_names_each_fault() -> None:
     ]
 
 
+def _sums(art: Path) -> None:
+    import hashlib
+
+    files = sorted(p for p in art.rglob("*") if p.is_file() and p.name != "SHA256SUMS")
+    (art / "SHA256SUMS").write_text(
+        "".join(
+            f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(art).as_posix()}\n"
+            for p in files
+        )
+    )
+
+
 def test_assets_are_deterministic(tmp_path: Path) -> None:
     art = tmp_path / "artifacts"
     (art / "LICENSES").mkdir(parents=True)
     (art / "python.wasm").write_bytes(b"\0asm")
     (art / "LICENSES" / "cpython.txt").write_text("PSF")
+    _sums(art)
     wheel = tmp_path / "wasi_python-0.1.0a1-py3-none-any.whl"
     wheel.write_bytes(b"PK")
     first = version.write_assets(art, wheel, tmp_path / "one", "0.1.0a1")
@@ -105,10 +118,43 @@ def test_assets_are_deterministic(tmp_path: Path) -> None:
             "wasi-python-0.1.0a1",
             "wasi-python-0.1.0a1/LICENSES",
             "wasi-python-0.1.0a1/LICENSES/cpython.txt",
+            "wasi-python-0.1.0a1/SHA256SUMS",
             "wasi-python-0.1.0a1/python.wasm",
         ]
         assert {m.mtime for m in tar.getmembers()} == {version.EPOCH}
     assert first[2].read_text().count("  ") == 2
+
+
+def test_the_assets_pack_the_sets_list_never_its_folder(tmp_path: Path) -> None:
+    """Spec 090, Decision 3: litter in the folder (a name, an AppleDouble file, a volume folder)
+    never enters the tarball, and the bytes are those of a clean folder."""
+    wheel = tmp_path / "wasi_python-0.1.0a1-py3-none-any.whl"
+    wheel.write_bytes(b"PK")
+    tars = []
+    for name, litter in (("clean", False), ("littered", True)):
+        art = tmp_path / name / "artifacts"
+        (art / "LICENSES").mkdir(parents=True)
+        (art / "python.wasm").write_bytes(b"\0asm")
+        (art / "LICENSES" / "cpython.txt").write_text("PSF")
+        _sums(art)
+        if litter:
+            for rel in (".DS_Store", "LICENSES/._cpython.txt", ".TemporaryItems/x", "Thumbs.db"):
+                (art / rel).parent.mkdir(parents=True, exist_ok=True)
+                (art / rel).write_bytes(b"litter")
+        tars.append(version.write_assets(art, wheel, tmp_path / name / "out", "0.1.0a1")[1])
+    assert tars[0].read_bytes() == tars[1].read_bytes()
+
+
+def test_the_assets_refuse_a_listed_file_that_is_missing(tmp_path: Path) -> None:
+    art = tmp_path / "artifacts"
+    art.mkdir()
+    (art / "python.wasm").write_bytes(b"\0asm")
+    _sums(art)
+    (art / "python.wasm").unlink()
+    wheel = tmp_path / "wasi_python-0.1.0a1-py3-none-any.whl"
+    wheel.write_bytes(b"PK")
+    with pytest.raises(SystemExit, match="python.wasm"):
+        version.write_assets(art, wheel, tmp_path / "out", "0.1.0a1")
 
 
 def test_bump_writes_both_files_or_neither(tmp_path: Path, monkeypatch) -> None:

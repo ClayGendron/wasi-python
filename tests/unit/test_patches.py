@@ -245,13 +245,17 @@ def test_os_litter_in_the_judges_own_extraction_is_not_drift(tools, tmp_path, mo
     tree = _tree(tmp_path, tarball)
     assert _apply(tree, patches / TOP).returncode == 0
     finder = tmp_path / "finder.sh"  # the real applier, then Finder's litter in the result
-    finder.write_text(f'sh "{APPLIER}" "$1" "$2" && : > "$1/.DS_Store" && : > "$1/sub/Thumbs.db"\n')
+    finder.write_text(
+        f'sh "{APPLIER}" "$1" "$2" && : > "$1/.DS_Store" && : > "$1/sub/Thumbs.db"'
+        ' && : > "$1/sub/._b.c" && mkdir "$1/.TemporaryItems" && : > "$1/.TemporaryItems/x"\n'
+    )
     monkeypatch.setattr(pins, "APPLIER", finder)
     assert pins.tree_drift(tarball, tree, patches) == []
 
 
 def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monkeypatch) -> None:
-    """Spec 026, the build review's finding 1: only litter the tarball does not hold is skipped."""
+    """Spec 026, the build review's finding 1: only litter the tarball does not hold is skipped.
+    Spec 090: and one it holds is named, since the build's walks skip it."""
     monkeypatch.setitem(FILES, ".DS_Store", b"shipped by upstream\n")
     tarball = _tarball(tmp_path)
     root = tmp_path / "recipes"
@@ -259,9 +263,11 @@ def test_a_litter_name_the_tarball_ships_is_still_compared(tools, tmp_path, monk
     patches = root / "patches"
     tree = _tree(tmp_path, tarball)
     assert _apply(tree, patches / TOP).returncode == 0
-    assert pins.tree_drift(tarball, tree, patches) == []
+    shipped = ".DS_Store: a pinned member with a name only an operating system leaves; the build"
+    shipped += " skips it (spec 090)"
+    assert pins.tree_drift(tarball, tree, patches) == [shipped]
     (tree / ".DS_Store").write_bytes(b"changed\n")
-    assert pins.tree_drift(tarball, tree, patches) == [".DS_Store: modified"]
+    assert pins.tree_drift(tarball, tree, patches) == [shipped, ".DS_Store: modified"]
 
 
 def test_a_patch_may_not_touch_a_litter_name() -> None:
@@ -269,6 +275,9 @@ def test_a_patch_may_not_touch_a_litter_name() -> None:
     no patch may touch one."""
     errors, _ = scan.patch_shape_errors(_add("sub/.DS_Store", b"x\n"), "p")
     assert any("sub/.DS_Store, a name Finder or Explorer writes" in e for e in errors), errors
+    for rel in ("sub/._a.c", ".TemporaryItems/a.c"):  # spec 090: the prefix and every part
+        errors, _ = scan.patch_shape_errors(_add(rel, b"x\n"), "p")
+        assert any(f"{rel}, a name Finder or Explorer writes" in e for e in errors), errors
 
 
 GOOD_DRAFT = """- **Project:** proj (https://example.org/proj)

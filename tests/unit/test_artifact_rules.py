@@ -250,6 +250,17 @@ def test_sums_catch_a_changed_an_unlisted_and_a_missing_file(good) -> None:
     ]
 
 
+def test_sums_forgive_litter_names_only(good) -> None:
+    """Spec 090, Decision 4: a Finder file in the set's folder is no finding; a real stray file
+    still is, by name."""
+    for rel in (".DS_Store", "LICENSES/._six.txt", ".TemporaryItems/x", "desktop.ini"):
+        (good / rel).parent.mkdir(parents=True, exist_ok=True)
+        (good / rel).write_bytes(b"litter")
+    assert rules.sums_errors(good) == []
+    (good / "stray.bin").write_bytes(b"x")
+    assert rules.sums_errors(good) == ["stray.bin is not listed in SHA256SUMS"]
+
+
 def test_a_compiled_module_in_the_set_is_caught(good) -> None:
     (good / "python.cwasm").write_bytes(b"\0")
     assert rules.cwasm_errors(good) == ["python.cwasm is a compiled module"]
@@ -446,6 +457,33 @@ def test_a_wheel_must_carry_the_same_bytes(good, work) -> None:
     (good / "MANIFEST").write_text("changed\n")
     assert rules.wheel_errors(wheel, good) == [
         f"{wheel.name}: wasi_python/artifacts/MANIFEST differs from the artifact set"
+    ]
+
+
+def test_a_wheel_carries_the_list_and_nothing_else(good, work) -> None:
+    """Spec 090, Decision 4: litter in the folder is forgiven, but a wheel member the set's list
+    does not name is not, litter or not (the wheel is built with `cp -R build/artifacts`)."""
+    wheel = work / "wasi_python-0-py3-none-any.whl"
+
+    def build(extra: dict[str, bytes]) -> None:
+        with zipfile.ZipFile(wheel, "w") as w:
+            w.writestr(rules.TYPED, b"")
+            for p in good.rglob("*"):
+                if p.is_file() and not paths.has_litter(p.relative_to(good).as_posix()):
+                    w.writestr(
+                        f"wasi_python/artifacts/{p.relative_to(good).as_posix()}", p.read_bytes()
+                    )
+            for rel, data in extra.items():
+                w.writestr(f"wasi_python/artifacts/{rel}", data)
+
+    build({})
+    (good / ".DS_Store").write_bytes(b"litter")
+    (good / "LICENSES" / "._six.txt").write_bytes(b"litter")
+    assert rules.wheel_errors(wheel, good) == []
+    build({"Thumbs.db": b"x", "stray.bin": b"y"})
+    assert rules.wheel_errors(wheel, good) == [
+        f"{wheel.name} carries wasi_python/artifacts/Thumbs.db, which SHA256SUMS does not list",
+        f"{wheel.name} carries wasi_python/artifacts/stray.bin, which SHA256SUMS does not list",
     ]
 
 

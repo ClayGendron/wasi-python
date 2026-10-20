@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 
@@ -313,8 +314,12 @@ def test_files_an_os_writes_are_not_part_of_the_judge(tmp_path, monkeypatch) -> 
     monkeypatch.setattr(paths, "REPO", tmp_path)
     monkeypatch.setattr(paths, "JUDGE_PATHS", ("tests",))
     clean = paths.judge_files()
-    for name in {".DS_Store", *paths.OS_LITTER}:
+    for name in {".DS_Store", "._test_a.py", *paths.OS_LITTER}:
+        if sys.platform == "win32" and "\r" in name:
+            continue  # a Windows file name cannot hold Icon\r's CR
         (tmp_path / "tests" / name).write_bytes(b"\0")
+    (tmp_path / "tests" / ".TemporaryItems").mkdir(exist_ok=True)
+    (tmp_path / "tests" / ".TemporaryItems" / "x.py").write_text("")  # spec 090: every part
     assert paths.judge_files() == clean == {"tests/test_a.py": paths.sha256_bytes(b"")}
 
 
