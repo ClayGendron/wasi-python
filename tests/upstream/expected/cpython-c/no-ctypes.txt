@@ -1,5 +1,0 @@
-test.test_pickle.CDumpPickle_LoadPickle.test_buffers_numpy
-test.test_pickle.CPicklerTests.test_buffers_numpy
-test.test_pickle.DumpPickle_CLoadPickle.test_buffers_numpy
-test.test_pickle.InMemoryPickleTests.test_buffers_numpy
-test.test_pickle.PyPicklerTests.test_buffers_numpy

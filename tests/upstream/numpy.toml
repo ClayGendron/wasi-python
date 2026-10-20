@@ -201,8 +201,8 @@ id = "no-ctypes"
 group = "numpy-others"
 outcome = "failed"
 match = 'ctypes is unavailable'
-reason = 'no ctypes calls: the stand-in raises OSError'
-closes_with = "README.md"
+reason = "closed by spec 038: the ctypes stand-in holds numeric and c_void_p values, so these tests no longer meet its OSError (an empty class, kept so that a test that meets it again is classed)"
+closes_with = "context/specifications/038-scipy-second-milestone.md"
 
 [[expected]]
 id = "patch-0001-masked-save"

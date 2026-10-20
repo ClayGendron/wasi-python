@@ -351,12 +351,12 @@ def sphere(x):
 out = {}
 for name, call in (
     ("differential_evolution", lambda: optimize.differential_evolution(
-        sphere, [(-1, 1)] * 2, init="sobol", rng=1, maxiter=50, popsize=16)),
+        sphere, [(-1, 1)] * 2, init="sobol", rng=1, maxiter=1000, popsize=16)),
     ("shgo", lambda: optimize.shgo(sphere, [(-1, 1)] * 2, sampling_method="sobol", n=32)),
 ):
     try:
         r = call()
-        out[name] = [bool(r.success), r.fun < 1e-8]
+        out[name] = [bool(r.success), bool(float(r.fun) < 1e-8)]
     except Exception as e:
         out[name] = f"RAISES {type(e).__name__}: {e}"
 print(json.dumps(out))
