@@ -436,6 +436,7 @@ def _instance(
             # 49.0.2's and 49.0.3's fixes (spec 048, Decision 7).
             guest_linker = _guard_linker(wt, engine)
             numbers = []
+        context = _Context()
         table = _Files(
             numbers,
             others,
@@ -444,6 +445,7 @@ def _instance(
             fuel is not None,
             engine,
             open_files=c.open_files,  # spec 068: strict, as file_calls
+            context=context,
         )
         call = _Call(store, host, waits, origin_ns, cancel, stop_at, table, admit, home=ht)
         _watch(store)  # every call (spec 078, Decision 5)
@@ -473,6 +475,7 @@ def _instance(
                     process().outputs.pop(key, None)
             if table is not None:  # the rest dropped now (the build review, F3)
                 table.release()
+                context.leave()
             for p in mounted:
                 p.walked.close()
             if scratch is not None:
@@ -631,8 +634,9 @@ class _Call:
         # "cancelled" or "deadline", from the epoch callback; "out of file calls" (spec 032)
         self.ended: str | None = None
         self.table = table  # the call's mount table (spec 032), or its guard table (spec 048)
-        if table is not None:
-            table.call = self
+        context = _context_of(table)
+        if context is not None:
+            context.enter(self)
 
     def files(self, caller: Any, name: str, *args: int) -> int:
         """One of the 29 shadowed calls, for a call with mounts (spec 032), or one of the two
@@ -721,6 +725,63 @@ def _epoch_now(caller: Any) -> None:
     from . import _wasmtime_ffi as ffi
 
     ffi.set_epoch_deadline(caller, 0)
+
+
+class _Context:
+    """The runner's answers to the mount table's nine questions (`mounts._CallContext`): the
+    four process-wide ones from this module and the process object, read at every call, and
+    the five of the call the table serves, which `enter` and `leave` set and clear with the
+    call's life, or a session's turns; with no call they answer "no call"."""
+
+    def __init__(self) -> None:
+        self.call: _Call | None = None
+
+    def enter(self, call: _Call) -> None:
+        self.call = call
+
+    def leave(self) -> None:
+        self.call = None
+
+    def ino_of(self, path: str) -> int:
+        return _places._siphash13(path.encode())
+
+    def trampolines(self, wt: Any, engine: wasmtime.Engine) -> tuple[Any, Any]:
+        return _trampoline_module(wt, engine), _stat_trampoline_module(wt, engine)
+
+    def exiting(self) -> bool:
+        return process().exiting
+
+    def ctrl_c_pending(self) -> bool:
+        return _ctrl_c_now()
+
+    def stop_now(self, caller: Any) -> None:
+        _epoch_now(caller)
+
+    def cancelled(self) -> bool:
+        call = self.call
+        return call is not None and call.cancel is not None and call.cancel.is_set()
+
+    def deadline_passed(self) -> bool:
+        call = self.call
+        return (
+            call is not None and call.stop_at is not None and process().ticker_count >= call.stop_at
+        )
+
+    def name_end(self, reason: str) -> None:
+        call = self.call
+        if call is not None and call.ended is None:
+            call.ended = reason
+
+    def on_home(self, fn: Callable[..., Any], *args: Any) -> Any:
+        home = None if self.call is None else self.call.home
+        return fn(*args) if home is None else home.call(fn, *args)
+
+
+def _context_of(table: _Files | None) -> _Context | None:
+    """The runner's own context behind a table, which learns the call; None for no table, or a
+    table the judge built on a fake."""
+    context = None if table is None else table.context
+    return context if isinstance(context, _Context) else None
 
 
 def _epoch_answer(context: Any, delta: Any) -> int:

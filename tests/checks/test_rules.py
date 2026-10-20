@@ -108,7 +108,7 @@ def test_ruff_format_is_clean() -> None:
 # function annotated, every generic given its parameters, no `Any` leaking from a declared return.
 # A module still carrying errors is listed here with why, in words; an entry whose module is
 # clean is a finding, so the list can only shrink, and an error anywhere else is one too.
-UNTYPED = {"mounts.py": "typed once it sits behind the call-context protocol"}
+UNTYPED: dict[str, str] = {}
 
 MYPY_ERROR = re.compile(r"^src[\\/]wasi_python[\\/]([^:]+):\d+: error: .*\[([a-z-]+)\]\s*$", re.M)
 
@@ -159,7 +159,7 @@ def test_specifications_have_no_open_question() -> None:
 # entries equal their counts and can only shrink (a stale entry is a finding too), and an entry
 # is deleted the day its file is at or under the ceiling.
 LINE_CEILING = 1500
-ALLOWED = {"mounts.py": 2213, "tools.py": 2450}
+ALLOWED = {"mounts.py": 2211, "tools.py": 2450}
 
 
 def test_no_module_under_src_is_over_the_line_ceiling() -> None:
@@ -668,3 +668,48 @@ def test_release_judges_in_shards() -> None:
 
     errors = scan.release_shard_errors(RELEASE_WORKFLOW.read_text(), shards.load())
     assert not errors, scan.report(errors)
+
+
+# The wasi-libc emulation layer, `src/wasi_python/mounts.py`, reads alone: it asks its host nine
+# questions through a protocol it declares (`_CallContext`), and imports no sibling module but
+# the engine seam, which its forward uses for the fuel-neutral call. The runner imports from
+# `mounts`; never the other way, so the dependency graph stays acyclic and the unit checks drive
+# the table with a fake context instead of patching another module's names.
+MOUNTS = "mounts.py"
+MOUNTS_MAY_IMPORT = (scan.ENGINE_SEAM.rsplit("/", 1)[-1].removesuffix(".py"),)
+
+
+def _sibling_imports(path: Path, allowed: tuple[str, ...]) -> list[str]:
+    """Every import of a package module in `path`, at any depth, whose module is not allowed:
+    a relative import (`from . import x`, `from .x import y`) or an absolute one of this
+    package, `TYPE_CHECKING` blocks included."""
+    import ast
+
+    package = path.parent.name
+    hits = []
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        named: list[str] = []
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
+                named = [node.module.split(".")[0]] if node.module else [a.name for a in node.names]
+            elif node.module and node.module.split(".")[0] == package:
+                parts = node.module.split(".")
+                named = parts[1:2] or [a.name for a in node.names]
+        elif isinstance(node, ast.Import):
+            named = [
+                a.name.split(".")[1]
+                for a in node.names
+                if a.name.split(".")[0] == package and "." in a.name
+            ]
+        for module in named:
+            if module not in allowed:
+                hits.append(f"{path.name}:{node.lineno}: imports {module}")
+    return hits
+
+
+def test_mounts_imports_only_the_engine_seam() -> None:
+    """`mounts.py` imports no sibling module, at module level, inside a function or under
+    `TYPE_CHECKING`, except the engine seam; what it needs of the runner it asks of the
+    `_CallContext` it is given."""
+    hits = _sibling_imports(paths.REPO / "src" / "wasi_python" / MOUNTS, MOUNTS_MAY_IMPORT)
+    assert not hits, scan.report(hits)

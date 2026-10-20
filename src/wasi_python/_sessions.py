@@ -845,6 +845,9 @@ def _turn_inside(
             fuel_used = _call._fuel_used(budget, done, call, store.get_fuel)
         if ran:
             table.walk()  # spec 034, Decision 8, after the fuel is read
+        context = _call._context_of(table)
+        if context is not None:
+            context.leave()  # between turns the table serves no call
         files = table.record() if state.checked.mounts else None
         record = None if tool_host is None else tool_host.record
         truncated = tuple(s.name for s in (out, err) if s.dropped)
@@ -1055,6 +1058,7 @@ def _open_session(
             metered,
             engine,
             open_files=c.open_files,  # spec 068, per session: the store keeps them (Decision 5)
+            context=_call._Context(),
         )
         table.session = True
         store.set_epoch_deadline(NO_DEADLINE)  # no guest code runs before the first turn

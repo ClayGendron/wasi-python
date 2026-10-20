@@ -668,7 +668,9 @@ def test_a_listing_is_counted_as_what_it_holds() -> None:
             return ((f"n{i:07}", "file") for i in range(names))
 
     def gathered(staging: int) -> tuple[int, int, int, int]:
-        table = _Files([(Mount(Generated(), "/m"), 3)], [], None, staging, False)
+        table = _Files(
+            [(Mount(Generated(), "/m"), 3)], [], None, staging, False, context=files.FakeContext()
+        )
         tracemalloc.start()
         try:
             errno, listing, held = table._list(None, table.mounts[0], "/", 1)

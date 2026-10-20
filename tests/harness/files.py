@@ -15,6 +15,7 @@ import struct
 import threading
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager, nullcontext
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -673,6 +674,7 @@ class Mounted(_OnStack):
             staging,
             fuel is not None,
             engine,
+            context=_call._Context(),
         )
         self.call = _call._Call(store, None, _NoWaits(), 0, cancel, stop_at, self.table)
         self.linker = _call._mount_linker(wasmtime, engine)
@@ -723,7 +725,9 @@ class Guarded(_OnStack):
             wasi.preopen_dir(str(host), path, writable)
         store.set_wasi(wasi)
         others = [path for _, path, _ in folders]
-        self.table = _Files([], others, None, 1 << 30, fuel is not None, engine)
+        self.table = _Files(
+            [], others, None, 1 << 30, fuel is not None, engine, context=_call._Context()
+        )
         self.call = _call._Call(store, None, _NoWaits(), 0, None, None, self.table)
         self.linker = _call._guard_linker(wasmtime, engine)
         self.plain = _call._linker(wasmtime, engine)
@@ -742,3 +746,52 @@ class Guarded(_OnStack):
 class _NoWaits:
     def wait(self, seconds: float) -> None:
         raise AssertionError("no wait expected")
+
+
+@dataclass
+class FakeContext:
+    """A stand-in for the mount table's host (`mounts._CallContext`): every answer is a field a
+    check sets, and `stopped` records each `stop_now` caller. An inode number not in `inos` is
+    the SipHash the runner uses, so the numbers the checks compare stay the real ones."""
+
+    inos: dict[str, int] = field(default_factory=dict)
+    interpreter_exiting: bool = False
+    ctrl_c: bool = False
+    cancel: threading.Event | None = None
+    ticks: int = 0
+    stop_at: int | None = None
+    ended: str | None = None
+    home: Callable[..., Any] | None = None
+    stopped: list[object] = field(default_factory=list)
+
+    def ino_of(self, path: str) -> int:
+        from wasi_python import _places
+
+        return self.inos[path] if path in self.inos else _places._siphash13(path.encode())
+
+    def trampolines(self, wt: Any, engine: Any) -> tuple[Any, Any]:
+        from wasi_python import _call
+
+        return _call._trampoline_module(wt, engine), _call._stat_trampoline_module(wt, engine)
+
+    def exiting(self) -> bool:
+        return self.interpreter_exiting
+
+    def ctrl_c_pending(self) -> bool:
+        return self.ctrl_c
+
+    def stop_now(self, caller: Any) -> None:
+        self.stopped.append(caller)
+
+    def cancelled(self) -> bool:
+        return self.cancel is not None and self.cancel.is_set()
+
+    def deadline_passed(self) -> bool:
+        return self.stop_at is not None and self.ticks >= self.stop_at
+
+    def name_end(self, reason: str) -> None:
+        if self.ended is None:
+            self.ended = reason
+
+    def on_home(self, fn: Callable[..., Any], *args: Any) -> Any:
+        return fn(*args) if self.home is None else self.home(fn, *args)

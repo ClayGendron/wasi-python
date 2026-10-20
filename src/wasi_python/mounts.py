@@ -44,10 +44,7 @@ import types
 from array import array
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Protocol
-
-if TYPE_CHECKING:
-    from ._call import _Call
+from typing import Any, Protocol, TypeVar, cast
 
 
 class Errno(enum.IntEnum):
@@ -535,7 +532,8 @@ def _rights(value: int) -> int:
     return _flags(value, RIGHTS, 2**63 - 1, "Rights")
 
 
-_Listing = tuple[bytearray, array]  # a folder's encoded preview1 entries and their offsets
+_T = TypeVar("_T")
+_Listing = tuple[bytearray, "array[int]"]  # a folder's encoded preview1 entries and their offsets
 
 
 @dataclass
@@ -597,17 +595,33 @@ class _Memory:
     def fits(self, ptr: int, length: int) -> bool:
         return self.memory is not None and ptr + length <= self.size
 
-    def read(self, ptr: int, length: int) -> bytes:
-        return bytes(self.memory.read(self.caller, ptr, ptr + length)) if length else b""
+    def read(self, ptr: int, length: int) -> bytes:  # after `fits`, so the memory is there
+        memory = self.memory
+        return bytes(memory.read(self.caller, ptr, ptr + length)) if length and memory else b""
 
-    def write(self, ptr: int, data: bytes) -> None:
-        if data:
+    def write(self, ptr: int, data: bytes | bytearray) -> None:
+        if data and self.memory:
             self.memory.write(self.caller, data, ptr)
 
 
 def _aligned(ptr: int, align: int) -> None:
     if ptr % align:
         raise _ends(f"Pointer not aligned to {align}")
+
+
+class _CallContext(Protocol):
+    """What the mount table asks of its host: four process-wide answers and five of the call it
+    serves, one object for all nine, so the table imports nothing of the runner."""
+
+    def ino_of(self, path: str) -> int: ...  # SipHash-1-3 of a guest path, 64 bits
+    def trampolines(self, wt: Any, engine: Any) -> tuple[Any, Any]: ...  # forwarders, stat
+    def exiting(self) -> bool: ...  # the interpreter is exiting: no provider code may run
+    def ctrl_c_pending(self) -> bool: ...  # a deferred Ctrl-C waits for this call
+    def stop_now(self, caller: Any) -> None: ...  # stop, or the epoch callback, at the next entry
+    def cancelled(self) -> bool: ...  # the call's cancel is set
+    def deadline_passed(self) -> bool: ...  # the call's deadline tick has been reached
+    def name_end(self, reason: str) -> None: ...  # names the call's end once; a first name holds
+    def on_home(self, fn: Callable[..., Any], *args: Any) -> Any: ...  # the embedder's thread
 
 
 class _Files:
@@ -626,16 +640,9 @@ class _Files:
         engine: Any = None,
         *,
         open_files: int | None = None,
+        context: _CallContext,
     ) -> None:
-        from . import _call, _engines, _home, _places, runner
-        from ._process import process
-
-        self._runner = runner
-        self._process = process()  # the one instance; its attributes are read live
-        self._call = _call
-        self._engines = _engines
-        self._home_module = _home  # `_Files._home` is the home-thread dispatcher
-        self._places = _places
+        self.context = context  # the host's answers; the call's five change with its turns
         self.mounts: list[_Mounted] = []
         self.table: dict[int, _Open] = {}
         for mount, number in mounts:
@@ -648,7 +655,7 @@ class _Files:
             mounted = _Mounted(
                 mount.provider,
                 mount.guest,
-                _places._siphash13(mount.guest.encode()),
+                context.ino_of(mount.guest),
                 nested,
                 mount.writable is True,
             )
@@ -671,7 +678,6 @@ class _Files:
         self.forwards: _Forwards | None = None
         # a forward's own error, or an ABI error the runner raised, and the guest's fuel then
         self.stop_fuel: tuple[BaseException, int] | None = None
-        self.call: _Call | None = None
         # The cap on files open at once (spec 068), and the wasmtime numbers the guest opened and
         # still holds. None: no cap (a table built by hand); a call's table gets the call's value.
         self.open_files = open_files
@@ -724,9 +730,7 @@ class _Files:
             entry = self.table[number] if number in self.table else self.owed[number]
             if entry.kind != "file" or not entry.dirty or entry.unlinked:
                 continue
-            if (self._process.exiting and not ending) or (
-                self._home_module._ctrl_c_watched() and self._process.ctrl_c_pending
-            ):
+            if (self.context.exiting() and not ending) or self.context.ctrl_c_pending():
                 return
             paths = (entry.path,)
             if self.limit is not None and self.total >= self.limit:
@@ -751,7 +755,6 @@ class _Files:
         self.mounts.clear()
         self.forwards = None
         self.stop_fuel = None
-        self.call = None
         self.staged = 0
 
     # The trampoline (Decision 1).
@@ -760,11 +763,10 @@ class _Files:
         """Instantiate the trampoline on the guest's memory with wasmtime's own calls from
         `plain` (today's linker), and the stat trampoline on its own page (spec 048). After
         the guest, before the fuel cap and `_initialize`."""
-        module = self._call._trampoline_module(wt, self.engine)
+        module, stat_module = self.context.trampolines(wt, self.engine)
         imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in SIGNATURES]
         imports.append(instance.exports(store)["memory"])
         exports = wt.Instance(store, module, imports).exports(store)
-        stat_module = self._call._stat_trampoline_module(wt, self.engine)
         stat_imports = [plain.get(store, "wasi_snapshot_preview1", name) for name in PRIVATE]
         stat = wt.Instance(store, stat_module, stat_imports).exports(store)
         from . import _wasmtime_ffi as ffi
@@ -815,7 +817,7 @@ class _Files:
 
     def __call__(self, caller: Any, name: str, *args: int) -> int:
         try:
-            return getattr(self, "_" + name)(caller, *args)
+            return cast(int, getattr(self, "_" + name)(caller, *args))
         except BaseException as e:
             if self.metered and getattr(e, "abi", False):
                 # An ABI error ends the run where a grant's does, with the fuel then (served
@@ -830,28 +832,24 @@ class _Files:
 
     # The provider (Decisions 3, 4, 8 and 10).
 
-    def _home(self, fn: Callable[..., Any], *args: Any) -> Any:
+    def _home(self, fn: Callable[..., _T], *args: Any) -> _T:
         """fn(*args) on the call's home thread, where the embedder's code runs (spec 078,
         Decision 4): every step that can run a provider's code (its method, an answer's buffer
         or iteration, an exception's text) goes through here. Directly without a home."""
-        home = getattr(self.call, "home", None)
-        return fn(*args) if home is None else home.call(fn, *args)
+        return cast(_T, self.context.on_home(fn, *args))
 
     def _gate(self, caller: Any) -> int:
         """0, or the errno that stops a provider call while the guest runs (Decision 10 of spec
         032): the call's cancel, its deadline, then the file-call limit, which names the end."""
-        r, call = self._call, self.call
-        if call is not None and call.cancel is not None and call.cancel.is_set():
-            r._epoch_now(caller)  # named "cancelled" by the epoch callback at the next entry
+        if self.context.cancelled():
+            self.context.stop_now(caller)  # named "cancelled" by the callback at the next entry
             return ECANCELED
-        if call is not None and call.stop_at is not None:
-            if self._process.ticker_count >= call.stop_at:
-                r._epoch_now(caller)  # an interrupt at the next entry: "deadline"
-                return ETIMEDOUT
+        if self.context.deadline_passed():
+            self.context.stop_now(caller)  # an interrupt at the next entry: "deadline"
+            return ETIMEDOUT
         if self.limit is not None and self.total >= self.limit:
-            if call is not None and call.ended is None:
-                call.ended = "out of file calls"
-            r._epoch_now(caller)  # in the same step: the guest stops at its next entry
+            self.context.name_end("out of file calls")
+            self.context.stop_now(caller)  # in the same step: the guest stops at its next entry
             return EIO
         return 0
 
@@ -921,7 +919,7 @@ class _Files:
         if len(self.faults) < FAULTS_KEPT:
             self.faults.append(FileFault(method, path, error[:200]))
 
-    def _bad(self, method: str, path: str, answer: Any) -> int:
+    def _bad(self, method: str, path: str, answer: object) -> int:
         if type(answer) is types.CoroutineType:
             try:
                 answer.close()  # never awaited, never warned about
@@ -1041,7 +1039,7 @@ class _Files:
                 text, encoded, kind = listed
                 seen.add(encoded)
                 names += sys.getsizeof(encoded)
-                child = self._places._siphash13((prefix + text).encode())
+                child = self.context.ino_of(prefix + text)
                 d_type = DIRECTORY if kind == "dir" else REGULAR_FILE
                 offsets.append(len(data))
                 data += struct.pack(DIRENT, len(offsets), child, len(encoded), d_type) + encoded
@@ -1160,7 +1158,7 @@ class _Files:
         self, entry: _Open, kind: str, size: int, mtime: int, path: str, links: int = 1
     ) -> bytes:
         filetype = DIRECTORY if kind == "dir" else REGULAR_FILE
-        ino = self._places._siphash13(path.encode())
+        ino = self.context.ino_of(path)
         return struct.pack(
             FILESTAT,
             entry.mount.dev,
@@ -1497,7 +1495,7 @@ class _Files:
         elif entry.listing is None or (cookie == 0 and not entry.fresh):
             # The listing made at open serves the first pass; from cookie 0 after that, the
             # folder is listed again, as rewinddir expects.
-            ino = self._places._siphash13(entry.path.encode())
+            ino = self.context.ino_of(entry.path)
             errno, listing, held = self._list(caller, entry.mount, entry.path, ino, entry.held)
             if errno:
                 return errno
@@ -1644,7 +1642,7 @@ class _Files:
                 return opened
             opened.append, opened.nonblock = bool(fdflags & APPEND), bool(fdflags & NONBLOCK)
         elif oflags & O_DIRECTORY:
-            ino = self._places._siphash13(path.encode())
+            ino = self.context.ino_of(path)
             errno, listing, held = self._list(caller, mount, path, ino)
             if errno:
                 return errno
@@ -1895,7 +1893,7 @@ class _Files:
         kept listing replaced by the dots."""
         entry.unlinked = True
         if entry.kind == "dir":
-            listing = _dots(self._places._siphash13(entry.path.encode()))
+            listing = _dots(self.context.ino_of(entry.path))
             held = sys.getsizeof(listing[0]) + sys.getsizeof(listing[1])
             self.staged += held - entry.held
             entry.listing, entry.held, entry.fresh = listing, held, True
@@ -2159,7 +2157,7 @@ def _dots(ino: int) -> _Listing:
     return data, offsets
 
 
-def _kind(value: Any) -> bool:
+def _kind(value: object) -> bool:
     return type(value) is str and value in ("file", "dir")
 
 
@@ -2170,7 +2168,7 @@ def _number(value: Any, top: int) -> bool:
     return 0 <= int.__index__(value) <= top
 
 
-def _listed(item: Any) -> tuple[str, bytes, str] | None:
+def _listed(item: object) -> tuple[str, bytes, str] | None:
     """A listing entry as (name, its UTF-8, kind), or None when it is outside the protocol: a
     plain tuple of two plain str (so no provider code runs to take it apart)."""
     if type(item) is not tuple or len(item) != 2:
@@ -2189,7 +2187,7 @@ def _listed(item: Any) -> tuple[str, bytes, str] | None:
     return name, encoded, kind
 
 
-def _close(iterator: Any) -> None:
+def _close(iterator: object) -> None:
     """Close a provider's iterator, as a for loop left early would not; never raising."""
     if iterator is None:
         return
