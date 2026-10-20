@@ -1,7 +1,7 @@
 # 042 — seaborn and reportlab
 
-- **Status:** **Building, a stacked build on spec 038's tip `442493b` (main `958a22b`); phase 1
-  done, the native build waits for the lane's slot** (Landing notes). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
+- **Status:** **Built, a stacked build on spec 038's tip `ecc2423` (main `958a22b`); release run
+  39421194888, red by growth only; awaiting its build review** (Landing notes). **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised 2026-10-18 against its pre-build review
   (`../reviews/042-seaborn-and-reportlab-spec-2026-10-17.md`): all nine findings are written in
   here and in question 73, and the review's Disposition says where; the reviewer's confirmation
   (2026-10-18) passed it for build with three conditions: **C1**, Sarna's licence is in seven
@@ -759,12 +759,15 @@ fixed; reporting it is the owner's).
 
 ## Landing notes
 
-**Not built yet: phase 1 done, phase 2 (the native build) waits for the lane's slot.** Building
-since 2026-10-20 in the harness's worktree `.claude/worktrees/agent-af86ca8005c1af7dc` on
+**Built** 2026-10-20 in the harness's worktree `.claude/worktrees/agent-af86ca8005c1af7dc` on
 `spec/042-seaborn-and-reportlab`, a stacked build (constitution §4.14) on spec 038's tip
-`442493b` (scipy M2, its build review's fixes in), itself on main `958a22b`; it rebases onto 038's
-final tip or main when 038 lands. Phase 1 ran nothing that builds: no `scripts/build.sh`, no build
-step, no container. Logs and evidence are under the worktree's `build/042/`.
+`ecc2423` (scipy M2 with its build review answered), itself on main `958a22b`; it rebases onto
+038's final tip or main when 038 lands. Phase 1 (pins, recipe, checks, jobs) ran nothing that
+builds, on 038's earlier tip `442493b`; phase 2 restacked onto `ecc2423` with
+`git rebase --onto origin/spec/038-scipy-second-milestone 442493b`, **no conflict** (038's two
+newer commits touch only `tests/`, `README.md` and `context/`, none of this specification's
+hunks), then built from empty and judged. Not reviewed, not accepted. Logs and evidence are
+under the worktree's `build/042/`.
 
 ### What changed (phase 1)
 
@@ -848,8 +851,19 @@ step, no container. Logs and evidence are under the worktree's `build/042/`.
    standalone zip) and reportlab 144 (1,498,634), **2,041,117 bytes**; reportlab whole would be
    192 members. Decision 12's 541,099 and 1,495,093 were measured before spec 051 compiled each
    module under its zip path; the sum stays under the 2.2 MB cap.
+8. **`load_dataset` through the runner raises `FileNotFoundError` naming `'~'`, not
+   `PermissionError`** (Decision 8 and the check, amended; commit `3c0b11d`). Seen on the built
+   set: with only a writable `/cfg` grant and no root, `os.makedirs` of the relative
+   `~/.cache/seaborn` has no root to resolve against and answers `ENOENT`. The pre-build
+   review's `PermissionError [Errno 63]` was its own driver's read-only root (`EPERM`, as the
+   README's *Grants* says of a read-only folder). The check now asserts `FileNotFoundError '~'`
+   and that no `~` folder appears in the grant; the README states both outcomes. The property
+   the review asked for holds: it fails before any fetch, naming `'~'`, and writes nothing.
+9. **The roadmap's "question 73 adds the barcode folder, written in before its build" is
+   superseded by C3** and decision 73 (the lane, 2026-10-20): the folder stays out, and the
+   acknowledgement sentence is not added now; the later change ships both.
 
-### Acceptance criterion 1 so far: seen failing first (EXECUTED)
+### Acceptance criterion 1: seen failing first (EXECUTED)
 
 On main's accepted set (wave 06, `SHA256SUMS` `f12cd25c…`, cloned to the worktree's
 `build/old-artifacts/`, `WASI_PYTHON_ARTIFACTS` pointing at it; `build/042/seen-failing-on-main-set.txt`):
@@ -861,13 +875,139 @@ and `test_packages_carry_their_metadata` name the two missing; `test_reportlab_f
 passes, as criterion 1 expects. The three new rules' self-tests name every mutant criterion 1
 lists for them (a font or barcode member, a vendored licence missing or one byte changed, the
 notice 039's builder wrote, one byte changed in a part, the acknowledgement removed, with and
-without the pinned archive), and the left-out unit check its three mutants (amendment 2). Phase 2
-adds the mutants of the built set: its zip without either `--drop`, and without `scipy/`.
+without the pinned archive), and the left-out unit check its three mutants (amendment 2). The
+fast tier on 038's set (`SHA256SUMS` `c3a849c0`, the starting set; `build/042/fast-tier-038-set.txt`)
+fails exactly the new and extended checks (13, with the recipe staleness rows). On copies of the
+built set (`build/042/mutants042.py`, `build/042/mutant-*.txt`): with reportlab's fonts and
+barcode folder put back as step 70 would pack them without either `--drop` (48 members),
+`test_reportlab_fonts_are_not_in_the_zip` names 32 font-folder members, 16 barcode members and
+21 font files, and `test_reportlab_runs_its_pure_paths[plain]` fails on `qr` imported and the
+font members (bundled `Vera.ttf` still raises `TTFError` there: the `_files` bug); with no
+`scipy/` member, `test_seaborn_takes_its_scipy_paths[plain]` fails with `_no_scipy` True, True and
+`seaborn.external.kde`; with one byte changed in Adobe's part (downloads present),
+`test_reportlab_notice_carries_its_third_party_parts` names `_glyphlist.py`'s part. The
+without-`downloads/` mutants are the rules' self-tests (step 90's own code writing the notice).
 
-### Phase 2, when the lane grants the native slot
+### Phase 2: the build and its evidence (EXECUTED)
 
-Rebuild from empty; criterion 2 against the starting set's zip (`python.wasm` byte for byte,
-the 199 names of `build/042`'s list, none removed, shared members unchanged, both `METADATA`
-files); the built-set mutants above; the guest's results of the kde, violin and clustermap lines
-and of one bivariate `kdeplot`; the fast tier; the release workflow on the exact commit; the
-numbers of criterion 5 and Decision 12's table; the self-check list and "For the lane".
+- **Built from empty** at `dfe8add` (phase 1 restacked; `3c0b11d` changes only a check and the
+  README): every step ok in 12 min (`build/042/build.log`), the direct-call gate 0 mismatches.
+  `SHA256SUMS` `c5baf6ff…`; `python.wasm` 84,791,487 bytes (`0b1b7373…`), the snapshot
+  89,536,562, the zip 46,490,210 (4,498 `.pyc`, 763 data files); `MANIFEST` +2 `package` and +2
+  `pin` lines.
+- **Criterion 2** against 038's set (`build/042/criterion2-and-mutants.txt`): `python.wasm` is the
+  same bytes; the zip adds exactly the 199 names of `build/042/names.txt` (54 under `seaborn/`,
+  its `METADATA`, 143 under `reportlab/`, its `METADATA`), removes none, and changes no shared
+  member; seaborn's `METADATA` equals its `PKG-INFO` and reportlab's its wheel's; no member under
+  `reportlab/fonts/` or `reportlab/graphics/barcode/`. The zip grows by 2,041,073 bytes. The
+  zero-patch check passes 26 trees locally (`test_source_tree_matches_its_tarball[seaborn]`
+  included; `build/042/new-checks-on-built-set.txt`).
+- **The guest** (`build/042/new-checks-on-built-set.txt`, `build/042/scipy-paths-on-built-set.txt`):
+  both jobs equal their goldens. **The kde, violin and clustermap lines, the three not run
+  in a guest with scipy before, equal native**, through `scipy.stats.gaussian_kde` and
+  `scipy.cluster.hierarchy`, and so does the `seaborn.objects` line. Every other new check
+  passes on both binaries. A bivariate `kdeplot` draws a `QuadContourSet` (`build/042/probe042.txt`),
+  so the README's line holds.
+- **The fast tier** (`-n 3`, `build/042/fast-tier.txt`): 628/768 pass, 0 fail, 3 blocked (prior-art
+  clones, three systems, wheel); unit suite 1834/1841. Against 038's set on this machine
+  (`build/042/growth-vs-038-set.txt`, `build/042/caps-vs-038-set.txt`): 13 checks move fail to pass,
+  none falls; 182 fuel rows grow, 3 fall by at most 531,079 (layout).
+
+**Criterion 5 and Decision 12's table, measured against 038's set (EXECUTED):**
+
+| metric | expected | cap | measured |
+|---|---|---|---|
+| plain `-c pass` | ≈ +5.4 M | ≤ +5.97 M | +4,827,939 (240,667,890 → 245,495,829; 24,261 a member) |
+| other plain checks | the same | ≤ +5.97 M + 0.2% | median +4,849,046; the rows listed below exceed it |
+| snapshot `-c pass` | ≈ +0.48 M | ≤ +0.70 M | +529,199 (50,420,297 → 50,949,496; 2,659 a member) |
+| other snapshot checks | ≈ +0.48 M | ≤ +0.70 M (+1.89 M reading metadata) | median +522,128; the rows listed below exceed it |
+| the zip's bytes | +2,036,192 | ≤ +2.2 MB | +2,041,073 |
+| the snapshot's bytes | ≈ +72.8 KB | ≤ +199 KB | +74,056 |
+| the plain binary's bytes | 0 | 0 | 0 |
+
+Above a row's cap, each read with its reason (a finding for the build review, as Decision 12 says;
+none is a regression of the guest):
+- `test_v1_3_the_zips_directory.py`'s four checks that walk every member (`test_resources_read_as_zipfile_reads_them[plain, snapshot]`
+  +410.5 M and +410.0 M, `test_the_fast_reader_builds_zipimports_dict[padded, small, snapshot]` +107.2 M, +26.6 M,
+  +17.2 M): each grows by 2.9% to 3.6%, in proportion to the 199 members on 5,261 (3.8%); the row
+  Decision 12 names for 035's comparison, which follows the member count.
+- `test_the_default_profile_runs_its_pure_python_paths[plain, snapshot]` +17.2 M and +15.6 M: its
+  program lists every zip member through `zipfile` (the mypyc scan), in Python, about 80,000 a
+  member.
+- `test_networkx_atlas_reads_from_the_zip[plain, snapshot]` +18.1 M and +13.7 M: `import networkx`
+  reads every distribution's entry points (the README says so), two more distributions; inside
+  the table's ≤ 25 M per distribution per read.
+- `test_the_sobol_options_need_nothing_writable[snapshot]` +5.03 M (0.049%) and
+  `test_the_pandas_tz_job_matches_native[snapshot]` +1.95 M (0.041%): above the snapshot row's
+  +0.70 M and +1.89 M (INFERRED: each reads metadata or resources across the zip; the plain rows of
+  the same programs are within their caps).
+
+The new checks' and jobs' fuel are new metrics. On the snapshot, through the judge's driver
+(`build/042/probe042.txt`): `import reportlab.pdfgen.canvas, reportlab.platypus` 1,883,877,927;
+`import matplotlib.pyplot` in a fresh `MPLCONFIGDIR` (its font cache built) 7,952,872,789, and with
+`import seaborn` after it 19,313,780,558, so `import seaborn` itself about 11.36 G, scipy's
+`stats` and `cluster` and pandas included (Decision 9). The wheel's size is the release run's.
+
+**Criteria 3 and 6, the release workflow: run 39421194888 on `3c0b11d`** (read back with `gh run
+view 39421194888 --json jobs` and `--log-failed`, `build/042/ci-failed.log`). Conclusion failure,
+by growth only: 22 jobs green, among them `rebuild from the pins` on both Linux hosts, `the same
+bytes from every host`, the zero-patch step with **26 trees** (inside `build and judge`), all
+three `verify` jobs and **every Windows leg**; three macOS judge shards red, each `0 fail`,
+`lost 0`, every red line a GREW line against main's accepted `d066695` (so 037's and 038's growth
+is in them too): `own-guest` 177 rows grew, `own-embedding` 33, `upstream-macos` 2
+(`cpython-fs` 62,994,222,641 → 63,099,098,748, +0.17%; `numpy-lib` 132,538,457,029 →
+132,552,796,296, +0.01%). No G7 line. `gather` and the publishing jobs were skipped, as on 038's
+own run 39415728849 on `ecc2423`, which went red on the same three shards. The CI build's
+`python.wasm` (`0b1b7373…`), snapshot (`cd38ffd4…`) and zip (`fe40e208…`) are the local build's
+bytes. **The wheel:** `wasi_python-0.1.0a8-py3-none-any.whl`, 84,660,765 bytes (question 64).
+
+### The builder's self-check
+
+- Rebased today onto the named stacked base, 038's tip `ecc2423` (on main `958a22b`); the base is
+  in the Status line and above; no conflict.
+- CI run 39421194888 dispatched on this exact commit's code (`3c0b11d`; the commit after it
+  touches only `context/`) and read: red lines GREW only, no G7; the Windows legs green.
+- Every number above is from a measured run on this base, labelled EXECUTED; the growth list is
+  this build's, against 038's set on this machine.
+- For the lane: below.
+- Every new check seen failing first (criterion 1 above); none has a Windows or Linux branch of
+  its own (each runs the same program on every host; the jobs' goldens are compared in the guest
+  everywhere, and `statistical_plots`' oracle reproduces on darwin-arm64 only, by 023's rule).
+- No gap is added; the reserved follow-up (the barcode folder) is decision 73's later change.
+- `tests/upstream/packages.toml` has both reason lines (closer spec 067). README rows changed: the
+  default profile table (plotting, PDF), *seaborn and reportlab*, the recipe paragraph.
+- CHANGELOG under the one unreleased section (0.1.0a8). No new question.
+- ruff check, ruff format --check (`src/`, `tests/`), the rules check (43 passed, 1 skipped) and
+  the fast tier (0 fail): green, output in `build/042/`.
+
+### For the lane
+
+- **Wave kind:** a package, stacked on 038 (the chain 037, 038, 042). Build-class (it touches
+  `scripts/`, `downloads/SHA256SUMS` and the release workflow). Dry-run needs: none beyond the
+  wave's own; its release run 39421194888 already ran every Windows leg green.
+- **Claim list** (against 038's entry):
+  - new passes: `test_statistical_plots_job_matches_native`, `test_pdf_reports_job_matches_native`,
+    `test_reportlab_runs_its_pure_paths[plain, snapshot]`, `test_seaborn_takes_its_scipy_paths[plain, snapshot]`,
+    `test_reportlab_fonts_are_not_in_the_zip`, `test_seaborn_notice_carries_its_vendored_licences`,
+    `test_reportlab_notice_carries_its_third_party_parts`, `test_reportlab_writes_a_pdf_with_nothing_writable`,
+    `test_source_tree_matches_its_tarball[seaborn]`, and the unit checks
+    `test_a_left_out_folder_is_not_packed`, `test_reportlab_fonts_and_barcodes_are_named_in_the_zip`,
+    `test_seaborn_notice_carries_its_vendored_licences`, `test_reportlab_notice_carries_its_third_party_parts`;
+  - checks extended (judge changed): `test_packages_carry_their_metadata[plain, snapshot]`,
+    `test_licence_notices_cover_every_component`, `test_manifest_is_well_formed` (the two
+    distributions and components), the artifact rules' synthetic set, `jobs.run_in_guest`;
+  - grown, with reasons: the zip's bytes +2,041,073 and the snapshot's +74,056 (199 members);
+    every guest fuel row by the members' start-up cost (plain about +4.4 M to +6.2 M, snapshot
+    about +0.5 M); the zip-walking rows of `test_v1_3_the_zips_directory.py`,
+    `test_the_default_profile_runs_its_pure_python_paths` and `test_networkx_atlas_reads_from_the_zip`
+    in proportion to the member count or two more distributions (listed above); the Sobol and
+    pandas-tz snapshot rows by under 0.05%; on `upstream-macos`, `cpython-fs` and `numpy-lib`
+    (the member count, shared with 038's growth against main);
+  - fell: three rows by at most 531,079 (`test_dotted_builtins_keep_their_import_names[snapshot]`,
+    `test_pickling_a_deep_list_raises`, `test_unbuffered_output_survives_a_hard_exit[snapshot]`;
+    layout); retired: none; passes lost: none.
+- **Flags** (paste-safe):
+  - `--accept "042 seaborn 0.13.2 and reportlab 5.0.1 pure in the zip, reportlab without its fonts and barcode folder, both notices with their third-party parts"`
+  - `--accept-judge "042 two golden jobs and goldens, the oracle pins and lock, eight new checks and four unit checks, the package licence metadata and source-tree lists, the zero-patch count 26"`
+  - `--accept-growth "042 199 zip members: zip plus 2041073 bytes, snapshot plus 74056, plain start plus 4.83 M and snapshot start plus 0.53 M, zip-walking rows in proportion to the member count"`
+- **Native slot:** released at the end of the build (no native build since).
