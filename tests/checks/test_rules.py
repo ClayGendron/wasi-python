@@ -762,3 +762,66 @@ def test_the_platform_is_chosen_once() -> None:
     `_platform._select`, and no import that binds `PLATFORM` to a local name."""
     hits = _platform_hits(paths.REPO / "src" / "wasi_python")
     assert not hits, scan.report(hits)
+
+
+# Code speaks for itself: a code file names no specification, memo, review, finding ID or
+# `context/` path; its comments and docstrings give the reason in words, and the number lives in
+# the document that cites the file. `src/` is held here, over every comment token and every
+# docstring (through `tokenize`, so an identifier or a literal never trips it). Eight regexes:
+# a specification number in any form, a decision number with or without one (case-sensitive:
+# every citation writes "Decision 8", and "a decision" in prose stays free), the constitution,
+# the memo, any form of the word "review", a numbered question, a `context/` path, and a one-
+# or two-digit finding ID (`F3`, `N12`, `F4.2`, `S3`, `D3`, `C6`, `L1`; the look-arounds keep
+# `F401` in a `noqa` and a word like `MD5` out). The regexes refuse more than citations: `C99`,
+# `L1` as a cache level, `F1` as a key, and the words "memo" and "review" in any use; a comment
+# that needs such a word writes around it. Where words will not do, CITATION_ALLOWED carries the
+# exact token with a one-line reason; a citation of a `context/` document is never added.
+CITATION_KINDS = {
+    "specification number": re.compile(r"\bspec(?:ification)?s?\s+\d{3}\b", re.I),
+    "decision number": re.compile(r"\bDecisions?\s+\d+\b"),
+    "constitution": re.compile(r"\bconstitution\b", re.I),
+    "memo": re.compile(r"\bmemo\b", re.I),
+    "review": re.compile(r"\breviews?\b|\bre-review|\bconfirmation's\b", re.I),
+    "question": re.compile(r"\bquestion\s+\d+\b", re.I),
+    "context path": re.compile(r"\bcontext/"),
+    "finding ID": re.compile(r"(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])"),
+}
+CITATION_ALLOWED: tuple[tuple[str, str], ...] = ()  # (exact token, why words would not do)
+
+
+def _prose(path: Path) -> list[tuple[int, str]]:
+    """(line, text) for every comment token and every line of every docstring: a string that is
+    the first token of a module, a class or a function body, or stands alone as a statement."""
+    import io
+    import tokenize
+
+    out: list[tuple[int, str]] = []
+    last: int | None = None
+    opening = (None, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT, tokenize.NL)
+    for tok in tokenize.generate_tokens(io.StringIO(path.read_text(encoding="utf-8")).readline):
+        if tok.type == tokenize.COMMENT:
+            out.append((tok.start[0], tok.string))
+        elif tok.type == tokenize.STRING and last in opening:
+            out += [(tok.start[0] + i, line) for i, line in enumerate(tok.string.splitlines())]
+        if tok.type not in (tokenize.NL, tokenize.COMMENT):
+            last = tok.type
+    return out
+
+
+def _citation_hits(root: Path) -> list[str]:
+    allowed = {token for token, _ in CITATION_ALLOWED}
+    hits = []
+    for path in sorted(p for p in scan.files_under(root, ".") if p.suffix == ".py"):
+        for line, text in _prose(path):
+            for kind, pattern in CITATION_KINDS.items():
+                for m in pattern.finditer(text):
+                    if m.group(0) not in allowed:
+                        hits.append(f"{scan.rel(path, paths.REPO)}:{line}: {kind} {m.group(0)!r}")
+    return hits
+
+
+def test_src_names_no_context_document() -> None:
+    """No specification number, decision number, constitution, memo, review, numbered question,
+    `context/` path or finding ID in any comment or docstring of any `.py` under `src/`."""
+    hits = _citation_hits(paths.REPO / "src")
+    assert not hits, scan.report(hits)
