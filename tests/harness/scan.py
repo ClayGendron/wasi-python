@@ -1347,6 +1347,10 @@ JOB_PERMISSIONS = {
     # The judge jobs check out and read the build's files; the gather checks out alone.
     **{job: {"contents: read"} for job in ("judge-macos", "judge-linux", "judge-windows")},
     "gather": {"contents: read"},
+    # Spec 101: the key and the decision; the build shard on a fresh build; the cache's writer.
+    "inputs": {"contents: read"},
+    "build-shard": {"contents: read"},
+    "save-set": {"contents: read"},
     "attest": ATTEST_PERMISSIONS,
     "publish": {"contents: write"},
     "pypi": {"id-token: write"},
@@ -1621,8 +1625,10 @@ BUILD_SHARD_RUN = (
     f"uv run pytest -p no:cacheprovider --shard=build --progress-latest {RECORD_PATH}\n"
 )
 RECORD_ID_OUTPUT = re.compile(
-    r"needs\.(?:build\.outputs\.record-id|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
+    r"needs\.(?:build(?:-shard)?\.outputs\.record-id|judge-[a-z]+\.outputs\.[\w-]+-id)\b"
 )
+# The job whose build tree the build shard reads: a fresh arm64 Linux build (spec 101).
+BUILD_SHARD_JOB = "build-shard"
 
 
 def _matrix_shards(lines: list[str]) -> list[str] | None:
@@ -1730,10 +1736,14 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             )
     if len(shapes) > 1:
         errors.append("rule 3: the three judge jobs differ beyond their runner, system and lists")
-    # Rule 6: the build job judges its own shard and hands on its record and python.wasm's hash.
+    # Rule 6: build-shard judges the build shard on its own build and hands on its record; the
+    # build job hands on python.wasm's hash and runs no other pytest (spec 101, Decision 5).
     build = [f for _, f in steps.get("build", [])]
     outputs = _job_map(jobs.get("build", []), "outputs")
     runs = [str(f.get("run", "")).strip() for f in build]
+    shard_steps = [f for _, f in steps.get(BUILD_SHARD_JOB, [])]
+    shard_outputs = _job_map(jobs.get(BUILD_SHARD_JOB, []), "outputs")
+    shard_runs = [str(f.get("run", "")).strip() for f in shard_steps]
     upload_at = next(
         (
             i
@@ -1748,13 +1758,13 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     )
     wasm_at = next((i for i, f in enumerate(build) if wasm and f.get("id") == wasm[1]), None)
     rec = re.fullmatch(
-        r"\$\{\{ steps\.([\w-]+)\.outputs\.artifact-id \}\}", outputs.get("record-id", "")
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.artifact-id \}\}", shard_outputs.get("record-id", "")
     )
-    rec_step = next((f for f in build if rec and f.get("id") == rec[1]), {})
+    rec_step = next((f for f in shard_steps if rec and f.get("id") == rec[1]), {})
     sha = re.fullmatch(
-        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("record-sha256", "")
+        r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", shard_outputs.get("record-sha256", "")
     )
-    sha_step = next((f for f in build if sha and f.get("id") == sha[1]), {})
+    sha_step = next((f for f in shard_steps if sha and f.get("id") == sha[1]), {})
     # The set's own SHA256SUMS, hashed before the upload, as python.wasm is.
     set_sums = re.fullmatch(
         r"\$\{\{ steps\.([\w-]+)\.outputs\.sha256 \}\}", outputs.get("set-sums-sha256", "")
@@ -1762,26 +1772,38 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
     set_sums_at = next(
         (i for i, f in enumerate(build) if set_sums and f.get("id") == set_sums[1]), None
     )
-    other_pytest = [
-        r
-        for r in runs
-        if "uv run pytest" in r
-        and "--shard" not in r
-        and "-k test_source_tree_matches_its_tarball" not in r
-    ]
+
+    def other_pytest(rs: list[str], shard_ok: bool) -> list[str]:
+        return [
+            r
+            for r in rs
+            if "uv run pytest" in r
+            and not (shard_ok and r == BUILD_SHARD_RUN.strip())
+            and "-k test_source_tree_matches_its_tarball" not in r
+        ]
+
     if (
-        BUILD_SHARD_RUN.strip() not in runs
-        or other_pytest
+        other_pytest(runs, False)
         or wasm_at is None
         or upload_at is None
         or wasm_at > upload_at
         or not re.search(r"(shasum -a 256|sha256sum) build/artifacts/python\.wasm", runs[wasm_at])
+        or "record-id" in outputs
+        or "record-sha256" in outputs
+    ):
+        errors.append(
+            "rule 6: build runs a pytest other than the zero-patch step, hands on a record, or "
+            "does not hand on python.wasm's SHA-256 made before the upload (wasm-sha256)"
+        )
+    if (
+        BUILD_SHARD_RUN.strip() not in shard_runs
+        or other_pytest(shard_runs, True)
         or rec_step.get("with", {}).get("path") != RECORD_UPLOAD_PATH
         or str(sha_step.get("run", "")).strip() != SHA_RUN.strip()
     ):
         errors.append(
-            "rule 6: build does not run the build shard alone, hand on its record (record-id, "
-            "record-sha256) and python.wasm's SHA-256 made before the upload (wasm-sha256)"
+            f"rule 6: {BUILD_SHARD_JOB} does not run the build shard alone and hand on its record "
+            "(record-id, record-sha256)"
         )
     if (
         set_sums_at is None
@@ -1805,20 +1827,21 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
             _job_field(gather, "runs-on") != "ubuntu-24.04"
             or _job_field(gather, "timeout-minutes") != "15"
             or _permission_set(gather) != {"contents: read"}
-            or not {"build", *JUDGE_JOBS} <= _needs(gather)
+            or not {"build", BUILD_SHARD_JOB, "same-bytes", *JUDGE_JOBS} <= _needs(gather)
             or _job_field(gather, "if") is not None
             or _job_field(gather, "continue-on-error") is not None
         ):
             errors.append(
-                "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing build "
-                "and the three judge jobs, with no job-level if: or continue-on-error:"
+                "rule 7: gather is not on ubuntu-24.04, 15 minutes, contents: read, needing build, "
+                "build-shard, same-bytes and the three judge jobs, with no job-level if: or "
+                "continue-on-error:"
             )
         downloads = [
             f.get("with", {})
             for f in gs
             if f.get("uses", "").startswith("actions/download-artifact@")
         ]
-        want_ids = {"build": ["${{ needs.build.outputs.record-id }}"]}
+        want_ids = {BUILD_SHARD_JOB: [f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-id }}}}"]}
         for job, (_, system) in JUDGE_JOBS.items():
             want_ids[job] = [
                 f"${{{{ needs.{job}.outputs.{n}-id }}}}" for n in shards.on(plan, system)
@@ -1838,7 +1861,8 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         want_env = {
             "WASM_SHA256": "${{ needs.build.outputs.wasm-sha256 }}",
             "SET_SUMS_SHA256": "${{ needs.build.outputs.set-sums-sha256 }}",
-            "RECORD_BUILD_BUILD": "${{ needs.build.outputs.record-sha256 }}",
+            "SET_SOURCE": "${{ needs.build.outputs.set-source }}",  # spec 101
+            "RECORD_BUILD_BUILD": f"${{{{ needs.{BUILD_SHARD_JOB}.outputs.record-sha256 }}}}",
         }
         for job, (_, system) in JUDGE_JOBS.items():
             for n in shards.on(plan, system):
@@ -1847,7 +1871,7 @@ def release_shard_errors(text: str, plan: dict) -> list[str]:
         if not step or env != want_env:
             errors.append(
                 "rule 7: gather's step does not run tests/harness/gather.py with exactly "
-                "WASM_SHA256, SET_SUMS_SHA256 and every record's SHA-256 bound in env:"
+                "WASM_SHA256, SET_SUMS_SHA256, SET_SOURCE and every record's SHA-256 bound in env:"
             )
     # Rule 8: attest and publish need the gather; only the gather reads a record id.
     for job in ("attest", "publish"):
@@ -3593,4 +3617,432 @@ def lock_errors(lock_text: str, pyproject_text: str) -> list[str]:
             f"the lock's requires-python {lock.get('requires-python')!r} is not the project's"
             f" {project.get('requires-python')!r}"
         )
+    return errors
+
+
+# ---------------------------------------------------------------------------------------------
+# A faster release run: a proven set reused on branch dispatches (spec 101)
+
+CACHE_RESTORE = "actions/cache/restore@"
+CACHE_SAVE = "actions/cache/save@"
+SET_PATH = "wasi-python-set"
+REUSE_TRUE = "needs.inputs.outputs.reuse == 'true'"
+REUSE_FALSE = "needs.inputs.outputs.reuse != 'true'"
+COMPILED = "steps.compile.outcome == 'success'"
+BUILD_RUNS_ON = "${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || 'macos-15' }}"
+SET_SOURCE = (
+    "${{ steps.compile.outcome == 'success' && 'built' || "
+    "format('reused {0}', needs.inputs.outputs.key) }}"
+)
+KEY_RUN = 'uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"'
+DECIDE_STEP = "Reuse only on a dispatch from a branch other than main"
+SET_CHECK_STEP = "The set is this commit's"
+MOVE_STEP = "The reused set in build/artifacts"
+ZERO_PATCH_STEP = "The source trees are their tarballs plus the recorded patches (spec 020)"
+LOGS_STEP = "Keep the build logs when something fails"
+REUSED_KEY = "${{ needs.inputs.outputs.reuse == 'true' && needs.inputs.outputs.key || '' }}"
+SAVE_IF = "needs.build.outputs.set-source == 'built' && github.ref_type == 'branch'"
+CACHE_TRIGGERS = "on:\n  push:\n    branches: [main]\n  workflow_dispatch:\n"
+DISPATCH_INPUT = (
+    "  workflow_dispatch:\n    inputs:\n      from-source:\n"
+    "        description: build the set from the pins even when a set for this commit is cached\n"
+    "        type: boolean\n        default: false\n"
+)
+
+
+def top_env(text: str) -> dict[str, str]:
+    """A workflow's top-level `env:`, each value as written, quotes dropped."""
+    out: dict[str, str] = {}
+    inside = False
+    for line in without_comments(text).splitlines():
+        if line.startswith("env:"):
+            inside = True
+            continue
+        if inside:
+            m = re.fullmatch(r"  ([A-Za-z0-9_]+):\s*(.*?)\s*", line)
+            if m:
+                out[m[1]] = m[2].strip("\"'")
+            elif line and not line.startswith(" "):
+                break
+    return out
+
+
+def _step_runs(job_steps: list[dict]) -> list[str]:
+    return [str(f.get("run", "")).strip() for f in job_steps]
+
+
+def _build_step_errors(job: str, job_steps: list[dict]) -> list[str]:
+    """A job that builds runs exactly `scripts/00_download.sh` then `scripts/build.sh`, no
+    arguments, and no other step names either script (spec 101, Decision 3)."""
+    errors = []
+    runs = _step_runs(job_steps)
+    for r in runs:
+        if ("scripts/build.sh" in r or "scripts/00_download.sh" in r) and r not in (
+            "scripts/build.sh",
+            "scripts/00_download.sh",
+        ):
+            errors.append(f"{job}: a step runs {r.splitlines()[0]!r}, not the bare build command")
+    if "scripts/build.sh" in runs and (
+        "scripts/00_download.sh" not in runs
+        or runs.index("scripts/00_download.sh") > runs.index("scripts/build.sh")
+    ):
+        errors.append(f"{job}: scripts/build.sh does not follow scripts/00_download.sh")
+    return errors
+
+
+def release_reuse_errors(release_text: str, cache_text: str, key_env: Iterable[str]) -> list[str]:
+    """Spec 101's rules on both workflows, one line per breach: where a set may be reused
+    (Decision 4), the build job's steps (Decision 8), build-shard (Decision 5), the writers and
+    readers of the cache (Decision 7), and set-cache.yml's rules (the pre-build review's M2)."""
+    errors: list[str] = []
+    text = without_comments(release_text)
+    jobs = workflow_jobs(text)
+    steps = {n: [step_fields(s) for s in workflow_steps(lines)] for n, lines in jobs.items()}
+    if DISPATCH_INPUT not in text:
+        errors.append("R0: workflow_dispatch has no boolean from-source input, default false")
+    # R1: only inputs (a lookup) and build (the restore) read the cache; only save-set writes it.
+    for name, job_steps in steps.items():
+        for f in job_steps:
+            u = f.get("uses", "")
+            if u.startswith("actions/cache@"):
+                errors.append(f"R1: {name} uses actions/cache itself, not its restore or save")
+            if u.startswith(CACHE_RESTORE) and name not in ("inputs", "build"):
+                errors.append(f"R1: {name} restores from the cache")
+            if u.startswith(CACHE_SAVE) and name != "save-set":
+                errors.append(f"R1: {name} saves to the cache")
+    # R2: the inputs job: the key, a lookup, and the decision as one script.
+    inp = steps.get("inputs", [])
+    by_id = {f.get("id"): f for f in inp if f.get("id")}
+    lookup = by_id.get("lookup", {})
+    decide = by_id.get("decide", {})
+    if not inp:
+        errors.append("R2: no inputs job")
+    else:
+        if str(by_id.get("key", {}).get("run", "")).strip() != KEY_RUN:
+            errors.append("R2: inputs' key step does not run release/set_key.py key")
+        w = lookup.get("with", {})
+        if not lookup.get("uses", "").startswith(CACHE_RESTORE) or w != {
+            "path": SET_PATH,
+            "key": "${{ steps.key.outputs.key }}",
+            "lookup-only": "true",
+        }:
+            errors.append("R2: inputs' lookup is not a lookup-only restore of the key")
+        if decide.get("name") != DECIDE_STEP or decide.get("env") != {
+            "FROM_SOURCE": "${{ inputs.from-source }}",
+            "HIT": "${{ steps.lookup.outputs.cache-hit }}",
+        }:
+            errors.append("R2: inputs' decision step is not the reuse script with its two values")
+        if _job_map(jobs["inputs"], "outputs") != {
+            "key": "${{ steps.key.outputs.key }}",
+            "reuse": "${{ steps.decide.outputs.reuse }}",
+        }:
+            errors.append("R2: inputs does not hand on key and reuse from its steps")
+        if _job_field(jobs["inputs"], "needs") is not None:
+            errors.append("R2: inputs needs another job")
+    # R3: the build job.
+    build_lines = jobs.get("build", [])
+    build = steps.get("build", [])
+    if _job_field(build_lines, "runs-on") != BUILD_RUNS_ON:
+        errors.append(f"R3: build's runs-on is not {BUILD_RUNS_ON}")
+    if _needs(build_lines) != {"inputs"}:
+        errors.append("R3: build does not need inputs alone")
+    if _job_map(build_lines, "outputs").get("set-source") != SET_SOURCE:
+        errors.append("R3: build's set-source is not made from the compile step's outcome")
+    want_if = {}
+    for k, f in enumerate(build):
+        run, name, uses = str(f.get("run", "")).strip(), f.get("name"), f.get("uses", "")
+        if run == "scripts/00_download.sh":
+            want_if[k] = REUSE_FALSE
+        elif run == "scripts/build.sh":
+            want_if[k] = REUSE_FALSE
+            if f.get("id") != "compile":
+                errors.append("R3: build's scripts/build.sh step is not id: compile")
+        elif uses.startswith(CACHE_RESTORE):
+            want_if[k] = REUSE_TRUE
+            if f.get("with") != {
+                "path": SET_PATH,
+                "key": "${{ needs.inputs.outputs.key }}",
+                "fail-on-cache-miss": "true",
+            }:
+                errors.append("R3: build's restore is not the key's, failing on a miss")
+        elif name == MOVE_STEP:
+            want_if[k] = REUSE_TRUE
+        elif name == ZERO_PATCH_STEP:
+            want_if[k] = COMPILED
+        elif name == LOGS_STEP:
+            want_if[k] = "failure()"
+        else:
+            want_if[k] = None
+        if f.get("if") != want_if[k]:
+            errors.append(f"R3: build's step {name or run or uses!r} has if: {f.get('if')!r}")
+    names = [f.get("name") for f in build]
+    check = next((f for f in build if f.get("name") == SET_CHECK_STEP), None)
+    if check is None:
+        errors.append(f"R3: build has no step {SET_CHECK_STEP!r}")
+    else:
+        run = str(check.get("run", ""))
+        if (
+            check.get("env") != {"REUSED_KEY": REUSED_KEY}
+            or 'release/set_key.py verify build/artifacts --key "$REUSED_KEY"' not in run
+            or "release/set_key.py verify build/artifacts\n" not in run
+        ):
+            errors.append("R3: build's set check does not verify build/artifacts, with the key")
+        at = names.index(SET_CHECK_STEP)
+        later = [
+            k
+            for k, f in enumerate(build)
+            if str(f.get("run", "")).strip() in ("scripts/build.sh",)
+            or f.get("uses", "").startswith(CACHE_RESTORE)
+            or f.get("name") == MOVE_STEP
+        ]
+        wheel = next(
+            (k for k, f in enumerate(build) if "cp -R build/artifacts" in str(f.get("run", ""))),
+            None,
+        )
+        if any(k > at for k in later) or wheel is None or wheel < at:
+            errors.append("R3: build's set check is not after the set is made and before the wheel")
+    if any("--shard" in r for r in _step_runs(build)):
+        errors.append("R3: build runs a shard (the build shard is build-shard's)")
+    errors += [f"R3: {e}" for e in _build_step_errors("build", build)]
+    # R4: build-shard builds from the pins on every run, then the zero-patch step and its shard.
+    bs_lines = jobs.get("build-shard")
+    if bs_lines is None:
+        errors.append("R4: no build-shard job")
+    else:
+        bs = steps["build-shard"]
+        body = "\n".join(bs_lines)
+        if _job_field(bs_lines, "runs-on") != "ubuntu-24.04-arm":
+            errors.append("R4: build-shard is not on ubuntu-24.04-arm")
+        if _job_field(bs_lines, "needs") is not None or _job_field(bs_lines, "if") is not None:
+            errors.append("R4: build-shard needs a job or has a job-level if:")
+        if "WASI_PYTHON_ARTIFACTS" in body:
+            errors.append("R4: build-shard names WASI_PYTHON_ARTIFACTS")
+        if any(f.get("uses", "").startswith("actions/download-artifact@") for f in bs):
+            errors.append("R4: build-shard downloads an artifact")
+        runs = _step_runs(bs)
+        order = ["scripts/00_download.sh", "scripts/build.sh", ZERO_PATCH_STEP, BUILD_SHARD_RUN]
+        at = []
+        for want in order:
+            k = next(
+                (k for k, f in enumerate(bs) if runs[k] == want.strip() or f.get("name") == want),
+                None,
+            )
+            at.append(k)
+        if None in at or at != sorted(at):
+            errors.append("R4: build-shard does not download, build, check the trees, then shard")
+        for f in bs:
+            if f.get("if") is not None and f.get("name") != LOGS_STEP:
+                errors.append(
+                    f"R4: build-shard's step {f.get('name') or f.get('run')!r} has an if:"
+                )
+        zp = next((f for f in bs if f.get("name") == ZERO_PATCH_STEP), {})
+        bz = next((f for f in build if f.get("name") == ZERO_PATCH_STEP), {})
+        if zp.get("run") != bz.get("run"):
+            errors.append("R4: build-shard's zero-patch step is not the build job's, text for text")
+        errors += [f"R4: {e}" for e in _build_step_errors("build-shard", bs)]
+    # R5: save-set saves only a set this run built and both rebuilds matched, after its check.
+    ss_lines = jobs.get("save-set")
+    if ss_lines is None:
+        errors.append("R5: no save-set job")
+    else:
+        ss = steps["save-set"]
+        if not {"build", "same-bytes"} <= _needs(ss_lines):
+            errors.append("R5: save-set does not need build and same-bytes")
+        if _job_field(ss_lines, "if") != SAVE_IF:
+            errors.append(f"R5: save-set's if: is not {SAVE_IF}")
+        save = next((k for k, f in enumerate(ss) if f.get("uses", "").startswith(CACHE_SAVE)), None)
+        verify = next(
+            (
+                k
+                for k, f in enumerate(ss)
+                if f"release/set_key.py verify {SET_PATH} --key" in str(f.get("run", ""))
+            ),
+            None,
+        )
+        if save is None or verify is None or verify > save:
+            errors.append("R5: save-set does not verify the set before it saves it")
+        elif ss[save].get("with") != {"path": SET_PATH, "key": "${{ steps.key.outputs.key }}"}:
+            errors.append("R5: save-set does not save the set under the key its checkout gives")
+    # R6: the gather waits for the proof and is told where the set came from.
+    g = jobs.get("gather", [])
+    if not {"build-shard", "same-bytes"} <= _needs(g):
+        errors.append("R6: gather does not need build-shard and same-bytes")
+    # The set-cache workflow (the pre-build review's M2).
+    errors += set_cache_errors(cache_text, release_text, key_env)
+    return errors
+
+
+def set_cache_errors(cache_text: str, release_text: str, key_env: Iterable[str]) -> list[str]:
+    """set-cache.yml, the one writer to main's cache: its triggers, permissions, uv, env, build
+    steps and the order of its check and its save (spec 101, Decision 7)."""
+    errors: list[str] = []
+    text = without_comments(cache_text)
+    m = re.search(r"^on:\n(?:[ ].*\n|\n)*", text, re.M)
+    if not m or m[0].rstrip("\n") + "\n" != CACHE_TRIGGERS:
+        errors.append("C1: set-cache.yml's triggers are not exactly a push to main and dispatch")
+    top = re.search(r"^permissions:\s*(.*)$", text.split("\njobs:", 1)[0], re.M)
+    if not top or top[1].strip() != "{}":
+        errors.append("C2: set-cache.yml's workflow-level permissions are not {}")
+    jobs = workflow_jobs(text)
+    if set(jobs) != {"lookup", "seed"}:
+        errors.append(f"C3: set-cache.yml's jobs are {sorted(jobs)}, not lookup and seed")
+    for name, lines in jobs.items():
+        if _permission_set(lines) != {"contents: read"}:
+            errors.append(f"C3: set-cache.yml's {name} permissions are not contents: read")
+        js = [step_fields(s) for s in workflow_steps(lines)]
+        for f in js:
+            if f.get("uses", "").startswith("astral-sh/setup-uv@") and f.get("with") != {
+                "version": "${{ env.UV_VERSION }}",
+                "enable-cache": "false",
+            }:
+                errors.append(
+                    f"C4: set-cache.yml's {name} runs setup-uv other than pinned, no cache"
+                )
+            if "${{" in str(f.get("run", "")):
+                errors.append(f"C4: set-cache.yml's {name} has ${{{{ in a run: script")
+            if f.get("uses", "").startswith(CACHE_SAVE) and name != "seed":
+                errors.append(f"C5: set-cache.yml's {name} saves to the cache")
+        errors += [f"C6: set-cache.yml's {e}" for e in _build_step_errors(name, js)]
+    env, release_env = top_env(cache_text), top_env(release_text)
+    keyed = {n: release_env.get(n) for n in key_env}
+    if env != keyed:
+        errors.append("C7: set-cache.yml's env is not the key's env lines as release.yml sets them")
+    seed = [step_fields(s) for s in workflow_steps(jobs.get("seed", []))]
+    if "scripts/build.sh" not in _step_runs(seed):
+        errors.append("C6: set-cache.yml's seed does not build from the pins")
+    save = next((k for k, f in enumerate(seed) if f.get("uses", "").startswith(CACHE_SAVE)), None)
+    verify = next(
+        (k for k, f in enumerate(seed) if "release/set_key.py verify" in str(f.get("run", ""))),
+        None,
+    )
+    if save is None or verify is None or verify > save:
+        errors.append("C8: set-cache.yml saves before release/set_key.py verify, or not at all")
+    if "needs.lookup.outputs.hit != 'true'" != _job_field(jobs.get("seed", []), "if"):
+        errors.append("C9: set-cache.yml's seed does not run only when lookup found nothing")
+    return errors
+
+
+def local_import_files(repo: Path, root: str, modules: Iterable[str]) -> set[str]:
+    """Every file under `repo/root` that `modules` import, directly or not, with the packages on
+    the way: the judge's own walk, written apart from release/set_key.py's so each checks the
+    other (spec 101, Decision 3)."""
+    found: set[str] = set()
+    todo, seen = list(modules), set()
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        parts = name.split(".")
+        for k in range(1, len(parts) + 1):
+            stem = repo / root / Path(*parts[:k])
+            path = next(
+                (p for p in (stem / "__init__.py", stem.with_suffix(".py")) if p.is_file()), None
+            )
+            if path is None:
+                break
+            rel = path.relative_to(repo).as_posix()
+            if rel in found:
+                continue
+            found.add(rel)
+            package = (
+                ".".join(parts[:k]) if path.name == "__init__.py" else ".".join(parts[: k - 1])
+            )
+            for n in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(n, ast.Import):
+                    todo += [a.name for a in n.names]
+                elif isinstance(n, ast.ImportFrom):
+                    if n.level:
+                        up = package.split(".")[: len(package.split(".")) - n.level + 1]
+                        base = ".".join([*up, n.module] if n.module else up)
+                    else:
+                        base = n.module or ""
+                    todo += [base, *(f"{base}.{a.name}" for a in n.names)]
+    return found
+
+
+def set_key_errors(
+    closure: Iterable[str],
+    tracked: Iterable[str],
+    texts: dict[str, str],
+    release_text: str,
+    key_env: Iterable[str],
+    gate_root: str,
+    gates: Iterable[str],
+    tests_names: Iterable[str],
+    gate_imports: Iterable[str] = (),
+) -> list[str]:
+    """Decision 3, layer 1: what the set's key (release/set_key.py) must hold, one line per input
+    it leaves out. `tracked` is every tracked file under scripts/ and recipes/; `texts` their
+    text; `tests_names` the top-level names under the gate root (files and folders);
+    `gate_imports` the files `local_import_files` finds for the gates."""
+    import sys
+
+    errors: list[str] = []
+    held = set(closure)
+    if "downloads/SHA256SUMS" not in held:
+        errors.append("K9: downloads/SHA256SUMS, every pin, is not in the key")
+    for rel in sorted(set(gate_imports) - held):
+        errors.append(f"K8: {rel} is imported by the build's gate and not in the key")
+    for rel in tracked:
+        if rel not in held:
+            errors.append(f"K1: {rel} is tracked under scripts/ or recipes/ and not in the key")
+    roots = set()
+    for rel, text in texts.items():
+        for m in re.finditer(r'PYTHONPATH="?(?:\$HERE|\$\{HERE\})/([\w./-]+)', text):
+            roots.add(m[1])
+        for m in re.finditer(
+            r'PYTHONPATH="?(?:\$HERE|\$\{HERE\})/([\w./-]+)[^\n]*?\s-m\s+([\w.]+)', text
+        ):
+            if m[1].split("/")[0] in GENERATED_ROOTS:  # the build's own tools, pinned by hash
+                continue
+            if m[1] != gate_root:
+                errors.append(f"K3: {rel} runs -m {m[2]} with PYTHONPATH {m[1]}, not {gate_root}")
+            elif m[2] not in set(gates):
+                errors.append(f"K3: {rel} runs -m {m[2]} from {m[1]}/, which the key does not hold")
+        for line in text.splitlines():
+            for token in PATH_TOKEN.findall(line):
+                token = token.rstrip(".").rstrip("/")
+                if token.split("/")[0] in GENERATED_ROOTS or token in roots:
+                    continue
+                if token in held or any(h.startswith(token + "/") for h in held):
+                    if token not in held:  # a folder: every tracked file under it must be held
+                        under = [t for t in tracked if t.startswith(token + "/")]
+                        errors += [
+                            f"K2: {rel} names {token}/, and {t} is not in the key"
+                            for t in under
+                            if t not in held
+                        ]
+                    continue
+                errors.append(f"K2: {rel} names {token}, which the key does not hold")
+    env = top_env(release_text)
+    if set(env) != set(key_env):
+        errors.append(
+            f"K4: release.yml's top-level env {sorted(env)} is not the key's {sorted(key_env)}"
+        )
+    for name in key_env:
+        value = env.get(name, "")
+        if "/" in value and value not in held:
+            errors.append(f"K5: {name}={value} names a file the key does not hold")
+    text = without_comments(release_text)
+    for job, lines in workflow_jobs(text).items():
+        js = [step_fields(s) for s in workflow_steps(lines)]
+        if not any("scripts/build.sh" in r for r in _step_runs(js)):
+            continue
+        if _job_map(lines, "env"):
+            errors.append(f"K4: {job} builds under a job-level env: the key does not hold")
+        for f in js:
+            if str(f.get("run", "")).strip() in (
+                "scripts/build.sh",
+                "scripts/00_download.sh",
+            ) and f.get("env"):
+                errors.append(f"K4: {job}'s build step sets env: the key does not hold")
+        errors += [f"K6: {e}" for e in _build_step_errors(job, js)]
+    bad = set(sys.stdlib_module_names) | {"sitecustomize", "usercustomize"}
+    for name in tests_names:
+        stem = name.removesuffix(".py")
+        if stem in bad:
+            errors.append(
+                f"K7: {gate_root}/{name} would be imported by the gate ahead of the stdlib"
+            )
     return errors

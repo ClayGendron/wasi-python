@@ -187,6 +187,15 @@ The plain `uv run pytest` stays serial.
   from a run before spec 092 (or before its build review) lacks the fields and is refused, exit 2,
   and so is a check with no source that some shard ran. **Compare only the record of a run whose
   every job, the gather included, is green.**
+- **Where the set came from** (spec 101). A release record's `meta.set_source` is `built` (the
+  build job compiled the set in this run) or `reused <key>` (a branch dispatch reused a set the
+  cache held under its commit's key). A reuse run's verdict is the same verdict: the gather needs
+  `same-bytes`, so the set judged equals two rebuilds from the pins made in the same run, and G2
+  holds every record, the build shard's included, to the build job's `python.wasm` and
+  `SHA256SUMS`. The build shard runs on `build-shard`'s fresh arm64 Linux build on every run
+  (its run is `build/build`, platform `linux-aarch64`); sameness still counts its unit tests on
+  the darwin side. On a reuse run, the "release workflow's build" the lane compares its main-tree
+  rebuild with (§5.7) is `build-shard`'s; name its job id. A tag's set is always `built` (G7).
 - **`--claims <toml>`** prints only the differences no claim explains, and exits 1 if any remain.
   A claim list is what the **second** record has that the **first** lacks, so put the record
   without the claimed changes first (a reviewer's or builder's record, then the lane's). Each

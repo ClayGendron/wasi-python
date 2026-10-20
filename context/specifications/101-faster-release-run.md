@@ -405,13 +405,13 @@ The shard plan changes on all three systems (every own shard runs on all three; 
 |---|---|---|
 | `own-hostile` | `tests/checks/test_v1_2_hostile_guest.py` | 9.0 |
 | `own-guest` | the other thirteen files of today's `own-guest`, and today's `own-runner` files | 8.2 + about 0.5 |
-| `own-embedding` | `tests/checks/test_v1_4_embedding.py`, but for the functions `own-embedding-b` names | about 6 |
-| `own-embedding-b` | the named functions of that file | about 6 |
+| `own-embedding` | `tests/checks/test_v1_4_embedding.py`, but for the functions `own-embedding-a` names | about 6 |
+| `own-embedding-a` | the file's first 41 functions (its first 65 checks), named | about 6 |
 
 `own-runner` goes into `own-guest` because its job is mostly setup (1.4 minutes for under a minute
 of tests on macOS), and a macOS job is the scarce thing. macOS then runs six shards and `verify`
 (seven jobs) where it ran five and `verify` (six). On wave 08's plan, Linux runs 24 shards (066's
-23, less `own-runner`, plus `own-hostile` and `own-embedding-b`), Windows five.
+23, less `own-runner`, plus `own-hostile` and `own-embedding-a`), Windows five.
 
 **Splitting one file.** A shard may now name test functions in `nodes` (today only the build
 shard may, and only by node id). An entry `file::function` takes every parameter case of that
@@ -426,7 +426,7 @@ as lost passes.
 **Choosing the functions.** A local per-test timing of the file needs a judge slot. The first cut
 comes from wave 07's macOS log instead: the file's first 36 tests took 3.45 minutes, the next 72
 took 6.06, the last 70 took 2.32, so the halfway point (5.92 minutes) falls at about the 65th test
-in collection order. `own-embedding-b` names the functions whose tests come from there on. The
+in collection order. `own-embedding-a` names the 41 functions whose checks come before it (fewer names than the 86 after; a function added at the file's end goes to `own-embedding`). The
 builder's first dispatch measures both halves' jobs; if they differ by more than 20%, the boundary
 moves before the second. Shards are chosen by job times, as spec 065's Decision 7 chose them; no
 test asserts a time.
@@ -520,7 +520,7 @@ still builds everything itself.
 | `tests/harness/scan.py` | spec 057's table; rules 1, 6, 7 and 8 of spec 063 as Decisions 6 and 9 say; new `release_reuse_errors` (Decision 4's step, Decision 8's steps, Decision 7's writers and readers, `set-cache.yml`'s rules) and `set_key_errors` (Decision 3, layer 1) |
 | `tests/checks/test_rules.py` | the checks below |
 | `tests/unit/test_set_key.py`, `test_shards.py`, `test_gather.py`, `test_sameness.py` | unit rows |
-| `context/progress/README.md`, `AGENTS.md` rule 3a | one paragraph each: what `set-source` means, and that a reuse run's verdict is the same verdict |
+| `context/progress/README.md` | one paragraph: what `set-source` means, and that a reuse run's verdict is the same verdict (AGENTS.md rule 3a's line is the lane's to write: an agent does not edit the project's instructions) |
 | `CHANGELOG.md` | one line under the unreleased section |
 
 ## The checks, first
@@ -662,3 +662,7 @@ Filled in at the build (*Landing notes*).
 Branch runs reuse a set whose bytes three fresh builds in the same run must match, tags always
 build their own, the build shard runs on a fresh Linux build every time, and the macOS shards
 split so none sets the run's length.
+
+## Landing notes
+
+The build, below, as it goes.

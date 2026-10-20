@@ -1,0 +1,99 @@
+# Main's set cache (context/specifications/101-faster-release-run.md, Decision 7).
+#
+# A release run on a branch may reuse a set the cache holds under its commit's key
+# (release/set_key.py), but a branch reads only its own caches and main's. So on every push to main
+# (the lane's fast-forward), this workflow looks the key up in main's cache, and when it is absent
+# builds the set from the pins on arm64 Linux, checks it, and saves it. Every run that reuses the set
+# still rebuilds it from the pins three times and requires the same bytes (spec 101, Decision 3).
+# It holds no secret, signs nothing and publishes nothing. Its env is release.yml's, name for name
+# and value for value, as the key holds it (the rules check). Third-party actions are pinned by
+# commit, their release named beside each. Values reach scripts through env:, never as expressions.
+name: set-cache
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: set-cache-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_DATE_EPOCH: "1767225600"
+  UV_VERSION: "0.9.22"
+  UV_LOCKED: "1"
+  UV_PYTHON: "3.14.2"
+  UV_BUILD_CONSTRAINT: release/build-constraints.txt
+
+jobs:
+  lookup:
+    name: the set's key, and whether this ref's cache holds it
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+      hit: ${{ steps.lookup.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The set's key (release/set_key.py prints what it hashes)
+        id: key
+        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+      - name: Is a set cached under the key
+        id: lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: wasi-python-set
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+
+  seed:
+    name: build the set from the pins and keep it (ubuntu-24.04-arm)
+    needs: lookup
+    if: needs.lookup.outputs.hit != 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: Download the pinned inputs
+        run: scripts/00_download.sh
+      - name: Build from the pins
+        run: scripts/build.sh
+      - name: The set's key from this checkout
+        id: key
+        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+      - name: The set is this commit's
+        env:
+          KEY: ${{ steps.key.outputs.key }}
+        run: |
+          uv run --no-project python -I release/set_key.py verify build/artifacts --key "$KEY"
+          cp -R build/artifacts wasi-python-set
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: wasi-python-set
+          key: ${{ steps.key.outputs.key }}
+      - name: Keep the build logs when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: seed-logs
+          path: build/logs/
+          if-no-files-found: ignore

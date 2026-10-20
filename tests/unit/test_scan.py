@@ -2083,6 +2083,11 @@ ASSETS_IN_GATHER = f"""      - uses: actions/download-artifact@{PIN} # v8.0.2
           digest-mismatch: error
       - name: The gather
 """
+# Spec 101: the build job runs no shard; the build shard is build-shard's.
+REC_IN_BUILD = (
+    "      - name: The build shard\n"
+    "        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest x\n"
+)
 
 
 def _shard_errors(text: str) -> list[str]:
@@ -2124,7 +2129,7 @@ def _without_set_sums_then_late(text: str) -> str:
 BAD_SHARDS = [
     ("judge-linux", "upstream-frame, ", "", "rule 2: judge-linux"),
     ("judge-linux", "upstream-frame, ", "upstream-frame, upstream-extra, ", "rule 2: judge-linux"),
-    ("judge-macos", "own-embedding, own-guest", "own-guest, own-embedding", "rule 2: judge-macos"),
+    ("judge-macos", "own-hostile, own-guest", "own-guest, own-hostile", "rule 2: judge-macos"),
     (
         "judge-windows",
         "      - name: These are the bytes the build job made\n",
@@ -2141,7 +2146,7 @@ BAD_SHARDS = [
     ("attest", "same-bytes, gather]", "same-bytes]", "rule 8: attest"),
     (
         "gather",
-        "artifact-ids: ${{ needs.build.outputs.record-id }}",
+        "artifact-ids: ${{ needs.build-shard.outputs.record-id }}",
         "name: record-build-build",
         "rule 7: gather does not download",
     ),
@@ -2153,7 +2158,12 @@ BAD_SHARDS = [
         "rule 1: judge-linux",
     ),
     ("judge-macos", "      contents: read\n", "      contents: write\n", "rule 1: judge-macos"),
-    ("build", '--shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"', "", "rule 6:"),
+    (
+        "build-shard",
+        '--shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"',
+        "",
+        "rule 6:",
+    ),
     ("build", "      wasm-sha256: ${{ steps.wasm.outputs.sha256 }}\n", "", "rule 6:"),
     (
         "judge-macos",
@@ -2186,17 +2196,30 @@ BAD_SHARDS = [
     (
         "gather",
         "          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}\n"
-        "          RECORD_BUILD_BUILD:",
-        "          RECORD_BUILD_BUILD:",
+        "          SET_SOURCE:",
+        "          SET_SOURCE:",
         "rule 7: gather's step",
     ),
     (
         "gather",
         "          SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}\n"
-        "          RECORD_BUILD_BUILD:",
-        "          SET_SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}\n"
-        "          RECORD_BUILD_BUILD:",
+        "          SET_SOURCE:",
+        "          SET_SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}\n          SET_SOURCE:",
         "rule 7: gather's step",
+    ),
+    # Spec 101: the gather is told where the set came from, and reads build-shard's record.
+    (
+        "gather",
+        "          SET_SOURCE: ${{ needs.build.outputs.set-source }}\n",
+        "",
+        "rule 7: gather's step",
+    ),
+    ("gather", "build-shard, same-bytes, judge-macos", "judge-macos", "rule 7: gather is not"),
+    (
+        "build",
+        "      - name: The wheel\n",
+        REC_IN_BUILD + "      - name: The wheel\n",
+        "rule 6: build",
     ),
     (
         "judge-macos",

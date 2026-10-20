@@ -1106,3 +1106,142 @@ def test_the_oracles_lock_is_its_projects() -> None:
         (jobs.ORACLE_PROJECT / "pyproject.toml").read_text(),
     )
     assert not errors, scan.report(errors, "tests/jobs/oracle/uv.lock")
+
+
+# ---------------------------------------------------------------------------------------------
+# A faster release run (spec 101)
+
+SET_CACHE_WORKFLOW = paths.REPO / ".github" / "workflows" / "set-cache.yml"
+
+
+def set_key_module():
+    """release/set_key.py, imported by path (it is a script, not a package)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "wasi_python_set_key", paths.REPO / "release" / "set_key.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def set_key_inputs() -> dict:
+    """What scan.set_key_errors reads, from this checkout."""
+    sk = set_key_module()
+    tracked = paths.tracked_files(*sk.TREES)
+    tests = paths.REPO / sk.GATE_ROOT
+    return {
+        "closure": sk.closure(paths.REPO),
+        "tracked": tracked,
+        "texts": {
+            rel: (paths.REPO / rel).read_text(errors="replace")
+            for rel in tracked
+            if (paths.REPO / rel).is_file()
+        },
+        "release_text": RELEASE_WORKFLOW.read_text(),
+        "key_env": sk.ENV,
+        "gate_root": sk.GATE_ROOT,
+        "gates": sk.GATES,
+        "tests_names": sorted(p.name for p in tests.iterdir() if p.suffix == ".py" or p.is_dir()),
+        "gate_imports": scan.local_import_files(paths.REPO, sk.GATE_ROOT, sk.GATES),
+    }
+
+
+def test_the_set_key_names_every_build_input() -> None:
+    """The key of a reused set holds every input of the build: every tracked file under scripts/
+    and recipes/, every repository path they name, the gate the build runs from tests/ with its
+    imports, and the build's environment (spec 101, Decision 3, layer 1)."""
+    needs.need("git", "git history")
+    errors = scan.set_key_errors(**set_key_inputs())
+    assert not errors, scan.report(errors)
+
+
+def test_the_release_reuses_a_set_only_on_a_branch() -> None:
+    """Only a dispatch on a branch other than main reuses a set; the build job's conditional
+    steps, build-shard, the cache's readers and writers, and set-cache.yml follow spec 101's
+    rules (Decisions 4 to 8; the pre-build review's M2, L3, L4 and L6)."""
+    errors = scan.release_reuse_errors(
+        RELEASE_WORKFLOW.read_text(),
+        SET_CACHE_WORKFLOW.read_text() if SET_CACHE_WORKFLOW.is_file() else "",
+        set_key_module().ENV,
+    )
+    assert not errors, scan.report(errors)
+
+
+DECIDE_CASES = {
+    "a dispatch on a branch, cached": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/spec/x",
+        "false",
+        "true",
+        "true",
+    ),
+    "a pushed tag": (
+        {"GITHUB_EVENT_NAME": "push", "GITHUB_REF_TYPE": "tag"},
+        "refs/tags/v1",
+        "",
+        "true",
+        "false",
+    ),
+    "a dispatch on a tag ref": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "tag"},
+        "refs/tags/v1",
+        "false",
+        "true",
+        "false",
+    ),
+    "a dispatch on main": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/main",
+        "false",
+        "true",
+        "false",
+    ),
+    "from-source": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/spec/x",
+        "true",
+        "true",
+        "false",
+    ),
+    "a miss": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/spec/x",
+        "false",
+        "false",
+        "false",
+    ),
+    "an empty hit": (
+        {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF_TYPE": "branch"},
+        "refs/heads/spec/x",
+        "false",
+        "",
+        "false",
+    ),
+}
+
+
+@pytest.mark.parametrize("case", DECIDE_CASES)
+def test_the_reuse_decision_refuses_tags_and_main(case, tmp_path) -> None:
+    """The inputs job's own decision step, run in bash: reuse only on a dispatch from a branch
+    other than main, not from-source, with the key cached (spec 101, Decision 4; review L3)."""
+    script = scan.workflow_step_script(RELEASE_WORKFLOW.read_text(), "inputs", scan.DECIDE_STEP)
+    event, ref, from_source, hit, want = DECIDE_CASES[case]
+    out = tmp_path / "out"
+    (tmp_path / "decide.sh").write_text(script)
+    r = subprocess.run(
+        ["bash", "-e", str(tmp_path / "decide.sh")],
+        env={
+            "PATH": "/usr/bin:/bin",
+            **event,
+            "GITHUB_REF": ref,
+            "FROM_SOURCE": from_source,
+            "HIT": hit,
+            "GITHUB_OUTPUT": str(out),
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert out.read_text() == f"reuse={want}\n", (out.read_text(), r.stdout)

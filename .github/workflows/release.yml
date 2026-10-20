@@ -10,12 +10,20 @@
 # the build's files downloads them by the id the build job handed on, after a step that refuses an
 # empty id, and checks them against the SHA-256 of SHA256SUMS the build job handed on before it uses
 # them. Values reach scripts through env:, never as expressions.
+# A dispatch on a branch other than main reuses a set the cache holds under this commit's key
+# (release/set_key.py), and still rebuilds it from the pins three times on Linux; a pushed tag and
+# a dispatch on main always build.
 name: release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      from-source:
+        description: build the set from the pins even when a set for this commit is cached
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -33,23 +41,69 @@ env:
   UV_BUILD_CONSTRAINT: release/build-constraints.txt
 
 jobs:
+  inputs:
+    name: the set's key, and whether this run may reuse a set
+    # Spec 101, Decision 4: only a dispatch on a branch other than main, not from-source, reuses a
+    # set the cache holds under this commit's key. Every consumer compares reuse with == 'true', so
+    # an empty or broken output builds from source.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+      reuse: ${{ steps.decide.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The set's key (release/set_key.py prints what it hashes)
+        id: key
+        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+      - name: Is a set cached under the key
+        id: lookup
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: wasi-python-set
+          key: ${{ steps.key.outputs.key }}
+          lookup-only: true
+      - name: Reuse only on a dispatch from a branch other than main
+        id: decide
+        env:
+          FROM_SOURCE: ${{ inputs.from-source }}
+          HIT: ${{ steps.lookup.outputs.cache-hit }}
+        run: |
+          reuse=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF_TYPE" = branch ] \
+            && [ "$GITHUB_REF" != refs/heads/main ] && [ "$FROM_SOURCE" != true ] && [ "$HIT" = true ]; then
+            reuse=true
+          fi
+          echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
+          echo "event $GITHUB_EVENT_NAME, $GITHUB_REF ($GITHUB_REF_TYPE), from-source '$FROM_SOURCE', cached '$HIT': reuse=$reuse"
+
   build:
-    name: build and judge (arm64 macOS)
-    # The published set is built and judged on arm64 macOS; the rebuild job checks it from Linux.
-    runs-on: macos-15
+    name: build on arm64 macOS, or reuse a set
+    # The published set is built on arm64 macOS; a branch dispatch whose key is cached reuses it on
+    # Linux instead (spec 101, Decision 8), and build-shard, the rebuild jobs and same-bytes prove
+    # it from the pins in the same run. The build shard runs in build-shard (Decision 5).
+    needs: inputs
+    runs-on: ${{ needs.inputs.outputs.reuse == 'true' && 'ubuntu-24.04' || 'macos-15' }}
     timeout-minutes: 120
     permissions:
       contents: read
     outputs:
       assets-id: ${{ steps.assets.outputs.artifact-id }}
       sums-sha256: ${{ steps.sums.outputs.sha256 }}
-      # The build shard's record, and python.wasm's SHA-256 for the gather, which never
-      # holds the assets (Decision 9).
-      record-id: ${{ steps.record.outputs.artifact-id }}
-      record-sha256: ${{ steps.record-sha.outputs.sha256 }}
+      # python.wasm's SHA-256 for the gather, which never holds the assets.
       wasm-sha256: ${{ steps.wasm.outputs.sha256 }}
       # The set's own SHA256SUMS (not the release assets'), for the gather's G2 and G7.
       set-sums-sha256: ${{ steps.set-sums.outputs.sha256 }}
+      # Spec 101: built or reused, from what ran (the compile step's outcome), for the gather's G7.
+      set-source: ${{ steps.compile.outcome == 'success' && 'built' || format('reused {0}', needs.inputs.outputs.key) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,14 +123,43 @@ jobs:
             uv run python release/version.py check
           fi
       - name: Download the pinned inputs
+        if: needs.inputs.outputs.reuse != 'true'
         run: scripts/00_download.sh
       - name: Build from the pins
+        id: compile
+        if: needs.inputs.outputs.reuse != 'true'
         run: scripts/build.sh
+      - name: The set this commit's key names
+        if: needs.inputs.outputs.reuse == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: wasi-python-set
+          key: ${{ needs.inputs.outputs.key }}
+          fail-on-cache-miss: true
+      - name: The reused set in build/artifacts
+        if: needs.inputs.outputs.reuse == 'true'
+        run: |
+          mkdir -p build
+          mv wasi-python-set build/artifacts
+      - name: The set is this commit's
+        # Every run, no if: each file against the set's own SHA256SUMS, no other file, MANIFEST's
+        # pin and recipe lines against this checkout; and a reused set's key (spec 101, Decision 8).
+        env:
+          REUSED_KEY: ${{ needs.inputs.outputs.reuse == 'true' && needs.inputs.outputs.key || '' }}
+        run: |
+          if [ -n "$REUSED_KEY" ]; then
+            uv run --no-project python -I release/set_key.py verify build/artifacts --key "$REUSED_KEY"
+          else
+            uv run --no-project python -I release/set_key.py verify build/artifacts
+          fi
       - name: The wheel
         run: |
           cp -R build/artifacts src/wasi_python/artifacts
           uv build --wheel --build-constraints release/build-constraints.txt --require-hashes
       - name: The source trees are their tarballs plus the recorded patches (spec 020)
+        # On a source run only: a reuse run has no tree here. build-shard runs the same step on
+        # every run, with no if:.
+        if: steps.compile.outcome == 'success'
         # All twenty-eight trees must pass (seaborn's sdist the twenty-seventh, statsmodels' the
         # twenty-eighth): a skipped check (a tree not unpacked) would exit 0 too.
         run: |
@@ -84,19 +167,6 @@ jobs:
           uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
             -k test_source_tree_matches_its_tarball | tee zero-patch.txt
           grep -Eq "^28 passed, [0-9]+ deselected in" zero-patch.txt
-      - name: The build shard
-        # Only the checks that need the build host: every component's tree, the compile records and
-        # the zlib tarball. The rest of the judge runs in the judge jobs.
-        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
-      - name: The record's SHA-256
-        id: record-sha
-        run: uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
-      - id: record
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: record-build-build
-          path: ${{ runner.temp }}/record/latest.json
-          if-no-files-found: error
       - name: The SHA-256 of python.wasm, handed to the gather
         id: wasm
         run: echo "sha256=$(shasum -a 256 build/artifacts/python.wasm | cut -c1-64)" >> "$GITHUB_OUTPUT"
@@ -128,9 +198,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-logs
-          path: |
-            build/logs/
-            ${{ runner.temp }}/record/
+          path: build/logs/
           if-no-files-found: ignore
 
   rebuild-linux-arm64:
@@ -396,6 +464,136 @@ jobs:
             echo "$runner: the same wheel"
           done
 
+  build-shard:
+    name: the build shard on a fresh build (ubuntu-24.04-arm)
+    # The build shard reads the build tree (the source trees, the compile records, the toolchain),
+    # which a reused set does not have; so on every run, tags included, it runs here on a fresh
+    # build from the pins (spec 101, Decision 5; the owner, 2026-10-20). Its record's artifact and
+    # set_sums are this tree's own, and the gather's G2 holds them to the build job's.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    outputs:
+      record-id: ${{ steps.record.outputs.artifact-id }}
+      record-sha256: ${{ steps.record-sha.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # as the build job's: the judge reads the checkout's history
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: Download the pinned inputs
+        run: scripts/00_download.sh
+      - name: Build from the pins
+        run: scripts/build.sh
+      - name: The source trees are their tarballs plus the recorded patches (spec 020)
+        # All twenty-seven trees must pass (seaborn's sdist the twenty-seventh, spec 042): a
+        # skipped check (a tree not unpacked) would exit 0 too.
+        run: |
+          set -o pipefail
+          uv run pytest -p no:cacheprovider -q tests/checks/test_v1_5_rebuild_from_pins.py \
+            -k test_source_tree_matches_its_tarball | tee zero-patch.txt
+          grep -Eq "^27 passed, [0-9]+ deselected in" zero-patch.txt
+      - name: The build shard
+        # Only the checks that need the build tree: every component's tree, the compile records and
+        # the zlib tarball (spec 063, Decision 6), on this job's own build (spec 101, Decision 5).
+        run: uv run pytest -p no:cacheprovider --shard=build --progress-latest "$RUNNER_TEMP/record/latest.json"
+      - name: The record's SHA-256
+        id: record-sha
+        run: uv run python -c "import hashlib, sys; print('sha256=' + hashlib.sha256(open(sys.argv[1], 'rb').read()).hexdigest())" "$RUNNER_TEMP/record/latest.json" >> "$GITHUB_OUTPUT"
+      - id: record
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: record-build-build
+          path: ${{ runner.temp }}/record/latest.json
+          if-no-files-found: error
+      - name: Keep the build logs when something fails
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-shard-logs
+          path: |
+            build/logs/
+            ${{ runner.temp }}/record/
+          if-no-files-found: ignore
+
+  save-set:
+    name: keep the set this run built and both hosts rebuilt
+    # Spec 101, Decision 7: a branch run that built its set writes it to the cache under the key its
+    # own checkout gives, once same-bytes has matched it with both rebuilds; a later dispatch on this
+    # branch with the same key reuses it.
+    needs: [build, same-bytes]
+    if: needs.build.outputs.set-source == 'built' && github.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - name: The build job handed on an artifact id
+        # An empty artifact-ids makes download-artifact fetch every artifact of the run (spec 057).
+        env:
+          ASSETS_ID: ${{ needs.build.outputs.assets-id }}
+        run: |
+          case "$ASSETS_ID" in
+            "" | *[!0-9]*) echo "the build job handed on no artifact id"; exit 1 ;;
+          esac
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.assets-id }}
+          path: release-assets
+          digest-mismatch: error
+      - name: These are the bytes the build job made
+        # By id, the digest checked by the action; then SHA256SUMS against the hash the build job
+        # handed on, every file against SHA256SUMS, and no other file (spec 057).
+        env:
+          SUMS_SHA256: ${{ needs.build.outputs.sums-sha256 }}
+        run: |
+          set -eu
+          case "$SUMS_SHA256" in
+            "" | *[!0-9a-f]*) echo "the build job handed on no SHA-256 of SHA256SUMS"; exit 1 ;;
+          esac
+          if [ "${#SUMS_SHA256}" -ne 64 ]; then
+            echo "the build job handed on no SHA-256 of SHA256SUMS"
+            exit 1
+          fi
+          if command -v sha256sum > /dev/null; then sum="sha256sum"; else sum="shasum -a 256"; fi
+          printf '%s  SHA256SUMS\n' "$SUMS_SHA256" > SHA256SUMS.sha256
+          ( cd release-assets && $sum -c ../SHA256SUMS.sha256 && $sum -c SHA256SUMS )
+          want=$( { awk '{print $2}' release-assets/SHA256SUMS; echo SHA256SUMS; } | LC_ALL=C sort)
+          have=$(cd release-assets && find . -mindepth 1 | sed 's#^\./##' | LC_ALL=C sort)
+          if [ "$want" != "$have" ]; then
+            echo "release-assets holds other files than the build job's"
+            exit 1
+          fi
+      - name: The set, out of the release assets
+        run: |
+          mkdir unpacked
+          tar -xJf release-assets/*.tar.xz -C unpacked
+          top=$(echo unpacked/wasi-python-*)
+          mv "$top" wasi-python-set
+      - name: The set's key from this checkout
+        id: key
+        run: uv run --no-project python -I release/set_key.py key >> "$GITHUB_OUTPUT"
+      - name: The set is this commit's
+        env:
+          KEY: ${{ steps.key.outputs.key }}
+        run: uv run --no-project python -I release/set_key.py verify wasi-python-set --key "$KEY"
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: wasi-python-set
+          key: ${{ steps.key.outputs.key }}
+
   judge-macos:
     name: judge (macos-15, ${{ matrix.shard }})
     # One leg per shard of this system's plan (tests/release_shards.toml).
@@ -405,8 +603,10 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      max-parallel: 20
       matrix:
-        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-macos]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-rest, upstream-macos]
     runs-on: macos-15
     timeout-minutes: 30
     permissions:
@@ -414,10 +614,12 @@ jobs:
     outputs:
       own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
       own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-embedding-a-id: ${{ steps.out.outputs.own-embedding-a-id }}
+      own-embedding-a-sha256: ${{ steps.out.outputs.own-embedding-a-sha256 }}
+      own-hostile-id: ${{ steps.out.outputs.own-hostile-id }}
+      own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
-      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
-      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       own-rest-id: ${{ steps.out.outputs.own-rest-id }}
       own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
       upstream-macos-id: ${{ steps.out.outputs.upstream-macos-id }}
@@ -526,8 +728,10 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      max-parallel: 20
       matrix:
-        shard: [own-embedding, own-guest, own-runner, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, own-rest, upstream-groupby, upstream-frame, upstream-numpy-a, upstream-numpy-b, upstream-pandas-small, upstream-plot-a, upstream-plot-b, upstream-plot-c, upstream-plot-d, upstream-plot-e, upstream-plot-f, upstream-plot-g, upstream-plot-h, upstream-plot-i, upstream-plot-j, upstream-plot-k, upstream-plot-l, upstream-plot-m, upstream-plot-n]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -535,10 +739,12 @@ jobs:
     outputs:
       own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
       own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-embedding-a-id: ${{ steps.out.outputs.own-embedding-a-id }}
+      own-embedding-a-sha256: ${{ steps.out.outputs.own-embedding-a-sha256 }}
+      own-hostile-id: ${{ steps.out.outputs.own-hostile-id }}
+      own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
-      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
-      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       own-rest-id: ${{ steps.out.outputs.own-rest-id }}
       own-rest-sha256: ${{ steps.out.outputs.own-rest-sha256 }}
       upstream-groupby-id: ${{ steps.out.outputs.upstream-groupby-id }}
@@ -683,8 +889,10 @@ jobs:
     needs: build
     strategy:
       fail-fast: false
+      # One run stays within the plan's 40 jobs at once (spec 101, Decision 9).
+      max-parallel: 20
       matrix:
-        shard: [own-embedding, own-guest, own-runner, upstream-windows]
+        shard: [own-embedding, own-embedding-a, own-hostile, own-guest, upstream-windows]
     runs-on: windows-2025
     timeout-minutes: 30
     permissions:
@@ -692,10 +900,12 @@ jobs:
     outputs:
       own-embedding-id: ${{ steps.out.outputs.own-embedding-id }}
       own-embedding-sha256: ${{ steps.out.outputs.own-embedding-sha256 }}
+      own-embedding-a-id: ${{ steps.out.outputs.own-embedding-a-id }}
+      own-embedding-a-sha256: ${{ steps.out.outputs.own-embedding-a-sha256 }}
+      own-hostile-id: ${{ steps.out.outputs.own-hostile-id }}
+      own-hostile-sha256: ${{ steps.out.outputs.own-hostile-sha256 }}
       own-guest-id: ${{ steps.out.outputs.own-guest-id }}
       own-guest-sha256: ${{ steps.out.outputs.own-guest-sha256 }}
-      own-runner-id: ${{ steps.out.outputs.own-runner-id }}
-      own-runner-sha256: ${{ steps.out.outputs.own-runner-sha256 }}
       upstream-windows-id: ${{ steps.out.outputs.upstream-windows-id }}
       upstream-windows-sha256: ${{ steps.out.outputs.upstream-windows-sha256 }}
     env:
@@ -798,8 +1008,10 @@ jobs:
     # One verdict from every shard's record, each downloaded by the id its job handed on and
     # checked against the SHA-256 it handed on; tied to this commit, its judge, the build's
     # python.wasm, the lane's acceptance and three systems. It never holds
-    # the assets: python.wasm's hash comes from the build job. It writes no history.
-    needs: [build, judge-macos, judge-linux, judge-windows]
+    # the assets: python.wasm's hash comes from the build job. It writes no history. It waits for
+    # same-bytes, so no release record exists without the proof that the set judged is the set the
+    # pins make; the build shard's record comes from build-shard, on its own fresh build.
+    needs: [build, build-shard, same-bytes, judge-macos, judge-linux, judge-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -818,15 +1030,17 @@ jobs:
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
           SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
-          BUILD_RECORD_ID: ${{ needs.build.outputs.record-id }}
+          BUILD_RECORD_ID: ${{ needs.build-shard.outputs.record-id }}
           MACOS_OWN_EMBEDDING_ID: ${{ needs.judge-macos.outputs.own-embedding-id }}
+          MACOS_OWN_EMBEDDING_A_ID: ${{ needs.judge-macos.outputs.own-embedding-a-id }}
+          MACOS_OWN_HOSTILE_ID: ${{ needs.judge-macos.outputs.own-hostile-id }}
           MACOS_OWN_GUEST_ID: ${{ needs.judge-macos.outputs.own-guest-id }}
-          MACOS_OWN_RUNNER_ID: ${{ needs.judge-macos.outputs.own-runner-id }}
           MACOS_OWN_REST_ID: ${{ needs.judge-macos.outputs.own-rest-id }}
           MACOS_UPSTREAM_MACOS_ID: ${{ needs.judge-macos.outputs.upstream-macos-id }}
           LINUX_OWN_EMBEDDING_ID: ${{ needs.judge-linux.outputs.own-embedding-id }}
+          LINUX_OWN_EMBEDDING_A_ID: ${{ needs.judge-linux.outputs.own-embedding-a-id }}
+          LINUX_OWN_HOSTILE_ID: ${{ needs.judge-linux.outputs.own-hostile-id }}
           LINUX_OWN_GUEST_ID: ${{ needs.judge-linux.outputs.own-guest-id }}
-          LINUX_OWN_RUNNER_ID: ${{ needs.judge-linux.outputs.own-runner-id }}
           LINUX_OWN_REST_ID: ${{ needs.judge-linux.outputs.own-rest-id }}
           LINUX_UPSTREAM_GROUPBY_ID: ${{ needs.judge-linux.outputs.upstream-groupby-id }}
           LINUX_UPSTREAM_FRAME_ID: ${{ needs.judge-linux.outputs.upstream-frame-id }}
@@ -848,8 +1062,9 @@ jobs:
           LINUX_UPSTREAM_PLOT_M_ID: ${{ needs.judge-linux.outputs.upstream-plot-m-id }}
           LINUX_UPSTREAM_PLOT_N_ID: ${{ needs.judge-linux.outputs.upstream-plot-n-id }}
           WINDOWS_OWN_EMBEDDING_ID: ${{ needs.judge-windows.outputs.own-embedding-id }}
+          WINDOWS_OWN_EMBEDDING_A_ID: ${{ needs.judge-windows.outputs.own-embedding-a-id }}
+          WINDOWS_OWN_HOSTILE_ID: ${{ needs.judge-windows.outputs.own-hostile-id }}
           WINDOWS_OWN_GUEST_ID: ${{ needs.judge-windows.outputs.own-guest-id }}
-          WINDOWS_OWN_RUNNER_ID: ${{ needs.judge-windows.outputs.own-runner-id }}
           WINDOWS_UPSTREAM_WINDOWS_ID: ${{ needs.judge-windows.outputs.upstream-windows-id }}
         run: |
           case "$WASM_SHA256" in
@@ -866,46 +1081,49 @@ jobs:
             echo "the build job handed on no SHA-256 of the set's SHA256SUMS"
             exit 1
           fi
-          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_RUNNER_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_RUNNER_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$LINUX_UPSTREAM_PLOT_M_ID" "$LINUX_UPSTREAM_PLOT_N_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_OWN_RUNNER_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
+          for id in "$BUILD_RECORD_ID" "$MACOS_OWN_EMBEDDING_ID" "$MACOS_OWN_EMBEDDING_A_ID" "$MACOS_OWN_HOSTILE_ID" "$MACOS_OWN_GUEST_ID" "$MACOS_OWN_REST_ID" "$MACOS_UPSTREAM_MACOS_ID" "$LINUX_OWN_EMBEDDING_ID" "$LINUX_OWN_EMBEDDING_A_ID" "$LINUX_OWN_HOSTILE_ID" "$LINUX_OWN_GUEST_ID" "$LINUX_OWN_REST_ID" "$LINUX_UPSTREAM_GROUPBY_ID" "$LINUX_UPSTREAM_FRAME_ID" "$LINUX_UPSTREAM_NUMPY_A_ID" "$LINUX_UPSTREAM_NUMPY_B_ID" "$LINUX_UPSTREAM_PANDAS_SMALL_ID" "$LINUX_UPSTREAM_PLOT_A_ID" "$LINUX_UPSTREAM_PLOT_B_ID" "$LINUX_UPSTREAM_PLOT_C_ID" "$LINUX_UPSTREAM_PLOT_D_ID" "$LINUX_UPSTREAM_PLOT_E_ID" "$LINUX_UPSTREAM_PLOT_F_ID" "$LINUX_UPSTREAM_PLOT_G_ID" "$LINUX_UPSTREAM_PLOT_H_ID" "$LINUX_UPSTREAM_PLOT_I_ID" "$LINUX_UPSTREAM_PLOT_J_ID" "$LINUX_UPSTREAM_PLOT_K_ID" "$LINUX_UPSTREAM_PLOT_L_ID" "$LINUX_UPSTREAM_PLOT_M_ID" "$LINUX_UPSTREAM_PLOT_N_ID" "$WINDOWS_OWN_EMBEDDING_ID" "$WINDOWS_OWN_EMBEDDING_A_ID" "$WINDOWS_OWN_HOSTILE_ID" "$WINDOWS_OWN_GUEST_ID" "$WINDOWS_UPSTREAM_WINDOWS_ID"; do
             case "$id" in
               "" | *[!0-9]*) echo "a job handed on no record id"; exit 1 ;;
             esac
           done
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build.outputs.record-id }}
-          path: records/build
+          artifact-ids: ${{ needs.build-shard.outputs.record-id }}
+          path: records/build-shard
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-macos.outputs.own-embedding-id }},${{ needs.judge-macos.outputs.own-guest-id }},${{ needs.judge-macos.outputs.own-runner-id }},${{ needs.judge-macos.outputs.own-rest-id }},${{ needs.judge-macos.outputs.upstream-macos-id }}
+          artifact-ids: ${{ needs.judge-macos.outputs.own-embedding-id }},${{ needs.judge-macos.outputs.own-embedding-a-id }},${{ needs.judge-macos.outputs.own-hostile-id }},${{ needs.judge-macos.outputs.own-guest-id }},${{ needs.judge-macos.outputs.own-rest-id }},${{ needs.judge-macos.outputs.upstream-macos-id }}
           path: records/judge-macos
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-runner-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }},${{ needs.judge-linux.outputs.upstream-plot-m-id }},${{ needs.judge-linux.outputs.upstream-plot-n-id }}
+          artifact-ids: ${{ needs.judge-linux.outputs.own-embedding-id }},${{ needs.judge-linux.outputs.own-embedding-a-id }},${{ needs.judge-linux.outputs.own-hostile-id }},${{ needs.judge-linux.outputs.own-guest-id }},${{ needs.judge-linux.outputs.own-rest-id }},${{ needs.judge-linux.outputs.upstream-groupby-id }},${{ needs.judge-linux.outputs.upstream-frame-id }},${{ needs.judge-linux.outputs.upstream-numpy-a-id }},${{ needs.judge-linux.outputs.upstream-numpy-b-id }},${{ needs.judge-linux.outputs.upstream-pandas-small-id }},${{ needs.judge-linux.outputs.upstream-plot-a-id }},${{ needs.judge-linux.outputs.upstream-plot-b-id }},${{ needs.judge-linux.outputs.upstream-plot-c-id }},${{ needs.judge-linux.outputs.upstream-plot-d-id }},${{ needs.judge-linux.outputs.upstream-plot-e-id }},${{ needs.judge-linux.outputs.upstream-plot-f-id }},${{ needs.judge-linux.outputs.upstream-plot-g-id }},${{ needs.judge-linux.outputs.upstream-plot-h-id }},${{ needs.judge-linux.outputs.upstream-plot-i-id }},${{ needs.judge-linux.outputs.upstream-plot-j-id }},${{ needs.judge-linux.outputs.upstream-plot-k-id }},${{ needs.judge-linux.outputs.upstream-plot-l-id }},${{ needs.judge-linux.outputs.upstream-plot-m-id }},${{ needs.judge-linux.outputs.upstream-plot-n-id }}
           path: records/judge-linux
           digest-mismatch: error
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.judge-windows.outputs.own-embedding-id }},${{ needs.judge-windows.outputs.own-guest-id }},${{ needs.judge-windows.outputs.own-runner-id }},${{ needs.judge-windows.outputs.upstream-windows-id }}
+          artifact-ids: ${{ needs.judge-windows.outputs.own-embedding-id }},${{ needs.judge-windows.outputs.own-embedding-a-id }},${{ needs.judge-windows.outputs.own-hostile-id }},${{ needs.judge-windows.outputs.own-guest-id }},${{ needs.judge-windows.outputs.upstream-windows-id }}
           path: records/judge-windows
           digest-mismatch: error
       - name: The gather
         # It reads GITHUB_EVENT_NAME and GITHUB_REF_TYPE as the runner sets them: on a pushed tag the
-        # judge must also be the accepted one (G7).
+        # judge must also be the accepted one, and the set built in this run (G7).
         env:
           WASM_SHA256: ${{ needs.build.outputs.wasm-sha256 }}
           SET_SUMS_SHA256: ${{ needs.build.outputs.set-sums-sha256 }}
-          RECORD_BUILD_BUILD: ${{ needs.build.outputs.record-sha256 }}
+          SET_SOURCE: ${{ needs.build.outputs.set-source }}
+          RECORD_BUILD_BUILD: ${{ needs.build-shard.outputs.record-sha256 }}
           RECORD_MACOS_OWN_EMBEDDING: ${{ needs.judge-macos.outputs.own-embedding-sha256 }}
+          RECORD_MACOS_OWN_EMBEDDING_A: ${{ needs.judge-macos.outputs.own-embedding-a-sha256 }}
+          RECORD_MACOS_OWN_HOSTILE: ${{ needs.judge-macos.outputs.own-hostile-sha256 }}
           RECORD_MACOS_OWN_GUEST: ${{ needs.judge-macos.outputs.own-guest-sha256 }}
-          RECORD_MACOS_OWN_RUNNER: ${{ needs.judge-macos.outputs.own-runner-sha256 }}
           RECORD_MACOS_OWN_REST: ${{ needs.judge-macos.outputs.own-rest-sha256 }}
           RECORD_MACOS_UPSTREAM_MACOS: ${{ needs.judge-macos.outputs.upstream-macos-sha256 }}
           RECORD_LINUX_OWN_EMBEDDING: ${{ needs.judge-linux.outputs.own-embedding-sha256 }}
+          RECORD_LINUX_OWN_EMBEDDING_A: ${{ needs.judge-linux.outputs.own-embedding-a-sha256 }}
+          RECORD_LINUX_OWN_HOSTILE: ${{ needs.judge-linux.outputs.own-hostile-sha256 }}
           RECORD_LINUX_OWN_GUEST: ${{ needs.judge-linux.outputs.own-guest-sha256 }}
-          RECORD_LINUX_OWN_RUNNER: ${{ needs.judge-linux.outputs.own-runner-sha256 }}
           RECORD_LINUX_OWN_REST: ${{ needs.judge-linux.outputs.own-rest-sha256 }}
           RECORD_LINUX_UPSTREAM_GROUPBY: ${{ needs.judge-linux.outputs.upstream-groupby-sha256 }}
           RECORD_LINUX_UPSTREAM_FRAME: ${{ needs.judge-linux.outputs.upstream-frame-sha256 }}
@@ -927,8 +1145,9 @@ jobs:
           RECORD_LINUX_UPSTREAM_PLOT_M: ${{ needs.judge-linux.outputs.upstream-plot-m-sha256 }}
           RECORD_LINUX_UPSTREAM_PLOT_N: ${{ needs.judge-linux.outputs.upstream-plot-n-sha256 }}
           RECORD_WINDOWS_OWN_EMBEDDING: ${{ needs.judge-windows.outputs.own-embedding-sha256 }}
+          RECORD_WINDOWS_OWN_EMBEDDING_A: ${{ needs.judge-windows.outputs.own-embedding-a-sha256 }}
+          RECORD_WINDOWS_OWN_HOSTILE: ${{ needs.judge-windows.outputs.own-hostile-sha256 }}
           RECORD_WINDOWS_OWN_GUEST: ${{ needs.judge-windows.outputs.own-guest-sha256 }}
-          RECORD_WINDOWS_OWN_RUNNER: ${{ needs.judge-windows.outputs.own-runner-sha256 }}
           RECORD_WINDOWS_UPSTREAM_WINDOWS: ${{ needs.judge-windows.outputs.upstream-windows-sha256 }}
         run: |
           uv run python tests/harness/gather.py --records records --out release-record

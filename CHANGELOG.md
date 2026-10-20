@@ -95,6 +95,15 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   owner's question, named here. Signals only the hardware gives (float division by zero,
   `log(0)`, invalid casts) stay silent; the README says so.
 
+- **A faster release run** (spec 101). A dispatch on a branch other than main reuses a set the
+  cache holds under its commit's key (`release/set_key.py`: every pin, every tracked file under
+  `scripts/` and `recipes/`, the constructor gate with its imports, the build's environment), and
+  the same run still rebuilds the set from the pins three times on Linux and requires the same
+  bytes; a pushed tag and main always build. The build shard runs on a fresh arm64 Linux build on
+  every run, tags included. The macOS judge splits its two longest shards (`own-hostile`,
+  `own-embedding-a`). `.github/workflows/set-cache.yml` fills main's cache on each push to main.
+  The artifact set does not change.
+
 - **The release runs the compiled packages' own tests** (spec 066): matplotlib's, contourpy's,
   Pillow's, kiwisolver's, lxml's and regex's own suites, every test of each (contourpy's
   random_big, `--runslow` and `--runtext` cases included, and Pillow's `checks/` and
