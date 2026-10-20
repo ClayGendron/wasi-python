@@ -81,6 +81,16 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `recipes/fcntl_dup_refusal.c`, gives `dup`'s answer (a facts sheet for wasi-libc,
   `context/upstream/25-wasi-libc-fcntl-dupfd/`). GB18030 stays refused: musl 1.2.6's decoder still
   has the bug.
+- **Changed: strings hash with SipHash-1-3** (spec 086; the 0.1.0 security review's S5). CPython's
+  configure falls back to 32-bit FNV when a cross build cannot run its aligned-access probe, and
+  the guest hashed `str`, `bytes` and `memoryview` with FNV, which crafted keys can flood whatever
+  its key (PEP 456). Step 20 now passes `--with-hash-algorithm=siphash13`, CPython's own default:
+  `sys.hash_info.algorithm` is `'siphash13'` on both binaries, kept in 32 bits on wasm32. The
+  snapshot's key stays fixed and public, which the README's *Not protected* list now says.
+- **Fixed: a missing stdlib module says why.** The zip now carries `_missing_stdlib_info`, which
+  CPython's build generates beside `_sysconfigdata`, so `import _tkinter` fails with
+  "Unsupported platform for standard library module '_tkinter'" as natively, not "was not found"
+  (spec 086; spec 078's build review, F2).
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result

@@ -5,7 +5,7 @@
 # A toolchain or configure change that moves one turns
 # tests/checks/test_v1_5_rebuild_from_pins.py::test_the_guests_configure_results_are_recorded red;
 # its specification states why and rewrites this file.
-digest d8eefd3056b5f9228bf47f0d0c59ed16f880240b66835e39ee18eea2ba31c261
+digest 38d098e54ef623b872d6f3aa6e36de5da6dadc6a32d93b224faa3c2966ebcc84
 ALIGNOF_LONG 4
 ALIGNOF_MAX_ALIGN_T 16
 ALIGNOF_SIZE_T 4
@@ -177,6 +177,7 @@ PY_BUILTIN_HASHLIB_HASHES "md5,sha1,sha2,sha3,blake2"
 PY_COERCE_C_LOCALE 1
 PY_SSL_DEFAULT_CIPHERS 1
 PY_SUPPORT_TIER 2
+Py_HASH_ALGORITHM 3
 Py_PYCONFIG_H
 Py_REMOTE_DEBUG 1
 RETSIGTYPE void
