@@ -524,7 +524,7 @@ def _shutdown(state: _State) -> tuple[str, BaseException | None]:
     if (
         _platform.PLATFORM.trap_handlers_ready() is not None
     ):  # a trap in the shutdown could end this process
-        return "skipped", None  #
+        return "skipped", None
     ticks = max(1, math.ceil(left / TICK_S))
     fuel = state.checked.fuel if state.metered else None
     home = state.ending_home = _Home()  # the ending's home thread
@@ -891,7 +891,7 @@ def _session_turn(
         except BaseException as e:
             error = e
         if home.phase in _home._GUEST_MAY_RUN:  # forced out while the guest thread runs
-            home.finish(lambda: _abandon_turn(state))  #
+            home.finish(lambda: _abandon_turn(state))  # run by the guest thread at its end
             raise error if error is not None else RuntimeError("wasi_python lost a turn")
         with state.lock:
             if error is not None:
