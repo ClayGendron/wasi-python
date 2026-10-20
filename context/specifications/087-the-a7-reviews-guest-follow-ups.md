@@ -1,12 +1,12 @@
 # 087 — the 0.1.0a7 review's guest follow-ups
 
-- **Status:** drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
+- **Status:** **built** 2026-10-19 on `2abcba0` (rebased onto main `91eb2c7`; full judge 0 fail, lost 0, grew 2 bytes; dry run 39346784823, its only red lines the two growth lines; see *Landing notes*). Drafted 2026-10-19 on `spec/087-the-a7-reviews-guest-follow-ups` from main `a6dfc17`,
   with its research; reviewed before build the same day
   (`scratchpad/087-review/087-the-a7-reviews-guest-follow-ups-spec-2026-10-19.md`, for the lane to
   copy to `../reviews/`; verdict: "ready once F1 to F5 are written in, and the spec is rebased on
   main per F6", F7 to F11 as wording); **revised against all eleven findings** and rebased onto
   main `932bc00` (spec 065 landed; the README's two recursion corrections landed). The section
-  "Disposition of the pre-build review" says where each went. Nothing is built. It carries an
+  "Disposition of the pre-build review" says where each went. It carries an
   upstream patch (§4.1) and changes the build recipe and the artifact set, so it was reviewed
   before it is built (constitution §5.6), and the review read the patch and its facts sheet
   (spec 020, Decision 8). A different agent reviews the build.
@@ -683,4 +683,149 @@ rows on an engine at wasmtime's defaults, which spec 078 never has to restate.
 
 ## Landing notes
 
-Not built.
+**Built 2026-10-19** on `2abcba0` (the branch rebased onto main `91eb2c7` first; 078, 083 and 086
+had not landed). Builder's evidence is under the worktree's `build/087/` (not tracked): the build
+logs, `seen-failing.txt`, `mutants.log`, `edges/` (both hosts), `fast-2.log`, `full.log` and the
+record `build/087/latest-full.json`.
+
+### The build (criteria 2 to 5)
+
+- **From an empty `build/`** in the worktree, downloads seeded from main's verified pins (49 pins,
+  0 fetched, 49 verified): `scripts/build.sh --plain`, 16 steps. Step 53 applied 0001 then 0002
+  cleanly ("Applied patch src/_regex.c cleanly", no offset) and compiled `_regex.c` with 0 warnings.
+  Step 90 first refused the then-untracked patch ("untracked recipe files (stage them first)"); with
+  it staged, step 90 ran. **Steps 53 to 90 run again** gave the same `SHA256SUMS`, byte for byte.
+- **Before the patch**, the same full build reproduced main's set `s-c50ca51fae5eb55b-c9dcb5b8`
+  exactly (`SHA256SUMS` identical): the set check 1 was seen failing on.
+- **The same bytes everywhere** (criterion 3): the dry run's "the same bytes from every host" job
+  passed (arm64 Linux and x86_64 Linux rebuilds against the macOS build) — run 39346784823.
+- **The patch is its sheet's** (criterion 4): `recipes/patches/regex-2026.9.29/0002-timeout-ticks.patch`
+  is `fix.patch` byte for byte, SHA-256 `9da893d047d2f365814c9731d1a51d275dc96bd77f48270b67fd6b8ddb69d3ce`;
+  the sheet moved by `git mv`, unchanged. `MANIFEST` names both patches by hash;
+  `LICENSES/regex.txt` holds two modification lines, one per patch.
+- **The set's `SHA256SUMS`** (`89b14f67…` as a file), the lines that differ from main's set:
+
+  ```
+  87d0dbdf9ddf6bdbfe40476434a7f3b77143354102fa78d2800cbbb766ee31ce  LICENSES/regex.txt
+  cd17dcd398404c3899cdedc57acb29e279557c7b313fbc3e238b99596c42b771  MANIFEST
+  47cb880f18fa1904de9b96033d94fb73d561a3c2f277c45b0011d764b98a27ff  python-snapshot.wasm
+  02026895917b7e22923db1bad99a02ee1d22f7382ff63715271e39fb9032d1fe  python-stdlib.zip   (unchanged)
+  5f8d1b29c91849aaeab813fb1d4c498404812d7ac1e2e260b9160e8c9f112801  python.wasm
+  ```
+
+  The other 29 lines (the licence notices but regex's) equal main's.
+
+### The numbers (criterion 5)
+
+| what | main's set | this set | move, and why |
+|---|---|---|---|
+| `python.wasm` bytes | 41,099,661 | 41,099,863 | +202: `_regex.c`'s ticks in 64 bits (the scratch build's `5f8d1b29…`, reproduced) |
+| `python-snapshot.wasm` bytes | 44,633,983 | 44,634,185 | +202: the same code |
+| `python-stdlib.zip` bytes | 22,197,173 | 22,197,173 | none |
+| `-c pass` fuel, plain / snapshot (`test_guest_runs_here`) | 167,589,143 / 15,721,612 | the same | none |
+| `import regex` fuel, plain / snapshot (`test_regex_is_builtin_at_manifest_version`) | 440,316,072 / 168,432,729 | the same | none |
+| check 1's fuel, plain / snapshot | new | 921,068,281 / 648,492,948 | new (the spec's "about 1.04 G" was the review's program, with a seventh `None` case) |
+| checks 2 and 3, plain / snapshot | new | 501,240,084 / 210,275,104 and 498,792,899 / 207,695,137 | new |
+
+Other fuel moved only by layout, inside the ratchet's tolerance and never red: seventeen fast-tier
+rows by 17 to 51 instructions either way (spec 091's layout-dependent kind), the plot job by +102,
+and the upstream groups by at most 0.004% (`cpython-a` −9,990,648, `cpython-archives` +4,631,408,
+the rest under 75,000). No upstream group's `passes` moved.
+
+### The checks, seen failing first (criterion 1)
+
+- **Check 1** on the rebuilt base set, both binaries: `timeout=3` gave `['completed', 'None',
+  4658000000]` (4.658 s of guest clock); with 0002, `TimeoutError` within 3.0 to 3.1 s.
+- **Check 2**: passes on the base set (it holds a README sentence); a mutant `ent.xsl` without the
+  entity fails it on both binaries, and an absent href in the "present" row fails it ("Cannot resolve
+  URI file:///ro/none.xsl").
+- **Check 3**: a resolver that returns `None` fails it on both binaries (the stylesheet's `SECRET`
+  printed).
+- **Check 4**: with `max_wasm_stack` at 1 MiB, all eight trap rows fail (XPath parentheses raises
+  `XPathEvalError`; the other seven complete).
+- **Check 5**: on HEAD's driver both unit checks fail (no `clock_step_ns`).
+- **Check 6**: with 0002 applied in the tree and the patch file moved aside,
+  `test_source_tree_matches_its_tarball[regex]` fails, "src/_regex.c: modified".
+- **Checks 7 and 8 (S3)**: on main's runner the three layouts of check 7 print the planted
+  `proj/build/artifacts`, and check 8's five refusals fail while its two runs pass.
+
+The mutants ran as a pytest plugin outside the repository (`scratchpad/087-mutants/mutant087.py`);
+no check was edited for them.
+
+### Decision 6's table on two hosts (criterion 6)
+
+Bisected on this set's snapshot binary (`scratchpad/087-amd64/scripts/edges.py`, using check 4's own
+programs), the first depth that traps. arm64 macOS equals the spec's table in every cell.
+linux/amd64 ran in `ghcr.io/astral-sh/uv:0.9-trixie-slim` under Rosetta, wasmtime-py 49.0.0:
+
+| row | amd64 runner unmetered | amd64 runner metered | amd64 wasmtime's defaults | lowest of both hosts | ¾ of it | completes at | highest | traps at |
+|---|---|---|---|---|---|---|---|---|
+| XPath parentheses | 342 | 324 | 445 | 324 | 243 | **240** | 500 | 640 |
+| XPath predicates | 4,056 | 3,603 | 4,062 | 3,603 | 2,702 | **2,700** | 4,644 | 4,950 |
+| `call-template` | 463 | 437 | 499 | 437 | 327 | **320** | 523 | 700 |
+| `apply-templates`, copy | 451 | 433 | 479 | 433 | 324 | **320** | 509 | 680 |
+| `apply-templates`, bare | 663 | 649 | 707 | 649 | 486 | **480** | 740 | 930 |
+| C14N | 1,355 | 1,478 | 1,480 | 1,355 | 1,016 | **1,000** | 1,629 | 2,100 |
+| RelaxNG | 396 | 357 | 478 | 357 | 267 | **260** | 516 | 660 |
+| traceback freed | 2,712 | 2,711 | 2,963 | 2,711 | 2,033 | 2,000 | 3,259 | 4,200 |
+
+Seven "completes at" depths fell to keep the rule (Decision 6's note); every "traps at" holds. No
+host's predicates edge passes 4,800, so the fallback is not taken. Check 4 itself, called on
+linux/amd64 with the restated depths, passed (`edges/amd64-check4.log`). The README's rows (the
+runner's darwin numbers, "about") stand; amd64's runner edges are 0 to 9% lower.
+
+### 078's order (criterion 7)
+
+078 had not landed: 087 is built first. The README's 512 KiB rows stay under *Deep recursion*, and
+Decision 8's two sentences follow them there. When 078 lands it moves them, with the sentences, to
+step 4. Check 4 ran on main's driver; the 8 MiB confirmations are 078's.
+
+### The judge (criterion 8)
+
+- Fast tier `uv run pytest -m "not slow" -n 3`: 507/630 pass, 0 fail; ratchet lost 0, grew 2 (the
+  two binaries' bytes).
+- **Full judge** `uv run pytest -n 3` on the clean committed tree `2abcba0`:
+  `wasi_python v1: 549/630 pass · 77 gap · 4 blocked · 0 fail (unit suite 1593/1600, 7 skipped)`;
+  `ratchet vs b91e0eaa4e: lost 0 · absent 0 · unrun 0 · unrun locally 2 · gained 7 · grew 2`; the
+  two unrun locally are the prior-art licence check and the oracle, blocked in any worktree. The
+  record is `build/087/latest-full.json`.
+
+The accepting texts, for the lane:
+
+```
+--accept "spec 087: regex's timeout= fires past 2.147 s (carried patch 0002), checks for the README's lxml DENY_ALL sentences and 512 KiB recursion rows, and S3: an installed copy never takes a neighbouring artifact set, and a found set is checked against its SHA256SUMS"
+--accept-judge "spec 087: checks that hold the README's lxml DENY_ALL sentences on a grant of their own (an imported stylesheet's entity reads a granted file under DENY_ALL; a refusing resolver stops both loads), a check that regex's timeout=3 fires (the driver's clock steps 2 ms per read: a new clock_step_ns keyword, its stated resolution following it when not the default, two WAT probes), the README's 512 KiB recursion rows on an engine at wasmtime's defaults, and S3's checks (tests/test_api.py's installed-copy layouts, tests/unit/test_runner_sets.py, added to the own-runner shard in tests/release_shards.toml); no existing expectation edited"
+--accept-growth "spec 087: regex's second carried patch keeps clock ticks in 64 bits: python.wasm +202 bytes (41,099,661 -> 41,099,863) and the snapshot +202 bytes (44,633,983 -> 44,634,185); LICENSES/regex.txt one line; MANIFEST one recipe line"
+```
+
+### The release (criterion 9)
+
+Dry run **39346784823** on the branch's `2abcba0` (pushed as `spec/087-the-a7-reviews-guest-follow-ups`):
+24 jobs passed, among them both Linux rebuilds, the macOS build and judge, the three `verify` jobs,
+"the same bytes from every host", and every judge shard on Windows (`own-runner`, `own-guest`,
+`own-embedding`, `upstream-windows`), Linux and macOS but one. **The one red job,
+`judge (macos-15, own-guest)`**, had 0 failures (`289/630 pass · 2 gap · 2 blocked · 0 fail`); its
+only red lines are the two growth lines above (`GREW …test_binary_is_a_core_wasm_module[plain]:
+bytes 41099661 -> 41099863`, `[snapshot]: bytes 44633983 -> 44634185`), which the lane's
+`--accept-growth` accepts. `gather` and the publishing jobs were skipped (gather needs every judge
+green; the others run only on a tag). So every red line is a growth line: built by AGENTS.md
+rule 2. A dry run on main after acceptance is the lane's (rule 6b).
+
+### Departures
+
+1. **S3 joined the scope during the build** (the owner, 2026-10-19), as Decision 10, criterion 10
+   and checks 7 and 8. It changes the runner's code with no pre-build review: the coordinator
+   directed that the build review cover it (AGENTS.md rule 8 asks a pre-build review for the
+   runner's code).
+2. **S3's check covers the sets the runner finds, not a set the caller passes** (Decision 10): the
+   brief said "any set it does load"; checking `run(artifacts=…)` would break that public API and
+   three existing checks, so it is narrowed, and the README calls a passed set trusted input.
+3. **Seven completing depths** of check 4 were restated after the linux/amd64 run, as Decision 6
+   allows.
+4. **Check 2 carries a third form**, a path href against a path base, beside the spec's `file:` and
+   relative hrefs (Decision 4's table had it; check 3 uses it).
+5. **`tests/release_shards.toml`** gains the new unit file in `own-runner` (the rules check asks every
+   runner unit file to be in a files shard on all three systems); named in `--accept-judge`.
+6. **"In a clean clone"** (criterion 2): the local full build ran from an empty `build/` in the
+   worktree; the dry run's two Linux rebuilds and the macOS build are the clean clones, and they
+   agree.
