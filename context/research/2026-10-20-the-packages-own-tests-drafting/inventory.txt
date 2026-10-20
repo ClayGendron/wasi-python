@@ -1,0 +1,166 @@
+== attrs-26.1.0: 26 test files, 665 test defs, conftest 1
+   features: {'subprocess': 1, 'hypothesis': 8, 'getsource': 2, 'network': 4}
+   imports: attr:58, pytest:23, attrs:16, hypothesis:11, pympler:1
+   importorskip: {'cloudpickle': 1}
+== beautifulsoup4-4.15.0: 16 test files, 553 test defs, conftest 0
+   features: {'network': 9}
+   imports: bs4:49, pytest:16, soupsieve:3, lxml:2, packaging:1
+== charset_normalizer-3.5.2: 13 test files, 69 test defs, conftest 0
+   features: {'network': 1}
+   imports: charset_normalizer:19, pytest:10
+== cloudpickle-3.1.2: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== contourpy-1.4.0: 20 test files, 196 test defs, conftest 1
+   features: {'subprocess': 1}
+   imports: contourpy:85, numpy:24, pytest:19, matplotlib:5, _pytest:4, selenium:4, PIL:3, packaging:1, wurlitzer:1
+   importorskip: {'contourpy.util.bokeh_renderer': 1}
+== cycler-0.12.1: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== defusedxml-0.7.1: 1 test files, 28 test defs, conftest 0
+   features: {'network': 1}
+   imports: defusedxml:6, lxml:1
+== et_xmlfile-2.0.0: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== fonttools-4.67.0: 185 test files, 3036 test defs, conftest 2
+   features: {'network': 60, 'subprocess': 3, 'sys.executable': 2, 'getsource': 1}
+   imports: fontTools:700, pytest:109, Quartz:6, py:2, brotlicffi:2, brotli:2, ufo2ft:2, ufoLib2:2, AppKit:2, uharfbuzz:1, check_table_coverage:1, zopfli:1, scipy:1, munkres:1
+   importorskip: {'fontTools.ufoLib.plistlib': 6, 'ufoLib2': 4, 'brotli': 3, 'lxml.etree': 1, 'scipy.sparse.csgraph': 2, 'glyphsLib': 2, 'cairo': 1, 'ufo2ft': 2, 'pathops': 2, 'fs': 2}
+== html5lib-1.1: 12 test files, 86 test defs, conftest 1
+   features: {'network': 6}
+   imports: html5lib:31, pytest:10, six:7, lxml:3, pkg_resources:1, pytest_expect:1, genshi:1, chardet:1, mock:1
+== jinja2-3.1.6: 23 test files, 713 test defs, conftest 1
+   features: {'network': 4}
+   imports: jinja2:140, pytest:20, markupsafe:6, trio:2
+== joblib-1.6.0: 22 test files, 329 test defs, conftest 0
+   features: {'threading': 6, 'mmap': 6, 'subprocess': 4, 'multiprocessing': 9, 'network': 10, 'sys.executable': 6, 'socket': 1}
+   imports: joblib:95, pytest:10, numpy:10, distributed:5, testutils:3, lz4:2, tmp_joblib_:2, setuptools:2, memory_profiler:1, cPickle:1, Cython:1
+   importorskip: {'threadpoolctl': 1, 'distributed': 1, 'dask': 1, 'numpy': 3}
+== kiwisolver-1.5.1: 6 test files, 36 test defs, conftest 0
+   features: {}
+   imports: pytest:6, kiwisolver:6
+== lxml-6.1.3: 39 test files, 1506 test defs, conftest 0
+   features: {'network': 25, 'threading': 2, 'socket': 1}
+   imports: lxml:41, cssselect:3, coverage:1, pytest:1, rnc2rng:1, Queue:1, atheris:1, StringIO:1, urlparse:1, html5lib:1, rfc822:1
+== markupsafe-3.0.4: 5 test files, 26 test defs, conftest 1
+   features: {'network': 1}
+   imports: markupsafe:14, pytest:6
+== matplotlib-3.11.2: 104 test files, 3215 test defs, conftest 4
+   features: {'network': 29, 'sys.executable': 11, 'subprocess': 8, 'threading': 5, 'signal': 2, 'getsource': 1, 'multiprocessing': 1}
+   imports: matplotlib:596, numpy:105, pytest:92, mpl_toolkits:32, packaging:11, PIL:11, cycler:4, dateutil:3, IPython:3, pyparsing:2, gi:2, pylab:1, Tavmjong:1, contourpy:1
+   importorskip: {'tkinter': 2, 'tornado': 3, 'IPython': 3, 'pikepdf': 8, 'matplotlib_inline': 2, 'ipympl': 1, 'pytz': 2, 'black': 1, 'threading': 1, 'nbformat': 2, 'nbconvert': 2, 'ipykernel': 2, 'sphinx_gallery': 1, 'sphinx': 1}
+== more_itertools-11.2.1: 2 test files, 761 test defs, conftest 0
+   features: {'network': 2, 'threading': 1}
+   imports: more_itertools:2, one:1
+== mpmath-1.3.0: 31 test files, 350 test defs, conftest 0
+   features: {'multiprocessing': 1, 'network': 1}
+   imports: mpmath:55, pytest:7, numpy:2, matplotlib:1, pylab:1, py:1
+== narwhals-2.27.1: 296 test files, 1640 test defs, conftest 3
+   features: {'network': 92, 'hypothesis': 11}
+   imports: narwhals:507, tests:324, pytest:258, pandas:206, polars:126, pyarrow:90, numpy:45, hypothesis:22, duckdb:21, dask:20, typing_extensions:14, ibis:14, pyspark:7, modin:6
+   importorskip: {'pandas': 175, 'polars': 125, 'numpy': 45, 'pyarrow': 160, 'duckdb': 30, 'pyspark': 6, 'sqlframe': 5, 'ibis': 12, 'typing_extensions': 3, 'sqlparse': 1, 'dask': 13, 'pyarrow.csv': 1, 'joblib': 1, 'test_plugin': 5, 'fsspec': 2, 'cudf': 2, 'modin': 2, 'dask.dataframe': 1, 'pyarrow.compute': 2, 'sklearn': 1, 'modin.pandas': 1}
+== networkx-3.7: 268 test files, 4545 test defs, conftest 0
+   features: {'network': 41, 'subprocess': 1, 'hypothesis': 2, 'threading': 1}
+   imports: networkx:495, pytest:233, matplotlib:7, numpy:2, lxml:1, issues:1
+   importorskip: {'numpy': 109, 'lxml.etree': 4, 'pygraphviz': 1, 'pydot': 1, 'pytest_mpl': 1, 'matplotlib': 2, 'matplotlib.pyplot': 2, 'scipy': 87, 'scipy.stats': 2, 'pandas': 2, 'sympy': 1, 'numpy.testing': 1}
+== openpyxl-3.1.5: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== packaging-26.3: 31 test files, 1387 test defs, conftest 1
+   features: {'network': 7, 'subprocess': 2, 'hypothesis': 15}
+   imports: packaging:80, pytest:32, hypothesis:24, tests:8, pretend:4, typing_extensions:2, tomli:2, tomli_w:1, an:1, the:1
+== patsy-1.0.3: 6 test files, 39 test defs, conftest 0
+   features: {}
+   imports: patsy:28, numpy:5, pandas:4, pytest:2
+== pillow-13.0.0: 166 test files, 2408 test defs, conftest 1
+   features: {'subprocess': 7, 'network': 29, 'mmap': 5, 'sys.executable': 1}
+   imports: PIL:195, pytest:151, numpy:6, defusedxml:5, PyQt6:4, PySide6:4, arro3:4, atheris:4, fuzzers:3, packaging:2, pyarrow:1, nanoarrow:1, IPython:1, setuptools:1
+   importorskip: {'pyarrow': 1, 'numpy': 2, 'IPython': 1, 'nanoarrow': 1, 'setuptools': 1, 'PIL.MicImagePlugin': 1, 'arro3': 1, 'PIL._webp': 2, 'PIL.FpxImagePlugin': 1}
+== pyparsing-3.3.3: 9 test files, 428 test defs, conftest 0
+   features: {'network': 3, 'getsource': 1, 'subprocess': 1, 'sys.executable': 1}
+   imports: pyparsing:37, examples:11, pytest:5, coverage:2, railroad:1, littletable:1, tests:1, matplotlib:1
+== pypdf-6.21.1: 38 test files, 1260 test defs, conftest 1
+   features: {'network': 26, 'mmap': 1, 'subprocess': 11, 'sys.executable': 7}
+   imports: pypdf:163, pytest:40, tests:12, PIL:11, fontTools:4, fpdf:2, a:1, typing_extensions:1, yaml:1, cryptography:1
+   importorskip: {'fontTools': 4, 'fpdf': 2, 'brotli': 5, 'gzip': 1, 'make_release': 6}
+== python-dateutil-2.9.0.post0: 13 test files, 1042 test defs, conftest 1
+   features: {'network': 5, 'subprocess': 1, 'hypothesis': 3}
+   imports: dateutil:95, pytest:14, six:6, hypothesis:6, freezegun:2
+== pyyaml-6.0.3: 22 test files, 45 test defs, conftest 1
+   features: {'network': 1}
+   imports: yaml:21, test_appliance:19, test_constructor:2, test_yaml:2, test_yaml_ext:2, test_tokens:2, pytest:1, _yaml:1, test_dump_load:1, test_mark:1, test_reader:1, test_canonical:1, test_structure:1, test_errors:1
+== regex-2026.9.29: 1 test files, 102 test defs, conftest 0
+   features: {'network': 1}
+   imports: regex:1
+== six-1.17.0: 1 test files, 83 test defs, conftest 0
+   features: {'network': 1}
+   imports: six:17, pytest:1, gdbm:1
+== soupsieve-3.0.3: 84 test files, 415 test defs, conftest 0
+   features: {'network': 43, 'signal': 1}
+   imports: soupsieve:31, bs4:18, pytest:3, lxml:3
+== sympy-1.14.0: 612 test files, 12543 test defs, conftest 0
+   features: {'network': 108, 'threading': 1, 'hypothesis': 2, 'getsource': 2, 'subprocess': 5, 'sys.executable': 2}
+   imports: sympy:7989, mpmath:26, pytest:22, numpy:20, aesara:9, setuptools:6, hypothesis:4, matchpy:4, gmpy2:3, theano:3, Cython:3, flint:2, scipy:2, multiset:1
+   importorskip: {'flint': 1}
+== tabulate-0.10.0: 7 test files, 319 test defs, conftest 0
+   features: {'subprocess': 1, 'sys.executable': 1}
+   imports: wcwidth:23, tabulate:9, numpy:8, common:7, pandas:7, pytest:3, UserDict:1, colorclass:1
+== threadpoolctl-3.7.0: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== tomli_w-1.2.0: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== toolz-1.2.0: 15 test files, 163 test defs, conftest 0
+   features: {'network': 2, 'multiprocessing': 1}
+   imports: toolz:33, tlz:7, pytest:2, annotationlib:1, tlzthisisabadname:1, cytoolz:1
+== tqdm-4.70.1: 19 test files, 165 test defs, conftest 1
+   features: {'threading': 2, 'multiprocessing': 3, 'subprocess': 1, 'sys.executable': 1}
+   imports: tqdm:26, pytest:18, colorama:1, keras:1
+   importorskip: {'numpy': 4, 'tqdm.rich': 2, 'tqdm.tk': 1, 'tqdm.gui': 1, 'numpy.random': 1, 'pandas': 1, 'concurrent.futures': 2, 'multiprocessing': 2, 'tqdm.dask': 1, 'dask': 1, 'tqdm.keras': 1, 'tensorflow.keras': 1}
+== typing_extensions-4.16.0: 1 test files, 562 test defs, conftest 0
+   features: {'subprocess': 1, 'network': 1, 'sys.executable': 1}
+   imports: typing_extensions:6, annotationlib:2, _typed_dict_test_helper:1
+== tzdata-2026.5: 2 test files, 5 test defs, conftest 0
+   features: {}
+   imports: tzdata:1, pytest:1, importlib_resources:1
+== webencodings-0.6.1: 1 test files, 11 test defs, conftest 0
+   features: {}
+   imports: webencodings:1
+== xlrd-2.0.2: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== xlsxwriter-3.2.9: 0 test files, 0 test defs, conftest 0
+   features: {}
+   imports: 
+== xmltodict-1.0.4: 2 test files, 119 test defs, conftest 0
+   features: {'network': 2}
+   imports: xmltodict:2, pytest:2
+== XlsxWriter-RELEASE_3.2.9: 1236 test files, 1742 test defs, conftest 0
+   features: {'network': 159}
+   imports: xlsxwriter:1347, Excel:3
+== cloudpickle-3.1.2: 3 test files, 153 test defs, conftest 0
+   features: {'subprocess': 2, 'multiprocessing': 2, 'sys.executable': 2, 'network': 1}
+   imports: cloudpickle:17, testutils:10, mock_local_folder:6, pytest:5, _cloudpickle_testpkg:4, psutil:1, numpy:1, scipy:1, setuptools:1, distutils:1
+   importorskip: {'_cloudpickle_testpkg.mod.dynamic_submodule': 1, 'tornado.gen': 1, 'tornado.ioloop': 1, 'dataclasses': 1, '_cloudpickle_testpkg': 7, 'numpy': 1, '_cloudpickle_testpkg.mod': 2}
+== cycler-0.12.1: 1 test files, 24 test defs, conftest 0
+   features: {}
+   imports: pytest:1, cycler:1
+== et_xmlfile-2.0.0: 4 test files, 269 test defs, conftest 0
+   features: {'network': 5, 'subprocess': 1, 'multiprocessing': 1, 'socket': 1, 'signal': 1, 'os.fork': 1, 'sys.executable': 1}
+   imports: et_xmlfile:8, _testcapi:5, _testinternalcapi:3, pytest:2, lxml:2, setuptools:2, urlparse:1, elementtree:1, cElementTree:1, local_doctest:1, __builtin__:1, bar:1, foo:1, test:1
+== openpyxl-3.1.5: 161 test files, 1720 test defs, conftest 13
+   features: {'network': 67}
+   imports: openpyxl:416, pytest:162, py:13, pandas:7, numpy:4, PIL:3, lxml:3, defusedxml:2
+== threadpoolctl-3.7.0: 2 test files, 44 test defs, conftest 0
+   features: {'subprocess': 2, 'threading': 3, 'network': 1, 'sys.executable': 2}
+   imports: threadpoolctl:11, tests:7, build_utils:6, numpy:4, setuptools:3, Cython:3, pytest:2, scipy:2, psutil:1
+   importorskip: {'numpy.linalg': 1, 'numpy': 1, 'cv2': 1}
+== tomli-w-1.2.0: 6 test files, 26 test defs, conftest 0
+   features: {}
+   imports: tomli_w:6, tomli:3, pytest:2
+== xlrd-2.0.2: 12 test files, 84 test defs, conftest 0
+   features: {}
+   imports: xlrd:18, pytest:1, StringIO:1
