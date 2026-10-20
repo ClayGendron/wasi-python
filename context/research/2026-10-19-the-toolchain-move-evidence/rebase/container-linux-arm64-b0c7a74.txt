@@ -1,0 +1,8 @@
+uname: Linux 7.0.12-linuxkit aarch64
+commit: 76474f6fbd632e64aa3386c463e755c2c078c7b4
+done: 16 steps in 6m24s; the artifact set is in build/artifacts/
+exit: 0, wall: 384s
+criterion5-hostile: 52 passed in 102.13s (0:01:42)
+criterion5-cpython-suites: 3 passed in 166.71s (0:02:46)
+criterion5-cpython-classes-and-traps: 16 xfailed in 124.47s (0:02:04)
+checks-a-c-zip: 3 passed in 7.76s

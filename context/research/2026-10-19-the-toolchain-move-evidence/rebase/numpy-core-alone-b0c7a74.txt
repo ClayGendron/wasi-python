@@ -1,0 +1,3 @@
+# numpy-core alone, darwin-arm64, the judge at 76474f6 (b0c7a74, 091's fact in place), WASI_PYTHON_ARTIFACTS=M3 (main's set, 2b0480af) and F3 (086's, 4e0dc0cf)
+M3 pass {'fuel': 156189879624, 'passes': 9519} {'string-comparisons': 63543215774}
+F3 pass {'fuel': 156505582221, 'passes': 9519} {'string-comparisons': 58280561283}

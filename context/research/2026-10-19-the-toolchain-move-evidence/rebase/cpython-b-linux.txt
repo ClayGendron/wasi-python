@@ -1,0 +1,16 @@
+# cpython-b, linux/arm64 research container, the judge at 76474f6 (b0c7a74), sets M3 (main's, set_sums 2b0480af) and F3 (086's, 4e0dc0cf); two runs, in both orders
+out-grp-arm64 M3 294774266132 9536
+out-grp-arm64 F3 295456666146 9536
+out-grp-arm64-2 M3 294774266132 9536
+out-grp-arm64-2 F3 295456666146 9536
+# Linux x86-64 CI shards (record-linux-upstream-frame), cpython-b fuel:
+39351481374 (97be88a, set A) 301981930936
+39354482605 (2787003, set A) 292482708525
+39357023086 (a8a3830, set A) 292482708525
+39358820218 (6006fde, set B) 292482708525
+39359915030 (1a23fe0, set B) 292482708525
+39361856604 (1d70261, set B) 292482708525
+39363060501 (b0c7a74, main's set 2b0480af) 292762239804
+39365394797 (44540cb, main's set 2b0480af) 292762239804
+39364304770 (47a853b, 086's set 4e0dc0cf) 302993456806
+# sets A and B: identical recipes/, scripts/, downloads/ trees within each (git rev-parse <c>:recipes etc.)

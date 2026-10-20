@@ -1,0 +1,15 @@
+  bimodal on Linux, apart: test_upstream_suite[cpython-b] 292,762,239,804 -> 302,993,456,806 (+3.495%)
+  bimodal on Linux, apart: test_upstream_suite[cpython-archives] 166,898,378,563 -> 167,953,257,280 (+0.632%)
+fuel: 193 rows, 164 up and 26 down by >0.01%, median +0.573%, min -2.530%, max +1.854%, sum 2,736,927,818,911 -> 2,744,708,694,340 (+0.284%)
+  -2.530%  322,519,434 -> 314,358,643  test_pickling_a_deep_list_raises
+  +1.854%  186,772,191 -> 190,234,749  test_unbuffered_output_survives_a_hard_exit[plain]
+  +1.586%  218,735,937 -> 222,205,801  test_run_keeps_an_unclosed_files_bytes[plain]
+  +1.584%  218,214,338 -> 221,669,921  test_guest_runs_here[plain]
+  +1.583%  218,227,781 -> 221,683,239  test_exit_status_is_a_process_status[plain]
+  +1.583%  219,001,797 -> 222,468,940  test_a_program_sees_real_entropy_and_file_metadata[plain]
+  +1.583%  218,612,110 -> 222,072,595  test_door_round_trips_bytes_through_a_host[plain]
+  +1.583%  218,268,590 -> 221,722,848  test_run_returns_the_exit_code[plain]
+bytes: 3 rows, 2 up and 0 down by >0.01%, median +0.154%, min +0.004%, max +0.164%, sum 125,197,886 -> 125,336,523 (+0.111%)
+  +0.164%  41,102,131 -> 41,169,347  test_binary_is_a_core_wasm_module[plain]
+  +0.154%  45,374,111 -> 45,444,036  test_binary_is_a_core_wasm_module[snapshot]
+  +0.004%  38,721,644 -> 38,723,140  test_stdlib_zip_is_bytecode_only_and_deflated
