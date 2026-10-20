@@ -1,4 +1,4 @@
-# native: the oracle CPython 3.15.0 with the numpy 2.5.2 wheel (macosx_14_0_arm64, scipy-openblas), build/oracle/venv; stdout then stderr (the two DLASCL lines are OpenBLAS xerbla on stderr)
+# native: the oracle CPython 3.15.0 with the numpy 2.5.2 wheel (macosx_14_0_arm64, Apple Accelerate: first labelled scipy-openblas here, corrected after question 107), build/oracle/venv; stdout then stderr (the two DLASCL lines are the native LAPACK error routine on stderr)
 linalg.inv(singular)                          raises LinAlgError: Singular matrix
 linalg.solve(singular)                        raises LinAlgError: Singular matrix
 linalg.tensorinv(singular)                    raises LinAlgError: Singular matrix

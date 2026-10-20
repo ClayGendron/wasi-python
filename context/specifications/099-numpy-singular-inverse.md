@@ -179,10 +179,11 @@ force-included header; this adds the first.
 - **(c) A Python wrapper around `numpy.linalg`** that checks the result for `nan`. Wrong: a `nan`
   input legitimately gives a `nan` output, and it would fix none of the integer signals. Refused.
 - **(d) Linking numpy against OpenBLAS** (in the set since 037) instead of its own `lapack_lite`.
-  It changes which LAPACK runs, not how its failure is reported: the flag is still lost. But it
-  would also make the guest's LAPACK agree with native's on which singular matrices fail
-  (Decision 6). The owner answered question 106 "Both before 0.1.0" (`../decisions.md`, "numpy's
-  linear algebra on OpenBLAS before 0.1.0"): it is spec 100, reserved, stacked on this one.
+  It changes which LAPACK runs, not how its failure is reported: the flag is still lost. It
+  brings the guest closer to native OpenBLAS on which singular matrices fail (254 of 300 agree,
+  against 249 with `lapack_lite`; Decision 6) and gives native's errors for `nan` matrices. The
+  owner answered question 106 "Both before 0.1.0", and, after the correction, question 107 "Yes,
+  before 0.1.0" (`../decisions.md`): it is spec 100, reserved, stacked on this one.
 - **(e) `-DFE_INVALID=1` and the rest in the cross file.** numpy's masks would be real, but the calls
   would still go to wasi-libc's no-op functions. It needs the rename, so it needs the header.
 - **(f) Only `FE_INVALID` given a bit** (the pre-build review's L5). The owner's decision names the
@@ -242,7 +243,7 @@ force-included header; this adds the first.
   software word holds a subset of what the hardware would, and a test that passes natively passes
   here. **For `umath_linalg` that argument does not hold** (the pre-build review's finding 1): the
   guest raises when `lapack_lite` reports a failure, and `lapack_lite` can fail on a matrix
-  OpenBLAS inverts (Decision 6). So a test, golden or caller that inverts a matrix singular only in
+  native's LAPACK (OpenBLAS or Accelerate) inverts (Decision 6). So a test, golden or caller that inverts a matrix singular only in
   exact arithmetic may newly raise in the guest. **Where a lost pass would show**, and so what the
   lane's run is the evidence for: the upstream group `numpy-others` (`numpy/linalg/tests`), pandas'
   groups (`pandas-frame`, `pandas-groupby`, `pandas-reshape`, `pandas-io-*`, `pandas-tslibs`), the
@@ -270,12 +271,15 @@ force-included header; this adds the first.
   as `a / b` (READ, `npy_math_internal.h.src:550-564`). Check 3 holds this, and the README says it.
 - **The guest's LAPACK and native's disagree on which singular matrices fail, either way** (the
   pre-build review's finding 1; EXECUTED). numpy in the guest runs its bundled `lapack_lite`;
-  native wheels run OpenBLAS. For a matrix singular only in exact arithmetic, rounding decides
-  whether a pivot is exactly 0, and the two round differently. Two probes, native (OpenBLAS)
-  against the guest on main's set (`lapack_lite`; an all-`nan` result is numpy's error fill, so
-  it raises after this specification):
+  native wheels run OpenBLAS, or Apple's Accelerate in the `macosx_14_0_arm64` wheel. For a matrix
+  singular only in exact arithmetic, rounding decides whether a pivot is exactly 0, and the LAPACKs
+  round differently. Two probes **against native Accelerate** (the oracle's `macosx_14_0_arm64`
+  wheel: both the review and the drafting runs used it, believing it OpenBLAS; corrected on main
+  `3ff1871`, `../decisions.md`, "Correction and question 107"), against the guest on main's set
+  (`lapack_lite`; an all-`nan` result is numpy's error fill, so it raises after this
+  specification):
 
-  | native | guest, after 099 | review's probe (300) | drafting probe (300, `singular_probe.py`) |
+  | native Accelerate | guest, after 099 | review's probe (300) | drafting probe (300, `singular_probe.py`) |
   |---|---|---|---|
   | raises | raises (all-`nan` today) | 150 | 130 |
   | finite | finite | 130 | 141 |
@@ -288,20 +292,27 @@ force-included header; this adds the first.
   (`singular_probe-crosstab.out`). So for `numpy.linalg` this specification gives "raises when
   numpy's bundled LAPACK finds the matrix singular", not "raises exactly when native does". It
   turns 130 to 150 silent `nan` results per 300 into native's exception, and adds 8 to 12 raises
-  native would not make. **Spec 100 closes it** (reserved, stacked on 099; the owner's answer to
-  question 106): numpy's linear algebra links the set's OpenBLAS, so its singular decisions are
-  native's. The builder runs `singular_probe.py` on the new set, both binaries, and records the
+  native would not make. **Against native OpenBLAS** (spec 100's author, numpy's
+  `macosx_11_0_arm64` wheel, OpenBLAS 0.3.34; `../decisions.md`, "Correction and question 107"):
+  the guest agrees on 249 of 300 with `lapack_lite` and this specification, and on 254 with spec
+  100's link to the set's OpenBLAS; native Accelerate and native OpenBLAS agree with each other on
+  243. The rest are rounding-edge cases (pivots of 1e-16 or less) that wasm does not reproduce
+  (INFERRED there: no fused multiply-add). **So spec 100 narrows this, it does not close it**:
+  exact singular-matrix parity is not a goal in wasm (the owner's answer to question 107), and the
+  README says so. The builder runs `singular_probe.py` on the new set, both binaries, and records the
   four counts and one example of each row in the landing notes, as facts, not as a check.
 - **A LAPACK failure the hardware would add stays silent.** Natively an `inf` in a matrix can make
   LAPACK's arithmetic raise the invalid flag with `info` 0, and numpy then raises `LinAlgError`;
   the guest raises only when `info` says so (INFERRED from Decision 1).
 - **numpy's own LAPACK is not native's.** numpy in the guest is built with no BLAS, so it runs its
   bundled `lapack_lite` (spec 037's cross-file comment). Its error routine raises `ValueError`
-  where OpenBLAS's prints and returns: `np.linalg.svd(a, compute_uv=False)`, `svdvals`,
-  `matrix_rank`, `norm(a, 2)`, `cond` and `lstsq` of a matrix of `nan` raise `ValueError: On entry
-  to DLASCL parameter number 5 had an illegal value` (4 for `lstsq`) in the guest, where native
-  raises `LinAlgError: SVD did not converge` (EXECUTED, `fp_probe-*.out`). That is not a flag, and
-  this specification does not change it; the README says it, and spec 100 closes it. `svd` with vectors, `pinv`, `eigh` and
+  where native's (Accelerate's in these runs) prints and returns: `np.linalg.svd(a,
+  compute_uv=False)`, `svdvals`, `matrix_rank`, `norm(a, 2)`, `cond` and `lstsq` of a matrix of
+  `nan` raise `ValueError: On entry to DLASCL parameter number 5 had an illegal value` (4 for
+  `lstsq`) in the guest, where native Accelerate raises `LinAlgError: SVD did not converge`
+  (EXECUTED, `fp_probe-*.out`). That is not a flag, and
+  this specification does not change it; the README says it, and spec 100 closes it (its
+  OpenBLAS error routine sets no Python exception). `svd` with vectors, `pinv`, `eigh` and
   `eigvalsh` of a `nan` matrix return all-`nan` in the guest today; after the build each raises
   `LinAlgError` if `lapack_lite` reported a failure, else returns as today. The builder records
   which, as facts in the landing notes, not as checks.
@@ -319,13 +330,16 @@ force-included header; this adds the first.
   >   (`recipes/npy_fenv_flags.h`, spec 099): integer division by zero, integer overflow in division
   >   and float16 overflow warn, or raise under `np.errstate`, as natively, and `numpy.linalg`
   >   raises `LinAlgError` when its LAPACK finds a matrix singular or not positive definite. That
-  >   LAPACK is numpy's own bundled `lapack_lite`, not native numpy's OpenBLAS, until spec 100: for
-  >   a matrix singular only in exact arithmetic the two can disagree either way (the guest may
-  >   return finite numbers where native raises, or raise where native returns), and a matrix of
-  >   `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`;
-  >   `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as its context.
+  >   LAPACK is numpy's own bundled `lapack_lite` until spec 100; native numpy's is OpenBLAS
+  >   (Accelerate in the macOS 14 arm64 wheel). For a matrix singular only in exact arithmetic,
+  >   LAPACKs round differently, so the guest may return finite numbers where native raises, or
+  >   raise where native returns: exact singular-matrix parity is not a goal in wasm. Until spec
+  >   100, a matrix of `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises
+  >   `LinAlgError`, and `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as
+  >   its context.
 
-  (The last clause was added at build, build finding B1 in *Landing notes*.)
+  (Revised at build: the `SystemError` clause for build finding B1, and the native LAPACK named
+  correctly after the correction of question 107; *Landing notes*.)
 
   **If spec 066 lands first**, its bullet "**No floating-point exception flags**" (on its branch,
   `README.md:318-322`, "Until spec 099 lands, …") is replaced by this one, word for word.
@@ -340,12 +354,14 @@ force-included header; this adds the first.
   `tensorsolve` and `matrix_power(a, -1)` of a singular matrix, and `cholesky` of one not positive
   definite, returned `nan`s. A recipe header, `recipes/npy_fenv_flags.h`, keeps the signals numpy
   raises itself in a software flag word: these raise `LinAlgError` whenever numpy's bundled LAPACK
-  (`lapack_lite`) finds the matrix singular, which for a matrix singular only in exact arithmetic
-  is not always where native numpy on OpenBLAS does, until spec 100. The same word makes integer
+  (`lapack_lite`) finds the matrix singular; for a matrix singular only in exact arithmetic that
+  is not always where native numpy does (LAPACKs round differently; exact parity is not a goal in
+  wasm). The same word makes integer
   division by zero, integer overflow in division and float16 overflow warn, or raise under
   `np.errstate`, as natively: a widening of the owner's question, named here. Signals only the
   hardware gives (float division by zero, `log(0)`, invalid casts) stay silent; the README says
-  so." At build it gained one sentence, for build finding B1: "One case gets worse until spec 100:
+  so." (Its singular-matrix clause revised at build after the correction of question 107.) At
+  build it gained one sentence, for build finding B1: "One case gets worse until spec 100:
   `numpy.linalg.lstsq` of a matrix of `nan` raised `ValueError` from `lapack_lite` and now raises
   `SystemError` with that `ValueError` as its context (native: `LinAlgError`)."
 - **`tests/upstream/packages.toml`: no line changes.** numpy's suite already runs (spec 050); this
@@ -379,11 +395,12 @@ under `../research/` are evidence; the builder writes the recipe fresh from Deci
   when `lapack_lite` finds a matrix singular, which is native's decision for an exact zero pivot
   and may not be for a matrix singular only in exact arithmetic (Decision 6). So a golden of
   theirs that matched native before 099 may change after it, either way. The builder of whichever
-  lands second re-runs those goldens; a lost pass is reported, never allowed, and spec 100 is its
-  closer.
+  lands second re-runs those goldens; a lost pass is reported, never allowed (spec 100 narrows
+  the divergence, it does not remove it).
 - **100** (numpy's linear algebra on the set's OpenBLAS; reserved, stacked on 099, before 0.1.0,
-  the owner's answer to question 106). It closes Decision 6's two `lapack_lite` differences and
-  rewrites the README bullet's `lapack_lite` sentence. This specification's flag word stays: it is
+  the owner's answers to questions 106 and 107). It closes Decision 6's `nan`-matrix difference
+  (and build finding B1), narrows the singular-matrix one (249 to 254 of 300 against native
+  OpenBLAS), and rewrites the README bullet's `lapack_lite` sentences. This specification's flag word stays: it is
   how numpy reports a LAPACK failure whichever LAPACK runs.
 - **095** (scipy's and scikit-learn's own tests). scipy's suite also skips floating-point tests on
   wasm; nothing here changes its plan.
@@ -394,9 +411,9 @@ under `../research/` are evidence; the builder writes the recipe fresh from Deci
 
 A program that inverts or solves a matrix numpy's LAPACK finds singular gets `LinAlgError` in
 the guest, as natively, and never silently computes with the `nan`s numpy's error path writes.
-Every signal numpy raises itself reaches `np.errstate`. Where the guest's `lapack_lite` and
-native's OpenBLAS disagree on a matrix singular only in exact arithmetic, the README says so and
-spec 100 closes it. What the hardware alone would signal is stated plainly, held by a check, and
+Every signal numpy raises itself reaches `np.errstate`. Where the guest's LAPACK and native's
+disagree on a matrix singular only in exact arithmetic, the README says so: exact parity there is
+not a goal in wasm, and spec 100 narrows the gap. What the hardware alone would signal is stated plainly, held by a check, and
 left as it is.
 
 ## Design
@@ -449,8 +466,10 @@ writable; each asserts exit 0, no trap, and stdout exactly as below. Each record
    `check1_singular-guest-*.out`). **Its matrices are clear of Decision 6's divergence:** LU of
    `[[1, 2], [2, 4]]` meets an exact zero pivot (2 − 0.5 × 4 is exactly 0 in binary floating
    point), and Cholesky of `[[1, 2], [2, 1]]` an exactly negative one (1 − 2 × 2 = −3), in any
-   LAPACK; both are `lapack_lite`'s all-`nan` today (EXECUTED) and OpenBLAS's raise (EXECUTED). So
-   the check holds unchanged when spec 100 moves numpy onto OpenBLAS.
+   LAPACK; both are `lapack_lite`'s all-`nan` today (EXECUTED) and native Accelerate's raise
+   (EXECUTED; the drafting "native" was Accelerate, question 107's correction). An exact zero or
+   negative pivot is the same in every LAPACK (READ, the arithmetic), so the check holds unchanged
+   when spec 100 moves numpy onto OpenBLAS.
 2. **v1.3, `test_numpys_own_floating_point_signals_reach_errstate[which]`**
    (`test_v1_3_data_stack.py`, both binaries, fast tier). Expected stdout, native's (EXECUTED,
    `check2_numpys_own_signals-native.out`):
@@ -528,8 +547,10 @@ In: Decisions 1 to 8. Out:
 - **Signals only the hardware gives** (Decision 6): wasm has no flags; emulating them would mean
   checking every float operation, which no recipe can do.
 - **numpy on OpenBLAS instead of `lapack_lite`** (Decision 4 (d)): spec 100, reserved, stacked on
-  this one, before 0.1.0 (the owner's answer to question 106). It closes Decision 6's two
-  `lapack_lite` differences.
+  this one, before 0.1.0 (the owner's answers to questions 106 and 107). It closes Decision 6's
+  `nan`-matrix difference and narrows the singular-matrix one.
+- **Exact singular-matrix parity with native**: not a goal in wasm (the owner's answer to question
+  107); the README says so.
 - **numpy's skipped wasm tests.** They stay skipped by `IS_WASM`; running them would need a judge
   change to numpy's staging, not this specification.
 - **Sending anything upstream**: the facts sheet is for the owner.
@@ -575,10 +596,16 @@ None blocks the build.
 1. **Question 106, answered: "Both before 0.1.0"** (`../decisions.md`, "numpy's linear algebra on
    OpenBLAS before 0.1.0 (question 106, 2026-10-20)"). The lane asked after the pre-build review's
    finding 1. This specification lands with "as natively" qualified for `lapack_lite`; spec 100
-   (reserved, stacked on 099) links numpy's linear algebra to the set's OpenBLAS before 0.1.0, so
-   the singular and `nan`-matrix decisions match native numpy on OpenBLAS. Nothing here waits on
-   it.
-2. **The facts sheet for numpy** (folder 30). Nothing is sent; numpy's AI policy keeps any text in
+   (reserved, stacked on 099) links numpy's linear algebra to the set's OpenBLAS before 0.1.0.
+   Nothing here waits on it.
+2. **Question 107, answered: "Yes, before 0.1.0"** (`../decisions.md`, "Correction and question
+   107"). The "native" of 099's probes and of its review was Accelerate (the oracle's
+   `macosx_14_0_arm64` wheel), not OpenBLAS; against native OpenBLAS the guest agrees on 249 of 300
+   singular matrices with this specification and on 254 with spec 100. The owner kept spec 100
+   before 0.1.0 for its `nan`-matrix errors, numpy and scipy agreeing, a newer LAPACK and less fuel;
+   exact singular-matrix parity is not a goal in wasm. This specification's counts stay as
+   measured, labelled "against native Accelerate".
+3. **The facts sheet for numpy** (folder 30). Nothing is sent; numpy's AI policy keeps any text in
    the owner's words. If numpy takes the fix, the recipe goes with the release that has it.
 
 ## For the lane
@@ -613,7 +640,7 @@ None blocks the build.
 - **The flags** (the builder fills the measured numbers):
 
   ```
-  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (where it and native OpenBLAS disagree, spec 100 closes it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented"
+  --accept "099: numpy's own floating-point signals are kept in software (recipe recipes/npy_fenv_flags.h, force-included into every numpy compile): numpy.linalg raises LinAlgError when numpy's bundled lapack_lite finds a matrix singular or not positive definite (for a matrix singular only in exact arithmetic not always where native does; spec 100 narrows it), and integer division by zero, integer overflow in division and float16 overflow warn or raise under np.errstate, as natively; signals only the hardware gives stay silent, as documented"
   --accept-judge "099: checks that inv, solve, tensorinv, tensorsolve, matrix_power(-1) of an exactly singular matrix and cholesky of one not positive definite raise LinAlgError as natively, that numpy's own integer and float16 signals reach errstate as natively, that hardware-only signals stay silent as the README says, and that every numpy compile (by compiler, from numpy's own compile records, missing records a failure) carries the header; numpy_fenv_errors and its unit rows; no existing expectation edited"
   --accept-growth "099: numpy compiled with real flag bits and a software flag word: python.wasm +N bytes, the snapshot +N, the zip +N (numpy/__config__.py records the -include in both argument lines); fuel rows that run numpy ufuncs move, up or down, by the status read becoming an inlined load and bit tests: <rows and percentages>; MANIFEST one recipe line added, one changed"
   ```
@@ -636,6 +663,11 @@ changed but the record of question 106, which the owner answered while this was 
   CHANGELOG line and the flags say "when numpy's bundled LAPACK finds the matrix singular", not "as
   natively". Criterion 5 and the claim list have the builder record the probe as facts. Check 1's
   matrices are shown clear of it. Question 106's case (now spec 100's) carries the divergence.
+  **Corrected at build** (question 107, main `3ff1871`): both probes' "native" was Accelerate, not
+  OpenBLAS; the counts stay, labelled "against native Accelerate"; against native OpenBLAS the
+  guest agrees on 249 of 300 with this specification and 254 with spec 100, so spec 100 narrows
+  the divergence rather than closing it, and Decisions 6 and 9, the Intent, the README bullet, the
+  CHANGELOG line and the flags say so.
 - **L2, written in, then overtaken.** Question 106 was going under *Open*; the owner answered it
   first ("Both before 0.1.0", `../decisions.md`), so *The owner's choices* cites the answer and
   `questions-for-the-owner.md` stays "None".
@@ -655,9 +687,9 @@ changed but the record of question 106, which the owner answered while this was 
 ## One line
 
 Give numpy's flags bits and a word in a recipe header, so the signals numpy raises itself reach
-`np.errstate`: a singular matrix raises `LinAlgError` whenever numpy's own LAPACK says so (spec 100
-makes that native's say), integer and float16 signals as natively, and what only the hardware
-signals stays silent and says so.
+`np.errstate`: a singular matrix raises `LinAlgError` whenever numpy's own LAPACK says so (exact
+parity with native's LAPACK is not a goal in wasm), integer and float16 signals as natively, and
+what only the hardware signals stays silent and says so.
 
 ## Landing notes
 
@@ -731,10 +763,11 @@ signals stays silent and says so.
 
 ### Phase 2: the facts for spec 100 (criterion 5; EXECUTED, both binaries, identical)
 
-- **`singular_probe.py`**, native (OpenBLAS) against the built set (`lapack_lite`), the four rows
-  (`../research/2026-10-20-numpy-floating-point-status/singular_probe-built-crosstab-*.out`):
+- **`singular_probe.py`, against native Accelerate** (the oracle's `macosx_14_0_arm64` wheel; first
+  written here as "OpenBLAS", corrected after question 107) and the built set (`lapack_lite`), the
+  four rows (`../research/2026-10-20-numpy-floating-point-status/singular_probe-built-crosstab-*.out`):
 
-  | native | built set | count | example |
+  | native Accelerate | built set | count | example |
   |---|---|---|---|
   | raises | raises | 130 | case 4 (n 6, rank at most 2) |
   | finite | finite | 141 | case 0 (n 7, rank at most 4) |
@@ -742,6 +775,9 @@ signals stays silent and says so.
   | finite | raises | 12 | case 26 (n 4, rank at most 2) |
 
   Exactly as Decision 6 predicted from main's all-`nan` results: every all-`nan` case now raises.
+  Against native OpenBLAS the comparison is spec 100's author's, not run here: 249 of 300 agree with
+  `lapack_lite` and this specification, 254 with spec 100 (`../decisions.md`, "Correction and
+  question 107").
 - **`fp_probe.py` on the built set** (`fp_probe-built-*.out`): every linalg case of a singular or
   not positive definite matrix now raises as natively; `svd(nan)` with vectors, `pinv(nan)`,
   `eigh(nan)` and `eigvalsh(nan)`, all-`nan` returns on main, now raise native's `LinAlgError`;
@@ -754,8 +790,8 @@ signals stays silent and says so.
   then reports a failure, so `umath_linalg` raises the invalid flag, and numpy's errstate calls
   the `LinAlgError` callback while the `ValueError` is still set. The result is `SystemError:
   <class 'numpy.linalg.LinAlgError'> returned a result with an exception set`, its context the
-  `ValueError`. On main the same call raised that `ValueError`; natively OpenBLAS's routine prints
-  and returns, and numpy raises `LinAlgError: SVD did not converge in Linear Least Squares`. Both
+  `ValueError`. On main the same call raised that `ValueError`; natively (Accelerate, in this run)
+  the error routine prints and returns, and numpy raises `LinAlgError: SVD did not converge in Linear Least Squares`. Both
   `lstsq` shapes probed (3×3 and 2×3) show it; `svd(nan, compute_uv=False)` does not (its call
   reports no failure after the error routine). INFERRED: a native numpy built with `lapack_lite`
   on hardware with flags does the same; it is upstream's, reached here because the flag now works.

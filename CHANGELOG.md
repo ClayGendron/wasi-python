@@ -11,9 +11,9 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   `numpy.linalg.inv`, `solve`, `tensorinv`, `tensorsolve` and `matrix_power(a, -1)` of a singular
   matrix, and `cholesky` of one not positive definite, returned `nan`s. A recipe header,
   `recipes/npy_fenv_flags.h`, keeps the signals numpy raises itself in a software flag word: these
-  raise `LinAlgError` whenever numpy's bundled LAPACK (`lapack_lite`) finds the matrix singular,
-  which for a matrix singular only in exact arithmetic is not always where native numpy on
-  OpenBLAS does, until spec 100. The same word makes integer division by zero, integer overflow in
+  raise `LinAlgError` whenever numpy's bundled LAPACK (`lapack_lite`) finds the matrix singular;
+  for a matrix singular only in exact arithmetic that is not always where native numpy does
+  (LAPACKs round differently; exact parity is not a goal in wasm). The same word makes integer division by zero, integer overflow in
   division and float16 overflow warn, or raise under `np.errstate`, as natively: a widening of the
   owner's question, named here. Signals only the hardware gives (float division by zero,
   `log(0)`, invalid casts) stay silent; the README says so. One case gets worse until spec 100:

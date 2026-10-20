@@ -2,7 +2,9 @@
 rank-deficient matrices make numpy's LAPACK report a failure. 300 integer matrices, n from 3 to 7,
 rank below n, a fixed seed, every second one scaled by 0.1; then named cases. One line per case:
 `raises` (LinAlgError), `all-nan` (the guest's error fill before spec 099: it raises after), or
-`finite`. Then the counts. Natively numpy runs OpenBLAS; in the guest, numpy's own lapack_lite."""
+`finite`. Then the counts. Natively (the oracle's macosx_14_0_arm64 wheel) numpy runs Apple's
+Accelerate (first written here as OpenBLAS; corrected after question 107); in the guest, numpy's
+own lapack_lite."""
 
 import numpy as np
 

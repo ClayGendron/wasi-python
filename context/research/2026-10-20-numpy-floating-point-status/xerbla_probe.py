@@ -1,6 +1,7 @@
 """Spec 099's build finding B1: where numpy's lapack_lite error routine (python_xerbla, which sets a
 Python ValueError) meets a LAPACK failure that umath_linalg reports by the invalid flag. Natively
-numpy runs OpenBLAS, whose xerbla prints and returns. One line per case: what is raised, and the
+(the oracle's macosx_14_0_arm64 wheel) numpy runs Apple's Accelerate, whose xerbla prints and
+returns. One line per case: what is raised, and the
 exception's __context__ (the exception already set when the next one was raised)."""
 
 import numpy as np

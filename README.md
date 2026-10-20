@@ -369,11 +369,13 @@ sandbox:
   (`recipes/npy_fenv_flags.h`, spec 099): integer division by zero, integer overflow in division
   and float16 overflow warn, or raise under `np.errstate`, as natively, and `numpy.linalg`
   raises `LinAlgError` when its LAPACK finds a matrix singular or not positive definite. That
-  LAPACK is numpy's own bundled `lapack_lite`, not native numpy's OpenBLAS, until spec 100: for
-  a matrix singular only in exact arithmetic the two can disagree either way (the guest may
-  return finite numbers where native raises, or raise where native returns), and a matrix of
-  `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`;
-  `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as its context.
+  LAPACK is numpy's own bundled `lapack_lite` until spec 100; native numpy's is OpenBLAS
+  (Accelerate in the macOS 14 arm64 wheel). For a matrix singular only in exact arithmetic,
+  LAPACKs round differently, so the guest may return finite numbers where native raises, or
+  raise where native returns: exact singular-matrix parity is not a goal in wasm. Until spec
+  100, a matrix of `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises
+  `LinAlgError`, and `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as
+  its context.
 - **Builtin modules have no `__file__`**: the packages' compiled modules (`PIL._imaging`,
   `lxml.etree`, numpy's) are builtin, so code that reads their `__file__` fails, and
   `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
