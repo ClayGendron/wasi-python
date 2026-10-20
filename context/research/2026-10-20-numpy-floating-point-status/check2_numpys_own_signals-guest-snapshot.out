@@ -1,0 +1,12 @@
+# main set SHA256SUMS f12cd25c, snapshot binary: exit 0, trapped None, stderr ''
+int floor_divide by 0 returned silent
+int remainder by 0 returned silent
+int divmod by 0 returned silent
+int32 min floor_divide -1 returned silent
+timedelta floor_divide 0 returned silent
+float64 to float16 overflow returned silent
+int scalar floor_divide 0 returned warns RuntimeWarning divide by zero encountered in scalar floor_divide
+int8 scalar add overflow returned warns RuntimeWarning overflow encountered in scalar add
+int floor_divide by 0 under raise returned silent
+float16 overflow under raise returned silent
+int floor_divide by 0 under ignore returned silent

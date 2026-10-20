@@ -1,0 +1,9 @@
+# main set SHA256SUMS f12cd25c, snapshot binary: exit 0, trapped None, stderr ''
+float divide by 0 returned silent
+float floor_divide by 0 returned silent
+log 0 returned silent
+sqrt -1 returned silent
+exp 1000 returned silent
+nan to int64 returned silent
+float scalar divide by 0 returned silent
+float divide by 0 under raise returned silent

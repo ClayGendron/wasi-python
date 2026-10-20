@@ -1,0 +1,11 @@
+after 1.0/0.0: status 0
+after set_invalid: status 8
+after set_divbyzero: status 9
+clear returns 9, then status 0
+after C++ RaiseOverflow: status 2, std::fetestexcept(FE_OVERFLOW) 1
+after clear: status 0
+== the flag word in each object (W = weak definition)
+00000000 W wasi_python_fe_flags
+00000000 W wasi_python_fe_flags
+== defined symbols named wasi_python_fe in the linked module
+(none by name: inlined; the word is exported below)

@@ -1,0 +1,22 @@
+== without the header (today's numpy build)
+after 1.0/0.0: status 0
+after set_invalid: status 0
+after set_divbyzero: status 0
+clear returns 0, then status 0
+after C++ RaiseOverflow: status 0, std::fetestexcept(FE_OVERFLOW) -1
+after clear: status 0
+== with the header (the recipe)
+after 1.0/0.0: status 0
+after set_invalid: status 8
+after set_divbyzero: status 9
+clear returns 9, then status 0
+after C++ RaiseOverflow: status 2, std::fetestexcept(FE_OVERFLOW) 1
+after clear: status 0
+== imports of with.wasm (no new import)
+
+         U wasi_python_feclearexcept
+         U wasi_python_feraiseexcept
+         U wasi_python_fetestexcept
+flags.o:
+half1.o:
+ieee1.o:

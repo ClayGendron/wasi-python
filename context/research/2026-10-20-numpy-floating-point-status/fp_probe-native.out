@@ -1,0 +1,46 @@
+# native: the oracle CPython 3.15.0 with the numpy 2.5.2 wheel (macosx_14_0_arm64, scipy-openblas), build/oracle/venv; stdout then stderr (the two DLASCL lines are OpenBLAS xerbla on stderr)
+linalg.inv(singular)                          raises LinAlgError: Singular matrix
+linalg.solve(singular)                        raises LinAlgError: Singular matrix
+linalg.tensorinv(singular)                    raises LinAlgError: Singular matrix
+linalg.tensorsolve(singular)                  raises LinAlgError: Singular matrix
+linalg.matrix_power(singular,-1)              raises LinAlgError: Singular matrix
+linalg.inv(stacked, one singular)             raises LinAlgError: Singular matrix
+linalg.inv(singular, float32)                 raises LinAlgError: Singular matrix
+linalg.inv(singular, complex)                 raises LinAlgError: Singular matrix
+linalg.cholesky(not posdef)                   raises LinAlgError: Matrix is not positive definite
+linalg.cholesky(not posdef, upper)            raises LinAlgError: Matrix is not positive definite
+linalg.svd(nan)                               raises LinAlgError: SVD did not converge
+linalg.svd(nan, no uv)                        raises LinAlgError: SVD did not converge
+linalg.svdvals(nan)                           raises LinAlgError: SVD did not converge
+linalg.pinv(nan)                              raises LinAlgError: SVD did not converge
+linalg.matrix_rank(nan)                       raises LinAlgError: SVD did not converge
+linalg.norm(nan, 2)                           raises LinAlgError: SVD did not converge
+linalg.cond(nan)                              raises LinAlgError: SVD did not converge
+linalg.lstsq(nan)                             raises LinAlgError: SVD did not converge in Linear Least Squares
+linalg.eigh(nan)                              raises LinAlgError: Eigenvalues did not converge
+linalg.eigvalsh(nan)                          raises LinAlgError: Eigenvalues did not converge
+linalg.eig(nan)                               raises LinAlgError: Array must not contain infs or NaNs
+linalg.det(singular)                          returns np.float64(0.0)
+linalg.slogdet(singular)                      returns tuple finite,finite
+linalg.inv(regular)                           returns finite
+errstate(invalid=ignore) does not hide inv    raises LinAlgError: Singular matrix
+int array // 0                                returns finite + warns RuntimeWarning: divide by zero encountered in floor_divide
+int array % 0                                 returns finite + warns RuntimeWarning: divide by zero encountered in remainder
+divmod(int array, 0)                          returns tuple  + warns RuntimeWarning: divide by zero encountered in divmod
+int32 min // -1                               returns finite + warns RuntimeWarning: overflow encountered in floor_divide
+errstate(divide=raise) int // 0               raises FloatingPointError: divide by zero encountered in floor_divide
+int scalar // 0                               returns np.int64(0) + warns RuntimeWarning: divide by zero encountered in scalar floor_divide
+int8 scalar overflow                          returns np.int8(-128) + warns RuntimeWarning: overflow encountered in scalar add
+timedelta // 0                                returns finite + warns RuntimeWarning: divide by zero encountered in floor_divide
+float array // 0.0                            returns finite + warns RuntimeWarning: divide by zero encountered in floor_divide
+float array % 0.0                             returns all-nan
+float array / 0.0                             returns finite + warns RuntimeWarning: divide by zero encountered in divide
+log(0.0)                                      returns finite + warns RuntimeWarning: divide by zero encountered in log
+sqrt(-1.0)                                    returns all-nan + warns RuntimeWarning: invalid value encountered in sqrt
+exp(1000.0)                                   returns finite + warns RuntimeWarning: overflow encountered in exp
+float64 -> float16 overflow                   returns finite + warns RuntimeWarning: overflow encountered in cast
+float -> int nan cast                         returns finite + warns RuntimeWarning: invalid value encountered in cast
+float scalar / 0.0                            returns np.float64(inf) + warns RuntimeWarning: divide by zero encountered in scalar divide
+status after: {'divide': 'warn', 'over': 'warn', 'under': 'ignore', 'invalid': 'warn'}
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value

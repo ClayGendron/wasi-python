@@ -1,0 +1,4 @@
+# Native: the oracle's CPython 3.15.0 with numpy 2.5.2 and matplotlib 3.11.2 wheels (build/oracle/venv, macOS arm64).
+mlab.GaussianKDE(rank-1 data): raises LinAlgError: Singular matrix
+# Guest: main's set (SHA256SUMS f12cd25c), snapshot binary, wasi-python run --private-root --stdin consumer_probe.py: exit 0, stderr ''.
+mlab.GaussianKDE(rank-1 data): returned
