@@ -12,8 +12,9 @@
  * set, test and clear one flag word. The word is a weak definition in every object, and the static
  * link keeps one; step 60's weak-duplicate gate allows it by name
  * (recipes/weak-duplicates-allowed.txt). The guest has no threads; numpy clears the status before
- * each ufunc loop and umath_linalg at each loop's start, as it does natively. Arithmetic still sets nothing: wasm has
- * no flag for 1.0 / 0.0 to set, and that stays silent (the README says so).
+ * each ufunc loop and umath_linalg at each loop's start, as it does natively. Arithmetic still
+ * sets nothing: wasm has no flag for 1.0 / 0.0 to set, and that stays silent (the README says
+ * so).
  *
  * Remove this file, and its two cross-file lines, when wasi-libc's <fenv.h> defines the flags (the
  * #error below stops the build that day) or when a numpy release keeps its own status without them

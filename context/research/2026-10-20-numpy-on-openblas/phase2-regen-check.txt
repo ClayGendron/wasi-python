@@ -22,3 +22,4 @@ ok scipy_numeric: reproduces
 ok scipy_solvers: reproduces
 ok scipy_lapack: reproduces
 regen exit 0
+# the oracle venv (build/oracle/venv) on this pin: numpy.show_config() names scipy-openblas 0.3.34.0.0 for BLAS and for LAPACK (EXECUTED, the build review's N2)

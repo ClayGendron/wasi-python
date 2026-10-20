@@ -19,3 +19,4 @@ objects that grew most:
           +593  libopenblas.a(cblas_ssyrk.o)
           +590  libopenblas.a(cblas_dsyrk.o)
           +563  libopenblas.a(cblas_zsyrk.o)
+# note (the build review's N4): the lib_fortranobject.a line sums scipy's many archives of that name, which share a basename; the archive totals and criterion 5's identical archives show no real move

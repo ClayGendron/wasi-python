@@ -265,7 +265,9 @@ is safe because a guest has one thread; each instance has its own memory.
   (0.63); `matmul` 157.7 M against 69.3 M (0.44). On a 3×3 matrix, 2,000 calls (`fuel-small.txt`):
   `matmul` 18.1 k against 17.7 k per call and `inv` 66.2 k against 28.4 k, scipy's wrappers
   included. So small calls should not cost more (INFERRED: a proxy, f2py's overhead in it;
-  numpy-on-OpenBLAS's own 3×3 cost is measured on the built set, criterion 6).
+  numpy-on-OpenBLAS's own 3×3 cost is measured on the built set, criterion 6). (Measured at
+  build, phase 2: wrong. A 3×3 `matmul` costs 1.56 times as much per call, and a 3×3 `inv` 1.09
+  times.)
 - **Results.** The low bits of a product change, and they come no closer to native (EXECUTED,
   `matmul-compare.txt`, a 64×64 product): native numpy on OpenBLAS and on Accelerate agree to the
   bit on all 4,096 entries; the guest's numpy loop matches native on 1,250 (largest difference 8,318
@@ -349,8 +351,8 @@ codes until the build; checks 2 and 3 hold it):
 - **Fuel moves on every row that imports numpy, most visibly on those that run its linear
   algebra, `dot`, `matmul`, `einsum` or `tensordot`** (review L3). `import numpy` runs
   `_sanity_check`, which calls `x.dot(x)` on `ones(2, float32)` (`numpy/__init__.py:797-799`, READ); with
-  `HAVE_CBLAS` that is `cblas_sdot`, so even a bare import moves a little. Large calls drop by 30
-  to 56 percent (Decision 6). Rows likely to move most: the
+  `HAVE_CBLAS` that is `cblas_sdot`, so even a bare import moves a little. Large calls drop by 23
+  to 55 percent (measured, phase 2; Decision 6). Rows likely to move most: the
   `numpy_csv`, `modelling`, scipy and matplotlib goldens (matplotlib's affine transforms use
   `numpy.linalg.inv` and `dot`), the upstream groups `numpy-core`, `numpy-lib`, `numpy-others`
   (`numpy/linalg/tests`) and `pandas-frame`, and spec 091's `string-comparisons` fuel fact, which
@@ -433,8 +435,9 @@ codes until the build; checks 2 and 3 hold it):
   file of shims (`recipes/numpy_lapack_shims.c`) bridge numpy's `int` declarations to OpenBLAS's
   `void` subroutines. A matrix of `nan` raises `LinAlgError` in `svd`, `lstsq` and `eigh` as
   natively, where it raised `ValueError: On entry to DLASCL …`; numpy and scipy agree on which
-  matrices are singular; a 200×200 inverse, decomposition or product takes 30 to 56 percent less
-  fuel; `python.wasm` is <the build's measured bytes> smaller. A matrix singular only in exact
+  matrices are singular; a 200×200 inverse, decomposition or product takes 23 to 55 percent less
+  fuel (measured; the draft said 30 to 56), a 3×3 product more; `python.wasm` is <the build's
+  measured bytes> smaller. A matrix singular only in exact
   arithmetic is a rounding question, and the README says how the guest differs there (measured on
   macOS arm64), and what OpenBLAS's buffer does under a tight memory cap." The builder writes the
   measured size, never "about" (review L7). **099's CHANGELOG sentence** beginning "One case gets
@@ -490,6 +493,9 @@ codes until the build; checks 2 and 3 hold it):
   one 4×4 `dgemm` while memory is free, then memory filled to `MemoryError` and 4 MiB handed back,
   then a 64×64 `dgemm`: it returns 64.0. Without the early call the same program exits 1 with
   OpenBLAS's line.
+- **Measured on the built set** (criterion 6, `phase2-cap-thresholds.txt`): numpy's `a @ a` after
+  `import numpy, scipy` exits 1 with OpenBLAS's line at 62 MiB and below, and returns at 64 MiB
+  and above, on both binaries.
 - **Recipe fixes weighed:**
   - **(a) A smaller buffer by make variable.** `make BUFFERSIZE=…` adds `-DBUFFERSIZE`
     (`Makefile.system:1569-1570`), but `common_wasm.h:87` defines `BUFFER_SIZE` as `16 << 20`
@@ -891,8 +897,9 @@ on `8826d72`, stacked on 099's `b0e1593`; the native slot released when step 90 
 - **The memory cap** (EXECUTED, `phase2-probes.txt`, `phase2-cap-thresholds.txt`): numpy's `a @ a`
   after `import numpy, scipy` returns under 64, 68 and 72 MiB on both binaries, and **exits 1 with
   OpenBLAS's line under 62 MiB and below** (62 to 54 MiB tried), where the 64 MiB numpy array
-  raises `MemoryError` first; the threshold moved down about 2 MiB from scipy's on 099's set (the
-  smaller binary starts with less memory). `cap_keep_np.py` (256 MiB): without an early call the
+  raises `MemoryError` first; the threshold lies between 62 and 64 MiB on both binaries; scipy's
+  `dgemm` on main's set (`cap-runs.txt`) exited at 64 MiB and returned at 68 (snapshot) and 72
+  (plain); the two were not measured on one set, so the size of the shift is not known. `cap_keep_np.py` (256 MiB): without an early call the
   matmul after memory is filled exits 1 with OpenBLAS's line; with one early 4×4 matmul it
   returns 64.0, on both binaries. Decision 13 and the README hold as written.
 - **Check 4, fixed before acceptance** (EXECUTED): its first run on the build named `cdotc_`,
@@ -910,7 +917,10 @@ on `8826d72`, stacked on 099's `b0e1593`; the native slot released when step 90 
   (099's singular-matrix check, *For the lane*). Two earlier runs are not the record: the first
   had check 4's false finding; the second overlapped the lane's acceptance and failed 46 runner
   and embedding checks with `OSError: [Errno 28] No space left on device` while the disk was at
-  98%, and passed all of them on the third run.
+  98%, and passed all of them on the third run. That run broke AGENTS.md rule 3a (no tier of the judge
+  while `build/lane.lock` exists) and may have added to the full disk that ended the lane's first
+  acceptance of wave 07; the builder checks for the lock before every tier (the build review's
+  L4).
 - **The release run** (EXECUTED): **39439703872**, dispatched on `664e183` (the branch's tip
   then; this commit adds only `context/`), read with `gh run view` and `gh run download -p
   'record-*'`. Every build, rebuild and verify job succeeded; **the same bytes from every host:
@@ -948,3 +958,28 @@ on `8826d72`, stacked on 099's `b0e1593`; the native slot released when step 90 
 - **CHANGELOG**: under `## 0.1.0a8 — unreleased`, first; 099's B1 sentence removed. **Questions**:
   107 answered; none new.
 - **ruff check, ruff format --check, the fast tier**: green; output in `build/100/`.
+
+### Restack onto main (2026-10-20, after wave 08 landed 099)
+
+`git rebase --onto origin/main b0e1593` (main `faa9c93`, then `e56b387`, which adds only
+`context/`): 099's own commits dropped, as main carries 099 in its final form. Conflict hunks
+resolved, every one named:
+
+- `scripts/steps/60_link.sh`, the header comment: main's "scipy with OpenBLAS (spec 037),
+  scikit-learn (spec 044)" and this branch's "scipy and numpy with one OpenBLAS (specs 037 and
+  100)" combined. The precondition block: main's step 58 check for scikit-learn kept, numpy's shims
+  check added after it. Then, by the build review's L6: `weak_archives` gains
+  `$B/numpy-shims/libnumpy_lapack_shims.a`, and its comment says "scipy's and numpy's shims".
+- `README.md`, the `python.wasm` row: main's row (with scikit-learn's compiled modules) taken, with
+  "numpy and scipy (sharing one OpenBLAS), pandas" in place of "numpy, pandas, scipy (with
+  OpenBLAS)". The platform facts: this branch's replacement of 099's `lapack_lite` sentences and
+  its two bullets, then main's four new bullets from spec 066 (builtin modules have no `__file__`,
+  Pillow without `mmap`, no `resource`, at most 4 GiB) after them. The sizes row (phase 2's
+  commit): main's row kept for now; the rebuild's sizes replace it.
+- `context/upstream/README.md`: folder 31's row placed between main's 30 and its new 32 and 33
+  (spec 066's).
+
+Carried from 099's confirming build review (its L1): `recipes/weak-duplicates-allowed.txt`'s
+reason for `wasi_python_fe_flags` now says "(numpy's module archives and the static libraries their
+.deps name: 17 of the link's archives at numpy 2.5.2)"; `recipes/npy_fenv_flags.h`'s comment
+rewrapped (its 118-column line).
