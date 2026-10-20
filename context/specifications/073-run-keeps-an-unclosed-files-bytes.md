@@ -797,11 +797,20 @@ The zip is byte for byte main's: only the two binaries change. (The first build,
   (+2.21%)**, 203.36 G → 207.84 G, with its counts unchanged (9,519 passed; `passed_digest`
   `df21e78e7032`). It is **not** the unfreeze: the S6 stand-in (no unfreeze) gives 207.80 G
   (EXECUTED, `build_numpycore_S6.out`), so the unfreeze is +42 M of it. On the first build,
-  whose scripts imported `warnings` before the program, the same group was −73.6 M. So the rise
-  goes with running the driver in `__main__` while `warnings` is first imported by the suite
-  itself; its cause inside the suite was not established after two attempts (AGENTS.md rule 7),
-  and it is put to the lane below. **No upstream outcome moved**: 20 groups pass and 12 are gaps
-  with their recorded digests, as accepted (Decision 10). Falls need no acceptance (B4).
+  whose scripts imported `warnings` before the program, the same group was −73.6 M. Its cause
+  inside the suite was not established here after two attempts (AGENTS.md rule 7); **the build
+  review's delta look measured it** (its addendum, "numpy-core's +4.48 G: located and measured",
+  EXECUTED there): 4.29 G of it is one parametrised test, `test_string_comparisons` in
+  `test_strings.py`, whose 504 conversions of 32,768-element lists of Python bools cost about 25%
+  more (25.8 M → 32.4 M a call; `int` and `float` lists unchanged). numpy finds each element's
+  DType in `_global_pytype_to_type_dict`, a dict keyed by the type object, and so by its address;
+  `bool`'s static `PyBool_Type` moved 0x780 with the rebuilt binary's data segment, so its hash
+  and probe sequence changed. A link-layout effect, not 073's semantics: any change to the
+  binary's size can flip it either way (the first build, one line different, gave −73.6 M), and
+  numpy-core carries a layout-sensitive term of a few G for the next build-class spec. The rest
+  is the unfreeze-sized +30 M to +60 M every group pays. **No upstream outcome moved**: 20 groups
+  pass and 12 are gaps with their recorded digests, as accepted (Decision 10). Falls need no
+  acceptance (B4).
 
 ### Amendments at build, with their reasons
 
@@ -841,8 +850,71 @@ The zip is byte for byte main's: only the two binaries change. (The first build,
   the unfreeze's share measured by the build review); plain rows move by the fresh __main__ and
   the larger bootstrap (up to +1.8 M); upstream numpy-core +4.48 G (+2.21%), counts unchanged,
   not the unfreeze (+42 M of it), its cause in the suite not established"`.
-- **An open point for the lane:** numpy-core's +2.21% is the one growth without a measured cause.
-  The lane may accept it as stated, or ask for it to be found before landing.
+  (Superseded by the claim list below: the build review's delta look measured numpy-core's
+  cause, and a wave's reasons start with the number.)
+- ~~An open point for the lane: numpy-core's +2.21% is the one growth without a measured
+  cause.~~ Closed by the build review's delta look (the numpy-core paragraph above).
+
+#### Claim list (wave 1)
+
+Taken from the builder's full judge on the rebuilt set (`e02808a`'s judge with B1's recipe,
+`-n 3`, `build/073/full3.log`, record `build/073/latest-full3.json`: `545/562 pass · 14 gap · 3
+blocked · 0 fail`; `ratchet vs dfbf8e044f: lost 0 · gained 9 · grew 140`), the build review's
+delta look on `e1bd770` (its fast tier `grew 119`, check C and numpy-core re-run to within 119
+fuel), and a row-by-row comparison of that record with `accepted.json` at the own base, main
+`a6dfc17` (152 metrics above it, 140 beyond the ratchet's 0.01%, 9 below). The rebuilt set's
+`SHA256SUMS` is `8a30505a…`.
+
+- **New checks (8), goal v1.4, each `pass` on the rebuilt set:**
+  - `tests/checks/test_v1_4_embedding.py::test_run_keeps_unclosed_files_in_every_mode[plain]` and
+    `[snapshot]` (A);
+  - `tests/checks/test_v1_4_embedding.py::test_every_program_runs_in_an_unfrozen_main[plain]` and
+    `[snapshot]` (C, with its `warnings` row);
+  - `tests/checks/test_v1_4_embedding.py::test_run_keeps_a_file_the_stdlib_reaches[plain]` and
+    `[snapshot]` (D);
+  - `tests/checks/test_v1_4_embedding.py::test_module_and_directory_errors_read_as_native[plain]`
+    and `[snapshot]` (E).
+- **A gap closes (gap → pass):**
+  `tests/checks/test_v1_4_embedding.py::test_run_keeps_an_unclosed_files_bytes[snapshot]` ((h));
+  its entry is removed from `tests/known_gaps.toml`. Gained 9 in all.
+- **A check restated:** `tests/checks/test_v1_3_data_stack.py::test_the_snapshot_starts_cheaper_than_plain`
+  ((b)), `START_FACTOR` 8 → 3 by question 103's answer; it passes at 3.829.
+- **Retired checks:** none. No `--retire`.
+- **Passes that move:** none fall. No upstream group's counts or digests move (20 pass, 12 gaps as
+  accepted). No `--accept-fewer-passes`.
+- **Rows that grow (140 on the own base), every one this spec's two recipe changes:**
+  - **bytes:** `test_binary_is_a_core_wasm_module[plain]` 41,099,661 → 41,101,929 (+2,268). The
+    snapshot falls 1,691 bytes; the zip is unchanged.
+  - **snapshot fuel rows** (the unfreeze before `Py_FinalizeEx`, question 103): the bare run
+    +28.1 M (`-c pass` 15,631,800 → 43,758,719); most snapshot rows +28 M to +29 M; more after
+    large imports, up to +70.2 M (`test_ctypes_stand_in_names_what_packages_import[snapshot]`) and
+    +65.5 M (`test_encodings_are_wasi_libcs_as_documented`); a few rise less (lxml's
+    `test_the_readmes_encoding_workaround_reads_what_iconv_cannot`, +7.4 M).
+  - **plain fuel rows and the jobs** (the fresh `__main__` and the larger bootstrap): from
+    −1.4 M to +7.3 M (`test_lxml_xml_job_matches_native`, +7.26 M, +0.03%; the plain bare run
+    +72,583).
+  - **upstream groups** (all run `drive.py` on the snapshot): +7.7 M (pandas-io-parser) to
+    +543 M (pandas-groupby, +0.11%); **numpy-core +4,484,058,023 (+2.21%)**, a link-layout effect
+    in numpy's address-keyed type lookup for Python bools (the paragraph above), not 073's
+    semantics; on a different binary it is a different number, of either sign.
+  - **Rows main added since `a6dfc17`** (spec 065's CPython groups, 078's, 083's and 089's
+    checks, and any other row that runs a snapshot program) were never judged on this set; they
+    move for the same two reasons (each snapshot run about +28 M or more), and their numbers are
+    the wave run's. A grown row on the wave tip that is a snapshot run, a plain-run move of a few
+    M, or `python.wasm`'s bytes, is this claim's unless another entry also claims it.
+- **The judge hash changes**, in three files: `tests/checks/test_v1_4_embedding.py`,
+  `tests/checks/test_v1_3_data_stack.py`, `tests/known_gaps.toml`.
+- **The flags** (paste-safe):
+  - `--accept-judge "073: checks A, C, D and E on both binaries (run keeps unclosed files in every mode, every program in an unfrozen native __main__ with no warnings import, a file the stdlib reaches, -m and directory errors as native); check h closes and its gap entry goes; check b START_FACTOR restated from 8 to 3 by the answer to question 103, measured 3.829"`
+  - `--accept-growth "073: run on the snapshot unfreezes before finalizing (question 103), about +28 M fuel a snapshot run, up to +70 M after large imports; plain runs and jobs move by the fresh __main__ and the larger bootstrap, -1.4 M to +7.3 M; python.wasm +2,268 bytes; upstream groups on the snapshot +0.01 to +0.27 percent, and numpy-core +4.48 G, a link-layout effect in the bool-keyed type lookup of test_string_comparisons, measured by the build review, not this spec semantics"`
+  - no `--accept-fewer-passes`, no `--retire`.
+- **Sameness:** the reviewer's records are `073-review/build-review/reviewer-full-latest.json`
+  (the first build) and `073-review/delta/reviewer-targeted-latest.json` and
+  `reviewer-fast-latest.json` (the rebuilt set) in the lane's scratchpad; the builder's full
+  record on the rebuilt set is `build/073/latest-full3.json` in this worktree. No reviewer full
+  record exists on the rebuilt set: the fuel rows compare against the builder's.
+- **Not yet read:** this branch has no CI run (the wave's entry criterion 2; build-class, so
+  rule 2's "built" test asks for one).
 
 ## Disposition of the pre-build review
 
