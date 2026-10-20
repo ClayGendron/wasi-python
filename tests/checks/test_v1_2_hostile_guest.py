@@ -3447,3 +3447,23 @@ def test_dup_is_refused_as_not_supported(guest, which) -> None:
         "os.pipe absent",
     ]
     assert r.text.splitlines() == want, r.text
+
+
+HASH_PROBE = """
+import sys
+h = sys.hash_info
+print(h.algorithm, h.width, h.hash_bits, h.seed_bits)
+"""
+
+
+@pytest.mark.parametrize("which", ["snapshot", "plain"])
+def test_the_string_hash_is_siphash13(guest, which) -> None:
+    """Spec 086, the security review's S5 (0.1.0 whole-surface review): str, bytes and memoryview
+    hash with SipHash-1-3, CPython's own default, not 32-bit FNV. CPython's configure falls back to
+    FNV when it cannot run its aligned-access probe, as in a cross build, and wasm loads unaligned
+    words fine; FNV can be flooded with colliding keys whatever its key (PEP 456). Step 20 passes
+    --with-hash-algorithm=siphash13. The hash is computed in 64 bits and kept as Py_hash_t, which
+    is 32 bits wide on wasm32, under a 128-bit key."""
+    r = guest(which, ["-c", HASH_PROBE])
+    assert r.exit_code == 0, r.describe()
+    assert r.text.splitlines() == ["siphash13 32 64 128"], r.text

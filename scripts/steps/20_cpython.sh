@@ -13,6 +13,11 @@ cd "$CP"
 # The build-Python must not see the build tools' path; SOURCE_DATE_EPOCH comes from build.sh.
 mkdir -p "$B/logs/cpython"
 # --disable-test-modules: CPython's _test* and xx* modules are not part of the product.
-env -u PYTHONPATH "$HOSTPY" Platforms/WASI build --quiet --logdir "$B/logs/cpython" -- --disable-test-modules
+# --with-hash-algorithm=siphash13: CPython's default, which configure leaves for 32-bit FNV when it
+# cannot run its aligned-access probe, as in a cross build; wasm loads unaligned words, and FNV
+# can be flooded with colliding keys (PEP 456; spec 086, the 0.1.0 security review's S5). The
+# build-Python gets it too, as its own default.
+env -u PYTHONPATH "$HOSTPY" Platforms/WASI build --quiet --logdir "$B/logs/cpython" -- \
+  --disable-test-modules --with-hash-algorithm=siphash13
 [ -f "$W/python.wasm" ] || die "no python.wasm in $W"
 echo "cpython: $(wc -c < "$W/python.wasm" | tr -d ' ') bytes, $(shasum -a 256 "$W/python.wasm" | cut -c1-16)"

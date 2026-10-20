@@ -177,6 +177,23 @@ def test_no_cpython_test_module_is_built_in(guest) -> None:
     assert (r.exit_code, r.text.strip()) == (0, "[]"), r.text or r.describe()
 
 
+def test_a_missing_stdlib_module_says_why(guest) -> None:
+    """The zip carries _missing_stdlib_info, which CPython's build generates beside
+    _sysconfigdata, so a traceback for a stdlib module this platform lacks says why, as native
+    CPython's does (spec 086; spec 078's build review, F2). Without it traceback falls back to
+    "was not found"."""
+    code = (
+        "import traceback\n"
+        "try:\n"
+        "    import _tkinter\n"
+        "except ModuleNotFoundError as e:\n"
+        "    print(traceback.format_exception_only(e)[-1].strip())\n"
+    )
+    r = guest("snapshot", ["-c", code])
+    want = "ModuleNotFoundError: Unsupported platform for standard library module '_tkinter'"
+    assert (r.exit_code, r.text.strip()) == (0, want), r.text or r.describe()
+
+
 @BINARY
 def test_stdlib_c_modules_are_builtin(guest, which) -> None:
     """zlib, _bz2, _lzma and _sqlite3 are linked in as builtins (spec 007). A Setup.local line

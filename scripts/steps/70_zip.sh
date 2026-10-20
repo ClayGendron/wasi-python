@@ -29,6 +29,10 @@ set -eu
 NUMPY_SITE=$(dirname "$(find "$B/numpy-install" -type d -name numpy -path '*site-packages*' | head -n 1)")
 SYSCONFIG="$W/build/lib.wasi-wasm32-$PYTHON_MM/_sysconfigdata__wasi_wasm32-wasi.py"
 [ -f "$SYSCONFIG" ] || die "no WASI _sysconfigdata at $SYSCONFIG"
+# traceback's reasons for the stdlib modules this platform lacks, generated beside _sysconfigdata
+# by CPython's build (spec 086; spec 078's build review, F2).
+MISSING_INFO="$(dirname "$SYSCONFIG")/_missing_stdlib_info.py"
+[ -f "$MISSING_INFO" ] || die "no _missing_stdlib_info at $MISSING_INFO"
 for pkg in pillow kiwisolver matplotlib; do
   [ -d "$B/plot-install/$pkg" ] || die "build/plot-install/$pkg is missing: run step 55"
 done
@@ -120,6 +124,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --drop matplotlib/sphinxext \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
+  --file "$MISSING_INFO=_missing_stdlib_info.py" \
   --file "$HERE/recipes/ctypes_stand_in/__init__.py=ctypes/__init__.py" \
   --file "$HERE/recipes/ctypes_stand_in/_types.py=ctypes/_types.py" \
   --file "$HERE/recipes/ctypes_stand_in/util.py=ctypes/util.py" \
