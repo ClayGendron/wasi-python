@@ -629,8 +629,9 @@ patches, and the callback scan now reads the type slots that hid the first.
   16979, 17034 and 17048 are now `(i32) -> (i32)`; coverage unchanged (481, 454, 149, 5,360).
   Spec 051's scan: 3,607 method-array entries, 2,313 singles, 1,325 getsets, 451 members, the same
   on both sets.
-- Not yet run: steps 54 to 90 twice, and the Linux rebuilds (criterion 3): the release dry run
-  below builds on Linux and compares.
+- Not run: steps 54 to 90 twice on one host. Criterion 2's determinism is answered instead by
+  three independent builds (this one on macOS arm64, and the dry run's Linux x86_64 and arm64
+  rebuilds) giving the same `SHA256SUMS` (below; the build review's finding 4).
 
 ### The checks, seen failing first (criterion 1; EXECUTED)
 
@@ -650,10 +651,12 @@ patches, and the callback scan now reads the type slots that hid the first.
 - The fast tier, `-n 3`, no lock (`build/096/fast.log`): `589/713 pass · 0 gap · 3 blocked · 0
   fail`, unit suite 1,802/1,809; ratchet `lost 0 · gained 5 · grew 3`, its only red the three
   byte rows above. No fuel row grew.
+- Criterion 7's local `uv run pytest -n 6` was not run; the fast tier above and the dry run's judge
+  shards on three systems (0 fail) stand for it (the build review's finding 3).
 
 ### The release dry run (criteria 3 and 8; READ, run 39386471189 on `0054f5b`)
 
-- **25 jobs passed; one red, `judge (macos-15, own-guest)`, and its only red lines are the three
+- **24 jobs passed (4 skipped); one red, `judge (macos-15, own-guest)`, and its only red lines are the three
   growth lines** claimed above (`wasi_python v1: 351/713 pass · 2 gap · 2 blocked · 0 fail`;
   ratchet `lost 0 · gained 6 · grew 3`; the sixth gained row is
   `test_wheel_carries_the_artifact_set`, blocked locally for want of a wheel, not 096's). No G7
