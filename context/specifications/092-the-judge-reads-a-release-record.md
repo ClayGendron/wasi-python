@@ -78,11 +78,18 @@ claim written before the comparison, by kind: a fuel claim never explains a lost
 2. **Sameness reads either kind of record.** A record whose `meta` has `records` is a release
    record. A release record without `runs` is from before this spec: `sameness.py` refuses it,
    exit 2, one line. Its view of a release record:
-   - each check with a `source`: the source entry with the check's metrics;
-   - each check without one: not compared. It is named on stderr, counted by need ("not run on
-     any system in the release: 3 (oracle 1, prior-art clones 1, three systems 1)"), never a
-     difference. A check present in one record and absent from the other is still a difference,
-     whatever its status.
+   - each check with a `source`: the source entry with the check's metrics; and **when the merged
+     (worst) status is not the source's, a difference no claim explains**, `<check>: status 'pass'
+     on darwin-arm64, 'fail' on win32-amd64`, unless the worst is a block by a `CI_NEEDS` need on
+     a system that lacks it (`gather.merge` writes `worst_platform` on every check for this; the
+     build review, F1). A red run's record is never silent;
+   - each check without one: not compared, if every record deselected it or blocked it by a
+     `CI_NEEDS` need. It is named on stderr, counted by need ("not run on any system in the
+     release: 3 (oracle 1, prior-art clones 1, three systems 1)"), never a difference. A sourceless
+     check of any other status is a record `gather.merge` did not write: refused, exit 2 (F2). A
+     check present in one record and absent from the other is still a difference, whatever its
+     status;
+   - a suite count that is not a whole number: refused, exit 2 (F3).
    - `suite`: the sum of the suites of the runs on darwin (the build shard and the macOS shards),
      which between them run every unit test a darwin run does (EXECUTED: 1632 in both, base run
      39351481374 against spec 078's worktree record). **Between a release record and a run
@@ -204,7 +211,7 @@ under the artifact `release-record-<attempt>`.
 ## For the lane
 
 - **Wave kind:** parallel-safe (judge only). No rebuild, no dry-run needs beyond the wave's.
-- **Accept with** `--accept-judge "092: sameness reads a release record and a claim list (gather.merge writes deselected, collected_files, a suite per run, meta.foreign and each check's source; sameness.py compares the darwin view and takes --claims and --except); new tests/unit/test_sameness.py and rows in tests/unit/test_gather.py; no check, golden, gap or allowance edited"`.
+- **Accept with** `--accept-judge "092: sameness reads a release record and a claim list (gather.merge writes deselected, collected_files, a suite per run, meta.foreign, each check's source and worst platform; sameness.py compares the darwin view and takes --claims and --except); new tests/unit/test_sameness.py and rows in tests/unit/test_gather.py; no check, golden, gap or allowance edited"`.
 - **The expected record:** lost 0, gained 0, grew 0, `judge changed`; the unit suite grows by the
   new rows (the claim's `units`).
 - **The claim list:**
@@ -213,8 +220,47 @@ under the artifact `release-record-<attempt>`.
   [[claim]]
   spec = "092"
   new = ["tests/unit/test_sameness.py"]
-  units = 39   # 36 rows in test_sameness.py, 3 in test_gather.py
+  units = 45   # 42 rows in test_sameness.py, 3 in test_gather.py
   ```
+
+## Disposition of the build review
+
+The review (`../reviews/092-the-judge-reads-a-release-record-build-2026-10-20.md`, on `6bdf84d`):
+"lands once F1 and F2". Each finding is answered here and in the code; the six new rows were seen
+failing first (EXECUTED, `build/092/review-first-fail.txt`: 6 failed, 36 passed).
+
+- **F1 (a failure on another system is silent): fixed.** `gather.merge` writes `worst_platform`
+  on every check. The release view makes every check whose merged status is not its source's a
+  difference of its own kind, which no claim explains, unless the worst is a block by a `CI_NEEDS`
+  need on a system that lacks it (`_ci_block`). Row
+  `test_a_failure_on_another_system_is_a_difference_no_claim_explains` (a Windows `fail` under a
+  darwin `pass`, against a local record and against itself, with a claim list naming `*`; and a
+  `descriptor limit` block on Linux, which lacks no descriptor limit). The README now says to
+  compare only the record of a run whose every job, the gather included, is green. EXECUTED
+  (`build/092/e2e/review-fixes.txt`): the rebased tip's red run, re-gathered, against itself prints
+  the two `test_the_removal_never_deletes_what_the_guest_may_not` rows (`'pass' on darwin-arm64,
+  'fail' on win32-amd64`) and exits 1; spec 078's red run prints its one Windows row. The two
+  `descriptor limit` rows print nothing.
+- **F2 (a sourceless check is believed): fixed.** `view()` refuses, exit 2, a check without
+  `source` unless it is `deselected` or a `CI_NEEDS` block on a system that lacks the need. Row
+  `test_a_check_without_a_source_that_ran_is_refused` (`fail`, `pass`, and a block by `upstream
+  kit`). A record without `worst_platform` (run 39354482605's own, from before this fix) is refused
+  as from before the review.
+- **F3 (a malformed suite is a traceback): fixed.** A darwin run's suite count that is not a whole
+  number is `NotComparable`, exit 2, one line. Row `test_a_malformed_suite_is_refused_in_one_line`.
+- **F4 (`--except` without `--claims`): fixed.** An argument error, exit 2. Row
+  `test_except_without_claims_is_an_argument_error`.
+- **F5 (`changed` names no direction): answered.** True and accepted for now: a `changed` claim
+  says "this row moves", not where to. Nothing lands on it unseen, since the lane's ratchet refuses
+  a lost pass and a failing check keeps the judge red; a later spec may let `changed` name the
+  status expected (a roadmap line when the lane wants it).
+- **F6 (the self-check list): answered.** The landing notes carry what the self-check asks for:
+  the base, the CI runs and their red lines, the claim list and flags, every new row seen failing,
+  the fast tier and ruff. A later review request will put the list at its top.
+- **After the fixes (EXECUTED):** `test_sameness.py`, `test_gather.py`, `test_several_cores.py`:
+  159 passed; the whole `tests/unit` folder, `-n 3`: 1757 passed, 15 skipped; `tests/checks/test_rules.py`:
+  42 passed, 2 skipped; `ruff` green. No new CI run: the change is judge-only, and
+  wave 03's dry run covers it (the lane).
 
 ## Landing notes
 
@@ -235,7 +281,7 @@ records, the re-gathered base record, the claim list and every comparison's outp
   `deselected` and `collected_files` (Decision 4); the suite across kinds by total and failing
   count (Decision 2); `notes()`; `load_claims()`, `explain()`, `unexplained()`; the command's
   `--claims` and `--except`, notes on stderr, exit 2 on an unreadable record or claim list.
-- `tests/unit/test_sameness.py` (36 rows) and three rows in `tests/unit/test_gather.py`.
+- `tests/unit/test_sameness.py` (42 rows after the build review) and three rows in `tests/unit/test_gather.py`.
 - `context/progress/README.md`: "Comparing with a release record, and claim lists".
 
 ### Criterion 1: the checks fail first (EXECUTED, `first-fail.txt`)

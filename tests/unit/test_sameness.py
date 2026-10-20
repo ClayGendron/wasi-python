@@ -216,6 +216,8 @@ def test_a_unit_test_skipped_on_one_host_only_is_a_note_across_kinds() -> None:
 def test_a_release_record_from_before_092_is_refused(tmp_path) -> None:
     old = release()
     del old["runs"], old["deselected"], old["collected_files"], old["meta"]["foreign"]
+    for c in old["checks"].values():
+        c.pop("worst_platform")
     with pytest.raises(sameness.NotComparable, match="before spec 092"):
         sameness.differences(old, local())
     a, b = tmp_path / "old.json", tmp_path / "lane.json"
@@ -377,3 +379,64 @@ def test_a_fuel_fact_follows_the_fuel_rules(tmp_path) -> None:
     ]
     grows = f'[[claim]]\nspec = "1"\ngrows = ["{A}"]\ngrowth = "1: g"\n'
     assert sameness.unexplained(first, second, claims(tmp_path, grows)) == []
+
+
+# ---------------------------------------------------------------------------------------------
+# The build review's findings (F1 to F4)
+
+
+def test_a_failure_on_another_system_is_a_difference_no_claim_explains(tmp_path) -> None:
+    """F1: the darwin view never hides a merged status worse than its source's; only a block by a
+    CI need on a system that lacks it (descriptor limit, Windows) is no difference."""
+    records = shard_records()
+    records[("windows", "own")]["checks"][A].update(status="fail", reason="boom", metrics={})
+    r = release(records)
+    want = f"{A}: status 'pass' on {DARWIN}, 'fail' on {WIN}"
+    assert sameness.differences(r, local()) == [want]
+    assert sameness.differences(r, r) == [want]  # even against itself: the run was red
+    every = '[[claim]]\nspec = "1"\nchanged = ["*"]\ngrows = ["*"]\ngrowth = "1: g"\n'
+    assert sameness.unexplained(r, local(), claims(tmp_path, every)) == [want]
+    records = shard_records()  # a CI need on a system that does not lack it is no exemption
+    records[("linux", "own")]["checks"][D].update(status="blocked", need="descriptor limit")
+    assert sameness.differences(release(records), local()) == [
+        f"{D}: status 'pass' on {DARWIN}, 'blocked' on {LINUX}"
+    ]
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"status": "fail", "need": None},
+        {"status": "pass", "need": None},
+        {"status": "blocked", "need": "upstream kit"},
+    ],
+)
+def test_a_check_without_a_source_that_ran_is_refused(entry) -> None:
+    """F2: only a check every record deselected or blocked by a CI need may lack a source."""
+    r = release()
+    r["checks"][A].pop("source")
+    r["checks"][A].update(entry)
+    with pytest.raises(sameness.NotComparable, match=A.replace("[", r"\[")):
+        sameness.differences(r, local())
+
+
+def test_a_malformed_suite_is_refused_in_one_line(tmp_path) -> None:
+    """F3: a non-number in a darwin run's suite is exit 2, one line, not a traceback."""
+    r = release()
+    r["runs"]["macos/own"]["suite"]["passed"] = "5"
+    a, b = tmp_path / "r.json", tmp_path / "l.json"
+    a.write_text(json.dumps(r))
+    b.write_text(json.dumps(local()))
+    got = subprocess.run([sys.executable, SCRIPT, str(a), str(b)], capture_output=True, text=True)
+    assert got.returncode == 2 and got.stderr.startswith("sameness.py: "), got.stderr
+    assert "Traceback" not in got.stderr
+
+
+def test_except_without_claims_is_an_argument_error(tmp_path) -> None:
+    """F4."""
+    a = tmp_path / "a.json"
+    a.write_text(json.dumps(local()))
+    got = subprocess.run(
+        [sys.executable, SCRIPT, "--except", "092", str(a), str(a)], capture_output=True, text=True
+    )
+    assert got.returncode == 2 and "--except" in got.stderr, got.stderr

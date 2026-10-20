@@ -40,6 +40,7 @@ from pathlib import Path
 if __package__ in (None, ""):  # run as a script: the harness package lives one folder up
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from harness.gather import CI_NEEDS  # noqa: E402
 from harness.scoreboard import FUEL_TOLERANCE  # noqa: E402
 
 FIELDS = ("status", "need", "area", "closer")
@@ -47,6 +48,7 @@ FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is (spec 09
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
 SIDE = {0: "only in the first record", 1: "only in the second record"}
+SYSTEMS = {"darwin": {"macos", "build"}, "linux": {"linux"}, "win32": {"windows"}}
 
 
 class NotComparable(ValueError):
@@ -85,6 +87,7 @@ class View:
     suite: dict
     foreign: list[str]
     unheld: set[str] = field(default_factory=set)  # release only: fuel no shard on darwin gave
+    elsewhere: dict[str, str] = field(default_factory=dict)  # release only: a worse status (F1)
 
 
 def is_release(r: dict) -> bool:
@@ -107,17 +110,29 @@ def view(r: dict) -> View:
         )
     missing = [k for k in ("runs", "deselected", "collected_files") if k not in r]
     missing += ["meta.foreign"] if "foreign" not in meta else []
+    if any("worst_platform" not in c for c in r.get("checks", {}).values()):
+        missing.append("worst_platform on every check (from 092's build review)")
     if missing:
         raise NotComparable(
             f"a release record from before spec 092 (it has no {', '.join(missing)}): "
             "download the record of a run on a commit that has gather.py from spec 092"
         )
-    checks, platform, unrun, unheld = {}, {}, {}, set()
+    checks, platform, unrun, unheld, elsewhere = {}, {}, {}, set(), {}
     for node, c in r.get("checks", {}).items():
         source = c.get("source")
         if source is None:
+            if c.get("status") != "deselected" and not _ci_block(c):
+                raise NotComparable(
+                    f"{node}: {c.get('status')!r} with no source; gather.merge leaves out the "
+                    "source only of a check every record deselected or blocked by a CI need"
+                )
             unrun[node] = c.get("need") or c.get("status")
             continue
+        if c.get("status") != source.get("status") and not _ci_block(c):
+            elsewhere[node] = (
+                f"{node}: status {source.get('status')!r} on {source.get('platform')}, "
+                f"{c.get('status')!r} on {c.get('worst_platform')}"
+            )
         checks[node] = {
             **{k: v for k, v in source.items() if k != "platform"},
             "metrics": c.get("metrics", {}),
@@ -129,6 +144,10 @@ def view(r: dict) -> View:
     for run in r["runs"].values():
         if str(run.get("platform", "")).startswith("darwin-"):
             for k, n in (run.get("suite") or {}).items():
+                if type(n) is not int or n < 0:
+                    raise NotComparable(
+                        f"runs: a suite count that is not a whole number: {k} {n!r}"
+                    )
                 suite[k] = suite.get(k, 0) + n
     return View(
         names=set(r.get("checks", {})),
@@ -140,7 +159,18 @@ def view(r: dict) -> View:
         suite=suite,
         foreign=meta["foreign"],
         unheld=unheld,
+        elsewhere=elsewhere,
     )
+
+
+def _ci_block(c: dict) -> bool:
+    """Whether a merged check's worst status is a block by a need CI lacks, on a system that lacks
+    it (`worst_platform`; the descriptor limit lacks on Windows alone)."""
+    need = c.get("need")
+    if c.get("status") != "blocked" or not isinstance(need, str) or need not in CI_NEEDS:
+        return False
+    where = str(c.get("worst_platform")).split("-")[0]
+    return bool(SYSTEMS.get(where, set()) & CI_NEEDS[need])
 
 
 def _facts(record: dict) -> tuple[object, dict]:
@@ -218,6 +248,10 @@ def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
             elif fuel_both and pa != pb:
                 across[f"{pa} against {pb}"] += 1
             found += _check(node, ca, cb, held and pa == pb)
+    for node, text in sorted({**vb.elsewhere, **va.elsewhere}.items()):
+        found.append(Diff(text, "elsewhere", node))  # no claim explains it (092's review, F1)
+        if node in va.elsewhere and node in vb.elsewhere and vb.elsewhere[node] != text:
+            found.append(Diff(vb.elsewhere[node], "elsewhere", node))
     found += _items("deselected", va.deselected, vb.deselected)
     found += _items("collected_files", va.collected_files, vb.collected_files)
     notes = []
@@ -391,6 +425,8 @@ def main(argv: list[str]) -> int:
     ap.add_argument("a", type=Path)
     ap.add_argument("b", type=Path)
     args = ap.parse_args(argv)
+    if args.drop and not args.claims:
+        ap.error("--except drops a spec's claims, so it needs --claims")
     try:
         a, b = (json.loads(p.read_text(encoding="utf-8")) for p in (args.a, args.b))
         claims = load_claims(args.claims) if args.claims else None

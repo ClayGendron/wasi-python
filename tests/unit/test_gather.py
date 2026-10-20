@@ -655,6 +655,8 @@ def test_the_merged_record_carries_what_sameness_needs(case) -> None:
     }
     assert merged["meta"]["foreign"] == ["a conftest outside"]
     assert merged["checks"][PROBE]["status"] == "blocked"  # the worst, as before
+    assert merged["checks"][PROBE]["worst_platform"] == "win32-amd64"  # where it was worst
+    assert merged["checks"][RULE_NODE]["worst_platform"].startswith("darwin-")
     assert merged["checks"][PROBE]["source"]["platform"] == "darwin-arm64"
     assert merged["checks"][PROBE]["source"]["status"] == "pass"
     assert "metrics" not in merged["checks"][PROBE]["source"]

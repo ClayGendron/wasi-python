@@ -176,8 +176,13 @@ The plain `uv run pytest` stays serial.
   Windows'), and the suite of the build and macOS shards together (against a local record, only
   its total and failing count: a unit test may skip on one host only). A check no shard ran
   (blocked by a need CI lacks, such as the oracle) is not compared, nor is fuel a Linux or Windows
-  shard gave (G5 holds darwin fuel only, and Linux fuel moves between runs); stderr counts both. A
-  record from a run before spec 092 lacks the fields and is refused, exit 2.
+  shard gave (G5 holds darwin fuel only, and Linux fuel moves between runs); stderr counts both.
+  A check whose worst status on some system is not its darwin one is always a difference, which no
+  claim explains (`<check>: status 'pass' on darwin-arm64, 'fail' on win32-amd64`), unless it is a
+  block by a need CI lacks on a system that lacks it (the descriptor limit, on Windows). A record
+  from a run before spec 092 (or before its build review) lacks the fields and is refused, exit 2,
+  and so is a check with no source that some shard ran. **Compare only the record of a run whose
+  every job, the gather included, is green.**
 - **`--claims <toml>`** prints only the differences no claim explains, and exits 1 if any remain.
   A claim list is what the **second** record has that the **first** lacks, so put the record
   without the claimed changes first (a reviewer's or builder's record, then the lane's). Each

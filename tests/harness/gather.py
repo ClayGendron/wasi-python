@@ -380,8 +380,9 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
     """One record of the release (Decision 9): each goal check's worst status across the records;
     its `source`, the entry of the record that ran it (darwin first, then linux, then any) with
     that record's platform, and its metrics from the same record; `suite` per system and per run;
-    and what sameness compares (spec 092): the checks no record ran (`deselected`), the union of
-    `collected_files` and of `meta.foreign`."""
+    and what sameness compares (spec 092): the platform of the worst status (`worst_platform`),
+    the checks no record ran (`deselected`), the union of `collected_files` and of
+    `meta.foreign`."""
     checks: dict[str, dict] = {}
     pref = {"darwin": 0, "linux": 1, "win32": 2}
     for node in sorted(i.goal_nodes):
@@ -392,7 +393,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
                 found.append((str(r.get("meta", {}).get("platform", "")), c))
         if not found:
             continue
-        worst = min(found, key=lambda pc: ORDER.index(pc[1].get("status", "fail")))[1]
+        worst_on, worst = min(found, key=lambda pc: ORDER.index(pc[1].get("status", "fail")))
         runs = [(p, c) for p, c in found if did_run(c)]
         if not runs:
             checks[node] = dict(worst)
@@ -406,6 +407,7 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
                     "platform": platform,
                 },
             }
+        checks[node]["worst_platform"] = worst_on  # where the worst status was seen (092, F1)
         for entry in (checks[node], checks[node].get("source") or {}):
             need = entry.get("need")
             if need is not None and not isinstance(need, str):  # already red at G4 (B3)
