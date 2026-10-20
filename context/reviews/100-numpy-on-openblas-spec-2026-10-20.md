@@ -337,3 +337,67 @@ Passes for build once M1 is answered in writing. That means naming OpenBLAS's `e
 failed buffer allocation under a memory cap in Decisions 6 and 10 and in the README, plus a
 recorded build-time probe. The Lows are write-ins: L1 to L3 and L7 to L8 only touch `context/`
 or the spec's prose; L4 to L6 are folded into the build.
+
+## Confirmation
+
+- **Date:** 2026-10-20. The same reviewer, against `spec/100-numpy-on-openblas` at `f25dbcb`
+  (rebased onto main `3ff1871`) and its Disposition. Time box: 20 minutes.
+- **Run:** none. This is still a pre-build review. I read files, re-read OpenBLAS's sources (read
+  only, from `build/openblas-build`) and read the revision's runs. `build/lane.lock` was absent
+  throughout.
+
+### M1: confirmed. Document and record is acceptable.
+
+- **The behaviour is already in the binary.** `cap-runs.txt` shows it on main's set, both binaries.
+  Under 64 MiB, scipy's `dgemm` exits 1 with OpenBLAS's line. numpy's own `matmul` runs, and the
+  64 MiB array raises `MemoryError`. At 68 MiB (snapshot) and 72 MiB (plain), the `dgemm` returns.
+  This spec moves the exposure onto a more common path; it does not create it.
+- **The outcome is clean.** It is an exit with a named reason on stderr, not a trap and not a wrong
+  answer. It needs a cap within about 16 MiB of what the program already holds.
+- **`cap-keep.txt` backs the early-call advice.** With an early 4×4 `dgemm` (`FIRST=1`), the later
+  call returns. Without it (`FIRST=0`), the run exits 1.
+- **Each refusal holds (READ):**
+  - **(a) A smaller buffer.** `common_wasm.h:87` defines `BUFFER_SIZE (16 << 20)` with no
+    `#ifndef BUFFERSIZE` guard. Compare `common_arm64.h:179-186`, which has one. So
+    `make BUFFERSIZE` adds `-DBUFFERSIZE` (`Makefile.system:1569-1570`), which the wasm header
+    ignores. The `WASM128_GENERIC` blocking is `param.h`'s shared RISCV64/WASM128 block (P 128,
+    Q 240, R 12288 for sgemm). So sgemm's packed B panel is Q × R × 4 bytes = 11,796,480 bytes,
+    11.25 MiB. A smaller buffer would need a patch, and would only lower the threshold.
+  - **(b) A larger `MAX_STACK_ALLOC`.** It is 2048 in step 38's compile lines (3,782 occurrences in
+    `openblas-build.log`). `STACK_ALLOC` is used only by the level-2 interfaces plus `gemmt`. numpy
+    never calls `gemmt`, so "level-2 only" is right for this spec. A level-3 call still maps the
+    buffer.
+  - **(c) Renaming `exit`.** In `memory.c:2981-2987` the `failcount > 10` branch sits inside a
+    `do … while (map_address == -1)` loop. A recipe `exit` that returned would just run again on
+    every pass, an endless loop. Nothing above it can unwind.
+  - **(d) Mapping at init.** Every instance would start 16 MiB larger. True by construction.
+  - **(e) Failing into numpy's error handling.** It needs the allocator and its callers changed: a
+    patch, out of scope.
+- **Other parts of the answer check out.** `blas_memory_free` only clears `used` (READ), so a
+  mapped buffer is kept, as stated. Decisions 6, 10, 11 and 13 and criterion 6's cap probes name
+  and record the behaviour.
+
+### L6: confirmed.
+
+- **The list is right.** Decision 4's 35 names are `?gesv`, `?getrf`, `?potrf`, `?gesdd`, `?gelsd`
+  and `?copy` in four precisions; `s/d/zgeev`; the four `?syevd`/`?heevd`; and `dgeqrf`, `zgeqrf`,
+  `dorgqr`, `zungqr`. That is exactly the set I measured undefined in prototype B's objects, less
+  `xerbla`. `cgeev` is rightly excluded: its only caller sits under `#if 0`
+  (`umath_linalg.cpp:2351`).
+- **The shape is right.** One pass-through per routine, in numpy's parameter order, returning 0.
+- **Check 4 is right.** It now asserts the shim archive's defined names equal the `wasi_numpy_*`
+  names the two numpy objects leave undefined, less `wasi_numpy_xerbla_`. It names a shim nobody
+  calls and a call with no shim. A call with no shim also fails the main link, which has no
+  `--allow-undefined`.
+
+### The other answers
+
+L1 to L5, L7 and L8, and notes N1 and N2, are written in as the Disposition says. I spot-read
+Decisions 4, 9 and 13 and check 4's text; I did not re-run L2's or L4's new probes. A detail
+worth keeping: 099's tip makes `cholesky` of a `nan` matrix raise where native returns, and this
+spec makes it native again (Disposition 3). Check 3 holds that.
+
+### Verdict
+
+**Confirmed for build.** M1 is answered in writing with runs; all five refusals are true against
+OpenBLAS 0.3.34's source. No finding stays open.
