@@ -22,7 +22,7 @@ for e in records:
         continue
     argv = shlex.split(e["command"])
     kept, skip = [], 0
-    for i, a in enumerate(argv):
+    for a in argv:
         if skip:
             skip -= 1
             continue
@@ -40,7 +40,8 @@ for e in records:
     nm = subprocess.run([f"{SDK}/bin/llvm-nm", f"{OUT}/{name}"], capture_output=True, text=True)
     lines = [ln for ln in nm.stdout.splitlines() if "fe_flags" in ln or "fetestexcept" in ln
              or "feraiseexcept" in ln or "feclearexcept" in ln]
-    print(f"{name}: exit {r.returncode}; warnings {r.stderr.count('warning:')}; errors {r.stderr.count('error:')}")
+    warned, failed = r.stderr.count("warning:"), r.stderr.count("error:")
+    print(f"{name}: exit {r.returncode}; warnings {warned}; errors {failed}")
     print("   ", "; ".join(" ".join(ln.split()) for ln in lines) or "(no fe symbol)")
     if r.returncode:
         print(r.stderr[-1500:])

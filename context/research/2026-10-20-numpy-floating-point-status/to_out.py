@@ -12,10 +12,10 @@ import json
 import sys
 
 
-def to_out(src: str, dst: str, which: str) -> None:
+def to_out(src: str, dst: str, which: str, label: str = "main set SHA256SUMS f12cd25c") -> None:
     run = json.load(open(src))
     head = (
-        f"# main set SHA256SUMS f12cd25c, {which} binary: exit {run['exit_code']}, "
+        f"# {label}, {which} binary: exit {run['exit_code']}, "
         f"trapped {run['trapped']}, stderr {run['stderr']!r}\n"
     )
     open(dst, "w").write(head + run["stdout"])
@@ -43,4 +43,4 @@ if __name__ == "__main__":
     if sys.argv[1] == "--crosstab":
         crosstab(sys.argv[2], sys.argv[3])
     else:
-        to_out(sys.argv[1], sys.argv[2], sys.argv[3])
+        to_out(*sys.argv[1:5])  # RUN.json OUT.out WHICH [LABEL, for another set than main's]

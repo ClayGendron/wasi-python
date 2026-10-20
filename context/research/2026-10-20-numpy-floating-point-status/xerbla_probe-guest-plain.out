@@ -1,0 +1,15 @@
+# main set SHA256SUMS f12cd25c, plain binary: exit 0, trapped None, stderr ''
+lstsq(nan 3x3)     ValueError: On entry to DLASCL parameter number 4 had an illegal value
+lstsq(nan 2x3)     ValueError: On entry to DLASCL parameter number 4 had an illegal value
+lstsq(inf 2x2)     returned
+svd(nan, no uv)    ValueError: On entry to DLASCL parameter number 5 had an illegal value
+svd(nan)           returned
+svd(inf)           returned
+pinv(nan)          returned
+eigh(nan)          returned
+eigvalsh(nan)      returned
+solve(nan)         returned
+inv(nan)           returned
+inv(inf)           returned
+cholesky(nan)      returned
+qr(nan)            returned

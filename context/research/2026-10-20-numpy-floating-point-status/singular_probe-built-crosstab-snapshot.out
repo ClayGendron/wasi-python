@@ -1,0 +1,4 @@
+native finite  guest finite   141  e.g. case   0 n=7 rank<=4, case   1 n=3 rank<=2, case   3 n=4 rank<=3, case  10 n=4 rank<=2
+native finite  guest raises    12  e.g. case  26 n=4 rank<=2, case  37 n=6 rank<=5, case  58 n=4 rank<=3, case  64 n=5 rank<=2
+native raises  guest finite    20  e.g. case   2 n=5 rank<=3, case  14 n=4 rank<=3, case  20 n=6 rank<=2, case  70 n=7 rank<=2
+native raises  guest raises   130  e.g. case   4 n=6 rank<=2, case   5 n=4 rank<=3, case   6 n=6 rank<=1, case   7 n=5 rank<=1

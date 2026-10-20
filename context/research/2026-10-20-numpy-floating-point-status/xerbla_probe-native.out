@@ -1,0 +1,27 @@
+lstsq(nan 3x3)     LinAlgError: SVD did not converge in Linear Least Squares
+lstsq(nan 2x3)     LinAlgError: SVD did not converge in Linear Least Squares
+lstsq(inf 2x2)     LinAlgError: SVD did not converge in Linear Least Squares
+svd(nan, no uv)    LinAlgError: SVD did not converge
+svd(nan)           LinAlgError: SVD did not converge
+svd(inf)           returned
+pinv(nan)          LinAlgError: SVD did not converge
+eigh(nan)          LinAlgError: Eigenvalues did not converge
+eigvalsh(nan)      LinAlgError: Eigenvalues did not converge
+solve(nan)         returned
+inv(nan)           returned
+inv(inf)           returned
+cholesky(nan)      LinAlgError: Matrix is not positive definite
+qr(nan)            returned
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  5 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value
+** On entry to DLASCL, parameter number  5 had an illegal value
+** On entry to DLASCL, parameter number  4 had an illegal value

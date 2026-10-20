@@ -372,7 +372,8 @@ sandbox:
   LAPACK is numpy's own bundled `lapack_lite`, not native numpy's OpenBLAS, until spec 100: for
   a matrix singular only in exact arithmetic the two can disagree either way (the guest may
   return finite numbers where native raises, or raise where native returns), and a matrix of
-  `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`.
+  `nan` can raise `ValueError` ("On entry to DLASCL …") where native raises `LinAlgError`;
+  `numpy.linalg.lstsq` of one raises `SystemError`, with that `ValueError` as its context.
 - **Builtin modules have no `__file__`**: the packages' compiled modules (`PIL._imaging`,
   `lxml.etree`, numpy's) are builtin, so code that reads their `__file__` fails, and
   `lxml.get_include()` names folders inside the stdlib zip, which are not folders.
