@@ -1,7 +1,9 @@
 # 092 — the judge reads a release record: sameness against a CI run, and claim lists
 
 - **Status:** **built 2026-10-19** on `spec/092-the-judge-reads-a-release-record`, rebased onto main
-  `7d0649d`; CI runs 39354482605 (green) and 39357023086 on the tip (red on one Windows row of spec 078's, fixed forward by 093; the Landing notes). Drafted 2026-10-19 from main `97be88a`
+  `e8ba20a` (wave 01) at `1a23fe0`; CI run 39359915030 on that tip red only on wave 01's two
+  Windows removal rows (main's own dry run 39358820218 the same; spec 094 fixes them); before the
+  rebase, run 39354482605 green on every job (the Landing notes). Drafted 2026-10-19 from main `97be88a`
   (spec 078's acceptance). It changes neither
   the guest's imports nor its exports, the artifact set nor the build recipe, and it is judge-only,
   so §5.6 and AGENTS.md rule 8 ask no review before build. A different agent reviews the build.
@@ -329,7 +331,19 @@ build commits were squashed into one on the rebase, with each file merged once (
 - **After the rebase (EXECUTED):** the three unit files, 152 passed; `ruff` green; **the fast tier
   `-n 3`: `74/669 pass · 0 gap · 484 blocked · 0 fail · 111 deselected (unit suite 1758/1773, 15
   skipped)`, lost 0, gained 0, grew 0, judge changed** (`build/092/fast-rebased.txt`).
-  CI on the rebased tip: REBASED_RUN.
+  **CI on the rebased tip `1a23fe0`: run 39359915030, red on one job, not a growth line:**
+  `judge (windows-2025, own-embedding)`, `FAIL tests/checks/test_v1_4_embedding.py::test_the_removal_never_deletes_what_the_guest_may_not[home]`
+  and `[private]` (`skipped without a known need: … a Windows guest deletes a read-only file
+  itself (spec 084, C2)`; `RED: 2 accepted pass(es) lost`). Wave 01's own dry run on main's
+  `6006fde`, 39358820218, failed on exactly these two rows; spec 094 (the removal rows name their
+  Windows need) is its fix. Every other job was green, so the gather was skipped again. Spec 078's
+  Windows row passed this time.
+- **End to end on the rebased tip (EXECUTED):** its 19 shard records merged by this build's
+  `gather.merge` (669 checks, `source` on 666), compared with run 39354482605's own record (before
+  wave 01): 18 lines, every one wave 01's (eleven new checks of 084 and 087, `test_runner_sets.py`,
+  the two binaries' `bytes` +202, numpy-core's new fuel fact name, the suite 1669 to 1773); the two
+  Windows-only failures are no difference (read from darwin). That is the list the wave's claim
+  lists would explain.
 
 ### Departures
 
