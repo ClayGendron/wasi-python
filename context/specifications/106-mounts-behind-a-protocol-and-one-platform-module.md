@@ -6,7 +6,13 @@
   is built on 105's reviewed tip, which stands on 104's, on 103's, on 102's, and its header names
   that base commit when the build starts. The chain lands as one wave of six past §5.7's five, with
   one dispatch of the release workflow on the chain's final tip (the owner, 2026-10-20, the memo's
-  section 8). A different agent reviews the build.
+  section 8). **Reviewed before build** the same day
+  (`../reviews/106-mounts-behind-a-protocol-and-one-platform-module-spec-2026-10-20.md`, "fit to
+  build once the two Mediums are written in"), and every finding written in (its *Disposition*).
+  **Amended 2026-10-20** after the owner's rule "Code speaks for itself" (AGENTS.md, commit
+  `b7a1250`): Decision 4 now clears every citation of a `context/` document from `src/`, not only
+  the review-finding IDs; the counts are re-measured on `b7a1250`. A different agent reviews the
+  build.
 - **Date:** 2026-10-20
 - **Owner:** Clay Gendron
 - **Kind:** **parallel-safe**: `src/` only, plus unit checks, a harness fake and rules checks. It
@@ -57,19 +63,26 @@ rather than a user's.
    older build) keeps its stale digest for the life of the process. The artifact folder is trusted
    by the threat model, so this is defence in depth, not a hole; but a cache in front of an
    integrity check should key on at least the full stamp.
-4. **The source cites the archive** (M2). 38 lines in `src/` name a review's finding ("the build
-   review's F3", "the a4 security review's F2", "the re-review's N3", "the Confirmation's N2";
-   EXECUTED: `grep -cE "review'?s? [A-Z]?[0-9]|the (build|security|delta|re-)?review"`: mounts 3,
-   runner 25, tools 10), and about 30 more carry a bare finding ID, "(N2)", "(F7)", "(C6)",
-   "(spec 032, F3)". The prose reason is
-   usually written beside the ID, which is good; the IDs add noise, go stale (187 files under
-   `context/reviews/` today) and send the reader to the archive for what the sentence should say.
-   Counted the way the rule of Decision 4 counts, through `tokenize` over comments and
-   docstrings (EXECUTED, `build/106/ids.py`): 61 lines carry the word "review" in some form
-   (mounts 9, runner 38, tools 14) and 80 tokens are bare finding IDs (mounts 14, runner 49,
-   tools 17). `spec NNN` appears 315 times for 39 distinct numbers (EXECUTED,
-   `grep -oh 'spec [0-9]\{3\}' src/wasi_python/*.py | wc -l` and `… | sort -u | wc -l`; the
-   memo's 315 agrees).
+4. **The source cites the archive** (M2). The source names specifications ("spec 032, Decision
+   10"), reviews and their findings ("the build review's F3", "the a4 security review's F2", "the
+   re-review's N3", "(N2)", "(F7)"), the memo, the constitution and one `context/` path. The
+   prose reason is usually written beside the citation, which is good; the citations add noise,
+   go stale (187 files under `context/reviews/` today) and send the reader to the archive for
+   what the sentence should say. The owner's rule of 2026-10-20 (AGENTS.md, "Code speaks for
+   itself", commit `b7a1250`) settles it: a code file names no specification, memo, review,
+   finding ID or `context/` path; its comments and docstrings give the reason in words, and the
+   number lives in the specification that cites the file. `src/` is this specification's to
+   clear and hold; `tests/`, `scripts/` and `release/` are spec 108's. Counted the way Decision
+   4's check counts, through `tokenize` over the comments and docstrings of every `.py` under
+   `src/` (EXECUTED on `b7a1250`, `build/106/cites.py`): 381 lines carry a citation; by kind,
+   328 specification numbers (`__init__` 4, `__main__` 1, `_wasmtime_ffi` 6, `cli` 4, mounts 56,
+   runner 214, tools 43), 62 lines with the word "review" (mounts 9, runner 39, tools 14), 80
+   bare finding IDs (14, 49, 17), 3 "memo", 1 "constitution" and 1 `context/` path (both in
+   `_wasmtime_ffi.py`), 0 "question NN". As a plain grep, `spec NNN` is 324 tokens for 40
+   distinct numbers (`grep -oh 'spec [0-9]\{3\}' src/wasi_python/*.py | wc -l`, `… | sort -u |
+   wc -l`; the memo's 331 on `e319829` counts the wider forms). 103 to 105 build before this one
+   and may add or move text, so the builder re-counts on 105's tip and the landing notes carry
+   those numbers.
 
 ## Decisions
 
@@ -278,73 +291,83 @@ new read (the check counts opens through a seam on `open`, never time). And
 `test_a_rewritten_manifest_gives_its_new_version_tag` for `_versions`. Both seen failing on 105's
 tip.
 
-### 4. The source explains itself: finding IDs out, one specification list per module
+### 4. The source explains itself: no citation of a `context/` document in `src/`
 
-**What goes.** Every review-finding ID in `src/wasi_python/*.py`: the phrases that name a review
-("the build review's F3", "the a4 security review's F2", "the re-review's N3", "the delta
-review's D3", "the pre-build review's F1", "the follow-up review's F1", "the Confirmation's N2",
-"0.1.0 security review's S3", "review F9"), and the bare IDs in parentheses or lists ("(N2)",
-"(F7)", "(C6)", "(spec 032, F3)", "F3's error row", "(spec 053, D5)"). A decision is written
-"Decision 5", never "D5".
+**The rule it serves.** AGENTS.md, "Code speaks for itself" (the owner, 2026-10-20): a code file
+names no specification, memo, review, finding ID or `context/` path; comments and docstrings give
+the reason in words; a `context/` document may cite and link code files. This decision clears
+`src/` and holds it with one check. `tests/`, `scripts/` and `release/` are spec 108's, with a
+check of its own.
 
-**What stays, by rule.** The rule removes an ID and nothing else. Stated so that it never removes
-a reason:
+**What goes.** Every citation in the comments and docstrings of every `.py` under `src/`:
+specification numbers in every form ("spec 032", "specs 032 and 034", "specification 078",
+"spec 032, Decision 10"); the phrases that name a review ("the build review's F3", "the a4
+security review's F2", "the re-review's N3", "the delta review's D3", "the Confirmation's N2",
+"0.1.0 security review's S3", "review F9"); the bare finding IDs ("(N2)", "(F7)", "(C6)", "(spec
+032, F3)", "F3's error row", "(spec 053, D5)"); "the memo"; "constitution §4.4"; "question NN";
+and any `context/` path (`_wasmtime_ffi.py`'s sheet path among them). A decision number goes
+with its specification: "Decision 10" names nothing without "spec 032", so the sentence says the
+rule instead ("the cancel is checked before the deadline, and the file-call limit names the
+end"). No per-module list of specifications replaces them: the number lives in the specification
+that cites the file, so the traceability runs from `context/` to the code, never back.
 
-1. An edit under this decision deletes the ID token, its parentheses or its possessive phrase
-   ("the review's "), and a dangling connector (", " or "; "), and leaves every other word of the
-   sentence where it was.
-2. Where the ID was the whole explanation ("(F7)" with no reason beside it), the builder looks the
-   finding up in `context/reviews/`, or in the specification that carries the finding in its
-   decisions, and writes its reason in words in that sentence; the landing notes list each such
-   sentence with the review or specification it was read from.
+**What stays, by rule.** The rule removes a citation and nothing else. Stated so that it never
+removes a reason:
+
+1. An edit under this decision deletes the citation token (the number with its "spec", the ID,
+   the word "memo" or "constitution" with its section, the path), its parentheses or its
+   possessive phrase ("the review's ", "spec 032's "), and a dangling connector (", " or "; "),
+   and leaves every other word of the sentence where it was.
+2. Where the citation was the whole explanation ("(F7)", "(spec 048)" with no reason beside it),
+   the builder looks it up in `context/specifications/`, `context/reviews/` or the memo, and
+   writes its reason in words in that sentence; the landing notes list each such sentence with
+   the document it stood on, so the trace moves into this specification, not out of the repo.
 3. No sentence is deleted, shortened or reworded beyond rules 1 and 2. No code token changes.
-
-**Specification numbers.** Each module's docstring ends with one paragraph, `Specifications:`,
-listing every spec number the module stands on, one per line, each with a few words
-(`spec 032: the mount table`). In the body, `spec NNN` stays only where a decision number is the
-only name a rule has (`spec 032, Decision 10`), or where a cross-reference names what another
-module does (`the walk of spec 034, Decision 8`); a bare `(spec NNN)` beside a sentence that
-explains itself goes, under the same three rules. The count 315 falls; the landing notes record
-the number after.
+   `_wasmtime_ffi.py`'s docstring keeps every "private binding -> public name wanted" line, less
+   the specification number, since 102's check `test_the_private_api_debt_is_documented` holds
+   that list, the tuples and the sheet equal; the builder reads that check and keeps it green
+   (it compares the lines, not the heading that named the sheet).
 
 **Its own commit.** This is the only edit in the chain that changes text rather than moving it,
-so it is one commit on its own, `106: finding IDs out of src/ (Decision 4)`, with no other change
-in it. The reviewer reads it apart with `git diff --word-diff` and checks that every removed word
-matches the ID regexes below or is a connector, and that every added word is in a sentence the
-landing notes list under rule 2.
+so it is one commit on its own, `106: no citation of a context/ document in src/ (Decision 4)`,
+with no other change in it. The reviewer reads it apart with `git diff --word-diff` and checks
+that every removed word matches the regexes below or is a connector or a decision number beside
+one, and that every added word is in a sentence the landing notes list under rule 2.
 
-**The rule.** A rules check, `test_src_names_no_review_finding`, runs two regexes over the
-comments and docstrings of `src/wasi_python/*.py` (through `tokenize`: comment tokens and
+**The rule.** A rules check, `test_src_names_no_context_document`, runs seven regexes over the
+comments and docstrings of every `.py` under `src/` (through `tokenize`: comment tokens and
 string tokens that are docstrings, so an identifier or a literal never trips it):
 
 ```
+SPEC_NUMBER = re.compile(r"\bspec(?:ification)?s?\s+\d{3}\b", re.I)
+CONSTITUTION = re.compile(r"\bconstitution\b", re.I)
+MEMO = re.compile(r"\bmemo\b", re.I)
 REVIEW_PHRASE = re.compile(r"\breviews?\b|\bre-review|\bconfirmation's\b", re.I)
+QUESTION = re.compile(r"\bquestion\s+\d+\b", re.I)
+CONTEXT_PATH = re.compile(r"\bcontext/")
 FINDING_ID = re.compile(r"(?<![A-Za-z0-9_])[CDFLNS]\d{1,2}(?:\.\d+)?(?![A-Za-z0-9_])")
 ```
 
-The first refuses the word "review" in any form in `src/`: nothing a maintainer needs to say
-about the code is about a review. The second refuses a one- or two-digit ID of a finding
-(`F3`, `N12`, `F4.2`, `S3`, `D3`, `C6`, `L1`); the trailing look-ahead keeps `F401` in a `noqa`
-out, and the leading one keeps a word like `MD5` out. The check names each file and line. Seen
-failing on the commit before the text commit: 61 lines for the phrase (mounts 9, runner 38,
-tools 14) and 80 bare IDs (14, 49, 17), the counts of `build/106/ids.py` at `a9064a2`
-(EXECUTED), less whatever 102 to 105 already moved or reworded.
+The word "review" in any form is refused: nothing a maintainer needs to say about the code is
+about a review. `FINDING_ID` refuses a one- or two-digit ID of a finding (`F3`, `N12`, `F4.2`,
+`S3`, `D3`, `C6`, `L1`); the trailing look-ahead keeps `F401` in a `noqa` out, and the leading
+one keeps a word like `MD5` out. The check names each file, line and kind. Seen failing on the
+commit before the text commit: 381 lines on `b7a1250` (EXECUTED, `build/106/cites.py`: 328
+specification numbers, 62 review lines, 80 IDs, 3 memo, 1 constitution, 1 path), less whatever
+103 to 105 moved or reworded, plus whatever they added; the builder's count on 105's tip is the
+one the landing notes carry.
 
-**What the ID regex also refuses, and the recourse.** `[CDFLNS]\d{1,2}` matches more than
-review findings: `C99` and `C11` (ISO C), `L1` and `L2` (cache levels), `F1` (a key), `N1`.
-That is by design: the rule is cheap, and a comment that needs such a token writes it in words
-("ISO C of 1999", "the first-level cache", "the F1 key"), which reads better in a sentence
-anyway. Where words will not do, the check carries one tuple, `FINDING_ID_ALLOWED`, empty at
-first, of exact tokens with a one-line reason each, and the review reads every addition; a new
-review-finding ID is never added to it. Three of today's IDs are a review's items that a
-specification carries in its decisions (`C1` and `C2` of spec 078's and spec 048's
-confirmations, `S2` of spec 024's security review; EXECUTED, `mounts.py:2041`,
-`runner.py:2718`, `3007`), so rule 2 above looks them up in `context/reviews/` or in the
-specification that carries the finding, and the landing notes name whichever it read.
-
-A second rules check, `test_each_module_lists_its_specifications`, reads each module's
-`Specifications:` paragraph and the `spec NNN` numbers in its body, and refuses a body number the
-paragraph lacks or a listed number the body never names. It keeps the list true as code moves.
+**What the regexes also refuse, and the recourse.** `[CDFLNS]\d{1,2}` matches more than review
+findings: `C99` and `C11` (ISO C), `L1` and `L2` (cache levels), `F1` (a key), `N1`; "memo"
+and "review" match any use of the words. That is by design: the rule is cheap, and a comment
+that needs such a word writes around it ("ISO C of 1999", "the first-level cache", "the F1 key",
+"read again"), which reads better in a sentence anyway. Where words will not do, the check
+carries one tuple, `CITATION_ALLOWED`, empty at first, of exact tokens with a one-line reason
+each, and the review reads every addition; a citation of a `context/` document is never added
+to it. Three of today's IDs are a review's items that a specification carries in its decisions
+(`C1` and `C2` of spec 078's and spec 048's confirmations, `S2` of spec 024's security review;
+EXECUTED, `mounts.py:2041`, `runner.py:2718`, `3007`), so rule 2 above looks them up in the
+specification or the review, and the landing notes name whichever it read.
 
 ### 5. Acceptance: no verdict moves
 
@@ -356,8 +379,8 @@ The judge of "nothing a guest sees changed" is the same as the chain's (the memo
   worktree; its `build/progress/latest.json` is compared with 105's reviewed-tip record and with
   the chain's baseline record by `uv run python tests/harness/sameness.py --claims
   build/106/claims.toml A.json B.json`. The only differences allowed are 106's claim list: the
-  four new rules checks, the new unit rows, and the unit rows retired or renamed (the three that
-  patched the runner for the mount table). Any other line is a finding.
+  three new rules checks, the new unit rows, and the unit rows retired or renamed (the four
+  sites that patched the runner for the mount table). Any other line is a finding.
 - **The errno and parity tables** stay the judge of the guest's errnos:
   `tests/unit/test_runner_mounts.py`
   (`_HOSTS`, `_ERRNO_NAMES`, `NATIVE_RENAME_END`, `PAST_THE_LIMIT`, `SPIN_DIRTY`) and
@@ -375,9 +398,9 @@ After this specification `mounts.py` reads alone: a table that asks nine questio
 is given, with a fake for the unit checks and the call module as the one real answer. The
 Windows story is one file: a reviewer who asks "what does Windows do differently" opens
 `_platform.py` and reads `_Windows`. The three caches in front of the artifact check agree on
-what "changed" means. And a maintainer reads why a line is what it is in the line itself, with
-the specifications a module stands on listed once at its top, and no review's filing number in
-between.
+what "changed" means. And a maintainer reads why a line is what it is in the line itself, in
+words, with no specification number, review, finding ID, memo or `context/` path in between: the
+code speaks for itself, and the documents under `context/` cite the code, never the other way.
 
 ## Design
 
@@ -396,9 +419,11 @@ before its code, by node id, and the output kept under `build/106/`.
    redirected as that paragraph says; `test_the_platform_is_chosen_once`.
 3. **`106: one stamp (Decision 3)`**: `_digest` and `_version_tag` keyed on the stamp; the two
    unit checks.
-4. **`106: finding IDs out of src/ (Decision 4)`**: the text commit alone, under the three rules.
-5. **`106: the citation rules (Decision 4)`**: `test_src_names_no_review_finding` and
-   `test_each_module_lists_its_specifications`, green on commit 4, seen failing on commit 3.
+4. **`106: no citation of a context/ document in src/ (Decision 4)`**: the text commit alone,
+   under the three rules, every `.py` under `src/` included (`_wasmtime_ffi.py`'s debt list keeps
+   its lines, less the specification number).
+5. **`106: the citation rule (Decision 4)`**: `test_src_names_no_context_document`, green on
+   commit 4, seen failing on commit 3 with its per-kind counts.
 
 ### `mounts.py` after commit 1
 
@@ -452,8 +477,9 @@ class _Context:
 
 ### `_platform.py` after commit 2
 
-The file's order: the docstring with its `Specifications:` paragraph (017, 024, 076, 077, 078,
-084 and the others the moved text names); `Identity`, `_Walked`, `_Removal`; the constants; the
+The file's order: the docstring, which says in words what the platform object answers and why
+each difference exists (no specification number: Decision 4); `Identity`, `_Walked`,
+`_Removal`; the constants; the
 `_Platform` protocol; `_Posix`; `_Linux`; `_Darwin`; `_Windows`; `_select`; `PLATFORM`. Every caller in
 `_places`, `_private_dirs`, `_zip`, `_engine`, `_home` and `_artifacts` writes
 `from . import _platform` and calls a member of `_platform.PLATFORM` at the call (Decision 2,
@@ -500,9 +526,10 @@ Under the one unreleased section:
 > call-context protocol and imports nothing from the runner; one `_platform.py` holds every
 > POSIX, macOS and Windows difference behind one interface chosen once at import; the digest and
 > version caches in front of the artifact check key on the full file stamp, so a same-size,
-> same-time replacement is hashed again; review-finding IDs are gone from the source, every
-> reason kept in words, and each module lists its specifications once. No public name, artifact
-> byte or guest-visible errno changes.
+> same-time replacement is hashed again; and `src/` names no specification, memo, review,
+> finding ID or `context/` path, every reason kept in words, held by one rules check (the owner's
+> rule, "code speaks for itself"; `tests/`, `scripts/` and `release/` follow in spec 108). No
+> public name, artifact byte or guest-visible errno changes.
 
 ### The roadmap line
 
@@ -521,12 +548,12 @@ In: Decisions 1 to 5. Out:
 - **A structural review as a stage** (section 5): 107's.
 - **Any change to what the guest sees**: no errno, no record field, no limit, no default.
 - **`tools.py`'s friend-class coupling** (L2): not in the chain.
-- **Citations in `tests/`, `scripts/` and `context/`**: the rule is for `src/`, where the reader
-  is a maintainer of the code; a check's docstring may name the review that made it.
+- **Citations in `tests/`, `scripts/` and `release/`**: spec 108's, with its own check; this
+  specification's check reads `src/` only. `context/` documents keep citing and linking code.
 
 ## Acceptance criteria
 
-1. **The four rules checks and the two unit checks exist and were seen failing first**, each by
+1. **The three rules checks and the two unit checks exist and were seen failing first**, each by
    node id on the commit before its code, the output under `build/106/` and quoted in the landing
    notes (Decisions 1 to 4).
 2. **`mounts.py` imports nothing from the runner**: `test_mounts_imports_only_the_engine_seam`
@@ -535,11 +562,15 @@ In: Decisions 1 to 5. Out:
    `grep -nE "os\.name|sys\.platform" src/wasi_python/*.py` lists only lines inside
    `_platform._select`.
 4. **One stamp**: `_digests` and `_versions` keyed on the full stamp; the two unit checks green.
-5. **No finding ID in `src/`**: `test_src_names_no_review_finding` green; the citation commit's
-   word diff removes only ID tokens, parentheses, possessives and connectors, and adds words only
-   in the sentences the landing notes list under Decision 4's rule 2, each with its review named.
-6. **Every module lists its specifications**: `test_each_module_lists_its_specifications` green;
-   the count of `spec NNN` in `src/` after, recorded.
+5. **No citation of a `context/` document in `src/`**: `test_src_names_no_context_document`
+   green with `CITATION_ALLOWED` empty; the citation commit's word diff removes only citation
+   tokens (specification numbers and their decision numbers, IDs, "memo", "constitution" and its
+   section, `context/` paths), parentheses, possessives and connectors, and adds words only in
+   the sentences the landing notes list under Decision 4's rule 2, each with the document it
+   stood on named; `_wasmtime_ffi.py`'s debt list keeps every binding line and 102's
+   `test_the_private_api_debt_is_documented` stays green.
+6. **The counts recorded**: the check's per-kind counts on 105's tip before the text commit, and
+   `grep -rohE 'spec [0-9]{3}' src/ | wc -l` equal to 0 after.
 7. **No verdict moved**: `sameness.py --claims` between the built commit's fast-tier record and
    105's reviewed-tip record, and between it and the chain's baseline record, prints nothing
    outside the claim list (Decision 5).
@@ -569,7 +600,7 @@ Eleven criteria.
   order, after 105 and before 107.
 - **Files it shares with others:** every module under `src/wasi_python/` (the citation commit
   touches comments in all of them), so it rebases last among the chain's code links and names
-  every conflict; `tests/checks/test_rules.py` (four new checks, appended at the end of the file
+  every conflict; `tests/checks/test_rules.py` (three new checks, appended at the end of the file
   so a rebase against another link's check is a trivial merge); `tests/harness/files.py`;
   `tests/unit/test_runner_mounts.py`, `test_runner_sweep.py`, `test_runner_grants.py`,
   `test_runner_threads.py`, `test_runner_async.py`, `test_inline_sessions.py`,
@@ -580,8 +611,8 @@ Eleven criteria.
 - **The claim list** (`build/106/claims.toml`, each line "106:"; the counts filled by the
   builder):
   - 106: **new checks**: `test_rules.py::test_mounts_imports_only_the_engine_seam`,
-    `::test_the_platform_is_chosen_once`, `::test_src_names_no_review_finding`,
-    `::test_each_module_lists_its_specifications`; the two stamp unit checks.
+    `::test_the_platform_is_chosen_once`, `::test_src_names_no_context_document`; the two stamp
+    unit checks.
   - 106: **unit rows moved**: the four mount sites off `monkeypatch` (two checks), and the 76
     platform sites of the eight files in the table under *The unit checks that bind a platform*
     (the landing notes list them by name).
@@ -592,8 +623,8 @@ Eleven criteria.
 - **The flags** (paste-safe; the lane folds them into the wave's one acceptance):
 
   ```
-  --accept "106: mounts.py asks a _CallContext protocol its nine questions and imports nothing from the runner; one _platform.py chooses the platform once at import behind one interface; the digest and version caches key on the full file stamp; review-finding IDs are gone from src/ with every reason kept in words, and each module lists its specifications once"
-  --accept-judge "106: four rules checks (mounts imports only the engine seam; the platform is chosen once; no review-finding ID in src/; each module lists its specifications) and two unit checks (a same-size, same-mtime replacement is hashed again; a rewritten MANIFEST gives its new tag); three mount unit checks drive a fake context instead of patching the runner; no existing expectation edited"
+  --accept "106: mounts.py asks a _CallContext protocol its nine questions and imports nothing from the runner; one _platform.py chooses the platform once at import behind one interface; the digest and version caches key on the full file stamp; src/ names no specification, memo, review, finding ID or context/ path, every reason kept in words (the owner's rule, code speaks for itself)"
+  --accept-judge "106: three rules checks (mounts imports only the engine seam; the platform is chosen once; no citation of a context/ document in src/, seven regexes over comments and docstrings with an empty allowance tuple) and two unit checks (a same-size, same-mtime replacement is hashed again; a rewritten MANIFEST gives its new tag); two mount unit checks drive a fake context instead of patching the runner at four sites; no existing expectation edited"
   ```
 
 - **Dry-run needs:** none of its own: the chain's one dispatch on its final tip (the owner's rule
@@ -605,7 +636,7 @@ Eleven criteria.
 `mounts.py` asks nine questions of a protocol instead of reaching into the runner, every POSIX,
 macOS and Windows difference lives behind one interface chosen once, the three caches in front of
 the artifact check agree on what "changed" means, and the source keeps its reasons in words and
-drops the review filing numbers.
+names no specification, memo, review, finding ID or `context/` path.
 
 ## Landing notes
 
