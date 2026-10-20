@@ -1273,6 +1273,120 @@ def test_what_may_be_bound_twice(work) -> None:
     assert scan.duplicate_name_hits([job], work) == ["tests/jobs/z.py:2: LIMIT (first bound at 1)"]
 
 
+# The process's state has one owner: no lock and no mutable at module or class level elsewhere.
+
+LOCKS_MODULE = """\
+import threading
+from threading import Condition
+
+a = threading.Lock()
+b: threading.RLock = threading.RLock()
+c = Condition()
+
+
+class Ticker:
+    _cond = threading.Condition()
+    _count = 0  # an int is not a lock
+
+    def __init__(self):
+        self.lock = threading.Lock()  # an instance attribute: not at class level
+
+
+def f():
+    guard = threading.Lock()  # inside a function: not at module level
+    return guard
+"""
+
+MUTABLES_MODULE = """\
+import collections, itertools, queue, threading, weakref
+
+__all__ = ["a"]
+TABLE = {"k": 1}  # an upper-case display is a table that is only read
+NAMES = ["a", "b"]
+KINDS = {"x", "y"}
+a = {}
+b = []
+c = set()
+d = {k: 1 for k in "ab"}
+e = [k for k in "ab"]
+f = {k for k in "ab"}
+g = dict()
+h = list()
+i = bytearray()
+j = collections.deque()
+k = collections.defaultdict(int)
+l = collections.OrderedDict()
+m = weakref.WeakSet()
+n = weakref.WeakValueDictionary()
+o = weakref.WeakKeyDictionary()
+p = queue.SimpleQueue()
+q = queue.Queue()
+r = itertools.count(1)
+s = threading.local()
+t, u = [], {}
+v: dict[str, int] = {}
+w: dict[str, int]
+PAIR = (1, 2)
+FROZEN = frozenset({1})
+SENTINEL = object()
+UPPER_CALL = dict()  # an upper-case call is still a mutable: only a display is a table
+
+
+class Record:
+    _fields_ = [("x", int)]  # a ctypes declaration, read once
+    table = {}
+
+
+def g():
+    cache = {}
+    return cache
+"""
+
+
+def test_a_lock_at_module_or_class_level_is_found(work) -> None:
+    p = write(work, "src/wasi_python/_mod.py", LOCKS_MODULE)
+    assert scan.module_lock_hits([p], work) == [
+        "src/wasi_python/_mod.py:4: a (Lock)",
+        "src/wasi_python/_mod.py:5: b (RLock)",
+        "src/wasi_python/_mod.py:6: c (Condition)",
+        "src/wasi_python/_mod.py:10: Ticker._cond (Condition)",
+    ]
+    assert scan.module_lock_hits([write(work, "src/notes.txt", "x = Lock()\n")], work) == []
+
+
+def test_a_mutable_at_module_or_class_level_is_found_and_the_exceptions_are_not(work) -> None:
+    p = write(work, "src/wasi_python/_mod.py", MUTABLES_MODULE)
+    hits = scan.module_mutable_hits([p], work)
+    names = [h.split(": ", 1)[1] for h in hits]
+    assert names == [
+        "a (Dict)",
+        "b (List)",
+        "c (set)",
+        "d (DictComp)",
+        "e (ListComp)",
+        "f (SetComp)",
+        "g (dict)",
+        "h (list)",
+        "i (bytearray)",
+        "j (deque)",
+        "k (defaultdict)",
+        "l (OrderedDict)",
+        "m (WeakSet)",
+        "n (WeakValueDictionary)",
+        "o (WeakKeyDictionary)",
+        "p (SimpleQueue)",
+        "q (Queue)",
+        "r (count)",
+        "s (local)",
+        "t (List)",
+        "u (Dict)",
+        "v (Dict)",
+        "UPPER_CALL (dict)",
+        "Record.table (Dict)",
+    ], hits
+    assert hits[0] == "src/wasi_python/_mod.py:7: a (Dict)"
+
+
 # Spec 102: only the engine seam touches wasmtime-py's private API, and the debt is documented.
 # Every fixture line below is built by concatenation, so this file is not a hit of the rule.
 

@@ -146,6 +146,34 @@ def test_no_module_under_src_is_over_the_line_ceiling() -> None:
     assert not findings, scan.report(findings)
 
 
+# The process's state has one owner, `src/wasi_python/_process.py`: a lock made anywhere else
+# at module level is inherited across a fork, held by a thread the child does not have, and a
+# cache or registry anywhere else is one more list the fork reset and the exit release must
+# remember. The owner's own module is the one place such bindings live.
+PROCESS_OWNER = "_process.py"
+
+
+def _runner_modules_but_the_owner() -> list[Path]:
+    package = paths.REPO / "src" / "wasi_python"
+    return [p for p in sorted(package.glob("*.py")) if p.name != PROCESS_OWNER]
+
+
+def test_no_lock_is_made_at_module_level_outside_the_process() -> None:
+    """No `Lock()`, `RLock()` or `Condition()` is bound at module or class level in any module of
+    the package but the owner's: every lock is an attribute of the one process object, which
+    re-makes each of them for a fork by looking at itself."""
+    hits = scan.module_lock_hits(_runner_modules_but_the_owner(), paths.REPO)
+    assert not hits, scan.report(hits)
+
+
+def test_no_mutable_is_bound_at_module_level_outside_the_process() -> None:
+    """No dict, list or set, and no deque, WeakSet, queue, counter or thread-local, is bound at
+    module or class level in any module of the package but the owner's, apart from `__all__`, an
+    upper-case table that is only read, and a ctypes `_fields_` declaration."""
+    hits = scan.module_mutable_hits(_runner_modules_but_the_owner(), paths.REPO)
+    assert not hits, scan.report(hits)
+
+
 def test_only_the_engine_seam_touches_wasmtimes_private_api() -> None:
     """Spec 102, Decision 3: one module, `src/wasi_python/_wasmtime_ffi.py`, and its unit file
     reach wasmtime-py's private API (its underscore modules, the store context, the raw function

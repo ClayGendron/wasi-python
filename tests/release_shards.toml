@@ -55,6 +55,7 @@ files = [
   "tests/unit/test_guest_tools.py",
   "tests/unit/test_runner_async.py",
   "tests/unit/test_runner_package.py",
+  "tests/unit/test_process.py",
   "tests/unit/test_runner_calls.py",
   "tests/unit/test_runner_cancel.py",
   "tests/unit/test_runner_threads.py",

@@ -1886,6 +1886,129 @@ def duplicate_name_hits(files: Iterable[Path], root: Path) -> list[str]:
     return hits
 
 
+# ---------------------------------------------------------------------------------------------
+# The process's state has one owner: no lock and no mutable container is bound at module or
+# class level in a runner module. A lock made at module level is inherited across a fork, held
+# by a thread the child does not have; a cache or registry at module level is one more list the
+# fork reset and the exit release must remember. Both scanners read `Assign` and `AnnAssign`
+# targets in the module body and in the body of every class defined there.
+
+LOCK_CALLS = frozenset({"Lock", "RLock", "Condition"})
+MUTABLE_CALLS = frozenset(
+    {
+        "dict",
+        "list",
+        "set",
+        "bytearray",
+        "deque",
+        "defaultdict",
+        "OrderedDict",
+        "WeakSet",
+        "WeakValueDictionary",
+        "WeakKeyDictionary",
+        "SimpleQueue",
+        "Queue",
+        "count",
+        "local",
+    }
+)
+MUTABLE_DISPLAYS = (ast.Dict, ast.List, ast.Set, ast.DictComp, ast.ListComp, ast.SetComp)
+READ_ONLY_DISPLAYS = (ast.Dict, ast.List, ast.Set)  # an upper-case table that is only read
+
+
+def _callee(node: ast.expr) -> str | None:
+    """The last name of a call's callee: `threading.Lock(...)` and `Lock(...)` both give `Lock`."""
+    if not isinstance(node, ast.Call):
+        return None
+    f = node.func
+    if isinstance(f, ast.Attribute):
+        return f.attr
+    if isinstance(f, ast.Name):
+        return f.id
+    return None
+
+
+def _level_bindings(tree: ast.Module) -> Iterable[tuple[str, int, str, ast.expr]]:
+    """Every binding in the module body and in each module-level class body: (the class's name or
+    empty, the line, the name, the value)."""
+    bodies: list[tuple[str, list[ast.stmt]]] = [("", tree.body)]
+    bodies += [(n.name, n.body) for n in tree.body if isinstance(n, ast.ClassDef)]
+    for owner, body in bodies:
+        for node in body:
+            pairs: list[tuple[str, ast.expr]] = []
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    pairs += _paired(target, node.value)
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                if node.value is not None:
+                    pairs.append((node.target.id, node.value))
+            for name, value in pairs:
+                yield owner, node.lineno, name, value
+
+
+def _paired(target: ast.expr, value: ast.expr) -> list[tuple[str, ast.expr]]:
+    """A name with its value; a tuple target over a tuple value of the same length, element by
+    element (`a, b = {}, []` binds two displays); any other tuple target with the whole value."""
+    if isinstance(target, ast.Name):
+        return [(target.id, value)]
+    if isinstance(target, ast.Tuple):
+        if isinstance(value, ast.Tuple) and len(value.elts) == len(target.elts):
+            return [p for t, v in zip(target.elts, value.elts, strict=True) for p in _paired(t, v)]
+        return [(e.id, value) for e in target.elts if isinstance(e, ast.Name)]
+    return []
+
+
+def _parsed(p: Path) -> ast.Module | None:
+    if p.suffix != ".py":
+        return None
+    try:
+        return ast.parse(p.read_text(encoding="utf-8"), str(p))
+    except (SyntaxError, UnicodeDecodeError, OSError):
+        return None
+
+
+def module_lock_hits(files: Iterable[Path], root: Path) -> list[str]:
+    """Every `Lock()`, `RLock()` or `Condition()` bound at module or class level, with or without
+    its `threading.` prefix. No exceptions."""
+    hits = []
+    for p in files:
+        tree = _parsed(p)
+        if tree is None:
+            continue
+        for owner, line, name, value in _level_bindings(tree):
+            kind = _callee(value)
+            if kind in LOCK_CALLS:
+                shown = f"{owner}.{name}" if owner else name
+                hits.append(f"{rel(p, root)}:{line}: {shown} ({kind})")
+    return hits
+
+
+def module_mutable_hits(files: Iterable[Path], root: Path) -> list[str]:
+    """Every dict, list or set display or comprehension, and every call to a mutable container
+    or a stateful object (MUTABLE_CALLS), bound at module or class level. Three kinds are not
+    hits: `__all__`; an upper-case name bound to a dict, set or list display, a table that is
+    only read; and `_fields_` in a class body, a ctypes declaration read once."""
+    hits = []
+    for p in files:
+        tree = _parsed(p)
+        if tree is None:
+            continue
+        for owner, line, name, value in _level_bindings(tree):
+            if name == "__all__" or (owner and name == "_fields_"):
+                continue
+            if isinstance(value, MUTABLE_DISPLAYS):
+                if name.isupper() and isinstance(value, READ_ONLY_DISPLAYS):
+                    continue
+                kind = type(value).__name__
+            else:
+                kind = _callee(value)
+                if kind not in MUTABLE_CALLS:
+                    continue
+            shown = f"{owner}.{name}" if owner else name
+            hits.append(f"{rel(p, root)}:{line}: {shown} ({kind})")
+    return hits
+
+
 # Constitution §4.1: carried patches, recorded and temporary (spec 020)
 
 PATCH_NAME = re.compile(r"(\d{4})-[A-Za-z0-9][A-Za-z0-9._-]*\.patch")
