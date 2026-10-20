@@ -368,10 +368,20 @@ def no_trap_anywhere(records: dict[tuple[str, str], dict]) -> list[str]:
     ]
 
 
+def did_run(c: dict) -> bool:
+    """Whether a record ran a check: not deselected, and not blocked by a need CI lacks."""
+    status = c.get("status")
+    need = c.get("need")
+    blocked_here = status == "blocked" and isinstance(need, str) and need in CI_NEEDS
+    return status != "deselected" and not blocked_here
+
+
 def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
-    """One record of the release (Decision 9): each goal check's worst status across the records
-    that ran it; the darwin record's metrics, else the linux record's, else any; `suite` per
-    system."""
+    """One record of the release (Decision 9): each goal check's worst status across the records;
+    its `source`, the entry of the record that ran it (darwin first, then linux, then any) with
+    that record's platform, and its metrics from the same record; `suite` per system and per run;
+    and what sameness compares (spec 092): the checks no record ran (`deselected`), the union of
+    `collected_files` and of `meta.foreign`."""
     checks: dict[str, dict] = {}
     pref = {"darwin": 0, "linux": 1, "win32": 2}
     for node in sorted(i.goal_nodes):
@@ -379,17 +389,27 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
         for (_, _), r in records.items():
             c = r.get("checks", {}).get(node)
             if c is not None:
-                platform = str(r.get("meta", {}).get("platform", "")).split("-")[0]
-                found.append((platform, c))
+                found.append((str(r.get("meta", {}).get("platform", "")), c))
         if not found:
             continue
         worst = min(found, key=lambda pc: ORDER.index(pc[1].get("status", "fail")))[1]
-        ran = [(p, c) for p, c in found if c.get("status") != "deselected"]
-        source = min(ran, key=lambda pc: pref.get(pc[0], 9))[1] if ran else worst
-        checks[node] = {**worst, "metrics": source.get("metrics", {})}
-        need = checks[node].get("need")
-        if need is not None and not isinstance(need, str):  # already red at G4 (B3)
-            checks[node]["need"] = repr(need)
+        runs = [(p, c) for p, c in found if did_run(c)]
+        if not runs:
+            checks[node] = dict(worst)
+        else:
+            platform, source = min(runs, key=lambda pc: pref.get(pc[0].split("-")[0], 9))
+            checks[node] = {
+                **worst,
+                "metrics": source.get("metrics", {}),
+                "source": {
+                    **{k: v for k, v in source.items() if k != "metrics"},
+                    "platform": platform,
+                },
+            }
+        for entry in (checks[node], checks[node].get("source") or {}):
+            need = entry.get("need")
+            if need is not None and not isinstance(need, str):  # already red at G4 (B3)
+                entry["need"] = repr(need)
     suite: dict[str, dict] = {}
     for (system, _), r in records.items():
         s = suite.setdefault(shards.PLATFORM[system] if system != "build" else "build", {})
@@ -397,6 +417,8 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
         for k, n in (tally if isinstance(tally, dict) else {}).items():
             if _whole(n):  # anything else is already red at G4 (spec 085, Decision 2)
                 s[k] = s.get(k, 0) + n
+    foreign = {f for r in records.values() for f in r.get("meta", {}).get("foreign") or []}
+    files = {f for r in records.values() for f in r.get("collected_files", [])}
     return {
         "meta": {
             "commit": i.head,
@@ -405,9 +427,16 @@ def merge(records: dict[tuple[str, str], dict], i: Inputs) -> dict:
             "judge": {"hash": i.judge_hash},
             "records": sorted(f"{s}/{n}" for s, n in records),
             "tag": i.tag,
+            "foreign": sorted(foreign),
         },
         "checks": checks,
+        "deselected": sorted(n for n, c in checks.items() if c.get("status") == "deselected"),
+        "collected_files": sorted(files),
         "suite": suite,
+        "runs": {
+            f"{s}/{n}": {"platform": r.get("meta", {}).get("platform"), "suite": r.get("suite", {})}
+            for (s, n), r in sorted(records.items())
+        },
     }
 
 

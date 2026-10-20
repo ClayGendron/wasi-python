@@ -62,6 +62,13 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   was ending, and on Windows the guest ended first. It now holds the guest thread on a gate
   until it has looked, and checks that the teardown runs on the guest thread. The runner does
   not change.
+- **The judge compares a release run with a local one** (spec 092). The release's merged record
+  now carries what the comparison needs (the checks no shard ran, the files collected, each shard's
+  unit tally, anything that steered a shard, and which system's run each check's row comes from),
+  and `tests/harness/sameness.py` reads it as the darwin run it contains. With `--claims`, it
+  prints only the differences no specification's claim list explains. Judge only: no product
+  change.
+
 - **CPython's own tests in the judge and the release** (spec 065). The judge runs CPython's own
   regrtest suite in the guest: 542 of its 557 modules in five groups, 28,109 passing tests, each
   known failure a class by test id with its closer, each test it does not run named, each result

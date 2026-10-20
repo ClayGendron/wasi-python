@@ -1,27 +1,40 @@
-"""Whether two run records give the same answer (spec 052, Decision 12).
+"""Whether two run records give the same answer (spec 052, Decision 12; spec 092).
 
 `differences(a, b)` lists every difference between two `latest.json` records in what a verdict is
 made of: each check's `status`, `need`, `area`, `closer`, `facts`, the names of its metrics, its
 `bytes` and `passes`; its `reason` where both records call it `gap` or `blocked` (there the
 reason is deterministic: a gap's first line, a need); its `fuel` where the two differ
 by more than the ratchet's tolerance, `abs(a - b) > FUEL_TOLERANCE * max(a, b)`, and so too each
-value of its `fuel_facts` fact (spec 091: fuel recorded, never ratcheted); and the run's
-`deselected`, `collected_files`, `suite` and `meta.foreign` (what steered the run from outside
-the judge, which makes it red). A failure's reason is not compared: it may name a
+value of its `fuel_facts` fact (spec 091: fuel recorded, never ratcheted), both between records
+of one platform (the ratchet keys fuel by platform too); and the run's `deselected`,
+`collected_files` (one line per node or file), `suite` and `meta.foreign` (what steered the run
+from outside the judge, which makes it red). A failure's reason is not compared: it may name a
 temporary path, and the statuses already decide. A pass's reason, its note, is not compared
 either: the plugin never compares a note, and one may print a fuel count, which carries the
 residual serial runs show (spec 035's zone-load check: 17 instructions in 8.7 million between a
 serial and a parallel run, the build's evidence). The rest of `meta` is never compared.
 
-    uv run python tests/harness/sameness.py A.json B.json
+Either record may be the release workflow's merged record (`release-record-1`, written by
+`gather.merge`; spec 092). It is read as the darwin run it contains: each check as its `source`
+saw it (the darwin record that ran it, else the first other system's), with that source's
+platform; a check no shard ran (deselected everywhere, or blocked by a need CI lacks) is not
+compared, and `notes` names it; `suite` is the sum of the darwin runs' suites.
 
-prints the differences, one per line, and exits 1 when there are any.
+    uv run python tests/harness/sameness.py A.json B.json
+    uv run python tests/harness/sameness.py --claims wave.toml [--except NNN] A.json B.json
+
+prints the differences, one per line, and exits 1 when there are any; with `--claims`, only those
+no claim explains (Decision 5 of spec 092: a claim list is what B has that A lacks, by kind). Notes
+go to stderr. A record or a claim list it cannot read exits 2.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+import tomllib
+from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 
 if __package__ in (None, ""):  # run as a script: the harness package lives one folder up
@@ -33,11 +46,101 @@ FIELDS = ("status", "need", "area", "closer")
 FUEL_FACTS = "fuel_facts"  # a fact of fuel values, compared as fuel is (spec 091)
 EXACT_METRICS = ("bytes", "passes")
 REASONED = ("gap", "blocked")
-RUN_FIELDS = ("deselected", "collected_files", "suite")
+SIDE = {0: "only in the first record", 1: "only in the second record"}
+
+
+class NotComparable(ValueError):
+    """A record sameness cannot read (a release record from before spec 092)."""
+
+
+class ClaimError(ValueError):
+    """A claim list that does not have the shape spec 092 gives it."""
 
 
 def fuel_differs(a: int, b: int) -> bool:
     return abs(a - b) > FUEL_TOLERANCE * max(a, b)
+
+
+@dataclass(frozen=True)
+class Diff:
+    """One difference: its line, and what a claim must name to explain it."""
+
+    text: str
+    kind: str  # "only", "field", "deselected", "collected_files", "suite", "foreign"
+    key: str = ""  # the node or file
+    side: int = -1  # for "only", "deselected", "collected_files": which record has it
+    name: str = ""  # for "field": the field or metric
+
+
+@dataclass
+class View:
+    """A record as sameness compares it."""
+
+    names: set[str]  # every check the record holds, run or not
+    checks: dict[str, dict]  # the checks compared
+    platform: dict[str, str]  # each compared check's platform
+    unrun: dict[str, str]  # release only: checks no shard ran, with their need or status
+    deselected: list[str]
+    collected_files: list[str]
+    suite: dict
+    foreign: list[str]
+    unheld: set[str] = field(default_factory=set)  # release only: fuel no shard on darwin gave
+
+
+def is_release(r: dict) -> bool:
+    return "records" in (r.get("meta") or {})
+
+
+def view(r: dict) -> View:
+    meta = r.get("meta") or {}
+    if not is_release(r):
+        checks = r.get("checks", {})
+        return View(
+            names=set(checks),
+            checks=checks,
+            platform={n: str(meta.get("platform")) for n in checks},
+            unrun={},
+            deselected=r.get("deselected", []),
+            collected_files=r.get("collected_files", []),
+            suite=r.get("suite", {}),
+            foreign=meta.get("foreign") or [],
+        )
+    missing = [k for k in ("runs", "deselected", "collected_files") if k not in r]
+    missing += ["meta.foreign"] if "foreign" not in meta else []
+    if missing:
+        raise NotComparable(
+            f"a release record from before spec 092 (it has no {', '.join(missing)}): "
+            "download the record of a run on a commit that has gather.py from spec 092"
+        )
+    checks, platform, unrun, unheld = {}, {}, {}, set()
+    for node, c in r.get("checks", {}).items():
+        source = c.get("source")
+        if source is None:
+            unrun[node] = c.get("need") or c.get("status")
+            continue
+        checks[node] = {
+            **{k: v for k, v in source.items() if k != "platform"},
+            "metrics": c.get("metrics", {}),
+        }
+        platform[node] = str(source.get("platform"))
+        if not platform[node].startswith("darwin-"):  # G5 holds darwin fuel only
+            unheld.add(node)
+    suite: dict[str, int] = {}
+    for run in r["runs"].values():
+        if str(run.get("platform", "")).startswith("darwin-"):
+            for k, n in (run.get("suite") or {}).items():
+                suite[k] = suite.get(k, 0) + n
+    return View(
+        names=set(r.get("checks", {})),
+        checks=checks,
+        platform=platform,
+        unrun=unrun,
+        deselected=r["deselected"],
+        collected_files=r["collected_files"],
+        suite=suite,
+        foreign=meta["foreign"],
+        unheld=unheld,
+    )
 
 
 def _facts(record: dict) -> tuple[object, dict]:
@@ -48,64 +151,262 @@ def _facts(record: dict) -> tuple[object, dict]:
     return {k: v for k, v in facts.items() if k != FUEL_FACTS}, facts[FUEL_FACTS] or {}
 
 
-def _check(node: str, a: dict, b: dict) -> list[str]:
-    found = [
-        f"{node}: {field} {a.get(field)!r} != {b.get(field)!r}"
-        for field in FIELDS
-        if a.get(field) != b.get(field)
-    ]
+def _check(node: str, a: dict, b: dict, same_platform: bool) -> list[Diff]:
+    def d(name: str, text: str) -> Diff:
+        return Diff(f"{node}: {text}", "field", node, name=name)
+
+    found = [d(f, f"{f} {a.get(f)!r} != {b.get(f)!r}") for f in FIELDS if a.get(f) != b.get(f)]
     (fa, xa), (fb, xb) = _facts(a), _facts(b)
     if fa != fb:
-        found.append(f"{node}: facts {fa!r} != {fb!r}")
+        found.append(d("facts", f"facts {fa!r} != {fb!r}"))
     if set(xa) != set(xb):
-        found.append(f"{node}: {FUEL_FACTS} {sorted(xa)} != {sorted(xb)}")
-    for name in sorted(set(xa) & set(xb)):
+        found.append(d("facts", f"{FUEL_FACTS} {sorted(xa)} != {sorted(xb)}"))
+    for name in sorted(set(xa) & set(xb)) if same_platform else []:
         if fuel_differs(xa[name], xb[name]):
-            found.append(
-                f"{node}: {FUEL_FACTS} {name} {xa[name]} != {xb[name]} (beyond {FUEL_TOLERANCE})"
-            )
+            text = f"{FUEL_FACTS} {name} {xa[name]} != {xb[name]} (beyond {FUEL_TOLERANCE})"
+            found.append(d("fuel", text))
     if a.get("status") == b.get("status") in REASONED and a.get("reason") != b.get("reason"):
-        found.append(f"{node}: reason {a.get('reason')!r} != {b.get('reason')!r}")
+        found.append(d("reason", f"reason {a.get('reason')!r} != {b.get('reason')!r}"))
     ma, mb = a.get("metrics") or {}, b.get("metrics") or {}
     if set(ma) != set(mb):
-        found.append(f"{node}: metrics {sorted(ma)} != {sorted(mb)}")
+        found.append(d("metrics", f"metrics {sorted(ma)} != {sorted(mb)}"))
     for name in EXACT_METRICS:
         if name in ma and name in mb and ma[name] != mb[name]:
-            found.append(f"{node}: {name} {ma[name]} != {mb[name]}")
-    if "fuel" in ma and "fuel" in mb and fuel_differs(ma["fuel"], mb["fuel"]):
-        found.append(f"{node}: fuel {ma['fuel']} != {mb['fuel']} (beyond {FUEL_TOLERANCE})")
+            found.append(d(name, f"{name} {ma[name]} != {mb[name]}"))
+    if same_platform and "fuel" in ma and "fuel" in mb and fuel_differs(ma["fuel"], mb["fuel"]):
+        found.append(d("fuel", f"fuel {ma['fuel']} != {mb['fuel']} (beyond {FUEL_TOLERANCE})"))
     return found
+
+
+def _tally(suite: dict) -> tuple[int, int]:
+    """A unit suite's total and its failing count."""
+    total = suite.get("total", 0)
+    return total, total - suite.get("passed", 0) - suite.get("skipped", 0)
+
+
+def _items(name: str, a: list[str], b: list[str]) -> list[Diff]:
+    sa, sb = set(a), set(b)
+    return [
+        Diff(f"{name}: {x} {SIDE[side]}", name, x, side)
+        for side, xs in ((0, sa - sb), (1, sb - sa))
+        for x in sorted(xs)
+    ]
+
+
+def compare(a: dict, b: dict) -> tuple[list[Diff], list[str]]:
+    """Every difference between two records that could change a verdict, and the notes: what
+    was not compared, and why."""
+    va, vb = view(a), view(b)
+    found: list[Diff] = []
+    unrun: Counter[str] = Counter()
+    across: Counter[str] = Counter()
+    unheld: Counter[str] = Counter()
+    for node in sorted(va.names | vb.names):
+        if node not in vb.names:
+            found.append(Diff(f"{node}: {SIDE[0]}", "only", node, 0))
+        elif node not in va.names:
+            found.append(Diff(f"{node}: {SIDE[1]}", "only", node, 1))
+        elif node in va.unrun or node in vb.unrun:
+            unrun[va.unrun.get(node) or vb.unrun[node]] += 1
+        else:
+            ca, cb = va.checks[node], vb.checks[node]
+            pa, pb = va.platform[node], vb.platform[node]
+            fuel_both = "fuel" in (ca.get("metrics") or {}) and "fuel" in (cb.get("metrics") or {})
+            held = node not in va.unheld and node not in vb.unheld
+            if fuel_both and not held:
+                unheld[pa if node in va.unheld else pb] += 1
+            elif fuel_both and pa != pb:
+                across[f"{pa} against {pb}"] += 1
+            found += _check(node, ca, cb, held and pa == pb)
+    found += _items("deselected", va.deselected, vb.deselected)
+    found += _items("collected_files", va.collected_files, vb.collected_files)
+    notes = []
+    if va.suite != vb.suite:
+        # A release ran on other hosts: a unit test may skip there and pass here (spec 092).
+        if is_release(a) != is_release(b) and _tally(va.suite) == _tally(vb.suite):
+            notes.append(
+                f"unit tests skipped on one host and passed on the other: {va.suite!r} against "
+                f"{vb.suite!r} (the same total, the same failing)"
+            )
+        else:
+            found.append(Diff(f"suite: {va.suite!r} != {vb.suite!r}", "suite"))
+    if sorted(va.foreign) != sorted(vb.foreign):  # the one meta field that decides a verdict
+        found.append(Diff(f"meta.foreign: {va.foreign!r} != {vb.foreign!r}", "foreign"))
+    if unrun:
+        why = ", ".join(f"{k} {n}" for k, n in sorted(unrun.items()))
+        notes.append(f"not run on any system in the release: {sum(unrun.values())} ({why})")
+    if unheld:
+        why = ", ".join(f"{k} {n}" for k, n in sorted(unheld.items()))
+        notes.append(f"release fuel not from darwin, not compared: {sum(unheld.values())} ({why})")
+    if across:
+        why = "; ".join(sorted(across))
+        notes.append(f"fuel not compared across platforms: {sum(across.values())} ({why})")
+    return found, notes
 
 
 def differences(a: dict, b: dict) -> list[str]:
     """Every difference between two run records that could change a verdict."""
-    found: list[str] = []
-    ca, cb = a.get("checks", {}), b.get("checks", {})
-    for node in sorted(set(ca) | set(cb)):
-        if node not in cb:
-            found.append(f"{node}: only in the first record")
-        elif node not in ca:
-            found.append(f"{node}: only in the second record")
+    return [d.text for d in compare(a, b)[0]]
+
+
+def notes(a: dict, b: dict) -> list[str]:
+    return compare(a, b)[1]
+
+
+# ---------------------------------------------------------------------------------------------
+# Claim lists (spec 092, Decision 5)
+
+LISTS = ("new", "retired", "changed", "passes", "grows")
+KEYS = frozenset({"spec", "growth", "units", *LISTS})
+
+
+@dataclass
+class Claim:
+    spec: str
+    new: list[str] = field(default_factory=list)
+    retired: list[str] = field(default_factory=list)
+    changed: list[str] = field(default_factory=list)
+    passes: list[str] = field(default_factory=list)
+    grows: list[str] = field(default_factory=list)
+    growth: str = ""
+    units: int = 0
+
+
+def load_claims(path: Path) -> list[Claim]:
+    try:
+        data = tomllib.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as e:
+        raise ClaimError(f"{path}: not a readable TOML file ({e})") from e
+    if set(data) - {"claim"} or not isinstance(data.get("claim", []), list):
+        raise ClaimError(f"{path}: only [[claim]] tables, found {sorted(data)}")
+    out = []
+    for n, c in enumerate(data.get("claim", []), 1):
+        where = f"{path}: claim {n}"
+        unknown = sorted(set(c) - KEYS)
+        if unknown:
+            raise ClaimError(f"{where}: keys the shape does not name: {', '.join(unknown)}")
+        if not isinstance(c.get("spec"), str) or not c["spec"]:
+            raise ClaimError(f"{where}: spec, a string, is required")
+        for k in LISTS:
+            v = c.get(k, [])
+            if not isinstance(v, list) or not all(isinstance(x, str) and x for x in v):
+                raise ClaimError(f"{where} ({c['spec']}): {k} is a list of strings")
+        if not isinstance(c.get("growth", ""), str):
+            raise ClaimError(f"{where} ({c['spec']}): growth is a string")
+        if c.get("grows") and not c.get("growth"):
+            raise ClaimError(f"{where} ({c['spec']}): grows needs growth, its reason")
+        if type(c.get("units", 0)) is not int:
+            raise ClaimError(f"{where} ({c['spec']}): units is a whole number")
+        out.append(Claim(**c))
+    return out
+
+
+def _names(entry: str, key: str) -> bool:
+    """Whether a claimed entry names a check or file: exactly, as the check's file, or by a
+    trailing `*` prefix."""
+    if entry.endswith("*"):
+        return key.startswith(entry[:-1])
+    return key == entry or ("::" not in entry and key.split("::", 1)[0] == entry)
+
+
+def _file_named(entry: str, file: str) -> bool:
+    """Whether a claimed entry names a collected file: the file, a check in it, or a prefix."""
+    if entry.endswith("*"):
+        return file.startswith(entry[:-1])
+    return entry.split("::", 1)[0] == file
+
+
+def _explains(c: Claim, d: Diff) -> list[str]:
+    """The claimed entries of `c` that explain `d` (empty when none does)."""
+    if d.kind == "only":
+        kind = "new" if d.side == 1 else "retired"
+        return [f"{kind} {e}" for e in getattr(c, kind) if _names(e, d.key)]
+    if d.kind == "collected_files":
+        kind = "new" if d.side == 1 else "retired"
+        return [f"{kind} {e}" for e in getattr(c, kind) if _file_named(e, d.key)]
+    if d.kind == "deselected":
+        return [f"changed {e}" for e in c.changed if _names(e, d.key)]
+    if d.kind == "field":
+        kinds = {"fuel": ("grows",), "bytes": ("grows",), "passes": ("passes",)}
+        kinds["facts"] = ("changed", "passes")
+        for kind in kinds.get(d.name, ("changed",)):
+            hit = [f"{kind} {e}" for e in getattr(c, kind) if _names(e, d.key)]
+            if hit:
+                return hit
+    return []
+
+
+def _suite_explained(a: dict, b: dict, units: int) -> bool:
+    (ta, fa), (tb, fb) = _tally(a), _tally(b)
+    return tb - ta == units and fa == fb
+
+
+def explain(
+    a: dict, b: dict, claims: list[Claim], drop: frozenset[str] | set[str] = frozenset()
+) -> tuple[list[str], list[str]]:
+    """(the differences no claim explains, the notes: the counts per spec, the unseen claims)."""
+    claims = [c for c in claims if c.spec not in drop]
+    found, notes_ = compare(a, b)
+    seen: set[tuple[str, str]] = set()
+    per_spec: Counter[str] = Counter()
+    left = []
+    units = sum(c.units for c in claims)
+    for d in found:
+        if d.kind == "suite":
+            hit = [(c.spec, "units") for c in claims if c.units]
+            if not _suite_explained(view(a).suite, view(b).suite, units):
+                hit = []
         else:
-            found += _check(node, ca[node], cb[node])
-    for field in RUN_FIELDS:
-        if a.get(field) != b.get(field):
-            found.append(f"{field}: {a.get(field)!r} != {b.get(field)!r}")
-    fa, fb = (r.get("meta", {}).get("foreign") or [] for r in (a, b))
-    if sorted(fa) != sorted(fb):  # the one meta field that decides a verdict (build review, F2)
-        found.append(f"meta.foreign: {fa!r} != {fb!r}")
-    return found
+            hit = [(c.spec, e) for c in claims for e in _explains(c, d)]
+        if not hit:
+            left.append(d.text)
+        seen.update(hit)
+        per_spec.update({spec for spec, _ in hit})
+    unseen = [
+        f"{c.spec} {kind} {e}"
+        for c in claims
+        for kind in LISTS
+        for e in getattr(c, kind)
+        if (c.spec, f"{kind} {e}") not in seen
+    ]
+    if per_spec:
+        counts = " · ".join(f"{s} {n}" for s, n in sorted(per_spec.items()))
+        notes_.append(f"explained by claims: {counts}")
+    notes_ += [f"claimed, not seen: {u}" for u in unseen]
+    return left, notes_
+
+
+def unexplained(
+    a: dict, b: dict, claims: list[Claim], drop: frozenset[str] | set[str] = frozenset()
+) -> list[str]:
+    return explain(a, b, claims, drop)[0]
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
-        print("usage: sameness.py A.json B.json", file=sys.stderr)
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="sameness.py")
+    ap.add_argument("--claims", type=Path, help="a claim list (spec 092, Decision 5)")
+    ap.add_argument("--except", dest="drop", action="append", default=[], metavar="SPEC")
+    ap.add_argument("a", type=Path)
+    ap.add_argument("b", type=Path)
+    args = ap.parse_args(argv)
+    try:
+        a, b = (json.loads(p.read_text(encoding="utf-8")) for p in (args.a, args.b))
+        claims = load_claims(args.claims) if args.claims else None
+        if claims is None:
+            found, notes_ = compare(a, b)
+            lines = [d.text for d in found]
+        else:
+            lines, notes_ = explain(a, b, claims, set(args.drop))
+    except (OSError, ValueError) as e:  # NotComparable, ClaimError, and JSON errors are ValueError
+        print(f"sameness.py: {e}", file=sys.stderr)
         return 2
-    a, b = (json.loads(Path(p).read_text()) for p in argv)
-    found = differences(a, b)
-    for line in found:
+    for line in notes_:
+        print(f"note: {line}", file=sys.stderr)
+    for line in lines:
         print(line)
-    return 1 if found else 0
+    return 1 if lines else 0
 
 
 if __name__ == "__main__":

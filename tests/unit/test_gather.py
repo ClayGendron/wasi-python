@@ -125,26 +125,27 @@ class Case:
             self.handed_edit(handed)
         if self.after_write:
             self.after_write(records_dir, handed)
-        return gather.gather(
-            gather.Inputs(
-                plan=PLAN,
-                records_dir=records_dir,
-                handed=handed,
-                wasm_sha256=self.wasm,
-                set_sums_sha256=self.set_sums,
-                wasmtime=self.wasmtime,
-                may_block=self.may_block,
-                goal_nodes=GOAL,
-                unit_nodes=UNITS,
-                groups=GROUPS,
-                accepted=self.accepted,
-                history_lines=[json.dumps(self.newest)],
-                gaps=self.gaps,
-                judge_hash=self.judge,
-                head=HEAD,
-                tag=self.tag,
-                repo=self.tmp,
-            )
+        return gather.gather(self.inputs(records_dir, handed))
+
+    def inputs(self, records_dir: Path | None = None, handed: dict | None = None) -> gather.Inputs:
+        return gather.Inputs(
+            plan=PLAN,
+            records_dir=records_dir or self.tmp / "records",
+            handed=handed or {},
+            wasm_sha256=self.wasm,
+            set_sums_sha256=self.set_sums,
+            wasmtime=self.wasmtime,
+            may_block=self.may_block,
+            goal_nodes=GOAL,
+            unit_nodes=UNITS,
+            groups=GROUPS,
+            accepted=self.accepted,
+            history_lines=[json.dumps(self.newest)],
+            gaps=self.gaps,
+            judge_hash=self.judge,
+            head=HEAD,
+            tag=self.tag,
+            repo=self.tmp,
         )
 
 
@@ -635,6 +636,53 @@ def test_the_merged_record(case) -> None:
     assert merged["checks"][SUITE]["metrics"]["passes"] == 5  # no darwin record: the linux one's
     assert set(merged["suite"]) == {"build", "darwin", "linux", "win32"}
     assert merged["suite"]["linux"]["total"] == 2
+
+
+def test_the_merged_record_carries_what_sameness_needs(case) -> None:
+    """Spec 092, Decision 1: the run fields, a suite per run, a foreign union, each check's
+    source."""
+    case.records[("windows", "own-a")]["checks"][PROBE].update(status="blocked", need="oracle")
+    case.records[("linux", "own-rest")]["meta"]["foreign"] = ["a conftest outside"]
+    case.records[("macos", "own-a")]["collected_files"].append("tests/unit/test_mac_only.py")
+    merged = case.run().merged
+    assert merged["deselected"] == []
+    assert "tests/unit/test_mac_only.py" in merged["collected_files"]
+    assert set(merged["collected_files"]) >= {n.split("::")[0] for n in GOAL + UNITS}
+    assert set(merged["runs"]) == {f"{s}/{n}" for s, n in gather.expected_keys(PLAN)}
+    assert merged["runs"]["linux/up-l"] == {
+        "platform": "linux-x86_64",
+        "suite": case.records[LIN]["suite"],
+    }
+    assert merged["meta"]["foreign"] == ["a conftest outside"]
+    assert merged["checks"][PROBE]["status"] == "blocked"  # the worst, as before
+    assert merged["checks"][PROBE]["source"]["platform"] == "darwin-arm64"
+    assert merged["checks"][PROBE]["source"]["status"] == "pass"
+    assert "metrics" not in merged["checks"][PROBE]["source"]
+    assert merged["checks"][SUITE]["source"]["platform"] == "linux-x86_64"  # no darwin run
+    assert merged["checks"][BUILD_NODE]["source"]["platform"] == "darwin-arm64"  # the build's
+
+
+def test_a_ci_need_block_is_no_source(case) -> None:
+    """A check blocked by a need CI lacks ran nowhere: no source; another system that ran it is
+    the source, metrics and all."""
+    for key in (("macos", "own-a"), ("linux", "own-a")):
+        case.records[key]["checks"][PROBE].update(status="blocked", need="oracle", metrics={})
+    case.records[("windows", "own-a")]["checks"][PROBE]["metrics"] = {"fuel": 3}
+    merged = gather.merge(case.records, case.inputs())
+    assert merged["checks"][PROBE]["source"]["platform"] == "win32-amd64"
+    assert merged["checks"][PROBE]["metrics"] == {"fuel": 3}
+    case.records[("windows", "own-a")]["checks"][PROBE].update(status="blocked", need="oracle")
+    merged = gather.merge(case.records, case.inputs())
+    assert "source" not in merged["checks"][PROBE]
+    assert merged["checks"][PROBE]["status"] == "blocked"
+
+
+def test_a_check_no_record_ran_is_deselected_in_the_merged_record(case) -> None:
+    for key in case.records:
+        case.records[key]["checks"][RULE_NODE]["status"] = "deselected"
+    merged = gather.merge(case.records, case.inputs())
+    assert merged["deselected"] == [RULE_NODE]
+    assert "source" not in merged["checks"][RULE_NODE]
 
 
 @pytest.mark.parametrize(

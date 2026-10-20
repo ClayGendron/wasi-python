@@ -164,7 +164,44 @@ The plain `uv run pytest` stays serial.
 - **Comparing two runs.** `uv run python tests/harness/sameness.py A.json B.json` prints every
   difference that could change a verdict (the fields above; a gap's or a blocked check's reason,
   not a pass's note, which may print a fuel count; fuel beyond the ratchet's tolerance; what
-  steered the run from outside the judge, `meta.foreign`) and exits 1 when there is one.
+  steered the run from outside the judge, `meta.foreign`) and exits 1 when there is one. Fuel is
+  compared between records of one platform only, as the ratchet keys it (spec 092).
+
+### Comparing with a release record, and claim lists (spec 092)
+
+- **A release record is either side.** The release workflow's gather job writes the merged record
+  as the artifact `release-record-<attempt>`: `gh run download <id> -n release-record-1 -D
+  build/<spec>/ci/`, then compare `build/<spec>/ci/record.json`. Sameness reads it as the darwin
+  run it contains: each check as the darwin shard that ran it saw it (else Linux's, else
+  Windows'), and the suite of the build and macOS shards together (against a local record, only
+  its total and failing count: a unit test may skip on one host only). A check no shard ran
+  (blocked by a need CI lacks, such as the oracle) is not compared, nor is fuel a Linux or Windows
+  shard gave (G5 holds darwin fuel only, and Linux fuel moves between runs); stderr counts both. A
+  record from a run before spec 092 lacks the fields and is refused, exit 2.
+- **`--claims <toml>`** prints only the differences no claim explains, and exits 1 if any remain.
+  A claim list is what the **second** record has that the **first** lacks, so put the record
+  without the claimed changes first (a reviewer's or builder's record, then the lane's). Each
+  specification writes its block in "For the lane"; a wave's file is the blocks one after
+  another. `--except <spec>` drops a spec's claims (the entry whose record is the first: its
+  changes are in both). stderr says how many differences each spec explained and which claimed
+  entries matched nothing.
+
+  ```toml
+  [[claim]]
+  spec = "092"         # required
+  new = []             # checks or files added: explains "only in the second record"
+  retired = []         # checks or files removed: explains "only in the first record"
+  changed = []         # checks whose status, need, reason, closer, area, facts or metric names move
+  passes = []          # upstream checks whose passes (and passed_digest) move
+  grows = []           # checks whose fuel or bytes move
+  growth = ""          # required with grows: the reason
+  units = 0            # unit tests added; the suite line is explained when the total moved by
+                       # exactly the claims' sum and no more unit tests fail
+  ```
+
+  An entry with `::` is a check; one without is a file and stands for its checks; a trailing `*`
+  is a prefix (`"*"`: every row). A claim explains only its own kind: `grows` never explains a
+  status, `new` never a check that went away. `meta.foreign` is never explained.
 
 ## The landing lane (spec 029)
 
