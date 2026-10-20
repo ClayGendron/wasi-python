@@ -233,7 +233,13 @@
 
 ## Disposition (filled in by the author, then confirmed by the reviewer)
 
-1. The join backstop in `DONE` — _the builder's: fixed in <commit> / answered because <reason>._
+1. The join backstop in `DONE` — fixed in `aa2239e`: the backstop moves the phase only while a
+   guest may still run (`_GUEST_MAY_RUN`) and sets `ended` in every case, so a home in `DONE` whose
+   body died before its last line is left in `DONE` and the join returns, as the base returned;
+   the unit row `test_the_join_backstop_cancels_a_start_and_loses_a_run` drives the `(DONE, DONE)`
+   case, seen red on the reviewed code (the join looped until a 20 s guard,
+   `build/105/seen-failing-backstop.txt`) and green on the fix; the `_Home` docstring's invariant
+   2 says the join sets `ended` itself if the body never does.
 2. The `Any` counts — written in by the reviewer as `51eba18`; confirmed.
 3. to 5. Notes; no action in this round.
 

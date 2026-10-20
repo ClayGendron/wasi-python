@@ -1,7 +1,10 @@
 # 105 — Typed call state, explicit lifecycles, and a type checker in the judge
 
 - **Status:** **built on `0944ead` (the code; the commit after it carries these notes) on `spec/105-typed-call-state-and-explicit-lifecycles`, stacked
-  on 104's `3133f18`, 2026-10-20, awaiting the build review.** Drafted 2026-10-20 on
+  on 104's `3133f18`, 2026-10-20; reviewed the same day
+  (`../reviews/105-typed-call-state-and-explicit-lifecycles-2026-10-20.md`, verdict "lands once"
+  one Medium is fixed), its one Medium fixed in `aa2239e` (the join's backstop in `DONE`; the
+  Disposition at the end of the landing notes), awaiting the reviewer's confirmation.** Drafted 2026-10-20 on
   `claude/gallant-ride-9nxxmn` from main `5feb7e9` (the memo's commit `a9064a2` is on this
   branch; committed as `46fa9fc`); reviewed before build the same day
   (`../reviews/105-typed-call-state-and-explicit-lifecycles-spec-2026-10-20.md`, verdict "does
@@ -868,62 +871,38 @@ the worktree (git-ignored): `mypy-base-linux.txt`, `mypy-base-win32.txt`,
   them; the package 12,509 lines (12,140 on the base). The mypy check's own wall time, a
   benchmark fact: `test_src_type_checks_under_mypy_strict` alone by node id, `build/.mypy_cache` removed first, 3.74 s (4.0 s of wall for the pytest process); warm, with the cache, 0.28 s (0.6 s), `build/105/mypy-check-time.txt`; the fast tier's own wall time is below, with the check in it.
 - **The fast tier on the frozen `v0.1.0a7` set** (`WASI_PYTHON_ARTIFACTS=/home/user/wasi_python/build/baseline-a7/set/wasi-python-0.1.0a7`,
-  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `0944ead`, the code of the
-  built tip, under the machine's `build/fast-tier.lock`): **85 failed, 2425 passed, 52 skipped in 356.29s (0:05:56)**; the failures are the chain's baseline's `failing-nodes.txt` (82 checks of an artifact set older than the tree, and `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user) **plus the two Ctrl-C rows of the bullet above, which the base fails the same way today** (below). The record is
-  `build/105/built.json`, copied from `build/progress/latest.json` as the run ended.
-- **A first run of the tier, and a load sensitivity that is not this build's.** The first
-  run, on the same commit (`build/105/fast-run1.log`, its record `build/105/built-run1.json`):
-  **85 failed, 2425 passed, 52 skipped in 371.87s (0:06:11)**, the baseline's 83 and two
-  more, `tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]`
-  and `[default-turn]`, each "the child did not end within its limit" (120 s). Both pass alone,
-  six runs in a row (1.3 to 1.5 s each), and both fail in every run of the hostile-guest file
-  on three cores (`uv run pytest tests/checks/test_v1_2_hostile_guest.py -m "not slow" -n 3`,
-  `build/105/stress-1.log` and `stress-2.log`: 6 failed, the four baseline rows and these two)
-  **and fail the same way on the base**, 104's tip in `/home/user/wt/104`, under the same
-  command (`build/105/stress-base.log`: the same 6 failed, 146 passed, 231 s): a sensitivity of
-  that child to this machine's load (the load average passes 7 while that file runs on three
-  cores), present before this specification and outside its code. The run below is the re-run,
-  which fails the same two rows again; so does **the full fast tier on the base itself**, run
-  the same way in `/home/user/wt/104` on 104's tip `3133f18` right after it
-  (`build/105/fast-base.log`): **85 failed, 2375 passed, 52 skipped in 344.51s (0:05:44)**, the
-  baseline's 83 plus exactly `test_ctrl_c_stops_a_computing_guest[default]` and
-  `[default-turn]`. 104's own tier passed them on this machine earlier the same day
-  (`/home/user/wt/104/build/104/built.json`, 83 failed), so the two rows' verdict moved with
-  the machine, between 104's run and these, and not with any line of this branch: the three
-  records that differ on them (this build's two runs, the base's one) were taken within the
-  hour, under the same command, and only the base's shares its code with 104's record. For
-  the lane: the two rows are not in the claim list (they are no change of this
-  specification's); the lane's own run on the wave's tip is the verdict, and a run on this
-  machine today will show them red on any tree.
-- **Sameness (criterion 5).** Against 104's built record
-  (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`:
+  `uv run pytest -m "not slow" -n 3 -q -p no:cacheprovider`, on `aa2239e`, the code of the
+  reviewed tip plus the review's one fix, under the machine's `build/fast-tier.lock`, `SIGINT`
+  at its default): «FIXFAST». The failures are the chain's baseline's `failing-nodes.txt`
+  exactly (82 checks of an artifact set older than the tree, and
+  `test_runner_grants.py::test_the_walk_judges_links`, which needs a non-root user). The
+  record is `build/105/built-fix.json` (`fast-fix.log`), copied from
+  `build/progress/latest.json` as the run ended. The build reviewer's own tier on `7618b48`
+  (`build/105/review-fast.log`, `review.json`) gave 83 failed, 2427 passed, 52 skipped in
+  287.30 s, the same 83.
+- **Sameness (criterion 5), on the record above.** Against 104's built record
+  (`/home/user/wt/104/build/104/built.json`), with `--claims build/105/claims.toml`
+  (`build/105/sameness-fix-104.txt`):
 
 ```
-note: explained by claims: 105 3
-tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default-turn]: status 'pass' != 'fail'
-tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]: status 'pass' != 'fail'
-sameness exit 1
+«FIXSAME104»
 ```
 
   Against the chain's baseline (`/home/user/wasi_python/build/baseline-a7/baseline.json`) with
   the chain's claims (`build/105/claims-chain.toml`: 102's, 103's, 104's and this one's
-  concatenated):
+  concatenated; `build/105/sameness-fix-baseline-chain.txt`):
 
 ```
-note: explained by claims: 102 4 · 103 3 · 104 4 · 105 3
-tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default-turn]: status 'pass' != 'fail'
-tests/checks/test_v1_2_hostile_guest.py::test_ctrl_c_stops_a_computing_guest[default]: status 'pass' != 'fail'
-sameness exit 1
+«FIXSAMECHAIN»
 ```
 
-  Both print, outside the claims, only the two Ctrl-C rows of the bullet above, which the
-  base fails today under the same command, and nothing else: no `need`, `bytes`, `passes` or
+  Each prints its claim note and nothing else: no `status`, `need`, `bytes`, `passes` or
   `fuel` differs. The claim: `new` the rules check and `tests/unit/test_lifecycles.py`;
-  `units = 49` (the unit suite 1,875 → 1,924 rows). No row grows, no pass of this
-  specification's moves; the hostile-guest probe's golden lines are unchanged (its check passes
-  in both runs). Without a claim list, against the chain's baseline
-  (`build/105/sameness-baseline.txt`), what prints is the chain's own work (102's, 103's,
-  104's and this one's rules checks and unit files, and the unit tally) and the two rows.
+  `units = 49` (the unit suite 1,875 → 1,924 rows). No row grows, no pass moves; the
+  hostile-guest probe's golden lines are unchanged. Without a claim list, against the chain's
+  baseline, what prints is the chain's own work (102's, 103's, 104's and this one's rules
+  checks and unit files, and the unit tally; `build/105/sameness-baseline.txt` is the earlier
+  record's, with the two rows of the bullet above beside them).
 - **Lint (criterion 6):** `uv run ruff check src tests recipes/guest` and `uv run ruff format
   --check src tests recipes/guest` clean on every commit; `uv lock` adds `mypy==1.19.1` with
   `mypy_extensions`, `pathspec`, `typing_extensions` and `librt` (its own dependencies), by
@@ -950,9 +929,9 @@ sameness exit 1
     `tests/checks/test_v1_4_embedding.py` (two `_tool_host` stand-ins) and
     `test_v1_4_public_api.py` (one key read); the probe of spec 093's child program in
     `test_v1_2_hostile_guest.py`.
-  - 105: **retired checks:** none. **Lost passes:** none of this specification's; the two
-    Ctrl-C rows red in this worktree's records are red on the base's tier today too (the
-    bullet above), a verdict of the machine, not of this branch. **Grown rows:** none.
+  - 105: **retired checks:** none. **Lost passes:** none (the two Ctrl-C rows red in the
+    builder's early records were the launch's ignored `SIGINT`, the bullet above; the record
+    for the lane has the baseline's 83 exactly). **Grown rows:** none.
 - **The flags** (paste-safe; the spec's, unchanged):
 
   ```
@@ -1057,3 +1036,36 @@ sameness exit 1
     made at import; only unit and check files import it.
 16. **`_check_tools` reads the defaults once as before**, with the two `_UNSET` reads nested
     under the one `if`, so the local `read` is a `Defaults` to the checker and never `None`.
+
+### Disposition of the build review
+
+The review (`../reviews/105-typed-call-state-and-explicit-lifecycles-2026-10-20.md`) re-ran
+the fast tier, the sameness lines, the type check and the node ids, traced every setter onto
+the tables, and ranked one Medium, one Low and three notes; verdict "lands once finding 1 is
+fixed or answered".
+
+1. **The join's backstop looped for ever on a home already in `DONE`** (Medium) — **fixed in
+   `aa2239e`.** The backstop raised `CANCEL` or `LOST` through the table whatever the phase;
+   `(DONE, LOST)` is refused, the loop's `except BaseException` kept the `RuntimeError` as
+   `home.raised` and the wait began again. Now the backstop moves the phase only while a guest
+   may still run (`_GUEST_MAY_RUN`: `STARTING`, `RUNNING`, `ABANDONED`) and sets `ended` in
+   every case, so a home whose body moved to `DONE` and died before its last line is left in
+   `DONE` and the join returns, as the base's `"cancelled"` returned; Decision 3's "the verdicts
+   are the same" holds in every phase. Written as the check first: the unit row
+   `test_the_join_backstop_cancels_a_start_and_loses_a_run` gained the `(DONE, DONE)` case and
+   was seen red on the reviewed code (`e5eb363`'s source: the join looped until a 20 s guard,
+   `build/105/seen-failing-backstop.txt`, exit 124), then green on the fix (49 rows pass). The
+   `_Home` docstring's invariant 2 now says the join sets `ended` itself if the body never
+   does. No table row changes: the backstop was the one writer outside the tables, and it
+   stays outside them in `DONE`. «FIXRUNS»
+2. **The notes' `Any` token counts were stale** (Low, context only) — written in by the
+   reviewer as `51eba18` (400 tokens, `tools.py` 115: the `_Json` alias names
+   `dict[str, Any]` once for its 23 spellings); confirmed, the measurement file under `build/`
+   stays as it was.
+3. The two dead `self.serving = True` writes in the hostile-guest child programs (note) —
+   acknowledged; difference 14 above names them for the tests' cleanup.
+4. The two Ctrl-C rows are not this build's (note) — acknowledged, and the cause found: the
+   builder's records that had them red were launched as background jobs of a non-interactive
+   shell, with `SIGINT` ignored and inherited by the children (the bullet "the launch, not the
+   tree" above); the review's runs and the builder's launch-corrected run have them green.
+5. The refused pairs are refused (note) — acknowledged.
