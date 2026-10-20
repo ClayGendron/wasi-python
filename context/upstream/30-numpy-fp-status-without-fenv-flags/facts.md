@@ -10,7 +10,8 @@ writes in their own words. Nothing has been posted, and no agent will post anyth
 policy keeps any description in the owner's words.
 
 **The short version.** WebAssembly has no floating-point status flags. wasi-libc's `<fenv.h>`
-(and musl's on wasm32, which Emscripten shares) defines `FE_ALL_EXCEPT` as 0 and none of
+(EXECUTED, fact 1; Emscripten's musl-based `<fenv.h>` is likely the same shape, INFERRED, not read
+here) defines `FE_ALL_EXCEPT` as 0 and none of
 `FE_INVALID`, `FE_DIVBYZERO`, `FE_OVERFLOW`, `FE_UNDERFLOW`. numpy then defines the four as 0
 (`ieee754.c.src`, `ieee754.cpp`, `float_status.hpp`). So the signals numpy raises itself, in
 software, are lost too: `npy_set_floatstatus_invalid()` is `feraiseexcept(0)`. `umath_linalg`
