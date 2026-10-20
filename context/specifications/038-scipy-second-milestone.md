@@ -185,7 +185,7 @@ inside the sealed Python as they do natively, with nothing writable and no threa
 | file | change |
 |---|---|
 | `recipes/patches/scipy-1.18.1/0001-io-matrix-market-serial-without-threads.patch`, `0002-stats-sobol-without-a-temporary-file.patch` | new (Decisions 1, 2) |
-| `context/upstream/patches/scipy-1.18.1/0001-…md`, `0002-…md` | their drafts |
+| `context/upstream/patches/scipy-1.18.1/0003-…md`, `0004-…md` (numbered after 037's two) | their drafts |
 | `recipes/ctypes_stand_in/_types.py` | Decision 3 |
 | `tests/jobs/scipy_edges.py`, `.expected`; `JOBS` in `tests/harness/jobs.py` | the golden (Decision 5) |
 | `tests/checks/test_v1_3_scipy.py` | the guest address check |
@@ -219,6 +219,121 @@ In: Decisions 1 to 8. Out:
 
 None open here.
 
+## Revised at build (2026-10-20)
+
+Written by the builder, before its build review. Each item is small and none changes a
+decision's purpose; the reviewer checks each.
+
+1. **The patches are `0003-…` and `0004-…`** (the two dated amendments in the Status line): 037
+   carries scipy's `0001-uarray-callback-signatures.patch` and
+   `0002-sqrtm-triu-imports-its-error-where-it-raises.patch`. The Design table's file names
+   read with these numbers. Their drafts are facts sheets, not pull
+   request text: scipy's AI policy, READ 2026-10-20 and quoted in `0003-…md`, forbids an agent's
+   pull request and an AI-written description and requires a disclosure.
+2. **`c_void_p(0).value` is `None`**, as CPython's `ctypes` reads a zero pointer (Decision 3 said
+   "that integer, wrapped to 32 bits, or `None`"); a value that wraps to 0 is `None` too. numpy and
+   scipy never give a zero address for an array's data.
+3. **What an instance refuses, as CPython's `ctypes` does**: an integer type takes an integer
+   (`operator.index`; a float, a string or `None` raises `TypeError`), a floating type a real
+   number (a string raises `TypeError`), `c_bool` any object's truth, and `c_void_p` an integer or
+   `None` (anything else, a stand-in instance included, raises `TypeError`). `c_float` beyond
+   float's range gives the infinity of its sign, as C's conversion does. `repr` is CPython's
+   form, `c_long(-3)`.
+4. **The byte-order twins** (`c_long.__ctype_be__` and the rest, which numpy reads for dtypes) are
+   not among Decision 3's types, so their instances still raise `OSError`.
+5. **The host unit checks size the stand-in as wasm32**: while its types are built,
+   `struct.calcsize` answers wasm32's sizes (a monkeypatch), so `c_ulong(-1)`, `c_size_t(-1)` and
+   `c_void_p(2**32 + 5)` wrap as in the guest on a 64-bit host. The existing unit check keeps
+   the host's sizes.
+6. **The edges golden runs with nothing writable** (`_golden(..., root_writable=False)`; the
+   other goldens' roots stay writable): with a writable root, Sobol's `as_file` would find a
+   temporary folder (the working directory, `/`) and the golden would not show the gap.
+   It prints `mminfo` of a header too, and each Matrix Market file's text beside its SHA-256, so
+   a difference names its line. The native run writes 0.125 as `1.25E-1` (fast_matrix_market's
+   own formatting).
+7. **033's guest check changes with its unit check**
+   (`test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`): `ndarray.ctypes`
+   and `c_int(1)` move from refused to held (`ndarray.ctypes.data` is the array's
+   `__array_interface__` address, `c_ulong(-1)` is `2**32 - 1`), and it refuses five more:
+   `data_as(POINTER(c_double))`, `ndarray.ctypes.shape` (an array instance), `c_char_p(b"x")`,
+   `byref(c_int(1))` and `addressof(c_void_p(8))`. pandas' `from_dataframe` still raises: it
+   casts to `POINTER(...)` (READ, pandas 3.0.6 `core/interchange/from_dataframe.py:520`).
+
 ## Landing notes
 
-Not built.
+**Phase 1 (2026-10-20), no build.** Written by the builder (Claude Opus 5.5) in the worktree
+`wasi_python-038`, branch `spec/038-scipy-second-milestone`, made at 037's trial tip `50a3fe3`
+(stacked, §4.14). 037 is not yet built on 043; nothing below needs a build, and no guest check
+has run. Evidence under the worktree's git-ignored `build/038/`.
+
+- **The patches** apply in order to a fresh extraction of the pinned scipy tarball (`52c4b742…`)
+  by `scripts/steps/apply_patches.sh`, each cleanly at no offset after 037's `0001`. SHA-256:
+  `0003` (then `0002`) `c92402aa…` (874 bytes), `0004` (then `0003`) `2510faf6…` (725 bytes). Made with `git diff` in a
+  scratch repository with git's configuration cleared.
+- **Seen failing first (the host checks):** the two new unit checks
+  (`test_the_ctypes_stand_in_holds_numeric_values_as_wasm32_stores_them`,
+  `test_the_ctypes_stand_in_holds_void_pointers_and_casts_them`) failed on 037's stand-in with
+  `OSError: ctypes is unavailable on wasm32-wasi` (`build/038/logs/standin-seen-failing.log`);
+  `test_carried_patches_follow_the_rules` failed with the patches and no drafts (five findings,
+  then two before the CHANGELOG named them). All pass now.
+- **The golden** `tests/jobs/scipy_edges.expected` was recorded natively under the oracle
+  (scipy 1.18.1 at the oracle's pin, darwin-arm64), two hash seeds agreeing, and reproduced
+  offline after a formatting-only change to the job (`build/038/logs/oracle-edges.log`).
+- **Checked:** `ruff check` and `ruff format --check` on `src/` and `tests/` clean;
+  `uv run pytest -n 3 tests/unit tests/checks/test_rules.py`: 1816 passed, 17 skipped, 0 fail
+  (unit suite 1774/1789; rules 42/44, blocked by the artifact dir and the prior-art clones;
+  the skips are this worktree's empty `build/`: no reference build, no zlib download).
+- **Not yet run (phase 2):** the guest checks (037's three gap checks, the address check, the
+  edges golden, 033's changed guest check), seen failing on 037's built set first; the build;
+  the first-type-lookup fuel (Decision 6).
+
+### For the lane
+
+**Where it stands.** Phase 1 done on `50a3fe3`; waiting for 037's built tip and the native build
+slot. Then: rebase onto 037's built tip, rebuild from an empty `build/`, the fast tier `-n 3`,
+push, dispatch the release workflow on the branch, and fill in what follows.
+
+#### What is re-derived after the rebase onto 037's built tip
+
+037's built tip is itself stacked on 043; each value below is read from that tip, not from
+`50a3fe3`.
+
+- **Patch numbers:** scipy's stay `0002` and `0003` unless 037's built tip carries another scipy
+  patch (then renumbered after it, with the drafts, CHANGELOG paths and README text).
+- **README's carried-patch count**, in the table row (`upstream patches carried: N`, read by
+  `patch_errors`), the prose ("sixteen carried patches") and the prose list: 037's built count
+  plus two (037's For the lane expects 16 on 043, so 18), naming 043's matplotlib `0002` and
+  qhull's format-strings fix if they are there.
+- **`tests/known_gaps.toml`:** the six scipy entries removed again from whatever 037's built tip
+  has (on 043 its count is 043's 65 plus 037's six; 038 leaves 65), checking the digests it
+  removes are 037's three checks only.
+- **Release tree count** (`release.yml`'s zero-patch line): 038 adds no source tree, so it stays
+  037's built value (25 expected); the patched-tree check now applies three scipy patches.
+- **Link lists, inittab, step 70, `make_stdlib_zip.py`:** 038 changes none (no module, no
+  member added); confirmed with `git diff` against 037's built tip.
+- **`jobs.JOBS` and `PLATFORM_BOUND`:** `scipy_edges` after 037's (and 043's `plot_contour`).
+- **README's scipy section and the stand-in paragraphs**, merged with 043's and 037's rebased
+  text; CHANGELOG under "## 0.1.0a8 — unreleased", after 037's entry.
+- **The golden**: re-recorded only if the oracle's pin moved (it does not, by 037's lock).
+
+#### The claim list (filled in at phase 2)
+
+- **New checks:** `tests/checks/test_v1_3_scipy.py::test_scipy_edges_job_matches_native[plain]`,
+  `[snapshot]` (slow); `::test_ndarray_ctypes_gives_the_arrays_address[plain]`, `[snapshot]`;
+  `tests/unit/test_build_scripts.py`'s two stand-in value checks (unit suite).
+- **Gaps that now pass (6):** `test_matrix_market_round_trips_in_memory`,
+  `test_sobol_needs_nothing_writable`, `test_ctypes_values_scipy_makes`, each `[plain]` and
+  `[snapshot]`; their six `[[gap]]` entries removed.
+- **Changed checks:** `test_v1_3_data_stack.py::test_ctypes_stand_in_names_what_packages_import`
+  (both binaries) and `test_the_ctypes_stand_in_names_and_refuses` (Decision 3's rule).
+- **Rows that grow:** to be measured: `python.wasm` and the snapshot (`_sobol` only), the zip
+  (two members' bytes), the first type lookup's fuel; nothing else is expected to move.
+- **Not 038's:** (to be filled).
+
+#### The flags (filled in at phase 2)
+
+```
+--accept "038: …"
+--accept-judge "038: the edges golden (tests/jobs/scipy_edges.py, .expected, .platform, JOBS and PLATFORM_BOUND) run with nothing writable, the guest address check, the stand-in's value checks on the host (wasm32 sizes) and 033's guest and unit checks changed to Decision 3's rule, and spec 037's six scipy [[gap]] entries removed because their checks now pass"
+--accept-growth "038: …"
+```

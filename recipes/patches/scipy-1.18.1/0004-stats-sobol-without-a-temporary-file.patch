@@ -1,0 +1,22 @@
+diff --git a/scipy/stats/_sobol.pyx b/scipy/stats/_sobol.pyx
+index 8361563..5073580 100644
+--- a/scipy/stats/_sobol.pyx
++++ b/scipy/stats/_sobol.pyx
+@@ -1,6 +1,7 @@
+ # cython: language_level=3
+ # cython: cdivision=True
+ import importlib.resources
++import io
+ 
+ cimport cython
+ cimport numpy as cnp
+@@ -146,8 +147,7 @@ def _initialize_direction_numbers(poly, vinit, dtype):
+     """
+     _curdir = importlib.resources.files("scipy.stats")
+     _npzfile = _curdir.joinpath("_sobol_direction_numbers.npz")
+-    with importlib.resources.as_file(_npzfile) as f:
+-        dns = np.load(f)
++    dns = np.load(io.BytesIO(_npzfile.read_bytes()))
+ 
+     dns_poly = dns["poly"].astype(dtype)
+     dns_vinit = dns["vinit"].astype(dtype)

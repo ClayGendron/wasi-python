@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 19, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 21, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 84.8 MB / 89.5 MB / 44.4 MB (3.15 line, with scipy and OpenBLAS (spec 037), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 037's landing notes; 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -53,7 +53,7 @@ promises.
 | numpy's and pandas' own tests in the guest (spec 050; upstream's fast selection, 11 groups) | 63,717 passing; 12 gaps, each a class of known failures listed by node id with its closer (the README 10, question 89 2); no test traps the guest |
 | CPython's own tests in the guest (spec 065; regrtest, 542 of 557 modules in five groups) | 28,109 passing on the frozen set `s-c50ca51fae5eb55b-c9dcb5b8`, the same 3,710 of the file-system group on macOS, Linux and Windows (measured on the set before); 61 gaps: 24 classes of known failures by test id, one deselection, two environment entries and 26 results recorded per host (the README 40, wasmtime's answers 6, spec 088 3, spec 002 1, spec 074 3), and eight tests where freeing or parsing deep structures still traps the guest at the runner's 512 KiB stack (spec 078 8) |
 
-The platform's facts, documented rather than patched (with seventeen carried patches,
+The platform's facts, documented rather than patched (with twenty-one carried patches,
 below and under *scipy in the guest*, *matplotlib in the guest*, *lxml in the guest* and *regex in the guest*), are what `python.wasm -V` prints after its version:
 
 > (wasm32-wasip1: numpy's default integer is 32-bit; no threads; no ctypes, mmap, sockets, ssl, zstd or scipy.odr; compute about 1.3 to 2.3 times slower than native)
@@ -110,7 +110,12 @@ until `importlib.invalidate_caches()`, so a new member is not found, and a distr
 the member reader's checks, and `zipfile` reads it. `import ctypes`
 works: it sizes wasm32's C types and gives numpy their dtypes, but it loads no library and calls
 nothing; each such use raises `OSError`, as a missing library does, which is why `-V` still says
-"no ctypes". So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
+"no ctypes". A numeric type and `c_void_p` hold values (spec 038): `c_ulong(-1).value` is
+4294967295 as on any wasm32, `c_void_p` holds a 32-bit integer, and `cast` of an integer or a
+`c_void_p` to `c_void_p` works, so numpy's `ndarray.ctypes.data` and
+`data_as(ctypes.c_void_p)` give the array's address; nothing has an address of its own
+(`byref`, `pointer`, `addressof` raise), and a pointer to typed data (`data_as(POINTER(...))`),
+a string or a structure instance raises. So does asking numpy or pandas for the dtype of a `Structure`, `Union`, pointer,
 array or function type (the stand-in computes no layouts), and with it `inspect.getmembers` and
 `hasattr(t, "__numpy_dtype__")` on such a type; `help()` and `dir()` work. The snapshot runs only beside the exact stdlib zip it was built
 against (its `MANIFEST` names the zip's hash), because zipimport's file
@@ -228,10 +233,13 @@ zip. Three golden jobs (`scipy_numeric`, `scipy_solvers`, `scipy_lapack`) print 
 answers at the same pin, to 9 significant digits for direct results and 6 for iterative ones.
 No Fortran compiler is involved: the LAPACK is OpenBLAS 0.3.34's own C translation, with three
 carried patches (`recipes/patches/OpenBLAS-0.3.34/`: every C LAPACK subroutine returns `void`, as
-OpenBLAS's `develop` branch already does, so no call traps on a mismatched signature), and two
+OpenBLAS's `develop` branch already does, so no call traps on a mismatched signature), and four
 carried scipy patches (`recipes/patches/scipy-1.18.1/`): one gives five of uarray's callbacks the
-signatures CPython calls them with, and one lets `scipy.linalg._matfuncs_sqrtm_triu` be imported
-first (natively a circular import; pydoc's `apropos` imports every builtin, so it failed).
+signatures CPython calls them with, one lets `scipy.linalg._matfuncs_sqrtm_triu` be imported
+first (natively a circular import; pydoc's `apropos` imports every builtin, so it failed), one
+makes Matrix Market's default parallelism 1 on WASI (spec 038), and one reads Sobol's direction
+numbers without a temporary file (spec 038). A fourth golden job (`scipy_edges`) runs with
+nothing writable.
 `scipy.spatial` links the binary's one qhull, 8.0.2 as step 37 builds it for matplotlib's
 `_qhull` too, with the format-string fix scipy applies to its own copy carried as a patch
 (`recipes/patches/qhull-8.0.2/`, upstream's merged change). What differs from native:
@@ -244,17 +252,13 @@ first (natively a circular import; pydoc's `apropos` imports every builtin, so i
   same answer. `differential_evolution` and `brute` with `workers` other than 1 raise
   `AttributeError` (a process pool needs `os.pipe`, which WASI lacks), and `cKDTree.query` with
   `workers` other than 1 raises `RuntimeError` ("can't start new thread"). Use the default, 1.
-- **Not yet, until scipy's next milestone (spec 038)**: `scipy.io.mmread` and `mmwrite` raise
-  `RuntimeError` (fast_matrix_market starts a thread pool); `stats.geninvgauss.cdf`,
-  `genhyperbolic.cdf`, `studentized_range` (and `tukey_hsd`) and `io.arff.loadarff` raise
-  `OSError` from the `ctypes` stand-in; and **`stats.qmc.Sobol` with nothing writable gives
-  wrong numbers and exits 0**, after printing "Exception ignored" to stderr: it copies its
-  direction numbers to a temporary file, scipy swallows the error, and the numbers stay zero.
-  Unscrambled, every point is 0; scrambled (the default), one point repeats in every row.
-  `optimize.differential_evolution(init='sobol')` silently starts from that population, and
-  `optimize.shgo(sampling_method='sobol')` raises a confusing `QhullError` (QH6421). Give the call
-  a writable `/tmp` (`root=True`, or a writable grant at `/tmp`) when you use Sobol, `qmc_quad`,
-  `sobol_indices` or either of those options. Spec 038 fixes it.
+- **The sandbox's edges, met as native scipy meets them** (spec 038), each with nothing
+  writable: `scipy.io.mmread` and `mmwrite` read and write serially (`PARALLELISM` defaults to 1
+  here, since a thread cannot start; setting it higher raises `RuntimeError`); `stats.qmc.Sobol`,
+  `qmc_quad`, `sobol_indices`, `differential_evolution(init='sobol')` and
+  `shgo(sampling_method='sobol')` read Sobol's direction numbers from the zip without a temporary
+  file; `stats.geninvgauss.cdf`, `genhyperbolic.cdf`, `studentized_range`, `tukey_hsd` and
+  `io.arff.loadarff` work through the `ctypes` stand-in's values.
 - **Absent with the platform**: `LowLevelCallable.from_ctypes` and any ctypes function pointer
   (no libffi); `scipy.datasets`' downloads (no network, and no `pooch`). qhull's `TI <file>`
   option (input from a file) fails as an unopenable file does (QH6041, a `QhullError`): the
@@ -482,14 +486,15 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: nineteen today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: twenty-one today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
 Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, kiwisolver's
-`tp_clear` fix from upstream, scipy's import of one linalg module moved where it raises, regex's
-timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates and networkx's graph
-atlas read from a zip, qhull's format strings from upstream, lxml's `fake_cython` line from
-upstream, and OpenBLAS's three: its C LAPACK's subroutines all `void`, as its `develop` branch has
-them):
+`tp_clear` fix from upstream, scipy's import of one linalg module moved where it raises, scipy's
+Matrix Market read and written serially and its Sobol direction numbers read without a temporary
+file, regex's timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates and
+networkx's graph atlas read from a zip, qhull's format strings from upstream, lxml's
+`fake_cython` line from upstream, and OpenBLAS's three: its C LAPACK's subroutines all `void`, as
+its `develop` branch has them):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
@@ -630,7 +635,7 @@ from that read; each hands anything odd to upstream's own code), the door
 module, a host-side numpy stand-in for pandas' build, a one-function stand-in for `mmap` that pandas
 imports unconditionally, and a stand-in `ctypes` package (`recipes/ctypes_stand_in/`), which numpy
 and pandas import too: it names and sizes wasm32's C types, gives numpy the dtype it gives a real
-one, and refuses every foreign call; its `ctypes.util` answers `find_library` with `None` and
+one, holds the values of numeric types and `c_void_p` (spec 038), and refuses every foreign call; its `ctypes.util` answers `find_library` with `None` and
 `dllist()` with `[]`, the truth for one statically linked module, so threadpoolctl finds no native
 thread pools instead of trying to load a library (spec 039). The stdlib zip also carries each package's `METADATA` (and a
 wheel's `entry_points.txt`): a wheel's own, and numpy's and pandas' from their pinned sdists'
