@@ -347,3 +347,80 @@ def tier_a_notice_errors(d: Path) -> list[str]:
     elif not sympy_notice.is_file() or nested not in sympy_notice.read_bytes():
         errors.append(f"LICENSES/sympy.txt does not hold {SYMPY_NESTED} as the zip carries it")
     return errors
+
+
+# scikit-learn's notice (spec 044, Decision 11): its licence and each bundled component's notice,
+# matched against the pinned sdist's bytes, read from the tarball itself, and the pinned licence
+# texts of the projects whose adapted code carries none. The judge keeps its own list, so a part
+# step 90 drops or a range it moves is named here. (path in the sdist, first line, last line), or
+# the whole file when no range is given.
+SKLEARN_PARTS = (
+    ("COPYING", None, None),
+    ("sklearn/svm/src/liblinear/COPYRIGHT", None, None),
+    ("sklearn/externals/array_api_compat/LICENSE", None, None),
+    ("sklearn/externals/array_api_extra/LICENSE", None, None),
+    ("sklearn/svm/src/libsvm/svm.cpp", 1, 32),
+    ("sklearn/externals/_arff.py", 1, 25),
+    ("sklearn/externals/_packaging/version.py", 4, 26),
+    ("sklearn/externals/_packaging/_structures.py", 4, 26),
+    ("sklearn/utils/src/MurmurHash3.cpp", 2, 3),
+    ("sklearn/utils/_pprint.py", 7, 67),
+    ("sklearn/utils/_testing.py", 575, 577),
+    ("sklearn/cluster/_hdbscan/_tree.pxd", 1, 28),
+    ("sklearn/model_selection/_split.py", 1001, 1015),
+)
+SKLEARN_PINNED_TEXTS = ("numpydoc-894c8c47-LICENSE.txt", "django-1dae4ac1-LICENSE")
+# The plain Apache-2.0 text, for _split.py's kernel: wasi-libc's pinned copy, at the line's commit.
+APACHE_TEXT = re.compile(r"wasi-libc-[0-9a-f]{8}-LICENSE-APACHE")
+# The datasets' attribution part: each UCI source, the licence and its link.
+SKLEARN_DATA_WORDS = (
+    "https://archive.ics.uci.edu/dataset/80",
+    "https://archive.ics.uci.edu/dataset/17",
+    "https://archive.ics.uci.edu/dataset/109",
+    "CC BY 4.0",
+    "https://creativecommons.org/licenses/by/4.0/",
+    "Fisher",
+    "Unchanged from scikit-learn 1.9.1's copy.",
+)
+
+
+def sklearn_notice_errors(d: Path, tarball: Path, downloads: Path) -> list[str]:
+    """Each part SKLEARN_PARTS names, as the pinned sdist holds it, and each pinned text, as its
+    pin holds it, is in LICENSES/scikit-learn.txt; the datasets' part names sources and terms."""
+    import tarfile
+
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    notice = d / "LICENSES" / "scikit-learn.txt"
+    if not notice.is_file():
+        return ["LICENSES/scikit-learn.txt is missing"]
+    body = notice.read_bytes()
+    errors = []
+    if paths.sha256_file(tarball) != m.pins.get(tarball.name):
+        errors.append(f"{tarball.name} is not the tarball MANIFEST pins")
+    top = tarball.name.removesuffix(".tar.gz")
+    with tarfile.open(tarball) as t:
+        for rel, first, last in SKLEARN_PARTS:
+            f = t.extractfile(f"{top}/{rel}")
+            data = f.read() if f is not None else b""
+            if first is not None:
+                lines = data.decode("utf-8").splitlines()[first - 1 : last]
+                data = ("\n".join(lines) + "\n").encode()
+            where = rel if first is None else f"{rel}, lines {first}-{last}"
+            if not data.strip() or data not in body:
+                errors.append(f"LICENSES/scikit-learn.txt does not hold {where}")
+    apache = sorted(n for n in m.pins if APACHE_TEXT.fullmatch(n))
+    if len(apache) != 1:
+        errors.append(f"MANIFEST pins {len(apache)} wasi-libc Apache-2.0 texts, not 1")
+    for name in (*SKLEARN_PINNED_TEXTS, *apache[:1]):
+        path = downloads / name
+        if not path.is_file() or paths.sha256_file(path) != m.pins.get(name):
+            errors.append(f"downloads/{name} is missing or not the file MANIFEST pins")
+        elif path.read_bytes() not in body:
+            errors.append(f"LICENSES/scikit-learn.txt does not hold {name}")
+    data = b"".join(b for label, b in notice_parts(body) if "bundled datasets" in label)
+    errors += [
+        f"LICENSES/scikit-learn.txt's datasets part does not say {w!r}"
+        for w in SKLEARN_DATA_WORDS
+        if w.encode() not in data
+    ]
+    return errors

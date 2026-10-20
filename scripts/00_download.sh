@@ -123,6 +123,8 @@ get https://files.pythonhosted.org/packages/23/ad/28ecd7cb894d172f3c9c80a075eeeb
 # LAPACK (no Fortran compiler targets wasm32-wasip1)
 get https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz scipy-1.18.1.tar.gz
 get https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.34/OpenBLAS-0.3.34.tar.gz OpenBLAS-0.3.34.tar.gz
+# scikit-learn (spec 044): its sdist, Cython, C and C++ built with meson against step 57's scipy
+get https://files.pythonhosted.org/packages/d2/eb/eaf5e07fcc0da7149b0e084f24e54edd7441b9a89ce7e034032ae97fe3a0/scikit_learn-1.9.1.tar.gz scikit_learn-1.9.1.tar.gz
 # Header-only C++ that is compiled in (matplotlib's and kiwisolver's bindings), so its notices ship
 get https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl pybind11-3.1.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/8b/3c/823fda3f226d84f983e48005527a6dd2dc365220ac4f098b770779d9f4a1/cppy-1.3.1-py3-none-any.whl cppy-1.3.1-py3-none-any.whl
@@ -190,6 +192,10 @@ get https://raw.githubusercontent.com/unicode-org/unicodetools/4fd8eca90b30aa4c7
 # The full MPL-2.0 text tqdm's notice needs (spec 039, Decision 8): its wheel carries only Exhibit A;
 # SPDX's license-list-data at a commit, so the bytes cannot change
 get https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MPL-2.0.txt spdx-31ba1a50-MPL-2.0.txt
+# The notices of two projects scikit-learn adapts code from with no header of their own (spec 044,
+# Decision 11): numpydoc's docscrape and django's slugify, each at the last commit that touched it
+get https://raw.githubusercontent.com/numpy/numpydoc/894c8c47646fcbb4eae4fca068c229ae761f7a62/LICENSE.txt numpydoc-894c8c47-LICENSE.txt
+get https://raw.githubusercontent.com/django/django/1dae4ac1778f04805c0ed62c8debb13b281ba02b/LICENSE django-1dae4ac1-LICENSE
 
 # Research inputs: the reference build the harness self-tests use
 research https://github.com/brettcannon/cpython-wasi-build/releases/download/v3.14.7/python-3.14.7-wasi_sdk-24.zip python-3.14.7-wasi_sdk-24.zip

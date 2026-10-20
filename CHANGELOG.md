@@ -17,6 +17,21 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   suites, `PyType_Slot` arrays and module definitions, 5,893 functions on the set with scipy, where
   spec 051's read method and getset tables.
 
+- **scikit-learn 1.9.1 built in** (spec 044). Its 69 compiled modules are builtins and its
+  Python package and six bundled datasets are in the zip, with native scikit-learn's answers on a
+  golden job (`machine_learning`). It runs serially with the same results: no OpenMP, and every
+  `n_jobs` in the calling thread. One carried patch reads its HTML representation's style sheets
+  as package resources, so `import sklearn` works from the zip:
+  `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` (its facts sheet
+  for the owner, `context/upstream/patches/scikit_learn-1.9.1/`). The names that would clash in
+  one static link are renamed per file by recipe headers (`recipes/sklearn-renames/`), and step 60
+  gains two checks for every package: no weak definition two archives share unless a review
+  allowed it (`scripts/weak_duplicates.py`, `recipes/weak-duplicates-allowed.txt`), and the link
+  map shows scikit-learn's three random generators under their own names. The `fetch_*` datasets
+  fail without a network (with no root, `FileNotFoundError` on `'~'`; with a root, `URLError`);
+  the two sample photographs are left out, so their loaders raise `ModuleNotFoundError`.
+  `LICENSES/scikit-learn.txt` carries each bundled component's notice and the attribution of the
+  three datasets UCI publishes under CC BY 4.0 (digits, breast cancer, wine).
 - **scipy 1.18.1, with OpenBLAS 0.3.34 as its BLAS and LAPACK, built in** (spec 037). All of scipy
   but `scipy.odr` (it needs Fortran; importing it says so): `linalg`, `sparse` (SuperLU, ARPACK,
   PROPACK, `csgraph`), `optimize` (HiGHS's `linprog` and `milp`), `integrate`, `interpolate`,

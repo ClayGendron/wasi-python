@@ -27,7 +27,10 @@
 # 041, Decision 4), and its entry_points.txt rides beside its METADATA (--entry-points). scipy
 # (spec 037): its package as step 57 installed it from meson's plan, a stand-in at scipy/odr.py
 # (scipy.odr needs Fortran), its METADATA from the sdist, and its __config__.py made host-neutral
-# as numpy's is.
+# as numpy's is. scikit-learn (spec 044, Decision 10): its package as step 58 staged it from the
+# patched sdist, its METADATA from the sdist, and its two sample photographs left out with their
+# folder (`--drop`, spec 023's rule, which applies to every input and stops when it matches
+# nothing): no JPEG decoder could read them, so their loaders fail by name.
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -44,6 +47,7 @@ done
 [ -d "$B/lxml-install/lxml" ] || die "build/lxml-install/lxml is missing: run step 54"
 [ -d "$B/regex-install/regex" ] || die "build/regex-install/regex is missing: run step 53"  # spec 047
 [ -d "$B/scipy-install/scipy" ] || die "build/scipy-install/scipy is missing: run step 57"  # spec 037
+[ -d "$B/sklearn-install/sklearn" ] || die "build/sklearn-install/sklearn is missing: run step 58"  # spec 044
 BACKENDS="__init__.py,registry.py,_backend_pdf_ps.py,backend_mixed.py,backend_agg.py,backend_pdf.py"
 BACKENDS="$BACKENDS,backend_ps.py,backend_svg.py,backend_pgf.py,backend_template.py"
 # The build-Python CPython's driver built, found as scripts/python-wasi-cross finds it: its
@@ -82,6 +86,7 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --tree "$B/regex-install" \
   --tree "$B/pure-install" \
   --tree "$B/scipy-install" \
+  --tree "$B/sklearn-install" \
   --wheel "$(pinned python_dateutil-2.9.0.post0-py2.py3-none-any.whl)" \
   --wheel "$(pinned tzdata-2026.5-py2.py3-none-any.whl)" \
   --wheel "$(pinned six-1.17.0-py2.py3-none-any.whl)" \
@@ -129,9 +134,11 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/networkx-3.7/PKG-INFO" \
   --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
   --metadata "$B/scipy-1.18.1/PKG-INFO" \
+  --metadata "$B/scikit_learn-1.9.1/PKG-INFO" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \
+  --drop sklearn/datasets/images \
   --inner matplotlib/mpl-data \
   --file "$SYSCONFIG=_sysconfigdata__wasi_wasm32-wasi.py" \
   --file "$MISSING_INFO=_missing_stdlib_info.py" \

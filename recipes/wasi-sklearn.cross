@@ -1,0 +1,43 @@
+# Meson cross file: scikit-learn 1.9.1 -> wasm32-wasip1 as static archives (spec 044, step 58).
+# The build step rewrites @ROOT@ (the repository root), @SDK@ (scripts/line.conf's WASI_SDK_DIR)
+# and @NUMPY_INCLUDE@ (step 40's installed numpy/_core/include, whose path holds the line's Python
+# version), as for the pandas and scipy cross files.
+[binaries]
+c = '@ROOT@/scripts/wasi-cc'
+cpp = '@ROOT@/scripts/wasi-cxx'
+ar = '@ROOT@/build/tools/@SDK@/bin/llvm-ar'
+ranlib = '@ROOT@/build/tools/@SDK@/bin/llvm-ranlib'
+strip = '@ROOT@/build/tools/@SDK@/bin/llvm-strip'
+nm = '@ROOT@/build/tools/@SDK@/bin/llvm-nm'
+python = '@ROOT@/scripts/python-wasi-cross'
+cython = '@ROOT@/build/tools/pylib/bin/cython'
+# No pkg-config: scikit-learn asks for one dependency, OpenMP, which meson looks for with the
+# compiler alone, and which the SDK does not have (Decision 3); no host library can be found.
+pkg-config = 'false'
+
+[host_machine]
+system = 'wasi'
+cpu_family = 'wasm32'
+cpu = 'wasm32'
+endian = 'little'
+
+[properties]
+# wasm32 `long double` is IEEE binary128, as the numpy, pandas and scipy cross files say.
+longdouble_format = 'IEEE_QUAD_LE'
+needs_exe_wrapper = true
+skip_sanity_check = true
+# Step 40's installed numpy headers: scikit-learn reads the property instead of running the target
+# Python (sklearn/meson.build: "This uses the path as is, and avoids running the interpreter").
+numpy-include-dir = '@NUMPY_INCLUDE@'
+
+[built-in options]
+# The pandas set without pandas_rename.h: -ffile-prefix-map, so no builder's path is in a
+# __FILE__ string, and the WASI emulation defines. No setjmp flags: scikit-learn calls no setjmp.
+# The names that would clash in one static link are renamed per file, through
+# recipes/sklearn_file_includes.txt (Decision 6), never here.
+c_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-Wno-return-type']
+# C++ exceptions in their standard form (spec 005, Decision 3), as for numpy and pandas:
+# neighbors/_partition_nodes.pyx declares a C++ call `except +`, and the standard containers of the
+# tree and neighbour modules throw through it.
+cpp_args = ['-ffile-prefix-map=@ROOT@=/wasi-python-build', '-fwasm-exceptions', '-mllvm', '-wasm-use-legacy-eh=false', '-D_WASI_EMULATED_SIGNAL', '-D_WASI_EMULATED_PROCESS_CLOCKS', '-D_WASI_EMULATED_GETPID', '-DNPY_NO_SIGNAL', '-fexceptions', '-Wno-return-type']
+# No link args: every extension module becomes an archive, and the one real link is python.wasm's.

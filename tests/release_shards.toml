@@ -12,9 +12,13 @@
 [shard.build]
 # The build host's own checks: the trees of every component, the compile records, the zlib tarball.
 files = ["tests/checks/test_v1_5_rebuild_from_pins.py", "tests/unit/test_pins.py"]
-# One check by node id: 071's CLI check needs the wasmtime CLI only the build host unpacks; its
-# file stays in own-guest (the confirmation's D1; a node id kept, so nothing is retired).
-nodes = ["tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli"]
+# Checks by node id: 071's CLI check needs the wasmtime CLI only the build host unpacks; its
+# file stays in own-guest (the confirmation's D1; a node id kept, so nothing is retired). 044's
+# notice check reads the pinned sdist, which only the build host has.
+nodes = [
+  "tests/checks/test_v1_2_hostile_guest.py::test_recursion_raises_under_the_wasmtime_cli",
+  "tests/checks/test_v1_1_artifact_set.py::test_scikit_learn_notice_carries_its_bundled_parts",
+]
 systems = ["build"]
 
 [shard.own-embedding]

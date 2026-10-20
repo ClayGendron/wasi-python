@@ -1,0 +1,17 @@
+# Per-file force-includes for scikit-learn's compile (spec 044, Decision 6), read by scripts/wasi-cc
+# when step 58 points WASI_CC_FILE_INCLUDES at the copy it renders into build/sklearn-build. Step 58
+# replaces @ROOT@ (the repository) and @SO@ (the extension modules' suffix,
+# .cpython-<tag>-wasm32-wasi.so). One entry per line: a suffix of the compiled source's path and the
+# header that compile gets as `-include` (spec 037's form; each matches one compile). A Cython
+# module's source is the C or C++ file meson generates in the module's private folder,
+# <module>@SO@.p/; two pairs of modules share a file name (_gradient_boosting.c, _utils.c), so those
+# entries name the folder. Step 58 checks the log: each entry matched exactly one compile.
+sklearn/_cyutility.c @ROOT@/recipes/sklearn-renames/cyutility.h
+/_hist_gradient_boosting/_gradient_boosting@SO@.p/_gradient_boosting.c @ROOT@/recipes/sklearn-renames/hgb_gradient_boosting.h
+/_hdbscan/_tree@SO@.p/_tree.c @ROOT@/recipes/sklearn-renames/hdbscan_tree.h
+/manifold/_utils@SO@.p/_utils.c @ROOT@/recipes/sklearn-renames/manifold_utils.h
+/svm/_libsvm_sparse@SO@.p/_libsvm_sparse.c @ROOT@/recipes/sklearn-renames/svm_libsvm_sparse.h
+/svm/_liblinear@SO@.p/_liblinear.c @ROOT@/recipes/sklearn-renames/svm_liblinear.h
+/svm/src/liblinear/linear.cpp @ROOT@/recipes/sklearn-renames/svm_liblinear.h
+/svm/src/libsvm/libsvm_template.cpp @ROOT@/recipes/sklearn-renames/svm_libsvm_template.h
+/svm/_newrand@SO@.p/_newrand.cpp @ROOT@/recipes/sklearn-renames/svm_newrand.h

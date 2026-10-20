@@ -20,9 +20,9 @@ directories and host functions you hand it.
 
 | artifact | what it is |
 |---|---|
-| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, scipy (with OpenBLAS), matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
+| `python.wasm` | a WASI reactor: CPython plus numpy, pandas, scipy (with OpenBLAS), scikit-learn's compiled modules, matplotlib's compiled modules (with FreeType, HarfBuzz, SheenBidi, libraqm and qhull), Pillow's core, kiwisolver, contourpy, lxml's `etree` and `objectify` (with libxml2 and libxslt), regex's `_regex`, zlib, bz2, lzma, sqlite3, the `host` door; `_initialize`, then one `run` per instance |
 | `python-snapshot.wasm` | the same binary after a Wizer snapshot: the interpreter started and the stdlib's bootstrap modules imported, no package (decision 34); one `run` per instance, about 14 ms |
-| `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
+| `python-stdlib.zip` | the stdlib plus numpy, pandas, scipy, scikit-learn (with its six bundled datasets), matplotlib (its data as one inner archive), Pillow, kiwisolver, contourpy, lxml, regex, fontTools, cycler, pyparsing, packaging, python-dateutil, tzdata, six, the default profile's thirty pure-Python packages (Excel, PDF, HTML and XML, YAML, TOML and templates, graphs and model formulas, sympy, and utilities; see *What the default profile carries*), and `host`, the tool protocol's guest package, as a deflated zip |
 | `MANIFEST`, `SHA256SUMS` | every pinned source, every supported build host's toolchain, and every recipe hash |
 
 Published as GitHub release assets (xz, 6 to 22 MB) and as the `wasi-python`
@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 21, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 22, each with an upstream pull request drafted for the owner to send, or, for matplotlib's enum fix, qhull's format strings, two of OpenBLAS's, kiwisolver's `tp_clear` fix and lxml's `fake_cython` line, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 84.8 MB / 89.5 MB / 44.4 MB (3.15 line, with scipy and OpenBLAS (spec 037), matplotlib (contourpy and `_qhull` since spec 043), lxml, regex and tier A's thirty pure-Python packages, no package pre-imported, wasi-sdk 34; spec 037's landing notes; 42.3 MB / 46.5 MB / 38.8 MB before scipy) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -271,6 +271,45 @@ nothing writable.
   initializes; on the snapshot that ran at build time, so they do nothing there. OpenBLAS runs on
   one thread either way, and maps a 16 MiB buffer at its first level-3 call.
 
+### scikit-learn in the guest
+
+scikit-learn 1.9.1 is built in (spec 044): every public submodule. Its 69 compiled modules are
+builtins; its Python package and its six bundled datasets are in the zip. A golden job
+(`machine_learning`) prints native scikit-learn's answers at the same pin: trees, forests,
+logistic and linear regression, SVMs, k-means, PCA, nearest neighbours, gradient boosting,
+pipelines over pandas frames, TF-IDF, and a fitted model through `joblib.dump` and `load`. One
+carried patch lets it read its HTML representation's style sheets from the zip, where they are
+not files (`recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch`; without
+it `import sklearn` fails). What differs from native:
+
+- **Serial, with the same answers.** There is no OpenMP in the build (wasi-sdk has no runtime, and
+  the guest no threads), so every `n_threads` is 1 and `_openmp_parallelism_enabled()` is
+  `False`. Every `n_jobs` runs in the calling thread: joblib finds no `_multiprocessing`, so
+  `effective_n_jobs` is 1, and `n_jobs=-1` gives `n_jobs=1`'s result. `threadpoolctl` finds no
+  pool to limit.
+- **The datasets that download are absent with the network.** `sklearn.datasets.fetch_*`
+  (OpenML, California housing, 20 newsgroups and the rest) fail, in one of two ways. With no
+  root (the default) there is no `HOME`, so the cache folder `~/scikit_learn_data` cannot be made
+  and they raise `FileNotFoundError` on `'~'` before any network call. With a root
+  (`root=True`), the folder is made under the runner's `HOME` and the download raises
+  `URLError: unknown url type: https`.
+- **The two sample photographs are left out**: `load_sample_image` and `load_sample_images`
+  raise `ModuleNotFoundError: No module named 'sklearn.datasets.images'`. The guest has no JPEG
+  decoder to read them.
+- **A pipeline's `memory=` cache and `joblib.Memory`** need a writable folder, as joblib does.
+- **Index arrays are 32-bit**: `np.intp` is 32 bits on wasm32, so the `int64` index arrays a
+  native build makes are `int32` here. Results do not depend on it; a printed dtype does.
+
+**The bundled datasets, their sources and terms** (the attribution is also in
+`LICENSES/scikit-learn.txt`): `load_digits` (Optical Recognition of Handwritten Digits, E.
+Alpaydin), `load_breast_cancer` (Breast Cancer Wisconsin (Diagnostic), W. H. Wolberg, W. N.
+Street, O. L. Mangasarian) and `load_wine` (Wine, M. Forina et al.) are copies of datasets the UCI
+Machine Learning Repository publishes under CC BY 4.0
+(<https://archive.ics.uci.edu/dataset/80>, `/dataset/17`, `/dataset/109`), shipped unchanged from
+scikit-learn 1.9.1's copy. `load_iris` is taken from R. A. Fisher's 1936 paper. `load_diabetes`
+(Efron, Hastie, Johnstone and Tibshirani, 2004) and `load_linnerud` (Tenenhaus, 1998) state no
+terms. Each loader's `DESCR` carries the full citation.
+
 ### matplotlib in the guest
 
 matplotlib 3.11.2 is built in, on the Agg backend (spec 023):
@@ -489,19 +528,19 @@ without it is not built unless an embedder needs one.
 ## How it is built
 
 One command, from pinned inputs; the source trees are their tarballs plus the
-recorded patches (`recipes/patches/`: twenty-one today, numpy's `.npy` fix and its callback
+recorded patches (`recipes/patches/`: twenty-two today, numpy's `.npy` fix and its callback
 signatures, matplotlib's enum fix from upstream and its qhull error stream without `/dev/null`,
 Pillow's, kiwisolver's and regex's callback signatures and scipy's uarray ones, kiwisolver's
 `tp_clear` fix from upstream, scipy's import of one linalg module moved where it raises, scipy's
 Matrix Market read and written serially and its Sobol direction numbers read without a temporary
-file, regex's timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates and
-networkx's graph atlas read from a zip, qhull's format strings from upstream, lxml's
-`fake_cython` line from upstream, and OpenBLAS's three: its C LAPACK's subroutines all `void`, as
-its `develop` branch has them):
+file, regex's timeout ticks, libxml2's file input without `dup()`, pandas' Styler templates,
+networkx's graph atlas and scikit-learn's style sheets read from a zip, qhull's format strings
+from upstream, lxml's `fake_cython` line from upstream, and OpenBLAS's three: its C LAPACK's
+subroutines all `void`, as its `develop` branch has them):
 
 ```
 scripts/00_download.sh   # fetch every pin and verify it against downloads/SHA256SUMS
-scripts/build.sh         # a preflight, eighteen steps with one line each, a summary; logs in build/logs/
+scripts/build.sh         # a preflight, nineteen steps with one line each, a summary; logs in build/logs/
 ```
 
 `scripts/build.sh` first runs a preflight: the build host's key, the host tools
@@ -2116,8 +2155,9 @@ guest's file on the host.
 
 ## What the default profile carries
 
-Besides the stdlib, numpy 2.5.2, pandas 3.0.6, matplotlib 3.11.2 (with Pillow, kiwisolver,
-fontTools, cycler, pyparsing and packaging), lxml 6.1.3 and regex, the zip carries thirty
+Besides the stdlib, numpy 2.5.2, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1 (see
+*scikit-learn in the guest*), matplotlib 3.11.2 (with Pillow, kiwisolver, fontTools, cycler,
+pyparsing and packaging), lxml 6.1.3 and regex, the zip carries thirty
 pure-Python packages (spec 039), in seven families. Each family has a golden job whose output
 equals native Python's at the same pins.
 

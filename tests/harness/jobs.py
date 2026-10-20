@@ -59,6 +59,8 @@ JOBS = (
     "scipy_lapack",
     # scipy's second milestone: the sandbox's edges (spec 038, Decision 5)
     "scipy_edges",
+    # scikit-learn (spec 044, Decision 13)
+    "machine_learning",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -67,7 +69,8 @@ JOBS = (
 # a figure's RGBA buffer and its SVG and PDF bytes, so it is bound in the same way.
 # The scipy jobs too (spec 037, Decision 15): the oracle's scipy is pinned to scipy-openblas on
 # macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ (spec 038's
-# edges job too).
+# edges job too). And scikit-learn's (spec 044, Decision 13): PCA and the linear models reach
+# LAPACK through scipy.
 PLATFORM_BOUND = (
     "plot_line",
     "plot_contour",
@@ -75,6 +78,7 @@ PLATFORM_BOUND = (
     "scipy_solvers",
     "scipy_lapack",
     "scipy_edges",
+    "machine_learning",
 )
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
@@ -223,6 +227,10 @@ def oracle_env(seed: int | None = None) -> dict[str, str]:
     # One BLAS thread, so the oracle's sums are taken in one order (spec 037, Decision 15).
     env["OPENBLAS_NUM_THREADS"] = "1"
     env["VECLIB_MAXIMUM_THREADS"] = "1"
+    # One OpenMP thread: the native scikit-learn wheel has OpenMP, the guest has none, and one
+    # thread takes its sums in one order (spec 044, Decision 13; a guard: the draft's output was the
+    # same without it).
+    env["OMP_NUM_THREADS"] = "1"
     if seed is not None:
         env["PYTHONHASHSEED"] = str(seed)
     return env

@@ -89,6 +89,9 @@ PACKAGES = {
     # scipy (spec 037): the package, and OpenBLAS, whose C LAPACK is the LAPACK, linked in.
     "scipy": "1.18.1",
     "openblas": "0.3.34",
+    # scikit-learn (spec 044): the package, its bundled C and C++ (libsvm, liblinear, MurmurHash3)
+    # and vendored Python, under its notice.
+    "scikit-learn": "1.9.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -227,6 +230,85 @@ SCIPY_HEAD_NOTICES = (
     ("scipy/interpolate/_bary_rational.py", ("Chebfun Developers", "Redistribution")),
     ("scipy/integrate/_lebedev.py", ("getLebedevSphere", "Redistribution")),
 )
+# scikit-learn's terms (spec 044, Decision 11): its licence, then each bundled component's notice,
+# labelled with its path in the sdist. Comments do not survive compilation to .pyc, so these parts
+# are where the zip's users meet the notices of the vendored Python. A file's licence file is taken
+# whole; a notice inside a source file is its exact lines, which must hold the words given, so an
+# upstream change that moves it stops the build. (path, first line, last line, words.)
+SKLEARN_TOP = "scikit_learn-1.9.1"
+SKLEARN_FILES = (
+    "COPYING",
+    "sklearn/svm/src/liblinear/COPYRIGHT",
+    "sklearn/externals/array_api_compat/LICENSE",
+    "sklearn/externals/array_api_extra/LICENSE",
+)
+SKLEARN_LINES = (
+    # libsvm's BSD-3-Clause-style notice, the comment that opens svm.cpp
+    (
+        "sklearn/svm/src/libsvm/svm.cpp",
+        1,
+        32,
+        ("Chih-Chung Chang and Chih-Jen Lin", "Redistribution"),
+    ),
+    # liac-arff (MIT)
+    (
+        "sklearn/externals/_arff.py",
+        1,
+        25,
+        ("Renato de Pontes Pereira", "Permission is hereby granted"),
+    ),
+    # packaging's two modules (BSD-2-Clause)
+    ("sklearn/externals/_packaging/version.py", 4, 26, ("Donald Stufft", "Redistribution")),
+    ("sklearn/externals/_packaging/_structures.py", 4, 26, ("Donald Stufft", "Redistribution")),
+    # MurmurHash3's public-domain statement
+    ("sklearn/utils/src/MurmurHash3.cpp", 2, 3, ("Austin Appleby", "placed in the public")),
+    # CPython's pprint, adapted: the PSF licence in full and the summary of changes it asks for
+    ("sklearn/utils/_pprint.py", 7, 67, ("Python Software Foundation", "summary of changes")),
+    # the pytest-derived lines of a module that ships (it is not under tests/)
+    ("sklearn/utils/_testing.py", 575, 577, ("derived from pytest", "MIT License")),
+    # HDBSCAN's code, from Leland McInnes' hdbscan (BSD-3-Clause): the five files of
+    # cluster/_hdbscan/ carry its terms, and _tree.pxd its notice whole (the build's notice sweep)
+    ("sklearn/cluster/_hdbscan/_tree.pxd", 1, 28, ("Leland McInnes", "Redistribution")),
+    # StratifiedGroupKFold's fold assignment, based on a Kaggle kernel under Apache-2.0, with the
+    # list of changes Apache-2.0 4(b) asks for (the build's notice sweep); the licence text follows
+    ("sklearn/model_selection/_split.py", 1001, 1015, ("kaggle", "Apache 2.0 License")),
+)
+# Two adaptations whose source files carry no notice: the projects' own licence texts, pinned.
+SKLEARN_PINNED = (
+    ("numpydoc-894c8c47-LICENSE.txt", "numpydoc, for sklearn/externals/_numpydoc/docscrape.py"),
+    ("django-1dae4ac1-LICENSE", "django, for the slugify adaptation in sklearn/datasets/_base.py"),
+)
+# The six bundled datasets: three are copies of sets UCI publishes under CC BY 4.0, which asks for
+# this attribution (decision on question 83).
+SKLEARN_DATA = """\
+scikit-learn 1.9.1 bundles six datasets (sklearn/datasets/data/), each with a description
+(sklearn/datasets/descr/), which a loader's DESCR returns and which carries the full citation.
+This release packs them unchanged from scikit-learn 1.9.1's copy.
+
+Three are copies of datasets the UCI Machine Learning Repository publishes under the Creative
+Commons Attribution 4.0 International licence (CC BY 4.0,
+https://creativecommons.org/licenses/by/4.0/):
+
+- Optical Recognition of Handwritten Digits (load_digits, its test set). Creator: E. Alpaydin, as
+  descr/digits.rst cites. Source: https://archive.ics.uci.edu/dataset/80. Licence: CC BY 4.0.
+  Unchanged from scikit-learn 1.9.1's copy.
+- Breast Cancer Wisconsin (Diagnostic) (load_breast_cancer). Creators: W. H. Wolberg, W. N.
+  Street, O. L. Mangasarian, as descr/breast_cancer.rst cites. Source:
+  https://archive.ics.uci.edu/dataset/17. Licence: CC BY 4.0. Unchanged from scikit-learn 1.9.1's
+  copy.
+- Wine (load_wine). Original owners: M. Forina et al., PARVUS, as descr/wine_data.rst cites.
+  Source: https://archive.ics.uci.edu/dataset/109. Licence: CC BY 4.0. Unchanged from scikit-learn
+  1.9.1's copy.
+
+Iris (load_iris) is taken from R. A. Fisher, "The use of multiple measurements in taxonomic
+problems", Annual Eugenics 7, Part II, 179-188 (1936), as descr/iris.rst says; UCI's copy
+(https://archive.ics.uci.edu/dataset/53, CC BY 4.0) differs from it in two points.
+
+Diabetes (load_diabetes; B. Efron, T. Hastie, I. Johnstone and R. Tibshirani, 2004) and Linnerud
+(load_linnerud; M. Tenenhaus, 1998) state no terms.
+
+The two sample photographs of sklearn/datasets/images/ (CC BY 2.0) are not in this release.
+"""
 # OpenBLAS's terms: its own licence and Reference-LAPACK's, whose C translation it carries.
 OPENBLAS_NOTICES = ("LICENSE", "lapack-netlib/LICENSE")
 # What each carried patch to an Apache-2.0 file changes, for the notice Apache-2.0 §4(b) asks of
@@ -418,6 +500,41 @@ def scipy_head_notice(tree: Path, rel: str, words: tuple[str, ...]) -> bytes:
     return hash_notice(path, words) if rel.endswith(".py") else head_notice(path, words)
 
 
+def lines_notice(path: Path, first: int, last: int, words: tuple[str, ...]) -> bytes:
+    """Lines first to last (counted from 1) of a source file, which must hold every one of
+    `words`."""
+    if not path.is_file():
+        raise SystemExit(f"{path.name} is missing: its licence notice cannot be read")
+    lines = path.read_text(encoding="utf-8").splitlines()[first - 1 : last]
+    text = "\n".join(lines) + "\n"
+    if len(lines) != last - first + 1 or not all(w in text for w in words):
+        raise SystemExit(
+            f"{path.name}: lines {first}-{last} no longer hold the notice {words[0]!r}"
+        )
+    return text.encode()
+
+
+def sklearn_parts(tree: Path, d: Path) -> list[tuple[str, bytes]]:
+    """LICENSES/scikit-learn.txt's parts, in order (spec 044, Decision 11)."""
+    parts = [(f"scikit-learn {n}", (tree / n).read_bytes()) for n in SKLEARN_FILES]
+    parts += [
+        (f"scikit-learn {n}, lines {a}-{b}", lines_notice(tree / n, a, b, words))
+        for n, a, b, words in SKLEARN_LINES
+    ]
+    parts += [(f"{what} ({name})", pinned_bytes(d, name)) for name, what in SKLEARN_PINNED]
+    apache = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-APACHE"  # the plain Apache-2.0 text
+    parts.append(
+        (
+            f"Apache License 2.0, the full text, for sklearn/model_selection/_split.py ({apache})",
+            pinned_bytes(d, apache),
+        )
+    )
+    parts.append(
+        ("scikit-learn's bundled datasets: their sources and terms", SKLEARN_DATA.encode())
+    )
+    return parts
+
+
 def modified_notice(root: Path, top: str) -> bytes:
     """One line per carried patch of a tree: the files it changes, read from the patch itself,
     the patch's path and what it does; then that the rest is compiled as released."""
@@ -484,9 +601,7 @@ def main() -> None:
         "zlib": [("zlib LICENSE", (b / "zlib-1.3.1" / "LICENSE").read_bytes())],
         "bzip2": [("bzip2 LICENSE", (b / "bzip2-1.0.8" / "LICENSE").read_bytes())],
         # Only liblzma is linked, and its files are 0BSD (COPYING says which parts are which).
-        "xz": [
-            (f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")
-        ],
+        "xz": [(f"xz {n}", (b / "xz-5.8.4" / n).read_bytes()) for n in ("COPYING", "COPYING.0BSD")],
         "sqlite": [("SQLite sqlite3.h, its header comment", sqlite_notice(b))],
         # spec 023, Decision 9: FreeType's BDF and PCF drivers are built, so their notices ship.
         "freetype": [
@@ -537,6 +652,7 @@ def main() -> None:
         "openblas": [
             (f"OpenBLAS {n}", (b / "OpenBLAS-0.3.34" / n).read_bytes()) for n in OPENBLAS_NOTICES
         ],
+        "scikit-learn": sklearn_parts(b / SKLEARN_TOP, d),
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
         # spec 039, Decision 8: the sdists' notices from their trees
         "pyyaml": [("PyYAML LICENSE", (b / "pyyaml-6.0.3" / "LICENSE").read_bytes())],

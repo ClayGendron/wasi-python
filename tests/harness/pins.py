@@ -54,6 +54,8 @@ SOURCE_PATTERNS = {
     # scipy (spec 037): OpenBLAS, whose C LAPACK is the LAPACK, and the package
     "openblas": re.compile(r"OpenBLAS-[\w.]+\.tar\.gz"),
     "scipy": re.compile(r"scipy-[\w.]+\.tar\.gz"),
+    # scikit-learn (spec 044)
+    "scikit_learn": re.compile(r"scikit_learn-[\w.]+\.tar\.gz"),
 }
 
 

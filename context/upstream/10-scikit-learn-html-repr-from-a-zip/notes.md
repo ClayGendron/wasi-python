@@ -2,7 +2,7 @@
 
 Status: **patch drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's,
 in the owner's words** (scikit-learn's automated contributions policy, see `pr.md`). Nothing was
-posted. Carried by spec 044 once built.
+posted. Carried by spec 044 (`recipes/patches/scikit_learn-1.9.1/`).
 
 ## How it was found
 
@@ -11,6 +11,15 @@ loaded by name (a model of the guest's import path, `evidence/zip_hybrid.py`), a
 sklearn` failed at the style sheets.
 
 ## The fix
+
+Carried since spec 044's build began (2026-10-20, branch `spec/044-scikit-learn`): `fix.patch` was
+copied byte for byte (`cmp`) to
+`recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` and removed from this
+folder, and `pr.md` (a facts sheet, question 80's answer) moved unchanged to
+`context/upstream/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.md`. It applies to
+the pinned sdist with `git apply --check` and `patch --dry-run`, no offset (EXECUTED by the
+builder). This folder keeps these notes and `evidence/`; the `fix.patch` named below is now that
+carried file.
 
 When spec 044 is built, `fix.patch` is copied byte for byte to
 `recipes/patches/scikit_learn-1.9.1/0001-html-repr-styles-from-a-zip.patch` and removed from this

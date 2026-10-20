@@ -1,0 +1,16 @@
+# Weak definitions that more than one archive of python.wasm's link defines, each read by a review
+# and allowed (spec 044, Decision 6; scripts/weak_duplicates.py, run by step 60 before the link).
+#
+# One fnmatch pattern per line, matched against the symbol's name and its demangled form; `#`
+# starts a comment. Each entry says which archives define it, why their copies are the same code
+# (one header, one pinned version, no state of its own), and the specification that added it. A
+# pattern that matches no weak definition of the link stops the build, so this list never outlives
+# what it allows.
+#
+# Allowed by rule, never listed here: the C++ standard library (mangled names in std::, with their
+# vtables, type information and guard variables), the C++ runtime's __cxa_* and __cxxabiv1::, and
+# clang's __clang_call_terminate.
+#
+# Never to be listed: a weak definition with C linkage that reads or writes state of its own file,
+# as scikit-learn's bounded_rand_int does (svm/src/newrand/newrand.h); such a name is renamed per
+# file instead (recipes/sklearn-renames/).
