@@ -114,6 +114,10 @@ LICENCE_COMPONENTS = (
     "openblas",
     # scikit-learn (spec 044, Decision 11)
     "scikit-learn",
+    # seaborn and reportlab (spec 042, Decision 7): seaborn's notice carries its five vendored
+    # licences, reportlab's its three third-party parts (their own checks hold both)
+    "seaborn",
+    "reportlab",
 )
 # SQLite's package line is named as its pin names it (sqlite-autoconf 3540100 is SQLite 3.54.1).
 PACKAGES = (
@@ -178,6 +182,8 @@ PACKAGES = (
     "scipy",
     "openblas",
     "scikit-learn",
+    "seaborn",  # spec 042
+    "reportlab",
 )
 
 # What the snapshot pre-imports (recipes/reactor_main.c, PREIMPORT): the stdlib's bootstrap, no

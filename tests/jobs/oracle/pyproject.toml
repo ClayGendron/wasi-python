@@ -70,6 +70,11 @@ dependencies = [
     # macosx_12_0, calls BLAS only through the scipy above. Its wheels have OpenMP; the oracle runs
     # one thread (tests/harness/jobs.py, OMP_NUM_THREADS).
     "scikit-learn==1.9.1",
+    # seaborn and reportlab at the guest's pins (spec 042, Decision 10): both pure wheels, so
+    # nothing is built on the host. seaborn's wheel holds the package its sdist (the guest's pin)
+    # holds, byte for byte; reportlab's keeps its fonts natively, which neither job uses.
+    "seaborn==0.13.2",
+    "reportlab==5.0.1",
 ]
 
 [tool.uv.sources]

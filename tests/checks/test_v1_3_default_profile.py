@@ -10,6 +10,8 @@ sandbox lacks raised by name."""
 from __future__ import annotations
 
 import json
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -21,8 +23,8 @@ BINARY = pytest.mark.parametrize("which", ["plain", "snapshot"])
 FAMILIES = ("excel", "pdf", "markup", "text_formats", "modelling", "symbolic", "utilities")
 
 
-def _job(guest, job: str) -> None:
-    why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.run_in_guest(guest, job))
+def _job(guest, job: str, **kw) -> None:
+    why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.run_in_guest(guest, job, **kw))
     assert why is None, f"{job}: {why}"
 
 
@@ -80,6 +82,28 @@ def test_utilities_job_matches_native(guest) -> None:
     """attrs, more-itertools, toolz, tqdm, typing_extensions, joblib (serial), cloudpickle and
     narwhals over pandas."""
     _job(guest, "utilities")
+
+
+# seaborn imports matplotlib.pyplot, which needs a writable cache folder; both jobs read
+# matplotlib's data (its fonts, DejaVu Sans for reportlab) from its grant (spec 042, Decision 8).
+MPL = {"env": {"MPLCONFIGDIR": "/mplconfig"}, "mpl_data": True}
+
+
+@pytest.mark.slow
+def test_statistical_plots_job_matches_native(guest) -> None:
+    """seaborn's relational, distribution, categorical, grid, matrix and objects plots, each
+    figure's RGBA buffer (and its SVG when it holds no raster) equal to the oracle's, and its
+    regression, kernel densities, violins and clustering as text at nine digits (recorded on the
+    platform tests/jobs/statistical_plots.platform names; spec 042, Decision 10)."""
+    _job(guest, "statistical_plots", **MPL)
+
+
+@pytest.mark.slow
+def test_pdf_reports_job_matches_native(guest) -> None:
+    """reportlab's canvas, platypus, charts through renderPDF and renderSVG, renderPM's error,
+    Unicode text in DejaVu Sans and a matplotlib image, each PDF's bytes (built invariant and
+    uncompressed) or pypdf's read-back equal to the oracle's (spec 042, Decision 10)."""
+    _job(guest, "pdf_reports", **MPL)
 
 
 PURE = """
@@ -222,6 +246,127 @@ attempt("nx.graph_atlas_g()", lambda: nx.graph_atlas_g())
 print(json.dumps(findings))
 """
 )
+
+
+REPORTLAB = """
+import io, json, zipfile
+out = {}
+try:
+    import _rl_accel
+    out["_rl_accel"] = "imported"
+except ModuleNotFoundError:
+    out["_rl_accel"] = "ModuleNotFoundError"
+from reportlab.lib import rl_accel
+out["c funcs"] = sorted(rl_accel._c_funcs)
+out["py funcs"] = sorted(rl_accel._py_funcs)
+from reportlab.graphics import renderPM
+from reportlab.graphics.shapes import Drawing
+try:
+    renderPM.drawToString(Drawing(10, 10), fmt="PNG")
+    out["renderPM"] = "drew"
+except Exception as e:
+    out["renderPM"] = [type(e).__name__, "rlPyCairo" in str(e)]
+with zipfile.ZipFile("/usr/local/lib/python315.zip") as z:
+    out["font members"] = [n for n in z.namelist() if n.startswith("reportlab/fonts/")]
+from reportlab.pdfbase.ttfonts import TTFError, TTFont
+try:
+    TTFont("Vera", "Vera.ttf")
+    out["Vera"] = "registered"
+except TTFError:
+    out["Vera"] = "TTFError"
+try:
+    from reportlab.graphics.barcode import qr
+    out["qr"] = "imported"
+except ModuleNotFoundError:
+    out["qr"] = "ModuleNotFoundError"
+from reportlab.pdfgen import canvas
+buf = io.BytesIO()
+c = canvas.Canvas(buf, invariant=1)
+c.drawString(72, 72, "pure")
+c.save()
+out["pdf"] = buf.getvalue()[:5].decode()
+print(json.dumps(out))
+"""
+RL_ACCEL = [
+    "add32",
+    "asciiBase85Decode",
+    "asciiBase85Encode",
+    "calcChecksum",
+    "escapePDF",
+    "fp_str",
+    "hex32",
+    "instanceStringWidthT1",
+    "instanceStringWidthTTF",
+    "sameFrag",
+    "unicode2T1",
+]
+
+
+@BINARY
+def test_reportlab_runs_its_pure_paths(guest, which) -> None:
+    """reportlab runs without `_rl_accel` (all eleven of its functions are the Python ones), has
+    no bitmap renderer (renderPM needs rlPyCairo), has no fonts of its own in the zip (bundled
+    `Vera.ttf` raises TTFError), has no barcode modules while the leave-out stands, and writes a
+    PDF in memory (spec 042, Decisions 3, 4 and 4a)."""
+    r = guest(which, ["-c", REPORTLAB])
+    assert r.exit_code == 0, r.describe()
+    want = {
+        "_rl_accel": "ModuleNotFoundError",
+        "c funcs": [],
+        "py funcs": RL_ACCEL,
+        "renderPM": ["RenderPMError", True],
+        "font members": [],
+        "Vera": "TTFError",
+        "qr": "ModuleNotFoundError",
+        "pdf": "%PDF-",
+    }
+    assert json.loads(r.text) == want
+
+
+SCIPY_PATHS = """
+import json
+import seaborn, seaborn.matrix, seaborn._statistics
+print(json.dumps({
+    "matrix._no_scipy": seaborn.matrix._no_scipy,
+    "_statistics._no_scipy": seaborn._statistics._no_scipy,
+    "gaussian_kde": seaborn._statistics.gaussian_kde.__module__,
+}))
+"""
+LOAD_DATASET = """
+import seaborn
+try:
+    seaborn.load_dataset("tips")
+    print("loaded")
+except Exception as e:
+    print(type(e).__name__, repr(getattr(e, "filename", None)))
+"""
+
+
+@BINARY
+def test_seaborn_takes_its_scipy_paths(guest, guest_workdir, which) -> None:
+    """seaborn takes scipy's paths, not its own copies: `_no_scipy` is False in `matrix` and
+    `_statistics`, and its kernel density is scipy's `gaussian_kde`; it catches only ImportError,
+    so a scipy that failed to import would leave it on its copies silently (the pre-build
+    review's finding 2). And `load_dataset`, with only a writable cache grant (the README's
+    set-up), raises PermissionError naming '~' (seaborn makes its cache folder under a `~` the
+    guest cannot expand) before any fetch (finding 3; spec 042, Decisions 3 and 8)."""
+    needs.need("runner")
+    import wasi_python
+
+    r = guest(which, ["-c", SCIPY_PATHS], **MPL)
+    assert r.exit_code == 0, r.describe()
+    got = json.loads(r.text)
+    assert got["matrix._no_scipy"] is False and got["_statistics._no_scipy"] is False, got
+    assert got["gaussian_kde"].startswith("scipy."), got
+
+    cfg = Path(tempfile.mkdtemp(prefix="seaborn-cfg-", dir=guest_workdir))
+    done = wasi_python.run(
+        ["-c", LOAD_DATASET],
+        grants=[wasi_python.Grant(cfg, "/cfg", writable=True)],
+        env={"MPLCONFIGDIR": "/cfg"},
+        snapshot=which == "snapshot",
+    )
+    assert (done.exit_code, done.stdout) == (0, b"PermissionError '~'\n"), done
 
 
 @BINARY

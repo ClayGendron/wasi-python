@@ -81,6 +81,23 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   (`bytes()` and `memoryview()` of it raise `OSError`). Nothing has an address: `byref`,
   `pointer`, `addressof`, typed pointers, strings, structures and every library load still raise
   `OSError`, and `-V` still says "no ctypes".
+
+- **Added: seaborn 0.13.2 and reportlab 5.0.1** (spec 042; the owner's decision 43), pure
+  Python, with native Python's output on two golden jobs: seaborn's relational, distribution,
+  categorical, grid, matrix and `seaborn.objects` plots, its regression, kernel densities,
+  violins and clustering (through scipy, whose import `import seaborn` now pays); reportlab's
+  canvas and platypus PDFs, charts through `renderPDF` and `renderSVG`, Unicode text and images.
+  seaborn comes from its sdist, whose `licences/` folder holds the notices of the five pieces of
+  code it vendors; `LICENSES/seaborn.txt` carries them. reportlab is its wheel, **without its
+  fonts** (their licences are not approved, and reportlab cannot read its own files from a zip
+  on any Python from 3.13; for Unicode text register DejaVu Sans from `matplotlib.get_data_path()`)
+  and, until a later change ships it, **without its barcode folder**. `LICENSES/reportlab.txt`
+  carries the third-party notices its code holds only as comments: Tyler C. Sarna's (the barcode
+  modules), Adobe's (the glyph list) and the QR encoder's with the MIT text. reportlab writes
+  PDFs in memory with nothing writable (`invariant=1` for repeatable bytes); `renderPM` raises
+  `RenderPMError` (no rlPyCairo). seaborn needs a writable `MPLCONFIGDIR`, as matplotlib does;
+  `sns.load_dataset` cannot fetch, and with a writable root it first makes a folder named `~`
+  there (`/~/.cache/seaborn`): read a granted CSV with `pd.read_csv` instead.
 - **The judge: spec 084's read-only removal rows are blocked on Windows by a named need** (spec
   094). A Windows guest deletes a read-only file itself (084's C2, settled by wave 01's dry run),
   so the rows that check a removal keeps such a file now name the need `read-only files`, unmet on

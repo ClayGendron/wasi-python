@@ -8,6 +8,7 @@ renamed to build/artifacts/ only when complete.
 from __future__ import annotations
 
 import hashlib
+import io
 import os
 import re
 import shutil
@@ -92,6 +93,9 @@ PACKAGES = {
     # scikit-learn (spec 044): the package, its bundled C and C++ (libsvm, liblinear, MurmurHash3)
     # and vendored Python, under its notice.
     "scikit-learn": "1.9.1",
+    # seaborn and reportlab (spec 042): pure Python, seaborn from its sdist, reportlab its wheel
+    "seaborn": "0.13.2",
+    "reportlab": "5.0.1",
 }
 WHEELS = {
     "python-dateutil": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -132,6 +136,7 @@ WHEELS = {
     "cloudpickle": "cloudpickle-3.1.2-py3-none-any.whl",
     "threadpoolctl": "threadpoolctl-3.7.0-py3-none-any.whl",
     "narwhals": "narwhals-2.27.1-py3-none-any.whl",
+    "reportlab": "reportlab-5.0.1-py3-none-any.whl",  # spec 042; its other parts are below
 }
 # The Unicode data terms of HarfBuzz's tables, pinned as a file (spec 023, Decision 9).
 UNICODE_TERMS = "unicodetools-4fd8eca9-LICENSE"
@@ -151,6 +156,9 @@ LLVM = [
     f"llvm-{LINE['LLVM_COMMIT']}-{component}-LICENSE.TXT"
     for component in ("libcxx", "libcxxabi", "libunwind", "compiler-rt")
 ]
+# wasi-libc's LICENSE-MIT, already pinned and shipped: a generic MIT text with no holder named, the
+# text reportlab's QR encoder's notice names (spec 042, Decision 7)
+MIT_TEXT = f"wasi-libc-{LINE['WASI_LIBC_COMMIT']}-LICENSE-MIT"
 RESEARCH_PINS = {"python-3.14.7-wasi_sdk-24.zip"}
 # matplotlib's notices beside its LICENSE/ folder: Agg's, compiled in, and the fonts' that travel
 # with mpl-data (the AFM files' readme must go with them; spec 023, Decision 9).
@@ -339,6 +347,42 @@ MPL_TEXT = "spdx-31ba1a50-MPL-2.0.txt"
 # where wheel_licences does not look (spec 039, Decision 8).
 SYMPY_WHEEL = "sympy-1.14.0-py3-none-any.whl"
 SYMPY_NESTED = "sympy/parsing/latex/LICENSE.txt"
+# seaborn's notice (spec 042, Decision 7): its licence, then the licences of the five pieces of code
+# it vendors in seaborn/external/ (appdirs, husl, numpydoc, packaging, scipy), from its sdist.
+SEABORN_NOTICES = (
+    "LICENSE.md",
+    "licences/APPDIRS_LICENSE",
+    "licences/HUSL_LICENSE",
+    "licences/NUMPYDOC_LICENSE",
+    "licences/PACKAGING_LICENSE",
+    "licences/SCIPY_LICENSE",
+)
+# reportlab's third-party notices (spec 042, Decisions 4a and 7), comments in its code that
+# compilation drops: each file's leading comment block, byte for byte from the pinned wheel, after
+# its wheel's LICENSE. (file, words the block must hold, what the heading says.) Sarna's notice
+# heads seven files of reportlab/graphics/barcode/, named in the heading, outside the compared bytes
+# (the pre-build review's C2); the QR encoder's names the MIT licence, whose text follows it.
+REPORTLAB_WHEEL = "reportlab-5.0.1-py3-none-any.whl"
+SARNA_FILES = ("__init__", "code128", "code39", "code93", "common", "fourstate", "usps")
+REPORTLAB_NOTICES = (
+    (
+        "reportlab/graphics/barcode/__init__.py",
+        ("Tyler C. Sarna", "This product includes software developed by Tyler C. Sarna."),
+        "Tyler C. Sarna's BSD-4-Clause notice, which heads "
+        + ", ".join(f"{n}.py" for n in SARNA_FILES[:-1])
+        + f" and {SARNA_FILES[-1]}.py in reportlab/graphics/barcode/",
+    ),
+    (
+        "reportlab/pdfbase/_glyphlist.py",
+        ("Copyright 2002-2019 Adobe", "Redistribution and use"),
+        "Adobe's BSD-3-Clause notice for the Adobe Glyph List",
+    ),
+    (
+        "reportlab/graphics/barcode/qrencoder.py",
+        ("Open End AB", "Kazuhiko Arase", "Licensed under the MIT license"),
+        "Open End AB's and Kazuhiko Arase's notice; the MIT licence it names follows",
+    ),
+)
 # The snapshot's pre-import list has one source, the recipe's #define (spec 069, Decision 3).
 PREIMPORT_RECIPE = "recipes/reactor_main.c"
 PREIMPORT_DEFINE = re.compile(r'^#define PREIMPORT "import (.*)"\s*$', re.M)
@@ -495,6 +539,38 @@ def hash_notice(path: Path, words: tuple[str, ...]) -> bytes:
     if not all(w in comment for w in words):
         raise SystemExit(f"{path.name} no longer opens with the notice {words[0]!r}")
     return comment.encode()
+
+
+def leading_comment(data: bytes, name: str, words: tuple[str, ...]) -> bytes:
+    """A Python file's leading comment block, byte for byte: its first lines that begin with `#`,
+    up to the first that does not (spec 042, Decision 7). It must hold every one of `words`."""
+    lines = []
+    for line in data.splitlines(keepends=True):
+        if not line.startswith(b"#"):
+            break
+        lines.append(line)
+    block = b"".join(lines)
+    if not all(w.encode() in block for w in words):
+        raise SystemExit(f"{name} no longer opens with the notice {words[0]!r}")
+    return block
+
+
+def reportlab_parts(d: Path) -> list[tuple[str, bytes]]:
+    """reportlab's three third-party notices from the pinned wheel, checked against its pin first,
+    and the pinned MIT text the QR encoder's notice names (spec 042, Decisions 4a and 7)."""
+    wheel = pinned_bytes(d, REPORTLAB_WHEEL)
+    parts = []
+    with zipfile.ZipFile(io.BytesIO(wheel)) as z:
+        for name, words, what in REPORTLAB_NOTICES:
+            block = leading_comment(z.read(name), name, words)
+            parts.append((f"{REPORTLAB_WHEEL}: {name}, its leading comment ({what})", block))
+    parts.append(
+        (
+            f"The MIT licence reportlab/graphics/barcode/qrencoder.py names ({MIT_TEXT})",
+            pinned_bytes(d, MIT_TEXT),
+        )
+    )
+    return parts
 
 
 def scipy_head_notice(tree: Path, rel: str, words: tuple[str, ...]) -> bytes:
@@ -663,6 +739,10 @@ def main() -> None:
         ],
         # spec 041, Decision 6: networkx from its sdist, its notice from its tree
         "networkx": [("NetworkX LICENSE.txt", (b / "networkx-3.7" / "LICENSE.txt").read_bytes())],
+        # spec 042, Decision 7: seaborn from its sdist, its licence and its five vendored ones
+        "seaborn": [
+            (f"seaborn {n}", (b / "seaborn-0.13.2" / n).read_bytes()) for n in SEABORN_NOTICES
+        ],
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],
     }
@@ -674,6 +754,7 @@ def main() -> None:
     ]
     with zipfile.ZipFile(d / SYMPY_WHEEL) as z:
         licences["sympy"].append((f"{SYMPY_WHEEL}: {SYMPY_NESTED}", z.read(SYMPY_NESTED)))
+    licences["reportlab"] += reportlab_parts(d)
     for component, parts in licences.items():
         if not parts:
             raise SystemExit(f"no licence text found for {component}")

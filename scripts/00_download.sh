@@ -173,6 +173,10 @@ get https://files.pythonhosted.org/packages/18/53/84099323c2ec4be98d935f63c033ac
 get https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl cloudpickle-3.1.2-py3-none-any.whl
 get https://files.pythonhosted.org/packages/43/3f/f88a53f60a472b46f4023f56d204dd7de33d34c5d2acbfa0d70a674e639e/threadpoolctl-3.7.0-py3-none-any.whl threadpoolctl-3.7.0-py3-none-any.whl
 get https://files.pythonhosted.org/packages/d1/89/5d4c86da1130d9059681e5b6cd7645df5c10279a6a079c5c37dcb2cc6f3f/narwhals-2.27.1-py3-none-any.whl narwhals-2.27.1-py3-none-any.whl
+# seaborn and reportlab (spec 042, Decision 2): seaborn's sdist, which holds the licences of the five
+# pieces of code it vendors (its wheel holds one licence), and reportlab's wheel; both pure Python
+get https://files.pythonhosted.org/packages/86/59/a451d7420a77ab0b98f7affa3a1d78a313d2f7281a57afb1a34bae8ab412/seaborn-0.13.2.tar.gz seaborn-0.13.2.tar.gz
+get https://files.pythonhosted.org/packages/db/cb/dacbc268cb68d0428ea2cbd85266195a9ab3e677449589ddae59bd7542ac/reportlab-5.0.1-py3-none-any.whl reportlab-5.0.1-py3-none-any.whl
 
 # Licence notices of what wasi-sdk 34 links in (its tarball carries none), at the commits its VERSION
 # names (wasi-libc 2e6fb9d8, LLVM 895aa2c8, 23.1.0)

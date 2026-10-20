@@ -4,6 +4,7 @@ good and a bad synthetic set (spec 002, criterion 7). Each returns a list of fin
 from __future__ import annotations
 
 import re
+import tarfile
 import zipfile
 from pathlib import Path
 
@@ -427,4 +428,136 @@ def sklearn_notice_errors(d: Path, tarball: Path, downloads: Path) -> list[str]:
         for w in SKLEARN_DATA_WORDS
         if w.encode() not in data
     ]
+    return errors
+
+
+# seaborn and reportlab (spec 042). reportlab's fonts are left out of the zip (their licences are
+# not approved, and reportlab cannot read them from a zip; Decision 4), and so is its barcode
+# folder until a later change ships it with Tyler C. Sarna's acknowledgement (Decision 4a). The
+# font formats of Decision 4: matplotlib's AFM files travel inside its one inner archive, so no
+# outer member name ends so.
+REPORTLAB_LEFT_OUT = ("reportlab/fonts/", "reportlab/graphics/barcode/")
+FONT_SUFFIXES = (".pfb", ".afm", ".sfd")
+# seaborn's notice (Decision 7): its sdist's licence and the five licences of the code it vendors,
+# each a part headed `seaborn <path in the sdist>`.
+SEABORN_NOTICES = (
+    "LICENSE.md",
+    "licences/APPDIRS_LICENSE",
+    "licences/HUSL_LICENSE",
+    "licences/NUMPYDOC_LICENSE",
+    "licences/PACKAGING_LICENSE",
+    "licences/SCIPY_LICENSE",
+)
+# reportlab's notice (Decisions 4a and 7): the wheel's LICENSE, then three files' leading comment
+# blocks, each a part headed `<wheel>: <path>, its leading comment (...)`, and the MIT text the QR
+# encoder's names, a part headed `... (<the pinned wasi-libc LICENSE-MIT>)`.
+REPORTLAB_NOTICES = (
+    "reportlab/graphics/barcode/__init__.py",
+    "reportlab/pdfbase/_glyphlist.py",
+    "reportlab/graphics/barcode/qrencoder.py",
+)
+SARNA_ACKNOWLEDGEMENT = b"This product includes software developed by Tyler C. Sarna."
+MIT_PIN = re.compile(r"wasi-libc-[0-9a-f]+-LICENSE-MIT")
+
+
+def reportlab_left_out_errors(names: list[str]) -> list[str]:
+    """No zip member under reportlab's fonts or barcode folder, and no font file of Decision 4's
+    formats anywhere in the zip's names (spec 042, Decisions 4 and 4a)."""
+    errors = []
+    for prefix in REPORTLAB_LEFT_OUT:
+        held = sorted(n for n in names if n.startswith(prefix))
+        if held:
+            errors.append(f"the zip holds {len(held)} members under {prefix}, the first {held[0]}")
+    fonts = sorted(n for n in names if n.lower().endswith(FONT_SUFFIXES))
+    if fonts:
+        errors.append(f"the zip holds {len(fonts)} font files, the first {fonts[0]}")
+    return errors
+
+
+def leading_comment(data: bytes) -> bytes:
+    """A Python file's leading comment block, byte for byte: its first lines that begin with `#`,
+    up to the first that does not."""
+    lines = []
+    for line in data.splitlines(keepends=True):
+        if not line.startswith(b"#"):
+            break
+        lines.append(line)
+    return b"".join(lines)
+
+
+def _as_part(data: bytes) -> bytes:
+    """A file's bytes as notice_parts gives them back: step 90 ends a part with a newline."""
+    return data if data.endswith(b"\n") else data + b"\n"
+
+
+def _parts(notice: Path) -> dict[str, bytes] | None:
+    return dict(notice_parts(notice.read_bytes())) if notice.is_file() else None
+
+
+def seaborn_notice_errors(d: Path, sdist: Path | None) -> list[str]:
+    """LICENSES/seaborn.txt holds a part headed by each of SEABORN_NOTICES; given the pinned sdist
+    (hash-checked by the caller), each part is that file of the sdist, byte for byte. Without it,
+    the headings only, as licence_errors checks presence only (spec 042, Decision 11)."""
+    parts = _parts(d / "LICENSES" / "seaborn.txt")
+    if parts is None:
+        return ["LICENSES/seaborn.txt is missing"]
+    files: dict[str, bytes] = {}
+    if sdist is not None:
+        top = sdist.name.removesuffix(".tar.gz")
+        with tarfile.open(sdist) as t:
+            for n in SEABORN_NOTICES:
+                f = t.extractfile(f"{top}/{n}")
+                files[n] = f.read() if f else b""
+    errors = []
+    for n in SEABORN_NOTICES:
+        label = f"seaborn {n}"
+        if label not in parts:
+            errors.append(f"LICENSES/seaborn.txt has no part headed {label!r}")
+        elif sdist is not None and parts[label] != _as_part(files[n]):
+            errors.append(f"LICENSES/seaborn.txt: {label!r} is not {sdist.name}'s {n}")
+    return errors
+
+
+def reportlab_notice_errors(d: Path, wheel: Path | None) -> list[str]:
+    """LICENSES/reportlab.txt holds the wheel's LICENSE and a part for each of REPORTLAB_NOTICES,
+    Sarna's with his acknowledgement sentence, and the MIT text the QR encoder's notice names,
+    whose SHA-256 is MANIFEST's pin line for it. Given the pinned wheel (hash-checked by the
+    caller), the LICENSE part is the wheel's and each comment part that file's leading comment
+    block, byte for byte; without it, the headings (spec 042, Decision 11)."""
+    m = paths.parse_manifest((d / "MANIFEST").read_text())
+    version = m.packages.get("reportlab")
+    if version is None:
+        return ["MANIFEST names no reportlab"]
+    parts = _parts(d / "LICENSES" / "reportlab.txt")
+    if parts is None:
+        return ["LICENSES/reportlab.txt is missing"]
+    name = f"reportlab-{version}-py3-none-any.whl"
+    licence = f"{name}: reportlab-{version}.dist-info/licenses/LICENSE"
+    errors = []
+    members: dict[str, bytes] = {}
+    if wheel is not None:
+        with zipfile.ZipFile(wheel) as z:
+            for n in (licence.split(": ", 1)[1], *REPORTLAB_NOTICES):
+                members[n] = z.read(n)
+    if licence not in parts:
+        errors.append(f"LICENSES/reportlab.txt has no part headed {licence!r}")
+    elif wheel is not None and parts[licence] != _as_part(members[licence.split(": ", 1)[1]]):
+        errors.append(f"LICENSES/reportlab.txt: {licence!r} is not the wheel's")
+    for n in REPORTLAB_NOTICES:
+        head = f"{name}: {n}, its leading comment"
+        found = [label for label in parts if label.startswith(head)]
+        if not found:
+            errors.append(f"LICENSES/reportlab.txt has no part headed {head!r}")
+            continue
+        data = parts[found[0]]
+        if wheel is not None and data != _as_part(leading_comment(members[n])):
+            errors.append(f"LICENSES/reportlab.txt: {n}'s part is not its leading comment")
+        if n.endswith("barcode/__init__.py") and SARNA_ACKNOWLEDGEMENT not in data:
+            errors.append(f"LICENSES/reportlab.txt: {n}'s part lacks Sarna's acknowledgement")
+    mit = sorted(f for f in m.pins if MIT_PIN.fullmatch(f))
+    if len(mit) != 1:
+        return errors + [f"MANIFEST has {len(mit)} pin lines for wasi-libc's LICENSE-MIT, not one"]
+    text = [data for label, data in parts.items() if label.endswith(f"({mit[0]})")]
+    if not text or paths.sha256_bytes(text[0]) != m.pins[mit[0]]:
+        errors.append(f"LICENSES/reportlab.txt does not hold the MIT text of {mit[0]}")
     return errors

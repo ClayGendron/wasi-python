@@ -61,6 +61,9 @@ JOBS = (
     "scipy_edges",
     # scikit-learn (spec 044, Decision 13)
     "machine_learning",
+    # seaborn's statistical plots and reportlab's PDF reports (spec 042, Decision 10)
+    "statistical_plots",
+    "pdf_reports",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
@@ -70,7 +73,9 @@ JOBS = (
 # The scipy jobs too (spec 037, Decision 15): the oracle's scipy is pinned to scipy-openblas on
 # macOS arm64, where its goldens are recorded; elsewhere its LAPACK and kernels differ (spec 038's
 # edges job too). And scikit-learn's (spec 044, Decision 13): PCA and the linear models reach
-# LAPACK through scipy.
+# LAPACK through scipy. statistical_plots (spec 042, Decision 10) prints seaborn's figures' RGBA
+# buffers and SVGs, and values from scipy's kernel densities and clustering; pdf_reports prints no
+# pixel and reproduces everywhere.
 PLATFORM_BOUND = (
     "plot_line",
     "plot_contour",
@@ -79,6 +84,7 @@ PLATFORM_BOUND = (
     "scipy_lapack",
     "scipy_edges",
     "machine_learning",
+    "statistical_plots",
 )
 DATA = {"sales.csv": paths.REPO / "fixtures" / "sales.csv"}
 # pyyaml publishes no cp315 wheel, so the oracle takes its pure tree from the pinned sdist, as the
@@ -284,12 +290,14 @@ def run_native(job: str, seed: int, workdir: Path, *, offline: bool = True) -> b
     return render(r.stdout, out)
 
 
-def run_in_guest(guest, job: str) -> bytes:
-    """One run of a job on the plain binary through the judge's guest; the rendered output."""
+def run_in_guest(guest, job: str, **kw) -> bytes:
+    """One run of a job on the plain binary through the judge's guest; the rendered output. `kw`
+    goes to the guest (a job that imports matplotlib passes its cache folder and its data grant,
+    spec 042)."""
     files = {f"/jobs/{job}.py": script(job).read_bytes()}
     files.update({f"/data/{n}": src.read_bytes() for n, src in DATA.items()})
     files["/out/.keep"] = b""
-    r = guest("plain", [f"/jobs/{job}.py", "/data", "/out"], files=files)
+    r = guest("plain", [f"/jobs/{job}.py", "/data", "/out"], files=files, **kw)
     assert r.exit_code == 0, f"{job}: {r.describe()}"
     (r.root / "out" / ".keep").unlink()
     return render(r.stdout, r.root / "out")

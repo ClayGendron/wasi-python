@@ -392,8 +392,10 @@ DISTRIBUTIONS = (
     "python-dateutil",
     "pyyaml",
     "regex",
+    "reportlab",
     "scikit-learn",
     "scipy",
+    "seaborn",
     "six",
     "soupsieve",
     "sympy",
@@ -409,7 +411,7 @@ DISTRIBUTIONS = (
     "xlsxwriter",
     "xmltodict",
 )  # specs: matplotlib and its distributions 023; lxml 046; tier A 039; contourpy 043; scipy 037;
-# scikit-learn 044
+# scikit-learn 044; seaborn and reportlab 042
 
 METADATA = """
 import json, re
