@@ -84,10 +84,9 @@ raises `OSError` `EINVAL` on a macOS host, `FileNotFoundError` on Linux, as nati
 `NotADirectoryError` (`ENOTDIR`) on Windows. The standard library is bytecode in a
 zip: tracebacks into it show no source line; `inspect.getsource`, `linecache`, `pdb` and `pydoc`
 have no source for it; `os.path.exists` of a stdlib module's `__file__` is false, and the zip's
-path cannot be listed. For now the zip lacks the build's generated `_missing_stdlib_info`, so a
-missing standard library module is named only as "Standard library module 'msvcrt' was not
-found", not as Windows-only or disabled (a one-line fix to the zip step is reserved in the
-roadmap). `sys.executable` names `/usr/local/bin/python.wasm`,
+path cannot be listed. A missing standard library module is named as natively, such as
+"Unsupported platform for Windows-only standard library module 'msvcrt'": the zip carries the
+build's generated `_missing_stdlib_info` (spec 086). `sys.executable` names `/usr/local/bin/python.wasm`,
 which the guest does not have, so `platform.libc_ver()` raises `FileNotFoundError`. The stdlib zip carries no package's
 `tests` folders and no `conftest.py`, so `numpy.conftest`, which numpy's own module list names,
 does not import. `importlib.metadata` gives each package's name, version and entry
