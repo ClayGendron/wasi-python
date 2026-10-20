@@ -221,10 +221,12 @@ CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
     ("tests/known_gaps.toml", "spec 002", JUDGE_FILE),
     ("tests/known_gaps.toml", "spec 050", JUDGE_FILE),
     ("tests/known_gaps.toml", "spec 065", JUDGE_FILE),
+    ("tests/upstream/numpy.toml", "051's", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "C1", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "spec 050", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "spec 051", JUDGE_FILE),
     ("tests/upstream/numpy.toml", "spec 091", JUDGE_FILE),
+    ("tests/upstream/packages.toml", "044's", JUDGE_FILE),
     ("tests/upstream/packages.toml", "Spec 044", JUDGE_FILE),
     ("tests/upstream/packages.toml", "context/roadmap", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 037", JUDGE_FILE),
@@ -234,11 +236,13 @@ CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
     ("tests/upstream/packages.toml", "spec 065", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 067", JUDGE_FILE),
     ("tests/upstream/packages.toml", "spec 095", JUDGE_FILE),
+    ("tests/upstream/pandas.toml", "041's", JUDGE_FILE),
     ("tests/upstream/pandas.toml", "C1", JUDGE_FILE),
     ("tests/upstream/pandas.toml", "Spec 041", JUDGE_FILE),
     ("tests/upstream/pandas.toml", "spec 039", JUDGE_FILE),
     ("tests/upstream/pandas.toml", "spec 041", JUDGE_FILE),
     ("tests/upstream/pandas.toml", "spec 050", JUDGE_FILE),
+    ("tests/upstream/python.toml", "071's", JUDGE_FILE),
     ("tests/upstream/python.toml", "Spec 071", JUDGE_FILE),
     ("tests/upstream/python.toml", "spec 065", JUDGE_FILE),
     ("tests/upstream/python.toml", "spec 074", JUDGE_FILE),
@@ -249,8 +253,8 @@ CONTEXT_CITATION_ALLOWED: tuple[tuple[str, str, str], ...] = (
 def test_code_outside_src_names_no_context_document() -> None:
     """Code speaks for itself: no comment or docstring under `tests/`, `scripts/`, `release/` or
     the workflows names a specification, the constitution's sections, a research write-up, a
-    dated review, an owner's numbered question, a path under the knowledge tree or a review
-    finding's identifier. The reason is written in words, and the documents cite the code, not
+    review, an owner's numbered question, a path under the knowledge tree or a review finding's
+    identifier. The reason is written in words, and the documents cite the code, not
     the other way round. The judge's reads of those documents are code, not prose, so they are
     not held here."""
     allowed = {(path, phrase) for path, phrase, _ in CONTEXT_CITATION_ALLOWED}

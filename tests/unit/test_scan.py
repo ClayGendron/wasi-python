@@ -2370,6 +2370,10 @@ SPEC_WORD, DOC_TREE = "sp" + "ec", "con" + "text/"
         ("the build review's F4.2 again", "finding", "F4.2"),
         ("a bare (N2) here", "finding", "N2"),
         ("the Confirmation's M5 too", "named finding", "Confirmation's M5"),
+        ("as 0" + "37's build found", "specification", "0" + "37's"),
+        ("nothing writable (§4" + ".15) here", "constitution", "§4" + ".15"),
+        ("as the pre-build re" + "view said", "review", "pre-build re" + "view"),
+        ("the re-re" + "view agreed", "review", "re-re" + "view"),
     ],
 )
 def test_a_citation_in_a_comment_or_docstring_is_a_hit(work, prose, rule, phrase) -> None:
@@ -2396,6 +2400,9 @@ def test_code_and_literals_are_not_citations(work) -> None:
     assert scan.context_citation_hits(py) == [(6, "finding", "C99")]
     sh = write(work, "s/b.sh", f'cat "$ROOT/{DOC_TREE}progress/x"\necho "{SPEC_WORD} 052"\n')
     assert scan.context_citation_hits(sh) == []
+    # A licence's sections, a graph's number and a reviewed list are not project documents.
+    words = write(work, "s/c.sh", "# Apache-2.0 §4(b); graph 100's edges; a reviewed list\n")
+    assert scan.context_citation_hits(words) == []
     assert scan.context_citation_hits(write(work, "t/c.py", "def broken(:\n")) == []
 
 
@@ -2418,3 +2425,20 @@ def test_the_citation_rule_reads_its_four_trees(work) -> None:
         "scripts/d",
         "release/e.in",
     ]
+
+
+def test_a_citation_split_across_lines_is_one_hit(work) -> None:
+    """A citation whose number falls on the next line of a docstring or a comment block is found
+    on the line it starts; a code line between two comments ends the block."""
+    py = write(
+        work,
+        "t/split.py",
+        f'"""A module that cites a\n{SPEC_WORD}\n052 here."""\n\n'
+        f"# the {SPEC_WORD}\n# 052 again\nx = 1\n# {SPEC_WORD}\ny = 2  # 052, not joined\n",
+    )
+    assert scan.context_citation_hits(py) == [
+        (2, "specification", f"{SPEC_WORD} 052"),
+        (5, "specification", f"{SPEC_WORD} 052"),
+    ]
+    sh = write(work, "s/split.sh", f"#!/bin/sh\n# see {SPEC_WORD}\n#   063, Decision 2\necho\n")
+    assert scan.context_citation_hits(sh) == [(2, "specification", f"{SPEC_WORD} 063")]

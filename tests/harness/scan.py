@@ -3109,11 +3109,24 @@ def private_api_debt_errors(adapter: Path, sheet: Path) -> list[str]:
 
 CITATION_RULES = (
     ("specification", re.compile(r"\bspec(?:ification)?s?\s+\d{3}\b", re.I)),
-    ("constitution", re.compile(r"\bconstitution\s*§", re.I)),
+    # A specification by its bare number as a possessive: three digits, the first a zero.
+    ("specification", re.compile(r"(?<![\w.$/-])0\d{2}'s\b")),
+    # The constitution's sections are numbered like 4.15; a licence's (Apache-2.0's 4(b)) are not.
+    ("constitution", re.compile(r"\bconstitution\s*§|§\s*\d+\.\d+", re.I)),
     ("memo", re.compile(r"\bmemo\b", re.I)),
     (
         "review",
         re.compile(r"\breviews?\b[\s,:(`'\"]*(?:\d{4}-\d{2}-\d{2}|[\w.-]*/(?=[\w.-]))", re.I),
+    ),
+    # A review named by its kind: the one of a build, the one before it, a security one, a
+    # second one.
+    (
+        "review",
+        re.compile(
+            r"\b(?:pre-build|build|delta|follow-up|security|integration)\s+review\b"
+            r"|\bre-review\b|\bconfirmation's",
+            re.I,
+        ),
     ),
     ("question", re.compile(r"\bquestion\s+\d+\b", re.I)),
     ("context path", re.compile(r"\bcontext/[a-z_]+")),
@@ -3132,10 +3145,26 @@ CITATION_SUFFIXES = {".py", ".sh", ".toml", ".yml", ".yaml"}
 TRAILING_COMMENT = re.compile(r"\s#\s.*$")
 
 
+def _comment_blocks(lines: Iterable[tuple[int, str, bool]]) -> list[tuple[int, str]]:
+    """Join comments into blocks: each `(line, text, whole_line)` comment that fills its line and
+    follows a whole-line comment on the line before joins that block, its `#`s dropped, so a
+    citation broken across two comment lines is read whole. A trailing comment stands alone."""
+    out: list[tuple[int, str]] = []
+    last = -1
+    for n, text, whole in lines:
+        body = text.lstrip().lstrip("#")
+        if whole and n == last + 1 and out:
+            out[-1] = (out[-1][0], out[-1][1] + "\n" + body)
+        else:
+            out.append((n, body))
+        last = n if whole else -1
+    return out
+
+
 def _python_prose(text: str) -> list[tuple[int, str]]:
-    """(line, text) of every comment and every docstring line of a Python source: comments
-    from `tokenize`, docstrings as the string tokens `ast` places first in a module, a class or
-    a function. Code and every other string literal are left out."""
+    """(first line, text) of every comment block and every docstring of a Python source:
+    comments from `tokenize`, docstrings as the string tokens `ast` places first in a module, a
+    class or a function. Code and every other string literal are left out."""
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
         tree = ast.parse(text)
@@ -3151,43 +3180,48 @@ def _python_prose(text: str) -> list[tuple[int, str]]:
                 and isinstance(first.value.value, str)
             ):
                 starts.add((first.lineno, first.col_offset))
-    out = []
-    for tok in tokens:
-        if tok.type == tokenize.COMMENT:
-            out.append((tok.start[0], tok.string))
-        elif tok.type == tokenize.STRING and tok.start in starts:
-            out += [(tok.start[0] + i, line) for i, line in enumerate(tok.string.split("\n"))]
-    return out
+    lines = text.splitlines()
+    comments = [
+        (t.start[0], t.string, not lines[t.start[0] - 1][: t.start[1]].strip())
+        for t in tokens
+        if t.type == tokenize.COMMENT
+    ]
+    docs = [
+        (t.start[0], t.string) for t in tokens if t.type == tokenize.STRING and t.start in starts
+    ]
+    return _comment_blocks(comments) + docs
 
 
 def _hash_comments(text: str) -> list[tuple[int, str]]:
-    """(line, text) of every `#` comment of a shell, TOML or YAML file, or any other text file:
-    a line that starts with `#`, or the part of a line after a ` # `."""
-    out = []
+    """(first line, text) of every `#` comment block of a shell, TOML or YAML file, or any other
+    text file: lines that start with `#`, joined while they run on, or the part of a line after a
+    ` # `."""
+    found = []
     for n, line in enumerate(text.splitlines(), 1):
         if line.lstrip().startswith("#"):
-            out.append((n, line.strip()))
+            found.append((n, line.strip(), True))
         elif m := TRAILING_COMMENT.search(line):
-            out.append((n, m[0].strip()))
-    return out
+            found.append((n, m[0].strip(), False))
+    return _comment_blocks(found)
 
 
 def context_citation_hits(path: Path) -> list[tuple[int, str, str]]:
     """(line, rule, phrase) for each citation of a project document in the comments and the
-    docstrings of one file: a specification's number, the constitution's section sign, the
-    word for a research write-up, a review followed by a date, a path or a finding, a numbered
+    docstrings of one file: a specification's number, the constitution's sections, the word for
+    a research write-up, a review named by its kind or followed by a date or a path, a numbered
     question of the owner's, a path under the knowledge tree, or a review finding's identifier.
-    A Python file is read through its tokens; any other file through its `#` comments."""
+    A Python file is read through its tokens; any other file through its `#` comments. A
+    citation broken across lines is found whole, on the line it starts, its spaces made one."""
     text = _text(path)
     if text is None:
         return []
     prose = _python_prose(text) if path.suffix == ".py" else _hash_comments(text)
-    return [
-        (n, rule, m[0])
-        for n, line in prose
+    return sorted(
+        (n + block[: m.start()].count("\n"), rule, " ".join(m[0].split()))
+        for n, block in prose
         for rule, pattern in CITATION_RULES
-        for m in pattern.finditer(line)
-    ]
+        for m in pattern.finditer(block)
+    )
 
 
 def context_citation_files(root: Path) -> list[Path]:
