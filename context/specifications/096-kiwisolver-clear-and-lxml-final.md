@@ -537,7 +537,8 @@ None blocks the build. Decided until answered:
     `test_v1_3_lxml.py::test_lxml_html_diff_imports[plain]` (701,579,788), `[snapshot]`
     (398,909,529); `test_v1_3_data_stack.py::test_type_slots_have_the_types_cpython_calls` (no
     fuel; its reason the coverage line).
-  - 096: **unit rows:** `tests/unit/test_callbacks.py` gains fifteen (the suite 1,802/1,809 in the
+  - 096: **unit rows:** `tests/unit/test_callbacks.py` gains twenty (fifteen, then five for the build
+    review's L1; the suite 1,802/1,809 in the
     fast tier).
   - 096: **retired checks:** none. **Lost passes:** none. No fuel row grew.
   - 096: **rows that grow, three, all bytes:**
