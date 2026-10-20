@@ -48,6 +48,8 @@ SOURCE_PATTERNS = {
     # tier A (spec 039): the two sdists whose pure package folders step 70 takes
     "pyyaml": re.compile(r"pyyaml-[\w.]+\.tar\.gz"),
     "markupsafe": re.compile(r"markupsafe-[\w.]+\.tar\.gz"),
+    # spec 041, Decision 4: networkx from its sdist, so its carried patch has a tree
+    "networkx": re.compile(r"networkx-[\w.]+\.tar\.gz"),
 }
 
 

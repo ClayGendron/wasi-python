@@ -1,7 +1,7 @@
 # Upstream 5: pandas' Styler from a zip archive
 
 Status: **patch drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's, in the owner's words** (pandas'
-automated contributions policy, see `pr.md`). Nothing was posted. Carried by spec 041 once built.
+automated contributions policy, see `pr.md`). Nothing was posted. Carried by spec 041 (`recipes/patches/pandas-3.0.6/`).
 
 ## How it was found
 
@@ -11,7 +11,7 @@ it a known gap with a check; spec 041 closes it with this patch.
 
 ## The fix
 
-When spec 041 is built, `fix.patch` is copied byte for byte to `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moves unchanged to `context/upstream/patches/`. This folder then keeps these notes and `evidence/`.
+Carried since spec 041 was built (2026-10-19): `fix.patch` was copied byte for byte (`cmp`) to `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moved unchanged to `context/upstream/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.md`. This folder keeps these notes and `evidence/`; the `fix.patch` named below is now that carried file.
 
 `fix.patch` (1 file, +6 −1): `StylerRenderer` keeps `FileSystemLoader` when its `templates`
 folder is a directory, and uses `jinja2.PackageLoader("pandas", "io/formats/templates")` when it

@@ -435,30 +435,3 @@ check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_host[cpython-f
 match = "1 finding(s), digest d884ec604262"
 reason = "a Windows host refuses to remove a file the guest still holds open, so tempfile's unlink-after-open fails (EACCES) or leaves the file behind (a Windows grant's rule, README: On Windows; the branch dry run 39194284100: PermissionError: [Errno 2] Permission denied: '/tmp/tmp30k2i62_')"
 closes_with = "README.md"
-
-# Tier A (spec 039, Decision 12): two calls that read a package's files by path from the zip. Spec 041
-# carries each package's one-line upstream change as a patch and closes both.
-
-[[gap]]
-check = "tests/checks/test_v1_3_default_profile.py::test_pandas_styler_renders_from_the_zip[plain]"
-match = "2 finding(s), digest 2cf3dc27c61a"
-reason = "pandas' Styler loads its templates with jinja2's FileSystemLoader on a folder inside the zip: df.style.to_html() and df.to_latex() raise TemplateNotFound for html.tpl (the memo's finding 4d)"
-closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_default_profile.py::test_networkx_atlas_reads_from_the_zip[plain]"
-match = "1 finding(s), digest e6c0905e9cce"
-reason = "networkx opens its graph atlas with gzip.open on an importlib.resources path, which inside the zip is the runtime's Traversable, not a file name: nx.graph_atlas raises TypeError"
-closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-frame-styler-templates]"
-match = "2 finding(s), digest f89301d2f31f"
-reason = "pandas' own Styler tests, run since jinja2 is in the zip (spec 039): the Styler loads its templates by path from the zip and raises TemplateNotFound"
-closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
-
-[[gap]]
-check = "tests/checks/test_v1_3_upstream_suites.py::test_upstream_class[pandas-io-formats-styler-templates]"
-match = "221 finding(s), digest cba9b5f7c560"
-reason = "the same, in pandas' formats tests (test_bar.py, test_to_latex.py and to_latex in test_format.py); eleven Styler files that stop at collection are not selected (tests/upstream/pandas.toml)"
-closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"

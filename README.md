@@ -38,7 +38,7 @@ promises.
 
 | fact | value |
 |---|---|
-| upstream patches | upstream patches carried: 8, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
+| upstream patches | upstream patches carried: 10, each with an upstream pull request drafted for the owner to send, or, for matplotlib's, already merged upstream (`recipes/patches/`); every other adaptation is a recipe file |
 | build from pinned sources, downloads present | 8 min 35 s (macOS arm64, 10 cores, with matplotlib's and lxml's steps; spec 046's landing notes, 2026-10-18) |
 | `python.wasm` / `python-snapshot.wasm` / `python-stdlib.zip` | 41.1 MB / 45.4 MB / 38.7 MB (3.15 line, with matplotlib, lxml, regex and tier A's thirty pure-Python packages, no package pre-imported; spec 039's landing notes) |
 | `import numpy` | `origin == 'built-in'`, no `.so` opened |
@@ -540,7 +540,10 @@ one, and refuses every foreign call; its `ctypes.util` answers `find_library` wi
 `dllist()` with `[]`, the truth for one statically linked module, so threadpoolctl finds no native
 thread pools instead of trying to load a library (spec 039). The stdlib zip also carries each package's `METADATA` (and a
 wheel's `entry_points.txt`): a wheel's own, and numpy's and pandas' from their pinned sdists'
-`PKG-INFO`.
+`PKG-INFO`. A pure-Python package that needs a carried patch comes from its pinned sdist, never
+from a patched wheel: networkx's package folder is staged from its sdist and patched there, and
+its `METADATA` and `entry_points.txt` are the sdist's `PKG-INFO` and `.egg-info/entry_points.txt`,
+byte for byte its wheel's (spec 041).
 
 One host input is not pinned: the native C compiler and `make` that CPython's
 driver uses to build its own build-Python. Nothing it compiles is linked into
@@ -2072,14 +2075,12 @@ writable stays the default (decision 46).
 - networkx's algorithms that need scipy (`pagerank`, the spectral and linear-algebra ones)
   raise `ModuleNotFoundError` for scipy until scipy is built in, as natively without it.
   `import networkx` reads every distribution's entry points.
-- **Two known gaps until spec 041,** each a package reading its own files by path from the zip:
-  pandas' Styler (`df.style`, and so `df.to_latex()`) raises `jinja2.TemplateNotFound`, and
-  networkx's graph atlas (`nx.graph_atlas`, `nx.graph_atlas_g`) raises `TypeError`.
-  `df.to_html()` and `df.to_markdown()` work. With jinja2 present, `.style` raises
-  `TemplateNotFound`, which is a `LookupError`, not the `AttributeError` pandas raises without
-  jinja2, so probing for it raises too: `hasattr(df, "style")`, `getattr(df, "style", None)` and
-  `inspect.getmembers(df)` raise `TemplateNotFound` until spec 041 (`"style" in dir(df)` is
-  `True`).
+- pandas' Styler and networkx's graph atlas read their own files from the zip, with native
+  Python's output: `df.style` and its `to_html`, `to_latex`, `to_string` and `to_typst`,
+  `df.to_latex()`, `Styler.from_custom_template` on a granted folder whose template extends a
+  built-in one, and `nx.graph_atlas`, `nx.graph_atlas_g`. Each package found its files by path,
+  which a zip does not have; each carries a few-line upstream fix as a patch until upstream
+  releases it (spec 041: `recipes/patches/pandas-3.0.6/`, `recipes/patches/networkx-3.7/`).
 - Some calls run code that comes in their input, as they do natively: `yaml.unsafe_load` (and
   `yaml.load` with an unsafe loader), `sympy.sympify` on a string, a plain jinja2 `Environment`'s
   templates, and `pickle`, `cloudpickle.loads` and `joblib.load`. Inside the guest that code has
@@ -3193,8 +3194,8 @@ thirty pure-Python packages (spec 039; *What the default profile carries*).
 
 **Out, with the one fact that decides each:** matplotlib's Delaunay triangulation
 (`_qhull` needs a second carried patch, for a writable `/dev/null`) and `contour`
-(contourpy's own build), both its next milestone; seaborn and reportlab (spec 042); pandas'
-Styler and networkx's graph atlas from the zip (spec 041); pytz (decision 47: `zoneinfo` on the
+(contourpy's own build), both its next milestone; seaborn and reportlab (spec 042); pytz
+(decision 47: `zoneinfo` on the
 zip's tzdata is the route); pre-importing any package in the snapshot
 (decision 34: the default snapshot pre-imports none; a `full` profile, its own artifact set,
 only if an embedder asks); scipy (Fortran: f2c as Pyodide does; months);

@@ -2,7 +2,7 @@
 
 Status: **patch and test drafted; `pr.md` is a facts sheet, and anything filed upstream is the owner's, in the owner's words**
 (networkx's automated contributions policy, see `pr.md`). Nothing was posted. Carried by spec 041
-once built.
+(`recipes/patches/networkx-3.7/`).
 
 ## How it was found
 
@@ -11,7 +11,7 @@ it a known gap with a check; spec 041 closes it with this patch.
 
 ## The fix
 
-When spec 041 is built, `fix.patch` is copied byte for byte to `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moves unchanged to `context/upstream/patches/`. This folder then keeps these notes and `evidence/`.
+Carried since spec 041 was built (2026-10-19): `fix.patch` was copied byte for byte (`cmp`) to `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` and removed from this folder, and `pr.md` (a facts sheet, question 80) moved unchanged to `context/upstream/patches/networkx-3.7/0001-graph-atlas-from-a-zip.md`. This folder keeps these notes and `evidence/`; the `fix.patch` named below is now that carried file.
 
 `fix.patch` (2 files, +16 −1): `_generate_graphs` opens `ATLAS_FILE` with its own `open("rb")`
 and hands the file object to `gzip.open`; `test_atlas_file_in_a_zip` reads the atlas through a

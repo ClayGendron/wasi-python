@@ -94,7 +94,8 @@ WHEELS = {
     "pyparsing": "pyparsing-3.3.3-py3-none-any.whl",
     "packaging": "packaging-26.3-py3-none-any.whl",
     "fonttools": "fonttools-4.67.0-py3-none-any.whl",
-    # tier A (spec 039, Decision 8): the 28 wheels; pyyaml and markupsafe are sdists
+    # tier A (spec 039, Decision 8): the 27 wheels; pyyaml, markupsafe and networkx are sdists
+    # (networkx's since spec 041, Decision 4, so that its carried patch has a tree to apply to)
     "openpyxl": "openpyxl-3.1.5-py2.py3-none-any.whl",
     "et-xmlfile": "et_xmlfile-2.0.0-py3-none-any.whl",
     "xlsxwriter": "xlsxwriter-3.2.9-py3-none-any.whl",
@@ -110,7 +111,6 @@ WHEELS = {
     "jinja2": "jinja2-3.1.6-py3-none-any.whl",
     "tabulate": "tabulate-0.10.0-py3-none-any.whl",
     "charset-normalizer": "charset_normalizer-3.5.2-py3-none-any.whl",
-    "networkx": "networkx-3.7-py3-none-any.whl",
     "patsy": "patsy-1.0.3-py2.py3-none-any.whl",
     "sympy": "sympy-1.14.0-py3-none-any.whl",
     "mpmath": "mpmath-1.3.0-py3-none-any.whl",
@@ -431,11 +431,13 @@ def main() -> None:
             ("regex, as this build compiles it", modified_notice(root, "regex-2026.9.29")),
         ],
         **{pkg: wheel_licences(d / wheel) for pkg, wheel in WHEELS.items()},
-        # spec 039, Decision 8: the two sdists' notices from their trees
+        # spec 039, Decision 8: the sdists' notices from their trees
         "pyyaml": [("PyYAML LICENSE", (b / "pyyaml-6.0.3" / "LICENSE").read_bytes())],
         "markupsafe": [
             ("MarkupSafe LICENSE.txt", (b / "markupsafe-3.0.4" / "LICENSE.txt").read_bytes())
         ],
+        # spec 041, Decision 6: networkx from its sdist, its notice from its tree
+        "networkx": [("NetworkX LICENSE.txt", (b / "networkx-3.7" / "LICENSE.txt").read_bytes())],
         "wasi-libc": [(name, (d / name).read_bytes()) for name in WASI_LIBC],
         "llvm-runtimes": [(name, (d / name).read_bytes()) for name in LLVM],
     }

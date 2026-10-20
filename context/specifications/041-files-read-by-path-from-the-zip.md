@@ -1,6 +1,6 @@
 # 041 — Files read by path from the zip
 
-- **Status:** **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
+- **Status:** **being built** 2026-10-19 on `spec/041-files-read-by-path-from-the-zip`, a **stacked build** (constitution §4.14, the owner, 2026-10-19) on base commit `dcd94ff`, spec 039's reviewed tip, which is built and reviewed but not yet landed; when 039 lands, this branch is rebased onto main and gets a delta review of what the rebase changed (Landing notes). Not reviewed, not accepted. **Spec 051's callback scan binds this build** (051, Decision 4a; written in when 051 landed): `test_callbacks_have_the_types_cpython_calls` is green, and a mismatch it finds is fixed by a carried patch or an upstream release, never by an exclusion. drafted 2026-10-17. Revised the same day against its pre-build review
   (`../reviews/041-files-read-by-path-from-the-zip-spec-2026-10-17.md`). All nine findings are
   written in here and in the two upstream folders, and the review's Disposition says where. The
   review's confirmation passed it for build with two conditions, written in: C1, the landing
@@ -27,7 +27,7 @@
   additions and changes (one golden job, the two known-gap checks of spec 039 widened and their
   gaps removed, one unit check, the source-tree patterns); the release workflow's tree count;
   `README.md`, `CHANGELOG.md`.
-- **Depends on:** 039 (tier A, not yet built), which brings jinja2 and networkx, the two
+- **Depends on:** 039 (tier A; built and reviewed, not yet landed: this is built on its reviewed tip `dcd94ff`), which brings jinja2 and networkx, the two
   known-gap checks this closes, the staging folder `build/pure-install/` and networkx's wheel pin
   this replaces. Through 039: 033 (`make_stdlib_zip.py --metadata`, `tree_members`), 035 (the
   zip's own `Traversable`) and 023. Landed: 020 (carried patches: the applier, the tree check,

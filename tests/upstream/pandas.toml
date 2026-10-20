@@ -1,7 +1,10 @@
 # pandas' own tests in the guest (spec 050). A judge file: every edit is a judge change.
 # The keys are numpy.toml's. `support` names files staged for import but not collected: tests in
 # two groups import pandas.tests.extension.decimal (groupby/aggregate/test_other.py,
-# reshape/concat/test_concat.py).
+# reshape/concat/test_concat.py). The Styler's eight templates are staged where pandas' own tests
+# read them by path, beside the tests as in pandas' source tree (style/test_html.py's `env`
+# fixture and `test_html_template_extends_options`; spec 041): the product reads its own copies
+# from the zip, through the carried patch.
 
 package = "pandas"
 marker = "not slow and not network and not db"
@@ -13,6 +16,14 @@ support = [
     "pandas/tests/extension/__init__.py",
     "pandas/tests/extension/decimal/__init__.py",
     "pandas/tests/extension/decimal/array.py",
+    "pandas/io/formats/templates/html.tpl",
+    "pandas/io/formats/templates/html_style.tpl",
+    "pandas/io/formats/templates/html_table.tpl",
+    "pandas/io/formats/templates/latex.tpl",
+    "pandas/io/formats/templates/latex_longtable.tpl",
+    "pandas/io/formats/templates/latex_table.tpl",
+    "pandas/io/formats/templates/string.tpl",
+    "pandas/io/formats/templates/typst.tpl",
 ]
 
 [groups.pandas-frame]
@@ -33,7 +44,7 @@ fuel = 135_000_000_000
 
 [groups.pandas-io-formats]
 paths = ["pandas/tests/io/formats"]
-fuel = 82_000_000_000
+fuel = 120_000_000_000
 
 [groups.pandas-tslibs]
 paths = ["pandas/tests/tslibs"]
@@ -46,27 +57,6 @@ fuel = 28_000_000_000
 [groups.pandas-libs]
 paths = ["pandas/tests/libs"]
 fuel = 35_000_000_000
-
-# pandas' Styler tests, which run once jinja2 is in the zip (spec 039). Each of these files makes a
-# Styler as it is imported, and the Styler loads its templates by path from the zip, so the file
-# stops at collection with TemplateNotFound, and with it the whole group: left out until spec 041
-# reads them from the zip.
-[[not_selected]]
-files = [
-    "pandas/tests/io/formats/style/test_exceptions.py",
-    "pandas/tests/io/formats/style/test_format.py",
-    "pandas/tests/io/formats/style/test_highlight.py",
-    "pandas/tests/io/formats/style/test_html.py",
-    "pandas/tests/io/formats/style/test_matplotlib.py",
-    "pandas/tests/io/formats/style/test_non_unique.py",
-    "pandas/tests/io/formats/style/test_style.py",
-    "pandas/tests/io/formats/style/test_to_latex.py",
-    "pandas/tests/io/formats/style/test_to_string.py",
-    "pandas/tests/io/formats/style/test_to_typst.py",
-    "pandas/tests/io/formats/style/test_tooltip.py",
-]
-reason = "pandas' Styler loads its templates (html.tpl) with jinja2's FileSystemLoader by path from the zip: each file raises TemplateNotFound at collection"
-closes_with = "context/specifications/041-files-read-by-path-from-the-zip.md"
 
 # The classes of known failures (Decision 10): a failed or errored test goes to the first class
 # of its group whose outcome and `match` (a regular expression searched in the one-line reason)
@@ -131,8 +121,9 @@ reason = 'no processes: subprocess is unavailable on WASI'
 closes_with = "README.md"
 
 # pandas' Styler, and `to_latex`, which renders through it (spec 039): the tests that import
-# jinja2 ran as skips before it was in the zip. They fail where the Styler loads its templates by
-# path from the zip, until spec 041 reads them from the zip.
+# jinja2 ran as skips before it was in the zip, and failed where the Styler loaded its templates
+# by path from the zip. Spec 041's carried patch reads them from the zip and emptied both classes;
+# its eleven Styler files that stopped at collection are selected again.
 
 [[expected]]
 id = "styler-templates"

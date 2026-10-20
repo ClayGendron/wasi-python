@@ -64,7 +64,7 @@ PIN_FILES = {
     "markupsafe-3.0.4.tar.gz": b"markupsafe pin",
     "tabulate-0.10.0-py3-none-any.whl": b"tabulate pin",
     "charset_normalizer-3.5.2-py3-none-any.whl": b"charset-normalizer pin",
-    "networkx-3.7-py3-none-any.whl": b"networkx pin",
+    "networkx-3.7.tar.gz": b"networkx pin",
     "patsy-1.0.3-py2.py3-none-any.whl": b"patsy pin",
     "sympy-1.14.0-py3-none-any.whl": b"sympy pin",
     "mpmath-1.3.0-py3-none-any.whl": b"mpmath pin",

@@ -159,6 +159,7 @@ SOURCE_COMPONENTS = (
     "lxml",
     "pyyaml",
     "markupsafe",
+    "networkx",
 )
 
 VOCABULARY: dict[str, Need] = {

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import types
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -215,6 +216,31 @@ def test_an_sdists_pkg_info_becomes_metadata(tmp_path) -> None:
             make_stdlib_zip.sdist_metadata(bad)
         line = str(stop.value)
         assert str(bad) in line and "\n" not in line, f"{case}: {line!r}"
+
+
+def test_an_sdists_entry_points_go_beside_its_metadata(tmp_path, monkeypatch) -> None:
+    """`--entry-points` packs the file, bytes unchanged, in the folder `--metadata` names for the
+    same PKG-INFO; one whose folder has no METADATA member stops in one line naming both files,
+    matched by the computed folder, however the PKG-INFO path is spelled (spec 041, Decision 5).
+    The origins are built as main builds them: each member's input, as given."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "x").mkdir()
+    pkg_info = tmp_path / "x" / "PKG-INFO"
+    text = b"Metadata-Version: 2.1\nName: Some.Pkg\nVersion: 1.0\n\nbody\n"
+    pkg_info.write_bytes(text)
+    entry = tmp_path / "x" / "entry_points.txt"
+    entry.write_bytes(b"[some.group]\nname = some_pkg.mod:thing\n")
+    data, metadata = make_stdlib_zip.sdist_metadata(Path("x/PKG-INFO"))
+    assert (data, metadata) == (text, "some_pkg-1.0.dist-info/METADATA")
+    for spelled in ("x/PKG-INFO", "./x/PKG-INFO", "x/../x/PKG-INFO", str(pkg_info)):
+        got = make_stdlib_zip.sdist_entry_points(Path(spelled), entry)
+        assert got == (entry.read_bytes(), "some_pkg-1.0.dist-info/entry_points.txt")
+        placed = [(Path(spelled), entry, got[1])]
+        make_stdlib_zip.check_entry_points({metadata: str(Path("x/PKG-INFO"))}, placed)
+        with pytest.raises(SystemExit) as stop:
+            make_stdlib_zip.check_entry_points({"other-1.0.dist-info/METADATA": "y"}, placed)
+        line = str(stop.value)
+        assert str(Path(spelled)) in line and str(entry) in line and "\n" not in line, line
 
 
 def test_a_tree_with_package_metadata_stops_the_zip(tmp_path) -> None:

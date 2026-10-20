@@ -1,0 +1,165 @@
+versions pandas=3.0.6 jinja2=3.1.6 networkx=3.7
+--- df.style.to_html() (1037 characters)
+<style type="text/css">
+#T_job_row1_col0, #T_job_row2_col1 {
+  background-color: red;
+}
+</style>
+<table id="T_job">
+  <thead>
+    <tr>
+      <th class="blank level0" >&nbsp;</th>
+      <th id="T_job_level0_col0" class="col_heading level0 col0" >a</th>
+      <th id="T_job_level0_col1" class="col_heading level0 col1" >b</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th id="T_job_level0_row0" class="row_heading level0 row0" >r1</th>
+      <td id="T_job_row0_col0" class="data row0 col0" >1.50</td>
+      <td id="T_job_row0_col1" class="data row0 col1" >x</td>
+    </tr>
+    <tr>
+      <th id="T_job_level0_row1" class="row_heading level0 row1" >r2</th>
+      <td id="T_job_row1_col0" class="data row1 col0" >2.25</td>
+      <td id="T_job_row1_col1" class="data row1 col1" ><y></td>
+    </tr>
+    <tr>
+      <th id="T_job_level0_row2" class="row_heading level0 row2" >r3</th>
+      <td id="T_job_row2_col0" class="data row2 col0" >nan</td>
+      <td id="T_job_row2_col1" class="data row2 col1" >z</td>
+    </tr>
+  </tbody>
+</table>
+--- df.to_latex() (137 characters)
+\begin{tabular}{lrl}
+\toprule
+ & a & b \\
+\midrule
+r1 & 1.500000 & x \\
+r2 & 2.250000 & <y> \\
+r3 & NaN & z \\
+\bottomrule
+\end{tabular}
+--- df.style.to_latex() (262 characters)
+\begin{longtable}{lrl}
+\caption{A caption} \\
+ & a & b \\
+\endfirsthead
+\caption[]{A caption} \\
+ & a & b \\
+\endhead
+\multicolumn{3}{r}{Continued on next page} \\
+\endfoot
+\endlastfoot
+r1 & 1.500000 & x \\
+r2 & 2.250000 & <y> \\
+r3 & nan & z \\
+\end{longtable}
+--- df.style.to_string() (44 characters)
+ a b
+r1 1.500000 x
+r2 2.250000 <y>
+r3 nan z
+--- df.style.to_typst() (112 characters)
+#table(
+  columns: 3,
+  [], [a], [b],
+
+  [r1], [1.500000], [x],
+  [r2], [2.250000], [<y>],
+  [r3], [nan], [z],
+)
+--- from_custom_template (1088 characters)
+<style type="text/css">
+</style>
+
+<p>mine</p>
+
+<table id="T_custom">
+
+
+
+
+
+  <thead>
+
+
+
+    <tr>
+
+
+
+      <th class="blank level0" >&nbsp;</th>
+
+
+
+      <th id="T_custom_level0_col0" class="col_heading level0 col0" >a</th>
+
+
+
+      <th id="T_custom_level0_col1" class="col_heading level0 col1" >b</th>
+
+
+
+    </tr>
+
+
+
+  </thead>
+
+
+  <tbody>
+
+
+
+    <tr>
+
+
+      <th id="T_custom_level0_row0" class="row_heading level0 row0" >r1</th>
+
+      <td id="T_custom_row0_col0" class="data row0 col0" >1.500000</td>
+
+      <td id="T_custom_row0_col1" class="data row0 col1" >x</td>
+
+
+    </tr>
+
+
+
+    <tr>
+
+
+      <th id="T_custom_level0_row1" class="row_heading level0 row1" >r2</th>
+
+      <td id="T_custom_row1_col0" class="data row1 col0" >2.250000</td>
+
+      <td id="T_custom_row1_col1" class="data row1 col1" ><y></td>
+
+
+    </tr>
+
+
+
+    <tr>
+
+
+      <th id="T_custom_level0_row2" class="row_heading level0 row2" >r3</th>
+
+      <td id="T_custom_row2_col0" class="data row2 col0" >nan</td>
+
+      <td id="T_custom_row2_col1" class="data row2 col1" >z</td>
+
+
+    </tr>
+
+
+
+  </tbody>
+
+</table>
+
+--- nx.graph_atlas(100)
+G100 [(0, 1), (0, 2), (0, 3), (3, 4), (3, 5), (4, 5)]
+--- nx.graph_atlas_g()
+1253 12342

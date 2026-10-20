@@ -2,6 +2,7 @@
 
     make_stdlib_zip.py --lib <CPython Lib/> [--tree <dir whose children go to the zip root>]...
         [--wheel <pinned wheel>]... [--metadata <an sdist's PKG-INFO>]...
+        [--entry-points <an sdist's PKG-INFO> <its entry_points.txt>]...
         [--file <source>=<name in zip>]... [--skip <top-level name>]...
         [--drop <folder in zip>]... [--keep <folder in zip>=<file>,<file>...]...
         [--inner <folder in zip>]...
@@ -43,6 +44,9 @@ Package metadata (spec 033): a wheel keeps two files of its .dist-info, METADATA
 entry_points.txt, bytes unchanged; a package built from its sdist gets that sdist's PKG-INFO as
 <name>-<version>.dist-info/METADATA (--metadata). A tree never brings metadata of its own: walk
 skips every .dist-info and .egg-info folder, and a tree with one at its top stops the build.
+`--entry-points <PKG-INFO> <file>` (spec 041, Decision 5) packs an sdist's entry_points.txt,
+bytes unchanged, beside that PKG-INFO's METADATA, in the folder sdist_metadata names; once every
+input is gathered, an entry-points file whose folder has no METADATA member stops the build.
 """
 
 from __future__ import annotations
@@ -157,6 +161,27 @@ def sdist_metadata(path: Path) -> tuple[bytes, str]:
         raise SystemExit(f"{path}: needs exactly one Name: and one Version: header")
     name = re.sub(r"[-_.]+", "_", found["Name"][0]).lower()
     return data, f"{name}-{found['Version'][0]}.dist-info/METADATA"
+
+
+def sdist_entry_points(pkg_info: Path, path: Path) -> tuple[bytes, str]:
+    """An sdist's entry_points.txt, bytes unchanged, and its member: entry_points.txt in the
+    .dist-info folder sdist_metadata names for the same PKG-INFO (spec 041, Decision 5)."""
+    _, metadata = sdist_metadata(pkg_info)
+    return path.read_bytes(), metadata.rpartition("/")[0] + "/entry_points.txt"
+
+
+def check_entry_points(origins: dict[str, str], placed: list[tuple[Path, Path, str]]) -> None:
+    """Stop, in one line naming both files, when an entry-points member (pkg_info, file, member)
+    has no METADATA beside it. `origins` maps each member gathered to the input it came from; the
+    folder is matched by its computed name, never by how either PKG-INFO path was spelled, so an
+    entry-points file never goes into a folder without its METADATA."""
+    for pkg_info, path, name in placed:
+        folder = name.rpartition("/")[0]
+        if f"{folder}/METADATA" not in origins:
+            raise SystemExit(
+                f"--entry-points {pkg_info} {path}: no {folder}/METADATA member "
+                "(give the same PKG-INFO with --metadata)"
+            )
 
 
 def pyc(source: bytes, name: str) -> bytes:
@@ -316,6 +341,7 @@ def main() -> None:
     ap.add_argument("--tree", action="append", default=[], type=Path)
     ap.add_argument("--wheel", action="append", default=[], type=Path)
     ap.add_argument("--metadata", action="append", default=[], type=Path)
+    ap.add_argument("--entry-points", action="append", default=[], nargs=2, type=Path)
     ap.add_argument("--file", action="append", default=[])
     ap.add_argument("--skip", action="append", default=[])
     ap.add_argument("--replace", action="append", default=[])
@@ -340,6 +366,7 @@ def main() -> None:
     rewritten: set[str] = set()
 
     entries: dict[str, bytes] = {}
+    origins: dict[str, str] = {}
     chosen = Selection(a.drop, a.keep, a.inner)
 
     def add(data: bytes, name: str, origin: str) -> None:
@@ -358,6 +385,7 @@ def main() -> None:
         if name in entries:
             raise SystemExit(f"{name} comes from two inputs (the second: {origin})")
         entries[name] = data
+        origins[name] = origin
 
     for data, name in walk(a.lib, frozenset(a.skip)):
         add(data, name, str(a.lib))
@@ -370,9 +398,15 @@ def main() -> None:
     for path in a.metadata:
         data, name = sdist_metadata(path)
         add(data, name, str(path))
+    placed: list[tuple[Path, Path, str]] = []
+    for pkg_info, path in a.entry_points:
+        data, name = sdist_entry_points(pkg_info, path)
+        add(data, name, str(path))
+        placed.append((pkg_info, path, name))
     for spec in a.file:
         src, _, name = spec.partition("=")
         add(Path(src).read_bytes(), name, src)
+    check_entry_points(origins, placed)
 
     chosen.check()
     for folder, files in chosen.packed.items():

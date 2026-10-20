@@ -1,8 +1,8 @@
 """v1.3: the default profile's pure-Python packages, tier A (spec 039). Each family's golden job
 prints native Python's output in the guest; pyyaml, markupsafe and charset-normalizer run their
 pure-Python paths, as nothing native of theirs is in the zip; threadpoolctl finds no native thread
-pools, which is the truth on wasm32-wasi. Two calls that read files by path from the zip are known
-gaps until spec 041."""
+pools, which is the truth on wasm32-wasi. pandas' Styler and networkx's graph atlas read their own
+files from the zip through spec 041's two carried patches, with native Python's output."""
 
 from __future__ import annotations
 
@@ -21,6 +21,15 @@ FAMILIES = ("excel", "pdf", "markup", "text_formats", "modelling", "symbolic", "
 def _job(guest, job: str) -> None:
     why = jobs.compare(jobs.expected_path(job).read_bytes(), jobs.run_in_guest(guest, job))
     assert why is None, f"{job}: {why}"
+
+
+@pytest.mark.slow
+def test_files_from_the_zip_job_matches_native(guest) -> None:
+    """pandas' Styler renders HTML, LaTeX, text, Typst and a custom template, and networkx reads
+    its graph atlas, from the zip, as native Python does with the files on disk (spec 041,
+    Decision 7). Equal output shows the patches change no result on these calls; the Styler check
+    below shows the patched branch served them."""
+    _job(guest, "files_from_the_zip")
 
 
 @pytest.mark.slow
@@ -141,8 +150,8 @@ def test_threadpoolctl_finds_no_native_pools(guest, which) -> None:
     assert json.loads(r.text) == want
 
 
-def _findings(guest, which: str, program: str) -> list[str]:
-    r = guest(which, ["-c", program])
+def _findings(guest, which: str, program: str, **kw) -> list[str]:
+    r = guest(which, ["-c", program], **kw)
     assert r.exit_code == 0, r.describe()
     return json.loads(r.text)
 
@@ -167,17 +176,37 @@ import pandas as pd
 df = pd.DataFrame({"a": [1, 2], "b": [0.5, 1.5]})
 attempt("df.style.to_html()", lambda: df.style.to_html())
 attempt("df.to_latex()", lambda: df.to_latex())
+attempt("df.style.to_string()", lambda: df.style.to_string())
+attempt("df.style.to_typst()", lambda: df.style.to_typst())
+
+def custom():
+    from pandas.io.formats.style import Styler
+    Mine = Styler.from_custom_template("/data", html_table="mine.tpl")
+    if "<p>mine</p>" not in Mine(df).to_html():
+        raise AssertionError("the custom template did not render")
+
+attempt("from_custom_template", custom)
+
+def loader():
+    from pandas.io.formats.style_render import StylerRenderer
+    name = type(StylerRenderer.loader).__name__
+    if name != "PackageLoader":
+        raise AssertionError(f"the loader is {name}")
+
+attempt("StylerRenderer", loader)
 print(json.dumps(findings))
 """
 )
+MINE = b'{% extends "html_table.tpl" %}{% block table %}<p>mine</p>{{ super() }}{% endblock %}'
 
 
-@pytest.mark.parametrize("which", ["plain"])
+@BINARY
 def test_pandas_styler_renders_from_the_zip(guest, which) -> None:
-    """A known gap until spec 041: pandas' Styler loads its templates with jinja2's
-    FileSystemLoader on a folder inside the zip, so `df.style` and `df.to_latex()` raise
-    TemplateNotFound (Decision 12; the memo's finding 4d)."""
-    findings = _findings(guest, which, STYLER)
+    """pandas' Styler loads its templates from the zip: `df.style` to HTML, text and Typst,
+    `df.to_latex()`, and a custom template in a granted folder that extends a built-in one, with
+    jinja2's PackageLoader, the carried patch's branch for templates that are not a folder (spec
+    041, Decisions 2 and 7). Without the patch, importing the Styler raises TemplateNotFound."""
+    findings = _findings(guest, which, STYLER, files={"/data/mine.tpl": MINE})
     assert not findings, scan.report(findings)
 
 
@@ -186,15 +215,16 @@ ATLAS = (
     + """
 import networkx as nx
 attempt("nx.graph_atlas(100)", lambda: nx.graph_atlas(100))
+attempt("nx.graph_atlas_g()", lambda: nx.graph_atlas_g())
 print(json.dumps(findings))
 """
 )
 
 
-@pytest.mark.parametrize("which", ["plain"])
+@BINARY
 def test_networkx_atlas_reads_from_the_zip(guest, which) -> None:
-    """A known gap until spec 041: networkx opens its graph atlas with `gzip.open` on an
-    `importlib.resources` path, which inside a zip is a Traversable, not a file name (Decision
-    9)."""
+    """networkx opens its graph atlas resource and decompresses the stream, the carried patch, so
+    `graph_atlas` and `graph_atlas_g` read it from the zip (spec 041, Decisions 3 and 7). Without
+    the patch, `gzip.open` refuses the zip's Traversable with TypeError (spec 039, Decision 9)."""
     findings = _findings(guest, which, ATLAS)
     assert not findings, scan.report(findings)

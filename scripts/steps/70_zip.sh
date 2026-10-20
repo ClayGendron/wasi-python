@@ -16,11 +16,13 @@
 # sphinxext folders, and every tests/ folder stay out; its mpl-data goes in as one member, an inner
 # archive the runner extracts and grants at the path matplotlib computes (Decision 5). lxml (spec
 # 046): its Python package from step 54 without isoschematron, whose stand-in takes its place
-# (Decision 8), and its METADATA from the pinned sdist. Tier A (spec 039, Decision 4): twenty-eight
-# pure wheels, and the pure package folders of pyyaml's and markupsafe's sdists (they publish no
-# pure wheel), each unpacked from its pin, given its carried patches (none today), and staged under
-# build/pure-install/, since both sdists keep an .egg-info beside the package, which the zip refuses
-# at a tree's top; their METADATA is their PKG-INFO.
+# (Decision 8), and its METADATA from the pinned sdist. Tier A (spec 039, Decision 4): twenty-seven
+# pure wheels, and the pure package folders of pyyaml's, markupsafe's and networkx's sdists, each
+# unpacked from its pin, given its carried patches, and staged under build/pure-install/, since
+# each sdist keeps an .egg-info beside the package, which the zip refuses at a tree's top; their
+# METADATA is their PKG-INFO. pyyaml and markupsafe publish no pure wheel; networkx does, but a
+# wheel is never patched, so a pure package that needs a carried patch comes from its sdist (spec
+# 041, Decision 4), and its entry_points.txt rides beside its METADATA (--entry-points).
 set -eu
 . "$(dirname "$0")/common.sh"
 
@@ -45,8 +47,8 @@ for dir in "$CP"/cross-build/*; do
 done
 [ -n "$BUILD_PYTHON" ] || die "no build-Python under $CP/cross-build"
 TRIPLE=$(basename "$(dirname "$BUILD_PYTHON")")
-remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/pure-install"
-for sdist in pyyaml-6.0.3 markupsafe-3.0.4; do
+remove "$B/pyyaml-6.0.3" "$B/markupsafe-3.0.4" "$B/networkx-3.7" "$B/pure-install"
+for sdist in pyyaml-6.0.3 markupsafe-3.0.4 networkx-3.7; do
   tar -xzf "$(pinned "$sdist.tar.gz")" -C "$B"
   [ -d "$B/$sdist" ] || die "the pinned tarball did not unpack to build/$sdist"
   patch_tree "$B/$sdist"
@@ -54,6 +56,7 @@ done
 mkdir -p "$B/pure-install"
 cp -R "$B/pyyaml-6.0.3/lib/yaml" "$B/pure-install/yaml"
 cp -R "$B/markupsafe-3.0.4/src/markupsafe" "$B/pure-install/markupsafe"
+cp -R "$B/networkx-3.7/networkx" "$B/pure-install/networkx"
 mkdir -p "$OUT"
 host_from_source
 PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
@@ -89,7 +92,6 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --wheel "$(pinned tabulate-0.10.0-py3-none-any.whl)" \
   --wheel "$(pinned charset_normalizer-3.5.2-py3-none-any.whl)" \
   --wheel "$(pinned xmltodict-1.0.4-py3-none-any.whl)" \
-  --wheel "$(pinned networkx-3.7-py3-none-any.whl)" \
   --wheel "$(pinned sympy-1.14.0-py3-none-any.whl)" \
   --wheel "$(pinned mpmath-1.3.0-py3-none-any.whl)" \
   --wheel "$(pinned patsy-1.0.3-py2.py3-none-any.whl)" \
@@ -111,6 +113,8 @@ PYTHONHASHSEED=0 "$HOSTPY" "$HERE/scripts/make_stdlib_zip.py" \
   --metadata "$B/regex-2026.9.29/PKG-INFO" \
   --metadata "$B/pyyaml-6.0.3/PKG-INFO" \
   --metadata "$B/markupsafe-3.0.4/PKG-INFO" \
+  --metadata "$B/networkx-3.7/PKG-INFO" \
+  --entry-points "$B/networkx-3.7/PKG-INFO" "$B/networkx-3.7/networkx.egg-info/entry_points.txt" \
   --keep "matplotlib/backends=$BACKENDS" \
   --drop matplotlib/testing \
   --drop matplotlib/sphinxext \

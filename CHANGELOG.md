@@ -117,6 +117,21 @@ release` dates it and tags the release (context/specifications/004-alpha-release
   pickle run code from their input inside the guest, as natively; the safe forms refuse. `pd.read_html` of a GB18030
   page whose tables lxml cannot read now falls back to bs4 and raises `UnicodeDecodeError`
   (`ImportError` before).
+- **Fixed: pandas' Styler and networkx's graph atlas read their files from the zip** (spec 041).
+  `df.style` (to HTML, LaTeX, text and Typst), `df.to_latex()`, `Styler.from_custom_template`
+  and `nx.graph_atlas`, `nx.graph_atlas_g` work, with native Python's output, where they raised
+  `TemplateNotFound` and `TypeError`; `hasattr(df, "style")`, `getattr(df, "style", None)` and
+  `inspect.getmembers(df)` work again. Two carried patches, each an upstream bug in any Python
+  that imports the package from a zip, with a facts sheet drafted for the owner under
+  `context/upstream/patches/`: `recipes/patches/pandas-3.0.6/0001-styler-templates-from-a-zip.patch`
+  (jinja2's `PackageLoader` when the templates folder is not a directory) and
+  `recipes/patches/networkx-3.7/0001-graph-atlas-from-a-zip.patch` (open the atlas resource,
+  then decompress the stream).
+- **Changed: networkx is built from its sdist** (spec 041), pinned in place of its wheel, so its
+  carried patch has a source tree: its package folder, `METADATA` and `entry_points.txt` are the
+  wheel's byte for byte, but for `networkx/conftest.py`, pytest's configuration, which the zip no
+  longer holds. `make_stdlib_zip.py --entry-points` packs an sdist's `entry_points.txt` beside
+  its `METADATA`.
 
 ## 0.1.0a7 — 2026-10-19
 

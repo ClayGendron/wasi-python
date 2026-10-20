@@ -1,2 +1,0 @@
-pandas/tests/frame/test_api.py::TestDataFrameMisc::test_inspect_getmembers
-pandas/tests/frame/test_repr.py::TestDataFrameRepr::test_latex_repr

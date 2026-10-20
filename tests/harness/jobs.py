@@ -50,6 +50,8 @@ JOBS = (
     "modelling",
     "symbolic",
     "utilities",
+    # The files two packages read by path, from the zip (spec 041, Decision 7)
+    "files_from_the_zip",
 )
 # Jobs whose native output may differ off the platform that recorded them (spec 023, Decision 8):
 # native matplotlib's pixels may move by platform (its own tests allow it in 61 places), while the
